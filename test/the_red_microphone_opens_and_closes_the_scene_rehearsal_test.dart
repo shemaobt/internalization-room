@@ -9,20 +9,19 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
-import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
+import 'a_scene_room.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart'
     show byLabel, enterThePassage, relaunch, settle, stateReads;
 
 const _session = 'sessao-1';
-const _articulation = Moment(at: MomentAt.articulation, part: 1, parts: 3);
 const _placesUnknownLine =
     'as frases já traduzidas não estão neste computador — toquem em terminei '
     'para enviar, ou recomecem a tradução';
@@ -96,7 +95,7 @@ Future<(SalaHarness, ProviderContainer)> _inArticulation(
 }) async {
   final harness = SalaHarness(watchesWithoutAHalt: watching)
     ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
-    ..room.nextMoment = _articulation;
+    ..room.nextMoment = articulation;
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final notifier = container.read(salaSessionProvider.notifier);
@@ -115,64 +114,6 @@ void _expectSeenAtRest(WidgetTester tester) => expect(
   _redMicrophoneIsSeen(tester),
   isTrue,
   reason: 'em repouso na cena o microfone vermelho aparece',
-);
-
-final class _Room {
-  final SalaHarness harness;
-  final ProviderContainer container;
-
-  _Room(this.harness, this.container);
-
-  SalaSessionNotifier get sala => container.read(salaSessionProvider.notifier);
-
-  SalaSessionState get state => container.read(salaSessionProvider);
-
-  int asked(String call) =>
-      harness.room.calls.where((asked) => asked == call).length;
-}
-
-Future<_Room> _atRest([SalaHarness? given]) async {
-  final harness = given ?? SalaHarness();
-  harness.room.nextMoment = _articulation;
-  final container = harness.container();
-  addTearDown(container.dispose);
-  final room = _Room(harness, container);
-  await room.sala.goConversa();
-  await waitFor(
-    'a sala abrir a conversa e se calar',
-    () =>
-        room.state.sessionId != null &&
-        room.state.stage == SalaStage.conversa &&
-        room.state.voice == VoiceState.invite &&
-        !room.state.awaitingTheGuide,
-  );
-  await settle();
-  return room;
-}
-
-Future<void> _theScreenOpens(_Room room) async {
-  room.sala.openTheSceneRehearsal();
-  await waitFor('a tela do ensaio da cena abrir', () {
-    return room.state.stage == SalaStage.cena &&
-        room.asked('sceneRehearsalsOf') > 0;
-  });
-  await settle();
-}
-
-Future<void> _theSceneMicrophoneOpens(_Room room) async {
-  room.sala.sceneTap();
-  await waitFor(
-    'o microfone da cena abrir',
-    () => switch (room.state.channel) {
-      Microphone(owner: MicOwner.scene) => true,
-      _ => false,
-    },
-  );
-}
-
-Future<void> _translateOpens(_Room room) => waitFor(
-  'o ensaio abrir na tradução',
-  () => room.state.scene.step == SceneStep.translate,
 );
 
 void main() {
@@ -298,7 +239,7 @@ void main() {
   test(
     'the red microphone tapped over the facilitator\'s reply stops the reply and opens the scene rehearsal',
     () async {
-      final room = await _atRest(
+      final room = await atRest(
         SalaHarness(
           replies: const [HandReply(id: 'r1', audioUrl: '/r1')],
         ),
@@ -354,7 +295,7 @@ void main() {
       test(
         'an unsent one of this session: translate, and nothing plays',
         () async {
-          final room = await _atRest();
+          final room = await atRest();
           room.harness.room.sceneRehearsals.add(
             _rehearsal(
               frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 9000)],
@@ -363,7 +304,7 @@ void main() {
           final before = room.harness.sounds.length;
 
           room.sala.openTheSceneRehearsal();
-          await _translateOpens(room);
+          await translateOpens(room);
           await settle();
 
           expect(room.state.stage, SalaStage.cena);
@@ -376,12 +317,12 @@ void main() {
       );
 
       test('a sent one of this session: the record step', () async {
-        final room = await _atRest();
+        final room = await atRest();
         room.harness.room.sceneRehearsals.add(
           _rehearsal(sentAt: '2026-10-14T10:00:00Z'),
         );
 
-        await _theScreenOpens(room);
+        await theScreenOpens(room);
 
         expect(room.state.scene.step, SceneStep.record);
       });
@@ -389,13 +330,13 @@ void main() {
       test(
         'an older unsent one under a newer sent one is abandoned: the record step',
         () async {
-          final room = await _atRest();
+          final room = await atRest();
           room.harness.room.sceneRehearsals.addAll([
             _rehearsal(frases: [_frase('f1', 0, 4000)]),
             _rehearsal(n: 2, sentAt: '2026-10-14T10:00:00Z'),
           ]);
 
-          await _theScreenOpens(room);
+          await theScreenOpens(room);
 
           expect(room.state.scene.step, SceneStep.record);
         },
@@ -404,12 +345,12 @@ void main() {
       test(
         'an unsent one of another session of the passage: the record step',
         () async {
-          final room = await _atRest();
+          final room = await atRest();
           room.harness.room.sceneRehearsals.add(
             _rehearsal(sessionId: 'sessao-9', frases: [_frase('f1', 0, 4000)]),
           );
 
-          await _theScreenOpens(room);
+          await theScreenOpens(room);
 
           expect(room.state.scene.step, SceneStep.record);
         },
@@ -420,17 +361,17 @@ void main() {
   test(
     'a scene take already on the tablet is reopened without a second download',
     () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room.sceneRehearsals.add(
         _rehearsal(frases: [_frase('f1', 0, 4000)]),
       );
       room.sala.openTheSceneRehearsal();
-      await _translateOpens(room);
+      await translateOpens(room);
       room.sala.leaveTheSceneRehearsal();
       await settle();
 
       room.sala.openTheSceneRehearsal();
-      await _translateOpens(room);
+      await translateOpens(room);
 
       expect(
         room.harness.room.clipsFetched.where(
@@ -444,14 +385,14 @@ void main() {
   test(
     'a disk that cannot be read for the held take falls back to the download',
     () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.recorder.heldAsFails = true;
       room.harness.room.sceneRehearsals.add(
         _rehearsal(frases: [_frase('f1', 0, 4000)]),
       );
 
       room.sala.openTheSceneRehearsal();
-      await _translateOpens(room);
+      await translateOpens(room);
 
       expect(
         room.harness.room.clipsFetched.where(
@@ -465,7 +406,7 @@ void main() {
   test(
     'an unsent scene rehearsal listed while the team already records never opens over the microphone',
     () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room
         ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
         ..holdNextSceneList();
@@ -474,7 +415,7 @@ void main() {
         'a lista ser pedida',
         () => room.asked('sceneRehearsalsOf') > 0,
       );
-      await _theSceneMicrophoneOpens(room);
+      await theSceneMicrophoneOpens(room);
 
       room.harness.room.finishHeldSceneList();
       await settle();
@@ -487,7 +428,7 @@ void main() {
   test(
     'a take download that lands while the team records never opens over the microphone',
     () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room
         ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
         ..holdNextClip();
@@ -496,7 +437,7 @@ void main() {
         'o take ser pedido',
         () => room.harness.room.clipsFetched.isNotEmpty,
       );
-      await _theSceneMicrophoneOpens(room);
+      await theSceneMicrophoneOpens(room);
 
       room.harness.room.finishHeldClip();
       await settle();
@@ -509,7 +450,7 @@ void main() {
   test(
     'a take download that outlives a new take kept leaves the new one on the screen',
     () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room
         ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
         ..holdNextClip();
@@ -518,9 +459,9 @@ void main() {
         'o take ser pedido',
         () => room.harness.room.clipsFetched.isNotEmpty,
       );
-      await _theSceneMicrophoneOpens(room);
+      await theSceneMicrophoneOpens(room);
       room.sala.sceneTap();
-      await _translateOpens(room);
+      await translateOpens(room);
 
       room.harness.room.finishHeldClip();
       await settle();
@@ -567,7 +508,7 @@ void main() {
   test(
     'a scene rehearsal translated to frase 3 resumes after frase 3 on another tablet',
     () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room.sceneRehearsals.add(
         _rehearsal(
           frases: [
@@ -580,7 +521,7 @@ void main() {
       final before = room.harness.sounds.length;
 
       room.sala.openTheSceneRehearsal();
-      await _translateOpens(room);
+      await translateOpens(room);
       await settle();
       expect(
         room.harness.sounds.skip(before),
@@ -606,10 +547,10 @@ void main() {
 
   group('a last pause moved on another tablet is followed', () {
     Future<Duration> theFirstTapPlaysFrom(List<SceneFrase> frases) async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room.sceneRehearsals.add(_rehearsal(frases: frases));
       room.sala.openTheSceneRehearsal();
-      await _translateOpens(room);
+      await translateOpens(room);
       room.sala.playTheSceneRehearsal();
       await waitFor(
         'o ensaio da cena tocar',
@@ -678,7 +619,7 @@ void main() {
   );
 
   test('a frase with no place opens places unknown', () async {
-    final room = await _atRest();
+    final room = await atRest();
     room.harness.room.sceneRehearsals.add(
       _rehearsal(frases: [_frase('f1', 0, 4000), _frase('f2', 4000, null)]),
     );
@@ -696,7 +637,7 @@ void main() {
       final harness = SalaHarness();
       final container = harness.container();
       addTearDown(container.dispose);
-      final room = _Room(harness, container);
+      final room = SceneRoom(harness, container);
       await room.sala.abrirEscolha();
       await settle();
       final station = room.state.station;
@@ -710,7 +651,7 @@ void main() {
     });
 
     test('with a turn in flight', () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room.holdNextTurn();
       room.sala.conversaTap();
       await settle();
@@ -732,7 +673,7 @@ void main() {
   test(
     'opening the scene rehearsal over a half-spoken note discards it',
     () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.sala.handTap();
       await settle();
       room.sala.conversaTap();
@@ -776,10 +717,10 @@ void main() {
   });
 
   test('the way back finds the Conversation as it was', () async {
-    final room = await _atRest(SalaHarness(watchesWithoutAHalt: true));
+    final room = await atRest(SalaHarness(watchesWithoutAHalt: true));
     final was = room.state;
     final calls = room.harness.room.calls.length;
-    await _theScreenOpens(room);
+    await theScreenOpens(room);
 
     room.harness.room.readsDone = true;
     final reads = stateReads(room.harness);
@@ -819,11 +760,11 @@ void main() {
   test(
     'a session gone while on the scene rehearsal leaves nothing of its screen',
     () async {
-      final room = await _atRest(SalaHarness(watchesWithoutAHalt: true));
-      await _theScreenOpens(room);
-      await _theSceneMicrophoneOpens(room);
+      final room = await atRest(SalaHarness(watchesWithoutAHalt: true));
+      await theScreenOpens(room);
+      await theSceneMicrophoneOpens(room);
       room.sala.sceneTap();
-      await _translateOpens(room);
+      await translateOpens(room);
 
       room.harness.room.forgetTheSession(_session);
       await waitFor(
@@ -840,11 +781,11 @@ void main() {
   test(
     'another Station reached from the scene rehearsal leaves nothing of its screen',
     () async {
-      final room = await _atRest();
-      await _theScreenOpens(room);
-      await _theSceneMicrophoneOpens(room);
+      final room = await atRest();
+      await theScreenOpens(room);
+      await theSceneMicrophoneOpens(room);
       room.sala.sceneTap();
-      await _translateOpens(room);
+      await translateOpens(room);
 
       room.sala.goEnsaio();
       await settle();
@@ -863,7 +804,7 @@ void main() {
       currentSession: LedgerThatReadsLate(home: () async => home),
     );
     final container = harness.container();
-    final room = _Room(harness, container);
+    final room = SceneRoom(harness, container);
     await enterThePassage(room.sala, () => room.state, 'P01');
     await waitFor(
       'a abertura ser dita',
@@ -871,11 +812,11 @@ void main() {
           room.state.voice == VoiceState.invite && room.state.sessionId != null,
     );
     await settle();
-    await _theScreenOpens(room);
+    await theScreenOpens(room);
     final session = room.state.sessionId;
 
     final (again, next) = await relaunch(harness, container);
-    final relaunched = _Room(again, next);
+    final relaunched = SceneRoom(again, next);
     await relaunched.sala.openTheRoom();
     await waitFor(
       'a equipe pousar na sessão',
@@ -891,12 +832,12 @@ void main() {
   test(
     'a scene take recorded on the record step is kept by the room for this session and opens on translate',
     () async {
-      final room = await _atRest();
-      await _theScreenOpens(room);
-      await _theSceneMicrophoneOpens(room);
+      final room = await atRest();
+      await theScreenOpens(room);
+      await theSceneMicrophoneOpens(room);
 
       room.sala.sceneTap();
-      await _translateOpens(room);
+      await translateOpens(room);
       room.sala.playTheSceneRehearsal();
       await waitFor(
         'o ensaio da cena tocar',
@@ -916,7 +857,7 @@ void main() {
       room.sala.leaveTheSceneRehearsal();
       await settle();
       room.sala.openTheSceneRehearsal();
-      await _translateOpens(room);
+      await translateOpens(room);
 
       expect(
         room.harness.room.clipsFetched.where(
@@ -931,9 +872,9 @@ void main() {
   test(
     'a keep answered after the team left still leaves the take under the rehearsal\'s name',
     () async {
-      final room = await _atRest();
-      await _theScreenOpens(room);
-      await _theSceneMicrophoneOpens(room);
+      final room = await atRest();
+      await theScreenOpens(room);
+      await theSceneMicrophoneOpens(room);
       room.harness.room.holdNextKeep();
       room.sala.sceneTap();
       await waitFor(
@@ -945,7 +886,7 @@ void main() {
       room.harness.room.finishHeldKeep();
       await settle();
       room.sala.openTheSceneRehearsal();
-      await _translateOpens(room);
+      await translateOpens(room);
 
       expect(
         room.harness.room.clipsFetched.where(
@@ -959,8 +900,8 @@ void main() {
   group('recomeçar sends a fresh attempt that closes the current one', () {
     const current = '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b';
 
-    Future<_Room> inPlacesUnknown() async {
-      final room = await _atRest();
+    Future<SceneRoom> inPlacesUnknown() async {
+      final room = await atRest();
       room.harness.room.sceneRehearsals.add(
         _rehearsal(afterRestart: current, frases: [_frase('f1', 0, 12000)]),
       );
@@ -985,7 +926,7 @@ void main() {
       await settle();
       room.harness.room.failSceneWith = null;
       room.sala.restartTheSceneTranslation();
-      await _translateOpens(room);
+      await translateOpens(room);
 
       final sent = room.harness.room.restartsSent;
       expect(sent, hasLength(2));
@@ -1099,7 +1040,7 @@ void main() {
         ..refuseRestartWith = null
         ..sceneRehearsals[0] = _rehearsal(afterRestart: landed);
       room.sala.openTheSceneRehearsal();
-      await _translateOpens(room);
+      await translateOpens(room);
 
       room.harness.room.finishHeldSceneList();
       await settle();
@@ -1118,7 +1059,7 @@ void main() {
           ..sceneRehearsals[0] = _rehearsal(afterRestart: landed);
 
         room.sala.restartTheSceneTranslation();
-        await _translateOpens(room);
+        await translateOpens(room);
 
         expect(room.state.scene.rehearsal?.afterRestart, landed);
         expect(room.state.needsPerson, isFalse);
@@ -1130,7 +1071,7 @@ void main() {
     const refused = Refused('HTTP_422');
 
     test('the list refused, three times over, never calls a person', () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room
         ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
         ..failSceneWith = refused;
@@ -1152,12 +1093,12 @@ void main() {
     });
 
     test('the scene take\'s audio refused', () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room
         ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
         ..failClipWith = refused;
 
-      await _theScreenOpens(room);
+      await theScreenOpens(room);
       await waitFor(
         'o áudio do ensaio ser pedido',
         () => room.harness.room.clipsFetched.isNotEmpty,
@@ -1168,10 +1109,10 @@ void main() {
     });
 
     test('the keep refused', () async {
-      final room = await _atRest();
-      await _theScreenOpens(room);
+      final room = await atRest();
+      await theScreenOpens(room);
       room.harness.room.failSceneWith = refused;
-      await _theSceneMicrophoneOpens(room);
+      await theSceneMicrophoneOpens(room);
 
       room.sala.sceneTap();
       await waitFor(
@@ -1185,7 +1126,7 @@ void main() {
     });
 
     test('a gone session at the take\'s audio leaves for the Choice', () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room
         ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
         ..holdNextClip();
@@ -1205,12 +1146,12 @@ void main() {
     });
 
     test('an empty scene take fetched', () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room
         ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
         ..sceneAudio = Uint8List(0);
 
-      await _theScreenOpens(room);
+      await theScreenOpens(room);
       await waitFor(
         'o áudio do ensaio ser pedido',
         () => room.harness.room.clipsFetched.isNotEmpty,
@@ -1221,10 +1162,10 @@ void main() {
     });
 
     test('an empty recording on stop', () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.recorder.returnsEmpty = true;
-      await _theScreenOpens(room);
-      await _theSceneMicrophoneOpens(room);
+      await theScreenOpens(room);
+      await theSceneMicrophoneOpens(room);
 
       room.sala.sceneTap();
       await settle();
@@ -1235,7 +1176,7 @@ void main() {
     });
 
     test('a network failure on recomeçar stays on places unknown', () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room.sceneRehearsals.add(
         _rehearsal(frases: [_frase('f1', 0, 12000)]),
       );
@@ -1258,7 +1199,7 @@ void main() {
     });
 
     test('a gone session at a scene door leaves for the Choice', () async {
-      final room = await _atRest();
+      final room = await atRest();
       room.harness.room.failSceneWith = const SessionGone();
 
       room.sala.openTheSceneRehearsal();

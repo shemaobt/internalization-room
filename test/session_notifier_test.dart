@@ -20,6 +20,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
+import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
     show
@@ -6308,9 +6309,10 @@ void main() {
     );
     expect(
       harness.recorder.deleted,
-      contains(recusada),
+      isNot(contains(recusada)),
       reason:
-          'o arquivo do gravador para a tradução recusada também é descartado',
+          'ENG-1347: a tradução gravada de novo fica no tablet como histórico; '
+          'só sai da fila',
     );
     await waitFor(
       'a conta cair a zero sem ninguém pedir — o withdraw atualiza a conta '
@@ -6769,10 +6771,79 @@ void main() {
     );
     expect(
       state.needsPerson,
-      isTrue,
+      isFalse,
       reason:
-          'disco cheio ou microfone tomado é coisa para uma pessoa olhar, e a '
-          'equipe só descobria na quinta recusa de upload, doze minutos depois',
+          'ENG-1347: uma tomada vazia é um toque acidental, deixado de lado em '
+          'silêncio, sem chamar ninguém',
+    );
+  });
+
+  test(
+    'an accidental tap on the Rehearsal makes no part and never halts',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final personsBefore = harness.room.personsAsked;
+
+      notifier.goEnsaio();
+      harness.recorder.rehearsalSpeaks = aWavTake(
+        samples: List.filled(3200, 4000),
+      );
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
+
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.ensaio,
+        EnsaioStatus.idle,
+        reason: 'um dedo que roçou o círculo não deixa tomada para guardar',
+      );
+      notifier.takeKeep();
+      await settle();
+      expect(container.read(salaSessionProvider).partes, isEmpty);
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isFalse,
+        reason: 'um toque acidental não chama ninguém',
+      );
+      expect(harness.room.personsAsked, personsBefore);
+    },
+  );
+
+  test('a part recorded again before the check leaves the earlier recording on '
+      'the tablet', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    final primeira = harness.recorder.lastPath;
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    final segunda = harness.recorder.lastPath;
+    notifier.takeKeep();
+    await settle();
+
+    expect(segunda, isNot(primeira));
+    expect(
+      harness.recorder.deleted,
+      isNot(contains(primeira)),
+      reason: 'nada que a equipe gravou é apagado pelo app sem a palavra dela',
+    );
+    expect(harness.recorder.deleted, isNot(contains(segunda)));
+    expect(File(primeira!).existsSync(), isTrue);
+    expect(
+      container.read(salaSessionProvider).partes.single.path,
+      segunda,
+      reason: 'a parte guardada é a gravada de novo',
     );
   });
 

@@ -142,8 +142,9 @@ void main() {
       expect(harness.recorder.captures, 3);
       expect(
         harness.recorder.deleted,
-        containsAll([primeira, segunda]),
-        reason: 'o arquivo que a gravação nova substitui sai do tablet',
+        isNot(anyOf(contains(primeira), contains(segunda))),
+        reason:
+            'ENG-1347: o arquivo que a gravação nova substitui fica no tablet',
       );
       expect(harness.recorder.deleted, isNot(contains(terceira)));
       await letTheRehearsalReachTheRoom(tester);

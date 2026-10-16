@@ -1,0 +1,179 @@
+import 'dart:io';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+
+import 'fakes.dart';
+import 'scenario_helpers.dart' show settle, theHaltIsLifted;
+import 'session_notifier_test.dart' show inConversa;
+
+/// What the recorder did once the start that was in the air answered: a start left
+/// running with no Channel holding it records the room until the app is closed.
+void _expectTheLateStartDiscarded(
+  SalaHarness harness,
+  int soundsBefore,
+  SalaSessionState state,
+) {
+  final sounds = harness.sounds;
+  expect(
+    sounds.lastIndexOf('recorder:discard'),
+    allOf(
+      greaterThanOrEqualTo(soundsBefore),
+      greaterThan(sounds.lastIndexOf('recorder:start')),
+    ),
+    reason:
+        'o gravador que abriu depois de o seu microfone fechar ficava '
+        'gravando a sala sem ninguém segurando o canal',
+  );
+  expect(state.channel, isNot(isA<Microphone>()));
+}
+
+/// A room reopened straight into the rehearsal over one kept part, with a warning
+/// standing so the watch beats. The shape of the one in
+/// `a_permission_answer_after_a_halt_keeps_the_halt_test.dart`; fixtures never travel
+/// between modules.
+Future<ProviderContainer> _inTheRehearsalWithAWarning(
+  SalaHarness harness,
+) async {
+  final gravada = File(
+    '${Directory.systemTemp.createTempSync('sala-1347').path}/p1.m4a',
+  )..writeAsBytesSync([1, 2, 3]);
+  addTearDown(() => gravada.parent.deleteSync(recursive: true));
+  harness.room.serverStatus = 'needs_person';
+  harness.room.serverHalt = HaltKind.warning;
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+    sessionId: 'sessao-antiga',
+    stage: SalaStage.ensaio,
+    takes: [
+      KeptTake(
+        scopeId: KeptScope.parte(1),
+        path: gravada.path,
+        takeId: 'gravacao-1',
+      ),
+    ],
+  );
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.abrirEscolha();
+  await settle();
+  await notifier.goConversa(pericope: 'P01');
+  await settle();
+  await waitFor(
+    'o aviso chegar',
+    () => container.read(salaSessionProvider).warning,
+  );
+  return container;
+}
+
+void main() {
+  group('a recorder start still in the air is discarded when, before it '
+      'answers,', () {
+    test('a question is sent', () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      notifier.handTap();
+      await settle();
+      harness.recorder.holdNextStart();
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await waitFor(
+        'a pergunta sair',
+        () => harness.inbox.questionsSent.isNotEmpty,
+      );
+      await settle();
+      final soundsBefore = harness.sounds.length;
+      final questionsBefore = harness.inbox.questionsSent.length;
+
+      harness.recorder.finishStart();
+      await settle();
+
+      _expectTheLateStartDiscarded(harness, soundsBefore, read());
+      expect(harness.inbox.questionsSent, hasLength(questionsBefore));
+    });
+
+    test('a Rehearsal take finishes', () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      notifier.goEnsaio();
+      harness.recorder.holdNextStart();
+      notifier.ensaioTap();
+      await settle();
+      notifier.ensaioTap();
+      await waitFor(
+        'a tomada voltar',
+        () => read().ensaio == EnsaioStatus.recorded,
+      );
+      final soundsBefore = harness.sounds.length;
+      final partsBefore = read().partes.length;
+
+      harness.recorder.finishStart();
+      await settle();
+
+      _expectTheLateStartDiscarded(harness, soundsBefore, read());
+      expect(read().partes, hasLength(partsBefore));
+    });
+
+    test('a blocking halt is lifted', () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 3));
+      final container = await _inTheRehearsalWithAWarning(harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      harness.recorder.holdNextStart();
+      notifier.ensaioTap();
+      await waitFor(
+        'o ensaio começar a gravar',
+        () => read().ensaio == EnsaioStatus.recording,
+      );
+      harness.room.serverHalt = HaltKind.blocking;
+      await waitFor('a sala parar', () => read().needsPerson);
+      await theHaltIsLifted(harness, notifier, read);
+      final soundsBefore = harness.sounds.length;
+      final partsBefore = read().partes.length;
+
+      harness.recorder.finishStart();
+      await settle();
+
+      _expectTheLateStartDiscarded(harness, soundsBefore, read());
+      expect(read().partes, hasLength(partsBefore));
+    });
+
+    test('the passage changes', () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      harness.recorder.holdNextStart();
+      notifier.conversaTap();
+      await settle();
+      await notifier.goConversa(pericope: 'P02');
+      await waitFor('P02 abrir', () => read().voice == VoiceState.invite);
+      final soundsBefore = harness.sounds.length;
+      final turnsBefore = harness.room.turnsSent;
+
+      harness.recorder.finishStart();
+      await settle();
+
+      _expectTheLateStartDiscarded(harness, soundsBefore, read());
+      expect(harness.room.turnsSent, turnsBefore);
+    });
+  });
+}

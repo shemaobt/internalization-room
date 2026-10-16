@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'wav.dart';
+
 typedef Silence = ({Duration from, Duration to});
 
 enum Nudge { earlier, later }
@@ -11,7 +13,6 @@ const _shortestSilence = Duration(milliseconds: 150);
 const _nearPeakPercentile = 98;
 const _shortestStretch = Duration(milliseconds: 200);
 const _endMargin = Duration(milliseconds: 100);
-const _wavHeader = 44;
 const _lookBack = Duration(milliseconds: 1500);
 const _lookAhead = Duration(milliseconds: 250);
 const _nudgeStep = Duration(milliseconds: 400);
@@ -25,37 +26,21 @@ class Envelope {
 }
 
 Envelope? envelopeOf(Uint8List wav) {
-  if (wav.length < _wavHeader) return null;
-  final bytes = ByteData.sublistView(wav);
-  String tag(int at) => String.fromCharCodes(wav, at, at + 4);
-  if (tag(0) != 'RIFF' || tag(8) != 'WAVE') return null;
-  var format = 0, channels = 0, rate = 0, bits = 0;
-  var at = 12;
-  while (at + 8 <= wav.length) {
-    final size = bytes.getUint32(at + 4, Endian.little);
-    final body = at + 8;
-    switch (tag(at)) {
-      case 'fmt ':
-        if (body + 16 > wav.length) return null;
-        format = bytes.getUint16(body, Endian.little);
-        channels = bytes.getUint16(body + 2, Endian.little);
-        rate = bytes.getUint32(body + 4, Endian.little);
-        bits = bytes.getUint16(body + 14, Endian.little);
-      case 'data':
-        if (format != 1 || bits != 16 || channels < 1 || rate <= 0) {
-          return null;
-        }
-        return _loudness(
-          bytes,
-          body,
-          min(size, wav.length - body) ~/ (2 * channels),
-          channels,
-          rate,
-        );
-    }
-    at = body + size + (size & 1);
+  final data = wavDataOf(wav);
+  if (data == null ||
+      data.format != 1 ||
+      data.bits != 16 ||
+      data.channels < 1 ||
+      data.rate <= 0) {
+    return null;
   }
-  return null;
+  return _loudness(
+    ByteData.sublistView(wav),
+    data.offset,
+    min(data.size, wav.length - data.offset) ~/ (2 * data.channels),
+    data.channels,
+    data.rate,
+  );
 }
 
 Envelope _loudness(
