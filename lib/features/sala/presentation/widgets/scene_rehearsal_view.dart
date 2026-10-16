@@ -25,16 +25,28 @@ class SceneRehearsalView extends ConsumerWidget {
         sceneRehearsalLabelFor(control, language, n: n);
     final colors = SalaColors.of(context);
     final scene = session.scene;
+    final sending = session.theSceneIsSending;
+    final unlessSending = sending ? ButtonMood.dimmed : ButtonMood.lit;
 
     final terminei = RoundActionButton(
       size: 52,
-      mood: ButtonMood.dimmed,
-      semanticLabel: said('send'),
-      onTap: () {},
-      child: Icon(LucideIcons.check, size: 22, color: colors.mut),
+      mood: sending
+          ? ButtonMood.waiting
+          : scene.sendable
+          ? ButtonMood.lit
+          : ButtonMood.dimmed,
+      halo: colors.vermelhoMic,
+      semanticLabel: said(sending ? 'sending' : 'send'),
+      onTap: notifier.sendTheSceneRehearsal,
+      child: Icon(
+        LucideIcons.check,
+        size: 22,
+        color: sending || scene.sendable ? colors.vermelhoMic : colors.mut,
+      ),
     );
     final again = RoundActionButton(
       size: 52,
+      mood: unlessSending,
       semanticLabel: said('again'),
       onTap: notifier.recordTheSceneAgain,
       child: Icon(LucideIcons.mic, size: 22, color: colors.vermelhoMic),
@@ -63,6 +75,7 @@ class SceneRehearsalView extends ConsumerWidget {
                 children: [
                   RoundActionButton(
                     size: 120,
+                    mood: unlessSending,
                     semanticLabel: said('translate'),
                     onTap: notifier.playTheSceneRehearsal,
                     border: Border.all(color: colors.vermelhoMic, width: 2),
@@ -84,6 +97,7 @@ class SceneRehearsalView extends ConsumerWidget {
                     const SizedBox(width: 24),
                     RoundActionButton(
                       size: 52,
+                      mood: unlessSending,
                       semanticLabel: said('restart'),
                       onTap: notifier.restartTheSceneTranslation,
                       child: Icon(
@@ -129,7 +143,10 @@ class SceneRehearsalView extends ConsumerWidget {
                     _ListedRow(
                       row: row,
                       onScreen: row.rehearsalId == scene.rehearsal?.rehearsalId,
-                      still: scene.waiting || session.channel is Microphone,
+                      still:
+                          sending ||
+                          scene.waiting ||
+                          session.channel is Microphone,
                       language: language,
                       onTap: () =>
                           notifier.openTheListedSceneRehearsal(row.rehearsalId),

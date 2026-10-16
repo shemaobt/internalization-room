@@ -41,6 +41,14 @@ final class SceneScreen {
     length: length,
     waiting: true,
   );
+
+  /// Whether «terminei» applies: an unsent rehearsal with a translated frase, being
+  /// translated, with nothing in the air.
+  bool get sendable =>
+      (step == SceneStep.translate || step == SceneStep.placesUnknown) &&
+      !waiting &&
+      (rehearsal?.unsent ?? false) &&
+      rehearsal!.translatedFrases > 0;
 }
 
 enum VoiceState {
@@ -337,6 +345,10 @@ class SalaSessionState {
   /// Whether the scene rehearsal's screen stands over the Canvas.
   bool get sceneRehearsalIsOpen => station is SceneRehearsal;
 
+  /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
+  bool get theSceneIsSending =>
+      sceneRehearsalIsOpen && (awaitingTheGuide || machine.inFlight != null);
+
   bool get redMicrophoneIsShown =>
       (voice == VoiceState.invite || voice == VoiceState.done) &&
       !noteMode &&
@@ -451,9 +463,9 @@ class SalaSessionState {
 
   /// The way back answers the finger only while the Wheel is quiet, and from any Step of
   /// the scene rehearsal, its microphone open included.
-  bool get theWayBackIsLive =>
-      sceneRehearsalIsOpen ||
-      (theWayBackIsOffered && voice == VoiceState.invite);
+  bool get theWayBackIsLive => sceneRehearsalIsOpen
+      ? !theSceneIsSending
+      : theWayBackIsOffered && voice == VoiceState.invite;
 
   /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
   /// microphone other than the raised-hand note's is open, or a person is called, except
