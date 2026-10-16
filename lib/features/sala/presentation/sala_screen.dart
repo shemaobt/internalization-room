@@ -40,6 +40,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
     with WidgetsBindingObserver {
   late final ScreenAwake _awake = ref.read(screenAwakeProvider);
   bool _roomOpened = false;
+  Timer? _replyWatch;
 
   @override
   void initState() {
@@ -65,11 +66,13 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
   /// afresh, the next link opens it the way a first launch does.
   void _closeTheRoom() {
     _roomOpened = false;
+    _replyWatch?.cancel();
     ref.invalidate(salaSessionProvider);
   }
 
   @override
   void dispose() {
+    _replyWatch?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_awake.release());
     super.dispose();
@@ -77,13 +80,30 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
+    if (lifecycle == AppLifecycleState.hidden ||
+        lifecycle == AppLifecycleState.paused) {
+      _replyWatch?.cancel();
+    }
     if (lifecycle == AppLifecycleState.resumed &&
         ref.read(deviceLinkProvider).linked) {
       unawaited(_openRoom());
     }
   }
 
+  void _watchForReplies() {
+    _replyWatch?.cancel();
+    _lookForReplies();
+    _replyWatch = Timer.periodic(
+      ref.read(roomInboxWatchProvider),
+      (_) => _lookForReplies(),
+    );
+  }
+
+  void _lookForReplies() =>
+      ref.read(salaSessionProvider.notifier).lookForReplies();
+
   Future<void> _openRoom() async {
+    _watchForReplies();
     final access = await ref.read(micPermissionProvider.notifier).check();
     if (!mounted) return;
     if (access == MicAccess.granted) {

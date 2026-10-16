@@ -2956,6 +2956,7 @@ class SalaHarness {
     this.emAbertoNoDisco,
     this.finishedOnDisk,
     this.inboxService,
+    this.inboxWatch,
     FakeRoom? room,
     this.takesOverride,
     Directory? takesHome,
@@ -2980,6 +2981,10 @@ class SalaHarness {
 
   /// The real inbox, for the cases that need a server that can refuse or go away.
   final HandInboxRepository? inboxService;
+
+  /// How often the open room looks for replies, when a case needs it other than the
+  /// room's own.
+  final Duration? inboxWatch;
 
   final FakeWorkInProgress emAberto = FakeWorkInProgress();
 
@@ -3031,6 +3036,8 @@ class SalaHarness {
     clipGraceProvider.overrideWithValue(clipGrace),
     captureGuardProvider.overrideWithValue(captureGuard),
     fimLingerProvider.overrideWithValue(fimLinger),
+    if (inboxWatch case final every?)
+      roomInboxWatchProvider.overrideWithValue(every),
   ];
 
   ProviderContainer container() => ProviderContainer(overrides: overrides);
