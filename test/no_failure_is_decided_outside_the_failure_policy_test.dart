@@ -33,6 +33,7 @@ const _notYetMoved = <String, String>{
 /// out of the failure policy.
 const _keptByDecision = <String, String>{
   '_theCallOfAnEarlierSession': 'ADR 0060',
+  '_theSceneGoes': 'ADR 0085',
 };
 
 final _namesAFailure = RegExp(

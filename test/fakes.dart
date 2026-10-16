@@ -1590,11 +1590,56 @@ class FakeRoom implements RoomRepository {
       rehearsalId: old.rehearsalId,
       sessionId: old.sessionId,
       n: old.n,
+      scene: old.scene,
+      recordedAt: old.recordedAt,
       sentAt: old.sentAt,
       afterRestart: attempt,
     );
     sceneRehearsals[at] = restarted;
     return Answered(restarted);
+  }
+
+  /// Every «terminei» this room was sent: the rehearsal, its turn and the attempt it closed.
+  final List<({String rehearsalId, String turnId, String? closes})> scenesSent =
+      [];
+
+  /// The codes the next sends are refused with, one per send, in order.
+  final List<String> sendRefusalsFirst = [];
+
+  @override
+  Future<RoomAnswer<TurnResult>> sendTheSceneRehearsal(
+    String sessionId,
+    String rehearsalId, {
+    required String turnId,
+    String? closes,
+  }) async {
+    if (_guard('sendTheSceneRehearsal') case final failure?) return failure;
+    scenesSent.add((rehearsalId: rehearsalId, turnId: turnId, closes: closes));
+    if (sendRefusalsFirst.isNotEmpty) {
+      return Refused(sendRefusalsFirst.removeAt(0));
+    }
+    if (forgottenSessions.contains(sessionId)) {
+      return const Refused(RefusalCode.notFound);
+    }
+    final answer = await _theTurnAnswers(sessionId, turnId);
+    final at = sceneRehearsals.indexWhere(
+      (rehearsal) => rehearsal.rehearsalId == rehearsalId,
+    );
+    final landed = answer is Answered<TurnResult> || turnsLandBeforeTheyFail;
+    if (landed && at >= 0) {
+      final old = sceneRehearsals[at];
+      sceneRehearsals[at] = SceneRehearsalRecord(
+        rehearsalId: old.rehearsalId,
+        sessionId: old.sessionId,
+        n: old.n,
+        scene: old.scene,
+        recordedAt: old.recordedAt,
+        sentAt: '2026-10-15T15:00:00+00:00',
+        afterRestart: old.afterRestart,
+        frases: old.frases,
+      );
+    }
+    return answer;
   }
 
   @override

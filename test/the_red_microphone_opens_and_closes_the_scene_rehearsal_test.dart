@@ -610,8 +610,7 @@ void main() {
       expect(byLabel('terminei'), findsOneWidget);
       expect(
         tester.widget<Semantics>(byLabel('terminei')).properties.enabled,
-        isFalse,
-        reason: 'terminei é desenhado desligado aqui (ENG-1320 liga)',
+        isTrue,
       );
       expect(byLabel('recomeçar a tradução'), findsOneWidget);
       expect(byLabel('gravar o ensaio da cena de novo'), findsOneWidget);

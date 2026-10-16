@@ -17,12 +17,13 @@ enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim, cena }
 enum SceneStep { record, translate, placesUnknown, sent }
 
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
-/// answered it, its take as a file on this tablet, and whether a keep or a restart is in
-/// the air.
+/// answered it, its take as a file on this tablet and the take's measured length, and
+/// whether a call this screen made is in the air.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
   final String? take;
+  final Duration? length;
   final bool waiting;
   final String? label;
   final SceneKeep? keep;
@@ -31,10 +32,27 @@ final class SceneScreen {
     this.step = SceneStep.record,
     this.rehearsal,
     this.take,
+    this.length,
     this.waiting = false,
     this.label,
     this.keep,
   });
+
+  SceneScreen get asWaiting => SceneScreen(
+    step: step,
+    rehearsal: rehearsal,
+    take: take,
+    length: length,
+    waiting: true,
+  );
+
+  /// Whether «terminei» applies: an unsent rehearsal with a translated frase, being
+  /// translated, with nothing in the air.
+  bool get sendable =>
+      (step == SceneStep.translate || step == SceneStep.placesUnknown) &&
+      !waiting &&
+      (rehearsal?.unsent ?? false) &&
+      rehearsal!.translatedFrases > 0;
 }
 
 sealed class SceneKeep {
@@ -243,6 +261,13 @@ class SalaSessionState {
 
   final SceneScreen scene;
 
+  /// This session's scene rehearsals, by number, as the room last answered them.
+  final List<SceneRehearsalRecord> sceneRehearsals;
+
+  /// The turn «terminei» last sent for a scene rehearsal and no reply has played for:
+  /// the next «terminei» on that rehearsal goes under it again.
+  final ({String rehearsalId, String turnId})? sceneTurn;
+
   /// Whether the bead at [index] does not apply right now (ADR 0040: dimmed means it does
   /// not apply). True for every part but the one a finding sent the team back to record,
   /// while that record-again stands open and nothing has been recorded for it yet. Once
@@ -307,6 +332,8 @@ class SalaSessionState {
     this.machine = const Machine(),
     this.parteARegravar,
     this.scene = const SceneScreen(),
+    this.sceneRehearsals = const [],
+    this.sceneTurn,
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -342,6 +369,10 @@ class SalaSessionState {
 
   /// Whether the scene rehearsal's screen stands over the Canvas.
   bool get sceneRehearsalIsOpen => station is SceneRehearsal;
+
+  /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
+  bool get theSceneIsSending =>
+      sceneRehearsalIsOpen && (awaitingTheGuide || machine.inFlight != null);
 
   bool get redMicrophoneIsShown =>
       (voice == VoiceState.invite || voice == VoiceState.done) &&
@@ -457,9 +488,9 @@ class SalaSessionState {
 
   /// The way back answers the finger only while the Wheel is quiet, and from any Step of
   /// the scene rehearsal, its microphone open included.
-  bool get theWayBackIsLive =>
-      sceneRehearsalIsOpen ||
-      (theWayBackIsOffered && voice == VoiceState.invite);
+  bool get theWayBackIsLive => sceneRehearsalIsOpen
+      ? !theSceneIsSending
+      : theWayBackIsOffered && voice == VoiceState.invite;
 
   /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
   /// microphone other than the raised-hand note's is open, or a person is called, except
@@ -690,6 +721,9 @@ class SalaSessionState {
     int? parteARegravar,
     bool clearParteARegravar = false,
     SceneScreen? scene,
+    List<SceneRehearsalRecord>? sceneRehearsals,
+    ({String rehearsalId, String turnId})? sceneTurn,
+    bool clearSceneTurn = false,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
@@ -755,6 +789,8 @@ class SalaSessionState {
           ? null
           : (parteARegravar ?? this.parteARegravar),
       scene: scene ?? this.scene,
+      sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
+      sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),
     );
   }
 }
