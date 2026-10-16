@@ -1590,6 +1590,8 @@ class FakeRoom implements RoomRepository {
       rehearsalId: old.rehearsalId,
       sessionId: old.sessionId,
       n: old.n,
+      scene: old.scene,
+      recordedAt: old.recordedAt,
       sentAt: old.sentAt,
       afterRestart: attempt,
     );

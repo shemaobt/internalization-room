@@ -13,6 +13,14 @@ final class SceneFrase {
     this.endsMs,
     this.replacedBy,
   });
+
+  /// Whether this frase has a place inside [take], the length of the recording this
+  /// tablet holds.
+  bool placedIn(Duration? take) => switch ((startsMs, endsMs, take)) {
+    (final int starts, final int ends, final Duration take) =>
+      starts >= 0 && ends > starts && ends <= take.inMilliseconds,
+    _ => false,
+  };
 }
 
 /// A scene rehearsal as the room keeps it for any tablet of the team, with no words.
@@ -20,6 +28,8 @@ final class SceneRehearsalRecord {
   final String rehearsalId;
   final String sessionId;
   final int n;
+  final String? scene;
+  final DateTime? recordedAt;
   final String? sentAt;
   final String? afterRestart;
   final List<SceneFrase> frases;
@@ -28,6 +38,8 @@ final class SceneRehearsalRecord {
     required this.rehearsalId,
     required this.sessionId,
     required this.n,
+    this.scene,
+    this.recordedAt,
     this.sentAt,
     this.afterRestart,
     this.frases = const [],
@@ -38,6 +50,8 @@ final class SceneRehearsalRecord {
         rehearsalId: json['rehearsal_id'] as String,
         sessionId: json['session_id'] as String,
         n: json['n'] as int,
+        scene: json['scene'] as String?,
+        recordedAt: DateTime.tryParse(json['recorded_at'] as String? ?? ''),
         sentAt: json['sent_at'] as String?,
         afterRestart: json['after_restart'] as String?,
         frases: [
@@ -56,6 +70,15 @@ final class SceneRehearsalRecord {
       SceneRehearsalRecord.fromJson(rehearsal as Map<String, dynamic>),
   ];
 
+  /// This session's rehearsals, by number: the list door names every session of the
+  /// passage.
+  static List<SceneRehearsalRecord> ofTheSession(
+    List<SceneRehearsalRecord> listed,
+    String sessionId,
+  ) =>
+      listed.where((rehearsal) => rehearsal.sessionId == sessionId).toList()
+        ..sort((a, b) => a.n.compareTo(b.n));
+
   /// The newest rehearsal of [sessionId], when it is not yet sent: the one the screen
   /// reopens. An older unsent one under it is abandoned.
   static SceneRehearsalRecord? toReopen(
@@ -72,6 +95,18 @@ final class SceneRehearsalRecord {
 
   bool get unsent => sentAt == null;
 
+  /// The scene's number, from a label `S<N>`; null for no label or any other shape.
+  int? get sceneNumber => switch (RegExp(r'^S(\d+)$').firstMatch(scene ?? '')) {
+    final match? => int.tryParse(match.group(1)!),
+    null => null,
+  };
+
+  int get translatedFrases => _current.length;
+
+  /// The current frases in the order they sit in the take.
+  List<SceneFrase> get currentFrases => _current.toList()
+    ..sort((a, b) => (a.startsMs ?? 1 << 31).compareTo(b.startsMs ?? 1 << 31));
+
   Iterable<SceneFrase> get _current =>
       frases.where((frase) => frase.replacedBy == null);
 
@@ -82,11 +117,6 @@ final class SceneRehearsalRecord {
 
   /// Whether every current frase has a place inside [take], the length of the
   /// recording this tablet holds.
-  bool placesKnownIn(Duration? take) => _current.every(
-    (frase) => switch ((frase.startsMs, frase.endsMs, take)) {
-      (final int starts, final int ends, final Duration take) =>
-        starts >= 0 && ends > starts && ends <= take.inMilliseconds,
-      _ => false,
-    },
-  );
+  bool placesKnownIn(Duration? take) =>
+      _current.every((frase) => frase.placedIn(take));
 }

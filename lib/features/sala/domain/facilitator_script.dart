@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'moment.dart';
+import 'scene_rehearsal.dart';
 
 const languages = ['pt', 'en'];
 
@@ -145,9 +146,11 @@ const sceneRehearsalLabels = {
     'en':
         'the phrases already translated are not on this computer — tap done to send them, or start the translation over',
   },
-  'sent': {
-    'pt': 'a tradução deste ensaio da cena já foi para a voz',
-    'en': 'this scene rehearsal\'s translation already went to the voice',
+  'listen': {
+    'pt':
+        'A tradução deste ensaio da cena já foi para a voz. Toquem numa frase para ouvir o ensaio naquela parte, e no alto-falante para ouvir a tradução de vocês.',
+    'en':
+        'This scene rehearsal\'s translation already went to the voice. Tap a phrase to hear the rehearsal there, and the speaker to hear your translation of it.',
   },
   'saving': {
     'pt': 'guardando o ensaio da cena…',
@@ -165,11 +168,62 @@ const sceneRehearsalLabels = {
     'pt': 'falhou — toque para tentar de novo',
     'en': 'failed — tap to try again',
   },
+  'playPause': {
+    'pt': 'Tocar ou pausar a gravação',
+    'en': 'Play or pause your recording',
+  },
+  'frase': {'pt': 'frase {n}', 'en': 'phrase {n}'},
+  'hearMine': {
+    'pt': 'ouvir a minha tradução da frase {n}',
+    'en': 'hear my translation of sentence {n}',
+  },
+  'list': {
+    'pt': 'ensaios da cena desta sessão',
+    'en': 'scene rehearsals of this session',
+  },
+  'title': {'pt': 'Ensaio da cena', 'en': 'Scene rehearsal'},
+  'resume': {
+    'pt': 'continuar o ensaio da cena {n}',
+    'en': 'continue scene rehearsal {n}',
+  },
+  'listenTo': {
+    'pt': 'ouvir o ensaio da cena {n}',
+    'en': 'listen to scene rehearsal {n}',
+  },
+  'sceneN': {'pt': 'cena {n}', 'en': 'scene {n}'},
+  'frases': {'pt': 'frases traduzidas', 'en': 'translated sentences'},
+  'listSent': {'pt': 'enviado', 'en': 'sent'},
+  'listUnsent': {'pt': 'não enviado', 'en': 'not sent'},
 };
 
-String sceneRehearsalLabelFor(String control, String language) =>
-    sceneRehearsalLabels[control]![language] ??
-    sceneRehearsalLabels[control]![floorLanguage]!;
+String sceneRehearsalLabelFor(String control, String language, {int? n}) =>
+    (sceneRehearsalLabels[control]![language] ??
+            sceneRehearsalLabels[control]![floorLanguage]!)
+        .replaceAll('{n}', '$n');
+
+/// What VoiceOver says of one row of the scene rehearsals' list: its name, its scene,
+/// its time, its translated frases and whether it went to the voice.
+String sceneRehearsalRowLabelFor(
+  SceneRehearsalRecord row,
+  String language, {
+  required bool onScreen,
+}) {
+  String said(String control, [int? n]) =>
+      sceneRehearsalLabelFor(control, language, n: n);
+  final name = onScreen
+      ? '${said('title')} ${row.n}'
+      : said(row.unsent ? 'resume' : 'listenTo', row.n);
+  final scene = row.sceneNumber;
+  final at = row.recordedAt?.toLocal();
+  return [
+    name,
+    if (scene != null) ' — ${said('sceneN', scene)}',
+    if (at != null)
+      ', ${'${at.hour}'.padLeft(2, '0')}:${'${at.minute}'.padLeft(2, '0')}',
+    ', ${row.translatedFrases} · ${said('frases')}',
+    ', ${said(row.unsent ? 'listUnsent' : 'listSent')}',
+  ].join();
+}
 
 const retroLabels = {
   'record': {
