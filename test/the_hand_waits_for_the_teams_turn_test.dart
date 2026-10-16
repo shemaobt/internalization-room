@@ -14,7 +14,6 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'fakes.dart';
@@ -69,7 +68,11 @@ class _Room {
       .map((element) => element.widget.runtimeType)
       .toList();
 
-  int get pings => find.byType(PingIn).evaluate().length;
+  List<Type> get lookOfTheRoom => find
+      .byWidgetPredicate((_) => true)
+      .evaluate()
+      .map((element) => element.widget.runtimeType)
+      .toList();
 
   Future<void> aTapOnTheHiddenHandPlaysNothing() async {
     sala.handTap();
@@ -296,7 +299,8 @@ void main() {
   ) async {
     final room = await _inConversa(tester);
     final look = room.lookOfTheHand;
-    final pings = room.pings;
+    await room.beat(1500);
+    final roomBefore = room.lookOfTheRoom;
     room.sala.handTap();
     await room.beat();
     room.sala.conversaTap();
@@ -310,7 +314,7 @@ void main() {
     void nothingIsSaid() {
       expect(room.estado.voice, VoiceState.invite, reason: 'nada pensa');
       expect(byLabel(_tapToSpeak), findsOneWidget, reason: 'o círculo espera');
-      expect(room.pings, pings, reason: 'nenhuma marca');
+      expect(room.lookOfTheRoom, roomBefore, reason: 'nenhuma marca');
       expect(room.lookOfTheHand, look, reason: 'nenhum ponto na mão');
       expect(room.handLabel, _raise, reason: 'nada escrito na mão');
       expect(_handInTheCircle, findsNothing, reason: 'a mão saiu do círculo');
@@ -356,7 +360,8 @@ void main() {
         SalaHarness(captureGuard: const CaptureGuard()),
       );
       final look = room.lookOfTheHand;
-      final pings = room.pings;
+      await room.beat(1500);
+      final roomBefore = room.lookOfTheRoom;
       room.sala.handTap();
       await room.beat();
       room.sala.conversaTap();
@@ -370,11 +375,11 @@ void main() {
         'o microfone fechar',
         () => room.harness.recorder.lastPath != null,
       );
-      await room.beat(500);
+      await room.beat(1500);
 
       expect(room.harness.inbox.questionsSent, isEmpty);
       expect(room.harness.recorder.deleted, [room.harness.recorder.lastPath]);
-      expect(room.pings, pings);
+      expect(room.lookOfTheRoom, roomBefore);
       expect(room.lookOfTheHand, look);
       expect(room.handLabel, _raise);
     },
