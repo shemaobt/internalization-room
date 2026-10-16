@@ -152,7 +152,7 @@ A recording the team kept, identified locally by its scope (part or whole passag
 _Avoid_: gravação, recording (too general), audio
 
 **Accidental tap**:
-A scene take or a part too short to be anything the team said. It leaves nothing behind (ADR 0086).
+A scene take or a part too short to be anything the team said, or one the recorder handed back nothing for. It leaves nothing behind (ADR 0086).
 _Avoid_: empty take, short take, capture guard (the Conversation's window)
 
 **Capture guard**:
