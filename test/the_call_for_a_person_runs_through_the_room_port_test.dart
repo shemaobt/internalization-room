@@ -24,9 +24,7 @@ void main() {
 
   setUp(() {
     room = ARoomPort();
-    host = AStationHost()
-      ..session = 'sessao-1'
-      ..passageInCourse = 'rute-1';
+    host = AStationHost()..session = 'sessao-1';
     runner = runnerOver(fakePorts(ASoundPort(), room: room), host);
   });
 
@@ -145,20 +143,18 @@ void main() {
   });
 
   test(
-    'a call answered for an earlier session is heard by the Station with that session and its passage',
+    'a call answered for an earlier session is heard by the Station with that session',
     () async {
       runner.run(const [CallForAPerson()]);
       host
         ..session = 'sessao-2'
-        ..passageInCourse = 'rute-2'
         ..callIsWanted = false;
       room.answerTheCall(const RoomRefused(RefusalCode.passageClosed));
       await pumpEventQueue();
 
       expect(host.earlierCallsHeard.single.$1, 'sessao-1');
-      expect(host.earlierCallsHeard.single.$2, 'rute-1');
       expect(
-        host.earlierCallsHeard.single.$3,
+        host.earlierCallsHeard.single.$2,
         isA<RoomRefused>().having(
           (refused) => refused.code,
           'code',

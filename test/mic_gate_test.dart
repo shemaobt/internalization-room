@@ -162,9 +162,7 @@ void main() {
   testWidgets('clearing the gate opens the room, not just the screen', (
     tester,
   ) async {
-    final harness = SalaHarness()
-      ..recorder.permitted = false
-      ..finished.done.add('livro:Ruth');
+    final harness = SalaHarness()..recorder.permitted = false;
     final container = await pumpSala(tester, harness);
     await tester.pump(const Duration(milliseconds: 300));
     expect(container.read(micPermissionProvider), MicAccess.denied);

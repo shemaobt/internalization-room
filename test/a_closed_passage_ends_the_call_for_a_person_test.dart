@@ -258,49 +258,6 @@ void main() {
     expect(harness.room.personArrivedSessions, isEmpty);
   });
 
-  test('a passage closed is asked once even when the room comes back while '
-      'it is being marked closed', () async {
-    final harness = SalaHarness();
-    final container = await _naPassagem(harness);
-    int pedidos() =>
-        harness.room.calls.where((call) => call == 'askForAPerson').length;
-    void aRedeCai() {
-      harness.network.reachable = false;
-      harness.room.reachable = false;
-    }
-
-    void aRedeVolta() {
-      harness.network.reachable = true;
-      harness.room.reachable = true;
-      harness.network.networkComesBack();
-    }
-
-    _sala(container).haltForABrokenBuild();
-    aRedeCai();
-    await waitFor(
-      'a sala ficar fora de alcance',
-      () => _estado(container).unreachable,
-    );
-    harness.room.askForAPersonFailsWith = _thePassageClosed;
-    harness.finished.holdNextAdd();
-    aRedeVolta();
-    await waitFor('o pedido de pessoa sair', () => pedidos() == 1);
-    await waitFor('a sala voltar', () => !_estado(container).unreachable);
-
-    aRedeCai();
-    await waitFor('a sala cair de novo', () => _estado(container).unreachable);
-    aRedeVolta();
-    await waitFor(
-      'a sala voltar de novo',
-      () => !_estado(container).unreachable,
-    );
-    await settle(_severalStepsOfTheLadder);
-    harness.finished.finishHeldAdd();
-    await _naEscolha(container);
-
-    expect(pedidos(), 1);
-  });
-
   test('a passage closed after the team moved on to another passage still '
       'calls a person for the halt of the passage they are in', () async {
     final harness = SalaHarness();
@@ -322,12 +279,14 @@ void main() {
     await settle();
     _sala(container).conversaTap();
     await waitFor('a parada chegar', () => _estado(container).needsPerson);
-    harness.finished.holdNextAdd();
 
-    harness.room.finishHeldAskForAPerson();
+    harness.room
+      ..finishHeldAskForAPerson()
+      ..holdNextAskForAPerson();
     await settle();
-    harness.room.askForAPersonFailsWith = null;
-    harness.finished.finishHeldAdd();
+    harness.room
+      ..askForAPersonFailsWith = null
+      ..finishHeldAskForAPerson();
     await waitFor(
       'a sala chamar alguém para a outra passagem',
       () => harness.room.personsAsked == 1,
@@ -416,10 +375,11 @@ void main() {
     _sala(container).leaveThePassage();
     await _naEscolha(container);
     await settle();
+    expect(harness.emAberto.rows.containsKey('Ruth/P01/pt'), isTrue);
     harness.room.finishHeldAskForAPerson();
     await waitFor(
-      'a passagem ser marcada fechada',
-      () => harness.finished.done.contains('Ruth/P01'),
+      'a resposta tardia largar o lugar da sessão fechada',
+      () => !harness.emAberto.rows.containsKey('Ruth/P01/pt'),
     );
     harness.room
       ..failTurnsWith = null
