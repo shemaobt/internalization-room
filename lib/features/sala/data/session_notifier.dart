@@ -3310,7 +3310,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _reopenTheUnsent(String sessionId) async {
     final generation = _waitOnTheGeneration;
-    final asked = state.scene;
+    var asked = state.scene;
     final waiting = await _takes.sceneWaitingIn(sessionId);
     if (waiting != null) {
       if (_theSceneMovedOn(asked, generation)) return;
@@ -3323,7 +3323,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           ),
         ),
       );
-      return;
+      asked = state.scene;
     }
     final listed = await _room.sceneRehearsalsOf(sessionId);
     switch (listed) {
@@ -3333,7 +3333,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           sceneRehearsals: SceneRehearsalRecord.ofTheSession(value, sessionId),
         );
         final unsent = SceneRehearsalRecord.toReopen(value, sessionId);
-        if (unsent == null) return;
+        if (waiting != null || unsent == null) return;
         final reopening = SceneScreen(rehearsal: unsent);
         state = state.copyWith(scene: reopening);
         await _showTheRehearsal(unsent, reopening, generation);

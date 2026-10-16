@@ -781,6 +781,40 @@ void main() {
     });
   });
 
+  test('a reopen over a take still waiting lists this session\'s rehearsals, '
+      'with no row on screen', () async {
+    final room = await _atRest([_sentOne, _unsentTwo, _ofAnotherSession]);
+    await _theScreenOpens(room, on: _showing(2, SceneStep.translate));
+    room.sala.recordTheSceneAgain();
+    await settle();
+    room.harness.room.failSceneWith = const NetworkFailed('sem rede');
+    await _recordAndStop(room);
+    await waitFor(
+      'o ensaio ficar esperando',
+      () => room.state.scene.keep is NotKept,
+    );
+    room.sala.leaveTheSceneRehearsal();
+    await waitFor(
+      'a conversa voltar',
+      () => room.state.stage == SalaStage.conversa,
+    );
+    room.harness.room
+      ..holdNextKeepBeforeTheRoomActs()
+      ..failSceneWith = null;
+
+    await _theScreenOpens(
+      room,
+      on: (scene) =>
+          scene.keep is NotKept && room.state.sceneRehearsals.isNotEmpty,
+    );
+
+    expect(_rows(room), [(1, false, 3), (2, true, 0)]);
+    expect(room.state.scene.rehearsal, isNull);
+    expect(room.state.scene.step, SceneStep.record);
+    room.harness.room.finishHeldKeep();
+    await settle();
+  });
+
   group('every way out clears the scene rehearsal\'s list', () {
     void expectCleared(_Room room) {
       expect(room.state.sceneRehearsals, isEmpty);
