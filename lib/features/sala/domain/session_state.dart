@@ -41,6 +41,14 @@ final class SceneScreen {
     length: length,
     waiting: true,
   );
+
+  /// Whether «terminei» applies: an unsent rehearsal with a translated frase, being
+  /// translated, with nothing in the air.
+  bool get sendable =>
+      (step == SceneStep.translate || step == SceneStep.placesUnknown) &&
+      !waiting &&
+      (rehearsal?.unsent ?? false) &&
+      rehearsal!.translatedFrases > 0;
 }
 
 enum VoiceState {
@@ -236,6 +244,10 @@ class SalaSessionState {
   /// This session's scene rehearsals, by number, as the room last answered them.
   final List<SceneRehearsalRecord> sceneRehearsals;
 
+  /// The turn «terminei» last sent for a scene rehearsal and no reply has played for:
+  /// the next «terminei» on that rehearsal goes under it again.
+  final ({String rehearsalId, String turnId})? sceneTurn;
+
   /// Whether the bead at [index] does not apply right now (ADR 0040: dimmed means it does
   /// not apply). True for every part but the one a finding sent the team back to record,
   /// while that record-again stands open and nothing has been recorded for it yet. Once
@@ -301,6 +313,7 @@ class SalaSessionState {
     this.parteARegravar,
     this.scene = const SceneScreen(),
     this.sceneRehearsals = const [],
+    this.sceneTurn,
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -336,6 +349,10 @@ class SalaSessionState {
 
   /// Whether the scene rehearsal's screen stands over the Canvas.
   bool get sceneRehearsalIsOpen => station is SceneRehearsal;
+
+  /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
+  bool get theSceneIsSending =>
+      sceneRehearsalIsOpen && (awaitingTheGuide || machine.inFlight != null);
 
   bool get redMicrophoneIsShown =>
       (voice == VoiceState.invite || voice == VoiceState.done) &&
@@ -451,9 +468,9 @@ class SalaSessionState {
 
   /// The way back answers the finger only while the Wheel is quiet, and from any Step of
   /// the scene rehearsal, its microphone open included.
-  bool get theWayBackIsLive =>
-      sceneRehearsalIsOpen ||
-      (theWayBackIsOffered && voice == VoiceState.invite);
+  bool get theWayBackIsLive => sceneRehearsalIsOpen
+      ? !theSceneIsSending
+      : theWayBackIsOffered && voice == VoiceState.invite;
 
   /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
   /// microphone other than the raised-hand note's is open, or a person is called, except
@@ -685,6 +702,8 @@ class SalaSessionState {
     bool clearParteARegravar = false,
     SceneScreen? scene,
     List<SceneRehearsalRecord>? sceneRehearsals,
+    ({String rehearsalId, String turnId})? sceneTurn,
+    bool clearSceneTurn = false,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
@@ -751,6 +770,7 @@ class SalaSessionState {
           : (parteARegravar ?? this.parteARegravar),
       scene: scene ?? this.scene,
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
+      sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),
     );
   }
 }

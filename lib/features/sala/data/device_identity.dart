@@ -31,7 +31,7 @@ Future<String> _findOrMint() async {
 String _mint() => _hex(_secureBytes());
 
 /// A fresh v4 uuid, minted from the same secure bytes as the device id.
-String mintAnAttempt() {
+String mintAUuid() {
   final bytes = _secureBytes();
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
