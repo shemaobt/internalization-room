@@ -1486,13 +1486,21 @@ class FakeRoom implements RoomRepository {
   void finishHeldSceneList() => _heldSceneLists.removeAt(0).complete();
 
   Completer<void>? _holdingKeep;
+  Completer<void>? _holdingKeepBefore;
 
   /// Hold the next keep's answer, after the room has taken the take.
   void holdNextKeep() => _holdingKeep = Completer<void>();
 
+  /// Hold the next keep before the room acts, so what it answers is read when it is let
+  /// go.
+  void holdNextKeepBeforeTheRoomActs() =>
+      _holdingKeepBefore = Completer<void>();
+
   void finishHeldKeep() {
     _holdingKeep?.complete();
     _holdingKeep = null;
+    _holdingKeepBefore?.complete();
+    _holdingKeepBefore = null;
   }
 
   Completer<void>? _holdingRestart;
@@ -1530,7 +1538,7 @@ class FakeRoom implements RoomRepository {
     String? scene,
   }) async {
     if (_guard('keepSceneRehearsal') case final failure?) return failure;
-    await _holdingKeep?.future;
+    await _holdingKeepBefore?.future;
     if (_forgot('keepSceneRehearsal', sessionId) case final gone?) return gone;
     final refusal = failSceneWith;
     if (refusal != null) return refusal;
@@ -1544,6 +1552,7 @@ class FakeRoom implements RoomRepository {
       n: n,
     );
     sceneRehearsals.add(kept);
+    await _holdingKeep?.future;
     return Answered(kept);
   }
 
@@ -2462,6 +2471,9 @@ class FakeTakeQueue implements TakeUploadQueue {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
+      original: kind == sceneTakeKind
+          ? p.basenameWithoutExtension(audio.path)
+          : null,
     );
     rows.add(entry);
     return entry;
@@ -2481,12 +2493,28 @@ class FakeTakeQueue implements TakeUploadQueue {
       rows.removeWhere((entry) => entry.sessionId == sessionId);
 
   final Map<String, SceneRehearsalRecord> _keptScenes = {};
+  final Map<String, String> _toName = {};
 
   @override
   Future<SceneRehearsalRecord?> keepTheScene(String row) async {
+    final at = rows.indexWhere((entry) => entry.id == row);
+    for (var i = 0; i < at; i++) {
+      final entry = rows[i];
+      if (entry.kind == sceneTakeKind &&
+          entry.sessionId == rows[at].sessionId &&
+          !entry.exhausted) {
+        rows[i] = entry.dueNow();
+      }
+    }
     await flush();
     return keptSceneOf(row);
   }
+
+  @override
+  Map<String, String> scenesToName() => Map.of(_toName);
+
+  @override
+  void named(String original) => _toName.remove(original);
 
   @override
   SceneRehearsalRecord? keptSceneOf(String row) => _keptScenes[row];
@@ -2525,13 +2553,20 @@ class FakeTakeQueue implements TakeUploadQueue {
         )) {
           case Answered(:final value):
             _keptScenes[entry.id] = value;
+            if (entry.original case final original?) {
+              _toName[original] = 'cena-${value.rehearsalId}';
+            }
             rows.removeAt(at);
             sent++;
           case SessionGone():
             await discardTheSession(entry.sessionId);
             _sessionsGone.add(entry.sessionId);
-          case RoomFailure():
-            _writeBack(entry.copyWith(attempts: entry.attempts + 1));
+          case NetworkFailed():
+            _writeBack(entry.copyWith(waits: entry.waits + 1));
+          case Refused(:final code):
+            _writeBack(
+              entry.copyWith(attempts: takeUploadAttempts, refusal: code),
+            );
         }
         continue;
       }
