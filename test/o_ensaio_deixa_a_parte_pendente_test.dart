@@ -343,23 +343,19 @@ void main() {
       );
       sala.ensaioTap();
       await waitFor(
-        'a sala chamar uma pessoa',
-        () => container.read(salaSessionProvider).needsPerson,
+        'a gravação por cima voltar sem tomada',
+        () => ensaio() == EnsaioStatus.recorded,
       );
 
       expect(
-        ensaio(),
-        EnsaioStatus.recorded,
-        reason: 'a captura falhou; a parte que já estava pendente continua',
+        container.read(salaSessionProvider).needsPerson,
+        isFalse,
+        reason:
+            'ENG-1347, o Definer: uma tomada que não volta é um toque '
+            'acidental, sem chamar ninguém',
       );
       expect(harness.recorder.deleted, isNot(contains(pendente)));
       harness.recorder.returnsNothing = false;
-      harness.room.theDeskAttended();
-      sala.resolveWithPerson();
-      await waitFor(
-        'a pessoa soltar a sala',
-        () => !container.read(salaSessionProvider).needsPerson,
-      );
       sala.playTheRehearsal();
       await waitFor('tocar', () => harness.playback.played.isNotEmpty);
       expect(harness.playback.played, [pendente]);

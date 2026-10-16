@@ -6736,9 +6736,10 @@ void main() {
     );
     expect(
       state.needsPerson,
-      isTrue,
+      isFalse,
       reason:
-          'gravar a passagem inteira e não sair nada é coisa para uma pessoa olhar',
+          'ENG-1347, o Definer: uma tomada que não volta é um toque acidental, '
+          'sem chamar ninguém',
     );
   });
 
@@ -6817,6 +6818,42 @@ void main() {
             .where({'voice:line', 'voice:fixed', 'voice:asset'}.contains),
         isEmpty,
         reason: 'nada é falado por um dedo que roçou o círculo',
+      );
+    },
+  );
+
+  test(
+    'a Part the recorder handed back no take for is an accidental tap: no halt, '
+    'no person, nothing spoken',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final personsBefore = harness.room.personsAsked;
+
+      notifier.goEnsaio();
+      final soundsBefore = harness.sounds.length;
+      harness.recorder.returnsNothing = true;
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
+
+      final state = container.read(salaSessionProvider);
+      expect(state.ensaio, EnsaioStatus.idle);
+      expect(
+        state.needsPerson,
+        isFalse,
+        reason:
+            'o Definer: um toque duplo rápido que não deixa tomada é o toque '
+            'acidental em outra forma',
+      );
+      expect(harness.room.personsAsked, personsBefore);
+      expect(
+        harness.sounds
+            .skip(soundsBefore)
+            .where({'voice:line', 'voice:fixed', 'voice:asset'}.contains),
+        isEmpty,
       );
     },
   );

@@ -179,6 +179,8 @@ class EffectRunner {
   List<StreamSubscription<void>>? _partSignals;
   StreamSubscription<bool>? _micTaken;
   int _starts = 0;
+  bool? _newestStarted;
+  bool _anOlderStartRuns = false;
   Future<void>? _probing;
   Future<RoomReach>? _asking;
   bool _aStepAsks = false;
@@ -460,6 +462,7 @@ class EffectRunner {
 
   void _openTheMic(MicOwner owner, String take) {
     _micTaken ??= recorder.taken.listen(host.hearTheMicrophoneTaken);
+    _newestStarted = null;
     unawaited(
       _answerTheStart(
         owner,
@@ -489,8 +492,20 @@ class EffectRunner {
       } else if (start == _starts) {
         host.answer(MicClosed(generation: now));
       }
-    } else if (started && !host.keepsTheStart(owner)) {
-      unawaited(recorder.discard());
+    } else if (start != _starts) {
+      if (started && _newestStarted == false) {
+        unawaited(recorder.discard());
+      } else if (started) {
+        _anOlderStartRuns = true;
+      }
+      return;
+    } else {
+      _newestStarted = started;
+      if ((started && !host.keepsTheStart(owner)) ||
+          (!started && _anOlderStartRuns)) {
+        unawaited(recorder.discard());
+      }
+      _anOlderStartRuns = false;
     }
     host.answer(MicAnswered(answer, generation: stamp));
   }

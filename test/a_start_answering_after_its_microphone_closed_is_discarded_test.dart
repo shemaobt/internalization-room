@@ -176,4 +176,71 @@ void main() {
       expect(harness.room.turnsSent, turnsBefore);
     });
   });
+
+  group('a start that is not the newest is never kept', () {
+    Future<(SalaHarness, SalaSessionState Function())>
+    twoStartsInTheAir() async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      notifier.goEnsaio();
+      harness.recorder.holdNextStart();
+      notifier.ensaioTap();
+      await settle();
+      notifier.ensaioTap();
+      await waitFor(
+        'a primeira tomada voltar',
+        () => read().ensaio == EnsaioStatus.recorded,
+      );
+      harness.recorder.holdNextStart();
+      notifier.ensaioTap();
+      await waitFor(
+        'a segunda abertura sair',
+        () => read().ensaio == EnsaioStatus.recording,
+      );
+      return (harness, read);
+    }
+
+    test('and it never stops the newest', () async {
+      final (harness, read) = await twoStartsInTheAir();
+      final soundsBefore = harness.sounds.length;
+
+      harness.recorder.finishStart();
+      await settle();
+
+      expect(
+        harness.sounds.skip(soundsBefore),
+        isNot(contains('recorder:discard')),
+        reason:
+            'o gravador é um só: descartar a abertura velha pararia a nova, '
+            'que a equipe acabou de pedir',
+      );
+      harness.recorder.finishStart();
+      await settle();
+      expect(read().channel, isA<Microphone>());
+    });
+
+    test('and it is discarded when the newest never started', () async {
+      final (harness, read) = await twoStartsInTheAir();
+      harness.recorder.finishStart();
+      await settle();
+      final soundsBefore = harness.sounds.length;
+
+      harness.recorder.startThrows = true;
+      harness.recorder.finishStart();
+      await settle();
+
+      expect(
+        harness.sounds.skip(soundsBefore),
+        contains('recorder:discard'),
+        reason:
+            'sem a abertura nova, a velha seguia gravando a sala sem ninguém '
+            'segurando o canal',
+      );
+      expect(read().channel, isNot(isA<Microphone>()));
+    });
+  });
 }

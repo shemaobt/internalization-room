@@ -3675,16 +3675,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final path = (await _closeTheMicrophone()).take;
     if (_abandoned(generation)) return;
-    if (path == null || !File(path).existsSync()) {
-      // Nothing came back. A check over a take that does not exist let a team confirm a
-      // rehearsal into nothing — no bead appeared, and the way to the retro never opened.
+    if (path == null || _anAccidentalTap(path)) {
       state = state.copyWith(ensaio: _semGravacaoAberta);
-      _raiseAHalt();
-      return;
-    }
-    if (_anAccidentalTap(path)) {
-      state = state.copyWith(ensaio: _semGravacaoAberta);
-      unawaited(_recorder.delete(path));
+      if (path != null) unawaited(_recorder.delete(path));
       return;
     }
     _pendingTakePath = path;

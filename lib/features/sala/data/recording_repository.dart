@@ -76,6 +76,7 @@ class RecordingRepository {
       // A full disk, an unwritable directory, another app holding the microphone. This
       // used to escape as an unhandled async error while the screen already showed the
       // room listening, and the team spoke into a recorder that was never running.
+      await restoreTheSampleRate();
       return Capture.failed;
     }
   }

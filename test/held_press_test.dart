@@ -38,17 +38,15 @@ void main() {
   testWidgets('a held press still unsticks an ensaio the room abandoned', (
     tester,
   ) async {
-    final harness = SalaHarness()..recorder.returnsNothing = true;
+    final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.haltForABrokenBuild();
     await tester.pump(const Duration(milliseconds: 200));
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
 
-    harness.recorder.returnsNothing = false;
     await _holdTheCircle(tester);
 
     expect(

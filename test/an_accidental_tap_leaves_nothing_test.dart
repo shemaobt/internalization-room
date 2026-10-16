@@ -72,6 +72,31 @@ void main() {
     );
   });
 
+  test(
+    'a scene take the recorder handed back no take for leaves nothing',
+    () async {
+      final room = await atRest();
+      final soundsBefore = room.harness.sounds.length;
+      final personsBefore = room.harness.room.personsAsked;
+      room.harness.recorder.returnsNothing = true;
+      await theScreenOpens(room);
+      await theSceneMicrophoneOpens(room);
+
+      room.sala.sceneTap();
+      await waitFor(
+        'o microfone da cena fechar',
+        () => room.state.channel is! Microphone,
+      );
+      await settle();
+
+      _expectNothingLeftBehind(
+        room,
+        soundsBefore: soundsBefore,
+        personsBefore: personsBefore,
+      );
+    },
+  );
+
   test('a scene take of 0.3 s is kept', () async {
     final room = await atRest();
 
