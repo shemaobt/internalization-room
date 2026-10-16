@@ -530,6 +530,67 @@ void main() {
     );
   });
 
+  group('the open after its 4 s', () {
+    testWidgets(
+      'the session\'s rehearsals that answer after the team picked still list, '
+      'and the highlight reads them',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          rehearsals: [_rehearsal(1, scene: 'S1', sent: true)],
+          before: (harness) => harness.room.holdNextSceneList(),
+          rests: false,
+        );
+        await room.pump(const Duration(seconds: 4));
+        await room.sleepThrough();
+        await room.pick(_scene3);
+
+        room.room.finishHeldSceneList();
+        await room.pump(const Duration(milliseconds: 100));
+
+        expect(byLabel(_theList), findsOneWidget);
+
+        await room.sleepThrough();
+        await tester.tap(byLabel(_chip3));
+        await room.pump();
+
+        expect(_highlighted(tester), [_scene2]);
+        closeTheRoom(room.container);
+      },
+    );
+
+    testWidgets(
+      'a reopen whose take lands after the record step showed gives up, and its '
+      'row stays openable',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          rehearsals: [_rehearsal(1, scene: 'S1')],
+          before: (harness) => harness.room
+            ..holdNextScenes()
+            ..holdNextClip(),
+          rests: false,
+        );
+        await room.pump(const Duration(seconds: 4));
+        expect(byLabel(_record), findsOneWidget);
+
+        await room.pump(const Duration(seconds: 6));
+        room.room.finishHeldClip();
+        await room.pump(const Duration(milliseconds: 100));
+
+        expect(room.state.scene.step, SceneStep.record);
+        expect(byLabel(_record), findsOneWidget);
+
+        room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
+        await room.pumpUntil(
+          'o ensaio 1 abrir',
+          () => room.state.scene.rehearsal?.n == 1 && !room.state.scene.waiting,
+        );
+        closeTheRoom(room.container);
+      },
+    );
+  });
+
   group('the label at the record tap', () {
     testWidgets(
       'case 21: the label is read at the tap that starts the recording, before '
