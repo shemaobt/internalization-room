@@ -20,7 +20,7 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
 
-const _raise = 'Levantar a mão';
+const _raise = 'Deixar uma pergunta para o facilitador';
 const _hearTheAnswer = 'Ouvir a resposta do facilitador';
 const _tapToSpeak = 'Tocar para falar';
 const _reply = HandReply(id: 'r1', audioUrl: '/resposta/r1');
@@ -589,35 +589,20 @@ void main() {
   );
 
   testWidgets(
-    'An armed Knot is abandoned when the voice speaks again, and the circle '
-    'cuts her off as it would without it',
+    'A tap on the hear-again button is not possible while a Knot is armed: the '
+    'voice stays quiet and the Knot stays armed',
     (tester) async {
       final room = await _inConversa(tester);
       room.sala.handTap();
       await room.beat();
-      expect(_handInTheCircle, findsOneWidget);
+      final played = [...room.harness.voice.played];
 
-      room.harness.voice.holdNextLine();
       unawaited(room.sala.hearAgain());
-      await room.until(
-        'a voz falar de novo',
-        () => room.estado.voice == VoiceState.speaking,
-      );
       await room.beat(600);
 
-      expect(_handInTheCircle, findsNothing);
-
-      final turns = room.harness.room.turnsSent;
-      room.sala.conversaTap();
-      await room.until(
-        'o corte abrir o microfone da equipe',
-        () => room.estado.voice == VoiceState.listening,
-      );
-      room.sala.conversaTap();
-      await room.until('a vez sair', () => room.harness.room.turnsSent > turns);
-      await room.beat(300);
-
-      expect(room.harness.inbox.questionsSent, isEmpty);
+      expect(room.estado.voice, VoiceState.invite);
+      expect(room.harness.voice.played, played);
+      expect(_handInTheCircle, findsOneWidget);
     },
   );
 

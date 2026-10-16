@@ -395,6 +395,7 @@ class SalaSessionState {
       (lastSpoken != null || roomSaysItAgain) &&
       (voice == VoiceState.invite || voice == VoiceState.done) &&
       !needsPerson &&
+      !noteMode &&
       stage != SalaStage.ensaio &&
       stage != SalaStage.retro &&
       stage != SalaStage.fim &&

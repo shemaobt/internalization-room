@@ -18,7 +18,6 @@ void main() {
       'rehearsalLabels': rehearsalLabels,
       'sceneRehearsalLabels': sceneRehearsalLabels,
       'findingLabels': findingLabels,
-      'panoramaCircleLabels': {'circle': panoramaCircleLabels},
       'escolhaLabels': escolhaLabels,
       'handLabels': handLabels,
       'roomLabels': roomLabels,

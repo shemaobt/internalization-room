@@ -7,7 +7,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
-import '../../domain/channel.dart';
 import '../../domain/moment.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
@@ -52,7 +51,7 @@ class ConversaView extends ConsumerWidget {
               const SizedBox(height: 44),
               SizedBox(
                 height: 64,
-                child: !session.needsPerson
+                child: !session.needsPerson && !session.noteMode
                     ? FadeUp(
                         child: RoundActionButton(
                           size: 64,
@@ -157,16 +156,11 @@ class ConversaView extends ConsumerWidget {
 
   bool _dotIsLit(SalaSessionState session) =>
       (session.endOfThePassage || session.moment?.at == MomentAt.ensaioFinal) &&
-      !(session.wayOutIsHidden ||
-          session.voice == VoiceState.listening ||
-          session.noteMode);
+      !session.wayOutIsHidden;
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);
     if (session.offline) return circleLabelFor('offline', language);
-    if (session.channel case Microphone(owner: MicOwner.question)) {
-      return circleLabelFor('noteMode', language);
-    }
     if (session.voice == VoiceState.listening) {
       return circleLabelFor('listening', language);
     }
