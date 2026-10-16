@@ -72,23 +72,30 @@ class SceneRehearsalView extends ConsumerWidget {
                           onPick: notifier.pickTheScene,
                         )
                       : null,
-                  chip: switch (scenes.numberOf(scene.picked)) {
-                    final n? when scenes.asks => SceneChip(
-                      words: sceneChipTextFor(
-                        n,
-                        scenes.scenes[n - 1].title,
-                        language,
-                      ),
-                      label: sceneChipLabelFor(
-                        n,
-                        scenes.scenes[n - 1].title,
-                        language,
-                      ),
-                      live: !session.sceneTakeUnderWay && scene.keep == null,
-                      onTap: notifier.backToTheSceneQuestion,
-                    ),
-                    _ => null,
-                  },
+                  chip: !session.sceneChipShown
+                      ? null
+                      : switch (scenes.numberOf(scene.picked)) {
+                          final n? => SceneChip(
+                            words: sceneChipTextFor(
+                              n,
+                              scenes.scenes[n - 1].title,
+                              language,
+                            ),
+                            label: sceneChipLabelFor(
+                              n,
+                              scenes.scenes[n - 1].title,
+                              language,
+                            ),
+                            live: session.sceneChipLive,
+                            onTap: notifier.backToTheSceneQuestion,
+                          ),
+                          null => SceneChip(
+                            words: '',
+                            label: '',
+                            live: false,
+                            onTap: notifier.backToTheSceneQuestion,
+                          ),
+                        },
                   focused: scene.picked != null,
                 ),
               },

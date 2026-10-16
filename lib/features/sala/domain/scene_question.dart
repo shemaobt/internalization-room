@@ -24,6 +24,14 @@ const sceneWake = Duration(milliseconds: 600);
 
 const _sceneListRetryWaits = [Duration(seconds: 2), Duration(seconds: 8)];
 
+/// Whether a tap at [now] falls in the sleep that began at [since]; a clock set back
+/// before [since] wakes it.
+bool asleepAt(DateTime now, {required DateTime? since}) {
+  if (since == null) return false;
+  final slept = now.difference(since);
+  return !slept.isNegative && slept < sceneWake;
+}
+
 /// The wait before the scene list is asked again after [asked] retries; null once the
 /// retries are spent.
 Duration? sceneListRetryWait(int asked) =>

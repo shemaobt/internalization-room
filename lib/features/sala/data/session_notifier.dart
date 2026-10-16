@@ -3310,20 +3310,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _handOff(_openTheScreen(sessionId));
   }
 
-  /// The record step shows nothing until this session's rehearsals have answered and the
-  /// scene list has answered, or [sceneListWait] has passed since the open.
+  /// The record step shows nothing until this session's rehearsals and the scene list
+  /// have answered, or [sceneListWait] has passed since the open. A list that answers
+  /// later is still taken.
   Future<void> _openTheScreen(String sessionId) async {
     final generation = _waitOnTheGeneration;
     final first = _room.scenesOf(sessionId);
+    RoomAnswer<List<Scene>>? answered;
     final gate = Completer<void>();
     _after('sceneList', sceneListWait, gate.complete);
-    await _reopenTheUnsent(sessionId);
-    final answer = await Future.any([
-      first,
-      gate.future.then<RoomAnswer<List<Scene>>?>((_) => null),
+    await Future.any([
+      Future.wait([
+        _reopenTheUnsent(sessionId),
+        first.then((answer) => answered = answer),
+      ]),
+      gate.future,
     ]);
     if (_abandoned(generation)) return;
     _timers.remove('sceneList')?.cancel();
+    final answer = answered;
     if (answer == null) {
       _theScenesMissed(0);
       unawaited(first.then((late) => _theScenesAnswered(late, generation)));
@@ -3381,11 +3386,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// A question that comes on screen sleeps [sceneWake] from now.
   void _stampTheQuestion() {
     if (!state.sceneQuestionShown || state.scene.askedAt != null) return;
-    state = state.copyWith(scene: state.scene.askedNow(clock.now()));
+    state = state.copyWith(scene: state.scene.copyWith(askedAt: clock.now()));
   }
 
-  bool _asleep(DateTime? since) =>
-      since != null && clock.now().difference(since) < sceneWake;
+  bool _asleep(DateTime? since) => asleepAt(clock.now(), since: since);
 
   bool _theSceneMovedOn(SceneScreen asked, int generation) =>
       _abandoned(generation) ||
@@ -3394,7 +3398,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _reopenTheUnsent(String sessionId) async {
     final generation = _waitOnTheGeneration;
-    final asked = state.scene;
+    var asked = state.scene;
     final waiting = await _takes.sceneWaitingIn(sessionId);
     if (waiting != null) {
       if (_theSceneMovedOn(asked, generation)) return;
@@ -3408,7 +3412,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           ),
         ),
       );
-      return;
+      asked = state.scene;
     }
     final listed = await _room.sceneRehearsalsOf(sessionId);
     switch (listed) {
@@ -3418,7 +3422,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           sceneRehearsals: SceneRehearsalRecord.ofTheSession(value, sessionId),
         );
         final unsent = SceneRehearsalRecord.toReopen(value, sessionId);
-        if (unsent == null) return;
+        if (waiting != null || unsent == null) return;
         final reopening = SceneScreen(rehearsal: unsent);
         state = state.copyWith(scene: reopening);
         await _showTheRehearsal(unsent, reopening, generation);
@@ -3521,11 +3525,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final shown = state.scene;
     if (state.station is! SceneRehearsal ||
         !state.sceneQuestionShown ||
+        shown.waiting ||
         state.scenes.numberOf(sceneId) == null ||
         _asleep(shown.askedAt)) {
       return;
     }
-    state = state.copyWith(scene: shown.picking(sceneId, at: clock.now()));
+    state = state.copyWith(
+      scene: shown.copyWith(
+        picked: sceneId,
+        pickedAt: clock.now(),
+        askedAt: null,
+      ),
+    );
   }
 
   void backToTheSceneQuestion() => _gesture(_backToTheSceneQuestion);
@@ -3535,11 +3546,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is! SceneRehearsal ||
         shown.step != SceneStep.record ||
         shown.picked == null ||
-        shown.keep != null ||
-        state.sceneTakeUnderWay) {
+        !state.sceneChipLive) {
       return;
     }
-    state = state.copyWith(scene: shown.picking(null));
+    state = state.copyWith(
+      scene: shown.copyWith(picked: null, pickedAt: null, askedAt: null),
+    );
     _stampTheQuestion();
   }
 
@@ -3565,7 +3577,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return;
         }
         state = state.copyWith(
-          scene: shown.labelled(state.scenes.labelFor(shown.picked)),
+          scene: shown.copyWith(label: state.scenes.labelFor(shown.picked)),
         );
         _startListening('cena_${_stamp()}', owner: MicOwner.scene);
     }
@@ -3573,7 +3585,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _keepTheSceneTake() async {
     final generation = _waitOnTheGeneration;
-    final keeping = state.scene.withKeep(const Keeping());
+    final keeping = state.scene.copyWith(keep: const Keeping());
     state = state.copyWith(scene: keeping);
     final sessionId = state.sessionId;
     final path = (await _closeTheMicrophone()).take;
@@ -3583,7 +3595,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _sendTheSceneTake(sessionId, path, keeping, generation);
     }
     if (identical(state.scene, keeping)) {
-      state = state.copyWith(scene: keeping.withKeep(null));
+      state = state.copyWith(scene: keeping.copyWith(keep: null));
       _stampTheQuestion();
     }
   }
@@ -3667,7 +3679,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
   ) {
     if (_theSceneMovedOn(keeping, generation)) return;
-    state = state.copyWith(scene: keeping.withKeep(waiting));
+    state = state.copyWith(scene: keeping.copyWith(keep: waiting));
     _stampTheQuestion();
   }
 
@@ -3684,11 +3696,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final waiting = asked.keep;
     if (state.station is! SceneRehearsal ||
         asked.step != SceneStep.record ||
+        asked.waiting ||
         waiting is! NotKept ||
         state.channel is Microphone) {
       return;
     }
-    final keeping = asked.withKeep(const Keeping());
+    final keeping = asked.copyWith(keep: const Keeping());
     state = state.copyWith(scene: keeping);
     _handOff(_sendAgain(waiting, keeping));
   }
