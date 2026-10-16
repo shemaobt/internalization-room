@@ -1,9 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show enterThePassage, settle;
+import 'scenario_helpers.dart' show enterThePanorama, enterThePassage, settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 Future<(Sala, String)> _anEnglishSessionReachedAgainAfterPtWasTapped({
@@ -101,8 +103,16 @@ void main() {
     () async {
       final it = await umEnsaioDeTresPartesContadoInteiro();
       await pedirOVeredito(it);
+      final portuguese = it.estado.sessionId!;
+      it.sala.leaveThePassage();
+      await waitFor('the way back', () => it.estado.theWayBackIsLive);
       it.sala.chooseTheLanguage('en');
       await settle();
+      await _backInTheSession(it, portuguese);
+      await theClipOpens(it.harness);
+      it.harness.playback.finishPlayback();
+      await waitFor('the clip to end', () => it.estado.btClipEnded);
+      await pedirOVeredito(it);
       it.harness.voice.fixedLines.clear();
 
       await it.sala.aprovarRascunhoFinal();
@@ -140,6 +150,47 @@ void main() {
       await settle();
 
       expect(it.harness.voice.assets, [micBlockedAsset('pt')]);
+    },
+  );
+
+  test(
+    'an English Panorama left before it was heard is opened again in English, in its own session, when the network returns',
+    () async {
+      final harness = SalaHarness(lingua: null)
+        ..room.passages = const [
+          Passagem(
+            pericope: 'panorama',
+            audioUrl: '/voice/panorama',
+            kind: PassagemKind.panorama,
+          ),
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        ];
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final it = Sala(harness, container);
+      it.sala.chooseTheLanguage('en');
+      await settle();
+      harness.voice.holdNextFetch();
+      await enterThePanorama(it.sala, () => it.estado);
+      await waitFor(
+        'the Panorama session to be asked for',
+        () => harness.room.languagesSent.length == 1,
+      );
+      it.sala.leaveThePassage();
+      harness.voice.finishHeldFetch();
+      await waitFor('the way back', () => it.estado.theWayBackIsLive);
+      it.sala.chooseTheLanguage('pt');
+      await settle();
+      harness.room.reachable = false;
+      harness.network.reachable = false;
+      await it.sala.returnToTheLeftEntry();
+      await settle();
+
+      harness.room.reachable = true;
+      harness.network.reachable = true;
+      await waitFor('the Panorama to be said', () => it.estado.panoramaSaid);
+
+      expect(harness.room.languagesSent, ['en']);
     },
   );
 }

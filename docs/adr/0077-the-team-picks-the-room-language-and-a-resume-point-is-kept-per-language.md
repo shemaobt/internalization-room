@@ -2,6 +2,8 @@
 
 Supersedes ADR 0015. Amends ADR 0031 (a row created in another language no longer drops it).
 
+Superseded in part by ADR 0084: the last bullet of the Decision, on fixed and process lines.
+
 ## Context
 
 The tablet took its language from the device's settings, falling back to English, and the

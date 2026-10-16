@@ -62,7 +62,7 @@ The fixed line played the moment a team turn ends: one of Marcia's three, picked
 _Avoid_: thinking line, filler, wait line
 
 **Process line**:
-One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), asked of the room by position in the language of the session, never rotated; the approval's line is the fourth.
+One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), asked of the room by position in the Session language (the Room language on the Choice), never rotated; the approval's line is the fourth.
 _Avoid_: fail-safe (a fixed line that answers a failure and rotates), canned line, linha de processo
 
 **Spoken line**:

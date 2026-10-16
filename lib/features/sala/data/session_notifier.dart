@@ -1350,7 +1350,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       Fim() => _startOver,
       Menu() => abrirEscolha,
       Canvas() when state.sessionId == null => _enterAgain(_emCurso),
-      Panorama() when !state.panoramaSaid => _entrarNoPanorama,
+      Panorama() when !state.panoramaSaid => () => _entrarNoPanorama(
+        _panoramaLanguage,
+      ),
       _ => null,
     };
   }
