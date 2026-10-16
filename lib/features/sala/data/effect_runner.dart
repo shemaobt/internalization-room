@@ -15,9 +15,6 @@ import 'room_answer.dart';
 /// Where a Session read stands in the room's order of reads, and the row it was sent over.
 typedef SentRead = ({int order, List<Trecho> row});
 
-/// The book and the passage a closed-passage mark writes down as finished.
-typedef ClosedPassage = ({String book, String passage});
-
 /// What the runner asks the Station, what it tells the Station to hear, the answers it
 /// brings back to the machine, and the one lifecycle hand-off. It executes no effect.
 abstract interface class StationHost {
@@ -61,12 +58,8 @@ abstract interface class StationHost {
 
   void hearTheSessionRead(SessionSnapshot snapshot, SentRead sent);
 
-  /// The room needs a person, the call has not landed, and no closed passage is being
-  /// marked.
+  /// The room needs a person and the call has not landed.
   bool get callIsWanted;
-
-  /// The passage in course, kept with a call for a person when it is sent.
-  String? get passageInCourse;
 
   /// The room is not gone and a person is needed.
   bool get aPersonIsNeeded;
@@ -75,13 +68,8 @@ abstract interface class StationHost {
   /// settled and the resume failures start again.
   void hearTheCallStopped();
 
-  /// The Station hears a closed passage begin to be marked, holds the call while it is
-  /// written, and hands back the row to write, or null with no passage in course.
-  ClosedPassage? hearTheMarkBegin();
-
-  /// The Station hears the write end, acts on the closed [passage] for [session] and
-  /// lets the call be wanted again.
-  void hearTheMarkEnd(String session, String? passage);
+  /// The Station hears that the room closed the passage of [session].
+  void hearTheMarkEnd(String session);
 
   /// The Station hears a call that landed; with a session it also stamps the read order,
   /// so a read sent before the landing cannot lift the halt.
@@ -89,13 +77,8 @@ abstract interface class StationHost {
 
   void hearTheCallLandedWithoutASession();
 
-  /// A call's answer for a session that is no longer the room's acts on that session, with
-  /// the passage kept when the call was sent.
-  Future<void> hearAnEarlierSessionsCall(
-    String session,
-    String? passage,
-    RoomResult result,
-  );
+  /// A call's answer for a session that is no longer the room's acts on that session.
+  void hearAnEarlierSessionsCall(String session, RoomResult result);
 
   void hearAnEarlierSessionGone(String session);
 
@@ -268,7 +251,7 @@ class EffectRunner {
         case AskForAPersonAgain():
           _askForAPersonAgain();
         case MarkThePassageClosed():
-          unawaited(_markThePassageClosed());
+          _markThePassageClosed();
         case CountTheRefusal():
           host.hearTheRefusalCounted();
         case LetThePendingTranslationGo():
@@ -639,18 +622,14 @@ class EffectRunner {
     if (_calling || !host.callIsWanted) return;
     _calling = true;
     final session = host.session;
-    unawaited(
-      session == null
-          ? _callWithoutASession()
-          : _call(session, host.passageInCourse),
-    );
+    unawaited(session == null ? _callWithoutASession() : _call(session));
   }
 
-  Future<void> _call(String session, String? passage) async {
+  Future<void> _call(String session) async {
     final result = await room.askForAPerson(session);
     if (_disposed) return;
     if (host.session != session) {
-      return _anEarlierSessionAnswered(session, passage, result);
+      return _anEarlierSessionAnswered(session, result);
     }
     _calling = false;
     if (result is! RoomAnswered) {
@@ -666,13 +645,7 @@ class EffectRunner {
     host.answerWhereAsked(TheCallLanded(generation: generation?.call()));
   }
 
-  /// An earlier session's call stays in the air until the Station has acted on it, so a
-  /// call wanted meanwhile is not asked twice.
-  Future<void> _anEarlierSessionAnswered(
-    String session,
-    String? passage,
-    RoomResult result,
-  ) async {
+  void _anEarlierSessionAnswered(String session, RoomResult result) {
     if (result is RoomNetworkFailed) {
       _calling = false;
       return _decideAt(
@@ -682,9 +655,9 @@ class EffectRunner {
         why: RoomReach.noNetwork,
       );
     }
-    await host.hearAnEarlierSessionsCall(session, passage, result);
+    host.hearAnEarlierSessionsCall(session, result);
     _calling = false;
-    if (!_disposed) callForAPerson();
+    callForAPerson();
   }
 
   /// The same ask, for a halt with no session to name: the tablet asks by its own device.
@@ -777,17 +750,10 @@ class EffectRunner {
     host.hearTheCallStopped();
   }
 
-  /// Held as a call still being asked until the passage is written down as closed, so a
-  /// return in the meantime does not ask again.
-  Future<void> _markThePassageClosed() async {
+  void _markThePassageClosed() {
     final session = host.session;
     if (session == null) return;
-    final closed = host.hearTheMarkBegin();
-    if (closed != null) {
-      await store.markThePassageClosed(closed.book, closed.passage);
-    }
-    if (_disposed) return;
-    host.hearTheMarkEnd(session, closed?.passage);
+    host.hearTheMarkEnd(session);
   }
 
   void endTheWatch() {

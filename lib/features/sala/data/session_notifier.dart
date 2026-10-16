@@ -38,7 +38,6 @@ import 'connectivity_service.dart';
 import 'device_identity.dart';
 import 'effect_runner.dart';
 import 'facilitator_voice_service.dart';
-import 'finished_passages.dart';
 import 'hand_inbox_repository.dart';
 import 'mic_permission.dart';
 import 'playback_repository.dart';
@@ -228,7 +227,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, String> _stretchKeys = {};
   bool _strandedSpoken = false;
   bool _personAsked = false;
-  bool _markingThePassageClosed = false;
   int _lastAcknowledgement = 0;
   final _random = Random();
   DateTime? _listeningSince;
@@ -342,7 +340,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   RoomRepository get _room => ref.read(roomRepositoryProvider);
   TakeUploadQueue get _takes => ref.read(takeUploadQueueProvider);
   ConnectivityService get _network => ref.read(connectivityServiceProvider);
-  FinishedPassages get _feitas => ref.read(finishedPassagesProvider);
   WorkInProgress get _emAberto => ref.read(workInProgressProvider);
   StorePort get _store => ref.read(storePortProvider);
   CaptureGuard get _captureGuard => ref.read(captureGuardProvider);
@@ -1099,48 +1096,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool get _aPersonIsNeeded => !_gone && state.needsPerson;
 
-  bool get _callIsWanted =>
-      _aPersonIsNeeded && !_personAsked && !_markingThePassageClosed;
+  bool get _callIsWanted => _aPersonIsNeeded && !_personAsked;
 
   void _theCallLanded() => _personAsked = true;
 
   void _stampTheReadsSentBeforeTheCall() =>
       _readsSentBeforeTheCall = _readsSent;
 
-  Future<void> _theCallOfAnEarlierSession(
-    String sessionId,
-    String? pericope,
-    RoomResult result,
-  ) async {
+  void _theCallOfAnEarlierSession(String sessionId, RoomResult result) {
     switch (result) {
       case RoomRefused(code: RefusalCode.passageClosed):
-        await _thePassageClosed(sessionId, pericope);
+        _theSessionIsClosed(sessionId);
       case RoomSessionGone():
         _theSessionIsGone(sessionId);
       case _:
         break;
     }
-  }
-
-  ClosedPassage? _theMarkBegins() {
-    if (_gone) return null;
-    _markingThePassageClosed = true;
-    final pericope = _emCurso;
-    if (pericope == null) return null;
-    return (book: _book, passage: pericope);
-  }
-
-  void _theMarkEnds(String sessionId) {
-    _theSessionIsClosed(sessionId);
-    _markingThePassageClosed = false;
-  }
-
-  Future<void> _thePassageClosed(String sessionId, String? pericope) async {
-    if (_gone) return;
-    if (pericope != null) {
-      await _feitas.add(_book, pericope).catchError((_) {});
-    }
-    _theSessionIsClosed(sessionId);
   }
 
   void _theSessionIsClosed(String sessionId) {
@@ -6274,7 +6245,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _closeTheNecklace() {
     final feita = _emCurso;
     if (feita != null) {
-      unawaited(_feitas.add(_book, feita).catchError((_) {}));
       final language = _sessionLanguage;
       if (language != null) {
         unawaited(
@@ -6384,20 +6354,13 @@ class _NotifierHost implements StationHost {
   bool get callIsWanted => _notifier._callIsWanted;
 
   @override
-  String? get passageInCourse => _notifier._emCurso;
-
-  @override
   bool get aPersonIsNeeded => _notifier._aPersonIsNeeded;
 
   @override
   void hearTheCallStopped() => _notifier._stopCallingForAPerson();
 
   @override
-  ClosedPassage? hearTheMarkBegin() => _notifier._theMarkBegins();
-
-  @override
-  void hearTheMarkEnd(String session, String? passage) =>
-      _notifier._theMarkEnds(session);
+  void hearTheMarkEnd(String session) => _notifier._theSessionIsClosed(session);
 
   @override
   void hearTheCallLanded() => _notifier
@@ -6408,11 +6371,8 @@ class _NotifierHost implements StationHost {
   void hearTheCallLandedWithoutASession() => _notifier._theCallLanded();
 
   @override
-  Future<void> hearAnEarlierSessionsCall(
-    String session,
-    String? passage,
-    RoomResult result,
-  ) => _notifier._theCallOfAnEarlierSession(session, passage, result);
+  void hearAnEarlierSessionsCall(String session, RoomResult result) =>
+      _notifier._theCallOfAnEarlierSession(session, result);
 
   @override
   void hearAnEarlierSessionGone(String session) =>

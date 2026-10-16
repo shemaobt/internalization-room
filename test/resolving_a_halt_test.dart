@@ -291,46 +291,6 @@ void main() {
     },
   );
 
-  test('a passage finished after a resolved halt leaves the wheel', () async {
-    final harness = SalaHarness();
-    final container = await _naPassagem(harness, 'P01');
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
-
-    notifier.resolveWithPerson();
-    await waitFor(
-      'o círculo voltar ao convite',
-      () => !read().needsPerson && read().voice == VoiceState.invite,
-    );
-    await settle();
-
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    notifier.startRetro();
-    await settle();
-    harness.playback.finishPlayback();
-    await settle();
-    await notifier.finishBackTranslation();
-    await settle();
-    await notifier.aprovarRascunhoFinal();
-    await settle();
-
-    expect(
-      harness.finished.done,
-      contains('Ruth/P01'),
-      reason:
-          'a equipe terminou a passagem inteira e a aprovou; sem o nome '
-          'dela por baixo, a roda continua oferecendo a passagem que acabou '
-          'de ser aprovada',
-    );
-  });
-
   test(
     'the room coming back opens the passage the team was already in',
     () async {

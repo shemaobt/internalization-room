@@ -215,36 +215,25 @@ void main() {
     );
   });
 
-  test(
-    'entering the panorama writes no ledger row and no resume point',
-    () async {
-      final harness = SalaHarness()..room.passages = const [_panorama, _p01];
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.abrirEscolha();
-      await settle();
+  test('entering the panorama writes no resume point', () async {
+    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
 
-      notifier.entrarNaOferecida();
-      await settle();
+    notifier.entrarNaOferecida();
+    await settle();
 
-      expect(
-        harness.finished.done,
-        isNot(contains('Ruth/panorama')),
-        reason:
-            'o panorama não é uma passagem — nunca sai da roda, '
-            'então nunca pode se marcar como uma das passagens feitas do '
-            'livro',
-      );
-      expect(
-        harness.emAberto.rows.containsKey('Ruth/panorama/pt'),
-        isFalse,
-        reason:
-            'nada no panorama é um lugar para retomar; é a própria '
-            'roda o lugar onde a equipe volta a ele',
-      );
-    },
-  );
+    expect(
+      harness.emAberto.rows.containsKey('Ruth/panorama/pt'),
+      isFalse,
+      reason:
+          'nada no panorama é um lugar para retomar; é a própria '
+          'roda o lugar onde a equipe volta a ele',
+    );
+  });
 
   test('nothing ends the panorama on a timer or a turn count', () async {
     final harness = SalaHarness()..room.passages = const [_panorama, _p01];

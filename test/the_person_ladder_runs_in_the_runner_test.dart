@@ -15,24 +15,19 @@ const _ms = Duration(milliseconds: 1);
 
 void main() {
   late ARoomPort room;
-  late AStorePort store;
   late AStationHost host;
   late EffectRunner runner;
   var machine = const Machine();
 
   setUp(() {
     room = ARoomPort();
-    store = AStorePort();
-    host = AStationHost()
-      ..session = 'sessao-1'
-      ..passageInCourse = 'rute-1'
-      ..passageToMark = (book: 'rute', passage: 'rute-1');
+    host = AStationHost()..session = 'sessao-1';
     machine = const Machine();
     runner = EffectRunner(
       room: room,
       sound: ASoundPort(),
       recorder: ARecorderPort(),
-      store: store,
+      store: AStorePort(),
       host: host,
       watchPeriod: () => const Duration(seconds: 30),
       retryDelay: (step) => step == 0 ? _first : _last,
@@ -182,44 +177,13 @@ void main() {
     },
   );
 
-  test(
-    'the closed-passage mark writes the passage through the store, and the Station hears it closed for the session',
-    () async {
-      runner.run(const [MarkThePassageClosed()]);
-      await pumpEventQueue();
-
-      expect(store.heard, ['mark:rute:rute-1']);
-      expect(host.marksHeard, ['begin']);
-
-      store.answerTheMark();
-      await pumpEventQueue();
-
-      expect(host.marksHeard, ['begin', 'end:sessao-1:rute-1']);
-    },
-  );
-
-  test('a closed-passage mark with no session writes nothing', () async {
+  test('a closed-passage mark with no session closes nothing', () {
     host.session = null;
 
     runner.run(const [MarkThePassageClosed()]);
-    await pumpEventQueue();
 
-    expect(store.heard, isEmpty);
     expect(host.marksHeard, isEmpty);
   });
-
-  test(
-    'a closed-passage mark with no passage in course writes nothing, and the Station still hears it end',
-    () async {
-      host.passageToMark = null;
-
-      runner.run(const [MarkThePassageClosed()]);
-      await pumpEventQueue();
-
-      expect(store.heard, isEmpty);
-      expect(host.marksHeard, ['begin', 'end:sessao-1:null']);
-    },
-  );
 
   test('a ladder armed then disposed asks nothing at its delay', () {
     fakeAsync((time) {
@@ -231,17 +195,4 @@ void main() {
       expect(room.heard, isEmpty);
     });
   });
-
-  test(
-    'a closed-passage mark whose store answers after dispose is not heard to end',
-    () async {
-      runner.run(const [MarkThePassageClosed()]);
-      await pumpEventQueue();
-      runner.dispose();
-      store.answerTheMark();
-      await pumpEventQueue();
-
-      expect(host.marksHeard, ['begin']);
-    },
-  );
 }
