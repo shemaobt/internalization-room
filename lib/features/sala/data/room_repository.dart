@@ -386,6 +386,19 @@ class RoomRepository {
   static String takeAudioUrl(String sessionId, String takeId) =>
       '$_basePath/sessions/$sessionId/takes/$takeId/audio';
 
+  /// The passage's live scene rehearsals, from every session of it, each naming its own.
+  Future<RoomAnswer<List<SceneRehearsalRecord>>> sceneRehearsalsOf(
+    String sessionId,
+  ) => _room.ask(
+    () => _client.get(
+      _uri('/sessions/$sessionId/scene-rehearsals'),
+      headers: _headers,
+    ),
+    timeout: _stateTimeout,
+    read: readJson(SceneRehearsalRecord.listFrom),
+    asksForTheSession: true,
+  );
+
   Future<RoomAnswer<SceneRehearsalRecord>> keepSceneRehearsal(
     String sessionId,
     File audio,
@@ -405,6 +418,28 @@ class RoomRepository {
       asksForTheSession: true,
     );
   }
+
+  /// Where the take of one scene rehearsal of this session is, for [fetchClip].
+  static String sceneRehearsalAudioUrl(String sessionId, String rehearsalId) =>
+      '$_basePath/sessions/$sessionId/scene-rehearsals/$rehearsalId/audio';
+
+  /// «recomeçar a tradução» into the [attempt] this tablet minted, closing the one the
+  /// current frases follow. It names a rehearsal, whose 404 never ends the session.
+  Future<RoomAnswer<SceneRehearsalRecord>> restartTheSceneTranslation(
+    String sessionId,
+    String rehearsalId, {
+    required String attempt,
+    String? closes,
+  }) => _room.ask(
+    () => _client.post(
+      _uri('/sessions/$sessionId/scene-rehearsals/$rehearsalId/restart'),
+      headers: _whoWeAre,
+      body: {'attempt': attempt, 'closes': ?closes},
+    ),
+    timeout: _stateTimeout,
+    read: readJson(SceneRehearsalRecord.fromJson),
+    asksForTheSession: false,
+  );
 
   /// A new version of one stretch: the explanation redone over the same slice.
   ///

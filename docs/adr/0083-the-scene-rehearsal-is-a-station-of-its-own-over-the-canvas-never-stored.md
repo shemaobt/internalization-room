@@ -19,21 +19,28 @@ The scene rehearsal is a **Station** of its own, the stage `cena`, added to ADR 
 of Stations. Only the Canvas answers the scene rehearsal opened with it; every other Station
 ignores that arrival, and the Scene rehearsal answers the way back with the Canvas. Like
 every Station change, both arrivals move the **Generation** (ADR 0058), so an answer that
-was on its way when the team crossed is dropped. Its **Steps** (record, translate) are
-substate held beside the Station, as the Back-translation's are.
+was on its way when the team crossed is dropped. Its **Steps** (record, translate, places
+unknown, sent) are substate held beside the Station, as the Back-translation's are.
 
 The scene rehearsal is never stored as the session's **Resume point**: a stored `cena` reads
 as the Canvas, and a relaunch lands on the **Conversation**. The rehearsal itself lives on
-the server (shema-api ADR 0059).
+the server (shema-api ADR 0059), and the red microphone reopens this session's unsent one
+from there.
 
 Every failure at a scene door goes through the Failure policy at its own door. A gone
 session, a code that stops the room and a network failure follow the house policy, as at
 every other door, and a timeout raises a halt as anywhere else. Any other refusal changes
-nothing and is never counted toward the refusals that call a person.
+nothing and is never counted toward the refusals that call a person. A refusal that says
+the rehearsal moved on without this tablet reads the list again: one already sent is shown
+sent, and a restart that landed while its answer was lost opens on the attempt the room
+holds. The doors that name a rehearsal read a 404 as a refusal, because the server answers
+a gone session and an unknown rehearsal with the same code, and that refusal reads the list
+again too. The list asks for the session, so a gone session surfaces there at once, and an
+unknown rehearsal just finds no match; a missing rehearsal never ends a live session.
 
 A door's answer moves the screen only while it still shows what it showed when the door
 was asked, with no microphone open; an answer that arrives after the team moved on is
-dropped.
+dropped. Places are measured against the take this tablet holds.
 
 ## Considered Options
 

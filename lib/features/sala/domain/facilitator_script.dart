@@ -138,6 +138,17 @@ const sceneRehearsalLabels = {
     'en': 'record the scene rehearsal again',
   },
   'send': {'pt': 'terminei', 'en': 'done'},
+  'restart': {'pt': 'recomeçar a tradução', 'en': 'start the translation over'},
+  'placesUnknown': {
+    'pt':
+        'as frases já traduzidas não estão neste computador — toquem em terminei para enviar, ou recomecem a tradução',
+    'en':
+        'the phrases already translated are not on this computer — tap done to send them, or start the translation over',
+  },
+  'sent': {
+    'pt': 'a tradução deste ensaio da cena já foi para a voz',
+    'en': 'this scene rehearsal\'s translation already went to the voice',
+  },
 };
 
 String sceneRehearsalLabelFor(String control, String language) =>

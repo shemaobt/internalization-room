@@ -112,6 +112,19 @@ class ARoomPort implements RoomPort {
   void answerTheRead(SessionReadAnswer answer) =>
       _reads.removeAt(0).complete(answer);
 
+  final List<Completer<SceneRehearsalsAnswer>> _sceneReads = [];
+
+  @override
+  Future<SceneRehearsalsAnswer> sceneRehearsalsOf(String session) {
+    heard.add('sceneRehearsals:$session');
+    final read = Completer<SceneRehearsalsAnswer>();
+    _sceneReads.add(read);
+    return read.future;
+  }
+
+  void answerTheSceneRehearsals(SceneRehearsalsAnswer answer) =>
+      _sceneReads.removeAt(0).complete(answer);
+
   @override
   Future<RoomReach> reach() {
     heard.add('reach');

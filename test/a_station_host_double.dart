@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/data/port_adapters.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
@@ -187,6 +188,10 @@ class AStationHost implements StationHost {
 
   @override
   void hearThePassageRefused() => asked.add('hearThePassageRefused');
+
+  @override
+  void hearTheSceneRehearsals(List<SceneRehearsalRecord> listed) =>
+      asked.add('hearTheSceneRehearsals:${listed.length}');
 }
 
 typedef Ports = ({

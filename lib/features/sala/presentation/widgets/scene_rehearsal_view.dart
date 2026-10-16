@@ -68,6 +68,32 @@ class SceneRehearsalView extends ConsumerWidget {
             ),
           ],
         ),
+        SceneStep.placesUnknown => Semantics(
+          label: said('placesUnknown'),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              terminei,
+              const SizedBox(width: 24),
+              RoundActionButton(
+                size: 52,
+                semanticLabel: said('restart'),
+                onTap: notifier.restartTheSceneTranslation,
+                child: Icon(
+                  LucideIcons.rotateCcw,
+                  size: 22,
+                  color: colors.vermelhoMic,
+                ),
+              ),
+              const SizedBox(width: 24),
+              again,
+            ],
+          ),
+        ),
+        SceneStep.sent => Semantics(
+          label: said('sent'),
+          child: const SizedBox(width: 120, height: 120),
+        ),
       },
     );
   }

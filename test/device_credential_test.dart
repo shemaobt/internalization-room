@@ -68,8 +68,14 @@ final Map<String, _Request> _everyRequest = {
   'sendTake': (room, audio) =>
       room.sendTake('sessao-1', audio, kind: 'ensaio', scope: 'passagem'),
   'takesOf': (room, _) => room.takesOf('sessao-1'),
+  'sceneRehearsalsOf': (room, _) => room.sceneRehearsalsOf('sessao-1'),
   'keepSceneRehearsal': (room, audio) =>
       room.keepSceneRehearsal('sessao-1', audio),
+  'restartTheSceneTranslation': (room, _) => room.restartTheSceneTranslation(
+    'sessao-1',
+    'ensaio-da-cena-1',
+    attempt: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+  ),
   'replaceSegment': (room, audio) => room.replaceSegment(
     'sessao-1',
     'trecho-1',
