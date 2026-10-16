@@ -281,6 +281,7 @@ class FakeRecorder implements RecordingRepository {
   String? lastPath;
   MicOwner? lastOwner;
   Uint8List? rehearsalSpeaks;
+  String? rehearsalSpeaksAs;
 
   bool permitted = true;
 
@@ -359,7 +360,8 @@ class FakeRecorder implements RecordingRepository {
     final fala = rehearsalSpeaks;
     if (fala != null && deliverable) {
       final take = File(
-        '${home.path}/captura-$captures.${_isWav(fala) ? 'wav' : 'm4a'}',
+        '${home.path}/captura-$captures.'
+        '${rehearsalSpeaksAs ?? (_isWav(fala) ? 'wav' : 'm4a')}',
       )..writeAsBytesSync(fala);
       return lastPath = take.path;
     }
@@ -1458,6 +1460,7 @@ class FakeRoom implements RoomRepository {
 
   /// The session each scene take this room kept was sent for, in order.
   final List<String> scenesKept = [];
+  final List<String?> sceneLabels = [];
 
   /// Every restart of a scene translation this room was sent.
   final List<({String attempt, String? closes})> restartsSent = [];
@@ -1529,6 +1532,7 @@ class FakeRoom implements RoomRepository {
     final refusal = failSceneWith;
     if (refusal != null) return refusal;
     scenesKept.add(sessionId);
+    sceneLabels.add(scene);
     final n = sceneRehearsals.length + 1;
     final kept = SceneRehearsalRecord(
       rehearsalId: 'ensaio-da-cena-$n',

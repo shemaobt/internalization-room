@@ -6788,6 +6788,7 @@ void main() {
       final personsBefore = harness.room.personsAsked;
 
       notifier.goEnsaio();
+      final soundsBefore = harness.sounds.length;
       harness.recorder.rehearsalSpeaks = aWavTake(
         samples: List.filled(3200, 4000),
       );
@@ -6810,6 +6811,13 @@ void main() {
         reason: 'um toque acidental não chama ninguém',
       );
       expect(harness.room.personsAsked, personsBefore);
+      expect(
+        harness.sounds
+            .skip(soundsBefore)
+            .where({'voice:line', 'voice:fixed', 'voice:asset'}.contains),
+        isEmpty,
+        reason: 'nada é falado por um dedo que roçou o círculo',
+      );
     },
   );
 

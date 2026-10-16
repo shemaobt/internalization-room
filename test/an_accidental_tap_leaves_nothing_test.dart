@@ -104,6 +104,32 @@ void main() {
     },
   );
 
+  test(
+    'a WAV whose header was never finished is measured by its length',
+    () async {
+      final room = await atRest();
+      final unfinished = Uint8List.fromList([
+        ...List.filled(44, 0),
+        ..._wavOf(16000).skip(44),
+      ]);
+
+      room.harness.recorder.rehearsalSpeaksAs = 'wav';
+      await _recordTheScene(room, unfinished);
+      await waitFor(
+        'o ensaio ser guardado',
+        () => room.asked('keepSceneRehearsal') > 0,
+      );
+
+      expect(
+        room.harness.recorder.deleted,
+        isEmpty,
+        reason:
+            'um gravador que falhou ao fechar o cabeçalho deixa o áudio inteiro '
+            'atrás dele, e apagá-lo como toque perdia a fala da equipe',
+      );
+    },
+  );
+
   group('a compressed scene take under 800 bytes is an accidental tap, and one '
       'of 800 bytes is kept', () {
     test('799 bytes are dropped', () async {

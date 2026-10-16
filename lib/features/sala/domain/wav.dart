@@ -11,8 +11,6 @@ typedef WavData = ({
 
 const _wavHeader = 44;
 
-/// The `data` chunk of a RIFF/WAVE file and the `fmt ` that describes it, walking every
-/// chunk the platform wrote before it; null when there is none to read.
 WavData? wavDataOf(Uint8List wav) {
   if (wav.length < _wavHeader) return null;
   final bytes = ByteData.sublistView(wav);

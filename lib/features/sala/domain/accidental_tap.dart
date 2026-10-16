@@ -5,9 +5,9 @@ import 'wav.dart';
 
 const _shortestTake = Duration(milliseconds: 300);
 const _smallestCompressedTake = 800;
+const _roomWavHeader = 44;
+const _roomWavBytesPerSecond = 16000 * 2;
 
-/// Whether a take is a finger brushing the circle rather than something the team said,
-/// read from the head of its file and the file's whole length.
 bool isAnAccidentalTap({
   required bool wav,
   required Uint8List head,
@@ -15,10 +15,16 @@ bool isAnAccidentalTap({
 }) {
   if (!wav) return length < _smallestCompressedTake;
   final data = wavDataOf(head);
-  if (data == null || data.channels < 1 || data.rate <= 0 || data.bits < 8) {
-    return true;
+  if (data == null) {
+    return _shorterThanATake(length - _roomWavHeader, _roomWavBytesPerSecond);
   }
-  final perSecond = data.rate * data.channels * (data.bits ~/ 8);
-  final audio = max(0, min(data.size, length - data.offset));
-  return Duration(microseconds: audio * 1000000 ~/ perSecond) < _shortestTake;
+  if (data.channels < 1 || data.rate <= 0 || data.bits < 8) return true;
+  return _shorterThanATake(
+    min(data.size, length - data.offset),
+    data.rate * data.channels * (data.bits ~/ 8),
+  );
 }
+
+bool _shorterThanATake(int audio, int perSecond) =>
+    Duration(microseconds: max(0, audio) * 1000000 ~/ perSecond) <
+    _shortestTake;

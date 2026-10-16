@@ -54,8 +54,7 @@ class RecordingRepository {
     try {
       final wav =
           owner == MicOwner.rehearsal ||
-          (owner == MicOwner.scene &&
-              await _recorder.isEncoderSupported(AudioEncoder.wav));
+          (owner == MicOwner.scene && await _capturesRawAudio());
       final dir = await _recordingsDir();
       await _recorder.start(
         RecordConfig(
@@ -81,6 +80,10 @@ class RecordingRepository {
     }
   }
 
+  Future<bool> _capturesRawAudio() => _recorder
+      .isEncoderSupported(AudioEncoder.wav)
+      .catchError((Object _) => false);
+
   Stream<bool> get interrupted =>
       _recorder.onStateChanged().map((state) => state == RecordState.pause);
 
@@ -88,7 +91,9 @@ class RecordingRepository {
     try {
       return await _recorder.stop();
     } finally {
-      await restoreTheSampleRate();
+      if (!await _recorder.isRecording().catchError((Object _) => false)) {
+        await restoreTheSampleRate();
+      }
     }
   }
 

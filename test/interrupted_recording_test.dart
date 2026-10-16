@@ -16,6 +16,8 @@ class RecorderSpy extends RecordPlatform {
   String? openedPath;
   bool refusesToOpen = false;
   bool wavSupported = true;
+  bool encoderCheckFails = false;
+  bool recordingAgain = false;
   final StreamController<RecordState> states =
       StreamController<RecordState>.broadcast();
 
@@ -41,7 +43,13 @@ class RecorderSpy extends RecordPlatform {
   Future<bool> isEncoderSupported(
     String recorderId,
     AudioEncoder encoder,
-  ) async => encoder != AudioEncoder.wav || wavSupported;
+  ) async {
+    if (encoderCheckFails) throw PlatformException(code: 'gravador');
+    return encoder != AudioEncoder.wav || wavSupported;
+  }
+
+  @override
+  Future<bool> isRecording(String recorderId) async => recordingAgain;
 
   @override
   Future<String?> stop(String recorderId) async => openedPath;
@@ -506,6 +514,24 @@ void main() {
     },
   );
 
+  test('a scene take is compressed when the tablet cannot say whether it '
+      'captures raw audio', () async {
+    microphone.encoderCheckFails = true;
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    final capture = await recording.start('cena_1', owner: MicOwner.scene);
+
+    expect(
+      capture,
+      Capture.started,
+      reason:
+          'uma pergunta ao gravador que falhou não é um microfone que '
+          'não abriu, e duas seguidas chamavam uma pessoa',
+    );
+    expect(microphone.openedWith?.encoder, AudioEncoder.aacLc);
+  });
+
   test('a WAV take kept under the rehearsal\'s name is still a .wav', () async {
     final recording = RecordingRepository();
     addTearDown(recording.dispose);
@@ -572,6 +598,24 @@ void main() {
 
       expectTheRateGivenBack();
     });
+
+    test(
+      'the rate is never given back over a recording that started meanwhile',
+      () async {
+        await recordAndThen((recording) {
+          microphone.recordingAgain = true;
+          return recording.discard();
+        });
+
+        expect(
+          heard,
+          isEmpty,
+          reason:
+              'a devolução atrasada de um descarte trocaria a taxa no meio da '
+              'tomada nova',
+        );
+      },
+    );
 
     test('a discarded recording gives the rate back too', () async {
       await recordAndThen((recording) => recording.discard());
