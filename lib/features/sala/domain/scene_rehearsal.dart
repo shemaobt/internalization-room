@@ -97,7 +97,7 @@ final class SceneRehearsalRecord {
 
   /// The scene's number, from a label `S<N>`; null for no label or any other shape.
   int? get sceneNumber => switch (RegExp(r'^S(\d+)$').firstMatch(scene ?? '')) {
-    final match? => int.parse(match.group(1)!),
+    final match? => int.tryParse(match.group(1)!),
     null => null,
   };
 

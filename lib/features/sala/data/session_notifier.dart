@@ -3293,7 +3293,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         final unsent = SceneRehearsalRecord.toReopen(value, sessionId);
         if (unsent == null) return;
-        await _showTheRehearsal(unsent, asked, generation);
+        final reopening = SceneScreen(rehearsal: unsent);
+        state = state.copyWith(scene: reopening);
+        await _showTheRehearsal(unsent, reopening, generation);
+        if (identical(state.scene, reopening)) {
+          state = state.copyWith(scene: const SceneScreen());
+        }
       case final RoomFailure failure:
         if (!_abandoned(generation)) {
           _decideAt(failure, door: Door.sceneRehearsal);
@@ -3453,8 +3458,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void playTheSceneRehearsal() => _gesture(() => _playTheSceneRehearsal());
 
   void _playTheSceneRehearsal() {
-    final SceneScreen(:step, :take, :rehearsal) = state.scene;
+    final SceneScreen(:step, :take, :rehearsal, :waiting) = state.scene;
     if (state.station is! SceneRehearsal ||
+        waiting ||
         (step != SceneStep.translate && step != SceneStep.sent) ||
         take == null ||
         rehearsal == null) {
@@ -3490,9 +3496,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   SceneFrase? _theListenedFrase(String fraseId) {
-    final SceneScreen(:step, :rehearsal) = state.scene;
+    final SceneScreen(:step, :rehearsal, :waiting) = state.scene;
     if (state.station is! SceneRehearsal ||
         step != SceneStep.sent ||
+        waiting ||
         state.channel is Microphone) {
       return null;
     }
@@ -3507,7 +3514,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _hearTheFraseTranslation(String fraseId) {
     final shown = state.scene;
     final frase = _theListenedFrase(fraseId);
-    if (frase == null || shown.waiting) return;
+    if (frase == null) return;
     final waiting = shown.asWaiting;
     _silenceTheRoom();
     state = state.copyWith(scene: waiting);
