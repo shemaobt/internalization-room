@@ -20,7 +20,11 @@ import 'session_notifier_test.dart' show inConversa;
 import 'um_ensaio_de_tres_partes.dart';
 
 class _DiskThatRefusesTheTake extends TakeUploadQueue {
-  _DiskThatRefusesTheTake({required super.room, super.home});
+  _DiskThatRefusesTheTake({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   bool asked = false;
 
@@ -40,7 +44,11 @@ class _DiskThatRefusesTheTake extends TakeUploadQueue {
 }
 
 class _OutboxThatGaveUp extends TakeUploadQueue {
-  _OutboxThatGaveUp({required super.room, super.home});
+  _OutboxThatGaveUp({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   bool gaveUp = false;
 
@@ -108,8 +116,11 @@ Future<(SalaHarness, ProviderContainer, _DiskThatRefusesTheTake Function())>
 _inTheRehearsalOverAFullDisk() async {
   _DiskThatRefusesTheTake? disk;
   final harness = SalaHarness(
-    takesOverride: (room, home) =>
-        disk = _DiskThatRefusesTheTake(room: room, home: () async => home),
+    takesOverride: (room, home, recordings) => disk = _DiskThatRefusesTheTake(
+      room: room,
+      home: () async => home,
+      recordings: recordings,
+    ),
   );
   final container = await inConversa(harness);
   addTearDown(container.dispose);
@@ -430,8 +441,11 @@ void main() {
       'nothing to play is played', () async {
     _OutboxThatGaveUp? outbox;
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      ),
     );
     final container = harness.container();
     addTearDown(container.dispose);
@@ -532,8 +546,11 @@ void main() {
     () async {
       _OutboxThatGaveUp? outbox;
       final harness = SalaHarness(
-        takesOverride: (room, home) =>
-            outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+        takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
+          room: room,
+          home: () async => home,
+          recordings: recordings,
+        ),
       );
       harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-guardada',
@@ -622,8 +639,11 @@ void main() {
       'waiting line start and be cut', () async {
     _OutboxThatGaveUp? outbox;
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      ),
     );
     final container = harness.container();
     addTearDown(container.dispose);
@@ -719,8 +739,11 @@ void main() {
       'a turn', () async {
     _OutboxThatGaveUp? outbox;
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      ),
     );
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -761,8 +784,11 @@ void main() {
     _OutboxThatGaveUp? outbox;
     final harness = SalaHarness(
       replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
-      takesOverride: (room, home) =>
-          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      ),
     );
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -815,8 +841,11 @@ void main() {
     _OutboxThatGaveUp? outbox;
     final harness = SalaHarness(
       busyCeiling: const Duration(milliseconds: 300),
-      takesOverride: (room, home) =>
-          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      ),
     );
     final container = await inConversa(harness);
     addTearDown(container.dispose);

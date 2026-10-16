@@ -21,6 +21,7 @@ void main() {
       TakeUploadQueue(
         room: room,
         home: () async => home,
+        recordings: FakeRecorder.new,
         backoff: backoff,
         now: () => now,
       );

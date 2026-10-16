@@ -1013,9 +1013,11 @@ void main() {
     'a kept take still reaches the queue when the room is disposed',
     () async {
       final harness = SalaHarness(
-        takesOverride: (room, home) =>
-            QueueThatEnqueuesLate(room: room, home: () async => home)
-              ..enqueuesAfter = const Duration(milliseconds: 700),
+        takesOverride: (room, home, recordings) => QueueThatEnqueuesLate(
+          room: room,
+          home: () async => home,
+          recordings: recordings,
+        )..enqueuesAfter = const Duration(milliseconds: 700),
       );
       final container = await inConversaHarness(harness);
       final notifier = container.read(salaSessionProvider.notifier);

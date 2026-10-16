@@ -6217,8 +6217,12 @@ void main() {
   test('a translation the room refused is withdrawn from the outbox when the '
       'part is recorded over', () async {
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          QueueThatFinishesLate(room: room, home: () async => home)
+      takesOverride: (room, home, recordings) =>
+          QueueThatFinishesLate(
+              room: room,
+              home: () async => home,
+              recordings: recordings,
+            )
             ..answersAfter = const Duration(milliseconds: 300)
             ..deletesTheCopyAfter = const Duration(milliseconds: 300),
     )..room.failChunkWith = const Refused('BAD_REQUEST');
@@ -6325,9 +6329,11 @@ void main() {
   test('leaving the passage withdraws a refused translation still parked in '
       'the outbox', () async {
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          QueueThatFinishesLate(room: room, home: () async => home)
-            ..answersAfter = const Duration(milliseconds: 300),
+      takesOverride: (room, home, recordings) => QueueThatFinishesLate(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      )..answersAfter = const Duration(milliseconds: 300),
     )..room.failChunkWith = const Refused('BAD_REQUEST');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -6448,8 +6454,11 @@ void main() {
   test('a withdraw the disk refuses is logged and dropped, no unhandled '
       'error and no false stranded line', () async {
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          QueueWithdrawThrows(room: room, home: () async => home),
+      takesOverride: (room, home, recordings) => QueueWithdrawThrows(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      ),
     )..room.failChunkWith = const Refused('BAD_REQUEST');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -8084,6 +8093,7 @@ void main() {
       final queue = QueueHeldOnGiveUps(
         room: harness.room,
         home: () async => harness.takesHome,
+        recordings: () => harness.recorder,
       );
       final container = ProviderContainer(
         overrides: [

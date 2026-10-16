@@ -27,6 +27,7 @@ void main() {
       TakeUploadQueue(
         room: room,
         home: () async => home,
+        recordings: FakeRecorder.new,
         backoff: backoff,
         now: () => clock,
       );
@@ -1481,6 +1482,7 @@ void main() {
       return TakeUploadQueue(
         room: room,
         home: () async => home,
+        recordings: FakeRecorder.new,
         backoff: const [Duration(seconds: 5)],
         now: () => clock,
       );
@@ -1551,6 +1553,7 @@ void main() {
       final queue = TakeUploadQueue(
         room: room,
         home: () async => home,
+        recordings: FakeRecorder.new,
         now: () => clock,
       );
       await queue.enqueue(
@@ -1581,7 +1584,11 @@ void main() {
         deviceId: () async => 'aparelho-1',
       );
       addTearDown(room.dispose);
-      final queue = TakeUploadQueue(room: room, home: () async => home);
+      final queue = TakeUploadQueue(
+        room: room,
+        home: () async => home,
+        recordings: FakeRecorder.new,
+      );
       final row = await queue.enqueue(
         aTake('no-ar'),
         sessionId: 'sessao-1',
@@ -1931,6 +1938,59 @@ void main() {
       },
     );
 
+    Future<(TakeUploadQueue, PendingTake)> aSceneOf(
+      FakeRoom room,
+      FakeRecorder recorder,
+    ) async {
+      final queue = TakeUploadQueue(
+        room: room,
+        home: () async => home,
+        recordings: () => recorder,
+      );
+      final take = File('${recorder.home.path}/cena_1.wav')
+        ..writeAsBytesSync(aWavTake());
+      final row = await queue.enqueue(
+        take,
+        sessionId: 'sessao-1',
+        kind: 'cena',
+        scope: 'cena',
+      );
+      return (queue, row);
+    }
+
+    test('the take is named before its row leaves the manifest', () async {
+      final room = FakeRoom();
+      final (queue, row) = await aSceneOf(room, _ARenameThatNeverEnds());
+
+      unawaited(queue.flush());
+      await waitFor('a sala confirmar', () => room.scenesKept.isNotEmpty);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      final afterAKill = TakeUploadQueue(
+        room: room,
+        home: () async => home,
+        recordings: FakeRecorder.new,
+      );
+      expect(
+        [for (final entry in await afterAKill.entries()) entry.id],
+        [row.id],
+        reason:
+            'morto antes de renomear, o tablet ainda tem a linha, e o take é '
+            'renomeado quando ela sobe de novo',
+      );
+    });
+
+    test('a rename that fails in any way never sends the take again', () async {
+      final room = FakeRoom();
+      final (queue, _) = await aSceneOf(room, _ADiskThatThrowsOnTheRename());
+
+      await queue.flush();
+      await queue.flush();
+
+      expect(room.scenesKept, hasLength(1));
+      expect(await queue.entries(), isEmpty);
+    });
+
     test(
       'a take refused for good is never made due by the team\'s keep',
       () async {
@@ -2000,4 +2060,16 @@ class _GoneAfterItWasFound implements File {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _ARenameThatNeverEnds extends FakeRecorder {
+  @override
+  Future<String> keepAs(String path, String fileName) =>
+      Completer<String>().future;
+}
+
+class _ADiskThatThrowsOnTheRename extends FakeRecorder {
+  @override
+  Future<String?> heldAs(String fileName) async =>
+      throw StateError('o contêiner já foi descartado');
 }

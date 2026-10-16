@@ -2895,10 +2895,15 @@ class SalaHarness {
 
   /// A queue built by the test itself, for a disk that needs to misbehave in a way
   /// none of the ordinary knobs reach.
-  final TakeUploadQueue Function(FakeRoom room, Directory home)? takesOverride;
+  final TakeUploadQueue Function(
+    FakeRoom room,
+    Directory home,
+    RecordingRepository Function() recordings,
+  )?
+  takesOverride;
 
   late final TakeUploadQueue takes =
-      takesOverride?.call(room, takesHome) ??
+      takesOverride?.call(room, takesHome, () => recorder) ??
       (filaEmMemoria
           ? FakeTakeQueue(room: room, recordings: recorder)
           : TakeUploadQueue(
@@ -3069,7 +3074,11 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
 }
 
 class QueueHeldOnGiveUps extends TakeUploadQueue {
-  QueueHeldOnGiveUps({required super.room, super.home});
+  QueueHeldOnGiveUps({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   final Completer<void> asking = Completer<void>();
   final Completer<void> answer = Completer<void>();
@@ -3084,7 +3093,11 @@ class QueueHeldOnGiveUps extends TakeUploadQueue {
 
 /// A disk that refuses the withdraw's own write, the way a full one would.
 class QueueWithdrawThrows extends TakeUploadQueue {
-  QueueWithdrawThrows({required super.room, super.home});
+  QueueWithdrawThrows({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   @override
   Future<void> withdraw(PendingTake row) async =>
@@ -3092,7 +3105,11 @@ class QueueWithdrawThrows extends TakeUploadQueue {
 }
 
 class QueueThatDiscardsLate extends TakeUploadQueue {
-  QueueThatDiscardsLate({required super.room, super.home});
+  QueueThatDiscardsLate({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   Duration? discardsAfter;
 
@@ -3105,7 +3122,11 @@ class QueueThatDiscardsLate extends TakeUploadQueue {
 }
 
 class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
-  QueueWhoseTranslationLandsLate({required super.room, super.home});
+  QueueWhoseTranslationLandsLate({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   Duration? landsAfter;
   bool translationLanded = false;
@@ -3137,7 +3158,11 @@ class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
 }
 
 class QueueThatFinishesLate extends TakeUploadQueue {
-  QueueThatFinishesLate({required super.room, super.home});
+  QueueThatFinishesLate({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   Duration? answersAfter;
 
@@ -3182,7 +3207,11 @@ class QueueThatFinishesLate extends TakeUploadQueue {
 }
 
 class QueueThatFlushesLate extends TakeUploadQueue {
-  QueueThatFlushesLate({required super.room, super.home});
+  QueueThatFlushesLate({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   Duration? flushesAfter;
   int flushing = 0;
@@ -3201,7 +3230,11 @@ class QueueThatFlushesLate extends TakeUploadQueue {
 }
 
 class QueueThatEnqueuesLate extends TakeUploadQueue {
-  QueueThatEnqueuesLate({required super.room, super.home});
+  QueueThatEnqueuesLate({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   Duration? enqueuesAfter;
 

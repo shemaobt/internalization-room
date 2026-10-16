@@ -242,14 +242,14 @@ class TakeUploadQueue {
   final Map<String, String?> _confirmed = {};
   final Map<String, SceneRehearsalRecord> _keptScenes = {};
 
-  final RecordingRepository Function()? _recordings;
+  final RecordingRepository Function() _recordings;
 
   TakeUploadQueue({
     required this._room,
     Future<Directory> Function()? home,
     this._backoff = const [],
     DateTime Function()? now,
-    this._recordings,
+    required this._recordings,
   }) : _home = home ?? getApplicationSupportDirectory,
        _now = now ?? clock.now;
 
@@ -647,7 +647,7 @@ class TakeUploadQueue {
   }
 
   /// Whether the room took this row. Held is every reason it did not that holds the rest
-  /// of this row's part on it; a row given up before it was sent holds nothing.
+  /// of this row's part on it; a row refused for good, sent or not, holds nothing.
   Future<_Landing> _landed(PendingTake entry) async {
     if (!_ready(entry)) return _Landing.held;
     final file = File(entry.path);
@@ -779,12 +779,12 @@ class TakeUploadQueue {
   }
 
   Future<void> _nameTheTake(String? original, String name) async {
-    final recordings = _recordings?.call();
-    if (original == null || recordings == null) return;
+    if (original == null) return;
+    final recordings = _recordings();
     try {
       final held = await recordings.heldAs(original);
       if (held != null) await recordings.keepAs(held, name);
-    } on FileSystemException {
+    } on Object {
       return;
     }
   }

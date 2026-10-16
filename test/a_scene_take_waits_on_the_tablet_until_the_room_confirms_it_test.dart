@@ -546,10 +546,12 @@ void main() {
       late _DiskThatRefusesTheScene disk;
       final room = await atRest(
         SalaHarness(
-          takesOverride: (room, home) => disk = _DiskThatRefusesTheScene(
-            room: room,
-            home: () async => home,
-          ),
+          takesOverride: (room, home, recordings) =>
+              disk = _DiskThatRefusesTheScene(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
         ),
       );
       await theScreenOpens(room);
@@ -610,9 +612,12 @@ void main() {
     late _DiskThatRefusesTheScene disk;
     final room = await atRest(
       SalaHarness(
-        takesOverride: (room, home) =>
-            disk = _DiskThatRefusesTheScene(room: room, home: () async => home)
-              ..holdsTheRefusal = true,
+        takesOverride: (room, home, recordings) =>
+            disk = _DiskThatRefusesTheScene(
+              room: room,
+              home: () async => home,
+              recordings: recordings,
+            )..holdsTheRefusal = true,
       ),
     );
     final session = room.state.sessionId!;
@@ -721,7 +726,11 @@ class _UnmeasurableTake implements File {
 }
 
 class _DiskThatRefusesTheScene extends TakeUploadQueue {
-  _DiskThatRefusesTheScene({required super.room, super.home});
+  _DiskThatRefusesTheScene({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   bool full = true;
   bool asked = false;

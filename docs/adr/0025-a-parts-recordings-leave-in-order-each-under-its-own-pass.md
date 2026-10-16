@@ -1,6 +1,6 @@
 # A part's recordings leave in order, each under its own pass
 
-Amended by 0087 (2026-10-16): a confirmed recording leaves the Outbox.
+Amended by 0087 (2026-10-16): a confirmed recording leaves the Outbox, and a row refused for good holds no one behind it, even within the pass that refused it.
 
 ## Context
 

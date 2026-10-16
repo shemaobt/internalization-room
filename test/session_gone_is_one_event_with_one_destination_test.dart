@@ -170,9 +170,11 @@ void main() {
     'rows and their files, and the Outbox tally shows nothing pending',
     () async {
       final harness = SalaHarness(
-        takesOverride: (room, home) =>
-            QueueThatDiscardsLate(room: room, home: () async => home)
-              ..discardsAfter = _slowerThanAnyWait,
+        takesOverride: (room, home, recordings) => QueueThatDiscardsLate(
+          room: room,
+          home: () async => home,
+          recordings: recordings,
+        )..discardsAfter = _slowerThanAnyWait,
       );
       final container = await _naPassagem(harness);
       final sessao = _sessao(container);
@@ -449,9 +451,11 @@ void main() {
   test('Q1: gone from an older session\'s Outbox row removes that session\'s '
       'rows and files only, and the room stays where it is', () async {
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          QueueThatDiscardsLate(room: room, home: () async => home)
-            ..discardsAfter = _slowerThanAnyWait,
+      takesOverride: (room, home, recordings) => QueueThatDiscardsLate(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      )..discardsAfter = _slowerThanAnyWait,
     );
     final container = await _naPassagem(harness);
     final sessao = _sessao(container);
@@ -679,10 +683,12 @@ void main() {
       'Outbox and no file on disk, even with the enqueue in flight', () async {
     late QueueWhoseTranslationLandsLate fila;
     final harness = SalaHarness(
-      takesOverride: (room, home) => fila = QueueWhoseTranslationLandsLate(
-        room: room,
-        home: () async => home,
-      )..landsAfter = _slowerThanAnyWait,
+      takesOverride: (room, home, recordings) =>
+          fila = QueueWhoseTranslationLandsLate(
+            room: room,
+            home: () async => home,
+            recordings: recordings,
+          )..landsAfter = _slowerThanAnyWait,
     );
     final container = await _naPassagem(harness);
     await _abrirACapturaDeUmTrecho(harness, container);

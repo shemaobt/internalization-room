@@ -168,9 +168,10 @@ void main() {
     final stumbling = _RoomThatCannotReadTheTakeOnce();
     final harness = SalaHarness(
       room: stumbling,
-      takesOverride: (room, home) => TakeUploadQueue(
+      takesOverride: (room, home, recordings) => TakeUploadQueue(
         room: room,
         home: () async => home,
+        recordings: recordings,
         backoff: [backoff],
       ),
     );
@@ -856,7 +857,11 @@ void main() {
           },
         ]),
       );
-      final queue = TakeUploadQueue(room: FakeRoom(), home: () async => home);
+      final queue = TakeUploadQueue(
+        room: FakeRoom(),
+        home: () async => home,
+        recordings: FakeRecorder.new,
+      );
 
       final rows = await queue.entries();
 
