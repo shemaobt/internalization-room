@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/env.dart';
+import '../domain/accidental_tap.dart';
 import '../domain/approval_answer.dart';
 import '../domain/bt_finding.dart';
 import '../domain/capture_guard.dart';
@@ -72,6 +73,8 @@ const _clockSegments = <(String, String, String)>[
 ];
 
 const _sendsWhileInFlight = 3;
+
+const _takeHead = 64 * 1024;
 
 /// How many times the recorder may fail to start in a row before the room calls a
 /// person — mirroring `micFails` in her client.
@@ -2857,6 +2860,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _hasAudio(String path) =>
       File(path).existsSync() && File(path).lengthSync() > 0;
 
+  bool _anAccidentalTap(String path) {
+    final file = File(path);
+    if (!file.existsSync()) return true;
+    final wav = path.endsWith('.wav');
+    try {
+      return isAnAccidentalTap(
+        wav: wav,
+        head: wav ? _headOf(file) : Uint8List(0),
+        length: file.lengthSync(),
+      );
+    } on FileSystemException {
+      return false;
+    }
+  }
+
+  Uint8List _headOf(File file) {
+    final opened = file.openSync();
+    try {
+      return opened.readSync(_takeHead);
+    } finally {
+      opened.closeSync();
+    }
+  }
+
   void _keepTheConnectionWarm() {
     unawaited(_network.reachRoom());
     final every = ref.read(connectionRewarmIntervalProvider);
@@ -3284,6 +3311,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _reopenTheUnsent(String sessionId) async {
     final generation = _waitOnTheGeneration;
     final asked = state.scene;
+    final waiting = await _takes.sceneWaitingIn(sessionId);
+    if (waiting != null) {
+      if (_theSceneMovedOn(asked, generation)) return;
+      state = state.copyWith(
+        scene: SceneScreen(
+          label: waiting.scene,
+          keep: NotKept(
+            row: waiting.id,
+            tooLarge: _tooLargeForTheRoom(waiting.path),
+          ),
+        ),
+      );
+      return;
+    }
     final listed = await _room.sceneRehearsalsOf(sessionId);
     switch (listed) {
       case Answered(:final value):
@@ -3389,10 +3430,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void sceneTap() => _gesture(() => _sceneTap());
 
+  void sendTheSceneTakeAgain() => _gesture(() => _sendTheSceneTakeAgain());
+
   void _sceneTap() {
     if (state.station is! SceneRehearsal ||
         state.scene.step != SceneStep.record ||
-        state.scene.waiting) {
+        state.scene.waiting ||
+        state.scene.keep is Keeping) {
       return;
     }
     switch (state.channel) {
@@ -3407,52 +3451,138 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _keepTheSceneTake() async {
     final generation = _waitOnTheGeneration;
-    const keeping = SceneScreen(waiting: true);
+    final label = state.scene.label;
+    final keeping = SceneScreen(label: label, keep: const Keeping());
     state = state.copyWith(scene: keeping);
     final sessionId = state.sessionId;
     final path = (await _closeTheMicrophone()).take;
-    if (_abandoned(generation)) return;
-    if (sessionId != null && path != null && _hasAudio(path)) {
-      await _keepAt(sessionId, path, keeping, generation);
+    if (path == null || _anAccidentalTap(path)) {
+      if (path != null) unawaited(_recorder.delete(path));
+    } else if (sessionId != null) {
+      return _sendTheSceneTake(sessionId, path, keeping, generation);
     }
     if (identical(state.scene, keeping)) {
-      state = state.copyWith(scene: const SceneScreen());
+      state = state.copyWith(scene: SceneScreen(label: label));
     }
   }
 
-  Future<void> _keepAt(
+  Future<void> _sendTheSceneTake(
     String sessionId,
     String path,
     SceneScreen keeping,
     int generation,
   ) async {
-    final RoomAnswer<SceneRehearsalRecord> kept;
+    if (_goneSessions.contains(sessionId)) return;
+    final queue = _takes;
+    final tooLarge = _tooLargeForTheRoom(path);
+    final PendingTake row;
     try {
-      kept = await _room.keepSceneRehearsal(sessionId, File(path));
-    } on FileSystemException {
+      row = await queue.enqueue(
+        File(path),
+        sessionId: sessionId,
+        kind: sceneTakeKind,
+        scope: sceneTakeKind,
+        scene: keeping.label,
+      );
+    } on Object {
+      if (_goneSessions.contains(sessionId)) return;
+      _sayARecordingIsStranded();
+      _showTheTakeNotKept(
+        NotKept(take: path, tooLarge: tooLarge),
+        keeping,
+        generation,
+      );
       return;
     }
-    switch (kept) {
-      case Answered(:final value):
-        final named = await _underTheRehearsalsName(path, value);
-        if (_abandoned(generation)) return;
-        await _showTheRehearsal(value, keeping, generation, take: named);
-      case final RoomFailure failure:
-        if (!_abandoned(generation)) {
-          _decideAt(failure, door: Door.sceneRehearsal);
-        }
+    if (_goneSessions.contains(sessionId)) {
+      return queue.discardTheSession(sessionId);
+    }
+    await _keepTheRow(
+      NotKept(row: row.id, take: path, tooLarge: tooLarge),
+      keeping,
+      generation,
+    );
+  }
+
+  Future<void> _keepTheRow(
+    NotKept waiting,
+    SceneScreen keeping,
+    int generation,
+  ) async {
+    final kept = await _takes.keepTheScene(waiting.row!);
+    if (kept == null) {
+      _showTheTakeNotKept(waiting, keeping, generation);
+      return _countUnsent();
+    }
+    await _theRoomKept(kept, waiting, keeping, generation);
+  }
+
+  Future<void> _theRoomKeptWhatWaited() async {
+    final asked = state.scene;
+    final waiting = asked.keep;
+    if (waiting is! NotKept) return;
+    final row = waiting.row;
+    final kept = row == null ? null : _takes.keptSceneOf(row);
+    if (kept == null) return;
+    await _theRoomKept(kept, waiting, asked, _waitOnTheGeneration);
+  }
+
+  Future<void> _theRoomKept(
+    SceneRehearsalRecord kept,
+    NotKept waiting,
+    SceneScreen keeping,
+    int generation,
+  ) async {
+    await _countUnsent();
+    final named = await _heldOnTheTablet('cena-${kept.rehearsalId}');
+    if (_abandoned(generation)) return;
+    await _showTheRehearsal(kept, keeping, generation, take: named);
+  }
+
+  void _showTheTakeNotKept(
+    NotKept waiting,
+    SceneScreen keeping,
+    int generation,
+  ) {
+    if (_theSceneMovedOn(keeping, generation)) return;
+    state = state.copyWith(
+      scene: SceneScreen(label: keeping.label, keep: waiting),
+    );
+  }
+
+  bool _tooLargeForTheRoom(String path) {
+    try {
+      return File(path).lengthSync() > largestTakeTheRoomKeeps;
+    } on FileSystemException {
+      return false;
     }
   }
 
-  Future<String> _underTheRehearsalsName(
-    String path,
-    SceneRehearsalRecord rehearsal,
-  ) async {
-    try {
-      return await _recorder.keepAs(path, 'cena-${rehearsal.rehearsalId}');
-    } on FileSystemException {
-      return path;
+  void _sendTheSceneTakeAgain() {
+    final asked = state.scene;
+    final waiting = asked.keep;
+    if (state.station is! SceneRehearsal ||
+        asked.step != SceneStep.record ||
+        waiting is! NotKept ||
+        state.channel is Microphone) {
+      return;
     }
+    final keeping = SceneScreen(label: asked.label, keep: const Keeping());
+    state = state.copyWith(scene: keeping);
+    _handOff(_sendAgain(waiting, keeping));
+  }
+
+  Future<void> _sendAgain(NotKept waiting, SceneScreen keeping) async {
+    final generation = _waitOnTheGeneration;
+    final row = waiting.row;
+    if (row != null) {
+      await _takes.dueAgain(row);
+      return _keepTheRow(waiting, keeping, generation);
+    }
+    final take = waiting.take;
+    final sessionId = state.sessionId;
+    if (take == null || sessionId == null) return;
+    await _sendTheSceneTake(sessionId, take, keeping, generation);
   }
 
   void playTheSceneRehearsal() => _gesture(() => _playTheSceneRehearsal());
@@ -3770,17 +3900,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final path = (await _closeTheMicrophone()).take;
     if (_abandoned(generation)) return;
-    if (path == null || !_hasAudio(path)) {
-      // Nothing came back. A check over a take that does not exist let a team confirm a
-      // rehearsal into nothing — no bead appeared, and the way to the retro never opened.
+    if (path == null || _anAccidentalTap(path)) {
       state = state.copyWith(ensaio: _semGravacaoAberta);
-      _raiseAHalt();
       if (path != null) unawaited(_recorder.delete(path));
       return;
     }
-    final substituida = _pendingTakePath;
     _pendingTakePath = path;
-    if (substituida != null) unawaited(_recorder.delete(substituida));
     state = state.copyWith(ensaio: EnsaioStatus.recorded);
   }
 
@@ -4046,10 +4171,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// A start that answers after a halt landed, or after its capture was closed, has no
-  /// microphone left to record into.
+  /// A start that answers after a halt landed, after its microphone was closed, or after
+  /// its capture was closed, has no microphone left to record into.
   bool _keepsTheStart(MicOwner owner) =>
       !state.needsPerson &&
+      state.channel is Microphone &&
+      (state.channel as Microphone).owner == owner &&
       (owner != MicOwner.capture || state.btPhase == BtPhase.capturing);
 
   void _theMicrophoneChangedHands(bool taken) {
@@ -5087,7 +5214,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (substituida != null) {
       unawaited(_retirarDaFilaSeGuardada(substituida));
-      unawaited(_recorder.delete(substituida));
     }
   }
 
@@ -6236,8 +6362,10 @@ class _NotifierHost implements StationHost {
   void hearTheOpeningLetGo() => _notifier._letTheOpeningGo();
 
   @override
-  Future<void> hearTheOutboxFlushed() =>
-      _notifier._adoptTheNames(_notifier._takes);
+  Future<void> hearTheOutboxFlushed() async {
+    await _notifier._adoptTheNames(_notifier._takes);
+    await _notifier._theRoomKeptWhatWaited();
+  }
 
   @override
   Future<void> hearTheOutboxCounted() => _notifier._countUnsent();

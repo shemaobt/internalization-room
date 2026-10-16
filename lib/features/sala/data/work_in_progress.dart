@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../domain/kept_take.dart';
 import '../domain/session_state.dart';
+import 'staged_write.dart';
 
 const _folder = 'guardadas';
 const _ledger = 'em_curso.json';
@@ -229,14 +230,12 @@ class WorkInProgress {
         throw FormatException('em_curso.json ilegível', file.path);
       }
       final rows = change(await _rows());
-      final staging = File('${file.path}.novo');
-      await staging.writeAsString(
+      await writeWhole(
+        file,
         jsonEncode({
           for (final entry in rows.entries) entry.key: entry.value.toJson(),
         }),
-        flush: true,
       );
-      await staging.rename(file.path);
     });
     _writes = next.then((_) {}, onError: (_) {});
     return next;

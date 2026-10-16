@@ -151,6 +151,10 @@ _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 A recording the team kept, identified locally by its scope (part or whole passage) and, after upload, by the server's identifier.
 _Avoid_: gravação, recording (too general), audio
 
+**Accidental tap**:
+A scene take or a part too short to be anything the team said, or one the recorder handed back nothing for. It leaves nothing behind (ADR 0086).
+_Avoid_: empty take, short take, capture guard (the Conversation's window)
+
 **Capture guard**:
 The short window after a Conversation take opens in which the team's next tap on the circle cancels the take instead of ending it: nothing is sent, the take is discarded on the tablet and the circle rests. A tap after the window ends the take and sends it. This also covers the take an Interruption opens.
 
@@ -273,7 +277,7 @@ A session that holds a Guide line, its Opening at least. The room asks a session
 _Avoid_: started, begun
 
 **Outbox**:
-The queue of takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them.
+The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it.
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Resume point**:

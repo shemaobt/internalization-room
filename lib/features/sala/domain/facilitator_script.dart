@@ -152,6 +152,22 @@ const sceneRehearsalLabels = {
     'en':
         'This scene rehearsal\'s translation already went to the voice. Tap a phrase to hear the rehearsal there, and the speaker to hear your translation of it.',
   },
+  'saving': {
+    'pt': 'guardando o ensaio da cena…',
+    'en': 'keeping the scene rehearsal…',
+  },
+  'saveFailed': {
+    'pt': 'não deu para guardar o ensaio da cena — gravem de novo',
+    'en': 'couldn\'t keep the scene rehearsal — record it again',
+  },
+  'tooLarge': {
+    'pt': 'grande demais para o servidor — grave em partes menores',
+    'en': 'too large for the server — record in shorter parts',
+  },
+  'retry': {
+    'pt': 'falhou — toque para tentar de novo',
+    'en': 'failed — tap to try again',
+  },
   'playPause': {
     'pt': 'Tocar ou pausar a gravação',
     'en': 'Play or pause your recording',

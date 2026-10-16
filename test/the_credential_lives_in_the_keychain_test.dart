@@ -59,8 +59,11 @@ ProviderContainer _tablet({
       linkPollIntervalProvider.overrideWithValue(linkPoll),
       roomRetryBackoffProvider.overrideWithValue(const [_quickPoll]),
       takeUploadQueueProvider.overrideWithValue(
-        QueueThatFlushesLate(room: room, home: () async => outbox)
-          ..flushesAfter = flushesAfter,
+        QueueThatFlushesLate(
+          room: room,
+          home: () async => outbox,
+          recordings: FakeRecorder.new,
+        )..flushesAfter = flushesAfter,
       ),
     ],
   );

@@ -1936,6 +1936,39 @@ void main() {
       },
     );
 
+    group('a scene take goes up to the room as audio/wav, with the scene label '
+        'when the record tap gave one', () {
+      test('labelled', () async {
+        final wav = aWavTake();
+        final file = await _tempRecording(extension: 'wav', bytes: wav);
+
+        await listening().keepSceneRehearsal('sessao-1', file, scene: 'S2');
+
+        final part = _filePart(sent);
+        expect(
+          part.head,
+          contains('content-type: audio/wav'),
+          reason:
+              'a sala chama de WAV só o que o envio declara WAV, e '
+              'guardava a cena como cena.m4a',
+        );
+        expect(part.head, matches(RegExp(r'filename="[^"]+\.wav"')));
+        expect(part.content, wav);
+        expect(
+          latin1.decode(sent.bodyBytes),
+          contains('name="scene"\r\n\r\nS2\r\n'),
+        );
+      });
+
+      test('unlabelled', () async {
+        final file = await _tempRecording(extension: 'wav', bytes: aWavTake());
+
+        await listening().keepSceneRehearsal('sessao-1', file);
+
+        expect(latin1.decode(sent.bodyBytes), isNot(contains('name="scene"')));
+      });
+    });
+
     test('a stretch told goes up as it always did', () async {
       await listening().sendChunk(
         'sessao-1',

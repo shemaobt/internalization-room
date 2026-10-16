@@ -346,15 +346,7 @@ class RoomRepository {
           ..headers['X-Room-Device'] = await _deviceId()
           ..fields['kind'] = kind
           ..fields['scope'] = scope
-          ..files.add(
-            await http.MultipartFile.fromPath(
-              'file',
-              audio.path,
-              contentType: audio.path.endsWith('.wav')
-                  ? http.MediaType('audio', 'wav')
-                  : null,
-            ),
-          );
+          ..files.add(await _audioPart(audio));
     if (passNumber != null) request.fields['pass_number'] = '$passNumber';
     if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
     return _room.askStreamed(
@@ -401,8 +393,9 @@ class RoomRepository {
 
   Future<RoomAnswer<SceneRehearsalRecord>> keepSceneRehearsal(
     String sessionId,
-    File audio,
-  ) async {
+    File audio, {
+    String? scene,
+  }) async {
     final request =
         http.MultipartRequest(
             'POST',
@@ -410,7 +403,8 @@ class RoomRepository {
           )
           ..headers.addAll(_whoWeAre)
           ..headers['X-Room-Device'] = await _deviceId()
-          ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+          ..files.add(await _audioPart(audio));
+    if (scene != null) request.fields['scene'] = scene;
     return _room.askStreamed(
       request,
       timeout: _longCallTimeout,
@@ -418,6 +412,15 @@ class RoomRepository {
       asksForTheSession: true,
     );
   }
+
+  static Future<http.MultipartFile> _audioPart(File audio) =>
+      http.MultipartFile.fromPath(
+        'file',
+        audio.path,
+        contentType: audio.path.endsWith('.wav')
+            ? http.MediaType('audio', 'wav')
+            : null,
+      );
 
   /// Where the take of one scene rehearsal of this session is, for [fetchClip].
   static String sceneRehearsalAudioUrl(String sessionId, String rehearsalId) =>

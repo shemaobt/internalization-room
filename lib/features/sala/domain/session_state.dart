@@ -25,6 +25,8 @@ final class SceneScreen {
   final String? take;
   final Duration? length;
   final bool waiting;
+  final String? label;
+  final SceneKeep? keep;
 
   const SceneScreen({
     this.step = SceneStep.record,
@@ -32,6 +34,8 @@ final class SceneScreen {
     this.take,
     this.length,
     this.waiting = false,
+    this.label,
+    this.keep,
   });
 
   SceneScreen get asWaiting => SceneScreen(
@@ -41,6 +45,22 @@ final class SceneScreen {
     length: length,
     waiting: true,
   );
+}
+
+sealed class SceneKeep {
+  const SceneKeep();
+}
+
+final class Keeping extends SceneKeep {
+  const Keeping();
+}
+
+final class NotKept extends SceneKeep {
+  final String? row;
+  final String? take;
+  final bool tooLarge;
+
+  const NotKept({this.row, this.take, this.tooLarge = false});
 }
 
 enum VoiceState {

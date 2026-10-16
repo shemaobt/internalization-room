@@ -179,6 +179,8 @@ class EffectRunner {
   List<StreamSubscription<void>>? _partSignals;
   StreamSubscription<bool>? _micTaken;
   int _starts = 0;
+  bool? _newestStarted;
+  bool _anOlderStartRuns = false;
   Future<void>? _probing;
   Future<RoomReach>? _asking;
   bool _aStepAsks = false;
@@ -460,6 +462,7 @@ class EffectRunner {
 
   void _openTheMic(MicOwner owner, String take) {
     _micTaken ??= recorder.taken.listen(host.hearTheMicrophoneTaken);
+    _newestStarted = null;
     unawaited(
       _answerTheStart(
         owner,
@@ -482,14 +485,26 @@ class EffectRunner {
     if (_disposed) return;
     final started = answer == MicAnswer.started;
     final now = generation?.call();
-    if (stamp != now) {
-      if (start == _starts && started) {
+    if (start != _starts) {
+      if (started && _newestStarted == false) {
         unawaited(recorder.discard());
-        host.answer(MicAnswered(MicAnswer.abandoned, generation: now));
-      } else if (start == _starts) {
-        host.answer(MicClosed(generation: now));
+      } else if (started) {
+        _anOlderStartRuns = true;
       }
-    } else if (started && !host.keepsTheStart(owner)) {
+      return;
+    }
+    _newestStarted = started;
+    final anOlderStartRuns = _anOlderStartRuns;
+    _anOlderStartRuns = false;
+    if (stamp != now) {
+      if (started || anOlderStartRuns) unawaited(recorder.discard());
+      host.answer(
+        started
+            ? MicAnswered(MicAnswer.abandoned, generation: now)
+            : MicClosed(generation: now),
+      );
+    } else if ((started && !host.keepsTheStart(owner)) ||
+        (!started && anOlderStartRuns)) {
       unawaited(recorder.discard());
     }
     host.answer(MicAnswered(answer, generation: stamp));

@@ -51,13 +51,15 @@ class SceneRehearsalView extends ConsumerWidget {
         Expanded(
           child: Center(
             child: switch (scene.step) {
-              SceneStep.record => _RecordCircle(
+              SceneStep.record => _TheRecordStep(
                 recording: switch (session.channel) {
                   Microphone(owner: MicOwner.scene) => true,
                   _ => false,
                 },
+                keep: scene.keep,
                 label: said,
                 onTap: notifier.sceneTap,
+                onRetry: notifier.sendTheSceneTakeAgain,
               ),
               SceneStep.translate => Column(
                 mainAxisSize: MainAxisSize.min,
@@ -323,13 +325,64 @@ class _Strip extends StatelessWidget {
   }
 }
 
+class _TheRecordStep extends StatelessWidget {
+  final bool recording;
+  final SceneKeep? keep;
+  final String Function(String control) label;
+  final VoidCallback onTap;
+  final VoidCallback onRetry;
+
+  const _TheRecordStep({
+    required this.recording,
+    required this.keep,
+    required this.label,
+    required this.onTap,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final circle = _RecordCircle(
+      recording: recording,
+      keeping: keep is Keeping,
+      label: label,
+      onTap: onTap,
+    );
+    final waiting = keep;
+    if (recording || waiting is! NotKept) return circle;
+    final colors = SalaColors.of(context);
+    return Semantics(
+      label: label(waiting.tooLarge ? 'tooLarge' : 'saveFailed'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          circle,
+          const SizedBox(height: 32),
+          RoundActionButton(
+            size: 52,
+            semanticLabel: label('retry'),
+            onTap: onRetry,
+            child: Icon(
+              LucideIcons.rotateCw,
+              size: 22,
+              color: colors.vermelhoMic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RecordCircle extends StatelessWidget {
   final bool recording;
-  final String Function(String control, [int? n]) label;
+  final bool keeping;
+  final String Function(String control) label;
   final VoidCallback onTap;
 
   const _RecordCircle({
     required this.recording,
+    required this.keeping,
     required this.label,
     required this.onTap,
   });
@@ -339,9 +392,19 @@ class _RecordCircle extends StatelessWidget {
     final colors = SalaColors.of(context);
     return RoundActionButton(
       size: 180,
-      mood: recording ? ButtonMood.beckoning : ButtonMood.lit,
+      mood: keeping
+          ? ButtonMood.dimmed
+          : recording
+          ? ButtonMood.beckoning
+          : ButtonMood.lit,
       halo: colors.vermelhoMic,
-      semanticLabel: label(recording ? 'recording' : 'record'),
+      semanticLabel: label(
+        keeping
+            ? 'saving'
+            : recording
+            ? 'recording'
+            : 'record',
+      ),
       onTap: onTap,
       background: colors.vermelhoMic.withValues(alpha: 0.10),
       border: Border.all(color: colors.vermelhoMic, width: 2),

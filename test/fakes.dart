@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
+import 'package:path/path.dart' as p;
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
 import 'package:internalization_room/features/sala/data/current_session_ledger.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
@@ -280,6 +281,7 @@ class FakeRecorder implements RecordingRepository {
   String? lastPath;
   MicOwner? lastOwner;
   Uint8List? rehearsalSpeaks;
+  String? rehearsalSpeaksAs;
 
   bool permitted = true;
 
@@ -353,16 +355,28 @@ class FakeRecorder implements RecordingRepository {
     if (held != null) await held.future;
     _recording = false;
     if (returnsNothing) return null;
+    final deliverable =
+        lastOwner == MicOwner.rehearsal || lastOwner == MicOwner.scene;
     final fala = rehearsalSpeaks;
-    if (fala != null && lastOwner == MicOwner.rehearsal) {
-      final wav = File('${home.path}/captura-$captures.wav')
-        ..writeAsBytesSync(fala);
-      return lastPath = wav.path;
+    if (fala != null && deliverable) {
+      final take = File(
+        '${home.path}/captura-$captures.'
+        '${rehearsalSpeaksAs ?? (_isWav(fala) ? 'wav' : 'm4a')}',
+      )..writeAsBytesSync(fala);
+      return lastPath = take.path;
     }
     final file = File('${home.path}/captura-$captures.m4a')
-      ..writeAsStringSync(returnsEmpty ? '' : 'a equipe falou');
+      ..writeAsStringSync(
+        returnsEmpty
+            ? ''
+            : deliverable
+            ? _aWholeTake
+            : 'a equipe falou',
+      );
     return lastPath = file.path;
   }
+
+  static final _aWholeTake = 'a equipe falou a passagem inteira. ' * 32;
 
   File aFile(String name) =>
       File('${home.path}/$name.m4a')
@@ -381,7 +395,8 @@ class FakeRecorder implements RecordingRepository {
 
   @override
   Future<String> keepBytes(Uint8List bytes, String fileName) async {
-    final file = File('${home.path}/$fileName.m4a')..writeAsBytesSync(bytes);
+    final file = File('${home.path}/$fileName.${_isWav(bytes) ? 'wav' : 'm4a'}')
+      ..writeAsBytesSync(bytes);
     return file.path;
   }
 
@@ -391,17 +406,25 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<String?> heldAs(String fileName) async {
     if (heldAsFails) throw const FileSystemException('o disco falhou');
-    final file = File('${home.path}/$fileName.m4a');
-    return file.existsSync() && file.lengthSync() > 0 ? file.path : null;
+    for (final extension in ['wav', 'm4a']) {
+      final file = File('${home.path}/$fileName.$extension');
+      if (file.existsSync() && file.lengthSync() > 0) return file.path;
+    }
+    return null;
   }
 
   @override
   Future<String> keepAs(String path, String fileName) async =>
-      File(path).renameSync('${home.path}/$fileName.m4a').path;
+      File(path).renameSync('${home.path}/$fileName${p.extension(path)}').path;
 
   @override
   Future<void> dispose() async => _interruptions.close();
 }
+
+bool _isWav(Uint8List bytes) =>
+    bytes.length >= 12 &&
+    String.fromCharCodes(bytes, 0, 4) == 'RIFF' &&
+    String.fromCharCodes(bytes, 8, 12) == 'WAVE';
 
 class FakePlayback implements PlaybackRepository {
   final List<String> sounds;
@@ -1012,6 +1035,10 @@ class FakeRoom implements RoomRepository {
     for (final segment in segments) segment.segmentId,
   ];
   final List<String> takesKept = [];
+
+  /// What the next takes answer, one each, before [refuseTake] is read.
+  final List<RoomFailure> takeAnswersFirst = [];
+  final List<({String kind, String scope, int? chunkIndex})> takesReceived = [];
   final List<int?> takePasses = [];
   String? refuseTake;
 
@@ -1437,12 +1464,17 @@ class FakeRoom implements RoomRepository {
 
   /// The session each scene take this room kept was sent for, in order.
   final List<String> scenesKept = [];
+  final List<String?> sceneLabels = [];
+  final List<Uint8List> sceneTakesSent = [];
 
   /// Every restart of a scene translation this room was sent.
   final List<({String attempt, String? closes})> restartsSent = [];
 
   /// What every scene door answers, the scene take's audio included, when it is set.
   RoomFailure? failSceneWith;
+
+  /// What the next keeps answer, one each, before [failSceneWith] is read.
+  final List<RoomFailure> sceneAnswersFirst = [];
 
   /// The code a restart is refused with, when it is set.
   String? refuseRestartWith;
@@ -1460,13 +1492,21 @@ class FakeRoom implements RoomRepository {
   void finishHeldSceneList() => _heldSceneLists.removeAt(0).complete();
 
   Completer<void>? _holdingKeep;
+  Completer<void>? _holdingKeepBefore;
 
   /// Hold the next keep's answer, after the room has taken the take.
   void holdNextKeep() => _holdingKeep = Completer<void>();
 
+  /// Hold the next keep before the room acts, so what it answers is read when it is let
+  /// go.
+  void holdNextKeepBeforeTheRoomActs() =>
+      _holdingKeepBefore = Completer<void>();
+
   void finishHeldKeep() {
     _holdingKeep?.complete();
     _holdingKeep = null;
+    _holdingKeepBefore?.complete();
+    _holdingKeepBefore = null;
   }
 
   Completer<void>? _holdingRestart;
@@ -1500,13 +1540,18 @@ class FakeRoom implements RoomRepository {
   @override
   Future<RoomAnswer<SceneRehearsalRecord>> keepSceneRehearsal(
     String sessionId,
-    File audio,
-  ) async {
+    File audio, {
+    String? scene,
+  }) async {
     if (_guard('keepSceneRehearsal') case final failure?) return failure;
+    await _holdingKeepBefore?.future;
     if (_forgot('keepSceneRehearsal', sessionId) case final gone?) return gone;
+    if (sceneAnswersFirst.isNotEmpty) return sceneAnswersFirst.removeAt(0);
     final refusal = failSceneWith;
     if (refusal != null) return refusal;
     scenesKept.add(sessionId);
+    sceneLabels.add(scene);
+    sceneTakesSent.add(audio.readAsBytesSync());
     final n = sceneRehearsals.length + 1;
     final kept = SceneRehearsalRecord(
       rehearsalId: 'ensaio-da-cena-$n',
@@ -2000,11 +2045,13 @@ class FakeRoom implements RoomRepository {
       final answersAfter = aHeldTakeAnswersAfter;
       if (answersAfter != null) await Future<void>.delayed(answersAfter);
     }
+    if (takeAnswersFirst.isNotEmpty) return takeAnswersFirst.removeAt(0);
     if (refuseTake == '$kind/$scope') return Refused(refuseTakeCode);
     if (unreachableTake == '$kind/$scope') {
       return const NetworkFailed('sem rede');
     }
     takesKept.add('$kind/$scope');
+    takesReceived.add((kind: kind, scope: scope, chunkIndex: chunkIndex));
     takePasses.add(passNumber);
     final id = 'gravacao-${takeIds.length + 1}';
     takeIds.add(id);
@@ -2413,7 +2460,9 @@ class FakeTakeQueue implements TakeUploadQueue {
   final List<PendingTake> rows = [];
   int _minted = 0;
 
-  FakeTakeQueue({required this.room});
+  final RecordingRepository? recordings;
+
+  FakeTakeQueue({required this.room, this.recordings});
 
   @override
   Future<PendingTake> enqueue(
@@ -2423,6 +2472,7 @@ class FakeTakeQueue implements TakeUploadQueue {
     required String scope,
     int? passNumber,
     int? chunkIndex,
+    String? scene,
   }) async {
     final entry = PendingTake(
       id: '${_minted++}',
@@ -2432,6 +2482,10 @@ class FakeTakeQueue implements TakeUploadQueue {
       scope: scope,
       passNumber: passNumber,
       chunkIndex: chunkIndex,
+      scene: scene,
+      original: kind == sceneTakeKind
+          ? p.basenameWithoutExtension(audio.path)
+          : null,
     );
     rows.add(entry);
     return entry;
@@ -2450,6 +2504,43 @@ class FakeTakeQueue implements TakeUploadQueue {
   Future<void> discardTheSession(String sessionId) async =>
       rows.removeWhere((entry) => entry.sessionId == sessionId);
 
+  final Map<String, SceneRehearsalRecord> _keptScenes = {};
+
+  @override
+  Future<SceneRehearsalRecord?> keepTheScene(String row) async {
+    final at = rows.indexWhere((entry) => entry.id == row);
+    for (var i = 0; i < at; i++) {
+      final entry = rows[i];
+      if (entry.kind == sceneTakeKind &&
+          entry.sessionId == rows[at].sessionId &&
+          !entry.exhausted) {
+        rows[i] = entry.dueNow();
+      }
+    }
+    await flush();
+    return keptSceneOf(row);
+  }
+
+  @override
+  SceneRehearsalRecord? keptSceneOf(String row) => _keptScenes[row];
+
+  @override
+  Future<void> dueAgain(String row) async {
+    final at = rows.indexWhere((entry) => entry.id == row);
+    if (at >= 0) rows[at] = rows[at].dueNow();
+  }
+
+  @override
+  Future<PendingTake?> sceneWaitingIn(String sessionId) async => rows
+      .where(
+        (entry) =>
+            entry.kind == sceneTakeKind &&
+            !entry.stored &&
+            !entry.exhausted &&
+            entry.sessionId == sessionId,
+      )
+      .lastOrNull;
+
   @override
   Future<int> flush({bool withTheCodeless = false}) async {
     var sent = 0;
@@ -2458,6 +2549,35 @@ class FakeTakeQueue implements TakeUploadQueue {
       if (at < 0) continue;
       final entry = rows[at];
       if (entry.stored) continue;
+      if (entry.kind == sceneTakeKind) {
+        if (entry.exhausted) continue;
+        switch (await room.keepSceneRehearsal(
+          entry.sessionId,
+          File(entry.path),
+          scene: entry.scene,
+        )) {
+          case Answered(:final value):
+            _keptScenes[entry.id] = value;
+            final held = entry.original == null
+                ? null
+                : await recordings?.heldAs(entry.original!);
+            if (held != null) {
+              await recordings?.keepAs(held, 'cena-${value.rehearsalId}');
+            }
+            rows.removeAt(rows.indexWhere((row) => row.id == entry.id));
+            sent++;
+          case SessionGone():
+            await discardTheSession(entry.sessionId);
+            _sessionsGone.add(entry.sessionId);
+          case NetworkFailed():
+            _writeBack(entry.copyWith(waits: entry.waits + 1));
+          case Refused(:final code):
+            _writeBack(
+              entry.copyWith(attempts: takeUploadAttempts, refusal: code),
+            );
+        }
+        continue;
+      }
       switch (await room.sendTake(
         entry.sessionId,
         File(entry.path),
@@ -2777,13 +2897,22 @@ class SalaHarness {
 
   /// A queue built by the test itself, for a disk that needs to misbehave in a way
   /// none of the ordinary knobs reach.
-  final TakeUploadQueue Function(FakeRoom room, Directory home)? takesOverride;
+  final TakeUploadQueue Function(
+    FakeRoom room,
+    Directory home,
+    RecordingRepository Function() recordings,
+  )?
+  takesOverride;
 
   late final TakeUploadQueue takes =
-      takesOverride?.call(room, takesHome) ??
+      takesOverride?.call(room, takesHome, () => recorder) ??
       (filaEmMemoria
-          ? FakeTakeQueue(room: room)
-          : TakeUploadQueue(room: room, home: () async => takesHome));
+          ? FakeTakeQueue(room: room, recordings: recorder)
+          : TakeUploadQueue(
+              room: room,
+              home: () async => takesHome,
+              recordings: () => recorder,
+            ));
 
   List<Override> get overrides => [
     facilitatorVoiceProvider.overrideWithValue(voiceService ?? voice),
@@ -2947,7 +3076,11 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
 }
 
 class QueueHeldOnGiveUps extends TakeUploadQueue {
-  QueueHeldOnGiveUps({required super.room, super.home});
+  QueueHeldOnGiveUps({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   final Completer<void> asking = Completer<void>();
   final Completer<void> answer = Completer<void>();
@@ -2962,7 +3095,11 @@ class QueueHeldOnGiveUps extends TakeUploadQueue {
 
 /// A disk that refuses the withdraw's own write, the way a full one would.
 class QueueWithdrawThrows extends TakeUploadQueue {
-  QueueWithdrawThrows({required super.room, super.home});
+  QueueWithdrawThrows({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   @override
   Future<void> withdraw(PendingTake row) async =>
@@ -2970,7 +3107,11 @@ class QueueWithdrawThrows extends TakeUploadQueue {
 }
 
 class QueueThatDiscardsLate extends TakeUploadQueue {
-  QueueThatDiscardsLate({required super.room, super.home});
+  QueueThatDiscardsLate({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   Duration? discardsAfter;
 
@@ -2983,7 +3124,11 @@ class QueueThatDiscardsLate extends TakeUploadQueue {
 }
 
 class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
-  QueueWhoseTranslationLandsLate({required super.room, super.home});
+  QueueWhoseTranslationLandsLate({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   Duration? landsAfter;
   bool translationLanded = false;
@@ -2996,6 +3141,7 @@ class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
     required String scope,
     int? passNumber,
     int? chunkIndex,
+    String? scene,
   }) async {
     final wait = landsAfter;
     if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
@@ -3006,6 +3152,7 @@ class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
       scope: scope,
       passNumber: passNumber,
       chunkIndex: chunkIndex,
+      scene: scene,
     );
     if (kind == 'retro') translationLanded = true;
     return row;
@@ -3013,7 +3160,11 @@ class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
 }
 
 class QueueThatFinishesLate extends TakeUploadQueue {
-  QueueThatFinishesLate({required super.room, super.home});
+  QueueThatFinishesLate({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   Duration? answersAfter;
 
@@ -3025,6 +3176,7 @@ class QueueThatFinishesLate extends TakeUploadQueue {
     required String scope,
     int? passNumber,
     int? chunkIndex,
+    String? scene,
   }) async {
     final row = await super.enqueue(
       audio,
@@ -3033,6 +3185,7 @@ class QueueThatFinishesLate extends TakeUploadQueue {
       scope: scope,
       passNumber: passNumber,
       chunkIndex: chunkIndex,
+      scene: scene,
     );
     final wait = answersAfter;
     if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
@@ -3056,7 +3209,11 @@ class QueueThatFinishesLate extends TakeUploadQueue {
 }
 
 class QueueThatFlushesLate extends TakeUploadQueue {
-  QueueThatFlushesLate({required super.room, super.home});
+  QueueThatFlushesLate({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   Duration? flushesAfter;
   int flushing = 0;
@@ -3075,7 +3232,11 @@ class QueueThatFlushesLate extends TakeUploadQueue {
 }
 
 class QueueThatEnqueuesLate extends TakeUploadQueue {
-  QueueThatEnqueuesLate({required super.room, super.home});
+  QueueThatEnqueuesLate({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   Duration? enqueuesAfter;
 
@@ -3087,6 +3248,7 @@ class QueueThatEnqueuesLate extends TakeUploadQueue {
     required String scope,
     int? passNumber,
     int? chunkIndex,
+    String? scene,
   }) async {
     final wait = enqueuesAfter;
     if (wait != null) await Future<void>.delayed(wait);
@@ -3097,6 +3259,7 @@ class QueueThatEnqueuesLate extends TakeUploadQueue {
       scope: scope,
       passNumber: passNumber,
       chunkIndex: chunkIndex,
+      scene: scene,
     );
   }
 }
