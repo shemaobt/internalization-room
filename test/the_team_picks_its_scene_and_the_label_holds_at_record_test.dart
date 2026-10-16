@@ -137,6 +137,13 @@ bool _shows(String label) => byLabel(label).evaluate().isNotEmpty;
 
 const _theList = 'ensaios da cena desta sessão';
 
+String _rowOf(WidgetTester tester, int n) => _labelsOnScreen(tester).firstWhere(
+  (label) =>
+      label.toLowerCase().contains('ensaio da cena $n,') ||
+      label.toLowerCase().startsWith('continuar o ensaio da cena $n') ||
+      label.toLowerCase().startsWith('ensaio da cena $n'),
+);
+
 ({String words, bool live}) _theChip(WidgetTester tester) {
   final chip = tester.widget<SceneChip>(find.byType(SceneChip));
   return (words: chip.words, live: chip.live);
@@ -284,8 +291,9 @@ void main() {
         await _theScreenOpens(
           tester,
           rehearsals: [
-            _rehearsal(1, scene: 'S1'),
-            _rehearsal(2, sent: true),
+            _rehearsal(1, sent: true),
+            _rehearsal(2, scene: 'S1'),
+            _rehearsal(3, scene: 'S2', sent: true),
           ],
         );
 
@@ -477,6 +485,51 @@ void main() {
     );
   });
 
+  group('a reopen whose take is late', () {
+    testWidgets(
+      'an unsent rehearsal whose take is still on its way never sits on the '
+      'record step: its row opens from the list, and a take recorded there '
+      'carries none of it',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          rehearsals: [_rehearsal(1, scene: 'S1')],
+          before: (harness) => harness.room.holdNextClip(),
+          rests: false,
+        );
+        await room.pump(const Duration(seconds: 4));
+
+        expect(byLabel(_question), findsOneWidget);
+        expect(_rowOf(tester, 1), startsWith('continuar o ensaio da cena 1'));
+
+        await room.sleepThrough();
+        await room.pick(_scene2);
+        await room.sleepThrough();
+        room.harness.recorder.rehearsalSpeaks = _aTake(7);
+        await room.theMicrophoneOpens();
+
+        expect(_rowOf(tester, 1), startsWith('continuar o ensaio da cena 1'));
+
+        await room.stop();
+        await room.pumpUntil(
+          'o take novo abrir na tradução',
+          () => room.state.scene.rehearsal?.n == 2,
+        );
+        room.room.finishHeldClip();
+        await room.pump(const Duration(milliseconds: 100));
+
+        expect(room.state.scene.rehearsal?.n, 2);
+
+        room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
+        await room.pumpUntil(
+          'o ensaio 1 abrir',
+          () => room.state.scene.rehearsal?.n == 1 && !room.state.scene.waiting,
+        );
+        closeTheRoom(room.container);
+      },
+    );
+  });
+
   group('the label at the record tap', () {
     testWidgets(
       'case 21: the label is read at the tap that starts the recording, before '
@@ -606,63 +659,86 @@ void main() {
 
   group('a pick the screen holds', () {
     testWidgets(
-      'a waiting take hides the question behind a dimmed chip of its own label, '
-      'empty when it has none, and the question returns once the room confirms '
-      'it',
+      'a waiting take with no pick shows the question beside the retry, and no '
+      'chip',
       (tester) async {
         final room = await _theScreenOpens(
           tester,
-          before: (harness) async {
-            harness.room.failSceneWith = _offline;
-            await _aTakeWaits(harness, scene: null);
+          before: (harness) {
+            harness.room.sceneAnswersFirst.add(_offline);
+            return _aTakeWaits(harness, scene: null);
           },
         );
 
         expect(room.state.scene.keep, isA<NotKept>());
-        expect(_shows(_question), isFalse);
-        expect(_theChip(tester), (words: '', live: false));
-
-        room.room.failSceneWith = null;
-        await tester.tap(byLabel(_retry));
-        await room.pumpUntil(
-          'o ensaio abrir na tradução',
-          () => room.state.scene.step == SceneStep.translate,
-        );
-        await tester.tap(byLabel(_again));
-        await room.pump();
-
         expect(byLabel(_question), findsOneWidget);
+        expect(byLabel(_retry), findsOneWidget);
+        expect(find.byType(SceneChip), findsNothing);
         closeTheRoom(room.container);
       },
     );
 
     testWidgets(
-      'a waiting take labelled with a scene the passage lacks shows an empty '
-      'dimmed chip and no question',
+      'a pick made while a take waits names the next take only, and the retry '
+      'sends the waiting take with its own label',
       (tester) async {
         final room = await _theScreenOpens(
           tester,
-          before: (harness) async {
-            harness.room.failSceneWith = _offline;
-            await _aTakeWaits(harness, scene: 'S9');
+          before: (harness) {
+            harness.room.sceneAnswersFirst.add(_offline);
+            return _aTakeWaits(harness, scene: null);
+          },
+        );
+        await room.sleepThrough();
+        await room.pick(_scene2);
+
+        expect(_theChip(tester), (
+          words: 'cena 2 · Primeiro apelo e recusa',
+          live: false,
+        ));
+
+        await room.sleepThrough();
+        await room.recordAndStop();
+        if (room.room.sceneLabels.length < 2) {
+          await tester.tap(byLabel(_retry));
+        }
+        await room.pumpUntil(
+          'os dois takes chegarem à sala',
+          () => room.room.sceneLabels.length == 2,
+        );
+
+        expect(room.room.sceneLabels, unorderedEquals([null, 'S2']));
+        closeTheRoom(room.container);
+      },
+    );
+
+    testWidgets(
+      'a waiting take labelled with a scene the passage lacks shows the question '
+      'and no chip',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          before: (harness) {
+            harness.room.sceneAnswersFirst.add(_offline);
+            return _aTakeWaits(harness, scene: 'S9');
           },
         );
 
-        expect(_shows(_question), isFalse);
-        expect(_theChip(tester), (words: '', live: false));
+        expect(byLabel(_question), findsOneWidget);
+        expect(find.byType(SceneChip), findsNothing);
         closeTheRoom(room.container);
       },
     );
 
     testWidgets(
-      'a waiting take labelled with a scene of the passage shows that scene on '
-      'its dimmed chip',
+      'a waiting take\'s pick stands: its dimmed chip names it, and a circle tap '
+      'records the next take under it with no question first',
       (tester) async {
         final room = await _theScreenOpens(
           tester,
-          before: (harness) async {
-            harness.room.failSceneWith = _offline;
-            await _aTakeWaits(harness, scene: 'S2');
+          before: (harness) {
+            harness.room.sceneAnswersFirst.add(_offline);
+            return _aTakeWaits(harness, scene: 'S2');
           },
         );
 
@@ -671,6 +747,17 @@ void main() {
           words: 'cena 2 · Primeiro apelo e recusa',
           live: false,
         ));
+
+        await room.recordAndStop();
+        if (room.room.sceneLabels.length < 2) {
+          await tester.tap(byLabel(_retry));
+        }
+        await room.pumpUntil(
+          'os dois takes chegarem à sala',
+          () => room.room.sceneLabels.length == 2,
+        );
+
+        expect(room.room.sceneLabels, ['S2', 'S2']);
         closeTheRoom(room.container);
       },
     );

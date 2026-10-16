@@ -3381,12 +3381,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         final unsent = SceneRehearsalRecord.toReopen(value, sessionId);
         if (waiting != null || unsent == null) return;
-        final reopening = SceneScreen(rehearsal: unsent);
-        state = state.copyWith(scene: reopening);
-        await _showTheRehearsal(unsent, reopening, generation);
-        if (identical(state.scene, reopening)) {
-          state = state.copyWith(scene: const SceneScreen());
-        }
+        await _showTheRehearsal(unsent, asked, generation);
       case final RoomFailure failure:
         if (!_abandoned(generation)) {
           _decideAt(failure, door: Door.sceneRehearsal);
@@ -3831,7 +3826,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.channel is Microphone ||
         shown.waiting ||
         row == null ||
-        rehearsalId == shown.rehearsal?.rehearsalId) {
+        rehearsalId == shown.rehearsal?.rehearsalId ||
+        rehearsalId == _theRowTheOpenReopens?.rehearsalId) {
       return;
     }
     _silenceTheRoom();
@@ -3839,6 +3835,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(scene: waiting);
     _handOff(_openTheRow(row, shown, waiting));
   }
+
+  /// The unsent rehearsal the open is reopening, while the open still waits.
+  SceneRehearsalRecord? get _theRowTheOpenReopens => switch (state) {
+    SalaSessionState(scenes: ScenesAwaited(), :final sessionId?) =>
+      SceneRehearsalRecord.toReopen(state.sceneRehearsals, sessionId),
+    _ => null,
+  };
 
   Future<void> _openTheRow(
     SceneRehearsalRecord row,

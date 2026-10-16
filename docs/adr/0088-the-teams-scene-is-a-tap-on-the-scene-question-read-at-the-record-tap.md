@@ -39,12 +39,15 @@ take already started and never takes the circle away while the microphone opens.
 600 ms of the question appearing, or of the pick, is ignored, so a double tap cannot pick and
 record at once.
 
-**A take that waits unsent keeps its own label on the screen.** While it waits, the question
-is hidden and the chip above the circle is dimmed: it shows that take's own label, and nothing
-when it has none. The question returns once the take is confirmed or the team records again,
-and only a new take takes a new label. A retry sends the take's own label, so a chip that could
-change the pick would show a scene the retry does not send. This narrows the plan's rule that a
-waiting take does not hide the question.
+**The pick stands until a take is confirmed.** A failed save clears nothing: while a take
+waits unsent, the chip above the circle is dimmed and names the pick, which is the next take's
+scene, and a circle tap records a new take under it with no question first. The retry is a
+control of its own beside her failure line, and it sends the waiting take's own label, or none
+if it had none; a chip that could change the pick would otherwise show a scene the retry does
+not send. When the waiting take has no pick, the question shows beside the retry, and a pick
+made then names the next take only. «gravar o ensaio da cena de novo» clears the pick and asks
+again. With no pick there is no chip. This follows her app (Rehearsal.tsx 111, 124-125, 384,
+832, 847-852), as the Definer ruled on 16 October.
 
 **Her words are written on this screen.** The question, its buttons («cena N» and the title,
 with a numbered badge) and the chip «cena N · título» above the circle are a named exception to

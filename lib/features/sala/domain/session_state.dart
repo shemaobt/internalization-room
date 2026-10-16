@@ -409,20 +409,18 @@ class SalaSessionState {
   bool get sceneTakeUnderWay => channel is Microphone || scene.keep is Keeping;
 
   /// Whether the record step asks «Qual cena vocês vão ensaiar?» instead of showing the
-  /// circle: not while a take is under way or waits unsent.
+  /// circle: nothing picked and no take under way.
   bool get sceneQuestionShown =>
       scene.step == SceneStep.record &&
       scenes.asks &&
       scenes.numberOf(scene.picked) == null &&
-      scene.keep == null &&
-      channel is! Microphone;
+      !sceneTakeUnderWay;
 
-  /// Whether the chip above the circle shows: the pick, or a waiting take's own label.
+  /// Whether the chip above the circle names the pick.
   bool get sceneChipShown =>
       scene.step == SceneStep.record &&
       scenes.asks &&
-      !sceneQuestionShown &&
-      (scene.keep is NotKept || scenes.numberOf(scene.picked) != null);
+      scenes.numberOf(scene.picked) != null;
 
   /// Whether a tap on the chip brings the question back.
   bool get sceneChipLive =>

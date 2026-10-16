@@ -89,12 +89,7 @@ class SceneRehearsalView extends ConsumerWidget {
                             live: session.sceneChipLive,
                             onTap: notifier.backToTheSceneQuestion,
                           ),
-                          null => SceneChip(
-                            words: '',
-                            label: '',
-                            live: false,
-                            onTap: notifier.backToTheSceneQuestion,
-                          ),
+                          null => null,
                         },
                   focused: scene.picked != null,
                 ),
