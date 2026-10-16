@@ -43,8 +43,7 @@ record at once.
 waits unsent, the chip above the circle is dimmed and names the pick, which is the next take's
 scene, and a circle tap records a new take under it with no question first. The retry is a
 control of its own beside her failure line, and it sends the waiting take's own label, or none
-if it had none; a chip that could change the pick would otherwise show a scene the retry does
-not send. When the waiting take has no pick, the question shows beside the retry, and a pick
+if it had none. When the waiting take has no pick, the question shows beside the retry, and a pick
 made then names the next take only. «gravar o ensaio da cena de novo» clears the pick and asks
 again. With no pick there is no chip. This follows her app (Rehearsal.tsx 111, 124-125, 384,
 832, 847-852), as the Definer ruled on 16 October.

@@ -3422,13 +3422,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final listed = await _room.sceneRehearsalsOf(sessionId);
     switch (listed) {
       case Answered(:final value):
-        if (_theSceneMovedOn(asked, generation)) return;
+        if (_abandoned(generation) || state.station is! SceneRehearsal) return;
         state = state.copyWith(
           sceneRehearsals: SceneRehearsalRecord.ofTheSession(value, sessionId),
         );
         final unsent = SceneRehearsalRecord.toReopen(value, sessionId);
-        if (waiting != null || unsent == null) return;
-        await _showTheRehearsal(unsent, asked, generation);
+        if (waiting != null ||
+            unsent == null ||
+            _theSceneMovedOn(asked, generation)) {
+          return;
+        }
+        final take = await _fetchTheSceneTake(unsent, generation);
+        if (take == null || state.scenes is! ScenesAwaited) return;
+        await _showTheRehearsal(unsent, asked, generation, take: take);
       case final RoomFailure failure:
         if (!_abandoned(generation)) {
           _decideAt(failure, door: Door.sceneRehearsal);
@@ -3913,8 +3919,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     await _showTheRehearsal(row, waiting, _waitOnTheGeneration);
     if (!identical(state.scene, waiting)) return;
-    final reopening = shown.rehearsal != null && shown.take == null;
-    state = state.copyWith(scene: reopening ? const SceneScreen() : shown);
+    state = state.copyWith(scene: shown);
   }
 
   void leaveTheSceneRehearsal() => _gesture(() => _leaveTheSceneRehearsal());
