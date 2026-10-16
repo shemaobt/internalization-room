@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -30,14 +31,26 @@ void main() {
     expect(ledger.chosen, isNull);
   });
 
-  test('two quick choices land in the order they were made', () async {
-    final ledger = await LookLedger.read(home: () async => home);
+  test(
+    'two quick choices land in the order they were made, though the first is slow to reach the disk',
+    () async {
+      final firstWriteMayGo = Completer<void>();
+      var opened = 0;
+      final ledger = LookLedger(
+        home: () async {
+          if (opened++ == 0) await firstWriteMayGo.future;
+          return home;
+        },
+      );
 
-    final first = ledger.choose('dark');
-    final second = ledger.choose('light');
-    await Future.wait([first, second]);
-    final again = await LookLedger.read(home: () async => home);
+      final first = ledger.choose('dark');
+      final second = ledger.choose('light');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      firstWriteMayGo.complete();
+      await Future.wait([first, second]);
+      final again = await LookLedger.read(home: () async => home);
 
-    expect(again.chosen, 'light');
-  });
+      expect(again.chosen, 'light');
+    },
+  );
 }
