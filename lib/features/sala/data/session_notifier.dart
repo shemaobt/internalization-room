@@ -2993,7 +2993,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  Future<void> _pullInbox() async {
+  Future<void> _pullInbox() =>
+      _inboxRead ??= _readTheInbox().whenComplete(() => _inboxRead = null);
+
+  Future<void> _readTheInbox() async {
     final List<HandReply> fetched;
     switch (await _inbox.fetchReplies()) {
       case Answered(:final value):
@@ -3026,6 +3029,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     return true;
   }
+
+  Future<void>? _inboxRead;
 
   void lookForReplies() => unawaited(_pullInbox());
 
@@ -3089,7 +3094,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The playing mark is given back on every way out. `_markHeard` is what clears it when
   /// the reply sounded; a reply that did not, or that outlived its generation, clears it
   /// here, or the hand stays lit on it for good. A reply stopped by the hand to be played
-  /// again leaves the mark to the play that took its place.
+  /// again leaves the mark, and the heard mark, to the play that took its place, whatever
+  /// the player reports of the stopped one.
   Future<void> _playReply(HandReply reply) async {
     Said said;
     try {
@@ -3106,7 +3112,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on Exception {
       said = Said.failed;
     }
-    if (_gone) return;
+    if (_gone || _aReplySounds) return;
     final current =
         said != Said.unsaid &&
         !state.replies.any(
@@ -3116,7 +3122,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_markHeard(reply.id, audioUrl: reply.audioUrl));
       return;
     }
-    if (state.playingReplyId == reply.id && !_aReplySounds) {
+    if (state.playingReplyId == reply.id) {
       state = state.copyWith(clearPlayingReply: true);
     }
     if (current) {

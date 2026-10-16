@@ -355,6 +355,68 @@ void main() {
   );
 
   testWidgets(
+    'A stopped play the player reports whole after the hand plays it again '
+    'marks nothing, and the play that took its place keeps the hand',
+    (tester) async {
+      final room = await _withAReplyWaiting(tester);
+      room.harness.voice.reportsAStoppedLineWhole = true;
+      await room.theReplyIsPlaying();
+      await room.theReplyIsPlaying();
+
+      room.harness.voice.theStoppedLineReportsWhole();
+      await room.beat(300);
+
+      expect(room.harness.inbox.heard, isEmpty, reason: 'nada marcado ainda');
+      expect(room.theDotShows, isFalse, reason: 'a resposta segue tocando');
+
+      room.harness.voice.finishHeldLine();
+      await room.until(
+        'a resposta ser ouvida',
+        () => !room.estado.hasUnheardReply,
+      );
+      expect(room.harness.inbox.heard, [_reply.id]);
+    },
+  );
+
+  testWidgets(
+    'The room asks for replies one read at a time: a read that hangs keeps the '
+    'next look from asking again, and the newer address is the one that stays',
+    (tester) async {
+      const recordedAgain = HandReply(
+        id: 'r1',
+        audioUrl: '/resposta/r1-de-novo',
+      );
+      final room = await _withAReplyWaiting(tester);
+      final offered = <String?>[];
+      room.container.listen(
+        salaSessionProvider,
+        (_, now) => offered.add(now.oldestUnheardReply?.audioUrl),
+      );
+      final inbox = room.harness.inbox;
+
+      inbox.holdNextCheck();
+      final before = inbox.checks;
+      await room.waits(const Duration(seconds: 15));
+      expect(inbox.checks, before + 1, reason: 'a leitura saiu e não volta');
+      inbox.replies = const [recordedAgain];
+      await room.waits(const Duration(seconds: 15));
+
+      expect(inbox.checks, before + 1, reason: 'uma leitura por vez');
+
+      inbox.finishHeldCheck();
+      await room.waits(const Duration(seconds: 15));
+
+      expect(room.estado.oldestUnheardReply?.audioUrl, recordedAgain.audioUrl);
+      final newer = offered.indexOf(recordedAgain.audioUrl);
+      expect(
+        offered.sublist(newer),
+        everyElement(recordedAgain.audioUrl),
+        reason: 'o endereço antigo nunca volta depois do novo',
+      );
+    },
+  );
+
+  testWidgets(
     'When the voice starts speaking (hear again included), a playing reply '
     'stops and stays unheard',
     (tester) async {

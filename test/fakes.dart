@@ -249,6 +249,19 @@ class FakeVoice implements FacilitatorVoiceService {
   /// room stood then.
   void Function()? onStop;
 
+  /// Whether a stopped line still reports itself whole, later, as a platform can when the
+  /// stop lands on the clip's last frame.
+  bool reportsAStoppedLineWhole = false;
+
+  final List<Completer<bool>> _stoppedButNotYetAnswered = [];
+
+  void theStoppedLineReportsWhole() {
+    for (final stopped in _stoppedButNotYetAnswered) {
+      stopped.complete(true);
+    }
+    _stoppedButNotYetAnswered.clear();
+  }
+
   @override
   Future<void> stop() async {
     stops++;
@@ -257,7 +270,11 @@ class FakeVoice implements FacilitatorVoiceService {
     final saying = _saying;
     _saying = null;
     if (saying == null || saying.isCompleted) return;
-    saying.complete(false);
+    if (reportsAStoppedLineWhole) {
+      _stoppedButNotYetAnswered.add(saying);
+    } else {
+      saying.complete(false);
+    }
     if (identical(saying, _holding)) _holding = null;
   }
 
@@ -882,10 +899,26 @@ class FakeInbox implements HandInboxRepository {
 
   FakeInbox({this.replies = const []});
 
+  Completer<void>? _holdingCheck;
+
+  /// Hold the next check on the wire: the desk has already answered with what it held
+  /// when asked, and the answer lands only when released.
+  void holdNextCheck() => _holdingCheck = Completer<void>();
+
+  void finishHeldCheck() {
+    _holdingCheck?.complete();
+    _holdingCheck = null;
+  }
+
   @override
   Future<RoomAnswer<List<HandReply>>> fetchReplies() async {
     checks++;
-    return cannotBeAsked ? const NetworkFailed('sem rede') : Answered(replies);
+    final RoomAnswer<List<HandReply>> answer = cannotBeAsked
+        ? const NetworkFailed('sem rede')
+        : Answered(replies);
+    final held = _holdingCheck;
+    if (held != null) await held.future;
+    return answer;
   }
 
   /// What the mark comes back with instead of the desk agreeing.
