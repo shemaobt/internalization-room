@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
@@ -504,6 +505,11 @@ void main() {
     'it carries the same label',
     () async {
       final room = await atRest();
+      room.harness.room.passageScenes = const [
+        Scene(sceneId: 'S1', title: 'Ouvir a notícia e partir'),
+        Scene(sceneId: 'S2', title: 'Primeiro apelo e recusa'),
+        Scene(sceneId: 'S3', title: 'Segundo apelo e a separação'),
+      ];
       final session = room.state.sessionId!;
       await room.harness.takes.enqueue(
         room.harness.recorder.aFile('cena-rotulada'),

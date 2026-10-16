@@ -1556,6 +1556,7 @@ class FakeRoom implements RoomRepository {
 
   void finishHeldScenes() => _heldScenes.removeAt(0).complete();
 
+  @override
   Future<RoomAnswer<List<Scene>>> scenesOf(String sessionId) async {
     if (_guard('scenesOf') case final failure?) return failure;
     if (_holdTheNextScenes) {

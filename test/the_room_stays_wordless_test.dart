@@ -13,6 +13,7 @@ const _screensTheTeamNeverReads = {
 
 const _herWordsTheTeamReads = {
   'lib/features/sala/presentation/widgets/moment_label.dart',
+  'lib/features/sala/presentation/widgets/scene_question.dart',
 };
 
 const _wordsOnlyTheCameraReads = {

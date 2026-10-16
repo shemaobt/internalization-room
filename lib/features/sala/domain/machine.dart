@@ -79,6 +79,7 @@ enum Door {
   step,
   verdict,
   sceneRehearsal,
+  sceneList,
 }
 
 enum PartFact { sent, pending, stranded }
@@ -383,6 +384,11 @@ final class TheRefusalPassed extends AnsweringEvent {
 
 final class TheHandFailed extends AnsweringEvent {
   const TheHandFailed({super.generation});
+}
+
+/// The passage's scenes could not be had: the take goes unlabelled, nothing else moves.
+final class TheScenesMissed extends AnsweringEvent {
+  const TheScenesMissed({super.generation});
 }
 
 /// The scene rehearsals the room listed when they were read again.
@@ -950,6 +956,7 @@ const _watch = ArmTheWatch();
   ),
   TheRefusalPassed() => (machine, const []),
   TheHandFailed() => (machine, const []),
+  TheScenesMissed() => (machine, const []),
   TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
     (machine, const [ReadTheSceneRehearsals()]),
   TheSceneDoorFailed() => (machine, const []),
@@ -1648,6 +1655,7 @@ Machine _answered(Machine machine) =>
   TurnFailed() ||
   TheRefusalPassed() ||
   TheHandFailed() ||
+  TheScenesMissed() ||
   TheSceneDoorFailed() ||
   TheSceneRehearsalsListed() ||
   TheCallWasRefused() ||

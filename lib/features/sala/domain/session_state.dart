@@ -8,6 +8,7 @@ import 'hand_reply.dart';
 import 'kept_take.dart';
 import 'moment.dart';
 import 'passagem.dart';
+import 'scene_question.dart';
 import 'scene_rehearsal.dart';
 import 'station.dart';
 
@@ -18,7 +19,8 @@ enum SceneStep { record, translate, placesUnknown, sent }
 
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
 /// answered it, its take as a file on this tablet and the take's measured length, and
-/// whether a call this screen made is in the air.
+/// whether a call this screen made is in the air. On the record step it also holds the
+/// scene the team picked and the scene of the rehearsal recorded again.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
@@ -27,6 +29,8 @@ final class SceneScreen {
   final bool waiting;
   final String? label;
   final SceneKeep? keep;
+  final String? picked;
+  final String? again;
 
   const SceneScreen({
     this.step = SceneStep.record,
@@ -36,7 +40,19 @@ final class SceneScreen {
     this.waiting = false,
     this.label,
     this.keep,
+    this.picked,
+    this.again,
   });
+
+  /// The record step with [keep], the team's pick carried as it stood.
+  SceneScreen withKeep(SceneKeep? keep) =>
+      SceneScreen(label: label, keep: keep, picked: picked, again: again);
+
+  SceneScreen labelled(String? label) =>
+      SceneScreen(label: label, keep: keep, picked: picked, again: again);
+
+  SceneScreen picking(String? picked) =>
+      SceneScreen(label: label, keep: keep, picked: picked, again: again);
 
   SceneScreen get asWaiting => SceneScreen(
     step: step,
@@ -44,6 +60,8 @@ final class SceneScreen {
     take: take,
     length: length,
     waiting: true,
+    picked: picked,
+    again: again,
   );
 }
 
@@ -256,6 +274,9 @@ class SalaSessionState {
   /// This session's scene rehearsals, by number, as the room last answered them.
   final List<SceneRehearsalRecord> sceneRehearsals;
 
+  /// The passage's scenes, as the room answered them on this visit to the scene rehearsal.
+  final SceneList scenes;
+
   /// Whether the bead at [index] does not apply right now (ADR 0040: dimmed means it does
   /// not apply). True for every part but the one a finding sent the team back to record,
   /// while that record-again stands open and nothing has been recorded for it yet. Once
@@ -321,6 +342,7 @@ class SalaSessionState {
     this.parteARegravar,
     this.scene = const SceneScreen(),
     this.sceneRehearsals = const [],
+    this.scenes = const ScenesAwaited(),
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -379,6 +401,21 @@ class SalaSessionState {
   Halt get halt => machine.halt;
 
   Channel get channel => machine.channel;
+
+  /// Whether a scene take is opening, recording or being kept.
+  bool get sceneTakeUnderWay => channel is Microphone || scene.keep is Keeping;
+
+  /// Whether the record step asks «Qual cena vocês vão ensaiar?» instead of showing the
+  /// circle.
+  bool get sceneQuestionShown =>
+      scene.step == SceneStep.record &&
+      scenes.asks &&
+      scenes.numberOf(scene.picked) == null &&
+      !sceneTakeUnderWay;
+
+  /// The scene the question highlights.
+  String? get sceneHighlighted =>
+      scenes.highlighted(sceneRehearsals, again: scene.again);
 
   bool get wordlessTelling => machine.wordlessTelling;
 
@@ -705,6 +742,7 @@ class SalaSessionState {
     bool clearParteARegravar = false,
     SceneScreen? scene,
     List<SceneRehearsalRecord>? sceneRehearsals,
+    SceneList? scenes,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
@@ -771,6 +809,7 @@ class SalaSessionState {
           : (parteARegravar ?? this.parteARegravar),
       scene: scene ?? this.scene,
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
+      scenes: scenes ?? this.scenes,
     );
   }
 }

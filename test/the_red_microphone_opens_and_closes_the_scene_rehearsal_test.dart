@@ -58,6 +58,66 @@ SceneRehearsalRecord _rehearsal({
   frases: frases,
 );
 
+/// Open the screen and tap the circle's place while what the open asked is still in
+/// the air: nothing is on screen yet, and no microphone opens.
+Future<void> _aTapWhileTheOpeningWaits(
+  SceneRoom room, {
+  required bool Function() until,
+}) async {
+  room.sala.openTheSceneRehearsal();
+  await waitFor('a abertura esperar a sala', until);
+  room.sala.sceneTap();
+  await settle();
+  expect(room.state.channel, isNot(isA<Microphone>()));
+}
+
+Future<void> _theWayBack(SceneRoom room) async {
+  room.sala.leaveTheSceneRehearsal();
+  await waitFor(
+    'a conversa voltar ao convite',
+    () =>
+        room.state.stage == SalaStage.conversa &&
+        room.state.voice == VoiceState.invite &&
+        !room.state.awaitingTheGuide,
+  );
+  await settle();
+}
+
+/// A second unsent rehearsal reopens with [hold] in the air; the team goes back and
+/// opens the screen again, now with nothing unsent, and rests on the record step.
+Future<void> _aLateAnswerOutlivesTheWayBack(
+  SceneRoom room, {
+  required void Function() hold,
+  required bool Function() until,
+}) async {
+  await _theWayBack(room);
+  room.harness.room.sceneRehearsals
+    ..[0] = _rehearsal(
+      sentAt: '2026-10-16T10:00:00+00:00',
+      frases: [_frase('f1', 0, 4000)],
+    )
+    ..add(_rehearsal(n: 2, frases: [_frase('f1', 0, 4000)]));
+  hold();
+  room.sala.openTheSceneRehearsal();
+  await waitFor('a reabertura ficar no ar', until);
+  await _theWayBack(room);
+  room.harness.room.sceneRehearsals[1] = _rehearsal(
+    n: 2,
+    sentAt: '2026-10-16T10:01:00+00:00',
+    frases: [_frase('f1', 0, 4000)],
+  );
+  final asked = room.asked('sceneRehearsalsOf');
+  room.sala.openTheSceneRehearsal();
+  await waitFor(
+    'a tela abrir de novo no passo de gravar',
+    () =>
+        room.asked('sceneRehearsalsOf') > asked &&
+        room.state.scene.step == SceneStep.record &&
+        room.asked('scenesOf') > 0,
+  );
+  await settle();
+}
+
 String _audioOf(String rehearsalId) =>
     '/api/internalization-room/sessions/$_session/scene-rehearsals/'
     '$rehearsalId/audio';
@@ -407,16 +467,25 @@ void main() {
   );
 
   test(
-    'an unsent scene rehearsal listed while the team already records never opens over the microphone',
+    'an unsent scene rehearsal listed late never opens over the microphone: a '
+    'tap while the list is in the air opens none, and a list that outlives the '
+    'way back never draws over the take recorded next',
     () async {
       final room = await atRest();
       room.harness.room
         ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
         ..holdNextSceneList();
-      room.sala.openTheSceneRehearsal();
-      await waitFor(
-        'a lista ser pedida',
-        () => room.asked('sceneRehearsalsOf') > 0,
+      await _aTapWhileTheOpeningWaits(
+        room,
+        until: () => room.asked('sceneRehearsalsOf') == 1,
+      );
+      room.harness.room.finishHeldSceneList();
+      await translateOpens(room);
+
+      await _aLateAnswerOutlivesTheWayBack(
+        room,
+        hold: room.harness.room.holdNextSceneList,
+        until: () => room.asked('sceneRehearsalsOf') == 2,
       );
       await theSceneMicrophoneOpens(room);
 
@@ -428,39 +497,53 @@ void main() {
     },
   );
 
+  test('a take download that lands late never opens over the microphone: a tap '
+      'while it is in the air opens none, and a download that outlives the way '
+      'back never draws over the take recorded next', () async {
+    final room = await atRest();
+    room.harness.room
+      ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
+      ..holdNextClip();
+    await _aTapWhileTheOpeningWaits(
+      room,
+      until: () => room.harness.room.clipsFetched.length == 1,
+    );
+    room.harness.room.finishHeldClip();
+    await translateOpens(room);
+
+    await _aLateAnswerOutlivesTheWayBack(
+      room,
+      hold: room.harness.room.holdNextClip,
+      until: () => room.harness.room.clipsFetched.length == 2,
+    );
+    await theSceneMicrophoneOpens(room);
+
+    room.harness.room.finishHeldClip();
+    await settle();
+
+    expect(room.state.scene.step, SceneStep.record);
+    expect(room.state.channel, const Microphone(MicOwner.scene));
+  });
+
   test(
-    'a take download that lands while the team records never opens over the microphone',
+    'a take download that outlives the way back leaves the take kept next on '
+    'the screen',
     () async {
       final room = await atRest();
       room.harness.room
         ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
         ..holdNextClip();
-      room.sala.openTheSceneRehearsal();
-      await waitFor(
-        'o take ser pedido',
-        () => room.harness.room.clipsFetched.isNotEmpty,
+      await _aTapWhileTheOpeningWaits(
+        room,
+        until: () => room.harness.room.clipsFetched.length == 1,
       );
-      await theSceneMicrophoneOpens(room);
-
       room.harness.room.finishHeldClip();
-      await settle();
+      await translateOpens(room);
 
-      expect(room.state.scene.step, SceneStep.record);
-      expect(room.state.channel, const Microphone(MicOwner.scene));
-    },
-  );
-
-  test(
-    'a take download that outlives a new take kept leaves the new one on the screen',
-    () async {
-      final room = await atRest();
-      room.harness.room
-        ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
-        ..holdNextClip();
-      room.sala.openTheSceneRehearsal();
-      await waitFor(
-        'o take ser pedido',
-        () => room.harness.room.clipsFetched.isNotEmpty,
+      await _aLateAnswerOutlivesTheWayBack(
+        room,
+        hold: room.harness.room.holdNextClip,
+        until: () => room.harness.room.clipsFetched.length == 2,
       );
       await theSceneMicrophoneOpens(room);
       room.sala.sceneTap();
@@ -469,7 +552,7 @@ void main() {
       room.harness.room.finishHeldClip();
       await settle();
 
-      expect(room.state.scene.rehearsal?.rehearsalId, 'ensaio-da-cena-2');
+      expect(room.state.scene.rehearsal?.rehearsalId, 'ensaio-da-cena-3');
     },
   );
 

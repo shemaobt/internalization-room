@@ -16,6 +16,7 @@ import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
 import '../domain/passagem.dart';
 import '../domain/scene_rehearsal.dart';
+import '../domain/scene_question.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/turn_result.dart';
 import 'device_identity.dart';
@@ -33,6 +34,9 @@ const _turnTimeout = Duration(seconds: 305);
 /// Every other call that can run long waits 310 s.
 const _longCallTimeout = Duration(seconds: 310);
 const _defaultStateTimeout = Duration(seconds: 20);
+
+/// Her `SCENES_WAIT_MS`: a scene list later than this is no list.
+const _scenesTimeout = sceneListWait;
 
 class RoomRepository {
   static const turnTimeout = _turnTimeout;
@@ -388,6 +392,13 @@ class RoomRepository {
     ),
     timeout: _stateTimeout,
     read: readJson(SceneRehearsalRecord.listFrom),
+    asksForTheSession: true,
+  );
+
+  Future<RoomAnswer<List<Scene>>> scenesOf(String sessionId) => _room.ask(
+    () => _client.get(_uri('/sessions/$sessionId/scenes'), headers: _headers),
+    timeout: _scenesTimeout,
+    read: readJson(Scene.listFrom),
     asksForTheSession: true,
   );
 

@@ -8,9 +8,11 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
+import '../../domain/scene_question.dart';
 import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
+import 'scene_question.dart';
 
 /// The scene rehearsal's screen; her words reach the team only through VoiceOver.
 class SceneRehearsalView extends ConsumerWidget {
@@ -51,16 +53,45 @@ class SceneRehearsalView extends ConsumerWidget {
         Expanded(
           child: Center(
             child: switch (scene.step) {
-              SceneStep.record => _TheRecordStep(
-                recording: switch (session.channel) {
-                  Microphone(owner: MicOwner.scene) => true,
-                  _ => false,
-                },
-                keep: scene.keep,
-                label: said,
-                onTap: notifier.sceneTap,
-                onRetry: notifier.sendTheSceneTakeAgain,
-              ),
+              SceneStep.record => switch (session.scenes) {
+                ScenesAwaited() => const SizedBox.shrink(),
+                final scenes => _TheRecordStep(
+                  recording: switch (session.channel) {
+                    Microphone(owner: MicOwner.scene) => true,
+                    _ => false,
+                  },
+                  keep: scene.keep,
+                  label: said,
+                  onTap: notifier.sceneTap,
+                  onRetry: notifier.sendTheSceneTakeAgain,
+                  question: session.sceneQuestionShown
+                      ? SceneQuestion(
+                          scenes: scenes.scenes,
+                          highlighted: session.sceneHighlighted,
+                          language: language,
+                          onPick: notifier.pickTheScene,
+                        )
+                      : null,
+                  chip: switch (scenes.numberOf(scene.picked)) {
+                    final n? when scenes.asks => SceneChip(
+                      words: sceneChipTextFor(
+                        n,
+                        scenes.scenes[n - 1].title,
+                        language,
+                      ),
+                      label: sceneChipLabelFor(
+                        n,
+                        scenes.scenes[n - 1].title,
+                        language,
+                      ),
+                      live: !session.sceneTakeUnderWay && scene.keep == null,
+                      onTap: notifier.backToTheSceneQuestion,
+                    ),
+                    _ => null,
+                  },
+                  focused: scene.picked != null,
+                ),
+              },
               SceneStep.translate => Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -331,6 +362,9 @@ class _TheRecordStep extends StatelessWidget {
   final String Function(String control) label;
   final VoidCallback onTap;
   final VoidCallback onRetry;
+  final Widget? question;
+  final Widget? chip;
+  final bool focused;
 
   const _TheRecordStep({
     required this.recording,
@@ -338,16 +372,31 @@ class _TheRecordStep extends StatelessWidget {
     required this.label,
     required this.onTap,
     required this.onRetry,
+    required this.question,
+    required this.chip,
+    required this.focused,
   });
 
   @override
   Widget build(BuildContext context) {
-    final circle = _RecordCircle(
-      recording: recording,
-      keeping: keep is Keeping,
-      label: label,
-      onTap: onTap,
-    );
+    final chip = this.chip;
+    final circle =
+        question ??
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (chip != null) ...[chip, const SizedBox(height: 24)],
+            FocusOnArrival(
+              wanted: focused,
+              child: _RecordCircle(
+                recording: recording,
+                keeping: keep is Keeping,
+                label: label,
+                onTap: onTap,
+              ),
+            ),
+          ],
+        );
     final waiting = keep;
     if (recording || waiting is! NotKept) return circle;
     final colors = SalaColors.of(context);
