@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'staged_write.dart';
 
 const _folder = 'guardadas';
 
@@ -39,9 +40,7 @@ abstract class ChoiceLedger {
     _chosen = value;
     final next = _writes.then((_) async {
       final file = await _file();
-      final staging = File('${file.path}.novo');
-      await staging.writeAsString(jsonEncode({key: value}), flush: true);
-      await staging.rename(file.path);
+      await writeWhole(file, jsonEncode({key: value}));
     });
     _writes = next.then((_) {}, onError: (_) {});
     return next;
