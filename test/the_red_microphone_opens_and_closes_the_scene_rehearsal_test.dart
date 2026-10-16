@@ -1022,6 +1022,41 @@ void main() {
       expect(sent[0].attempt, isNot(sent[1].attempt));
     });
 
+    test(
+      'two re-reads answering out of order leave the screen on sent',
+      () async {
+        final room = await inPlacesUnknown();
+        room.harness.room
+          ..refuseRestartWith = RefusalCode.restartOutOfOrder
+          ..holdNextSceneList();
+        final read = room.asked('sceneRehearsalsOf');
+
+        room.sala.restartTheSceneTranslation();
+        await waitFor(
+          'a primeira releitura ficar no ar',
+          () =>
+              room.asked('sceneRehearsalsOf') == read + 1 &&
+              !room.state.scene.waiting,
+        );
+        room.harness.room
+          ..refuseRestartWith = RefusalCode.sceneRehearsalSent
+          ..sceneRehearsals[0] = _rehearsal(
+            afterRestart: current,
+            sentAt: '2026-10-14T10:00:00Z',
+          );
+        room.sala.restartTheSceneTranslation();
+        await waitFor(
+          'o ensaio aparecer enviado',
+          () => room.state.scene.step == SceneStep.sent,
+        );
+
+        room.harness.room.finishHeldSceneList();
+        await settle();
+
+        expect(room.state.scene.step, SceneStep.sent);
+      },
+    );
+
     test('a rehearsal already sent is shown as sent and never halts', () async {
       final room = await inPlacesUnknown();
       room.harness.room
