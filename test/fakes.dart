@@ -1445,6 +1445,16 @@ class FakeRoom implements RoomRepository {
 
   void finishHeldSceneList() => _heldSceneLists.removeAt(0).complete();
 
+  Completer<void>? _holdingKeep;
+
+  /// Hold the next keep's answer, after the room has taken the take.
+  void holdNextKeep() => _holdingKeep = Completer<void>();
+
+  void finishHeldKeep() {
+    _holdingKeep?.complete();
+    _holdingKeep = null;
+  }
+
   Completer<void>? _holdingRestart;
 
   /// Hold the next restart's answer, after the room has been sent it.
@@ -1490,6 +1500,7 @@ class FakeRoom implements RoomRepository {
       n: n,
     );
     sceneRehearsals.add(kept);
+    await _holdingKeep?.future;
     return Answered(kept);
   }
 

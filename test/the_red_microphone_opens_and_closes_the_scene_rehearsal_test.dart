@@ -928,6 +928,34 @@ void main() {
     },
   );
 
+  test(
+    'a keep answered after the team left still leaves the take under the rehearsal\'s name',
+    () async {
+      final room = await _atRest();
+      await _theScreenOpens(room);
+      await _theSceneMicrophoneOpens(room);
+      room.harness.room.holdNextKeep();
+      room.sala.sceneTap();
+      await waitFor(
+        'o take ser enviado',
+        () => room.asked('keepSceneRehearsal') > 0,
+      );
+
+      room.sala.leaveTheSceneRehearsal();
+      room.harness.room.finishHeldKeep();
+      await settle();
+      room.sala.openTheSceneRehearsal();
+      await _translateOpens(room);
+
+      expect(
+        room.harness.room.clipsFetched.where(
+          (url) => url.contains('/scene-rehearsals/'),
+        ),
+        isEmpty,
+      );
+    },
+  );
+
   group('recomeçar sends a fresh attempt that closes the current one', () {
     const current = '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b';
 
