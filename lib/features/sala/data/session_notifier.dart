@@ -3477,6 +3477,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _showTheTakeNotKept(waiting, keeping, generation);
       return _countUnsent();
     }
+    await _theRoomKept(kept, waiting, keeping, generation);
+  }
+
+  Future<void> _theRoomKeptWhatWaited() async {
+    final asked = state.scene;
+    final waiting = asked.keep;
+    if (waiting is! NotKept) return;
+    final row = waiting.row;
+    final kept = row == null ? null : _takes.keptSceneOf(row);
+    if (kept == null) return;
+    await _theRoomKept(kept, waiting, asked, _waitOnTheGeneration);
+  }
+
+  Future<void> _theRoomKept(
+    SceneRehearsalRecord kept,
+    NotKept waiting,
+    SceneScreen keeping,
+    int generation,
+  ) async {
     final take = waiting.take;
     final named = take == null
         ? null
@@ -6223,8 +6242,10 @@ class _NotifierHost implements StationHost {
   void hearTheOpeningLetGo() => _notifier._letTheOpeningGo();
 
   @override
-  Future<void> hearTheOutboxFlushed() =>
-      _notifier._adoptTheNames(_notifier._takes);
+  Future<void> hearTheOutboxFlushed() async {
+    await _notifier._adoptTheNames(_notifier._takes);
+    await _notifier._theRoomKeptWhatWaited();
+  }
 
   @override
   Future<void> hearTheOutboxCounted() => _notifier._countUnsent();

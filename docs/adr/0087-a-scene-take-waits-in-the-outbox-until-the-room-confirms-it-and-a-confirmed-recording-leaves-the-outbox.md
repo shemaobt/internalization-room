@@ -32,7 +32,11 @@ across failures and relaunches. It also kept every row the room had stored, for 
   row with its tries given back, still behind an earlier scene take of the session. A take
   over the room's 25 MiB is never sent: the Outbox refuses it for good without a byte, and
   the screen shows her too-large words with the same retry. Reopening the red microphone
-  while a take of the session waits shows that take before the room's unsent rehearsal.
+  while a take of the session still waits to go up shows that take before the room's unsent
+  rehearsal. A take refused for good is not waiting: it stays in the Outbox and on the
+  tablet, the house's stranded-recording line tells it, and the red microphone reopens the
+  room's unsent rehearsal (the Definer, 16 October). A take the room confirms on any flush
+  while the screen shows it not kept opens on translate.
 - **The keep's failures are the Outbox's,** not the Failure policy's at the scene door
   (ADR 0083 no longer covers the keep): a gone session leaves for the Choice, a code that
   stops the room turns it away, a network failure falls. A keep that fails never calls a

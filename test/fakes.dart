@@ -1487,8 +1487,7 @@ class FakeRoom implements RoomRepository {
 
   Completer<void>? _holdingKeep;
 
-  /// Hold the next keep's answer once it reached the room; what it answers is read when
-  /// it is let go.
+  /// Hold the next keep's answer, after the room has taken the take.
   void holdNextKeep() => _holdingKeep = Completer<void>();
 
   void finishHeldKeep() {
@@ -2486,8 +2485,11 @@ class FakeTakeQueue implements TakeUploadQueue {
   @override
   Future<SceneRehearsalRecord?> keepTheScene(String row) async {
     await flush();
-    return _keptScenes[row];
+    return keptSceneOf(row);
   }
+
+  @override
+  SceneRehearsalRecord? keptSceneOf(String row) => _keptScenes[row];
 
   @override
   Future<void> dueAgain(String row) async {
@@ -2501,6 +2503,7 @@ class FakeTakeQueue implements TakeUploadQueue {
         (entry) =>
             entry.kind == sceneTakeKind &&
             !entry.stored &&
+            !entry.exhausted &&
             entry.sessionId == sessionId,
       )
       .lastOrNull;

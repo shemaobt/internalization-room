@@ -664,7 +664,7 @@ class TakeUploadQueue {
     _inTheAir = entry;
     try {
       answer = entry.kind == sceneTakeKind
-          ? await _keepTheScene(entry, file)
+          ? await _sendTheScene(entry, file)
           : await _room.sendTake(
               entry.sessionId,
               file,
@@ -715,7 +715,7 @@ class TakeUploadQueue {
     return false;
   }
 
-  Future<RoomAnswer<String>> _keepTheScene(PendingTake entry, File file) async {
+  Future<RoomAnswer<String>> _sendTheScene(PendingTake entry, File file) async {
     final kept = await _room.keepSceneRehearsal(
       entry.sessionId,
       file,
@@ -771,8 +771,10 @@ class TakeUploadQueue {
 
   Future<SceneRehearsalRecord?> keepTheScene(String row) async {
     await flush();
-    return _keptScenes[row];
+    return keptSceneOf(row);
   }
+
+  SceneRehearsalRecord? keptSceneOf(String row) => _keptScenes[row];
 
   Future<void> dueAgain(String row) => _mutate(
     (written) => [
@@ -782,7 +784,7 @@ class TakeUploadQueue {
 
   Future<PendingTake?> sceneWaitingIn(String sessionId) async {
     PendingTake? newest;
-    for (final entry in await pending()) {
+    for (final entry in await waiting()) {
       if (entry.kind == sceneTakeKind && entry.sessionId == sessionId) {
         newest = entry;
       }

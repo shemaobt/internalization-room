@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
 import 'package:internalization_room/main.dart';
@@ -391,6 +392,77 @@ void main() {
 
       expect(room.harness.recorder.deleted, isNot(contains(take)));
       expect(File(take).existsSync(), isTrue);
+    },
+  );
+
+  test(
+    'a take the house retry lands while it shows not kept opens on translate',
+    () async {
+      final room = await atRest();
+      await theScreenOpens(room);
+      room.harness.room.failSceneWith = _offline;
+      await _recordAScene(room);
+      await _notKept(room);
+      await waitFor('a sala cair', () => room.state.unreachable);
+
+      room.harness.room.failSceneWith = null;
+      room.sala.retryNow();
+      await translateOpens(room);
+
+      expect(room.harness.room.scenesKept, hasLength(1));
+    },
+  );
+
+  test(
+    'a take refused for good never covers a newer rehearsal the room kept',
+    () async {
+      final room = await atRest();
+      await theScreenOpens(room);
+      room.harness.room.failSceneWith = const Refused('BAD_REQUEST');
+      await _recordAScene(room, take: _aTake(1));
+      await _notKept(room);
+      room.harness.room.failSceneWith = null;
+      await _recordAScene(room, take: _aTake(2));
+      await translateOpens(room);
+
+      room.sala.leaveTheSceneRehearsal();
+      await settle();
+      room.sala.openTheSceneRehearsal();
+      await translateOpens(room);
+
+      expect(room.state.scene.keep, isNull);
+      expect(
+        room.state.scene.rehearsal?.rehearsalId,
+        room.harness.room.sceneRehearsals.single.rehearsalId,
+      );
+    },
+  );
+
+  test(
+    'a take still waiting shows before the room\'s unsent rehearsal',
+    () async {
+      final room = await atRest();
+      room.harness.room.sceneRehearsals.add(
+        SceneRehearsalRecord(
+          rehearsalId: 'ensaio-da-cena-1',
+          sessionId: room.state.sessionId!,
+          n: 1,
+        ),
+      );
+      room.sala.openTheSceneRehearsal();
+      await translateOpens(room);
+      room.sala.recordTheSceneAgain();
+      await settle();
+      room.harness.room.failSceneWith = _offline;
+      await _recordAScene(room);
+      await _notKept(room);
+
+      room.sala.leaveTheSceneRehearsal();
+      await settle();
+      room.sala.openTheSceneRehearsal();
+
+      await _notKept(room);
+      expect(room.state.scene.step, SceneStep.record);
     },
   );
 }

@@ -1719,9 +1719,9 @@ void main() {
         await queue.flush();
 
         expect(room.calls, isNot(contains('keepSceneRehearsal')));
-        final waiting = await queue.sceneWaitingIn('sessao-1');
-        expect(waiting?.id, row.id);
-        expect(waiting?.refusal, RefusalCode.tooLarge);
+        final kept = (await queue.entries()).single;
+        expect(kept.id, row.id, reason: 'fica em fila.json, nunca apagada');
+        expect(kept.refusal, RefusalCode.tooLarge);
       },
     );
   });
