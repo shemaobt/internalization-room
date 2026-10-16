@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/mic_gate_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
@@ -360,6 +362,36 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1500));
 
       expect(find.byType(MicGateView), findsOneWidget);
+    },
+  );
+
+  test(
+    "a dead disk under the scene take's download falls out of reach, never in silence",
+    () async {
+      final harness = SalaHarness();
+      harness.room
+        ..sceneRehearsals.add(
+          SceneRehearsalRecord(
+            rehearsalId: 'ensaio-da-cena-1',
+            sessionId: 'sessao-1',
+            n: 1,
+            recordedAt: DateTime(2026, 10, 15, 14, 5),
+            frases: const [],
+          ),
+        )
+        ..sceneAudio = Uint8List.fromList([1, 2, 3]);
+      final room = await atRest(harness);
+      final persons = harness.room.personsAsked;
+      harness.recorder.keepBytesFails = true;
+
+      room.sala.openTheSceneRehearsal();
+      await waitFor('a sala cair', () => room.state.unreachable);
+      await settle();
+
+      expect(harness.voice.assets, contains(offlineNoticeAsset(testLanguage)));
+      expect(room.state.needsPerson, isFalse);
+      expect(harness.room.personsAsked, persons);
+      expect(room.state.stage, SalaStage.cena);
     },
   );
 }

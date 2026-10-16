@@ -3413,7 +3413,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(:final value) when value.isNotEmpty:
         try {
           return await _recorder.keepBytes(value, name);
-        } on Exception {
+        } on Exception catch (error) {
+          if (!_abandoned(generation)) {
+            _decideAt(NetworkFailed('$error'), door: Door.sceneRehearsal);
+          }
           return null;
         }
       case Answered():

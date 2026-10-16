@@ -393,8 +393,12 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<void> delete(String path) async => deleted.add(path);
 
+  /// Whether keeping fetched audio fails, the way a dead disk does.
+  bool keepBytesFails = false;
+
   @override
   Future<String> keepBytes(Uint8List bytes, String fileName) async {
+    if (keepBytesFails) throw const FileSystemException('o disco morreu');
     final file = File('${home.path}/$fileName.${_isWav(bytes) ? 'wav' : 'm4a'}')
       ..writeAsBytesSync(bytes);
     return file.path;

@@ -387,6 +387,30 @@ void main() {
     },
   );
 
+  test(
+    "a scene take's staging left by a kill mid-download is swept, and a fresh one is not",
+    () async {
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+      final recordings = Directory(p.join(documents.path, 'recordings'))
+        ..createSync(recursive: true);
+      final now = DateTime.now();
+      final old = File(p.join(recordings.path, 'cena-old.wav.part'))
+        ..writeAsBytesSync(aWavTake())
+        ..setLastModifiedSync(now.subtract(const Duration(minutes: 11)));
+      final fresh = File(p.join(recordings.path, 'cena-new.wav.part'))
+        ..writeAsBytesSync(aWavTake())
+        ..setLastModifiedSync(now.subtract(const Duration(minutes: 1)));
+
+      final kept = await recording.keepBytes(aWavTake(), 'cena-x');
+
+      expect(old.existsSync(), isFalse);
+      expect(fresh.existsSync(), isTrue);
+      expect(kept, p.join(recordings.path, 'cena-x.wav'));
+      expect(File(kept).readAsBytesSync(), aWavTake());
+    },
+  );
+
   test('a recording that starts hands back a usable file', () async {
     final recording = RecordingRepository();
     addTearDown(recording.dispose);
