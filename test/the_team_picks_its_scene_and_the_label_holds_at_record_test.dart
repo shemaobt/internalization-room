@@ -1053,7 +1053,7 @@ void main() {
         await room.pump(const Duration(seconds: 4));
         expect(byLabel(_record), findsOneWidget);
 
-        await room.pump(const Duration(seconds: 6));
+        await room.pump(const Duration(seconds: 1));
         room.room.finishHeldClip();
         await room.pump(const Duration(milliseconds: 100));
 
@@ -1066,6 +1066,108 @@ void main() {
           () => room.state.scene.rehearsal?.n == 1 && !room.state.scene.waiting,
         );
         closeTheRoom(room.container);
+      },
+    );
+
+    testWidgets(
+      'a reopen whose take lands after the question showed gives up too',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          rehearsals: [_rehearsal(1, scene: 'S1')],
+          before: (harness) => harness.room.holdNextClip(),
+          rests: false,
+        );
+        await room.pump(const Duration(seconds: 4));
+        expect(byLabel(_question), findsOneWidget);
+
+        await room.pump(const Duration(seconds: 1));
+        room.room.finishHeldClip();
+        await room.pump(const Duration(milliseconds: 100));
+
+        expect(room.state.scene.step, SceneStep.record);
+        expect(byLabel(_question), findsOneWidget);
+        closeTheRoom(room.container);
+      },
+    );
+
+    testWidgets(
+      'a reopen still measuring its take when the record step shows gives up',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          rehearsals: [_rehearsal(1, scene: 'S1')],
+          before: (harness) {
+            harness.room.holdNextScenes();
+            harness.playback.holdNextMeasurement();
+          },
+          rests: false,
+        );
+        await room.pump(const Duration(seconds: 4));
+        expect(byLabel(_record), findsOneWidget);
+
+        room.harness.playback.finishHeldMeasurement();
+        await room.pump(const Duration(milliseconds: 100));
+
+        expect(room.state.scene.step, SceneStep.record);
+        expect(byLabel(_record), findsOneWidget);
+        closeTheRoom(room.container);
+      },
+    );
+
+    testWidgets(
+      'a rehearsal list that answers late never drops the take kept meanwhile',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          rehearsals: [_rehearsal(1, scene: 'S1', sent: true)],
+          before: (harness) => harness.room.holdNextSceneList(),
+          rests: false,
+        );
+        await room.pump(const Duration(seconds: 4));
+        await room.sleepThrough();
+        await room.pick(_scene2);
+        await room.sleepThrough();
+        await room.recordAndStop();
+        await room.pumpUntil(
+          'o take abrir na tradução',
+          () => room.state.scene.rehearsal?.n == 2,
+        );
+
+        room.room.finishHeldSceneList();
+        await room.pump(const Duration(milliseconds: 100));
+
+        expect(
+          room.state.sceneRehearsals.map((row) => row.n),
+          [1, 2],
+          reason: 'a resposta velha não tira o take guardado',
+        );
+        expect(_rowOf(tester, 2), startsWith('Ensaio da cena 2'));
+        closeTheRoom(room.container);
+      },
+    );
+
+    test(
+      'a late list adds the rows the screen lacks, keeps the rest, and never '
+      'turns a sent rehearsal back to unsent',
+      () {
+        final held = [
+          _rehearsal(1, scene: 'S1', sent: true),
+          _rehearsal(2, scene: 'S2'),
+        ];
+        final listed = [_rehearsal(1, scene: 'S1'), _rehearsal(3, scene: 'S3')];
+
+        expect(
+          [
+            for (final row in SceneRehearsalRecord.listedOver(
+              held,
+              listed,
+              _session,
+            ))
+              (row.n, row.unsent),
+          ],
+          [(1, false), (2, true), (3, true)],
+        );
       },
     );
   });
