@@ -3649,7 +3649,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SceneScreen waiting,
   ) async {
     await _showTheRehearsal(row, waiting, _waitOnTheGeneration);
-    if (identical(state.scene, waiting)) state = state.copyWith(scene: shown);
+    if (!identical(state.scene, waiting)) return;
+    final reopening = shown.rehearsal != null && shown.take == null;
+    state = state.copyWith(scene: reopening ? const SceneScreen() : shown);
   }
 
   void sendTheSceneRehearsal() => _gesture(() => _sendTheSceneRehearsal());
