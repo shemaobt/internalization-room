@@ -1082,13 +1082,26 @@ Paused? _heldBy(Channel channel) => switch (channel) {
       )) {
     return (machine, [DropTheLine(line)]);
   }
+  final (heard, stopped) = _theReplyGivesWayTo(machine, line);
   return _drain(
-    machine.copyWith(
-      queue: [...machine.queue, line],
-      owners: own ? {...machine.owners, line: by.toSet()} : null,
+    heard.copyWith(
+      queue: [...heard.queue, line],
+      owners: own ? {...heard.owners, line: by.toSet()} : null,
     ),
+    stopped,
   );
 }
+
+(Machine, List<Effect>) _theReplyGivesWayTo(Machine machine, Line line) =>
+    switch (machine.channel) {
+      GuideSpeaking(line: final reply, :final held)
+          when reply.kind == LineKind.reply && line.kind != LineKind.reply =>
+        (
+          machine.copyWith(channel: held ?? const Silence()),
+          [StopTheLine(reply)],
+        ),
+      _ => (machine, const []),
+    };
 
 bool _answersItsStep(Line line) => line.kind.answersAStep;
 

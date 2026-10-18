@@ -575,7 +575,7 @@ void main() {
 
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
     expect(find.byType(ColarOverlay), findsOneWidget);
-    expect(byLabel('Levantar a mão'), findsOneWidget);
+    expect(byLabel('Deixar uma pergunta para o facilitador'), findsOneWidget);
     expect(byLabel('Tocar para falar'), findsOneWidget);
   });
 
@@ -799,11 +799,11 @@ void main() {
     container.read(salaSessionProvider.notifier).goConversa();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(byLabel('Raise a hand'), findsOneWidget);
+    expect(byLabel('Leave a question for the facilitator'), findsOneWidget);
     expect(
-      byLabel('Levantar a mão'),
+      byLabel('Deixar uma pergunta para o facilitador'),
       findsNothing,
-      reason: 'a mão dizia "Levantar a mão" a um aparelho em inglês',
+      reason: 'a mão falava português a um aparelho em inglês',
     );
   });
 
@@ -835,9 +835,8 @@ void main() {
     );
   });
 
-  testWidgets('an armed question is cancelled in english in an english room', (
-    tester,
-  ) async {
+  testWidgets('an armed question keeps the hand speaking english in an english '
+      'room', (tester) async {
     final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
     final notifier = container.read(salaSessionProvider.notifier);
     notifier.goConversa();
@@ -847,37 +846,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).noteMode, isTrue);
-    expect(byLabel('Cancel the question'), findsOneWidget);
+    expect(byLabel('Leave a question for the facilitator'), findsOneWidget);
     expect(
-      byLabel('Cancelar a pergunta'),
+      byLabel('Deixar uma pergunta para o facilitador'),
       findsNothing,
-      reason:
-          'a mão armada dizia "Cancelar a pergunta" a um aparelho em inglês',
+      reason: 'a mão armada falava português a um aparelho em inglês',
     );
-  });
-
-  testWidgets('a question sent waits in english in an english room', (
-    tester,
-  ) async {
-    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-    final notifier = container.read(salaSessionProvider.notifier);
-    notifier.goConversa();
-    await tester.pump(const Duration(milliseconds: 200));
-
-    notifier.handTap();
-    notifier.conversaTap();
-    await tester.pump(const Duration(milliseconds: 200));
-    notifier.conversaTap();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(container.read(salaSessionProvider).questionPending, isTrue);
-    expect(byLabel('Question sent, waiting for an answer'), findsOneWidget);
-    expect(
-      byLabel('Pergunta enviada, aguardando resposta'),
-      findsNothing,
-      reason: 'a pergunta enviada esperava em português num aparelho em inglês',
-    );
-    closeTheRoom(container);
   });
 
   testWidgets('a reply playing is announced in english to an english room', (
@@ -899,9 +873,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).playingReplyId, 'r1');
-    expect(byLabel('The facilitator is answering'), findsOneWidget);
+    expect(byLabel('Hear the facilitator\'s answer'), findsOneWidget);
     expect(
-      byLabel('O facilitador está respondendo'),
+      byLabel('Ouvir a resposta do facilitador'),
       findsNothing,
       reason:
           'a resposta tocando era anunciada em português a um aparelho em '
@@ -931,7 +905,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(byLabel('Ouvir a resposta do facilitador'), findsOneWidget);
-    expect(byLabel('Levantar a mão'), findsNothing);
+    expect(byLabel('Deixar uma pergunta para o facilitador'), findsNothing);
   });
 
   testWidgets(
@@ -1571,7 +1545,7 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(byLabel('Falar com o facilitador'));
+    await tester.tap(byLabel('Tocar para falar'));
     await tester.pump(const Duration(milliseconds: 200));
 
     final state = container.read(salaSessionProvider);

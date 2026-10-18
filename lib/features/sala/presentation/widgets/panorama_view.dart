@@ -21,13 +21,14 @@ class PanoramaView extends ConsumerWidget {
         halt: session.halt,
         voice: session.voice,
         reach: session.reach,
+        noteMode: session.noteMode,
         semanticLabel: session.needsPerson
             ? circleLabelFor('needsPerson', language)
             : session.offline
             ? circleLabelFor('offline', language)
             : session.voice == VoiceState.listening
             ? circleLabelFor('listening', language)
-            : panoramaCircleLabelFor(language),
+            : circleLabelFor('default', language),
         onTap: notifier.panoramaTap,
         onLongPress: session.canResolveWithPerson
             ? notifier.resolveWithPerson
