@@ -3695,6 +3695,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
   ) async {
     await _countUnsent();
+    if (_abandoned(generation)) return;
     final named = await _heldOnTheTablet('cena-${kept.rehearsalId}');
     if (_abandoned(generation)) return;
     await _showTheRehearsal(kept, keeping, generation, take: named);
