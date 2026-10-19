@@ -92,7 +92,7 @@ class RetroView extends ConsumerWidget {
               halt: session.halt,
               voice: voz,
               tongue: lingua,
-              answersATouch: !conferida,
+              answersATouch: !conferida || session.btRegravacao != null,
               warning: session.warning ? warningNoticeLabelFor(language) : null,
               notUnderstood: session.wordlessTelling
                   ? retroLabelFor('notUnderstood', language)
@@ -318,6 +318,9 @@ class RetroView extends ConsumerWidget {
   }
 
   (VoiceState, Tongue?) _voz(SalaSessionState session, bool conferida) {
+    if (session.btRegravacao?.passo == PassoDaRegravacao.gravando) {
+      return (VoiceState.listening, Tongue.motherTongue);
+    }
     if (conferida) return (VoiceState.done, null);
     if (session.voice == VoiceState.listening) {
       return (VoiceState.listening, Tongue.bridge);
@@ -637,6 +640,10 @@ class RetroView extends ConsumerWidget {
     if (session.offline) return circleLabelFor('offline', language);
     if (session.wordlessTelling) {
       return retroLabelFor('notUnderstood', language);
+    }
+    if (session.btRegravacao?.passo
+        case PassoDaRegravacao.pronta || PassoDaRegravacao.gravando) {
+      return sceneRehearsalLabelFor('respeakHint', language);
     }
     switch (session.btPhase) {
       case BtPhase.playing:

@@ -892,4 +892,44 @@ void main() {
       closeTheRoom(container);
     });
   }
+
+  testWidgets('at conferida the frase whose nuance the verdict named starts '
+      'its re-record, and the circle records it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    harness.room
+      ..verdictChecked = true
+      ..verdictNamedNuance = const BtFinding(
+        kind: BtFindingKind.nuance,
+        frase: 3,
+        segmentId: 'trecho-3',
+      );
+    await tocar(tester, 'terminei');
+    await waitFor(
+      'a conferência chegar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    await regravarAte(tester, harness, 3);
+    await _tocarOCirculo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btRegravacao?.passo,
+      PassoDaRegravacao.gravando,
+      reason: 'na tradução conferida o círculo não atendia a regravação',
+    );
+    expect(harness.recorder.lastOwner, MicOwner.rehearsal);
+    final circulo = tester.widget<FacilitatorCircle>(_circulo());
+    expect(
+      (circulo.answersATouch, circulo.voice, circulo.tongue),
+      (true, VoiceState.listening, Tongue.motherTongue),
+      reason:
+          'o círculo gravava a frase parecendo parado, ou na cor da '
+          'tradução em português',
+    );
+    expect(circulo.semanticLabel, 'gravem a frase inteira');
+    closeTheRoom(container);
+  });
 }
