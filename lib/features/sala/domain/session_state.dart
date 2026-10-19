@@ -722,7 +722,7 @@ class SalaSessionState {
               btContaEscolhida == null));
 
   bool theLastPauseMoves(Trecho frase) {
-    if (!frase.contado) return false;
+    if (!frase.contado || btPhase == BtPhase.conferida) return false;
     Trecho? ultima;
     for (final trecho in btTrechos) {
       if (trecho.takeId != frase.takeId) continue;

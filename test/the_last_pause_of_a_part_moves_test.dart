@@ -115,4 +115,103 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  testWidgets(
+    'an earlier frase told again keeps its pause, with her controls dimmed',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesEUmAchadoNa(
+        tester,
+        harness,
+        'trecho-1',
+      );
+
+      for (final controle in [antes, ouvirAPausa, depois]) {
+        expect(
+          aceso(tester, controle),
+          isFalse,
+          reason: 'a pausa de uma frase do meio mudava o começo da seguinte',
+        );
+      }
+      final corte = container.read(salaSessionProvider).btCorte;
+      await tocar(tester, depois);
+      expect(container.read(salaSessionProvider).btCorte, corte);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a part kept compressed keeps the pause of its last frase where it fell',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _duasFrasesEUmAchadoNa(
+        tester,
+        harness,
+        'trecho-2',
+      );
+
+      for (final controle in [antes, ouvirAPausa, depois]) {
+        expect(
+          aceso(tester, controle),
+          isFalse,
+          reason: 'um m4a não se deixa buscar, e a pausa movida caía no escuro',
+        );
+      }
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'the moved pause never comes closer than 0.2 s to the start of its frase',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesEUmAchadoNa(
+        tester,
+        harness,
+        'trecho-2',
+      );
+
+      for (var vez = 0; vez < 12; vez++) {
+        await tocar(tester, antes);
+      }
+
+      expect(
+        container.read(salaSessionProvider).btCorte,
+        s(3.4),
+        reason: 'a frase encolhia até sumir, antes do começo dela',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  test(
+    'a conferida passage keeps the pause of its last frase where it fell',
+    () {
+      final ultima = Trecho(
+        segmentId: 'trecho-2',
+        takeId: 'gravacao-1',
+        parte: 0,
+        from: s(3.2),
+        to: s(6.2),
+        lugarFrom: s(3.2),
+        lugarTo: s(6.2),
+        frase: 2,
+      );
+
+      expect(
+        SalaSessionState(btTrechos: [ultima]).theLastPauseMoves(ultima),
+        isTrue,
+      );
+      expect(
+        SalaSessionState(
+          btTrechos: [ultima],
+          btPhase: BtPhase.conferida,
+        ).theLastPauseMoves(ultima),
+        isFalse,
+        reason: 'a pausa se movia numa passagem já conferida',
+      );
+    },
+  );
 }
