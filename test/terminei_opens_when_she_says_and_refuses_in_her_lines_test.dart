@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
-import 'package:internalization_room/features/sala/domain/refusal_code.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
@@ -371,6 +371,89 @@ void main() {
       find.text('não deu para conferir agora — tentem de novo'),
       findsNothing,
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase whose send fails on the network says «não entendi», '
+      'keeps its pause, and is never sent again on its own', (tester) async {
+    _telaAlta(tester);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    harness.room.failChunkWith = const NetworkFailed('sem rede');
+    await tocar(tester, confirmar);
+    await waitFor('a frase voltar da rede', () {
+      final estado = container.read(salaSessionProvider);
+      return estado.wordlessTelling || estado.unreachable;
+    }, step: () => _passo(tester));
+    harness.room.failChunkWith = null;
+    for (var passo = 0; passo < 5; passo++) {
+      await letTheRehearsalReachTheRoom(tester);
+    }
+
+    final estado = container.read(salaSessionProvider);
+    expect(
+      find.text('não entendi — traduzam de novo esse pedaço'),
+      findsOneWidget,
+      reason: 'a frase que a rede perdeu virava sem conexão, sem a fala dela',
+    );
+    expect(estado.offline, isFalse);
+    expect(estado.unreachable, isFalse);
+    expect(
+      harness.room.chunkKeys,
+      hasLength(1),
+      reason: 'a frase perdida era reenviada sozinha quando a rede voltava',
+    );
+
+    await tester.tap(find.byType(FacilitatorCircle));
+    await _passo(tester);
+    await tester.tap(find.byType(FacilitatorCircle));
+    await _passo(tester);
+    await tocar(tester, confirmar);
+    expect(
+      harness.room.chunkSpans.last,
+      '0-4000',
+      reason: 'a pausa fica onde estava, e a frase é contada de novo ali',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('three frases in a row whose send fails on the network call no '
+      'person and never show the room as gone', (tester) async {
+    _telaAlta(tester);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    harness.room.failChunkWith = const NetworkFailed('sem rede');
+
+    for (var vez = 1; vez <= 3; vez++) {
+      if (vez > 1) {
+        await tester.tap(find.byType(FacilitatorCircle));
+        await _passo(tester);
+        await tester.tap(find.byType(FacilitatorCircle));
+        await _passo(tester);
+      }
+      await tocar(tester, confirmar);
+      await waitFor('a frase $vez voltar da rede', () {
+        final estado = container.read(salaSessionProvider);
+        return harness.room.chunkKeys.length >= vez &&
+            (estado.wordlessTelling || estado.unreachable);
+      }, step: () => _passo(tester));
+    }
+    await _passo(tester);
+
+    final estado = container.read(salaSessionProvider);
+    expect(
+      estado.offline,
+      isFalse,
+      reason: 'cada frase que a rede perdia punha a sala em sem conexão',
+    );
+    expect(estado.needsPerson, isFalse);
+    expect(harness.room.chunkKeys, hasLength(3));
     closeTheRoom(container);
   });
 }
