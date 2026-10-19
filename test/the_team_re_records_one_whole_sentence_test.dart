@@ -768,4 +768,30 @@ void main() {
     expect(naLinha('regravada — traduzam esta frase'), findsOneWidget);
     closeTheRoom(container);
   });
+
+  testWidgets('the new sentence played in its place counts as heard on the '
+      'new take, and the check is told so', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await deitarAFrase(tester, harness, 2);
+    final nova = harness.room.takes.last.takeId;
+
+    await _traduzir(tester);
+    await _passo(tester);
+    await _passo(tester);
+
+    final relato = harness.room.playedByTakeSent.last;
+    expect(
+      [
+        for (final parte in relato)
+          if (parte['take_id'] == nova)
+            '${parte['played_ranges']} em ${parte['clip_duration_ms']}',
+      ],
+      ['[[2500, 8700]] em 10000'],
+      reason:
+          'a frase nova tocada no lugar não contava como ouvida, e a sala '
+          'recusava o terminei',
+    );
+    closeTheRoom(container);
+  });
 }

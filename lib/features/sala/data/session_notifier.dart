@@ -5700,17 +5700,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final onde = _ondeTocar(trecho);
     if (onde == null) return;
     final (path, from, to) = onde;
+    final de = from > emVoltaDaFraseNova
+        ? from - emVoltaDaFraseNova
+        : Duration.zero;
+    final ate = to + emVoltaDaFraseNova;
     void quiet() => unawaited(_playback.stop());
     _play(
-      StretchSound(
-        path,
-        named: trecho.segmentId,
-        from: from > emVoltaDaFraseNova
-            ? from - emVoltaDaFraseNova
-            : Duration.zero,
-        to: to + emVoltaDaFraseNova,
-      ),
-      onComplete: quiet,
+      StretchSound(path, named: trecho.segmentId, from: de, to: ate),
+      onComplete: () {
+        quiet();
+        _escuta
+          ..abrir(path, de.inMilliseconds)
+          ..fechar(path, ate.inMilliseconds);
+        if (_tamanhoDaParteMs[path] case final medido?) {
+          _escuta.medida(path, medido);
+        }
+      },
       onFailed: quiet,
     );
   }
