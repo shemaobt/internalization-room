@@ -6541,7 +6541,8 @@ class _NotifierHost implements StationHost {
   void hearTheCallStopped() => _notifier._stopCallingForAPerson();
 
   @override
-  void hearTheMarkEnd(String session) => _notifier._theSessionIsClosed(session);
+  void hearThePassageClosed(String session) =>
+      _notifier._theSessionIsClosed(session);
 
   @override
   void hearTheCallLanded() => _notifier

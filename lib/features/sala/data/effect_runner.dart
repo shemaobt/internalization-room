@@ -69,7 +69,7 @@ abstract interface class StationHost {
   void hearTheCallStopped();
 
   /// The Station hears that the room closed the passage of [session].
-  void hearTheMarkEnd(String session);
+  void hearThePassageClosed(String session);
 
   /// The Station hears a call that landed; with a session it also stamps the read order,
   /// so a read sent before the landing cannot lift the halt.
@@ -250,8 +250,8 @@ class EffectRunner {
           host.hearTheFall(door, why);
         case AskForAPersonAgain():
           _askForAPersonAgain();
-        case MarkThePassageClosed():
-          _markThePassageClosed();
+        case CloseThePassage():
+          _closeThePassage();
         case CountTheRefusal():
           host.hearTheRefusalCounted();
         case LetThePendingTranslationGo():
@@ -750,10 +750,10 @@ class EffectRunner {
     host.hearTheCallStopped();
   }
 
-  void _markThePassageClosed() {
+  void _closeThePassage() {
     final session = host.session;
     if (session == null) return;
-    host.hearTheMarkEnd(session);
+    host.hearThePassageClosed(session);
   }
 
   void endTheWatch() {

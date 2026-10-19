@@ -76,7 +76,7 @@ void main() {
   );
 
   test(
-    'a call for a person that meets a closed passage marks it closed',
+    'a call for a person that meets a closed passage closes the passage',
     () async {
       runner.run(const [CallForAPerson()]);
       room.answerTheCall(const RoomRefused(RefusalCode.passageClosed));

@@ -177,12 +177,12 @@ void main() {
     },
   );
 
-  test('a closed-passage mark with no session closes nothing', () {
+  test('a closed passage with no session closes nothing', () {
     host.session = null;
 
-    runner.run(const [MarkThePassageClosed()]);
+    runner.run(const [CloseThePassage()]);
 
-    expect(host.marksHeard, isEmpty);
+    expect(host.passagesClosedHeard, isEmpty);
   });
 
   test('a ladder armed then disposed asks nothing at its delay', () {
