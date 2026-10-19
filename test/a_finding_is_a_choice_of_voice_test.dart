@@ -395,7 +395,7 @@ void main() {
     expect(tester.getSize(byLabel(continuarOEnsaio)), const Size(78, 78));
     expect(
       tester.getTopLeft(byLabel(continuarOEnsaio)),
-      const Offset(371, 877),
+      const Offset(371, 928),
     );
 
     final partes = estadoDe(container).partes.length;
