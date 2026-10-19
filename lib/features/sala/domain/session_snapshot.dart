@@ -1,3 +1,4 @@
+import 'bt_finding.dart';
 import 'coverage.dart';
 import 'moment.dart';
 
@@ -17,6 +18,7 @@ class SegmentView {
   /// while a final stretch is missing one. The app threw this away, so it could not tell
   /// a stretch waiting to be told from one already told.
   final bool told;
+  final int? frase;
 
   const SegmentView({
     required this.segmentId,
@@ -24,6 +26,7 @@ class SegmentView {
     required this.startsMs,
     required this.endsMs,
     this.told = true,
+    this.frase,
   });
 
   static List<SegmentView> listFrom(Map<String, dynamic> json) => [
@@ -37,6 +40,7 @@ class SegmentView {
     startsMs: json['starts_ms'] as int? ?? 0,
     endsMs: json['ends_ms'] as int? ?? 0,
     told: json['told'] as bool? ?? true,
+    frase: json['frase'] as int?,
   );
 }
 
@@ -111,11 +115,13 @@ class BackTranslationProgress {
   final List<SegmentView> segments;
   final bool checked;
   final String? findingSegmentId;
+  final List<BtFinding> findings;
 
   const BackTranslationProgress({
     this.segments = const [],
     this.checked = false,
     this.findingSegmentId,
+    this.findings = const [],
   });
 
   factory BackTranslationProgress.fromJson(Map<String, dynamic> json) =>
@@ -123,6 +129,7 @@ class BackTranslationProgress {
         segments: SegmentView.listFrom(json),
         checked: json['checked'] as bool? ?? false,
         findingSegmentId: json['finding_segment_id'] as String?,
+        findings: BtFinding.listFrom(json),
       );
 
   bool get nothingTold => segments.isEmpty;

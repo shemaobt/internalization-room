@@ -1393,7 +1393,7 @@ void main() {
     expect(_estado(it.container).btPhase, BtPhase.conferida);
     expect(
       _circulo(tester).semanticLabel,
-      'Translated',
+      'translated and checked',
       reason:
           'a passagem conferida era anunciada "Traduzida" a uma sala em '
           'inglês',

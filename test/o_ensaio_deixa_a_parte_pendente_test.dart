@@ -41,6 +41,7 @@ Future<ProviderContainer> _noEnsaio(
 }
 
 Future<void> _tocar(WidgetTester tester, String label) async {
+  await tester.ensureVisible(byLabel(label));
   await tester.tap(byLabel(label));
   await tester.pump(const Duration(milliseconds: 200));
 }

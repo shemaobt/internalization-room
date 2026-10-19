@@ -14,9 +14,9 @@ import 'scenario_helpers.dart';
 import 'the_translation_is_recorded_over_until_the_check_test.dart'
     show aceso, olhar, tocar;
 
-const ouvirOAchado = 'Ouvir o achado de novo';
+const ouvirOAchado = 'ouvir a resposta de novo';
 const ouvirOTrechoEATraducao = 'Ouvir o trecho e a tradução';
-const microfoneDeMadeira = 'Gravar a parte de novo na língua materna';
+const microfoneDeMadeira = 'voltar e regravar uma parte';
 const microfoneAzul = 'Traduzir este trecho de novo';
 const continuarOEnsaio = 'Continuar o ensaio';
 
@@ -25,7 +25,7 @@ const terminar = 'Tocar ao terminar';
 const ouvirATraducao = 'Ouvir a tradução';
 const confirmarATraducao = 'Confirmar a tradução e seguir';
 const tesoura = 'Pausar onde a frase acaba';
-const conferir = 'Conferir a tradução';
+const conferir = 'terminei';
 
 const gravarEstaParteDeNovo = 'Tocar para gravar esta parte de novo';
 const confirmarAParte = 'Confirmar esta parte';
@@ -143,7 +143,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('F1b — a tela do achado segue o quadro X1', (tester) async {
+  testWidgets('F1b — a tela do achado segue o quadro dela, com o título e a '
+      'linha acima das contas', (tester) async {
     tester.view
       ..physicalSize = const Size(820, 1180)
       ..devicePixelRatio = 1;
@@ -165,19 +166,19 @@ void main() {
             ),
           )
           .dy,
-      86,
+      169,
     );
     expect(tester.getSize(byLabel(ouvirOAchado)), const Size(160, 160));
-    expect(tester.getTopLeft(byLabel(ouvirOAchado)), const Offset(330, 456));
+    expect(tester.getTopLeft(byLabel(ouvirOAchado)), const Offset(330, 297));
     expect(
       tester.getTopLeft(byLabel(ouvirOTrechoEATraducao)),
-      const Offset(296, 680),
+      const Offset(296, 473),
     );
     expect(
       tester.getTopLeft(byLabel(microfoneDeMadeira)),
-      const Offset(380, 680),
+      const Offset(380, 473),
     );
-    expect(tester.getTopLeft(byLabel(microfoneAzul)), const Offset(464, 680));
+    expect(tester.getTopLeft(byLabel(microfoneAzul)), const Offset(464, 473));
     closeTheRoom(container);
   });
 
@@ -388,13 +389,13 @@ void main() {
     }
     expect(
       tester.getTopLeft(byLabel(ouvirOTrechoEATraducao)),
-      const Offset(296, 680),
+      const Offset(296, 473),
     );
     expect(aceso(tester, continuarOEnsaio), isTrue);
     expect(tester.getSize(byLabel(continuarOEnsaio)), const Size(78, 78));
     expect(
       tester.getTopLeft(byLabel(continuarOEnsaio)),
-      const Offset(371, 798),
+      const Offset(371, 877),
     );
 
     final partes = estadoDe(container).partes.length;
@@ -446,9 +447,9 @@ void main() {
     await abrirOAchado(tester);
 
     for (final rotulo in [
-      'Hear the finding again',
+      'hear the verdict again',
       'Hear the stretch and its translation',
-      'Record the part again in the mother tongue',
+      'go back and re-record a part',
       'Translate this stretch again',
     ]) {
       expect(byLabel(rotulo), findsOneWidget, reason: rotulo);

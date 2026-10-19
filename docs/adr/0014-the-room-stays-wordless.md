@@ -41,6 +41,13 @@ label's reason, her words the team reads. Her own stylesheet calls the menu "the
 text is allowed (setup, often the facilitator)". VoiceOver reads each pill's words, and «●»
 as «tem um ensaio salvo».
 
+Amended by ENG-1205 (2026-10-19): the check screen shows her words
+(`widgets/retro_view.dart` and its list, `widgets/frase_list.dart`): her heading «Traduzir a
+gravação», the sub-line that says what to do, and «frases traduzidas» with each translated
+frase numbered as the voice numbers it and labelled with its «parte». It is the seventh named
+exception, under the moment label's reason, her words the team reads: her 1 October rule
+makes her frozen screen the bar, and on hers «na frase 3» points at a «3» on the screen.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a

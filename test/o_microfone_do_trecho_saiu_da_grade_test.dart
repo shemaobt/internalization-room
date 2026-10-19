@@ -6,6 +6,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
@@ -15,7 +16,7 @@ import 'scenario_helpers.dart';
 
 const continuarOEnsaioLabel = 'Continuar o ensaio';
 const ouvirOTrechoLabel = 'Ouvir o trecho e a tradução';
-const micParteLabel = 'Gravar a parte de novo na língua materna';
+const micParteLabel = 'voltar e regravar uma parte';
 const micRetroLabel = 'Traduzir este trecho de novo';
 const gravarDeNovoLabel = 'Tocar para gravar a tradução de novo';
 const confirmarLabel = 'Confirmar a tradução e seguir';
@@ -25,15 +26,25 @@ const confirmarLabel = 'Confirmar a tradução e seguir';
 /// Read off the buttons rather than off a list of labels this test also writes: what is
 /// being held is that the screen offers these and nothing else, and a reading that only
 /// looked for the ones it expected could not see a fourth.
-List<String> botoesDoAchado(WidgetTester tester) => [
-  for (final botao in tester.widgetList<RoundActionButton>(
-    find.descendant(
-      of: find.byType(RetroView),
-      matching: find.byType(RoundActionButton),
-    ),
-  ))
-    botao.semanticLabel,
-];
+List<String> botoesDoAchado(WidgetTester tester) {
+  final daLista = tester
+      .widgetList<RoundActionButton>(
+        find.descendant(
+          of: find.byType(FraseList),
+          matching: find.byType(RoundActionButton),
+        ),
+      )
+      .toSet();
+  return [
+    for (final botao in tester.widgetList<RoundActionButton>(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.byType(RoundActionButton),
+      ),
+    ))
+      if (!daLista.contains(botao)) botao.semanticLabel,
+  ];
+}
 
 /// A team that recorded the rehearsal in three parts and told every one of them back
 /// whole, standing on the verdict's answer.
@@ -277,6 +288,8 @@ void main() {
       findsNothing,
       reason: 'dois rótulos que só diferem pelo rabo nomeavam atos opostos',
     );
+
+    await tester.ensureVisible(byLabel(continuarOEnsaioLabel));
 
     await tester.tap(byLabel(continuarOEnsaioLabel));
     await tester.pump(const Duration(milliseconds: 400));

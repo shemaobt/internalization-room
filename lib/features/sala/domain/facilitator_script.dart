@@ -267,8 +267,29 @@ const retroLabels = {
     'pt': 'Confirmar a tradução e seguir',
     'en': 'Confirm the translation and go on',
   },
-  'advance': {'pt': 'Conferir a tradução', 'en': 'Check the translation'},
-  'stretch': {'pt': 'Trecho', 'en': 'Stretch'},
+  'advance': {'pt': 'terminei', 'en': 'done'},
+  'checking': {'pt': 'conferindo…', 'en': 'checking…'},
+  'checkFailed': {
+    'pt': 'não deu para conferir agora — tentem de novo',
+    'en': 'couldn\'t check right now — try again',
+  },
+  'part': {'pt': 'parte', 'en': 'part'},
+  'addition': {'pt': 'acrescentado', 'en': 'added'},
+  'missing': {'pt': 'faltou depois desta', 'en': 'missing after this'},
+  'unclear': {'pt': 'não ficou claro', 'en': 'unclear'},
+  'title': {'pt': 'Traduzir a gravação', 'en': 'Translate the recording'},
+  'subTell': {
+    'pt':
+        'Toquem no círculo para pausar onde a frase acaba; toquem de novo para traduzir só o que aquela frase diz, e de novo para a gravação seguir.',
+    'en':
+        'Tap the circle to pause where the sentence ends; tap again to translate only what that sentence says, and again so the recording goes on.',
+  },
+  'subVerdict': {
+    'pt':
+        'Toquem numa frase para ouvir e traduzir de novo; voltem para regravar uma parte; ou toquem em terminei para conferir de novo.',
+    'en':
+        'Tap a sentence to hear it and translate it again; go back to re-record a part; or tap done to check again.',
+  },
   'listenToTheRecording': {
     'pt': 'Ouvir a gravação',
     'en': 'Listen to the recording',
@@ -279,9 +300,9 @@ const retroLabels = {
   },
   'listenFirst': {'pt': 'Ouvir primeiro', 'en': 'Listen first'},
   'thinking': {'pt': 'Um instante', 'en': 'One moment'},
-  'translated': {'pt': 'Traduzida', 'en': 'Translated'},
+  'translated': {'pt': 'traduzida e conferida', 'en': 'translated and checked'},
   'notUnderstood': {
-    'pt': 'Não entendi — traduzam de novo esse pedaço',
+    'pt': 'não entendi — traduzam de novo esse pedaço',
     'en': 'I didn\'t catch that — translate that piece again',
   },
 };
@@ -325,14 +346,14 @@ String rehearsalLabelFor(String state, String language, {int? part}) =>
         .replaceAll('{n}', '$part');
 
 const findingLabels = {
-  'circle': {'pt': 'Ouvir o achado de novo', 'en': 'Hear the finding again'},
+  'circle': {'pt': 'ouvir a resposta de novo', 'en': 'hear the verdict again'},
   'play': {
     'pt': 'Ouvir o trecho e a tradução',
     'en': 'Hear the stretch and its translation',
   },
   'recordThePart': {
-    'pt': 'Gravar a parte de novo na língua materna',
-    'en': 'Record the part again in the mother tongue',
+    'pt': 'voltar e regravar uma parte',
+    'en': 'go back and re-record a part',
   },
   'translateTheStretch': {
     'pt': 'Traduzir este trecho de novo',

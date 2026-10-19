@@ -1,3 +1,4 @@
+import 'bt_finding.dart';
 import 'channel.dart';
 import 'halt.dart';
 import 'machine.dart';
@@ -168,6 +169,7 @@ class Trecho {
   /// Whether the team has explained this stretch yet. False on a half a division just
   /// made: it is a unit the room counts and nobody has told back.
   final bool contado;
+  final int? frase;
 
   const Trecho({
     required this.segmentId,
@@ -179,6 +181,7 @@ class Trecho {
     this.contado = true,
     required this.lugarFrom,
     required this.lugarTo,
+    this.frase,
   });
 }
 
@@ -253,6 +256,8 @@ class SalaSessionState {
   /// Passages of this book with work waiting in them, by pericope, for the resume lookup.
   final Set<String> comecadas;
   final List<Trecho> btTrechos;
+  final List<BtFinding> btFindings;
+  final bool btConferindo;
   final String? btFindingSegmentId;
 
   final bool btClipEnded;
@@ -342,6 +347,8 @@ class SalaSessionState {
     this.naRoda,
     this.comecadas = const {},
     this.btTrechos = const [],
+    this.btFindings = const [],
+    this.btConferindo = false,
     this.btFindingSegmentId,
     this.btClipEnded = false,
     this.btParteFronteira = false,
@@ -790,6 +797,8 @@ class SalaSessionState {
     Set<String>? comecadas,
     bool clearRoda = false,
     List<Trecho>? btTrechos,
+    List<BtFinding>? btFindings,
+    bool? btConferindo,
     String? btFindingSegmentId,
     bool clearFindingSegment = false,
     bool? btClipEnded,
@@ -852,6 +861,8 @@ class SalaSessionState {
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       comecadas: comecadas ?? this.comecadas,
       btTrechos: btTrechos ?? this.btTrechos,
+      btFindings: btFindings ?? this.btFindings,
+      btConferindo: btConferindo ?? this.btConferindo,
       btFindingSegmentId: clearFindingSegment
           ? null
           : (btFindingSegmentId ?? this.btFindingSegmentId),

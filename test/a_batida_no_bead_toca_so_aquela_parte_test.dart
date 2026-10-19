@@ -21,6 +21,7 @@ const _confirmar = 'Confirmar esta parte';
 const _gravarDeNovo = 'Tocar para gravar esta parte de novo';
 
 Future<void> _tocar(WidgetTester tester, String label) async {
+  await tester.ensureVisible(byLabel(label));
   await tester.tap(byLabel(label));
   await tester.pump(const Duration(milliseconds: 200));
 }

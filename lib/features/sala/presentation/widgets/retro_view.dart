@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,11 +7,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/bt_finding.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'bead_row.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
+import 'frase_list.dart';
 import 'motion.dart';
 
 class RetroView extends ConsumerWidget {
@@ -36,45 +39,163 @@ class RetroView extends ConsumerWidget {
         session.btPhase != BtPhase.conferida;
     final contas = _contas(session, notifier, language);
     final (voz, lingua) = _voz(session, conferida);
-    return Column(
-      children: [
-        const Spacer(flex: 86),
-        SizedBox(
-          height: 40,
-          child: BeadRow(
-            entries: [for (final conta in contas) conta.$1],
-            onTap: (onde) => contas[onde].$2?.call(),
-          ),
+    final colors = SalaColors.of(context);
+    final titulo = retroLabelFor('title', language);
+    final linha = _linha(session, language);
+    final veredito =
+        session.btPhase == BtPhase.findings ||
+        session.btPhase == BtPhase.conferida ||
+        session.btFindings.isNotEmpty;
+    return SizedBox.expand(
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            SizedBox(height: 24 + MediaQuery.viewPaddingOf(context).top),
+            Semantics(
+              header: true,
+              label: titulo,
+              child: ExcludeSemantics(
+                child: Text(
+                  titulo,
+                  style: TextStyle(
+                    color: colors.ink,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Text(
+                retroLabelFor(veredito ? 'subVerdict' : 'subTell', language),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.mut, fontSize: 15, height: 1.35),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 40,
+              child: BeadRow(
+                entries: [for (final conta in contas) conta.$1],
+                onTap: (onde) => contas[onde].$2?.call(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 48,
+              child: avanca
+                  ? _thePauseControls(session, notifier, language)
+                  : null,
+            ),
+            const SizedBox(height: 24),
+            FacilitatorCircle(
+              size: facilitatorCircleSize,
+              halt: session.halt,
+              voice: voz,
+              tongue: lingua,
+              answersATouch: !conferida,
+              warning: session.warning ? warningNoticeLabelFor(language) : null,
+              notUnderstood: session.wordlessTelling
+                  ? retroLabelFor('notUnderstood', language)
+                  : null,
+              semanticLabel: _circleLabel(session, language),
+              onTap: notifier.retroTap,
+              onLongPress: session.canResolveWithPerson
+                  ? notifier.resolveWithPerson
+                  : null,
+            ),
+            if (linha != null) ...[
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Text(
+                  linha,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.telha, fontSize: 15),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(height: 60, child: _actions(session, notifier, language)),
+            const SizedBox(height: 32),
+            FraseList(
+              rows: _frases(session, notifier, language),
+              language: language,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 78,
+              child: _disc(session, notifier, language, avanca),
+            ),
+            const SizedBox(height: 48),
+          ],
         ),
-        const Spacer(flex: 40),
-        SizedBox(
-          height: 48,
-          child: avanca ? _thePauseControls(session, notifier, language) : null,
-        ),
-        const Spacer(flex: 242),
-        FacilitatorCircle(
-          size: facilitatorCircleSize,
-          halt: session.halt,
-          voice: voz,
-          tongue: lingua,
-          answersATouch: !conferida,
-          warning: session.warning ? warningNoticeLabelFor(language) : null,
-          notUnderstood: session.wordlessTelling
-              ? retroLabelFor('notUnderstood', language)
-              : null,
-          semanticLabel: _circleLabel(session, language),
-          onTap: notifier.retroTap,
-          onLongPress: session.canResolveWithPerson
-              ? notifier.resolveWithPerson
-              : null,
-        ),
-        const Spacer(flex: 64),
-        SizedBox(height: 60, child: _actions(session, notifier, language)),
-        const Spacer(flex: 58),
-        SizedBox(height: 78, child: _disc(session, notifier, language, avanca)),
-        const Spacer(flex: 304),
-      ],
+      ),
     );
+  }
+
+  List<FraseRow> _frases(
+    SalaSessionState session,
+    SalaSessionNotifier notifier,
+    String language,
+  ) {
+    final aberta =
+        session.btPhase != BtPhase.conferida &&
+        session.btPhase != BtPhase.findings;
+    final contadas = [
+      for (final (onde, trecho) in session.btTrechos.indexed)
+        if (trecho.contado) (onde, trecho),
+    ];
+    final maior = contadas.fold(
+      Duration.zero,
+      (maior, contada) => contada.$2.to - contada.$2.from > maior
+          ? contada.$2.to - contada.$2.from
+          : maior,
+    );
+    return [
+      for (final (onde, trecho) in contadas)
+        FraseRow(
+          n: trecho.frase,
+          parte: trecho.parte >= 0 ? trecho.parte + 1 : null,
+          share: maior > Duration.zero
+              ? max(
+                  0.08,
+                  (trecho.to - trecho.from).inMicroseconds /
+                      maior.inMicroseconds,
+                )
+              : 1,
+          onHear: aberta ? () => notifier.ouvirOTrechoContado(onde) : null,
+          mark: switch (_markOn(trecho.frase, session)) {
+            final kind? => retroLabelFor(kind.name, language),
+            null => null,
+          },
+        ),
+    ];
+  }
+
+  String? _linha(SalaSessionState session, String language) {
+    if (session.machine.theVerdictWaitsForTheTap) {
+      return retroLabelFor('checkFailed', language);
+    }
+    if (session.wordlessTelling) {
+      return retroLabelFor('notUnderstood', language);
+    }
+    if (session.btPhase == BtPhase.conferida &&
+        !session.needsPerson &&
+        !session.offline) {
+      return '✓ ${retroLabelFor('translated', language)}';
+    }
+    return null;
+  }
+
+  BtFindingKind? _markOn(int? frase, SalaSessionState session) {
+    if (frase == null) return null;
+    for (final finding in session.btFindings) {
+      if (finding.frase == frase) return finding.kind;
+    }
+    return null;
   }
 
   Widget? _disc(
@@ -98,16 +219,36 @@ class RetroView extends ConsumerWidget {
       );
     }
     if (!avanca) return null;
+    final terminei = retroLabelFor(
+      session.btConferindo ? 'checking' : 'advance',
+      language,
+    );
     return FadeUp(
       child: RoundActionButton(
         size: 78,
-        semanticLabel: retroLabelFor('advance', language),
+        semanticLabel: terminei,
         gradient: BeadStyles.wood,
         shadows: RoundActionButton.dropShadow,
         mood: session.canAdvanceToTheVerdict
             ? ButtonMood.beckoning
             : ButtonMood.dimmed,
         onTap: () => unawaited(notifier.finishBackTranslation()),
+        child: ExcludeSemantics(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                terminei,
+                style: const TextStyle(
+                  color: ShemaBrand.branco,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -139,7 +280,12 @@ class RetroView extends ConsumerWidget {
         : nomeado?.segmentId == session.btFindingSegmentId
         ? nomeado?.segmentId
         : null;
-    final contas = <(BeadFill, bool, bool, VoidCallback?)>[
+    String parte(int onde) => '${retroLabelFor('part', language)} ${onde + 1}';
+    String nome(Trecho trecho) => switch (trecho.frase) {
+      final n? => sceneRehearsalLabelFor('frase', language, n: n),
+      null => parte(trecho.parte),
+    };
+    final contas = <(BeadFill, bool, bool, VoidCallback?, String)>[
       for (final (onde, trecho) in session.btTrechos.indexed)
         if (naPergunta)
           (
@@ -147,6 +293,7 @@ class RetroView extends ConsumerWidget {
             trecho.segmentId == apontado,
             apontado != null && trecho.segmentId != apontado,
             null,
+            nome(trecho),
           )
         else if (nomeado != null && trecho.segmentId == nomeado.segmentId)
           (
@@ -154,6 +301,7 @@ class RetroView extends ConsumerWidget {
             escolhida == null,
             false,
             notifier.ouvirOTrechoPendente,
+            nome(trecho),
           )
         else
           (
@@ -163,6 +311,7 @@ class RetroView extends ConsumerWidget {
             aberta && trecho.contado
                 ? () => notifier.ouvirOTrechoContado(onde)
                 : null,
+            nome(trecho),
           ),
     ];
     if (aberta && nomeado == null && !session.btContadaInteira) {
@@ -180,20 +329,20 @@ class RetroView extends ConsumerWidget {
           escolhida == null,
           false,
           notifier.ouvirOTrechoPendente,
+          parte(session.btParte),
         ),
         if (session.btRestoDepoisDoCorte)
-          (BeadFill.translucent, false, false, null),
+          (BeadFill.translucent, false, false, null, parte(session.btParte)),
       ]);
     }
-    final nome = retroLabelFor('stretch', language);
     return [
-      for (final (onde, (fill, current, dimmed, onTap)) in contas.indexed)
+      for (final (fill, current, dimmed, onTap, label) in contas)
         (
           BeadRowEntry(
             fill: fill,
             current: current,
             dimmed: dimmed,
-            semanticLabel: '$nome ${onde + 1}',
+            semanticLabel: label,
           ),
           onTap,
         ),

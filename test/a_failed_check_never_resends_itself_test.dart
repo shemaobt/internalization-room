@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -240,5 +241,33 @@ void main() {
     expect(check.harness.room.playedByTakeSent, hasLength(1));
     expect(check.estado.unreachable, isFalse);
     expect(check.estado.offline, isFalse);
+  });
+
+  test('a check answered after the team left the passage writes nothing to '
+      'the room it left', () async {
+    final check = await _readyForTheVerdict(SalaHarness());
+    check.harness.room.holdNextVerdict();
+    unawaited(check.sala.finishBackTranslation());
+    await waitFor('a conferência ficar no ar', () => check.estado.btConferindo);
+
+    check.sala.leaveThePassage();
+    await settle(_aWhile);
+    expect(check.estado.stage, SalaStage.escolha);
+    expect(check.estado.btConferindo, isFalse);
+    var escritas = 0;
+    check.container.listen(salaSessionProvider, (antes, depois) {
+      if (identical(antes?.machine, depois.machine)) escritas++;
+    });
+
+    check.harness.room.finishHeldVerdict();
+    await settle(_aWhile);
+
+    expect(
+      escritas,
+      0,
+      reason:
+          'a resposta da conferência que a equipe deixou para trás ainda '
+          'escrevia no estado da sala, fora da máquina que a recebe',
+    );
   });
 }

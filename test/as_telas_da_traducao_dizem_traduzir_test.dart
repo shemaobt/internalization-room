@@ -15,12 +15,11 @@ const _rotulosDeTraduzir = {
   'Tocar para gravar a tradução de novo',
   'Ouvir a tradução',
   'Confirmar a tradução e seguir',
-  'Conferir a tradução',
-  'Traduzida',
+  'traduzida e conferida',
   'Ir para a tradução',
   'Ouvir o trecho e a tradução',
   'Traduzir este trecho de novo',
-  'Não entendi — traduzam de novo esse pedaço',
+  'não entendi — traduzam de novo esse pedaço',
   'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo para traduzir',
   'a pausa ficou no toque — toquem no círculo para traduzir',
   'traduzir o ensaio da cena',
@@ -30,6 +29,9 @@ const _rotulosDeTraduzir = {
   'frases traduzidas',
   'ouvir a minha tradução da frase {n}',
   'enviando a tradução do ensaio da cena para a voz…',
+  'Traduzir a gravação',
+  'Toquem no círculo para pausar onde a frase acaba; toquem de novo para traduzir só o que aquela frase diz, e de novo para a gravação seguir.',
+  'Toquem numa frase para ouvir e traduzir de novo; voltem para regravar uma parte; ou toquem em terminei para conferir de novo.',
 };
 
 final _literalPattern = RegExp(r"'([^'\\]|\\.)*'");

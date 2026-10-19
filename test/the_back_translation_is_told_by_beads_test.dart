@@ -30,7 +30,7 @@ const ouvir = 'Ouvir';
 const pausar = 'Pausar';
 const tesoura = 'Pausar onde a frase acaba';
 const confirmar = 'Confirmar a tradução e seguir';
-const conferir = 'Conferir a tradução';
+const conferir = 'terminei';
 const aprovar = 'Aprovar como rascunho final';
 
 bool aceso(WidgetTester tester, String label) {
@@ -59,6 +59,7 @@ Finder corda() => find.byWidgetPredicate(
 );
 
 Future<void> tocar(WidgetTester tester, String label) async {
+  await tester.ensureVisible(byLabel(label));
   await tester.tap(byLabel(label));
   await tester.pump(const Duration(milliseconds: 300));
 }
@@ -1466,7 +1467,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('B10 — a tela segue o quadro T1', (tester) async {
+  testWidgets('B10 — a tela segue o quadro dela, com o título e a linha acima '
+      'das contas', (tester) async {
     tester.view
       ..physicalSize = const Size(820, 1180)
       ..devicePixelRatio = 1;
@@ -1485,13 +1487,13 @@ void main() {
             ),
           )
           .dy,
-      86,
+      169,
     );
-    expect(tester.getTopLeft(byLabel(gravar)), const Offset(330, 456));
-    expect(tester.getTopLeft(byLabel(pausar)), const Offset(296, 680));
-    expect(tester.getTopLeft(byLabel(tesoura)), const Offset(380, 680));
-    expect(tester.getTopLeft(byLabel(confirmar)), const Offset(464, 680));
-    expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 798));
+    expect(tester.getTopLeft(byLabel(gravar)), const Offset(330, 297));
+    expect(tester.getTopLeft(byLabel(pausar)), const Offset(296, 473));
+    expect(tester.getTopLeft(byLabel(tesoura)), const Offset(380, 473));
+    expect(tester.getTopLeft(byLabel(confirmar)), const Offset(464, 473));
+    expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 589));
     closeTheRoom(container);
   });
 
@@ -1520,8 +1522,8 @@ void main() {
     expect(byLabel('Pause'), findsOneWidget);
     expect(byLabel('Pause where the sentence ends'), findsOneWidget);
     expect(byLabel('Confirm the translation and go on'), findsOneWidget);
-    expect(byLabel('Check the translation'), findsOneWidget);
-    expect(byLabel('Stretch 1'), findsOneWidget);
+    expect(byLabel('done'), findsOneWidget);
+    expect(byLabel('part 1'), findsOneWidget);
 
     await tester.tap(byLabel('Pause'));
     await tester.pump(const Duration(milliseconds: 300));

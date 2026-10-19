@@ -2702,6 +2702,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
       btTrechos: _trechosFrom(told.segments),
+      btFindings: told.findings,
     );
     final sessionId = state.sessionId;
     if (sessionId != null) {
@@ -2722,7 +2723,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// leave-and-return later.
   void _keepTheStretchesAlreadyTold(BackTranslationProgress told) {
     if (told.nothingTold) return;
-    state = state.copyWith(btTrechos: _trechosFrom(told.segments));
+    state = state.copyWith(
+      btTrechos: _trechosFrom(told.segments),
+      btFindings: told.findings,
+    );
   }
 
   void conversaTap() => _gesture(() => _conversaTap());
@@ -4222,6 +4226,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       for (final trecho in state.btTrechos)
         if (trecho.parte != parte) trecho,
     ];
+    final saem = {
+      for (final trecho in state.btTrechos)
+        if (trecho.parte == parte && trecho.frase != null) trecho.frase,
+    };
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [
@@ -4232,6 +4240,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             take,
       ],
       btTrechos: trechos,
+      btFindings: [
+        for (final finding in state.btFindings)
+          if (!saem.contains(finding.frase)) finding,
+      ],
     );
     unawaited(_medirAParteRegravada(path, _generation));
     unawaited(
@@ -5362,6 +5374,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       clearTraducaoPendente: true,
+      btFindings: [
+        for (final finding in state.btFindings)
+          if (alvo.frase == null || finding.frase != alvo.frase) finding,
+      ],
     );
     if (needsPerson) _dispatch(TheAnswerWarned(generation: _generation));
     _rememberWhereTheyAre(const Retro());
@@ -5528,9 +5544,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       return _theStepFell();
     }
+    final int? frase;
     switch (sent) {
-      case Answered():
+      case Answered(:final value):
         if (_abandoned(generation)) return;
+        frase = value.frase;
       case final RoomFailure failure:
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
@@ -5553,6 +5571,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // Nobody has corrected it: the slice it plays is the slice of the part it occupies.
       lugarFrom: _trechoStart,
       lugarTo: _trechoEnd,
+      frase: frase,
     );
     _trechoStart = _trechoEnd;
     unawaited(_retirarDaFilaSeGuardada(path));
@@ -5678,17 +5697,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     final generation = _waitOnTheGeneration;
-    state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
+    state = state.copyWith(
+      btPhase: BtPhase.thinking,
+      awaitingTheGuide: true,
+      btConferindo: true,
+    );
     _watchBusyState();
     final BackTranslationVerdict verdict;
-    switch (await _room.finishBackTranslation(
+    final asked = await _room.finishBackTranslation(
       sessionId,
       playedByTake: _escuta.relato(state.partes),
-    )) {
+    );
+    if (_abandoned(generation)) return;
+    state = state.copyWith(btConferindo: false);
+    switch (asked) {
       case Answered(value: final answer):
         verdict = answer;
       case final RoomFailure failure:
-        if (_abandoned(generation)) return;
         if (failure case NetworkFailed()) {
           _pending = _finishBackTranslation;
           _decideAt(failure, door: Door.verdict);
@@ -5697,7 +5722,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _decideTheFailure(failure);
         return;
     }
-    if (_abandoned(generation)) return;
     try {
       await _readyToSpeak(verdict.audioUrl, verdict.fixedLine);
       if (_abandoned(generation)) return;
@@ -5754,6 +5778,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           btPhase: BtPhase.conferida,
           awaitingTheGuide: false,
           clearFindingSegment: true,
+          btFindings: verdict.findings,
         );
         return;
       }
@@ -5777,6 +5802,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         awaitingTheGuide: false,
         btFindingSegmentId: verdict.findingSegmentId,
         clearFindingSegment: verdict.findingSegmentId == null,
+        btFindings: verdict.findings,
       );
       // The stretch is no longer played at the team. Which voice needs to speak again is
       // theirs to say, and they say it by comparing the two — so hearing either one is a
@@ -6157,6 +6183,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             lugarFrom: aParte >= 0 ? from : (antes?.lugarFrom ?? from),
             lugarTo: aParte >= 0 ? to : (antes?.lugarTo ?? to),
             contado: segment.told,
+            frase: segment.frase,
           );
         }(),
     ];
