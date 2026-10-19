@@ -45,8 +45,7 @@ void main() {
     expect(read().needsPerson, isFalse);
     expect(read().naRoda, _theBook);
 
-    notifier.apontarPassagem(2);
-    expect(read().aOferecer, 2);
+    expect(read().entriesOpen, isTrue);
 
     harness.room.passagesThatCannotOpen = {};
     await enterThePassage(notifier, read, 'P02');

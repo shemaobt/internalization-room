@@ -348,6 +348,8 @@ String findingLabelFor(String control, String language) =>
     findingLabels[control]![floorLanguage]!;
 
 const escolhaLabels = {
+  'choosePassage': {'pt': 'Escolha a passagem', 'en': 'Choose the Passage'},
+  'bookPanorama': {'pt': 'Panorama do Livro', 'en': 'Book Panorama'},
   'allDone': {
     'pt': 'Todas as passagens foram trabalhadas',
     'en': 'Every passage has been worked through',
@@ -356,17 +358,6 @@ const escolhaLabels = {
     'pt': 'Tocar para procurar as passagens',
     'en': 'Tap to look for the passages',
   },
-  'hearAgain': {
-    'pt': 'Ouvir esta passagem de novo',
-    'en': 'Hear this passage again',
-  },
-  'enter': {'pt': 'Entrar nesta passagem', 'en': 'Enter this passage'},
-  'ruler': {
-    'pt': 'Escolher a passagem, correndo o dedo pela fileira',
-    'en': 'Choose the passage by running a finger along the row',
-  },
-  'place': {'pt': '{n} de {total}', 'en': '{n} of {total}'},
-  'current': {'pt': 'passagem atual', 'en': 'current passage'},
   'approved': {'pt': 'tem um ensaio salvo', 'en': 'has a saved rehearsal'},
   'light': {'pt': 'Claro', 'en': 'Light'},
   'dark': {'pt': 'Escuro', 'en': 'Dark'},
@@ -375,18 +366,6 @@ const escolhaLabels = {
 String escolhaLabelFor(String control, String language) =>
     escolhaLabels[control]![language] ??
     escolhaLabels[control]![floorLanguage]!;
-
-String rulerPlaceFor(int place, int total, String language) => escolhaLabelFor(
-  'place',
-  language,
-).replaceAll('{n}', '$place').replaceAll('{total}', '$total');
-
-const panoramaEntryLabel = {'pt': 'Panorama do Livro', 'en': 'Book Panorama'};
-
-String entrarLabelFor({required bool isPanorama, required String language}) =>
-    isPanorama
-    ? (panoramaEntryLabel[language] ?? panoramaEntryLabel[floorLanguage]!)
-    : escolhaLabelFor('enter', language);
 
 const codigoLabels = {
   'preparing': {

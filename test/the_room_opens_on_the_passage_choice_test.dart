@@ -5,7 +5,6 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
 
 import 'fakes.dart';
@@ -17,9 +16,21 @@ const _panorama = Passagem(
   audioUrl: '/voice/panorama',
   kind: PassagemKind.panorama,
 );
-const _p01 = Passagem(pericope: 'P01', audioUrl: '/voice/p01');
-const _p02 = Passagem(pericope: 'P02', audioUrl: '/voice/p02');
-const _p03 = Passagem(pericope: 'P03', audioUrl: '/voice/p03');
+const _p01 = Passagem(
+  pericope: 'P01',
+  audioUrl: '/voice/p01',
+  reference: 'Ruth 1:1–5',
+);
+const _p02 = Passagem(
+  pericope: 'P02',
+  audioUrl: '/voice/p02',
+  reference: 'Ruth 1:6–14',
+);
+const _p03 = Passagem(
+  pericope: 'P03',
+  audioUrl: '/voice/p03',
+  reference: 'Ruth 1:15–18',
+);
 const _theBook = [_panorama, _p01, _p02, _p03];
 
 void _expectThePassageChoice(SalaHarness harness, SalaSessionState state) {
@@ -110,9 +121,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(container.read(salaSessionProvider).naRoda, _theBook);
-      final ruler = tester.widget<PassageRuler>(find.byType(PassageRuler));
-      expect(ruler.total, 4);
-      expect(ruler.approved, isEmpty);
+      expect(find.text('◈ Panorama do Livro'), findsOneWidget);
+      expect(find.text('Rute 1:1–5'), findsOneWidget);
+      expect(find.text('Rute 1:6–14'), findsOneWidget);
+      expect(find.text('Rute 1:15–18'), findsOneWidget);
+      expect(find.text('●'), findsNothing);
     },
   );
 }

@@ -198,19 +198,12 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
       await notifier.abrirEscolha();
-      await waitFor('the Wheel to load', () => read().naRoda != null);
-      notifier.apontarPassagem(
-        read().naRoda!.indexWhere((entry) => entry.pericope == 'P01'),
-      );
-      await waitFor(
-        'the Wheel to offer P01',
-        () =>
-            read().oferecida?.pericope == 'P01' &&
-            read().voice == VoiceState.invite,
-      );
+      await waitFor('the Wheel to offer P01', () => read().entriesOpen);
       harness.network.reachable = false;
       harness.room.reachable = false;
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(
+        read().naRoda!.firstWhere((entry) => entry.pericope == 'P01'),
+      );
       await waitFor('the room to be out of reach', () => read().offline);
       final played = harness.voice.played.length;
 

@@ -128,7 +128,7 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
 
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
 
     expect(harness.voice.played, isNotEmpty);

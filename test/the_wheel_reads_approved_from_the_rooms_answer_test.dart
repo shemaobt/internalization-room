@@ -15,4 +15,20 @@ void main() {
       expect(wheel.map((p) => p.approved), [true, false]);
     },
   );
+
+  test(
+    'the wheel reads each entry\'s book and reference from the room\'s answer',
+    () {
+      final wheel = passagensFromJson({
+        'book': 'Ruth',
+        'passages': [
+          {'pericope': 'panorama', 'kind': 'panorama', 'audio_url': '/p'},
+          {'pericope': 'P01', 'audio_url': '/a', 'reference': 'Ruth 1:1–5'},
+        ],
+      });
+
+      expect(wheel.map((p) => p.book), ['Ruth', 'Ruth']);
+      expect(wheel.map((p) => p.reference), ['', 'Ruth 1:1–5']);
+    },
+  );
 }

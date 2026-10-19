@@ -18,16 +18,15 @@ import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/language_and_look.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
 import 'package:internalization_room/main.dart';
@@ -93,17 +92,22 @@ bool leaveIsDeaf(WidgetTester tester) => tester
     )
     .any((portao) => portao.ignoring);
 
-void expectOnlyTheLanguageCodesAreWritten() {
+void expectOnlyHerMenuAndTheLanguageCodesAreWritten() {
   final words = find.byType(Text);
+  final codes = find.descendant(
+    of: find.byType(LanguageAndLook),
+    matching: words,
+  );
+  final menu = find.descendant(of: find.byType(EscolhaView), matching: words);
   expect(
-    find.descendant(of: find.byType(LanguageAndLook), matching: words),
+    codes,
     findsNWidgets(languages.length),
-    reason: 'na escolha só os códigos PT e EN são escritos',
+    reason: 'na escolha os códigos PT e EN são escritos',
   );
   expect(
     words,
-    findsNWidgets(languages.length),
-    reason: 'nenhuma outra palavra escrita na escolha',
+    findsNWidgets(languages.length + menu.evaluate().length),
+    reason: 'na escolha só o menu dela e os códigos são escritos',
   );
 }
 
@@ -175,7 +179,7 @@ Future<void> _enterThePanorama(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
-  notifier.entrarNaOferecida();
+  notifier.openTheEntry(_thePanorama);
   await tester.pump(const Duration(milliseconds: 400));
 }
 
@@ -223,209 +227,22 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('the choice screen is the circle, the wood and nothing else', (
-    tester,
-  ) async {
+  testWidgets('the choice screen is her menu and nothing else', (tester) async {
     final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
     await container.read(salaSessionProvider.notifier).abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(byLabel('Ouvir esta passagem de novo'), findsOneWidget);
-    expect(byLabel('Entrar nesta passagem'), findsOneWidget);
-    expect(
-      find.byType(PassageRuler),
-      findsOneWidget,
-      reason:
-          'a régua é o gesto de andar pelo livro, não só um enfeite de posição',
-    );
+    expect(find.text('Escolha a passagem'), findsOneWidget);
+    expect(find.text('Rute 1:1–5'), findsOneWidget);
+    expect(find.byType(FacilitatorCircle), findsNothing);
     expect(
       find.byType(ColarOverlay),
       findsNothing,
       reason: 'o colar mede uma passagem; na escolha ainda não há passagem',
     );
-    expectOnlyTheLanguageCodesAreWritten();
+    expectOnlyHerMenuAndTheLanguageCodesAreWritten();
   });
-
-  testWidgets('the wooden button carries the passage the room just said', (
-    tester,
-  ) async {
-    final harness = SalaHarness();
-    final container = await pumpSala(tester, harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      container.read(salaSessionProvider).voice,
-      VoiceState.invite,
-      reason: 'passo 1: a sala terminou de dizer a primeira',
-    );
-    await tester.drag(find.byType(PassageRuler), const Offset(400, 0));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      container.read(salaSessionProvider).oferecida?.pericope,
-      'P03',
-      reason: 'passo 2: o dedo correu a régua até a ponta',
-    );
-
-    await tester.drag(find.byType(PassageRuler), const Offset(-140, 0));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      container.read(salaSessionProvider).oferecida?.pericope,
-      'P02',
-      reason: 'passo 3: e voltou uma — o que a roda de mão única não permitia',
-    );
-
-    await tester.pump(const Duration(milliseconds: 800));
-    await tester.tap(
-      find.byWidgetPredicate(
-        (w) => w is RoundActionButton && w.mood != ButtonMood.lit,
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(harness.room.pericopesAsked, contains('P02'));
-    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
-  });
-
-  testWidgets(
-    'the wooden button names the panorama, not "entrar nesta passagem"',
-    (tester) async {
-      const panorama = Passagem(
-        pericope: 'panorama',
-        audioUrl: '/voice/panorama',
-        kind: PassagemKind.panorama,
-      );
-      final harness = SalaHarness()
-        ..room.passages = const [
-          panorama,
-          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-        ];
-      final container = await pumpSala(tester, harness);
-      await container.read(salaSessionProvider.notifier).abrirEscolha();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(byLabel('Panorama do Livro'), findsOneWidget);
-      expect(
-        byLabel('Entrar nesta passagem'),
-        findsNothing,
-        reason:
-            'o panorama é a porta de entrada da roda, mas o botão de '
-            'entrar nele ainda dizia o rótulo genérico de qualquer passagem',
-      );
-    },
-  );
-
-  testWidgets('the panorama button speaks english to an english room', (
-    tester,
-  ) async {
-    const panorama = Passagem(
-      pericope: 'panorama',
-      audioUrl: '/voice/panorama',
-      kind: PassagemKind.panorama,
-    );
-    final harness = SalaHarness(lingua: 'en')
-      ..room.passages = const [
-        panorama,
-        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-      ];
-    final container = await pumpSala(tester, harness);
-    await container.read(salaSessionProvider.notifier).abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(byLabel('Book Panorama'), findsOneWidget);
-    expect(
-      byLabel('Panorama do Livro'),
-      findsNothing,
-      reason:
-          'um aparelho em inglês não pode mostrar o nome do panorama '
-          'em português',
-    );
-  });
-
-  testWidgets('the choice circle speaks english to an english room', (
-    tester,
-  ) async {
-    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-    await container.read(salaSessionProvider.notifier).abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(byLabel('Hear this passage again'), findsOneWidget);
-    expect(
-      byLabel('Ouvir esta passagem de novo'),
-      findsNothing,
-      reason:
-          'o círculo da roda dizia "Ouvir esta passagem de novo" a um '
-          'aparelho em inglês',
-    );
-  });
-
-  testWidgets('the way into a passage speaks english to an english room', (
-    tester,
-  ) async {
-    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-    await container.read(salaSessionProvider.notifier).abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(byLabel('Enter this passage'), findsOneWidget);
-    expect(
-      byLabel('Entrar nesta passagem'),
-      findsNothing,
-      reason:
-          'só o panorama falava inglês; a conta de entrar numa passagem '
-          'dizia "Entrar nesta passagem" a um aparelho em inglês',
-    );
-  });
-
-  testWidgets('the passage ruler speaks english to an english room', (
-    tester,
-  ) async {
-    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-    await container.read(salaSessionProvider.notifier).abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(
-      byLabel('Choose the passage by running a finger along the row'),
-      findsOneWidget,
-    );
-    expect(
-      byLabel('Escolher a passagem, correndo o dedo pela fileira'),
-      findsNothing,
-      reason:
-          'a régua da roda se apresentava em português a um aparelho em '
-          'inglês',
-    );
-  });
-
-  testWidgets(
-    'the ruler reads where the team stands in english, not "1 de 3"',
-    (tester) async {
-      final harness = SalaHarness(lingua: 'en')
-        ..room.passages = const [
-          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-          Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
-          Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
-        ];
-      final container = await pumpSala(tester, harness);
-      await container.read(salaSessionProvider.notifier).abrirEscolha();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(container.read(salaSessionProvider).aOferecer, 0);
-      final ruler = tester
-          .widget<Semantics>(
-            byLabel('Choose the passage by running a finger along the row'),
-          )
-          .properties;
-      expect(
-        ruler.value,
-        '1 of 3',
-        reason:
-            'o leitor de tela dizia "1 de 3" no meio de uma frase em inglês',
-      );
-      expect(ruler.increasedValue, '2 of 3');
-      expect(ruler.decreasedValue, '1 of 3');
-    },
-  );
 
   testWidgets('a finished book is announced in english to an english room', (
     tester,
@@ -488,11 +305,11 @@ void main() {
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    expectOnlyTheLanguageCodesAreWritten();
+    expectOnlyHerMenuAndTheLanguageCodesAreWritten();
 
     await notifier.abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
-    expectOnlyTheLanguageCodesAreWritten();
+    expectOnlyHerMenuAndTheLanguageCodesAreWritten();
 
     for (final go in [
       notifier.goConversa,
@@ -501,6 +318,8 @@ void main() {
     ]) {
       go();
       await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 1400));
+      await tester.pump(const Duration(milliseconds: 1400));
       expect(
         find.byType(Text),
         findsNothing,

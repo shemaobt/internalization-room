@@ -18,8 +18,18 @@ const _panorama = Passagem(
 );
 const _theBook = [
   _panorama,
-  Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-  Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+  Passagem(
+    pericope: 'P01',
+    audioUrl: '/voice/p01',
+    book: 'Ruth',
+    reference: 'Ruth 1:1–5',
+  ),
+  Passagem(
+    pericope: 'P02',
+    audioUrl: '/voice/p02',
+    book: 'Ruth',
+    reference: 'Ruth 1:6–14',
+  ),
 ];
 
 const _leave = 'Choose another passage';
@@ -63,17 +73,13 @@ Future<void> _readTheWheel(WidgetTester tester, _Room room) async {
   await _passTime(tester, 300);
 }
 
-Future<void> _aimAt(WidgetTester tester, _Room room, String pericope) async {
-  final at = room.state.naRoda!.indexWhere(
-    (entry) => entry.pericope == pericope,
-  );
-  room.notifier.apontarPassagem(at);
-  await _passTime(tester);
-}
+void _open(_Room room, String pericope) => room.notifier.openTheEntry(
+  room.state.naRoda!.firstWhere((entry) => entry.pericope == pericope),
+);
 
 Future<void> _takeThePanorama(WidgetTester tester, _Room room) async {
   await _readTheWheel(tester, room);
-  room.notifier.entrarNaOferecida();
+  room.notifier.openTheEntry(room.state.naRoda!.first);
   await _passTime(tester);
 }
 
@@ -83,8 +89,7 @@ Future<void> _takeThePassage(
   String pericope,
 ) async {
   if (room.state.naRoda == null) await _readTheWheel(tester, room);
-  await _aimAt(tester, room, pericope);
-  room.notifier.entrarNaOferecida();
+  _open(room, pericope);
   await _passTime(tester);
   await _passTime(tester);
 }
@@ -201,6 +206,34 @@ void main() {
 
       expect(room.state.voice, VoiceState.listening);
     },
+  );
+
+  testWidgets(
+    'a tap on the passage left, tinted on the menu, brings back its kept take '
+    'paused where it was',
+    (tester) => withDiskThatAnswersAtOnce(() async {
+      final room = await _pump(tester, memory: true);
+      await _takeThePassage(tester, room, 'P01');
+      await _keepAPart(tester, room);
+      room.notifier.playTheRehearsal();
+      await _passTime(tester, 200);
+      const where = Duration(seconds: 3);
+      room.harness.playback.at = where;
+
+      await _tap(tester, _leave);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.text('Ruth 1:1–5'));
+      await _passTime(tester);
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(room.state.stage, SalaStage.ensaio);
+      expect(room.state.takePaused, isTrue);
+
+      room.notifier.playTheRehearsal();
+      await _passTime(tester, 200);
+
+      expect(room.harness.playback.playedFrom.last, where);
+    }),
   );
 
   testWidgets(
@@ -344,7 +377,7 @@ void main() {
     final room = await _pump(tester);
     await _readTheWheel(tester, room);
     room.harness.voice.holdNextLine();
-    room.notifier.entrarNaOferecida();
+    room.notifier.openTheEntry(room.state.naRoda!.first);
     await _passTime(tester);
 
     expect(room.state.stage, SalaStage.panorama);
@@ -533,8 +566,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(byLabel(_back), findsOneWidget);
 
-    await _aimAt(tester, room, 'P02');
-    room.notifier.entrarNaOferecida();
+    _open(room, 'P02');
     await tester.pump(const Duration(seconds: 2));
 
     expect(room.state.stage, SalaStage.escolha);

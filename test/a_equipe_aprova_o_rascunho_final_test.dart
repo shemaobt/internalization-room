@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
-import 'package:internalization_room/features/sala/domain/passagem.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
@@ -614,43 +613,65 @@ void main() {
     closeTheRoom(it.container);
   });
 
-  testWidgets('the Choice after the Closing paints the approved passage olive '
-      'with its dot and tints nothing', (tester) async {
-    final it = await _ateAConferida(
-      tester,
-      comEsta: SalaHarness(
-        filaEmMemoria: true,
-        fimLinger: const Duration(milliseconds: 40),
-      ),
-    );
-    it.harness.room.passages = const [
-      Passagem(pericope: 'P01', audioUrl: '/voice/p01', approved: true),
-      Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
-      Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
-    ];
+  testWidgets(
+    'the Choice after the Closing marks the approved passage with its '
+    'dot and tints nothing',
+    (tester) async {
+      final it = await _ateAConferida(
+        tester,
+        comEsta: SalaHarness(
+          filaEmMemoria: true,
+          fimLinger: const Duration(milliseconds: 40),
+        ),
+      );
+      it.harness.room.passages = const [
+        Passagem(
+          pericope: 'P01',
+          audioUrl: '/voice/p01',
+          book: 'Ruth',
+          reference: 'Ruth 1:1–5',
+          approved: true,
+        ),
+        Passagem(
+          pericope: 'P02',
+          audioUrl: '/voice/p02',
+          book: 'Ruth',
+          reference: 'Ruth 1:6–14',
+        ),
+      ];
 
-    await _aprovarEEsperar(tester);
-    await tester.pump(const Duration(milliseconds: 700));
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump(const Duration(milliseconds: 100));
+      await _aprovarEEsperar(tester);
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(milliseconds: 100));
 
-    expect(_estado(it.container).stage, SalaStage.escolha);
-    expect(
-      find.byType(PassageRuler),
-      paints
-        ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
-        ..line(color: ShemaBrand.verdeClaro)
-        ..circle(x: 30, color: SalaColors.light.telha, radius: 3)
-        ..line(color: SalaColors.light.cord, strokeWidth: 2)
-        ..line(color: SalaColors.light.cord, strokeWidth: 2),
-    );
-    expect(
-      find.byType(PassageRuler),
-      isNot(paints..line(color: ShemaBrand.azul)),
-    );
+      expect(_estado(it.container).stage, SalaStage.escolha);
+      expect(
+        find.descendant(
+          of: find.ancestor(
+            of: find.text('Rute 1:1–5'),
+            matching: find.byType(Row),
+          ),
+          matching: find.text('●'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+            .map((box) => box.decoration)
+            .whereType<BoxDecoration>()
+            .where(
+              (decoration) =>
+                  decoration.color == ShemaBrand.azul.withValues(alpha: 0.18),
+            ),
+        isEmpty,
+        reason: 'o fecho larga a sessão: nada fica tingido',
+      );
 
-    closeTheRoom(it.container);
-  });
+      closeTheRoom(it.container);
+    },
+  );
 
   testWidgets('a passagem seguinte não herda a aprovação da anterior', (
     tester,

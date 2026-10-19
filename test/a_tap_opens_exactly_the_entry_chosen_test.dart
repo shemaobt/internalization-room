@@ -111,15 +111,11 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
       await notifier.abrirEscolha();
-      await waitFor(
-        'the Wheel to offer the Panorama',
-        () =>
-            read().oferecida == _panorama && read().voice == VoiceState.invite,
-      );
+      await theChoiceOffersAPassage(container);
       harness.network.reachable = false;
       harness.room.reachable = false;
 
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(read().naRoda!.first);
       await waitFor('the room to be out of reach', () => read().offline);
       harness.network.reachable = true;
       harness.room.reachable = true;
@@ -232,8 +228,8 @@ void main() {
     Future<void> enter() async {
       await notifier.abrirEscolha();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(read().oferecida, _panorama);
-      notifier.entrarNaOferecida();
+      expect(read().entriesOpen, isTrue);
+      notifier.openTheEntry(read().naRoda!.first);
       await tester.pump(const Duration(milliseconds: 600));
     }
 

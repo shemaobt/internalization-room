@@ -374,7 +374,6 @@ void main() {
       warningNoticeLabel,
       ...codigoLabels.values,
       recordEntryLabel,
-      panoramaEntryLabel,
       ...momentLabels.values,
       momentAria,
     ];

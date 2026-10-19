@@ -1807,7 +1807,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       naRoda: todas,
       comecadas: comecadas,
-      aOferecer: 0,
       awaitingTheGuide: false,
     );
     if (todas.every((passagem) => passagem.isPanorama)) {
@@ -1817,39 +1816,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       //
       // The panorama's own spoke is not a passage.
       _raiseAHalt(kept: const TheWheel());
-      return;
-    }
-    unawaited(
-      _dizerAOferecida().then((_) => _fetchTheNamesTheWheelLacks(generation)),
-    );
-  }
-
-  /// One number per quiet download of the wheel's names; entering any entry bumps it, so
-  /// a download started for the wheel dies with it.
-  int _wheelPrefetch = 0;
-
-  Future<void> _fetchTheNamesTheWheelLacks(int generation) async {
-    final run = ++_wheelPrefetch;
-    final roda = state.naRoda;
-    if (roda == null || roda.isEmpty) return;
-    final pending = List<int>.generate(roda.length, (i) => i);
-    while (pending.isNotEmpty) {
-      if (_abandoned(generation) || run != _wheelPrefetch) return;
-      final aim = state.aOferecer;
-      pending.sort(
-        (a, b) => ((a - aim) % roda.length).compareTo((b - aim) % roda.length),
-      );
-      final url = roda[pending.removeAt(0)].audioUrl;
-      if (url.isEmpty || await _voice.holds(url)) continue;
-      await _voice.fetch(url);
     }
   }
 
-  /// The circle on the wheel says the passage again. It no longer moves.
-  ///
-  /// One tap used to both advance and speak, so a team could never hear a passage twice
-  /// without leaving it, and going back one meant riding the whole wheel through
-  /// fourteen names. Moving is the ruler's job now, and the ruler is dragged.
   void escolhaTap() => _gesture(() => _escolhaTap());
 
   void _escolhaTap() {
@@ -1865,85 +1834,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // The wheel never loaded. There is nothing to say and nothing to enter, so the
       // touch is the retry — otherwise this screen has no live gesture at all.
       _handOff(abrirEscolha());
+    }
+  }
+
+  void openTheEntry(Passagem entry) => _gesture(() => _openTheEntry(entry));
+
+  void _openTheEntry(Passagem entry) {
+    if (!state.entriesOpen || !state.naRoda!.contains(entry)) return;
+    if (state.isTheEntryLeft(entry, language: _lingua, book: _book)) {
+      _handOff(_returnToTheLeftEntry());
       return;
     }
-    if (roda.isEmpty) return;
-    _handOff(_dizerAOferecida());
-  }
-
-  /// Move along the wheel with the finger still down, without saying anything.
-  ///
-  /// Naming every passage the finger crosses would stutter fourteen clips across one
-  /// drag. The room stays quiet while they are choosing and speaks where they land.
-  void apontarPassagem(int index) => _gesture(() => _apontarPassagem(index));
-
-  void _apontarPassagem(int index) {
-    if (state.station is! Menu) return;
-    if (state.needsPerson || state.offline) return;
-    final roda = state.naRoda;
-    if (roda == null || roda.isEmpty) return;
-    final at = index.clamp(0, roda.length - 1);
-    if (at == state.aOferecer && state.voice == VoiceState.invite) return;
-    // Not `_cancelTimers()`: it moves the generation and clears every timer in the room.
-    // Cutting the line short is enough, and `_dizerAOferecida` checks for itself that the
-    // finger has not moved on.
-    _silenceTheRoom();
-    state = state.copyWith(aOferecer: at, awaitingTheGuide: false);
-  }
-
-  /// Say where the finger landed.
-  void dizerAPassagem() => _gesture(() => _dizerAPassagem());
-
-  void _dizerAPassagem() {
-    if (state.station is! Menu) return;
-    if (state.needsPerson || state.offline) return;
-    if (state.naRoda?.isEmpty ?? true) return;
-    _silenceTheRoom();
-    _handOff(_dizerAOferecida());
-  }
-
-  Future<void> _dizerAOferecida() async {
-    final passagem = state.oferecida;
-    if (passagem == null) return;
-    final generation = _waitOnTheGeneration;
-    final aimed = state.aOferecer;
-    bool moved() => _abandoned(generation) || state.aOferecer != aimed;
-    await _readyToSpeak(passagem.audioUrl, '');
-    if (moved()) return;
-    _watchBusyState();
-    try {
-      final spoke = await _speak(passagem.audioUrl, '');
-      if (moved()) return;
-      // A wheel that has gone silent looks to the team exactly like a wheel that has
-      // stopped, and there is no written word here to tell them apart.
-      if (!spoke.heard) return _registerUnplayableTurn();
-      state = state.copyWith(awaitingTheGuide: false);
-    } on RoomFailure catch (failure) {
-      if (moved()) return;
-      _decideTheFailure(failure);
-    }
-  }
-
-  void entrarNaOferecida() => _gesture(() => _entrarNaOferecida());
-
-  void _entrarNaOferecida() {
-    final passagem = state.oferecida;
-    if (passagem == null ||
-        state.voice != VoiceState.invite ||
-        state.needsPerson) {
-      return;
-    }
-    _wheelPrefetch++;
     _silenceTheRoom();
     state = state.copyWith(clearLeftEntry: true);
-    if (passagem.isPanorama) {
+    if (entry.isPanorama) {
       _leaveTheStepFor(const Panorama());
       _clearAll();
       _arriveAt(const ThePanoramaChosen());
       _handOff(_entrarNoPanorama());
       return;
     }
-    _handOff(goConversa(pericope: passagem.pericope));
+    _handOff(goConversa(pericope: entry.pericope));
   }
 
   /// Open the Panorama's session and voice its opening. It has no foreseen end, and
@@ -2091,7 +2002,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _returnToThePanorama(LeftEntry left) {
-    _wheelPrefetch++;
     _silenceTheRoom();
     _leaveTheStepFor(const Panorama());
     _clearAll();
@@ -2193,8 +2103,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Everything of the session before this one stays behind.
   ///
-  /// Only what the book knows crosses over — the wheel, the passages started, the one
-  /// being offered — and entering the passage says the rest again.
+  /// Only what the book knows crosses over — the wheel and the passages started — and
+  /// entering the passage says the rest again.
   /// Built from an empty state rather than cleared field by field, so a fact the session
   /// gains tomorrow is born clean here without anybody remembering this branch; the
   /// counters and latches with no home in the state go through [_forgetThePassage],
@@ -2209,7 +2119,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: true,
       naRoda: livro.naRoda,
       comecadas: livro.comecadas,
-      aOferecer: livro.aOferecer,
       panoramaSessionId: livro.panoramaSessionId,
     );
     _arriveAt(const PassageChosen());

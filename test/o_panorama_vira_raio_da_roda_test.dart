@@ -8,7 +8,8 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show enterThePassage, settle;
+import 'scenario_helpers.dart'
+    show enterThePassage, settle, theChoiceOffersAPassage;
 
 const _panorama = Passagem(
   pericope: 'panorama',
@@ -125,7 +126,7 @@ void main() {
     expect(state.needsPerson, isFalse);
     expect(state.naRoda, [_panorama, _p01]);
     expect(
-      state.oferecida,
+      state.naRoda!.first,
       _panorama,
       reason:
           'o panorama vem em primeiro na roda, à frente de toda '
@@ -141,9 +142,9 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
-      await settle();
+      await theChoiceOffersAPassage(container);
 
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle();
 
       expect(
@@ -168,10 +169,10 @@ void main() {
       expect(container.read(salaSessionProvider).voice, VoiceState.invite);
       expect(
         harness.voice.played,
-        [_panorama.audioUrl, turnoUrl],
+        [turnoUrl],
         reason:
-            'a régua diz o nome do panorama primeiro, ao apontar; entrar '
-            'nele é o turno da sala, falado depois',
+            'a Escolha não diz nada ao abrir; entrar no panorama é o turno '
+            'da sala, e só ele é falado',
       );
     },
   );
@@ -184,9 +185,9 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
-    await settle();
+    await theChoiceOffersAPassage(container);
 
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
     await waitFor(
       'o círculo descansar no convite',
@@ -194,7 +195,9 @@ void main() {
           !container.read(salaSessionProvider).needsPerson &&
           container.read(salaSessionProvider).voice == VoiceState.invite,
     );
-    notifier.entrarNaOferecida();
+    notifier.leaveThePassage();
+    await theChoiceOffersAPassage(container);
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
 
     expect(
@@ -221,9 +224,9 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
-    await settle();
+    await theChoiceOffersAPassage(container);
 
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
 
     expect(
@@ -241,9 +244,9 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
-    await settle();
+    await theChoiceOffersAPassage(container);
 
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle(const Duration(seconds: 5));
 
     final state = container.read(salaSessionProvider);
@@ -264,18 +267,20 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
-    await settle();
+    await theChoiceOffersAPassage(container);
 
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
-    notifier.entrarNaOferecida();
+    notifier.leaveThePassage();
+    await theChoiceOffersAPassage(container);
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
 
     expect(
       harness.room.sessionIds,
       hasLength(1),
       reason:
-          'o mesmo toque repetido sem sair da roda não pode cunhar '
+          'voltar ao menu e tocar o panorama de novo não pode cunhar '
           'uma segunda sessão de panorama — um panorama abandonado '
           'por toque',
     );
@@ -304,8 +309,8 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
-      await settle();
-      notifier.entrarNaOferecida();
+      await theChoiceOffersAPassage(container);
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle();
       final panoramaSession = harness.room.sessionIds.single;
 

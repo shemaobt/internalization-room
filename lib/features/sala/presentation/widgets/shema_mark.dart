@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/sala_colors.dart';
 
 class ShemaMark extends StatelessWidget {
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final double size;
+  final double opacity;
 
-  const ShemaMark({super.key, required this.onTap});
+  const ShemaMark({super.key, this.onTap, this.size = 46, this.opacity = 0.72});
 
   @override
   Widget build(BuildContext context) {
@@ -14,11 +16,11 @@ class ShemaMark extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: SizedBox(
-          width: 46,
-          height: 46,
+          width: size,
+          height: size,
           child: CustomPaint(
             painter: _ShemaMarkPainter(
-              SalaColors.of(context).shemaMark.withValues(alpha: 0.72),
+              SalaColors.of(context).shemaMark.withValues(alpha: opacity),
             ),
           ),
         ),

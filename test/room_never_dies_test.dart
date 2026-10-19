@@ -75,8 +75,9 @@ void main() {
       isFalse,
       reason: 'a escolha foi reaberta de fora, e o servidor tinha mudado',
     );
+    expect(state.entriesOpen, isTrue);
     expect(
-      state.oferecida?.pericope,
+      state.naRoda?.single.pericope,
       'P01',
       reason: 'a roda recarregada de fato oferece a passagem nova',
     );
@@ -102,26 +103,6 @@ void main() {
     );
   });
 
-  test('the room is thinking while the clip is still coming down', () async {
-    final harness = SalaHarness();
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    harness.voice.holdNextFetch();
-    unawaited(notifier.abrirEscolha());
-    await waitFor(
-      'a primeira fala ser buscada',
-      () => harness.voice.fetched.isNotEmpty,
-    );
-
-    expect(container.read(salaSessionProvider).voice, VoiceState.thinking);
-
-    harness.voice.finishHeldFetch();
-    await settle();
-    expect(harness.voice.played, isNotEmpty);
-  });
-
   test('leaving a passage goes back to the wheel and keeps it there', () async {
     final harness = SalaHarness();
     final container = harness.container();
@@ -130,7 +111,7 @@ void main() {
 
     await notifier.abrirEscolha();
     await settle();
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
 
@@ -152,7 +133,7 @@ void main() {
 
       await notifier.abrirEscolha();
       await settle();
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle();
 
       final state = container.read(salaSessionProvider);
@@ -215,7 +196,7 @@ void main() {
 
       await notifier.abrirEscolha();
       await theChoiceOffersAPassage(container);
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await waitFor(
         'a passagem abrir',
         () => container.read(salaSessionProvider).sessionId != null,
@@ -225,7 +206,7 @@ void main() {
         'a sala voltar à Escolha com o lugar da passagem guardado',
         () async =>
             container.read(salaSessionProvider).stage == SalaStage.escolha &&
-            container.read(salaSessionProvider).oferecida != null &&
+            container.read(salaSessionProvider).entriesOpen &&
             container.read(salaSessionProvider).voice == VoiceState.invite &&
             await harness.emAberto.of('Ruth', 'P01', 'pt') != null,
       );
@@ -233,7 +214,7 @@ void main() {
 
       harness.room.forgetTheSession(harness.room.sessionIds.single);
       harness.room.passagesThatCannotOpen = {'P01'};
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await waitFor(
         'o lugar da sessão lembrada sair do tablet',
         () async => (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null,
@@ -267,7 +248,7 @@ void main() {
 
       await notifier.abrirEscolha();
       await settle();
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle();
 
       final state = container.read(salaSessionProvider);
@@ -337,7 +318,9 @@ void main() {
       await notifier.abrirEscolha();
       await settle();
       for (var attempt = 0; attempt < 3; attempt++) {
-        notifier.entrarNaOferecida();
+        notifier.openTheEntry(
+          container.read(salaSessionProvider).naRoda!.first,
+        );
         await settle();
       }
 
@@ -390,7 +373,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
       await settle();
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle();
 
       harness.room.failHeldTurnWith = const SessionGone();
@@ -737,45 +720,6 @@ void main() {
     expect(harness.voice.assets, contains(strandedTakeAsset(testLanguage)));
   });
 
-  test(
-    'a name already on its way does not speak over where the finger went',
-    () async {
-      final harness = SalaHarness();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.abrirEscolha();
-      await settle();
-      harness.voice.played.clear();
-
-      harness.voice.holdNextFetch();
-      notifier.dizerAPassagem();
-      await waitFor(
-        'uma segunda fala ser buscada',
-        () => harness.voice.fetched.length > 1,
-      );
-
-      notifier.apontarPassagem(2);
-      harness.voice.finishHeldFetch();
-      await settle();
-
-      expect(
-        harness.voice.played,
-        isEmpty,
-        reason:
-            'a fala em curso era da P01; o dedo já estava na P03 quando ela chegou',
-      );
-      expect(container.read(salaSessionProvider).oferecida?.pericope, 'P03');
-      expect(
-        container.read(salaSessionProvider).voice,
-        VoiceState.invite,
-        reason:
-            'e não pode deixar a tela travada em "falando" sobre a passagem errada',
-      );
-    },
-  );
-
   test('a rehearsal that will not play never opens the terminei', () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
@@ -933,7 +877,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await settle();
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
     final asked = harness.room.personsAsked;
 
@@ -1099,7 +1043,7 @@ void main() {
       // that one poll, which is the only thing that reads the session between turns.
       await notifier.abrirEscolha();
       await settle();
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle(const Duration(milliseconds: 5));
       harness.room.failStateOnceWith = const SessionGone();
       await waitFor(
@@ -1338,7 +1282,9 @@ void main() {
           harness.room.chunkSpans.clear();
           antes = harness.room.replacesAsked.length;
 
-          notifier.entrarNaOferecida();
+          notifier.openTheEntry(
+            container!.read(salaSessionProvider).naRoda!.first,
+          );
           await settle();
           notifier.goEnsaio();
           notifier.ensaioTap();
@@ -1397,7 +1343,7 @@ void main() {
     // itself — the inheritance only shows when the new passage stumbles too.
     notifier.leaveThePassage();
     await settle();
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
 
     expect(
@@ -1508,7 +1454,7 @@ void main() {
 
     await notifier.abrirEscolha();
     await settle();
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
     final aberta = container.read(salaSessionProvider).sessionId;
     expect(aberta, isNotNull);
@@ -1523,7 +1469,7 @@ void main() {
     );
 
     harness.room.pericopesAsked.clear();
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
 
     expect(
@@ -1550,7 +1496,7 @@ void main() {
     // no pericope has nothing to remember.
     await notifier.abrirEscolha();
     await settle();
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
 
     notifier.goEnsaio();
@@ -1590,14 +1536,14 @@ void main() {
 
       await notifier.abrirEscolha();
       await settle();
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle();
       notifier.leaveThePassage();
       await settle();
 
       harness.room.forgetTheSession(harness.room.sessionIds.single);
       harness.room.failCreateOnceWith = const SessionGone();
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle();
 
       final state = container.read(salaSessionProvider);

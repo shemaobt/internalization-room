@@ -55,10 +55,10 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
     await notifier.abrirEscolha();
-    await settle();
+    await theChoiceOffersAPassage(container);
 
     harness.voice.roomFailsWith = const Refused(RefusalCode.notFound);
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(read().naRoda!.first);
     await waitFor(
       'a sala descansar no convite',
       () =>

@@ -250,7 +250,6 @@ class SalaSessionState {
 
   /// Passages of this book with work waiting in them, by pericope, for the resume lookup.
   final Set<String> comecadas;
-  final int aOferecer;
   final List<Trecho> btTrechos;
   final String? btFindingSegmentId;
 
@@ -340,7 +339,6 @@ class SalaSessionState {
     this.btChunkFailures = const [],
     this.naRoda,
     this.comecadas = const {},
-    this.aOferecer = 0,
     this.btTrechos = const [],
     this.btFindingSegmentId,
     this.btClipEnded = false,
@@ -371,11 +369,22 @@ class SalaSessionState {
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
 
-  Passagem? get oferecida {
-    if (wheelHalted) return null;
-    final roda = naRoda;
-    if (roda == null || aOferecer < 0 || aOferecer >= roda.length) return null;
-    return roda[aOferecer];
+  bool get entriesOpen =>
+      stage == SalaStage.escolha &&
+      naRoda != null &&
+      !wheelHalted &&
+      !needsPerson &&
+      voice == VoiceState.invite;
+
+  bool isTheEntryLeft(
+    Passagem entry, {
+    required String language,
+    required String book,
+  }) {
+    final left = leftEntry;
+    if (left == null || left.language != language) return false;
+    if (left.panorama) return entry.isPanorama && entry.book == book;
+    return !entry.isPanorama && entry.pericope == left.pericope;
   }
 
   bool get rodaPorLer => stage == SalaStage.escolha && naRoda == null;
@@ -775,7 +784,6 @@ class SalaSessionState {
     List<Passagem>? naRoda,
     Set<String>? comecadas,
     bool clearRoda = false,
-    int? aOferecer,
     List<Trecho>? btTrechos,
     String? btFindingSegmentId,
     bool clearFindingSegment = false,
@@ -838,7 +846,6 @@ class SalaSessionState {
       btChunkFailures: btChunkFailures ?? this.btChunkFailures,
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       comecadas: comecadas ?? this.comecadas,
-      aOferecer: aOferecer ?? this.aOferecer,
       btTrechos: btTrechos ?? this.btTrechos,
       btFindingSegmentId: clearFindingSegment
           ? null
