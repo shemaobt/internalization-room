@@ -145,4 +145,113 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('a sentence whose playing never ends goes on to her second line '
+      'after its own length and four seconds, not before', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    harness.voice.fixedLines.clear();
+
+    await tocar(tester, 'regravar a frase 3');
+    await tester.pump(const Duration(milliseconds: 7500));
+
+    expect(harness.voice.fixedLines, [('N6', 'pt')]);
+
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(
+      harness.voice.fixedLines,
+      [('N6', 'pt'), ('N7', 'pt')],
+      reason:
+          'um player que não terminava deixava a regravação parada para sempre',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('while a sentence is being recorded again only its own row is '
+      'lit, and that button closes it with nothing sent', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await tocar(tester, 'regravar a frase 3');
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(_acesa(tester, 'regravar a frase 1'), isFalse);
+    expect(_acesa(tester, 'regravar a frase 3'), isTrue);
+    harness.voice.fixedLines.clear();
+
+    await tocar(tester, 'regravar a frase 3');
+
+    expect(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.text('gravem a frase inteira'),
+      ),
+      findsNothing,
+      reason:
+          'a regravação começada não tinha saída a não ser deixar a passagem',
+    );
+    expect(harness.voice.fixedLines, isEmpty);
+    expect(_acesa(tester, 'regravar a frase 1'), isTrue);
+    closeTheRoom(container);
+  });
+
+  Future<void> regravarAte(
+    WidgetTester tester,
+    SalaHarness harness,
+    int n,
+  ) async {
+    await tocar(tester, 'regravar a frase $n');
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    await _passo(tester);
+  }
+
+  testWidgets('a second re-record in the same visit says nothing and still '
+      'plays the sentence, with the hint standing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await regravarAte(tester, harness, 3);
+    await tocar(tester, 'regravar a frase 3');
+    harness.voice.fixedLines.clear();
+    final tocadas = harness.playback.ranges.length;
+
+    await regravarAte(tester, harness, 2);
+
+    expect(
+      harness.voice.fixedLines,
+      isEmpty,
+      reason: 'as duas falas voltavam em cada regravação da mesma visita',
+    );
+    expect(harness.playback.ranges.skip(tocadas), ['4000-10000']);
+    expect(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.text('gravem a frase inteira'),
+      ),
+      findsOneWidget,
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a new visit to the telling says her two lines again', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await regravarAte(tester, harness, 3);
+    await tocar(tester, 'regravar a frase 3');
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.goEnsaio();
+    await _passo(tester);
+    notifier.startRetro();
+    await _passo(tester);
+    harness.voice.fixedLines.clear();
+
+    await regravarAte(tester, harness, 3);
+
+    expect(harness.voice.fixedLines, [('N6', 'pt'), ('N7', 'pt')]);
+    closeTheRoom(container);
+  });
 }

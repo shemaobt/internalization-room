@@ -179,7 +179,11 @@ class RetroView extends ConsumerWidget {
                   n: trecho.frase,
                 )
               : null,
-          onRegravar: () => notifier.regravarAFrase(trecho),
+          onRegravar:
+              session.btRegravacao == null ||
+                  session.btRegravacao?.frase == trecho.frase
+              ? () => notifier.regravarAFrase(trecho)
+              : null,
         ),
     ];
   }

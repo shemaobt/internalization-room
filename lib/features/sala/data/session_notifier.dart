@@ -136,6 +136,10 @@ final clipGraceProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 10),
 );
 
+final sentenceGraceProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 4),
+);
+
 final playbackCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(minutes: 6),
 );
@@ -2717,6 +2721,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _pickTheTellingBackUp(BackTranslationProgress told) {
     _leaveTheStepFor(const Retro());
     _arriveAt(const TheBackTranslationOpened());
+    _regravouNestaVisita = false;
     state = state.copyWith(
       awaitingTheGuide: false,
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
@@ -4607,6 +4612,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     _rememberWhereTheyAre(const Retro());
     _arriveAt(const TheBackTranslationOpened());
+    _regravouNestaVisita = false;
     state = state.copyWith(
       awaitingTheGuide: false,
       btPhase: BtPhase.playing,
@@ -5454,28 +5460,61 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _regravarAFrase(Trecho trecho) async {
     final frase = trecho.frase;
     if (frase == null || !state.fraseRegravavel(trecho)) return;
+    final aberta = state.btRegravacao;
+    if (aberta != null) {
+      if (aberta.frase == frase) _fecharARegravacao();
+      return;
+    }
     final generation = _waitOnTheGeneration;
+    final vez = ++_regravacoes;
+    bool largada() => _abandoned(generation) || vez != _regravacoes;
+    final primeira = !_regravouNestaVisita;
     _silenceTheRoom();
     state = state.copyWith(
       btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.ouvindo),
     );
-    await _sayALine(
-      LineKind.guide,
-      fixedLine: (name: sentenceListenLine, language: _inTheSessionsLanguage),
-    );
-    if (_abandoned(generation)) return;
+    if (primeira) {
+      await _sayALine(
+        LineKind.guide,
+        fixedLine: (name: sentenceListenLine, language: _inTheSessionsLanguage),
+      );
+    }
+    if (largada()) return;
     final ouvida = Completer<void>();
-    _tocarOTrecho(trecho, depois: ouvida.complete);
-    await ouvida.future;
-    if (_abandoned(generation)) return;
-    await _sayALine(
-      LineKind.guide,
-      fixedLine: (name: sentenceRecordLine, language: _inTheSessionsLanguage),
+    void ouviu() {
+      if (!ouvida.isCompleted) ouvida.complete();
+    }
+
+    _tocarOTrecho(trecho, depois: ouviu);
+    final teto = Timer(
+      trecho.to - trecho.from + ref.read(sentenceGraceProvider),
+      ouviu,
     );
-    if (_abandoned(generation)) return;
+    await ouvida.future;
+    teto.cancel();
+    if (largada()) return;
+    _silenceTheRoom();
+    if (primeira) {
+      await _sayALine(
+        LineKind.guide,
+        fixedLine: (name: sentenceRecordLine, language: _inTheSessionsLanguage),
+      );
+    }
+    if (largada()) return;
+    _regravouNestaVisita = true;
     state = state.copyWith(
       btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.pronta),
     );
+  }
+
+  int _regravacoes = 0;
+
+  bool _regravouNestaVisita = false;
+
+  void _fecharARegravacao() {
+    _regravacoes++;
+    _silenceTheRoom();
+    state = state.copyWith(clearBtRegravacao: true);
   }
 
   void retroTap() => _gesture(() => _retroTap());
