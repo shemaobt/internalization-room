@@ -2419,6 +2419,23 @@ class FakeRoom implements RoomRepository {
     return failHeardWith ?? const Answered<void>(null);
   }
 
+  final List<String> restartsAsked = [];
+
+  RoomFailure? failRestartWith;
+
+  @override
+  Future<RoomAnswer<List<SegmentView>>> startTheTranslationOver(
+    String sessionId,
+  ) async {
+    restartsAsked.add(sessionId);
+    final refusal = failRestartWith;
+    if (refusal != null) return refusal;
+    _retired.addAll(segmentIds);
+    segments.clear();
+    retroSoFar = null;
+    return Answered(_numbered);
+  }
+
   /// Every session the team's approval was sent for, in order.
   final List<String> releasesAsked = [];
 

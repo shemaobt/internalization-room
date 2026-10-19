@@ -127,6 +127,8 @@ const folgaDoFimDaParte = Duration(milliseconds: 750);
 /// Where the telling-back is, step by step.
 enum BtPhase { playing, capturing, thinking, findings, conferida }
 
+enum BtRecomeco { armado, pronto }
+
 /// One stretch the team told back: a slice of one rehearsal recording.
 ///
 /// [from] and [to] are relative to [takeId]'s own file, never to the concatenated
@@ -282,6 +284,7 @@ class SalaSessionState {
   final Trecho? btTrechoTraduzidoDeNovo;
   final int? btContaEscolhida;
   final int btPass;
+  final BtRecomeco? btRecomeco;
   final int unsentTakes;
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
@@ -368,6 +371,7 @@ class SalaSessionState {
     this.btTrechoTraduzidoDeNovo,
     this.btContaEscolhida,
     this.btPass = 1,
+    this.btRecomeco,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
@@ -833,6 +837,8 @@ class SalaSessionState {
     int? btContaEscolhida,
     bool clearContaEscolhida = false,
     int? btPass,
+    BtRecomeco? btRecomeco,
+    bool clearRecomeco = false,
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
@@ -904,6 +910,7 @@ class SalaSessionState {
           ? null
           : (btContaEscolhida ?? this.btContaEscolhida),
       btPass: btPass ?? this.btPass,
+      btRecomeco: clearRecomeco ? null : (btRecomeco ?? this.btRecomeco),
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,

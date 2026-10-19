@@ -1203,6 +1203,50 @@ void main() {
     },
   );
 
+  test(
+    'starting the translation over is one post to the room, and its answer is the frases left standing',
+    () async {
+      http.BaseRequest? seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response(
+            jsonEncode({
+              'session_id': 'sessao-1',
+              'segments': [
+                {
+                  'segment_id': 'trecho-9',
+                  'take_id': 'gravacao-1',
+                  'starts_ms': 0,
+                  'ends_ms': 4000,
+                  'told': false,
+                  'frase': null,
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.startTheTranslationOver('sessao-1');
+
+      expect(
+        seen?.url.path,
+        '/api/internalization-room/sessions/sessao-1/back-translation/restart',
+      );
+      expect(seen?.method, 'POST');
+      expect(
+        [for (final view in _value(answer)) view.segmentId],
+        ['trecho-9'],
+        reason:
+            'a tela recomeçada lê as frases que a sala deixou de pé, nunca '
+            'apaga por conta própria',
+      );
+    },
+  );
+
   group('a aprovação da equipe', () {
     const aparelho = 'aparelho-de-teste';
 

@@ -174,6 +174,14 @@ final fimLingerProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 14),
 );
 
+final restartWakeProvider = Provider<Duration>(
+  (ref) => const Duration(milliseconds: 600),
+);
+
+final restartLapseProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 6),
+);
+
 final roomRetryBackoffProvider = Provider<List<Duration>>(
   (ref) => const [
     Duration(seconds: 5),
@@ -5064,6 +5072,56 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void ouvirOTrechoPendente() => _gesture(() => _ouvirOTrechoPendente());
+
+  void recomecarATraducao() => _gesture(() => _recomecarATraducao());
+
+  void _recomecarATraducao() {
+    final sessionId = state.sessionId;
+    if (state.station is! Retro || sessionId == null) return;
+    if (state.btRecomeco == null) {
+      state = state.copyWith(btRecomeco: BtRecomeco.armado);
+      return;
+    }
+    state = state.copyWith(clearRecomeco: true);
+    _handOff(_recomecarNaSala(sessionId));
+  }
+
+  Future<void> _recomecarNaSala(String sessionId) async {
+    final generation = _waitOnTheGeneration;
+    final antes = state.btPhase;
+    _silenceTheRoom();
+    state = state.copyWith(btPhase: BtPhase.thinking);
+    final recomecada = await _room.startTheTranslationOver(sessionId);
+    if (_abandoned(generation)) return;
+    switch (recomecada) {
+      case Answered(value: final segmentos):
+        _clearAll();
+        _descartarATraducaoPendente();
+        state = state.copyWith(
+          btTrechos: _trechosFrom(segmentos),
+          btFindings: const [],
+          btConferindo: false,
+          clearTrechoTraduzidoDeNovo: true,
+          btChunkFailures: const [],
+          btClipEnded: false,
+        );
+        final agora = _generation;
+        await _sayALine(
+          LineKind.guide,
+          fixedLine: (name: tellLine, language: _inTheSessionsLanguage),
+        ).catchError((_) => false, test: (error) => error is RoomFailure);
+        if (_abandoned(agora)) return;
+        state = state.copyWith(btPhase: BtPhase.playing);
+        await _playFromTheUntoldGround(agora);
+      case final RoomFailure failure:
+        state = state.copyWith(btPhase: antes);
+        _decideAt(
+          failure,
+          door: Door.stretches,
+          rule: RefusalRule.passesUnlessItStops,
+        );
+    }
+  }
 
   void _ouvirOTrechoPendente() {
     if (state.btContaEscolhida != null) {

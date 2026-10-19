@@ -611,6 +611,18 @@ class RoomRepository {
         asksForTheSession: false,
       );
 
+  Future<RoomAnswer<List<SegmentView>>> startTheTranslationOver(
+    String sessionId,
+  ) => _room.ask(
+    () => _client.post(
+      _uri('/sessions/$sessionId/back-translation/restart'),
+      headers: _whoWeAre,
+    ),
+    timeout: _stateTimeout,
+    read: readJson(SegmentView.listFrom),
+    asksForTheSession: true,
+  );
+
   Future<RoomAnswer<String>> fixedLineAddress(
     String line, {
     required String language,
