@@ -662,7 +662,10 @@ class SalaSessionState {
       btClipEnded && _btParteContada && btTraducaoPendente == null;
 
   bool get canAdvanceToTheVerdict =>
-      canFinishBackTranslation && btContadaInteira && btContaEscolhida == null;
+      canFinishBackTranslation &&
+      btContadaInteira &&
+      btContaEscolhida == null &&
+      btTrechos.any((trecho) => trecho.contado);
 
   bool get btRestoDepoisDoCorte {
     if (!btCortado) return false;
