@@ -127,6 +127,23 @@ const folgaDoFimDaParte = Duration(milliseconds: 750);
 /// Where the telling-back is, step by step.
 enum BtPhase { playing, capturing, thinking, findings, conferida }
 
+enum PassoDaRegravacao {
+  ouvindo,
+  pronta,
+  gravando,
+  revendo,
+  enviando,
+  longaDemais,
+}
+
+class RegravacaoDaFrase {
+  final int frase;
+  final PassoDaRegravacao passo;
+  final String? path;
+
+  const RegravacaoDaFrase(this.frase, this.passo, {this.path});
+}
+
 /// One stretch the team told back: a slice of one rehearsal recording.
 ///
 /// [from] and [to] are relative to [takeId]'s own file, never to the concatenated
@@ -282,6 +299,9 @@ class SalaSessionState {
   final Trecho? btTrechoTraduzidoDeNovo;
   final int? btContaEscolhida;
   final int btPass;
+  final RegravacaoDaFrase? btRegravacao;
+  final String? btFraseQueAguarda;
+  final String? btFraseGuardada;
   final int unsentTakes;
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
@@ -368,6 +388,9 @@ class SalaSessionState {
     this.btTrechoTraduzidoDeNovo,
     this.btContaEscolhida,
     this.btPass = 1,
+    this.btRegravacao,
+    this.btFraseQueAguarda,
+    this.btFraseGuardada,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
@@ -774,6 +797,14 @@ class SalaSessionState {
   /// way to explain itself in a room with no written word. It lives here rather than on
   /// the screen so the affordance and the verb it opens read the same fact; the verb keeps
   /// its own guard as well, because it is reachable from more than this one press.
+  bool fraseRegravavel(Trecho trecho) =>
+      trecho.frase != null &&
+      !needsPerson &&
+      !offline &&
+      trecho.parte >= 0 &&
+      trecho.parte < partes.length &&
+      partes[trecho.parte].path.endsWith('.wav');
+
   bool get canListenAtConferida =>
       btPhase == BtPhase.conferida && partes.isNotEmpty;
 
@@ -833,6 +864,12 @@ class SalaSessionState {
     int? btContaEscolhida,
     bool clearContaEscolhida = false,
     int? btPass,
+    RegravacaoDaFrase? btRegravacao,
+    bool clearBtRegravacao = false,
+    String? btFraseQueAguarda,
+    bool clearBtFraseQueAguarda = false,
+    String? btFraseGuardada,
+    bool clearBtFraseGuardada = false,
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
@@ -904,6 +941,15 @@ class SalaSessionState {
           ? null
           : (btContaEscolhida ?? this.btContaEscolhida),
       btPass: btPass ?? this.btPass,
+      btRegravacao: clearBtRegravacao
+          ? null
+          : (btRegravacao ?? this.btRegravacao),
+      btFraseQueAguarda: clearBtFraseQueAguarda
+          ? null
+          : (btFraseQueAguarda ?? this.btFraseQueAguarda),
+      btFraseGuardada: clearBtFraseGuardada
+          ? null
+          : (btFraseGuardada ?? this.btFraseGuardada),
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,

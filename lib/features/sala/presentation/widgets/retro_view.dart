@@ -170,14 +170,16 @@ class RetroView extends ConsumerWidget {
           },
           nuance: _markOn(trecho.frase, session) == BtFindingKind.nuance,
           regravar:
-              _conferida(session) &&
-                  _markOn(trecho.frase, session) == BtFindingKind.nuance
+              session.fraseRegravavel(trecho) &&
+                  (session.btPhase != BtPhase.conferida ||
+                      _markOn(trecho.frase, session) == BtFindingKind.nuance)
               ? sceneRehearsalLabelFor(
                   'rerecordFrase',
                   language,
                   n: trecho.frase,
                 )
               : null,
+          onRegravar: () => notifier.regravarAFrase(trecho),
         ),
     ];
   }
@@ -188,6 +190,10 @@ class RetroView extends ConsumerWidget {
     }
     if (session.wordlessTelling) {
       return retroLabelFor('notUnderstood', language);
+    }
+    if (session.btRegravacao?.passo
+        case PassoDaRegravacao.pronta || PassoDaRegravacao.gravando) {
+      return sceneRehearsalLabelFor('respeakHint', language);
     }
     if (_conferida(session)) {
       return '✓ ${retroLabelFor('translated', language)}';

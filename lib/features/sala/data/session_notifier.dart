@@ -5448,6 +5448,36 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoEnd = alcancado;
   }
 
+  void regravarAFrase(Trecho trecho) =>
+      _gesture(() => _handOff(_regravarAFrase(trecho)));
+
+  Future<void> _regravarAFrase(Trecho trecho) async {
+    final frase = trecho.frase;
+    if (frase == null || !state.fraseRegravavel(trecho)) return;
+    final generation = _waitOnTheGeneration;
+    _silenceTheRoom();
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.ouvindo),
+    );
+    await _sayALine(
+      LineKind.guide,
+      fixedLine: (name: sentenceListenLine, language: _inTheSessionsLanguage),
+    );
+    if (_abandoned(generation)) return;
+    final ouvida = Completer<void>();
+    _tocarOTrecho(trecho, depois: ouvida.complete);
+    await ouvida.future;
+    if (_abandoned(generation)) return;
+    await _sayALine(
+      LineKind.guide,
+      fixedLine: (name: sentenceRecordLine, language: _inTheSessionsLanguage),
+    );
+    if (_abandoned(generation)) return;
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.pronta),
+    );
+  }
+
   void retroTap() => _gesture(() => _retroTap());
 
   void _retroTap() {
