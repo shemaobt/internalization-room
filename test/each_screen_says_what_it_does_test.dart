@@ -102,7 +102,7 @@ void main() {
       ..room.peerCue = true;
     final container = await _pump(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
-    notifier.goConversa();
+    notifier.goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
     expect(byLabel(teamTalk), findsOneWidget);

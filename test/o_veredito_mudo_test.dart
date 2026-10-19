@@ -11,7 +11,7 @@ const _verdictUrl = '/api/internalization-room/voice/veredito';
 Future<ProviderContainer> _inConversa(SalaHarness harness) async {
   final container = harness.container();
   addTearDown(container.dispose);
-  await container.read(salaSessionProvider.notifier).goConversa();
+  await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
   await settle();
   return container;
 }

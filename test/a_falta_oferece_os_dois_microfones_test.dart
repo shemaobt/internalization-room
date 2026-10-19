@@ -35,7 +35,7 @@ Future<ProviderContainer> pumpToPergunta(
   await tester.pump(const Duration(milliseconds: 100));
 
   final n = container.read(salaSessionProvider.notifier);
-  await n.goConversa();
+  await n.goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 200));
   n.goEnsaio();
   n.ensaioTap();

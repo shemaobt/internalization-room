@@ -126,7 +126,7 @@ Future<_Room> _inConversa(
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final room = _Room(tester, harness, container, language);
-  unawaited(room.sala.goConversa());
+  unawaited(room.sala.goConversa(book: 'Ruth'));
   await room.until(
     'a conversa abrir no convite',
     () =>

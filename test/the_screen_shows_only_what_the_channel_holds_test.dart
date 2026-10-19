@@ -29,7 +29,7 @@ Future<ProviderContainer> _atTheConferida(
   harness.room.verdictChecked = true;
   final container = await _pump(tester, harness);
   final sala = container.read(salaSessionProvider.notifier);
-  await sala.goConversa(pericope: 'P01');
+  await sala.goConversa(book: 'Ruth', pericope: 'P01');
   await tester.pump(const Duration(milliseconds: 200));
   sala.goEnsaio();
   sala.ensaioTap();
@@ -101,7 +101,7 @@ void main() {
     final container = await _pump(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
     final enviar = byLabel(circleLabelFor('listening', testLanguage));
-    await sala.goConversa();
+    await sala.goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 300));
 
     sala.handTap();

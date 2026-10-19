@@ -55,7 +55,7 @@ void main() {
       await notifier.abrirEscolha();
       await settle();
       fila.holdTheNextReading();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
         'a retomada pousar na retro com a contagem ainda presa',
         () => read().stage == SalaStage.retro && fila.readingHeld,

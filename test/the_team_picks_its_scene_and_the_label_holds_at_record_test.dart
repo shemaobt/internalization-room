@@ -185,7 +185,7 @@ Future<_Room> _theScreenOpens(
   final room = _Room(tester, harness, container);
   await room.sala.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
-  unawaited(room.sala.goConversa(pericope: 'P02'));
+  unawaited(room.sala.goConversa(book: 'Ruth', pericope: 'P02'));
   await room.pumpUntil(
     'a sala se calar no convite',
     () =>

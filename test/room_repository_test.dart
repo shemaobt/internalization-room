@@ -405,6 +405,46 @@ void main() {
     );
   });
 
+  test(
+    'the room\'s books are read from GET /books and answered in its order',
+    () async {
+      late http.BaseRequest seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response('{"books": ["Ruth", "Esther", "Jonah"]}', 200);
+        }),
+      );
+      addTearDown(repository.dispose);
+      final refusing = RoomRepository(
+        client: MockClient((_) async => http.Response('{}', 404)),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(refusing.dispose);
+
+      final answer = await repository.servedBooks();
+
+      expect(seen.method, 'GET');
+      expect(
+        seen.url.toString(),
+        'http://sala.local/api/internalization-room/books',
+      );
+      expect(
+        answer,
+        isA<Answered<List<String>>>().having((read) => read.value, 'books', [
+          'Ruth',
+          'Esther',
+          'Jonah',
+        ]),
+      );
+      expect(
+        await refusing.servedBooks(),
+        _refusedWith(RefusalCode.notFound),
+        reason: 'like the passages door, the books door names no session',
+      );
+    },
+  );
+
   test('the panorama is asked for by name, a plain session is not', () async {
     final asked = <String>[];
     final types = <String>[];
@@ -431,14 +471,14 @@ void main() {
     );
     addTearDown(repository.dispose);
 
-    await repository.createSession(pericope: 'OV', language: 'pt');
+    await repository.createSession(pericope: 'OV-Jonah', language: 'pt');
     await repository.createSession(afterSession: 'panorama-1', language: 'pt');
     await repository.createSession(language: 'en');
 
     expect(
       asked,
       [
-        '{"pericope":"OV","language":"pt"}',
+        '{"pericope":"OV-Jonah","language":"pt"}',
         '{"after_session":"panorama-1","language":"pt"}',
         '{"language":"en"}',
       ],
@@ -1364,6 +1404,7 @@ void main() {
       final notAboutASession =
           <String, Future<Object?> Function(RoomRepository)>{
             'passagesOf': (room) => room.passagesOf('Ruth', language: 'pt'),
+            'servedBooks': (room) => room.servedBooks(),
             'collectTheCredential': (room) =>
                 room.collectTheCredential('aparelho-1'),
             'askForACode': (room) => room.askForACode('aparelho-1'),
@@ -1528,6 +1569,7 @@ void main() {
           final sessionless = <String, Future<RoomAnswer<Object?>> Function()>{
             'passagesOf': () =>
                 answering(404).passagesOf('Ruth', language: 'pt'),
+            'servedBooks': () => answering(404).servedBooks(),
             'collectTheCredential': () =>
                 answering(404).collectTheCredential('aparelho-1'),
             'askForACode': () => answering(404).askForACode('aparelho-1'),

@@ -16,7 +16,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.goConversa();
+    await notifier.goConversa(book: 'Ruth');
     await settle();
     notifier.goEnsaio();
     await settle();
@@ -69,7 +69,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.goConversa();
+    await notifier.goConversa(book: 'Ruth');
     await settle();
     notifier.goEnsaio();
     notifier.ensaioTap();

@@ -151,7 +151,7 @@ Future<(ProviderContainer, SalaSessionState Function())> _reopensOnPartTwoOfTwo(
   SalaSessionState read() => container.read(salaSessionProvider);
   await sala.abrirEscolha();
   await settle();
-  await sala.goConversa(pericope: 'P01');
+  await sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a primeira parte entrar no ar no seu cursor',
     () =>
@@ -294,13 +294,13 @@ void main() {
     SalaSessionState read() => container.read(salaSessionProvider);
     await sala.abrirEscolha();
     await settle();
-    await sala.goConversa(pericope: 'P01');
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
     harness.voice.holdNextLine();
     sala.handTap();
     await waitFor('a resposta tocar', () => read().playingReplyId != null);
 
-    unawaited(sala.goConversa(pericope: 'P01'));
+    unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
     await settle();
     harness.voice.finishHeldLine();
     await settle();
@@ -367,7 +367,7 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
     final it = Sala(harness, container);
-    await it.sala.goConversa(pericope: 'P01');
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor('a sala abrir', () => it.estado.sessionId != null);
     it.sala.goEnsaio();
     await gravarUmaParteDoEnsaio(it);
@@ -497,7 +497,7 @@ void main() {
       final bloqueado = micBlockedAsset(testLanguage);
       await sala.abrirEscolha();
       await settle();
-      unawaited(sala.goConversa(pericope: 'P01'));
+      unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
       await waitFor('a sala parar', () => read().needsPerson);
       sala.sayTheMicIsBlocked();
       outbox!.gaveUp = true;

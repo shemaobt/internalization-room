@@ -21,7 +21,9 @@ void main() {
       addTearDown(container.dispose);
       int lit() => container.read(salaSessionProvider).coverage.beadsFilled;
 
-      final opening = container.read(salaSessionProvider.notifier).goConversa();
+      final opening = container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       await waitFor(
         'a fala do Guia começar',
         () => container.read(salaSessionProvider).voice == VoiceState.speaking,
@@ -173,7 +175,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState shown() => container.read(salaSessionProvider);
 
-      unawaited(notifier.goConversa(pericope: 'P01'));
+      unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
       await waitFor(
         'a fala do Guia começar na P01',
         () => shown().voice == VoiceState.speaking,
@@ -200,7 +202,7 @@ void main() {
       );
 
       harness.room.turnIdInResponse = 'turno-2';
-      await notifier.goConversa(pericope: 'P02');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P02');
       await waitFor(
         'a abertura da P02 ser ouvida',
         () =>
@@ -414,7 +416,9 @@ void main() {
       int fetches() =>
           harness.room.calls.where((call) => call == 'fetchState').length;
 
-      final opening = container.read(salaSessionProvider.notifier).goConversa();
+      final opening = container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       await waitFor(
         'a fala do Guia começar',
         () => container.read(salaSessionProvider).voice == VoiceState.speaking,

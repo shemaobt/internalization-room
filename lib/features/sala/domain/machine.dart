@@ -284,7 +284,9 @@ final class TheRoomStartedOver extends StationEvent {
 }
 
 final class ThePanoramaChosen extends StationEvent {
-  const ThePanoramaChosen();
+  final String id;
+
+  const ThePanoramaChosen(this.id);
 }
 
 final class TheSceneRehearsalOpened extends StationEvent {

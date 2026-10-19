@@ -33,7 +33,7 @@ Future<ProviderContainer> _pumpInConversa(
   final container = await pumpSala(tester, harness);
   await container
       .read(salaSessionProvider.notifier)
-      .goConversa(pericope: 'P01');
+      .goConversa(book: 'Ruth', pericope: 'P01');
   await tester.pump(const Duration(milliseconds: 300));
   await tester.pump(const Duration(seconds: 2));
   return container;
@@ -284,7 +284,7 @@ void main() {
       await settle();
       expect(read().voice, VoiceState.listening);
 
-      await notifier.goConversa(pericope: 'P02');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P02');
       await waitFor('P02 abrir', () => read().voice == VoiceState.invite);
       notifier.conversaTap();
       await settle();

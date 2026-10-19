@@ -58,7 +58,7 @@ Future<ProviderContainer> _reopensInto(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await settle();
-  await notifier.goConversa(pericope: 'P01');
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   await settle();
   return container;
 }
@@ -339,7 +339,7 @@ void main() {
     // In the new passage the call for a person never lands, so nobody was told and there
     // is nothing to watch.
     harness.room.askForAPersonFailsWith = const Refused('UNAUTHORIZED');
-    await notifier.goConversa(pericope: 'P02');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P02');
     await settle();
     for (var i = 0; i < 3; i++) {
       await _aTurn(notifier);

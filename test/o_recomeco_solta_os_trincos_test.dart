@@ -19,7 +19,7 @@ class _Sala {
 
   /// Enter a passage the wheel offers, and wait for the circle to invite the team.
   Future<void> entrar(String pericope) async {
-    await sala.goConversa(pericope: pericope);
+    await sala.goConversa(book: 'Ruth', pericope: pericope);
     await waitFor(
       'a passagem $pericope abrir para a equipe',
       () =>

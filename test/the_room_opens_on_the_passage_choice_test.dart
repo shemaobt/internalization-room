@@ -88,7 +88,7 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
         'the passage to open',
         () => container.read(salaSessionProvider).sessionId != null,

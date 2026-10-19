@@ -32,7 +32,7 @@ Future<ProviderContainer> _inRetro(
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa();
+  await notifier.goConversa(book: 'Ruth');
   await settle();
   notifier.goEnsaio();
   for (var parte = 0; parte < partes; parte++) {

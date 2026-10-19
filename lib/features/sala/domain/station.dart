@@ -15,8 +15,7 @@ sealed class Station {
 
   /// The Station a stored resume point names.
   factory Station.stored(SalaStage stage) => switch (stage) {
-    SalaStage.panorama => const Panorama(),
-    SalaStage.escolha => const Menu(),
+    SalaStage.escolha || SalaStage.panorama => const Menu(),
     SalaStage.conversa => const Canvas(),
     SalaStage.ensaio => const Ensaio(),
     SalaStage.retro => const Retro(),

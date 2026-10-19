@@ -132,7 +132,7 @@ Future<ProviderContainer> entrarNaTraducao(
   await tester.pump(const Duration(milliseconds: 100));
 
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa(pericope: pericope);
+  await notifier.goConversa(book: 'Ruth', pericope: pericope);
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
@@ -482,7 +482,9 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await tester.runAsync(notifier.abrirEscolha);
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.runAsync(() => notifier.goConversa(pericope: 'P01'));
+    await tester.runAsync(
+      () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+    );
     await tester.pump(const Duration(milliseconds: 600));
     expect(contas(tester), ['solid', 'translucent com anel']);
 
@@ -678,7 +680,9 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await tester.runAsync(notifier.abrirEscolha);
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.runAsync(() => notifier.goConversa(pericope: 'P01'));
+    await tester.runAsync(
+      () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+    );
     await tester.pump(const Duration(milliseconds: 600));
     return container;
   }
@@ -906,7 +910,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
     final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 200));
     notifier.goEnsaio();
     notifier.ensaioTap();

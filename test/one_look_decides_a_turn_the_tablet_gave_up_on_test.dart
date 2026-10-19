@@ -263,7 +263,7 @@ void main() {
       final sala = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
-      unawaited(sala.goConversa(pericope: 'P01'));
+      unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
       await waitFor(
         'a abertura sair',
         () => harness.room.turnIdsAsked.length == 1,
@@ -297,7 +297,7 @@ void main() {
       final sala = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
-      unawaited(sala.goConversa(pericope: 'P01'));
+      unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
       await waitFor(
         'a abertura sair',
         () => harness.room.turnIdsAsked.length == 1,

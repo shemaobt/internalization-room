@@ -50,7 +50,7 @@ void main() {
       final sala = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
-      await sala.goConversa(pericope: 'P01');
+      await sala.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       sala.goEnsaio();
       sala.ensaioTap();
@@ -69,7 +69,7 @@ void main() {
         () => read().stage == SalaStage.escolha && read().naRoda != null,
       );
 
-      await sala.goConversa(pericope: 'P02');
+      await sala.goConversa(book: 'Ruth', pericope: 'P02');
       await waitFor(
         'a P02 abrir',
         () => read().stage == SalaStage.conversa && read().sessionId != null,

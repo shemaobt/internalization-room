@@ -119,7 +119,7 @@ Future<_Retomada> _reabrir(
   // Not awaited: a room that keeps the tablet waiting — a held measurement, a clip
   // that never lands — is a case these tests have to be able to look at while it is
   // still waiting. Every one of them reads the room through `waitFor` anyway.
-  unawaited(sala.goConversa(pericope: 'P01'));
+  unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
   await settle();
   return _Retomada(harness, container, nomeados, jsonEncode(linha.toJson()));
 }
@@ -132,7 +132,7 @@ Future<_Retomada> _reabrirDeNovo(_Retomada antes) async {
   final sala = container.read(salaSessionProvider.notifier);
   await sala.abrirEscolha();
   await settle();
-  unawaited(sala.goConversa(pericope: 'P01'));
+  unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
   await settle();
   return _Retomada(antes.harness, container, antes.nomeados, antes.linhaAntes);
 }

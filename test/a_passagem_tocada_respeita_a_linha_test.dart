@@ -22,12 +22,17 @@ const _daLinha = 'sessao-antiga';
 const _parte = Duration(seconds: 10);
 
 const _panorama = Passagem(
-  pericope: 'panorama',
+  pericope: 'OV-Ruth',
   audioUrl: '/voice/panorama',
   kind: PassagemKind.panorama,
+  book: 'Ruth',
 );
-const _p01 = Passagem(pericope: 'P01', audioUrl: '/voice/p01');
-const _p02 = Passagem(pericope: _passagem, audioUrl: '/voice/p02');
+const _p01 = Passagem(pericope: 'P01', audioUrl: '/voice/p01', book: 'Ruth');
+const _p02 = Passagem(
+  pericope: _passagem,
+  audioUrl: '/voice/p02',
+  book: 'Ruth',
+);
 
 /// What the room hands back of the telling-back the team had already done.
 const _contado = BackTranslationProgress(

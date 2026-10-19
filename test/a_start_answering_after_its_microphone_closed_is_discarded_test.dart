@@ -63,7 +63,7 @@ Future<ProviderContainer> _inTheRehearsalWithAWarning(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await settle();
-  await notifier.goConversa(pericope: 'P01');
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   await settle();
   await waitFor(
     'o aviso chegar',
@@ -164,7 +164,7 @@ void main() {
       harness.recorder.holdNextStart();
       notifier.conversaTap();
       await settle();
-      await notifier.goConversa(pericope: 'P02');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P02');
       await waitFor('P02 abrir', () => read().voice == VoiceState.invite);
       final soundsBefore = harness.sounds.length;
       final turnsBefore = harness.room.turnsSent;
@@ -291,7 +291,7 @@ void main() {
     harness.recorder.holdNextStart();
     notifier.ensaioTap();
     await settle();
-    await notifier.goConversa(pericope: 'P02');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P02');
     await waitFor('P02 abrir', () => read().voice == VoiceState.invite);
     notifier.goEnsaio();
     harness.recorder.startThrows = true;
@@ -333,7 +333,7 @@ void main() {
     harness.recorder.holdNextStart();
     notifier.ensaioTap();
     await settle();
-    await notifier.goConversa(pericope: 'P02');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P02');
     await waitFor('P02 abrir', () => read().voice == VoiceState.invite);
     harness.recorder.finishStart();
     await settle();

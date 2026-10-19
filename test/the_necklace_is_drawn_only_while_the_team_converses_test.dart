@@ -54,7 +54,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       harness.room.holdNextCreate();
-      final entering = notifier.goConversa(pericope: 'P01');
+      final entering = notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await tester.pump(const Duration(milliseconds: 100));
       expect(harness.room.createHeld, isTrue);
 

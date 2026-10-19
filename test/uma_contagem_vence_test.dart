@@ -16,7 +16,7 @@ Future<({ProviderContainer container, FakeTakeQueue fila})> _inASession(
   addTearDown(container.dispose);
   await container
       .read(salaSessionProvider.notifier)
-      .goConversa(pericope: 'P01');
+      .goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a sala abrir uma sessão',
     () => container.read(salaSessionProvider).sessionId != null,
@@ -98,7 +98,7 @@ void main() {
     expect(read().unsentTakes, 2);
 
     harness.network.reachable = false;
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor('a sala perceber que está sem sala', () => read().offline);
 
     harness.network.reachable = true;

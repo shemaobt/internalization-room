@@ -625,7 +625,7 @@ void main() {
       'a roda dizer que esta passagem tem trabalho parado',
       () => it.estado.comecadas.contains('P01'),
     );
-    await it.sala.goConversa(pericope: 'P01');
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor(
       'a equipe voltar ao ensaio',
       () => it.estado.stage == SalaStage.ensaio,
@@ -669,7 +669,7 @@ void main() {
       'a roda dizer que esta passagem tem trabalho parado',
       () => it.estado.comecadas.contains('P01'),
     );
-    await it.sala.goConversa(pericope: 'P01');
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor(
       'a equipe voltar ao ensaio',
       () => it.estado.stage == SalaStage.ensaio,
@@ -755,7 +755,7 @@ void main() {
       'a roda dizer que esta passagem tem trabalho parado',
       () => it.estado.comecadas.contains('P01'),
     );
-    await it.sala.goConversa(pericope: 'P01');
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor(
       'a tradução ser retomada',
       () => it.estado.stage == SalaStage.retro,
@@ -994,7 +994,7 @@ void main() {
         'a roda dizer que há trabalho parado',
         () => it.estado.comecadas.contains('P01'),
       );
-      await it.sala.goConversa(pericope: 'P01');
+      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
         'a tradução ser retomada',
         () => it.estado.stage == SalaStage.retro,
@@ -1379,7 +1379,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await tester.pump(const Duration(milliseconds: 200));
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
@@ -1495,7 +1495,7 @@ Future<_Conferida> _ateAConferida(
   await tester.pump(const Duration(milliseconds: 100));
 
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa(pericope: 'P01');
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));

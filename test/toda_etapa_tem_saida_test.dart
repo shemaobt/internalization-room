@@ -89,7 +89,7 @@ Future<void> _standIn(
     return;
   }
 
-  await notifier.goConversa(pericope: 'P01');
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor('a conversa abrir', () => read().sessionId != null);
   if (stage == SalaStage.conversa) return;
 
@@ -230,7 +230,7 @@ void main() {
 
     await notifier.abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 300));
     notifier.goEnsaio();
     notifier.ensaioTap();
@@ -289,7 +289,7 @@ void main() {
 
     await notifier.abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 300));
     notifier.goEnsaio();
     notifier.ensaioTap();

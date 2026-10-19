@@ -45,11 +45,7 @@ class EscolhaView extends ConsumerWidget {
               ),
             ),
             if (session.entriesOpen)
-              _Books(
-                session: session,
-                book: ref.watch(bookProvider),
-                language: language,
-              )
+              _Books(session: session, language: language)
             else
               _Circle(session: session, language: language),
           ],
@@ -89,17 +85,12 @@ class _Circle extends ConsumerWidget {
 
 class _Books extends StatelessWidget {
   final SalaSessionState session;
-  final String book;
   final String language;
 
-  const _Books({
-    required this.session,
-    required this.book,
-    required this.language,
-  });
+  const _Books({required this.session, required this.language});
 
   bool _isTheEntryLeft(Passagem entry) =>
-      session.isTheEntryLeft(entry, language: language, book: book);
+      session.isTheEntryLeft(entry, language: language);
 
   @override
   Widget build(BuildContext context) {

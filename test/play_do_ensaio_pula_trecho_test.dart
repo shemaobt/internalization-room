@@ -49,7 +49,7 @@ Future<Sala> _seisPartesSeisTrechos() async {
   addTearDown(container.dispose);
   final it = Sala(harness, container);
 
-  await it.sala.goConversa(pericope: 'P01');
+  await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
   for (var i = 0; i < 6; i++) {
@@ -199,7 +199,7 @@ void main() {
       'a roda dizer que esta passagem tem trabalho parado',
       () => it.estado.comecadas.contains('P01'),
     );
-    await it.sala.goConversa(pericope: 'P01');
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor(
       'a tradução ser retomada com os dois trechos',
       () =>

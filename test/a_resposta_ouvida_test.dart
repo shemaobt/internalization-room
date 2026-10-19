@@ -97,7 +97,7 @@ Future<ProviderContainer> _opensTheRoom(_Desk desk, SalaHarness harness) async {
   final before = desk.reads;
   final container = harness.container();
   addTearDown(container.dispose);
-  await container.read(salaSessionProvider.notifier).goConversa();
+  await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
   await waitFor(
     'o tablet ler a caixa de entrada na mesa',
     () => desk.reads > before,
@@ -351,7 +351,9 @@ void main() {
       container.read(salaSessionProvider.notifier).handTap();
       await settle();
       final readsBefore = desk.reads;
-      unawaited(container.read(salaSessionProvider.notifier).goConversa());
+      unawaited(
+        container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
+      );
       await waitFor(
         'a sala reler a caixa de entrada',
         () => desk.reads > readsBefore,

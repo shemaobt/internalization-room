@@ -64,7 +64,7 @@ Future<(SalaHarness, ProviderContainer)> _theOpeningSays(
   await notifier.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
   if (heldMidLine) harness.voice.holdNextLine();
-  unawaited(notifier.goConversa(pericope: 'P01'));
+  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
   await tester.pump(const Duration(milliseconds: 300));
   return (harness, container);
 }

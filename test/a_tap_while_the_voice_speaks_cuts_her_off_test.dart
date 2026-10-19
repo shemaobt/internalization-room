@@ -343,7 +343,7 @@ void main() {
         await settle();
         Future<void> aCheckTheRoomRefuses() async {
           harness.room.failWith = const Refused('BAD_REQUEST');
-          await room.notifier.goConversa(pericope: 'P01');
+          await room.notifier.goConversa(book: 'Ruth', pericope: 'P01');
           await settle();
           harness.room.failWith = null;
         }
@@ -461,7 +461,7 @@ void main() {
 
       room.notifier.leaveThePassage();
       await settle();
-      await room.notifier.goConversa();
+      await room.notifier.goConversa(book: 'Ruth');
       await settle();
       final cuts = room.harness.room.cutsSent.length;
       await room.aRealTake();

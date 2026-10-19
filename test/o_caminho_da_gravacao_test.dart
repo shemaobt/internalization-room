@@ -91,7 +91,7 @@ Future<ProviderContainer> _opensThePassage(SalaHarness harness) async {
     'a roda dizer quais passagens têm trabalho esperando',
     () => container.read(salaSessionProvider).naRoda != null,
   );
-  await notifier.goConversa(pericope: 'P01');
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   return container;
 }
 
@@ -113,7 +113,7 @@ void main() {
         'a roda abrir',
         () => container.read(salaSessionProvider).naRoda != null,
       );
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
 
       expect(
         container.read(salaSessionProvider).stage,
@@ -143,7 +143,7 @@ void main() {
         () => container.read(salaSessionProvider).naRoda != null,
       );
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       expect(
         container.read(salaSessionProvider).stage,
         SalaStage.conversa,
@@ -185,7 +185,7 @@ void main() {
         'a roda abrir de novo',
         () => container.read(salaSessionProvider).naRoda != null,
       );
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
         'o ensaio voltar da sala',
         () => container.read(salaSessionProvider).partes.isNotEmpty,

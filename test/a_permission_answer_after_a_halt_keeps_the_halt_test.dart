@@ -42,7 +42,7 @@ Future<ProviderContainer> _reopensInto(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await settle();
-  await notifier.goConversa(pericope: 'P01');
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   await settle();
   return container;
 }
@@ -122,7 +122,7 @@ Future<ProviderContainer> _inRetro(SalaHarness harness) async {
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa();
+  await notifier.goConversa(book: 'Ruth');
   await settle();
   notifier.goEnsaio();
   await _gravaParte(container, notifier);

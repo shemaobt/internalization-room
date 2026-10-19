@@ -33,7 +33,7 @@ Future<ProviderContainer> _reopensIntoRetro(SalaHarness harness) async {
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await settle();
-  await notifier.goConversa(pericope: 'P01');
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   await settle();
   return container;
 }
@@ -154,7 +154,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
     final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.goConversa();
+    await notifier.goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 300));
 
     notifier.conversaTap();

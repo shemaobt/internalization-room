@@ -1270,6 +1270,21 @@ class FakeRoom implements RoomRepository {
   /// The Wheel each language is read as, when a case needs to tell two reads apart.
   Map<String, List<Passagem>> passagesIn = {};
 
+  /// The books this room serves, in the order `GET /books` answers them.
+  List<String> books = const ['Ruth'];
+
+  /// Each book's list, when a case serves more than one book; a book left out answers
+  /// [passagesIn] or [passages].
+  Map<String, List<Passagem>> passagesOfBook = {};
+
+  /// What the books read answers, when it fails.
+  RoomFailure? failBooksWith;
+
+  /// What one book's list answers, when it fails.
+  Map<String, RoomFailure> failPassagesOf = {};
+
+  int booksReads = 0;
+
   Completer<void>? _holdingOneRead;
 
   /// Hold only the next read of the Wheel; a read asked meanwhile answers at once.
@@ -1347,6 +1362,7 @@ class FakeRoom implements RoomRepository {
     ..._claimDoors,
     'createSession',
     'passagesOf',
+    'servedBooks',
     'fetchClip',
     'openClip',
   };
@@ -1758,6 +1774,13 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
+  Future<RoomAnswer<List<String>>> servedBooks() async {
+    if (_guard('servedBooks') case final failure?) return failure;
+    booksReads++;
+    return failBooksWith ?? Answered(books);
+  }
+
+  @override
   Future<RoomAnswer<List<Passagem>>> passagesOf(
     String book, {
     required String language,
@@ -1769,7 +1792,8 @@ class FakeRoom implements RoomRepository {
     await heldRead?.future;
     booksAsked.add(book);
     languagesAsked.add(language);
-    return Answered(passagesIn[language] ?? passages);
+    return failPassagesOf[book] ??
+        Answered(passagesOfBook[book] ?? passagesIn[language] ?? passages);
   }
 
   @override
