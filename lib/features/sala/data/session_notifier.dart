@@ -1053,6 +1053,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) {
     if (sent <= _readsApplied) return;
     _readsApplied = sent;
+    state = state.copyWith(keptRetellings: snapshot.keptRetellings);
     if (rowWhenSent != null && identical(state.btTrechos, rowWhenSent)) {
       _takeTheStretches(snapshot.backTranslation);
     }

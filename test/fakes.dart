@@ -998,6 +998,7 @@ class FakeRoom implements RoomRepository {
   bool reachable = true;
   Coverage nextCoverage = coverage();
   Moment? nextMoment;
+  List<KeptRetelling> keptRetellings = const [];
 
   Coverage? settledCoverage;
   bool peerCue = false;
@@ -1825,6 +1826,7 @@ class FakeRoom implements RoomRepository {
         halt: serverHalt,
         opened: openedSessions.contains(sessionId),
         moment: nextMoment,
+        keptRetellings: keptRetellings,
         backTranslation:
             retroSoFar ?? BackTranslationProgress(segments: List.of(segments)),
       ),
