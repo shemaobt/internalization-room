@@ -89,10 +89,15 @@ const roomLabels = {
     'pt': 'Gravar o ensaio de vocês',
     'en': 'Record your rehearsal',
   },
+  'hearHowYouToldPart': {
+    'pt': 'Ouvir como vocês contaram a parte {n}',
+    'en': 'Hear how you told part {n}',
+  },
 };
 
-String roomLabelFor(String control, String language) =>
-    roomLabels[control]![language] ?? roomLabels[control]![floorLanguage]!;
+String roomLabelFor(String control, String language, {int? n}) =>
+    (roomLabels[control]![language] ?? roomLabels[control]![floorLanguage]!)
+        .replaceAll('{n}', '$n');
 
 const recordEntryLabel = {
   'pt': 'Terminar a conversa e ir para o ensaio',

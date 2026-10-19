@@ -1071,6 +1071,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) {
     if (sent <= _readsApplied) return;
     _readsApplied = sent;
+    state = state.copyWith(keptRetellings: snapshot.keptRetellings);
     if (rowWhenSent != null && identical(state.btTrechos, rowWhenSent)) {
       _takeTheStretches(snapshot.backTranslation);
     }
@@ -3493,6 +3494,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _decideAt(failure, door: Door.sceneRehearsal);
         return null;
     }
+  }
+
+  void playKeptRetelling(int part) =>
+      _gesture(() => _handOff(_playKeptRetelling(part)));
+
+  Future<void> _playKeptRetelling(int part) async {
+    final take = state.partsToReplay.elementAtOrNull(part - 1);
+    final sessionId = state.sessionId;
+    if (take == null || sessionId == null) return;
+    final generation = _waitOnTheGeneration;
+    final path = await _keptRetellingOnTheTablet(
+      'kept-$sessionId-${take.scope}-${take.turnNumber}',
+      take.audioUrl,
+    );
+    if (path == null || _abandoned(generation) || state.keptRetellingsAreAway) {
+      return;
+    }
+    _silenceTheRoom();
+    _play(PartSound(0, path));
+  }
+
+  Future<String?> _keptRetellingOnTheTablet(String name, String url) async {
+    final held = await _heldOnTheTablet(name);
+    if (held != null) return held;
+    return switch (await _room.fetchKeptRetelling(url)) {
+      Answered(:final value) when value.isNotEmpty => await _recorder.keepBytes(
+        value,
+        name,
+      ),
+      _ => null,
+    };
   }
 
   Future<String?> _heldOnTheTablet(String name) async {
