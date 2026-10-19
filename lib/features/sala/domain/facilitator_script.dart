@@ -38,7 +38,6 @@ const circleLabels = {
     'pt': 'Um momento para uma pessoa',
     'en': 'A moment for someone',
   },
-  'noteMode': {'pt': 'Enviar a pergunta', 'en': 'Send the question'},
   'teamTalk': {
     'pt': 'Conversem entre vocês — tocar quando quiserem me contar',
     'en': 'Talk among yourselves — tap when you want to tell me',
@@ -59,29 +58,15 @@ const warningNoticeLabel = {
 String warningNoticeLabelFor(String language) =>
     warningNoticeLabel[language] ?? warningNoticeLabel[floorLanguage]!;
 
-const panoramaCircleLabels = {
-  'pt': 'Falar com o facilitador',
-  'en': 'Talk to the facilitator',
-};
-
-String panoramaCircleLabelFor(String language) =>
-    panoramaCircleLabels[language] ?? panoramaCircleLabels[floorLanguage]!;
-
 const handLabels = {
-  'answering': {
-    'pt': 'O facilitador está respondendo',
-    'en': 'The facilitator is answering',
-  },
   'hearTheAnswer': {
     'pt': 'Ouvir a resposta do facilitador',
     'en': 'Hear the facilitator\'s answer',
   },
-  'cancel': {'pt': 'Cancelar a pergunta', 'en': 'Cancel the question'},
-  'sent': {
-    'pt': 'Pergunta enviada, aguardando resposta',
-    'en': 'Question sent, waiting for an answer',
+  'leaveAQuestion': {
+    'pt': 'Deixar uma pergunta para o facilitador',
+    'en': 'Leave a question for the facilitator',
   },
-  'raise': {'pt': 'Levantar a mão', 'en': 'Raise a hand'},
 };
 
 String handLabelFor(String state, String language) =>
@@ -195,6 +180,10 @@ const sceneRehearsalLabels = {
     'en': 'listen to scene rehearsal {n}',
   },
   'sceneN': {'pt': 'cena {n}', 'en': 'scene {n}'},
+  'whichScene': {
+    'pt': 'Qual cena vocês vão ensaiar?',
+    'en': 'Which scene are you going to rehearse?',
+  },
   'frases': {'pt': 'frases traduzidas', 'en': 'translated sentences'},
   'listSent': {'pt': 'enviado', 'en': 'sent'},
   'listUnsent': {'pt': 'não enviado', 'en': 'not sent'},
@@ -204,6 +193,19 @@ String sceneRehearsalLabelFor(String control, String language, {int? n}) =>
     (sceneRehearsalLabels[control]![language] ??
             sceneRehearsalLabels[control]![floorLanguage]!)
         .replaceAll('{n}', '$n');
+
+/// A scene button's name: «cena N» and the scene's title.
+String sceneButtonLabelFor(int n, String title, String language) =>
+    '${sceneRehearsalLabelFor('sceneN', language, n: n)} $title';
+
+/// The picked scene above the circle: «cena N · título».
+String sceneChipTextFor(int n, String title, String language) =>
+    '${sceneRehearsalLabelFor('sceneN', language, n: n)} · $title';
+
+/// The chip's name: its text, then the question a tap on it goes back to.
+String sceneChipLabelFor(int n, String title, String language) =>
+    '${sceneChipTextFor(n, title, language)} — '
+    '${sceneRehearsalLabelFor('whichScene', language)}';
 
 /// What VoiceOver says of one row of the scene rehearsals' list: its name, its scene,
 /// its time, its translated frases and whether it went to the voice.

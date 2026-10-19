@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
@@ -2102,6 +2103,90 @@ void main() {
         _filePart(sent).head,
         contains('content-type: application/octet-stream'),
       );
+    });
+  });
+  group('the session\'s scenes door', () {
+    test(
+      'case 1 (a): the scene list is read from the session\'s scenes door in '
+      'passage order',
+      () async {
+        late http.Request seen;
+        final repository = RoomRepository(
+          client: MockClient((request) async {
+            seen = request;
+            return http.Response(
+              jsonEncode({
+                'scenes': [
+                  {'scene_id': 'S1', 'title': 'Ouvir a notícia e partir'},
+                  {'scene_id': 'S2', 'title': 'Primeiro apelo e recusa'},
+                  {'scene_id': 'S3', 'title': 'Segundo apelo e a separação'},
+                ],
+              }),
+              200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            );
+          }),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+        repository.presents('credencial-1');
+
+        final answer = await repository.scenesOf('s');
+
+        expect(seen.method, 'GET');
+        expect(seen.url.path, '/api/internalization-room/sessions/s/scenes');
+        expect(seen.headers['X-Device-Credential'], 'credencial-1');
+        expect(
+          [
+            for (final scene in (answer as Answered<List<Scene>>).value)
+              (scene.sceneId, scene.title),
+          ],
+          [
+            ('S1', 'Ouvir a notícia e partir'),
+            ('S2', 'Primeiro apelo e recusa'),
+            ('S3', 'Segundo apelo e a separação'),
+          ],
+        );
+      },
+    );
+
+    test('case 1 (b): the scenes door gives up after 4 seconds', () async {
+      var heard = false;
+      final repository = RoomRepository(
+        client: MockClient((_) {
+          heard = true;
+          return Completer<http.Response>().future;
+        }),
+      );
+      addTearDown(repository.dispose);
+      final clock = FakeAsync();
+      RoomAnswer<List<Scene>>? answer;
+      clock.run(
+        (_) =>
+            unawaited(repository.scenesOf('s').then((given) => answer = given)),
+      );
+      while (!heard) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        clock.flushMicrotasks();
+      }
+
+      clock.elapse(const Duration(milliseconds: 3900));
+      expect(answer, isNull);
+      clock.elapse(const Duration(milliseconds: 200));
+      expect(
+        answer,
+        isA<NetworkFailed>().having((f) => f.reason, 'reason', 'timeout'),
+      );
+    });
+
+    test('case 1 (c): a 404 at the scenes door is the session gone', () async {
+      final repository = RoomRepository(
+        client: MockClient((_) async => http.Response('{}', 404)),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      expect(await repository.scenesOf('s'), isA<SessionGone>());
     });
   });
   group('a turn', () {

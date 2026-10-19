@@ -490,7 +490,7 @@ class EffectRunner {
         (!started && anOlderStartRuns)) {
       unawaited(recorder.discard());
     }
-    host.answer(MicAnswered(answer, generation: stamp));
+    host.answer(MicAnswered(answer, owner: owner, generation: stamp));
   }
 
   /// A take's answer is stamped when it comes back: the gesture waiting on the take gets

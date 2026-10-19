@@ -44,6 +44,7 @@ import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
@@ -247,6 +248,19 @@ class FakeVoice implements FacilitatorVoiceService {
   /// room stood then.
   void Function()? onStop;
 
+  /// Whether a stopped line still reports itself whole, later, as a platform can when the
+  /// stop lands on the clip's last frame.
+  bool reportsAStoppedLineWhole = false;
+
+  final List<Completer<bool>> _stoppedButNotYetAnswered = [];
+
+  void theStoppedLineReportsWhole() {
+    for (final stopped in _stoppedButNotYetAnswered) {
+      stopped.complete(true);
+    }
+    _stoppedButNotYetAnswered.clear();
+  }
+
   @override
   Future<void> stop() async {
     stops++;
@@ -255,7 +269,11 @@ class FakeVoice implements FacilitatorVoiceService {
     final saying = _saying;
     _saying = null;
     if (saying == null || saying.isCompleted) return;
-    saying.complete(false);
+    if (reportsAStoppedLineWhole) {
+      _stoppedButNotYetAnswered.add(saying);
+    } else {
+      saying.complete(false);
+    }
     if (identical(saying, _holding)) _holding = null;
   }
 
@@ -392,8 +410,12 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<void> delete(String path) async => deleted.add(path);
 
+  /// Whether keeping fetched audio fails, the way a dead disk does.
+  bool keepBytesFails = false;
+
   @override
   Future<String> keepBytes(Uint8List bytes, String fileName) async {
+    if (keepBytesFails) throw const FileSystemException('o disco morreu');
     final file = File('${home.path}/$fileName.${_isWav(bytes) ? 'wav' : 'm4a'}')
       ..writeAsBytesSync(bytes);
     return file.path;
@@ -851,10 +873,26 @@ class FakeInbox implements HandInboxRepository {
 
   FakeInbox({this.replies = const []});
 
+  Completer<void>? _holdingCheck;
+
+  /// Hold the next check on the wire: the desk has already answered with what it held
+  /// when asked, and the answer lands only when released.
+  void holdNextCheck() => _holdingCheck = Completer<void>();
+
+  void finishHeldCheck() {
+    _holdingCheck?.complete();
+    _holdingCheck = null;
+  }
+
   @override
   Future<RoomAnswer<List<HandReply>>> fetchReplies() async {
     checks++;
-    return cannotBeAsked ? const NetworkFailed('sem rede') : Answered(replies);
+    final RoomAnswer<List<HandReply>> answer = cannotBeAsked
+        ? const NetworkFailed('sem rede')
+        : Answered(replies);
+    final held = _holdingCheck;
+    if (held != null) await held.future;
+    return answer;
   }
 
   /// What the mark comes back with instead of the desk agreeing.
@@ -876,8 +914,19 @@ class FakeInbox implements HandInboxRepository {
   @override
   Stream<String?> get revoked => _revocations.stream;
 
+  Completer<void>? _holdingQuestion;
+
+  void holdNextQuestion() => _holdingQuestion = Completer<void>();
+
+  void finishHeldQuestion() {
+    _holdingQuestion?.complete();
+    _holdingQuestion = null;
+  }
+
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
+    final held = _holdingQuestion;
+    if (held != null) await held.future;
     if (cannotReadTheKnot) {
       throw FileSystemException('sem arquivo', audio.path);
     }
@@ -1507,6 +1556,39 @@ class FakeRoom implements RoomRepository {
     return Answered(listed);
   }
 
+  /// The passage's scenes as the scenes door answers them, in passage order. None by
+  /// default: the screen then asks nothing and labels nothing.
+  List<Scene> passageScenes = const [];
+
+  /// The scenes the room's keep knows as labels, when they are not [passageScenes]'s.
+  Set<String>? roomScenes;
+
+  /// What the scenes door answers, when it is set.
+  RoomFailure? failScenesWith;
+
+  bool _holdTheNextScenes = false;
+  final List<Completer<void>> _heldScenes = [];
+
+  /// Hold the next ask for the passage's scenes, the way a slow link holds it.
+  void holdNextScenes() => _holdTheNextScenes = true;
+
+  void finishHeldScenes() => _heldScenes.removeAt(0).complete();
+
+  @override
+  Future<RoomAnswer<List<Scene>>> scenesOf(String sessionId) async {
+    if (_guard('scenesOf') case final failure?) return failure;
+    if (_holdTheNextScenes) {
+      _holdTheNextScenes = false;
+      final held = Completer<void>();
+      _heldScenes.add(held);
+      await held.future;
+    }
+    if (_forgot('scenesOf', sessionId) case final gone?) return gone;
+    final refusal = failScenesWith;
+    if (refusal != null) return refusal;
+    return Answered(List.of(passageScenes));
+  }
+
   @override
   Future<RoomAnswer<SceneRehearsalRecord>> keepSceneRehearsal(
     String sessionId,
@@ -1523,10 +1605,13 @@ class FakeRoom implements RoomRepository {
     sceneLabels.add(scene);
     sceneTakesSent.add(audio.readAsBytesSync());
     final n = sceneRehearsals.length + 1;
+    final known =
+        roomScenes ?? {for (final scene in passageScenes) scene.sceneId};
     final kept = SceneRehearsalRecord(
       rehearsalId: 'ensaio-da-cena-$n',
       sessionId: sessionId,
       n: n,
+      scene: known.contains(scene) ? scene : null,
     );
     sceneRehearsals.add(kept);
     await _holdingKeep?.future;
@@ -2877,6 +2962,7 @@ class SalaHarness {
     this.lingua = testLanguage,
     this.emAbertoNoDisco,
     this.inboxService,
+    this.inboxWatch,
     FakeRoom? room,
     this.takesOverride,
     Directory? takesHome,
@@ -2896,6 +2982,10 @@ class SalaHarness {
 
   /// The real inbox, for the cases that need a server that can refuse or go away.
   final HandInboxRepository? inboxService;
+
+  /// How often the open room looks for replies, when a case needs it other than the
+  /// room's own.
+  final Duration? inboxWatch;
 
   final FakeWorkInProgress emAberto = FakeWorkInProgress();
 
@@ -2946,6 +3036,8 @@ class SalaHarness {
     clipGraceProvider.overrideWithValue(clipGrace),
     captureGuardProvider.overrideWithValue(captureGuard),
     fimLingerProvider.overrideWithValue(fimLinger),
+    if (inboxWatch case final every?)
+      roomInboxWatchProvider.overrideWithValue(every),
   ];
 
   ProviderContainer container() => ProviderContainer(overrides: overrides);

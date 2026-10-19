@@ -462,12 +462,19 @@ void main() {
       () => container.read(salaSessionProvider).playingReplyId != null,
     );
 
-    final before = harness.recorder.captures;
+    final replyAt = harness.sounds.lastIndexOf('voice:line');
     notifier.conversaTap();
-    await settle();
+    await waitFor(
+      'o microfone abrir',
+      () => harness.sounds.contains('recorder:start'),
+    );
 
-    expect(harness.recorder.captures, before);
-    harness.voice.finishHeldLine();
+    final heard = harness.sounds.sublist(replyAt);
+    expect(
+      heard.indexOf('voice:stop'),
+      allOf(isNonNegative, lessThan(heard.indexOf('recorder:start'))),
+      reason: 'a resposta para antes do microfone abrir',
+    );
   });
 
   test(
@@ -494,11 +501,6 @@ void main() {
         reason: 'o Guia não anuncia a pergunta nem a resposta — o envio é mudo',
       );
       expect(harness.voice.fixedLines, isEmpty);
-      expect(
-        container.read(salaSessionProvider).questionPending,
-        isTrue,
-        reason: 'o ponto na mão é que carrega a espera agora, não uma fala',
-      );
     },
   );
 

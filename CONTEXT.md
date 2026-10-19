@@ -106,7 +106,7 @@ Whose open microphone the Channel holds: the conversation's, the rehearsal's, th
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
 **Microphone answer**:
-How the recorder answered the microphone the room asked for: an opening started, refused or failed; a close with the take, or with none; a discard; or a late start abandoned. Every answer but a start, and but a close the recorder failed, gives the Channel back (ADR 0057).
+How the recorder answered the microphone the room asked for: an opening started, refused or failed; a close with the take, or with none; a discard; or a late start abandoned. Every answer but a start, and but a close the recorder failed, gives the Channel back (ADR 0057). On the scene rehearsal's Station a refused or failed opening only gives the Channel back: no gate, no line, no count towards a person (ADR 0089).
 _Avoid_: capture result (a Capture is the back-translation's microphone), recorder state
 
 **Gesture on its way**:
@@ -243,12 +243,16 @@ The wood disc with no glyph that leads from one station to the next: to the Back
 _Avoid_: next button, continue, seguir, microphone (it never wears one)
 
 **Knot**:
-A question the team raised, recorded by a tap on the hand and drawn on the necklace's cord so an unanswered question is visible without a word.
+A question the team raised at its idle turn, recorded by a tap on the hand and sent to the facilitator. A sent Knot leaves no sign on the tablet, and one too short for the capture guard is dropped unsent.
 _Avoid_: nó, question, bead (a knot is not one)
 
 **Raised hand**:
 The team's side channel to the facilitator: it sends a Knot, checks for the facilitator's replies, plays a reply and marks it heard. A failure anywhere on it changes nothing in the room and speaks no line (ADR 0071).
 _Avoid_: mão levantada, question button, note
+
+**Idle turn**:
+The moment the Conversation or the Panorama waits on the team and nothing else is happening: the voice at the invite or done, no line of the room's own playing (a reply may), no Halt calling for a person, no microphone open, and a session to send to. The Raised hand is offered only then, and a Knot armed in it is abandoned when it ends.
+_Avoid_: idle, the team's turn (that also covers the open microphone)
 
 **Panorama**:
 The book's own entry and the line about the whole book, first on the wheel, played when the team taps it. Not a passage: nothing that counts passages counts it.
@@ -267,6 +271,14 @@ One recording of a scene in the mother tongue made on the red microphone, transl
 Its screen is a Station of its own (`cena`), reached by the red microphone and left by «Voltar para a passagem atual».
 The screen lists this session's scene rehearsals: an unsent one resumes where it stood, and a sent one opens to be listened to.
 _Avoid_: rehearsal (the station, and the whole passage's recording), take (what holds it), practice, ensaio in prose
+
+**Scene question**:
+«Qual cena vocês vão ensaiar?», asked before recording a Scene rehearsal on a passage of two or more scenes, with one button per scene; it may highlight a scene but never picks one.
+_Avoid_: scene picker, scene menu
+
+**Scene label**:
+The scene the team tapped on the Scene question, read at the tap that starts the recording; never guessed, and never changed by a retry of the upload.
+_Avoid_: scene guess (the classifier's, Observation Room only), sceneId
 
 **Red microphone**:
 The round red control beside the orange dot that opens the Scene rehearsal's screen, shown only while the Conversation rests and no raised-hand note or person call stands.

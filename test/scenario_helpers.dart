@@ -187,8 +187,9 @@ Future<(SalaHarness, ProviderContainer)> relaunch(
 /// Open the Choice, aim at the Panorama's entry and tap it, as the team does.
 Future<void> enterThePanorama(
   SalaSessionNotifier notifier,
-  SalaSessionState Function() read,
-) => _enterTheEntry(notifier, read, (entry) => entry.isPanorama);
+  SalaSessionState Function() read, {
+  Future<void> Function()? step,
+}) => _enterTheEntry(notifier, read, (entry) => entry.isPanorama, step: step);
 
 /// Open the Choice, aim at [pericope]'s entry and tap it, as the team does.
 Future<void> enterThePassage(
@@ -200,16 +201,18 @@ Future<void> enterThePassage(
 Future<void> _enterTheEntry(
   SalaSessionNotifier notifier,
   SalaSessionState Function() read,
-  bool Function(Passagem entry) isIt,
-) async {
+  bool Function(Passagem entry) isIt, {
+  Future<void> Function()? step,
+}) async {
   await notifier.abrirEscolha();
-  await waitFor('a roda carregar', () => read().naRoda != null);
+  await waitFor('a roda carregar', () => read().naRoda != null, step: step);
   final at = read().naRoda!.indexWhere(isIt);
   expect(at, isNonNegative, reason: 'a roda não tem essa entrada');
   notifier.apontarPassagem(at);
   await waitFor(
     'a roda oferecer a entrada',
     () => read().aOferecer == at && read().voice == VoiceState.invite,
+    step: step,
   );
   notifier.entrarNaOferecida();
 }

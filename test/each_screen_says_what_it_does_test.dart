@@ -73,7 +73,7 @@ void main() {
       await _theCircleReadsWhileTheTeamRecords(
         tester,
         lingua: null,
-        resting: 'Falar com o facilitador',
+        resting: 'Tocar para falar',
         recording: 'Tocar ao terminar',
       );
     },
@@ -86,7 +86,7 @@ void main() {
       await _theCircleReadsWhileTheTeamRecords(
         tester,
         lingua: 'en',
-        resting: 'Talk to the facilitator',
+        resting: 'Tap to speak',
         recording: 'Tap when you are done',
       );
     },
@@ -133,25 +133,5 @@ void main() {
       question: 'Tocar para falar',
       teamTalk: 'Conversem entre vocês — tocar quando quiserem me contar',
     );
-  });
-
-  testWidgets('a hand raised while the team records leaves the circle reading '
-      '«Tocar ao terminar»', (tester) async {
-    final harness = SalaHarness()..room.peerCue = true;
-    final container = await _pump(tester, harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-    notifier.goConversa();
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.pump(const Duration(milliseconds: 200));
-    notifier.conversaTap();
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(container.read(salaSessionProvider).voice, VoiceState.listening);
-
-    notifier.handTap();
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(container.read(salaSessionProvider).noteMode, isTrue);
-    expect(byLabel('Tocar ao terminar'), findsOneWidget);
-    expect(byLabel('Tocar para falar'), findsNothing);
   });
 }

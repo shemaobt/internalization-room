@@ -8,6 +8,7 @@ import 'hand_reply.dart';
 import 'kept_take.dart';
 import 'moment.dart';
 import 'passagem.dart';
+import 'scene_question.dart';
 import 'scene_rehearsal.dart';
 import 'station.dart';
 
@@ -18,7 +19,9 @@ enum SceneStep { record, translate, placesUnknown, sent }
 
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
 /// answered it, its take as a file on this tablet and the take's measured length, and
-/// whether a call this screen made is in the air.
+/// whether a call this screen made is in the air. On the record step it also holds the
+/// scene the team picked, the scene of the rehearsal recorded again, and when the
+/// question appeared and when the pick was made.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
@@ -27,6 +30,10 @@ final class SceneScreen {
   final bool waiting;
   final String? label;
   final SceneKeep? keep;
+  final String? picked;
+  final String? again;
+  final DateTime? askedAt;
+  final DateTime? pickedAt;
 
   const SceneScreen({
     this.step = SceneStep.record,
@@ -36,15 +43,39 @@ final class SceneScreen {
     this.waiting = false,
     this.label,
     this.keep,
+    this.picked,
+    this.again,
+    this.askedAt,
+    this.pickedAt,
   });
 
-  SceneScreen get asWaiting => SceneScreen(
+  SceneScreen copyWith({
+    bool? waiting,
+    String? label,
+    bool clearLabel = false,
+    SceneKeep? keep,
+    bool clearKeep = false,
+    String? picked,
+    bool clearPicked = false,
+    DateTime? askedAt,
+    bool clearAskedAt = false,
+    DateTime? pickedAt,
+    bool clearPickedAt = false,
+  }) => SceneScreen(
     step: step,
     rehearsal: rehearsal,
     take: take,
     length: length,
-    waiting: true,
+    waiting: waiting ?? this.waiting,
+    label: clearLabel ? null : (label ?? this.label),
+    keep: clearKeep ? null : (keep ?? this.keep),
+    picked: clearPicked ? null : (picked ?? this.picked),
+    again: again,
+    askedAt: clearAskedAt ? null : (askedAt ?? this.askedAt),
+    pickedAt: clearPickedAt ? null : (pickedAt ?? this.pickedAt),
   );
+
+  SceneScreen get asWaiting => copyWith(waiting: true);
 
   /// Whether «terminei» applies: an unsent rehearsal with a translated frase, being
   /// translated, with nothing in the air.
@@ -184,14 +215,13 @@ class SalaSessionState {
   /// circle records the team's turn.
   final bool panoramaSaid;
   final String? sessionId;
+  final String? panoramaSessionId;
   final String? pericope;
   final Coverage coverage;
   final Moment? moment;
 
   final bool peerCue;
   final bool noteMode;
-  final bool handAck;
-  final bool questionPending;
   final List<HandReply> replies;
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
@@ -264,6 +294,9 @@ class SalaSessionState {
   /// This session's scene rehearsals, by number, as the room last answered them.
   final List<SceneRehearsalRecord> sceneRehearsals;
 
+  /// The passage's scenes, as the room answered them on this visit to the scene rehearsal.
+  final SceneList scenes;
+
   /// The turn «terminei» last sent for a scene rehearsal and no reply has played for:
   /// the next «terminei» on that rehearsal goes under it again.
   final ({String rehearsalId, String turnId})? sceneTurn;
@@ -289,13 +322,12 @@ class SalaSessionState {
     this.reach = RoomReach.fine,
     this.panoramaSaid = false,
     this.sessionId,
+    this.panoramaSessionId,
     this.pericope,
     this.coverage = Coverage.empty,
     this.moment,
     this.peerCue = false,
     this.noteMode = false,
-    this.handAck = false,
-    this.questionPending = false,
     this.replies = const [],
     this.playingReplyId,
     this.keptTakes = const [],
@@ -333,6 +365,7 @@ class SalaSessionState {
     this.parteARegravar,
     this.scene = const SceneScreen(),
     this.sceneRehearsals = const [],
+    this.scenes = const ScenesAwaited(),
     this.sceneTurn,
   });
 
@@ -362,6 +395,7 @@ class SalaSessionState {
       (lastSpoken != null || roomSaysItAgain) &&
       (voice == VoiceState.invite || voice == VoiceState.done) &&
       !needsPerson &&
+      !noteMode &&
       stage != SalaStage.ensaio &&
       stage != SalaStage.retro &&
       stage != SalaStage.fim &&
@@ -380,6 +414,30 @@ class SalaSessionState {
       station is Canvas &&
       !needsPerson;
 
+  bool get atTheTeamsIdleTurn =>
+      (station is Canvas || station is Panorama) &&
+      (voice == VoiceState.invite || voice == VoiceState.done) &&
+      !needsPerson &&
+      !_aLineOfTheRoomPlays &&
+      stationSessionId != null;
+
+  String? get stationSessionId =>
+      station is Panorama ? panoramaSessionId : sessionId;
+
+  bool get anArmedKnotLapsed =>
+      noteMode &&
+      !atTheTeamsIdleTurn &&
+      switch (channel) {
+        Microphone(owner: MicOwner.question) => false,
+        _ => true,
+      };
+
+  bool get _aLineOfTheRoomPlays => switch (channel) {
+    GuideSpeaking(line: Line(kind: LineKind.reply)) => false,
+    GuideSpeaking() => true,
+    _ => false,
+  };
+
   bool get hasUnheardReply => replies.any((reply) => reply.offered);
 
   HandReply? get oldestUnheardReply {
@@ -396,6 +454,31 @@ class SalaSessionState {
   Halt get halt => machine.halt;
 
   Channel get channel => machine.channel;
+
+  /// Whether a scene take is opening, recording or being kept.
+  bool get sceneTakeUnderWay => channel is Microphone || scene.keep is Keeping;
+
+  /// Whether the record step asks «Qual cena vocês vão ensaiar?» instead of showing the
+  /// circle: nothing picked and no take under way.
+  bool get sceneQuestionShown =>
+      scene.step == SceneStep.record &&
+      scenes.asks &&
+      scenes.numberOf(scene.picked) == null &&
+      !sceneTakeUnderWay;
+
+  /// Whether the chip above the circle names the pick.
+  bool get sceneChipShown =>
+      scene.step == SceneStep.record &&
+      scenes.asks &&
+      scenes.numberOf(scene.picked) != null;
+
+  /// Whether a tap on the chip brings the question back.
+  bool get sceneChipLive =>
+      scene.keep == null && !sceneTakeUnderWay && !scene.waiting;
+
+  /// The scene the question highlights.
+  String? get sceneHighlighted =>
+      scenes.highlighted(sceneRehearsals, again: scene.again);
 
   bool get wordlessTelling => machine.wordlessTelling;
 
@@ -668,6 +751,8 @@ class SalaSessionState {
     RoomReach? reach,
     bool? panoramaSaid,
     String? sessionId,
+    String? panoramaSessionId,
+    bool clearPanoramaSession = false,
     String? pericope,
     bool clearSession = false,
     Coverage? coverage,
@@ -675,8 +760,6 @@ class SalaSessionState {
     bool clearMoment = false,
     bool? peerCue,
     bool? noteMode,
-    bool? handAck,
-    bool? questionPending,
     List<HandReply>? replies,
     String? playingReplyId,
     bool clearPlayingReply = false,
@@ -722,6 +805,7 @@ class SalaSessionState {
     bool clearParteARegravar = false,
     SceneScreen? scene,
     List<SceneRehearsalRecord>? sceneRehearsals,
+    SceneList? scenes,
     ({String rehearsalId, String turnId})? sceneTurn,
     bool clearSceneTurn = false,
   }) {
@@ -732,13 +816,14 @@ class SalaSessionState {
       reach: reach ?? this.reach,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
+      panoramaSessionId: clearPanoramaSession
+          ? null
+          : (panoramaSessionId ?? this.panoramaSessionId),
       pericope: clearSession ? null : (pericope ?? this.pericope),
       coverage: coverage ?? this.coverage,
       moment: clearMoment ? null : (moment ?? this.moment),
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
-      handAck: handAck ?? this.handAck,
-      questionPending: questionPending ?? this.questionPending,
       replies: replies ?? this.replies,
       playingReplyId: clearPlayingReply
           ? null
@@ -790,6 +875,7 @@ class SalaSessionState {
           : (parteARegravar ?? this.parteARegravar),
       scene: scene ?? this.scene,
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
+      scenes: scenes ?? this.scenes,
       sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),
     );
   }

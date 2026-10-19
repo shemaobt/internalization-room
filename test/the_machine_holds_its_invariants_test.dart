@@ -158,6 +158,24 @@ final theMicrophoneOpensOverASoundOnlyAfterAStop = Invariant<Machine>(
   },
 );
 
+final aLineOfTheVoiceStopsAPlayingReply = Invariant<Machine>(
+  'a line of the voice that arrives over a playing reply stops it',
+  (before, event, after, effects, world) {
+    if (event is! LineArrived || event.line.kind == LineKind.reply) return null;
+    if (before.channel case GuideSpeaking(line: final reply)
+        when reply.kind == LineKind.reply &&
+            !effects.contains(DropTheLine(event.line))) {
+      final stillSpeaks = switch (after.channel) {
+        GuideSpeaking(:final line) => line == reply,
+        _ => false,
+      };
+      final stopped = effects.contains(StopTheLine(reply)) && !stillSpeaks;
+      return stopped ? null : '${describeEvent(event)} waited behind a reply';
+    }
+    return null;
+  },
+);
+
 final aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas =
     Invariant<Machine>(
       'a microphone answer with no microphone open leaves the Channel as it was',
@@ -423,14 +441,16 @@ void main() {
       _holds(nothingOfAClosedPassageSurvives);
     });
 
-    test('ADR invariants 1, 2, 3, 5, 6, 8, 11, 12, 13 and 15, and a microphone '
-        'answer with no microphone open, hold over the default run', () {
+    test('ADR invariants 1, 2, 3, 5, 6, 8, 11, 12, 13 and 15, a microphone '
+        'answer with no microphone open, and a line of the voice over a playing '
+        'reply, hold over the default run', () {
       expectEverySeedHolds(_machine, [
         nothingOfAGoneSessionSurvives,
         nothingOfAClosedPassageSurvives,
         ...theAdrInvariants<Machine>(_haltOf),
         theMicrophoneOpensOverASoundOnlyAfterAStop,
         aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas,
+        aLineOfTheVoiceStopsAPlayingReply,
         theHeadNeverReadsAnotherSound,
         theOutboxNeverIdlesReachableWithAPartPending,
         theScreenNeverShowsASoundTheChannelDoesNotHold,

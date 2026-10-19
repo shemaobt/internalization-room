@@ -287,6 +287,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   TurnFailed(:final turn) => 'TurnFailed(${turn.turnId})',
   TheRefusalPassed() => 'TheRefusalPassed',
   TheHandFailed() => 'TheHandFailed',
+  TheScenesMissed() => 'TheScenesMissed',
   TheSceneRehearsalsListed(:final listed) =>
     'TheSceneRehearsalsListed(${listed.length})',
   TheSceneDoorFailed(:final readAgain) =>
@@ -414,6 +415,7 @@ enum EventKind {
   turnAnswered,
   theRefusalPassed,
   theHandFailed,
+  theScenesMissed,
   theSceneDoorFailed,
   theSceneRehearsalsListed,
   theCallWasRefused,
@@ -477,6 +479,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TurnAnswered() => EventKind.turnAnswered,
   TheRefusalPassed() => EventKind.theRefusalPassed,
   TheHandFailed() => EventKind.theHandFailed,
+  TheScenesMissed() => EventKind.theScenesMissed,
   TheSceneDoorFailed() => EventKind.theSceneDoorFailed,
   TheSceneRehearsalsListed() => EventKind.theSceneRehearsalsListed,
   TheCallWasRefused() => EventKind.theCallWasRefused,
@@ -538,6 +541,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.turnAnswered ||
   EventKind.theRefusalPassed ||
   EventKind.theHandFailed ||
+  EventKind.theScenesMissed ||
   EventKind.theSceneDoorFailed ||
   EventKind.theSceneRehearsalsListed ||
   EventKind.theCallWasRefused ||
@@ -588,6 +592,9 @@ MicAnswered _drawAMicAnswer(Random random) {
     answer,
     take: closed && !failed && random.nextBool() ? 'tomada.m4a' : null,
     because: failed ? Exception('the recorder failed to stop') : null,
+    owner: random.nextBool()
+        ? MicOwner.values[random.nextInt(MicOwner.values.length)]
+        : null,
     generation: random.nextInt(4) == 0 ? theOlderGeneration : null,
   );
 }
@@ -710,6 +717,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.turnAnswered => TurnAnswered(_drawATurn(random)),
       EventKind.theRefusalPassed => const TheRefusalPassed(),
       EventKind.theHandFailed => const TheHandFailed(),
+      EventKind.theScenesMissed => const TheScenesMissed(),
       EventKind.theSceneRehearsalsListed => const TheSceneRehearsalsListed([]),
       EventKind.theSceneDoorFailed => TheSceneDoorFailed(
         readAgain: random.nextBool(),

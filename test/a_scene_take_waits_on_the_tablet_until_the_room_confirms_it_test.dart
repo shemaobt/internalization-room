@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
@@ -417,6 +418,35 @@ void main() {
   );
 
   test(
+    'a take the house retry lands as the room closes touches nothing',
+    () async {
+      late _CountsHeldAfterTheKeep queue;
+      final room = await atRest(
+        SalaHarness(
+          takesOverride: (room, home, recordings) =>
+              queue = _CountsHeldAfterTheKeep(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
+        ),
+      );
+      await theScreenOpens(room);
+      room.harness.room.failSceneWith = _offline;
+      await _recordAScene(room);
+      await _notKept(room);
+      await waitFor('a sala cair', () => room.state.unreachable);
+
+      room.harness.room.failSceneWith = null;
+      room.sala.retryNow();
+      await waitFor('a contagem depois do take aceito', () => queue.holding);
+      room.container.dispose();
+      queue.letTheCountGo();
+      await settle();
+    },
+  );
+
+  test(
     'a take refused for good never covers a newer rehearsal the room kept',
     () async {
       final room = await atRest();
@@ -504,6 +534,11 @@ void main() {
     'it carries the same label',
     () async {
       final room = await atRest();
+      room.harness.room.passageScenes = const [
+        Scene(sceneId: 'S1', title: 'Ouvir a notícia e partir'),
+        Scene(sceneId: 'S2', title: 'Primeiro apelo e recusa'),
+        Scene(sceneId: 'S3', title: 'Segundo apelo e a separação'),
+      ];
       final session = room.state.sessionId!;
       await room.harness.takes.enqueue(
         room.harness.recorder.aFile('cena-rotulada'),
@@ -763,5 +798,31 @@ class _DiskThatRefusesTheScene extends TakeUploadQueue {
       chunkIndex: chunkIndex,
       scene: scene,
     );
+  }
+}
+
+/// An Outbox whose first count after the room kept a scene take waits to be let go.
+class _CountsHeldAfterTheKeep extends TakeUploadQueue {
+  final FakeRoom _room;
+
+  _CountsHeldAfterTheKeep({
+    required FakeRoom room,
+    super.home,
+    required super.recordings,
+  }) : _room = room,
+       super(room: room);
+
+  bool holding = false;
+  final _count = Completer<void>();
+
+  void letTheCountGo() => _count.complete();
+
+  @override
+  Future<OutboxTally> tally({required String? sessionId}) async {
+    if (_room.scenesKept.isNotEmpty && !_count.isCompleted) {
+      holding = true;
+      await _count.future;
+    }
+    return super.tally(sessionId: sessionId);
   }
 }

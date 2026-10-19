@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -9,6 +10,7 @@ import 'package:record/record.dart';
 
 import '../../../core/audio/room_audio_session.dart';
 import '../domain/channel.dart';
+import 'staged_write.dart';
 
 const _permissionAnswerCeiling = Duration(seconds: 60);
 
@@ -124,8 +126,28 @@ class RecordingRepository {
     final dir = await _recordingsDir();
     final extension = _isWav(bytes) ? 'wav' : 'm4a';
     final target = p.join(dir.path, '$fileName.$extension');
-    final whole = await File('$target.part').writeAsBytes(bytes, flush: true);
-    return (await whole.rename(target)).path;
+    try {
+      final whole = await File('$target.part').writeAsBytes(bytes, flush: true);
+      return (await whole.rename(target)).path;
+    } finally {
+      await _sweepStaleStaging(dir);
+    }
+  }
+
+  Future<void> _sweepStaleStaging(Directory dir) async {
+    try {
+      final parts = await dir
+          .list()
+          .where((entry) => entry is File && entry.path.endsWith('.part'))
+          .cast<File>()
+          .toList();
+      final cutoff = clock.now().subtract(staleStagingAge);
+      for (final part in parts) {
+        if ((await part.stat()).modified.isBefore(cutoff)) await part.delete();
+      }
+    } on Exception {
+      return;
+    }
   }
 
   /// Where audio kept under [fileName] already is on this tablet, or null when it is not.

@@ -402,7 +402,7 @@ void main() {
   );
 
   testWidgets(
-    'the dot goes, and takes no touch, while a note for the facilitator is armed',
+    'the dot stays lit, and takes a touch, while a note for the facilitator is armed',
     (tester) async {
       final (_, container) = await _afterTheSendOff(tester);
 
@@ -411,12 +411,8 @@ void main() {
 
       expect(container.read(salaSessionProvider).noteMode, isTrue);
       expect(container.read(salaSessionProvider).voice, VoiceState.invite);
-      expect(
-        _dotOpacity(tester),
-        0.0,
-        reason: 'o ponto continuou aceso com a nota armada',
-      );
-      expect(_dotIsDeaf(tester), isTrue);
+      expect(_seenOpacity(tester), closeTo(0.85, 0.001));
+      expect(_dotIsDeaf(tester), isFalse);
     },
   );
 

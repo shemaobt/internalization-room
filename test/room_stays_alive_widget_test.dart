@@ -246,7 +246,6 @@ void main() {
             child: Column(
               children: const [
                 Pulse(child: SizedBox(width: 10, height: 10)),
-                PingIn(child: SizedBox(width: 10, height: 10)),
                 FadeUp(child: SizedBox(width: 10, height: 10)),
                 ThreadIn(
                   index: 0,
@@ -271,8 +270,8 @@ void main() {
         find.byType(TweenAnimationBuilder<double>),
         findsNothing,
         reason:
-            'e o aparecer, o chegar e o enfiar da conta no cordão também — '
-            'quatro portões escritos e nenhum caso: apagar os quatro deixava a '
+            'e o aparecer e o enfiar da conta no cordão também — '
+            'três portões escritos e nenhum caso: apagar os três deixava a '
             'suíte inteira verde',
       );
       expect(

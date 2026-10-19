@@ -368,7 +368,6 @@ void main() {
       ...retroLabels.values,
       ...rehearsalLabels.values,
       ...findingLabels.values,
-      panoramaCircleLabels,
       ...escolhaLabels.values,
       ...handLabels.values,
       ...roomLabels.values,
