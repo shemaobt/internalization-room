@@ -1028,4 +1028,28 @@ void main() {
     expect(frasesGuardadas(harness), 1);
     closeTheRoom(container);
   });
+
+  testWidgets('a new take the tablet cannot keep still leaves the frase '
+      'waiting, and plays nothing in its place', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await gravarAFrase(tester, harness, 2);
+    harness.recorder.keepBytesFails = true;
+    harness.voice.fixedLines.clear();
+    final tocadas = harness.playback.ranges.length;
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(harness.voice.fixedLines, [('N4', 'pt')]);
+    expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-2');
+    expect(
+      harness.playback.ranges.skip(tocadas),
+      isEmpty,
+      reason: 'a parte velha tocava no lugar da frase nova',
+    );
+    closeTheRoom(container);
+  });
 }

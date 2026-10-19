@@ -5647,8 +5647,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final frase = int.parse(guardada.scope);
     final parte = state.trechoChamado(nome)?.parte;
     final nova = segments.where((segment) => segment.segmentId == nome);
+    var trocada = false;
     if (parte != null && nova.isNotEmpty) {
-      await _aParteComAFrase(
+      trocada = await _aParteComAFrase(
         guardada.sessionId,
         parte,
         nova.first.takeId,
@@ -5674,12 +5675,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       fixedLine: (name: sentenceInPlaceLine, language: _inTheSessionsLanguage),
     );
     if (_abandoned(generation)) return;
-    if (_armarOTrecho(state.trechoChamado(nome)) case final trecho?) {
-      _tocarAFraseNova(trecho);
-    }
+    final trecho = _armarOTrecho(state.trechoChamado(nome));
+    if (trecho != null && trocada) _tocarAFraseNova(trecho);
   }
 
-  Future<void> _aParteComAFrase(
+  Future<bool> _aParteComAFrase(
     String sessionId,
     int parte,
     String takeId,
@@ -5688,16 +5688,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final clip = await _room.fetchClip(
       RoomRepository.takeAudioUrl(sessionId, takeId),
     );
-    if (_abandoned(generation)) return;
+    if (_abandoned(generation)) return false;
     if (clip case Answered(:final value) when value.isNotEmpty) {
       final antiga = state.partes[parte];
       final String arquivo;
       try {
         arquivo = await _recorder.keepBytes(value, '${antiga.scopeId}-$takeId');
       } on Exception {
-        return;
+        return false;
       }
-      if (_abandoned(generation)) return;
+      if (_abandoned(generation)) return false;
       state = state.copyWith(
         keptTakes: [
           for (final take in state.keptTakes)
@@ -5712,7 +5712,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ],
       );
       await _medirAsPartes(state.partes, generation);
+      return true;
     }
+    return false;
   }
 
   void _tocarAFraseNova(Trecho trecho) {
