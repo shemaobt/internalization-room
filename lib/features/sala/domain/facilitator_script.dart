@@ -273,6 +273,10 @@ const retroLabels = {
     'pt': 'não deu para conferir agora — tentem de novo',
     'en': 'couldn\'t check right now — try again',
   },
+  'nothingTranslated': {
+    'pt': 'ainda não tem frase traduzida',
+    'en': 'no sentence translated yet',
+  },
   'part': {'pt': 'parte', 'en': 'part'},
   'addition': {'pt': 'acrescentado', 'en': 'added'},
   'missing': {'pt': 'faltou depois desta', 'en': 'missing after this'},

@@ -142,3 +142,8 @@ the last check, which put her mark words on the frase list) and `btConferindo` (
 running, which writes «conferindo…» on «terminei»), on `SalaSessionNotifier` and
 `SalaSessionState` beside the Retro's other `bt` fields, and moves into the machine with the
 rest of the Retro region. The exception ends with the freeze; nothing else rides on it.
+
+Extended by name (ENG-1197, 2026-10-19), same end date: `btRecusa`, the refusal the last
+«terminei» came back with, which writes her line under the circle («ainda falta ouvir um
+trecho da gravação», «ainda não tem frase traduzida», «não deu para conferir agora — tentem de
+novo»), sits beside them on the same two classes and moves with them.

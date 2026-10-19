@@ -5722,6 +5722,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _decideTheFailure(failure);
         return;
     }
+    if (verdict.refusal == CheckRefusal.nothingTranslated) {
+      state = state.copyWith(
+        btPhase: BtPhase.playing,
+        awaitingTheGuide: false,
+        btRecusa: verdict.refusal,
+      );
+      return;
+    }
     try {
       await _readyToSpeak(verdict.audioUrl, verdict.fixedLine);
       if (_abandoned(generation)) return;

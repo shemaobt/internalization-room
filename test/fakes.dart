@@ -1187,6 +1187,8 @@ class FakeRoom implements RoomRepository {
   List<String> verdictUntoldTakeIds = const [];
   bool verdictHasFinding = false;
   List<BtFinding> verdictFindings = const [];
+  CheckRefusal? verdictRefusal;
+  String verdictFixedLine = '';
   String? serverStatus;
 
   /// Which kind of halt the room reports beside `serverStatus`. A server older than
@@ -2353,6 +2355,22 @@ class FakeRoom implements RoomRepository {
     if (_guard('finishBackTranslation') case final failure?) return failure;
     if (_forgot('finishBackTranslation', sessionId) case final gone?) {
       return gone;
+    }
+    final recusa = verdictRefusal;
+    if (recusa != null) {
+      return Answered(
+        BackTranslationVerdict(
+          audioUrl: '',
+          fixedLine: verdictFixedLine,
+          checked: false,
+          findingSegmentId: null,
+          untoldSegmentId: verdictUntoldSegmentId,
+          unheardTakeIds: verdictUnheardTakeIds,
+          findingsRemaining: 0,
+          usedFailSafe: false,
+          refusal: recusa,
+        ),
+      );
     }
     final String linha;
     if (verdictUntoldTakeIds.isNotEmpty) {
