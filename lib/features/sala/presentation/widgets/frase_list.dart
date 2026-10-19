@@ -11,6 +11,9 @@ class FraseRow {
   final double share;
   final VoidCallback? onHear;
   final String? mark;
+  final bool nuance;
+  final String? regravar;
+  final VoidCallback? onRegravar;
 
   const FraseRow({
     required this.n,
@@ -18,6 +21,9 @@ class FraseRow {
     required this.share,
     required this.onHear,
     this.mark,
+    this.nuance = false,
+    this.regravar,
+    this.onRegravar,
   });
 }
 
@@ -102,7 +108,11 @@ class _FraseTile extends StatelessWidget {
     final n = row.n;
     final parte = row.parte;
     final mark = row.mark;
-    final tom = mark == null ? colors.cord : colors.telha;
+    final tom = row.nuance
+        ? ShemaBrand.azul
+        : mark == null
+        ? colors.cord
+        : colors.telha;
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 460),
       child: Container(
@@ -110,7 +120,13 @@ class _FraseTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: mark == null ? colors.line : colors.telha),
+          border: Border.all(
+            color: row.nuance
+                ? ShemaBrand.azul
+                : mark == null
+                ? colors.line
+                : colors.telha,
+          ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,6 +187,38 @@ class _FraseTile extends StatelessWidget {
                           child: Text(
                             mark,
                             style: TextStyle(color: colors.telha, fontSize: 14),
+                          ),
+                        ),
+                      if (row.regravar case final regravar?)
+                        Semantics(
+                          button: true,
+                          enabled: row.onRegravar != null,
+                          label: regravar,
+                          child: Opacity(
+                            opacity: row.onRegravar == null ? 0.35 : 1,
+                            child: GestureDetector(
+                              onTap: row.onRegravar,
+                              child: ExcludeSemantics(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: colors.cord),
+                                  ),
+                                  child: Text(
+                                    regravar,
+                                    style: TextStyle(
+                                      color: colors.cord,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                     ],

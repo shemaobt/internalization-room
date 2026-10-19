@@ -5797,7 +5797,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           btPhase: BtPhase.conferida,
           awaitingTheGuide: false,
           clearFindingSegment: true,
-          btFindings: verdict.findings,
+          btFindings: [...verdict.findings, ?verdict.namedNuance],
         );
         return;
       }
