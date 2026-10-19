@@ -206,14 +206,13 @@ class _FraseTile extends StatelessWidget {
                                   ),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: colors.cord),
+                                    border: Border.all(color: colors.mut),
                                   ),
                                   child: Text(
                                     regravar,
                                     style: TextStyle(
-                                      color: colors.cord,
+                                      color: colors.mut,
                                       fontSize: 14,
-                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
