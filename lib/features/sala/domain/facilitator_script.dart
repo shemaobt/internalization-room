@@ -349,6 +349,7 @@ String findingLabelFor(String control, String language) =>
 
 const escolhaLabels = {
   'choosePassage': {'pt': 'Escolha a passagem', 'en': 'Choose the Passage'},
+  'bookPanorama': {'pt': 'Panorama do Livro', 'en': 'Book Panorama'},
   'allDone': {
     'pt': 'Todas as passagens foram trabalhadas',
     'en': 'Every passage has been worked through',
@@ -365,8 +366,6 @@ const escolhaLabels = {
 String escolhaLabelFor(String control, String language) =>
     escolhaLabels[control]![language] ??
     escolhaLabels[control]![floorLanguage]!;
-
-const panoramaEntryLabel = {'pt': 'Panorama do Livro', 'en': 'Book Panorama'};
 
 const codigoLabels = {
   'preparing': {

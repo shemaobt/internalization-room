@@ -112,16 +112,15 @@ class _Books extends StatelessWidget {
       child: Column(
         spacing: 1.4 * _rem,
         children: [
-          for (final MapEntry(key: book, value: inBook) in books.entries)
+          for (final MapEntry(key: named, value: inBook) in books.entries)
             _Book(
-              name: bookNameFor(book, language),
+              name: bookNameFor(named, language),
               panoramas: [
                 for (final entry in inBook)
                   if (entry.isPanorama)
                     _Pill(
                       entry: entry,
-                      words:
-                          '◈ ${panoramaEntryLabel[language] ?? panoramaEntryLabel[floorLanguage]!}',
+                      words: '◈ ${escolhaLabelFor('bookPanorama', language)}',
                       tinted: _isTheEntryLeft(entry),
                       language: language,
                     ),

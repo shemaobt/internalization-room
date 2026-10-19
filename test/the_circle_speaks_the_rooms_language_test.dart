@@ -24,7 +24,6 @@ void main() {
       'warningNoticeLabel': {'notice': warningNoticeLabel},
       'codigoLabels': codigoLabels,
       'recordEntryLabel': {'entry': recordEntryLabel},
-      'panoramaEntryLabel': {'entry': panoramaEntryLabel},
     };
     for (final MapEntry(key: table, value: states) in tables.entries) {
       for (final MapEntry(key: state, value: labels) in states.entries) {
