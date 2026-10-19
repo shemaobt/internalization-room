@@ -359,6 +359,65 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a restart tapped while a frase is being recorded arms nothing', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _contadaAoVivo(tester, harness);
+    harness.playback.at = const Duration(seconds: 7);
+    await tester.pump(const Duration(seconds: 1));
+    await tocar(tester, tesoura);
+    await tocar(
+      tester,
+      'a pausa ficou no toque — toquem no círculo para traduzir',
+    );
+    await waitFor(
+      'o microfone abrir',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+      step: () => _passo(tester),
+    );
+
+    await tocar(tester, _recomecar);
+
+    expect(
+      container.read(salaSessionProvider).btRecomeco,
+      isNull,
+      reason: 'o recomeço armava por cima de uma frase sendo gravada',
+    );
+    expect(find.text(_recomecar), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'a restart tapped while a frase is on its way to the room arms nothing',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _contadaAoVivo(tester, harness);
+      harness.room.holdNextChunk();
+      harness.playback.at = const Duration(seconds: 7);
+      await tester.pump(const Duration(seconds: 1));
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      await tocar(tester, confirmar);
+      await waitFor(
+        'a frase ir para a sala',
+        () => container.read(salaSessionProvider).btPhase == BtPhase.thinking,
+        step: () => _passo(tester),
+      );
+
+      await tocar(tester, _recomecar);
+
+      expect(
+        container.read(salaSessionProvider).btRecomeco,
+        isNull,
+        reason: 'o recomeço armava com uma frase ainda a caminho da sala',
+      );
+      harness.room.finishHeldChunk();
+      await _passo(tester);
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets('with no frase told there is nothing to start over', (
     tester,
   ) async {

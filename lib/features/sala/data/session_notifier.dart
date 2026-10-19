@@ -5078,6 +5078,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _recomecarATraducao() {
     final sessionId = state.sessionId;
     if (state.station is! Retro || sessionId == null) return;
+    if (state.btPhase == BtPhase.capturing ||
+        state.btPhase == BtPhase.thinking) {
+      return;
+    }
     if (state.btRecomeco == null) {
       state = state.copyWith(btRecomeco: BtRecomeco.armado);
       _after('recomecoPronto', ref.read(restartWakeProvider), () {
