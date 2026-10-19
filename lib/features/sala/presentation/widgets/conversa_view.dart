@@ -11,6 +11,7 @@ import '../../domain/moment.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
+import 'kept_retelling_buttons.dart';
 import 'moment_label.dart';
 import 'motion.dart';
 
@@ -72,6 +73,13 @@ class ConversaView extends ConsumerWidget {
             ],
           ),
         ),
+        if (session.partsToReplay.isNotEmpty)
+          KeptRetellingButtons(
+            parts: session.partsToReplay,
+            language: language,
+            away: session.keptRetellingsAreAway,
+            onTap: notifier.playKeptRetelling,
+          ),
         if (session.moment case final moment?)
           if (momentLabelFor(moment, language) case final words?)
             Positioned(

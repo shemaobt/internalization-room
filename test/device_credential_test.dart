@@ -42,6 +42,9 @@ final Map<String, _Request> _everyClaimDoor = {
   'askForACode': (room, _) => room.askForACode('aparelho-1'),
   'readTheLink': (room, _) => room.readTheLink('aparelho-1'),
   'collectTheCredential': (room, _) => room.collectTheCredential('aparelho-1'),
+  'fetchKeptRetelling': (room, _) => room.fetchKeptRetelling(
+    'https://storage.example/kept/aa/conto.m4a?sig=1',
+  ),
 };
 
 /// Every other way the room touches the network, named as the app names it.

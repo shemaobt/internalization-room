@@ -86,6 +86,29 @@ class TakeView {
   );
 }
 
+class KeptRetelling {
+  final String scope;
+  final int turnNumber;
+  final String audioUrl;
+
+  const KeptRetelling({
+    required this.scope,
+    required this.turnNumber,
+    required this.audioUrl,
+  });
+
+  static List<KeptRetelling> listFrom(Map<String, dynamic> json) => [
+    for (final raw in (json['kept_takes'] as List? ?? const []))
+      if (raw is Map) KeptRetelling.fromJson(raw.cast<String, dynamic>()),
+  ];
+
+  factory KeptRetelling.fromJson(Map<String, dynamic> json) => KeptRetelling(
+    scope: json['scope'] as String? ?? '',
+    turnNumber: json['turn_number'] as int? ?? 0,
+    audioUrl: json['audio_url'] as String? ?? '',
+  );
+}
+
 /// What the room answers when a stretch is told again.
 class TellingAgain {
   final List<SegmentView> segments;
@@ -166,6 +189,8 @@ class SessionSnapshot {
 
   final Moment? moment;
 
+  final List<KeptRetelling> keptRetellings;
+
   const SessionSnapshot({
     required this.sessionId,
     required this.pericope,
@@ -176,6 +201,7 @@ class SessionSnapshot {
     this.halt = HaltKind.unnamed,
     this.opened = false,
     this.moment,
+    this.keptRetellings = const [],
   });
 
   factory SessionSnapshot.fromJson(Map<String, dynamic> json) =>
@@ -197,6 +223,7 @@ class SessionSnapshot {
         halt: HaltKind.fromJson(json['halt']),
         opened: json['opened'] as bool? ?? false,
         moment: Moment.fromJson(json['moment']),
+        keptRetellings: KeptRetelling.listFrom(json),
       );
 
   /// A halt the server calls a warning asks for a person to come and watch and refuses

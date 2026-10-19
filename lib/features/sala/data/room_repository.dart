@@ -619,6 +619,13 @@ class RoomRepository {
     asksForTheSession: false,
   );
 
+  Future<RoomAnswer<Uint8List>> fetchKeptRetelling(String url) => _room.ask(
+    () => _client.get(Uri.parse(url)),
+    timeout: _longCallTimeout,
+    read: (response) => response.bodyBytes,
+    asksForTheSession: false,
+  );
+
   Future<http.StreamedResponse> openClip(
     String url, {
     int? from,
