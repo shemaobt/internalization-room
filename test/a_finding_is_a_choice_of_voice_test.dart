@@ -143,7 +143,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('F1b — a tela do achado segue o quadro X1', (tester) async {
+  testWidgets('F1b — a tela do achado segue o quadro dela, com o título e a '
+      'linha acima das contas', (tester) async {
     tester.view
       ..physicalSize = const Size(820, 1180)
       ..devicePixelRatio = 1;
@@ -165,19 +166,19 @@ void main() {
             ),
           )
           .dy,
-      86,
+      169,
     );
     expect(tester.getSize(byLabel(ouvirOAchado)), const Size(160, 160));
-    expect(tester.getTopLeft(byLabel(ouvirOAchado)), const Offset(330, 456));
+    expect(tester.getTopLeft(byLabel(ouvirOAchado)), const Offset(330, 297));
     expect(
       tester.getTopLeft(byLabel(ouvirOTrechoEATraducao)),
-      const Offset(296, 680),
+      const Offset(296, 473),
     );
     expect(
       tester.getTopLeft(byLabel(microfoneDeMadeira)),
-      const Offset(380, 680),
+      const Offset(380, 473),
     );
-    expect(tester.getTopLeft(byLabel(microfoneAzul)), const Offset(464, 680));
+    expect(tester.getTopLeft(byLabel(microfoneAzul)), const Offset(464, 473));
     closeTheRoom(container);
   });
 
@@ -388,13 +389,13 @@ void main() {
     }
     expect(
       tester.getTopLeft(byLabel(ouvirOTrechoEATraducao)),
-      const Offset(296, 680),
+      const Offset(296, 473),
     );
     expect(aceso(tester, continuarOEnsaio), isTrue);
     expect(tester.getSize(byLabel(continuarOEnsaio)), const Size(78, 78));
     expect(
       tester.getTopLeft(byLabel(continuarOEnsaio)),
-      const Offset(371, 798),
+      const Offset(371, 877),
     );
 
     final partes = estadoDe(container).partes.length;

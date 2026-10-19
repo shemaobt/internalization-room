@@ -171,6 +171,7 @@ List<BeadRowEntry> _contasDoEnsaio(WidgetTester tester) => tester
     .entries;
 
 Future<void> _tocar(WidgetTester tester, String label) async {
+  await tester.ensureVisible(byLabel(label));
   await tester.tap(byLabel(label));
   await tester.pump(const Duration(milliseconds: 200));
 }

@@ -268,7 +268,20 @@ const retroLabels = {
     'en': 'Confirm the translation and go on',
   },
   'advance': {'pt': 'Conferir a tradução', 'en': 'Check the translation'},
-  'stretch': {'pt': 'Trecho', 'en': 'Stretch'},
+  'part': {'pt': 'parte', 'en': 'part'},
+  'title': {'pt': 'Traduzir a gravação', 'en': 'Translate the recording'},
+  'subTell': {
+    'pt':
+        'Toquem no círculo para pausar onde a frase acaba; toquem de novo para traduzir só o que aquela frase diz, e de novo para a gravação seguir.',
+    'en':
+        'Tap the circle to pause where the sentence ends; tap again to translate only what that sentence says, and again so the recording goes on.',
+  },
+  'subVerdict': {
+    'pt':
+        'Toquem numa frase para ouvir e traduzir de novo; voltem para regravar uma parte; ou toquem em terminei para conferir de novo.',
+    'en':
+        'Tap a sentence to hear it and translate it again; go back to re-record a part; or tap done to check again.',
+  },
   'listenToTheRecording': {
     'pt': 'Ouvir a gravação',
     'en': 'Listen to the recording',

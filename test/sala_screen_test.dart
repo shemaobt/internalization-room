@@ -29,6 +29,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/hear_aga
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/language_and_look.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -314,7 +315,6 @@ void main() {
     for (final go in [
       () => notifier.goConversa(book: 'Ruth'),
       notifier.goEnsaio,
-      notifier.startRetro,
     ]) {
       go();
       await tester.pump(const Duration(milliseconds: 200));
@@ -328,6 +328,23 @@ void main() {
             'palavra que esta equipe não pode ler',
       );
     }
+
+    notifier.startRetro();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 1400));
+    await tester.pump(const Duration(milliseconds: 1400));
+    expect(
+      find.byType(Text),
+      findsNWidgets(
+        find
+            .descendant(of: find.byType(RetroView), matching: find.byType(Text))
+            .evaluate()
+            .length,
+      ),
+      reason:
+          'na tradução só a tela dela escreve, com as palavras dela; nenhum '
+          'outro canto da sala ganha uma palavra escrita',
+    );
     closeTheRoom(container);
   });
 

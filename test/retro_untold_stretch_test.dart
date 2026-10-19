@@ -235,6 +235,8 @@ void main() {
     final gravacoes = [for (final take in antes.keptTakes) take.takeId];
     expect(gravacoes, isNotEmpty);
 
+    await tester.ensureVisible(byLabel(continuarOEnsaio));
+
     await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
 

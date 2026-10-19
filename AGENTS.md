@@ -34,8 +34,8 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
 - The room stays wordless: no `Text(` widget in the room's presentation layer, enforced by
   `test/the_room_stays_wordless_test.dart` against a named exception list — the claim code
   screen, read by the facilitator and not the team, her moment label, the claquete,
-  the «PT»/«EN» codes on the Choice, the scene question, and her passage menu on the
-  Choice (ADR 0014).
+  the «PT»/«EN» codes on the Choice, the scene question, her passage menu on the
+  Choice, and her check screen with its numbered frase list (ADR 0014).
 - Nothing forbidden returns to `lib/`: `tool/check_doctrine.dart` mirrors the backend's
   doctrine guard (`tripod-backend`, `scripts/check_doctrine.py`) against Marcia's six rules,
   spelled in Dart, against a typed allowlist in `tool/doctrine_allowlist.dart`.

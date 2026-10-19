@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
@@ -111,7 +112,25 @@ Future<String> olhar(WidgetTester tester) async {
   return '${_cor(tinta)} $movimento';
 }
 
+Future<void> tocarAConta(WidgetTester tester, int lugar) async {
+  final conta = find
+      .descendant(
+        of: find.descendant(
+          of: find.byType(RetroView),
+          matching: find.byType(BeadRow),
+        ),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Semantics && widget.properties.button == true,
+        ),
+      )
+      .at(lugar);
+  await tester.ensureVisible(conta);
+  await tester.tap(conta);
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
 Future<void> tocar(WidgetTester tester, String label) async {
+  await tester.ensureVisible(byLabel(label));
   await tester.tap(byLabel(label));
   await tester.pump(const Duration(milliseconds: 300));
 }
@@ -349,7 +368,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final contados = await doisContadosEOTerceiroPendente(tester, harness);
 
-    await tocar(tester, 'Trecho 1');
+    await tocarAConta(tester, 0);
 
     expect(harness.playback.played.last, contados.primeira);
     expect(harness.playback.sounding, isTrue);
@@ -376,10 +395,10 @@ void main() {
     expect(aceso(tester, confirmar), isTrue);
     expect(aceso(tester, tesoura), isFalse);
 
-    await tocar(tester, 'Trecho 1');
+    await tocarAConta(tester, 0);
     expect(harness.playback.sounding, isTrue);
     expect(contas(tester).first, 'solid com anel');
-    await tocar(tester, 'Trecho 3');
+    await tocarAConta(tester, 2);
 
     expect(harness.playback.sounding, isFalse);
     expect(contas(tester), [
@@ -418,7 +437,7 @@ void main() {
     await tocar(tester, pausar);
 
     expect(aceso(tester, tesoura), isTrue);
-    await tocar(tester, 'Trecho 1');
+    await tocarAConta(tester, 0);
     expect(aceso(tester, tesoura), isFalse);
     expect(aceso(tester, pausar), isTrue);
     harness.playback.at = const Duration(seconds: 2);
@@ -431,7 +450,7 @@ void main() {
     expect(harness.playback.playedFrom.last, const Duration(seconds: 7));
     await tocar(tester, pausar);
 
-    await tocar(tester, 'Trecho 1');
+    await tocarAConta(tester, 0);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     await tocar(tester, gravar);
@@ -488,7 +507,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     expect(contas(tester), ['solid', 'translucent com anel']);
 
-    await tocar(tester, 'Trecho 1');
+    await tocarAConta(tester, 0);
 
     expect(harness.playback.played.lastOrNull, gravada.path);
     expect(harness.playback.ranges.lastOrNull, '0-4000');
@@ -511,7 +530,7 @@ void main() {
     harness.playback.at = cabeca;
     await tocar(tester, tesoura);
     expect(harness.playback.sounding, isFalse);
-    await tocar(tester, 'Trecho 1');
+    await tocarAConta(tester, 0);
 
     expect(harness.playback.ranges.last, '0-4000');
     expect(harness.playback.sounding, isTrue);
@@ -530,7 +549,7 @@ void main() {
     await tocar(tester, confirmar);
     harness.playback.at = const Duration(seconds: 7);
 
-    await tocar(tester, 'Trecho 1');
+    await tocarAConta(tester, 0);
     harness.playback.at = const Duration(seconds: 3);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -579,7 +598,7 @@ void main() {
     harness.playback.finishHeldOpening();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tocar(tester, 'Trecho 1');
+    await tocarAConta(tester, 0);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     await tocar(tester, ouvir);
@@ -599,7 +618,7 @@ void main() {
     harness.playback.at = const Duration(seconds: 7);
     await tocar(tester, pausar);
 
-    await tocar(tester, 'Trecho 1');
+    await tocarAConta(tester, 0);
     harness.playback.at = const Duration(seconds: 2);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -628,7 +647,7 @@ void main() {
     }
     expect(aceso(tester, conferir), isTrue);
 
-    await tocar(tester, 'Trecho 1');
+    await tocarAConta(tester, 0);
     expect(aceso(tester, conferir), isFalse);
 
     harness.playback.finishPlayback();
@@ -754,7 +773,7 @@ void main() {
     await gravarATraducao(tester, harness);
     await tocar(tester, confirmar);
     await tocar(tester, pausar);
-    await tocar(tester, 'Trecho 2');
+    await tocarAConta(tester, 1);
     expect(harness.playback.sounding, isTrue);
 
     await pararPorUmaPessoa(tester, harness);

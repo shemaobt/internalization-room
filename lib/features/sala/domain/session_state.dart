@@ -168,6 +168,7 @@ class Trecho {
   /// Whether the team has explained this stretch yet. False on a half a division just
   /// made: it is a unit the room counts and nobody has told back.
   final bool contado;
+  final int? frase;
 
   const Trecho({
     required this.segmentId,
@@ -179,6 +180,7 @@ class Trecho {
     this.contado = true,
     required this.lugarFrom,
     required this.lugarTo,
+    this.frase,
   });
 }
 

@@ -1050,6 +1050,21 @@ class FakeRoom implements RoomRepository {
   /// lands on either.
   final List<SegmentView> segments = [];
 
+  List<SegmentView> get _numbered {
+    var told = 0;
+    return [
+      for (final segment in segments)
+        SegmentView(
+          segmentId: segment.segmentId,
+          takeId: segment.takeId,
+          startsMs: segment.startsMs,
+          endsMs: segment.endsMs,
+          told: segment.told,
+          frase: segment.told ? ++told : null,
+        ),
+    ];
+  }
+
   List<String> get segmentIds => [
     for (final segment in segments) segment.segmentId,
   ];
@@ -1826,7 +1841,7 @@ class FakeRoom implements RoomRepository {
         opened: openedSessions.contains(sessionId),
         moment: nextMoment,
         backTranslation:
-            retroSoFar ?? BackTranslationProgress(segments: List.of(segments)),
+            retroSoFar ?? BackTranslationProgress(segments: _numbered),
       ),
     );
     if (_readsToHold > 0) {
@@ -2023,7 +2038,7 @@ class FakeRoom implements RoomRepository {
     }
     _tellAgain(segmentId);
     final told = Answered(
-      TellingAgain(segments: List.of(segments), needsPerson: needsPerson),
+      TellingAgain(segments: _numbered, needsPerson: needsPerson),
     );
     final lost = loseTheNextReplaceAnswerWith;
     if (lost != null) {
@@ -2285,10 +2300,18 @@ class FakeRoom implements RoomRepository {
     );
     final held = _holdingChunk;
     if (held != null) await held.future;
-    return const Answered(BackTranslationChunk());
+    return Answered(
+      BackTranslationChunk(
+        frase:
+            fraseDaProximaFrase ??
+            segments.where((segment) => segment.told).length,
+      ),
+    );
   }
 
   Completer<void>? _holdingChunk;
+
+  int? fraseDaProximaFrase;
 
   /// Holds a stretch's delivery in flight, so a test can see the room still thinking.
   void holdNextChunk() => _holdingChunk = Completer<void>();

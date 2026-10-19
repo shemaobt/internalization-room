@@ -5528,9 +5528,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       return _theStepFell();
     }
+    final int? frase;
     switch (sent) {
-      case Answered():
+      case Answered(:final value):
         if (_abandoned(generation)) return;
+        frase = value.frase;
       case final RoomFailure failure:
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
@@ -5553,6 +5555,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // Nobody has corrected it: the slice it plays is the slice of the part it occupies.
       lugarFrom: _trechoStart,
       lugarTo: _trechoEnd,
+      frase: frase,
     );
     _trechoStart = _trechoEnd;
     unawaited(_retirarDaFilaSeGuardada(path));
@@ -6157,6 +6160,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             lugarFrom: aParte >= 0 ? from : (antes?.lugarFrom ?? from),
             lugarTo: aParte >= 0 ? to : (antes?.lugarTo ?? to),
             contado: segment.told,
+            frase: segment.frase,
           );
         }(),
     ];
