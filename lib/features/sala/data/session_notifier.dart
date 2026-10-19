@@ -51,6 +51,8 @@ import 'room_repository.dart';
 import 'take_upload_queue.dart';
 import 'work_in_progress.dart';
 
+typedef _Passage = ({String book, String? pericope});
+
 final roomPollDelayProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 30),
 );
@@ -232,7 +234,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final _random = Random();
   DateTime? _listeningSince;
   bool _recordingStarting = false;
-  ({String book, String? pericope})? _emCurso;
+  _Passage? _emCurso;
   Trecho? get _trechoTraduzidoDeNovo => state.btTrechoTraduzidoDeNovo;
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
       ? state.copyWith(clearTrechoTraduzidoDeNovo: true)
@@ -1082,7 +1084,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _dispatch(NothingReplayed(generation: _generation));
         }
       case TheResume():
-        if (_emCurso case final passage?) _handOff(_enterTheSame(passage));
+        if (_emCurso case final passage?) _handOff(_enterThePassage(passage));
         return;
       case TheWheel():
         _handOff(abrirEscolha());
@@ -1092,7 +1094,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_emCurso case final passage?
         when state.sessionId == null && state.station is Canvas) {
-      _handOff(_enterTheSame(passage));
+      _handOff(_enterThePassage(passage));
     }
     if (state.rodaPorLer) _handOff(abrirEscolha());
   }
@@ -1652,20 +1654,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return _abrirEscolha();
   }
 
-  Future<void> Function() _enterAgain(
-    ({String book, String? pericope}) passage,
-  ) {
+  Future<void> Function() _enterAgain(_Passage passage) {
     final landing = _landingOn;
-    if (landing == null) return () => _enterTheSame(passage);
+    if (landing == null) return () => _enterThePassage(passage);
     return () => _gestureThen(() => _landOn(landing));
   }
 
-  Future<void> _enterTheSame(({String book, String? pericope}) passage) =>
-      goConversa(
-        book: passage.book,
-        pericope: passage.pericope,
-        language: _sessionLanguage,
-      );
+  Future<void> _enterThePassage(_Passage passage) => goConversa(
+    book: passage.book,
+    pericope: passage.pericope,
+    language: _sessionLanguage,
+  );
 
   void _holdTheCurrentSession(
     String sessionId,
@@ -2167,7 +2166,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// gains tomorrow is born clean here without anybody remembering this branch; the
   /// counters and latches with no home in the state go through [_forgetThePassage],
   /// which is already where they live.
-  void _startTheSessionClean(({String book, String? pericope}) passage) {
+  void _startTheSessionClean(_Passage passage) {
     final livro = state;
     _dropThePendingTake();
     _forgetThePassage();

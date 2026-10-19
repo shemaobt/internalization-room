@@ -234,8 +234,7 @@ void main() {
   test('opening the room on a halted Choice with nothing on the Wheel asks the '
       'room nothing', () async {
     final tablet = _aTablet()
-      ..harness.room.failBooksWith = const Refused('BAD_REQUEST')
-      ..harness.room.failPassagesOf['Ruth'] = const Refused('BAD_REQUEST');
+      ..harness.room.failBooksWith = const Refused('BAD_REQUEST');
     await tablet.notifier.openTheRoom();
     await waitFor('the halt to stand', () => tablet.state.needsPerson);
     expect(tablet.state.naRoda, isNull);
