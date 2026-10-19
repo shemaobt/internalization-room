@@ -5129,10 +5129,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           () => state = state.copyWith(clearAviso: true),
         );
         final agora = _generation;
-        await _sayALine(
-          LineKind.guide,
-          fixedLine: (name: tellLine, language: _inTheSessionsLanguage),
-        ).catchError((_) => false, test: (error) => error is RoomFailure);
+        try {
+          await _sayALine(
+            LineKind.guide,
+            fixedLine: (name: tellLine, language: _inTheSessionsLanguage),
+          );
+        } on RoomFailure catch (failure) {
+          _decideAt(
+            failure,
+            door: Door.stretches,
+            rule: RefusalRule.passesUnlessItStops,
+          );
+        }
         if (_abandoned(agora)) return;
         state = state.copyWith(btPhase: BtPhase.playing);
         await _playFromTheUntoldGround(agora);
