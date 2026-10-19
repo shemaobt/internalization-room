@@ -164,7 +164,9 @@ class RetroView extends ConsumerWidget {
                 )
               : 1,
           onHear: aberta ? () => notifier.ouvirOTrechoContado(onde) : null,
-          mark: trecho.segmentId == session.btFraseQueAguarda
+          mark:
+              session.btFraseQueAguarda != null &&
+                  trecho.segmentId == session.btFraseQueAguarda
               ? sceneRehearsalLabelFor('awaiting', language)
               : switch (_markOn(trecho.frase, session)) {
                   null || BtFindingKind.nuance => null,
@@ -212,12 +214,15 @@ class RetroView extends ConsumerWidget {
             )
                 when frase == trecho.frase =>
               sceneRehearsalLabelFor('spliceTooLong', language),
-            null when session.btFraseGuardada == trecho.frase =>
+            null
+                when trecho.frase != null &&
+                    session.btFraseGuardada == trecho.frase =>
               sceneRehearsalLabelFor('spliceFail', language),
             _ => null,
           },
           onEstado:
               session.btRegravacao == null &&
+                  trecho.frase != null &&
                   session.btFraseGuardada == trecho.frase
               ? notifier.tentarAFraseDeNovo
               : null,

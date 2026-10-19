@@ -5631,8 +5631,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (state.btFraseQueAguarda case final aguardando?) {
           await _voltarAFraseQueAguarda(aguardando, generation);
         }
-      case RoomFailure():
+      case final RoomFailure failure:
         _guardarAFrase(frase);
+        _decideTheFailure(failure);
     }
   }
 
@@ -5730,9 +5731,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       StretchSound(path, named: trecho.segmentId, from: de, to: ate),
       onComplete: () {
         quiet();
-        _escuta
-          ..abrir(path, de.inMilliseconds)
-          ..fechar(path, ate.inMilliseconds);
+        _escuta.abrir(path, de.inMilliseconds);
+        _escuta.fechar(path, ate.inMilliseconds);
         if (_tamanhoDaParteMs[path] case final medido?) {
           _escuta.medida(path, medido);
         }

@@ -2840,7 +2840,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       final at = rows.indexWhere((entry) => entry.id == id);
       if (at < 0) continue;
       final entry = rows[at];
-      if (entry.stored) continue;
+      if (entry.stored || entry.kind == sentenceKind) continue;
       if (entry.kind == sceneTakeKind) {
         if (entry.exhausted) continue;
         switch (await room.keepSceneRehearsal(
