@@ -124,6 +124,8 @@ enum EnsaioStatus { idle, recording, recorded }
 /// it checks what was heard, not a contract the room promises.
 const folgaDoFimDaParte = Duration(milliseconds: 750);
 
+const emVoltaDaFraseNova = Duration(milliseconds: 1500);
+
 /// Where the telling-back is, step by step.
 enum BtPhase { playing, capturing, thinking, findings, conferida }
 

@@ -606,4 +606,51 @@ void main() {
     expect(harness.room.sentencesLaid, [guardada.id]);
     closeTheRoom(container);
   });
+
+  testWidgets('a sentence laid in is announced in her words and plays in its '
+      'place on the new take, with a second and a half around it', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    final antes = container.read(salaSessionProvider).partes.first;
+    await gravarAFrase(tester, harness, 2);
+    harness.voice.fixedLines.clear();
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.voice.fixedLines,
+      [('N4', 'pt')],
+      reason: 'a frase nova entrava no lugar sem a voz dizer nada',
+    );
+    final agora = container.read(salaSessionProvider).partes.first;
+    expect(agora.takeId, harness.room.takes.last.takeId);
+    expect(agora.path, isNot(antes.path));
+    expect(harness.playback.played.last, agora.path);
+    expect(
+      harness.playback.ranges.last,
+      '2500-8700',
+      reason: 'a frase nova não tocava no lugar dela, com o que vem em volta',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a new sentence at the very start of its part plays from the '
+      'start, never from before it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(harness.playback.ranges.last, '0-4700');
+    closeTheRoom(container);
+  });
 }

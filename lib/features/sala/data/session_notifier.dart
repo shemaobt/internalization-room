@@ -5587,11 +5587,106 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         code: RefusalCode.sentenceTooShort || RefusalCode.sentenceFormatDiffers,
       ):
         _largarAFrase(guardada, PassoDaRegravacao.pronta);
-      case Answered():
-        break;
+      case Answered(value: final laid):
+        await _aFraseNoLugar(guardada, nome, laid.segments, generation);
       case RoomFailure():
         _guardarAFrase(frase);
     }
+  }
+
+  Future<void> _aFraseNoLugar(
+    PendingTake guardada,
+    String nome,
+    List<SegmentView> segments,
+    int generation,
+  ) async {
+    _fraseNaFila = null;
+    unawaited(_takes.withdraw(guardada));
+    final frase = int.parse(guardada.scope);
+    final parte = state.trechoChamado(nome)?.parte;
+    final nova = segments.where((segment) => segment.segmentId == nome);
+    if (parte != null && nova.isNotEmpty) {
+      await _aParteComAFrase(
+        guardada.sessionId,
+        parte,
+        nova.first.takeId,
+        generation,
+      );
+      if (_abandoned(generation)) return;
+    }
+    final trechos = _trechosFrom(segments);
+    state = state.copyWith(
+      clearBtRegravacao: true,
+      btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
+      btPhase: BtPhase.playing,
+      clearFindingSegment: true,
+      btFindings: [
+        for (final finding in state.btFindings)
+          if (finding.frase != frase) finding,
+      ],
+    );
+    _rememberWhereTheyAre(const Retro());
+    await _sayALine(
+      LineKind.guide,
+      fixedLine: (name: sentenceInPlaceLine, language: _inTheSessionsLanguage),
+    );
+    if (_abandoned(generation)) return;
+    if (state.trechoChamado(nome) case final trecho?) _tocarAFraseNova(trecho);
+  }
+
+  Future<void> _aParteComAFrase(
+    String sessionId,
+    int parte,
+    String takeId,
+    int generation,
+  ) async {
+    final clip = await _room.fetchClip(
+      RoomRepository.takeAudioUrl(sessionId, takeId),
+    );
+    if (_abandoned(generation)) return;
+    if (clip case Answered(:final value) when value.isNotEmpty) {
+      final antiga = state.partes[parte];
+      final String arquivo;
+      try {
+        arquivo = await _recorder.keepBytes(value, '${antiga.scopeId}-$takeId');
+      } on Exception {
+        return;
+      }
+      if (_abandoned(generation)) return;
+      state = state.copyWith(
+        keptTakes: [
+          for (final take in state.keptTakes)
+            identical(take, antiga)
+                ? KeptTake(
+                    scopeId: antiga.scopeId,
+                    path: arquivo,
+                    takeId: takeId,
+                    pass: antiga.pass,
+                  )
+                : take,
+        ],
+      );
+      await _medirAsPartes(state.partes, generation);
+    }
+  }
+
+  void _tocarAFraseNova(Trecho trecho) {
+    final onde = _ondeTocar(trecho);
+    if (onde == null) return;
+    final (path, from, to) = onde;
+    void quiet() => unawaited(_playback.stop());
+    _play(
+      StretchSound(
+        path,
+        named: trecho.segmentId,
+        from: from > emVoltaDaFraseNova
+            ? from - emVoltaDaFraseNova
+            : Duration.zero,
+        to: to + emVoltaDaFraseNova,
+      ),
+      onComplete: quiet,
+      onFailed: quiet,
+    );
   }
 
   Future<void> _lembrarDaFraseGuardada(String sessionId) async {
