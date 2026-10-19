@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1297 (2026-10-16: the tablet keeps no list of finished passages)
 date: 2026-10-01
 amends: 0047, 0050, 0051
 ---

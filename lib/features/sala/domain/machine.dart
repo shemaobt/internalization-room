@@ -680,8 +680,8 @@ final class AskForAPersonAgain extends Effect {
   const AskForAPersonAgain();
 }
 
-final class MarkThePassageClosed extends Effect {
-  const MarkThePassageClosed();
+final class CloseThePassage extends Effect {
+  const CloseThePassage();
 }
 
 final class CountTheRefusal extends Effect {
@@ -952,7 +952,7 @@ const _watch = ArmTheWatch();
     [const StopTheSound(), for (final line in machine.queue) DropTheLine(line)],
   ),
   TheSessionIsGone() || ThePassageClosed() => _theSessionGone(machine),
-  TheCallMetAClosedPassage() => (machine, const [MarkThePassageClosed()]),
+  TheCallMetAClosedPassage() => (machine, const [CloseThePassage()]),
   TurnSent(:final turn) => (machine.copyWith(inFlight: turn), const []),
   TurnAnswered(:final turn) => (
     _settleTheOpening(_land(machine, turn), turn),

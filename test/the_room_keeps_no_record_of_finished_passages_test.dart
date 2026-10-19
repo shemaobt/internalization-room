@@ -125,9 +125,9 @@ void main() {
       );
       addTearDown(runner.dispose);
 
-      runner.run(const [MarkThePassageClosed()]);
+      runner.run(const [CloseThePassage()]);
 
-      expect(host.marksHeard, ['end:sessao-1']);
+      expect(host.passagesClosedHeard, ['sessao-1']);
       expect(store.heard, isEmpty);
     },
   );

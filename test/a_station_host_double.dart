@@ -65,13 +65,13 @@ class AStationHost implements StationHost {
   bool aPersonIsNeeded = true;
 
   int callsStopped = 0;
-  final List<String> marksHeard = [];
+  final List<String> passagesClosedHeard = [];
 
   @override
   void hearTheCallStopped() => callsStopped++;
 
   @override
-  void hearTheMarkEnd(String session) => marksHeard.add('end:$session');
+  void hearThePassageClosed(String session) => passagesClosedHeard.add(session);
 
   int callsLanded = 0;
   int callsLandedWithoutASession = 0;
