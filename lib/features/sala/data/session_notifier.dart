@@ -5612,6 +5612,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _largarAFrase(guardada, PassoDaRegravacao.pronta);
       case Answered(value: final laid):
         await _aFraseNoLugar(guardada, nome, laid.segments, generation);
+      case Refused(
+        code: RefusalCode.stretchNoLongerCounts ||
+            RefusalCode.partNotWav ||
+            RefusalCode.sentenceIdReused,
+      ):
+        _fraseNaFila = null;
+        unawaited(_takes.withdraw(guardada));
+        state = state.copyWith(clearBtRegravacao: true);
+        await _readTheStretchesBack(guardada.sessionId, generation);
       case Refused(code: RefusalCode.anotherSentenceAwaits):
         _guardarAFrase(frase);
         await _readTheStretchesBack(guardada.sessionId, generation);

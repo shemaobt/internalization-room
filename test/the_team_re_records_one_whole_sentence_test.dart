@@ -860,4 +860,36 @@ void main() {
     expect(_naLista('regravar a frase 2'), findsNothing);
     closeTheRoom(container);
   });
+
+  for (final code in [
+    'STRETCH_NO_LONGER_COUNTS',
+    'PART_NOT_WAV',
+    'SENTENCE_ID_REUSED',
+  ]) {
+    testWidgets('a sentence the room refuses as $code can never be laid in: '
+        'it is dropped and the stretches are read again', (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _quatroFrases(tester, harness);
+      await gravarAFrase(tester, harness, 3);
+      harness.room.sentenceAnswersFirst.add(Refused(code));
+
+      await tester.tap(naLinha('usar esta'));
+      await _passo(tester);
+      await _passo(tester);
+
+      expect(
+        guardada(harness),
+        isFalse,
+        reason: 'uma frase que a sala nunca vai aceitar ficava para sempre',
+      );
+      final aqui = container.read(salaSessionProvider);
+      expect((aqui.btFraseGuardada, aqui.btRegravacao), (null, null));
+      final chamadas = harness.room.calls;
+      expect(
+        chamadas.sublist(chamadas.lastIndexOf('reRecordTheSentence')),
+        contains('fetchState'),
+      );
+      closeTheRoom(container);
+    });
+  }
 }

@@ -20,6 +20,8 @@ abstract final class RefusalCode {
   static const sentenceTooShort = 'SENTENCE_TOO_SHORT';
   static const sentenceFormatDiffers = 'SENTENCE_FORMAT_DIFFERS';
   static const anotherSentenceAwaits = 'ANOTHER_SENTENCE_AWAITS';
+  static const partNotWav = 'PART_NOT_WAV';
+  static const sentenceIdReused = 'SENTENCE_ID_REUSED';
 
   static const stopsTheRoom = {unauthorized, forbidden, deviceRevoked};
 
