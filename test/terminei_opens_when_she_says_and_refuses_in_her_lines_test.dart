@@ -197,4 +197,34 @@ void main() {
     expect(harness.room.playedByTakeSent, hasLength(3));
     closeTheRoom(container);
   });
+
+  testWidgets('a part not heard through is refused with her line on the '
+      'screen, her P2 by its name, and that part played from its start', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _duasFrasesNoTerminei(tester, harness);
+    final aParte = container.read(salaSessionProvider).partes.single;
+    harness.room
+      ..verdictRefusal = CheckRefusal.partUnheard
+      ..verdictFixedLine = 'P2'
+      ..verdictUnheardTakeIds = [aParte.takeId!];
+    final linhas = harness.voice.fixedLines.length;
+
+    await _recusado(tester, container);
+
+    expect(
+      find.text('ainda falta ouvir um trecho da gravação'),
+      findsOneWidget,
+      reason: 'a parte não ouvida tinha a fala dela e nada na tela',
+    );
+    expect(
+      [for (final (linha, _) in harness.voice.fixedLines.skip(linhas)) linha],
+      ['P2'],
+      reason: 'a fala da parte não ouvida é a P2 dela, pedida pelo nome',
+    );
+    expect(harness.playback.played.last, aParte.path);
+    expect(harness.playback.playedFrom.last, Duration.zero);
+    closeTheRoom(container);
+  });
 }

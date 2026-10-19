@@ -5731,6 +5731,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       return;
     }
+    if (verdict.refusal == CheckRefusal.partUnheard) {
+      state = state.copyWith(btRecusa: verdict.refusal);
+    }
     try {
       await _readyToSpeak(verdict.audioUrl, verdict.fixedLine);
       if (_abandoned(generation)) return;
