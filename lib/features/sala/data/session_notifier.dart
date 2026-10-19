@@ -5701,6 +5701,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.thinking,
       awaitingTheGuide: true,
       btConferindo: true,
+      clearBtRecusa: true,
     );
     _watchBusyState();
     final BackTranslationVerdict verdict;

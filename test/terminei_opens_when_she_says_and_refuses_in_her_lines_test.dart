@@ -298,4 +298,30 @@ void main() {
     expect(harness.playback.ranges.last, '0-4000');
     closeTheRoom(container);
   });
+
+  testWidgets('a refusal\'s line leaves the moment «terminei» is pressed '
+      'again, not when the next answer comes', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _duasFrasesNoTerminei(tester, harness);
+    harness.room.verdictRefusal = CheckRefusal.nothingTranslated;
+    await _recusado(tester, container);
+    expect(find.text('ainda não tem frase traduzida'), findsOneWidget);
+
+    harness.room.holdNextVerdict();
+    await tocar(tester, conferir);
+    await waitFor(
+      'a conferência estar no ar',
+      () => container.read(salaSessionProvider).btConferindo,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      find.text('ainda não tem frase traduzida'),
+      findsNothing,
+      reason:
+          'a linha da recusa anterior ficava na tela durante a nova conferência',
+    );
+    harness.room.finishHeldVerdict();
+    closeTheRoom(container);
+  });
 }
