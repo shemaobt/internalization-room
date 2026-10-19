@@ -169,6 +169,10 @@ const sceneRehearsalLabels = {
     'pt': 'ouvir a minha tradução da frase {n}',
     'en': 'hear my translation of sentence {n}',
   },
+  'rerecordFrase': {
+    'pt': 'regravar a frase {n}',
+    'en': 're-record sentence {n}',
+  },
   'list': {
     'pt': 'ensaios da cena desta sessão',
     'en': 'scene rehearsals of this session',

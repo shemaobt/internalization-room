@@ -599,6 +599,18 @@ class RoomRepository {
     asksForTheSession: true,
   );
 
+  Future<RoomAnswer<void>> reportTheVerdictHeard(String sessionId, String at) =>
+      _room.ask(
+        () => _client.post(
+          _uri('/sessions/$sessionId/back-translation/heard'),
+          headers: _headers,
+          body: jsonEncode({'at': at}),
+        ),
+        timeout: _stateTimeout,
+        read: readJson((_) {}),
+        asksForTheSession: false,
+      );
+
   Future<RoomAnswer<String>> fixedLineAddress(
     String line, {
     required String language,

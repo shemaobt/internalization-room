@@ -74,6 +74,40 @@ void main() {
     expect(snapshot.backTranslation.findings, isEmpty);
   });
 
+  test('the verdict answer hands over its round\'s stamp and the nuance the '
+      'voice named, and a verdict without them names none', () {
+    final named = BackTranslationVerdict.fromJson(const {
+      'audio_url': '/voice/veredito',
+      'checked': true,
+      'findings': <Object>[],
+      'check_at': '2026-10-19T19:58:13.123456Z',
+      'named_nuance': {'kind': 'nuance', 'frase': 2, 'segment_id': 'trecho-2'},
+    });
+    final plain = BackTranslationVerdict.fromJson(const {
+      'audio_url': '/voice/veredito',
+      'checked': true,
+      'check_at': null,
+      'named_nuance': null,
+    });
+
+    expect(
+      named.checkAt,
+      '2026-10-19T19:58:13.123456Z',
+      reason: 'sem o carimbo o aparelho não tinha como dizer qual rodada ouviu',
+    );
+    expect(
+      switch (named.namedNuance) {
+        final nuance? => (nuance.kind, nuance.frase, nuance.segmentId),
+        null => null,
+      },
+      (BtFindingKind.nuance, 2, 'trecho-2'),
+      reason:
+          'a nuance que a voz disse não chegava, e a frase dela ficava sem cor',
+    );
+    expect(plain.checkAt, isNull);
+    expect(plain.namedNuance, isNull);
+  });
+
   test('a stretch carries the frase number the voice says, and an untold '
       'piece carries none', () {
     final segments = SegmentView.listFrom(const {
