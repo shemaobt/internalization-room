@@ -77,6 +77,7 @@ enum Door {
   stretches,
   question,
   step,
+  telling,
   verdict,
   sceneRehearsal,
   sceneList,

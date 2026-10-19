@@ -1,10 +1,20 @@
 ---
-status: accepted, amended by 0052, 0071
+status: accepted, amended by 0052, 0071, amended by ENG-1197 (2026-10-19: a frase whose first telling fails on the network is a frase not understood, never re-sent)
 date: 2026-10-01
 amends: 0046, 0049
 ---
 
 # The Reach is a region, and the retry is the machine's
+
+Amended by ENG-1197 (2026-10-19): a stretch told back for the first time whose send
+fails on the network no longer takes the room out of reach and is not re-sent on the
+return. Marcia's rule names a send failure among the frases nothing was understood of
+(ENG-1197; her `Drafting.tsx:1221`): nothing is stored, the pause stays, and the screen
+says «não entendi — traduzam de novo esse pedaço», so the team tells it again. That
+answers the objection to the option rejected below: the team now sees the gesture they
+owe. A key still in flight after three answers (ADR 0052) is not a failed send, and still
+goes out of reach and out again under its key; a stretch told again, the approval, a
+turn and the verdict keep this ADR as written.
 
 This amends ADRs 0046 and 0049. It edits one sentence of 0049, in its Consequences: the
 one that said the offline notice had no path under an open microphone until ENG-1174. That

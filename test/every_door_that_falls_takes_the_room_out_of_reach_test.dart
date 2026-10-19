@@ -195,29 +195,35 @@ void main() {
     await waitFor('a contagem zerar', () => room.estado.unsentTakes == 0);
   });
 
+  test('a stretch told back as the network falls is a frase the room did not '
+      'understand, and is never sent again when the network returns', () async {
+    final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
+    final room = await _aResumedBackTranslation(harness);
+    await _tellAStretchUpTo(room, const Duration(seconds: 12));
+    room.theNetworkFalls();
+
+    await room.sala.confirmarTraducao();
+    await waitFor(
+      'a frase voltar como não entendida',
+      () => room.estado.wordlessTelling,
+    );
+    room.theNetworkReturns();
+    await settle();
+
+    expect(
+      harness.room.chunkKeys,
+      hasLength(1),
+      reason:
+          'ENG-1197: a frase que a rede perdeu é a não entendida dela, '
+          'e só sai de novo quando a equipe a conta de novo',
+    );
+    expect(harness.room.segments, isEmpty);
+    expect(room.estado.btTrechos, isEmpty);
+    expect(room.estado.btTraducaoPendente, isNull);
+  });
+
   group('3 (c): a request sent while out of reach goes out once more under '
       'the same Idempotency-Key when the network returns', () {
-    test('a stretch told back lands on the Step that asked', () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
-      final room = await _aResumedBackTranslation(harness);
-      await _tellAStretchUpTo(room, const Duration(seconds: 12));
-      room.theNetworkFalls();
-
-      await room.sala.confirmarTraducao();
-      await room.outOfReach('pelo trecho');
-      room.theNetworkReturns();
-
-      await waitFor('o trecho pousar', () => room.estado.btTrechos.isNotEmpty);
-      await settle();
-      expect(harness.room.chunkKeys, hasLength(2));
-      expect(harness.room.chunkKeys.first, isNotEmpty);
-      expect(harness.room.chunkKeys.toSet(), hasLength(1));
-      expect(harness.room.segments, hasLength(1));
-      expect(room.estado.btTrechos.single.to, const Duration(seconds: 12));
-      expect(room.estado.btTraducaoPendente, isNull);
-      expect(room.estado.unreachable, isFalse);
-    });
-
     test('a stretch told again lands on the Step that asked', () async {
       final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
       final room = await _aFindingToTellAgain(harness);
@@ -543,16 +549,19 @@ void main() {
       final harness = SalaHarness();
       final room = await _aResumedBackTranslation(harness);
       await _tellAStretchUpTo(room, const Duration(seconds: 12));
-      room.theNetworkFalls();
+      harness.network.reachable = false;
+      harness.room.chunkAnswersFirst.addAll(
+        List.filled(3, _theKeyStillInFlight),
+      );
       await room.sala.confirmarTraducao();
-      await room.outOfReach('pelo trecho');
+      await room.outOfReach('pela chave ainda em voo');
       harness.room.chunkAnswersFirst.add(_theKeyStillInFlight);
       final marks = room.estado.btChunkFailures;
 
       room.theNetworkReturns();
 
       await waitFor('o trecho pousar', () => room.estado.btTrechos.isNotEmpty);
-      expect(harness.room.chunkKeys, hasLength(3));
+      expect(harness.room.chunkKeys, hasLength(5));
       expect(harness.room.chunkKeys.toSet(), hasLength(1));
       expect(harness.room.segments, hasLength(1));
       expect(room.estado.btChunkFailures, marks);
@@ -619,18 +628,17 @@ void main() {
   test('8: a request that fell waits under a blocking halt, and goes out once '
       'under its key when the halt lifts', () async {
     final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
-    final room = await _aResumedBackTranslation(harness);
-    await _tellAStretchUpTo(room, const Duration(seconds: 12));
+    final room = await _aFindingToTellAgain(harness);
     room.theNetworkFalls();
     await room.sala.confirmarTraducao();
-    await room.outOfReach('pelo trecho');
+    await room.outOfReach('pela correção');
     room.sala.haltForABrokenBuild();
 
     room.theNetworkReturns();
     await waitFor('a sala voltar', () => !room.estado.unreachable);
     await settle(const Duration(milliseconds: 200));
     expect(
-      harness.room.chunkKeys,
+      harness.room.replaceKeys,
       hasLength(1),
       reason: 'nada sai sob a parada',
     );
@@ -640,12 +648,15 @@ void main() {
       () => harness.room.personsAsked > 0,
     );
     harness.room.theDeskAttended();
-    await waitFor('o trecho pousar', () => harness.room.segments.isNotEmpty);
+    await waitFor(
+      'a correção pousar',
+      () => harness.room.replacesAsked.isNotEmpty,
+    );
     await settle(const Duration(milliseconds: 200));
 
-    expect(harness.room.chunkKeys, hasLength(2));
-    expect(harness.room.chunkKeys.toSet(), hasLength(1));
-    expect(harness.room.segments, hasLength(1));
+    expect(harness.room.replaceKeys, hasLength(2));
+    expect(harness.room.replaceKeys.toSet(), hasLength(1));
+    expect(harness.room.replacesAsked, hasLength(1));
   });
 
   test('5: a pre-flight probe asks the room once with the probe already in '
@@ -898,16 +909,15 @@ void main() {
     test('a read that finds the session gone after a retry opens the Choice '
         'with the retry still on its way', () async {
       final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
-      final room = await _aResumedBackTranslation(harness);
-      await _tellAStretchUpTo(room, const Duration(seconds: 12));
+      final room = await _aFindingToTellAgain(harness);
       room.theNetworkFalls();
       await room.sala.confirmarTraducao();
-      await room.outOfReach('pelo trecho');
+      await room.outOfReach('pela correção');
       harness.network.reachable = true;
       harness.room
         ..reachable = true
         ..failStateOnceWith = const SessionGone()
-        ..holdNextChunk();
+        ..holdNextReplace();
       final before = room.estado.machine.onTheirWay;
 
       room.sala.retryNow();
