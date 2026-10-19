@@ -128,6 +128,10 @@ class RetroView extends ConsumerWidget {
               rows: _frases(session, notifier, language),
               language: language,
             ),
+            if (session.btTrechos.any((trecho) => trecho.contado)) ...[
+              const SizedBox(height: 8),
+              _recomeco(session, colors, notifier, language),
+            ],
             const SizedBox(height: 24),
             SizedBox(
               height: 78,
@@ -187,6 +191,41 @@ class RetroView extends ConsumerWidget {
               : null,
         ),
     ];
+  }
+
+  Widget _recomeco(
+    SalaSessionState session,
+    SalaColors colors,
+    SalaSessionNotifier notifier,
+    String language,
+  ) {
+    final rotulo = session.btRecomeco == null
+        ? retroLabelFor('restart', language)
+        : retroLabelFor(
+            'restartArmed',
+            language,
+            n: session.btTrechos.where((trecho) => trecho.contado).length,
+          );
+    return Semantics(
+      button: true,
+      label: rotulo,
+      child: ExcludeSemantics(
+        child: GestureDetector(
+          onTap: notifier.recomecarATraducao,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: colors.mut),
+            ),
+            child: Text(
+              rotulo,
+              style: TextStyle(color: colors.mut, fontSize: 15),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   String? _linha(SalaSessionState session, String language) {

@@ -322,10 +322,16 @@ const retroLabels = {
     'pt': 'não entendi — traduzam de novo esse pedaço',
     'en': 'I didn\'t catch that — translate that piece again',
   },
+  'restart': {'pt': 'recomeçar a tradução', 'en': 'start the translation over'},
+  'restartArmed': {
+    'pt': 'toque de novo para apagar as {n} frases traduzidas',
+    'en': 'tap again to discard the {n} translated sentences',
+  },
 };
 
-String retroLabelFor(String control, String language) =>
-    retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!;
+String retroLabelFor(String control, String language, {int? n}) =>
+    (retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!)
+        .replaceAll('{n}', '$n');
 
 const rehearsalLabels = {
   'firstPart': {
