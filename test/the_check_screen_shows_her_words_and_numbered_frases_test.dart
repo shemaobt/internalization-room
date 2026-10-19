@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
@@ -164,6 +165,29 @@ Future<ProviderContainer> _quatroFrasesConferidas(
   );
   await _passo(tester);
   return container;
+}
+
+const _achadosDaDoisEDaQuatro = [
+  BtFinding(kind: BtFindingKind.addition, frase: 2, segmentId: 'trecho-2'),
+  BtFinding(kind: BtFindingKind.unclear, frase: 4, segmentId: 'trecho-4'),
+];
+
+Future<void> _traduzirAFraseApontadaDeNovo(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tocar(tester, 'Traduzir este trecho de novo');
+  await _passo(tester);
+  await tocar(tester, 'Tocar para gravar a tradução de novo');
+  await tocar(tester, 'Tocar ao terminar');
+  await _passo(tester);
+  await tocar(tester, confirmar);
+  await waitFor(
+    'a frase traduzida de novo pousar',
+    () => container.read(salaSessionProvider).btTrechoTraduzidoDeNovo == null,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
 }
 
 List<String> _naLista(WidgetTester tester) => [
@@ -414,6 +438,153 @@ void main() {
           'só o achado que liderava marcava alguma coisa, e os outros não '
           'apareciam como pista',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a missing element is marked on the frase the check named, '
+      'never on the stretch after it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(tester, harness, const [
+      BtFinding(kind: BtFindingKind.missing, frase: 3, segmentId: 'trecho-4'),
+    ]);
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        '1',
+        'parte 1',
+        '2',
+        'parte 1',
+        '3',
+        'parte 2',
+        'faltou depois desta',
+        '4',
+        'parte 2',
+      ],
+      reason:
+          'a falta depois da frase 3 aponta o trecho da frase 4; marcada pelo '
+          'trecho, a palavra cairia na frase errada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase two findings name carries the word of the first, not '
+      'the second', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(tester, harness, const [
+      BtFinding(kind: BtFindingKind.unclear, frase: 2, segmentId: 'trecho-2'),
+      BtFinding(kind: BtFindingKind.addition, frase: 2, segmentId: 'trecho-2'),
+    ]);
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        '1',
+        'parte 1',
+        '2',
+        'parte 1',
+        'não ficou claro',
+        '3',
+        'parte 2',
+        '4',
+        'parte 2',
+      ],
+      reason:
+          'uma frase leva uma palavra só, a do primeiro achado que a nomeia',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a finding of a kind this tablet does not know marks nothing, '
+      'and the others are still marked', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(tester, harness, const [
+      BtFinding(kind: null, frase: 1, segmentId: 'trecho-1'),
+      BtFinding(kind: BtFindingKind.addition, frase: 3, segmentId: 'trecho-3'),
+    ]);
+
+    expect(_naLista(tester), [
+      'FRASES TRADUZIDAS',
+      '1',
+      'parte 1',
+      '2',
+      'parte 1',
+      '3',
+      'parte 2',
+      'acrescentado',
+      '4',
+      'parte 2',
+    ], reason: 'uma nuance não leva palavra nenhuma');
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase translated again loses its mark at once, and the '
+      'other frases keep theirs', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(
+      tester,
+      harness,
+      _achadosDaDoisEDaQuatro,
+    );
+    harness.room.failFinishWith = const NetworkFailed('timeout');
+
+    await _traduzirAFraseApontadaDeNovo(tester, container);
+
+    expect(harness.room.replacesAsked, hasLength(1));
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        '1',
+        'parte 1',
+        '2',
+        'parte 1',
+        '3',
+        'parte 2',
+        '4',
+        'parte 2',
+        'não ficou claro',
+      ],
+      reason:
+          'a frase traduzida de novo seguia marcada como se o achado ainda '
+          'valesse',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a check that comes back clean takes every mark away', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(
+      tester,
+      harness,
+      _achadosDaDoisEDaQuatro,
+    );
+    harness.room
+      ..verdictChecked = true
+      ..verdictFindings = const [];
+
+    await _traduzirAFraseApontadaDeNovo(tester, container);
+    await waitFor(
+      'a conferência limpa chegar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      step: () => _passo(tester),
+    );
+
+    expect(_naLista(tester), [
+      'FRASES TRADUZIDAS',
+      '1',
+      'parte 1',
+      '2',
+      'parte 1',
+      '3',
+      'parte 2',
+      '4',
+      'parte 2',
+    ], reason: 'a última conferência não nomeou frase nenhuma');
     closeTheRoom(container);
   });
 }

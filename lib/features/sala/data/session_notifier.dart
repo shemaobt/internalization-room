@@ -5362,6 +5362,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       clearTraducaoPendente: true,
+      btFindings: [
+        for (final finding in state.btFindings)
+          if (alvo.frase == null || finding.frase != alvo.frase) finding,
+      ],
     );
     if (needsPerson) _dispatch(TheAnswerWarned(generation: _generation));
     _rememberWhereTheyAre(const Retro());
