@@ -5378,6 +5378,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (_abandoned(generation)) return;
         await _readWhatTheRefusalSays(alvo, path, sessionId, generation);
         return;
+      case Refused(
+        code: final code &&
+            (RefusalCode.pauseOnlyOnTheLastFrase ||
+                RefusalCode.pausePastTheEnd ||
+                RefusalCode.pauseCannotStandThere),
+      ):
+        if (_abandoned(generation)) return;
+        await _aPausaNaoFoi(code, sessionId, generation);
+        return;
       case final RoomFailure failure:
         if (failure case NetworkFailed()) _contadasSemResposta.add(path);
         _guardarATraducao(path);
@@ -5435,6 +5444,32 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     _theRefusalLandsOn(snapshot, alvo, path);
     _applyTheSessionRead(snapshot, sent);
+  }
+
+  Future<void> _aPausaNaoFoi(
+    String code,
+    String sessionId,
+    int generation,
+  ) async {
+    _trechoTraduzidoDeNovo = null;
+    _descartarATraducaoPendente();
+    _walkTheCursorBack(state.btTrechos);
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      awaitingTheGuide: false,
+      btAviso: switch (code) {
+        RefusalCode.pauseOnlyOnTheLastFrase => BtAviso.pausaSoNaUltima,
+        RefusalCode.pausePastTheEnd => BtAviso.pausaPassaDoFim,
+        _ => BtAviso.pausaNaoFica,
+      },
+    );
+    final sent = ++_readsSent;
+    final lido = await _room.fetchState(sessionId);
+    if (_abandoned(generation)) return;
+    if (lido case Answered(value: final snapshot)) {
+      _theStretchIsGone(snapshot.backTranslation.segments);
+      _applyTheSessionRead(snapshot, sent);
+    }
   }
 
   void _theRefusalLandsOn(SessionSnapshot snapshot, Trecho alvo, String path) {

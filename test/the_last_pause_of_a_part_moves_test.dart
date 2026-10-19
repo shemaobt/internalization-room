@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
+import 'scenario_helpers.dart' show stateReads;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, confirmar, entrarNaTraducao, parte, tocar;
 import 'the_pause_snaps_to_silence_test.dart'
@@ -214,4 +216,66 @@ void main() {
       );
     },
   );
+
+  for (final (codigo, linha) in const [
+    (
+      'PAUSE_ONLY_ON_THE_LAST_FRASE',
+      'a pausa só se move na última frase — as frases mudaram; toquem na barra de novo',
+    ),
+    (
+      'PAUSE_PAST_THE_END',
+      'a pausa nova passa do fim da gravação — um pouco antes',
+    ),
+    (
+      'PAUSE_CANNOT_STAND_THERE',
+      'a pausa não pode ficar aí — a frase foi atualizada; toquem na barra de novo',
+    ),
+  ]) {
+    testWidgets(
+      'a moved pause the room refuses with $codigo is dropped, the frases are read again, and her line says why',
+      (tester) async {
+        final harness = SalaHarness(filaEmMemoria: true)
+          ..recorder.rehearsalSpeaks = _duasLacunas;
+        final container = await _duasFrasesEUmAchadoNa(
+          tester,
+          harness,
+          'trecho-2',
+        );
+        harness.room.failReplaceWith = Refused(codigo);
+        final leituras = stateReads(harness);
+
+        await tocar(tester, depois);
+        await tocar(tester, 'Tocar para gravar a tradução de novo');
+        await tocar(tester, 'Tocar ao terminar');
+        await tocar(tester, confirmar);
+        await waitFor(
+          'a mudança cair',
+          () =>
+              container.read(salaSessionProvider).btTrechoTraduzidoDeNovo ==
+              null,
+          step: () => _passo(tester),
+        );
+        await _passo(tester);
+
+        expect(
+          find.text(linha),
+          findsOneWidget,
+          reason: 'a sala recusava a pausa e a tela não dizia por quê',
+        );
+        expect(
+          stateReads(harness),
+          greaterThan(leituras),
+          reason: 'as frases não eram lidas de novo depois da recusa',
+        );
+        expect(
+          [
+            for (final trecho in container.read(salaSessionProvider).btTrechos)
+              trecho.to,
+          ],
+          [s(3.2), s(6.2)],
+        );
+        closeTheRoom(container);
+      },
+    );
+  }
 }

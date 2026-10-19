@@ -232,6 +232,9 @@ class RetroView extends ConsumerWidget {
     final aviso = switch (session.btAviso) {
       BtAviso.recomecada => 'restarted',
       BtAviso.recomecoFalhou => 'restartFailed',
+      BtAviso.pausaSoNaUltima => 'pauseOnlyOnTheLast',
+      BtAviso.pausaPassaDoFim => 'pausePastTheEnd',
+      BtAviso.pausaNaoFica => 'pauseCannotStandThere',
       null => null,
     };
     if (aviso != null) return retroLabelFor(aviso, language);

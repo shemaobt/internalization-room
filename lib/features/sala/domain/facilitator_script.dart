@@ -331,6 +331,22 @@ const retroLabels = {
     'pt': 'tradução recomeçada — o ensaio da passagem ficou',
     'en': 'translation started over — the passage rehearsal stays',
   },
+  'pauseOnlyOnTheLast': {
+    'pt':
+        'a pausa só se move na última frase — as frases mudaram; toquem na barra de novo',
+    'en':
+        'the pause only moves on the last sentence — the sentences changed; tap the bar again',
+  },
+  'pausePastTheEnd': {
+    'pt': 'a pausa nova passa do fim da gravação — um pouco antes',
+    'en': 'the new pause is past the end of the recording — a little earlier',
+  },
+  'pauseCannotStandThere': {
+    'pt':
+        'a pausa não pode ficar aí — a frase foi atualizada; toquem na barra de novo',
+    'en':
+        'the pause can\'t go there — the sentence was updated; tap the bar again',
+  },
   'restartFailed': {
     'pt': 'não deu para recomeçar agora — tentem de novo',
     'en': 'couldn\'t start over right now — try again',
