@@ -5556,16 +5556,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case final RoomFailure failure:
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
-        final aindaNoAr =
-            failure is NetworkFailed &&
-            failure.reason == RefusalCode.idempotencyKeyInFlight;
-        if (aindaNoAr) _pending = _confirmarTraducao;
+        final porta = switch (failure) {
+          NetworkFailed(reason: RefusalCode.idempotencyKeyInFlight) =>
+            Door.step,
+          _ => Door.telling,
+        };
+        if (porta == Door.step) _pending = _confirmarTraducao;
         state = state.copyWith(
           btPhase: BtPhase.playing,
           btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
         );
         _leaveThinking();
-        _decideAt(failure, door: aindaNoAr ? Door.step : Door.telling);
+        _decideAt(failure, door: porta);
         return;
     }
 
