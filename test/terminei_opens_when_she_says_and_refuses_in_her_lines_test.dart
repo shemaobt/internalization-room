@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
@@ -454,6 +455,60 @@ void main() {
     );
     expect(estado.needsPerson, isFalse);
     expect(harness.room.chunkKeys, hasLength(3));
+    closeTheRoom(container);
+  });
+
+  testWidgets('in an English session each refusal says her English line', (
+    tester,
+  ) async {
+    _telaAlta(tester);
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, retroLabelFor('pauseHere', 'en'));
+    await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
+    await tocar(tester, retroLabelFor('recording', 'en'));
+    await tocar(tester, retroLabelFor('confirm', 'en'));
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    await tocar(tester, retroLabelFor('record', 'en'));
+    await tocar(tester, retroLabelFor('recording', 'en'));
+    await tocar(tester, retroLabelFor('confirm', 'en'));
+    await waitFor(
+      'o terminei acender',
+      () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
+      step: () => _passo(tester),
+    );
+    final aParte = container.read(salaSessionProvider).partes.single;
+    harness.voice.refuses.add('');
+
+    Future<void> recusadoCom(CheckRefusal recusa) async {
+      harness.room
+        ..verdictRefusal = recusa
+        ..verdictFixedLine = recusa == CheckRefusal.partUnheard ? 'P2' : ''
+        ..verdictUnheardTakeIds = recusa == CheckRefusal.partUnheard
+            ? [aParte.takeId!]
+            : const [];
+      await tester.ensureVisible(byLabel('done'));
+      await tester.tap(byLabel('done'));
+      await waitFor('a recusa voltar', () {
+        final estado = container.read(salaSessionProvider);
+        return !estado.btConferindo && estado.btRecusa == recusa;
+      }, step: () => _passo(tester));
+      await _passo(tester);
+    }
+
+    await recusadoCom(CheckRefusal.nothingTranslated);
+    expect(find.text('no sentence translated yet'), findsOneWidget);
+    await recusadoCom(CheckRefusal.checkUnavailable);
+    expect(find.text('couldn\'t check right now — try again'), findsOneWidget);
+    await recusadoCom(CheckRefusal.partUnheard);
+    expect(
+      find.text('there is still a part of the recording to listen to'),
+      findsOneWidget,
+      reason: 'a sessão em inglês mostrava as linhas dela em português',
+    );
     closeTheRoom(container);
   });
 }
