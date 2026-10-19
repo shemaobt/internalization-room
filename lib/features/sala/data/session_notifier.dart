@@ -239,6 +239,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
       ? state.copyWith(clearTrechoTraduzidoDeNovo: true)
       : state.copyWith(btTrechoTraduzidoDeNovo: trecho);
+  BtPhase? _faseAntesDoReconto;
 
   final Set<String> _traducoesGuardadas = {};
 
@@ -6106,6 +6107,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = trecho.from;
     _trechoEnd = trecho.to;
     _trechoTraduzidoDeNovo = trecho;
+    _faseAntesDoReconto = null;
     return trecho;
   }
 
@@ -6401,14 +6403,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _traduzirDeNovoEmPortugues() {
     final trecho = state.btFindingTrecho;
     if (state.btPhase != BtPhase.findings || trecho == null) return;
-    _silenceTheRoom();
-    if (_armarOTrecho(trecho) == null) return;
-    state = state.copyWith(
-      btPhase: BtPhase.playing,
-      awaitingTheGuide: false,
-      btTraducaoPendente: trecho.retroPath,
-      btTraducaoEmprestada: trecho.retroPath,
-    );
+    _traduzirOTrechoDeNovo(trecho);
   }
 
   void traduzirAFraseDeNovo(int indice) =>
@@ -6419,15 +6414,34 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
     if (!trecho.contado || trecho.segmentId == null) return;
+    if (_traduzirOTrechoDeNovo(trecho)) _leadThemToTheTrecho(trecho);
+  }
+
+  bool _traduzirOTrechoDeNovo(Trecho trecho) {
+    final fase = state.btPhase;
     _silenceTheRoom();
-    if (_armarOTrecho(trecho) == null) return;
+    if (_armarOTrecho(trecho) == null) return false;
+    _faseAntesDoReconto = fase;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       awaitingTheGuide: false,
       btTraducaoPendente: trecho.retroPath,
       btTraducaoEmprestada: trecho.retroPath,
     );
-    _leadThemToTheTrecho(trecho);
+    return true;
+  }
+
+  void manterATraducaoDeAntes() => _gesture(() => _manterATraducaoDeAntes());
+
+  void _manterATraducaoDeAntes() {
+    if (state.btPhase != BtPhase.playing || _trechoTraduzidoDeNovo == null) {
+      return;
+    }
+    _silenceTheRoom();
+    _descartarATraducaoPendente();
+    _trechoTraduzidoDeNovo = null;
+    _walkTheCursorBack(state.btTrechos);
+    state = state.copyWith(btPhase: _faseAntesDoReconto ?? BtPhase.playing);
   }
 
   /// Back to the rehearsal with everything kept, to record what the story still lacks.

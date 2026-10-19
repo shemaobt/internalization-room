@@ -215,4 +215,69 @@ void main() {
     ]);
     closeTheRoom(container);
   });
+
+  testWidgets('«manter a tradução de antes» leaves the earlier translation '
+      'and the verdict, with nothing recorded', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+    final antes = container.read(salaSessionProvider).btTrechos[6];
+    final pedacos = harness.room.chunksSent;
+    final capturas = harness.recorder.captures;
+
+    await tocar(tester, _barra(7));
+    expect(
+      byLabel('manter a tradução de antes'),
+      findsOneWidget,
+      reason: 'a frase tocada não tinha como voltar atrás',
+    );
+    await tocar(tester, 'manter a tradução de antes');
+    for (var passo = 0; passo < 10; passo++) {
+      await _passo(tester);
+    }
+
+    final estado = container.read(salaSessionProvider);
+    expect(
+      estado.btPhase,
+      BtPhase.findings,
+      reason: 'manter a tradução de antes não voltava ao veredito',
+    );
+    expect(estado.btTrechoTraduzidoDeNovo, isNull);
+    expect(estado.btTrechos[6].retroPath, antes.retroPath);
+    expect(harness.room.replacesAsked, isEmpty);
+    expect(harness.room.chunksSent, pedacos);
+    expect(harness.recorder.captures, capturas);
+    expect(
+      find.text('traduzindo de novo a frase 7 — toquem no círculo'),
+      findsNothing,
+    );
+    expect(byLabel('manter a tradução de antes'), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('«manter a tradução de antes» after a recording nobody confirmed '
+      'lets that recording go and sends nothing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+    final pedacos = harness.room.chunksSent;
+
+    await tocar(tester, _barra(7));
+    await tocar(tester, 'Tocar para gravar a tradução de novo');
+    await tocar(tester, 'Tocar ao terminar');
+    await _passo(tester);
+    final gravada = harness.recorder.lastPath!;
+    await tocar(tester, 'manter a tradução de antes');
+    for (var passo = 0; passo < 10; passo++) {
+      await _passo(tester);
+    }
+
+    expect(
+      harness.recorder.deleted,
+      contains(gravada),
+      reason: 'a gravação que ninguém confirmou ficava guardada',
+    );
+    expect(container.read(salaSessionProvider).btTraducaoPendente, isNull);
+    expect(harness.room.replacesAsked, isEmpty);
+    expect(harness.room.chunksSent, pedacos);
+    closeTheRoom(container);
+  });
 }

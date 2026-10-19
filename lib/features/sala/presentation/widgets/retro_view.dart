@@ -105,6 +105,13 @@ class RetroView extends ConsumerWidget {
             ),
             if (_recontando(session) case final n?) ...[
               const SizedBox(height: 12),
+              _ManterADeAntes(
+                label: sceneRehearsalLabelFor('keepTheEarlier', language),
+                onTap: session.btPhase == BtPhase.playing
+                    ? notifier.manterATraducaoDeAntes
+                    : null,
+              ),
+              const SizedBox(height: 12),
               Text(
                 sceneRehearsalLabelFor('retelling', language, n: n),
                 textAlign: TextAlign.center,
@@ -627,5 +634,41 @@ class RetroView extends ConsumerWidget {
       case BtPhase.conferida:
         return retroLabelFor('translated', language);
     }
+  }
+}
+
+class _ManterADeAntes extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+
+  const _ManterADeAntes({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      child: Opacity(
+        opacity: onTap == null ? 0.35 : 1,
+        child: GestureDetector(
+          onTap: onTap,
+          child: ExcludeSemantics(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colors.mut),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(color: colors.mut, fontSize: 15),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
