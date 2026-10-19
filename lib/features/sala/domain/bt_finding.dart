@@ -1,8 +1,45 @@
 class BackTranslationChunk {
-  const BackTranslationChunk();
+  final int? frase;
+
+  const BackTranslationChunk({this.frase});
 
   factory BackTranslationChunk.fromJson(Map<String, dynamic> json) =>
-      const BackTranslationChunk();
+      BackTranslationChunk(frase: json['frase'] as int?);
+}
+
+enum BtFindingKind {
+  addition,
+  missing,
+  unclear;
+
+  static BtFindingKind? fromJson(Object? raw) => switch (raw) {
+    'addition' => BtFindingKind.addition,
+    'missing' => BtFindingKind.missing,
+    'unclear' => BtFindingKind.unclear,
+    _ => null,
+  };
+}
+
+class BtFinding {
+  final BtFindingKind? kind;
+  final int? frase;
+  final String? segmentId;
+
+  const BtFinding({
+    required this.kind,
+    required this.frase,
+    required this.segmentId,
+  });
+
+  static List<BtFinding> listFrom(Map<String, dynamic> json) => [
+    for (final raw in (json['findings'] as List? ?? const []))
+      if (raw is Map)
+        BtFinding(
+          kind: BtFindingKind.fromJson(raw['kind']),
+          frase: raw['frase'] as int?,
+          segmentId: raw['segment_id'] as String?,
+        ),
+  ];
 }
 
 class BackTranslationVerdict {
@@ -39,6 +76,7 @@ class BackTranslationVerdict {
   /// team to guess it from an empty findings phase. An empty list is a refusal that did
   /// not happen, never one this tablet worked out for itself from a silence.
   final List<String> untoldTakeIds;
+  final List<BtFinding> findings;
   final int findingsRemaining;
   final bool usedFailSafe;
 
@@ -50,6 +88,7 @@ class BackTranslationVerdict {
     this.untoldSegmentId,
     this.unheardTakeIds = const [],
     this.untoldTakeIds = const [],
+    this.findings = const [],
     required this.findingsRemaining,
     required this.usedFailSafe,
   });
@@ -69,6 +108,7 @@ class BackTranslationVerdict {
           for (final nome in json['untold_take_ids'] as List? ?? const [])
             nome as String,
         ],
+        findings: BtFinding.listFrom(json),
         findingsRemaining: json['findings_remaining'] as int? ?? 0,
         usedFailSafe: json['used_fail_safe'] as bool? ?? false,
       );
