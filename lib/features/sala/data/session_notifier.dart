@@ -5571,7 +5571,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) return;
     final generation = _waitOnTheGeneration;
     _silenceTheRoom(holdTheClip: true);
-    state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
+    state = state.copyWith(
+      btPhase: BtPhase.thinking,
+      awaitingTheGuide: true,
+      clearBtRecusa: true,
+    );
     _watchBusyState();
 
     final traduzidoDeNovo = _trechoTraduzidoDeNovo;
@@ -5632,12 +5636,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case final RoomFailure failure:
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
-        _theTranslationWaits(failure);
+        final porta = switch (failure) {
+          NetworkFailed(reason: RefusalCode.idempotencyKeyInFlight) =>
+            Door.step,
+          _ => Door.telling,
+        };
+        if (porta == Door.step) _pending = _confirmarTraducao;
         state = state.copyWith(
           btPhase: BtPhase.playing,
           btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
         );
-        _decideTheFailure(failure);
+        _leaveThinking();
+        _decideAt(failure, door: porta);
         return;
     }
 
@@ -5781,6 +5791,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.thinking,
       awaitingTheGuide: true,
       btConferindo: true,
+      clearBtRecusa: true,
     );
     _watchBusyState();
     final BackTranslationVerdict verdict;
@@ -5801,6 +5812,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
         _decideTheFailure(failure);
         return;
+    }
+    if (verdict.refusal
+        case CheckRefusal.nothingTranslated || CheckRefusal.checkUnavailable) {
+      state = state.copyWith(
+        btPhase: BtPhase.playing,
+        awaitingTheGuide: false,
+        btRecusa: verdict.refusal,
+      );
+      return;
+    }
+    if (verdict.refusal == CheckRefusal.partUnheard) {
+      state = state.copyWith(btRecusa: verdict.refusal);
+    }
+    if (verdict.refusal == CheckRefusal.fraseAwaiting &&
+        verdict.fixedLine.isEmpty) {
+      await _readTheStretchesBack(sessionId, generation);
+      if (_abandoned(generation) || state.needsPerson) return;
+      if (verdict.untoldSegmentId case final aguardando?) {
+        _levarAoTrechoNaoTraduzido(aguardando);
+      }
+      return;
     }
     try {
       await _readyToSpeak(verdict.audioUrl, verdict.fixedLine);

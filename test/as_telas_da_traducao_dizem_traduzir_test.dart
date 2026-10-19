@@ -27,6 +27,7 @@ const _rotulosDeTraduzir = {
   'as frases já traduzidas não estão neste computador — toquem em terminei para enviar, ou recomecem a tradução',
   'A tradução deste ensaio da cena já foi para a voz. Toquem numa frase para ouvir o ensaio naquela parte, e no alto-falante para ouvir a tradução de vocês.',
   'frases traduzidas',
+  'ainda não tem frase traduzida',
   'ouvir a minha tradução da frase {n}',
   'enviando a tradução do ensaio da cena para a voz…',
   'Traduzir a gravação',
