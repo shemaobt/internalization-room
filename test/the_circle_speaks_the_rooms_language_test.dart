@@ -16,15 +16,14 @@ void main() {
       'circleLabels': circleLabels,
       'retroLabels': retroLabels,
       'rehearsalLabels': rehearsalLabels,
+      'sceneRehearsalLabels': sceneRehearsalLabels,
       'findingLabels': findingLabels,
-      'panoramaCircleLabels': {'circle': panoramaCircleLabels},
       'escolhaLabels': escolhaLabels,
       'handLabels': handLabels,
       'roomLabels': roomLabels,
       'warningNoticeLabel': {'notice': warningNoticeLabel},
       'codigoLabels': codigoLabels,
       'recordEntryLabel': {'entry': recordEntryLabel},
-      'panoramaEntryLabel': {'entry': panoramaEntryLabel},
     };
     for (final MapEntry(key: table, value: states) in tables.entries) {
       for (final MapEntry(key: state, value: labels) in states.entries) {
@@ -43,7 +42,7 @@ void main() {
     'conversa speaks english to an english room, not the portuguese default',
     (tester) async {
       final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-      container.read(salaSessionProvider.notifier).goConversa();
+      container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(container.read(salaSessionProvider).stage, SalaStage.conversa);

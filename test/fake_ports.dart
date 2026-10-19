@@ -112,6 +112,19 @@ class ARoomPort implements RoomPort {
   void answerTheRead(SessionReadAnswer answer) =>
       _reads.removeAt(0).complete(answer);
 
+  final List<Completer<SceneRehearsalsAnswer>> _sceneReads = [];
+
+  @override
+  Future<SceneRehearsalsAnswer> sceneRehearsalsOf(String session) {
+    heard.add('sceneRehearsals:$session');
+    final read = Completer<SceneRehearsalsAnswer>();
+    _sceneReads.add(read);
+    return read.future;
+  }
+
+  void answerTheSceneRehearsals(SceneRehearsalsAnswer answer) =>
+      _sceneReads.removeAt(0).complete(answer);
+
   @override
   Future<RoomReach> reach() {
     heard.add('reach');
@@ -201,7 +214,6 @@ class ARecorderPort implements RecorderPort {
 
 class AStorePort implements StorePort {
   final List<String> heard = [];
-  final List<Completer<void>> _marks = [];
   final List<Completer<int>> _flushes = [];
   CurrentSession? _held;
 
@@ -217,16 +229,6 @@ class AStorePort implements StorePort {
 
   void failTheFlush(Exception because) =>
       _flushes.removeAt(0).completeError(because);
-
-  @override
-  Future<void> markThePassageClosed(String book, String passage) {
-    heard.add('mark:$book:$passage');
-    final mark = Completer<void>();
-    _marks.add(mark);
-    return mark.future;
-  }
-
-  void answerTheMark() => _marks.removeAt(0).complete();
 
   @override
   Future<CurrentSession?> currentSession() async => _held;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -76,16 +78,24 @@ Future<(SalaHarness, ProviderContainer)> _inTheLastScene(
   WidgetTester tester, {
   String lingua = 'pt',
   bool watching = false,
+  bool queueInMemory = false,
 }) async {
-  final harness = SalaHarness(lingua: lingua, watchesWithoutAHalt: watching)
-    ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
-    ..room.nextMoment = _lastScene;
+  final harness =
+      SalaHarness(
+          lingua: lingua,
+          watchesWithoutAHalt: watching,
+          filaEmMemoria: queueInMemory,
+        )
+        ..room.passages = const [
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        ]
+        ..room.nextMoment = _lastScene;
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
-  unawaited(notifier.goConversa(pericope: 'P01'));
+  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
   await _pumpUntil(
     tester,
     () => container.read(salaSessionProvider).voice == VoiceState.invite,
@@ -140,10 +150,12 @@ Future<void> _theReplyEnds(
 Future<(SalaHarness, ProviderContainer)> _afterTheSendOff(
   WidgetTester tester, {
   bool watching = false,
+  bool queueInMemory = false,
 }) async {
   final (harness, container) = await _inTheLastScene(
     tester,
     watching: watching,
+    queueInMemory: queueInMemory,
   );
   await _theNextReplyPlays(tester, harness, container, _sendOff);
   await _theReplyEnds(tester, harness, container);
@@ -402,7 +414,7 @@ void main() {
   );
 
   testWidgets(
-    'the dot goes, and takes no touch, while a note for the facilitator is armed',
+    'the dot stays lit, and takes a touch, while a note for the facilitator is armed',
     (tester) async {
       final (_, container) = await _afterTheSendOff(tester);
 
@@ -411,12 +423,8 @@ void main() {
 
       expect(container.read(salaSessionProvider).noteMode, isTrue);
       expect(container.read(salaSessionProvider).voice, VoiceState.invite);
-      expect(
-        _dotOpacity(tester),
-        0.0,
-        reason: 'o ponto continuou aceso com a nota armada',
-      );
-      expect(_dotIsDeaf(tester), isTrue);
+      expect(_seenOpacity(tester), closeTo(0.85, 0.001));
+      expect(_dotIsDeaf(tester), isFalse);
     },
   );
 
@@ -462,4 +470,61 @@ void main() {
     expect(_seenOpacity(tester), closeTo(0.85, 0.001));
     closeTheRoom(container);
   });
+
+  testWidgets(
+    'a scene recorded again after the send-off keeps the label and the lit dot',
+    (tester) async {
+      final (harness, container) = await _afterTheSendOff(
+        tester,
+        queueInMemory: true,
+      );
+      harness.room
+        ..sceneRehearsals.add(
+          SceneRehearsalRecord(
+            rehearsalId: 'ensaio-da-cena-1',
+            sessionId: 'sessao-1',
+            n: 1,
+            recordedAt: DateTime(2026, 10, 19, 14, 5),
+            frases: const [
+              SceneFrase(fraseId: 'f1', startsMs: 0, endsMs: 4000),
+              SceneFrase(fraseId: 'f2', startsMs: 4000, endsMs: 9000),
+            ],
+          ),
+        )
+        ..sceneAudio = Uint8List.fromList([1, 2, 3]);
+      harness.playback.measured = const Duration(seconds: 20);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.openTheSceneRehearsal();
+      await _pumpUntil(
+        tester,
+        () =>
+            container.read(salaSessionProvider).scene.step ==
+            SceneStep.translate,
+      );
+      expect(
+        container.read(salaSessionProvider).scene.step,
+        SceneStep.translate,
+      );
+      notifier.sendTheSceneRehearsal();
+      await _pumpUntil(
+        tester,
+        () =>
+            harness.room.scenesSent.isNotEmpty &&
+            container.read(salaSessionProvider).stage == SalaStage.conversa &&
+            container.read(salaSessionProvider).voice == VoiceState.invite,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(harness.room.scenesSent, hasLength(1));
+      expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+      expect(_shown(tester), 'Ensaio Final · a passagem inteira');
+      expect(
+        _dotOpacity(tester),
+        0.85,
+        reason: 'a cena regravada depois da despedida apagou o ponto',
+      );
+      expect(_dotIsDeaf(tester), isFalse);
+    },
+  );
 }

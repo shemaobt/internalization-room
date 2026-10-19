@@ -26,13 +26,10 @@ Finder byLabel(String label) => find.byWidgetPredicate(
 int stateReads(SalaHarness harness) =>
     harness.room.calls.where((call) => call == 'fetchState').length;
 
-Future<void> theChoiceOffersAPassage(ProviderContainer container) =>
-    waitFor('a Escolha oferecer uma passagem', () {
-      final state = container.read(salaSessionProvider);
-      return state.stage == SalaStage.escolha &&
-          state.oferecida != null &&
-          state.voice == VoiceState.invite;
-    });
+Future<void> theChoiceOffersAPassage(ProviderContainer container) => waitFor(
+  'a Escolha oferecer as entradas',
+  () => container.read(salaSessionProvider).entriesOpen,
+);
 
 /// A fixed pause, for the gestures whose landing has no state of its own to wait on.
 Future<void> settle([
@@ -172,10 +169,10 @@ Future<(SalaHarness, ProviderContainer)> relaunch(
   final again = SalaHarness(
     room: harness.room,
     emAbertoNoDisco: harness.emAbertoNoDisco ?? harness.emAberto,
-    finishedOnDisk: harness.finishedOnDisk ?? harness.finished,
     takesHome: harness.takesHome,
     currentSession: harness.currentSession,
     roomLanguage: lingua == null ? harness.roomLanguage : null,
+    look: harness.look,
     lingua: lingua ?? harness.lingua,
     linkPoll: linkPoll ?? harness.linkPoll,
   );
@@ -184,13 +181,14 @@ Future<(SalaHarness, ProviderContainer)> relaunch(
   return (again, next);
 }
 
-/// Open the Choice, aim at the Panorama's entry and tap it, as the team does.
+/// Open the Choice and tap the Panorama's entry, as the team does.
 Future<void> enterThePanorama(
   SalaSessionNotifier notifier,
-  SalaSessionState Function() read,
-) => _enterTheEntry(notifier, read, (entry) => entry.isPanorama);
+  SalaSessionState Function() read, {
+  Future<void> Function()? step,
+}) => _enterTheEntry(notifier, read, (entry) => entry.isPanorama, step: step);
 
-/// Open the Choice, aim at [pericope]'s entry and tap it, as the team does.
+/// Open the Choice and tap [pericope]'s entry, as the team does.
 Future<void> enterThePassage(
   SalaSessionNotifier notifier,
   SalaSessionState Function() read,
@@ -200,16 +198,16 @@ Future<void> enterThePassage(
 Future<void> _enterTheEntry(
   SalaSessionNotifier notifier,
   SalaSessionState Function() read,
-  bool Function(Passagem entry) isIt,
-) async {
+  bool Function(Passagem entry) isIt, {
+  Future<void> Function()? step,
+}) async {
   await notifier.abrirEscolha();
-  await waitFor('a roda carregar', () => read().naRoda != null);
-  final at = read().naRoda!.indexWhere(isIt);
-  expect(at, isNonNegative, reason: 'a roda não tem essa entrada');
-  notifier.apontarPassagem(at);
   await waitFor(
-    'a roda oferecer a entrada',
-    () => read().aOferecer == at && read().voice == VoiceState.invite,
+    'a Escolha abrir as entradas',
+    () => read().entriesOpen,
+    step: step,
   );
-  notifier.entrarNaOferecida();
+  final entry = read().naRoda!.where(isIt);
+  expect(entry, isNotEmpty, reason: 'a roda não tem essa entrada');
+  notifier.openTheEntry(entry.first);
 }

@@ -2,6 +2,7 @@ import 'channel.dart';
 import 'failure_policy.dart';
 import 'machine.dart';
 import 'room_reach.dart';
+import 'scene_rehearsal.dart';
 import 'session_snapshot.dart';
 import 'turn_result.dart';
 
@@ -16,6 +17,9 @@ abstract interface class RoomPort {
   Future<TurnResult?> lookAt(Turn turn);
 
   Future<SessionReadAnswer> readTheSession(String session);
+
+  /// The passage's scene rehearsals, as the room lists them for [session].
+  Future<SceneRehearsalsAnswer> sceneRehearsalsOf(String session);
 
   /// How far a request would get right now.
   Future<RoomReach> reach();
@@ -46,6 +50,24 @@ final class SessionReadFailed extends SessionReadAnswer {
   final RoomResult result;
 
   const SessionReadFailed(this.result);
+}
+
+/// What the room answered to a list of the scene rehearsals: the list, or the result the
+/// failure policy reads.
+sealed class SceneRehearsalsAnswer {
+  const SceneRehearsalsAnswer();
+}
+
+final class SceneRehearsalsListed extends SceneRehearsalsAnswer {
+  final List<SceneRehearsalRecord> listed;
+
+  const SceneRehearsalsListed(this.listed);
+}
+
+final class SceneRehearsalsFailed extends SceneRehearsalsAnswer {
+  final RoomResult result;
+
+  const SceneRehearsalsFailed(this.result);
 }
 
 /// What the room answered to a call made by the tablet, or why the call was never made.
@@ -125,9 +147,6 @@ abstract interface class RecorderPort {
 /// The disk and the Outbox.
 abstract interface class StorePort {
   Future<int> flushTheOutbox();
-
-  /// Writes the passage down as finished; a failure to write is swallowed.
-  Future<void> markThePassageClosed(String book, String passage);
 
   Future<CurrentSession?> currentSession();
 

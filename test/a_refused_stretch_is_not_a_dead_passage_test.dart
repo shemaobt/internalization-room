@@ -145,7 +145,7 @@ Future<_Retomada> _retomadaNaRetro(SalaHarness harness) async {
   final it = _Retomada(harness, container);
   await it.sala.abrirEscolha();
   await settle();
-  unawaited(it.sala.goConversa(pericope: 'P01'));
+  unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
   await _ateAParteTresNoAr(it);
   it.linhaAntes = it.linhaAgora;
   return it;
@@ -341,7 +341,7 @@ void main() {
       await settle();
       harness.room.failChunkWith = null;
       harness.playback.played.clear();
-      unawaited(it.sala.goConversa(pericope: 'P01'));
+      unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
       await _ateAParteTresNoAr(it);
 
       expect(

@@ -343,7 +343,7 @@ void main() {
         await settle();
         Future<void> aCheckTheRoomRefuses() async {
           harness.room.failWith = const Refused('BAD_REQUEST');
-          await room.notifier.goConversa(pericope: 'P01');
+          await room.notifier.goConversa(book: 'Ruth', pericope: 'P01');
           await settle();
           harness.room.failWith = null;
         }
@@ -452,20 +452,6 @@ void main() {
       expect(harness.voice.stops, stops);
       expect(harness.recorder.captures, captures);
     });
-
-    test('by the note', () async {
-      final room = await _inConversa();
-      await room.aReplySpeaking();
-      final stops = room.harness.voice.stops;
-      final captures = room.harness.recorder.captures;
-
-      room.notifier.handTap();
-      expect(room.state.noteMode, isTrue);
-      await room.tap();
-
-      expect(room.harness.voice.stops, stops);
-      expect(room.harness.recorder.captures, captures);
-    });
   });
 
   group('a cut whose microphone ends without a take tells the next take '
@@ -475,7 +461,7 @@ void main() {
 
       room.notifier.leaveThePassage();
       await settle();
-      await room.notifier.goConversa();
+      await room.notifier.goConversa(book: 'Ruth');
       await settle();
       final cuts = room.harness.room.cutsSent.length;
       await room.aRealTake();

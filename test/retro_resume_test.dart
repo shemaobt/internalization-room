@@ -72,7 +72,7 @@ Future<ProviderContainer> _reopen(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await settle();
-  await notifier.goConversa(pericope: 'P01');
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   await settle();
   return container;
 }
@@ -386,11 +386,6 @@ void main() {
       );
       expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
       expect(
-        harness.finished.done,
-        isNot(contains('Ruth/P01')),
-        reason: 'e a passagem não está feita: quem a fecha é a aprovação',
-      );
-      expect(
         harness.emAberto.rows,
         contains('Ruth/P01/pt'),
         reason: 'então o ponto de retomada continua de pé, para a próxima vez',
@@ -423,7 +418,6 @@ void main() {
         reason: 'a aprovação vale para a sessão que a equipe retomou',
       );
       expect(container.read(salaSessionProvider).stage, SalaStage.fim);
-      expect(harness.finished.done, contains('Ruth/P01'));
       expect(harness.emAberto.rows, isNot(contains('Ruth/P01/pt')));
     },
   );
@@ -465,7 +459,6 @@ void main() {
         isNotEmpty,
         reason: 'e com o ensaio de pé, que é o que a última audição pede',
       );
-      expect(harness.finished.done, isNot(contains('Ruth/P01')));
 
       container.read(salaSessionProvider.notifier).ouvirGravacao();
       await settle();
@@ -523,7 +516,6 @@ void main() {
             'aprovou é exatamente o que este gesto existe para não deixar '
             'acontecer',
       );
-      expect(harness.finished.done, isNot(contains('Ruth/P01')));
     },
   );
 

@@ -16,6 +16,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
@@ -403,6 +405,46 @@ void main() {
     );
   });
 
+  test(
+    'the room\'s books are read from GET /books and answered in its order',
+    () async {
+      late http.BaseRequest seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response('{"books": ["Ruth", "Esther", "Jonah"]}', 200);
+        }),
+      );
+      addTearDown(repository.dispose);
+      final refusing = RoomRepository(
+        client: MockClient((_) async => http.Response('{}', 404)),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(refusing.dispose);
+
+      final answer = await repository.servedBooks();
+
+      expect(seen.method, 'GET');
+      expect(
+        seen.url.toString(),
+        'http://sala.local/api/internalization-room/books',
+      );
+      expect(
+        answer,
+        isA<Answered<List<String>>>().having((read) => read.value, 'books', [
+          'Ruth',
+          'Esther',
+          'Jonah',
+        ]),
+      );
+      expect(
+        await refusing.servedBooks(),
+        _refusedWith(RefusalCode.notFound),
+        reason: 'like the passages door, the books door names no session',
+      );
+    },
+  );
+
   test('the panorama is asked for by name, a plain session is not', () async {
     final asked = <String>[];
     final types = <String>[];
@@ -429,14 +471,14 @@ void main() {
     );
     addTearDown(repository.dispose);
 
-    await repository.createSession(pericope: 'OV', language: 'pt');
+    await repository.createSession(pericope: 'OV-Jonah', language: 'pt');
     await repository.createSession(afterSession: 'panorama-1', language: 'pt');
     await repository.createSession(language: 'en');
 
     expect(
       asked,
       [
-        '{"pericope":"OV","language":"pt"}',
+        '{"pericope":"OV-Jonah","language":"pt"}',
         '{"after_session":"panorama-1","language":"pt"}',
         '{"language":"en"}',
       ],
@@ -698,6 +740,20 @@ void main() {
             'esperar demais e não achar a sala eram a mesma exceção, e a equipe ouvia '
             'que a internet tinha caído por causa de um servidor pensando',
       );
+    },
+    timeout: const Timeout(Duration(seconds: 5)),
+  );
+
+  test(
+    'the room\'s books are a read, given up on the read\'s budget',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient((_) => Completer<http.Response>().future),
+        stateTimeout: const Duration(milliseconds: 200),
+      );
+      addTearDown(repository.dispose);
+
+      expect(await repository.servedBooks(), isA<NetworkFailed>());
     },
     timeout: const Timeout(Duration(seconds: 5)),
   );
@@ -1318,6 +1374,9 @@ void main() {
           turnId: 'turno-1',
         ),
         'takesOf': (room) => room.takesOf('sessao-1'),
+        'sceneRehearsalsOf': (room) => room.sceneRehearsalsOf('sessao-1'),
+        'keepSceneRehearsal': (room) async =>
+            room.keepSceneRehearsal('sessao-1', await _tempRecording()),
         'askForAPerson': (room) => room.askForAPerson('sessao-1'),
         'personArrived': (room) => room.personArrived('sessao-1'),
         'approveRelease': (room) => room.approveRelease('sessao-1'),
@@ -1340,6 +1399,11 @@ void main() {
       };
 
       final stretchCalls = <String, Future<Object?> Function(RoomRepository)>{
+        'restartTheSceneTranslation': (room) => room.restartTheSceneTranslation(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          attempt: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+        ),
         'replaceSegment': (room) async => room.replaceSegment(
           'sessao-1',
           'trecho-1',
@@ -1354,6 +1418,7 @@ void main() {
       final notAboutASession =
           <String, Future<Object?> Function(RoomRepository)>{
             'passagesOf': (room) => room.passagesOf('Ruth', language: 'pt'),
+            'servedBooks': (room) => room.servedBooks(),
             'collectTheCredential': (room) =>
                 room.collectTheCredential('aparelho-1'),
             'askForACode': (room) => room.askForACode('aparelho-1'),
@@ -1518,6 +1583,7 @@ void main() {
           final sessionless = <String, Future<RoomAnswer<Object?>> Function()>{
             'passagesOf': () =>
                 answering(404).passagesOf('Ruth', language: 'pt'),
+            'servedBooks': () => answering(404).servedBooks(),
             'collectTheCredential': () =>
                 answering(404).collectTheCredential('aparelho-1'),
             'askForACode': () => answering(404).askForACode('aparelho-1'),
@@ -1637,6 +1703,325 @@ void main() {
     },
   );
 
+  group('the scene rehearsal doors', () {
+    Map<String, Object?> record({
+      String? sentAt,
+      String? afterRestart,
+      List<Map<String, Object?>> frases = const [],
+    }) => {
+      'rehearsal_id': 'ensaio-da-cena-1',
+      'session_id': 'sessao-1',
+      'pericope': 'P01',
+      'n': 1,
+      'scene': null,
+      'scene_said': null,
+      'duration_ms': 20000,
+      'content_type': 'audio/mp4',
+      'verified': true,
+      'recorded_at': '2026-10-14T09:00:00+00:00',
+      'sent_at': sentAt,
+      'after_restart': afterRestart,
+      'frases': frases,
+    };
+
+    test('the list parses after_restart, sent_at and the frases', () async {
+      late http.BaseRequest seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response(
+            jsonEncode({
+              'pericope': 'P01',
+              'scene_rehearsals': [
+                record(
+                  sentAt: '2026-10-14T10:00:00+00:00',
+                  afterRestart: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+                  frases: [
+                    {
+                      'frase_id': 'f1',
+                      'starts_ms': 0,
+                      'ends_ms': 4000,
+                      'replaces': null,
+                      'replaced_by': 'f2',
+                    },
+                    {
+                      'frase_id': 'f2',
+                      'starts_ms': 0,
+                      'ends_ms': 4600,
+                      'replaces': 'f1',
+                      'replaced_by': null,
+                    },
+                  ],
+                ),
+              ],
+            }),
+            200,
+          );
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.sceneRehearsalsOf('sessao-1');
+
+      expect(seen.method, 'GET');
+      expect(
+        seen.url.path,
+        '/api/internalization-room/sessions/sessao-1/scene-rehearsals',
+      );
+      final listed = (answer as Answered<List<SceneRehearsalRecord>>).value;
+      expect(listed, hasLength(1));
+      final kept = listed.single;
+      expect(kept.rehearsalId, 'ensaio-da-cena-1');
+      expect(kept.sessionId, 'sessao-1');
+      expect(kept.n, 1);
+      expect(kept.sentAt, '2026-10-14T10:00:00+00:00');
+      expect(kept.afterRestart, '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b');
+      expect(kept.unsent, isFalse);
+      expect(
+        [
+          for (final frase in kept.frases)
+            (frase.fraseId, frase.startsMs, frase.endsMs, frase.replacedBy),
+        ],
+        [('f1', 0, 4000, 'f2'), ('f2', 0, 4600, null)],
+      );
+    });
+
+    test('a frase with no place is read without one', () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'pericope': 'P01',
+              'scene_rehearsals': [
+                record(
+                  frases: [
+                    {'frase_id': 'f1', 'replaces': null, 'replaced_by': null},
+                  ],
+                ),
+              ],
+            }),
+            200,
+          ),
+        ),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.sceneRehearsalsOf('sessao-1');
+
+      final frase = (answer as Answered<List<SceneRehearsalRecord>>)
+          .value
+          .single
+          .frases
+          .single;
+      expect((frase.startsMs, frase.endsMs), (null, null));
+    });
+
+    test(
+      'the keep sends the take as this tablet and reads the record back',
+      () async {
+        late http.BaseRequest seen;
+        final repository = RoomRepository(
+          client: MockClient((request) async {
+            seen = request;
+            return http.Response(jsonEncode(record()), 200);
+          }),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        final answer = await repository.keepSceneRehearsal(
+          'sessao-1',
+          await _tempRecording(),
+        );
+
+        expect(seen.method, 'POST');
+        expect(
+          seen.url.path,
+          '/api/internalization-room/sessions/sessao-1/scene-rehearsals',
+        );
+        expect(seen.headers['X-Room-Device'], 'aparelho-1');
+        expect(
+          (answer as Answered<SceneRehearsalRecord>).value.rehearsalId,
+          'ensaio-da-cena-1',
+        );
+      },
+    );
+
+    test('the restart posts attempt and closes as form fields', () async {
+      late http.Request seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response(
+            jsonEncode(
+              record(afterRestart: 'c3d1a1f0-5b7e-4c1a-9a43-0d6e3f2b8a11'),
+            ),
+            200,
+          );
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.restartTheSceneTranslation(
+        'sessao-1',
+        'ensaio-da-cena-1',
+        attempt: 'c3d1a1f0-5b7e-4c1a-9a43-0d6e3f2b8a11',
+        closes: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+      );
+
+      expect(seen.method, 'POST');
+      expect(
+        seen.url.path,
+        '/api/internalization-room/sessions/sessao-1/scene-rehearsals/'
+        'ensaio-da-cena-1/restart',
+      );
+      expect(seen.bodyFields, {
+        'attempt': 'c3d1a1f0-5b7e-4c1a-9a43-0d6e3f2b8a11',
+        'closes': '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+      });
+      expect(
+        (answer as Answered<SceneRehearsalRecord>).value.afterRestart,
+        'c3d1a1f0-5b7e-4c1a-9a43-0d6e3f2b8a11',
+      );
+    });
+
+    test('the two 409 codes come back as refusals naming them', () async {
+      for (final code in [
+        RefusalCode.sceneRehearsalSent,
+        RefusalCode.restartOutOfOrder,
+      ]) {
+        final repository = RoomRepository(
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({'code': code, 'detail': 'recusado'}),
+              409,
+            ),
+          ),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        final answer = await repository.restartTheSceneTranslation(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          attempt: 'c3d1a1f0-5b7e-4c1a-9a43-0d6e3f2b8a11',
+        );
+
+        expect(answer, isA<Refused>().having((r) => r.code, 'code', code));
+      }
+    });
+
+    test('the list reads each rehearsal\'s scene and recording time', () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'pericope': 'P01',
+              'scene_rehearsals': [
+                {...record(), 'scene': 'S2'},
+                {...record(), 'recorded_at': ''},
+                {...record(), 'scene': 'cena-dois', 'recorded_at': 'ontem'},
+              ],
+            }),
+            200,
+          ),
+        ),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.sceneRehearsalsOf('sessao-1');
+
+      final [labelled, untimed, unreadable] =
+          (answer as Answered<List<SceneRehearsalRecord>>).value;
+      expect(labelled.sceneNumber, 2);
+      expect(labelled.recordedAt, DateTime.utc(2026, 10, 14, 9));
+      expect(untimed.sceneNumber, isNull);
+      expect(untimed.recordedAt, isNull);
+      expect(unreadable.sceneNumber, isNull);
+      expect(unreadable.recordedAt, isNull);
+    });
+
+    test(
+      'the scene send posts its turn id and the attempt it closes',
+      () async {
+        final seen = <http.Request>[];
+        final repository = RoomRepository(
+          client: MockClient((request) async {
+            seen.add(request);
+            return http.Response(_turnBody(), 200);
+          }),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        final closing = await repository.sendTheSceneRehearsal(
+          's',
+          'r',
+          turnId: '7f0c1f9e-2b9a-4c47-9d0e-5f3b8a1c2d4e',
+          closes: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+        );
+        await repository.sendTheSceneRehearsal(
+          's',
+          'r',
+          turnId: '7f0c1f9e-2b9a-4c47-9d0e-5f3b8a1c2d4e',
+        );
+
+        expect(seen.first.method, 'POST');
+        expect(
+          seen.first.url.path,
+          '/api/internalization-room/sessions/s/scene-rehearsals/r/send',
+        );
+        expect(seen.first.bodyFields, {
+          'turn_id': '7f0c1f9e-2b9a-4c47-9d0e-5f3b8a1c2d4e',
+          'closes': '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+        });
+        expect(seen.last.bodyFields, {
+          'turn_id': '7f0c1f9e-2b9a-4c47-9d0e-5f3b8a1c2d4e',
+        });
+        expect((closing as Answered<TurnResult>).value.sessionId, 'sessao-1');
+      },
+    );
+
+    test('the scene send\'s refusals come back by code', () async {
+      for (final (status, code) in [
+        (409, RefusalCode.sceneRehearsalSending),
+        (409, RefusalCode.sceneRehearsalSent),
+        (409, RefusalCode.restartOutOfOrder),
+        (404, RefusalCode.notFound),
+      ]) {
+        final repository = RoomRepository(
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({'code': code, 'detail': 'recusado'}),
+              status,
+            ),
+          ),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        final answer = await repository.sendTheSceneRehearsal(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          turnId: '7f0c1f9e-2b9a-4c47-9d0e-5f3b8a1c2d4e',
+        );
+
+        expect(answer, isA<Refused>().having((r) => r.code, 'code', code));
+      }
+    });
+
+    test('a frase\'s audio is asked at its own door', () {
+      expect(
+        RoomRepository.sceneFraseAudioUrl('s', 'r', 'f2'),
+        '/api/internalization-room/sessions/s/scene-rehearsals/r/frases/f2/audio',
+      );
+    });
+  });
+
   group('the audio part of each door', () {
     late http.Request sent;
     RoomRepository listening() {
@@ -1676,6 +2061,39 @@ void main() {
         expect(part.content, wav);
       },
     );
+
+    group('a scene take goes up to the room as audio/wav, with the scene label '
+        'when the record tap gave one', () {
+      test('labelled', () async {
+        final wav = aWavTake();
+        final file = await _tempRecording(extension: 'wav', bytes: wav);
+
+        await listening().keepSceneRehearsal('sessao-1', file, scene: 'S2');
+
+        final part = _filePart(sent);
+        expect(
+          part.head,
+          contains('content-type: audio/wav'),
+          reason:
+              'a sala chama de WAV só o que o envio declara WAV, e '
+              'guardava a cena como cena.m4a',
+        );
+        expect(part.head, matches(RegExp(r'filename="[^"]+\.wav"')));
+        expect(part.content, wav);
+        expect(
+          latin1.decode(sent.bodyBytes),
+          contains('name="scene"\r\n\r\nS2\r\n'),
+        );
+      });
+
+      test('unlabelled', () async {
+        final file = await _tempRecording(extension: 'wav', bytes: aWavTake());
+
+        await listening().keepSceneRehearsal('sessao-1', file);
+
+        expect(latin1.decode(sent.bodyBytes), isNot(contains('name="scene"')));
+      });
+    });
 
     test('a stretch told goes up as it always did', () async {
       await listening().sendChunk(
@@ -1741,6 +2159,90 @@ void main() {
         _filePart(sent).head,
         contains('content-type: application/octet-stream'),
       );
+    });
+  });
+  group('the session\'s scenes door', () {
+    test(
+      'case 1 (a): the scene list is read from the session\'s scenes door in '
+      'passage order',
+      () async {
+        late http.Request seen;
+        final repository = RoomRepository(
+          client: MockClient((request) async {
+            seen = request;
+            return http.Response(
+              jsonEncode({
+                'scenes': [
+                  {'scene_id': 'S1', 'title': 'Ouvir a notícia e partir'},
+                  {'scene_id': 'S2', 'title': 'Primeiro apelo e recusa'},
+                  {'scene_id': 'S3', 'title': 'Segundo apelo e a separação'},
+                ],
+              }),
+              200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            );
+          }),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+        repository.presents('credencial-1');
+
+        final answer = await repository.scenesOf('s');
+
+        expect(seen.method, 'GET');
+        expect(seen.url.path, '/api/internalization-room/sessions/s/scenes');
+        expect(seen.headers['X-Device-Credential'], 'credencial-1');
+        expect(
+          [
+            for (final scene in (answer as Answered<List<Scene>>).value)
+              (scene.sceneId, scene.title),
+          ],
+          [
+            ('S1', 'Ouvir a notícia e partir'),
+            ('S2', 'Primeiro apelo e recusa'),
+            ('S3', 'Segundo apelo e a separação'),
+          ],
+        );
+      },
+    );
+
+    test('case 1 (b): the scenes door gives up after 4 seconds', () async {
+      var heard = false;
+      final repository = RoomRepository(
+        client: MockClient((_) {
+          heard = true;
+          return Completer<http.Response>().future;
+        }),
+      );
+      addTearDown(repository.dispose);
+      final clock = FakeAsync();
+      RoomAnswer<List<Scene>>? answer;
+      clock.run(
+        (_) =>
+            unawaited(repository.scenesOf('s').then((given) => answer = given)),
+      );
+      while (!heard) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        clock.flushMicrotasks();
+      }
+
+      clock.elapse(const Duration(milliseconds: 3900));
+      expect(answer, isNull);
+      clock.elapse(const Duration(milliseconds: 200));
+      expect(
+        answer,
+        isA<NetworkFailed>().having((f) => f.reason, 'reason', 'timeout'),
+      );
+    });
+
+    test('case 1 (c): a 404 at the scenes door is the session gone', () async {
+      final repository = RoomRepository(
+        client: MockClient((_) async => http.Response('{}', 404)),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      expect(await repository.scenesOf('s'), isA<SessionGone>());
     });
   });
   group('a turn', () {

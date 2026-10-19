@@ -132,7 +132,7 @@ Future<ProviderContainer> entrarNaTraducao(
   await tester.pump(const Duration(milliseconds: 100));
 
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa(pericope: pericope);
+  await notifier.goConversa(book: 'Ruth', pericope: pericope);
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
@@ -224,7 +224,11 @@ void main() {
       circulo: gravarDeNovo,
     );
     expect(segunda, isNot(primeira));
-    expect(harness.recorder.deleted, contains(primeira));
+    expect(
+      harness.recorder.deleted,
+      isNot(contains(primeira)),
+      reason: 'ENG-1347: a tradução gravada de novo fica no tablet',
+    );
     expect(harness.recorder.deleted, isNot(contains(segunda)));
     expect(harness.room.chunksSent, 0, reason: 'regravar não manda nada');
     await tocar(tester, ouvirATraducao);
@@ -235,6 +239,35 @@ void main() {
 
     expect(harness.room.chunkFiles, [segunda]);
     expect(harness.room.chunkSpans, ['0-4000']);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a translation recorded again leaves the earlier recording on '
+      'the tablet, and only the new one is pending', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    final primeira = await gravarATraducao(tester, harness);
+    final segunda = await gravarATraducao(
+      tester,
+      harness,
+      circulo: gravarDeNovo,
+    );
+
+    expect(segunda, isNot(primeira));
+    expect(
+      harness.recorder.deleted,
+      isNot(contains(primeira)),
+      reason: 'nada que a equipe gravou é apagado pelo app sem a palavra dela',
+    );
+    expect(File(primeira).existsSync(), isTrue);
+    expect(
+      container.read(salaSessionProvider).btTraducaoPendente,
+      segunda,
+      reason: 'só a gravação nova vai pelo V',
+    );
     closeTheRoom(container);
   });
 
@@ -449,7 +482,9 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await tester.runAsync(notifier.abrirEscolha);
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.runAsync(() => notifier.goConversa(pericope: 'P01'));
+    await tester.runAsync(
+      () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+    );
     await tester.pump(const Duration(milliseconds: 600));
     expect(contas(tester), ['solid', 'translucent com anel']);
 
@@ -645,7 +680,9 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await tester.runAsync(notifier.abrirEscolha);
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.runAsync(() => notifier.goConversa(pericope: 'P01'));
+    await tester.runAsync(
+      () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+    );
     await tester.pump(const Duration(milliseconds: 600));
     return container;
   }
@@ -873,7 +910,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
     final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 200));
     notifier.goEnsaio();
     notifier.ensaioTap();

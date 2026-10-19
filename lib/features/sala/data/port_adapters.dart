@@ -11,7 +11,6 @@ import '../domain/turn_result.dart';
 import 'connectivity_service.dart';
 import 'current_session_ledger.dart';
 import 'facilitator_voice_service.dart';
-import 'finished_passages.dart';
 import 'linked_team.dart';
 import 'playback_repository.dart';
 import 'recording_repository.dart';
@@ -44,6 +43,15 @@ class ProviderRoomPort implements RoomPort {
       switch (await _ref.read(roomRepositoryProvider).fetchState(session)) {
         Answered(:final value) => SessionReadAnswered(value),
         final RoomFailure failure => SessionReadFailed(failure.result),
+      };
+
+  @override
+  Future<SceneRehearsalsAnswer> sceneRehearsalsOf(String session) async =>
+      switch (await _ref
+          .read(roomRepositoryProvider)
+          .sceneRehearsalsOf(session)) {
+        Answered(:final value) => SceneRehearsalsListed(value),
+        final RoomFailure failure => SceneRehearsalsFailed(failure.result),
       };
 
   @override
@@ -189,10 +197,6 @@ class ProviderStorePort implements StorePort {
   @override
   Future<int> flushTheOutbox() =>
       _ref.read(takeUploadQueueProvider).flush(withTheCodeless: true);
-
-  @override
-  Future<void> markThePassageClosed(String book, String passage) =>
-      _ref.read(finishedPassagesProvider).add(book, passage).catchError((_) {});
 
   @override
   Future<CurrentSession?> currentSession() =>

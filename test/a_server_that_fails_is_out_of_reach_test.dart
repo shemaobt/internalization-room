@@ -70,7 +70,7 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.goConversa();
+    await notifier.goConversa(book: 'Ruth');
     await settle();
 
     var outOfReach = false;
@@ -100,7 +100,7 @@ void main() {
     final voices = <VoiceState>[];
     container.listen(salaSessionProvider, (_, next) => voices.add(next.voice));
 
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     expect(harness.room.turnIdsAsked, hasLength(1));

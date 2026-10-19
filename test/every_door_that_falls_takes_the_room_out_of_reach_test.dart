@@ -91,7 +91,7 @@ Future<_Room> _aResumedBackTranslation(
   addTearDown(container.dispose);
   final room = _Room(harness, container);
   await room.sala.abrirEscolha();
-  await room.sala.goConversa(pericope: 'P01');
+  await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a tradução retomada pôr a parte no ar',
     () => room.estado.stage == SalaStage.retro,
@@ -168,9 +168,10 @@ void main() {
     final stumbling = _RoomThatCannotReadTheTakeOnce();
     final harness = SalaHarness(
       room: stumbling,
-      takesOverride: (room, home) => TakeUploadQueue(
+      takesOverride: (room, home, recordings) => TakeUploadQueue(
         room: room,
         home: () async => home,
+        recordings: recordings,
         backoff: [backoff],
       ),
     );
@@ -317,7 +318,7 @@ void main() {
       final room = _Room(harness, container);
       await room.sala.abrirEscolha();
 
-      await room.sala.goConversa(pericope: 'P01');
+      await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
 
       await room.outOfReach('pela leitura da retomada');
       expect(room.estado.needsPerson, isFalse);
@@ -573,6 +574,10 @@ void main() {
           if (row.sessionId == sessao && row.kind == 'retro') row,
       ];
       expect(await traducoesNaFila(), isEmpty);
+      int recebidas() => harness.room.takesKept
+          .where((take) => take.startsWith('retro/'))
+          .length;
+      final recebidasAntes = recebidas();
       harness.network.reachable = false;
       harness.room.chunkAnswersFirst.addAll(
         List.filled(10, _theKeyStillInFlight),
@@ -586,7 +591,11 @@ void main() {
       expect(harness.room.chunkKeys.toSet(), hasLength(1));
       expect(room.estado.unreachable, isTrue);
       expect(room.estado.btTraducaoPendente, isNotNull);
-      expect(await traducoesNaFila(), hasLength(1));
+      expect(
+        (await traducoesNaFila()).length + recebidas() - recebidasAntes,
+        1,
+        reason: 'ENG-1347: guardada, ela fica na fila até a sala confirmá-la',
+      );
     },
   );
 
@@ -647,7 +656,7 @@ void main() {
     final room = _Room(harness, container);
     await room.sala.abrirEscolha();
     harness.network.reachable = false;
-    await room.sala.goConversa(pericope: 'P01');
+    await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
     await room.outOfReach('pela sonda da conversa');
     expect(room.estado.reach, RoomReach.roomSilent);
     harness.network.reachable = true;
@@ -687,7 +696,7 @@ void main() {
     harness.network.holdNextCheck();
     room.sala.retryNow();
     await settle();
-    unawaited(room.sala.goConversa(pericope: 'P01'));
+    unawaited(room.sala.goConversa(book: 'Ruth', pericope: 'P01'));
     await settle();
     final checks = harness.network.checks;
 
@@ -848,7 +857,11 @@ void main() {
           },
         ]),
       );
-      final queue = TakeUploadQueue(room: FakeRoom(), home: () async => home);
+      final queue = TakeUploadQueue(
+        room: FakeRoom(),
+        home: () async => home,
+        recordings: FakeRecorder.new,
+      );
 
       final rows = await queue.entries();
 
@@ -866,7 +879,7 @@ void main() {
       final room = _Room(harness, container);
       await room.sala.abrirEscolha();
       harness.network.reachable = false;
-      await room.sala.goConversa(pericope: 'P01');
+      await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
       await room.outOfReach('pela sonda da conversa');
       harness.network.reachable = true;
       harness.voice.holdNextLine();

@@ -2,6 +2,7 @@ import 'channel.dart';
 import 'cut_point.dart';
 import 'halt.dart';
 import 'room_reach.dart';
+import 'scene_rehearsal.dart';
 import 'session_snapshot.dart';
 import 'station.dart';
 import 'turn_result.dart';
@@ -77,6 +78,8 @@ enum Door {
   question,
   step,
   verdict,
+  sceneRehearsal,
+  sceneList,
 }
 
 enum PartFact { sent, pending, stranded }
@@ -165,8 +168,15 @@ final class MicAnswered extends AnsweringEvent {
   final MicAnswer answer;
   final String? take;
   final Object? because;
+  final MicOwner? owner;
 
-  const MicAnswered(this.answer, {this.take, this.because, super.generation});
+  const MicAnswered(
+    this.answer, {
+    this.take,
+    this.because,
+    this.owner,
+    super.generation,
+  });
 }
 
 /// A gesture asks for its take: the Microphone stays open until the recorder answers.
@@ -274,7 +284,17 @@ final class TheRoomStartedOver extends StationEvent {
 }
 
 final class ThePanoramaChosen extends StationEvent {
-  const ThePanoramaChosen();
+  final String id;
+
+  const ThePanoramaChosen(this.id);
+}
+
+final class TheSceneRehearsalOpened extends StationEvent {
+  const TheSceneRehearsalOpened();
+}
+
+final class TheSceneRehearsalLeft extends StationEvent {
+  const TheSceneRehearsalLeft();
 }
 
 final class TheLanguageChosen extends MachineEvent {
@@ -373,6 +393,26 @@ final class TheRefusalPassed extends AnsweringEvent {
 
 final class TheHandFailed extends AnsweringEvent {
   const TheHandFailed({super.generation});
+}
+
+/// The passage's scenes could not be had: the take goes unlabelled, nothing else moves.
+final class TheScenesMissed extends AnsweringEvent {
+  const TheScenesMissed({super.generation});
+}
+
+/// The scene rehearsals the room listed when they were read again.
+final class TheSceneRehearsalsListed extends AnsweringEvent {
+  final List<SceneRehearsalRecord> listed;
+
+  const TheSceneRehearsalsListed(this.listed, {super.generation});
+}
+
+/// A scene door failed; [readAgain] when the room's refusal says the rehearsal moved on
+/// without this tablet: sent to the voice, or restarted by an answer it never heard.
+final class TheSceneDoorFailed extends AnsweringEvent {
+  final bool readAgain;
+
+  const TheSceneDoorFailed({this.readAgain = false, super.generation});
 }
 
 final class TheCallWasRefused extends AnsweringEvent {
@@ -642,8 +682,8 @@ final class AskForAPersonAgain extends Effect {
   const AskForAPersonAgain();
 }
 
-final class MarkThePassageClosed extends Effect {
-  const MarkThePassageClosed();
+final class CloseThePassage extends Effect {
+  const CloseThePassage();
 }
 
 final class CountTheRefusal extends Effect {
@@ -656,6 +696,16 @@ final class LetThePendingTranslationGo extends Effect {
 
 final class RefuseThePassage extends Effect {
   const RefuseThePassage();
+}
+
+final class ReadTheSceneRehearsals extends Effect {
+  const ReadTheSceneRehearsals();
+}
+
+final class ShowTheSceneRehearsals extends Effect {
+  final List<SceneRehearsalRecord> listed;
+
+  const ShowTheSceneRehearsals(this.listed);
 }
 
 /// How a line ended: said whole, failed, not said, or cut by the team, which counts as
@@ -684,8 +734,15 @@ final class MicOutcome {
   final String? take;
   final Object? because;
   final CutPoint? cut;
+  final MicOwner? owner;
 
-  const MicOutcome(this.answer, {this.take, this.because, this.cut});
+  const MicOutcome(
+    this.answer, {
+    this.take,
+    this.because,
+    this.cut,
+    this.owner,
+  });
 }
 
 final class Machine {
@@ -847,12 +904,8 @@ const _watch = ArmTheWatch();
   ),
   MicOpened(:final owner, :final take) => _openTheMic(machine, owner, take),
   MicClosed() => _closeTheMic(machine),
-  MicAnswered(:final answer, :final take, :final because) => _heard(
-    machine,
-    answer,
-    take,
-    because,
-  ),
+  MicAnswered(:final answer, :final take, :final because, :final owner) =>
+    _heard(machine, answer, take, because, owner),
   MicClosing() => (machine, const [CloseTheMic()]),
   MicDiscarded() => _discardTheMic(machine),
   BeadTapped(:final sounds, :final beneath) => _tapped(
@@ -901,7 +954,7 @@ const _watch = ArmTheWatch();
     [const StopTheSound(), for (final line in machine.queue) DropTheLine(line)],
   ),
   TheSessionIsGone() || ThePassageClosed() => _theSessionGone(machine),
-  TheCallMetAClosedPassage() => (machine, const [MarkThePassageClosed()]),
+  TheCallMetAClosedPassage() => (machine, const [CloseThePassage()]),
   TurnSent(:final turn) => (machine.copyWith(inFlight: turn), const []),
   TurnAnswered(:final turn) => (
     _settleTheOpening(_land(machine, turn), turn),
@@ -915,13 +968,27 @@ const _watch = ArmTheWatch();
   ),
   TheRefusalPassed() => (machine, const []),
   TheHandFailed() => (machine, const []),
+  TheScenesMissed() => (machine, const []),
+  TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
+    (machine, const [ReadTheSceneRehearsals()]),
+  TheSceneDoorFailed() => (machine, const []),
+  TheSceneRehearsalsListed(:final listed)
+      when machine.station is SceneRehearsal =>
+    (machine, [ShowTheSceneRehearsals(listed)]),
+  TheSceneRehearsalsListed() => (machine, const []),
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
   LookEmpty(sounding: TheOpening()) ||
   TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
-  LookEmpty(:final sounding) => _theHalt(
+  LookEmpty(:final sounding) => switch (_theHalt(
     machine,
     RoomRaisedAHalt(sounding: sounding),
-  ),
+  )) {
+    (final halted, final effects) when machine.station is SceneRehearsal => (
+      halted,
+      [...effects, const ReadTheSceneRehearsals()],
+    ),
+    final halted => halted,
+  },
   TheRoomRefused(:final third, :final sounding) => _refused(
     machine,
     third,
@@ -1017,13 +1084,26 @@ Paused? _heldBy(Channel channel) => switch (channel) {
       )) {
     return (machine, [DropTheLine(line)]);
   }
+  final (heard, stopped) = _theReplyGivesWayTo(machine, line);
   return _drain(
-    machine.copyWith(
-      queue: [...machine.queue, line],
-      owners: own ? {...machine.owners, line: by.toSet()} : null,
+    heard.copyWith(
+      queue: [...heard.queue, line],
+      owners: own ? {...heard.owners, line: by.toSet()} : null,
     ),
+    stopped,
   );
 }
+
+(Machine, List<Effect>) _theReplyGivesWayTo(Machine machine, Line line) =>
+    switch (machine.channel) {
+      GuideSpeaking(line: final reply, :final held)
+          when reply.kind == LineKind.reply && line.kind != LineKind.reply =>
+        (
+          machine.copyWith(channel: held ?? const Silence()),
+          [StopTheLine(reply)],
+        ),
+      _ => (machine, const []),
+    };
 
 bool _answersItsStep(Line line) => line.kind.answersAStep;
 
@@ -1253,6 +1333,7 @@ Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
   MicAnswer answer,
   String? take,
   Object? because,
+  MicOwner? owner,
 ) {
   final (answered, effects) = answer == MicAnswer.started || because != null
       ? (machine, const <Effect>[])
@@ -1263,6 +1344,7 @@ Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
         answer,
         take: take,
         because: because,
+        owner: owner,
         cut: switch ((answer, machine.channel)) {
           (MicAnswer.closed, Microphone(:final cut)) => cut,
           _ => null,
@@ -1606,6 +1688,9 @@ Machine _answered(Machine machine) =>
   TurnFailed() ||
   TheRefusalPassed() ||
   TheHandFailed() ||
+  TheScenesMissed() ||
+  TheSceneDoorFailed() ||
+  TheSceneRehearsalsListed() ||
   TheCallWasRefused() ||
   TheCallMetAClosedPassage() ||
   StationEvent() ||

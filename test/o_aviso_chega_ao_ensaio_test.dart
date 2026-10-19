@@ -42,7 +42,9 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await tester.runAsync(notifier.abrirEscolha);
       await tester.pump(const Duration(milliseconds: 200));
-      await tester.runAsync(() => notifier.goConversa(pericope: 'P01'));
+      await tester.runAsync(
+        () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+      );
       for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(seconds: 1));
       }

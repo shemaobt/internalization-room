@@ -32,7 +32,7 @@ const _livroComPanorama = [
 Future<ProviderContainer> _semPassagemNaMemoria(SalaHarness harness) async {
   final container = harness.container();
   addTearDown(container.dispose);
-  await container.read(salaSessionProvider.notifier).goConversa();
+  await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
   await settle();
   return container;
 }
@@ -43,7 +43,7 @@ Future<ProviderContainer> _naPassagem(SalaHarness harness) async {
   final sala = container.read(salaSessionProvider.notifier);
   await sala.abrirEscolha();
   await settle();
-  sala.entrarNaOferecida();
+  sala.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
   await waitFor(
     'a passagem abrir',
     () => container.read(salaSessionProvider).sessionId != null,
@@ -170,9 +170,11 @@ void main() {
     'rows and their files, and the Outbox tally shows nothing pending',
     () async {
       final harness = SalaHarness(
-        takesOverride: (room, home) =>
-            QueueThatDiscardsLate(room: room, home: () async => home)
-              ..discardsAfter = _slowerThanAnyWait,
+        takesOverride: (room, home, recordings) => QueueThatDiscardsLate(
+          room: room,
+          home: () async => home,
+          recordings: recordings,
+        )..discardsAfter = _slowerThanAnyWait,
       );
       final container = await _naPassagem(harness);
       final sessao = _sessao(container);
@@ -228,7 +230,7 @@ void main() {
     await sala.abrirEscolha();
     await settle();
 
-    await sala.goConversa(pericope: 'P01');
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
     await _naEscolha(container);
     await waitFor(
       'o lugar e a gravação guardada saírem do tablet',
@@ -265,7 +267,7 @@ void main() {
     await sala.abrirEscolha();
     await settle();
 
-    await sala.goConversa(pericope: 'P01');
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
     await _naEscolha(container);
     await waitFor(
       'o lugar da sessão esquecida sair do tablet',
@@ -344,6 +346,9 @@ void main() {
     await confirmarATraducao(container);
     await waitFor('a sala cair', () => _estado(container).unreachable);
     final traducao = _estado(container).btTraducaoPendente!;
+    harness.room.refuseTake = 'ensaio/parte-9';
+    await _naFila(harness, sessao, nome: 'recusada', scope: 'parte-9');
+    await harness.takes.flush();
     final linhas = await _daSessao(harness, sessao);
     expect(linhas, isNotEmpty);
     expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNotNull);
@@ -451,15 +456,18 @@ void main() {
   test('Q1: gone from an older session\'s Outbox row removes that session\'s '
       'rows and files only, and the room stays where it is', () async {
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          QueueThatDiscardsLate(room: room, home: () async => home)
-            ..discardsAfter = _slowerThanAnyWait,
+      takesOverride: (room, home, recordings) => QueueThatDiscardsLate(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      )..discardsAfter = _slowerThanAnyWait,
     );
     final container = await _naPassagem(harness);
     final sessao = _sessao(container);
     final velha = await _naFila(harness, 'sessao-velha', nome: 'parte-velha');
     final atual = await _naFila(harness, sessao, nome: 'parte-atual');
     harness.room.forgetTheSession('sessao-velha');
+    harness.room.refuseTake = 'ensaio/parte-1';
 
     await container.read(salaSessionProvider.notifier).refreshUnsent();
     await waitFor(
@@ -680,10 +688,12 @@ void main() {
       'Outbox and no file on disk, even with the enqueue in flight', () async {
     late QueueWhoseTranslationLandsLate fila;
     final harness = SalaHarness(
-      takesOverride: (room, home) => fila = QueueWhoseTranslationLandsLate(
-        room: room,
-        home: () async => home,
-      )..landsAfter = _slowerThanAnyWait,
+      takesOverride: (room, home, recordings) =>
+          fila = QueueWhoseTranslationLandsLate(
+            room: room,
+            home: () async => home,
+            recordings: recordings,
+          )..landsAfter = _slowerThanAnyWait,
     );
     final container = await _naPassagem(harness);
     await _abrirACapturaDeUmTrecho(harness, container);

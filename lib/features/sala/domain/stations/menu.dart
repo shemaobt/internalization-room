@@ -10,11 +10,12 @@ final class Menu extends Station {
   @override
   Station answer(StationEvent event) => switch (event) {
     TheRoomStartedOver() => const Menu(),
-    ThePanoramaChosen() => const Panorama(),
+    ThePanoramaChosen(:final id) => Panorama(id),
     TheChoiceOpened() => const Menu(),
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),
     TheBackTranslationOpened() => const Retro(),
+    TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
   };
 }

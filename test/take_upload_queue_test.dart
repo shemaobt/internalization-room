@@ -10,7 +10,9 @@ import 'package:path/path.dart' as p;
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 
+import 'a_wav_take.dart';
 import 'fakes.dart';
 
 void main() {
@@ -25,6 +27,7 @@ void main() {
       TakeUploadQueue(
         room: room,
         home: () async => home,
+        recordings: FakeRecorder.new,
         backoff: backoff,
         now: () => clock,
       );
@@ -105,34 +108,38 @@ void main() {
     );
   });
 
-  test('a keep racing a flush does not drop the take it just enqueued', () async {
-    final room = FakeRoom()..reachable = false;
-    final queue = queueOn(room);
-    await queue.enqueue(
-      aTake('primeira'),
-      sessionId: 'sessao-1',
-      kind: 'ensaio',
-      scope: 'inteira',
-    );
-
-    room.reachable = true;
-    await Future.wait([
-      queue.flush(),
-      queue.enqueue(
-        aTake('segunda'),
+  test(
+    'a keep racing a flush does not drop the take it just enqueued',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('primeira'),
         sessionId: 'sessao-1',
         kind: 'ensaio',
         scope: 'inteira',
-      ),
-    ]);
+      );
 
-    expect(
-      await queue.entries(),
-      hasLength(2),
-      reason:
-          'as duas escritas liam a fila antes de escrever, e a última apagava a outra',
-    );
-  });
+      room.reachable = true;
+      await Future.wait([
+        queue.flush(),
+        queue.enqueue(
+          aTake('segunda'),
+          sessionId: 'sessao-1',
+          kind: 'ensaio',
+          scope: 'inteira',
+        ),
+      ]);
+
+      expect(
+        (await queue.entries()).length + room.takesKept.length,
+        2,
+        reason:
+            'as duas escritas liam a fila antes de escrever, e a última apagava '
+            'a outra; ENG-1347: a confirmada sai da fila, a outra fica ou sobe',
+      );
+    },
+  );
 
   test('a take waits on disk until the room takes it', () async {
     final room = FakeRoom()..reachable = false;
@@ -444,24 +451,29 @@ void main() {
     );
   });
 
-  test('the audio file is never deleted, even after the room has it', () async {
-    final room = FakeRoom();
-    final queue = queueOn(room);
-    final entry = await queue.enqueue(
-      aTake('tomada'),
-      sessionId: 'sessao-1',
-      kind: 'ensaio',
-      scope: 'inteira',
-    );
+  test(
+    'the audio file is never deleted while the room has not confirmed it',
+    () async {
+      final room = FakeRoom()..refuseTake = 'ensaio/inteira';
+      final queue = queueOn(room);
+      final entry = await queue.enqueue(
+        aTake('tomada'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
 
-    await queue.flush();
+      await queue.flush();
 
-    expect(
-      File(entry.path).existsSync(),
-      isTrue,
-      reason: 'o ensaio e a retro são o produto — a cópia local fica',
-    );
-  });
+      expect(
+        File(entry.path).existsSync(),
+        isTrue,
+        reason:
+            'o ensaio e a retro são o produto; ENG-1347: só a cópia de uma '
+            'gravação que a sala confirmou sai',
+      );
+    },
+  );
 
   test('a take already taken is not sent again', () async {
     final room = FakeRoom();
@@ -630,7 +642,8 @@ void main() {
     );
   });
 
-  test('a row behind a refused row of its part does not leave', () async {
+  test('a row behind a row of its part refused for good is still tried in '
+      'that pass', () async {
     final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
     final queue = queueOn(room);
     await queue.enqueue(
@@ -651,18 +664,15 @@ void main() {
     expect(room.takesKept, isEmpty);
     expect(
       room.calls.where((call) => call == 'sendTake'),
-      hasLength(1),
-      reason: 'a sala só pode ter visto a primeira gravação da parte 2',
+      hasLength(2),
+      reason:
+          'ENG-1347: uma recusa de vez nunca chegou à sala, então não segura '
+          'a gravação de trás nem nesta passada',
     );
     final atras = (await queue.pending()).firstWhere(
       (entry) => entry.id == segunda.id,
     );
-    expect(
-      [atras.attempts, atras.lastTry],
-      [0, null],
-      reason:
-          'a linha de trás não foi tentada: não gasta tentativa nem marca hora',
-    );
+    expect(atras.exhausted, isTrue);
   });
 
   test(
@@ -787,7 +797,7 @@ void main() {
   });
 
   test('a row that gave up holds nothing behind it', () async {
-    final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
+    final room = FakeRoom()..takeAnswersFirst.add(const Refused('BAD_REQUEST'));
     final queue = queueOn(room);
     await queue.enqueue(
       aTake('primeira'),
@@ -801,9 +811,6 @@ void main() {
       kind: 'ensaio',
       scope: 'parte-2',
     );
-
-    await queue.flush();
-    room.refuseTake = null;
 
     expect(await queue.flush(), 1);
     expect(room.takesKept, ['ensaio/parte-2']);
@@ -1381,16 +1388,20 @@ void main() {
       scope: 'inteira',
     );
     await queue.flush();
-    expect((await queue.entries()).single.stored, isTrue);
+    final nome = await queue.takeIdOf(entregue.id);
 
     await queue.withdraw(entregue);
 
     expect(
       await queue.entries(),
-      hasLength(1),
-      reason: 'uma tomada já entregue não é retirada da fila',
+      isEmpty,
+      reason: 'ENG-1347: a tomada confirmada já saiu da fila e não volta',
     );
-    expect((await queue.entries()).single.stored, isTrue);
+    expect(
+      await queue.takeIdOf(entregue.id),
+      nome,
+      reason: 'retirar não apaga o nome que a sala deu',
+    );
   });
 
   test('withdraw of a row the queue no longer holds is a no-op', () async {
@@ -1471,6 +1482,7 @@ void main() {
       return TakeUploadQueue(
         room: room,
         home: () async => home,
+        recordings: FakeRecorder.new,
         backoff: const [Duration(seconds: 5)],
         now: () => clock,
       );
@@ -1541,6 +1553,7 @@ void main() {
       final queue = TakeUploadQueue(
         room: room,
         home: () async => home,
+        recordings: FakeRecorder.new,
         now: () => clock,
       );
       await queue.enqueue(
@@ -1571,7 +1584,11 @@ void main() {
         deviceId: () async => 'aparelho-1',
       );
       addTearDown(room.dispose);
-      final queue = TakeUploadQueue(room: room, home: () async => home);
+      final queue = TakeUploadQueue(
+        room: room,
+        home: () async => home,
+        recordings: FakeRecorder.new,
+      );
       final row = await queue.enqueue(
         aTake('no-ar'),
         sessionId: 'sessao-1',
@@ -1611,4 +1628,448 @@ void main() {
       expect(gone, ['sessao-1']);
     });
   });
+  group('the scene take in the Outbox', () {
+    test('an Outbox row of kind cena goes up through the scene rehearsal keep '
+        'door with its label', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final take = aTake('cena-1');
+      await queue.enqueue(
+        take,
+        sessionId: 'sessao-1',
+        kind: 'cena',
+        scope: 'cena',
+        scene: 'S2',
+      );
+
+      await queue.flush();
+
+      expect(room.scenesKept, ['sessao-1']);
+      expect(room.sceneLabels, ['S2']);
+      expect(room.sceneTakesSent.single, take.readAsBytesSync());
+      expect(room.takesKept, isEmpty, reason: 'não é uma parte do ensaio');
+      expect(
+        await queue.entries(),
+        isEmpty,
+        reason: 'a sala confirmou; a linha sai de fila.json',
+      );
+    });
+
+    group('a scene take waits behind an earlier scene take of its session '
+        'that did not land, and not behind one the room refused for good', () {
+      test('behind one that did not land', () async {
+        final room = FakeRoom()
+          ..failSceneWith = const NetworkFailed('sem rede');
+        final queue = queueOn(room);
+        for (final name in ['cena-1', 'cena-2']) {
+          await queue.enqueue(
+            aTake(name),
+            sessionId: 'sessao-1',
+            kind: 'cena',
+            scope: 'cena',
+          );
+        }
+
+        await queue.flush();
+
+        expect(
+          room.calls.where((call) => call == 'keepSceneRehearsal'),
+          hasLength(1),
+          reason:
+              'o ensaio de depois chegaria antes e levaria o número do de antes',
+        );
+      });
+
+      test('not behind one refused for good', () async {
+        final room = FakeRoom()
+          ..sceneAnswersFirst.add(const Refused('BAD_REQUEST'));
+        final queue = queueOn(room);
+        for (final name in ['cena-1', 'cena-2']) {
+          await queue.enqueue(
+            aTake(name),
+            sessionId: 'sessao-1',
+            kind: 'cena',
+            scope: 'cena',
+          );
+        }
+
+        await queue.flush();
+
+        expect(
+          room.sceneTakesSent.single,
+          File('${home.path}/cena-2.m4a').readAsBytesSync(),
+          reason: 'nem na mesma passada a recusada segura a de trás',
+        );
+      });
+    });
+
+    test(
+      'a take over 25 MiB is refused for good without a byte sent',
+      () async {
+        final room = FakeRoom();
+        final queue = queueOn(room);
+        final grande = File('${home.path}/grande.wav')
+          ..createSync()
+          ..openSync(mode: FileMode.write).truncateSync(25 * 1024 * 1024 + 1);
+        final row = await queue.enqueue(
+          grande,
+          sessionId: 'sessao-1',
+          kind: 'cena',
+          scope: 'cena',
+        );
+
+        await queue.flush();
+        await queue.dueAgain(row.id);
+        await queue.flush();
+
+        expect(room.calls, isNot(contains('keepSceneRehearsal')));
+        final kept = (await queue.entries()).single;
+        expect(kept.id, row.id, reason: 'fica em fila.json, nunca apagada');
+        expect(kept.refusal, RefusalCode.tooLarge);
+      },
+    );
+  });
+
+  group('every recording the room confirmed leaves fila.json, and its name '
+      'still reaches the take', () {
+    test('a Part kept and landed', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final row = await queue.enqueue(
+        aTake('parte-1'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'parte-1',
+      );
+
+      await queue.flush();
+
+      expect(await queue.entries(), isEmpty);
+      expect(
+        Directory('${home.path}/guardadas').listSync().where(
+          (file) => !p.basename(file.path).startsWith('fila.json'),
+        ),
+        isEmpty,
+        reason: 'a cópia em guardadas/ sai junto, a sala tem a gravação',
+      );
+      expect(await queue.takeIdOf(row.id), room.takeIds.single);
+      final tally = await queue.tally(sessionId: 'sessao-1');
+      expect(tally.parts[row.id], PartFact.sent);
+    });
+
+    test('an older manifest sheds its stored rows on the next write', () async {
+      final dir = Directory('${home.path}/guardadas')
+        ..createSync(recursive: true);
+      final copia = File('${dir.path}/ensaio-antiga.m4a')
+        ..writeAsStringSync('a equipe contou a passagem');
+      File('${dir.path}/fila.json').writeAsStringSync(
+        '[{"id":"antiga","name":"ensaio-antiga.m4a","session_id":"sessao-1",'
+        '"kind":"ensaio","scope":"parte-1","take_id":"gravacao-1",'
+        '"stored":true,"lost":false,"attempts":0,"waits":0,"last_try":null}]',
+      );
+      final queue = queueOn(FakeRoom()..reachable = false);
+
+      await queue.enqueue(
+        aTake('nova'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'parte-2',
+      );
+
+      expect([
+        for (final row in await queue.entries()) row.id,
+      ], isNot(contains('antiga')));
+      expect(copia.existsSync(), isFalse);
+      expect(
+        await queue.takeIdOf('antiga'),
+        'gravacao-1',
+        reason: 'a parte ainda aprende o nome que a sala deu',
+      );
+    });
+  });
+
+  group('the scene take in the Outbox, against the room', () {
+    Future<PendingTake> aScene(TakeUploadQueue queue, String name) =>
+        queue.enqueue(
+          aTake(name),
+          sessionId: 'sessao-1',
+          kind: 'cena',
+          scope: 'cena',
+        );
+
+    test(
+      'a scene take never waits behind an older one in backoff when the team '
+      'keeps it',
+      () async {
+        final room = FakeRoom()
+          ..failSceneWith = const NetworkFailed('sem rede');
+        final queue = queueOn(
+          room,
+          backoff: const [Duration(seconds: 5), Duration(seconds: 30)],
+        );
+        await aScene(queue, 'cena-1');
+        await queue.flush();
+        clock = clock.add(const Duration(seconds: 1));
+        room.failSceneWith = null;
+        final second = await aScene(queue, 'cena-2');
+
+        final kept = await queue.keepTheScene(second.id);
+
+        expect(kept, isNotNull, reason: 'a equipe pediu; a de trás não segura');
+        expect(room.sceneTakesSent, [
+          File('${home.path}/cena-1.m4a').readAsBytesSync(),
+          File('${home.path}/cena-2.m4a').readAsBytesSync(),
+        ]);
+      },
+    );
+
+    test(
+      'a take over 25 MiB holds no one behind it, even within one pass',
+      () async {
+        final room = FakeRoom();
+        final queue = queueOn(room);
+        final grande = File('${home.path}/grande.m4a')
+          ..createSync()
+          ..openSync(
+            mode: FileMode.write,
+          ).truncateSync(largestTakeTheRoomKeeps + 1);
+        await queue.enqueue(
+          grande,
+          sessionId: 'sessao-1',
+          kind: 'cena',
+          scope: 'cena',
+        );
+        await aScene(queue, 'pequena');
+
+        await queue.flush();
+
+        expect(room.sceneTakesSent, hasLength(1));
+      },
+    );
+
+    test(
+      'a retry tapped while the same row is in the air keeps its reset',
+      () async {
+        final room = FakeRoom()
+          ..failSceneWith = const NetworkFailed('sem rede');
+        final queue = queueOn(room, backoff: const [Duration(seconds: 5)]);
+        final row = await aScene(queue, 'cena-1');
+        await queue.flush();
+        clock = clock.add(const Duration(seconds: 6));
+        room.holdNextKeepBeforeTheRoomActs();
+        final inTheAir = queue.flush();
+        await waitFor(
+          'a tomada estar no ar',
+          () => room.calls.where((c) => c == 'keepSceneRehearsal').length == 2,
+        );
+
+        await queue.dueAgain(row.id);
+        room.finishHeldKeep();
+        await inTheAir;
+        room.failSceneWith = null;
+        await queue.flush();
+
+        expect(
+          room.scenesKept,
+          hasLength(1),
+          reason:
+              'o toque da equipe pulou a espera; a falha em voo não a devolve',
+        );
+      },
+    );
+
+    test('a copy gone mid-keep answers not kept, never an error', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final row = await aScene(queue, 'cena-1');
+
+      final kept = await IOOverrides.runZoned(
+        () => queue.keepTheScene(row.id),
+        createFile: (path) =>
+            path.contains('${p.separator}guardadas${p.separator}cena-')
+            ? _GoneAfterItWasFound(path)
+            : _realFile(path),
+      );
+
+      expect(kept, isNull);
+      expect(room.calls, isNot(contains('keepSceneRehearsal')));
+    });
+  });
+
+  group('the scene take in the Outbox, after review', () {
+    Future<PendingTake> aScene(
+      TakeUploadQueue queue,
+      String name, {
+      String sessionId = 'sessao-1',
+    }) => queue.enqueue(
+      aTake(name),
+      sessionId: sessionId,
+      kind: 'cena',
+      scope: 'cena',
+    );
+
+    test(
+      'a take confirmed by another run of the Outbox is still named after its '
+      'rehearsal',
+      () async {
+        final room = FakeRoom()..reachable = false;
+        final recorder = FakeRecorder();
+        final take = File('${recorder.home.path}/cena_1.wav')
+          ..writeAsBytesSync(aWavTake());
+        await queueOn(
+          room,
+        ).enqueue(take, sessionId: 'sessao-1', kind: 'cena', scope: 'cena');
+        room.reachable = true;
+        final again = TakeUploadQueue(
+          room: room,
+          home: () async => home,
+          recordings: () => recorder,
+        );
+
+        await again.flush();
+
+        expect(
+          await recorder.heldAs(
+            'cena-${room.sceneRehearsals.single.rehearsalId}',
+          ),
+          isNotNull,
+          reason: 'o take da equipe leva o nome do ensaio em qualquer execução',
+        );
+      },
+    );
+
+    Future<(TakeUploadQueue, PendingTake)> aSceneOf(
+      FakeRoom room,
+      FakeRecorder recorder,
+    ) async {
+      final queue = TakeUploadQueue(
+        room: room,
+        home: () async => home,
+        recordings: () => recorder,
+      );
+      final take = File('${recorder.home.path}/cena_1.wav')
+        ..writeAsBytesSync(aWavTake());
+      final row = await queue.enqueue(
+        take,
+        sessionId: 'sessao-1',
+        kind: 'cena',
+        scope: 'cena',
+      );
+      return (queue, row);
+    }
+
+    test('the take is named before its row leaves the manifest', () async {
+      final room = FakeRoom();
+      final (queue, row) = await aSceneOf(room, _ARenameThatNeverEnds());
+
+      unawaited(queue.flush());
+      await waitFor('a sala confirmar', () => room.scenesKept.isNotEmpty);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      final afterAKill = TakeUploadQueue(
+        room: room,
+        home: () async => home,
+        recordings: FakeRecorder.new,
+      );
+      expect(
+        [for (final entry in await afterAKill.entries()) entry.id],
+        [row.id],
+        reason:
+            'morto antes de renomear, o tablet ainda tem a linha, e o take é '
+            'renomeado quando ela sobe de novo',
+      );
+    });
+
+    test('a rename that fails in any way never sends the take again', () async {
+      final room = FakeRoom();
+      final (queue, _) = await aSceneOf(room, _ADiskThatThrowsOnTheRename());
+
+      await queue.flush();
+      await queue.flush();
+
+      expect(room.scenesKept, hasLength(1));
+      expect(await queue.entries(), isEmpty);
+    });
+
+    test(
+      'a take refused for good is never made due by the team\'s keep',
+      () async {
+        final room = FakeRoom()
+          ..sceneAnswersFirst.add(const Refused('BAD_REQUEST'));
+        final queue = queueOn(room);
+        await aScene(queue, 'cena-1');
+        await queue.flush();
+        final second = await aScene(queue, 'cena-2');
+
+        await queue.keepTheScene(second.id);
+
+        expect(room.sceneTakesSent, [
+          File('${home.path}/cena-2.m4a').readAsBytesSync(),
+        ]);
+      },
+    );
+
+    test(
+      'another session\'s scene takes are untouched by the team\'s keep',
+      () async {
+        final room = FakeRoom()
+          ..failSceneWith = const NetworkFailed('sem rede');
+        final queue = queueOn(room, backoff: const [Duration(seconds: 5)]);
+        await aScene(queue, 'outra', sessionId: 'sessao-2');
+        await queue.flush();
+        clock = clock.add(const Duration(seconds: 1));
+        room.failSceneWith = null;
+        final mine = await aScene(queue, 'minha');
+
+        await queue.keepTheScene(mine.id);
+
+        expect(room.sceneTakesSent, [
+          File('${home.path}/minha.m4a').readAsBytesSync(),
+        ]);
+      },
+    );
+  });
+}
+
+final class _Plain extends IOOverrides {}
+
+File _realFile(String path) =>
+    IOOverrides.runWithIOOverrides(() => File(path), _Plain());
+
+class _GoneAfterItWasFound implements File {
+  final File _real;
+
+  _GoneAfterItWasFound(String path) : _real = _realFile(path);
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<bool> exists() async => true;
+
+  @override
+  bool existsSync() => _real.existsSync();
+
+  @override
+  Future<int> length() async =>
+      throw FileSystemException('a cópia sumiu', _real.path);
+
+  @override
+  Future<FileSystemEntity> delete({bool recursive = false}) =>
+      _real.delete(recursive: recursive);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _ARenameThatNeverEnds extends FakeRecorder {
+  @override
+  Future<String> keepAs(String path, String fileName) =>
+      Completer<String>().future;
+}
+
+class _ADiskThatThrowsOnTheRename extends FakeRecorder {
+  @override
+  Future<String?> heldAs(String fileName) async =>
+      throw StateError('o contêiner já foi descartado');
 }

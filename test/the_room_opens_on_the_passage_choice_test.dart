@@ -5,7 +5,6 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
 
 import 'fakes.dart';
@@ -17,9 +16,21 @@ const _panorama = Passagem(
   audioUrl: '/voice/panorama',
   kind: PassagemKind.panorama,
 );
-const _p01 = Passagem(pericope: 'P01', audioUrl: '/voice/p01');
-const _p02 = Passagem(pericope: 'P02', audioUrl: '/voice/p02');
-const _p03 = Passagem(pericope: 'P03', audioUrl: '/voice/p03');
+const _p01 = Passagem(
+  pericope: 'P01',
+  audioUrl: '/voice/p01',
+  reference: 'Ruth 1:1–5',
+);
+const _p02 = Passagem(
+  pericope: 'P02',
+  audioUrl: '/voice/p02',
+  reference: 'Ruth 1:6–14',
+);
+const _p03 = Passagem(
+  pericope: 'P03',
+  audioUrl: '/voice/p03',
+  reference: 'Ruth 1:15–18',
+);
 const _theBook = [_panorama, _p01, _p02, _p03];
 
 void _expectThePassageChoice(SalaHarness harness, SalaSessionState state) {
@@ -48,33 +59,21 @@ void main() {
     },
   );
 
-  test(
-    'a tablet that already heard the Panorama opens on the passage choice too',
-    () async {
-      final harness = SalaHarness()..room.passages = _theBook;
-      harness.finished.done.add('livro:Ruth');
-      final container = harness.container();
-      addTearDown(container.dispose);
-
-      await container.read(salaSessionProvider.notifier).openTheRoom();
-      await settle();
-
-      _expectThePassageChoice(harness, container.read(salaSessionProvider));
-    },
-  );
-
   testWidgets(
     'after the link the screen shows the passage choice and no other screen first',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.passages = _theBook;
-      harness.finished.holdNextAll();
+      harness.room.holdNextPassages();
       final container = await pumpSala(tester, harness);
 
       for (var pump = 0; pump < 10; pump++) {
         expect(find.byType(PanoramaView), findsNothing);
         expect(find.byType(EscolhaView), findsOneWidget);
-        if (pump == 5) harness.finished.finishHeldAll();
+        if (pump == 3) {
+          expect(container.read(salaSessionProvider).naRoda, isNull);
+        }
+        if (pump == 5) harness.room.finishHeldPassages();
         await tester.pump(const Duration(milliseconds: 50));
       }
 
@@ -89,7 +88,7 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
         'the passage to open',
         () => container.read(salaSessionProvider).sessionId != null,
@@ -108,12 +107,11 @@ void main() {
   );
 
   testWidgets(
-    'the Panorama is the book\'s first entry and carries no done mark, and '
-    'progress never reorders or hides an entry',
+    'the Panorama is the book\'s first entry, and local progress never '
+    'reorders or hides an entry',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.passages = _theBook;
-      harness.finished.done.add('Ruth/P01');
       harness.emAberto.rows['Ruth/P02/pt'] = const ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.conversa,
@@ -123,10 +121,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(container.read(salaSessionProvider).naRoda, _theBook);
-      final ruler = tester.widget<PassageRuler>(find.byType(PassageRuler));
-      expect(ruler.total, 4);
-      expect(ruler.finished, {1});
-      expect(ruler.started, {2});
+      expect(find.text('◈ Panorama do Livro'), findsOneWidget);
+      expect(find.text('Rute 1:1–5'), findsOneWidget);
+      expect(find.text('Rute 1:6–14'), findsOneWidget);
+      expect(find.text('Rute 1:15–18'), findsOneWidget);
+      expect(find.text('●'), findsNothing);
     },
   );
 }

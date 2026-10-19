@@ -92,7 +92,7 @@ void main() {
         halt: Blocking(NothingKept()),
       ),
       'the Panorama station': const Machine(
-        station: Panorama(),
+        station: Panorama('OV-Ruth'),
         channel: GuideSpeaking(_guide),
       ),
     };

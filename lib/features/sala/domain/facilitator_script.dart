@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'moment.dart';
+import 'scene_rehearsal.dart';
 
 const languages = ['pt', 'en'];
 
@@ -14,8 +15,6 @@ String micBlockedAsset(String language) =>
 
 String strandedTakeAsset(String language) =>
     'assets/audio/$language/gravacao_presa.mp3';
-
-const panoramaPericope = 'OV';
 
 const instantAckLines = ['F0', 'F1', 'F2'];
 
@@ -37,7 +36,6 @@ const circleLabels = {
     'pt': 'Um momento para uma pessoa',
     'en': 'A moment for someone',
   },
-  'noteMode': {'pt': 'Enviar a pergunta', 'en': 'Send the question'},
   'teamTalk': {
     'pt': 'Conversem entre vocês — tocar quando quiserem me contar',
     'en': 'Talk among yourselves — tap when you want to tell me',
@@ -58,29 +56,15 @@ const warningNoticeLabel = {
 String warningNoticeLabelFor(String language) =>
     warningNoticeLabel[language] ?? warningNoticeLabel[floorLanguage]!;
 
-const panoramaCircleLabels = {
-  'pt': 'Falar com o facilitador',
-  'en': 'Talk to the facilitator',
-};
-
-String panoramaCircleLabelFor(String language) =>
-    panoramaCircleLabels[language] ?? panoramaCircleLabels[floorLanguage]!;
-
 const handLabels = {
-  'answering': {
-    'pt': 'O facilitador está respondendo',
-    'en': 'The facilitator is answering',
-  },
   'hearTheAnswer': {
     'pt': 'Ouvir a resposta do facilitador',
     'en': 'Hear the facilitator\'s answer',
   },
-  'cancel': {'pt': 'Cancelar a pergunta', 'en': 'Cancel the question'},
-  'sent': {
-    'pt': 'Pergunta enviada, aguardando resposta',
-    'en': 'Question sent, waiting for an answer',
+  'leaveAQuestion': {
+    'pt': 'Deixar uma pergunta para o facilitador',
+    'en': 'Leave a question for the facilitator',
   },
-  'raise': {'pt': 'Levantar a mão', 'en': 'Raise a hand'},
 };
 
 String handLabelFor(String state, String language) =>
@@ -117,6 +101,133 @@ const recordEntryLabel = {
 
 String recordEntryLabelFor(String language) =>
     recordEntryLabel[language] ?? recordEntryLabel[floorLanguage]!;
+
+/// Her scene-rehearsal words (strings.ts), read only by VoiceOver.
+const sceneRehearsalLabels = {
+  'enter': {'pt': 'ensaio da cena', 'en': 'scene rehearsal'},
+  'record': {
+    'pt': 'Gravar o ensaio da cena',
+    'en': 'Record the scene rehearsal',
+  },
+  'recording': {
+    'pt': 'gravem o ensaio da cena na língua materna; toquem para parar',
+    'en': 'record the scene rehearsal in your own language; tap to stop',
+  },
+  'translate': {
+    'pt': 'traduzir o ensaio da cena',
+    'en': 'translate the scene rehearsal',
+  },
+  'again': {
+    'pt': 'gravar o ensaio da cena de novo',
+    'en': 'record the scene rehearsal again',
+  },
+  'send': {'pt': 'terminei', 'en': 'done'},
+  'restart': {'pt': 'recomeçar a tradução', 'en': 'start the translation over'},
+  'placesUnknown': {
+    'pt':
+        'as frases já traduzidas não estão neste computador — toquem em terminei para enviar, ou recomecem a tradução',
+    'en':
+        'the phrases already translated are not on this computer — tap done to send them, or start the translation over',
+  },
+  'sending': {
+    'pt': 'enviando a tradução do ensaio da cena para a voz…',
+    'en': 'sending the translation of the scene rehearsal to the voice…',
+  },
+  'listen': {
+    'pt':
+        'A tradução deste ensaio da cena já foi para a voz. Toquem numa frase para ouvir o ensaio naquela parte, e no alto-falante para ouvir a tradução de vocês.',
+    'en':
+        'This scene rehearsal\'s translation already went to the voice. Tap a phrase to hear the rehearsal there, and the speaker to hear your translation of it.',
+  },
+  'saving': {
+    'pt': 'guardando o ensaio da cena…',
+    'en': 'keeping the scene rehearsal…',
+  },
+  'saveFailed': {
+    'pt': 'não deu para guardar o ensaio da cena — gravem de novo',
+    'en': 'couldn\'t keep the scene rehearsal — record it again',
+  },
+  'tooLarge': {
+    'pt': 'grande demais para o servidor — grave em partes menores',
+    'en': 'too large for the server — record in shorter parts',
+  },
+  'retry': {
+    'pt': 'falhou — toque para tentar de novo',
+    'en': 'failed — tap to try again',
+  },
+  'playPause': {
+    'pt': 'Tocar ou pausar a gravação',
+    'en': 'Play or pause your recording',
+  },
+  'frase': {'pt': 'frase {n}', 'en': 'phrase {n}'},
+  'hearMine': {
+    'pt': 'ouvir a minha tradução da frase {n}',
+    'en': 'hear my translation of sentence {n}',
+  },
+  'list': {
+    'pt': 'ensaios da cena desta sessão',
+    'en': 'scene rehearsals of this session',
+  },
+  'title': {'pt': 'Ensaio da cena', 'en': 'Scene rehearsal'},
+  'resume': {
+    'pt': 'continuar o ensaio da cena {n}',
+    'en': 'continue scene rehearsal {n}',
+  },
+  'listenTo': {
+    'pt': 'ouvir o ensaio da cena {n}',
+    'en': 'listen to scene rehearsal {n}',
+  },
+  'sceneN': {'pt': 'cena {n}', 'en': 'scene {n}'},
+  'whichScene': {
+    'pt': 'Qual cena vocês vão ensaiar?',
+    'en': 'Which scene are you going to rehearse?',
+  },
+  'frases': {'pt': 'frases traduzidas', 'en': 'translated sentences'},
+  'listSent': {'pt': 'enviado', 'en': 'sent'},
+  'listUnsent': {'pt': 'não enviado', 'en': 'not sent'},
+};
+
+String sceneRehearsalLabelFor(String control, String language, {int? n}) =>
+    (sceneRehearsalLabels[control]![language] ??
+            sceneRehearsalLabels[control]![floorLanguage]!)
+        .replaceAll('{n}', '$n');
+
+/// A scene button's name: «cena N» and the scene's title.
+String sceneButtonLabelFor(int n, String title, String language) =>
+    '${sceneRehearsalLabelFor('sceneN', language, n: n)} $title';
+
+/// The picked scene above the circle: «cena N · título».
+String sceneChipTextFor(int n, String title, String language) =>
+    '${sceneRehearsalLabelFor('sceneN', language, n: n)} · $title';
+
+/// The chip's name: its text, then the question a tap on it goes back to.
+String sceneChipLabelFor(int n, String title, String language) =>
+    '${sceneChipTextFor(n, title, language)} — '
+    '${sceneRehearsalLabelFor('whichScene', language)}';
+
+/// What VoiceOver says of one row of the scene rehearsals' list: its name, its scene,
+/// its time, its translated frases and whether it went to the voice.
+String sceneRehearsalRowLabelFor(
+  SceneRehearsalRecord row,
+  String language, {
+  required bool onScreen,
+}) {
+  String said(String control, [int? n]) =>
+      sceneRehearsalLabelFor(control, language, n: n);
+  final name = onScreen
+      ? '${said('title')} ${row.n}'
+      : said(row.unsent ? 'resume' : 'listenTo', row.n);
+  final scene = row.sceneNumber;
+  final at = row.recordedAt?.toLocal();
+  return [
+    name,
+    if (scene != null) ' — ${said('sceneN', scene)}',
+    if (at != null)
+      ', ${'${at.hour}'.padLeft(2, '0')}:${'${at.minute}'.padLeft(2, '0')}',
+    ', ${row.translatedFrases} · ${said('frases')}',
+    ', ${said(row.unsent ? 'listUnsent' : 'listSent')}',
+  ].join();
+}
 
 const retroLabels = {
   'record': {
@@ -235,6 +346,8 @@ String findingLabelFor(String control, String language) =>
     findingLabels[control]![floorLanguage]!;
 
 const escolhaLabels = {
+  'choosePassage': {'pt': 'Escolha a passagem', 'en': 'Choose the Passage'},
+  'bookPanorama': {'pt': 'Panorama do Livro', 'en': 'Book Panorama'},
   'allDone': {
     'pt': 'Todas as passagens foram trabalhadas',
     'en': 'Every passage has been worked through',
@@ -243,33 +356,14 @@ const escolhaLabels = {
     'pt': 'Tocar para procurar as passagens',
     'en': 'Tap to look for the passages',
   },
-  'hearAgain': {
-    'pt': 'Ouvir esta passagem de novo',
-    'en': 'Hear this passage again',
-  },
-  'enter': {'pt': 'Entrar nesta passagem', 'en': 'Enter this passage'},
-  'ruler': {
-    'pt': 'Escolher a passagem, correndo o dedo pela fileira',
-    'en': 'Choose the passage by running a finger along the row',
-  },
-  'place': {'pt': '{n} de {total}', 'en': '{n} of {total}'},
+  'approved': {'pt': 'tem um ensaio salvo', 'en': 'has a saved rehearsal'},
+  'light': {'pt': 'Claro', 'en': 'Light'},
+  'dark': {'pt': 'Escuro', 'en': 'Dark'},
 };
 
 String escolhaLabelFor(String control, String language) =>
     escolhaLabels[control]![language] ??
     escolhaLabels[control]![floorLanguage]!;
-
-String rulerPlaceFor(int place, int total, String language) => escolhaLabelFor(
-  'place',
-  language,
-).replaceAll('{n}', '$place').replaceAll('{total}', '$total');
-
-const panoramaEntryLabel = {'pt': 'Panorama do Livro', 'en': 'Book Panorama'};
-
-String entrarLabelFor({required bool isPanorama, required String language}) =>
-    isPanorama
-    ? (panoramaEntryLabel[language] ?? panoramaEntryLabel[floorLanguage]!)
-    : escolhaLabelFor('enter', language);
 
 const codigoLabels = {
   'preparing': {

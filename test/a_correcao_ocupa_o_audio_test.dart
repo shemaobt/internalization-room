@@ -24,7 +24,7 @@ Future<Sala> _aSalaNaPergunta({int lugar = 1}) async {
   addTearDown(container.dispose);
   final it = Sala(harness, container);
 
-  await it.sala.goConversa();
+  await it.sala.goConversa(book: 'Ruth');
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
   await gravarUmaParteDoEnsaio(it);

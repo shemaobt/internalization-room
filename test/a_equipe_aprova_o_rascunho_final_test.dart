@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
@@ -48,7 +50,7 @@ Future<_Conferida> _ateAConferida(
   await tester.pump(const Duration(milliseconds: 100));
 
   final sala = _notifier(container);
-  await sala.goConversa(pericope: 'P01');
+  await sala.goConversa(book: 'Ruth', pericope: 'P01');
   await tester.pump(const Duration(milliseconds: 200));
   sala.goEnsaio();
   sala.ensaioTap();
@@ -153,11 +155,6 @@ void main() {
             'de uma tela que ela nunca chegou a tocar',
       );
       expect(
-        it.harness.finished.done,
-        isNot(contains('Ruth/P01')),
-        reason: 'uma passagem que a equipe ainda não aprovou não está feita',
-      );
-      expect(
         it.harness.emAberto.rows,
         contains('Ruth/P01/pt'),
         reason:
@@ -223,11 +220,6 @@ void main() {
         reason: 'dita a linha, o colar fecha como sempre fechou',
       );
 
-      expect(
-        it.harness.finished.done,
-        contains('Ruth/P01'),
-        reason: 'a passagem está feita porque a equipe a aprovou',
-      );
       expect(
         it.harness.emAberto.rows,
         isNot(contains('Ruth/P01/pt')),
@@ -509,7 +501,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     final sala = _notifier(container);
-    await sala.goConversa(pericope: 'P01');
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 200));
     sala.goEnsaio();
     sala.ensaioTap();
@@ -621,6 +613,66 @@ void main() {
     closeTheRoom(it.container);
   });
 
+  testWidgets(
+    'the Choice after the Closing marks the approved passage with its '
+    'dot and tints nothing',
+    (tester) async {
+      final it = await _ateAConferida(
+        tester,
+        comEsta: SalaHarness(
+          filaEmMemoria: true,
+          fimLinger: const Duration(milliseconds: 40),
+        ),
+      );
+      it.harness.room.passages = const [
+        Passagem(
+          pericope: 'P01',
+          audioUrl: '/voice/p01',
+          book: 'Ruth',
+          reference: 'Ruth 1:1–5',
+          approved: true,
+        ),
+        Passagem(
+          pericope: 'P02',
+          audioUrl: '/voice/p02',
+          book: 'Ruth',
+          reference: 'Ruth 1:6–14',
+        ),
+      ];
+
+      await _aprovarEEsperar(tester);
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(_estado(it.container).stage, SalaStage.escolha);
+      expect(
+        find.descendant(
+          of: find.ancestor(
+            of: find.text('Rute 1:1–5'),
+            matching: find.byType(Row),
+          ),
+          matching: find.text('●'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+            .map((box) => box.decoration)
+            .whereType<BoxDecoration>()
+            .where(
+              (decoration) =>
+                  decoration.color == ShemaBrand.azul.withValues(alpha: 0.18),
+            ),
+        isEmpty,
+        reason: 'o fecho larga a sessão: nada fica tingido',
+      );
+
+      closeTheRoom(it.container);
+    },
+  );
+
   testWidgets('a passagem seguinte não herda a aprovação da anterior', (
     tester,
   ) async {
@@ -664,7 +716,7 @@ void main() {
       ],
       checked: true,
     );
-    await _notifier(it.container).goConversa(pericope: 'P02');
+    await _notifier(it.container).goConversa(book: 'Ruth', pericope: 'P02');
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(
@@ -765,13 +817,6 @@ void main() {
         it.harness.voice.fixedLines.skip(falasAntes),
         isNot(contains(('P3', testLanguage))),
         reason: 'nada foi aprovado, então a linha da aprovação não é dita',
-      );
-      expect(
-        it.harness.finished.done,
-        isNot(contains('Ruth/P01')),
-        reason:
-            'e a passagem não está feita: fechar o colar por cima de uma '
-            'recusa tira a equipe de uma passagem que segue por aprovar',
       );
       expect(
         it.harness.emAberto.rows,
@@ -1196,7 +1241,7 @@ void main() {
     await it.sala.aprovarRascunhoFinal();
     await waitFor(
       'a passagem fechar',
-      () => it.harness.finished.done.contains('Ruth/P01'),
+      () => !it.harness.emAberto.rows.containsKey('Ruth/P01/pt'),
     );
 
     expect(

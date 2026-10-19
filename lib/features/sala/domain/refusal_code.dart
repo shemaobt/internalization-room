@@ -12,6 +12,10 @@ abstract final class RefusalCode {
   static const idempotencyKeyInFlight = 'IDEMPOTENCY_KEY_IN_FLIGHT';
   static const passageClosed = 'PASSAGE_CLOSED';
   static const wordlessTelling = 'WORDLESS_TELLING';
+  static const sceneRehearsalSent = 'SCENE_REHEARSAL_SENT';
+  static const restartOutOfOrder = 'RESTART_OUT_OF_ORDER';
+  static const tooLarge = 'TOO_LARGE';
+  static const sceneRehearsalSending = 'SCENE_REHEARSAL_SENDING';
 
   static const stopsTheRoom = {unauthorized, forbidden, deviceRevoked};
 

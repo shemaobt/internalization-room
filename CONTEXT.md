@@ -32,8 +32,12 @@ On screen and in the voice its Portuguese is *traduzir / tradução*; *contar* b
 _Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the term), contar de volta, contado de volta, reconto, recontar
 
 **Choice** (`escolha`):
-The station where the room starts and where the team picks an entry on the wheel, the Panorama or a passage.
-_Avoid_: escolha in prose (`escolha` is the enum value), Menu in prose (`Menu` is the class), selection, wheel (the wheel is the list of entries, not the station)
+The station where the room starts and where the team picks an entry from her menu, the Panorama or a passage.
+_Avoid_: escolha in prose (`escolha` is the enum value), menu for the station (the menu is what it shows), selection, wheel (the wheel is the list of entries, not the station)
+
+**Menu**:
+What the Choice writes, as Marcia's picker does: «Escolha a passagem», then one block per book with its pills. In code the Choice's Station is the class `Menu`; in prose the word means the written page only.
+_Avoid_: picker, ruler, passage list
 
 **Closing** (`fim`):
 The last station, where the necklace's cord closes into a circle and the session ends.
@@ -62,7 +66,7 @@ The fixed line played the moment a team turn ends: one of Marcia's three, picked
 _Avoid_: thinking line, filler, wait line
 
 **Process line**:
-One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), asked of the room by position in the room's language, never rotated; the approval's line is the fourth.
+One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), asked of the room by position in the Session language (the Room language on the Choice), never rotated; the approval's line is the fourth.
 _Avoid_: fail-safe (a fixed line that answers a failure and rotates), canned line, linha de processo
 
 **Spoken line**:
@@ -102,11 +106,11 @@ What the room hears or sounds at one moment: silence, an open microphone and who
 _Avoid_: audio state, voice (the Circle's colour), player
 
 **Microphone owner**:
-Whose open microphone the Channel holds: the conversation, the rehearsal, the capture or the question. The circle's words follow it.
+Whose open microphone the Channel holds: the conversation's, the rehearsal's, the capture's, the question's or the scene rehearsal's. The circle's words follow it.
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
 **Microphone answer**:
-How the recorder answered the microphone the room asked for: an opening started, refused or failed; a close with the take, or with none; a discard; or a late start abandoned. Every answer but a start, and but a close the recorder failed, gives the Channel back (ADR 0057).
+How the recorder answered the microphone the room asked for: an opening started, refused or failed; a close with the take, or with none; a discard; or a late start abandoned. Every answer but a start, and but a close the recorder failed, gives the Channel back (ADR 0057). On the scene rehearsal's Station a refused or failed opening only gives the Channel back: no gate, no line, no count towards a person (ADR 0089).
 _Avoid_: capture result (a Capture is the back-translation's microphone), recorder state
 
 **Gesture on its way**:
@@ -127,6 +131,14 @@ _Avoid_: barge-in, interrupted line (a **Queued line** is not cut)
 The portion of Scripture the team works on, identified by its pericope, with the reference audio and the Meaning Map elements.
 _Avoid_: passagem, pericope (the passage's identifier, not the passage), text
 
+**Reference**:
+The passage's Scripture reference as its Meaning Map's heading writes it, with the book named in the Room language — «Rute 1:1–5»; the only words on a passage's pill.
+_Avoid_: title, label, name
+
+**Pill**:
+One entry written on the menu, tapped once to open it: «◈ Panorama do Livro» for the Panorama, or a passage's Reference.
+_Avoid_: button, chip, notch
+
 **Session**:
 One team's work on one passage, with state and a persisted snapshot allowing it to resume at the exact station where it stopped.
 _Avoid_: sessão, passage, round
@@ -135,17 +147,25 @@ _Avoid_: sessão, passage, round
 The language the team chose on the Choice, «PT» or «EN», remembered on the tablet and Portuguese when nothing was chosen. The screen and the sessions opened from then on follow it; the device's own language never decides it.
 _Avoid_: device language, locale, idioma do aparelho
 
+**Look**:
+Light or dark, chosen on the Choice with the sun or the moon and remembered on the tablet. It follows the device until the team chooses.
+_Avoid_: theme, appearance, mode, One look (a different thing: the turn read once)
+
 **Session language**:
 The language a session was opened in, fixed at the tap that opens it. A session keeps it when the Room language changes.
 _Avoid_: current language
 
 **Wheel**:
-The list of entries the room offers at the Choice, the book's Panorama first and then the passages still to be worked, which the room reopens on its own after the Closing. Not yet read and holding no passage are different states: holding no passage means the book is finished.
+The list of entries the room offers: the lists of every Served book, in the room's order, written on the Choice as her menu, which the room reopens on its own after the Closing. Not yet read and holding no passage are different states: holding no passage means every book is finished.
 _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 
 **Take**:
 A recording the team kept, identified locally by its scope (part or whole passage) and, after upload, by the server's identifier.
 _Avoid_: gravação, recording (too general), audio
+
+**Accidental tap**:
+A scene take or a part too short to be anything the team said, or one the recorder handed back nothing for. It leaves nothing behind (ADR 0086).
+_Avoid_: empty take, short take, capture guard (the Conversation's window)
 
 **Capture guard**:
 The short window after a Conversation take opens in which the team's next tap on the circle cancels the take instead of ending it: nothing is sent, the take is discarded on the tablet and the circle rests. A tap after the window ends the take and sends it. This also covers the take an Interruption opens.
@@ -235,16 +255,24 @@ The wood disc with no glyph that leads from one station to the next: to the Back
 _Avoid_: next button, continue, seguir, microphone (it never wears one)
 
 **Knot**:
-A question the team raised, recorded by a tap on the hand and drawn on the necklace's cord so an unanswered question is visible without a word.
+A question the team raised at its idle turn, recorded by a tap on the hand and sent to the facilitator. A sent Knot leaves no sign on the tablet, and one too short for the capture guard is dropped unsent.
 _Avoid_: nó, question, bead (a knot is not one)
 
 **Raised hand**:
 The team's side channel to the facilitator: it sends a Knot, checks for the facilitator's replies, plays a reply and marks it heard. A failure anywhere on it changes nothing in the room and speaks no line (ADR 0071).
 _Avoid_: mão levantada, question button, note
 
+**Idle turn**:
+The moment the Conversation or the Panorama waits on the team and nothing else is happening: the voice at the invite or done, no line of the room's own playing (a reply may), no Halt calling for a person, no microphone open, and a session to send to. The Raised hand is offered only then, and a Knot armed in it is abandoned when it ends.
+_Avoid_: idle, the team's turn (that also covers the open microphone)
+
 **Panorama**:
-The book's own entry and the line about the whole book, first on the wheel, played when the team taps it. Not a passage: nothing that counts passages counts it.
+A book's own entry and the line about the whole book, first in its book's block, «◈ Panorama do Livro», played when the team taps it. Each Served book has its own, opened by its own id (`OV-<Book>`). Not a passage: nothing that counts passages counts it.
 _Avoid_: introduction, overview
+
+**Served book**:
+A book the room serves; the Choice shows one block per served book, in the room's order.
+_Avoid_: the room's book, the book (as if there were one)
 
 **Opening line**:
 The opening line specific to the chosen passage, said when its Conversation opens for the first time.
@@ -256,14 +284,28 @@ _Avoid_: part (a piece of the rehearsal recording), opening line (the former mea
 
 **Scene rehearsal** (`ensaio da cena`):
 One recording of a scene in the mother tongue made on the red microphone, translated frase by frase and sent to the voice with «terminei»; numbered per session, never replaced, frozen once sent and always listenable.
+Its screen is a Station of its own (`cena`), reached by the red microphone and left by «Voltar para a passagem atual».
+The screen lists this session's scene rehearsals: an unsent one resumes where it stood, and a sent one opens to be listened to.
 _Avoid_: rehearsal (the station, and the whole passage's recording), take (what holds it), practice, ensaio in prose
+
+**Scene question**:
+«Qual cena vocês vão ensaiar?», asked before recording a Scene rehearsal on a passage of two or more scenes, with one button per scene; it may highlight a scene but never picks one.
+_Avoid_: scene picker, scene menu
+
+**Scene label**:
+The scene the team tapped on the Scene question, read at the tap that starts the recording; never guessed, and never changed by a retry of the upload.
+_Avoid_: scene guess (the classifier's, Observation Room only), sceneId
+
+**Red microphone**:
+The round red control beside the orange dot that opens the Scene rehearsal's screen, shown only while the Conversation rests and no raised-hand note or person call stands.
+_Avoid_: record entry, green check, orange dot
 
 **Opened**:
 A session that holds a Guide line, its Opening at least. The room asks a session's Opening only while it is not opened.
 _Avoid_: started, begun
 
 **Outbox**:
-The queue of takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them.
+The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it.
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Resume point**:
@@ -287,6 +329,10 @@ _Avoid_: reason, error code, bloqueio, refusal (the answer that carries them)
 **Approval**:
 The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line, asked of the room by name. The room closes only after it, and a refused one takes the team to the hole its blockers name.
 _Avoid_: aprovação, finalize, release (the server's record of it), approve button
+
+**Approved mark**:
+«●» after the passage's reference, read «tem um ensaio salvo», for a passage the server holds a live release of, from any tablet, forced or not. Read from the room on every load of the Wheel; never from what this tablet started or finished. A Zerar takes it away.
+_Avoid_: finished mark, done mark, started mark, ✓
 
 **Finding**:
 The analyst's result on what was told back, in Marcia's words: missing, addition or unclear.
@@ -333,6 +379,14 @@ _Avoid_: sala parada, stuck room, pause
 **Warning**:
 The kind of halt that asks for someone to come and watch while refusing the team nothing. It is a warning, not a cap: the room takes turns as before, and it is what the retells budget raises — on every route a telling can take, whether the tablet hears it on a state read or in the answer to a stretch told again. The room raises it by marking the session itself, so the tablet never calls for a person over one, and it ends when the Desk attends the session, in whatever station the team is in.
 _Avoid_: aviso, cap, block, halt (the state, of which this is one kind)
+
+**Claquete**:
+The small line of text on the session screen giving the passage, the date and time, and the session, so field video can be matched to the session. It is shown briefly, never as a control.
+_Avoid_: slate, clapperboard, session label
+
+**Shema mark**:
+The mark at the top centre of the Conversation, drawn from the four shapes of Marcia's logo. A tap on it shows the claquete again; it is not read aloud. It is also atop the Choice, where it does nothing.
+_Avoid_: logo, watermark, icon
 
 **Warning mark**:
 The small mark beside the Circle while a warning stands, said in words through its own

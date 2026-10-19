@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
@@ -61,10 +63,35 @@ void main() {
     test('the Panorama chosen: the Panorama', () {
       _expectTheArrival(
         const Menu(),
-        const ThePanoramaChosen(),
+        const ThePanoramaChosen('OV-Ruth'),
         isA<Panorama>(),
       );
     });
+  });
+
+  test('choosing a Panorama brings the room to that Panorama\'s Station', () {
+    final (machine, _) = reduce(
+      _at(const Menu()),
+      const ThePanoramaChosen('OV-Jonah'),
+    );
+
+    expect(
+      machine.station,
+      isA<Panorama>().having((station) => station.id, 'id', 'OV-Jonah'),
+    );
+  });
+
+  test('choosing another Panorama at a Panorama brings the room to the one '
+      'chosen', () {
+    final (machine, _) = reduce(
+      _at(const Panorama('OV-Ruth')),
+      const ThePanoramaChosen('OV-Jonah'),
+    );
+
+    expect(
+      machine.station,
+      isA<Panorama>().having((station) => station.id, 'id', 'OV-Jonah'),
+    );
   });
 
   test('the Menu ignores an event that is not its own', () {
@@ -112,25 +139,33 @@ void main() {
   group('the Panorama, the Rehearsal, the Back-translation and the Closing '
       'answer their arrivals', () {
     test('the Panorama', () {
-      _expectTheArrival(const Panorama(), const TheChoiceOpened(), isA<Menu>());
-      _expectTheArrival(const Panorama(), const PassageChosen(), isA<Canvas>());
       _expectTheArrival(
-        const Panorama(),
+        const Panorama('OV-Ruth'),
+        const TheChoiceOpened(),
+        isA<Menu>(),
+      );
+      _expectTheArrival(
+        const Panorama('OV-Ruth'),
+        const PassageChosen(),
+        isA<Canvas>(),
+      );
+      _expectTheArrival(
+        const Panorama('OV-Ruth'),
         const TheRehearsalOpened(),
         isA<Ensaio>(),
       );
       _expectTheArrival(
-        const Panorama(),
+        const Panorama('OV-Ruth'),
         const TheBackTranslationOpened(),
         isA<Retro>(),
       );
       _expectTheArrival(
-        const Panorama(),
+        const Panorama('OV-Ruth'),
         const TheRoomStartedOver(),
         isA<Menu>(),
       );
       _expectItStays(
-        const Panorama(),
+        const Panorama('OV-Ruth'),
         const TheNecklaceClosed(),
         isA<Panorama>(),
       );
@@ -181,8 +216,8 @@ void main() {
     _expectItStays(const Menu(), const TheChoiceOpened(), isA<Menu>());
     _expectItStays(const Canvas(), const PassageChosen(), isA<Canvas>());
     _expectItStays(
-      const Panorama(),
-      const ThePanoramaChosen(),
+      const Panorama('OV-Ruth'),
+      const ThePanoramaChosen('OV-Ruth'),
       isA<Panorama>(),
     );
     _expectItStays(const Menu(), const TheRoomStartedOver(), isA<Menu>());
@@ -195,6 +230,92 @@ void main() {
     _expectItStays(const Fim(), const TheNecklaceClosed(), isA<Fim>());
   });
 
+  test(
+    'the Canvas answers the scene rehearsal opened with the Scene rehearsal',
+    () {
+      _expectTheArrival(
+        const Canvas(),
+        const TheSceneRehearsalOpened(),
+        isA<SceneRehearsal>(),
+      );
+    },
+  );
+
+  test('the Scene rehearsal answers the way back with the Canvas', () {
+    _expectTheArrival(
+      const SceneRehearsal(),
+      const TheSceneRehearsalLeft(),
+      isA<Canvas>(),
+    );
+  });
+
+  test('every other Station ignores the scene rehearsal opened', () {
+    for (final station in const <Station>[
+      Menu(),
+      Panorama('OV-Ruth'),
+      Ensaio(),
+      Retro(),
+      Fim(),
+    ]) {
+      _expectItStays(station, const TheSceneRehearsalOpened(), equals(station));
+    }
+  });
+
+  test(
+    'the Scene rehearsal shows a list of its rehearsals the room answered',
+    () {
+      const listed = [
+        SceneRehearsalRecord(
+          rehearsalId: 'ensaio-da-cena-1',
+          sessionId: 'sessao-1',
+          n: 1,
+        ),
+      ];
+      final (machine, effects) = reduce(
+        _at(const SceneRehearsal()),
+        const TheSceneRehearsalsListed(listed, generation: _generation),
+      );
+
+      expect(machine.generation, _generation);
+      expect(
+        effects.single,
+        isA<ShowTheSceneRehearsals>().having((e) => e.listed, 'listed', listed),
+      );
+    },
+  );
+
+  test('a list of scene rehearsals from an older generation is dropped', () {
+    final (_, effects) = reduce(
+      _at(const SceneRehearsal()),
+      const TheSceneRehearsalsListed([], generation: _generation - 1),
+    );
+
+    expect(effects, isEmpty);
+  });
+
+  test(
+    'an empty look on the scene rehearsal calls a person and reads the list again',
+    () {
+      final (machine, effects) = reduce(
+        _at(const SceneRehearsal()),
+        const LookEmpty(generation: _generation),
+      );
+
+      expect(machine.halt, isA<Blocking>());
+      expect(effects, contains(isA<ReadTheSceneRehearsals>()));
+    },
+  );
+
+  test('an empty look on the Canvas reads no scene rehearsals', () {
+    final (machine, effects) = reduce(
+      _at(const Canvas()),
+      const LookEmpty(generation: _generation),
+    );
+
+    expect(machine.halt, isA<Blocking>());
+    expect(effects, isNot(contains(isA<ReadTheSceneRehearsals>())));
+  });
+
   test('the machine is born on the Menu', () {
     expect(Machine().station, isA<Menu>());
   });
@@ -203,7 +324,7 @@ void main() {
       'room started over with the Menu', () {
     const everyStation = <Station>[
       Menu(),
-      Panorama(),
+      Panorama('OV-Ruth'),
       Canvas(),
       Ensaio(),
       Retro(),
@@ -211,7 +332,7 @@ void main() {
     ];
     for (final station in everyStation) {
       expect(
-        reduce(_at(station), const ThePanoramaChosen()).$1.station,
+        reduce(_at(station), const ThePanoramaChosen('OV-Ruth')).$1.station,
         isA<Panorama>(),
         reason: '$station',
       );

@@ -77,7 +77,7 @@ Future<ProviderContainer> _ensaioDeTresPartes(
   final room = harness ?? SalaHarness(filaEmMemoria: true);
   final container = await pumpSala(tester, room);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa();
+  await notifier.goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 400));
@@ -99,7 +99,7 @@ Future<(ProviderContainer, SalaHarness)> _achadoNaParteUm(
     ..room.takeLandsAfter = const Duration(seconds: 1);
   final container = await pumpSala(tester, harness);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa();
+  await notifier.goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
@@ -188,7 +188,7 @@ Future<ProviderContainer> _achadoNaParteDoisNaTela(
   await tester.pump(const Duration(milliseconds: 100));
 
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa();
+  await notifier.goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));

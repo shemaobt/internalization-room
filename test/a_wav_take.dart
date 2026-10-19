@@ -6,10 +6,11 @@ Uint8List aWavTake({
   List<int> samples = const [0, 1200, -1200, 3000, -3000, 0],
   int channels = 1,
   bool chunkBeforeData = false,
+  int paddingBeforeData = 0,
 }) {
   const rate = 16000;
   final dataBytes = samples.length * 2;
-  final extra = chunkBeforeData ? 12 : 0;
+  final extra = chunkBeforeData ? 12 + paddingBeforeData : 0;
   final bytes = ByteData(44 + extra + dataBytes);
   void ascii(int at, String text) {
     for (var i = 0; i < text.length; i++) {
@@ -31,9 +32,9 @@ Uint8List aWavTake({
   var at = 36;
   if (chunkBeforeData) {
     ascii(at, 'LIST');
-    bytes.setUint32(at + 4, 4, Endian.little);
+    bytes.setUint32(at + 4, 4 + paddingBeforeData, Endian.little);
     ascii(at + 8, 'INFO');
-    at += 12;
+    at += 12 + paddingBeforeData;
   }
   ascii(at, 'data');
   bytes.setUint32(at + 4, dataBytes, Endian.little);

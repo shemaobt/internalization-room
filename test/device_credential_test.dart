@@ -52,6 +52,7 @@ final Map<String, _Request> _everyClaimDoor = {
 final Map<String, _Request> _everyRequest = {
   'createSession': (room, _) => room.createSession(language: 'pt'),
   'passagesOf': (room, _) => room.passagesOf('rute', language: 'pt'),
+  'servedBooks': (room, _) => room.servedBooks(),
   'fetchState': (room, _) => room.fetchState('sessao-1'),
   'lookAtTheTurn': (room, _) => room.lookAtTheTurn('sessao-1', 'turno-1'),
   'openSession': (room, _) => room.openSession('sessao-1'),
@@ -68,6 +69,20 @@ final Map<String, _Request> _everyRequest = {
   'sendTake': (room, audio) =>
       room.sendTake('sessao-1', audio, kind: 'ensaio', scope: 'passagem'),
   'takesOf': (room, _) => room.takesOf('sessao-1'),
+  'sceneRehearsalsOf': (room, _) => room.sceneRehearsalsOf('sessao-1'),
+  'scenesOf': (room, _) => room.scenesOf('sessao-1'),
+  'keepSceneRehearsal': (room, audio) =>
+      room.keepSceneRehearsal('sessao-1', audio),
+  'restartTheSceneTranslation': (room, _) => room.restartTheSceneTranslation(
+    'sessao-1',
+    'ensaio-da-cena-1',
+    attempt: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+  ),
+  'sendTheSceneRehearsal': (room, _) => room.sendTheSceneRehearsal(
+    'sessao-1',
+    'ensaio-da-cena-1',
+    turnId: '7f0c1f9e-2b9a-4c47-9d0e-5f3b8a1c2d4e',
+  ),
   'replaceSegment': (room, audio) => room.replaceSegment(
     'sessao-1',
     'trecho-1',

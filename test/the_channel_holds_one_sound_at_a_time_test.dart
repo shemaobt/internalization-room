@@ -20,7 +20,11 @@ import 'session_notifier_test.dart' show inConversa;
 import 'um_ensaio_de_tres_partes.dart';
 
 class _DiskThatRefusesTheTake extends TakeUploadQueue {
-  _DiskThatRefusesTheTake({required super.room, super.home});
+  _DiskThatRefusesTheTake({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   bool asked = false;
 
@@ -32,6 +36,7 @@ class _DiskThatRefusesTheTake extends TakeUploadQueue {
     required String scope,
     int? passNumber,
     int? chunkIndex,
+    String? scene,
   }) async {
     asked = true;
     throw const FileSystemException('disco cheio');
@@ -39,7 +44,11 @@ class _DiskThatRefusesTheTake extends TakeUploadQueue {
 }
 
 class _OutboxThatGaveUp extends TakeUploadQueue {
-  _OutboxThatGaveUp({required super.room, super.home});
+  _OutboxThatGaveUp({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
 
   bool gaveUp = false;
 
@@ -74,41 +83,15 @@ class _LedgerThatCannotWrite extends FakeWorkInProgress {
 
 String get _stranded => strandedTakeAsset(testLanguage);
 
-Future<(SalaHarness, ProviderContainer, SalaSessionState Function())>
-_aReplyWaitsThroughAFall() async {
-  final harness = SalaHarness(
-    replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
-    watchesWithoutAHalt: true,
-  );
-  final container = await inConversa(harness);
-  addTearDown(container.dispose);
-  final sala = container.read(salaSessionProvider.notifier);
-  SalaSessionState read() => container.read(salaSessionProvider);
-  await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
-
-  harness.voice.holdNextLine();
-  harness.room.holdNextTurn();
-  sala.conversaTap();
-  await waitFor('o microfone abrir', () => read().channel is Microphone);
-  sala.conversaTap();
-  await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
-  sala.handTap();
-  await settle();
-  harness.room.failStateOnceWith = const NetworkFailed('sem rede');
-  await waitFor('a sala cair', () => read().unreachable);
-  await waitFor('a sala voltar', () => !read().unreachable);
-  harness.room.finishHeldTurn();
-  expect(read().stage, SalaStage.conversa);
-  harness.voice.finishHeldLine();
-  return (harness, container, read);
-}
-
 Future<(SalaHarness, ProviderContainer, _DiskThatRefusesTheTake Function())>
 _inTheRehearsalOverAFullDisk() async {
   _DiskThatRefusesTheTake? disk;
   final harness = SalaHarness(
-    takesOverride: (room, home) =>
-        disk = _DiskThatRefusesTheTake(room: room, home: () async => home),
+    takesOverride: (room, home, recordings) => disk = _DiskThatRefusesTheTake(
+      room: room,
+      home: () async => home,
+      recordings: recordings,
+    ),
   );
   final container = await inConversa(harness);
   addTearDown(container.dispose);
@@ -168,7 +151,7 @@ Future<(ProviderContainer, SalaSessionState Function())> _reopensOnPartTwoOfTwo(
   SalaSessionState read() => container.read(salaSessionProvider);
   await sala.abrirEscolha();
   await settle();
-  await sala.goConversa(pericope: 'P01');
+  await sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a primeira parte entrar no ar no seu cursor',
     () =>
@@ -296,31 +279,7 @@ void main() {
     expect(harness.room.turnsSent, turns);
   });
 
-  test('a reply waiting while the room falls out of reach and comes back in '
-      'the same Step still plays', () async {
-    final (harness, _, _) = await _aReplyWaitsThroughAFall();
-
-    await waitFor(
-      'a resposta tocar',
-      () => harness.voice.played.contains('/resposta-1'),
-    );
-  });
-
-  test(
-    'a reply that waited through a fall and played is marked heard',
-    () async {
-      final (harness, _, read) = await _aReplyWaitsThroughAFall();
-      await waitFor(
-        'a resposta tocar',
-        () => harness.voice.played.contains('/resposta-1'),
-      );
-
-      await waitFor('a resposta ficar ouvida', () => !read().hasUnheardReply);
-      expect(harness.inbox.heard, contains('r1'));
-    },
-  );
-
-  test('a line waiting in the conversation survives re-entering the same '
+  test('a reply asked for at the idle turn survives re-entering the same '
       'conversation', () async {
     final harness = SalaHarness(
       replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
@@ -335,54 +294,24 @@ void main() {
     SalaSessionState read() => container.read(salaSessionProvider);
     await sala.abrirEscolha();
     await settle();
-    await sala.goConversa(pericope: 'P01');
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
     harness.voice.holdNextLine();
-    sala.sayTheMicIsBlocked();
-    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
     sala.handTap();
-    await settle();
-    expect(harness.voice.played, isNot(contains('/resposta-1')));
+    await waitFor('a resposta tocar', () => read().playingReplyId != null);
 
-    unawaited(sala.goConversa(pericope: 'P01'));
+    unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
     await settle();
     harness.voice.finishHeldLine();
-    await waitFor(
-      'a resposta tocar depois de reentrar na mesma conversa',
-      () => harness.voice.played.contains('/resposta-1'),
-    );
-  });
-
-  test('a line waiting on the wheel survives the wheel read again in the same '
-      'visit', () async {
-    final harness = SalaHarness();
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final sala = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await sala.abrirEscolha();
-    final oferecida = read().oferecida!.audioUrl;
-    await waitFor(
-      'a roda dizer a passagem',
-      () => harness.voice.played.where((url) => url == oferecida).length == 1,
-    );
-    await settle();
-    harness.voice.holdNextLine();
-    sala.sayTheMicIsBlocked();
-    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
-    sala.escolhaTap();
     await settle();
 
-    unawaited(sala.abrirEscolha());
-    harness.voice.holdNextLine();
+    expect(read().hasUnheardReply, isTrue);
+    expect(harness.inbox.heard, isEmpty);
+
+    sala.handTap();
     await waitFor(
-      'a passagem que esperava tocar',
-      () => harness.voice.played.where((url) => url == oferecida).length == 2,
-    );
-    harness.voice.finishHeldLine();
-    await waitFor(
-      'a passagem que esperava e a da roda relida tocarem',
-      () => harness.voice.played.where((url) => url == oferecida).length == 3,
+      'a resposta ser ouvida depois de reentrar na mesma conversa',
+      () => harness.inbox.heard.contains('r1'),
     );
   });
 
@@ -429,13 +358,16 @@ void main() {
       'nothing to play is played', () async {
     _OutboxThatGaveUp? outbox;
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      ),
     );
     final container = harness.container();
     addTearDown(container.dispose);
     final it = Sala(harness, container);
-    await it.sala.goConversa(pericope: 'P01');
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor('a sala abrir', () => it.estado.sessionId != null);
     it.sala.goEnsaio();
     await gravarUmaParteDoEnsaio(it);
@@ -483,7 +415,6 @@ void main() {
     ('nothing else', (_) {}),
     ('a circle tap', (sala) => sala.conversaTap()),
     ('a hand tap', (sala) => sala.handTap()),
-    ('a drag on the wheel', (sala) => sala.apontarPassagem(0)),
     ('a tap on the wheel', (sala) => sala.escolhaTap()),
   ]) {
     test('a waiting line is never started and then cut while a gesture hands '
@@ -504,7 +435,7 @@ void main() {
       expect(read().machine.queue, hasLength(1));
       harness.network.holdNextCheck();
 
-      sala.entrarNaOferecida();
+      sala.openTheEntry(read().naRoda!.first);
       await settle();
       gesture(sala);
       await settle();
@@ -531,8 +462,11 @@ void main() {
     () async {
       _OutboxThatGaveUp? outbox;
       final harness = SalaHarness(
-        takesOverride: (room, home) =>
-            outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+        takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
+          room: room,
+          home: () async => home,
+          recordings: recordings,
+        ),
       );
       harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-guardada',
@@ -563,7 +497,7 @@ void main() {
       final bloqueado = micBlockedAsset(testLanguage);
       await sala.abrirEscolha();
       await settle();
-      unawaited(sala.goConversa(pericope: 'P01'));
+      unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
       await waitFor('a sala parar', () => read().needsPerson);
       sala.sayTheMicIsBlocked();
       outbox!.gaveUp = true;
@@ -621,8 +555,11 @@ void main() {
       'waiting line start and be cut', () async {
     _OutboxThatGaveUp? outbox;
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      ),
     );
     final container = harness.container();
     addTearDown(container.dispose);
@@ -638,7 +575,7 @@ void main() {
     sala.sayTheMicIsBlocked();
     harness.network.holdNextCheck();
 
-    sala.entrarNaOferecida();
+    sala.openTheEntry(read().naRoda!.first);
     await settle();
     outbox!.gaveUp = true;
     await sala.refreshUnsent();
@@ -675,7 +612,7 @@ void main() {
     ledger.refuses = true;
     final marca = harness.sounds.length;
 
-    sala.entrarNaOferecida();
+    sala.openTheEntry(read().naRoda!.first);
     await waitFor(
       'a linha da gravação presa tocar',
       () => harness.voice.assets.contains(_stranded),
@@ -689,37 +626,15 @@ void main() {
     );
   });
 
-  test("leaving a passage ends its gestures, so the wheel's line never waits "
-      'for an opening the team walked away from', () async {
-    final harness = SalaHarness();
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final sala = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await sala.abrirEscolha();
-    await waitFor('a roda carregar', () => read().naRoda != null);
-    await settle();
-    final oferecida = read().oferecida!.audioUrl;
-    final ditas = harness.voice.played.where((url) => url == oferecida).length;
-    harness.room.holdNextTurn();
-
-    sala.entrarNaOferecida();
-    await waitFor('a passagem abrir', () => read().sessionId != null);
-    sala.leaveThePassage();
-    await waitFor(
-      'a roda dizer a passagem sem esperar a abertura abandonada',
-      () =>
-          harness.voice.played.where((url) => url == oferecida).length > ditas,
-    );
-    harness.room.finishHeldTurn();
-  });
-
   test('no background line plays between the acknowledgement and the reply of '
       'a turn', () async {
     _OutboxThatGaveUp? outbox;
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      ),
     );
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -755,67 +670,16 @@ void main() {
     expect(respostaAntes, isTrue, reason: 'a resposta do turno vem antes');
   });
 
-  test("a turn the one look brings back does not end the hand's reply, which "
-      'still plays ahead of a waiting courtesy line', () async {
-    _OutboxThatGaveUp? outbox;
-    final harness = SalaHarness(
-      replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
-      takesOverride: (room, home) =>
-          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
-    );
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final sala = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
-    final ditas = <String>[];
-    var urls = harness.voice.played.length;
-    var assets = harness.voice.assets.length;
-    harness.voice.aoFalar = () {
-      if (harness.voice.played.length > urls) {
-        urls = harness.voice.played.length;
-        ditas.add(harness.voice.played.last);
-      }
-      if (harness.voice.assets.length > assets) {
-        assets = harness.voice.assets.length;
-        ditas.add(harness.voice.assets.last);
-      }
-    };
-    harness.voice.holdNextLine();
-    harness.room
-      ..holdNextTurn()
-      ..turnsLandBeforeTheyFail = true;
-    sala.conversaTap();
-    await waitFor('o microfone abrir', () => read().channel is Microphone);
-    sala.conversaTap();
-    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
-    outbox!.gaveUp = true;
-    await sala.refreshUnsent();
-    sala.handTap();
-    await settle();
-    harness.room.failHeldTurnWith = const NetworkFailed('a conexão caiu');
-    harness.room.finishHeldTurn();
-    await settle();
-    harness.voice.finishHeldLine();
-
-    await waitFor(
-      'a linha da gravação presa tocar',
-      () => ditas.contains(_stranded),
-    );
-    expect(
-      ditas.indexOf('/resposta-1'),
-      allOf(isNonNegative, lessThan(ditas.indexOf(_stranded))),
-      reason: 'ninguém desistiu da resposta da mão: ela vem antes',
-    );
-  });
-
   test('a turn the room gave up on no longer holds a waiting line once the '
       'halt is lifted', () async {
     _OutboxThatGaveUp? outbox;
     final harness = SalaHarness(
       busyCeiling: const Duration(milliseconds: 300),
-      takesOverride: (room, home) =>
-          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      ),
     );
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -841,34 +705,6 @@ void main() {
   });
 
   group('the spontaneous lines wait for the Channel', () {
-    test('the facilitator\'s reply asked for under an open microphone plays '
-        'only after it closes', () async {
-      final harness = SalaHarness(
-        replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
-      );
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final sala = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-      await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
-
-      sala.conversaTap();
-      await waitFor(
-        'o microfone abrir',
-        () => read().voice == VoiceState.listening,
-      );
-      sala.handTap();
-      await settle();
-
-      expect(harness.voice.played, isNot(contains('/resposta-1')));
-
-      sala.conversaTap();
-      await waitFor(
-        'a resposta tocar depois do microfone',
-        () => harness.voice.played.contains('/resposta-1'),
-      );
-    });
-
     test('the stranded line arriving under an open microphone plays only after '
         'it closes', () async {
       final (harness, container, disk) = await _inTheRehearsalOverAFullDisk();

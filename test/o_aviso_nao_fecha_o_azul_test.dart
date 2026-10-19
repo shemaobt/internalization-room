@@ -27,7 +27,7 @@ Future<ProviderContainer> _inRetro(SalaHarness harness) async {
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa();
+  await notifier.goConversa(book: 'Ruth');
   await settle();
   notifier.goEnsaio();
   await _gravaParte(container, notifier);

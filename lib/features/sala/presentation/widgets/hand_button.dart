@@ -7,7 +7,6 @@ import 'motion.dart';
 
 class HandButton extends StatelessWidget {
   final bool noteMode;
-  final bool questionPending;
   final bool hasUnheardReply;
   final bool playingReply;
   final String language;
@@ -16,7 +15,6 @@ class HandButton extends StatelessWidget {
   const HandButton({
     super.key,
     required this.noteMode,
-    required this.questionPending,
     required this.hasUnheardReply,
     required this.playingReply,
     required this.language,
@@ -30,18 +28,9 @@ class HandButton extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: switch ((
-        playingReply,
-        hasUnheardReply,
-        noteMode,
-        questionPending,
-      )) {
-        (true, _, _, _) => handLabelFor('answering', language),
-        (_, true, _, _) => handLabelFor('hearTheAnswer', language),
-        (_, _, true, _) => handLabelFor('cancel', language),
-        (_, _, _, true) => handLabelFor('sent', language),
-        _ => handLabelFor('raise', language),
-      },
+      label: playingReply || hasUnheardReply
+          ? handLabelFor('hearTheAnswer', language)
+          : handLabelFor('leaveAQuestion', language),
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -76,9 +65,7 @@ class HandButton extends StatelessWidget {
                 ),
               ),
               if (hasUnheardReply && !playingReply)
-                Positioned(top: 10, right: 10, child: _quietDot()),
-              if (questionPending && !hasUnheardReply && !playingReply)
-                Positioned(top: 10, right: 10, child: _waitingDot()),
+                Positioned(top: 10, right: 10, child: _replyDot(colors)),
             ],
           ),
         ),
@@ -86,31 +73,28 @@ class HandButton extends StatelessWidget {
     );
   }
 
-  Widget _quietDot() {
+  Widget _replyDot(SalaColors colors) {
     return Loop(
-      period: const Duration(milliseconds: 2600),
-      builder: (context, t) => Container(
-        width: 11,
-        height: 11,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Color.lerp(
-            ShemaBrand.areia,
-            ShemaBrand.verdeClaro,
-            0.35 + 0.3 * t,
+      period: const Duration(milliseconds: 2400),
+      builder: (context, t) => Opacity(
+        opacity: 1 - 0.25 * t,
+        child: Transform.scale(
+          scale: 1 + 0.35 * t,
+          child: Container(
+            width: 13,
+            height: 13,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: colors.telha,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  spreadRadius: 3,
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _waitingDot() {
-    return Container(
-      width: 11,
-      height: 11,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: ShemaBrand.areia,
       ),
     );
   }

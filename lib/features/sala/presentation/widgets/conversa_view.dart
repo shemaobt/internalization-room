@@ -7,10 +7,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
-import '../../domain/channel.dart';
 import '../../domain/moment.dart';
 import '../../domain/session_state.dart';
-import 'bead.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'moment_label.dart';
@@ -53,7 +51,7 @@ class ConversaView extends ConsumerWidget {
               const SizedBox(height: 44),
               SizedBox(
                 height: 64,
-                child: !session.needsPerson
+                child: !session.needsPerson && !session.noteMode
                     ? FadeUp(
                         child: RoundActionButton(
                           size: 64,
@@ -85,7 +83,9 @@ class ConversaView extends ConsumerWidget {
               child: Center(
                 child: AnimatedOpacity(
                   opacity: _momentOpacity(session),
-                  duration: const Duration(milliseconds: 800),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 800),
                   child: MomentLabel(
                     at: moment.at,
                     words: words,
@@ -127,13 +127,21 @@ class ConversaView extends ConsumerWidget {
             ),
           ),
         ),
-        if (session.handAck)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 110,
-            child: Center(child: const PingIn(child: KnotMark(size: 15))),
+        Positioned(
+          right: phone ? 7 : 56,
+          top: 118 + MediaQuery.viewPaddingOf(context).top + (phone ? 42 : -7),
+          child: IgnorePointer(
+            ignoring: !session.redMicrophoneIsShown,
+            child: AnimatedOpacity(
+              opacity: session.redMicrophoneIsShown ? 0.95 : 0,
+              duration: const Duration(milliseconds: 400),
+              child: _RedMicrophone(
+                label: sceneRehearsalLabelFor('enter', language),
+                onTap: notifier.openTheSceneRehearsal,
+              ),
+            ),
           ),
+        ),
       ],
     );
   }
@@ -148,16 +156,11 @@ class ConversaView extends ConsumerWidget {
 
   bool _dotIsLit(SalaSessionState session) =>
       (session.endOfThePassage || session.moment?.at == MomentAt.ensaioFinal) &&
-      !(session.wayOutIsHidden ||
-          session.voice == VoiceState.listening ||
-          session.noteMode);
+      !session.wayOutIsHidden;
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);
     if (session.offline) return circleLabelFor('offline', language);
-    if (session.channel case Microphone(owner: MicOwner.question)) {
-      return circleLabelFor('noteMode', language);
-    }
     if (session.voice == VoiceState.listening) {
       return circleLabelFor('listening', language);
     }
@@ -166,5 +169,49 @@ class ConversaView extends ConsumerWidget {
       return circleLabelFor('teamTalk', language);
     }
     return circleLabelFor('default', language);
+  }
+}
+
+/// Her red microphone: round, red, haloed, and wordless.
+class _RedMicrophone extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _RedMicrophone({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final red = SalaColors.of(context).vermelhoMic;
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        excludeFromSemantics: true,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Loop(
+            period: const Duration(milliseconds: 2800),
+            builder: (context, t) => Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: red.withValues(alpha: 0.10),
+                border: Border.all(color: red, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: red.withValues(alpha: 0.38 * (1 - t)),
+                    spreadRadius: 14 * t,
+                  ),
+                ],
+              ),
+              child: Icon(LucideIcons.mic, size: 22, color: red),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -51,6 +51,10 @@ enum RefusalRule {
 
   /// The resume calls a person and keeps the resume, however it was turned down.
   keepsTheResume,
+
+  /// A scene refusal reads the scene rehearsals again; a code that stops the room
+  /// calls a person.
+  readsTheListAgain,
 }
 
 /// Where the room stood when the result came back. [turn] is set only for a call that
@@ -105,6 +109,16 @@ abstract final class FailurePolicy {
       _ when _theHandsDoors.contains(context.door) => TheHandFailed(
         generation: generation,
       ),
+      _ when context.door == Door.sceneList => TheScenesMissed(
+        generation: generation,
+      ),
+      RoomRefused(
+        code: RefusalCode.sceneRehearsalSent ||
+            RefusalCode.restartOutOfOrder ||
+            RefusalCode.notFound,
+      )
+          when context.door == Door.sceneRehearsal =>
+        TheSceneDoorFailed(readAgain: true, generation: generation),
       RoomSessionGone() when rule == RefusalRule.keepsTheResume =>
         keptTheResume,
       RoomSessionGone() => TheSessionIsGone(generation: generation),
@@ -132,6 +146,11 @@ abstract final class FailurePolicy {
       ),
       RoomRefused(:final code) when RefusalCode.stopsTheRoom.contains(code) =>
         halt,
+      RoomRefused() when context.door == Door.sceneRehearsal =>
+        TheSceneDoorFailed(
+          readAgain: rule == RefusalRule.readsTheListAgain,
+          generation: generation,
+        ),
       RoomRefused() when rule == RefusalRule.passesUnlessItStops => passed,
       RoomRefused(code: RefusalCode.passageCannotOpen) => ThePassageCannotOpen(
         generation: generation,

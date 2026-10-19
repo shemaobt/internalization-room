@@ -340,10 +340,10 @@ void main() {
       final container = await pumpSala(tester, harness);
       await tester.pump(const Duration(milliseconds: 300));
       final notifier = container.read(salaSessionProvider.notifier);
-      expect(container.read(salaSessionProvider).oferecida, isNotNull);
+      expect(container.read(salaSessionProvider).entriesOpen, isTrue);
 
       harness.room.holdNextCreate();
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await tester.pump(const Duration(milliseconds: 100));
       expect(harness.room.createHeld, isTrue);
 
@@ -358,7 +358,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.byType(EscolhaView), findsOneWidget);
 
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await tester.pump(const Duration(milliseconds: 300));
       expect(currentSession.held?.sessionId, 'sessao-1');
 
@@ -454,9 +454,7 @@ void main() {
     final container = await pumpSala(tester, harness);
     await tester.pump(const Duration(milliseconds: 300));
     final notifier = container.read(salaSessionProvider.notifier);
-    notifier.apontarPassagem(0);
-    await tester.pump(const Duration(milliseconds: 300));
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await tester.pump(const Duration(milliseconds: 300));
     expect(harness.room.sessionIds, ['sessao-1']);
 
@@ -469,9 +467,7 @@ void main() {
       ..linkedTo = const TeamLink(projectId: 'equipe-2');
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 300));
-    notifier.apontarPassagem(0);
-    await tester.pump(const Duration(milliseconds: 300));
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(

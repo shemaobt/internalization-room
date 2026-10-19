@@ -42,6 +42,12 @@ double _opacity(WidgetTester tester) => tester
     )
     .fold(1.0, (opacity, fade) => opacity * fade.opacity);
 
+double _seen(WidgetTester tester) => tester
+    .widgetList<FadeTransition>(
+      find.ancestor(of: _label, matching: find.byType(FadeTransition)),
+    )
+    .fold(1.0, (opacity, fade) => opacity * fade.opacity.value);
+
 Future<(SalaHarness, ProviderContainer)> _theOpeningSays(
   WidgetTester tester,
   Moment? moment, {
@@ -58,7 +64,7 @@ Future<(SalaHarness, ProviderContainer)> _theOpeningSays(
   await notifier.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
   if (heldMidLine) harness.voice.holdNextLine();
-  unawaited(notifier.goConversa(pericope: 'P01'));
+  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
   await tester.pump(const Duration(milliseconds: 300));
   return (harness, container);
 }
@@ -309,6 +315,59 @@ void main() {
     },
   );
 
+  testWidgets(
+    'under Reduce Motion the label goes the moment the team opens a note, with no fade',
+    (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      final (_, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 3),
+      );
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(_seen(tester), 1.0);
+
+      container.read(salaSessionProvider.notifier).handTap();
+      await tester.pump();
+
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      expect(
+        _seen(tester),
+        0.0,
+        reason: 'com o movimento reduzido o momento ainda sumia em fade',
+      );
+    },
+  );
+
+  testWidgets(
+    'without Reduce Motion the label still fades out over its 800 ms when the team opens a note',
+    (tester) async {
+      final (_, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 3),
+      );
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(_seen(tester), 1.0);
+
+      container.read(salaSessionProvider.notifier).handTap();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      expect(
+        _seen(tester),
+        allOf(greaterThan(0.0), lessThan(1.0)),
+        reason: 'sem o movimento reduzido o momento sumia de uma vez',
+      );
+
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_seen(tester), 0.0);
+    },
+  );
+
   for (final MapEntry(key: what, value: moment) in _untrusted.entries) {
     testWidgets(
       'a moment whose number cannot be trusted shows no label: $what',
@@ -354,7 +413,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.panorama);

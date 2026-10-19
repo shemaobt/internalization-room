@@ -1,5 +1,7 @@
 # A part's recordings leave in order, each under its own pass
 
+Amended by 0087 (2026-10-16): a confirmed recording leaves the Outbox, and a row refused for good holds no one behind it, even within the pass that refused it.
+
 ## Context
 
 ADR 0020 let a team record a **Part** again in its own place, and said what it left

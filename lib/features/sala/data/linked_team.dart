@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../domain/device_link.dart';
 import 'credential_vault.dart';
+import 'staged_write.dart';
 
 const _folder = 'guardadas';
 const _ledger = 'vinculo.json';
@@ -189,14 +190,12 @@ class LinkedTeam {
     final next = _writes.then((_) async {
       final file = await _file();
       if (await file.exists() && !await _readable(file)) return;
-      final staging = File('${file.path}.novo');
-      await staging.writeAsString(
+      await writeWhole(
+        file,
         jsonEncode(
           change(await _readFile() ?? const RememberedLink()).toJson(),
         ),
-        flush: true,
       );
-      await staging.rename(file.path);
     });
     _writes = next.then((_) {}, onError: (_) {});
     return next;

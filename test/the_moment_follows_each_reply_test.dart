@@ -193,7 +193,7 @@ void main() {
 
       await notifier.abrirEscolha();
       await settle();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
         'a equipe voltar ao ensaio',
         () => read().stage == SalaStage.ensaio && !read().awaitingTheGuide,

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/data/port_adapters.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
@@ -61,31 +62,20 @@ class AStationHost implements StationHost {
   bool callIsWanted = true;
 
   @override
-  String? passageInCourse;
-
-  @override
   bool aPersonIsNeeded = true;
 
   int callsStopped = 0;
-  ClosedPassage? passageToMark = (book: 'rute', passage: 'rute-1');
-  final List<String> marksHeard = [];
+  final List<String> passagesClosedHeard = [];
 
   @override
   void hearTheCallStopped() => callsStopped++;
 
   @override
-  ClosedPassage? hearTheMarkBegin() {
-    marksHeard.add('begin');
-    return passageToMark;
-  }
-
-  @override
-  void hearTheMarkEnd(String session, String? passage) =>
-      marksHeard.add('end:$session:$passage');
+  void hearThePassageClosed(String session) => passagesClosedHeard.add(session);
 
   int callsLanded = 0;
   int callsLandedWithoutASession = 0;
-  final List<(String, String?, RoomResult)> earlierCallsHeard = [];
+  final List<(String, RoomResult)> earlierCallsHeard = [];
   final List<String> earlierSessionsGone = [];
 
   @override
@@ -95,11 +85,8 @@ class AStationHost implements StationHost {
   void hearTheCallLandedWithoutASession() => callsLandedWithoutASession++;
 
   @override
-  Future<void> hearAnEarlierSessionsCall(
-    String session,
-    String? passage,
-    RoomResult result,
-  ) async => earlierCallsHeard.add((session, passage, result));
+  void hearAnEarlierSessionsCall(String session, RoomResult result) =>
+      earlierCallsHeard.add((session, result));
 
   @override
   void hearAnEarlierSessionGone(String session) =>
@@ -187,6 +174,10 @@ class AStationHost implements StationHost {
 
   @override
   void hearThePassageRefused() => asked.add('hearThePassageRefused');
+
+  @override
+  void hearTheSceneRehearsals(List<SceneRehearsalRecord> listed) =>
+      asked.add('hearTheSceneRehearsals:${listed.length}');
 }
 
 typedef Ports = ({

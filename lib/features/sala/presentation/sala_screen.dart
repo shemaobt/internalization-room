@@ -17,11 +17,14 @@ import 'widgets/panorama_view.dart';
 import 'widgets/ensaio_view.dart';
 import 'widgets/escolha_view.dart';
 import 'widgets/hand_button.dart';
+import 'widgets/claquete.dart';
 import 'widgets/hear_again_button.dart';
 import 'widgets/back_to_passage_button.dart';
+import 'widgets/language_and_look.dart';
 import 'widgets/leave_passage_button.dart';
 import 'widgets/mic_gate_view.dart';
 import 'widgets/retro_view.dart';
+import 'widgets/scene_rehearsal_view.dart';
 
 class SalaScreen extends ConsumerStatefulWidget {
   /// Whether the build carries an address at all.
@@ -37,6 +40,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
     with WidgetsBindingObserver {
   late final ScreenAwake _awake = ref.read(screenAwakeProvider);
   bool _roomOpened = false;
+  Timer? _replyWatch;
 
   @override
   void initState() {
@@ -62,11 +66,13 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
   /// afresh, the next link opens it the way a first launch does.
   void _closeTheRoom() {
     _roomOpened = false;
+    _replyWatch?.cancel();
     ref.invalidate(salaSessionProvider);
   }
 
   @override
   void dispose() {
+    _replyWatch?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_awake.release());
     super.dispose();
@@ -74,13 +80,30 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
+    if (lifecycle == AppLifecycleState.hidden ||
+        lifecycle == AppLifecycleState.paused) {
+      _replyWatch?.cancel();
+    }
     if (lifecycle == AppLifecycleState.resumed &&
         ref.read(deviceLinkProvider).linked) {
       unawaited(_openRoom());
     }
   }
 
+  void _watchForReplies() {
+    _replyWatch?.cancel();
+    _lookForReplies();
+    _replyWatch = Timer.periodic(
+      ref.read(roomInboxWatchProvider),
+      (_) => _lookForReplies(),
+    );
+  }
+
+  void _lookForReplies() =>
+      ref.read(salaSessionProvider.notifier).lookForReplies();
+
   Future<void> _openRoom() async {
+    _watchForReplies();
     final access = await ref.read(micPermissionProvider.notifier).check();
     if (!mounted) return;
     if (access == MicAccess.granted) {
@@ -117,7 +140,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
       );
     }
 
-    if (mic == MicAccess.denied) {
+    if (mic == MicAccess.denied && session.stage != SalaStage.cena) {
       return const Scaffold(body: SafeArea(child: MicGateView()));
     }
 
@@ -143,8 +166,10 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
               ),
             const _HandLayer(),
             const HearAgainButton(),
+            const ClaqueteLayer(),
             const LeavePassageButton(),
             const BackToPassageButton(),
+            const LanguageAndLook(),
             const DevSkipBar(),
           ],
         ),
@@ -166,6 +191,8 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
         return const RetroView();
       case SalaStage.fim:
         return const _FimView();
+      case SalaStage.cena:
+        return const SceneRehearsalView();
     }
   }
 }
@@ -202,19 +229,18 @@ class _ColarLayer extends ConsumerWidget {
 class _HandLayer extends ConsumerWidget {
   const _HandLayer();
 
-  static const _inside = {SalaStage.panorama, SalaStage.conversa};
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
-    if (!_inside.contains(session.stage)) return const SizedBox.shrink();
+    if (!session.atTheTeamsIdleTurn) {
+      return const SizedBox.shrink();
+    }
     final notifier = ref.read(salaSessionProvider.notifier);
     return Positioned(
       left: 14,
       bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
       child: HandButton(
         noteMode: session.noteMode,
-        questionPending: session.questionPending,
         hasUnheardReply: session.hasUnheardReply,
         playingReply: session.playingReplyId != null,
         language: ref.watch(roomLanguageProvider),

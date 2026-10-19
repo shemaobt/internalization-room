@@ -14,22 +14,25 @@ import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/language_and_look.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, stateReads;
 
 Set<Color> paintedBy(WidgetTester tester, Finder corner) {
   final colours = <Color>{};
@@ -89,6 +92,25 @@ bool leaveIsDeaf(WidgetTester tester) => tester
     )
     .any((portao) => portao.ignoring);
 
+void expectOnlyHerMenuAndTheLanguageCodesAreWritten() {
+  final words = find.byType(Text);
+  final codes = find.descendant(
+    of: find.byType(LanguageAndLook),
+    matching: words,
+  );
+  final menu = find.descendant(of: find.byType(EscolhaView), matching: words);
+  expect(
+    codes,
+    findsNWidgets(languages.length),
+    reason: 'na escolha os códigos PT e EN são escritos',
+  );
+  expect(
+    words,
+    findsNWidgets(languages.length + menu.evaluate().length),
+    reason: 'na escolha só o menu dela e os códigos são escritos',
+  );
+}
+
 Future<ProviderContainer> pumpSala(
   WidgetTester tester,
   SalaHarness harness,
@@ -124,7 +146,7 @@ Future<ProviderContainer> pumpToFindings(
   final container = await pumpSala(tester, harness);
   final notifier = container.read(salaSessionProvider.notifier);
 
-  await notifier.goConversa();
+  await notifier.goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
@@ -157,7 +179,7 @@ Future<void> _enterThePanorama(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
-  notifier.entrarNaOferecida();
+  notifier.openTheEntry(_thePanorama);
   await tester.pump(const Duration(milliseconds: 400));
 }
 
@@ -192,7 +214,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     for (final go in [
-      notifier.goConversa,
+      () => notifier.goConversa(book: 'Ruth'),
       notifier.goEnsaio,
       notifier.startRetro,
     ]) {
@@ -205,213 +227,22 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('the choice screen is the circle, the wood and nothing else', (
-    tester,
-  ) async {
+  testWidgets('the choice screen is her menu and nothing else', (tester) async {
     final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
     await container.read(salaSessionProvider.notifier).abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(byLabel('Ouvir esta passagem de novo'), findsOneWidget);
-    expect(byLabel('Entrar nesta passagem'), findsOneWidget);
-    expect(
-      find.byType(PassageRuler),
-      findsOneWidget,
-      reason:
-          'a régua é o gesto de andar pelo livro, não só um enfeite de posição',
-    );
+    expect(find.text('Escolha a passagem'), findsOneWidget);
+    expect(find.text('Rute 1:1–5'), findsOneWidget);
+    expect(find.byType(FacilitatorCircle), findsNothing);
     expect(
       find.byType(ColarOverlay),
       findsNothing,
       reason: 'o colar mede uma passagem; na escolha ainda não há passagem',
     );
-    expect(
-      find.byType(Text),
-      findsNothing,
-      reason: 'nenhuma palavra escrita, em nenhuma tela da sala',
-    );
+    expectOnlyHerMenuAndTheLanguageCodesAreWritten();
   });
-
-  testWidgets('the wooden button carries the passage the room just said', (
-    tester,
-  ) async {
-    final harness = SalaHarness();
-    final container = await pumpSala(tester, harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      container.read(salaSessionProvider).voice,
-      VoiceState.invite,
-      reason: 'passo 1: a sala terminou de dizer a primeira',
-    );
-    await tester.drag(find.byType(PassageRuler), const Offset(400, 0));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      container.read(salaSessionProvider).oferecida?.pericope,
-      'P03',
-      reason: 'passo 2: o dedo correu a régua até a ponta',
-    );
-
-    await tester.drag(find.byType(PassageRuler), const Offset(-140, 0));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      container.read(salaSessionProvider).oferecida?.pericope,
-      'P02',
-      reason: 'passo 3: e voltou uma — o que a roda de mão única não permitia',
-    );
-
-    await tester.pump(const Duration(milliseconds: 800));
-    await tester.tap(
-      find.byWidgetPredicate(
-        (w) => w is RoundActionButton && w.mood != ButtonMood.lit,
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(harness.room.pericopesAsked, contains('P02'));
-    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
-  });
-
-  testWidgets(
-    'the wooden button names the panorama, not "entrar nesta passagem"',
-    (tester) async {
-      const panorama = Passagem(
-        pericope: 'panorama',
-        audioUrl: '/voice/panorama',
-        kind: PassagemKind.panorama,
-      );
-      final harness = SalaHarness()
-        ..room.passages = const [
-          panorama,
-          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-        ];
-      final container = await pumpSala(tester, harness);
-      await container.read(salaSessionProvider.notifier).abrirEscolha();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(byLabel('Panorama do Livro'), findsOneWidget);
-      expect(
-        byLabel('Entrar nesta passagem'),
-        findsNothing,
-        reason:
-            'o panorama é a porta de entrada da roda, mas o botão de '
-            'entrar nele ainda dizia o rótulo genérico de qualquer passagem',
-      );
-    },
-  );
-
-  testWidgets('the panorama button speaks english to an english room', (
-    tester,
-  ) async {
-    const panorama = Passagem(
-      pericope: 'panorama',
-      audioUrl: '/voice/panorama',
-      kind: PassagemKind.panorama,
-    );
-    final harness = SalaHarness(lingua: 'en')
-      ..room.passages = const [
-        panorama,
-        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-      ];
-    final container = await pumpSala(tester, harness);
-    await container.read(salaSessionProvider.notifier).abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(byLabel('Book Panorama'), findsOneWidget);
-    expect(
-      byLabel('Panorama do Livro'),
-      findsNothing,
-      reason:
-          'um aparelho em inglês não pode mostrar o nome do panorama '
-          'em português',
-    );
-  });
-
-  testWidgets('the choice circle speaks english to an english room', (
-    tester,
-  ) async {
-    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-    await container.read(salaSessionProvider.notifier).abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(byLabel('Hear this passage again'), findsOneWidget);
-    expect(
-      byLabel('Ouvir esta passagem de novo'),
-      findsNothing,
-      reason:
-          'o círculo da roda dizia "Ouvir esta passagem de novo" a um '
-          'aparelho em inglês',
-    );
-  });
-
-  testWidgets('the way into a passage speaks english to an english room', (
-    tester,
-  ) async {
-    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-    await container.read(salaSessionProvider.notifier).abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(byLabel('Enter this passage'), findsOneWidget);
-    expect(
-      byLabel('Entrar nesta passagem'),
-      findsNothing,
-      reason:
-          'só o panorama falava inglês; a conta de entrar numa passagem '
-          'dizia "Entrar nesta passagem" a um aparelho em inglês',
-    );
-  });
-
-  testWidgets('the passage ruler speaks english to an english room', (
-    tester,
-  ) async {
-    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-    await container.read(salaSessionProvider.notifier).abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(
-      byLabel('Choose the passage by running a finger along the row'),
-      findsOneWidget,
-    );
-    expect(
-      byLabel('Escolher a passagem, correndo o dedo pela fileira'),
-      findsNothing,
-      reason:
-          'a régua da roda se apresentava em português a um aparelho em '
-          'inglês',
-    );
-  });
-
-  testWidgets(
-    'the ruler reads where the team stands in english, not "1 de 3"',
-    (tester) async {
-      final harness = SalaHarness(lingua: 'en')
-        ..room.passages = const [
-          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-          Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
-          Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
-        ];
-      final container = await pumpSala(tester, harness);
-      await container.read(salaSessionProvider.notifier).abrirEscolha();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(container.read(salaSessionProvider).aOferecer, 0);
-      final ruler = tester
-          .widget<Semantics>(
-            byLabel('Choose the passage by running a finger along the row'),
-          )
-          .properties;
-      expect(
-        ruler.value,
-        '1 of 3',
-        reason:
-            'o leitor de tela dizia "1 de 3" no meio de uma frase em inglês',
-      );
-      expect(ruler.increasedValue, '2 of 3');
-      expect(ruler.decreasedValue, '1 of 3');
-    },
-  );
 
   testWidgets('a finished book is announced in english to an english room', (
     tester,
@@ -474,19 +305,21 @@ void main() {
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    expect(find.byType(Text), findsNothing, reason: 'convite');
+    expectOnlyHerMenuAndTheLanguageCodesAreWritten();
 
     await notifier.abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byType(Text), findsNothing, reason: 'escolha');
+    expectOnlyHerMenuAndTheLanguageCodesAreWritten();
 
     for (final go in [
-      notifier.goConversa,
+      () => notifier.goConversa(book: 'Ruth'),
       notifier.goEnsaio,
       notifier.startRetro,
     ]) {
       go();
       await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 1400));
+      await tester.pump(const Duration(milliseconds: 1400));
       expect(
         find.byType(Text),
         findsNothing,
@@ -522,7 +355,7 @@ void main() {
     await expectALiveGesture('convite');
     await notifier.abrirEscolha();
     await expectALiveGesture('escolha');
-    notifier.goConversa();
+    notifier.goConversa(book: 'Ruth');
     await expectALiveGesture('conversa');
     notifier.goEnsaio();
     await expectALiveGesture('ensaio');
@@ -556,12 +389,12 @@ void main() {
     tester,
   ) async {
     final container = await pumpSala(tester, SalaHarness());
-    container.read(salaSessionProvider.notifier).goConversa();
+    container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
     expect(find.byType(ColarOverlay), findsOneWidget);
-    expect(byLabel('Levantar a mão'), findsOneWidget);
+    expect(byLabel('Deixar uma pergunta para o facilitador'), findsOneWidget);
     expect(byLabel('Tocar para falar'), findsOneWidget);
   });
 
@@ -595,7 +428,9 @@ void main() {
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final harness = SalaHarness()..network.reachable = false;
     final container = await pumpSala(tester, harness);
-    unawaited(container.read(salaSessionProvider.notifier).goConversa());
+    unawaited(
+      container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
+    );
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('DEV'), findsOneWidget);
@@ -624,7 +459,9 @@ void main() {
     dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final container = await pumpSala(tester, SalaHarness());
-    unawaited(container.read(salaSessionProvider.notifier).goConversa());
+    unawaited(
+      container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
+    );
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).sessionId, isNotNull);
@@ -646,7 +483,9 @@ void main() {
     dotenv.testLoad(fileInput: 'BACKEND_URL=http://x');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final container = await pumpSala(tester, SalaHarness());
-    unawaited(container.read(salaSessionProvider.notifier).goConversa());
+    unawaited(
+      container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
+    );
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('DEV'), findsNothing);
@@ -694,7 +533,7 @@ void main() {
   ) async {
     final harness = SalaHarness()..room.peerCue = true;
     final container = await pumpSala(tester, harness);
-    container.read(salaSessionProvider.notifier).goConversa();
+    container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -713,7 +552,7 @@ void main() {
       ..room.peerCue = true
       ..room.done = true;
     final container = await pumpSala(tester, harness);
-    container.read(salaSessionProvider.notifier).goConversa();
+    container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -731,7 +570,7 @@ void main() {
     (tester) async {
       final harness = SalaHarness()..room.done = true;
       final container = await pumpSala(tester, harness);
-      container.read(salaSessionProvider.notifier).goConversa();
+      container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 200));
 
@@ -767,7 +606,7 @@ void main() {
     tester,
   ) async {
     final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-    container.read(salaSessionProvider.notifier).goConversa();
+    container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(byLabel('Choose another passage'), findsOneWidget);
@@ -782,14 +621,14 @@ void main() {
 
   testWidgets('the hand speaks english to an english room', (tester) async {
     final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-    container.read(salaSessionProvider.notifier).goConversa();
+    container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(byLabel('Raise a hand'), findsOneWidget);
+    expect(byLabel('Leave a question for the facilitator'), findsOneWidget);
     expect(
-      byLabel('Levantar a mão'),
+      byLabel('Deixar uma pergunta para o facilitador'),
       findsNothing,
-      reason: 'a mão dizia "Levantar a mão" a um aparelho em inglês',
+      reason: 'a mão falava português a um aparelho em inglês',
     );
   });
 
@@ -808,7 +647,7 @@ void main() {
         ],
       ),
     );
-    container.read(salaSessionProvider.notifier).goConversa();
+    container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(byLabel("Hear the facilitator's answer"), findsOneWidget);
@@ -821,49 +660,23 @@ void main() {
     );
   });
 
-  testWidgets('an armed question is cancelled in english in an english room', (
-    tester,
-  ) async {
+  testWidgets('an armed question keeps the hand speaking english in an english '
+      'room', (tester) async {
     final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
     final notifier = container.read(salaSessionProvider.notifier);
-    notifier.goConversa();
+    notifier.goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
     notifier.handTap();
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).noteMode, isTrue);
-    expect(byLabel('Cancel the question'), findsOneWidget);
+    expect(byLabel('Leave a question for the facilitator'), findsOneWidget);
     expect(
-      byLabel('Cancelar a pergunta'),
+      byLabel('Deixar uma pergunta para o facilitador'),
       findsNothing,
-      reason:
-          'a mão armada dizia "Cancelar a pergunta" a um aparelho em inglês',
+      reason: 'a mão armada falava português a um aparelho em inglês',
     );
-  });
-
-  testWidgets('a question sent waits in english in an english room', (
-    tester,
-  ) async {
-    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-    final notifier = container.read(salaSessionProvider.notifier);
-    notifier.goConversa();
-    await tester.pump(const Duration(milliseconds: 200));
-
-    notifier.handTap();
-    notifier.conversaTap();
-    await tester.pump(const Duration(milliseconds: 200));
-    notifier.conversaTap();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(container.read(salaSessionProvider).questionPending, isTrue);
-    expect(byLabel('Question sent, waiting for an answer'), findsOneWidget);
-    expect(
-      byLabel('Pergunta enviada, aguardando resposta'),
-      findsNothing,
-      reason: 'a pergunta enviada esperava em português num aparelho em inglês',
-    );
-    closeTheRoom(container);
   });
 
   testWidgets('a reply playing is announced in english to an english room', (
@@ -877,7 +690,7 @@ void main() {
     );
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
-    notifier.goConversa();
+    notifier.goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
     harness.voice.holdNextLine();
@@ -885,9 +698,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).playingReplyId, 'r1');
-    expect(byLabel('The facilitator is answering'), findsOneWidget);
+    expect(byLabel('Hear the facilitator\'s answer'), findsOneWidget);
     expect(
-      byLabel('O facilitador está respondendo'),
+      byLabel('Ouvir a resposta do facilitador'),
       findsNothing,
       reason:
           'a resposta tocando era anunciada em português a um aparelho em '
@@ -913,11 +726,11 @@ void main() {
         ],
       ),
     );
-    container.read(salaSessionProvider.notifier).goConversa();
+    container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(byLabel('Ouvir a resposta do facilitador'), findsOneWidget);
-    expect(byLabel('Levantar a mão'), findsNothing);
+    expect(byLabel('Deixar uma pergunta para o facilitador'), findsNothing);
   });
 
   testWidgets(
@@ -927,7 +740,7 @@ void main() {
       final container = await pumpSala(tester, harness);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.goConversa();
+      notifier.goConversa(book: 'Ruth');
       await tester.pump(const Duration(milliseconds: 200));
       expect(find.byType(ColarOverlay), findsOneWidget);
       expect(find.byType(BeadRow), findsNothing);
@@ -957,7 +770,7 @@ void main() {
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.goConversa();
+    notifier.goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 200));
@@ -983,7 +796,7 @@ void main() {
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.goConversa();
+    await notifier.goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 100));
@@ -1102,7 +915,7 @@ void main() {
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.goConversa();
+    await notifier.goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
     notifier.goEnsaio();
     notifier.ensaioTap();
@@ -1179,7 +992,7 @@ void main() {
     final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.goConversa();
+    await notifier.goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 300));
 
     notifier.goEnsaio();
@@ -1314,7 +1127,7 @@ void main() {
     (tester) async {
       final container = await pumpSala(tester, SalaHarness());
       final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await tester.pump(const Duration(milliseconds: 300));
 
       final sair = byLabel('Escolher outra passagem');
@@ -1367,7 +1180,7 @@ void main() {
     final container = await pumpSala(tester, SalaHarness());
     await container
         .read(salaSessionProvider.notifier)
-        .goConversa(pericope: 'P01');
+        .goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 300));
 
     await tester.tap(byLabel('Escolher outra passagem'), warnIfMissed: false);
@@ -1388,7 +1201,7 @@ void main() {
     (tester) async {
       final container = await pumpSala(tester, SalaHarness());
       final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(seconds: 2));
       expect(
@@ -1435,7 +1248,7 @@ void main() {
     (tester) async {
       final harness = SalaHarness()..room.peerCue = true;
       final container = await pumpSala(tester, harness);
-      container.read(salaSessionProvider.notifier).goConversa();
+      container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(seconds: 2));
@@ -1467,7 +1280,7 @@ void main() {
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
     VoiceState voz() => container.read(salaSessionProvider).voice;
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(seconds: 2));
 
@@ -1512,7 +1325,7 @@ void main() {
         ..room.failWith = const Refused('UNAUTHORIZED');
       final container = await pumpSala(tester, harness);
       final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(seconds: 2));
 
@@ -1558,7 +1371,7 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(byLabel('Falar com o facilitador'));
+    await tester.tap(byLabel('Tocar para falar'));
     await tester.pump(const Duration(milliseconds: 200));
 
     final state = container.read(salaSessionProvider);
@@ -1573,4 +1386,40 @@ void main() {
       reason: 'o toque depois da abertura grava a resposta da equipe',
     );
   });
+
+  testWidgets(
+    'the Panorama canvas shows the circle, the hand, «Ouvir de novo» and the '
+    'way out, and no beads, rehearsal entry, moment label or kept takes, '
+    'while the Watch reads a room that says the passage is done',
+    (tester) async {
+      final harness = SalaHarness(watchesWithoutAHalt: true)
+        ..room.done = true
+        ..room.nextMoment = const Moment(at: MomentAt.articulation, parts: 3)
+        ..room.nextCoverage = coverage(
+          engaged: totalBeads,
+          surfaced: totalBeads,
+        );
+      final container = await pumpSala(tester, harness);
+      await _enterThePanorama(tester, harness, container);
+      await tester.pump(const Duration(seconds: 3));
+      final read = container.read(salaSessionProvider);
+
+      expect(stateReads(harness), greaterThan(0));
+      expect(read.stage, SalaStage.panorama);
+      expect(read.endOfThePassage, isFalse);
+      expect(read.coverage.engaged, 0);
+      expect(read.coverage.beadsFilled, 0);
+      expect(find.byType(FacilitatorCircle), findsOneWidget);
+      expect(find.byType(HandButton), findsOneWidget);
+      expect(byLabel(roomLabelFor('hearAgain', 'pt')), findsOneWidget);
+      expect(byLabel(roomLabelFor('leavePassage', 'pt')), findsOneWidget);
+      expect(find.byType(ColarOverlay), findsNothing);
+      expect(find.byType(BeadRow), findsNothing);
+      expect(find.byType(EnsaioView), findsNothing);
+      expect(find.byType(MomentLabel), findsNothing);
+      expect(byLabel(roomLabelFor('recordEnsaio', 'pt')), findsNothing);
+      expect(byLabel(recordEntryLabelFor('pt')), findsNothing);
+      closeTheRoom(container);
+    },
+  );
 }

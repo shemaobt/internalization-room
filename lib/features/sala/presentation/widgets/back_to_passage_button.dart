@@ -21,15 +21,18 @@ class BackToPassageButton extends ConsumerWidget {
         ignoring: !session.theWayBackIsLive,
         child: Semantics(
           button: true,
+          enabled: session.theWayBackIsLive,
           label: roomLabelFor('backToPassage', ref.watch(roomLanguageProvider)),
           child: GestureDetector(
-            onTap: ref.read(salaSessionProvider.notifier).returnToTheLeftEntry,
+            onTap: session.sceneRehearsalIsOpen
+                ? ref.read(salaSessionProvider.notifier).leaveTheSceneRehearsal
+                : ref.read(salaSessionProvider.notifier).returnToTheLeftEntry,
             behavior: HitTestBehavior.opaque,
             child: SizedBox(
               width: 46,
               height: 46,
               child: Opacity(
-                opacity: 0.5,
+                opacity: session.theWayBackIsLive ? 0.5 : 0.2,
                 child: Icon(
                   LucideIcons.chevronLeft,
                   size: 24,

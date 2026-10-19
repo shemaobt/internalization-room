@@ -8,7 +8,7 @@ from the room when a resume finds its file gone: a part of the Rehearsal is a pa
 Rehearsal whoever's tablet it reaches. A recording a part was replaced with is left beside
 the one it replaced. That is the rule: audio a team
 recorded is never removed, and a second directory would only be a second thing to keep
-alive.
+alive. The one file that goes is an accidental tap's, which is not a take (ADR 0086).
 
 Capture survives interruption. A call, an alarm or another app taking the microphone pauses
 the take, and the recorder comes back on its own when the interruption ends rather than

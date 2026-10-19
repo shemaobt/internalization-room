@@ -20,6 +20,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
+import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
     show
@@ -149,14 +150,14 @@ Future<void> tellTwoStretches(
 
 Future<ProviderContainer> inConversa(SalaHarness harness) async {
   final container = harness.container();
-  await container.read(salaSessionProvider.notifier).goConversa();
+  await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
   await settle();
   return container;
 }
 
 Future<ProviderContainer> inConversaWithoutPausing(SalaHarness harness) async {
   final container = harness.container();
-  await container.read(salaSessionProvider.notifier).goConversa();
+  await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
   await waitFor('a sala abrir a conversa e se calar', () {
     final state = container.read(salaSessionProvider);
     return state.sessionId != null &&
@@ -188,7 +189,7 @@ Future<void> theResumeCheckIsRefused(
   harness.room.failWith = const Refused('BAD_REQUEST');
   await container
       .read(salaSessionProvider.notifier)
-      .goConversa(pericope: 'P01');
+      .goConversa(book: 'Ruth', pericope: 'P01');
   harness.room.failWith = null;
   await waitFor(
     'a sala recusar a conferência e voltar ao convite',
@@ -222,22 +223,23 @@ Future<void> aTurnIsTold(
 }
 
 const _thePanorama = Passagem(
-  pericope: 'panorama',
+  pericope: 'OV-Ruth',
   audioUrl: '/voice/panorama',
   kind: PassagemKind.panorama,
+  book: 'Ruth',
 );
 
-/// The Choice open with the Panorama, its first entry, offered and nothing tapped yet.
-Future<void> _aimAtThePanorama(
+/// The Choice open with the Panorama among its entries and nothing tapped yet.
+Future<void> _theChoiceOffersThePanorama(
   SalaHarness harness,
   ProviderContainer container,
 ) async {
   harness.room.passages = [_thePanorama, ...harness.room.passages];
   await container.read(salaSessionProvider.notifier).abrirEscolha();
-  await waitFor('a roda oferecer o panorama', () {
-    final state = container.read(salaSessionProvider);
-    return state.oferecida == _thePanorama && state.voice == VoiceState.invite;
-  });
+  await waitFor(
+    'a roda oferecer o panorama',
+    () => container.read(salaSessionProvider).entriesOpen,
+  );
 }
 
 /// The team taps the Panorama on the Choice, and its opening has had time to be said.
@@ -300,7 +302,7 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
 
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     final state = container.read(salaSessionProvider);
@@ -346,7 +348,7 @@ void main() {
       await notifier.abrirEscolha();
       await settle();
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       final state = container.read(salaSessionProvider);
@@ -392,7 +394,7 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
 
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     final state = container.read(salaSessionProvider);
@@ -457,13 +459,13 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
       await settle();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
         'a sessão anterior estar de pé com o que ela contou',
         () => container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
       );
 
-      await notifier.goConversa(pericope: 'P01', fresh: true);
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01', fresh: true);
       await settle();
 
       final state = container.read(salaSessionProvider);
@@ -509,7 +511,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
       await settle();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       notifier.goEnsaio();
       notifier.ensaioTap();
@@ -528,7 +530,7 @@ void main() {
         for (final linha in await harness.takes.pending()) linha.id,
       ];
 
-      await notifier.goConversa(pericope: 'P01', fresh: true);
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01', fresh: true);
       await settle();
       notifier.goEnsaio();
       await settle();
@@ -576,7 +578,7 @@ void main() {
       await settle();
 
       harness.room.failWith = const Refused('BAD_REQUEST');
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(
@@ -586,7 +588,7 @@ void main() {
             'uma única recusa é passageira — não é motivo para abandonar o id',
       );
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(
@@ -631,13 +633,13 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await settle();
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor(
       'a passagem anterior estar de pé com o que ela contou',
       () => container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
     );
 
-    await notifier.goConversa(pericope: 'P02');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P02');
     await settle();
 
     final state = container.read(salaSessionProvider);
@@ -673,7 +675,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
       await settle();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       notifier.goEnsaio();
       notifier.ensaioTap();
@@ -685,7 +687,7 @@ void main() {
       );
       final gravada = harness.recorder.lastPath;
 
-      await notifier.goConversa(pericope: 'P01', fresh: true);
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01', fresh: true);
       await settle();
 
       expect(
@@ -724,13 +726,13 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
       await settle();
-      await notifier.goConversa(pericope: 'P02');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P02');
       await waitFor(
         'o ensaio da outra passagem estar de pé',
         () => container.read(salaSessionProvider).keptTakes.isNotEmpty,
       );
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(
@@ -763,7 +765,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await settle();
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     notifier.goEnsaio();
@@ -943,7 +945,7 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
 
-    final entering = notifier.goConversa(pericope: 'P01');
+    final entering = notifier.goConversa(book: 'Ruth', pericope: 'P01');
     final seeded = container.read(salaSessionProvider).coverage;
     expect(
       seeded.total,
@@ -1415,6 +1417,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       await notifier.goConversa(
+        book: 'Ruth',
         pericope: 'P01',
         opened: const SessionSnapshot(
           sessionId: 'sessao-1',
@@ -1679,7 +1682,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(harness.room.turnIdsAsked, hasLength(1));
@@ -1697,11 +1700,11 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       notifier.leaveThePassage();
       await settle();
-      await notifier.goConversa(pericope: 'P02');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P02');
       await settle();
 
       expect(harness.room.turnIdsAsked, hasLength(2));
@@ -1723,9 +1726,9 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
-      await notifier.goConversa(pericope: 'P02');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P02');
       await settle();
 
       expect(harness.room.turnIdsAsked, hasLength(2));
@@ -1748,10 +1751,10 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       harness.voice.succeeds = true;
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(
@@ -1780,7 +1783,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(container.read(salaSessionProvider).coverage.engaged, 0);
 
       await settle(const Duration(milliseconds: 300));
@@ -1799,7 +1804,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(container.read(salaSessionProvider).coverage.engaged, 0);
 
       harness.room.pushCoverage(
@@ -1826,7 +1833,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(container.read(salaSessionProvider).coverage.engaged, 0);
 
       harness.room.pushCoverage(
@@ -1862,7 +1871,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
 
       var emits = 0;
       container.listen(salaSessionProvider, (_, _) => emits++);
@@ -1951,7 +1962,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -1990,7 +2003,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2036,7 +2051,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2081,7 +2098,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2133,7 +2152,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2183,7 +2202,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2236,7 +2255,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2306,7 +2325,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2344,61 +2363,6 @@ void main() {
   );
 
   test(
-    'a pull that finds the same replies again still lowers a question asked after they arrived',
-    () async {
-      final harness =
-          SalaHarness(
-              settleDelay: const Duration(seconds: 60),
-              replies: const [
-                HandReply(id: 'r1', audioUrl: '/voice/r1', heard: true),
-              ],
-            )
-            ..room.turnIdInResponse = 'turno-1'
-            ..room.holdNextState();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.goConversa();
-      await waitFor(
-        'a primeira leitura da caixa trazer r1',
-        () => container.read(salaSessionProvider).replies.length == 1,
-      );
-
-      notifier.handTap();
-      notifier.conversaTap();
-      notifier.conversaTap();
-      await settle();
-      expect(container.read(salaSessionProvider).questionPending, isTrue);
-
-      var emits = 0;
-      container.listen(salaSessionProvider, (_, _) => emits++);
-
-      harness.room.pushCoverage(
-        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
-      );
-      await settle(const Duration(milliseconds: 100));
-
-      expect(
-        emits,
-        greaterThan(0),
-        reason:
-            'a caixa segue devolvendo só r1, mas a mão pendia por uma '
-            'pergunta nova — o pull idêntico não pode deixar o ponto aceso',
-      );
-      expect(
-        container.read(salaSessionProvider).questionPending,
-        isFalse,
-        reason:
-            'todo pull não vazio sempre baixou o pedido pendente, mesmo '
-            'sem resposta nova — a lista igual não pode ser a exceção',
-      );
-
-      harness.room.finishHeldState();
-    },
-  );
-
-  test(
     'a frame that reports fewer beads than the necklace already shows changes nothing',
     () async {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
@@ -2408,7 +2372,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(container.read(salaSessionProvider).coverage.engaged, 5);
 
       harness.room.pushCoverage(
@@ -2448,7 +2414,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(container.read(salaSessionProvider).coverage.engaged, 5);
 
       harness.room.pushCoverage(
@@ -2477,7 +2445,7 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
 
-    await container.read(salaSessionProvider.notifier).goConversa();
+    await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
 
     harness.room.pushCoverage(
       const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.failed),
@@ -2500,7 +2468,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
 
       await waitFor(
         'o fallback disparar',
@@ -2529,7 +2499,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(harness.room.watchCoverageCalls, 1);
 
       harness.room.dropCoverageStream();
@@ -2557,7 +2529,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(harness.room.watchCoverageCalls, 1);
 
       harness.room.dropCoverageStream();
@@ -2588,7 +2562,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(harness.room.watchCoverageCalls, 1);
 
       harness.room.dropCoverageStream();
@@ -2620,7 +2596,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      final opening = container.read(salaSessionProvider.notifier).goConversa();
+      final opening = container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       await waitFor(
         'o canal abrir antes da fala',
         () => harness.room.watchCoverageCalls == 1,
@@ -2705,7 +2683,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(harness.room.watchCoverageCalls, 1);
 
       harness.room.dropCoverageStream(
@@ -2734,7 +2714,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(harness.room.watchCoverageCalls, 1);
 
       harness.room.dropCoverageStream(error: const Refused('BAD_REQUEST'));
@@ -2837,7 +2819,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      final opening = container.read(salaSessionProvider.notifier).goConversa();
+      final opening = container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
 
       harness.room.pushCoverage(
         const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
@@ -2872,7 +2856,9 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
 
-    final opening = container.read(salaSessionProvider.notifier).goConversa();
+    final opening = container
+        .read(salaSessionProvider.notifier)
+        .goConversa(book: 'Ruth');
     await waitFor(
       'a fala do Guia começar',
       () => container.read(salaSessionProvider).voice == VoiceState.speaking,
@@ -2916,7 +2902,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(
         container.read(salaSessionProvider).voice,
         VoiceState.invite,
@@ -2947,7 +2935,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(container.read(salaSessionProvider).voice, VoiceState.invite);
       expect(container.read(salaSessionProvider).peerCue, isTrue);
 
@@ -2978,7 +2968,9 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
 
-    final opening = container.read(salaSessionProvider.notifier).goConversa();
+    final opening = container
+        .read(salaSessionProvider.notifier)
+        .goConversa(book: 'Ruth');
     await waitFor(
       'a fala do Guia começar',
       () => container.read(salaSessionProvider).voice == VoiceState.speaking,
@@ -3025,7 +3017,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await settle(const Duration(milliseconds: 200));
 
       harness.inbox.replies = [const HandReply(id: 'r1', audioUrl: 'a.mp3')];
@@ -3350,9 +3342,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      await _aimAtThePanorama(harness, container);
+      await _theChoiceOffersThePanorama(harness, container);
       harness.room.holdNextCreate();
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await waitFor(
         'a sessão do panorama ser pedida',
         () => harness.room.createHeld,
@@ -3379,7 +3371,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       await _enterThePanorama(harness, container);
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await settle();
 
       expect(
@@ -3397,10 +3389,12 @@ void main() {
       final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)]);
       final container = harness.container();
       addTearDown(container.dispose);
-      await _aimAtThePanorama(harness, container);
+      await _theChoiceOffersThePanorama(harness, container);
       harness.network.reachable = false;
 
-      container.read(salaSessionProvider.notifier).entrarNaOferecida();
+      container
+          .read(salaSessionProvider.notifier)
+          .openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle();
 
       expect(container.read(salaSessionProvider).offline, isTrue);
@@ -3415,10 +3409,12 @@ void main() {
       final harness = SalaHarness();
       final container = harness.container();
       addTearDown(container.dispose);
-      await _aimAtThePanorama(harness, container);
+      await _theChoiceOffersThePanorama(harness, container);
       harness.room.failWith = const Refused('BAD_REQUEST');
 
-      container.read(salaSessionProvider.notifier).entrarNaOferecida();
+      container
+          .read(salaSessionProvider.notifier)
+          .openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle();
 
       final state = container.read(salaSessionProvider);
@@ -3486,10 +3482,10 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      await _aimAtThePanorama(harness, container);
+      await _theChoiceOffersThePanorama(harness, container);
       harness.room.failWith = const Refused('BAD_REQUEST');
 
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle();
 
       expect(
@@ -3600,7 +3596,7 @@ void main() {
     // (it asks the room to hand back work it already holds, not to open a fresh turn),
     // unlike the opening turn itself, whose own refusal now calls a person on the spot.
     harness.room.failWith = const Refused('BAD_REQUEST');
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     harness.room.failWith = null;
@@ -3614,9 +3610,9 @@ void main() {
     await settle();
 
     harness.room.failWith = const Refused('BAD_REQUEST');
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     expect(
@@ -3643,7 +3639,7 @@ void main() {
     await settle();
 
     harness.room.failHeldTurnWith = const Refused('BAD_REQUEST');
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     expect(harness.room.turnIdsAsked, hasLength(1));
@@ -3806,7 +3802,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
       await settle();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       harness.room.reachable = false;
@@ -3828,7 +3824,7 @@ void main() {
       // through to — now calls a person on the spot, so the two visible refusals below are
       // read via that check instead.
       harness.room.failWith = const Refused('BAD_REQUEST');
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       harness.room.failWith = null;
@@ -3838,7 +3834,7 @@ void main() {
       await settle();
 
       harness.room.failWith = const Refused('BAD_REQUEST');
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(
@@ -3890,10 +3886,12 @@ void main() {
     final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 40));
     final container = harness.container();
     addTearDown(container.dispose);
-    await _aimAtThePanorama(harness, container);
+    await _theChoiceOffersThePanorama(harness, container);
     harness.voice.holdNextLine();
 
-    container.read(salaSessionProvider.notifier).entrarNaOferecida();
+    container
+        .read(salaSessionProvider.notifier)
+        .openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle(const Duration(milliseconds: 20));
 
     expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
@@ -3931,10 +3929,12 @@ void main() {
       final harness = SalaHarness()..room.fixedLine = 'A0';
       final container = harness.container();
       addTearDown(container.dispose);
-      await _aimAtThePanorama(harness, container);
+      await _theChoiceOffersThePanorama(harness, container);
       harness.voice.holdNextFetch();
 
-      container.read(salaSessionProvider.notifier).entrarNaOferecida();
+      container
+          .read(salaSessionProvider.notifier)
+          .openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle(const Duration(milliseconds: 20));
 
       expect(
@@ -4015,10 +4015,12 @@ void main() {
     final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 40));
     final container = harness.container();
     addTearDown(container.dispose);
-    await _aimAtThePanorama(harness, container);
+    await _theChoiceOffersThePanorama(harness, container);
     harness.voice.holdNextFetch();
 
-    container.read(salaSessionProvider.notifier).entrarNaOferecida();
+    container
+        .read(salaSessionProvider.notifier)
+        .openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle(const Duration(milliseconds: 20));
 
     expect(container.read(salaSessionProvider).voice, VoiceState.thinking);
@@ -4424,124 +4426,6 @@ void main() {
     );
   });
 
-  test('a question that never left marks nothing pending on the hand', () async {
-    final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)])
-      ..inbox.knotFailsWith = const NetworkFailed('sem rede');
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.handTap();
-    notifier.conversaTap();
-    notifier.conversaTap();
-    await settle();
-
-    expect(
-      container.read(salaSessionProvider).questionPending,
-      isFalse,
-      reason:
-          'o ponto na mão é o registro de uma pergunta entregue — acendê-lo sem '
-          'entrega diz a uma equipe que não lê que ela foi ouvida',
-    );
-    expect(container.read(salaSessionProvider).handAck, isFalse);
-  });
-
-  test(
-    'a delivered question marks the hand pending until a reply arrives',
-    () async {
-      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
-        ..room.turnIdInResponse = 'turno-1';
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      notifier.handTap();
-      notifier.conversaTap();
-      notifier.conversaTap();
-      await settle();
-
-      expect(harness.inbox.questionsSent, ['sessao-1']);
-      expect(container.read(salaSessionProvider).questionPending, isTrue);
-      expect(container.read(salaSessionProvider).hasUnheardReply, isFalse);
-
-      harness.inbox.replies = const [
-        HandReply(id: 'r1', audioUrl: '/voice/r1'),
-      ];
-      harness.room.pushCoverage(
-        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
-      );
-      await waitFor(
-        'a resposta chegar à mão',
-        () => container.read(salaSessionProvider).hasUnheardReply,
-      );
-
-      expect(
-        container.read(salaSessionProvider).questionPending,
-        isFalse,
-        reason:
-            'a resposta chegou — o ponto agora é o de ouvir, não o de esperar',
-      );
-    },
-  );
-
-  test(
-    'a pending question survives an empty pull, and clears once a reply lands',
-    () async {
-      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
-        ..room.turnIdInResponse = 'turno-1';
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      notifier.handTap();
-      notifier.conversaTap();
-      notifier.conversaTap();
-      await settle();
-
-      expect(harness.inbox.questionsSent, ['sessao-1']);
-      expect(container.read(salaSessionProvider).questionPending, isTrue);
-
-      harness.inbox.replies = const [];
-      harness.room.pushCoverage(
-        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
-      );
-      await settle();
-
-      expect(
-        container.read(salaSessionProvider).questionPending,
-        isTrue,
-        reason:
-            'a mesa ainda não lista nada — a facilitadora não respondeu, e o '
-            'ponto de espera é o único sinal, numa sala sem letra, de que a '
-            'pergunta ainda está no ar',
-      );
-
-      harness.room.turnIdInResponse = 'turno-2';
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-
-      harness.inbox.replies = const [
-        HandReply(id: 'r1', audioUrl: '/voice/r1'),
-      ];
-      harness.room.pushCoverage(
-        const CoverageEvent(turnId: 'turno-2', status: CoverageStatus.settled),
-      );
-      await waitFor(
-        'a resposta chegar à mão',
-        () => container.read(salaSessionProvider).hasUnheardReply,
-      );
-
-      expect(
-        container.read(salaSessionProvider).questionPending,
-        isFalse,
-        reason:
-            'a resposta chegou — o ponto agora é o de ouvir, não o de esperar',
-      );
-    },
-  );
-
   test('an unheard reply waits on the hand and is played on tap', () async {
     final harness = SalaHarness(
       replies: const [
@@ -4796,7 +4680,8 @@ void main() {
           'sem isso a tela não tinha gesto vivo nenhum: o círculo era morto, '
           'não havia botão, e não há texto que explique o que houve',
     );
-    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P01');
+    expect(container.read(salaSessionProvider).entriesOpen, isTrue);
+    expect(container.read(salaSessionProvider).naRoda!.first.pericope, 'P01');
   });
 
   test('an empty wheel really does mean the book is done', () async {
@@ -4843,311 +4728,6 @@ void main() {
     );
   });
 
-  test('the room offers one passage at a time, by voice', () async {
-    final harness = SalaHarness();
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await notifier.abrirEscolha();
-    await settle();
-
-    expect(harness.room.booksAsked, ['Ruth']);
-    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P01');
-    expect(
-      harness.voice.played,
-      ['/voice/p01'],
-      reason:
-          'a equipe escolhe de ouvido: a sala diz a passagem, não a escreve',
-    );
-
-    notifier.escolhaTap();
-    await settle();
-
-    expect(
-      container.read(salaSessionProvider).oferecida?.pericope,
-      'P01',
-      reason:
-          'o toque no círculo diz de novo; quem anda pela roda é o dedo na régua',
-    );
-    expect(harness.voice.played, ['/voice/p01', '/voice/p01']);
-
-    notifier.apontarPassagem(1);
-    await settle();
-
-    expect(
-      harness.voice.played,
-      ['/voice/p01', '/voice/p01'],
-      reason:
-          'atravessar a régua com o dedo abaixado não dispara catorze nomes',
-    );
-
-    notifier.dizerAPassagem();
-    await settle();
-
-    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P02');
-    expect(harness.voice.played, ['/voice/p01', '/voice/p01', '/voice/p02']);
-  });
-
-  test(
-    'a passage name that fails on the GET calls a person, instead of a dead wheel',
-    () async {
-      final harness = SalaHarness();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.abrirEscolha();
-      await settle();
-
-      harness.voice.roomFailsWith = const Refused('UNAUTHORIZED');
-      notifier.dizerAPassagem();
-      await settle();
-
-      expect(
-        container.read(salaSessionProvider).needsPerson,
-        isTrue,
-        reason:
-            'a queda caía no mesmo catch do player e a roda ficava muda '
-            'por até três nomes antes de chamar alguém — a mesma recusa '
-            'vinda do turno já chama na hora',
-      );
-    },
-  );
-
-  test(
-    'the wheel quietly downloads the names it lacks, one at a time, skipping the one it already holds',
-    () async {
-      final harness = SalaHarness();
-      harness.room.passages = const [
-        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
-        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
-        Passagem(pericope: 'P04', audioUrl: '/voice/p04'),
-      ];
-      harness.voice.missing.addAll({'/voice/p03', '/voice/p04'});
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.abrirEscolha();
-      await settle();
-
-      expect(
-        harness.voice.fetched,
-        ['/voice/p01', '/voice/p03', '/voice/p04'],
-        reason:
-            'p01 chega pela própria fala oferecida; p02 já estava no '
-            'aparelho e não pedia nada; p03 e p04 faltavam e a fila os '
-            'buscou na ordem da roda, um de cada vez',
-      );
-    },
-  );
-
-  test(
-    'reopening the wheel starts a fresh download and cuts the one before it short',
-    () async {
-      final harness = SalaHarness();
-      harness.room.passages = const [
-        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
-        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
-      ];
-      harness.voice.missing.addAll({'/voice/p02', '/voice/p03'});
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      harness.voice.holdNextFetch();
-      unawaited(notifier.abrirEscolha());
-      await settle();
-      harness.voice.finishHeldFetch();
-      harness.voice.holdNextFetch();
-      await settle();
-
-      expect(
-        harness.voice.fetched,
-        ['/voice/p01', '/voice/p02'],
-        reason:
-            'a primeira fala já pediu p01; a fila achou p02 faltando e '
-            'estava presa nele quando a roda reabriu',
-      );
-
-      unawaited(notifier.abrirEscolha());
-      harness.voice.finishHeldFetch();
-      await settle();
-
-      expect(
-        harness.voice.fetched.where((url) => url == '/voice/p03').length,
-        1,
-        reason:
-            'a fila antiga viu o generation trocado e parou antes de pedir p03; '
-            'só a fila nova, aberta pela roda reaberta, pediu esse nome',
-      );
-    },
-  );
-
-  test(
-    "a hand that enters a passage cuts the wheel's quiet download short",
-    () async {
-      final harness = SalaHarness();
-      harness.room.passages = const [
-        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
-        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
-      ];
-      harness.voice.missing.addAll({'/voice/p02', '/voice/p03'});
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      harness.voice.holdNextFetch();
-      unawaited(notifier.abrirEscolha());
-      await settle();
-      harness.voice.finishHeldFetch();
-      harness.voice.holdNextFetch();
-      await settle();
-
-      notifier.entrarNaOferecida();
-      harness.voice.finishHeldFetch();
-      await settle();
-
-      expect(
-        harness.voice.fetched,
-        isNot(contains('/voice/p03')),
-        reason:
-            'a equipe entrou em P01 enquanto a fila ainda esperava por p02; '
-            'a fila viu o estágio sair da escolha e nunca pediu p03',
-      );
-    },
-  );
-
-  test(
-    'dragging the ruler mid-download moves the next fetch to where the finger landed, not where the wheel opened',
-    () async {
-      final harness = SalaHarness();
-      harness.room.passages = const [
-        Passagem(pericope: 'P00', audioUrl: '/voice/p00'),
-        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
-        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
-        Passagem(pericope: 'P04', audioUrl: '/voice/p04'),
-      ];
-      harness.voice.missing.addAll({
-        '/voice/p01',
-        '/voice/p02',
-        '/voice/p03',
-        '/voice/p04',
-      });
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      harness.voice.holdNextFetch();
-      unawaited(notifier.abrirEscolha());
-      await settle();
-      harness.voice.finishHeldFetch();
-      harness.voice.holdNextFetch();
-      await settle();
-
-      expect(
-        harness.voice.fetched,
-        ['/voice/p00', '/voice/p01'],
-        reason:
-            'p00 chega pela própria fala oferecida; a fila achou p01 '
-            'faltando e estava presa nele quando a régua se moveu',
-      );
-
-      notifier.apontarPassagem(4);
-      harness.voice.finishHeldFetch();
-      harness.voice.holdNextFetch();
-      await settle();
-
-      expect(
-        harness.voice.fetched,
-        ['/voice/p00', '/voice/p01', '/voice/p04'],
-        reason:
-            'p01 já estava em voo e terminou normalmente; a régua pousou '
-            'em p04, e é ele que a fila busca a seguir, não p02, que '
-            'seria o próximo na ordem antiga',
-      );
-
-      harness.voice.finishHeldFetch();
-      await settle();
-
-      expect(
-        harness.voice.fetched,
-        ['/voice/p00', '/voice/p01', '/voice/p04', '/voice/p02', '/voice/p03'],
-        reason:
-            'com a régua parada em p04, o resto da fila termina pela '
-            'distância até ela: p02 antes de p03',
-      );
-    },
-  );
-
-  test(
-    "a hand that enters the panorama spoke cuts the wheel's quiet download short too",
-    () async {
-      final harness = SalaHarness();
-      harness.room.passages = const [
-        Passagem(
-          pericope: 'PAN',
-          audioUrl: '/voice/pan',
-          kind: PassagemKind.panorama,
-        ),
-        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
-      ];
-      harness.voice.missing.addAll({'/voice/p01', '/voice/p02'});
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      harness.voice.holdNextFetch();
-      unawaited(notifier.abrirEscolha());
-      await settle();
-      harness.voice.finishHeldFetch();
-      harness.voice.holdNextFetch();
-      await settle();
-
-      notifier.entrarNaOferecida();
-      harness.voice.finishHeldFetch();
-      await settle();
-
-      expect(
-        harness.voice.fetched,
-        isNot(contains('/voice/p02')),
-        reason:
-            'o panorama não passa pelo _clearAll e não troca o generation; a fila '
-            'seguia baixando nomes pelo mesmo link que a abertura lenta do '
-            'panorama estava usando',
-      );
-    },
-  );
-
-  test('the row has ends, and stops at them instead of wrapping', () async {
-    final harness = SalaHarness();
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.abrirEscolha();
-    await settle();
-
-    notifier.apontarPassagem(9);
-    await settle();
-    expect(
-      container.read(salaSessionProvider).oferecida?.pericope,
-      'P03',
-      reason:
-          'a roda dava a volta porque o fim da lista era invisível; a régua '
-          'mostra as pontas, e uma ponta que teleporta o dedo desorienta',
-    );
-
-    notifier.apontarPassagem(-4);
-    await settle();
-    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P01');
-  });
-
   test('entering carries the chosen passage to the room', () async {
     final harness = SalaHarness();
     final container = harness.container();
@@ -5155,11 +4735,13 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await settle();
-    notifier.apontarPassagem(1);
-    notifier.dizerAPassagem();
-    await settle();
 
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(
+      container
+          .read(salaSessionProvider)
+          .naRoda!
+          .firstWhere((entry) => entry.pericope == 'P02'),
+    );
     await settle();
 
     expect(
@@ -5171,14 +4753,14 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
   });
 
-  test('a passage carried to the end stays on the wheel, marked', () async {
+  test('a passage carried to the end stays on the wheel', () async {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await settle();
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
     await _intoConferida(harness, notifier);
     await _aprovar(notifier);
@@ -5192,13 +4774,6 @@ void main() {
       reason:
           'a passagem terminada saía da roda e a equipe não tinha como '
           'voltar ao que trabalhou — e o registro informa, não fecha a conversa',
-    );
-    expect(
-      container.read(salaSessionProvider).feitas,
-      {'P01'},
-      reason:
-          'ficar na roda sem marca nenhuma é indistinguível de nunca ter '
-          'sido tocada, e nesta sala não há palavra escrita que diga qual é',
     );
   });
 
@@ -5759,7 +5334,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await settle();
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     notifier.ensaioTap();
@@ -6223,8 +5798,12 @@ void main() {
   test('a translation the room refused is withdrawn from the outbox when the '
       'part is recorded over', () async {
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          QueueThatFinishesLate(room: room, home: () async => home)
+      takesOverride: (room, home, recordings) =>
+          QueueThatFinishesLate(
+              room: room,
+              home: () async => home,
+              recordings: recordings,
+            )
             ..answersAfter = const Duration(milliseconds: 300)
             ..deletesTheCopyAfter = const Duration(milliseconds: 300),
     )..room.failChunkWith = const Refused('BAD_REQUEST');
@@ -6315,9 +5894,10 @@ void main() {
     );
     expect(
       harness.recorder.deleted,
-      contains(recusada),
+      isNot(contains(recusada)),
       reason:
-          'o arquivo do gravador para a tradução recusada também é descartado',
+          'ENG-1347: a tradução gravada de novo fica no tablet como histórico; '
+          'só sai da fila',
     );
     await waitFor(
       'a conta cair a zero sem ninguém pedir — o withdraw atualiza a conta '
@@ -6330,9 +5910,11 @@ void main() {
   test('leaving the passage withdraws a refused translation still parked in '
       'the outbox', () async {
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          QueueThatFinishesLate(room: room, home: () async => home)
-            ..answersAfter = const Duration(milliseconds: 300),
+      takesOverride: (room, home, recordings) => QueueThatFinishesLate(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      )..answersAfter = const Duration(milliseconds: 300),
     )..room.failChunkWith = const Refused('BAD_REQUEST');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -6453,8 +6035,11 @@ void main() {
   test('a withdraw the disk refuses is logged and dropped, no unhandled '
       'error and no false stranded line', () async {
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          QueueWithdrawThrows(room: room, home: () async => home),
+      takesOverride: (room, home, recordings) => QueueWithdrawThrows(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      ),
     )..room.failChunkWith = const Refused('BAD_REQUEST');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -6492,8 +6077,10 @@ void main() {
       () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
     );
     await waitFor(
-      'a tradução recusada entrar na fila',
-      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
+      'a tradução recusada ser guardada',
+      () async =>
+          (await harness.takes.entries()).any((e) => e.kind == 'retro') ||
+          harness.room.takesKept.any((take) => take.startsWith('retro/')),
     );
 
     final capturasAntes = harness.recorder.captures;
@@ -6741,9 +6328,10 @@ void main() {
     );
     expect(
       state.needsPerson,
-      isTrue,
+      isFalse,
       reason:
-          'gravar a passagem inteira e não sair nada é coisa para uma pessoa olhar',
+          'ENG-1347, o Definer: uma tomada que não volta é um toque acidental, '
+          'sem chamar ninguém',
     );
   });
 
@@ -6776,10 +6364,123 @@ void main() {
     );
     expect(
       state.needsPerson,
-      isTrue,
+      isFalse,
       reason:
-          'disco cheio ou microfone tomado é coisa para uma pessoa olhar, e a '
-          'equipe só descobria na quinta recusa de upload, doze minutos depois',
+          'ENG-1347: uma tomada vazia é um toque acidental, deixado de lado em '
+          'silêncio, sem chamar ninguém',
+    );
+  });
+
+  test(
+    'an accidental tap on the Rehearsal makes no part and never halts',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final personsBefore = harness.room.personsAsked;
+
+      notifier.goEnsaio();
+      final soundsBefore = harness.sounds.length;
+      harness.recorder.rehearsalSpeaks = aWavTake(
+        samples: List.filled(3200, 4000),
+      );
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
+
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.ensaio,
+        EnsaioStatus.idle,
+        reason: 'um dedo que roçou o círculo não deixa tomada para guardar',
+      );
+      notifier.takeKeep();
+      await settle();
+      expect(container.read(salaSessionProvider).partes, isEmpty);
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isFalse,
+        reason: 'um toque acidental não chama ninguém',
+      );
+      expect(harness.room.personsAsked, personsBefore);
+      expect(
+        harness.sounds
+            .skip(soundsBefore)
+            .where({'voice:line', 'voice:fixed', 'voice:asset'}.contains),
+        isEmpty,
+        reason: 'nada é falado por um dedo que roçou o círculo',
+      );
+    },
+  );
+
+  test(
+    'a Part the recorder handed back no take for is an accidental tap: no halt, '
+    'no person, nothing spoken',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final personsBefore = harness.room.personsAsked;
+
+      notifier.goEnsaio();
+      final soundsBefore = harness.sounds.length;
+      harness.recorder.returnsNothing = true;
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
+
+      final state = container.read(salaSessionProvider);
+      expect(state.ensaio, EnsaioStatus.idle);
+      expect(
+        state.needsPerson,
+        isFalse,
+        reason:
+            'o Definer: um toque duplo rápido que não deixa tomada é o toque '
+            'acidental em outra forma',
+      );
+      expect(harness.room.personsAsked, personsBefore);
+      expect(
+        harness.sounds
+            .skip(soundsBefore)
+            .where({'voice:line', 'voice:fixed', 'voice:asset'}.contains),
+        isEmpty,
+      );
+    },
+  );
+
+  test('a part recorded again before the check leaves the earlier recording on '
+      'the tablet', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    final primeira = harness.recorder.lastPath;
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    final segunda = harness.recorder.lastPath;
+    notifier.takeKeep();
+    await settle();
+
+    expect(segunda, isNot(primeira));
+    expect(
+      harness.recorder.deleted,
+      isNot(contains(primeira)),
+      reason: 'nada que a equipe gravou é apagado pelo app sem a palavra dela',
+    );
+    expect(harness.recorder.deleted, isNot(contains(segunda)));
+    expect(File(primeira!).existsSync(), isTrue);
+    expect(
+      container.read(salaSessionProvider).partes.single.path,
+      segunda,
+      reason: 'a parte guardada é a gravada de novo',
     );
   });
 
@@ -6899,11 +6600,13 @@ void main() {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
-    await _aimAtThePanorama(harness, container);
+    await _theChoiceOffersThePanorama(harness, container);
     harness.room.calls.clear();
     harness.voice.played.clear();
 
-    container.read(salaSessionProvider.notifier).entrarNaOferecida();
+    container
+        .read(salaSessionProvider.notifier)
+        .openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
 
     expect(
@@ -7140,7 +6843,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.goConversa();
+    await notifier.goConversa(book: 'Ruth');
     await settle();
 
     final state = container.read(salaSessionProvider);
@@ -7163,7 +6866,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    unawaited(notifier.goConversa());
+    unawaited(notifier.goConversa(book: 'Ruth'));
     await waitFor(
       'a sessão ser aberta',
       () => container.read(salaSessionProvider).sessionId != null,
@@ -7723,7 +7426,7 @@ void main() {
       ],
     );
     final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.goConversa();
+    await notifier.goConversa(book: 'Ruth');
     await settle();
     final room = notifier as _RoomThatKeepsAnOwnTake;
 
@@ -7973,6 +7676,7 @@ void main() {
       final queue = QueueHeldOnGiveUps(
         room: harness.room,
         home: () async => harness.takesHome,
+        recordings: () => harness.recorder,
       );
       final container = ProviderContainer(
         overrides: [
@@ -7981,7 +7685,7 @@ void main() {
         ],
       );
       final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await settle();
       notifier.goEnsaio();
       notifier.ensaioTap();
@@ -8005,7 +7709,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     harness.room.holdNextTurn();
 
-    unawaited(notifier.goConversa(pericope: 'P01'));
+    unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
     await settle();
     notifier.leaveThePassage();
     await settle();
@@ -8031,7 +7735,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       harness.room.holdNextTurn();
 
-      unawaited(notifier.goConversa(pericope: 'P01'));
+      unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
       await settle();
       notifier.leaveThePassage();
       await settle();
@@ -8127,7 +7831,9 @@ void main() {
       addTearDown(container.dispose);
       body.add([1, 2, 3]);
 
-      unawaited(container.read(salaSessionProvider.notifier).goConversa());
+      unawaited(
+        container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
+      );
       await waitFor(
         'o tocador soar',
         () => player.sounding,
@@ -8178,7 +7884,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      unawaited(container.read(salaSessionProvider.notifier).goConversa());
+      unawaited(
+        container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
+      );
       await waitFor('a fala responder', () => answered);
       await Future<void>.delayed(const Duration(milliseconds: 100));
 
@@ -8241,43 +7949,4 @@ void main() {
           'por uma linha que a equipe nunca ouviu',
     );
   });
-
-  test(
-    'a hand armed while the Guide was speaking comes back to the invite, not to a '
-    'speaking that nothing plays',
-    () async {
-      final harness = SalaHarness();
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      harness.voice.holdNextLine();
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-      expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
-
-      notifier.handTap();
-      expect(container.read(salaSessionProvider).noteMode, isTrue);
-
-      harness.voice.finishHeldLine();
-      await settle();
-      expect(container.read(salaSessionProvider).voice, VoiceState.invite);
-
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-
-      expect(harness.inbox.questionsSent, hasLength(1));
-      expect(
-        container.read(salaSessionProvider).voice,
-        VoiceState.invite,
-        reason:
-            'a voz guardada era speaking; devolvida, o círculo ficava morto '
-            '(conversaTap quebra em speaking) com nada tocando',
-      );
-    },
-  );
 }

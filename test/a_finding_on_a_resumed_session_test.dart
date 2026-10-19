@@ -47,7 +47,7 @@ Future<ProviderContainer> _retomadaNoAchado(SalaHarness harness) async {
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
-  await notifier.goConversa(pericope: 'P01');
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a tradução retomada pôr a parte no ar',
     () => container.read(salaSessionProvider).stage == SalaStage.retro,

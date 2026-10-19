@@ -1,10 +1,17 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1297 (2026-10-16: the tablet keeps no list of finished passages, and a closed passage closes its session at once)
 date: 2026-10-07
 amends: 0060
 ---
 
 # The person ladder is the runner's, and the closed-passage mark writes through the Store port
+
+Amended by ENG-1297 (the Definer, 2026-10-16): the tablet's list of finished passages is
+gone, because nothing ever read it. Nothing is marked any more: on `CloseThePassage` (the
+effect once named `MarkThePassageClosed`) the runner tells the Station at once that the
+passage of its session is closed, and the Station closes that session as before. The Store port has no write for it,
+the Station is handed no passage, and an earlier session's call is heard with its session
+only.
 
 This amends ADR 0060 without editing its decision; it adds "amended by 0065" to its status
 line. The Definer split ENG-1456 and the Orchestrator settled the mechanism on 7 October

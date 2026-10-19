@@ -112,9 +112,10 @@ Future<void> _landsOn(_Tablet tablet, String session) async {
 Future<void> _intoThePanorama(_Tablet tablet) async {
   tablet.harness.room.passages = [
     const Passagem(
-      pericope: 'panorama',
+      pericope: 'OV-Ruth',
       audioUrl: '/voice/panorama',
       kind: PassagemKind.panorama,
+      book: 'Ruth',
     ),
     ...tablet.harness.room.passages.where((entry) => !entry.isPanorama),
   ];
@@ -588,6 +589,30 @@ void main() {
       expect(
         again.harness.room.calls.skip(before),
         isNot(contains('createSession')),
+      );
+    },
+  );
+
+  test(
+    'a relaunch in a passage and then the Panorama opens the Panorama, not the '
+    'passage',
+    () async {
+      final first = await _inP01();
+      final passage = first.state.sessionId!;
+      final again = await _relaunch(first);
+      await again.notifier.openTheRoom();
+      await _landsOn(again, passage);
+
+      again.notifier.leaveThePassage();
+      await _theChoiceShowsItsWheel(again);
+      await _intoThePanorama(again);
+
+      expect(again.harness.room.pericopesAsked.last, 'OV-Ruth');
+      expect(again.state.station, isA<Panorama>());
+      expect(again.harness.room.sessionIds.last, isNot(passage));
+      expect(
+        again.harness.room.sessionsSpokenTo.last,
+        again.harness.room.sessionIds.last,
       );
     },
   );
