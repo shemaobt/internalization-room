@@ -100,6 +100,21 @@ Future<ProviderContainer> _vereditoNaFraseTres(
   return container;
 }
 
+Future<ProviderContainer> _seteFrasesConferidas(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  final container = await _seteFrasesContadas(tester, harness);
+  harness.room
+    ..verdictChecked = true
+    ..verdictFindings = const [];
+  await _terminei(tester, container, BtPhase.conferida);
+  return container;
+}
+
+const _conferida = '✓ traduzida e conferida';
+const _aprovar = 'Aprovar como rascunho final';
+
 String _barra(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
 
 List<String> _naLista(WidgetTester tester) => [
@@ -278,6 +293,79 @@ void main() {
     expect(container.read(salaSessionProvider).btTraducaoPendente, isNull);
     expect(harness.room.replacesAsked, isEmpty);
     expect(harness.room.chunksSent, pedacos);
+    closeTheRoom(container);
+  });
+
+  testWidgets('the findings screen\'s retell names its frase the same way, and '
+      'its «manter a tradução de antes» goes back to the finding', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+
+    await tocar(tester, 'Traduzir este trecho de novo');
+
+    expect(
+      find.text('traduzindo de novo a frase 3 — toquem no círculo'),
+      findsOneWidget,
+    );
+    await tocar(tester, 'manter a tradução de antes');
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.findings,
+      reason: 'voltar atrás no trecho do achado largava a equipe na tradução',
+    );
+    expect(harness.room.replacesAsked, isEmpty);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a conferida telling with frase 2 told again is no longer '
+      'conferida, until a new clean check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesConferidas(tester, harness);
+    expect(find.text(_conferida), findsOneWidget);
+
+    await tocar(tester, _barra(2));
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.frase,
+      2,
+      reason: 'na tradução conferida a frase 2 não abria para traduzir de novo',
+    );
+    await _traduzirDeNovo(tester, container);
+
+    expect(
+      find.text(_conferida),
+      findsNothing,
+      reason: 'a tela seguia dizendo conferida com a frase 2 traduzida de novo',
+    );
+    expect(byLabel(_aprovar), findsNothing);
+
+    await _terminei(tester, container, BtPhase.conferida);
+
+    expect(find.text(_conferida), findsOneWidget);
+    expect(byLabel(_aprovar), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('«manter a tradução de antes» on a conferida telling leaves it '
+      'conferida, with its approval', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesConferidas(tester, harness);
+
+    await tocar(tester, _barra(5));
+    expect(find.text(_conferida), findsNothing);
+    await tocar(tester, 'manter a tradução de antes');
+    await _passo(tester);
+
+    expect(
+      find.text(_conferida),
+      findsOneWidget,
+      reason: 'desistir de traduzir de novo tirava a tradução de conferida',
+    );
+    expect(byLabel(_aprovar), findsOneWidget);
+    expect(harness.room.replacesAsked, isEmpty);
     closeTheRoom(container);
   });
 }

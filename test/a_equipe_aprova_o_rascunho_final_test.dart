@@ -876,17 +876,17 @@ void main() {
     );
   });
 
-  testWidgets('a recusa por trecho não contado lê os nomes de volta antes de '
-      'levar a equipe', (tester) async {
+  testWidgets('a recusa por trecho não contado leva a equipe ao trecho que a '
+      'sala nomeou', (tester) async {
     final it = await _ateAConferida(tester);
 
     expect(
       _estado(it.container).btTrechos.single.segmentId,
-      isNull,
+      'trecho-1',
       reason:
-          'uma passagem que chegou a conferida num veredito limpo '
-          'carrega trechos que este tablet cortou e a sala nunca nomeou — se '
-          'já viessem nomeados, o cenário não mediria a leitura de volta',
+          'uma passagem que chegou a conferida num veredito limpo carregava '
+          'trechos que a sala nunca nomeou, e nenhuma frase dela podia ser '
+          'traduzida de novo',
     );
 
     it.harness.room

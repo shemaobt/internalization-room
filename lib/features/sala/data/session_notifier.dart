@@ -5848,6 +5848,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // it. It only showed after a correction the room made nothing of: one that lands
         // retires the name it replaces, so the pointer goes stale on its own and matches
         // nothing.
+        await _readTheStretchesBack(sessionId, generation);
+        if (_abandoned(generation) || state.needsPerson) return;
         state = state.copyWith(
           btPhase: BtPhase.conferida,
           awaitingTheGuide: false,
