@@ -5708,12 +5708,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       sessionId,
       playedByTake: _escuta.relato(state.partes),
     );
+    if (_abandoned(generation)) return;
     state = state.copyWith(btConferindo: false);
     switch (asked) {
       case Answered(value: final answer):
         verdict = answer;
       case final RoomFailure failure:
-        if (_abandoned(generation)) return;
         if (failure case NetworkFailed()) {
           _pending = _finishBackTranslation;
           _decideAt(failure, door: Door.verdict);
@@ -5722,7 +5722,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _decideTheFailure(failure);
         return;
     }
-    if (_abandoned(generation)) return;
     try {
       await _readyToSpeak(verdict.audioUrl, verdict.fixedLine);
       if (_abandoned(generation)) return;
