@@ -28,6 +28,7 @@ Future<ProviderContainer> _quatroFrasesComUmaNuance(
   WidgetTester tester,
   SalaHarness harness, {
   required int naFrase,
+  List<BtFinding> achados = const [],
 }) async {
   tester.view
     ..physicalSize = const Size(820, 2400)
@@ -54,7 +55,7 @@ Future<ProviderContainer> _quatroFrasesComUmaNuance(
   }
   harness.room
     ..verdictChecked = true
-    ..verdictFindings = const []
+    ..verdictFindings = achados
     ..verdictCheckAt = '2026-10-19T19:58:13.123456Z'
     ..verdictNamedNuance = BtFinding(
       kind: BtFindingKind.nuance,
@@ -235,6 +236,91 @@ void main() {
       harness.room.releasesAsked,
       [sessao],
       reason: 'a nuance nunca impede a aprovação da equipe',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a kept finding on the frase the verdict named a nuance on never '
+      'takes the nuance\'s colour or its «regravar» away', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComUmaNuance(
+      tester,
+      harness,
+      naFrase: 3,
+      achados: const [
+        BtFinding(
+          kind: BtFindingKind.addition,
+          frase: 3,
+          segmentId: 'trecho-3',
+        ),
+      ],
+    );
+
+    expect(
+      _borda(tester, 3),
+      ShemaBrand.azul,
+      reason:
+          'o primeiro achado da lista ganhava a frase, e a nuance sumia dela',
+    );
+    expect(_naLista(tester), isNot(contains('acrescentado')));
+    expect(byLabel('regravar a frase 3'), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a conferida tablet that stopped for a person offers no '
+      '«regravar»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComUmaNuance(
+      tester,
+      harness,
+      naFrase: 4,
+    );
+
+    container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+    await waitFor(
+      'a sala pedir uma pessoa',
+      () => container.read(salaSessionProvider).needsPerson,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    expect(
+      byLabel('regravar a frase 4'),
+      findsNothing,
+      reason:
+          'a tela parada esperando alguém seguia oferecendo um gesto da '
+          'tradução conferida',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a conferida tablet that lost the room offers no «regravar»', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComUmaNuance(
+      tester,
+      harness,
+      naFrase: 4,
+    );
+    harness.room.reachable = false;
+    harness.network.reachable = false;
+
+    await tocar(tester, 'Aprovar como rascunho final');
+    await waitFor(
+      'a sala cair no offline',
+      () => container.read(salaSessionProvider).offline,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    expect(
+      byLabel('regravar a frase 4'),
+      findsNothing,
+      reason:
+          'sem sala a tela seguia oferecendo um gesto da tradução conferida',
     );
     closeTheRoom(container);
   });
