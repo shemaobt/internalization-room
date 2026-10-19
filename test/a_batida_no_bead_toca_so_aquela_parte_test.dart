@@ -26,11 +26,27 @@ Future<void> _tocar(WidgetTester tester, String label) async {
   await tester.pump(const Duration(milliseconds: 200));
 }
 
-Future<void> _gravarEConfirmar(WidgetTester tester, String circulo) async {
+Future<void> _gravarEConfirmar(
+  WidgetTester tester,
+  ProviderContainer container,
+  SalaHarness harness,
+  String circulo,
+) async {
   await _tocar(tester, circulo);
   await _tocar(tester, _terminar);
   await _tocar(tester, _confirmar);
-  await letTheRehearsalReachTheRoom(tester);
+  final parts = container.read(salaSessionProvider).partes.length;
+  if (harness.room.refuseTake == null) {
+    await theRoomNamesTheParts(tester, container, parts: parts);
+  } else {
+    await waitFor(
+      'a sala ser pedida pela parte $parts',
+      () =>
+          harness.room.calls.where((call) => call == 'sendTake').length >=
+          parts,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+  }
 }
 
 Future<void> _ateEnsaio(
@@ -59,18 +75,16 @@ Future<ProviderContainer> _ensaioDeTresPartes(
   WidgetTester tester, {
   SalaHarness? harness,
 }) async {
-  final container = await pumpSala(
-    tester,
-    harness ?? SalaHarness(filaEmMemoria: true),
-  );
+  final room = harness ?? SalaHarness(filaEmMemoria: true);
+  final container = await pumpSala(tester, room);
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 400));
-  await _gravarEConfirmar(tester, _gravarOEnsaio);
-  await _gravarEConfirmar(tester, _gravarAProxima);
-  await _gravarEConfirmar(tester, _gravarAProxima);
+  await _gravarEConfirmar(tester, container, room, _gravarOEnsaio);
+  await _gravarEConfirmar(tester, container, room, _gravarAProxima);
+  await _gravarEConfirmar(tester, container, room, _gravarAProxima);
   return container;
 }
 
@@ -199,6 +213,26 @@ Future<ProviderContainer> _achadoNaParteDoisNaTela(
 }
 
 void main() {
+  testWidgets(
+    'the three parts are all named by the room when the helper returns, not after a clock',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..room.takeLandsAfter = const Duration(seconds: 1);
+      final container = await _ensaioDeTresPartes(tester, harness: harness);
+
+      final partes = container.read(salaSessionProvider).partes;
+      expect(partes, hasLength(3));
+      expect(
+        partes.map((parte) => parte.takeId),
+        everyElement(isNotNull),
+        reason:
+            'as partes seguiam sem nome quando o ajudante voltava, e a '
+            'batida no bead tocava uma parte que a sala ainda não tinha dado',
+      );
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets(
     'a wait for a rehearsal status that never comes fails at its deadline, '
     'not in silence',

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -312,11 +315,18 @@ void main() {
     closeTheRoom(container);
   });
 
-  Future<void> aSalaParaDeVez(WidgetTester tester, SalaHarness harness) async {
+  Future<void> aSalaParaDeVez(
+    WidgetTester tester,
+    SalaHarness harness,
+    ProviderContainer container,
+  ) async {
     harness.room.serverHalt = HaltKind.blocking;
-    for (var passo = 0; passo < 40; passo++) {
-      await tester.pump(const Duration(milliseconds: 500));
-    }
+    await waitFor(
+      'a sala parar de vez',
+      () => container.read(salaSessionProvider).needsPerson,
+      limit: const Duration(seconds: 30),
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
   }
 
   testWidgets('under a person sign the circle says the sign, not her line', (
@@ -329,7 +339,9 @@ void main() {
     await ateACapturaVazia(tester, harness);
     expect(byLabel(linha), findsWidgets);
 
-    await aSalaParaDeVez(tester, harness);
+    harness.room.holdNextState();
+    Timer(const Duration(seconds: 25), harness.room.finishHeldState);
+    await aSalaParaDeVez(tester, harness, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
     expect(rotuloDoCirculo(tester), circleLabelFor('needsPerson', 'pt'));
@@ -344,7 +356,7 @@ void main() {
     await ateACapturaVazia(tester, harness);
     expect(byLabel(linha), findsWidgets);
 
-    await aSalaParaDeVez(tester, harness);
+    await aSalaParaDeVez(tester, harness, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
     expect(byLabel(linha), findsNothing);

@@ -140,6 +140,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takeLandsAfter = const Duration(seconds: 1);
     final container = await pumpSala(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
     await sala.goConversa(book: 'Ruth', pericope: 'P01');
@@ -149,7 +150,7 @@ void main() {
     sala.ensaioTap();
     await tester.pump(const Duration(milliseconds: 100));
     sala.takeKeep();
-    await letTheRehearsalReachTheRoom(tester);
+    await theRoomNamesTheParts(tester, container, parts: 1);
     sala.startRetro();
     await tester.pump(const Duration(milliseconds: 200));
     harness.playback.at = const Duration(seconds: 10);
@@ -158,6 +159,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
+    expect(
+      container.read(salaSessionProvider).btChunkFailures,
+      isEmpty,
+      reason:
+          'a parte ainda sem nome deixava a tradução do trecho guardada na '
+          'tablet, contada como falha, em vez de seguir para a sala',
+    );
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     harness.room.failFinishWith = _a502;
