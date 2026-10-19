@@ -5115,7 +5115,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           btChunkFailures: const [],
           btClipEnded: false,
           btAviso: BtAviso.recomecada,
+          clearBtRecusa: true,
         );
+        _dispatch(const TheTranslationStartedOver());
+
         _after(
           'aviso',
           ref.read(restartLapseProvider),

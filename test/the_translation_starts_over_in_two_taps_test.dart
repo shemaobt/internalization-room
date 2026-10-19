@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -14,12 +15,24 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, settle;
+import 'the_back_translation_is_told_by_beads_test.dart'
+    show
+        cabeca,
+        conferir,
+        confirmar,
+        contarAteOFimDaParte,
+        entrarNaTraducao,
+        gravarATraducao,
+        tesoura,
+        tocar;
 import 'session_notifier_test.dart'
     show inConversaWithoutPausing, tellTwoStretches;
 
 const _recomecar = 'recomeçar a tradução';
 const _armado = 'toque de novo para apagar as 4 frases traduzidas';
 const _naoDeu = 'não deu para recomeçar agora — tentem de novo';
+const _semFrase = 'ainda não tem frase traduzida';
+const _naoEntendi = 'não entendi — traduzam de novo esse pedaço';
 const _recomecada = 'tradução recomeçada — o ensaio da passagem ficou';
 
 const _quatroFrases = [
@@ -101,6 +114,44 @@ Future<ProviderContainer> _voltaATraducao(
   );
   await _passo(tester);
   return container;
+}
+
+Future<ProviderContainer> _contadaAoVivo(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  tester.view
+    ..physicalSize = const Size(820, 2400)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final container = await entrarNaTraducao(tester, harness, partes: 1);
+  harness.playback.at = cabeca;
+  await tocar(tester, tesoura);
+  await gravarATraducao(tester);
+  await tocar(tester, confirmar);
+  await waitFor(
+    'a primeira frase chegar',
+    () => container.read(salaSessionProvider).btTrechos.length == 1,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
+  return container;
+}
+
+Future<void> _recomecarNaTela(
+  WidgetTester tester,
+  ProviderContainer container,
+  String armado,
+) async {
+  await tocar(tester, _recomecar);
+  await tester.pump(const Duration(milliseconds: 700));
+  await tocar(tester, armado);
+  await waitFor(
+    'a tradução recomeçar',
+    () => container.read(salaSessionProvider).btTrechos.isEmpty,
+    step: () => _passo(tester),
+  );
+  await tester.pump(const Duration(seconds: 7));
 }
 
 void main() {
@@ -242,6 +293,71 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  testWidgets(
+    'starting over takes the refusal of the last «terminei» off the screen',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _contadaAoVivo(tester, harness);
+      await contarAteOFimDaParte(tester, harness);
+      harness.room.verdictRefusal = CheckRefusal.nothingTranslated;
+      await tocar(tester, conferir);
+      await waitFor(
+        'a recusa voltar',
+        () => container.read(salaSessionProvider).btRecusa != null,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+      expect(find.text(_semFrase), findsOneWidget);
+
+      await _recomecarNaTela(
+        tester,
+        container,
+        'toque de novo para apagar as 2 frases traduzidas',
+      );
+
+      expect(
+        find.text(_semFrase),
+        findsNothing,
+        reason: 'a recusa de antes do recomeço voltava à tela depois da nota',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('starting over takes «não entendi» off the screen', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _contadaAoVivo(tester, harness);
+    harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
+    harness.playback.at = const Duration(seconds: 7);
+    await tester.pump(const Duration(seconds: 1));
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    await waitFor(
+      'a fala vazia voltar',
+      () => container.read(salaSessionProvider).wordlessTelling,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    expect(find.text(_naoEntendi), findsOneWidget);
+    harness.room.failChunkWith = null;
+
+    await _recomecarNaTela(
+      tester,
+      container,
+      'toque de novo para apagar as 1 frases traduzidas',
+    );
+
+    expect(
+      find.text(_naoEntendi),
+      findsNothing,
+      reason: 'o «não entendi» de antes do recomeço ficava na tela',
+    );
+    closeTheRoom(container);
+  });
 
   testWidgets('with no frase told there is nothing to start over', (
     tester,
