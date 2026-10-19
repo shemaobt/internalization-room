@@ -81,6 +81,19 @@ void main() {
     );
   });
 
+  test('choosing another Panorama at a Panorama brings the room to the one '
+      'chosen', () {
+    final (machine, _) = reduce(
+      _at(const Panorama('OV-Ruth')),
+      const ThePanoramaChosen('OV-Jonah'),
+    );
+
+    expect(
+      machine.station,
+      isA<Panorama>().having((station) => station.id, 'id', 'OV-Jonah'),
+    );
+  });
+
   test('the Menu ignores an event that is not its own', () {
     for (final event in [..._notTheirOwn, const TheNecklaceClosed()]) {
       _expectItStays(const Menu(), event, isA<Menu>());

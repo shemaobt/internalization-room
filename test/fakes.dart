@@ -1283,8 +1283,6 @@ class FakeRoom implements RoomRepository {
   /// What one book's list answers, when it fails.
   Map<String, RoomFailure> failPassagesOf = {};
 
-  int booksReads = 0;
-
   Completer<void>? _holdingOneRead;
 
   /// Hold only the next read of the Wheel; a read asked meanwhile answers at once.
@@ -1776,7 +1774,6 @@ class FakeRoom implements RoomRepository {
   @override
   Future<RoomAnswer<List<String>>> servedBooks() async {
     if (_guard('servedBooks') case final failure?) return failure;
-    booksReads++;
     return failBooksWith ?? Answered(books);
   }
 

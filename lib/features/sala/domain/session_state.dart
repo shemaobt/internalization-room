@@ -384,6 +384,14 @@ class SalaSessionState {
     return entry.isPanorama == left.panorama && entry.pericope == left.pericope;
   }
 
+  String? thePanoramaSessionOf(String book, {required String? held}) {
+    final ofTheBook = (naRoda ?? const <Passagem>[]).any(
+      (entry) =>
+          entry.isPanorama && entry.pericope == held && entry.book == book,
+    );
+    return ofTheBook ? panoramaSessionId : null;
+  }
+
   bool get rodaPorLer => stage == SalaStage.escolha && naRoda == null;
 
   /// The panorama's own spoke, when the wheel offers one, never counts as a passage the

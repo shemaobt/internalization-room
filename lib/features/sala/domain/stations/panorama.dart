@@ -10,6 +10,12 @@ final class Panorama extends Station {
   SalaStage get stage => SalaStage.panorama;
 
   @override
+  bool operator ==(Object other) => other is Panorama && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
   Station answer(StationEvent event) => switch (event) {
     TheRoomStartedOver() => const Menu(),
     ThePanoramaChosen(:final id) => Panorama(id),

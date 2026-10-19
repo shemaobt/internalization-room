@@ -2089,7 +2089,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String language,
     int generation,
   ) async {
-    final after = _thePanoramaHeldOf(book);
+    final after = state.thePanoramaSessionOf(book, held: _panoramaHeld?.id);
     final answer = await _room.createSession(
       pericope: pericope,
       afterSession: after,
@@ -2101,19 +2101,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _room.createSession(pericope: pericope, language: language);
     }
     return answer;
-  }
-
-  String? _thePanoramaHeldOf(String book) {
-    final held = _panoramaHeld;
-    final ofTheBook =
-        held != null &&
-        (state.naRoda ?? const <Passagem>[]).any(
-          (entry) =>
-              entry.isPanorama &&
-              entry.pericope == held.id &&
-              entry.book == book,
-        );
-    return ofTheBook ? state.panoramaSessionId : null;
   }
 
   void _discardTheSession() {
