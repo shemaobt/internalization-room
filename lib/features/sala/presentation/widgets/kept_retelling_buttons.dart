@@ -7,11 +7,13 @@ import '../../domain/session_snapshot.dart';
 class KeptRetellingButtons extends StatelessWidget {
   final List<KeptRetelling> parts;
   final String language;
+  final void Function(int part) onTap;
 
   const KeptRetellingButtons({
     super.key,
     required this.parts,
     required this.language,
+    required this.onTap,
   });
 
   @override
@@ -37,21 +39,28 @@ class KeptRetellingButtons extends StatelessWidget {
                     language,
                     n: index + 1,
                   ),
-                  child: Opacity(
-                    opacity: 0.75,
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: ShemaBrand.areia, width: 1.2),
-                      ),
-                      child: Text(
-                        '${index + 1}',
-                        style: const TextStyle(
-                          color: ShemaBrand.verde,
-                          fontSize: 12.5,
+                  child: GestureDetector(
+                    onTap: () => onTap(index + 1),
+                    behavior: HitTestBehavior.opaque,
+                    child: Opacity(
+                      opacity: 0.75,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: ShemaBrand.areia,
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Text(
+                          '${index + 1}',
+                          style: const TextStyle(
+                            color: ShemaBrand.verde,
+                            fontSize: 12.5,
+                          ),
                         ),
                       ),
                     ),

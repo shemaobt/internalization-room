@@ -1046,6 +1046,28 @@ class FakeRoom implements RoomRepository {
     _holdingClip = null;
   }
 
+  final List<String> keptRetellingsFetched = [];
+  Map<String, Uint8List> keptAudio = {};
+  RoomFailure? failKeptRetellingWith;
+  Completer<void>? _holdingKeptRetelling;
+
+  void holdNextKeptRetelling() => _holdingKeptRetelling = Completer<void>();
+
+  void finishHeldKeptRetelling() {
+    _holdingKeptRetelling?.complete();
+    _holdingKeptRetelling = null;
+  }
+
+  @override
+  Future<RoomAnswer<Uint8List>> fetchKeptRetelling(String url) async {
+    keptRetellingsFetched.add(url);
+    final held = _holdingKeptRetelling;
+    if (held != null) await held.future;
+    final refusal = failKeptRetellingWith;
+    if (refusal != null) return refusal;
+    return Answered(keptAudio[url] ?? Uint8List.fromList([1, 2, 3]));
+  }
+
   /// The stretches this room kept, in the order they were told. A room that forgets what
   /// it was told cannot hand a telling-back back, and cannot name the stretch a finding
   /// lands on either.

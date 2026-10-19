@@ -13,7 +13,7 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show stateReads;
 
-KeptRetelling _kept(String scope, int turn) => KeptRetelling(
+KeptRetelling aKept(String scope, int turn) => KeptRetelling(
   scope: scope,
   turnNumber: turn,
   audioUrl: 'https://storage.example/kept/$scope-$turn/conto.m4a?sig=$turn',
@@ -49,7 +49,7 @@ Future<void> _pumpUntil(
   }
 }
 
-Future<(SalaHarness, ProviderContainer)> _atRestAfterATurn(
+Future<(SalaHarness, ProviderContainer)> atRestAfterATurn(
   WidgetTester tester,
   List<KeptRetelling> kept, {
   String lingua = 'en',
@@ -91,11 +91,11 @@ void main() {
   testWidgets(
     'every scene kept shows one numbered button per scene, numbered from one',
     (tester) async {
-      await _atRestAfterATurn(tester, [
-        _kept('S3', 2),
-        _kept('S1', 4),
-        _kept('S2', 6),
-        _kept('whole', 8),
+      await atRestAfterATurn(tester, [
+        aKept('S3', 2),
+        aKept('S1', 4),
+        aKept('S2', 6),
+        aKept('whole', 8),
       ]);
 
       expect(
@@ -114,10 +114,10 @@ void main() {
   testWidgets(
     'two scenes of three kept show nothing, and a whole telling does not stand for the third',
     (tester) async {
-      final (_, container) = await _atRestAfterATurn(tester, [
-        _kept('S1', 2),
-        _kept('S2', 4),
-        _kept('whole', 6),
+      final (_, container) = await atRestAfterATurn(tester, [
+        aKept('S1', 2),
+        aKept('S2', 4),
+        aKept('whole', 6),
       ]);
 
       expect(
@@ -134,7 +134,7 @@ void main() {
   );
 
   testWidgets('no kept retelling shows no button', (tester) async {
-    await _atRestAfterATurn(tester, const []);
+    await atRestAfterATurn(tester, const []);
 
     expect(_buttons, findsNothing);
   });

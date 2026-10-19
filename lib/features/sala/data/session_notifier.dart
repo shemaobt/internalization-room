@@ -3474,6 +3474,34 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
+  void playKeptRetelling(int part) =>
+      _gesture(() => _handOff(_playKeptRetelling(part)));
+
+  Future<void> _playKeptRetelling(int part) async {
+    final take = state.partsToReplay.elementAtOrNull(part - 1);
+    final sessionId = state.sessionId;
+    if (take == null || sessionId == null) return;
+    final path = await _keptRetellingOnTheTablet(
+      'kept-$sessionId-${take.scope}-${take.turnNumber}',
+      take.audioUrl,
+    );
+    if (path == null) return;
+    _silenceTheRoom();
+    _play(PartSound(0, path));
+  }
+
+  Future<String?> _keptRetellingOnTheTablet(String name, String url) async {
+    final held = await _heldOnTheTablet(name);
+    if (held != null) return held;
+    return switch (await _room.fetchKeptRetelling(url)) {
+      Answered(:final value) when value.isNotEmpty => await _recorder.keepBytes(
+        value,
+        name,
+      ),
+      _ => null,
+    };
+  }
+
   Future<String?> _heldOnTheTablet(String name) async {
     try {
       return await _recorder.heldAs(name);

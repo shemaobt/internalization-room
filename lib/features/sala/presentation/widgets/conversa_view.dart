@@ -77,6 +77,7 @@ class ConversaView extends ConsumerWidget {
           KeptRetellingButtons(
             parts: session.partsToReplay,
             language: language,
+            onTap: notifier.playKeptRetelling,
           ),
         if (session.moment case final moment?)
           if (momentLabelFor(moment, language) case final words?)
