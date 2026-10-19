@@ -6455,8 +6455,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   bool _traduzirOTrechoDeNovo(Trecho trecho) {
-    final fase = state.btPhase;
+    final fase = _trechoTraduzidoDeNovo == null
+        ? state.btPhase
+        : _faseAntesDeTraduzirDeNovo;
     _silenceTheRoom();
+    _descartarATraducaoPendente();
     if (_armarOTrecho(trecho) == null) return false;
     _faseAntesDeTraduzirDeNovo = fase;
     state = state.copyWith(

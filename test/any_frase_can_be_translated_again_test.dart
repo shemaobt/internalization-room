@@ -622,4 +622,51 @@ void main() {
     expect(byLabel('keep the earlier translation'), findsOneWidget);
     closeTheRoom(container);
   });
+
+  testWidgets('a second frase tapped before anything is told keeps the way '
+      'back to the conferida telling', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesConferidas(tester, harness);
+
+    await tocar(tester, _barra(2));
+    await tocar(tester, _barra(5));
+    await tocar(tester, 'manter a tradução de antes');
+    await _passo(tester);
+
+    expect(
+      find.text(_conferida),
+      findsOneWidget,
+      reason: 'a segunda frase tocada apagava o caminho de volta à conferida',
+    );
+    expect(byLabel(_aprovar), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('another frase tapped while a recording waits for its ✓ lets '
+      'that recording go', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+
+    await tocar(tester, _barra(7));
+    await tocar(tester, 'Tocar para gravar a tradução de novo');
+    await tocar(tester, 'Tocar ao terminar');
+    await _passo(tester);
+    final gravada = harness.recorder.lastPath!;
+    await tocar(tester, _barra(5));
+    for (var passo = 0; passo < 10; passo++) {
+      await _passo(tester);
+    }
+
+    expect(
+      harness.recorder.deleted,
+      contains(gravada),
+      reason: 'a gravação da frase 7 ficava guardada sem ninguém a confirmar',
+    );
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.frase,
+      5,
+    );
+    expect(harness.room.replacesAsked, isEmpty);
+    closeTheRoom(container);
+  });
 }
