@@ -53,8 +53,9 @@ Future<(SalaHarness, ProviderContainer)> atRestAfterATurn(
   WidgetTester tester,
   List<KeptRetelling> kept, {
   String lingua = 'en',
+  bool watching = false,
 }) async {
-  final harness = SalaHarness(lingua: lingua)
+  final harness = SalaHarness(lingua: lingua, watchesWithoutAHalt: watching)
     ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
     ..room.nextMoment = const Moment(
       at: MomentAt.articulation,
