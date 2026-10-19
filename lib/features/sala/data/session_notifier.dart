@@ -6421,6 +6421,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
+  void traduzirAFraseDeNovo(int indice) =>
+      _gesture(() => _traduzirAFraseDeNovo(indice));
+
+  void _traduzirAFraseDeNovo(int indice) {
+    if (!state.canRetellAFrase) return;
+    if (indice < 0 || indice >= state.btTrechos.length) return;
+    final trecho = state.btTrechos[indice];
+    if (!trecho.contado || trecho.segmentId == null) return;
+    _silenceTheRoom();
+    if (_armarOTrecho(trecho) == null) return;
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      awaitingTheGuide: false,
+      btTraducaoPendente: trecho.retroPath,
+      btTraducaoEmprestada: trecho.retroPath,
+    );
+    _leadThemToTheTrecho(trecho);
+  }
+
   /// Back to the rehearsal with everything kept, to record what the story still lacks.
   ///
   /// A finding of something missing that the analyst could not place in any stretch is a

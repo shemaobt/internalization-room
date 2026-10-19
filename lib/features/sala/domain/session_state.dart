@@ -777,6 +777,14 @@ class SalaSessionState {
   bool get canListenAtConferida =>
       btPhase == BtPhase.conferida && partes.isNotEmpty;
 
+  bool get canRetellAFrase =>
+      stage == SalaStage.retro &&
+      !needsPerson &&
+      !offline &&
+      (btPhase == BtPhase.findings ||
+          btPhase == BtPhase.conferida ||
+          (btPhase == BtPhase.playing && btFindings.isNotEmpty));
+
   SalaSessionState copyWith({
     bool? awaitingTheGuide,
     LeftEntry? leftEntry,

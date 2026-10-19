@@ -103,6 +103,14 @@ class RetroView extends ConsumerWidget {
                   ? notifier.resolveWithPerson
                   : null,
             ),
+            if (_recontando(session) case final n?) ...[
+              const SizedBox(height: 12),
+              Text(
+                sceneRehearsalLabelFor('retelling', language, n: n),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.telha, fontSize: 15),
+              ),
+            ],
             if (linha != null) ...[
               const SizedBox(height: 12),
               ConstrainedBox(
@@ -164,6 +172,9 @@ class RetroView extends ConsumerWidget {
                 )
               : 1,
           onHear: aberta ? () => notifier.ouvirOTrechoContado(onde) : null,
+          onRetell: session.canRetellAFrase && trecho.segmentId != null
+              ? () => notifier.traduzirAFraseDeNovo(onde)
+              : null,
           mark: switch (_markOn(trecho.frase, session)) {
             null || BtFindingKind.nuance => null,
             final kind => retroLabelFor(kind.name, language),
@@ -194,6 +205,12 @@ class RetroView extends ConsumerWidget {
     }
     return null;
   }
+
+  int? _recontando(SalaSessionState session) =>
+      switch (session.btTrechoTraduzidoDeNovo) {
+        Trecho(contado: true, :final frase?) => frase,
+        _ => null,
+      };
 
   bool _conferida(SalaSessionState session) =>
       session.btPhase == BtPhase.conferida &&
