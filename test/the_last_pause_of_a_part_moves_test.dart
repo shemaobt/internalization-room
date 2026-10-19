@@ -315,4 +315,49 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  testWidgets(
+    'a refusal line of a moved pause leaves when «terminei» asks the check again',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesEUmAchadoNa(
+        tester,
+        harness,
+        'trecho-2',
+      );
+      harness.room.failReplaceWith = const Refused('PAUSE_PAST_THE_END');
+      await tocar(tester, depois);
+      await tocar(tester, 'Tocar para gravar a tradução de novo');
+      await tocar(tester, 'Tocar ao terminar');
+      await tocar(tester, confirmar);
+      await waitFor(
+        'a mudança cair',
+        () => container.read(salaSessionProvider).btAviso != null,
+        step: () => _passo(tester),
+      );
+      harness.room
+        ..verdictChecked = true
+        ..verdictHasFinding = false
+        ..verdictFindingSegmentId = null;
+
+      unawaited(
+        container.read(salaSessionProvider.notifier).finishBackTranslation(),
+      );
+      await waitFor(
+        'a passagem ficar conferida',
+        () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+
+      expect(
+        find.text('a pausa nova passa do fim da gravação — um pouco antes'),
+        findsNothing,
+        reason: 'a recusa da pausa ficava por cima do resultado da conferência',
+      );
+      expect(find.text('✓ traduzida e conferida'), findsOneWidget);
+      closeTheRoom(container);
+    },
+  );
 }

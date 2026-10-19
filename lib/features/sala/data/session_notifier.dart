@@ -5881,6 +5881,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _dispatch(const TheVerdictAsked());
+    state = state.copyWith(clearAviso: true);
     _silenceTheRoom();
     final sessionId = state.sessionId;
     if (sessionId == null) {
