@@ -616,6 +616,8 @@ class SalaSessionState {
     return parts.contains(null) ? const [] : [...parts.nonNulls];
   }
 
+  bool get keptRetellingsAreAway => wayOutIsHidden || noteMode;
+
   bool get warning => halt is Warning;
 
   bool get wheelHalted => switch (halt) {

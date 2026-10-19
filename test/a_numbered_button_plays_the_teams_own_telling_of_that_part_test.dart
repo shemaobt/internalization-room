@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -135,4 +136,122 @@ void main() {
       reason: 'o take já guardado era baixado a cada toque',
     );
   });
+
+  Future<void> expectItFailsQuietly(
+    WidgetTester tester,
+    SalaHarness harness,
+    ProviderContainer container,
+  ) async {
+    final soundedBefore = List.of(harness.sounds);
+    await tester.tap(byLabel('Hear how you told part 2'));
+    await _pumpUntil(
+      tester,
+      () => harness.room.keptRetellingsFetched.isNotEmpty,
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final session = container.read(salaSessionProvider);
+    expect(harness.room.keptRetellingsFetched, hasLength(1));
+    expect(
+      harness.playback.played,
+      isEmpty,
+      reason: 'um take que não chegou tocou mesmo assim',
+    );
+    expect(
+      harness.room.personsAsked,
+      0,
+      reason: 'o link vencido chamava uma pessoa para a sala',
+    );
+    expect(session.needsPerson, isFalse);
+    expect(session.unreachable, isFalse);
+    expect(session.voice, VoiceState.invite);
+    expect(
+      harness.sounds,
+      soundedBefore,
+      reason: 'a falha do take fez a sala dizer ou tocar alguma coisa',
+    );
+  }
+
+  testWidgets('a link the storage refuses plays nothing and calls nobody', (
+    tester,
+  ) async {
+    final (harness, container) = await _withThreeTellings(tester);
+    harness.room.failKeptRetellingWith = const Refused(RefusalCode.forbidden);
+
+    await expectItFailsQuietly(tester, harness, container);
+  });
+
+  testWidgets(
+    'a link that cannot be reached plays nothing and keeps the room reachable',
+    (tester) async {
+      final (harness, container) = await _withThreeTellings(tester);
+      harness.room.failKeptRetellingWith = const NetworkFailed('sem rede');
+
+      await expectItFailsQuietly(tester, harness, container);
+    },
+  );
+
+  testWidgets(
+    'a telling the tablet cannot keep plays nothing and calls nobody',
+    (tester) async {
+      final (harness, container) = await _withThreeTellings(tester);
+      harness.recorder.keepBytesFails = true;
+
+      await expectItFailsQuietly(tester, harness, container);
+    },
+  );
+
+  testWidgets(
+    'a telling that arrives after the voice began to speak plays nothing',
+    (tester) async {
+      final (harness, container) = await _withThreeTellings(tester);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.room.holdNextKeptRetelling();
+      await tester.tap(byLabel('Hear how you told part 2'));
+      await tester.pump(const Duration(milliseconds: 200));
+      harness.voice.holdNextLine();
+      notifier.conversaTap();
+      await tester.pump(const Duration(milliseconds: 300));
+      notifier.conversaTap();
+      await _pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).voice == VoiceState.speaking,
+      );
+      expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
+      final cutsBefore = harness.voice.stops;
+
+      harness.room.finishHeldKeptRetelling();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        harness.playback.played,
+        isEmpty,
+        reason: 'o take que chegou tarde tocou por cima da voz',
+      );
+      expect(harness.voice.stops, cutsBefore);
+      expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
+    },
+  );
+
+  testWidgets(
+    'a telling that arrives after the passage was left plays nothing',
+    (tester) async {
+      final (harness, container) = await _withThreeTellings(tester);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.room.holdNextKeptRetelling();
+      await tester.tap(byLabel('Hear how you told part 2'));
+      await tester.pump(const Duration(milliseconds: 200));
+      notifier.leaveThePassage();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      harness.room.finishHeldKeptRetelling();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        harness.playback.played,
+        isEmpty,
+        reason: 'o take que chegou depois da saída tocou na Escolha',
+      );
+    },
+  );
 }

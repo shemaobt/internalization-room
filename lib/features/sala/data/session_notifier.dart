@@ -3481,11 +3481,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final take = state.partsToReplay.elementAtOrNull(part - 1);
     final sessionId = state.sessionId;
     if (take == null || sessionId == null) return;
+    final generation = _waitOnTheGeneration;
     final path = await _keptRetellingOnTheTablet(
       'kept-$sessionId-${take.scope}-${take.turnNumber}',
       take.audioUrl,
     );
-    if (path == null) return;
+    if (path == null || _abandoned(generation) || state.keptRetellingsAreAway) {
+      return;
+    }
     _silenceTheRoom();
     _play(PartSound(0, path));
   }
