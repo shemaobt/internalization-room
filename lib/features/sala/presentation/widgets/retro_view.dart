@@ -184,6 +184,28 @@ class RetroView extends ConsumerWidget {
                   session.btRegravacao?.frase == trecho.frase
               ? () => notifier.regravarAFrase(trecho)
               : null,
+          revisao:
+              session.btRegravacao?.frase == trecho.frase &&
+                  session.btRegravacao?.passo == PassoDaRegravacao.revendo
+              ? FraseRevisao(
+                  ouvir: sceneRehearsalLabelFor(
+                    'listenN',
+                    language,
+                    n: trecho.frase,
+                  ),
+                  onOuvir: notifier.ouvirAFraseGravada,
+                  gravarDeNovo: sceneRehearsalLabelFor('recordAgain', language),
+                  onGravarDeNovo: notifier.gravarAFraseDeNovo,
+                  usarEsta: sceneRehearsalLabelFor('useTake', language),
+                  onUsarEsta: notifier.usarEstaFrase,
+                )
+              : null,
+          estado: switch (session.btRegravacao) {
+            RegravacaoDaFrase(:final frase, passo: PassoDaRegravacao.enviando)
+                when frase == trecho.frase =>
+              sceneRehearsalLabelFor('takeSending', language),
+            _ => null,
+          },
         ),
     ];
   }

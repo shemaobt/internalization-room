@@ -5507,6 +5507,101 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
+  Future<void> _fecharAFrase(int frase) async {
+    final generation = _waitOnTheGeneration;
+    final path = (await _closeTheMicrophone()).take;
+    if (_abandoned(generation)) return;
+    if (path == null || _anAccidentalTap(path)) {
+      if (path != null) unawaited(_recorder.delete(path));
+      state = state.copyWith(
+        btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.pronta),
+      );
+      return;
+    }
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    final guardada = await _takes.enqueue(
+      File(path),
+      sessionId: sessionId,
+      kind: sentenceKind,
+      scope: '$frase',
+    );
+    if (_abandoned(generation)) return;
+    _fraseNaFila = guardada;
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(
+        frase,
+        PassoDaRegravacao.revendo,
+        path: path,
+      ),
+    );
+  }
+
+  PendingTake? _fraseNaFila;
+
+  void usarEstaFrase() => _gesture(() => _handOff(_usarEstaFrase()));
+
+  Future<void> _usarEstaFrase() async {
+    final guardada = _fraseNaFila;
+    if (state.btRegravacao?.passo != PassoDaRegravacao.revendo ||
+        guardada == null) {
+      return;
+    }
+    _silenceTheRoom();
+    await _enviarAFrase(guardada);
+  }
+
+  Future<void> _enviarAFrase(PendingTake guardada) async {
+    final frase = int.parse(guardada.scope);
+    final generation = _waitOnTheGeneration;
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(
+        frase,
+        PassoDaRegravacao.enviando,
+        path: guardada.path,
+      ),
+    );
+    var nome = _aFrase(frase)?.segmentId;
+    if (nome == null) {
+      await _readTheStretchesBack(guardada.sessionId, generation);
+      if (_abandoned(generation)) return;
+      nome = _aFrase(frase)?.segmentId;
+    }
+    if (nome == null) return;
+    await _room.reRecordTheSentence(
+      guardada.sessionId,
+      nome,
+      File(guardada.path),
+      sentenceId: guardada.id,
+    );
+  }
+
+  Trecho? _aFrase(int frase) =>
+      state.btTrechos.where((trecho) => trecho.frase == frase).firstOrNull;
+
+  void ouvirAFraseGravada() => _gesture(() {
+    final path = state.btRegravacao?.path;
+    if (path == null) return;
+    _silenceTheRoom();
+    void quiet() => unawaited(_playback.stop());
+    _play(StretchSound(path), onComplete: quiet, onFailed: quiet);
+  });
+
+  void gravarAFraseDeNovo() => _gesture(() {
+    final regravacao = state.btRegravacao;
+    if (regravacao == null || regravacao.passo != PassoDaRegravacao.revendo) {
+      return;
+    }
+    _silenceTheRoom();
+    if (regravacao.path case final path?) unawaited(_recorder.delete(path));
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(
+        regravacao.frase,
+        PassoDaRegravacao.pronta,
+      ),
+    );
+  });
+
   int _regravacoes = 0;
 
   bool _regravouNestaVisita = false;
@@ -5526,6 +5621,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.needsPerson) return;
+    if (state.btRegravacao case final regravacao?) {
+      switch (regravacao.passo) {
+        case PassoDaRegravacao.pronta:
+          _silenceTheRoom();
+          state = state.copyWith(
+            btRegravacao: RegravacaoDaFrase(
+              regravacao.frase,
+              PassoDaRegravacao.gravando,
+            ),
+          );
+          _dispatch(
+            MicOpened(
+              MicOwner.rehearsal,
+              take: 'frase_${regravacao.frase}_${_stamp()}',
+              generation: _generation,
+            ),
+          );
+        case PassoDaRegravacao.gravando:
+          _handOff(_fecharAFrase(regravacao.frase));
+        case PassoDaRegravacao.ouvindo ||
+            PassoDaRegravacao.revendo ||
+            PassoDaRegravacao.enviando ||
+            PassoDaRegravacao.longaDemais:
+          break;
+      }
+      return;
+    }
     switch (state.btPhase) {
       case BtPhase.playing:
         _abrirACaptura();

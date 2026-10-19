@@ -21,6 +21,8 @@ const takeUploadAttempts = 5;
 
 const sceneTakeKind = 'cena';
 
+const sentenceKind = 'frase';
+
 const largestTakeTheRoomKeeps = 25 * 1024 * 1024;
 
 typedef OutboxTally = ({

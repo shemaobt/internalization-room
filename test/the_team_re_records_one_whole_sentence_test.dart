@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
@@ -252,6 +255,114 @@ void main() {
     await regravarAte(tester, harness, 3);
 
     expect(harness.voice.fixedLines, [('N6', 'pt'), ('N7', 'pt')]);
+    closeTheRoom(container);
+  });
+
+  Finder pista() => find.descendant(
+    of: find.byType(RetroView),
+    matching: find.text('gravem a frase inteira'),
+  );
+
+  Finder naLinha(String texto) =>
+      find.descendant(of: find.byType(FraseList), matching: find.text(texto));
+
+  testWidgets('the circle records the whole sentence, and a sentence kept '
+      'opens its review on the row', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await regravarAte(tester, harness, 3);
+
+    await _tocarOCirculo(tester);
+
+    expect(harness.recorder.lastOwner, MicOwner.rehearsal);
+    harness.recorder.rehearsalSpeaks = aSpokenWav(
+      length: const Duration(seconds: 2),
+    );
+    await _tocarOCirculo(tester);
+    await _passo(tester);
+    final gravada = harness.recorder.lastPath;
+
+    expect(_naLista('Ouvir — 3'), findsOneWidget);
+    expect(naLinha('gravar de novo'), findsOneWidget);
+    expect(naLinha('usar esta'), findsOneWidget);
+    expect(pista(), findsNothing);
+
+    await tocar(tester, 'Ouvir — 3');
+    expect(
+      harness.playback.played.last,
+      gravada,
+      reason: 'a equipe não podia ouvir a frase que acabou de gravar',
+    );
+
+    await tester.tap(naLinha('gravar de novo'));
+    await _passo(tester);
+
+    expect(naLinha('usar esta'), findsNothing);
+    expect(pista(), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap shorter than a third of a second is an accident and '
+      'opens no review', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await regravarAte(tester, harness, 3);
+    await _tocarOCirculo(tester);
+    harness.recorder.rehearsalSpeaks = aSpokenWav(
+      length: const Duration(milliseconds: 200),
+    );
+
+    await _tocarOCirculo(tester);
+    await _passo(tester);
+
+    expect(
+      naLinha('usar esta'),
+      findsNothing,
+      reason: 'um toque sem querer virava uma frase para enviar',
+    );
+    expect(pista(), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  Future<void> gravarAFrase(
+    WidgetTester tester,
+    SalaHarness harness,
+    int n, {
+    Duration dura = const Duration(seconds: 2),
+  }) async {
+    await regravarAte(tester, harness, n);
+    await _tocarOCirculo(tester);
+    harness.recorder.rehearsalSpeaks = aSpokenWav(length: dura);
+    await _tocarOCirculo(tester);
+    await _passo(tester);
+  }
+
+  testWidgets('«usar esta» sends the sentence under the id its recording was '
+      'kept by, and the row says «enviando…» while it is in the air', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room.holdTheSentence = Completer<void>();
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+
+    final guardada = (harness.takes as FakeTakeQueue).rows.singleWhere(
+      (row) => row.kind == 'frase',
+    );
+    expect(harness.room.sentencesSent, [
+      (sentenceId: guardada.id, segmentId: 'trecho-3'),
+    ]);
+    expect(
+      naLinha('enviando…'),
+      findsOneWidget,
+      reason: 'a frase ia para a sala sem a equipe ver que estava indo',
+    );
+    harness.room.holdTheSentence!.complete();
+    await _passo(tester);
     closeTheRoom(container);
   });
 }
