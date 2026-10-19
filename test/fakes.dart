@@ -998,6 +998,7 @@ class FakeRoom implements RoomRepository {
   bool reachable = true;
   Coverage nextCoverage = coverage();
   Moment? nextMoment;
+  List<KeptRetelling> keptRetellings = const [];
 
   Coverage? settledCoverage;
   bool peerCue = false;
@@ -1043,6 +1044,28 @@ class FakeRoom implements RoomRepository {
   void finishHeldClip() {
     _holdingClip?.complete();
     _holdingClip = null;
+  }
+
+  final List<String> keptRetellingsFetched = [];
+  Map<String, Uint8List> keptAudio = {};
+  RoomFailure? failKeptRetellingWith;
+  Completer<void>? _holdingKeptRetelling;
+
+  void holdNextKeptRetelling() => _holdingKeptRetelling = Completer<void>();
+
+  void finishHeldKeptRetelling() {
+    _holdingKeptRetelling?.complete();
+    _holdingKeptRetelling = null;
+  }
+
+  @override
+  Future<RoomAnswer<Uint8List>> fetchKeptRetelling(String url) async {
+    keptRetellingsFetched.add(url);
+    final held = _holdingKeptRetelling;
+    if (held != null) await held.future;
+    final refusal = failKeptRetellingWith;
+    if (refusal != null) return refusal;
+    return Answered(keptAudio[url] ?? Uint8List.fromList([1, 2, 3]));
   }
 
   /// The stretches this room kept, in the order they were told. A room that forgets what
@@ -1189,6 +1212,8 @@ class FakeRoom implements RoomRepository {
   List<BtFinding> verdictFindings = const [];
   CheckRefusal? verdictRefusal;
   String verdictFixedLine = '';
+  String? verdictCheckAt;
+  BtFinding? verdictNamedNuance;
   String? serverStatus;
 
   /// Which kind of halt the room reports beside `serverStatus`. A server older than
@@ -1843,6 +1868,7 @@ class FakeRoom implements RoomRepository {
         halt: serverHalt,
         opened: openedSessions.contains(sessionId),
         moment: nextMoment,
+        keptRetellings: keptRetellings,
         backTranslation:
             retroSoFar ?? BackTranslationProgress(segments: _numbered),
       ),
@@ -2392,8 +2418,23 @@ class FakeRoom implements RoomRepository {
         findings: verdictFindings,
         findingsRemaining: verdictHasFinding ? 1 : 0,
         usedFailSafe: verdictUsedFailSafe,
+        checkAt: verdictCheckAt,
+        namedNuance: verdictNamedNuance,
       ),
     );
+  }
+
+  final List<String> heardStamps = [];
+
+  RoomFailure? failHeardWith;
+
+  @override
+  Future<RoomAnswer<void>> reportTheVerdictHeard(
+    String sessionId,
+    String at,
+  ) async {
+    heardStamps.add(at);
+    return failHeardWith ?? const Answered<void>(null);
   }
 
   /// Every session the team's approval was sent for, in order.

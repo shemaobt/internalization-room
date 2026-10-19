@@ -599,6 +599,18 @@ class RoomRepository {
     asksForTheSession: true,
   );
 
+  Future<RoomAnswer<void>> reportTheVerdictHeard(String sessionId, String at) =>
+      _room.ask(
+        () => _client.post(
+          _uri('/sessions/$sessionId/back-translation/heard'),
+          headers: _headers,
+          body: jsonEncode({'at': at}),
+        ),
+        timeout: _stateTimeout,
+        read: readJson((_) {}),
+        asksForTheSession: false,
+      );
+
   Future<RoomAnswer<String>> fixedLineAddress(
     String line, {
     required String language,
@@ -614,6 +626,13 @@ class RoomRepository {
 
   Future<RoomAnswer<Uint8List>> fetchClip(String url) => _room.ask(
     () => _client.get(Uri.parse('${Env.backendUrl}$url'), headers: _whoWeAre),
+    timeout: _longCallTimeout,
+    read: (response) => response.bodyBytes,
+    asksForTheSession: false,
+  );
+
+  Future<RoomAnswer<Uint8List>> fetchKeptRetelling(String url) => _room.ask(
+    () => _client.get(Uri.parse(url)),
     timeout: _longCallTimeout,
     read: (response) => response.bodyBytes,
     asksForTheSession: false,

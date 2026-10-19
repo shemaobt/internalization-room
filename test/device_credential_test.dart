@@ -42,6 +42,9 @@ final Map<String, _Request> _everyClaimDoor = {
   'askForACode': (room, _) => room.askForACode('aparelho-1'),
   'readTheLink': (room, _) => room.readTheLink('aparelho-1'),
   'collectTheCredential': (room, _) => room.collectTheCredential('aparelho-1'),
+  'fetchKeptRetelling': (room, _) => room.fetchKeptRetelling(
+    'https://storage.example/kept/aa/conto.m4a?sig=1',
+  ),
 };
 
 /// Every other way the room touches the network, named as the app names it.
@@ -98,6 +101,8 @@ final Map<String, _Request> _everyRequest = {
   'personArrived': (room, _) => room.personArrived('sessao-1'),
   'finishBackTranslation': (room, _) =>
       room.finishBackTranslation('sessao-1', playedByTake: const []),
+  'reportTheVerdictHeard': (room, _) =>
+      room.reportTheVerdictHeard('sessao-1', '2026-10-19T19:58:13.123456Z'),
   'fixedLineAddress': (room, _) => room.fixedLineAddress('F0', language: 'pt'),
   'fetchClip': (room, _) => room.fetchClip('/voice/p01'),
   'openClip': (room, _) => room.openClip('/voice/p01', from: 3, ifRange: 'e1'),

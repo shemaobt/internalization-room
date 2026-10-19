@@ -29,10 +29,7 @@ class RetroView extends ConsumerWidget {
     // network: the team got a green circle, two buttons the guards refuse, no way out of
     // the passage, and nothing at all saying why. It cost nothing while conferida lasted
     // 700 ms; it is where the team now waits.
-    final conferida =
-        session.btPhase == BtPhase.conferida &&
-        !session.needsPerson &&
-        !session.offline;
+    final conferida = _conferida(session);
 
     final avanca =
         session.btPhase != BtPhase.findings &&
@@ -168,9 +165,19 @@ class RetroView extends ConsumerWidget {
               : 1,
           onHear: aberta ? () => notifier.ouvirOTrechoContado(onde) : null,
           mark: switch (_markOn(trecho.frase, session)) {
-            final kind? => retroLabelFor(kind.name, language),
-            null => null,
+            null || BtFindingKind.nuance => null,
+            final kind => retroLabelFor(kind.name, language),
           },
+          nuance: _markOn(trecho.frase, session) == BtFindingKind.nuance,
+          regravar:
+              _conferida(session) &&
+                  _markOn(trecho.frase, session) == BtFindingKind.nuance
+              ? sceneRehearsalLabelFor(
+                  'rerecordFrase',
+                  language,
+                  n: trecho.frase,
+                )
+              : null,
         ),
     ];
   }
@@ -189,13 +196,16 @@ class RetroView extends ConsumerWidget {
     if (session.wordlessTelling) {
       return retroLabelFor('notUnderstood', language);
     }
-    if (session.btPhase == BtPhase.conferida &&
-        !session.needsPerson &&
-        !session.offline) {
+    if (_conferida(session)) {
       return '✓ ${retroLabelFor('translated', language)}';
     }
     return null;
   }
+
+  bool _conferida(SalaSessionState session) =>
+      session.btPhase == BtPhase.conferida &&
+      !session.needsPerson &&
+      !session.offline;
 
   BtFindingKind? _markOn(int? frase, SalaSessionState session) {
     if (frase == null) return null;

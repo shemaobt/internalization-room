@@ -4,6 +4,7 @@ import 'halt.dart';
 import 'machine.dart';
 import 'spoken_line.dart';
 import 'room_reach.dart';
+import 'session_snapshot.dart';
 import 'coverage.dart';
 import 'hand_reply.dart';
 import 'kept_take.dart';
@@ -224,6 +225,7 @@ class SalaSessionState {
   final String? pericope;
   final Coverage coverage;
   final Moment? moment;
+  final List<KeptRetelling> keptRetellings;
 
   final bool peerCue;
   final bool noteMode;
@@ -333,6 +335,7 @@ class SalaSessionState {
     this.pericope,
     this.coverage = Coverage.empty,
     this.moment,
+    this.keptRetellings = const [],
     this.peerCue = false,
     this.noteMode = false,
     this.replies = const [],
@@ -614,6 +617,16 @@ class SalaSessionState {
     };
   }
 
+  List<KeptRetelling> get partsToReplay {
+    final kept = {for (final take in keptRetellings) take.scope: take};
+    final parts = [
+      for (var part = 1; part <= (moment?.parts ?? 0); part++) kept['S$part'],
+    ];
+    return parts.contains(null) ? const [] : [...parts.nonNulls];
+  }
+
+  bool get keptRetellingsAreAway => wayOutIsHidden || noteMode;
+
   bool get warning => halt is Warning;
 
   bool get wheelHalted => switch (halt) {
@@ -784,6 +797,7 @@ class SalaSessionState {
     Coverage? coverage,
     Moment? moment,
     bool clearMoment = false,
+    List<KeptRetelling>? keptRetellings,
     bool? peerCue,
     bool? noteMode,
     List<HandReply>? replies,
@@ -851,6 +865,7 @@ class SalaSessionState {
       pericope: clearSession ? null : (pericope ?? this.pericope),
       coverage: coverage ?? this.coverage,
       moment: clearMoment ? null : (moment ?? this.moment),
+      keptRetellings: keptRetellings ?? this.keptRetellings,
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
       replies: replies ?? this.replies,

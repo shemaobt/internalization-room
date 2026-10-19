@@ -1169,6 +1169,40 @@ void main() {
     },
   );
 
+  test(
+    'a verdict heard to its end is reported with the round\'s stamp exactly as the room gave it',
+    () async {
+      http.BaseRequest? seen;
+      String? seenBody;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          seenBody = request.body;
+          return http.Response(jsonEncode({'marked': true}), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      await repository.reportTheVerdictHeard(
+        'sessao-1',
+        '2026-10-19T19:58:13.123456Z',
+      );
+
+      expect(
+        seen?.url.path,
+        '/api/internalization-room/sessions/sessao-1/back-translation/heard',
+      );
+      expect(seen?.method, 'POST');
+      expect(
+        seenBody == null ? null : jsonDecode(seenBody!),
+        {'at': '2026-10-19T19:58:13.123456Z'},
+        reason:
+            'a sala casa a rodada pelo carimbo até o milissegundo e com o fuso; '
+            'um carimbo refeito no aparelho perdia o fuso e caía num 404',
+      );
+    },
+  );
+
   group('a aprovação da equipe', () {
     const aparelho = 'aparelho-de-teste';
 
