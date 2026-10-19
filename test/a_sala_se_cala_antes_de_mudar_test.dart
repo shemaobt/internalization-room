@@ -267,7 +267,6 @@ const _matrizDaRetro = [
   'a parte não ouvida',
   'o trecho não contado',
   'deixar a passagem',
-  'continuar o ensaio',
   'gravar a parte de novo',
   'gravar a parte de novo, sem parte',
 ];
@@ -491,13 +490,6 @@ void main() {
       await waitFor(
         'a roda abrir',
         () => _estado(cena).stage == SalaStage.escolha,
-      );
-    }),
-    _linha('continuar o ensaio', _nosAchadosComOTrechoNoAr, (cena) async {
-      cena.sala.continuarOEnsaio();
-      await waitFor(
-        'a equipe voltar ao ensaio',
-        () => _estado(cena).stage == SalaStage.ensaio,
       );
     }),
     _linha('gravar a parte de novo', _nosAchadosComOTrechoNoAr, (cena) async {

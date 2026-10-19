@@ -932,4 +932,43 @@ void main() {
     expect(circulo.semanticLabel, 'gravem a frase inteira');
     closeTheRoom(container);
   });
+
+  testWidgets('a missing element placed after frase 2 leads to the frase\'s '
+      'retelling and to «regravar» on every row, the two paths of her voice', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    harness.room
+      ..verdictChecked = false
+      ..verdictFindingSegmentId = 'trecho-3'
+      ..verdictFindings = const [
+        BtFinding(kind: BtFindingKind.missing, frase: 2, segmentId: 'trecho-3'),
+      ];
+
+    await tocar(tester, 'terminei');
+    await waitFor(
+      'o achado chegar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      aceso(tester, 'Traduzir este trecho de novo'),
+      isTrue,
+      reason: 'o caminho de traduzir de novo, se X está no áudio, sumia',
+    );
+    for (var n = 1; n <= 4; n++) {
+      expect(
+        _acesa(tester, 'regravar a frase $n'),
+        isTrue,
+        reason:
+            'o caminho de regravar inteira a frase onde X cabe não estava '
+            'na linha',
+      );
+    }
+    expect(find.text('Continuar o ensaio'), findsNothing);
+    closeTheRoom(container);
+  });
 }

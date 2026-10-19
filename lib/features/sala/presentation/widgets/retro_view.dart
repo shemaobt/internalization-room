@@ -268,20 +268,6 @@ class RetroView extends ConsumerWidget {
     String language,
     bool avanca,
   ) {
-    if (session.btPhase == BtPhase.findings &&
-        session.btFindingTrecho == null) {
-      return FadeUp(
-        child: RoundActionButton(
-          size: 78,
-          semanticLabel: findingLabelFor('continue', language),
-          gradient: BeadStyles.wood,
-          shadows: RoundActionButton.dropShadow,
-          halo: ShemaBrand.wood,
-          mood: ButtonMood.beckoning,
-          onTap: notifier.continuarOEnsaio,
-        ),
-      );
-    }
     if (!avanca) return null;
     final terminei = retroLabelFor(
       session.btConferindo ? 'checking' : 'advance',

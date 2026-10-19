@@ -363,9 +363,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('F4 — a falta sem endereço leva ao ensaio, numa parte nova', (
-    tester,
-  ) async {
+  testWidgets('F4 — a falta sem endereço não leva ao ensaio, e nada se grava '
+      'depois da última frase', (tester) async {
     tester.view
       ..physicalSize = const Size(820, 1180)
       ..devicePixelRatio = 1;
@@ -391,21 +390,14 @@ void main() {
       tester.getTopLeft(byLabel(ouvirOTrechoEATraducao)),
       const Offset(296, 473),
     );
-    expect(aceso(tester, continuarOEnsaio), isTrue);
-    expect(tester.getSize(byLabel(continuarOEnsaio)), const Size(78, 78));
     expect(
-      tester.getTopLeft(byLabel(continuarOEnsaio)),
-      const Offset(371, 877),
+      byLabel(continuarOEnsaio),
+      findsNothing,
+      reason:
+          'o disco levava a equipe a gravar mais depois da última frase, o '
+          'caminho que a regra de 21 de setembro tirou',
     );
-
-    final partes = estadoDe(container).partes.length;
-    await tocar(tester, continuarOEnsaio);
-    await tester.pump(const Duration(milliseconds: 200));
-
-    final depois = estadoDe(container);
-    expect(depois.stage, SalaStage.ensaio);
-    expect(depois.partes, hasLength(partes));
-    expect(byLabel('Tocar para gravar a próxima parte'), findsOneWidget);
+    expect(estadoDe(container).stage, SalaStage.retro);
     closeTheRoom(container);
   });
 
@@ -457,14 +449,14 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('F6b — o disco da falta sem endereço fala a língua da sala', (
+  testWidgets('F6b — a falta sem endereço não tem disco em língua nenhuma', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await aHistoriaSemOFim(tester, harness);
     await abrirOAchado(tester);
 
-    expect(byLabel('Continue the rehearsal'), findsOneWidget);
+    expect(byLabel('Continue the rehearsal'), findsNothing);
     closeTheRoom(container);
   });
 }

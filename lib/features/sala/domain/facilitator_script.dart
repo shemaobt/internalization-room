@@ -404,7 +404,6 @@ const findingLabels = {
     'pt': 'Traduzir este trecho de novo',
     'en': 'Translate this stretch again',
   },
-  'continue': {'pt': 'Continuar o ensaio', 'en': 'Continue the rehearsal'},
 };
 
 String findingLabelFor(String control, String language) =>

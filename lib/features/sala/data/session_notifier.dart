@@ -5510,12 +5510,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     _tocarOTrecho(trecho, depois: ouviu);
-    final teto = Timer(
+    _after(
+      'frase',
       trecho.to - trecho.from + ref.read(sentenceGraceProvider),
       ouviu,
     );
     await ouvida.future;
-    teto.cancel();
+    _timers.remove('frase')?.cancel();
     if (largada()) return;
     _silenceTheRoom();
     if (primeira) {
@@ -6839,20 +6840,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btTraducaoPendente: trecho.retroPath,
       btTraducaoEmprestada: trecho.retroPath,
     );
-  }
-
-  /// Back to the rehearsal with everything kept, to record what the story still lacks.
-  ///
-  /// A finding of something missing that the analyst could not place in any stretch is a
-  /// passage whose stretches are right and whose end was never recorded. Nothing is asked
-  /// of the room here, because the stretches are still the session's, and the takes stay,
-  /// so the team records more and the next telling-back starts where the told ground
-  /// ends.
-  void continuarOEnsaio() => _gesture(() => _continuarOEnsaio());
-
-  void _continuarOEnsaio() {
-    if (state.btPhase != BtPhase.findings) return;
-    _voltarAoEnsaio();
   }
 
   /// Back to the rehearsal to record one part again, in the place that part already has.
