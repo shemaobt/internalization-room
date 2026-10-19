@@ -278,4 +278,41 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'a refused move whose read-back finds no network takes the room out of reach',
+    (tester) async {
+      final harness = SalaHarness(
+        filaEmMemoria: true,
+        retryBackoff: const [Duration(minutes: 1)],
+      )..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesEUmAchadoNa(
+        tester,
+        harness,
+        'trecho-2',
+      );
+      harness.room
+        ..failReplaceWith = const Refused('PAUSE_PAST_THE_END')
+        ..failStateOnceWith = const NetworkFailed('sem rede');
+
+      await tocar(tester, depois);
+      await tocar(tester, 'Tocar para gravar a tradução de novo');
+      await tocar(tester, 'Tocar ao terminar');
+      await tocar(tester, confirmar);
+      await waitFor(
+        'a mudança cair',
+        () =>
+            container.read(salaSessionProvider).btTrechoTraduzidoDeNovo == null,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+
+      expect(
+        container.read(salaSessionProvider).unreachable,
+        isTrue,
+        reason: 'a leitura das frases caía calada e a sala se dizia ao alcance',
+      );
+      closeTheRoom(container);
+    },
+  );
 }

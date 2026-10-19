@@ -23,6 +23,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         contarAteOFimDaParte,
         entrarNaTraducao,
         gravarATraducao,
+        ouvir,
         tesoura,
         tocar;
 import 'session_notifier_test.dart'
@@ -414,6 +415,139 @@ void main() {
       );
       harness.room.finishHeldChunk();
       await _passo(tester);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'the marks of the last check leave with the frases, and the new frase 1 carries none',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _contadaAoVivo(tester, harness);
+      await contarAteOFimDaParte(tester, harness);
+      harness.room
+        ..verdictChecked = false
+        ..verdictHasFinding = true
+        ..verdictFindingSegmentId = 'trecho-1'
+        ..verdictFindings = const [
+          BtFinding(
+            kind: BtFindingKind.addition,
+            frase: 1,
+            segmentId: 'trecho-1',
+          ),
+        ];
+      await tocar(tester, conferir);
+      await waitFor(
+        'a marca chegar',
+        () => container.read(salaSessionProvider).btFindings.isNotEmpty,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+      expect(find.text('acrescentado'), findsOneWidget);
+
+      await _recomecarNaTela(
+        tester,
+        container,
+        'toque de novo para apagar as 2 frases traduzidas',
+      );
+      harness.playback.at = cabeca;
+      await tester.pump(const Duration(seconds: 1));
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      await tocar(tester, confirmar);
+      await waitFor(
+        'a nova frase 1 chegar',
+        () => container.read(salaSessionProvider).btTrechos.length == 1,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+
+      expect(
+        find.text('acrescentado'),
+        findsNothing,
+        reason: 'a marca da conferência de antes caía na nova frase 1',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'an arm left when the telling is entered again goes with it, never stays armed',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+
+      await tester.tap(byLabel(_recomecar));
+      await _passo(tester);
+      container.read(salaSessionProvider.notifier).startRetro();
+      await waitFor(
+        'a tradução abrir de novo',
+        () => container.read(salaSessionProvider).btPhase == BtPhase.playing,
+        step: () => _passo(tester),
+      );
+      await tester.pump(const Duration(seconds: 7));
+
+      expect(
+        container.read(salaSessionProvider).btRecomeco,
+        isNull,
+        reason: 'o recomeço ficava armado para sempre depois de sair e voltar',
+      );
+      expect(find.text(_recomecar), findsOneWidget);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'her failure line leaves on the next tap of the button and when a frase is told',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _contadaAoVivo(tester, harness);
+      harness.room.failRestartWith = const Refused('HTTP_409');
+      await tocar(tester, _recomecar);
+      await tester.pump(const Duration(milliseconds: 700));
+      await tocar(tester, 'toque de novo para apagar as 1 frases traduzidas');
+      await waitFor(
+        'a sala recusar o recomeço',
+        () => container.read(salaSessionProvider).btAviso != null,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+      expect(find.text(_naoDeu), findsOneWidget);
+
+      await tocar(tester, _recomecar);
+      expect(
+        find.text(_naoDeu),
+        findsNothing,
+        reason: 'a falha de antes ficava escrita por cima do botão armado',
+      );
+
+      await tester.pump(const Duration(seconds: 7));
+      await tocar(tester, _recomecar);
+      await tester.pump(const Duration(milliseconds: 700));
+      await tocar(tester, 'toque de novo para apagar as 1 frases traduzidas');
+      await waitFor(
+        'a sala recusar de novo',
+        () => container.read(salaSessionProvider).btAviso != null,
+        step: () => _passo(tester),
+      );
+      await tocar(tester, ouvir);
+      harness.playback.at = const Duration(seconds: 7);
+      await tester.pump(const Duration(seconds: 1));
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      await tocar(tester, confirmar);
+      await waitFor(
+        'a segunda frase chegar',
+        () => container.read(salaSessionProvider).btTrechos.length == 2,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+
+      expect(
+        find.text(_naoDeu),
+        findsNothing,
+        reason: 'a falha do recomeço ficava na tela a passagem inteira',
+      );
       closeTheRoom(container);
     },
   );

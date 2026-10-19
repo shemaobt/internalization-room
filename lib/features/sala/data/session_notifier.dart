@@ -567,6 +567,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearLastSpoken: true,
       roomSaysItAgain: false,
       clearParteARegravar: true,
+      clearRecomeco: true,
     );
     _silenceTheRoom();
     _dispatch(const MicDiscarded());
@@ -5083,7 +5084,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.btRecomeco == null) {
-      state = state.copyWith(btRecomeco: BtRecomeco.armado);
+      state = state.copyWith(btRecomeco: BtRecomeco.armado, clearAviso: true);
       _after('recomecoPronto', ref.read(restartWakeProvider), () {
         if (state.btRecomeco != BtRecomeco.armado) return;
         state = state.copyWith(btRecomeco: BtRecomeco.pronto);
@@ -5114,7 +5115,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(
           btTrechos: _trechosFrom(segmentos),
           btFindings: const [],
-          btConferindo: false,
           clearTrechoTraduzidoDeNovo: true,
           btChunkFailures: const [],
           btClipEnded: false,
@@ -5474,9 +5474,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sent = ++_readsSent;
     final lido = await _room.fetchState(sessionId);
     if (_abandoned(generation)) return;
-    if (lido case Answered(value: final snapshot)) {
-      _theStretchIsGone(snapshot.backTranslation.segments);
-      _applyTheSessionRead(snapshot, sent);
+    switch (lido) {
+      case Answered(value: final snapshot):
+        _theStretchIsGone(snapshot.backTranslation.segments);
+        _applyTheSessionRead(snapshot, sent);
+      case final RoomFailure failure:
+        _decideAt(
+          failure,
+          door: Door.stretches,
+          rule: RefusalRule.passesUnlessItStops,
+        );
     }
   }
 
@@ -5663,6 +5670,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = state.btTraducaoPendente!;
     final sessionId = state.sessionId;
     if (sessionId == null) return;
+    state = state.copyWith(clearAviso: true);
     final generation = _waitOnTheGeneration;
     _silenceTheRoom(holdTheClip: true);
     state = state.copyWith(
