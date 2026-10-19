@@ -1073,6 +1073,21 @@ class FakeRoom implements RoomRepository {
   /// lands on either.
   final List<SegmentView> segments = [];
 
+  List<SegmentView> get _numbered {
+    var told = 0;
+    return [
+      for (final segment in segments)
+        SegmentView(
+          segmentId: segment.segmentId,
+          takeId: segment.takeId,
+          startsMs: segment.startsMs,
+          endsMs: segment.endsMs,
+          told: segment.told,
+          frase: segment.told ? ++told : null,
+        ),
+    ];
+  }
+
   List<String> get segmentIds => [
     for (final segment in segments) segment.segmentId,
   ];
@@ -1194,6 +1209,7 @@ class FakeRoom implements RoomRepository {
   /// the way the server's own errands are ordered.
   List<String> verdictUntoldTakeIds = const [];
   bool verdictHasFinding = false;
+  List<BtFinding> verdictFindings = const [];
   String? serverStatus;
 
   /// Which kind of halt the room reports beside `serverStatus`. A server older than
@@ -1850,7 +1866,7 @@ class FakeRoom implements RoomRepository {
         moment: nextMoment,
         keptRetellings: keptRetellings,
         backTranslation:
-            retroSoFar ?? BackTranslationProgress(segments: List.of(segments)),
+            retroSoFar ?? BackTranslationProgress(segments: _numbered),
       ),
     );
     if (_readsToHold > 0) {
@@ -2047,7 +2063,7 @@ class FakeRoom implements RoomRepository {
     }
     _tellAgain(segmentId);
     final told = Answered(
-      TellingAgain(segments: List.of(segments), needsPerson: needsPerson),
+      TellingAgain(segments: _numbered, needsPerson: needsPerson),
     );
     final lost = loseTheNextReplaceAnswerWith;
     if (lost != null) {
@@ -2309,10 +2325,27 @@ class FakeRoom implements RoomRepository {
     );
     final held = _holdingChunk;
     if (held != null) await held.future;
-    return const Answered(BackTranslationChunk());
+    return Answered(
+      BackTranslationChunk(
+        frase:
+            fraseDaProximaFrase ??
+            segments.where((segment) => segment.told).length,
+      ),
+    );
   }
 
   Completer<void>? _holdingChunk;
+
+  Completer<void>? _holdingVerdict;
+
+  void holdNextVerdict() => _holdingVerdict = Completer<void>();
+
+  void finishHeldVerdict() {
+    _holdingVerdict?.complete();
+    _holdingVerdict = null;
+  }
+
+  int? fraseDaProximaFrase;
 
   /// Holds a stretch's delivery in flight, so a test can see the room still thinking.
   void holdNextChunk() => _holdingChunk = Completer<void>();
@@ -2336,6 +2369,8 @@ class FakeRoom implements RoomRepository {
     required List<PlayedTake> playedByTake,
   }) async {
     duranteOVeredito?.call();
+    final segurado = _holdingVerdict;
+    if (segurado != null) await segurado.future;
     final refusal = failFinishWith;
     if (refusal != null) return refusal;
     playedByTakeSent.add([for (final parte in playedByTake) parte.toJson()]);
@@ -2360,6 +2395,7 @@ class FakeRoom implements RoomRepository {
         untoldSegmentId: verdictUntoldSegmentId,
         unheardTakeIds: verdictUnheardTakeIds,
         untoldTakeIds: verdictUntoldTakeIds,
+        findings: verdictFindings,
         findingsRemaining: verdictHasFinding ? 1 : 0,
         usedFailSafe: verdictUsedFailSafe,
       ),

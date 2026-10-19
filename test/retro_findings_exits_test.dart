@@ -85,6 +85,8 @@ void main() {
     final rehearsed = container.read(salaSessionProvider).partes.length;
     expect(rehearsed, greaterThan(0));
 
+    await tester.ensureVisible(byLabel(continuarOEnsaio));
+
     await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -114,6 +116,8 @@ void main() {
     tester,
   ) async {
     final container = await pumpToFindings(tester, true);
+
+    await tester.ensureVisible(byLabel(continuarOEnsaio));
 
     await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 300));
@@ -146,6 +150,7 @@ void main() {
     for (final label in offered) {
       final room = await pumpToFindings(tester, true);
       final before = room.read(salaSessionProvider);
+      await tester.ensureVisible(byLabel(label));
       await tester.tap(byLabel(label));
       await tester.pump(const Duration(milliseconds: 300));
       final after = room.read(salaSessionProvider);

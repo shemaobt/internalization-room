@@ -181,6 +181,8 @@ void main() {
     final naSala = List.of(harness.room.segmentIds);
     final pedidos = harness.room.calls.length;
 
+    await tester.ensureVisible(byLabel(continuarOEnsaio));
+
     await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -214,6 +216,8 @@ void main() {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await aHistoriaSemOFim(tester, harness);
       final antigas = gravacoesDe(container.read(salaSessionProvider));
+
+      await tester.ensureVisible(byLabel(continuarOEnsaio));
 
       await tester.tap(byLabel(continuarOEnsaio));
       await tester.pump(const Duration(milliseconds: 400));
@@ -258,6 +262,8 @@ void main() {
     final antes = container.read(salaSessionProvider);
     expect(antes.coverage.engaged, 5);
 
+    await tester.ensureVisible(byLabel(continuarOEnsaio));
+
     await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 700));
 
@@ -295,6 +301,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     final antigas = trechosDe(container.read(salaSessionProvider));
     final contadosAntes = harness.room.chunkTakes.length;
+
+    await tester.ensureVisible(byLabel(continuarOEnsaio));
 
     await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
@@ -539,6 +547,8 @@ void main() {
     final container = await aHistoriaSemOFim(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
+    await tester.ensureVisible(byLabel(continuarOEnsaio));
+
     await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
     await gravarUmaParte(tester, container);
@@ -596,7 +606,7 @@ void main() {
     expect(agora.btPhase, BtPhase.findings);
     expect(agora.btFindingTrecho?.segmentId, 'trecho-2');
     for (final microfone in [
-      'Gravar a parte de novo na língua materna',
+      'voltar e regravar uma parte',
       'Traduzir este trecho de novo',
     ]) {
       expect(

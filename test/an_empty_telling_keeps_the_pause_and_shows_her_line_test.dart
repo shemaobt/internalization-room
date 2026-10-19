@@ -28,7 +28,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         terminar,
         tocar;
 
-const linha = 'Não entendi — traduzam de novo esse pedaço';
+const linha = 'não entendi — traduzam de novo esse pedaço';
 const line = 'I didn\'t catch that — translate that piece again';
 
 const vazia = Refused(RefusalCode.wordlessTelling);

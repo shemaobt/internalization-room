@@ -135,3 +135,10 @@ it. A stretch or a question with no words needs a refusal code on the server.
 
 The notifier is emptied into the machine one region at a time, starting with the Halt; the
 private fields and epoch guards of each region go with it.
+
+One written exception (ENG-1205, 2026-10-19): the Retro screen keeps its notifier fields until
+after the 2 November tablet freeze. Its check screen gains two, `btFindings` (the findings of
+the last check, which put her mark words on the frase list) and `btConferindo` (the check is
+running, which writes «conferindo…» on «terminei»), on `SalaSessionNotifier` and
+`SalaSessionState` beside the Retro's other `bt` fields, and moves into the machine with the
+rest of the Retro region. The exception ends with the freeze; nothing else rides on it.

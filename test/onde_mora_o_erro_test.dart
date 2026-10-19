@@ -11,7 +11,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart';
 
 const ouvirOTrecho = 'Ouvir o trecho e a tradução';
-const micParteLabel = 'Gravar a parte de novo na língua materna';
+const micParteLabel = 'voltar e regravar uma parte';
 const micRetro = 'Traduzir este trecho de novo';
 const confirmar = 'Confirmar a tradução e seguir';
 
