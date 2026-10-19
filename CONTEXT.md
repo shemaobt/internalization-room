@@ -33,7 +33,11 @@ _Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the te
 
 **Choice** (`escolha`):
 The station where the room starts and where the team picks an entry from her menu, the Panorama or a passage.
-_Avoid_: escolha in prose (`escolha` is the enum value), Menu in prose (`Menu` is the class), selection, wheel (the wheel is the list of entries, not the station)
+_Avoid_: escolha in prose (`escolha` is the enum value), menu for the station (the menu is what it shows), selection, wheel (the wheel is the list of entries, not the station)
+
+**Menu**:
+What the Choice writes, as Marcia's picker does: «Escolha a passagem», then one block per book with its pills. In code the Choice's Station is the class `Menu`; in prose the word means the written page only.
+_Avoid_: picker, ruler, passage list
 
 **Closing** (`fim`):
 The last station, where the necklace's cord closes into a circle and the session ends.
@@ -130,6 +134,10 @@ _Avoid_: passagem, pericope (the passage's identifier, not the passage), text
 **Reference**:
 The passage's Scripture reference as its Meaning Map's heading writes it, with the book named in the Room language — «Rute 1:1–5»; the only words on a passage's pill.
 _Avoid_: title, label, name
+
+**Pill**:
+One entry written on the menu, tapped once to open it: «◈ Panorama do Livro» for the Panorama, or a passage's Reference.
+_Avoid_: button, chip, notch
 
 **Session**:
 One team's work on one passage, with state and a persisted snapshot allowing it to resume at the exact station where it stopped.
