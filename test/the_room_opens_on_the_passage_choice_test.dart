@@ -48,21 +48,6 @@ void main() {
     },
   );
 
-  test(
-    'a tablet that already heard the Panorama opens on the passage choice too',
-    () async {
-      final harness = SalaHarness()..room.passages = _theBook;
-      harness.finished.done.add('livro:Ruth');
-      final container = harness.container();
-      addTearDown(container.dispose);
-
-      await container.read(salaSessionProvider.notifier).openTheRoom();
-      await settle();
-
-      _expectThePassageChoice(harness, container.read(salaSessionProvider));
-    },
-  );
-
   testWidgets(
     'after the link the screen shows the passage choice and no other screen first',
     (tester) async {
@@ -116,7 +101,6 @@ void main() {
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.passages = _theBook;
-      harness.finished.done.add('Ruth/P01');
       harness.emAberto.rows['Ruth/P02/pt'] = const ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.conversa,

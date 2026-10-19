@@ -18,7 +18,6 @@ import 'package:internalization_room/features/sala/data/credential_vault.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
-import 'package:internalization_room/features/sala/data/finished_passages.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
 import 'package:internalization_room/features/sala/data/playback_repository.dart';
 import 'package:internalization_room/features/sala/data/recording_repository.dart';
@@ -728,38 +727,9 @@ class FakePlayback implements PlaybackRepository {
   }
 }
 
-class FakeFinished implements FinishedPassages {
-  final Set<String> done = {};
-  Completer<void>? _holdingAdd;
-  void holdNextAdd() => _holdingAdd = Completer<void>();
-
-  void finishHeldAdd() {
-    _holdingAdd?.complete();
-    _holdingAdd = null;
-  }
-
-  @override
-  Future<Set<String>> all(String book) async {
-    final read = {
-      for (final row in done)
-        if (row.startsWith('$book/')) row.substring(book.length + 1),
-    };
-    return read;
-  }
-
-  @override
-  Future<void> add(String book, String pericope) async {
-    await _holdingAdd?.future;
-    done.add('$book/$pericope');
-  }
-}
-
 /// The header the shared key travelled in, named here and nowhere else under `test/`.
 const theRoomKeyHeader = 'X-Room-Key';
 
-/// In memory, like the finished-passages double. The real one touches disk, and the
-/// wheel now reads it on every open — under a widget test's fake clock that never
-/// resolves, which hangs the whole suite.
 const turnoUrl = '/api/internalization-room/voice/turno';
 const deNovoUrl = '/api/internalization-room/voice/de-novo';
 
@@ -2991,7 +2961,6 @@ class SalaHarness {
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
     this.emAbertoNoDisco,
-    this.finishedOnDisk,
     this.inboxService,
     this.inboxWatch,
     FakeRoom? room,
@@ -3010,11 +2979,6 @@ class SalaHarness {
        vinculo = FakeLinkedTeam(remembered: linkedAs);
 
   final Duration? linkPoll;
-
-  final FakeFinished finished = FakeFinished();
-
-  /// The real ledger, for the tests that need a write still on its way to the disk.
-  final FinishedPassages? finishedOnDisk;
 
   /// The real inbox, for the cases that need a server that can refuse or go away.
   final HandInboxRepository? inboxService;
@@ -3054,7 +3018,6 @@ class SalaHarness {
     handInboxRepositoryProvider.overrideWithValue(inboxService ?? inbox),
     roomRepositoryProvider.overrideWithValue(room),
     takeUploadQueueProvider.overrideWithValue(takes),
-    finishedPassagesProvider.overrideWithValue(finishedOnDisk ?? finished),
     workInProgressProvider.overrideWithValue(emAbertoNoDisco ?? emAberto),
     currentSessionLedgerProvider.overrideWithValue(currentSession),
     roomLanguageLedgerProvider.overrideWithValue(roomLanguage),

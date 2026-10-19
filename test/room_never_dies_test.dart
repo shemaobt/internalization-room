@@ -140,7 +140,6 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.stage, SalaStage.escolha);
     expect(state.naRoda, hasLength(3));
-    expect(harness.finished.done, isEmpty);
   });
 
   test(

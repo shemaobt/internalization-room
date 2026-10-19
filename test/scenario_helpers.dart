@@ -172,7 +172,6 @@ Future<(SalaHarness, ProviderContainer)> relaunch(
   final again = SalaHarness(
     room: harness.room,
     emAbertoNoDisco: harness.emAbertoNoDisco ?? harness.emAberto,
-    finishedOnDisk: harness.finishedOnDisk ?? harness.finished,
     takesHome: harness.takesHome,
     currentSession: harness.currentSession,
     roomLanguage: lingua == null ? harness.roomLanguage : null,

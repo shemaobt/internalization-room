@@ -11,40 +11,10 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show settle;
 
-const _todasFeitas = {'Ruth/P01', 'Ruth/P02', 'Ruth/P03'};
-
 void main() {
-  test('a book with every passage finished calls nobody', () async {
+  testWidgets('a passage with work waiting on this tablet looks like one '
+      'never opened', (tester) async {
     final harness = SalaHarness();
-    harness.finished.done.addAll(_todasFeitas);
-    final container = harness.container();
-    addTearDown(container.dispose);
-
-    await container.read(salaSessionProvider.notifier).abrirEscolha();
-    await settle();
-
-    final state = container.read(salaSessionProvider);
-    expect(
-      state.naRoda,
-      hasLength(3),
-      reason:
-          'a equipe que terminou Rute ficava com uma roda vazia, e a '
-          'resposta da sala a terminar o livro era chamar uma pessoa',
-    );
-    expect(state.needsPerson, isFalse);
-    expect(
-      harness.voice.fixedLines,
-      isNot(contains(('E0', testLanguage))),
-      reason:
-          'o círculo é alive at done: o registro informa, ele não fecha '
-          'a conversa',
-    );
-  });
-
-  testWidgets('a passage with work waiting or carried to the end on this '
-      'tablet looks like one never opened', (tester) async {
-    final harness = SalaHarness();
-    harness.finished.done.add('Ruth/P01');
     harness.emAberto.rows['Ruth/P02'] = const ResumePoint(
       sessionId: 'sessao-da-p02',
       stage: SalaStage.retro,
@@ -187,29 +157,4 @@ void main() {
       isNot(paints..line(color: ShemaBrand.verdeClaro)),
     );
   });
-
-  test(
-    'a passage already carried to the end is entered from the wheel again',
-    () async {
-      final harness = SalaHarness();
-      harness.finished.done.add('Ruth/P01');
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.abrirEscolha();
-      await settle();
-
-      notifier.entrarNaOferecida();
-      await settle();
-
-      expect(
-        harness.room.pericopesAsked,
-        contains('P01'),
-        reason:
-            'a P01 abre a roda, e a equipe que quer voltar ao que trabalhou '
-            'não tinha por onde: a passagem não estava mais lá para ser tocada',
-      );
-      expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
-    },
-  );
 }

@@ -224,7 +224,7 @@ void main() {
       const TheCallWasRefused(generation: 4),
     ),
     (
-      'the call for a person met by a closed passage writes the passage down as closed',
+      'the call for a person met by a closed passage closes the passage',
       const RoomRefused(RefusalCode.passageClosed),
       _notATurn(door: Door.person, rule: RefusalRule.asksAgain),
       const TheCallMetAClosedPassage(generation: 4),

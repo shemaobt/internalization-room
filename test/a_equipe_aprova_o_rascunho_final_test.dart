@@ -156,11 +156,6 @@ void main() {
             'de uma tela que ela nunca chegou a tocar',
       );
       expect(
-        it.harness.finished.done,
-        isNot(contains('Ruth/P01')),
-        reason: 'uma passagem que a equipe ainda não aprovou não está feita',
-      );
-      expect(
         it.harness.emAberto.rows,
         contains('Ruth/P01/pt'),
         reason:
@@ -226,11 +221,6 @@ void main() {
         reason: 'dita a linha, o colar fecha como sempre fechou',
       );
 
-      expect(
-        it.harness.finished.done,
-        contains('Ruth/P01'),
-        reason: 'a passagem está feita porque a equipe a aprovou',
-      );
       expect(
         it.harness.emAberto.rows,
         isNot(contains('Ruth/P01/pt')),
@@ -808,13 +798,6 @@ void main() {
         reason: 'nada foi aprovado, então a linha da aprovação não é dita',
       );
       expect(
-        it.harness.finished.done,
-        isNot(contains('Ruth/P01')),
-        reason:
-            'e a passagem não está feita: fechar o colar por cima de uma '
-            'recusa tira a equipe de uma passagem que segue por aprovar',
-      );
-      expect(
         it.harness.emAberto.rows,
         contains('Ruth/P01/pt'),
         reason: 'ela segue na roda, com a linha de retomada de pé',
@@ -1237,7 +1220,7 @@ void main() {
     await it.sala.aprovarRascunhoFinal();
     await waitFor(
       'a passagem fechar',
-      () => it.harness.finished.done.contains('Ruth/P01'),
+      () => !it.harness.emAberto.rows.containsKey('Ruth/P01/pt'),
     );
 
     expect(
