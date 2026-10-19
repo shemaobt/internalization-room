@@ -21,6 +21,9 @@ jobs:
     uses: shemaobt/.github/.github/workflows/joaozinho-review.yml@main
     with:
       lens_pack: flutter-dart
+      # Raised with Henokinho's (ENG-1692): shema-api keeps both bots at 60, and the
+      # room's pull requests are now the size that made Henokinho run out of turns.
+      max_turns: 60
       app_id: ${{ vars.JOAOZINHO_APP_ID }}
     secrets:
       app_private_key: ${{ secrets.JOAOZINHO_APP_PRIVATE_KEY }}
