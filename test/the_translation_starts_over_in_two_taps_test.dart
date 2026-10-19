@@ -18,6 +18,7 @@ import 'session_notifier_test.dart'
 
 const _recomecar = 'recomeçar a tradução';
 const _armado = 'toque de novo para apagar as 4 frases traduzidas';
+const _recomecada = 'tradução recomeçada — o ensaio da passagem ficou';
 
 const _quatroFrases = [
   SegmentView(
@@ -181,6 +182,33 @@ void main() {
       expect(find.text(_armado), findsNothing);
       expect(harness.room.restartsAsked, isEmpty);
       expect(container.read(salaSessionProvider).btTrechos, hasLength(4));
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a translation started over says so under the circle for six seconds',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.tap(byLabel(_armado));
+      await waitFor(
+        'a tradução recomeçar',
+        () => container.read(salaSessionProvider).btTrechos.isEmpty,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+
+      expect(
+        find.text(_recomecada),
+        findsOneWidget,
+        reason: 'as frases sumiam da tela sem nada dizer o que aconteceu',
+      );
+      await tester.pump(const Duration(seconds: 6));
+      expect(find.text(_recomecada), findsNothing);
       closeTheRoom(container);
     },
   );

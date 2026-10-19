@@ -327,6 +327,10 @@ const retroLabels = {
     'pt': 'toque de novo para apagar as {n} frases traduzidas',
     'en': 'tap again to discard the {n} translated sentences',
   },
+  'restarted': {
+    'pt': 'tradução recomeçada — o ensaio da passagem ficou',
+    'en': 'translation started over — the passage rehearsal stays',
+  },
 };
 
 String retroLabelFor(String control, String language, {int? n}) =>

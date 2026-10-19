@@ -129,6 +129,8 @@ enum BtPhase { playing, capturing, thinking, findings, conferida }
 
 enum BtRecomeco { armado, pronto }
 
+enum BtAviso { recomecada }
+
 /// One stretch the team told back: a slice of one rehearsal recording.
 ///
 /// [from] and [to] are relative to [takeId]'s own file, never to the concatenated
@@ -286,6 +288,7 @@ class SalaSessionState {
   final int? btContaEscolhida;
   final int btPass;
   final BtRecomeco? btRecomeco;
+  final BtAviso? btAviso;
   final int unsentTakes;
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
@@ -374,6 +377,7 @@ class SalaSessionState {
     this.btContaEscolhida,
     this.btPass = 1,
     this.btRecomeco,
+    this.btAviso,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
@@ -861,6 +865,8 @@ class SalaSessionState {
     int? btPass,
     BtRecomeco? btRecomeco,
     bool clearRecomeco = false,
+    BtAviso? btAviso,
+    bool clearAviso = false,
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
@@ -934,6 +940,7 @@ class SalaSessionState {
           : (btContaEscolhida ?? this.btContaEscolhida),
       btPass: btPass ?? this.btPass,
       btRecomeco: clearRecomeco ? null : (btRecomeco ?? this.btRecomeco),
+      btAviso: clearAviso ? null : (btAviso ?? this.btAviso),
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
