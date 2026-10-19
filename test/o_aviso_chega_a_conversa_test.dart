@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart';
 import 'sala_screen_test.dart' show pumpSala;
 
 void main() {
@@ -15,17 +16,19 @@ void main() {
       final handle = tester.ensureSemantics();
       final harness = SalaHarness(lingua: 'en')
         ..room.serverStatus = 'needs_person'
-        ..room.serverHalt = HaltKind.warning;
+        ..room.serverHalt = HaltKind.warning
+        ..room.holdNextState();
+      Timer(const Duration(seconds: 5), harness.room.finishHeldState);
       final container = await pumpSala(tester, harness);
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.goConversa(book: 'Ruth');
       await tester.pump(const Duration(milliseconds: 200));
 
-      var vez = 0;
-      while (stateReads(harness) == 0 && vez < 30) {
-        await tester.pump(const Duration(seconds: 1));
-        vez++;
-      }
+      await waitFor(
+        'o aviso chegar',
+        () => container.read(salaSessionProvider).warning,
+        step: () => tester.pump(const Duration(milliseconds: 100)),
+      );
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(

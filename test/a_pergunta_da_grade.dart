@@ -11,9 +11,11 @@ import 'fakes.dart';
 /// The harness is handed back beside the container rather than left in a field of its
 /// own: a double reached through a global outlives the test that set it.
 Future<(ProviderContainer, SalaHarness)> pumpToPergunta(
-  WidgetTester tester,
-) async {
+  WidgetTester tester, {
+  Duration? takeLandsAfter,
+}) async {
   final harness = SalaHarness(filaEmMemoria: true)
+    ..room.takeLandsAfter = takeLandsAfter
     ..room.verdictChecked = false
     ..room.verdictHasFinding = true
     ..room.verdictFindingSegmentId = 'trecho-1';
@@ -32,7 +34,7 @@ Future<(ProviderContainer, SalaHarness)> pumpToPergunta(
   sala.ensaioTap();
   await tester.pump(const Duration(milliseconds: 100));
   sala.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
+  await theRoomNamesTheParts(tester, container, parts: 1);
   sala.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
 
