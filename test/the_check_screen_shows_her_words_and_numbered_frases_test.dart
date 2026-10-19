@@ -70,8 +70,9 @@ void _telaAlta(WidgetTester tester) {
 Future<ProviderContainer> _voltaATraducao(
   WidgetTester tester,
   SalaHarness harness,
-  BackTranslationProgress contado,
-) async {
+  BackTranslationProgress contado, {
+  SalaStage parouEm = SalaStage.retro,
+}) async {
   _telaAlta(tester);
   final pasta = Directory.systemTemp.createTempSync('sala-1205');
   addTearDown(() => pasta.deleteSync(recursive: true));
@@ -85,7 +86,7 @@ Future<ProviderContainer> _voltaATraducao(
   ];
   harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
+    stage: parouEm,
     takes: partes,
   );
   harness.room.retroSoFar = contado;
@@ -102,7 +103,7 @@ Future<ProviderContainer> _voltaATraducao(
   await waitFor(
     'a tradução voltar com as frases que a sala guardou',
     () =>
-        container.read(salaSessionProvider).stage == SalaStage.retro &&
+        container.read(salaSessionProvider).stage == parouEm &&
         container.read(salaSessionProvider).btTrechos.length ==
             contado.segments.length,
     step: () => letTheRehearsalReachTheRoom(tester),
@@ -585,6 +586,123 @@ void main() {
       '4',
       'parte 2',
     ], reason: 'a última conferência não nomeou frase nenhuma');
+    closeTheRoom(container);
+  });
+
+  testWidgets('a part recorded again and kept loses the marks on its frases, '
+      'and the other part keeps its own', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(
+      tester,
+      harness,
+      _achadosDaDoisEDaQuatro,
+    );
+
+    await tocar(tester, 'Gravar a parte de novo na língua materna');
+    await waitFor(
+      'o ensaio abrir na parte 1',
+      () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
+      step: () => _passo(tester),
+    );
+    for (final gesto in [
+      'Tocar para gravar esta parte de novo',
+      'Tocar ao terminar',
+      'Confirmar esta parte',
+    ]) {
+      await tocar(tester, gesto);
+    }
+    await waitFor(
+      'a parte 1 regravada ficar no lugar',
+      () => container
+          .read(salaSessionProvider)
+          .btTrechos
+          .every((trecho) => trecho.parte != 0),
+      step: () => _passo(tester),
+    );
+
+    expect(
+      [
+        for (final achado in container.read(salaSessionProvider).btFindings)
+          achado.frase,
+      ],
+      [4],
+      reason:
+          'a marca da frase 2 ficava de pé e caía na frase 2 nova, que o '
+          'veredito nunca ouviu',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a team that comes back to the check sees the marks its last '
+      'check left', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: _quatroFrases,
+        findings: _achadosDaDoisEDaQuatro,
+      ),
+    );
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        '1',
+        'parte 1',
+        '2',
+        'parte 1',
+        'acrescentado',
+        '3',
+        'parte 2',
+        '4',
+        'parte 2',
+        'não ficou claro',
+      ],
+      reason: 'a equipe que voltava perdia as marcas da última conferência',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a team that comes back to the rehearsal finds the marks again '
+      'when it reaches the check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: _quatroFrases,
+        findings: _achadosDaDoisEDaQuatro,
+      ),
+      parouEm: SalaStage.ensaio,
+    );
+
+    container.read(salaSessionProvider.notifier).startRetro();
+    await waitFor(
+      'a tradução abrir',
+      () => container.read(salaSessionProvider).stage == SalaStage.retro,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        '1',
+        'parte 1',
+        '2',
+        'parte 1',
+        'acrescentado',
+        '3',
+        'parte 2',
+        '4',
+        'parte 2',
+        'não ficou claro',
+      ],
+      reason: 'voltando pelo ensaio, as marcas da última conferência sumiam',
+    );
     closeTheRoom(container);
   });
 }

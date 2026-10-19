@@ -2702,6 +2702,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
       btTrechos: _trechosFrom(told.segments),
+      btFindings: told.findings,
     );
     final sessionId = state.sessionId;
     if (sessionId != null) {
@@ -2722,7 +2723,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// leave-and-return later.
   void _keepTheStretchesAlreadyTold(BackTranslationProgress told) {
     if (told.nothingTold) return;
-    state = state.copyWith(btTrechos: _trechosFrom(told.segments));
+    state = state.copyWith(
+      btTrechos: _trechosFrom(told.segments),
+      btFindings: told.findings,
+    );
   }
 
   void conversaTap() => _gesture(() => _conversaTap());
@@ -4222,6 +4226,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       for (final trecho in state.btTrechos)
         if (trecho.parte != parte) trecho,
     ];
+    final saem = {
+      for (final trecho in state.btTrechos)
+        if (trecho.parte == parte && trecho.frase != null) trecho.frase,
+    };
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [
@@ -4232,6 +4240,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             take,
       ],
       btTrechos: trechos,
+      btFindings: [
+        for (final finding in state.btFindings)
+          if (!saem.contains(finding.frase)) finding,
+      ],
     );
     unawaited(_medirAParteRegravada(path, _generation));
     unawaited(
