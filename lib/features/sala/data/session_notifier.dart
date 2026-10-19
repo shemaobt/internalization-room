@@ -5545,6 +5545,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final sessionId = state.sessionId;
     if (sessionId == null) return;
+    if (_fraseNaFila case final antiga?) unawaited(_takes.withdraw(antiga));
     final guardada = await _takes.enqueue(
       File(path),
       sessionId: sessionId,
@@ -5559,6 +5560,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         PassoDaRegravacao.revendo,
         path: path,
       ),
+      clearBtFraseGuardada: true,
     );
   }
 
@@ -5787,6 +5789,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _silenceTheRoom();
     if (regravacao.path case final path?) unawaited(_recorder.delete(path));
+    if (_fraseNaFila case final antiga?) {
+      _fraseNaFila = null;
+      unawaited(_takes.withdraw(antiga));
+    }
     state = state.copyWith(
       btRegravacao: RegravacaoDaFrase(
         regravacao.frase,
@@ -5802,7 +5808,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _fecharARegravacao() {
     _regravacoes++;
     _silenceTheRoom();
+    final aberta = state.btRegravacao;
     state = state.copyWith(clearBtRegravacao: true);
+    if (aberta case RegravacaoDaFrase(
+      passo: PassoDaRegravacao.revendo,
+      :final frase,
+    ) when _fraseNaFila != null) {
+      _guardarAFrase(frase);
+    }
   }
 
   void retroTap() => _gesture(() => _retroTap());

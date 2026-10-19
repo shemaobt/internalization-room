@@ -971,4 +971,61 @@ void main() {
     expect(find.text('Continuar o ensaio'), findsNothing);
     closeTheRoom(container);
   });
+
+  int frasesGuardadas(SalaHarness harness) => (harness.takes as FakeTakeQueue)
+      .rows
+      .where((row) => row.kind == 'frase')
+      .length;
+
+  testWidgets('«gravar de novo» takes the dropped recording off the tablet', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+
+    await tester.tap(naLinha('gravar de novo'));
+    await _passo(tester);
+
+    expect(
+      frasesGuardadas(harness),
+      0,
+      reason: 'a gravação que a equipe largou voltava como frase guardada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'a new recording of a held sentence takes the held one\'s place',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _quatroFrases(tester, harness);
+      await gravarAFrase(tester, harness, 3);
+      harness.room.sentenceAnswersFirst.add(const NetworkFailed('sem rede'));
+      await tester.tap(naLinha('usar esta'));
+      await _passo(tester);
+      await _passo(tester);
+
+      await gravarAFrase(tester, harness, 3);
+
+      expect(frasesGuardadas(harness), 1);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('closing a re-record in its review keeps the recording held, '
+      'with its line on the row', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+
+    await tocar(tester, 'regravar a frase 3');
+
+    expect(
+      _naLista('não deu para guardar a frase — tentar de novo'),
+      findsOneWidget,
+    );
+    expect(frasesGuardadas(harness), 1);
+    closeTheRoom(container);
+  });
 }
