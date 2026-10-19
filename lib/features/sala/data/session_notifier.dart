@@ -784,8 +784,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String fixedLine, {
     bool remember = true,
     void Function()? onSoundStart,
+    String? checkAt,
   }) async {
     final generation = _waitOnTheGeneration;
+    final room = _room;
+    final session = state.sessionId;
     final said = await _sayTheLine(
       LineKind.guide,
       url: fixedLine.isEmpty ? url : null,
@@ -796,8 +799,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (said.heard && remember && !_abandoned(generation)) {
       state = state.copyWith(
-        lastSpoken: SpokenLine(url: url, fixedLine: fixedLine),
+        lastSpoken: SpokenLine(
+          url: url,
+          fixedLine: fixedLine,
+          checkAt: checkAt,
+        ),
       );
+    }
+    if ((said, checkAt, session) case (
+      Said.said,
+      final checkAt?,
+      final sessionId?,
+    ) when !_abandoned(generation)) {
+      unawaited(room.reportTheVerdictHeard(sessionId, checkAt));
     }
     return said;
   }
@@ -866,7 +880,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     _watchBusyState();
     try {
-      final played = await _speak(line.url, line.fixedLine);
+      final played = await _speak(
+        line.url,
+        line.fixedLine,
+        checkAt: line.checkAt,
+      );
       if (_abandoned(generation)) return;
       if (!played.heard) return _registerUnplayableTurn(leavesTeamTalk: false);
       state = state.copyWith(awaitingTheGuide: false);
@@ -5730,6 +5748,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         verdict.audioUrl,
         verdict.fixedLine,
         remember: !verdict.usedFailSafe,
+        checkAt: verdict.checkAt,
       );
       if (_abandoned(generation)) return;
       // It returns, as all five of its siblings do. Registering and carrying on was the

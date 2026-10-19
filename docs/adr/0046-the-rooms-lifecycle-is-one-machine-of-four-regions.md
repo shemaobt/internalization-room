@@ -141,4 +141,7 @@ after the 2 November tablet freeze. Its check screen gains two, `btFindings` (th
 the last check, which put her mark words on the frase list) and `btConferindo` (the check is
 running, which writes «conferindo…» on «terminei»), on `SalaSessionNotifier` and
 `SalaSessionState` beside the Retro's other `bt` fields, and moves into the machine with the
-rest of the Retro region. The exception ends with the freeze; nothing else rides on it.
+rest of the Retro region. ENG-1198 (2026-10-19) adds to the same exception the report that the
+check's verdict was heard to its end: one call per play, from the notifier's line, with the
+round's stamp riding the remembered line. It gains no field of its own. The exception ends
+with the freeze; nothing else rides on it.

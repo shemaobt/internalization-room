@@ -10,7 +10,8 @@ class BackTranslationChunk {
 enum BtFindingKind {
   addition,
   missing,
-  unclear;
+  unclear,
+  nuance;
 
   static BtFindingKind? fromJson(Object? raw) => switch (raw) {
     'addition' => BtFindingKind.addition,
@@ -79,6 +80,8 @@ class BackTranslationVerdict {
   final List<BtFinding> findings;
   final int findingsRemaining;
   final bool usedFailSafe;
+  final String? checkAt;
+  final BtFinding? namedNuance;
 
   const BackTranslationVerdict({
     required this.audioUrl,
@@ -91,6 +94,8 @@ class BackTranslationVerdict {
     this.findings = const [],
     required this.findingsRemaining,
     required this.usedFailSafe,
+    this.checkAt,
+    this.namedNuance,
   });
 
   factory BackTranslationVerdict.fromJson(Map<String, dynamic> json) =>
@@ -111,5 +116,14 @@ class BackTranslationVerdict {
         findings: BtFinding.listFrom(json),
         findingsRemaining: json['findings_remaining'] as int? ?? 0,
         usedFailSafe: json['used_fail_safe'] as bool? ?? false,
+        checkAt: json['check_at'] as String?,
+        namedNuance: switch (json['named_nuance']) {
+          final Map<String, dynamic> nuance => BtFinding(
+            kind: BtFindingKind.nuance,
+            frase: nuance['frase'] as int?,
+            segmentId: nuance['segment_id'] as String?,
+          ),
+          _ => null,
+        },
       );
 }

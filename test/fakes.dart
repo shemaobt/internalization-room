@@ -1187,6 +1187,8 @@ class FakeRoom implements RoomRepository {
   List<String> verdictUntoldTakeIds = const [];
   bool verdictHasFinding = false;
   List<BtFinding> verdictFindings = const [];
+  String? verdictCheckAt;
+  BtFinding? verdictNamedNuance;
   String? serverStatus;
 
   /// Which kind of halt the room reports beside `serverStatus`. A server older than
@@ -2374,8 +2376,23 @@ class FakeRoom implements RoomRepository {
         findings: verdictFindings,
         findingsRemaining: verdictHasFinding ? 1 : 0,
         usedFailSafe: verdictUsedFailSafe,
+        checkAt: verdictCheckAt,
+        namedNuance: verdictNamedNuance,
       ),
     );
+  }
+
+  final List<String> heardStamps = [];
+
+  RoomFailure? failHeardWith;
+
+  @override
+  Future<RoomAnswer<void>> reportTheVerdictHeard(
+    String sessionId,
+    String at,
+  ) async {
+    heardStamps.add(at);
+    return failHeardWith ?? const Answered<void>(null);
   }
 
   /// Every session the team's approval was sent for, in order.
