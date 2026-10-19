@@ -2733,6 +2733,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(
         _porCadaTrechoNaSuaParte(sessionId, told.segments, _generation),
       );
+      unawaited(_lembrarDaFraseGuardada(sessionId));
     }
     if (told.checked) return;
     unawaited(_playFromTheUntoldGround(_generation));
@@ -5560,6 +5561,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         PassoDaRegravacao.enviando,
         path: guardada.path,
       ),
+      clearBtFraseGuardada: true,
     );
     if (File(guardada.path).lengthSync() > largestSentenceTheRoomTakes) {
       return _largarAFrase(guardada, PassoDaRegravacao.longaDemais);
@@ -5570,7 +5572,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_abandoned(generation)) return;
       nome = _aFrase(frase)?.segmentId;
     }
-    if (nome == null) return;
+    if (nome == null) return _guardarAFrase(frase);
     final resposta = await _room.reRecordTheSentence(
       guardada.sessionId,
       nome,
@@ -5585,9 +5587,35 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         code: RefusalCode.sentenceTooShort || RefusalCode.sentenceFormatDiffers,
       ):
         _largarAFrase(guardada, PassoDaRegravacao.pronta);
-      case _:
+      case Answered():
         break;
+      case RoomFailure():
+        _guardarAFrase(frase);
     }
+  }
+
+  Future<void> _lembrarDaFraseGuardada(String sessionId) async {
+    final guardada = await _takes.sentenceHeldIn(sessionId);
+    if (guardada == null || state.sessionId != sessionId) return;
+    _fraseNaFila = guardada;
+    state = state.copyWith(btFraseGuardada: int.parse(guardada.scope));
+  }
+
+  void _guardarAFrase(int frase) {
+    state = state.copyWith(clearBtRegravacao: true, btFraseGuardada: frase);
+  }
+
+  void tentarAFraseDeNovo() => _gesture(() => _handOff(_tentarAFraseDeNovo()));
+
+  Future<void> _tentarAFraseDeNovo() async {
+    final guardada = _fraseNaFila;
+    if (state.btRegravacao != null ||
+        state.btFraseGuardada == null ||
+        guardada == null) {
+      return;
+    }
+    _silenceTheRoom();
+    await _enviarAFrase(guardada);
   }
 
   void _largarAFrase(PendingTake guardada, PassoDaRegravacao passo) {

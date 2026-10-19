@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'dart:typed_data';
 
@@ -7,10 +8,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
+import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
@@ -70,6 +76,99 @@ Future<ProviderContainer> _quatroFrases(
       step: () => _passo(tester),
     );
   }
+  await _passo(tester);
+  return container;
+}
+
+const _daSala = [
+  SegmentView(
+    segmentId: 'trecho-1',
+    takeId: 'gravacao-1',
+    startsMs: 0,
+    endsMs: 4000,
+    frase: 1,
+  ),
+  SegmentView(
+    segmentId: 'trecho-2',
+    takeId: 'gravacao-1',
+    startsMs: 4000,
+    endsMs: 10000,
+    frase: 2,
+  ),
+  SegmentView(
+    segmentId: 'trecho-3',
+    takeId: 'gravacao-2',
+    startsMs: 0,
+    endsMs: 4000,
+    frase: 3,
+  ),
+  SegmentView(
+    segmentId: 'trecho-4',
+    takeId: 'gravacao-2',
+    startsMs: 4000,
+    endsMs: 10000,
+    frase: 4,
+  ),
+];
+
+Future<ProviderContainer> _voltaATraducao(
+  WidgetTester tester,
+  SalaHarness harness, {
+  String? aguardando,
+}) async {
+  tester.view
+    ..physicalSize = const Size(820, 2400)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final pasta = Directory.systemTemp.createTempSync('sala-1221');
+  addTearDown(() => pasta.deleteSync(recursive: true));
+  final partes = [
+    for (final n in [1, 2])
+      KeptTake(
+        scopeId: KeptScope.parte(n),
+        path: (File(
+          '${pasta.path}/p$n.wav',
+        )..writeAsBytesSync(aSpokenWav(length: parte))).path,
+        takeId: 'gravacao-$n',
+      ),
+  ];
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+    sessionId: 'sessao-antiga',
+    stage: SalaStage.retro,
+    takes: partes,
+  );
+  harness.room
+    ..segments.addAll(_daSala)
+    ..takes.addAll([
+      for (final n in [1, 2])
+        TakeView(
+          takeId: 'gravacao-$n',
+          kind: 'ensaio',
+          scope: KeptScope.parte(n),
+          ordinal: n,
+        ),
+    ])
+    ..retroSoFar = BackTranslationProgress(
+      segments: _daSala,
+      awaitingSegmentId: aguardando,
+    );
+  final container = harness.container();
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: const SalaApp()),
+  );
+  await _passo(tester);
+  unawaited(
+    container
+        .read(salaSessionProvider.notifier)
+        .goConversa(book: 'Ruth', pericope: 'P01'),
+  );
+  await waitFor(
+    'a tradução voltar com as frases que a sala guardou',
+    () =>
+        container.read(salaSessionProvider).stage == SalaStage.retro &&
+        container.read(salaSessionProvider).btTrechos.length == 4,
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
   await _passo(tester);
   return container;
 }
@@ -403,9 +502,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _quatroFrases(tester, harness);
     await gravarAFrase(tester, harness, 3);
-    harness.room.sentenceAnswersFirst.add(
-      const Refused('SENTENCE_TOO_LONG'),
-    );
+    harness.room.sentenceAnswersFirst.add(const Refused('SENTENCE_TOO_LONG'));
 
     await tester.tap(naLinha('usar esta'));
     await _passo(tester);
@@ -443,4 +540,70 @@ void main() {
       closeTheRoom(container);
     });
   }
+
+  testWidgets('a sentence whose send fails stays on the tablet, its row says '
+      'so, and one tap sends that same recording again, laid in once', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room.sentenceAnswersFirst.add(const NetworkFailed('sem rede'));
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    expect(
+      _naLista(falhou),
+      findsOneWidget,
+      reason: 'a frase que não subiu sumia sem a equipe saber',
+    );
+    expect(guardada(harness), isTrue);
+    expect(_naLista('regravar a frase 1'), findsNothing);
+
+    await tocar(tester, falhou);
+    await _passo(tester);
+
+    final enviadas = harness.room.sentencesSent;
+    expect(enviadas, hasLength(2));
+    expect(enviadas.last, enviadas.first);
+    expect(harness.room.sentencesLaid, [enviadas.first.sentenceId]);
+    expect(_naLista(falhou), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence held on the tablet comes back with its session, and '
+      'one tap sends that recording under the id it was kept by', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final pasta = Directory.systemTemp.createTempSync('sala-1221-frase');
+    addTearDown(() => pasta.deleteSync(recursive: true));
+    final guardada = await harness.takes.enqueue(
+      File('${pasta.path}/frase.wav')
+        ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
+      sessionId: 'sessao-antiga',
+      kind: 'frase',
+      scope: '3',
+    );
+    final container = await _voltaATraducao(tester, harness);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    expect(
+      _naLista(falhou),
+      findsOneWidget,
+      reason: 'a frase guardada sumia da tela depois de recarregar',
+    );
+
+    await tocar(tester, falhou);
+    await _passo(tester);
+
+    expect(harness.room.sentencesSent, [
+      (sentenceId: guardada.id, segmentId: 'trecho-3'),
+    ]);
+    expect(harness.room.sentencesLaid, [guardada.id]);
+    closeTheRoom(container);
+  });
 }

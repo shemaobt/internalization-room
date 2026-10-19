@@ -210,8 +210,15 @@ class RetroView extends ConsumerWidget {
             )
                 when frase == trecho.frase =>
               sceneRehearsalLabelFor('spliceTooLong', language),
+            null when session.btFraseGuardada == trecho.frase =>
+              sceneRehearsalLabelFor('spliceFail', language),
             _ => null,
           },
+          onEstado:
+              session.btRegravacao == null &&
+                  session.btFraseGuardada == trecho.frase
+              ? notifier.tentarAFraseDeNovo
+              : null,
         ),
     ];
   }

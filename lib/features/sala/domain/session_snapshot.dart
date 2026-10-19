@@ -139,12 +139,14 @@ class BackTranslationProgress {
   final bool checked;
   final String? findingSegmentId;
   final List<BtFinding> findings;
+  final String? awaitingSegmentId;
 
   const BackTranslationProgress({
     this.segments = const [],
     this.checked = false,
     this.findingSegmentId,
     this.findings = const [],
+    this.awaitingSegmentId,
   });
 
   factory BackTranslationProgress.fromJson(Map<String, dynamic> json) =>

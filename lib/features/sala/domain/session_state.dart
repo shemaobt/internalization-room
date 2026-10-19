@@ -302,7 +302,7 @@ class SalaSessionState {
   final int btPass;
   final RegravacaoDaFrase? btRegravacao;
   final String? btFraseQueAguarda;
-  final String? btFraseGuardada;
+  final int? btFraseGuardada;
   final int unsentTakes;
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
@@ -804,6 +804,7 @@ class SalaSessionState {
   /// its own guard as well, because it is reachable from more than this one press.
   bool fraseRegravavel(Trecho trecho) =>
       trecho.frase != null &&
+      (btFraseGuardada == null || btFraseGuardada == trecho.frase) &&
       !needsPerson &&
       !offline &&
       trecho.parte >= 0 &&
@@ -875,7 +876,7 @@ class SalaSessionState {
     bool clearBtRegravacao = false,
     String? btFraseQueAguarda,
     bool clearBtFraseQueAguarda = false,
-    String? btFraseGuardada,
+    int? btFraseGuardada,
     bool clearBtFraseGuardada = false,
     int? unsentTakes,
     int? unsentChunks,

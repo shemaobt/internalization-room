@@ -3000,6 +3000,11 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
+  Future<PendingTake?> sentenceHeldIn(String sessionId) async => rows
+      .where((row) => row.kind == sentenceKind && row.sessionId == sessionId)
+      .lastOrNull;
+
+  @override
   Future<void> withdraw(PendingTake row) async {
     rows.removeWhere(
       (entry) => !entry.stored && entry.id == row.id && entry.kind == row.kind,

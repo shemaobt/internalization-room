@@ -16,6 +16,7 @@ class FraseRow {
   final VoidCallback? onRegravar;
   final FraseRevisao? revisao;
   final String? estado;
+  final VoidCallback? onEstado;
 
   const FraseRow({
     required this.n,
@@ -28,6 +29,7 @@ class FraseRow {
     this.onRegravar,
     this.revisao,
     this.estado,
+    this.onEstado,
   });
 }
 
@@ -140,10 +142,12 @@ class FraseList extends StatelessWidget {
           if (row.estado case final estado?)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              child: Text(
-                estado,
-                style: TextStyle(color: colors.mut, fontSize: 14),
-              ),
+              child: row.onEstado == null
+                  ? Text(
+                      estado,
+                      style: TextStyle(color: colors.mut, fontSize: 14),
+                    )
+                  : _Pill(label: estado, onTap: row.onEstado),
             ),
         ],
       ],
