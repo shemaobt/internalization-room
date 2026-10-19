@@ -146,3 +146,8 @@ check's verdict was heard to its end: one call per play, from the notifier's lin
 round's stamp riding the remembered line; and the nuance that verdict named, carried in
 `btFindings` so its frase keeps her colour and «regravar a frase N». It gains no field of its
 own. The exception ends with the freeze; nothing else rides on it.
+
+Extended by name (ENG-1197, 2026-10-19), same end date: `btRecusa`, the refusal the last
+«terminei» came back with, which writes her line under the circle («ainda falta ouvir um
+trecho da gravação», «ainda não tem frase traduzida», «não deu para conferir agora — tentem de
+novo»), sits beside them on the same two classes and moves with them.

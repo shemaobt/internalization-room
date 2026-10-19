@@ -876,9 +876,16 @@ void main() {
       await tocar(tester, retroLabelFor('pauseHere', 'en'));
       await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
       await tocar(tester, retroLabelFor('recording', 'en'));
-      harness.room.failChunkWith = const NetworkFailed('sem rede');
+      harness.room.chunkAnswersFirst.addAll(
+        List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
+      );
       harness.network.reachable = false;
       await tocar(tester, retroLabelFor('confirm', 'en'));
+      await waitFor(
+        'a sala ficar fora de alcance',
+        () => container.read(salaSessionProvider).unreachable,
+        step: () => tester.pump(const Duration(milliseconds: 100)),
+      );
 
       expect(
         tester.widget<FacilitatorCircle>(_circulo()).semanticLabel,

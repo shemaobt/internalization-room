@@ -260,6 +260,7 @@ class SalaSessionState {
   final List<Trecho> btTrechos;
   final List<BtFinding> btFindings;
   final bool btConferindo;
+  final CheckRefusal? btRecusa;
   final String? btFindingSegmentId;
 
   final bool btClipEnded;
@@ -352,6 +353,7 @@ class SalaSessionState {
     this.btTrechos = const [],
     this.btFindings = const [],
     this.btConferindo = false,
+    this.btRecusa,
     this.btFindingSegmentId,
     this.btClipEnded = false,
     this.btParteFronteira = false,
@@ -675,7 +677,10 @@ class SalaSessionState {
       btClipEnded && _btParteContada && btTraducaoPendente == null;
 
   bool get canAdvanceToTheVerdict =>
-      canFinishBackTranslation && btContadaInteira && btContaEscolhida == null;
+      canFinishBackTranslation &&
+      btContadaInteira &&
+      btContaEscolhida == null &&
+      btTrechos.any((trecho) => trecho.contado);
 
   bool get btRestoDepoisDoCorte {
     if (!btCortado) return false;
@@ -821,6 +826,8 @@ class SalaSessionState {
     List<Trecho>? btTrechos,
     List<BtFinding>? btFindings,
     bool? btConferindo,
+    CheckRefusal? btRecusa,
+    bool clearBtRecusa = false,
     String? btFindingSegmentId,
     bool clearFindingSegment = false,
     bool? btClipEnded,
@@ -886,6 +893,7 @@ class SalaSessionState {
       btTrechos: btTrechos ?? this.btTrechos,
       btFindings: btFindings ?? this.btFindings,
       btConferindo: btConferindo ?? this.btConferindo,
+      btRecusa: clearBtRecusa ? null : (btRecusa ?? this.btRecusa),
       btFindingSegmentId: clearFindingSegment
           ? null
           : (btFindingSegmentId ?? this.btFindingSegmentId),

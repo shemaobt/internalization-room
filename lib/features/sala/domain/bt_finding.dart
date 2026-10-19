@@ -43,6 +43,21 @@ class BtFinding {
   ];
 }
 
+enum CheckRefusal {
+  fraseAwaiting,
+  partUnheard,
+  nothingTranslated,
+  checkUnavailable;
+
+  static CheckRefusal? fromJson(Object? raw) => switch (raw) {
+    'FRASE_AWAITING' => CheckRefusal.fraseAwaiting,
+    'PART_UNHEARD' => CheckRefusal.partUnheard,
+    'NOTHING_TRANSLATED' => CheckRefusal.nothingTranslated,
+    'CHECK_UNAVAILABLE' => CheckRefusal.checkUnavailable,
+    _ => null,
+  };
+}
+
 class BackTranslationVerdict {
   final String audioUrl;
   final String fixedLine;
@@ -80,6 +95,7 @@ class BackTranslationVerdict {
   final List<BtFinding> findings;
   final int findingsRemaining;
   final bool usedFailSafe;
+  final CheckRefusal? refusal;
   final String? checkAt;
   final BtFinding? namedNuance;
 
@@ -94,6 +110,7 @@ class BackTranslationVerdict {
     this.findings = const [],
     required this.findingsRemaining,
     required this.usedFailSafe,
+    this.refusal,
     this.checkAt,
     this.namedNuance,
   });
@@ -116,6 +133,7 @@ class BackTranslationVerdict {
         findings: BtFinding.listFrom(json),
         findingsRemaining: json['findings_remaining'] as int? ?? 0,
         usedFailSafe: json['used_fail_safe'] as bool? ?? false,
+        refusal: CheckRefusal.fromJson(json['refusal']),
         checkAt: json['check_at'] as String?,
         namedNuance: switch (json['named_nuance']) {
           final Map<String, dynamic> nuance => BtFinding(

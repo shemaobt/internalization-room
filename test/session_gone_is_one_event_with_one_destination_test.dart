@@ -341,7 +341,9 @@ void main() {
     await _abrirACapturaDeUmTrecho(harness, container);
     final parte = _estado(container).partes.single.path;
 
-    harness.room.chunkAnswersFirst.add(const NetworkFailed('sem rede'));
+    harness.room.chunkAnswersFirst.addAll(
+      List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
+    );
     harness.network.reachable = false;
     await confirmarATraducao(container);
     await waitFor('a sala cair', () => _estado(container).unreachable);
