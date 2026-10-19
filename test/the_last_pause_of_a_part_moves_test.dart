@@ -1,0 +1,118 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+
+import 'a_wav_take.dart';
+import 'fakes.dart';
+import 'the_back_translation_is_told_by_beads_test.dart'
+    show aceso, confirmar, entrarNaTraducao, parte, tocar;
+import 'the_pause_snaps_to_silence_test.dart'
+    show antes, depois, ouvirAPausa, pausarAos, s, traduzirEConfirmar;
+
+final _duasLacunas = aSpokenWav(gaps: [(s(3.0), s(3.4)), (s(6.0), s(6.4))]);
+
+Future<void> _passo(WidgetTester tester) =>
+    tester.pump(const Duration(milliseconds: 100));
+
+Future<ProviderContainer> _duasFrasesEUmAchadoNa(
+  WidgetTester tester,
+  SalaHarness harness,
+  String apontada,
+) async {
+  final container = await entrarNaTraducao(tester, harness, partes: 1);
+  for (final (n, toque) in [(1, s(4.2)), (2, s(7.0))]) {
+    await pausarAos(tester, harness, toque);
+    await traduzirEConfirmar(tester);
+    await waitFor(
+      'a frase $n chegar à sala',
+      () =>
+          container
+              .read(salaSessionProvider)
+              .btTrechos
+              .where((trecho) => trecho.contado)
+              .length ==
+          n,
+      step: () => _passo(tester),
+    );
+  }
+  harness.playback.at = parte;
+  harness.playback.finishPlayback();
+  await _passo(tester);
+  harness.room
+    ..verdictChecked = false
+    ..verdictHasFinding = true
+    ..verdictFindingSegmentId = apontada;
+  unawaited(
+    container.read(salaSessionProvider.notifier).finishBackTranslation(),
+  );
+  await waitFor(
+    'o veredito apontar a frase',
+    () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
+  await tocar(tester, 'Traduzir este trecho de novo');
+  await waitFor(
+    'a frase apontada ficar para traduzir de novo',
+    () => container.read(salaSessionProvider).btTrechoTraduzidoDeNovo != null,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
+  return container;
+}
+
+void main() {
+  testWidgets(
+    'the last frase of a part told again takes a later pause, and its span follows it',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesEUmAchadoNa(
+        tester,
+        harness,
+        'trecho-2',
+      );
+
+      for (final controle in [antes, ouvirAPausa, depois]) {
+        expect(
+          aceso(tester, controle),
+          isTrue,
+          reason: 'a última frase não abria a fileira da pausa: $controle',
+        );
+      }
+      await tocar(tester, depois);
+      await tocar(tester, 'Tocar para gravar a tradução de novo');
+      await tocar(tester, 'Tocar ao terminar');
+      await tocar(tester, confirmar);
+      await waitFor(
+        'a frase voltar da sala',
+        () => harness.room.replacesAsked.isNotEmpty,
+        step: () => _passo(tester),
+      );
+
+      expect(
+        harness.room.replacesAsked.single,
+        endsWith(':3200-6600'),
+        reason: 'a pausa nova não ia para a sala; a frase guardava o fim velho',
+      );
+      await waitFor(
+        'a frase pousar com o fim novo',
+        () =>
+            container.read(salaSessionProvider).btTrechoTraduzidoDeNovo == null,
+        step: () => _passo(tester),
+      );
+      expect(
+        [
+          for (final trecho in container.read(salaSessionProvider).btTrechos)
+            trecho.to,
+        ],
+        [s(3.2), s(6.6)],
+        reason: 'a frase seguia com o fim de antes',
+      );
+      closeTheRoom(container);
+    },
+  );
+}

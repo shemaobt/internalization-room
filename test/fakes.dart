@@ -2046,7 +2046,7 @@ class FakeRoom implements RoomRepository {
           '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
         );
         replacesComArquivo.add(audio.path);
-        _tellAgain(segmentId);
+        _tellAgain(segmentId, to);
       };
       return later;
     }
@@ -2063,7 +2063,7 @@ class FakeRoom implements RoomRepository {
       serverStatus = 'needs_person';
       serverHalt = HaltKind.warning;
     }
-    _tellAgain(segmentId);
+    _tellAgain(segmentId, to);
     final told = Answered(
       TellingAgain(segments: _numbered, needsPerson: needsPerson),
     );
@@ -2078,7 +2078,7 @@ class FakeRoom implements RoomRepository {
 
   Answered<TellingAgain>? _answerLost;
 
-  void _tellAgain(String segmentId) {
+  void _tellAgain(String segmentId, Duration to) {
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     final antes = at >= 0 ? segments[at] : null;
     if (antes != null) {
@@ -2091,7 +2091,7 @@ class FakeRoom implements RoomRepository {
         segmentId: '${antes.segmentId}-v${++_versoes}',
         takeId: antes.takeId,
         startsMs: antes.startsMs,
-        endsMs: antes.endsMs,
+        endsMs: to.inMilliseconds,
         told: true,
       );
       _retired.add(antes.segmentId);

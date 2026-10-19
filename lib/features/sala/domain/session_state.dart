@@ -714,7 +714,22 @@ class SalaSessionState {
       btTrechoTraduzidoDeNovo == null &&
       btContaEscolhida == null;
 
-  bool get canAdjustThePause => thePauseStands && btPausaAjustavel;
+  bool get canAdjustThePause =>
+      btPausaAjustavel &&
+      (thePauseStands ||
+          (_btNaVez &&
+              btTrechoTraduzidoDeNovo != null &&
+              btContaEscolhida == null));
+
+  bool theLastPauseMoves(Trecho frase) {
+    if (!frase.contado) return false;
+    Trecho? ultima;
+    for (final trecho in btTrechos) {
+      if (trecho.takeId != frase.takeId) continue;
+      if (ultima == null || trecho.to >= ultima.to) ultima = trecho;
+    }
+    return ultima?.segmentId == frase.segmentId;
+  }
 
   bool get btTraducaoPendenteEmprestada =>
       btTraducaoPendente != null && btTraducaoPendente == btTraducaoEmprestada;

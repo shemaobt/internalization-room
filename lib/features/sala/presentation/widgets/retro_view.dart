@@ -15,6 +15,7 @@ import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'frase_list.dart';
 import 'motion.dart';
+import 'pause_adjust_row.dart';
 
 class RetroView extends ConsumerWidget {
   const RetroView({super.key});
@@ -83,7 +84,13 @@ class RetroView extends ConsumerWidget {
             SizedBox(
               height: 48,
               child: avanca
-                  ? _thePauseControls(session, notifier, language)
+                  ? PauseAdjustRow(
+                      lit: session.canAdjustThePause,
+                      language: language,
+                      onEarlier: notifier.pausaUmPoucoAntes,
+                      onHear: notifier.ouvirAPausa,
+                      onLater: notifier.pausaUmPoucoDepois,
+                    )
                   : null,
             ),
             const SizedBox(height: 24),
@@ -540,41 +547,6 @@ class RetroView extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _thePauseControls(
-    SalaSessionState session,
-    SalaSessionNotifier notifier,
-    String language,
-  ) {
-    final mood = session.canAdjustThePause ? ButtonMood.lit : ButtonMood.dimmed;
-    Widget control(String label, IconData glyph, VoidCallback onTap) =>
-        RoundActionButton(
-          size: 48,
-          semanticLabel: retroLabelFor(label, language),
-          gradient: BeadStyles.wood,
-          mood: mood,
-          onTap: onTap,
-          child: Icon(glyph, size: 20, color: ShemaBrand.branco),
-        );
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        control(
-          'pauseEarlier',
-          LucideIcons.chevronLeft,
-          notifier.pausaUmPoucoAntes,
-        ),
-        const SizedBox(width: 24),
-        control('hearThePause', LucideIcons.ear, notifier.ouvirAPausa),
-        const SizedBox(width: 24),
-        control(
-          'pauseLater',
-          LucideIcons.chevronRight,
-          notifier.pausaUmPoucoDepois,
-        ),
-      ],
     );
   }
 

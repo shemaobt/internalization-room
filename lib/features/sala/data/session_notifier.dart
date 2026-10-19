@@ -5333,7 +5333,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           File(path),
           takeId: alvo.takeId,
           from: alvo.from,
-          to: alvo.to,
+          to: _trechoEnd,
           idempotencyKey: key,
         ),
       );
@@ -6174,6 +6174,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = trecho.from;
     _trechoEnd = trecho.to;
     _trechoTraduzidoDeNovo = trecho;
+    state = state.copyWith(
+      btPausaAjustavel:
+          state.theLastPauseMoves(trecho) && _ondeAPausaCabe() != null,
+    );
     return trecho;
   }
 
