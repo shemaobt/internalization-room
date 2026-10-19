@@ -142,6 +142,49 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a second tap before 0.6 s is the same touch, and starts nothing over',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(byLabel(_armado));
+      await _passo(tester);
+
+      expect(
+        harness.room.restartsAsked,
+        isEmpty,
+        reason: 'um toque duplo apagava as frases sem a equipe decidir',
+      );
+      expect(find.text(_armado), findsOneWidget);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'one tap and then seven seconds of nothing leave it disarmed, with nothing changed',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+
+      await tester.tap(byLabel(_recomecar));
+      await _passo(tester);
+      await tester.pump(const Duration(seconds: 7));
+
+      expect(
+        find.text(_recomecar),
+        findsOneWidget,
+        reason: 'o botão ficava armado para sempre, e um toque tardio apagava',
+      );
+      expect(find.text(_armado), findsNothing);
+      expect(harness.room.restartsAsked, isEmpty);
+      expect(container.read(salaSessionProvider).btTrechos, hasLength(4));
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets('with no frase told there is nothing to start over', (
     tester,
   ) async {

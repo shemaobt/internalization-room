@@ -5080,8 +5080,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is! Retro || sessionId == null) return;
     if (state.btRecomeco == null) {
       state = state.copyWith(btRecomeco: BtRecomeco.armado);
+      _after('recomecoPronto', ref.read(restartWakeProvider), () {
+        if (state.btRecomeco != BtRecomeco.armado) return;
+        state = state.copyWith(btRecomeco: BtRecomeco.pronto);
+      });
+      _after(
+        'recomecoArmado',
+        ref.read(restartLapseProvider),
+        () => state = state.copyWith(clearRecomeco: true),
+      );
       return;
     }
+    if (state.btRecomeco != BtRecomeco.pronto) return;
     state = state.copyWith(clearRecomeco: true);
     _handOff(_recomecarNaSala(sessionId));
   }
