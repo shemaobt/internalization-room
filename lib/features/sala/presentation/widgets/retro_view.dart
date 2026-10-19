@@ -50,7 +50,7 @@ class RetroView extends ConsumerWidget {
       child: SingleChildScrollView(
         child: Column(
           children: [
-            const SizedBox(height: 24),
+            SizedBox(height: 24 + MediaQuery.viewPaddingOf(context).top),
             Semantics(
               header: true,
               label: titulo,
@@ -234,12 +234,18 @@ class RetroView extends ConsumerWidget {
             : ButtonMood.dimmed,
         onTap: () => unawaited(notifier.finishBackTranslation()),
         child: ExcludeSemantics(
-          child: Text(
-            terminei,
-            style: const TextStyle(
-              color: ShemaBrand.branco,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                terminei,
+                style: const TextStyle(
+                  color: ShemaBrand.branco,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
         ),

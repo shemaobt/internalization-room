@@ -53,7 +53,7 @@ class FraseList extends StatelessWidget {
         const SizedBox(height: 16),
         for (final row in rows)
           Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -123,7 +123,7 @@ class _FraseTile extends StatelessWidget {
                   : DecoratedBox(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: colors.oat,
+                        color: colors.mut,
                       ),
                       child: Center(
                         child: Text(
