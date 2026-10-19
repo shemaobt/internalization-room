@@ -27,7 +27,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.byType(ColarOverlay), findsNothing);
 
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.byType(ColarOverlay), findsNothing);
 

@@ -28,26 +28,35 @@ const _terminal = <SalaStage>{};
 final _wayOut =
     <
       SalaStage,
-      ({String name, Future<void> Function(SalaSessionNotifier) take})
+      ({
+        String name,
+        Future<void> Function(SalaSessionNotifier, SalaSessionState) take,
+      })
     >{
       SalaStage.panorama: (
         name: 'leaveThePassage',
-        take: (n) async => n.leaveThePassage(),
+        take: (n, _) async => n.leaveThePassage(),
       ),
       SalaStage.escolha: (
-        name: 'entrarNaOferecida',
-        take: (n) async => n.entrarNaOferecida(),
+        name: 'openTheEntry',
+        take: (n, state) async => n.openTheEntry(state.naRoda!.first),
       ),
-      SalaStage.conversa: (name: 'goEnsaio', take: (n) async => n.goEnsaio()),
-      SalaStage.ensaio: (name: 'startRetro', take: (n) async => n.startRetro()),
+      SalaStage.conversa: (
+        name: 'goEnsaio',
+        take: (n, _) async => n.goEnsaio(),
+      ),
+      SalaStage.ensaio: (
+        name: 'startRetro',
+        take: (n, _) async => n.startRetro(),
+      ),
       SalaStage.retro: (
         name: 'leaveThePassage',
-        take: (n) async => n.leaveThePassage(),
+        take: (n, _) async => n.leaveThePassage(),
       ),
-      SalaStage.fim: (name: 'beginAgain', take: (n) async => n.beginAgain()),
+      SalaStage.fim: (name: 'beginAgain', take: (n, _) async => n.beginAgain()),
       SalaStage.cena: (
         name: 'leaveTheSceneRehearsal',
-        take: (n) async => n.leaveTheSceneRehearsal(),
+        take: (n, _) async => n.leaveTheSceneRehearsal(),
       ),
     };
 
@@ -76,13 +85,7 @@ Future<void> _standIn(
   await notifier.abrirEscolha();
   await waitFor('a roda abrir', () => read().naRoda != null);
   if (stage == SalaStage.escolha) {
-    // A roda diz o nome da passagem oferecida ao abrir, e o gesto de entrar só
-    // responde depois disso. Esperar aqui é ficar de pé onde a equipe fica: a
-    // saída existe, ela apenas não é instantânea.
-    await waitFor(
-      'a roda terminar de dizer a passagem oferecida',
-      () => read().voice == VoiceState.invite,
-    );
+    await waitFor('a Escolha abrir as entradas', () => read().entriesOpen);
     return;
   }
 
@@ -156,7 +159,7 @@ void main() {
         reason: 'o caso precisa começar onde diz que começa',
       );
 
-      await _wayOut[stage]!.take(notifier);
+      await _wayOut[stage]!.take(notifier, container.read(salaSessionProvider));
 
       // Espera com prazo e falha alta: uma saída que nunca chega é uma parede, e
       // tem de ser dita como tal em vez de estourar em outro lugar.
@@ -188,9 +191,9 @@ void main() {
     // outra parede.
     await waitFor(
       'a roda ficar pronta para o toque',
-      () => container.read(salaSessionProvider).voice == VoiceState.invite,
+      () => container.read(salaSessionProvider).entriesOpen,
     );
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await waitFor(
       'a passagem abrir a partir da roda',
       () => container.read(salaSessionProvider).stage == SalaStage.conversa,

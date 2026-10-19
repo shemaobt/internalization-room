@@ -43,7 +43,7 @@ Future<ProviderContainer> _naPassagem(SalaHarness harness) async {
   final sala = container.read(salaSessionProvider.notifier);
   await sala.abrirEscolha();
   await settle();
-  sala.entrarNaOferecida();
+  sala.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
   await waitFor(
     'a passagem abrir',
     () => container.read(salaSessionProvider).sessionId != null,

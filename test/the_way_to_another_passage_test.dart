@@ -63,17 +63,13 @@ Future<void> _readTheWheel(WidgetTester tester, _Room room) async {
   await _passTime(tester, 300);
 }
 
-Future<void> _aimAt(WidgetTester tester, _Room room, String pericope) async {
-  final at = room.state.naRoda!.indexWhere(
-    (entry) => entry.pericope == pericope,
-  );
-  room.notifier.apontarPassagem(at);
-  await _passTime(tester);
-}
+void _open(_Room room, String pericope) => room.notifier.openTheEntry(
+  room.state.naRoda!.firstWhere((entry) => entry.pericope == pericope),
+);
 
 Future<void> _takeThePanorama(WidgetTester tester, _Room room) async {
   await _readTheWheel(tester, room);
-  room.notifier.entrarNaOferecida();
+  room.notifier.openTheEntry(room.state.naRoda!.first);
   await _passTime(tester);
 }
 
@@ -83,8 +79,7 @@ Future<void> _takeThePassage(
   String pericope,
 ) async {
   if (room.state.naRoda == null) await _readTheWheel(tester, room);
-  await _aimAt(tester, room, pericope);
-  room.notifier.entrarNaOferecida();
+  _open(room, pericope);
   await _passTime(tester);
   await _passTime(tester);
 }
@@ -344,7 +339,7 @@ void main() {
     final room = await _pump(tester);
     await _readTheWheel(tester, room);
     room.harness.voice.holdNextLine();
-    room.notifier.entrarNaOferecida();
+    room.notifier.openTheEntry(room.state.naRoda!.first);
     await _passTime(tester);
 
     expect(room.state.stage, SalaStage.panorama);
@@ -533,8 +528,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(byLabel(_back), findsOneWidget);
 
-    await _aimAt(tester, room, 'P02');
-    room.notifier.entrarNaOferecida();
+    _open(room, 'P02');
     await tester.pump(const Duration(seconds: 2));
 
     expect(room.state.stage, SalaStage.escolha);

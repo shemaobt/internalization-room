@@ -281,8 +281,6 @@ const _matrizDoEnsaio = [
 
 const _matrizDaConversaEDaRoda = [
   'abrir o microfone na conversa',
-  'arrastar a régua da roda',
-  'dizer a passagem de novo',
   'abrir a roda',
   'entrar na passagem oferecida',
   'entrar no panorama da roda',
@@ -640,27 +638,12 @@ void main() {
       },
       somProprio: 'recorder:start',
     ),
-    _linha('arrastar a régua da roda', _naRoda, (cena) async {
-      cena.sala.apontarPassagem(1);
-      await waitFor(
-        'a roda parar na passagem apontada',
-        () => _estado(cena).aOferecer == 1,
-      );
-    }),
-    _linha('dizer a passagem de novo', _naRoda, (cena) async {
-      final ditas = cena.harness.voice.played.length;
-      cena.sala.dizerAPassagem();
-      await waitFor(
-        'a roda dizer a passagem de novo',
-        () => cena.harness.voice.played.length > ditas,
-      );
-    }, somProprio: 'voice:line'),
     _linha('abrir a roda', _noRetro, (cena) async {
       await cena.sala.abrirEscolha();
       await waitFor('a roda carregar', () => _estado(cena).naRoda != null);
     }),
     _linha('entrar na passagem oferecida', _naRoda, (cena) async {
-      cena.sala.entrarNaOferecida();
+      cena.sala.openTheEntry(_estado(cena).naRoda!.first);
       await waitFor(
         'a conversa abrir',
         () => _estado(cena).stage == SalaStage.conversa,
@@ -682,13 +665,9 @@ void main() {
         addTearDown(container.dispose);
         final cena = _cena(harness, container);
         await cena.sala.abrirEscolha();
-        await waitFor('a roda carregar', () => _estado(cena).naRoda != null);
-        cena.sala.apontarPassagem(1);
         await waitFor(
-          'a roda dizer o raio do panorama',
-          () =>
-              _estado(cena).aOferecer == 1 &&
-              _estado(cena).voice == VoiceState.invite,
+          'a Escolha abrir as entradas',
+          () => _estado(cena).entriesOpen,
         );
         return cena;
       },
@@ -696,7 +675,9 @@ void main() {
         // Este ramo não passa pelo _clearAll do goConversa, e a linha que a roda
         // acabou de oferecer seguia soando por cima da espera dele.
         final ditas = cena.harness.voice.played.length;
-        cena.sala.entrarNaOferecida();
+        cena.sala.openTheEntry(
+          _estado(cena).naRoda!.firstWhere((entry) => entry.isPanorama),
+        );
         await waitFor(
           'o panorama falar',
           () => cena.harness.voice.played.length > ditas,

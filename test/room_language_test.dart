@@ -87,9 +87,9 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
 
         expect(container.read(roomLanguageProvider), 'pt');
-        expect(byLabel('Entrar nesta passagem'), findsOneWidget);
+        expect(find.text('Escolha a passagem'), findsOneWidget);
 
-        container.read(salaSessionProvider.notifier).entrarNaOferecida();
+        await tester.tap(find.text('Rute 1:1–5'));
         await tester.pump(const Duration(milliseconds: 300));
 
         expect(harness.room.languagesAsked, isNotEmpty);
@@ -215,11 +215,11 @@ void main() {
       await it.sala.abrirEscolha();
       await waitFor(
         'the Wheel to offer a passage',
-        () => it.estado.naRoda != null && it.estado.voice == VoiceState.invite,
+        () => it.estado.entriesOpen,
       );
       it.harness.network.holdNextCheck();
       final checks = it.harness.network.checks;
-      it.sala.entrarNaOferecida();
+      it.sala.openTheEntry(it.estado.naRoda!.first);
       await waitFor(
         'the reach check to be in the air',
         () => it.harness.network.checks > checks,
@@ -348,9 +348,9 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
       await tester.pump(const Duration(milliseconds: 300));
-      notifier.apontarPassagem(1);
-      await tester.pump(const Duration(milliseconds: 300));
-      notifier.entrarNaOferecida();
+      notifier.openTheEntry(
+        read().naRoda!.firstWhere((entry) => entry.pericope == 'P01'),
+      );
       await tester.pump(const Duration(milliseconds: 300));
       final session = read().sessionId;
       notifier.leaveThePassage();

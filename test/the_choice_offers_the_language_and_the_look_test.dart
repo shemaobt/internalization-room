@@ -116,7 +116,7 @@ void main() {
 
       expect(_selected(tester, 'PT'), isTrue);
       expect(_selected(tester, 'EN'), isFalse);
-      expect(byLabel('Entrar nesta passagem'), findsOneWidget);
+      expect(find.text('Escolha a passagem'), findsOneWidget);
 
       await _enter(tester, container, 'P01');
 
@@ -134,7 +134,7 @@ void main() {
       await _catchUp(tester);
 
       expect(_selected(tester, 'EN'), isTrue);
-      expect(byLabel('Enter this passage'), findsOneWidget);
+      expect(find.text('Choose the Passage'), findsOneWidget);
 
       await _enter(tester, container, 'P01');
 

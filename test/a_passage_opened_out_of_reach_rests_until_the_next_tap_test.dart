@@ -102,22 +102,22 @@ Future<_Sala> _theSala(WidgetTester tester, SalaHarness harness) async {
   );
 }
 
-Future<void> _theChoiceOffers(_Sala sala, bool Function(Passagem) isIt) async {
-  await _until(sala, 'the wheel to load', () => _read(sala).naRoda != null);
-  final at = _read(sala).naRoda!.indexWhere(isIt);
-  sala.notifier.apontarPassagem(at);
-  await _until(
-    sala,
-    'the wheel to offer the entry',
-    () => _read(sala).aOferecer == at && _read(sala).voice == VoiceState.invite,
-  );
+Future<Passagem> _theChoiceOffers(
+  _Sala sala,
+  bool Function(Passagem) isIt,
+) async {
+  await _until(sala, 'the entries to open', () => _read(sala).entriesOpen);
+  return _read(sala).naRoda!.firstWhere(isIt);
 }
 
 Future<void> _chooseP01(_Sala sala, RoomFailure creation) async {
   unawaited(sala.notifier.abrirEscolha());
-  await _theChoiceOffers(sala, (entry) => entry.pericope == 'P01');
+  final chosen = await _theChoiceOffers(
+    sala,
+    (entry) => entry.pericope == 'P01',
+  );
   sala.harness.room.failCreateOnceWith = creation;
-  sala.notifier.entrarNaOferecida();
+  sala.notifier.openTheEntry(chosen);
   await _wait(sala);
 }
 
@@ -217,10 +217,10 @@ void main() {
         _aRoomThatWaitsForTheTap()..room.passages = _aBookWithItsPanorama,
       );
       unawaited(sala.notifier.abrirEscolha());
-      await _theChoiceOffers(sala, (entry) => entry.isPanorama);
+      final chosen = await _theChoiceOffers(sala, (entry) => entry.isPanorama);
       sala.harness.room.reachable = false;
       sala.harness.network.reachable = false;
-      sala.notifier.entrarNaOferecida();
+      sala.notifier.openTheEntry(chosen);
       await _wait(sala);
 
       expect(_read(sala).stage, SalaStage.panorama);
@@ -239,9 +239,12 @@ void main() {
 
   Future<void> theCreationIsGivenUp(_Sala sala) async {
     unawaited(sala.notifier.abrirEscolha());
-    await _theChoiceOffers(sala, (entry) => entry.pericope == 'P01');
+    final chosen = await _theChoiceOffers(
+      sala,
+      (entry) => entry.pericope == 'P01',
+    );
     sala.harness.room.holdNextCreate();
-    sala.notifier.entrarNaOferecida();
+    sala.notifier.openTheEntry(chosen);
     await _wait(sala);
   }
 
@@ -270,8 +273,8 @@ void main() {
     (tester) async {
       final sala = await _theSala(tester, aRoomThatGivesUp());
       unawaited(sala.notifier.abrirEscolha());
-      await _theChoiceOffers(sala, (entry) => entry.isPanorama);
-      sala.notifier.entrarNaOferecida();
+      final chosen = await _theChoiceOffers(sala, (entry) => entry.isPanorama);
+      sala.notifier.openTheEntry(chosen);
       await _until(
         sala,
         'the Panorama to be said',
@@ -308,14 +311,17 @@ void main() {
     );
     final sala = await _theSala(tester, harness);
     unawaited(sala.notifier.abrirEscolha());
-    await _theChoiceOffers(sala, (entry) => entry.pericope == 'P01');
+    final chosen = await _theChoiceOffers(
+      sala,
+      (entry) => entry.pericope == 'P01',
+    );
     void set(bool silent) {
       roomIsSilent = silent;
       harness.room.reachable = !silent;
     }
 
     set(true);
-    sala.notifier.entrarNaOferecida();
+    sala.notifier.openTheEntry(chosen);
     await _wait(sala);
     expect(byLabel(_tryAgain), findsOneWidget);
     await _pass(sala, _theProductionLadder[0] + _theProductionLadder[1]);
@@ -357,8 +363,8 @@ void main() {
   Future<String> aHaltInThePanoramaCalledFor(_Sala sala) async {
     final harness = sala.harness;
     unawaited(sala.notifier.abrirEscolha());
-    await _theChoiceOffers(sala, (entry) => entry.isPanorama);
-    sala.notifier.entrarNaOferecida();
+    final chosen = await _theChoiceOffers(sala, (entry) => entry.isPanorama);
+    sala.notifier.openTheEntry(chosen);
     await _until(
       sala,
       'the Panorama to be said',
@@ -430,8 +436,11 @@ void main() {
     (tester) async {
       final sala = await _theSala(tester, _aRoomThatWaitsForTheTap());
       unawaited(sala.notifier.abrirEscolha());
-      await _theChoiceOffers(sala, (entry) => entry.pericope == 'P01');
-      sala.notifier.entrarNaOferecida();
+      final chosen = await _theChoiceOffers(
+        sala,
+        (entry) => entry.pericope == 'P01',
+      );
+      sala.notifier.openTheEntry(chosen);
       await _until(
         sala,
         'the session to rest at the invite',

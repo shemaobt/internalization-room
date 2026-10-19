@@ -282,7 +282,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
-    notifier.entrarNaOferecida();
+    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await _pumpUntil(tester, () {
       final state = container.read(salaSessionProvider);
       return state.station is Panorama &&

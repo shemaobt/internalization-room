@@ -315,39 +315,6 @@ void main() {
     );
   });
 
-  test('a line waiting on the wheel survives the wheel read again in the same '
-      'visit', () async {
-    final harness = SalaHarness();
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final sala = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await sala.abrirEscolha();
-    final oferecida = read().oferecida!.audioUrl;
-    await waitFor(
-      'a roda dizer a passagem',
-      () => harness.voice.played.where((url) => url == oferecida).length == 1,
-    );
-    await settle();
-    harness.voice.holdNextLine();
-    sala.sayTheMicIsBlocked();
-    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
-    sala.escolhaTap();
-    await settle();
-
-    unawaited(sala.abrirEscolha());
-    harness.voice.holdNextLine();
-    await waitFor(
-      'a passagem que esperava tocar',
-      () => harness.voice.played.where((url) => url == oferecida).length == 2,
-    );
-    harness.voice.finishHeldLine();
-    await waitFor(
-      'a passagem que esperava e a da roda relida tocarem',
-      () => harness.voice.played.where((url) => url == oferecida).length == 3,
-    );
-  });
-
   test('a line waiting while the room silences and then plays a stretch '
       'waits for that stretch', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();
@@ -448,7 +415,6 @@ void main() {
     ('nothing else', (_) {}),
     ('a circle tap', (sala) => sala.conversaTap()),
     ('a hand tap', (sala) => sala.handTap()),
-    ('a drag on the wheel', (sala) => sala.apontarPassagem(0)),
     ('a tap on the wheel', (sala) => sala.escolhaTap()),
   ]) {
     test('a waiting line is never started and then cut while a gesture hands '
@@ -469,7 +435,7 @@ void main() {
       expect(read().machine.queue, hasLength(1));
       harness.network.holdNextCheck();
 
-      sala.entrarNaOferecida();
+      sala.openTheEntry(read().naRoda!.first);
       await settle();
       gesture(sala);
       await settle();
@@ -609,7 +575,7 @@ void main() {
     sala.sayTheMicIsBlocked();
     harness.network.holdNextCheck();
 
-    sala.entrarNaOferecida();
+    sala.openTheEntry(read().naRoda!.first);
     await settle();
     outbox!.gaveUp = true;
     await sala.refreshUnsent();
@@ -646,7 +612,7 @@ void main() {
     ledger.refuses = true;
     final marca = harness.sounds.length;
 
-    sala.entrarNaOferecida();
+    sala.openTheEntry(read().naRoda!.first);
     await waitFor(
       'a linha da gravação presa tocar',
       () => harness.voice.assets.contains(_stranded),
@@ -658,31 +624,6 @@ void main() {
       allOf(isNonNegative, lessThan(depois.indexOf('voice:asset'))),
       reason: 'a abertura do gesto toca antes da linha de fundo: $depois',
     );
-  });
-
-  test("leaving a passage ends its gestures, so the wheel's line never waits "
-      'for an opening the team walked away from', () async {
-    final harness = SalaHarness();
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final sala = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await sala.abrirEscolha();
-    await waitFor('a roda carregar', () => read().naRoda != null);
-    await settle();
-    final oferecida = read().oferecida!.audioUrl;
-    final ditas = harness.voice.played.where((url) => url == oferecida).length;
-    harness.room.holdNextTurn();
-
-    sala.entrarNaOferecida();
-    await waitFor('a passagem abrir', () => read().sessionId != null);
-    sala.leaveThePassage();
-    await waitFor(
-      'a roda dizer a passagem sem esperar a abertura abandonada',
-      () =>
-          harness.voice.played.where((url) => url == oferecida).length > ditas,
-    );
-    harness.room.finishHeldTurn();
   });
 
   test('no background line plays between the acknowledgement and the reply of '

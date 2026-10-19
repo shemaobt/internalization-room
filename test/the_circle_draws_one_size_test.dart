@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
@@ -21,8 +23,9 @@ void main() {
   });
 
   testWidgets('a escolha desenha o círculo em 160 px', (tester) async {
-    final container = await pumpSala(tester, SalaHarness());
-    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    final harness = SalaHarness()..room.holdNextPassages();
+    final container = await pumpSala(tester, harness);
+    unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
     await tester.pump(const Duration(milliseconds: 1500));
 
     expect(

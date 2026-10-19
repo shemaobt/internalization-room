@@ -22,8 +22,8 @@ Future<ProviderContainer> _naPassagem(SalaHarness harness) async {
   addTearDown(container.dispose);
   final sala = container.read(salaSessionProvider.notifier);
   await sala.abrirEscolha();
-  await settle();
-  sala.entrarNaOferecida();
+  await theChoiceOffersAPassage(container);
+  sala.openTheEntry(_estado(container).naRoda!.first);
   await waitFor(
     'a passagem abrir',
     () => container.read(salaSessionProvider).sessionId != null,
@@ -67,7 +67,7 @@ Future<ProviderContainer> _naPassagemSemEspera(SalaHarness harness) async {
   final sala = container.read(salaSessionProvider.notifier);
   await sala.abrirEscolha();
   await theChoiceOffersAPassage(container);
-  sala.entrarNaOferecida();
+  sala.openTheEntry(_estado(container).naRoda!.first);
   await waitFor(
     'a passagem abrir e a sala se calar',
     () =>

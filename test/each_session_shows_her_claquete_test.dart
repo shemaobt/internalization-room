@@ -28,7 +28,10 @@ const _panorama = Passagem(
 );
 
 final _claquete = find.byType(Claquete);
-final _mark = find.byType(ShemaMark);
+final _mark = find.descendant(
+  of: find.byType(ClaqueteLayer),
+  matching: find.byType(ShemaMark),
+);
 
 String _words(WidgetTester tester) => tester
     .widgetList<Text>(
@@ -316,11 +319,9 @@ void main() {
       await notifier.abrirEscolha();
       await _elapse(tester, const Duration(seconds: 1));
       final state = container.read(salaSessionProvider);
-      notifier.apontarPassagem(
-        state.naRoda!.indexWhere((entry) => entry.isPanorama),
+      notifier.openTheEntry(
+        state.naRoda!.firstWhere((entry) => entry.isPanorama),
       );
-      await _elapse(tester, const Duration(seconds: 2));
-      notifier.entrarNaOferecida();
       for (var beat = 0; beat < 100; beat++) {
         if (container.read(salaSessionProvider).stage == SalaStage.panorama) {
           break;

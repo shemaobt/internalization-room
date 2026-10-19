@@ -1188,9 +1188,24 @@ class FakeRoom implements RoomRepository {
   String bridgeMode = '';
   final List<String> booksAsked = [];
   List<Passagem> passages = const [
-    Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-    Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
-    Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+    Passagem(
+      pericope: 'P01',
+      audioUrl: '/voice/p01',
+      book: 'Ruth',
+      reference: 'Ruth 1:1–5',
+    ),
+    Passagem(
+      pericope: 'P02',
+      audioUrl: '/voice/p02',
+      book: 'Ruth',
+      reference: 'Ruth 1:6–14',
+    ),
+    Passagem(
+      pericope: 'P03',
+      audioUrl: '/voice/p03',
+      book: 'Ruth',
+      reference: 'Ruth 1:15–18',
+    ),
   ];
 
   /// The ids this room gave the sessions it opened, in the order it opened them.
