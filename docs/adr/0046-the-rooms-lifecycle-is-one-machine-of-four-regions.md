@@ -151,3 +151,11 @@ Extended by name (ENG-1197, 2026-10-19), same end date: `btRecusa`, the refusal 
 «terminei» came back with, which writes her line under the circle («ainda falta ouvir um
 trecho da gravação», «ainda não tem frase traduzida», «não deu para conferir agora — tentem de
 novo»), sits beside them on the same two classes and moves with them.
+
+Extended by name (ENG-1223, 2026-10-19), same end date: `btRecomeco`, the arm of
+«recomeçar a tradução» (armed, then ready after 0.6 s, lapsing after 6 s), and `btAviso`,
+the line those gestures write under the circle («tradução recomeçada — o ensaio da passagem
+ficou», «não deu para recomeçar agora — tentem de novo», and her three refusals of a moved
+pause). They sit beside the others on the same two classes and move with them. Clearing her
+«não entendi» on a restart is the machine's, by `TheTranslationStartedOver`, not the
+notifier's.
