@@ -5612,6 +5612,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _largarAFrase(guardada, PassoDaRegravacao.pronta);
       case Answered(value: final laid):
         await _aFraseNoLugar(guardada, nome, laid.segments, generation);
+      case Refused(code: RefusalCode.anotherSentenceAwaits):
+        _guardarAFrase(frase);
+        await _readTheStretchesBack(guardada.sessionId, generation);
+        if (_abandoned(generation)) return;
+        if (state.btFraseQueAguarda case final aguardando?) {
+          await _voltarAFraseQueAguarda(aguardando, generation);
+        }
       case RoomFailure():
         _guardarAFrase(frase);
     }
@@ -6539,6 +6546,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (_abandoned(generation)) return null;
         final trechos = _trechosFrom(snapshot.backTranslation.segments);
         if (trechos.isNotEmpty) state = state.copyWith(btTrechos: trechos);
+        final aguardando = snapshot.backTranslation.awaitingSegmentId;
+        state = state.copyWith(
+          btFraseQueAguarda: aguardando,
+          clearBtFraseQueAguarda: aguardando == null,
+        );
         _applyTheSessionRead(snapshot, sent);
         return null;
       case NetworkFailed() && final failure:

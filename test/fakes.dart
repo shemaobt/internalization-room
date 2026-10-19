@@ -1870,7 +1870,11 @@ class FakeRoom implements RoomRepository {
         moment: nextMoment,
         keptRetellings: keptRetellings,
         backTranslation:
-            retroSoFar ?? BackTranslationProgress(segments: _numbered),
+            retroSoFar ??
+            BackTranslationProgress(
+              segments: _numbered,
+              awaitingSegmentId: awaitingSegmentId,
+            ),
       ),
     );
     if (_readsToHold > 0) {

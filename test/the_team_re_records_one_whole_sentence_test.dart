@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -792,6 +793,71 @@ void main() {
           'a frase nova tocada no lugar não contava como ouvida, e a sala '
           'recusava o terminei',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence the room refuses because another frase awaits stays '
+      'on the tablet, and the voice opens the frase that awaits', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room
+      ..awaitingSegmentId = 'trecho-1'
+      ..sentenceAnswersFirst.add(const Refused('ANOTHER_SENTENCE_AWAITS'));
+    harness.voice.fixedLines.clear();
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.voice.fixedLines,
+      [('N5', 'pt')],
+      reason: 'a sala recusava a frase e a equipe não sabia qual faltava',
+    );
+    expect(harness.playback.ranges.last, '0-4000');
+    final aqui = container.read(salaSessionProvider);
+    expect(aqui.btFraseQueAguarda, 'trecho-1');
+    expect(aqui.btTrechoTraduzidoDeNovo?.segmentId, 'trecho-1');
+    expect(guardada(harness), isTrue);
+    expect(aqui.btFraseGuardada, 3);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a «terminei» the room refuses because a frase awaits marks '
+      'that frase as re-recorded and takes «regravar» off the others', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    harness.room
+      ..verdictRefusal = CheckRefusal.fraseAwaiting
+      ..verdictFixedLine = 'N5'
+      ..verdictUntoldSegmentId = 'trecho-1'
+      ..awaitingSegmentId = 'trecho-1';
+
+    await tocar(tester, 'terminei');
+    await waitFor(
+      'a frase que espera abrir',
+      () =>
+          container
+              .read(salaSessionProvider)
+              .btTrechoTraduzidoDeNovo
+              ?.segmentId ==
+          'trecho-1',
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      naLinha('regravada — traduzam esta frase'),
+      findsOneWidget,
+      reason: 'a frase que outro aparelho regravou parecia já traduzida',
+    );
+    expect(_naLista('regravar a frase 2'), findsNothing);
     closeTheRoom(container);
   });
 }
