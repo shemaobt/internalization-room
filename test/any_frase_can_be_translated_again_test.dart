@@ -9,6 +9,7 @@ import 'package:internalization_room/main.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -17,10 +18,12 @@ import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
+        cabeca,
         confirmar,
         contarAteOFimDaParte,
         entrarNaTraducao,
         gravarATraducao,
+        parte,
         tesoura,
         tocar;
 
@@ -117,10 +120,11 @@ Future<ProviderContainer> _seteFrasesConferidas(
   return container;
 }
 
-Future<ProviderContainer> _voltaAUmaTraducaoConferida(
+Future<ProviderContainer> _voltaAUmaTraducao(
   WidgetTester tester,
-  SalaHarness harness,
-) async {
+  SalaHarness harness, {
+  required bool conferida,
+}) async {
   _telaAlta(tester);
   final pasta = Directory.systemTemp.createTempSync('sala-1220');
   addTearDown(() => pasta.deleteSync(recursive: true));
@@ -137,9 +141,9 @@ Future<ProviderContainer> _voltaAUmaTraducaoConferida(
     stage: SalaStage.retro,
     takes: partes,
   );
-  harness.room.retroSoFar = const BackTranslationProgress(
-    checked: true,
-    segments: [
+  harness.room.retroSoFar = BackTranslationProgress(
+    checked: conferida,
+    segments: const [
       SegmentView(
         segmentId: 'trecho-1',
         takeId: 'gravacao-1',
@@ -167,8 +171,11 @@ Future<ProviderContainer> _voltaAUmaTraducaoConferida(
         .goConversa(book: 'Ruth', pericope: 'P01'),
   );
   await waitFor(
-    'a tradução conferida voltar',
-    () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+    'a tradução voltar com as duas frases',
+    () =>
+        container.read(salaSessionProvider).btTrechos.length == 2 &&
+        container.read(salaSessionProvider).btPhase ==
+            (conferida ? BtPhase.conferida : BtPhase.playing),
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await _passo(tester);
@@ -465,7 +472,11 @@ void main() {
   testWidgets('a conferida session picked back up still stands on its '
       'verdict after a frase is told again', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _voltaAUmaTraducaoConferida(tester, harness);
+    final container = await _voltaAUmaTraducao(
+      tester,
+      harness,
+      conferida: true,
+    );
 
     await tocar(tester, _barra(1));
     await _traduzirDeNovo(
@@ -487,6 +498,128 @@ void main() {
       container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.frase,
       2,
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('three rounds in a row: each terminei is sent like the first, '
+      'and only terminei sends one', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+
+    await tocar(tester, _barra(7));
+    await _traduzirDeNovo(tester, container);
+    expect(harness.room.playedByTakeSent, hasLength(1));
+    await _terminei(tester, container, BtPhase.findings);
+
+    await tocar(tester, _barra(3));
+    await _traduzirDeNovo(tester, container);
+    expect(harness.room.playedByTakeSent, hasLength(2));
+    await _terminei(tester, container, BtPhase.findings);
+
+    expect(
+      harness.room.playedByTakeSent,
+      hasLength(3),
+      reason: 'o terceiro terminei não chegava à sala como o primeiro',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap on «regravar a frase 4» is that button\'s, never the '
+      'row\'s retell', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesContadas(tester, harness);
+    harness.room
+      ..verdictChecked = true
+      ..verdictFindings = const []
+      ..verdictNamedNuance = const BtFinding(
+        kind: BtFindingKind.nuance,
+        frase: 4,
+        segmentId: 'trecho-4',
+      );
+    await _terminei(tester, container, BtPhase.conferida);
+
+    await tester.ensureVisible(find.text('regravar a frase 4'));
+    await tester.tap(find.text('regravar a frase 4'));
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo,
+      isNull,
+      reason: 'o toque em regravar a frase abria a frase para traduzir de novo',
+    );
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    closeTheRoom(container);
+  });
+
+  testWidgets('before any verdict a tap on a frase opens nothing to tell '
+      'again', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAUmaTraducao(
+      tester,
+      harness,
+      conferida: false,
+    );
+    expect(
+      container.read(salaSessionProvider).btTrechos[1].segmentId,
+      isNotNull,
+    );
+    final tocadas = harness.playback.played.length;
+
+    await tocar(tester, _barra(2));
+
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo,
+      isNull,
+      reason:
+          'antes de qualquer conferência a frase já abria para traduzir '
+          'de novo',
+    );
+    expect(harness.playback.played.length, tocadas);
+    closeTheRoom(container);
+  });
+
+  testWidgets('in an English session the retell speaks her English words', (
+    tester,
+  ) async {
+    _telaAlta(tester);
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, retroLabelFor('pauseHere', 'en'));
+    await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
+    await tocar(tester, retroLabelFor('recording', 'en'));
+    await tocar(tester, retroLabelFor('confirm', 'en'));
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    await tocar(tester, retroLabelFor('record', 'en'));
+    await tocar(tester, retroLabelFor('recording', 'en'));
+    await tocar(tester, retroLabelFor('confirm', 'en'));
+    await waitFor(
+      'o terminei acender',
+      () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
+      step: () => _passo(tester),
+    );
+    harness.room
+      ..verdictChecked = false
+      ..verdictFindingPlace = 0
+      ..verdictFindings = const [
+        BtFinding(
+          kind: BtFindingKind.addition,
+          frase: 1,
+          segmentId: 'trecho-1',
+        ),
+      ];
+    await _terminei(tester, container, BtPhase.findings);
+
+    await tocar(tester, 'Hear this sentence again and translate it again — 2');
+
+    expect(
+      find.text('translating sentence 2 again — tap the circle'),
+      findsOneWidget,
+      reason: 'a sessão em inglês dizia a linha em português',
+    );
+    expect(byLabel('keep the earlier translation'), findsOneWidget);
     closeTheRoom(container);
   });
 }

@@ -214,7 +214,7 @@ class _FraseTile extends StatelessWidget {
                           child: Opacity(
                             opacity: row.onRegravar == null ? 0.35 : 1,
                             child: GestureDetector(
-                              onTap: row.onRegravar,
+                              onTap: row.onRegravar ?? () {},
                               child: ExcludeSemantics(
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
