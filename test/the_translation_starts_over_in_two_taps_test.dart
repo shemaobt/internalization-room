@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -18,6 +19,7 @@ import 'session_notifier_test.dart'
 
 const _recomecar = 'recomeçar a tradução';
 const _armado = 'toque de novo para apagar as 4 frases traduzidas';
+const _naoDeu = 'não deu para recomeçar agora — tentem de novo';
 const _recomecada = 'tradução recomeçada — o ensaio da passagem ficou';
 
 const _quatroFrases = [
@@ -209,6 +211,34 @@ void main() {
       );
       await tester.pump(const Duration(seconds: 6));
       expect(find.text(_recomecada), findsNothing);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a restart the room refuses keeps every frase and says so in her words',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+      harness.room.failRestartWith = const Refused('HTTP_409');
+
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.tap(byLabel(_armado));
+      await waitFor(
+        'a sala recusar o recomeço',
+        () => harness.room.restartsAsked.isNotEmpty,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+
+      expect(
+        find.text(_naoDeu),
+        findsOneWidget,
+        reason: 'o recomeço falhava calado e a equipe esperava à toa',
+      );
+      expect(container.read(salaSessionProvider).btTrechos, hasLength(4));
+      expect(find.text(_recomecar), findsOneWidget);
       closeTheRoom(container);
     },
   );

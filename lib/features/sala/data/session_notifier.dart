@@ -5130,7 +5130,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(btPhase: BtPhase.playing);
         await _playFromTheUntoldGround(agora);
       case final RoomFailure failure:
-        state = state.copyWith(btPhase: antes);
+        state = state.copyWith(btPhase: antes, btAviso: BtAviso.recomecoFalhou);
         _decideAt(
           failure,
           door: Door.stretches,

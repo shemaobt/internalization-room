@@ -231,6 +231,7 @@ class RetroView extends ConsumerWidget {
   String? _linha(SalaSessionState session, String language) {
     final aviso = switch (session.btAviso) {
       BtAviso.recomecada => 'restarted',
+      BtAviso.recomecoFalhou => 'restartFailed',
       null => null,
     };
     if (aviso != null) return retroLabelFor(aviso, language);

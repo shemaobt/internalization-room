@@ -129,7 +129,7 @@ enum BtPhase { playing, capturing, thinking, findings, conferida }
 
 enum BtRecomeco { armado, pronto }
 
-enum BtAviso { recomecada }
+enum BtAviso { recomecada, recomecoFalhou }
 
 /// One stretch the team told back: a slice of one rehearsal recording.
 ///

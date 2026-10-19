@@ -331,6 +331,10 @@ const retroLabels = {
     'pt': 'tradução recomeçada — o ensaio da passagem ficou',
     'en': 'translation started over — the passage rehearsal stays',
   },
+  'restartFailed': {
+    'pt': 'não deu para recomeçar agora — tentem de novo',
+    'en': 'couldn\'t start over right now — try again',
+  },
 };
 
 String retroLabelFor(String control, String language, {int? n}) =>
