@@ -228,7 +228,7 @@ const _thePanorama = Passagem(
   kind: PassagemKind.panorama,
 );
 
-/// The Choice open with the Panorama, its first entry, offered and nothing tapped yet.
+/// The Choice open with the Panorama among its entries and nothing tapped yet.
 Future<void> _theChoiceOffersThePanorama(
   SalaHarness harness,
   ProviderContainer container,

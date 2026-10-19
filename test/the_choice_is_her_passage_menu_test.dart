@@ -536,4 +536,27 @@ void main() {
     expect(find.text('●'), findsNothing);
     expect(find.text('Rute 1:1–5'), findsOneWidget);
   });
+
+  menuTest(
+    'a tap on the tinted Panorama comes back to it, as the way back does, '
+    'without its opening again',
+    (tester) async {
+      final harness = _aRoomListing(_ruth);
+      final container = await _theChoice(tester, harness);
+      await tester.tap(find.text(_panoramaPt));
+      await _catchUp(tester);
+      await _leave(tester, container);
+      final spokenTo = harness.room.sessionsSpokenTo.length;
+
+      await tester.tap(find.text(_panoramaPt));
+      await _catchUp(tester);
+
+      expect(container.read(salaSessionProvider).stage, SalaStage.panorama);
+      expect(
+        harness.room.sessionsSpokenTo,
+        hasLength(spokenTo),
+        reason: 'voltar ao panorama já ouvido não pede a abertura de novo',
+      );
+    },
+  );
 }

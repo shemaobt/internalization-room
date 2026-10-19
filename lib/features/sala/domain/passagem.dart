@@ -19,7 +19,7 @@ class Passagem {
     this.reference = '',
   });
 
-  /// The book's own spoke, first on the wheel when the room offers one — never a passage,
+  /// The book's own entry, first in its book's block when the room lists one — never a passage,
   /// so nothing that counts passages may count this.
   bool get isPanorama => kind == PassagemKind.panorama;
 

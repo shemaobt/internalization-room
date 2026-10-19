@@ -46,8 +46,7 @@ class EscolhaView extends ConsumerWidget {
             ),
             if (session.entriesOpen)
               _Books(
-                entries: session.naRoda!,
-                left: _theEntryLeft(session.leftEntry, language),
+                session: session,
                 book: ref.watch(bookProvider),
                 language: language,
               )
@@ -59,9 +58,6 @@ class EscolhaView extends ConsumerWidget {
     );
   }
 }
-
-LeftEntry? _theEntryLeft(LeftEntry? left, String language) =>
-    left != null && left.language == language ? left : null;
 
 class _Circle extends ConsumerWidget {
   final SalaSessionState session;
@@ -92,29 +88,23 @@ class _Circle extends ConsumerWidget {
 }
 
 class _Books extends StatelessWidget {
-  final List<Passagem> entries;
-  final LeftEntry? left;
+  final SalaSessionState session;
   final String book;
   final String language;
 
   const _Books({
-    required this.entries,
-    required this.left,
+    required this.session,
     required this.book,
     required this.language,
   });
 
-  bool _isTheEntryLeft(Passagem entry) {
-    final left = this.left;
-    if (left == null) return false;
-    if (left.panorama) return entry.isPanorama && entry.book == book;
-    return !entry.isPanorama && entry.pericope == left.pericope;
-  }
+  bool _isTheEntryLeft(Passagem entry) =>
+      session.isTheEntryLeft(entry, language: language, book: book);
 
   @override
   Widget build(BuildContext context) {
     final books = <String, List<Passagem>>{};
-    for (final entry in entries) {
+    for (final entry in session.naRoda!) {
       books.putIfAbsent(entry.book, () => []).add(entry);
     }
     return ConstrainedBox(
@@ -130,8 +120,8 @@ class _Books extends StatelessWidget {
                   if (entry.isPanorama)
                     _Pill(
                       entry: entry,
-                      words: '◈ ${panoramaEntryLabel[language]}',
-                      panorama: true,
+                      words:
+                          '◈ ${panoramaEntryLabel[language] ?? panoramaEntryLabel[floorLanguage]!}',
                       tinted: _isTheEntryLeft(entry),
                       language: language,
                     ),
@@ -209,7 +199,6 @@ class _Book extends StatelessWidget {
 class _Pill extends ConsumerWidget {
   final Passagem entry;
   final String words;
-  final bool panorama;
   final bool tinted;
   final String language;
 
@@ -218,12 +207,12 @@ class _Pill extends ConsumerWidget {
     required this.words,
     required this.tinted,
     required this.language,
-    this.panorama = false,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SalaColors.of(context);
+    final panorama = entry.isPanorama;
     const size = 0.95 * _rem;
     const dot = 0.66 * size;
     return MergeSemantics(

@@ -376,6 +376,17 @@ class SalaSessionState {
       !needsPerson &&
       voice == VoiceState.invite;
 
+  bool isTheEntryLeft(
+    Passagem entry, {
+    required String language,
+    required String book,
+  }) {
+    final left = leftEntry;
+    if (left == null || left.language != language) return false;
+    if (left.panorama) return entry.isPanorama && entry.book == book;
+    return !entry.isPanorama && entry.pericope == left.pericope;
+  }
+
   bool get rodaPorLer => stage == SalaStage.escolha && naRoda == null;
 
   /// The panorama's own spoke, when the wheel offers one, never counts as a passage the
