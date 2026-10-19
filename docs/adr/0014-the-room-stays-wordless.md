@@ -13,6 +13,12 @@ Amended by ENG-1434 (2026-10-12): her moment label arrives on the session screen
 (`widgets/moment_label.dart`), in her words, her colours and her hiding rules, and the
 exception stands again under its own reason, her words the team reads.
 
+Amended by ENG-1379 (2026-10-19): once every part of a passage has a kept retelling, the
+session screen shows her small numbered buttons (`widgets/kept_retelling_buttons.dart`), one
+numeral per part, as in her app (`app/page.tsx:1053`). The numeral names the part and is not a
+word; it is the fourth named exception, under its own reason, the numerals the parts are
+called by, and VoiceOver reads each button as «Hear how you told part N».
+
 Amended by ENG-1310 (2026-10-14): each session shows her claquete in the bottom row for
 twenty seconds after it opens or resumes, and again on a tap of the Shema mark
 (`widgets/claquete.dart`): «P05 · 2026-09-30 14:14 · fia-fixt». It is the third named

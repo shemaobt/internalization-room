@@ -608,6 +608,14 @@ class SalaSessionState {
     };
   }
 
+  List<KeptRetelling> get partsToReplay {
+    final kept = {for (final take in keptRetellings) take.scope: take};
+    final parts = [
+      for (var part = 1; part <= (moment?.parts ?? 0); part++) kept['S$part'],
+    ];
+    return parts.contains(null) ? const [] : [...parts.nonNulls];
+  }
+
   bool get warning => halt is Warning;
 
   bool get wheelHalted => switch (halt) {

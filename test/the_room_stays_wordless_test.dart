@@ -25,11 +25,16 @@ const _wordsTheTeamPicksItsLanguageBy = {
   'lib/features/sala/presentation/widgets/language_and_look.dart',
 };
 
+const _numeralsThePartsAreCalledBy = {
+  'lib/features/sala/presentation/widgets/kept_retelling_buttons.dart',
+};
+
 const _wordyExceptions = {
   ..._screensTheTeamNeverReads,
   ..._herWordsTheTeamReads,
   ..._wordsOnlyTheCameraReads,
   ..._wordsTheTeamPicksItsLanguageBy,
+  ..._numeralsThePartsAreCalledBy,
 };
 
 final _textWidgetPattern = RegExp(r'\bText\(');
