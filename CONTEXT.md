@@ -271,7 +271,7 @@ A book's own entry and the line about the whole book, first in its book's block,
 _Avoid_: introduction, overview
 
 **Served book**:
-A book the room serves and lists at `GET /books`; the Choice shows one block per served book, in the room's order.
+A book the room serves; the Choice shows one block per served book, in the room's order.
 _Avoid_: the room's book, the book (as if there were one)
 
 **Opening line**:

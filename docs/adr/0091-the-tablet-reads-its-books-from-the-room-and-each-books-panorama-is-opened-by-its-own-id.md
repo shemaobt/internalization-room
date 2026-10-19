@@ -33,6 +33,16 @@ in its own order, and names each book's Panorama `OV-<Book>`.
 - **Under a halt the Choice opens nothing:** opening the room asks the room nothing while the
   team needs a person.
 
+## Considered Options
+
+**Fall back to Ruth's list when the room answers `GET /books` with a 404.** Rejected: the
+deploy order covers it (the server ships the route first), and a fallback would hide a
+server without the route behind a tablet that looks like it works.
+
+**Keep one Panorama session per book.** Rejected for now: the server reads only the
+Panorama session immediately before a passage, so a slot per book would hold sessions
+nothing asks for.
+
 ## Consequences
 
 - The `OV` alias and the tablet's book setting leave the tablet. The server keeps `OV` as
