@@ -239,7 +239,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
       ? state.copyWith(clearTrechoTraduzidoDeNovo: true)
       : state.copyWith(btTrechoTraduzidoDeNovo: trecho);
-  BtPhase? _faseAntesDoReconto;
+  BtPhase? _faseAntesDeTraduzirDeNovo;
 
   final Set<String> _traducoesGuardadas = {};
 
@@ -6144,7 +6144,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = trecho.from;
     _trechoEnd = trecho.to;
     _trechoTraduzidoDeNovo = trecho;
-    _faseAntesDoReconto = null;
+    _faseAntesDeTraduzirDeNovo = null;
     return trecho;
   }
 
@@ -6458,7 +6458,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final fase = state.btPhase;
     _silenceTheRoom();
     if (_armarOTrecho(trecho) == null) return false;
-    _faseAntesDoReconto = fase;
+    _faseAntesDeTraduzirDeNovo = fase;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       awaitingTheGuide: false,
@@ -6478,7 +6478,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _descartarATraducaoPendente();
     _trechoTraduzidoDeNovo = null;
     _walkTheCursorBack(state.btTrechos);
-    state = state.copyWith(btPhase: _faseAntesDoReconto ?? BtPhase.playing);
+    state = state.copyWith(
+      btPhase: _faseAntesDeTraduzirDeNovo ?? BtPhase.playing,
+    );
   }
 
   /// Back to the rehearsal with everything kept, to record what the story still lacks.

@@ -154,6 +154,6 @@ novo»), sits beside them on the same two classes and moves with them.
 
 Extended by name (ENG-1220, 2026-10-19), same end date: `btVeredito`, a verdict stands on this
 telling, so her sub-line and the frase bars stay after a frase is told again, on
-`SalaSessionState`; and `_faseAntesDoReconto`, the phase a frase opened to be told again left,
+`SalaSessionState`; and `_faseAntesDeTraduzirDeNovo`, the phase a frase opened to be told again left,
 which «manter a tradução de antes» returns to, a private field of `SalaSessionNotifier`. Both
 sit beside the other `bt` fields and move with them.

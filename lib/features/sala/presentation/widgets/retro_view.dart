@@ -100,7 +100,7 @@ class RetroView extends ConsumerWidget {
                   ? notifier.resolveWithPerson
                   : null,
             ),
-            if (_recontando(session) case final n?) ...[
+            if (_traduzindoDeNovo(session) case final n?) ...[
               const SizedBox(height: 12),
               _ManterADeAntes(
                 label: sceneRehearsalLabelFor('keepTheEarlier', language),
@@ -217,7 +217,7 @@ class RetroView extends ConsumerWidget {
     return null;
   }
 
-  int? _recontando(SalaSessionState session) =>
+  int? _traduzindoDeNovo(SalaSessionState session) =>
       switch (session.btTrechoTraduzidoDeNovo) {
         Trecho(contado: true, :final frase?) => frase,
         _ => null,
