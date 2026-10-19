@@ -1186,6 +1186,7 @@ class FakeRoom implements RoomRepository {
   /// the way the server's own errands are ordered.
   List<String> verdictUntoldTakeIds = const [];
   bool verdictHasFinding = false;
+  List<BtFinding> verdictFindings = const [];
   String? serverStatus;
 
   /// Which kind of halt the room reports beside `serverStatus`. A server older than
@@ -2359,6 +2360,7 @@ class FakeRoom implements RoomRepository {
         untoldSegmentId: verdictUntoldSegmentId,
         unheardTakeIds: verdictUnheardTakeIds,
         untoldTakeIds: verdictUntoldTakeIds,
+        findings: verdictFindings,
         findingsRemaining: verdictHasFinding ? 1 : 0,
         usedFailSafe: verdictUsedFailSafe,
       ),

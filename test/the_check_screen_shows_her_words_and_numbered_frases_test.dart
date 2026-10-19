@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -123,6 +124,47 @@ Finder _cabecalho(String texto) => find.byWidgetPredicate(
       widget.properties.header == true &&
       widget.properties.label == texto,
 );
+
+Future<ProviderContainer> _quatroFrasesConferidas(
+  WidgetTester tester,
+  SalaHarness harness,
+  List<BtFinding> achados,
+) async {
+  _telaAlta(tester);
+  final container = await entrarNaTraducao(tester, harness);
+  for (var parte = 1; parte <= 2; parte++) {
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    await contarAteOFimDaParte(tester, harness);
+    await waitFor(
+      'a parte $parte ficar contada em duas frases',
+      () =>
+          container
+              .read(salaSessionProvider)
+              .btTrechos
+              .where((trecho) => trecho.contado)
+              .length ==
+          parte * 2,
+      step: () => _passo(tester),
+    );
+  }
+  harness.room
+    ..verdictChecked = false
+    ..verdictFindingPlace = 1
+    ..verdictFindings = achados;
+  unawaited(
+    container.read(salaSessionProvider.notifier).finishBackTranslation(),
+  );
+  await waitFor(
+    'o veredito chegar com os achados',
+    () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
+  return container;
+}
 
 List<String> _naLista(WidgetTester tester) => [
   for (final texto in tester.widgetList<Text>(
@@ -342,6 +384,36 @@ void main() {
       reason: 'depois do veredito a linha seguia dizendo para pausar',
     );
     expect(find.text(_subTell), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('every frase the check named carries its word, and a frase it '
+      'did not name carries none', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(tester, harness, const [
+      BtFinding(kind: BtFindingKind.addition, frase: 2, segmentId: 'trecho-2'),
+      BtFinding(kind: BtFindingKind.unclear, frase: 4, segmentId: 'trecho-4'),
+    ]);
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        '1',
+        'parte 1',
+        '2',
+        'parte 1',
+        'acrescentado',
+        '3',
+        'parte 2',
+        '4',
+        'parte 2',
+        'não ficou claro',
+      ],
+      reason:
+          'só o achado que liderava marcava alguma coisa, e os outros não '
+          'apareciam como pista',
+    );
     closeTheRoom(container);
   });
 }

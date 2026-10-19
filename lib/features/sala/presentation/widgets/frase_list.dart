@@ -10,12 +10,14 @@ class FraseRow {
   final int? parte;
   final double share;
   final VoidCallback? onHear;
+  final String? mark;
 
   const FraseRow({
     required this.n,
     required this.parte,
     required this.share,
     required this.onHear,
+    this.mark,
   });
 }
 
@@ -99,6 +101,8 @@ class _FraseTile extends StatelessWidget {
     final colors = SalaColors.of(context);
     final n = row.n;
     final parte = row.parte;
+    final mark = row.mark;
+    final tom = mark == null ? colors.cord : colors.telha;
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 460),
       child: Container(
@@ -106,7 +110,7 @@ class _FraseTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.line),
+          border: Border.all(color: mark == null ? colors.line : colors.telha),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,14 +146,35 @@ class _FraseTile extends StatelessWidget {
                     height: 28,
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: _Bar(share: row.share, fill: colors.cord),
+                      child: _Bar(share: row.share, fill: tom),
                     ),
                   ),
-                  if (parte != null)
-                    Text(
-                      '${retroLabelFor('part', language)} $parte',
-                      style: TextStyle(color: colors.mut, fontSize: 14),
-                    ),
+                  Wrap(
+                    spacing: 10,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (parte != null)
+                        Text(
+                          '${retroLabelFor('part', language)} $parte',
+                          style: TextStyle(color: colors.mut, fontSize: 14),
+                        ),
+                      if (mark != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: colors.telha),
+                          ),
+                          child: Text(
+                            mark,
+                            style: TextStyle(color: colors.telha, fontSize: 14),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),

@@ -1,3 +1,4 @@
+import 'bt_finding.dart';
 import 'channel.dart';
 import 'halt.dart';
 import 'machine.dart';
@@ -255,6 +256,7 @@ class SalaSessionState {
   /// Passages of this book with work waiting in them, by pericope, for the resume lookup.
   final Set<String> comecadas;
   final List<Trecho> btTrechos;
+  final List<BtFinding> btFindings;
   final String? btFindingSegmentId;
 
   final bool btClipEnded;
@@ -344,6 +346,7 @@ class SalaSessionState {
     this.naRoda,
     this.comecadas = const {},
     this.btTrechos = const [],
+    this.btFindings = const [],
     this.btFindingSegmentId,
     this.btClipEnded = false,
     this.btParteFronteira = false,
@@ -792,6 +795,7 @@ class SalaSessionState {
     Set<String>? comecadas,
     bool clearRoda = false,
     List<Trecho>? btTrechos,
+    List<BtFinding>? btFindings,
     String? btFindingSegmentId,
     bool clearFindingSegment = false,
     bool? btClipEnded,
@@ -854,6 +858,7 @@ class SalaSessionState {
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       comecadas: comecadas ?? this.comecadas,
       btTrechos: btTrechos ?? this.btTrechos,
+      btFindings: btFindings ?? this.btFindings,
       btFindingSegmentId: clearFindingSegment
           ? null
           : (btFindingSegmentId ?? this.btFindingSegmentId),

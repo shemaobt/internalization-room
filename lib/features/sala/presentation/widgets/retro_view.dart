@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/bt_finding.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'bead_row.dart';
@@ -106,7 +107,10 @@ class RetroView extends ConsumerWidget {
             const SizedBox(height: 16),
             SizedBox(height: 60, child: _actions(session, notifier, language)),
             const SizedBox(height: 32),
-            FraseList(rows: _frases(session, notifier), language: language),
+            FraseList(
+              rows: _frases(session, notifier, language),
+              language: language,
+            ),
             const SizedBox(height: 24),
             SizedBox(
               height: 78,
@@ -122,6 +126,7 @@ class RetroView extends ConsumerWidget {
   List<FraseRow> _frases(
     SalaSessionState session,
     SalaSessionNotifier notifier,
+    String language,
   ) {
     final aberta =
         session.btPhase != BtPhase.conferida &&
@@ -149,8 +154,20 @@ class RetroView extends ConsumerWidget {
                 )
               : 1,
           onHear: aberta ? () => notifier.ouvirOTrechoContado(onde) : null,
+          mark: switch (_markOn(trecho.frase, session)) {
+            final kind? => retroLabelFor(kind.name, language),
+            null => null,
+          },
         ),
     ];
+  }
+
+  BtFindingKind? _markOn(int? frase, SalaSessionState session) {
+    if (frase == null) return null;
+    for (final finding in session.btFindings) {
+      if (finding.frase == frase) return finding.kind;
+    }
+    return null;
   }
 
   Widget? _disc(

@@ -269,6 +269,9 @@ const retroLabels = {
   },
   'advance': {'pt': 'Conferir a tradução', 'en': 'Check the translation'},
   'part': {'pt': 'parte', 'en': 'part'},
+  'addition': {'pt': 'acrescentado', 'en': 'added'},
+  'missing': {'pt': 'faltou depois desta', 'en': 'missing after this'},
+  'unclear': {'pt': 'não ficou claro', 'en': 'unclear'},
   'title': {'pt': 'Traduzir a gravação', 'en': 'Translate the recording'},
   'subTell': {
     'pt':
