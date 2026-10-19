@@ -151,3 +151,10 @@ Extended by name (ENG-1197, 2026-10-19), same end date: `btRecusa`, the refusal 
 «terminei» came back with, which writes her line under the circle («ainda falta ouvir um
 trecho da gravação», «ainda não tem frase traduzida», «não deu para conferir agora — tentem de
 novo»), sits beside them on the same two classes and moves with them.
+
+Extended by name (ENG-1221, 2026-10-19), same end date: the whole-sentence re-record of a
+frase. `btRegravacao` (which frase is being recorded again, and the step: her lines and the
+sentence as it is, the circle ready, recording, the review, sending, too long),
+`btFraseQueAguarda` (the frase whose new sentence awaits its translation, from the lay-in or
+the session read) and `btFraseGuardada` (the frase whose recording could not be sent and is
+held in the outbox) sit beside them on the same two classes and move with them.
