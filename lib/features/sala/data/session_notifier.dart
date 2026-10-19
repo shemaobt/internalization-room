@@ -2727,6 +2727,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
       btTrechos: _trechosFrom(told.segments),
       btFindings: told.findings,
+      btFraseQueAguarda: told.awaitingSegmentId,
+      clearBtFraseQueAguarda: told.awaitingSegmentId == null,
     );
     final sessionId = state.sessionId;
     if (sessionId != null) {
@@ -2736,7 +2738,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_lembrarDaFraseGuardada(sessionId));
     }
     if (told.checked) return;
+    if (told.awaitingSegmentId case final aguardando?) {
+      unawaited(_voltarAFraseQueAguarda(aguardando, _generation));
+      return;
+    }
     unawaited(_playFromTheUntoldGround(_generation));
+  }
+
+  Future<void> _voltarAFraseQueAguarda(
+    String aguardando,
+    int generation,
+  ) async {
+    await _medirAsPartes(state.partes, generation);
+    if (_abandoned(generation)) return;
+    state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+    await _sayALine(
+      LineKind.guide,
+      fixedLine: (name: sentenceAwaitingLine, language: _inTheSessionsLanguage),
+    );
+    if (_abandoned(generation)) return;
+    _levarAoTrechoNaoTraduzido(aguardando);
   }
 
   /// A rehearsal picked back up remembers what of it was already told back.
