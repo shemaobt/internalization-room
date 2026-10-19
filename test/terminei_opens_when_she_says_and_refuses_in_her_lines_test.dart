@@ -227,4 +227,75 @@ void main() {
     expect(harness.playback.playedFrom.last, Duration.zero);
     closeTheRoom(container);
   });
+
+  testWidgets('a frase awaiting its words is refused with her N5 by its name, '
+      'and that frase opens to be translated', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _duasFrasesNoTerminei(tester, harness);
+    harness.room
+      ..verdictRefusal = CheckRefusal.fraseAwaiting
+      ..verdictFixedLine = 'N5'
+      ..verdictUntoldSegmentId = 'trecho-1';
+    final linhas = harness.voice.fixedLines.length;
+
+    await tocar(tester, conferir);
+    await waitFor(
+      'a frase que espera abrir',
+      () =>
+          container
+              .read(salaSessionProvider)
+              .btTrechoTraduzidoDeNovo
+              ?.segmentId ==
+          'trecho-1',
+      step: () => _passo(tester),
+    );
+
+    expect(
+      [for (final (linha, _) in harness.voice.fixedLines.skip(linhas)) linha],
+      ['N5'],
+      reason: 'a frase regravada que espera é a N-6 dela, pedida pelo nome N5',
+    );
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-1',
+    );
+    expect(
+      harness.playback.ranges.last,
+      '0-4000',
+      reason: 'a frase que espera toca a sua própria fatia',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase awaiting its words with no line of hers voices nothing, '
+      'and that frase still opens', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _duasFrasesNoTerminei(tester, harness);
+    harness.room
+      ..verdictRefusal = CheckRefusal.fraseAwaiting
+      ..verdictUntoldSegmentId = 'trecho-1';
+    harness.voice.refuses.add('');
+    final falas = [...harness.voice.played];
+
+    await tocar(tester, conferir);
+    await waitFor(
+      'a frase que espera abrir',
+      () =>
+          container
+              .read(salaSessionProvider)
+              .btTrechoTraduzidoDeNovo
+              ?.segmentId ==
+          'trecho-1',
+      step: () => _passo(tester),
+    );
+
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-1',
+      reason: 'a recusa calada tentava tocar o vazio e nunca abria a frase',
+    );
+    expect(harness.voice.played, falas);
+    expect(harness.playback.ranges.last, '0-4000');
+    closeTheRoom(container);
+  });
 }
