@@ -204,6 +204,12 @@ class RetroView extends ConsumerWidget {
             RegravacaoDaFrase(:final frase, passo: PassoDaRegravacao.enviando)
                 when frase == trecho.frase =>
               sceneRehearsalLabelFor('takeSending', language),
+            RegravacaoDaFrase(
+              :final frase,
+              passo: PassoDaRegravacao.longaDemais,
+            )
+                when frase == trecho.frase =>
+              sceneRehearsalLabelFor('spliceTooLong', language),
             _ => null,
           },
         ),

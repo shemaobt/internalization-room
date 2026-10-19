@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -365,4 +368,79 @@ void main() {
     await _passo(tester);
     closeTheRoom(container);
   });
+
+  bool guardada(SalaHarness harness) =>
+      (harness.takes as FakeTakeQueue).rows.any((row) => row.kind == 'frase');
+
+  testWidgets('a sentence over four megabytes is refused before it is sent, '
+      'with her line on the row', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await regravarAte(tester, harness, 3);
+    await _tocarOCirculo(tester);
+    harness.recorder
+      ..rehearsalSpeaks = Uint8List(4 * 1024 * 1024 + 1)
+      ..rehearsalSpeaksAs = 'wav';
+    await _tocarOCirculo(tester);
+    await _passo(tester);
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(naLinha('frase longa demais — regravem a cena'), findsOneWidget);
+    expect(
+      harness.room.sentencesSent,
+      isEmpty,
+      reason: 'a frase grande demais subia e só a sala dizia que não cabia',
+    );
+    expect(guardada(harness), isFalse);
+    closeTheRoom(container);
+  });
+
+  testWidgets('the room\'s own refusal of a sentence too long says the same '
+      'line', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room.sentenceAnswersFirst.add(
+      const Refused('SENTENCE_TOO_LONG'),
+    );
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(naLinha('frase longa demais — regravem a cena'), findsOneWidget);
+    expect(guardada(harness), isFalse);
+    closeTheRoom(container);
+  });
+
+  for (final code in ['SENTENCE_TOO_SHORT', 'SENTENCE_FORMAT_DIFFERS']) {
+    testWidgets('a sentence the room refuses as $code goes back to «gravem a '
+        'frase inteira», and nothing of it is kept', (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _quatroFrases(tester, harness);
+      await gravarAFrase(
+        tester,
+        harness,
+        3,
+        dura: const Duration(milliseconds: 300),
+      );
+      harness.room.sentenceAnswersFirst.add(Refused(code));
+
+      await tester.tap(naLinha('usar esta'));
+      await _passo(tester);
+      await _passo(tester);
+
+      expect(
+        pista(),
+        findsOneWidget,
+        reason: 'um toque curto demais ficava preso esperando a sala',
+      );
+      expect(naLinha('usar esta'), findsNothing);
+      expect(guardada(harness), isFalse);
+      closeTheRoom(container);
+    });
+  }
 }

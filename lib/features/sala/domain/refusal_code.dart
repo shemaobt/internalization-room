@@ -16,6 +16,9 @@ abstract final class RefusalCode {
   static const restartOutOfOrder = 'RESTART_OUT_OF_ORDER';
   static const tooLarge = 'TOO_LARGE';
   static const sceneRehearsalSending = 'SCENE_REHEARSAL_SENDING';
+  static const sentenceTooLong = 'SENTENCE_TOO_LONG';
+  static const sentenceTooShort = 'SENTENCE_TOO_SHORT';
+  static const sentenceFormatDiffers = 'SENTENCE_FORMAT_DIFFERS';
 
   static const stopsTheRoom = {unauthorized, forbidden, deviceRevoked};
 

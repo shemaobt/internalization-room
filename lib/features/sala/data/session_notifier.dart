@@ -5561,6 +5561,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         path: guardada.path,
       ),
     );
+    if (File(guardada.path).lengthSync() > largestSentenceTheRoomTakes) {
+      return _largarAFrase(guardada, PassoDaRegravacao.longaDemais);
+    }
     var nome = _aFrase(frase)?.segmentId;
     if (nome == null) {
       await _readTheStretchesBack(guardada.sessionId, generation);
@@ -5568,11 +5571,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       nome = _aFrase(frase)?.segmentId;
     }
     if (nome == null) return;
-    await _room.reRecordTheSentence(
+    final resposta = await _room.reRecordTheSentence(
       guardada.sessionId,
       nome,
       File(guardada.path),
       sentenceId: guardada.id,
+    );
+    if (_abandoned(generation)) return;
+    switch (resposta) {
+      case Refused(code: RefusalCode.sentenceTooLong):
+        _largarAFrase(guardada, PassoDaRegravacao.longaDemais);
+      case Refused(
+        code: RefusalCode.sentenceTooShort || RefusalCode.sentenceFormatDiffers,
+      ):
+        _largarAFrase(guardada, PassoDaRegravacao.pronta);
+      case _:
+        break;
+    }
+  }
+
+  void _largarAFrase(PendingTake guardada, PassoDaRegravacao passo) {
+    _fraseNaFila = null;
+    unawaited(_takes.withdraw(guardada));
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(int.parse(guardada.scope), passo),
     );
   }
 
