@@ -120,7 +120,7 @@ class _Books extends StatelessWidget {
                   if (entry.isPanorama)
                     _Pill(
                       entry: entry,
-                      words: '◈ ${escolhaLabelFor('bookPanorama', language)}',
+                      words: escolhaLabelFor('bookPanorama', language),
                       tinted: _isTheEntryLeft(entry),
                       language: language,
                     ),
@@ -249,7 +249,8 @@ class _Pill extends ConsumerWidget {
                 children: [
                   Flexible(
                     child: Text(
-                      words,
+                      panorama ? '◈ $words' : words,
+                      semanticsLabel: words,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: size,

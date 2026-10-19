@@ -559,4 +559,22 @@ void main() {
       );
     },
   );
+
+  menuTest('VoiceOver on the Panorama pill reads her words without the glyph', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true, lingua: null)
+      ..room.passages = _ruth;
+    await _theChoice(tester, harness);
+
+    expect(find.text(_panoramaPt), findsOneWidget);
+    expect(find.bySemanticsLabel('Panorama do Livro'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('◈')), findsNothing);
+
+    await tester.tap(find.text('EN'));
+    await _catchUp(tester);
+
+    expect(find.bySemanticsLabel('Book Panorama'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('◈')), findsNothing);
+  });
 }
