@@ -41,6 +41,8 @@ class KeptRetellingButtons extends StatelessWidget {
                   for (var index = 0; index < parts.length; index++)
                     Semantics(
                       button: true,
+                      excludeSemantics: true,
+                      onTap: () => onTap(index + 1),
                       label: roomLabelFor(
                         'hearHowYouToldPart',
                         language,

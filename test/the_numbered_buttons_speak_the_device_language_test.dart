@@ -36,4 +36,27 @@ void main() {
       }
     },
   );
+
+  testWidgets(
+    'what a screen reader reads for a button is her name and not the numeral after it',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await atRestAfterATurn(tester, _everyScene);
+
+      for (final part in [1, 2, 3]) {
+        expect(
+          tester.getSemantics(byLabel('Hear how you told part $part')).label,
+          'Hear how you told part $part',
+          reason:
+              'o leitor de tela lia o nome dela e o algarismo do botão em seguida',
+        );
+        expect(
+          tester.getSemantics(byLabel('Hear how you told part $part')),
+          isSemantics(hasTapAction: true),
+          reason: 'o leitor de tela não conseguia tocar o botão $part',
+        );
+      }
+      semantics.dispose();
+    },
+  );
 }
