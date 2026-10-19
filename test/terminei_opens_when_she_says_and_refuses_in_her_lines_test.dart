@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/refusal_code.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -15,7 +17,9 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         conferir,
         contarAteOFimDaParte,
         entrarNaTraducao,
+        gravar,
         gravarATraducao,
+        parte,
         tesoura,
         tocar;
 
@@ -322,6 +326,51 @@ void main() {
           'a linha da recusa anterior ficava na tela durante a nova conferência',
     );
     harness.room.finishHeldVerdict();
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase sent after a refusal takes the refusal\'s line away, so '
+      'what the screen says is about the frase', (tester) async {
+    _telaAlta(tester);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = parte - const Duration(milliseconds: 500);
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await waitFor(
+      'o terminei acender',
+      () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
+      step: () => _passo(tester),
+    );
+    harness.room.verdictRefusal = CheckRefusal.checkUnavailable;
+    await _recusado(tester, container);
+    expect(
+      find.text('não deu para conferir agora — tentem de novo'),
+      findsOneWidget,
+    );
+
+    await gravarATraducao(tester, circulo: gravar);
+    harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
+    await tocar(tester, confirmar);
+    await waitFor(
+      'a sala não entender a frase',
+      () => container.read(salaSessionProvider).wordlessTelling,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      find.text('não entendi — traduzam de novo esse pedaço'),
+      findsOneWidget,
+      reason: 'a linha da recusa tapava a da frase que a sala não entendeu',
+    );
+    expect(
+      find.text('não deu para conferir agora — tentem de novo'),
+      findsNothing,
+    );
     closeTheRoom(container);
   });
 }

@@ -5491,7 +5491,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) return;
     final generation = _waitOnTheGeneration;
     _silenceTheRoom(holdTheClip: true);
-    state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
+    state = state.copyWith(
+      btPhase: BtPhase.thinking,
+      awaitingTheGuide: true,
+      clearBtRecusa: true,
+    );
     _watchBusyState();
 
     final traduzidoDeNovo = _trechoTraduzidoDeNovo;
