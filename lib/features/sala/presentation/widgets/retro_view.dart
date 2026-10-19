@@ -39,10 +39,7 @@ class RetroView extends ConsumerWidget {
     final colors = SalaColors.of(context);
     final titulo = retroLabelFor('title', language);
     final linha = _linha(session, language);
-    final veredito =
-        session.btPhase == BtPhase.findings ||
-        session.btPhase == BtPhase.conferida ||
-        session.btFindings.isNotEmpty;
+    final veredito = session.btVeredito || session.btFindings.isNotEmpty;
     return SizedBox.expand(
       child: SingleChildScrollView(
         child: Column(

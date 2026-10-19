@@ -2723,6 +2723,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
       btTrechos: _trechosFrom(told.segments),
       btFindings: told.findings,
+      btVeredito: told.checked || told.findings.isNotEmpty,
     );
     final sessionId = state.sessionId;
     if (sessionId != null) {
@@ -5855,6 +5856,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           awaitingTheGuide: false,
           clearFindingSegment: true,
           btFindings: [?verdict.namedNuance, ...verdict.findings],
+          btVeredito: true,
         );
         return;
       }
@@ -5879,6 +5881,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btFindingSegmentId: verdict.findingSegmentId,
         clearFindingSegment: verdict.findingSegmentId == null,
         btFindings: verdict.findings,
+        btVeredito: true,
       );
       // The stretch is no longer played at the team. Which voice needs to speak again is
       // theirs to say, and they say it by comparing the two — so hearing either one is a

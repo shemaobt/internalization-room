@@ -1,11 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
+import 'package:internalization_room/main.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -112,6 +117,64 @@ Future<ProviderContainer> _seteFrasesConferidas(
   return container;
 }
 
+Future<ProviderContainer> _voltaAUmaTraducaoConferida(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  _telaAlta(tester);
+  final pasta = Directory.systemTemp.createTempSync('sala-1220');
+  addTearDown(() => pasta.deleteSync(recursive: true));
+  final partes = [
+    for (final n in [1, 2])
+      KeptTake(
+        scopeId: KeptScope.parte(n),
+        path: (File('${pasta.path}/p$n.m4a')..writeAsBytesSync([1, 2, 3])).path,
+        takeId: 'gravacao-$n',
+      ),
+  ];
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+    sessionId: 'sessao-antiga',
+    stage: SalaStage.retro,
+    takes: partes,
+  );
+  harness.room.retroSoFar = const BackTranslationProgress(
+    checked: true,
+    segments: [
+      SegmentView(
+        segmentId: 'trecho-1',
+        takeId: 'gravacao-1',
+        startsMs: 0,
+        endsMs: 5000,
+        frase: 1,
+      ),
+      SegmentView(
+        segmentId: 'trecho-2',
+        takeId: 'gravacao-2',
+        startsMs: 0,
+        endsMs: 5000,
+        frase: 2,
+      ),
+    ],
+  );
+  final container = harness.container();
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: const SalaApp()),
+  );
+  await _passo(tester);
+  unawaited(
+    container
+        .read(salaSessionProvider.notifier)
+        .goConversa(book: 'Ruth', pericope: 'P01'),
+  );
+  await waitFor(
+    'a tradução conferida voltar',
+    () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
+  await _passo(tester);
+  return container;
+}
+
 const _conferida = '✓ traduzida e conferida';
 const _aprovar = 'Aprovar como rascunho final';
 
@@ -126,9 +189,10 @@ List<String> _naLista(WidgetTester tester) => [
 
 Future<void> _traduzirDeNovo(
   WidgetTester tester,
-  ProviderContainer container,
-) async {
-  await tocar(tester, 'Tocar para gravar a tradução de novo');
+  ProviderContainer container, {
+  String circulo = 'Tocar para gravar a tradução de novo',
+}) async {
+  await tocar(tester, circulo);
   await tocar(tester, 'Tocar ao terminar');
   await _passo(tester);
   await tocar(tester, confirmar);
@@ -366,6 +430,63 @@ void main() {
     );
     expect(byLabel(_aprovar), findsOneWidget);
     expect(harness.room.replacesAsked, isEmpty);
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a frase is told again the verdict still stands: the '
+      'sub-line is the verdict\'s and another frase still opens', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesConferidas(tester, harness);
+
+    await tocar(tester, _barra(2));
+    await _traduzirDeNovo(tester, container);
+
+    expect(
+      find.text(
+        'Toquem numa frase para ouvir e traduzir de novo; voltem para regravar '
+        'uma parte; ou toquem em terminei para conferir de novo.',
+      ),
+      findsOneWidget,
+      reason:
+          'a tela esquecia o veredito depois da primeira frase traduzida '
+          'de novo',
+    );
+    await tocar(tester, _barra(5));
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.frase,
+      5,
+      reason: 'depois de uma frase traduzida de novo as outras não abriam mais',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a conferida session picked back up still stands on its '
+      'verdict after a frase is told again', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAUmaTraducaoConferida(tester, harness);
+
+    await tocar(tester, _barra(1));
+    await _traduzirDeNovo(
+      tester,
+      container,
+      circulo: 'Tocar para gravar a tradução deste trecho',
+    );
+
+    expect(
+      find.text(
+        'Toquem numa frase para ouvir e traduzir de novo; voltem para regravar '
+        'uma parte; ou toquem em terminei para conferir de novo.',
+      ),
+      findsOneWidget,
+      reason: 'a sessão retomada esquecia o veredito que a leitura trazia',
+    );
+    await tocar(tester, _barra(2));
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.frase,
+      2,
+    );
     closeTheRoom(container);
   });
 }

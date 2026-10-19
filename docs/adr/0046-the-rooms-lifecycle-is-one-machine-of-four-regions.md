@@ -151,3 +151,9 @@ Extended by name (ENG-1197, 2026-10-19), same end date: `btRecusa`, the refusal 
 «terminei» came back with, which writes her line under the circle («ainda falta ouvir um
 trecho da gravação», «ainda não tem frase traduzida», «não deu para conferir agora — tentem de
 novo»), sits beside them on the same two classes and moves with them.
+
+Extended by name (ENG-1220, 2026-10-19), same end date: `btVeredito`, a verdict stands on this
+telling, so her sub-line and the frase bars stay after a frase is told again, on
+`SalaSessionState`; and `_faseAntesDoReconto`, the phase a frase opened to be told again left,
+which «manter a tradução de antes» returns to, a private field of `SalaSessionNotifier`. Both
+sit beside the other `bt` fields and move with them.
