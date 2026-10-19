@@ -127,6 +127,8 @@ abstract final class FailurePolicy {
         sounding: sounding,
         generation: generation,
       ),
+      RoomNetworkFailed() when context.door == Door.telling =>
+        TheTellingCameBackEmpty(generation: generation),
       RoomNetworkFailed() => NetworkFailedAt(
         context.door,
         why: context.why,

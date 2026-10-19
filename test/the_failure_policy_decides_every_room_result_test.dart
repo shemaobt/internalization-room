@@ -154,6 +154,12 @@ void main() {
       const TheTellingCameBackEmpty(generation: 4),
     ),
     (
+      'a telling whose network failed is a telling not understood, never out of reach',
+      const RoomNetworkFailed(),
+      _notATurn(door: Door.telling, refusals: 2),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
       'a refusal that is not a turn and is under the strike count is counted',
       const RoomRefused(RefusalCode.unreadable),
       _notATurn(refusals: 1),

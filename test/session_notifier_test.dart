@@ -6003,7 +6003,11 @@ void main() {
     // vez de já sair como uma tomada entregue antes que o trecho seja
     // contado de novo.
     harness.room.refuseTake = 'retro/${KeptScope.whole}';
-    harness.room.failChunkWith = const NetworkFailed('timeout');
+    harness.room
+      ..chunkAnswersFirst.addAll(
+        List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
+      )
+      ..holdNextChunk();
     await confirmarATraducao(container);
     await theRoomRefusesTheGuardedCopy(harness);
     expect(
@@ -6011,7 +6015,7 @@ void main() {
       hasLength(1),
     );
 
-    harness.room.failChunkWith = null;
+    harness.room.finishHeldChunk();
     await waitFor(
       'a cópia de reserva sair da fila',
       () async =>
