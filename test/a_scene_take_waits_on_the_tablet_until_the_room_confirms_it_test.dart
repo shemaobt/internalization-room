@@ -418,6 +418,35 @@ void main() {
   );
 
   test(
+    'a take the house retry lands as the room closes touches nothing',
+    () async {
+      late _CountsHeldAfterTheKeep queue;
+      final room = await atRest(
+        SalaHarness(
+          takesOverride: (room, home, recordings) =>
+              queue = _CountsHeldAfterTheKeep(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
+        ),
+      );
+      await theScreenOpens(room);
+      room.harness.room.failSceneWith = _offline;
+      await _recordAScene(room);
+      await _notKept(room);
+      await waitFor('a sala cair', () => room.state.unreachable);
+
+      room.harness.room.failSceneWith = null;
+      room.sala.retryNow();
+      await waitFor('a contagem depois do take aceito', () => queue.holding);
+      room.container.dispose();
+      queue.letTheCountGo();
+      await settle();
+    },
+  );
+
+  test(
     'a take refused for good never covers a newer rehearsal the room kept',
     () async {
       final room = await atRest();
@@ -769,5 +798,31 @@ class _DiskThatRefusesTheScene extends TakeUploadQueue {
       chunkIndex: chunkIndex,
       scene: scene,
     );
+  }
+}
+
+/// An Outbox whose first count after the room kept a scene take waits to be let go.
+class _CountsHeldAfterTheKeep extends TakeUploadQueue {
+  final FakeRoom _room;
+
+  _CountsHeldAfterTheKeep({
+    required FakeRoom room,
+    super.home,
+    required super.recordings,
+  }) : _room = room,
+       super(room: room);
+
+  bool holding = false;
+  final _count = Completer<void>();
+
+  void letTheCountGo() => _count.complete();
+
+  @override
+  Future<OutboxTally> tally({required String? sessionId}) async {
+    if (_room.scenesKept.isNotEmpty && !_count.isCompleted) {
+      holding = true;
+      await _count.future;
+    }
+    return super.tally(sessionId: sessionId);
   }
 }

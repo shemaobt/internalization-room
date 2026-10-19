@@ -421,12 +421,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return SalaSessionState(machine: Machine(generation: _firstGeneration));
   }
 
-  void sayTheMicIsBlocked() => unawaited(
-    _sayALine(
-      LineKind.micBlocked,
-      asset: micBlockedAsset(_inTheSessionsLanguage),
-    ),
-  );
+  void sayTheMicIsBlocked() {
+    if (state.station is SceneRehearsal) return;
+    unawaited(
+      _sayALine(
+        LineKind.micBlocked,
+        asset: micBlockedAsset(_inTheSessionsLanguage),
+      ),
+    );
+  }
 
   Future<bool> _sayALine(
     LineKind kind, {
@@ -3511,7 +3514,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(:final value) when value.isNotEmpty:
         try {
           return await _recorder.keepBytes(value, name);
-        } on Exception {
+        } on Exception catch (error) {
+          if (!_abandoned(generation)) {
+            _decideAt(NetworkFailed('$error'), door: Door.sceneRehearsal);
+          }
           return null;
         }
       case Answered():
@@ -3689,6 +3695,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
   ) async {
     await _countUnsent();
+    if (_abandoned(generation)) return;
     final named = await _heldOnTheTablet('cena-${kept.rehearsalId}');
     if (_abandoned(generation)) return;
     await _showTheRehearsal(kept, keeping, generation, take: named);
@@ -4441,9 +4448,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final heard = after.lastMic;
     if (heard == null || identical(heard, before.lastMic)) return;
     if (heard.answer != MicAnswer.closed) _recordingStarting = false;
+    if (heard.owner == MicOwner.scene &&
+        (heard.answer == MicAnswer.refused ||
+            heard.answer == MicAnswer.failed)) {
+      _undoTheListening();
+      return;
+    }
     switch (heard.answer) {
       case MicAnswer.started:
-        _captureFails = 0;
+        if (heard.owner != MicOwner.scene) _captureFails = 0;
       case MicAnswer.refused:
         _undoTheListening();
         ref.read(micPermissionProvider.notifier).refuse();

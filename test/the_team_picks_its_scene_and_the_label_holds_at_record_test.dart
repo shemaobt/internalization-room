@@ -1773,4 +1773,28 @@ void main() {
       expect(find.text('cena 2 · Primeiro apelo e recusa'), findsOneWidget);
     });
   });
+
+  testWidgets(
+    'the take of the tap that opened the microphone carries the scene picked at '
+    'that tap, not the one picked at a refused tap',
+    (tester) async {
+      final room = await _theScreenOpens(tester);
+      await room.sleepThrough();
+      await room.pick(_scene2);
+      await room.sleepThrough();
+      room.harness.recorder.permitted = false;
+      room.sala.sceneTap();
+      await room.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(byLabel(_chip2));
+      await room.pump();
+      await room.sleepThrough();
+      await room.pick(_scene3);
+      await room.sleepThrough();
+      room.harness.recorder.permitted = true;
+      await room.recordAndStop();
+
+      expect(room.room.sceneLabels, ['S3']);
+    },
+  );
 }

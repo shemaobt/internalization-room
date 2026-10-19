@@ -592,6 +592,9 @@ MicAnswered _drawAMicAnswer(Random random) {
     answer,
     take: closed && !failed && random.nextBool() ? 'tomada.m4a' : null,
     because: failed ? Exception('the recorder failed to stop') : null,
+    owner: random.nextBool()
+        ? MicOwner.values[random.nextInt(MicOwner.values.length)]
+        : null,
     generation: random.nextInt(4) == 0 ? theOlderGeneration : null,
   );
 }

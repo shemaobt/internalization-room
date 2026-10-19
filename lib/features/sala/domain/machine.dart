@@ -168,8 +168,15 @@ final class MicAnswered extends AnsweringEvent {
   final MicAnswer answer;
   final String? take;
   final Object? because;
+  final MicOwner? owner;
 
-  const MicAnswered(this.answer, {this.take, this.because, super.generation});
+  const MicAnswered(
+    this.answer, {
+    this.take,
+    this.because,
+    this.owner,
+    super.generation,
+  });
 }
 
 /// A gesture asks for its take: the Microphone stays open until the recorder answers.
@@ -725,8 +732,15 @@ final class MicOutcome {
   final String? take;
   final Object? because;
   final CutPoint? cut;
+  final MicOwner? owner;
 
-  const MicOutcome(this.answer, {this.take, this.because, this.cut});
+  const MicOutcome(
+    this.answer, {
+    this.take,
+    this.because,
+    this.cut,
+    this.owner,
+  });
 }
 
 final class Machine {
@@ -888,12 +902,8 @@ const _watch = ArmTheWatch();
   ),
   MicOpened(:final owner, :final take) => _openTheMic(machine, owner, take),
   MicClosed() => _closeTheMic(machine),
-  MicAnswered(:final answer, :final take, :final because) => _heard(
-    machine,
-    answer,
-    take,
-    because,
-  ),
+  MicAnswered(:final answer, :final take, :final because, :final owner) =>
+    _heard(machine, answer, take, because, owner),
   MicClosing() => (machine, const [CloseTheMic()]),
   MicDiscarded() => _discardTheMic(machine),
   BeadTapped(:final sounds, :final beneath) => _tapped(
@@ -1321,6 +1331,7 @@ Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
   MicAnswer answer,
   String? take,
   Object? because,
+  MicOwner? owner,
 ) {
   final (answered, effects) = answer == MicAnswer.started || because != null
       ? (machine, const <Effect>[])
@@ -1331,6 +1342,7 @@ Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
         answer,
         take: take,
         because: because,
+        owner: owner,
         cut: switch ((answer, machine.channel)) {
           (MicAnswer.closed, Microphone(:final cut)) => cut,
           _ => null,

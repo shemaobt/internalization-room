@@ -140,7 +140,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
       );
     }
 
-    if (mic == MicAccess.denied) {
+    if (mic == MicAccess.denied && session.stage != SalaStage.cena) {
       return const Scaffold(body: SafeArea(child: MicGateView()));
     }
 
