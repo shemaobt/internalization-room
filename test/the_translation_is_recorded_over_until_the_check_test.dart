@@ -34,7 +34,7 @@ const ouvirATraducao = 'Ouvir a tradução';
 const pausar = 'Pausar';
 const tesoura = 'Pausar onde a frase acaba';
 const confirmar = 'Confirmar a tradução e seguir';
-const conferir = 'Conferir a tradução';
+const conferir = 'terminei';
 
 bool aceso(WidgetTester tester, String label) {
   final semantics = tester.widget<Semantics>(byLabel(label));

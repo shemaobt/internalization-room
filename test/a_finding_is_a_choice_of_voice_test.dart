@@ -14,9 +14,9 @@ import 'scenario_helpers.dart';
 import 'the_translation_is_recorded_over_until_the_check_test.dart'
     show aceso, olhar, tocar;
 
-const ouvirOAchado = 'Ouvir o achado de novo';
+const ouvirOAchado = 'ouvir a resposta de novo';
 const ouvirOTrechoEATraducao = 'Ouvir o trecho e a tradução';
-const microfoneDeMadeira = 'Gravar a parte de novo na língua materna';
+const microfoneDeMadeira = 'voltar e regravar uma parte';
 const microfoneAzul = 'Traduzir este trecho de novo';
 const continuarOEnsaio = 'Continuar o ensaio';
 
@@ -25,7 +25,7 @@ const terminar = 'Tocar ao terminar';
 const ouvirATraducao = 'Ouvir a tradução';
 const confirmarATraducao = 'Confirmar a tradução e seguir';
 const tesoura = 'Pausar onde a frase acaba';
-const conferir = 'Conferir a tradução';
+const conferir = 'terminei';
 
 const gravarEstaParteDeNovo = 'Tocar para gravar esta parte de novo';
 const confirmarAParte = 'Confirmar esta parte';
@@ -447,9 +447,9 @@ void main() {
     await abrirOAchado(tester);
 
     for (final rotulo in [
-      'Hear the finding again',
+      'hear the verdict again',
       'Hear the stretch and its translation',
-      'Record the part again in the mother tongue',
+      'go back and re-record a part',
       'Translate this stretch again',
     ]) {
       expect(byLabel(rotulo), findsOneWidget, reason: rotulo);

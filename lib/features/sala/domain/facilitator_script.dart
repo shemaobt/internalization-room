@@ -267,7 +267,12 @@ const retroLabels = {
     'pt': 'Confirmar a tradução e seguir',
     'en': 'Confirm the translation and go on',
   },
-  'advance': {'pt': 'Conferir a tradução', 'en': 'Check the translation'},
+  'advance': {'pt': 'terminei', 'en': 'done'},
+  'checking': {'pt': 'conferindo…', 'en': 'checking…'},
+  'checkFailed': {
+    'pt': 'não deu para conferir agora — tentem de novo',
+    'en': 'couldn\'t check right now — try again',
+  },
   'part': {'pt': 'parte', 'en': 'part'},
   'addition': {'pt': 'acrescentado', 'en': 'added'},
   'missing': {'pt': 'faltou depois desta', 'en': 'missing after this'},
@@ -295,9 +300,9 @@ const retroLabels = {
   },
   'listenFirst': {'pt': 'Ouvir primeiro', 'en': 'Listen first'},
   'thinking': {'pt': 'Um instante', 'en': 'One moment'},
-  'translated': {'pt': 'Traduzida', 'en': 'Translated'},
+  'translated': {'pt': 'traduzida e conferida', 'en': 'translated and checked'},
   'notUnderstood': {
-    'pt': 'Não entendi — traduzam de novo esse pedaço',
+    'pt': 'não entendi — traduzam de novo esse pedaço',
     'en': 'I didn\'t catch that — translate that piece again',
   },
 };
@@ -341,14 +346,14 @@ String rehearsalLabelFor(String state, String language, {int? part}) =>
         .replaceAll('{n}', '$part');
 
 const findingLabels = {
-  'circle': {'pt': 'Ouvir o achado de novo', 'en': 'Hear the finding again'},
+  'circle': {'pt': 'ouvir a resposta de novo', 'en': 'hear the verdict again'},
   'play': {
     'pt': 'Ouvir o trecho e a tradução',
     'en': 'Hear the stretch and its translation',
   },
   'recordThePart': {
-    'pt': 'Gravar a parte de novo na língua materna',
-    'en': 'Record the part again in the mother tongue',
+    'pt': 'voltar e regravar uma parte',
+    'en': 'go back and re-record a part',
   },
   'translateTheStretch': {
     'pt': 'Traduzir este trecho de novo',

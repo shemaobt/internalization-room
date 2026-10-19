@@ -21,7 +21,7 @@ import 'um_ensaio_de_tres_partes.dart';
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
 const _sairDaPassagem = 'Escolher outra passagem';
-const micParteLabel = 'Gravar a parte de novo na língua materna';
+const micParteLabel = 'voltar e regravar uma parte';
 
 /// A team standing on a finding the analyst addressed to the stretch of part 2, with the
 /// three parts recorded, told back whole and nothing pressed yet.

@@ -2312,6 +2312,15 @@ class FakeRoom implements RoomRepository {
 
   Completer<void>? _holdingChunk;
 
+  Completer<void>? _holdingVerdict;
+
+  void holdNextVerdict() => _holdingVerdict = Completer<void>();
+
+  void finishHeldVerdict() {
+    _holdingVerdict?.complete();
+    _holdingVerdict = null;
+  }
+
   int? fraseDaProximaFrase;
 
   /// Holds a stretch's delivery in flight, so a test can see the room still thinking.
@@ -2336,6 +2345,8 @@ class FakeRoom implements RoomRepository {
     required List<PlayedTake> playedByTake,
   }) async {
     duranteOVeredito?.call();
+    final segurado = _holdingVerdict;
+    if (segurado != null) await segurado.future;
     final refusal = failFinishWith;
     if (refusal != null) return refusal;
     playedByTakeSent.add([for (final parte in playedByTake) parte.toJson()]);

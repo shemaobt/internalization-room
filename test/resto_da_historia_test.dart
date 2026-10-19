@@ -606,7 +606,7 @@ void main() {
     expect(agora.btPhase, BtPhase.findings);
     expect(agora.btFindingTrecho?.segmentId, 'trecho-2');
     for (final microfone in [
-      'Gravar a parte de novo na língua materna',
+      'voltar e regravar uma parte',
       'Traduzir este trecho de novo',
     ]) {
       expect(

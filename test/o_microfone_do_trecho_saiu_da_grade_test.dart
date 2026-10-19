@@ -16,7 +16,7 @@ import 'scenario_helpers.dart';
 
 const continuarOEnsaioLabel = 'Continuar o ensaio';
 const ouvirOTrechoLabel = 'Ouvir o trecho e a tradução';
-const micParteLabel = 'Gravar a parte de novo na língua materna';
+const micParteLabel = 'voltar e regravar uma parte';
 const micRetroLabel = 'Traduzir este trecho de novo';
 const gravarDeNovoLabel = 'Tocar para gravar a tradução de novo';
 const confirmarLabel = 'Confirmar a tradução e seguir';

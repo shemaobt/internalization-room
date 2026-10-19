@@ -5697,13 +5697,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     final generation = _waitOnTheGeneration;
-    state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
+    state = state.copyWith(
+      btPhase: BtPhase.thinking,
+      awaitingTheGuide: true,
+      btConferindo: true,
+    );
     _watchBusyState();
     final BackTranslationVerdict verdict;
-    switch (await _room.finishBackTranslation(
+    final asked = await _room.finishBackTranslation(
       sessionId,
       playedByTake: _escuta.relato(state.partes),
-    )) {
+    );
+    state = state.copyWith(btConferindo: false);
+    switch (asked) {
       case Answered(value: final answer):
         verdict = answer;
       case final RoomFailure failure:

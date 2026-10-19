@@ -30,7 +30,7 @@ const ouvir = 'Ouvir';
 const pausar = 'Pausar';
 const tesoura = 'Pausar onde a frase acaba';
 const confirmar = 'Confirmar a tradução e seguir';
-const conferir = 'Conferir a tradução';
+const conferir = 'terminei';
 const aprovar = 'Aprovar como rascunho final';
 
 bool aceso(WidgetTester tester, String label) {
@@ -1522,7 +1522,7 @@ void main() {
     expect(byLabel('Pause'), findsOneWidget);
     expect(byLabel('Pause where the sentence ends'), findsOneWidget);
     expect(byLabel('Confirm the translation and go on'), findsOneWidget);
-    expect(byLabel('Check the translation'), findsOneWidget);
+    expect(byLabel('done'), findsOneWidget);
     expect(byLabel('part 1'), findsOneWidget);
 
     await tester.tap(byLabel('Pause'));

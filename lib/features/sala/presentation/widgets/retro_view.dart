@@ -41,9 +41,11 @@ class RetroView extends ConsumerWidget {
     final (voz, lingua) = _voz(session, conferida);
     final colors = SalaColors.of(context);
     final titulo = retroLabelFor('title', language);
+    final linha = _linha(session, language);
     final veredito =
         session.btPhase == BtPhase.findings ||
-        session.btPhase == BtPhase.conferida;
+        session.btPhase == BtPhase.conferida ||
+        session.btFindings.isNotEmpty;
     return SizedBox.expand(
       child: SingleChildScrollView(
         child: Column(
@@ -104,6 +106,17 @@ class RetroView extends ConsumerWidget {
                   ? notifier.resolveWithPerson
                   : null,
             ),
+            if (linha != null) ...[
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Text(
+                  linha,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.telha, fontSize: 15),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             SizedBox(height: 60, child: _actions(session, notifier, language)),
             const SizedBox(height: 32),
@@ -162,6 +175,21 @@ class RetroView extends ConsumerWidget {
     ];
   }
 
+  String? _linha(SalaSessionState session, String language) {
+    if (session.machine.theVerdictWaitsForTheTap) {
+      return retroLabelFor('checkFailed', language);
+    }
+    if (session.wordlessTelling) {
+      return retroLabelFor('notUnderstood', language);
+    }
+    if (session.btPhase == BtPhase.conferida &&
+        !session.needsPerson &&
+        !session.offline) {
+      return '✓ ${retroLabelFor('translated', language)}';
+    }
+    return null;
+  }
+
   BtFindingKind? _markOn(int? frase, SalaSessionState session) {
     if (frase == null) return null;
     for (final finding in session.btFindings) {
@@ -191,16 +219,30 @@ class RetroView extends ConsumerWidget {
       );
     }
     if (!avanca) return null;
+    final terminei = retroLabelFor(
+      session.btConferindo ? 'checking' : 'advance',
+      language,
+    );
     return FadeUp(
       child: RoundActionButton(
         size: 78,
-        semanticLabel: retroLabelFor('advance', language),
+        semanticLabel: terminei,
         gradient: BeadStyles.wood,
         shadows: RoundActionButton.dropShadow,
         mood: session.canAdvanceToTheVerdict
             ? ButtonMood.beckoning
             : ButtonMood.dimmed,
         onTap: () => unawaited(notifier.finishBackTranslation()),
+        child: ExcludeSemantics(
+          child: Text(
+            terminei,
+            style: const TextStyle(
+              color: ShemaBrand.branco,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -844,7 +844,7 @@ void main() {
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(
-      byLabel('Gravar a parte de novo na língua materna'),
+      byLabel('voltar e regravar uma parte'),
       findsOneWidget,
       reason:
           'as duas saídas continuam ali, mas agora como os dois microfones '

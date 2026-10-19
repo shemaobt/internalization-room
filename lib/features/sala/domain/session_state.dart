@@ -257,6 +257,7 @@ class SalaSessionState {
   final Set<String> comecadas;
   final List<Trecho> btTrechos;
   final List<BtFinding> btFindings;
+  final bool btConferindo;
   final String? btFindingSegmentId;
 
   final bool btClipEnded;
@@ -347,6 +348,7 @@ class SalaSessionState {
     this.comecadas = const {},
     this.btTrechos = const [],
     this.btFindings = const [],
+    this.btConferindo = false,
     this.btFindingSegmentId,
     this.btClipEnded = false,
     this.btParteFronteira = false,
@@ -796,6 +798,7 @@ class SalaSessionState {
     bool clearRoda = false,
     List<Trecho>? btTrechos,
     List<BtFinding>? btFindings,
+    bool? btConferindo,
     String? btFindingSegmentId,
     bool clearFindingSegment = false,
     bool? btClipEnded,
@@ -859,6 +862,7 @@ class SalaSessionState {
       comecadas: comecadas ?? this.comecadas,
       btTrechos: btTrechos ?? this.btTrechos,
       btFindings: btFindings ?? this.btFindings,
+      btConferindo: btConferindo ?? this.btConferindo,
       btFindingSegmentId: clearFindingSegment
           ? null
           : (btFindingSegmentId ?? this.btFindingSegmentId),
