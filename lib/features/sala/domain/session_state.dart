@@ -705,6 +705,8 @@ class SalaSessionState {
       canFinishBackTranslation &&
       btContadaInteira &&
       btContaEscolhida == null &&
+      btFraseQueAguarda == null &&
+      btRegravacao == null &&
       btTrechos.any((trecho) => trecho.contado);
 
   bool get btRestoDepoisDoCorte {
@@ -807,6 +809,7 @@ class SalaSessionState {
   bool fraseRegravavel(Trecho trecho) =>
       trecho.frase != null &&
       (btFraseGuardada == null || btFraseGuardada == trecho.frase) &&
+      (btFraseQueAguarda == null || btFraseQueAguarda == trecho.segmentId) &&
       !needsPerson &&
       !offline &&
       trecho.parte >= 0 &&

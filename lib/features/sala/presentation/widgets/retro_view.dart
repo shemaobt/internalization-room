@@ -164,10 +164,12 @@ class RetroView extends ConsumerWidget {
                 )
               : 1,
           onHear: aberta ? () => notifier.ouvirOTrechoContado(onde) : null,
-          mark: switch (_markOn(trecho.frase, session)) {
-            null || BtFindingKind.nuance => null,
-            final kind => retroLabelFor(kind.name, language),
-          },
+          mark: trecho.segmentId == session.btFraseQueAguarda
+              ? sceneRehearsalLabelFor('awaiting', language)
+              : switch (_markOn(trecho.frase, session)) {
+                  null || BtFindingKind.nuance => null,
+                  final kind => retroLabelFor(kind.name, language),
+                },
           nuance: _markOn(trecho.frase, session) == BtFindingKind.nuance,
           regravar:
               session.fraseRegravavel(trecho) &&

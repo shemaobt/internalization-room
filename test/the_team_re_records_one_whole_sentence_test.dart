@@ -22,7 +22,7 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show cabeca, confirmar, entrarNaTraducao, parte, tesoura, tocar;
+    show aceso, cabeca, confirmar, entrarNaTraducao, parte, tesoura, tocar;
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
@@ -247,6 +247,11 @@ void main() {
         matching: find.text('gravem a frase inteira'),
       ),
       findsOneWidget,
+    );
+    expect(
+      aceso(tester, 'terminei'),
+      isFalse,
+      reason: 'terminei ficava aceso no meio de uma regravação',
     );
     closeTheRoom(container);
   });
@@ -651,6 +656,71 @@ void main() {
     await _passo(tester);
 
     expect(harness.playback.ranges.last, '0-4700');
+    closeTheRoom(container);
+  });
+
+  Future<void> deitarAFrase(
+    WidgetTester tester,
+    SalaHarness harness,
+    int n,
+  ) async {
+    await gravarAFrase(tester, harness, n);
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+    harness.playback.finishPlayback();
+    await _passo(tester);
+  }
+
+  testWidgets('until its translation, the re-recorded frase says so, «terminei» '
+      'is closed and no other frase offers «regravar»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await deitarAFrase(tester, harness, 2);
+
+    expect(
+      naLinha('regravada — traduzam esta frase'),
+      findsOneWidget,
+      reason: 'a frase regravada parecia já traduzida',
+    );
+    for (final n in [1, 3, 4]) {
+      expect(_naLista('regravar a frase $n'), findsNothing);
+    }
+    expect(_naLista('regravar a frase 2'), findsOneWidget);
+    expect(
+      aceso(tester, 'terminei'),
+      isFalse,
+      reason: 'terminei abria antes de traduzirem a frase nova',
+    );
+    final pedidos = harness.room.calls.length;
+    await tocar(tester, 'terminei');
+    expect(
+      harness.room.calls.skip(pedidos),
+      isNot(contains('finishBackTranslation')),
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the circle translates the re-recorded frase at exactly its new '
+      'span, and once that lands the frase stops waiting', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    await deitarAFrase(tester, harness, 2);
+    final nova = harness.room.takes.last.takeId;
+
+    await _traduzir(tester);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.room.replacesAsked,
+      ['trecho-2@$nova:4000-7200'],
+      reason: 'o círculo abria outra frase enquanto a regravada esperava',
+    );
+    expect(naLinha('regravada — traduzam esta frase'), findsNothing);
+    expect(container.read(salaSessionProvider).btFraseQueAguarda, isNull);
+    expect(harness.room.calls, contains('finishBackTranslation'));
     closeTheRoom(container);
   });
 }

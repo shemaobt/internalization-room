@@ -5431,6 +5431,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       clearTraducaoPendente: true,
+      clearBtFraseQueAguarda:
+          alvo.segmentId != null && alvo.segmentId == state.btFraseQueAguarda,
       btFindings: [
         for (final finding in state.btFindings)
           if (alvo.frase == null || finding.frase != alvo.frase) finding,
@@ -5617,6 +5619,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final trechos = _trechosFrom(segments);
     state = state.copyWith(
       clearBtRegravacao: true,
+      btFraseQueAguarda: nome,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       btPhase: BtPhase.playing,
       clearFindingSegment: true,
@@ -5631,7 +5634,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       fixedLine: (name: sentenceInPlaceLine, language: _inTheSessionsLanguage),
     );
     if (_abandoned(generation)) return;
-    if (state.trechoChamado(nome) case final trecho?) _tocarAFraseNova(trecho);
+    if (_armarOTrecho(state.trechoChamado(nome)) case final trecho?) {
+      _tocarAFraseNova(trecho);
+    }
   }
 
   Future<void> _aParteComAFrase(
