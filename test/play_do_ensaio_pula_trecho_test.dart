@@ -168,6 +168,7 @@ void main() {
 
     // Trecho 6 (índice 5), traduzido de novo pelo caminho curto.
     await _traduzirDeNovoPeloCaminhoCurto(it);
+    await _pedirOVeredito(it);
 
     expect(
       it.estado.btPhase,

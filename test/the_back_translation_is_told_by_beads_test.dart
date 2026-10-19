@@ -407,9 +407,14 @@ void main() {
     expect(harness.room.chunksSent, 2, reason: 'nenhum trecho novo');
     expect(
       harness.room.playedByTakeSent,
-      hasLength(vereditos + 1),
-      reason: 'o veredito é pedido de novo, como hoje',
+      hasLength(vereditos),
+      reason: 'a sala pedia o veredito sozinha depois da substituição',
     );
+
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(harness.room.playedByTakeSent, hasLength(vereditos + 1));
     closeTheRoom(container);
   });
 
@@ -476,10 +481,14 @@ void main() {
     final container = await ateOTrechoNomeado(tester, harness);
 
     final vereditos = harness.room.playedByTakeSent.length;
-    harness.room.failFinishWith = const NetworkFailed('sem rede');
     await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
     expect(harness.room.replacesAsked, hasLength(1));
+    expect(harness.room.playedByTakeSent, hasLength(vereditos));
+
+    harness.room.failFinishWith = const NetworkFailed('sem rede');
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
     expect(harness.room.playedByTakeSent, hasLength(vereditos));
 
     harness.room.failFinishWith = null;

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -101,6 +102,29 @@ Future<ProviderContainer> _vereditoNaFraseTres(
 
 String _barra(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
 
+List<String> _naLista(WidgetTester tester) => [
+  for (final texto in tester.widgetList<Text>(
+    find.descendant(of: find.byType(FraseList), matching: find.byType(Text)),
+  ))
+    texto.data ?? '',
+];
+
+Future<void> _traduzirDeNovo(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tocar(tester, 'Tocar para gravar a tradução de novo');
+  await tocar(tester, 'Tocar ao terminar');
+  await _passo(tester);
+  await tocar(tester, confirmar);
+  await waitFor(
+    'a frase traduzida de novo pousar',
+    () => container.read(salaSessionProvider).btTrechoTraduzidoDeNovo == null,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
+}
+
 void main() {
   testWidgets('after a verdict naming frase 3, a tap on frase 7 replays its '
       'piece and asks for the circle', (tester) async {
@@ -127,6 +151,68 @@ void main() {
       findsOneWidget,
       reason: 'a tela não dizia qual frase estava sendo traduzida de novo',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the circle after a tap on frase 7 tells exactly its span '
+      'again through the replace door, not as a new frase', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+    final pedacos = harness.room.chunksSent;
+
+    await tocar(tester, _barra(7));
+    await _traduzirDeNovo(tester, container);
+
+    expect(
+      harness.room.replacesAsked,
+      ['trecho-7@gravacao-2:7500-10000'],
+      reason: 'a nova tradução não ia pela porta de substituir a frase 7',
+    );
+    expect(
+      harness.room.chunksSent,
+      pedacos,
+      reason: 'a frase traduzida de novo subia como uma frase nova',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('frase 7 told again keeps its number and the other marks, and '
+      'no check starts until the team says terminei', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+
+    await tocar(tester, _barra(7));
+    await _traduzirDeNovo(tester, container);
+    for (var passo = 0; passo < 10; passo++) {
+      await _passo(tester);
+    }
+
+    expect(
+      harness.room.playedByTakeSent,
+      hasLength(1),
+      reason:
+          'a sala pedia uma conferência sozinha depois da frase traduzida '
+          'de novo',
+    );
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+    expect(_naLista(tester), [
+      'FRASES TRADUZIDAS',
+      '1',
+      'parte 1',
+      '2',
+      'parte 1',
+      '3',
+      'parte 1',
+      'acrescentado',
+      '4',
+      'parte 2',
+      '5',
+      'parte 2',
+      '6',
+      'parte 2',
+      '7',
+      'parte 2',
+    ]);
     closeTheRoom(container);
   });
 }

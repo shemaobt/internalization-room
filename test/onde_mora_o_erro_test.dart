@@ -96,6 +96,11 @@ Future<void> traduzirDeNovo(
   await tester.pump(const Duration(milliseconds: 800));
 }
 
+Future<void> terminei(WidgetTester tester, ProviderContainer container) async {
+  await notifier(container).finishBackTranslation();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
 /// What one correction leaves behind, read the way the team meets it.
 typedef CorrecaoFeita = ({
   BtPhase phase,
@@ -382,6 +387,7 @@ void main() {
     final container = await pumpToPergunta(tester);
 
     await traduzirDeNovo(tester, container);
+    await terminei(tester, container);
 
     expect(
       container.read(salaSessionProvider).needsPerson,
@@ -395,9 +401,8 @@ void main() {
       container.read(salaSessionProvider).btPhase,
       BtPhase.findings,
       reason:
-          'e a correção comum termina no veredito, que é onde a fatia '
-          'anterior a faz terminar: quem só corrigiu um trecho continua '
-          'sendo levado ao resultado dele',
+          'e a correção comum, com o terminei, termina no veredito: quem '
+          'só corrigiu um trecho continua sendo levado ao resultado dele',
     );
   });
 
@@ -438,24 +443,26 @@ void main() {
     );
   });
 
-  testWidgets('finishing a correction reaches its result on its own', (
-    tester,
-  ) async {
+  testWidgets('a finished correction waits for terminei, and only terminei '
+      'asks for its result', (tester) async {
     final container = await pumpToPergunta(tester);
     final harness = harnessDaVez!;
     final antes = vereditosPedidos(harness);
 
     await traduzirDeNovo(tester, container);
+    await tester.pump(const Duration(milliseconds: 900));
 
     expect(
       vereditosPedidos(harness),
-      antes + 1,
+      antes,
       reason:
-          'a equipe grava a correção e a sala fica muda: para saber se '
-          'resolveu alguém precisa apertar "terminei" de novo, e ninguém '
-          'diz isso a ela — do lugar onde ela está, corrigiu e nada '
-          'aconteceu',
+          'a sala pedia o veredito sozinha logo que a correção pousava, '
+          'antes de a equipe dizer que tinha terminado',
     );
+
+    await terminei(tester, container);
+
+    expect(vereditosPedidos(harness), antes + 1);
   });
 
   for (final quebra in ['a sala recusa', 'a rede cai']) {
@@ -520,6 +527,7 @@ void main() {
       final antes = vereditosPedidos(harness);
 
       await traduzirDeNovo(tester, container);
+      await terminei(tester, container);
 
       expect(
         vereditosPedidos(harness),
@@ -546,6 +554,7 @@ void main() {
     final antes = vereditosPedidos(harness);
 
     await traduzirDeNovo(tester, container);
+    await terminei(tester, container);
 
     expect(
       vereditosPedidos(harness),
@@ -596,6 +605,7 @@ void main() {
 
       // Nothing switched on: the server in production today does not carry the field.
       await traduzirDeNovo(tester, container);
+      await terminei(tester, container);
 
       expect(
         container.read(salaSessionProvider).warning,
@@ -621,6 +631,7 @@ void main() {
     harness.room.failFinishWith = const NetworkFailed('sem rede');
 
     await traduzirDeNovo(tester, container);
+    await terminei(tester, container);
 
     expect(
       container.read(salaSessionProvider).warning,
@@ -654,6 +665,7 @@ void main() {
     harness.room.duranteOVeredito = () => notifier(container).leaveThePassage();
 
     await traduzirDeNovo(tester, container);
+    await terminei(tester, container);
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(
@@ -685,6 +697,7 @@ void main() {
       harness.room.verdictHasFinding = false;
 
       await traduzirDeNovo(tester, container);
+      await terminei(tester, container);
       await tester.pump(const Duration(milliseconds: 900));
 
       expect(
@@ -731,6 +744,7 @@ void main() {
     harness.room.verdictHasFinding = false;
 
     await traduzirDeNovo(tester, container);
+    await terminei(tester, container);
     await tester.pump(const Duration(milliseconds: 900));
 
     expect(harness.room.personsAsked, 0);

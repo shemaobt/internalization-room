@@ -5314,16 +5314,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       path: path,
       needsPerson: told.needsPerson,
     );
-    if (_abandoned(generation)) return;
-    // The correction is finished, so the room goes and finds out what it was worth.
-    //
-    // Only a correction arrives here — an ordinary telling during the back-translation
-    // returns before this, and it should, because there is still passage left to hear and
-    // tell.
-    //
-    // Nothing had to be unlocked for this: the mark that the recording ended survives a
-    // correction, so the ask is allowed the moment it is made.
-    await finishBackTranslation();
   }
 
   void _theCorrectionFailed(RoomFailure failure) {
