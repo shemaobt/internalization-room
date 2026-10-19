@@ -130,7 +130,10 @@ class RetroView extends ConsumerWidget {
             ),
             if (session.btTrechos.any((trecho) => trecho.contado)) ...[
               const SizedBox(height: 8),
-              _recomeco(session, colors, notifier, language),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _recomeco(session, colors, notifier, language),
+              ),
             ],
             const SizedBox(height: 24),
             SizedBox(
@@ -220,6 +223,7 @@ class RetroView extends ConsumerWidget {
             ),
             child: Text(
               rotulo,
+              textAlign: TextAlign.center,
               style: TextStyle(color: colors.mut, fontSize: 15),
             ),
           ),
