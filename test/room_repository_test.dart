@@ -745,6 +745,20 @@ void main() {
   );
 
   test(
+    'the room\'s books are a read, given up on the read\'s budget',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient((_) => Completer<http.Response>().future),
+        stateTimeout: const Duration(milliseconds: 200),
+      );
+      addTearDown(repository.dispose);
+
+      expect(await repository.servedBooks(), isA<NetworkFailed>());
+    },
+    timeout: const Timeout(Duration(seconds: 5)),
+  );
+
+  test(
     'cancelling a coverage subscription closes the connection, not only the callback',
     () async {
       final controller = StreamController<List<int>>();

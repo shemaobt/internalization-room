@@ -158,7 +158,7 @@ class RoomRepository {
 
   Future<RoomAnswer<List<String>>> servedBooks() => _room.ask(
     () => _client.get(_uri('/books'), headers: _headers),
-    timeout: _longCallTimeout,
+    timeout: _stateTimeout,
     read: readJson(
       (json) => [
         for (final book in json['books'] as List<Object?>) book as String,
