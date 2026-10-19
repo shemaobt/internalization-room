@@ -181,6 +181,7 @@ class RetroView extends ConsumerWidget {
     }
     final recusa = switch (session.btRecusa) {
       CheckRefusal.nothingTranslated => 'nothingTranslated',
+      CheckRefusal.checkUnavailable => 'checkFailed',
       _ => null,
     };
     if (recusa != null) return retroLabelFor(recusa, language);

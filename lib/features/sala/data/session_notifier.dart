@@ -5722,7 +5722,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _decideTheFailure(failure);
         return;
     }
-    if (verdict.refusal == CheckRefusal.nothingTranslated) {
+    if (verdict.refusal
+        case CheckRefusal.nothingTranslated || CheckRefusal.checkUnavailable) {
       state = state.copyWith(
         btPhase: BtPhase.playing,
         awaitingTheGuide: false,

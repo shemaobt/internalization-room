@@ -52,7 +52,8 @@ Future<void> _recusado(WidgetTester tester, ProviderContainer container) async {
   await tocar(tester, conferir);
   await waitFor('a recusa voltar', () {
     final estado = container.read(salaSessionProvider);
-    return !estado.btConferindo && estado.btPhase == BtPhase.playing;
+    return !estado.btConferindo &&
+        (estado.btPhase == BtPhase.playing || estado.needsPerson);
   }, step: () => _passo(tester));
   await _passo(tester);
 }
@@ -140,6 +141,60 @@ void main() {
       reason: 'a sala tentava tocar um endereço vazio onde ela não diz nada',
     );
     expect(aceso(tester, conferir), isTrue);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a check whose model cannot answer says so in her words, and '
+      '«terminei» pressed again sends exactly one more check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _duasFrasesNoTerminei(tester, harness);
+    harness.room.verdictRefusal = CheckRefusal.checkUnavailable;
+    harness.voice.refuses.add('');
+    final falas = [...harness.voice.played];
+
+    await _recusado(tester, container);
+
+    expect(
+      find.text('não deu para conferir agora — tentem de novo'),
+      findsOneWidget,
+      reason: 'a conferência que não pôde rodar voltava sem nada na tela',
+    );
+    expect(harness.voice.played, falas);
+    expect(aceso(tester, conferir), isTrue);
+
+    await _recusado(tester, container);
+    expect(
+      harness.room.playedByTakeSent,
+      hasLength(2),
+      reason: 'terminei é o jeito de tentar de novo, uma vez por toque',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('three checks in a row whose model cannot answer call no person '
+      'and never show the room as gone', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _duasFrasesNoTerminei(tester, harness);
+    harness.room.verdictRefusal = CheckRefusal.checkUnavailable;
+    harness.voice.refuses.add('');
+
+    for (var vez = 0; vez < 3; vez++) {
+      await _recusado(tester, container);
+    }
+
+    final estado = container.read(salaSessionProvider);
+    expect(
+      estado.needsPerson,
+      isFalse,
+      reason: 'cada conferência sem modelo contava como uma fala que falhou',
+    );
+    expect(
+      estado.offline,
+      isFalse,
+      reason: 'a conferência sem modelo vinha como 502 e virava sem conexão',
+    );
+    expect(estado.unreachable, isFalse);
+    expect(harness.room.playedByTakeSent, hasLength(3));
     closeTheRoom(container);
   });
 }
