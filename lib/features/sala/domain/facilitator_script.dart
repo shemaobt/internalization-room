@@ -16,8 +16,6 @@ String micBlockedAsset(String language) =>
 String strandedTakeAsset(String language) =>
     'assets/audio/$language/gravacao_presa.mp3';
 
-const panoramaPericope = 'OV';
-
 const instantAckLines = ['F0', 'F1', 'F2'];
 
 const startLine = 'P0';

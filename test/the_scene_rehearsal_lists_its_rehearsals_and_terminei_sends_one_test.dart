@@ -146,7 +146,7 @@ Future<(SalaHarness, ProviderContainer)> _inArticulation(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
-  unawaited(notifier.goConversa(pericope: 'P01'));
+  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
   await _pumpUntil(
     tester,
     () => container.read(salaSessionProvider).voice == VoiceState.invite,
@@ -205,7 +205,7 @@ Future<_Room> _atRest(
   final container = harness.container();
   addTearDown(container.dispose);
   final room = _Room(harness, container);
-  await room.sala.goConversa();
+  await room.sala.goConversa(book: 'Ruth');
   await waitFor(
     'a sala abrir a conversa e se calar',
     () =>

@@ -42,7 +42,7 @@ void main() {
     'conversa speaks english to an english room, not the portuguese default',
     (tester) async {
       final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-      container.read(salaSessionProvider.notifier).goConversa();
+      container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(container.read(salaSessionProvider).stage, SalaStage.conversa);

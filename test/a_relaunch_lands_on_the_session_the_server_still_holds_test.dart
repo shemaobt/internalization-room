@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -113,9 +112,10 @@ Future<void> _landsOn(_Tablet tablet, String session) async {
 Future<void> _intoThePanorama(_Tablet tablet) async {
   tablet.harness.room.passages = [
     const Passagem(
-      pericope: 'panorama',
+      pericope: 'OV-Ruth',
       audioUrl: '/voice/panorama',
       kind: PassagemKind.panorama,
+      book: 'Ruth',
     ),
     ...tablet.harness.room.passages.where((entry) => !entry.isPanorama),
   ];
@@ -607,7 +607,7 @@ void main() {
       await _theChoiceShowsItsWheel(again);
       await _intoThePanorama(again);
 
-      expect(again.harness.room.pericopesAsked.last, panoramaPericope);
+      expect(again.harness.room.pericopesAsked.last, 'OV-Ruth');
       expect(again.state.station, isA<Panorama>());
       expect(again.harness.room.sessionIds.last, isNot(passage));
       expect(

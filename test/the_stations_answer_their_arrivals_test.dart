@@ -63,10 +63,35 @@ void main() {
     test('the Panorama chosen: the Panorama', () {
       _expectTheArrival(
         const Menu(),
-        const ThePanoramaChosen(),
+        const ThePanoramaChosen('OV-Ruth'),
         isA<Panorama>(),
       );
     });
+  });
+
+  test('choosing a Panorama brings the room to that Panorama\'s Station', () {
+    final (machine, _) = reduce(
+      _at(const Menu()),
+      const ThePanoramaChosen('OV-Jonah'),
+    );
+
+    expect(
+      machine.station,
+      isA<Panorama>().having((station) => station.id, 'id', 'OV-Jonah'),
+    );
+  });
+
+  test('choosing another Panorama at a Panorama brings the room to the one '
+      'chosen', () {
+    final (machine, _) = reduce(
+      _at(const Panorama('OV-Ruth')),
+      const ThePanoramaChosen('OV-Jonah'),
+    );
+
+    expect(
+      machine.station,
+      isA<Panorama>().having((station) => station.id, 'id', 'OV-Jonah'),
+    );
   });
 
   test('the Menu ignores an event that is not its own', () {
@@ -114,25 +139,33 @@ void main() {
   group('the Panorama, the Rehearsal, the Back-translation and the Closing '
       'answer their arrivals', () {
     test('the Panorama', () {
-      _expectTheArrival(const Panorama(), const TheChoiceOpened(), isA<Menu>());
-      _expectTheArrival(const Panorama(), const PassageChosen(), isA<Canvas>());
       _expectTheArrival(
-        const Panorama(),
+        const Panorama('OV-Ruth'),
+        const TheChoiceOpened(),
+        isA<Menu>(),
+      );
+      _expectTheArrival(
+        const Panorama('OV-Ruth'),
+        const PassageChosen(),
+        isA<Canvas>(),
+      );
+      _expectTheArrival(
+        const Panorama('OV-Ruth'),
         const TheRehearsalOpened(),
         isA<Ensaio>(),
       );
       _expectTheArrival(
-        const Panorama(),
+        const Panorama('OV-Ruth'),
         const TheBackTranslationOpened(),
         isA<Retro>(),
       );
       _expectTheArrival(
-        const Panorama(),
+        const Panorama('OV-Ruth'),
         const TheRoomStartedOver(),
         isA<Menu>(),
       );
       _expectItStays(
-        const Panorama(),
+        const Panorama('OV-Ruth'),
         const TheNecklaceClosed(),
         isA<Panorama>(),
       );
@@ -183,8 +216,8 @@ void main() {
     _expectItStays(const Menu(), const TheChoiceOpened(), isA<Menu>());
     _expectItStays(const Canvas(), const PassageChosen(), isA<Canvas>());
     _expectItStays(
-      const Panorama(),
-      const ThePanoramaChosen(),
+      const Panorama('OV-Ruth'),
+      const ThePanoramaChosen('OV-Ruth'),
       isA<Panorama>(),
     );
     _expectItStays(const Menu(), const TheRoomStartedOver(), isA<Menu>());
@@ -219,7 +252,7 @@ void main() {
   test('every other Station ignores the scene rehearsal opened', () {
     for (final station in const <Station>[
       Menu(),
-      Panorama(),
+      Panorama('OV-Ruth'),
       Ensaio(),
       Retro(),
       Fim(),
@@ -291,7 +324,7 @@ void main() {
       'room started over with the Menu', () {
     const everyStation = <Station>[
       Menu(),
-      Panorama(),
+      Panorama('OV-Ruth'),
       Canvas(),
       Ensaio(),
       Retro(),
@@ -299,7 +332,7 @@ void main() {
     ];
     for (final station in everyStation) {
       expect(
-        reduce(_at(station), const ThePanoramaChosen()).$1.station,
+        reduce(_at(station), const ThePanoramaChosen('OV-Ruth')).$1.station,
         isA<Panorama>(),
         reason: '$station',
       );

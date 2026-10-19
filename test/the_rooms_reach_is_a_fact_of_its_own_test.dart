@@ -63,7 +63,7 @@ Future<ProviderContainer> _fallenInEnsaio(SalaHarness harness) async {
   await notifier.abrirEscolha();
   await settle();
   harness.room.reachable = false;
-  await notifier.goConversa(pericope: 'P01');
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   harness.network.reachable = false;
   await waitFor(
     'a sala cair offline no ensaio',
@@ -258,7 +258,7 @@ void main() {
     expect(_noticesSpoken(harness), 1);
 
     notifier.goEnsaio();
-    await notifier.goConversa();
+    await notifier.goConversa(book: 'Ruth');
     await waitFor('a chamada falhar de novo', () => read().offline);
     await settle();
 
@@ -360,14 +360,14 @@ void main() {
       SalaSessionState read() => container.read(salaSessionProvider);
       await notifier.abrirEscolha();
       await settle();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       await _theRoomFalls(harness, container);
       await _theLadderClimbs(harness, 'uma vez antes de adormecer');
 
       _theServerIsBack(harness);
       notifier.goEnsaio();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
         'a conversa reabrir com a sala ainda fora do alcance',
         () =>
@@ -464,7 +464,7 @@ void main() {
       SalaSessionState read() => container.read(salaSessionProvider);
 
       notifier.goEnsaio();
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await settle();
 
       expect(read().voice, VoiceState.offline);

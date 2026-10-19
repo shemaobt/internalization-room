@@ -156,7 +156,7 @@ The language a session was opened in, fixed at the tap that opens it. A session 
 _Avoid_: current language
 
 **Wheel**:
-The list of entries the room offers, grouped by book, written on the Choice as her menu, which the room reopens on its own after the Closing. Not yet read and holding no passage are different states: holding no passage means the book is finished.
+The list of entries the room offers: the lists of every Served book, in the room's order, written on the Choice as her menu, which the room reopens on its own after the Closing. Not yet read and holding no passage are different states: holding no passage means every book is finished.
 _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 
 **Take**:
@@ -267,8 +267,12 @@ The moment the Conversation or the Panorama waits on the team and nothing else i
 _Avoid_: idle, the team's turn (that also covers the open microphone)
 
 **Panorama**:
-The book's own entry and the line about the whole book, first in its book's block, «◈ Panorama do Livro», played when the team taps it. Not a passage: nothing that counts passages counts it.
+A book's own entry and the line about the whole book, first in its book's block, «◈ Panorama do Livro», played when the team taps it. Each Served book has its own, opened by its own id (`OV-<Book>`). Not a passage: nothing that counts passages counts it.
 _Avoid_: introduction, overview
+
+**Served book**:
+A book the room serves; the Choice shows one block per served book, in the room's order.
+_Avoid_: the room's book, the book (as if there were one)
 
 **Opening line**:
 The opening line specific to the chosen passage, said when its Conversation opens for the first time.

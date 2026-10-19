@@ -91,7 +91,7 @@ Future<_Room> _aResumedBackTranslation(
   addTearDown(container.dispose);
   final room = _Room(harness, container);
   await room.sala.abrirEscolha();
-  await room.sala.goConversa(pericope: 'P01');
+  await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a tradução retomada pôr a parte no ar',
     () => room.estado.stage == SalaStage.retro,
@@ -318,7 +318,7 @@ void main() {
       final room = _Room(harness, container);
       await room.sala.abrirEscolha();
 
-      await room.sala.goConversa(pericope: 'P01');
+      await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
 
       await room.outOfReach('pela leitura da retomada');
       expect(room.estado.needsPerson, isFalse);
@@ -656,7 +656,7 @@ void main() {
     final room = _Room(harness, container);
     await room.sala.abrirEscolha();
     harness.network.reachable = false;
-    await room.sala.goConversa(pericope: 'P01');
+    await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
     await room.outOfReach('pela sonda da conversa');
     expect(room.estado.reach, RoomReach.roomSilent);
     harness.network.reachable = true;
@@ -696,7 +696,7 @@ void main() {
     harness.network.holdNextCheck();
     room.sala.retryNow();
     await settle();
-    unawaited(room.sala.goConversa(pericope: 'P01'));
+    unawaited(room.sala.goConversa(book: 'Ruth', pericope: 'P01'));
     await settle();
     final checks = harness.network.checks;
 
@@ -879,7 +879,7 @@ void main() {
       final room = _Room(harness, container);
       await room.sala.abrirEscolha();
       harness.network.reachable = false;
-      await room.sala.goConversa(pericope: 'P01');
+      await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
       await room.outOfReach('pela sonda da conversa');
       harness.network.reachable = true;
       harness.voice.holdNextLine();

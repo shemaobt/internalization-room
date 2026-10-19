@@ -57,7 +57,7 @@ Future<ProviderContainer> _reopensInto(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await settle();
-  await notifier.goConversa(pericope: 'P01');
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   await settle();
   return container;
 }

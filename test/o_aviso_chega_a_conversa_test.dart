@@ -18,7 +18,7 @@ void main() {
         ..room.serverHalt = HaltKind.warning;
       final container = await pumpSala(tester, harness);
       final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await tester.pump(const Duration(milliseconds: 200));
 
       var vez = 0;

@@ -32,7 +32,7 @@ Future<SceneRoom> atRest([SalaHarness? given]) async {
   final container = harness.container();
   addTearDown(container.dispose);
   final room = SceneRoom(harness, container);
-  await room.sala.goConversa();
+  await room.sala.goConversa(book: 'Ruth');
   await waitFor(
     'a sala abrir a conversa e se calar',
     () =>

@@ -129,7 +129,7 @@ void main() {
       expect(
         calls
             .skip(calls.indexOf('askForAPerson') + 1)
-            .where((call) => call != 'passagesOf'),
+            .where((call) => call != 'servedBooks' && call != 'passagesOf'),
         isEmpty,
         reason:
             'o servidor disse que a passagem fechou; nenhum pedido volta a '
@@ -267,7 +267,7 @@ void main() {
     await _aPassagemFechaNoPedidoDePessoa(harness, container);
     _sala(container).leaveThePassage();
     await _naEscolha(container);
-    await _sala(container).goConversa(pericope: 'P02');
+    await _sala(container).goConversa(book: 'Ruth', pericope: 'P02');
     await waitFor(
       'a outra passagem abrir',
       () =>
@@ -306,7 +306,7 @@ void main() {
     harness.room.failTurnsWith = null;
     _sala(container).leaveThePassage();
     await _naEscolha(container);
-    await _sala(container).goConversa(pericope: 'P02');
+    await _sala(container).goConversa(book: 'Ruth', pericope: 'P02');
     await waitFor(
       'a outra passagem abrir',
       () =>
@@ -332,7 +332,7 @@ void main() {
     harness.room.askForAPersonFailsWith = const NetworkFailed('sem rede');
     _sala(container).leaveThePassage();
     await _naEscolha(container);
-    await _sala(container).goConversa(pericope: 'P02');
+    await _sala(container).goConversa(book: 'Ruth', pericope: 'P02');
     await waitFor(
       'a outra passagem abrir',
       () =>
@@ -384,7 +384,9 @@ void main() {
     harness.room
       ..failTurnsWith = null
       ..askForAPersonFailsWith = null;
-    await _sala(container).goConversa(pericope: 'P01', fresh: true);
+    await _sala(
+      container,
+    ).goConversa(book: 'Ruth', pericope: 'P01', fresh: true);
     await waitFor(
       'a passagem reaberta guardar o seu lugar',
       () => harness.emAberto.written.length > 1,
@@ -405,7 +407,7 @@ void main() {
     await _naEscolha(container);
     await settle();
     harness.emAberto.holdNextRead();
-    unawaited(_sala(container).goConversa(pericope: 'P01'));
+    unawaited(_sala(container).goConversa(book: 'Ruth', pericope: 'P01'));
     await settle();
 
     harness.room.finishHeldAskForAPerson();
@@ -432,7 +434,7 @@ void main() {
       final primeira = _estado(container).sessionId!;
       _sala(container).leaveThePassage();
       await _naEscolha(container);
-      await _sala(container).goConversa(pericope: 'P02');
+      await _sala(container).goConversa(book: 'Ruth', pericope: 'P02');
       await waitFor(
         'a outra passagem abrir',
         () =>
@@ -450,7 +452,7 @@ void main() {
       final criadas = harness.room.calls
           .where((call) => call == 'createSession')
           .length;
-      unawaited(_sala(container).goConversa(pericope: 'P01'));
+      unawaited(_sala(container).goConversa(book: 'Ruth', pericope: 'P01'));
       await waitFor(
         'a primeira passagem abrir de novo',
         () =>
@@ -546,7 +548,7 @@ void main() {
         ..askForAPersonFailsWith = const SessionGone();
       _sala(container).leaveThePassage();
       await _naEscolha(container);
-      await _sala(container).goConversa(pericope: 'P02');
+      await _sala(container).goConversa(book: 'Ruth', pericope: 'P02');
       await waitFor(
         'a outra passagem abrir',
         () =>

@@ -54,7 +54,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
 
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     // The write on entering a passage is fire-and-forget. Blocking the disk while it is
     // still in flight would make that write the one that fails, and the case would hear
     // its line and pass for the wrong reason.
@@ -93,7 +93,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
 
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
 
     await _theRoomSays(harness);
     expect(
@@ -123,7 +123,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
 
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await _placeLands(ledger, SalaStage.conversa);
     notifier.goEnsaio();
 

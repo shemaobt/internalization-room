@@ -156,6 +156,17 @@ class RoomRepository {
     asksForTheSession: false,
   );
 
+  Future<RoomAnswer<List<String>>> servedBooks() => _room.ask(
+    () => _client.get(_uri('/books'), headers: _headers),
+    timeout: _stateTimeout,
+    read: readJson(
+      (json) => [
+        for (final book in json['books'] as List<Object?>) book as String,
+      ],
+    ),
+    asksForTheSession: false,
+  );
+
   Future<RoomAnswer<SessionSnapshot>> fetchState(String sessionId) => _room.ask(
     () => _client.get(_uri('/sessions/$sessionId'), headers: _headers),
     timeout: _stateTimeout,

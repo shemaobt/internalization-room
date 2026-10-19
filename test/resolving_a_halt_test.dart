@@ -32,7 +32,7 @@ Future<ProviderContainer> _naPassagem(
   final container = harness.container();
   await container
       .read(salaSessionProvider.notifier)
-      .goConversa(pericope: pericope);
+      .goConversa(book: 'Ruth', pericope: pericope);
   await settle();
   return container;
 }
@@ -277,7 +277,7 @@ void main() {
 
       notifier.leaveThePassage();
       await settle();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(
@@ -300,7 +300,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       expect(read().offline, isTrue);
 

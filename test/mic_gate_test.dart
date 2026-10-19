@@ -39,7 +39,7 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await settle();
 
       harness.recorder.permitted = false;

@@ -50,7 +50,7 @@ Future<_Conferida> _ateAConferida(
   await tester.pump(const Duration(milliseconds: 100));
 
   final sala = _notifier(container);
-  await sala.goConversa(pericope: 'P01');
+  await sala.goConversa(book: 'Ruth', pericope: 'P01');
   await tester.pump(const Duration(milliseconds: 200));
   sala.goEnsaio();
   sala.ensaioTap();
@@ -501,7 +501,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     final sala = _notifier(container);
-    await sala.goConversa(pericope: 'P01');
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 200));
     sala.goEnsaio();
     sala.ensaioTap();
@@ -716,7 +716,7 @@ void main() {
       ],
       checked: true,
     );
-    await _notifier(it.container).goConversa(pericope: 'P02');
+    await _notifier(it.container).goConversa(book: 'Ruth', pericope: 'P02');
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(

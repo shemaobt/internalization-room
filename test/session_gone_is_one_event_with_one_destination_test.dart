@@ -32,7 +32,7 @@ const _livroComPanorama = [
 Future<ProviderContainer> _semPassagemNaMemoria(SalaHarness harness) async {
   final container = harness.container();
   addTearDown(container.dispose);
-  await container.read(salaSessionProvider.notifier).goConversa();
+  await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
   await settle();
   return container;
 }
@@ -230,7 +230,7 @@ void main() {
     await sala.abrirEscolha();
     await settle();
 
-    await sala.goConversa(pericope: 'P01');
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
     await _naEscolha(container);
     await waitFor(
       'o lugar e a gravação guardada saírem do tablet',
@@ -267,7 +267,7 @@ void main() {
     await sala.abrirEscolha();
     await settle();
 
-    await sala.goConversa(pericope: 'P01');
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
     await _naEscolha(container);
     await waitFor(
       'o lugar da sessão esquecida sair do tablet',

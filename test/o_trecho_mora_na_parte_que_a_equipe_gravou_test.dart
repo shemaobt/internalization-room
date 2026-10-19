@@ -122,7 +122,7 @@ Future<_Retomada> _reabrir(
   final sala = container.read(salaSessionProvider.notifier);
   await sala.abrirEscolha();
   await settle();
-  await sala.goConversa(pericope: 'P01');
+  await sala.goConversa(book: 'Ruth', pericope: 'P01');
   await settle();
   return _Retomada(harness, container, gravadas);
 }

@@ -19,7 +19,7 @@ Future<ProviderContainer> _pumpInConversa(
   final container = await pumpSala(tester, harness);
   await container
       .read(salaSessionProvider.notifier)
-      .goConversa(pericope: 'P01');
+      .goConversa(book: 'Ruth', pericope: 'P01');
   await tester.pump(const Duration(milliseconds: 300));
   await tester.pump(const Duration(seconds: 2));
   return container;

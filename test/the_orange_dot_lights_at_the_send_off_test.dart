@@ -85,7 +85,7 @@ Future<(SalaHarness, ProviderContainer)> _inTheLastScene(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
-  unawaited(notifier.goConversa(pericope: 'P01'));
+  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
   await _pumpUntil(
     tester,
     () => container.read(salaSessionProvider).voice == VoiceState.invite,

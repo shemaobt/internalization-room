@@ -57,7 +57,7 @@ Future<_Check> _readyForTheVerdict(SalaHarness harness) async {
   addTearDown(container.dispose);
   final check = _Check(harness, container);
   await check.sala.abrirEscolha();
-  await check.sala.goConversa(pericope: 'P01');
+  await check.sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a tradução retomada pôr a parte no ar',
     () => check.estado.stage == SalaStage.retro,
@@ -142,7 +142,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await pumpSala(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
-    await sala.goConversa(pericope: 'P01');
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 200));
     sala.goEnsaio();
     sala.ensaioTap();

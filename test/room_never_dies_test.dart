@@ -271,13 +271,14 @@ void main() {
       final harness = SalaHarness()
         ..room.passages = const [
           Passagem(
-            pericope: 'panorama',
+            pericope: 'OV-Ruth',
             audioUrl: '/voice/panorama',
             kind: PassagemKind.panorama,
+            book: 'Ruth',
           ),
           Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
         ]
-        ..room.passagesThatCannotOpen = {panoramaPericope};
+        ..room.passagesThatCannotOpen = {'OV-Ruth'};
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -304,13 +305,14 @@ void main() {
       final harness = SalaHarness()
         ..room.passages = const [
           Passagem(
-            pericope: 'panorama',
+            pericope: 'OV-Ruth',
             audioUrl: '/voice/panorama',
             kind: PassagemKind.panorama,
+            book: 'Ruth',
           ),
           Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
         ]
-        ..room.passagesThatCannotOpen = {panoramaPericope};
+        ..room.passagesThatCannotOpen = {'OV-Ruth'};
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -934,7 +936,7 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
 
-    await container.read(salaSessionProvider.notifier).goConversa();
+    await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await settle();
 
     expect(container.read(salaSessionProvider).reach, RoomReach.noNetwork);
@@ -942,7 +944,7 @@ void main() {
     final semSala = SalaHarness()..network.reachable = false;
     final outro = semSala.container();
     addTearDown(outro.dispose);
-    await outro.read(salaSessionProvider.notifier).goConversa();
+    await outro.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await settle();
 
     expect(
@@ -1149,9 +1151,10 @@ void main() {
         ..room.bridgeMode = 'calibration_pending'
         ..room.passages = const [
           Passagem(
-            pericope: 'panorama',
+            pericope: 'OV-Ruth',
             audioUrl: '/voice/panorama',
             kind: PassagemKind.panorama,
+            book: 'Ruth',
           ),
           Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
         ];
@@ -1492,7 +1495,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    // Entered through the wheel, because a resume point is a passage: `goConversa()` with
+    // Entered through the wheel, because a resume point is a passage: `goConversa(book: 'Ruth')` with
     // no pericope has nothing to remember.
     await notifier.abrirEscolha();
     await settle();
@@ -1590,7 +1593,7 @@ void main() {
 
 Future<ProviderContainer> inConversaHarness(SalaHarness harness) async {
   final container = harness.container();
-  await container.read(salaSessionProvider.notifier).goConversa();
+  await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
   await settle();
   return container;
 }

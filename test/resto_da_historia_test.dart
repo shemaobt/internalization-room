@@ -88,7 +88,7 @@ Future<ProviderContainer> aRetomadaNoEnsaio(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await settle();
-  await notifier.goConversa(pericope: 'P01');
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   await settle();
   expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
   return container;
@@ -141,7 +141,7 @@ Future<ProviderContainer> aHistoriaSemOFim(
   await tester.pump(const Duration(milliseconds: 100));
 
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa();
+  await notifier.goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));

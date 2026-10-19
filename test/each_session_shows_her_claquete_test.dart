@@ -65,7 +65,7 @@ Future<(SalaHarness, ProviderContainer)> _openP05(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
-  unawaited(notifier.goConversa(pericope: pericope));
+  unawaited(notifier.goConversa(book: 'Ruth', pericope: pericope));
   await _elapse(tester, const Duration(milliseconds: 300));
   expect(container.read(salaSessionProvider).sessionId, _sessionId);
   return (harness, container);
@@ -342,7 +342,7 @@ void main() {
       final container = await pumpSala(tester, harness);
       addTearDown(() => closeTheRoom(container));
       final notifier = container.read(salaSessionProvider.notifier);
-      unawaited(notifier.goConversa());
+      unawaited(notifier.goConversa(book: 'Ruth'));
       await _elapse(tester, const Duration(milliseconds: 500));
 
       expect(container.read(salaSessionProvider).sessionId, _sessionId);

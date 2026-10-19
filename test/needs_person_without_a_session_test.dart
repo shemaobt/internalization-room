@@ -37,7 +37,7 @@ Future<ProviderContainer> _inConversa(
   LinkedTeam ledger,
 ) async {
   final container = _tablet(harness, ledger);
-  await container.read(salaSessionProvider.notifier).goConversa();
+  await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
   await settle();
   return container;
 }

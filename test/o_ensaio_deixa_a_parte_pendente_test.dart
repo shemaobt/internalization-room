@@ -33,7 +33,7 @@ Future<ProviderContainer> _noEnsaio(
     harness ?? SalaHarness(filaEmMemoria: true, lingua: lingua),
   );
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa();
+  await notifier.goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 400));

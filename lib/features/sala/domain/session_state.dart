@@ -184,6 +184,7 @@ class Trecho {
 
 class LeftEntry {
   final String? pericope;
+  final String? book;
   final bool panorama;
   final String? session;
   final String? language;
@@ -192,6 +193,7 @@ class LeftEntry {
 
   const LeftEntry({
     this.pericope,
+    this.book,
     this.panorama = false,
     this.session,
     this.language,
@@ -376,15 +378,18 @@ class SalaSessionState {
       !needsPerson &&
       voice == VoiceState.invite;
 
-  bool isTheEntryLeft(
-    Passagem entry, {
-    required String language,
-    required String book,
-  }) {
+  bool isTheEntryLeft(Passagem entry, {required String language}) {
     final left = leftEntry;
     if (left == null || left.language != language) return false;
-    if (left.panorama) return entry.isPanorama && entry.book == book;
-    return !entry.isPanorama && entry.pericope == left.pericope;
+    return entry.isPanorama == left.panorama && entry.pericope == left.pericope;
+  }
+
+  String? thePanoramaSessionOf(String book, {required String? held}) {
+    final ofTheBook = (naRoda ?? const <Passagem>[]).any(
+      (entry) =>
+          entry.isPanorama && entry.pericope == held && entry.book == book,
+    );
+    return ofTheBook ? panoramaSessionId : null;
   }
 
   bool get rodaPorLer => stage == SalaStage.escolha && naRoda == null;

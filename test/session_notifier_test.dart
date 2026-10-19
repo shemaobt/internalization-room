@@ -150,14 +150,14 @@ Future<void> tellTwoStretches(
 
 Future<ProviderContainer> inConversa(SalaHarness harness) async {
   final container = harness.container();
-  await container.read(salaSessionProvider.notifier).goConversa();
+  await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
   await settle();
   return container;
 }
 
 Future<ProviderContainer> inConversaWithoutPausing(SalaHarness harness) async {
   final container = harness.container();
-  await container.read(salaSessionProvider.notifier).goConversa();
+  await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
   await waitFor('a sala abrir a conversa e se calar', () {
     final state = container.read(salaSessionProvider);
     return state.sessionId != null &&
@@ -189,7 +189,7 @@ Future<void> theResumeCheckIsRefused(
   harness.room.failWith = const Refused('BAD_REQUEST');
   await container
       .read(salaSessionProvider.notifier)
-      .goConversa(pericope: 'P01');
+      .goConversa(book: 'Ruth', pericope: 'P01');
   harness.room.failWith = null;
   await waitFor(
     'a sala recusar a conferência e voltar ao convite',
@@ -223,9 +223,10 @@ Future<void> aTurnIsTold(
 }
 
 const _thePanorama = Passagem(
-  pericope: 'panorama',
+  pericope: 'OV-Ruth',
   audioUrl: '/voice/panorama',
   kind: PassagemKind.panorama,
+  book: 'Ruth',
 );
 
 /// The Choice open with the Panorama among its entries and nothing tapped yet.
@@ -301,7 +302,7 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
 
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     final state = container.read(salaSessionProvider);
@@ -347,7 +348,7 @@ void main() {
       await notifier.abrirEscolha();
       await settle();
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       final state = container.read(salaSessionProvider);
@@ -393,7 +394,7 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
 
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     final state = container.read(salaSessionProvider);
@@ -458,13 +459,13 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
       await settle();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
         'a sessão anterior estar de pé com o que ela contou',
         () => container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
       );
 
-      await notifier.goConversa(pericope: 'P01', fresh: true);
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01', fresh: true);
       await settle();
 
       final state = container.read(salaSessionProvider);
@@ -510,7 +511,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
       await settle();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       notifier.goEnsaio();
       notifier.ensaioTap();
@@ -529,7 +530,7 @@ void main() {
         for (final linha in await harness.takes.pending()) linha.id,
       ];
 
-      await notifier.goConversa(pericope: 'P01', fresh: true);
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01', fresh: true);
       await settle();
       notifier.goEnsaio();
       await settle();
@@ -577,7 +578,7 @@ void main() {
       await settle();
 
       harness.room.failWith = const Refused('BAD_REQUEST');
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(
@@ -587,7 +588,7 @@ void main() {
             'uma única recusa é passageira — não é motivo para abandonar o id',
       );
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(
@@ -632,13 +633,13 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await settle();
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor(
       'a passagem anterior estar de pé com o que ela contou',
       () => container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
     );
 
-    await notifier.goConversa(pericope: 'P02');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P02');
     await settle();
 
     final state = container.read(salaSessionProvider);
@@ -674,7 +675,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
       await settle();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       notifier.goEnsaio();
       notifier.ensaioTap();
@@ -686,7 +687,7 @@ void main() {
       );
       final gravada = harness.recorder.lastPath;
 
-      await notifier.goConversa(pericope: 'P01', fresh: true);
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01', fresh: true);
       await settle();
 
       expect(
@@ -725,13 +726,13 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
       await settle();
-      await notifier.goConversa(pericope: 'P02');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P02');
       await waitFor(
         'o ensaio da outra passagem estar de pé',
         () => container.read(salaSessionProvider).keptTakes.isNotEmpty,
       );
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(
@@ -764,7 +765,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await settle();
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     notifier.goEnsaio();
@@ -944,7 +945,7 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
 
-    final entering = notifier.goConversa(pericope: 'P01');
+    final entering = notifier.goConversa(book: 'Ruth', pericope: 'P01');
     final seeded = container.read(salaSessionProvider).coverage;
     expect(
       seeded.total,
@@ -1416,6 +1417,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       await notifier.goConversa(
+        book: 'Ruth',
         pericope: 'P01',
         opened: const SessionSnapshot(
           sessionId: 'sessao-1',
@@ -1680,7 +1682,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(harness.room.turnIdsAsked, hasLength(1));
@@ -1698,11 +1700,11 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       notifier.leaveThePassage();
       await settle();
-      await notifier.goConversa(pericope: 'P02');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P02');
       await settle();
 
       expect(harness.room.turnIdsAsked, hasLength(2));
@@ -1724,9 +1726,9 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
-      await notifier.goConversa(pericope: 'P02');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P02');
       await settle();
 
       expect(harness.room.turnIdsAsked, hasLength(2));
@@ -1749,10 +1751,10 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       harness.voice.succeeds = true;
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(
@@ -1781,7 +1783,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(container.read(salaSessionProvider).coverage.engaged, 0);
 
       await settle(const Duration(milliseconds: 300));
@@ -1800,7 +1804,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(container.read(salaSessionProvider).coverage.engaged, 0);
 
       harness.room.pushCoverage(
@@ -1827,7 +1833,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(container.read(salaSessionProvider).coverage.engaged, 0);
 
       harness.room.pushCoverage(
@@ -1863,7 +1871,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
 
       var emits = 0;
       container.listen(salaSessionProvider, (_, _) => emits++);
@@ -1952,7 +1962,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -1991,7 +2003,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2037,7 +2051,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2082,7 +2098,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2134,7 +2152,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2184,7 +2202,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2237,7 +2255,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2307,7 +2325,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await waitFor(
         'a primeira leitura da caixa trazer r1',
         () => container.read(salaSessionProvider).replies.length == 1,
@@ -2354,7 +2372,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(container.read(salaSessionProvider).coverage.engaged, 5);
 
       harness.room.pushCoverage(
@@ -2394,7 +2414,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(container.read(salaSessionProvider).coverage.engaged, 5);
 
       harness.room.pushCoverage(
@@ -2423,7 +2445,7 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
 
-    await container.read(salaSessionProvider.notifier).goConversa();
+    await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
 
     harness.room.pushCoverage(
       const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.failed),
@@ -2446,7 +2468,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
 
       await waitFor(
         'o fallback disparar',
@@ -2475,7 +2499,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(harness.room.watchCoverageCalls, 1);
 
       harness.room.dropCoverageStream();
@@ -2503,7 +2529,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(harness.room.watchCoverageCalls, 1);
 
       harness.room.dropCoverageStream();
@@ -2534,7 +2562,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(harness.room.watchCoverageCalls, 1);
 
       harness.room.dropCoverageStream();
@@ -2566,7 +2596,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      final opening = container.read(salaSessionProvider.notifier).goConversa();
+      final opening = container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       await waitFor(
         'o canal abrir antes da fala',
         () => harness.room.watchCoverageCalls == 1,
@@ -2651,7 +2683,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(harness.room.watchCoverageCalls, 1);
 
       harness.room.dropCoverageStream(
@@ -2680,7 +2714,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(harness.room.watchCoverageCalls, 1);
 
       harness.room.dropCoverageStream(error: const Refused('BAD_REQUEST'));
@@ -2783,7 +2819,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      final opening = container.read(salaSessionProvider.notifier).goConversa();
+      final opening = container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
 
       harness.room.pushCoverage(
         const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
@@ -2818,7 +2856,9 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
 
-    final opening = container.read(salaSessionProvider.notifier).goConversa();
+    final opening = container
+        .read(salaSessionProvider.notifier)
+        .goConversa(book: 'Ruth');
     await waitFor(
       'a fala do Guia começar',
       () => container.read(salaSessionProvider).voice == VoiceState.speaking,
@@ -2862,7 +2902,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(
         container.read(salaSessionProvider).voice,
         VoiceState.invite,
@@ -2893,7 +2935,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      await container.read(salaSessionProvider.notifier).goConversa();
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
       expect(container.read(salaSessionProvider).voice, VoiceState.invite);
       expect(container.read(salaSessionProvider).peerCue, isTrue);
 
@@ -2924,7 +2968,9 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
 
-    final opening = container.read(salaSessionProvider.notifier).goConversa();
+    final opening = container
+        .read(salaSessionProvider.notifier)
+        .goConversa(book: 'Ruth');
     await waitFor(
       'a fala do Guia começar',
       () => container.read(salaSessionProvider).voice == VoiceState.speaking,
@@ -2971,7 +3017,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await settle(const Duration(milliseconds: 200));
 
       harness.inbox.replies = [const HandReply(id: 'r1', audioUrl: 'a.mp3')];
@@ -3325,7 +3371,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       await _enterThePanorama(harness, container);
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await settle();
 
       expect(
@@ -3550,7 +3596,7 @@ void main() {
     // (it asks the room to hand back work it already holds, not to open a fresh turn),
     // unlike the opening turn itself, whose own refusal now calls a person on the spot.
     harness.room.failWith = const Refused('BAD_REQUEST');
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     harness.room.failWith = null;
@@ -3564,9 +3610,9 @@ void main() {
     await settle();
 
     harness.room.failWith = const Refused('BAD_REQUEST');
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     expect(
@@ -3593,7 +3639,7 @@ void main() {
     await settle();
 
     harness.room.failHeldTurnWith = const Refused('BAD_REQUEST');
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     expect(harness.room.turnIdsAsked, hasLength(1));
@@ -3756,7 +3802,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.abrirEscolha();
       await settle();
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       harness.room.reachable = false;
@@ -3778,7 +3824,7 @@ void main() {
       // through to — now calls a person on the spot, so the two visible refusals below are
       // read via that check instead.
       harness.room.failWith = const Refused('BAD_REQUEST');
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       harness.room.failWith = null;
@@ -3788,7 +3834,7 @@ void main() {
       await settle();
 
       harness.room.failWith = const Refused('BAD_REQUEST');
-      await notifier.goConversa(pericope: 'P01');
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
       expect(
@@ -5288,7 +5334,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await settle();
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     notifier.ensaioTap();
@@ -6797,7 +6843,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.goConversa();
+    await notifier.goConversa(book: 'Ruth');
     await settle();
 
     final state = container.read(salaSessionProvider);
@@ -6820,7 +6866,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    unawaited(notifier.goConversa());
+    unawaited(notifier.goConversa(book: 'Ruth'));
     await waitFor(
       'a sessão ser aberta',
       () => container.read(salaSessionProvider).sessionId != null,
@@ -7380,7 +7426,7 @@ void main() {
       ],
     );
     final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.goConversa();
+    await notifier.goConversa(book: 'Ruth');
     await settle();
     final room = notifier as _RoomThatKeepsAnOwnTake;
 
@@ -7639,7 +7685,7 @@ void main() {
         ],
       );
       final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.goConversa();
+      await notifier.goConversa(book: 'Ruth');
       await settle();
       notifier.goEnsaio();
       notifier.ensaioTap();
@@ -7663,7 +7709,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     harness.room.holdNextTurn();
 
-    unawaited(notifier.goConversa(pericope: 'P01'));
+    unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
     await settle();
     notifier.leaveThePassage();
     await settle();
@@ -7689,7 +7735,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       harness.room.holdNextTurn();
 
-      unawaited(notifier.goConversa(pericope: 'P01'));
+      unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
       await settle();
       notifier.leaveThePassage();
       await settle();
@@ -7785,7 +7831,9 @@ void main() {
       addTearDown(container.dispose);
       body.add([1, 2, 3]);
 
-      unawaited(container.read(salaSessionProvider.notifier).goConversa());
+      unawaited(
+        container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
+      );
       await waitFor(
         'o tocador soar',
         () => player.sounding,
@@ -7836,7 +7884,9 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      unawaited(container.read(salaSessionProvider.notifier).goConversa());
+      unawaited(
+        container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
+      );
       await waitFor('a fala responder', () => answered);
       await Future<void>.delayed(const Duration(milliseconds: 100));
 

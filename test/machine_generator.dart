@@ -307,7 +307,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheBackTranslationOpened() => 'TheBackTranslationOpened',
   TheNecklaceClosed() => 'TheNecklaceClosed',
   TheRoomStartedOver() => 'TheRoomStartedOver',
-  ThePanoramaChosen() => 'ThePanoramaChosen',
+  ThePanoramaChosen(:final id) => 'ThePanoramaChosen($id)',
   TheSceneRehearsalOpened() => 'TheSceneRehearsalOpened',
   TheSceneRehearsalLeft() => 'TheSceneRehearsalLeft',
   TheLanguageChosen() => 'TheLanguageChosen',
@@ -731,11 +731,15 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.theBackTranslationOpened => const TheBackTranslationOpened(),
       EventKind.theNecklaceClosed => const TheNecklaceClosed(),
       EventKind.theRoomStartedOver => const TheRoomStartedOver(),
-      EventKind.thePanoramaChosen => const ThePanoramaChosen(),
+      EventKind.thePanoramaChosen => ThePanoramaChosen(
+        _servedPanoramas[random.nextInt(_servedPanoramas.length)],
+      ),
       EventKind.theSceneRehearsalOpened => const TheSceneRehearsalOpened(),
       EventKind.theSceneRehearsalLeft => const TheSceneRehearsalLeft(),
       EventKind.theLanguageChosen => const TheLanguageChosen(),
     };
+
+const _servedPanoramas = ['OV-Esther', 'OV-Jonah', 'OV-Ruth'];
 
 Turn _drawATurn(Random random) => Turn('sessao-1', 'turn-${random.nextInt(3)}');
 

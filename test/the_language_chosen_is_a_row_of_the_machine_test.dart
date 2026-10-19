@@ -23,7 +23,7 @@ void main() {
       Canvas(),
       Ensaio(),
       Retro(),
-      Panorama(),
+      Panorama('OV-Ruth'),
       Fim(),
     ]) {
       final standing = Machine(station: station);

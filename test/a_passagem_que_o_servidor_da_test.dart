@@ -29,7 +29,7 @@ void main() {
       'a roda abrir',
       () => container.read(salaSessionProvider).naRoda != null,
     );
-    await notifier.goConversa(pericope: 'P01');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor('a passagem lembrada abrir', () => _readyToTalk(container));
     notifier.conversaTap();
     await settle();
@@ -62,7 +62,7 @@ void main() {
       'a roda abrir',
       () => container.read(salaSessionProvider).naRoda != null,
     );
-    await notifier.goConversa(pericope: 'P03');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P03');
 
     await waitFor(
       'a passagem pedida abrir',

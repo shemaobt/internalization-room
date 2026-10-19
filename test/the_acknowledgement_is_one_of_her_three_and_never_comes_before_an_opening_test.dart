@@ -28,7 +28,7 @@ Future<List<(String, String)>> _fiftyAcknowledgements() async {
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa();
+  await notifier.goConversa(book: 'Ruth');
   await settle();
   harness.voice.fixedLines.clear();
   for (var turn = 0; turn < 50; turn++) {
@@ -86,7 +86,7 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
 
-    await container.read(salaSessionProvider.notifier).goConversa();
+    await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await settle();
 
     expect(harness.voice.played, isNotEmpty);

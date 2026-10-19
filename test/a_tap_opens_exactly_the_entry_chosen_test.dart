@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
@@ -12,17 +11,18 @@ import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
 
 const _panorama = Passagem(
-  pericope: 'panorama',
+  pericope: 'OV-Ruth',
   audioUrl: '/voice/panorama',
   kind: PassagemKind.panorama,
+  book: 'Ruth',
 );
 const _theBook = [
   _panorama,
-  Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-  Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
-  Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
-  Passagem(pericope: 'P04', audioUrl: '/voice/p04'),
-  Passagem(pericope: 'P05', audioUrl: '/voice/p05'),
+  Passagem(pericope: 'P01', audioUrl: '/voice/p01', book: 'Ruth'),
+  Passagem(pericope: 'P02', audioUrl: '/voice/p02', book: 'Ruth'),
+  Passagem(pericope: 'P03', audioUrl: '/voice/p03', book: 'Ruth'),
+  Passagem(pericope: 'P04', audioUrl: '/voice/p04', book: 'Ruth'),
+  Passagem(pericope: 'P05', audioUrl: '/voice/p05', book: 'Ruth'),
 ];
 
 void main() {
@@ -93,7 +93,7 @@ void main() {
         () => harness.voice.played.contains(turnoUrl),
       );
 
-      expect(harness.room.pericopesAsked, [panoramaPericope]);
+      expect(harness.room.pericopesAsked, ['OV-Ruth']);
       expect(harness.room.sessionsSpokenTo, harness.room.sessionIds);
       expect(harness.room.sessionIds, hasLength(1));
       expect(read().station, isA<Panorama>());
@@ -243,7 +243,8 @@ void main() {
 
     await enter();
     expect(harness.room.sessionIds, hasLength(1));
-    expect(harness.room.sessionsSpokenTo, hasLength(2));
+    expect(harness.room.sessionsSpokenTo, hasLength(1));
+    expect(read().station, isA<Panorama>());
   });
 
   test('a team in a passage that goes back and picks the Panorama talks to the '
@@ -279,7 +280,7 @@ void main() {
           read().voice == VoiceState.invite,
     );
 
-    expect(harness.room.pericopesAsked, ['P01', panoramaPericope]);
+    expect(harness.room.pericopesAsked, ['P01', 'OV-Ruth']);
     expect(panorama, isNot(passage));
     expect(harness.room.sessionsSpokenTo.last, panorama);
     expect(read().station, isA<Panorama>());
