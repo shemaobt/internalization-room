@@ -34,6 +34,13 @@ recusa». It is the fifth named exception, under the moment label's reason, her 
 reads; VoiceOver reads each one's written words, and the chip's name adds the question it goes
 back to. The rest of that screen stays wordless.
 
+Amended by ENG-1297 (2026-10-16, ADR 0090): the Choice shows her passage menu
+(`widgets/escolha_view.dart`): «Escolha a passagem», each book's name, «◈ Panorama do
+Livro», each passage's reference and «●». It is the sixth named exception, under the moment
+label's reason, her words the team reads. Her own stylesheet calls the menu "the one place
+text is allowed (setup, often the facilitator)". VoiceOver reads each pill's words, and «●»
+as «tem um ensaio salvo».
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a

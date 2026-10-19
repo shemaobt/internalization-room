@@ -32,7 +32,7 @@ On screen and in the voice its Portuguese is *traduzir / tradução*; *contar* b
 _Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the term), contar de volta, contado de volta, reconto, recontar
 
 **Choice** (`escolha`):
-The station where the room starts and where the team picks an entry on the wheel, the Panorama or a passage.
+The station where the room starts and where the team picks an entry from her menu, the Panorama or a passage.
 _Avoid_: escolha in prose (`escolha` is the enum value), Menu in prose (`Menu` is the class), selection, wheel (the wheel is the list of entries, not the station)
 
 **Closing** (`fim`):
@@ -127,6 +127,10 @@ _Avoid_: barge-in, interrupted line (a **Queued line** is not cut)
 The portion of Scripture the team works on, identified by its pericope, with the reference audio and the Meaning Map elements.
 _Avoid_: passagem, pericope (the passage's identifier, not the passage), text
 
+**Reference**:
+The passage's Scripture reference as its Meaning Map's heading writes it, with the book named in the Room language — «Rute 1:1–5»; the only words on a passage's pill.
+_Avoid_: title, label, name
+
 **Session**:
 One team's work on one passage, with state and a persisted snapshot allowing it to resume at the exact station where it stopped.
 _Avoid_: sessão, passage, round
@@ -144,7 +148,7 @@ The language a session was opened in, fixed at the tap that opens it. A session 
 _Avoid_: current language
 
 **Wheel**:
-The list of entries the room offers at the Choice, the book's Panorama first and then the passages still to be worked, which the room reopens on its own after the Closing. Not yet read and holding no passage are different states: holding no passage means the book is finished.
+The list of entries the room offers, grouped by book, written on the Choice as her menu, which the room reopens on its own after the Closing. Not yet read and holding no passage are different states: holding no passage means the book is finished.
 _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 
 **Take**:
@@ -255,7 +259,7 @@ The moment the Conversation or the Panorama waits on the team and nothing else i
 _Avoid_: idle, the team's turn (that also covers the open microphone)
 
 **Panorama**:
-The book's own entry and the line about the whole book, first on the wheel, played when the team taps it. Not a passage: nothing that counts passages counts it.
+The book's own entry and the line about the whole book, first in its book's block, «◈ Panorama do Livro», played when the team taps it. Not a passage: nothing that counts passages counts it.
 _Avoid_: introduction, overview
 
 **Opening line**:
@@ -315,7 +319,7 @@ The team's gesture, after a clean verdict, that makes the passage its final draf
 _Avoid_: aprovação, finalize, release (the server's record of it), approve button
 
 **Approved mark**:
-The dot and olive notch the Wheel's notches wear for a passage the server holds a live release of, from any tablet, forced or not. Read from the room on every load of the Wheel; never from what this tablet started or finished. A Zerar takes it away.
+«●» after the passage's reference, read «tem um ensaio salvo», for a passage the server holds a live release of, from any tablet, forced or not. Read from the room on every load of the Wheel; never from what this tablet started or finished. A Zerar takes it away.
 _Avoid_: finished mark, done mark, started mark, ✓
 
 **Finding**:
@@ -369,7 +373,7 @@ The small line of text on the session screen giving the passage, the date and ti
 _Avoid_: slate, clapperboard, session label
 
 **Shema mark**:
-The mark at the top centre of the Conversation, drawn from the four shapes of Marcia's logo. A tap on it shows the claquete again; it is not read aloud.
+The mark at the top centre of the Conversation, drawn from the four shapes of Marcia's logo. A tap on it shows the claquete again; it is not read aloud. It is also atop the Choice, where it does nothing.
 _Avoid_: logo, watermark, icon
 
 **Warning mark**:
