@@ -10,6 +10,7 @@ import 'hand_reply.dart';
 import 'kept_take.dart';
 import 'moment.dart';
 import 'passagem.dart';
+import 'pausa.dart';
 import 'scene_question.dart';
 import 'scene_rehearsal.dart';
 import 'station.dart';
@@ -23,7 +24,8 @@ enum SceneStep { record, translate, placesUnknown, sent }
 /// answered it, its take as a file on this tablet and the take's measured length, and
 /// whether a call this screen made is in the air. On the record step it also holds the
 /// scene the team picked, the scene of the rehearsal recorded again, and when the
-/// question appeared and when the pick was made.
+/// question appeared and when the pick was made. On the translate step it holds the
+/// take's loudness, whether the team began listening, and the pending pausa.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
@@ -36,6 +38,9 @@ final class SceneScreen {
   final String? again;
   final DateTime? askedAt;
   final DateTime? pickedAt;
+  final Duration? pausa;
+  final bool listened;
+  final Envelope? envelope;
 
   const SceneScreen({
     this.step = SceneStep.record,
@@ -49,9 +54,13 @@ final class SceneScreen {
     this.again,
     this.askedAt,
     this.pickedAt,
+    this.pausa,
+    this.listened = false,
+    this.envelope,
   });
 
   SceneScreen copyWith({
+    SceneRehearsalRecord? rehearsal,
     bool? waiting,
     String? label,
     bool clearLabel = false,
@@ -63,9 +72,12 @@ final class SceneScreen {
     bool clearAskedAt = false,
     DateTime? pickedAt,
     bool clearPickedAt = false,
+    Duration? pausa,
+    bool clearPausa = false,
+    bool? listened,
   }) => SceneScreen(
     step: step,
-    rehearsal: rehearsal,
+    rehearsal: rehearsal ?? this.rehearsal,
     take: take,
     length: length,
     waiting: waiting ?? this.waiting,
@@ -75,9 +87,21 @@ final class SceneScreen {
     again: again,
     askedAt: clearAskedAt ? null : (askedAt ?? this.askedAt),
     pickedAt: clearPickedAt ? null : (pickedAt ?? this.pickedAt),
+    pausa: clearPausa ? null : (pausa ?? this.pausa),
+    listened: listened ?? this.listened,
+    envelope: envelope,
   );
 
   SceneScreen get asWaiting => copyWith(waiting: true);
+
+  /// The take as far as a frase may reach: this tablet's length, never past what the
+  /// room measured.
+  Duration? get told => switch ((length, rehearsal?.durationMs)) {
+    (final Duration length, final int measured)
+        when measured < length.inMilliseconds =>
+      Duration(milliseconds: measured),
+    (final length, _) => length,
+  };
 
   /// Whether «terminei» applies: an unsent rehearsal with a translated frase, being
   /// translated, with nothing in the air.

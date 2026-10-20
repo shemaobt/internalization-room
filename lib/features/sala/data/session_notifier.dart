@@ -3446,20 +3446,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         (whileTheOpenWaits && state.scenes is! ScenesAwaited)) {
       return;
     }
+    final step = switch (rehearsal) {
+      SceneRehearsalRecord(unsent: false) => SceneStep.sent,
+      _ when rehearsal.placesKnownIn(length) => SceneStep.translate,
+      _ => SceneStep.placesUnknown,
+    };
     state = state.copyWith(
       scene: SceneScreen(
-        step: switch (rehearsal) {
-          SceneRehearsalRecord(unsent: false) => SceneStep.sent,
-          _ when rehearsal.placesKnownIn(length) => SceneStep.translate,
-          _ => SceneStep.placesUnknown,
-        },
+        step: step,
         rehearsal: rehearsal,
         take: here,
         length: length,
+        envelope: step == SceneStep.translate ? _envelopeOf(here) : null,
       ),
       sceneRehearsals: _listedWith(rehearsal),
     );
   }
+
+  Envelope? _envelopeOf(String path) => _envelopes.putIfAbsent(path, () {
+    try {
+      return envelopeOf(File(path).readAsBytesSync());
+    } on FileSystemException {
+      return null;
+    }
+  });
 
   List<SceneRehearsalRecord> _listedWith(SceneRehearsalRecord rehearsal) =>
       SceneRehearsalRecord.ofTheSession([
@@ -3757,28 +3767,152 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _sendTheSceneTake(sessionId, take, keeping, generation);
   }
 
+  /// The circle of the translate step: it marks the pausa while the take plays, opens
+  /// the frase's microphone once a pausa waits, and keeps the frase at the stop tap.
+  void tapTheTranslateCircle() => _gesture(_tapTheTranslateCircle);
+
+  void _tapTheTranslateCircle() {
+    final shown = state.scene;
+    if (state.station is! SceneRehearsal ||
+        shown.step != SceneStep.translate ||
+        shown.take == null ||
+        shown.rehearsal == null ||
+        state.theSceneIsSending ||
+        state.needsPerson) {
+      return;
+    }
+    switch (state.channel) {
+      case Microphone(owner: MicOwner.frase):
+        _handOff(_keepTheSceneFrase());
+      case Microphone():
+        return;
+      case _ when shown.waiting || !shown.listened:
+        return;
+      case _ when shown.pausa != null:
+        _startListening('frase_${_stamp()}', owner: MicOwner.frase);
+      case PartPlaying():
+        _markThePausa();
+      default:
+        _translateOnFrom(shown.rehearsal!.frontier);
+    }
+  }
+
   void playTheSceneRehearsal() => _gesture(() => _playTheSceneRehearsal());
 
   void _playTheSceneRehearsal() {
-    final SceneScreen(:step, :take, :rehearsal, :waiting) = state.scene;
+    final shown = state.scene;
+    final SceneScreen(:step, :take, :rehearsal, :waiting, :pausa) = shown;
     if (state.station is! SceneRehearsal ||
         waiting ||
         state.theSceneIsSending ||
+        state.channel is Microphone ||
         (step != SceneStep.translate && step != SceneStep.sent) ||
         take == null ||
         rehearsal == null) {
       return;
     }
     final playing = state.channel is PartPlaying;
+    if (step == SceneStep.sent) {
+      _silenceTheRoom();
+      if (!playing) _play(PartSound(0, take));
+      return;
+    }
+    if (!shown.listened) {
+      state = state.copyWith(scene: shown.copyWith(listened: true));
+      _translateOnFrom(rehearsal.frontier);
+    } else if (playing) {
+      _markThePausa();
+    } else if (pausa != null) {
+      state = state.copyWith(scene: shown.copyWith(clearPausa: true));
+      _translateOnFrom(pausa);
+    } else {
+      _translateOnFrom(rehearsal.frontier);
+    }
+  }
+
+  void _translateOnFrom(Duration from) {
     _silenceTheRoom();
-    if (playing) return;
     _play(
-      PartSound(
-        0,
-        take,
-        from: step == SceneStep.sent ? Duration.zero : rehearsal.frontier,
-      ),
+      PartSound(0, state.scene.take!, from: from),
+      onComplete: _theTakeEnded,
     );
+  }
+
+  /// The pausa where the tap fell, snapped to the nearest silence of the take; at the
+  /// tap itself for a take with no loudness to read (ADR 0076).
+  void _markThePausa() {
+    final tap = _playback.position;
+    _silenceTheRoom();
+    final shown = state.scene;
+    final frontier = shown.rehearsal!.frontier;
+    final envelope = shown.envelope;
+    final told = shown.told;
+    final bounds = told == null ? null : pauseBounds(frontier, told);
+    final pausa = envelope == null || told == null
+        ? (tap > frontier ? tap : null)
+        : bounds == null
+        ? null
+        : placeThePause(envelope, tap, lo: bounds.lo, hi: bounds.hi);
+    if (pausa == null) return;
+    state = state.copyWith(scene: shown.copyWith(pausa: pausa));
+  }
+
+  /// A take heard to its end ends its last frase at the take's end, when a frase is
+  /// still left to tell there.
+  void _theTakeEnded() {
+    final shown = state.scene;
+    final told = shown.told;
+    if (state.station is! SceneRehearsal ||
+        shown.step != SceneStep.translate ||
+        shown.pausa != null ||
+        told == null ||
+        pauseBounds(shown.rehearsal!.frontier, told) == null) {
+      return;
+    }
+    state = state.copyWith(scene: shown.copyWith(pausa: told));
+  }
+
+  /// The stop tap: the frase goes to the room with its place in the take, and the take
+  /// plays on from it once the room kept it. A frase the room did not keep leaves the
+  /// pausa waiting for the circle to record it again (ADR 0099).
+  Future<void> _keepTheSceneFrase() async {
+    final generation = _waitOnTheGeneration;
+    final shown = state.scene;
+    final waiting = shown.asWaiting;
+    state = state.copyWith(scene: waiting);
+    final sessionId = state.sessionId;
+    final rehearsal = shown.rehearsal!;
+    final pausa = shown.pausa!;
+    final path = (await _closeTheMicrophone()).take;
+    if (path == null || sessionId == null || _anAccidentalTap(path)) {
+      if (path != null) unawaited(_recorder.delete(path));
+      if (identical(state.scene, waiting)) state = state.copyWith(scene: shown);
+      return;
+    }
+    final kept = await _room.keepTheSceneFrase(
+      sessionId,
+      rehearsal.rehearsalId,
+      File(path),
+      startsMs: rehearsal.frontier.inMilliseconds,
+      endsMs: pausa.inMilliseconds,
+      afterRestart: rehearsal.afterRestart,
+    );
+    unawaited(_recorder.delete(path));
+    if (_theSceneMovedOn(waiting, generation)) return;
+    switch (kept) {
+      case Answered(:final value):
+        state = state.copyWith(
+          scene: shown.copyWith(rehearsal: value, clearPausa: true),
+          sceneRehearsals: _listedWith(value),
+        );
+        final told = state.scene.told;
+        if (told != null && pauseBounds(value.frontier, told) != null) {
+          _translateOnFrom(value.frontier);
+        }
+      case final RoomFailure failure:
+        state = state.copyWith(scene: shown);
+        _decideAt(failure, door: Door.sceneRehearsal);
+    }
   }
 
   void playTheFrase(String fraseId) => _gesture(() => _playTheFrase(fraseId));
@@ -4466,7 +4600,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final heard = after.lastMic;
     if (heard == null || identical(heard, before.lastMic)) return;
     if (heard.answer != MicAnswer.closed) _recordingStarting = false;
-    if (heard.owner == MicOwner.scene &&
+    if ((heard.owner == MicOwner.scene || heard.owner == MicOwner.frase) &&
         (heard.answer == MicAnswer.refused ||
             heard.answer == MicAnswer.failed)) {
       _undoTheListening();
@@ -4474,7 +4608,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     switch (heard.answer) {
       case MicAnswer.started:
-        if (heard.owner != MicOwner.scene) _captureFails = 0;
+        if (heard.owner != MicOwner.scene && heard.owner != MicOwner.frase) {
+          _captureFails = 0;
+        }
       case MicAnswer.refused:
         _undoTheListening();
         ref.read(micPermissionProvider.notifier).refuse();

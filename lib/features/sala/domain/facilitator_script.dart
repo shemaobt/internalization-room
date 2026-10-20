@@ -206,12 +206,42 @@ const sceneRehearsalLabels = {
   'frases': {'pt': 'frases traduzidas', 'en': 'translated sentences'},
   'listSent': {'pt': 'enviado', 'en': 'sent'},
   'listUnsent': {'pt': 'não enviado', 'en': 'not sent'},
+  'subTranslate': {
+    'pt':
+        'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase acaba, e de novo para traduzir só aquela frase.',
+    'en':
+        'Listen to the scene rehearsal; tap the circle to pause where the phrase ends, and again to translate only that phrase.',
+  },
+  'tell': {
+    'pt': 'Toque para traduzir esta frase do ensaio da cena',
+    'en': 'Tap to translate this phrase of the scene rehearsal',
+  },
+  'listening': {
+    'pt': 'ouvindo o ensaio da cena…',
+    'en': 'listening to the scene rehearsal…',
+  },
+  'paused': {
+    'pt': 'pausado — toque no círculo para marcar onde a frase acaba',
+    'en': 'paused — tap the circle to mark where the sentence ends',
+  },
+  'ended': {'pt': 'fim do ensaio da cena', 'en': 'end of the scene rehearsal'},
 };
 
 String sceneRehearsalLabelFor(String control, String language, {int? n}) =>
     (sceneRehearsalLabels[control]![language] ??
             sceneRehearsalLabels[control]![floorLanguage]!)
         .replaceAll('{n}', '$n');
+
+/// «ouvindo o ensaio da cena…» with her clock, «0:03 / 0:20».
+String sceneListeningLineFor(Duration at, Duration? length, String language) {
+  String clock(Duration time) =>
+      '${time.inMinutes}:${'${time.inSeconds % 60}'.padLeft(2, '0')}';
+  final whole = length != null && length > Duration.zero
+      ? ' / ${clock(length)}'
+      : '';
+  return '${sceneRehearsalLabelFor('listening', language)} — '
+      '${clock(at)}$whole';
+}
 
 /// A scene button's name: «cena N» and the scene's title.
 String sceneButtonLabelFor(int n, String title, String language) =>

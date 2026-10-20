@@ -40,9 +40,9 @@ class RecordingRepository {
     }
   }
 
-  // A rehearsal, a scene take or a capture drops noise suppression and gain, as the
-  // reference's DRAFT_MIC_CONSTRAINTS (wavRecorder.ts:141-144); a rehearsal and a scene
-  // take are WAV (ADR 0054, ADR 0086).
+  // A rehearsal, a scene take, a capture or a scene frase drops noise suppression and
+  // gain, as the reference's DRAFT_MIC_CONSTRAINTS (wavRecorder.ts:141-144); a rehearsal
+  // and a scene take are WAV (ADR 0054, ADR 0086).
   Future<Capture> start(
     String fileName, {
     MicOwner owner = MicOwner.conversation,
@@ -51,7 +51,8 @@ class RecordingRepository {
     final roomFilters =
         owner != MicOwner.rehearsal &&
         owner != MicOwner.scene &&
-        owner != MicOwner.capture;
+        owner != MicOwner.capture &&
+        owner != MicOwner.frase;
     final conversation = owner == MicOwner.conversation;
     try {
       final wav =

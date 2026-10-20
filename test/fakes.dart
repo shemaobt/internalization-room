@@ -373,7 +373,9 @@ class FakeRecorder implements RecordingRepository {
     _recording = false;
     if (returnsNothing) return null;
     final deliverable =
-        lastOwner == MicOwner.rehearsal || lastOwner == MicOwner.scene;
+        lastOwner == MicOwner.rehearsal ||
+        lastOwner == MicOwner.scene ||
+        lastOwner == MicOwner.frase;
     final fala = rehearsalSpeaks;
     if (fala != null && deliverable) {
       final take = File(
@@ -1721,9 +1723,83 @@ class FakeRoom implements RoomRepository {
       recordedAt: old.recordedAt,
       sentAt: old.sentAt,
       afterRestart: attempt,
+      durationMs: old.durationMs,
     );
     sceneRehearsals[at] = restarted;
     return Answered(restarted);
+  }
+
+  /// Every frase this room was sent: its span, the attempt it names and its audio.
+  final List<
+    ({int startsMs, int endsMs, String? afterRestart, Uint8List audio})
+  >
+  frasesKept = [];
+
+  Completer<void>? _holdingFrase;
+
+  /// Hold the next frase's answer, after the room has been sent it, the way hearing it
+  /// holds it.
+  void holdNextFrase() => _holdingFrase = Completer<void>();
+
+  void finishHeldFrase() {
+    _holdingFrase?.complete();
+    _holdingFrase = null;
+  }
+
+  @override
+  Future<RoomAnswer<SceneRehearsalRecord>> keepTheSceneFrase(
+    String sessionId,
+    String rehearsalId,
+    File audio, {
+    required int startsMs,
+    required int endsMs,
+    String? afterRestart,
+  }) async {
+    if (_guard('keepTheSceneFrase') case final failure?) return failure;
+    frasesKept.add((
+      startsMs: startsMs,
+      endsMs: endsMs,
+      afterRestart: afterRestart,
+      audio: audio.readAsBytesSync(),
+    ));
+    await _holdingFrase?.future;
+    if (forgottenSessions.contains(sessionId)) {
+      return const Refused(RefusalCode.notFound);
+    }
+    if (sceneAnswersFirst.isNotEmpty) return sceneAnswersFirst.removeAt(0);
+    final refusal = failSceneWith;
+    if (refusal != null) return refusal;
+    final at = sceneRehearsals.indexWhere(
+      (rehearsal) => rehearsal.rehearsalId == rehearsalId,
+    );
+    if (at < 0) return const Refused(RefusalCode.notFound);
+    final old = sceneRehearsals[at];
+    final measured = old.durationMs;
+    if (startsMs < 0 ||
+        endsMs <= startsMs ||
+        (measured != null && endsMs > measured)) {
+      return const Refused('FRASE_OUT_OF_PLACE');
+    }
+    final kept = SceneRehearsalRecord(
+      rehearsalId: old.rehearsalId,
+      sessionId: old.sessionId,
+      n: old.n,
+      scene: old.scene,
+      recordedAt: old.recordedAt,
+      sentAt: old.sentAt,
+      afterRestart: old.afterRestart,
+      durationMs: old.durationMs,
+      frases: [
+        ...old.frases,
+        SceneFrase(
+          fraseId: 'frase-${old.frases.length + 1}',
+          startsMs: startsMs,
+          endsMs: endsMs,
+        ),
+      ],
+    );
+    sceneRehearsals[at] = kept;
+    return Answered(kept);
   }
 
   /// Every «terminei» this room was sent: the rehearsal, its turn and the attempt it closed.
@@ -1763,6 +1839,7 @@ class FakeRoom implements RoomRepository {
         recordedAt: old.recordedAt,
         sentAt: '2026-10-15T15:00:00+00:00',
         afterRestart: old.afterRestart,
+        durationMs: old.durationMs,
         frases: old.frases,
       );
     }
