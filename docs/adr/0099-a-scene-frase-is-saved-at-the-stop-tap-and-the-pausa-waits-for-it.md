@@ -55,6 +55,10 @@ voice late, and the screen cannot play on from the frase until the room has kept
 
 ## Consequences
 
+The scene take's loudness is read off the UI thread, since a take may be as large as the
+room keeps (about 65 ms for 25 MB on an M4 Pro, more on a tablet); the screen opens at once,
+the strip draws when it arrives, and a pausa tapped before stays at the tap.
+
 A frase is lost if the app dies while it is in the air, and the team records it again: the
 held frase lives as long as the life that posted it. The room
 is silent for the seconds the server spends hearing each frase.

@@ -9,6 +9,7 @@ import '../../data/playback_repository.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
+import '../../domain/pausa.dart';
 import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
@@ -20,6 +21,7 @@ import 'scene_strip.dart';
 /// «terminei», and «gravar o ensaio da cena de novo» under it.
 class SceneTranslateStep extends ConsumerWidget {
   final SceneScreen scene;
+  final Envelope? envelope;
   final Channel channel;
   final String language;
   final bool sending;
@@ -28,6 +30,7 @@ class SceneTranslateStep extends ConsumerWidget {
   const SceneTranslateStep({
     super.key,
     required this.scene,
+    required this.envelope,
     required this.channel,
     required this.language,
     required this.sending,
@@ -92,7 +95,7 @@ class SceneTranslateStep extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           SceneStrip(
-            envelope: scene.envelope,
+            envelope: envelope,
             length: scene.length,
             frases: frases,
             pausa: scene.pausa,
@@ -167,7 +170,7 @@ class SceneTranslateStep extends ConsumerWidget {
         return sceneRehearsalLabelFor('ended', language);
       }
       return retroLabelFor(
-        scene.envelope == null ? 'pauseAtTheTap' : 'pauseHint',
+        envelope == null ? 'pauseAtTheTap' : 'pauseHint',
         language,
       );
     }

@@ -41,6 +41,7 @@ import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
+import 'package:internalization_room/features/sala/domain/pausa.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
@@ -3421,11 +3422,29 @@ class SalaHarness {
     clipGraceProvider.overrideWithValue(clipGrace),
     captureGuardProvider.overrideWithValue(captureGuard),
     fimLingerProvider.overrideWithValue(fimLinger),
+    sceneEnvelopeReaderProvider.overrideWithValue(readTheEnvelope),
     if (inboxWatch case final every?)
       roomInboxWatchProvider.overrideWithValue(every),
   ];
 
   ProviderContainer container() => ProviderContainer(overrides: overrides);
+
+  Completer<void>? _envelopeHeld;
+
+  /// Hold the take's loudness, the way a long take is still being read off the UI
+  /// thread when the screen opens.
+  void holdTheEnvelope() => _envelopeHeld = Completer<void>();
+
+  void giveTheEnvelope() => _envelopeHeld?.complete();
+
+  Future<Envelope?> readTheEnvelope(String path) async {
+    await _envelopeHeld?.future;
+    try {
+      return envelopeOf(File(path).readAsBytesSync());
+    } on FileSystemException {
+      return null;
+    }
+  }
 }
 
 class SpeakingPlayer extends Fake implements AudioPlayer {

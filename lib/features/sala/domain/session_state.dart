@@ -24,8 +24,8 @@ enum SceneStep { record, translate, placesUnknown, sent }
 /// answered it, its take as a file on this tablet and the take's measured length, and
 /// whether a call this screen made is in the air. On the record step it also holds the
 /// scene the team picked, the scene of the rehearsal recorded again, and when the
-/// question appeared and when the pick was made. On the translate step it holds the
-/// take's loudness, whether the team began listening, and the pending pausa.
+/// question appeared and when the pick was made. On the translate step it holds
+/// whether the team began listening, and the pending pausa.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
@@ -40,7 +40,6 @@ final class SceneScreen {
   final DateTime? pickedAt;
   final Duration? pausa;
   final bool listened;
-  final Envelope? envelope;
 
   const SceneScreen({
     this.step = SceneStep.record,
@@ -56,7 +55,6 @@ final class SceneScreen {
     this.pickedAt,
     this.pausa,
     this.listened = false,
-    this.envelope,
   });
 
   SceneScreen copyWith({
@@ -89,7 +87,6 @@ final class SceneScreen {
     pickedAt: clearPickedAt ? null : (pickedAt ?? this.pickedAt),
     pausa: clearPausa ? null : (pausa ?? this.pausa),
     listened: listened ?? this.listened,
-    envelope: envelope,
   );
 
   SceneScreen get asWaiting => copyWith(waiting: true);
@@ -371,6 +368,10 @@ class SalaSessionState {
   /// This session's scene rehearsals, by number, as the room last answered them.
   final List<SceneRehearsalRecord> sceneRehearsals;
 
+  /// The loudness of a scene take, once it was read off the UI thread; null for a take
+  /// with none to read.
+  final ({String take, Envelope? envelope})? sceneLoudness;
+
   /// The passage's scenes, as the room answered them on this visit to the scene rehearsal.
   final SceneList scenes;
 
@@ -452,6 +453,7 @@ class SalaSessionState {
     this.parteARegravar,
     this.scene = const SceneScreen(),
     this.sceneRehearsals = const [],
+    this.sceneLoudness,
     this.scenes = const ScenesAwaited(),
     this.sceneTurn,
   });
@@ -506,6 +508,13 @@ class SalaSessionState {
   bool get sceneRehearsalIsOpen => station is SceneRehearsal;
 
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
+  /// The loudness of the take on the scene screen, until it is read or for a take with
+  /// none: a pausa then stays at the tap.
+  Envelope? get sceneEnvelope => switch (sceneLoudness) {
+    (take: final take, :final envelope) when take == scene.take => envelope,
+    _ => null,
+  };
+
   bool get theSceneIsSending =>
       sceneRehearsalIsOpen && (awaitingTheGuide || machine.inFlight != null);
 
@@ -995,6 +1004,7 @@ class SalaSessionState {
     bool clearParteARegravar = false,
     SceneScreen? scene,
     List<SceneRehearsalRecord>? sceneRehearsals,
+    ({String take, Envelope? envelope})? sceneLoudness,
     SceneList? scenes,
     ({String rehearsalId, String turnId})? sceneTurn,
     bool clearSceneTurn = false,
@@ -1081,6 +1091,7 @@ class SalaSessionState {
           : (parteARegravar ?? this.parteARegravar),
       scene: scene ?? this.scene,
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
+      sceneLoudness: sceneLoudness ?? this.sceneLoudness,
       scenes: scenes ?? this.scenes,
       sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),
     );

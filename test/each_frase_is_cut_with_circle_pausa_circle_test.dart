@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -75,8 +76,10 @@ Future<SceneRoom> _onTheTranslateStep({
   Duration length = const Duration(seconds: 10),
   SceneRehearsalRecord? rehearsal,
   List<SceneRehearsalRecord> alsoListed = const [],
+  bool loudnessLate = false,
 }) async {
   final room = await atRest();
+  if (loudnessLate) room.harness.holdTheEnvelope();
   room.harness.room.sceneRehearsals
     ..addAll(alsoListed)
     ..add(rehearsal ?? _rehearsal());
@@ -373,6 +376,43 @@ void main() {
         expect(harness.room.frasesKept.single.endsMs, 6000);
       },
     );
+
+    test(
+      'a pausa tapped before the take\'s loudness is read stays at the tap, and the next one snaps once it is',
+      () async {
+        final room = await _onTheTranslateStep(
+          take: aSpokenWav(gaps: [(_s(3.0), _s(3.2)), (_s(6.0), _s(6.2))]),
+          loudnessLate: true,
+        );
+        await _listening(room);
+
+        await _aFraseAt(room, _s(3.5));
+        room.harness.giveTheEnvelope();
+        await settle();
+        await waitFor(
+          'o ensaio seguir tocando',
+          () => room.state.channel is PartPlaying,
+        );
+        await _aFraseAt(room, _s(6.5), already: 1);
+
+        expect(room.harness.room.frasesKept.map((sent) => sent.endsMs), [
+          3500,
+          6100,
+        ]);
+      },
+    );
+
+    test('the take\'s loudness is read off the UI thread', () async {
+      final take = File(
+        '${Directory.systemTemp.createTempSync('sala-take').path}/cena.wav',
+      )..writeAsBytesSync(aSpokenWav(gaps: [(_s(3.0), _s(5.0))]));
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final read = await container.read(sceneEnvelopeReaderProvider)(take.path);
+
+      expect(read?.length, const Duration(seconds: 10));
+    });
 
     test(
       'a pausa is never closer than 0.2 s after the previous pause',

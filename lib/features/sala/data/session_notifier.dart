@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -139,6 +140,22 @@ final roomInboxWatchProvider = Provider<Duration>(
 );
 
 final watchesWithoutAHaltProvider = Provider<bool>((ref) => true);
+
+/// Reads a scene take's loudness off the UI thread: the whole file is walked, and a
+/// take may be as large as the room keeps.
+final sceneEnvelopeReaderProvider =
+    Provider<Future<Envelope?> Function(String path)>(
+      (ref) =>
+          (path) => Isolate.run(() => _theLoudnessOf(path)),
+    );
+
+Envelope? _theLoudnessOf(String path) {
+  try {
+    return envelopeOf(File(path).readAsBytesSync());
+  } on FileSystemException {
+    return null;
+  }
+}
 
 final coverageFallbackDelayProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 30),
@@ -3577,12 +3594,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal: rehearsal,
         take: here,
         length: length,
-        envelope: step == SceneStep.translate ? _envelopeOf(here) : null,
         listened: stillTranslating && asked.listened,
         pausa: pausa != null && pausa > rehearsal.frontier ? pausa : null,
       ),
       sceneRehearsals: _listedWith(rehearsal),
     );
+    if (step == SceneStep.translate) _handOff(_readTheLoudness(here));
+  }
+
+  Future<void> _readTheLoudness(String take) async {
+    if (state.sceneLoudness?.take == take) return;
+    final envelope = await ref.read(sceneEnvelopeReaderProvider)(take);
+    if (_gone || state.scene.take != take) return;
+    state = state.copyWith(sceneLoudness: (take: take, envelope: envelope));
   }
 
   Envelope? _envelopeOf(String path) => _envelopes.putIfAbsent(path, () {
@@ -3982,7 +4006,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// can keep the frase.
   Duration? _thePausaAt(Duration tap, SceneScreen shown) {
     final frontier = shown.rehearsal!.frontier;
-    final envelope = shown.envelope;
+    final envelope = state.sceneEnvelope;
     final end = shown.takeEnd;
     if (envelope == null || end == null) {
       final raw = end != null && tap > end ? end : tap;

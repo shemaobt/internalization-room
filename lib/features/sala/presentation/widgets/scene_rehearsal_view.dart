@@ -113,6 +113,7 @@ class SceneRehearsalView extends ConsumerWidget {
               },
               SceneStep.translate => SceneTranslateStep(
                 scene: scene,
+                envelope: session.sceneEnvelope,
                 channel: session.channel,
                 language: language,
                 sending: sending,
