@@ -7,7 +7,6 @@ import '../domain/failure_policy.dart';
 import '../domain/machine.dart';
 import '../domain/ports.dart';
 import '../domain/room_reach.dart';
-import '../domain/turn_result.dart';
 import 'connectivity_service.dart';
 import 'current_session_ledger.dart';
 import 'facilitator_voice_service.dart';
@@ -31,11 +30,13 @@ class ProviderRoomPort implements RoomPort {
       _ref.read(connectivityServiceProvider).onNetworkReturned;
 
   @override
-  Future<TurnResult?> lookAt(Turn turn) async => switch (await _ref
+  Future<LookAnswer> lookAt(Turn turn) async => switch (await _ref
       .read(roomRepositoryProvider)
       .lookAtTheTurn(turn.sessionId, turn.turnId)) {
-    Answered(:final value) => value,
-    RoomFailure() => null,
+    Answered(:final value) => TheReplyLanded(value),
+    Refused(code: final code) when code == RefusalCode.unnamed(202) =>
+      const StillAnswering(),
+    RoomFailure() => const NothingLanded(),
   };
 
   @override

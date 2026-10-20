@@ -119,6 +119,7 @@ void main() {
         retryDelay: (_) => const Duration(seconds: 2),
         partCeiling: () => null,
         clipGrace: () => Duration.zero,
+        lookAgainAfter: () => Duration.zero,
         offlineNotice: () =>
             const Line(LineKind.offlineNotice, 0, asset: 'offline.mp3'),
         generation: () => 0,

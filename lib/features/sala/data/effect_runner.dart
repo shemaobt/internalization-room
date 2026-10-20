@@ -100,6 +100,14 @@ abstract interface class StationHost {
 
   void hearTheReplyFound(Turn turn, TurnResult reply);
 
+  /// The Station rests on a reply the look found, unheard, for «Ouvir de novo» to say.
+  void hearTheReplyKept(Turn turn, TurnResult reply);
+
+  void hearTheLineLetGo();
+
+  /// The Station waits again on a look the lift of a halt resumed.
+  void hearTheWaitResumed();
+
   /// The Station decides what a lifted halt sounds again (ADR 0055).
   void hearTheSoundKept(Kept kept);
 
@@ -134,6 +142,7 @@ class EffectRunner {
   final Duration Function(int step) retryDelay;
   final Duration? Function() partCeiling;
   final Duration Function() clipGrace;
+  final Duration Function() lookAgainAfter;
   final Line Function() offlineNotice;
   final int Function()? generation;
 
@@ -147,6 +156,7 @@ class EffectRunner {
     required this.retryDelay,
     required this.partCeiling,
     required this.clipGrace,
+    required this.lookAgainAfter,
     required this.offlineNotice,
     this.generation,
   });
@@ -157,6 +167,7 @@ class EffectRunner {
   int _ladderStep = 0;
   StreamSubscription<void>? _networkWatch;
   Timer? _ceiling;
+  Timer? _lookAgain;
   Sound? _part;
   int? _partStamp;
   List<StreamSubscription<void>>? _partSignals;
@@ -250,6 +261,16 @@ class EffectRunner {
           _lookAt(turn, sounding);
         case PlayTheReply(:final turn, :final reply):
           host.hearTheReplyFound(turn, reply);
+        case KeepTheReply(:final turn, :final reply):
+          host.hearTheReplyKept(turn, reply);
+        case LookAgain(:final turn, :final sounding):
+          _armTheLookAgain(turn, sounding);
+        case LetTheLineGo():
+          host.hearTheLineLetGo();
+        case StopLooking():
+          _lookAgain?.cancel();
+        case ResumeTheWait():
+          host.hearTheWaitResumed();
         case LetTheTurnGo(:final turn):
           _letTheTurnGo(turn);
         case FellAt(:final door, :final why):
@@ -279,6 +300,7 @@ class EffectRunner {
     _retry?.cancel();
     _ladder?.cancel();
     _ceiling?.cancel();
+    _lookAgain?.cancel();
     unawaited(_networkWatch?.cancel());
     for (final signal in _partSignals ?? const <StreamSubscription<void>>[]) {
       unawaited(signal.cancel());
@@ -416,16 +438,36 @@ class EffectRunner {
   void _lookAt(Turn turn, Kept sounding) {
     final stamp = generation?.call();
     unawaited(
-      room
-          .lookAt(turn)
-          .then(
-            (reply) => host.answer(
-              reply == null
-                  ? LookEmpty(sounding: sounding, generation: stamp)
-                  : LookFound(turn, reply, generation: stamp),
-            ),
+      room.lookAt(turn).then((answer) {
+        if (_disposed) return;
+        host.answer(switch (answer) {
+          TheReplyLanded(:final reply) => LookFound(
+            turn,
+            reply,
+            generation: stamp,
           ),
+          StillAnswering() => LookPending(
+            turn,
+            sounding: sounding,
+            generation: stamp,
+          ),
+          NothingLanded() => LookEmpty(
+            turn,
+            sounding: sounding,
+            generation: stamp,
+          ),
+        });
+      }),
     );
+  }
+
+  void _armTheLookAgain(Turn turn, Kept sounding) {
+    _lookAgain?.cancel();
+    final stamp = generation?.call();
+    _lookAgain = Timer(lookAgainAfter(), () {
+      _lookAgain = null;
+      if (generation?.call() == stamp) _lookAt(turn, sounding);
+    });
   }
 
   void _armTheRetry(Duration delay) {
