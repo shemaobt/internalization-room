@@ -306,6 +306,45 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a refusal line of a moved pause leaves when the team taps the bar again',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(
+        tester,
+        harness,
+        apontada: 'trecho-1',
+      );
+      harness.room.failReplaceWith = const Refused(
+        'PAUSE_ONLY_ON_THE_LAST_FRASE',
+      );
+      await tocar(tester, _barra(2));
+      await tocar(tester, depois);
+      await tocar(tester, 'Tocar para gravar a tradução de novo');
+      await tocar(tester, 'Tocar ao terminar');
+      await tocar(tester, confirmar);
+      await waitFor(
+        'a recusa chegar',
+        () => container.read(salaSessionProvider).btAviso != null,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+      const recusa =
+          'a pausa só se move na última frase — as frases mudaram; toquem na barra de novo';
+      expect(find.text(recusa), findsOneWidget);
+
+      await tocar(tester, _barra(2));
+
+      expect(
+        find.text(recusa),
+        findsNothing,
+        reason: 'a linha pedia para tocar na barra e ficava depois do toque',
+      );
+      closeTheRoom(container);
+    },
+  );
+
   test('her two retell lines are hers in English too', () {
     expect(
       sceneRehearsalLabelFor('retellingLast', 'en', n: 2),

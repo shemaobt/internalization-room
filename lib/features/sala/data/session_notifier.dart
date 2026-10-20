@@ -7025,6 +7025,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         trecho,
         naFase: _faseAntesDeTraduzirDeNovo,
       ),
+      clearAviso: true,
     );
     _leadThemToTheTrecho(trecho);
   }
