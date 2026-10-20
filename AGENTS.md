@@ -81,6 +81,13 @@ work is built on the machine. The one written exception: the Retro screen keeps 
 `btFraseQueAguarda` and `btFraseGuardada` included, and its report that the verdict was heard, until
 after the 2 November tablet freeze (ADR 0046).
 
+The migration runs in slices under ENG-1160 while plan work continues. Code that is still in
+the notifier moves out only through those slices. Rebase onto them, and build new lifecycle
+work on the machine. The one written exception: the Retro screen keeps its notifier fields,
+`btFindings`, `btConferindo`, `btRecusa`, `btVeredito`, `btRecomeco`, `btAviso`,
+`btPausaSoNaUltima`, `btRegravacao`, `btFraseQueAguarda` and `btFraseGuardada` included, and
+its report that the verdict was heard, until after the 2 November tablet freeze (ADR 0046).
+
 ## Secrets
 
 Copy `.env.example` to `.env` and fill `BACKEND_URL`. The app ships no shared key: the

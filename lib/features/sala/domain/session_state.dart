@@ -286,6 +286,7 @@ class SalaSessionState {
   /// been heard since the cursor.
   final bool btOuvidoAlemDoCursor;
   final bool btPausaAjustavel;
+  final bool btPausaSoNaUltima;
   final int btParte;
   final String? btTraducaoPendente;
   final String? btTraducaoEmprestada;
@@ -377,6 +378,7 @@ class SalaSessionState {
     this.btCorte = Duration.zero,
     this.btOuvidoAlemDoCursor = false,
     this.btPausaAjustavel = false,
+    this.btPausaSoNaUltima = false,
     this.btParte = 0,
     this.btTraducaoPendente,
     this.btTraducaoEmprestada,
@@ -741,13 +743,23 @@ class SalaSessionState {
 
   bool get canAdjustThePause =>
       btPausaAjustavel &&
+      btFraseQueAguarda == null &&
       (thePauseStands ||
           (_btNaVez &&
               btTrechoTraduzidoDeNovo != null &&
               btContaEscolhida == null));
 
-  bool theLastPauseMoves(Trecho frase) {
-    if (!frase.contado || btPhase == BtPhase.conferida) return false;
+  bool theLastPauseMoves(Trecho frase, {BtPhase? naFase}) =>
+      frase.contado &&
+      (naFase ?? btPhase) != BtPhase.conferida &&
+      _aUltimaDaSuaParte(frase);
+
+  bool anEarlierPauseStays(Trecho frase, {BtPhase? naFase}) =>
+      frase.contado &&
+      (naFase ?? btPhase) != BtPhase.conferida &&
+      !_aUltimaDaSuaParte(frase);
+
+  bool _aUltimaDaSuaParte(Trecho frase) {
     Trecho? ultima;
     for (final trecho in btTrechos) {
       if (trecho.takeId != frase.takeId) continue;
@@ -900,6 +912,7 @@ class SalaSessionState {
     Duration? btCorte,
     bool? btOuvidoAlemDoCursor,
     bool? btPausaAjustavel,
+    bool? btPausaSoNaUltima,
     int? btParte,
     String? btTraducaoPendente,
     bool clearTraducaoPendente = false,
@@ -974,6 +987,7 @@ class SalaSessionState {
       btCorte: btCorte ?? this.btCorte,
       btOuvidoAlemDoCursor: btOuvidoAlemDoCursor ?? this.btOuvidoAlemDoCursor,
       btPausaAjustavel: btPausaAjustavel ?? this.btPausaAjustavel,
+      btPausaSoNaUltima: btPausaSoNaUltima ?? this.btPausaSoNaUltima,
       btParte: btParte ?? this.btParte,
       btTraducaoPendente: clearTraducaoPendente
           ? null
