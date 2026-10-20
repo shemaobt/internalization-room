@@ -573,6 +573,59 @@ void main() {
       ),
   ];
 
+  test('uma correcao guardada ao lado das partes nao conta como parte: a parte '
+      'por gravar ainda sobe acima da passada da sala', () async {
+    final harness = SalaHarness();
+    final casa = Directory.systemTemp.createTempSync('sala-1355-correcao');
+    addTearDown(() => casa.deleteSync(recursive: true));
+    String arquivo(String nome) {
+      final caminho = '${casa.path}/$nome.m4a';
+      File(caminho).writeAsBytesSync([1, 2, 3]);
+      harness.playback.lengths[caminho] = _parte;
+      return caminho;
+    }
+
+    harness.playback.measured = _parte;
+    harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+      sessionId: _sessao,
+      stage: SalaStage.ensaio,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: arquivo('p1'),
+          takeId: 'gravacao-1',
+        ),
+        KeptTake(
+          scopeId: KeptScope.parte(2),
+          path: arquivo('p2'),
+          takeId: 'gravacao-2',
+        ),
+        KeptTake(
+          scopeId: 'trecho-1',
+          path: arquivo('correcao'),
+          takeId: 'gravacao-4',
+        ),
+      ],
+      passesToGoAbove: const {3: 2},
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final it = _Retomada(harness, container, const [], '');
+    await it.sala.abrirEscolha();
+    await settle();
+    unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
+    await oEnsaioAbre(it);
+    final antes = harness.room.takePasses.length;
+
+    await gravarUmaParteNoEnsaio(it);
+    await waitFor(
+      'a parte subir',
+      () => harness.room.takePasses.length > antes,
+    );
+
+    expect(harness.room.takePasses.last, 3);
+  });
+
   group('depois de reabrir o app, a parte gravada onde a da sala sumiu ainda '
       'sobe acima da passada da sala', () {
     test('a parte do meio', () async {

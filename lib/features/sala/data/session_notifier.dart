@@ -2797,7 +2797,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _theResumeFailed(const RoomFoundNothing(), generation);
     }
     if (!faltavam) {
-      _passadasDaSala = _aindaPorGravar(waiting.passesToGoAbove, takes.length);
+      _passadasDaSala = _aindaPorGravar(
+        waiting.passesToGoAbove,
+        takes.where((take) => KeptScope.isParte(take.scopeId)).length,
+      );
     }
     // A room holding no rehearsal is not a rehearsal to come back to, and it is not a
     // failure either: the conversa is where a passage with nothing behind it starts —
