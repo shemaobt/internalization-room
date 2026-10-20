@@ -100,28 +100,38 @@ Future<void> _duasFrasesComUmAchado(
   await _passo(tester);
 }
 
+Future<ProviderContainer> _movidaRecusadaDepoisDeRecomecar(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  final container = await _recomecadaComUmaFrase(tester, harness);
+  await _duasFrasesComUmAchado(tester, harness, container);
+  harness.room.failReplaceWith = const Refused('PAUSE_PAST_THE_END');
+  await tocar(tester, _barraDaFrase2);
+  await tocar(tester, depois);
+  await tocar(tester, 'Tocar para gravar a tradução de novo');
+  await tocar(tester, 'Tocar ao terminar');
+  await tocar(tester, confirmar);
+  await waitFor(
+    'a recusa chegar',
+    () => container.read(salaSessionProvider).btAviso != null,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
+  return container;
+}
+
 void main() {
   testWidgets(
     'a refused move right after a restart shows her line and the restarted note, each its own line',
     (tester) async {
-      final harness = SalaHarness(
-        filaEmMemoria: true,
-        restartLapse: const Duration(minutes: 1),
+      final container = await _movidaRecusadaDepoisDeRecomecar(
+        tester,
+        SalaHarness(
+          filaEmMemoria: true,
+          restartLapse: const Duration(minutes: 1),
+        ),
       );
-      final container = await _recomecadaComUmaFrase(tester, harness);
-      await _duasFrasesComUmAchado(tester, harness, container);
-      harness.room.failReplaceWith = const Refused('PAUSE_PAST_THE_END');
-      await tocar(tester, _barraDaFrase2);
-      await tocar(tester, depois);
-      await tocar(tester, 'Tocar para gravar a tradução de novo');
-      await tocar(tester, 'Tocar ao terminar');
-      await tocar(tester, confirmar);
-      await waitFor(
-        'a recusa chegar',
-        () => container.read(salaSessionProvider).btAviso != null,
-        step: () => _passo(tester),
-      );
-      await _passo(tester);
 
       expect(find.text(_passaDoFim), findsOneWidget);
       expect(
@@ -224,4 +234,28 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'a refusal that lands inside the six seconds of the restarted note stays when the note goes',
+    (tester) async {
+      final container = await _movidaRecusadaDepoisDeRecomecar(
+        tester,
+        SalaHarness(
+          filaEmMemoria: true,
+          restartLapse: const Duration(seconds: 20),
+        ),
+      );
+      expect(find.text(_recomecada), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 20));
+
+      expect(find.text(_recomecada), findsNothing);
+      expect(
+        find.text(_passaDoFim),
+        findsOneWidget,
+        reason: 'o relógio da nota levava a recusa dela junto',
+      );
+      closeTheRoom(container);
+    },
+  );
 }

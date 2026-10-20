@@ -5668,9 +5668,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _dispatch(const TheTranslationStartedOver());
 
         _after(
-          'aviso',
+          'recomecada',
           ref.read(restartLapseProvider),
-          () => state = state.copyWith(clearAviso: true, btRecomecada: false),
+          () => state = state.copyWith(btRecomecada: false),
         );
         final agora = _generation;
         try {
