@@ -411,6 +411,64 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a read of the takes that fails after the refusal is a telling '
+      'not understood too, and the recording is kept', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    harness.room
+      ..replaceThePart(harness.room.takeIds.last)
+      ..failTakesWith = const NetworkFailed('timeout');
+
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+    for (var passo = 0; passo < 5; passo++) {
+      await letTheRehearsalReachTheRoom(tester);
+    }
+
+    final depois = container.read(salaSessionProvider);
+    expect(
+      depois.wordlessTelling,
+      isTrue,
+      reason: 'a lista de gravações que cai é a frase que ela não entendeu',
+    );
+    expect(depois.btChunkFailures, hasLength(1));
+    expect(
+      harness.room.takesReceived.where((take) => take.kind == 'retro'),
+      hasLength(1),
+      reason: 'a gravação segue guardada para o trecho que se conta de novo',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a refusal for a replaced take the next stretch goes to '
+      'the take the room counts now', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    harness.room.replaceThePart('gravacao-1');
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(harness.room.chunksSent, 0, reason: 'a primeira foi recusada');
+
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      harness.room.chunkTakes,
+      ['gravacao-2'],
+      reason: 'o trecho seguinte ia outra vez para a gravação substituída',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('B3c — sem corte, a tradução vai do cursor até a cabeça', (
     tester,
   ) async {

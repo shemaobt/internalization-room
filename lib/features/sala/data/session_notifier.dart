@@ -2791,7 +2791,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       switch (await _room.takesOf(waiting.sessionId)) {
         case Answered(value: final guardadas):
           if (_abandoned(generation)) return _Resume.abandoned;
-          switch (await _asPartesDaSala(waiting, guardadas, here, generation)) {
+          switch (await _asPartesDaSala(
+            waiting.sessionId,
+            guardadas,
+            here,
+            generation,
+          )) {
             case Answered(:final value):
               takes = value;
             case NetworkFailed():
@@ -2872,7 +2877,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// disk. Nothing is written for it: the resume point stays exactly as it was and the
   /// next opening tries again.
   Future<RoomAnswer<List<KeptTake>?>> _asPartesDaSala(
-    ResumePoint waiting,
+    String sessionId,
     List<TakeView> guardadas,
     List<KeptTake> aqui,
     int generation,
@@ -2917,7 +2922,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       _watchBusyState();
       final clip = await _room.fetchClip(
-        RoomRepository.takeAudioUrl(waiting.sessionId, corrente.takeId),
+        RoomRepository.takeAudioUrl(sessionId, corrente.takeId),
       );
       final Uint8List audio;
       switch (clip) {
@@ -5891,13 +5896,48 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sent = ++_readsSent;
     switch (await _room.fetchState(sessionId)) {
       case Answered(value: final snapshot):
+        final unread = await _keepTheCurrentTakes(sessionId, generation);
+        if (unread != null) {
+          return _theRefusalCouldNotBeRead(path, unread, generation);
+        }
         if (_abandoned(generation)) return;
         _theStretchIsGone(snapshot.backTranslation.segments);
         _applyTheSessionRead(snapshot, sent);
       case final RoomFailure failure:
-        _guardarATraducao(path);
-        if (_abandoned(generation)) return;
-        _theCorrectionFailed(failure);
+        _theRefusalCouldNotBeRead(path, failure, generation);
+    }
+  }
+
+  void _theRefusalCouldNotBeRead(
+    String path,
+    RoomFailure failure,
+    int generation,
+  ) {
+    _guardarATraducao(path);
+    if (_abandoned(generation)) return;
+    _theCorrectionFailed(failure);
+  }
+
+  Future<RoomFailure?> _keepTheCurrentTakes(
+    String sessionId,
+    int generation,
+  ) async {
+    switch (await _room.takesOf(sessionId)) {
+      case Answered(value: final guardadas):
+        final current = await _asPartesDaSala(
+          sessionId,
+          guardadas,
+          state.keptTakes,
+          generation,
+        );
+        if (current case Answered(value: final partes?)) {
+          if (_abandoned(generation)) return null;
+          state = state.copyWith(keptTakes: partes);
+          await _medirAsPartes(partes, generation);
+        }
+        return current is RoomFailure ? current : null;
+      case final RoomFailure failure:
+        return failure;
     }
   }
 
