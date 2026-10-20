@@ -5718,10 +5718,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gesture(() => _ouvirOTrechoContado(indice));
 
   void _ouvirOTrechoContado(int indice) {
-    if (state.station is! Retro || state.btPhase != BtPhase.playing) {
-      return;
-    }
-    if (state.needsPerson || state.offline) return;
+    if (!state.canHearAFrase) return;
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
     if (!trecho.contado) return;
@@ -5796,15 +5793,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           clearTrechoTraduzidoDeNovo: true,
           btChunkFailures: const [],
           btClipEnded: false,
-          btAviso: BtAviso.recomecada,
+          btRecomecada: true,
           clearBtRecusa: true,
         );
         _dispatch(const TheTranslationStartedOver());
 
         _after(
-          'aviso',
+          'recomecada',
           ref.read(restartLapseProvider),
-          () => state = state.copyWith(clearAviso: true),
+          () => state = state.copyWith(btRecomecada: false),
         );
         final agora = _generation;
         try {
