@@ -381,7 +381,7 @@ _Avoid_: retro retomada, resuming from scratch
 ### The room and the people
 
 **Halt**:
-The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the Desk lifts it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel and keeps what was sounding.
+The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the Desk lifts it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel and keeps what was sounding. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing (shown once the team is back on the Conversation), the reply's sound failing twice, a tablet that cannot record, and the microphone failing to start twice in a row. A Session read never raises one (ADR 0093).
 _Avoid_: sala parada, stuck room, pause
 
 **Warning**:
@@ -406,11 +406,11 @@ The room's action of signalling it needs someone, insisted on at intervals until
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
 **Reach**:
-Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure at any door but the Raised hand's, the Outbox's included, takes the room out of reach (ADR 0071); coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
+Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure takes the room out of reach only on a way in, a Station with no session yet; anywhere else it changes nothing (ADR 0093). Coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
 _Avoid_: offline (the voice the circle draws while the reach is down, not the fact), connectivity, online/offline flag, Alcance
 
 **Pending request**:
-The one request a Step was waiting on when its door fell on the network, kept in memory with its key and re-sent once when the room comes back (ADR 0050). The Verdict is re-sent only when a gesture brings the room back, never on the room's own return (ADR 0073).
+The way in a Step was waiting on when it fell, re-sent once when the room comes back; nothing else is pending, and a lift re-sends nothing (ADR 0093).
 _Avoid_: retry queue, outbox (which holds recordings only)
 
 **Watch**:
@@ -442,7 +442,7 @@ The machine's count of how many times its in-flight work was abandoned; an answe
 _Avoid_: epoch
 
 **Failure policy**:
-The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the room out of reach, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071). Nothing decides a failure inside a Station or the notifier (ADR 0053).
+The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the room out of reach, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071), and every failure of the tablet's own that may call a person (the reply's sound, the microphone's start, a tablet that cannot record); a refusal is never counted, and nothing outside the six cases becomes a Halt (ADR 0093). Nothing decides a failure inside a Station or the notifier (ADR 0053).
 _Avoid_: error handler, retry policy
 
 **One look**:
