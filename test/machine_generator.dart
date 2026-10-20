@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
+import 'package:internalization_room/features/sala/domain/left_entry.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -313,6 +314,14 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheSceneRehearsalOpened() => 'TheSceneRehearsalOpened',
   TheSceneRehearsalLeft() => 'TheSceneRehearsalLeft',
   TheLanguageChosen() => 'TheLanguageChosen',
+  ThePanoramaAsked(:final id, :final language) =>
+    'ThePanoramaAsked($id, $language)',
+  TheSessionOpened(:final session, :final generation) =>
+    'TheSessionOpened($session, generation: $generation)',
+  TheSessionLetGo(:final session) => 'TheSessionLetGo($session)',
+  TheWayBackTaken(:final left) =>
+    'TheWayBackTaken(${left.panorama ? 'Panorama' : 'passage'} ${left.pericope}, '
+        'session: ${left.session}, said: ${left.said})',
   TheRehearsalWeighed(:final everySceneHasItsPart) =>
     'TheRehearsalWeighed($everySceneHasItsPart)',
 };
@@ -437,6 +446,10 @@ enum EventKind {
   theSceneRehearsalOpened,
   theSceneRehearsalLeft,
   theLanguageChosen,
+  thePanoramaAsked,
+  theSessionOpened,
+  theSessionLetGo,
+  theWayBackTaken,
   theRehearsalWeighed,
 }
 
@@ -504,6 +517,10 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheSceneRehearsalOpened() => EventKind.theSceneRehearsalOpened,
   TheSceneRehearsalLeft() => EventKind.theSceneRehearsalLeft,
   TheLanguageChosen() => EventKind.theLanguageChosen,
+  ThePanoramaAsked() => EventKind.thePanoramaAsked,
+  TheSessionOpened() => EventKind.theSessionOpened,
+  TheSessionLetGo() => EventKind.theSessionLetGo,
+  TheWayBackTaken() => EventKind.theWayBackTaken,
   TheRehearsalWeighed() => EventKind.theRehearsalWeighed,
 };
 
@@ -568,7 +585,11 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.thePanoramaChosen ||
   EventKind.theSceneRehearsalOpened ||
   EventKind.theSceneRehearsalLeft => true,
-  EventKind.theLanguageChosen => true,
+  EventKind.theLanguageChosen ||
+  EventKind.thePanoramaAsked ||
+  EventKind.theSessionOpened ||
+  EventKind.theSessionLetGo ||
+  EventKind.theWayBackTaken ||
   EventKind.theRehearsalWeighed => true,
 };
 
@@ -752,12 +773,46 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.theSceneRehearsalOpened => const TheSceneRehearsalOpened(),
       EventKind.theSceneRehearsalLeft => const TheSceneRehearsalLeft(),
       EventKind.theLanguageChosen => const TheLanguageChosen(),
+      EventKind.thePanoramaAsked => ThePanoramaAsked(
+        _drawAPanorama(random),
+        _drawALanguage(random),
+      ),
+      EventKind.theSessionOpened => TheSessionOpened(
+        _drawASession(random),
+        generation: random.nextInt(4) == 0 ? theOlderGeneration : null,
+      ),
+      EventKind.theSessionLetGo => TheSessionLetGo(_drawASession(random)),
+      EventKind.theWayBackTaken => TheWayBackTaken(_drawAnEntryLeft(random)),
       EventKind.theRehearsalWeighed => TheRehearsalWeighed(
         everySceneHasItsPart: random.nextBool(),
       ),
     };
 
 const _servedPanoramas = ['OV-Esther', 'OV-Jonah', 'OV-Ruth'];
+
+String _drawAPanorama(Random random) =>
+    _servedPanoramas[random.nextInt(_servedPanoramas.length)];
+
+String _drawALanguage(Random random) => random.nextBool() ? 'pt' : 'en';
+
+String _drawASession(Random random) => 'sessao-${random.nextInt(3)}';
+
+/// A Panorama left said or unsaid, on a session the machine may or may not still hold,
+/// or a passage left.
+LeftEntry _drawAnEntryLeft(Random random) => random.nextBool()
+    ? LeftEntry(
+        pericope: _drawAPanorama(random),
+        panorama: true,
+        session: _drawASession(random),
+        language: _drawALanguage(random),
+        said: random.nextBool(),
+      )
+    : LeftEntry(
+        book: 'Ruth',
+        pericope: 'P01',
+        session: _drawASession(random),
+        language: _drawALanguage(random),
+      );
 
 Turn _drawATurn(Random random) => Turn('sessao-1', 'turn-${random.nextInt(3)}');
 

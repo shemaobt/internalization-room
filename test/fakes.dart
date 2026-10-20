@@ -884,6 +884,19 @@ class FakeInbox implements HandInboxRepository {
     _holdingCheck = null;
   }
 
+  final List<Completer<void>> _checksHeldAlone = [];
+  int _checksTakenAlone = 0;
+
+  void holdOneCheck() => _checksHeldAlone.add(Completer<void>());
+
+  void finishTheFirstHeldCheck() {
+    for (final held in _checksHeldAlone) {
+      if (held.isCompleted) continue;
+      held.complete();
+      return;
+    }
+  }
+
   @override
   Future<RoomAnswer<List<HandReply>>> fetchReplies() async {
     checks++;
@@ -892,6 +905,9 @@ class FakeInbox implements HandInboxRepository {
         : Answered(replies);
     final held = _holdingCheck;
     if (held != null) await held.future;
+    if (_checksTakenAlone < _checksHeldAlone.length) {
+      await _checksHeldAlone[_checksTakenAlone++].future;
+    }
     return answer;
   }
 
@@ -2207,6 +2223,16 @@ class FakeRoom implements RoomRepository {
   /// Every session id `personArrived` was called for, one entry per attempt.
   final List<String> personArrivedSessions = [];
 
+  Completer<void>? _holdingPersonArrived;
+
+  /// Holds the next arrival ping in flight, so a test can move the room before it lands.
+  void holdNextPersonArrived() => _holdingPersonArrived = Completer<void>();
+
+  void finishHeldPersonArrived() {
+    _holdingPersonArrived?.complete();
+    _holdingPersonArrived = null;
+  }
+
   @override
   Future<RoomAnswer<void>> personArrived(String sessionId) async {
     if (_guard('personArrived') case final failure?) return failure;
@@ -2214,6 +2240,8 @@ class FakeRoom implements RoomRepository {
       return gone;
     }
     personArrivedSessions.add(sessionId);
+    final held = _holdingPersonArrived;
+    if (held != null) await held.future;
     return personArrivedFailsWith ?? const Answered(null);
   }
 

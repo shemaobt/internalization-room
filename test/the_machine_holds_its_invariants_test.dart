@@ -336,6 +336,20 @@ Invariant<Machine> _nothingOfTheSessionSurvives(
   return null;
 });
 
+final aStationsSessionNeverOpensWithoutTheWatch = Invariant<Machine>(
+  'ADR 0092, a Station\'s session never opens without the Watch',
+  (before, event, after, effects, world) {
+    final opened = after.stationSession;
+    if (opened == null ||
+        opened == before.stationSession ||
+        after.station != before.station) {
+      return null;
+    }
+    if (effects.contains(const ArmTheWatch())) return null;
+    return '${describeEvent(event)} opened $opened without arming the Watch';
+  },
+);
+
 void _holds(Invariant<Machine> invariant) =>
     expectEverySeedHolds(_machine, [invariant], seeds: _seeds);
 
@@ -455,8 +469,13 @@ void main() {
         theOutboxNeverIdlesReachableWithAPartPending,
         theScreenNeverShowsASoundTheChannelDoesNotHold,
         aLanguageChosenReadsTheWheelOnlyOnTheChoice,
+        aStationsSessionNeverOpensWithoutTheWatch,
       ], seeds: _seeds);
     });
+  });
+
+  test('ADR 0092: a Station\'s session never opens without the Watch', () {
+    _holds(aStationsSessionNeverOpensWithoutTheWatch);
   });
 
   test('ADR 0077: a language chosen reads the Wheel again on the Choice and '
