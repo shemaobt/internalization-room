@@ -7020,9 +7020,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void manterATraducaoDeAntes() => _gesture(() => _manterATraducaoDeAntes());
 
   void _manterATraducaoDeAntes() {
-    if (state.btPhase != BtPhase.playing || _trechoTraduzidoDeNovo == null) {
-      return;
-    }
+    final trecho = _trechoTraduzidoDeNovo;
+    if (state.btPhase != BtPhase.playing || trecho == null) return;
+    final aguardando = state.btFraseQueAguarda;
+    if (aguardando != null && trecho.segmentId == aguardando) return;
     _silenceTheRoom();
     _descartarATraducaoPendente();
     _trechoTraduzidoDeNovo = null;

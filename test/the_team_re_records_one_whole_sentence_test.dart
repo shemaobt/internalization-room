@@ -713,6 +713,33 @@ void main() {
     },
   );
 
+  testWidgets('a re-recorded frase that awaits its translation offers no way '
+      'to keep the translation it had before', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarAFrase(tester, harness, 2);
+
+    expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-2');
+    expect(
+      find.text('manter a tradução de antes'),
+      findsNothing,
+      reason:
+          'a frase regravada oferecia ficar com a tradução da frase que '
+          'já não existe',
+    );
+    expect(
+      find.text('traduzindo de novo a frase 2 — toquem no círculo'),
+      findsNothing,
+    );
+    container.read(salaSessionProvider.notifier).manterATraducaoDeAntes();
+    await _passo(tester);
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-2',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('the circle translates the re-recorded frase at exactly its new '
       'span, and once that lands the frase stops waiting', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
