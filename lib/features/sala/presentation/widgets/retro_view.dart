@@ -41,11 +41,11 @@ class RetroView extends ConsumerWidget {
     final titulo = retroLabelFor('title', language);
     final linha = _linha(session, language);
     final veredito = session.btVeredito || session.btFindings.isNotEmpty;
-    return SizedBox.expand(
+    final scrolling = SizedBox.expand(
       child: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: 24 + MediaQuery.viewPaddingOf(context).top),
+            const SizedBox(height: 24),
             Semantics(
               header: true,
               label: titulo,
@@ -168,6 +168,7 @@ class RetroView extends ConsumerWidget {
         ),
       ),
     );
+    return SafeArea(bottom: false, child: scrolling);
   }
 
   List<FraseRow> _frases(
