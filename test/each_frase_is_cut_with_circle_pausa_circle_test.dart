@@ -741,6 +741,258 @@ void main() {
       },
     );
 
+    group(
+      'a frase is held by its rehearsal from the moment it is posted until the room says kept, or refuses that frase',
+      () {
+        test(
+          'held from the post: the screen left and opened again while the frase is in the air sends the same frase',
+          () async {
+            final room = await _onTheTranslateStep();
+            await _listening(room);
+            room.harness.room
+              ..holdNextFrase()
+              ..frasesLandBeforeTheyFail = true
+              ..sceneAnswersFirst.add(const NetworkFailed('HTTP 503'));
+            room.harness.playback.at = _s(4.0);
+            await _circle(room);
+            await _theFraseMicrophoneOpens(room);
+            await _theFraseIsSent(room);
+            room.sala.leaveTheSceneRehearsal();
+            await settle();
+            room.sala.openTheSceneRehearsal();
+            await translateOpens(room);
+            await settle();
+            await _listening(room);
+            room.harness.playback.at = _s(4.0);
+            await _circle(room);
+            await _circle(room);
+            if (_theFraseMicrophoneIsOpen(room.state)) await _circle(room);
+
+            room.harness.room.finishHeldFrase();
+            await waitFor('a sala responder', () => !room.state.scene.waiting);
+            await settle();
+
+            expect(_currentFrasesOf(room), 1);
+          },
+        );
+
+        test(
+          'a refusal that is not of the frase keeps it held: SCENE_REHEARSAL_SENDING on the resend',
+          () async {
+            final room = await _onTheTranslateStep();
+            await _listening(room);
+            await _aFraseWhoseAnswerIsLost(
+              room,
+              const NetworkFailed('timeout'),
+            );
+            room.harness.room.sceneAnswersFirst.add(
+              const Refused(RefusalCode.sceneRehearsalSending),
+            );
+            await _theTeamTellsItAgain(room);
+
+            await _theTeamTellsItAgain(room);
+
+            expect(_currentFrasesOf(room), 1);
+          },
+        );
+
+        for (final code in [
+          RefusalCode.wordlessTelling,
+          RefusalCode.fraseOutOfPlace,
+          RefusalCode.sceneRehearsalSent,
+          RefusalCode.notFound,
+        ]) {
+          test('a refusal of the frase lets it go: $code', () async {
+            final room = await _onTheTranslateStep();
+            await _listening(room);
+            room.harness.room.sceneAnswersFirst.add(Refused(code));
+            await _aFraseAt(room, _s(4.0));
+            final held = room.harness.recorder.lastPath;
+
+            expect(room.harness.recorder.deleted, contains(held));
+            room.sala.tapTheTranslateCircle();
+            await settle();
+            expect(
+              room.harness.room.frasesKept,
+              hasLength(1),
+              reason: 'nada retido para mandar de novo',
+            );
+          });
+        }
+
+        test(
+          'the held frase is sent again under the attempt it was recorded in',
+          () async {
+            final room = await _onTheTranslateStep(
+              rehearsal: _rehearsal(afterRestart: 'tentativa-1'),
+            );
+            await _listening(room);
+            await _aFraseWhoseAnswerIsLost(
+              room,
+              const NetworkFailed('timeout'),
+              keptBefore: false,
+            );
+            room.harness.room.sceneRehearsals[0] = _rehearsal(
+              afterRestart: 'tentativa-2',
+            );
+            room.sala.leaveTheSceneRehearsal();
+            await settle();
+            room.sala.openTheSceneRehearsal();
+            await translateOpens(room);
+            await settle();
+            expect(room.state.scene.rehearsal?.afterRestart, 'tentativa-2');
+            await _listening(room);
+            room.harness.playback.at = _s(4.0);
+
+            await _theTeamTellsItAgain(room);
+
+            expect(
+              room.harness.room.frasesKept.last.afterRestart,
+              'tentativa-1',
+            );
+          },
+        );
+
+        test(
+          '«terminei» with a frase held sends the frase first, and the rehearsal once it is kept',
+          () async {
+            final room = await _onTheTranslateStep(
+              rehearsal: _rehearsal(frases: [_frase('f1', 0, 3000)]),
+            );
+            await _listening(room);
+            await _aFraseWhoseAnswerIsLost(
+              room,
+              const NetworkFailed('timeout'),
+              keptBefore: false,
+            );
+            final posts = room.harness.room.frasesKept.length;
+
+            room.sala.sendTheSceneRehearsal();
+            await waitFor(
+              'o ensaio ir para a voz',
+              () => room.harness.room.scenesSent.isNotEmpty,
+            );
+            await settle();
+
+            expect(room.harness.room.frasesKept, hasLength(posts + 1));
+            expect(_currentFrasesOf(room), 2);
+            expect(room.harness.room.scenesSent, hasLength(1));
+          },
+        );
+
+        test(
+          'a pausa marked past the held frase stays pending once the room kept it',
+          () async {
+            final room = await _onTheTranslateStep(
+              rehearsal: _rehearsal(n: 2),
+              alsoListed: [_rehearsal()],
+            );
+            await _listening(room);
+            await _aFraseWhoseAnswerIsLost(
+              room,
+              const NetworkFailed('timeout'),
+            );
+            for (final n in [1, 2]) {
+              room.sala.openTheListedSceneRehearsal('ensaio-da-cena-$n');
+              await waitFor(
+                'o ensaio $n abrir',
+                () =>
+                    room.state.scene.rehearsal?.n == n &&
+                    !room.state.scene.waiting,
+              );
+              await settle();
+            }
+            await _listening(room);
+            room.harness.playback.at = _s(8.0);
+            await _circle(room);
+            final plays = room.harness.playback.played.length;
+
+            await _circle(room);
+            await waitFor('a frase voltar', () => !room.state.scene.waiting);
+            await settle();
+
+            expect(_currentFrasesOf(room, 2), 1);
+            expect(room.harness.playback.played, hasLength(plays));
+            await _theFraseMicrophoneOpens(room);
+            await _theFraseIsSent(room, already: 2);
+            final sent = room.harness.room.frasesKept.last;
+            expect((sent.startsMs, sent.endsMs), (4000, 8000));
+          },
+        );
+
+        group('a held frase\'s file is deleted', () {
+          Future<(SceneRoom, String?)> held() async {
+            final room = await _onTheTranslateStep(
+              rehearsal: _rehearsal(frases: [_frase('f1', 0, 3000)]),
+            );
+            await _listening(room);
+            await _aFraseWhoseAnswerIsLost(
+              room,
+              const NetworkFailed('timeout'),
+              keptBefore: false,
+            );
+            return (room, room.harness.recorder.lastPath);
+          }
+
+          test('when the room kept it', () async {
+            final (room, path) = await held();
+            expect(room.harness.recorder.deleted, isNot(contains(path)));
+
+            await _theTeamTellsItAgain(room);
+
+            expect(room.harness.recorder.deleted, contains(path));
+          });
+
+          test('when the rehearsal is recorded again', () async {
+            final (room, path) = await held();
+
+            room.sala.recordTheSceneAgain();
+            await settle();
+
+            expect(room.harness.recorder.deleted, contains(path));
+          });
+
+          test('when its session is gone', () async {
+            final (room, path) = await held();
+            room.harness.room.forgetTheSession(_session);
+
+            room.sala.leaveTheSceneRehearsal();
+            await settle();
+            room.sala.openTheSceneRehearsal();
+            await waitFor(
+              'a sala esquecer a sessão',
+              () => room.harness.recorder.deleted.contains(path),
+            );
+          });
+
+          test(
+            'and a life rebuilt never sweeps the frases left behind again',
+            () async {
+              final (room, _) = await held();
+              final swept = room.harness.recorder.sweeps;
+              room.container.dispose();
+
+              final again = room.harness.container();
+              addTearDown(again.dispose);
+              again.read(salaSessionProvider);
+              await settle();
+
+              expect(room.harness.recorder.sweeps, swept);
+            },
+          );
+
+          test('when the life ends', () async {
+            final (room, path) = await held();
+
+            room.container.dispose();
+            await settle();
+
+            expect(room.harness.recorder.deleted, contains(path));
+          });
+        });
+      },
+    );
+
     test(
       'a frase held after a lost answer whose rehearsal the room no longer has is let go, and the room is not asked for its list again and again',
       () async {

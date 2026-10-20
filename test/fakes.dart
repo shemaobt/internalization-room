@@ -420,6 +420,11 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<void> delete(String path) async => deleted.add(path);
 
+  int sweeps = 0;
+
+  @override
+  Future<void> sweepTheFrasesLeftBehind() async => sweeps++;
+
   /// Whether keeping fetched audio fails, the way a dead disk does.
   bool keepBytesFails = false;
 
@@ -1816,7 +1821,7 @@ class FakeRoom implements RoomRepository {
     if (startsMs < 0 ||
         endsMs <= startsMs ||
         (measured != null && endsMs > measured)) {
-      return const Refused('FRASE_OUT_OF_PLACE');
+      return const Refused(RefusalCode.fraseOutOfPlace);
     }
     final fraseId = '$rehearsalId-frase-${old.frases.length + 1}';
     _fraseBytes[fraseId] = bytes;

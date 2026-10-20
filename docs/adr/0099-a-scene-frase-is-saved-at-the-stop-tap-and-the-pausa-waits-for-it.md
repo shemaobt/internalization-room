@@ -28,12 +28,19 @@ that names an attempt older than the rehearsal's current one, or none after a re
 - A pausa placed by the take reaching its end never passes the take's length as the room
   measured it.
 - Every frase names the rehearsal's current attempt.
-- A frase the room may have kept without saying so (a network failure, a 5xx, the
-  tablet's timeout, an answer it cannot read) keeps its file and span on the tablet, held
-  by its rehearsal. The next tap that would open the microphone sends those same bytes
-  again, and the room's same-bytes rule makes them one frase. Only a kept answer or a
-  refusal of that frase lets the file go. «gravar de novo» waits while a frase is closing
-  or in the air, and a frase whose screen moved on before it was sent is never sent.
+- A frase is held by its rehearsal from the moment it is posted until the room says it
+  kept it or refuses that frase (WORDLESS_TELLING, FRASE_OUT_OF_PLACE,
+  SCENE_REHEARSAL_SENT, or the 404 of a rehearsal that is gone). Every other end keeps it
+  held: a network failure, a 5xx, the tablet's timeout, an answer it cannot read, and any
+  other refusal. While it is held, the next tap that would open the microphone for that
+  rehearsal sends the same bytes, span and attempt again, whatever screen was rebuilt in
+  between; the room's same-bytes rule makes them one frase. «terminei» sends a held frase
+  first and the rehearsal once it is kept or refused.
+- A held frase's file is deleted when it is let go, when its rehearsal is sent or
+  recorded again, when its session is gone, and when the life ends. Frases a killed app
+  left are swept at launch, once per process.
+- «gravar de novo» waits while a frase is closing or in the air, and a frase whose screen
+  moved on before it was sent is never sent.
 - The frase upload follows the scene rehearsal's flow in the session notifier (ADRs
   0085-0089); its move into the machine is that flow's, not this decision's.
 
@@ -45,5 +52,5 @@ voice late, and the screen cannot play on from the frase until the room has kept
 ## Consequences
 
 A frase is lost if the app dies while it is in the air, and the team records it again: the
-held file lives as long as the session's notifier. The room
+held frase lives as long as the life that posted it. The room
 is silent for the seconds the server spends hearing each frase.
