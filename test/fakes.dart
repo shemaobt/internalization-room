@@ -1698,6 +1698,9 @@ class FakeRoom implements RoomRepository {
     String sessionId,
     File audio, {
     String? scene,
+    DateTime? recordedAt,
+    int? durationMs,
+    String? sha256,
   }) async {
     if (_guard('keepSceneRehearsal') case final failure?) return failure;
     await _holdingKeepBefore?.future;
@@ -2537,6 +2540,9 @@ class FakeRoom implements RoomRepository {
     required String scope,
     int? passNumber,
     int? chunkIndex,
+    DateTime? recordedAt,
+    int? durationMs,
+    String? sha256,
   }) async {
     if (_guard('sendTake') case final failure?) return failure;
     if (_forgot('sendTake', sessionId) case final gone?) {

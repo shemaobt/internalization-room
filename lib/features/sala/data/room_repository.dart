@@ -354,6 +354,9 @@ class RoomRepository {
     required String scope,
     int? passNumber,
     int? chunkIndex,
+    DateTime? recordedAt,
+    int? durationMs,
+    String? sha256,
   }) async {
     final request =
         http.MultipartRequest('POST', _uri('/sessions/$sessionId/takes'))
@@ -364,6 +367,7 @@ class RoomRepository {
           ..files.add(await _audioPart(audio));
     if (passNumber != null) request.fields['pass_number'] = '$passNumber';
     if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
+    _announce(request, recordedAt, durationMs, sha256);
     return _room.askStreamed(
       request,
       timeout: _longCallTimeout,
@@ -417,6 +421,9 @@ class RoomRepository {
     String sessionId,
     File audio, {
     String? scene,
+    DateTime? recordedAt,
+    int? durationMs,
+    String? sha256,
   }) async {
     final request =
         http.MultipartRequest(
@@ -427,12 +434,26 @@ class RoomRepository {
           ..headers['X-Room-Device'] = await _deviceId()
           ..files.add(await _audioPart(audio));
     if (scene != null) request.fields['scene'] = scene;
+    _announce(request, recordedAt, durationMs, sha256);
     return _room.askStreamed(
       request,
       timeout: _longCallTimeout,
       read: readJson(SceneRehearsalRecord.fromJson),
       asksForTheSession: true,
     );
+  }
+
+  static void _announce(
+    http.MultipartRequest request,
+    DateTime? recordedAt,
+    int? durationMs,
+    String? sha256,
+  ) {
+    if (recordedAt != null) {
+      request.fields['recorded_at'] = recordedAt.toUtc().toIso8601String();
+    }
+    if (durationMs != null) request.fields['duration_ms'] = '$durationMs';
+    if (sha256 != null) request.fields['sha256'] = sha256;
   }
 
   static Future<http.MultipartFile> _audioPart(File audio) =>

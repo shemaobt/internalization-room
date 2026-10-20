@@ -1216,7 +1216,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       reach: !before.reachable && machine.reachable ? RoomReach.fine : null,
       scene: leavesTheScene ? const SceneScreen() : null,
       sceneRehearsals: leavesTheScene ? const [] : null,
-      scenes: leavesTheScene ? const ScenesAwaited() : null,
       clearSceneTurn: leavesTheScene,
     );
     _runner.run(effects, micWasOpen: before.channel is Microphone);
@@ -2546,6 +2545,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       moment: created?.moment,
     );
     _dispatch(TheSessionOpened(sessionId, generation: generation));
+    // The scenes are the passage's, asked while the session opens on the network it
+    // needs anyway, so a Rehearsal the room falls under still knows its rows.
+    unawaited(_askForTheScenes());
     if (pericope != null) {
       _holdTheCurrentSession(sessionId, book, pericope, speaking);
     }
@@ -2834,11 +2836,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       awaitingTheGuide: false,
       keptTakes: takes,
-      // Counted among the rehearsal's own parts — a row read off the tablet can also
-      // carry a correction's own take, kept beside the parts but not one of them.
-      takes: takes.where((take) => KeptScope.isParte(take.scopeId)).length,
       parteARegravar: waiting.partBeingRecordedAgain,
     );
+    _readTheScenesForTheRehearsal();
     if (faltavam) {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
       // The row named files that are not here any more. Rewritten only now, and only with
@@ -2858,10 +2858,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// team gets back (ADR 0020). A telling-back is never one of them: it is the team
   /// explaining the story, not the story.
   ///
-  /// They are numbered by their place in this row rather than by the number the room
-  /// holds. The two agree for every rehearsal this tablet sent up, and where they cannot
-  /// — a recording the room does not number — the place is what a part is addressed by
-  /// everywhere else: a stretch sits on it there, and recording it again finds it there.
+  /// Each keeps the number the room holds for it, because part N is Scene N: a room
+  /// holding part 3 alone hands it back on row 3, never renumbered by its place in the
+  /// listing. A recording the room does not number is the rehearsal an app before
+  /// 19 August sent whole: it comes back whole and is no scene's part, and behind a part
+  /// of a scene it is set aside, known by its name and never fetched. Each keeps where
+  /// the room says it was joined from.
   ///
   /// A file still on the tablet under a current part's name is kept as it is: it is the
   /// team's own recording, and fetching a copy over the room's link would spend their
@@ -2883,11 +2885,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (guardada.kind != 'ensaio') continue;
       correntes[guardada.ordinal] = guardada;
     }
+    final deLado = correntes.keys.any((ordinal) => ordinal != null);
     final partes = <KeptTake>[];
-    for (final corrente in correntes.values) {
-      final escopo = KeptScope.parte(partes.length + 1);
+    for (final MapEntry(key: ordinal, value: corrente) in correntes.entries) {
+      final escopo = ordinal == null
+          ? KeptScope.whole
+          : KeptScope.parte(ordinal);
       final passada = corrente.pass ?? 1;
       final nossa = aqui.where((take) => take.takeId == corrente.takeId);
+      if (ordinal == null && deLado && nossa.isEmpty) {
+        partes.add(
+          KeptTake(
+            scopeId: escopo,
+            path: '$escopo-${corrente.takeId}',
+            takeId: corrente.takeId,
+            pass: passada,
+          ),
+        );
+        continue;
+      }
       if (nossa.isNotEmpty) {
         partes.add(
           KeptTake(
@@ -2895,6 +2911,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             path: nossa.first.path,
             takeId: corrente.takeId,
             pass: passada,
+            origin: corrente.origin,
           ),
         );
         continue;
@@ -2928,6 +2945,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           path: arquivo,
           takeId: corrente.takeId,
           pass: passada,
+          origin: corrente.origin,
         ),
       );
     }
@@ -2956,14 +2974,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// to tell, and not to a rehearsal it has already recorded.
   void _pickTheTellingBackUp(BackTranslationProgress told) {
     _leaveTheStepFor(const Retro());
-    _arriveAt(const TheBackTranslationOpened());
+    _arriveAt(const TheBackTranslationResumed());
     _regravouNestaVisita = false;
+    final trechos = _trechosFrom(told.segments);
+    final achados = _osAchadosQueFicam(told.findings, trechos);
     state = state.copyWith(
       awaitingTheGuide: false,
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
-      btTrechos: _trechosFrom(told.segments),
-      btFindings: told.findings,
-      btVeredito: told.checked || told.findings.isNotEmpty,
+      btTrechos: trechos,
+      btFindings: achados,
+      btVeredito: told.checked || achados.isNotEmpty,
       btFraseQueAguarda: told.awaitingSegmentId,
       clearBtFraseQueAguarda: told.awaitingSegmentId == null,
     );
@@ -3006,9 +3026,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// leave-and-return later.
   void _keepTheStretchesAlreadyTold(BackTranslationProgress told) {
     if (told.nothingTold) return;
+    final trechos = _trechosFrom(told.segments);
     state = state.copyWith(
-      btTrechos: _trechosFrom(told.segments),
-      btFindings: told.findings,
+      btTrechos: trechos,
+      btFindings: _osAchadosQueFicam(told.findings, trechos),
     );
   }
 
@@ -3520,6 +3541,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       peerCue: false,
     );
+    _readTheScenesForTheRehearsal();
   }
 
   void openTheSceneRehearsal() => _gesture(() => _openTheSceneRehearsal());
@@ -3574,9 +3596,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return false;
     switch (answer) {
       case Answered(:final value):
-        if (state.station is SceneRehearsal && state.scenes is! ScenesHad) {
-          state = state.copyWith(scenes: ScenesHad(value));
+        if (state.scenes is! ScenesHad) {
+          state = state.copyWith(
+            scenes: ScenesHad(value),
+            scenesOfThePassage: value,
+          );
           _stampTheQuestion();
+          _weighTheRehearsal();
         }
         return true;
       case final RoomFailure failure:
@@ -3585,8 +3611,38 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
+  bool get _readsTheScenes =>
+      state.station is SceneRehearsal || state.station is Ensaio;
+
+  /// The Rehearsal draws one row per Scene, so it reads the passage's scenes on every
+  /// arrival until the room has answered them.
+  void _readTheScenesForTheRehearsal() {
+    _weighTheRehearsal();
+    if (state.scenes is ScenesHad) return;
+    _timers.remove('sceneListRetry')?.cancel();
+    unawaited(_askForTheScenes(onMiss: () => _theScenesMissed(0)));
+  }
+
+  /// The Rehearsal opens the Back-translation only as the machine last weighed it, so it
+  /// is weighed again whenever its parts or its scene list change.
+  void _weighTheRehearsal() {
+    if (state.station case Ensaio(
+      :final everySceneHasItsPart,
+    ) when everySceneHasItsPart != state.everySceneHasItsPart) {
+      _dispatch(
+        TheRehearsalWeighed(everySceneHasItsPart: state.everySceneHasItsPart),
+      );
+    }
+  }
+
   void _theScenesMissed(int asked) {
-    if (state.station is! SceneRehearsal || state.scenes is ScenesHad) return;
+    if (!_readsTheScenes || state.scenes is ScenesHad) return;
+    if (state.scenesOfThePassage case final known?) {
+      state = state.copyWith(scenes: ScenesHad(known));
+      _stampTheQuestion();
+      _weighTheRehearsal();
+      return;
+    }
     state = state.copyWith(scenes: const ScenesMissing());
     final wait = sceneListRetryWait(asked);
     if (wait == null) return;
@@ -3595,10 +3651,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// [asked] is how many retries the list has spent; [wait] is the one now due.
   void _askForTheScenesAgain(int asked, Duration wait) {
-    if (state.scene.step != SceneStep.record ||
-        state.scenes is! ScenesMissing) {
-      return;
-    }
+    final asks = switch (state.station) {
+      Ensaio() => true,
+      SceneRehearsal() => state.scene.step == SceneStep.record,
+      _ => false,
+    };
+    if (!asks || state.scenes is! ScenesMissing) return;
     if (state.sceneTakeUnderWay) {
       _after('sceneListRetry', wait, () => _askForTheScenesAgain(asked, wait));
       return;
@@ -4740,25 +4798,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _playAll(_oEnsaioAteAqui());
   }
 
-  /// A tap on one bead: that part alone, from its start, stopping at its own end.
+  /// One part alone, from its start, stopping at its own end.
   ///
-  /// Tapping the part already sounding toggles pause the same way the play/pause circle
-  /// does — [playTheRehearsal] already carries that logic, and duplicating it here would
-  /// drift from it the first time either one changed. Tapping a different part stops
-  /// whatever is in the air and starts this one instead of resuming it.
+  /// The part already sounding toggles pause the same way the play/pause circle does —
+  /// [playTheRehearsal] already carries that logic, and duplicating it here would drift
+  /// from it the first time either one changed. A different part stops whatever is in the
+  /// air and starts this one instead of resuming it.
   ///
-  /// A dimmed bead — one of the others while a record-again sent by a finding stands open,
-  /// not yet recorded — does not apply, so a tap on it does nothing (ADR 0040). Once that
-  /// recording is pending (waiting for the green check), every bead plays as usual: the
+  /// A dimmed row — one of the others while a record-again sent by a finding stands open,
+  /// not yet recorded — does not apply, so its listen does nothing (ADR 0040). Once that
+  /// recording is pending (waiting for the green check), every row plays as usual: the
   /// team can hear what they recorded before deciding to keep it.
-  void tocarAParte(int indice) => _gesture(() => _tocarAParte(indice));
-
   void _tocarAParte(int indice) {
     if (state.station is! Ensaio) return;
     if (state.needsPerson) return;
     if (state.ensaio == EnsaioStatus.recording) return;
     if (indice < 0 || indice >= state.partes.length) return;
-    if (state.beadIsDimmed(indice)) return;
     if (indice == state.parteDoEnsaioTocando) {
       playTheRehearsal();
       return;
@@ -4772,29 +4827,45 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       PartSound(parte, path, from: trecho?.$1 ?? Duration.zero, to: trecho?.$2),
   ];
 
+  /// The parts in their scenes' order, and a recording waiting for the check for a scene
+  /// with no part yet at that scene's place.
   List<PartSound> _oEnsaioAteAqui() {
     final partes = state.partes;
     final pendente = _pendingTakePath;
-    final regravada = state.parteARegravar;
-    final noLugar =
-        pendente != null && regravada != null && regravada < partes.length;
+    final cena = state.cenaDaGravacao ?? 0;
+    final daPendente = [
+      if (pendente != null && _aParteDaGravacao == null)
+        PartSound(partes.length, pendente),
+    ];
+    final antes = partes.indexWhere(
+      (take) => (KeptScope.numberOf(take.scopeId) ?? 0) > cena,
+    );
     return [
-      for (var parte = 0; parte < partes.length; parte++)
+      for (var parte = 0; parte < partes.length; parte++) ...[
+        if (parte == antes) ...daPendente,
         ..._osSonsDaParte(parte),
-      if (pendente != null && !noLugar) PartSound(partes.length, pendente),
+      ],
+      if (antes < 0) ...daPendente,
     ];
   }
 
   /// What plays for one part of the rehearsal: the pending take standing in its place when
-  /// this is the part the team came back to record again, or its own recording and the
-  /// stretches told back over it otherwise.
+  /// this is the part the team is recording again, or its own recording and the stretches
+  /// told back over it otherwise.
   List<(String, (Duration, Duration)?)> _clipesDaParte(int parte) {
     final pendente = _pendingTakePath;
-    if (pendente != null && state.parteARegravar == parte) {
+    if (pendente != null && _aParteDaGravacao == parte) {
       return [(pendente, null)];
     }
     return _oQueTocaDaParte(parte);
   }
+
+  /// Where in [SalaSessionState.partes] the part the open recording replaces sits; null
+  /// for a recording of a Scene with no part yet.
+  int? get _aParteDaGravacao => switch (state.cenaDaGravacao) {
+    final cena? => state.partIndexOf(cena),
+    null => null,
+  };
 
   List<(String, (Duration, Duration)?)> _oQueTocaDaParte(int parte) {
     // The retro's own stretches, once it has any, are the passage: a correction lives in
@@ -4812,25 +4883,70 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ];
   }
 
+  /// Record on Scene row [cena], record it again, or close its open recording. While a
+  /// recording waits for the check, only its own row records over it.
+  void gravarACena(int cena) => _gesture(() => _gravarACena(cena));
+
+  void _gravarACena(int cena) {
+    if (state.station is! Ensaio || state.needsPerson || state.playPing) {
+      return;
+    }
+    final row = state.sceneRows.where((row) => row.number == cena).firstOrNull;
+    if (row == null || row.dimmed) return;
+    final daCena = state.cenaDaGravacao == cena;
+    switch (state.ensaio) {
+      case EnsaioStatus.idle:
+        _abrirOMicrofoneDaCena(cena);
+      case EnsaioStatus.recorded when daCena:
+        _abrirOMicrofoneDaCena(cena);
+      case EnsaioStatus.recording when daCena:
+        _handOff(_finishTake());
+      case EnsaioStatus.recorded || EnsaioStatus.recording:
+        return;
+    }
+  }
+
+  /// Scene row [cena]'s part alone.
+  void ouvirACena(int cena) => _gesture(() => _ouvirACena(cena));
+
+  void _ouvirACena(int cena) {
+    final indice = state.partIndexOf(cena);
+    if (indice == null || state.sceneRowIsDimmed(cena)) return;
+    _tocarAParte(indice);
+  }
+
+  /// The circle records the part a finding sent the team back for, else the first Scene
+  /// with no part; with every Scene recorded it records nothing.
   void ensaioTap() => _gesture(() => _ensaioTap());
 
   void _ensaioTap() {
     if (state.needsPerson || state.playPing) return;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
+        _readTheScenesForTheRehearsal();
+        final cena = state.sceneForTheCircle;
+        if (cena != null) _abrirOMicrofoneDaCena(cena);
       case EnsaioStatus.recorded:
-        _silenceTheRoom();
-        state = state.copyWith(ensaio: EnsaioStatus.recording);
-        _dispatch(
-          MicOpened(
-            MicOwner.rehearsal,
-            take: 'ensaio_tomada_${_stamp()}',
-            generation: _generation,
-          ),
-        );
+        final cena = state.cenaDaGravacao ?? state.sceneForTheCircle;
+        if (cena != null) _abrirOMicrofoneDaCena(cena);
       case EnsaioStatus.recording:
         _handOff(_finishTake());
     }
+  }
+
+  void _abrirOMicrofoneDaCena(int cena) {
+    _silenceTheRoom();
+    state = state.copyWith(
+      ensaio: EnsaioStatus.recording,
+      cenaDaGravacao: cena,
+    );
+    _dispatch(
+      MicOpened(
+        MicOwner.rehearsal,
+        take: 'ensaio_tomada_${_stamp()}',
+        generation: _generation,
+      ),
+    );
   }
 
   EnsaioStatus get _semGravacaoAberta =>
@@ -4846,7 +4962,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = (await _closeTheMicrophone()).take;
     if (_abandoned(generation)) return;
     if (path == null || _anAccidentalTap(path)) {
-      state = state.copyWith(ensaio: _semGravacaoAberta);
+      state = state.copyWith(
+        ensaio: _semGravacaoAberta,
+        clearCenaDaGravacao: _pendingTakePath == null,
+      );
       if (path != null) unawaited(_recorder.delete(path));
       return;
     }
@@ -4864,30 +4983,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(ensaio: EnsaioStatus.idle);
       return;
     }
-    final regravada = state.parteARegravar;
-    state = state.copyWith(clearParteARegravar: true);
-    if (regravada != null && regravada < state.partes.length) {
-      _aParteVoltaAoSeuLugar(regravada, path);
+    // Part N is Scene N: the recording is kept under the number of the row it was made
+    // from, in place of the part already there.
+    final numero = state.cenaDaGravacao ?? state.sceneForTheCircle;
+    if (numero == null) {
+      state = state.copyWith(ensaio: EnsaioStatus.idle);
       return;
     }
-    // Counted among the rehearsal's own parts, never among the corrections a trecho may
-    // already have picked up in this same ensaio — those live in keptTakes too, but are
-    // not parts of the rehearsal in their own right.
-    final parte = state.partes.length + 1;
-    final escopo = KeptScope.parte(parte);
+    state = state.copyWith(
+      clearParteARegravar: true,
+      clearCenaDaGravacao: true,
+    );
+    // A scene list not answered yet is asked again at each keep, the moment the team
+    // next needs it to move on.
+    _readTheScenesForTheRehearsal();
+    if (state.partIndexOf(numero) case final noLugar?) {
+      _aParteVoltaAoSeuLugar(noLugar, path);
+      return;
+    }
+    final escopo = KeptScope.parte(numero);
     final nova = KeptTake(scopeId: escopo, path: path);
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [...state.keptTakes, nova],
-      takes: parte,
     );
+    _deixarOInteiroDeLado();
+    _weighTheRehearsal();
     unawaited(
       _guard(
         path,
         kind: 'ensaio',
         scope: escopo,
         passNumber: nova.pass,
-        chunkIndex: parte,
+        chunkIndex: numero,
       ),
     );
     _rememberWhereTheyAre(const Ensaio());
@@ -4913,12 +5041,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The part's own recording is left on the tablet. Nothing points at it any more, and
   /// deleting audio a team recorded is not a thing this room does quietly.
   void _aParteVoltaAoSeuLugar(int parte, String path) {
-    // Scope and number are counted from the same place, because they are the same fact
-    // said twice and the room is sent both. Read apart — the scope off the take, the
-    // number off the row — a row the two disagree about would send a recording up under
-    // one part's name and another part's number.
-    final numero = parte + 1;
-    final escopo = KeptScope.parte(numero);
+    // Scope and number are read off the same take, because they are the same fact said
+    // twice and the room is sent both. Read apart — the scope off the take, the number
+    // off the row — a row the two disagree about would send a recording up under one
+    // part's name and another part's number.
+    final escopo = state.partes[parte].scopeId;
+    final numero = KeptScope.numberOf(escopo) ?? parte + 1;
     final passada = state.partes[parte].pass + 1;
     final trechos = [
       for (final trecho in state.btTrechos)
@@ -4973,6 +5101,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// outcome that is neither of the two things the team asked for.
   void _dropThePendingTake() {
     final path = _pendingTakePath;
+    if (state.cenaDaGravacao != null) {
+      state = state.copyWith(clearCenaDaGravacao: true);
+    }
     if (path == null) return;
     _pendingTakePath = null;
     unawaited(_recorder.delete(path));
@@ -5256,6 +5387,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _startRetro() {
     if (state.station is Ensaio && state.ensaio != EnsaioStatus.idle) {
+      return;
+    }
+    if (state.station.answer(const TheBackTranslationOpened()) is! Retro) {
       return;
     }
     // Before the write, not after: the mark belongs to the Rehearsal alone, and a row
@@ -6457,6 +6591,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                     path: arquivo,
                     takeId: takeId,
                     pass: antiga.pass,
+                    origin: antiga.origin,
                   )
                 : take,
         ],
@@ -7168,13 +7303,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _raiseAHalt();
           return null;
         }
-        // A passage the check cleared on its first verdict never had the names read back,
-        // so the stretches it holds are the ones this tablet cut, and the name the refusal
-        // gives matches none of them. Asked for after the ground, which a round trip
-        // cannot supply: without it the room stood silent for a whole wait and called a
-        // person anyway. A read that fails is not a hole with no ground, and it is left to
-        // reach the approval's own ladder rather than resolving the name against nothing
-        // and halting the room over a request the next press would repeat.
+        // The verdict's read of the names was refused off the network, so the passage
+        // landed on conferida holding only the stretches this tablet cut, and the name the
+        // refusal gives matches none of them: this read resolves it.
         final failure = await _readTheStretchesBack(sessionId, generation);
         if (failure != null) return failure;
         if (_abandoned(generation) || state.needsPerson) return null;
@@ -7389,6 +7520,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     Map<String, int> naParte = const {},
   }) {
     final partes = state.partes;
+    final deLado = state.wholeSetAside;
     return [
       for (var onde = 0; onde < told.length; onde++)
         () {
@@ -7454,7 +7586,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             frase: segment.frase,
           );
         }(),
-    ];
+    ].where((trecho) => !deLado.contains(trecho.takeId)).toList();
   }
 
   /// Which part of the rehearsal each stretch this tablet has no recording for belongs
@@ -7703,8 +7835,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _voltarAoEnsaio();
-    state = state.copyWith(parteARegravar: parte);
+    if (state.partes[parte].scopeId != KeptScope.whole) {
+      state = state.copyWith(parteARegravar: parte);
+    }
     _rememberWhereTheyAre(const Ensaio());
+  }
+
+  /// The first scene part sets the whole rehearsal aside: what was told over it leaves the
+  /// telling-back here, and stays the room's.
+  void _deixarOInteiroDeLado() {
+    final deLado = state.wholeSetAside;
+    if (deLado.isEmpty) return;
+    final trechos = [
+      for (final trecho in state.btTrechos)
+        if (!deLado.contains(trecho.takeId)) trecho,
+    ];
+    state = state.copyWith(
+      btTrechos: trechos,
+      btFindings: _osAchadosQueFicam(state.btFindings, trechos),
+    );
+  }
+
+  /// With a whole rehearsal set aside, only a finding on a stretch the tablet keeps
+  /// stands: the rest were the whole's.
+  List<BtFinding> _osAchadosQueFicam(
+    List<BtFinding> findings,
+    List<Trecho> trechos,
+  ) {
+    if (state.wholeSetAside.isEmpty) return findings;
+    final contados = {for (final trecho in trechos) ?trecho.segmentId};
+    return [
+      for (final finding in findings)
+        if (contados.contains(finding.segmentId)) finding,
+    ];
   }
 
   void _voltarAoEnsaio() {
@@ -7718,6 +7881,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearFindingSegment: true,
       peerCue: false,
     );
+    _readTheScenesForTheRehearsal();
     // A mend left armed by a chunk that never landed would make the first stretch of
     // the next telling-back upload as a correction of one that does not exist.
     _trechoTraduzidoDeNovo = null;

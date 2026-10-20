@@ -42,3 +42,23 @@ WavData? wavDataOf(Uint8List wav) {
   }
   return null;
 }
+
+Duration? wavLengthOf(Uint8List wav) {
+  final data = wavDataOf(wav);
+  if (data == null ||
+      data.format != 1 ||
+      data.channels < 1 ||
+      data.rate <= 0 ||
+      data.bits < 8 ||
+      data.bits % 8 != 0 ||
+      data.size == 0 ||
+      data.size == 0xFFFFFFFF) {
+    return null;
+  }
+  final present = wav.length - data.offset;
+  final bytes = data.size < present ? data.size : present;
+  final perSecond = data.rate * data.channels * (data.bits ~/ 8);
+  return Duration(
+    microseconds: bytes * Duration.microsecondsPerSecond ~/ perSecond,
+  );
+}

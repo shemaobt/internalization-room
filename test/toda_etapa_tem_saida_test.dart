@@ -47,7 +47,13 @@ final _wayOut =
       ),
       SalaStage.ensaio: (
         name: 'startRetro',
-        take: (n, _) async => n.startRetro(),
+        take: (n, _) async {
+          n.ensaioTap();
+          n.ensaioTap();
+          await settle();
+          n.takeKeep();
+          n.startRetro();
+        },
       ),
       SalaStage.retro: (
         name: 'leaveThePassage',

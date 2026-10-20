@@ -41,9 +41,11 @@ Future<void> _theRoomFalls(
   );
 }
 
+/// A passage reopened in the Rehearsal with the room down, holding its second part: the
+/// scene list never answers, so the circle records the part below it.
 Future<ProviderContainer> _fallenInEnsaio(SalaHarness harness) async {
   final gravada = File(
-    '${Directory.systemTemp.createTempSync('sala-1061').path}/p1.m4a',
+    '${Directory.systemTemp.createTempSync('sala-1061').path}/p2.m4a',
   )..writeAsBytesSync([1, 2, 3]);
   addTearDown(() => gravada.parent.deleteSync(recursive: true));
   harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
@@ -51,9 +53,9 @@ Future<ProviderContainer> _fallenInEnsaio(SalaHarness harness) async {
     stage: SalaStage.ensaio,
     takes: [
       KeptTake(
-        scopeId: KeptScope.parte(1),
+        scopeId: KeptScope.parte(2),
         path: gravada.path,
-        takeId: 'gravacao-1',
+        takeId: 'gravacao-2',
       ),
     ],
   );
