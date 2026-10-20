@@ -303,6 +303,40 @@ void main() {
     },
   );
 
+  test(
+    'o app que sai antes de a parte seguinte abrir não perde a escuta dela',
+    () async {
+      final it = await _naTraducao();
+      await ouvirAteOFim(it, partesDoEnsaio[0]);
+      final segunda = it.partes[1].takeId!;
+      it.harness.playback.holdNextOpening();
+      it.sala.ouvirGravacao();
+      await waitFor(
+        'a segunda parte ir para o ar',
+        () => !it.estado.btParteFronteira,
+      );
+      it.harness.playback.at = partesDoEnsaio[0];
+
+      it.sala.theAppWentAway();
+      it.harness.playback.finishHeldOpening();
+      await theClipOpens(it.harness);
+      it.harness.playback.at = const Duration(seconds: 5);
+      it.sala.ouvirGravacao();
+      await waitFor('a segunda parte parar', () => !it.estado.btClipRodando);
+      it.sala.theAppWentAway();
+
+      expect(
+        it.harness.room.listeningReports.last.where(
+          (parte) => parte['take_id'] == segunda,
+        ),
+        [_ouvida(segunda, 0, 5000, 0)],
+        reason:
+            'enquanto a parte ainda não abriu, nada soou dela, e o player ainda '
+            'responde pela parte anterior: sair ali não mexe na escuta',
+      );
+    },
+  );
+
   testWidgets('o app que vai para o fundo manda um relato', (tester) async {
     late Sala it;
     await tester.runAsync(() async {

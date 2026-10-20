@@ -974,11 +974,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _cortarAEscutaNoAr() {
-    if (state.station is Retro && state.btClipRodando) {
-      final arquivo = _parteNoAr?.path;
-      _anotarOQueFoiOuvido();
-      if (arquivo != null) {
-        _escuta.abrir(arquivo, _playback.position.inMilliseconds);
+    if (state.station is Retro) {
+      if (state.channel case PartPlaying(opened: true)) {
+        final arquivo = _parteNoAr?.path;
+        _anotarOQueFoiOuvido();
+        if (arquivo != null) {
+          _escuta.abrir(arquivo, _playback.position.inMilliseconds);
+        }
       }
       return;
     }
