@@ -6095,7 +6095,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
     );
     _leaveThinking();
-    _decideAt(failure, door: _ondeATraducaoCai(failure));
+    _decideAt(
+      failure,
+      door: switch (failure) {
+        NetworkFailed(reason: RefusalCode.idempotencyKeyInFlight) => Door.step,
+        _ => Door.telling,
+      },
+    );
   }
 
   Future<void> _readWhatTheRefusalSays(
@@ -6794,7 +6800,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case final RoomFailure failure:
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
-        final porta = _ondeATraducaoCai(failure);
+        final porta = switch (failure) {
+          NetworkFailed(reason: RefusalCode.idempotencyKeyInFlight) =>
+            Door.step,
+          _ => Door.telling,
+        };
         if (porta == Door.step) _pending = _confirmarTraducao;
         state = state.copyWith(
           btPhase: BtPhase.playing,
@@ -6835,13 +6845,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.needsPerson) _tocarOProximoTrecho();
   }
 
-  Door _ondeATraducaoCai(RoomFailure failure) => switch (failure) {
-    NetworkFailed(reason: RefusalCode.idempotencyKeyInFlight) => Door.step,
-    _ => Door.telling,
-  };
-
   void _theTranslationWaits(RoomFailure failure) {
-    if (_ondeATraducaoCai(failure) == Door.step) {
+    if (failure case NetworkFailed(
+      reason: RefusalCode.idempotencyKeyInFlight,
+    )) {
       _pending = _confirmarTraducao;
     }
   }
