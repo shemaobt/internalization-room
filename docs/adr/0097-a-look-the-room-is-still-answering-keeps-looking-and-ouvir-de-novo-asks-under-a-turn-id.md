@@ -20,9 +20,14 @@ face.
 ## Decision
 
 - **A look the room is still answering looks again every two seconds**, under the busy
-  watchdog the give-up armed. The watchdog running out decides it as nothing found. Two
-  seconds is half the rate the server's own wait on a claimed Opening looks at, since the
-  tablet's look crosses the network.
+  watchdog the give-up armed. From then on only a reply that landed or the watchdog
+  running out decides the turn: a look again that fails or finds nothing looks again,
+  since every look is a new draw on the same network and may land on another server
+  instance. Two seconds is half the rate the server's own wait on a claimed Opening looks
+  at, since the tablet's look crosses the network.
+- **The machine holds the turn the look reads**, from the give-up until the look is
+  decided, and an answer for any other turn changes nothing. A halt, the watchdog or a new
+  generation ends the look and stops the looking again.
 - **What the look then finds follows who asked for it.** A team turn, or a line said again
   on the team's tap, plays as One look finds always play. An Opening rests silent with
   «Ouvir de novo» armed: nobody asked to hear it.
