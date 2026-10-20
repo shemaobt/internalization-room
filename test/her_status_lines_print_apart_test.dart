@@ -8,6 +8,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/status_lines.dart';
 
 import 'a_wav_take.dart';
@@ -254,6 +255,48 @@ void main() {
         find.text(_passaDoFim),
         findsOneWidget,
         reason: 'o relógio da nota levava a recusa dela junto',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a single refusal sits twelve points under the circle, where the old slot did',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      tester.view
+        ..physicalSize = const Size(820, 2400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      harness.recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await entrarNaTraducao(tester, harness, partes: 1);
+      await pausarAos(tester, harness, s(4.2));
+      await traduzirEConfirmar(tester);
+      await waitFor(
+        'a frase chegar',
+        () => container.read(salaSessionProvider).btTrechos.length == 1,
+        step: () => _passo(tester),
+      );
+      await contarAteOFimDaParte(tester, harness);
+      await waitFor(
+        'o terminei acender',
+        () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
+        step: () => _passo(tester),
+      );
+      harness.room.verdictRefusal = CheckRefusal.nothingTranslated;
+      await tocar(tester, conferir);
+      await waitFor(
+        'a recusa voltar',
+        () => container.read(salaSessionProvider).btRecusa != null,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+
+      expect(
+        tester.getTopLeft(find.text(_semFrase)).dy -
+            tester.getBottomLeft(find.byType(FacilitatorCircle)).dy,
+        12,
+        reason: 'a linha de estado saía de um lugar que não era o do terracota',
       );
       closeTheRoom(container);
     },
