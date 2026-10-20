@@ -3489,13 +3489,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         step == SceneStep.translate &&
         asked.step == SceneStep.translate &&
         asked.rehearsal?.rehearsalId == rehearsal.rehearsalId;
-    final held = _heldFrases[rehearsal.rehearsalId];
-    final pausa =
-        held != null && held.startsMs == rehearsal.frontier.inMilliseconds
-        ? Duration(milliseconds: held.endsMs)
-        : stillTranslating
-        ? asked.pausa
-        : null;
+    final pausa = stillTranslating ? asked.pausa : null;
     state = state.copyWith(
       scene: SceneScreen(
         step: step,
@@ -3504,12 +3498,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         length: length,
         envelope: step == SceneStep.translate ? _envelopeOf(here) : null,
         listened: stillTranslating && asked.listened,
-        pausa:
-            step == SceneStep.translate &&
-                pausa != null &&
-                pausa > rehearsal.frontier
-            ? pausa
-            : null,
+        pausa: pausa != null && pausa > rehearsal.frontier ? pausa : null,
       ),
       sceneRehearsals: _listedWith(rehearsal),
     );
