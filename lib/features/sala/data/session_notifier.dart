@@ -3070,14 +3070,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _readTheInbox() async {
+    final life = _thisLife;
     final List<HandReply> fetched;
     switch (await _inbox.fetchReplies()) {
       case Answered(:final value):
         fetched = value;
       case final RoomFailure failure:
+        if (_endedSince(life)) return;
         return _decideAt(failure, door: Door.inbox);
     }
-    if (_gone) return;
+    if (_endedSince(life)) return;
     final known = {for (final reply in state.replies) reply.id: reply};
     // The desk does re-send audio_url for a question_id it already served: a reply the
     // facilitator records again supersedes the first under a new content-hashed key and

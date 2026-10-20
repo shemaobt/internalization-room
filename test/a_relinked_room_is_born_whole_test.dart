@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
+import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
@@ -267,5 +268,73 @@ void main() {
     );
     harness.inbox.finishTheFirstHeldCheck();
     await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('a reply check of the room before the revocation that fails '
+      'after the relink is not a refusal of the relinked room', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+      inboxWatch: const Duration(hours: 1),
+    );
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.inbox
+      ..cannotBeAsked = true
+      ..holdOneCheck();
+    _room(container).lookForReplies();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await _theDeskUnlinks(tester, container, harness);
+    harness.inbox.cannotBeAsked = false;
+    await _theDeskLinksAgain(tester, harness);
+    await _enterP01(tester, container);
+    harness.inbox.finishTheFirstHeldCheck();
+    await tester.pump(const Duration(milliseconds: 100));
+    for (
+      var refusal = 1;
+      refusal < FailurePolicy.refusalsBeforeAPerson;
+      refusal++
+    ) {
+      await _theRoomRefusesTheLineAgain(tester, container, harness);
+    }
+
+    expect(
+      _read(container).needsPerson,
+      isFalse,
+      reason:
+          'a leitura que falhou era da sala de antes do desvínculo; a sala '
+          'nova só conta as recusas dela',
+    );
+  });
+
+  testWidgets('a reply check of the room before the revocation that lands '
+      'after the relink shows nothing in the relinked room', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+      inboxWatch: const Duration(hours: 1),
+    );
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.inbox
+      ..replies = const [HandReply(id: 'r1', audioUrl: '/resposta/r1')]
+      ..holdOneCheck();
+    _room(container).lookForReplies();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await _theDeskUnlinks(tester, container, harness);
+    harness.inbox.replies = const [];
+    await _theDeskLinksAgain(tester, harness);
+    harness.inbox.finishTheFirstHeldCheck();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      _read(container).replies,
+      isEmpty,
+      reason:
+          'a resposta era para a equipe de antes do desvínculo; a mão da '
+          'sala nova não tem nada para tocar',
+    );
   });
 }
