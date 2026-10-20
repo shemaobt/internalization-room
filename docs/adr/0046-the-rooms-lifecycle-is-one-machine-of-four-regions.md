@@ -164,7 +164,8 @@ the line those gestures write under the circle («tradução recomeçada — o e
 ficou», «não deu para recomeçar agora — tentem de novo», and her three refusals of a moved
 pause). They sit beside the others on the same two classes and move with them. Clearing her
 «não entendi» on a restart is the machine's, by `TheTranslationStartedOver`, not the
-notifier's.
+notifier's. With them, `btPausaSoNaUltima`: the bar of an earlier frase was tapped, so the
+retell line says her «a pausa só se move na última frase», set when the frase is armed.
 
 Extended by name (ENG-1221, 2026-10-19), same end date: the whole-sentence re-record of a
 frase. `btRegravacao` (which frase is being recorded again, and the step: her lines and the

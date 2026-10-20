@@ -189,6 +189,18 @@ const sceneRehearsalLabels = {
     'pt': 'traduzindo de novo a frase {n} — toquem no círculo',
     'en': 'translating sentence {n} again — tap the circle',
   },
+  'retellingLast': {
+    'pt':
+        'traduzindo de novo a frase {n} — se precisar, movam a pausa; depois toquem no círculo',
+    'en':
+        'translating sentence {n} again — move the pause if you need to; then tap the circle',
+  },
+  'retellingOther': {
+    'pt':
+        'traduzindo de novo a frase {n} — toquem no círculo (a pausa só se move na última frase; para mudar uma pausa anterior, recomeçar a tradução)',
+    'en':
+        'translating sentence {n} again — tap the circle (the pause only moves on the last sentence; to change an earlier pause, start the translation over)',
+  },
   'keepTheEarlier': {
     'pt': 'manter a tradução de antes',
     'en': 'keep the earlier translation',
