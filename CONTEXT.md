@@ -168,7 +168,7 @@ A recording the team kept, identified locally by its scope (part or whole passag
 _Avoid_: gravação, recording (too general), audio
 
 **Recording time** (`recorded_at`):
-The moment a take's recording stopped, on the tablet's own clock, read from the recording file when the take enters the Outbox. The Outbox row keeps it with the take's length (WAV only) and fingerprint, and every try sends the three unchanged, however late. The tablet never corrects its clock; the server notes how far off it was (**Clock offset**, on a joined part only).
+The moment a take's recording stopped, on the tablet's own clock, read from the recording file when the take enters the Outbox. The Outbox row keeps it with the take's length (WAV only) and fingerprint, and every try sends the three unchanged, however late. The tablet never corrects its clock; the server notes how far off it was, on a joined part only.
 _Avoid_: upload time, timestamp, created_at
 
 **Accidental tap**:

@@ -242,9 +242,9 @@ class PendingTake {
       final String code => code,
       _ => null,
     },
-    recordedAt: switch (json['recorded_at']) {
+    recordedAt: switch (json['recorded_at'] as String?) {
       final String stamp => DateTime.parse(stamp),
-      _ => null,
+      null => null,
     },
     durationMs: json['duration_ms'] as int?,
     sha256: json['sha256'] as String?,
