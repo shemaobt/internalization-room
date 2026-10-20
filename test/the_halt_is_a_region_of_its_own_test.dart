@@ -80,11 +80,7 @@ void main() {
           final (machine, effects) = reduce(
             Machine(
               halt: halt,
-              look: (
-                turn: turn,
-                sounding: const TheOpening('turno-7'),
-                stillAnswering: false,
-              ),
+              look: const TheLook(turn, sounding: TheOpening('turno-7')),
             ),
             opening,
           );

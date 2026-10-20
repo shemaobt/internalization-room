@@ -105,6 +105,9 @@ abstract interface class StationHost {
 
   void hearTheLineLetGo();
 
+  /// The Station waits again on a look the lift of a halt resumed.
+  void hearTheWaitResumed();
+
   /// The Station decides what a lifted halt sounds again (ADR 0055).
   void hearTheSoundKept(Kept kept);
 
@@ -266,6 +269,8 @@ class EffectRunner {
           host.hearTheLineLetGo();
         case StopLooking():
           _lookAgain?.cancel();
+        case ResumeTheWait():
+          host.hearTheWaitResumed();
         case LetTheTurnGo(:final turn):
           _letTheTurnGo(turn);
         case FellAt(:final door, :final why):

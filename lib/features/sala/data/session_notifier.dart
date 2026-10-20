@@ -1402,6 +1402,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
+  void _waitOnTheLookAgain() {
+    state = state.copyWith(awaitingTheGuide: true);
+    _watchBusyState();
+  }
+
   void _letTheLineGo() {
     _leaveThinking();
     state = state.copyWith(awaitingTheGuide: false);
@@ -1542,7 +1547,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _releaseTheReach() {
-    _theRoomIsBack();
+    _dispatch(const NetworkReturned(released: true));
     _settleNetworkHealth(resolved: true);
     _resumeFailures = 0;
   }
@@ -7450,6 +7455,9 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheLineLetGo() => _notifier._letTheLineGo();
+
+  @override
+  void hearTheWaitResumed() => _notifier._waitOnTheLookAgain();
 
   @override
   void hearTheSoundKept(Kept kept) => _notifier._replay(kept);

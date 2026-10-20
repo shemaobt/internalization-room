@@ -40,13 +40,8 @@ void _expectItStays(Station at, MachineEvent event, Matcher station) {
 
 const _aGivenUpTurn = Turn('sessao-1', 'turno-1');
 
-Machine _lookingAt(Machine machine) => machine.copyWith(
-  look: (
-    turn: _aGivenUpTurn,
-    sounding: const NothingKept(),
-    stillAnswering: false,
-  ),
-);
+Machine _lookingAt(Machine machine) =>
+    machine.copyWith(look: const TheLook(_aGivenUpTurn));
 
 void main() {
   test('the Menu answers the passage being chosen with the Canvas', () {

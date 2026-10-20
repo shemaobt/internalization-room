@@ -247,7 +247,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   WatchFired() => 'WatchFired',
   NetworkFailedAt(:final door, :final why) =>
     'NetworkFailedAt(${door.name}, ${why.name})',
-  NetworkReturned() => 'NetworkReturned',
+  NetworkReturned(:final released) =>
+    'NetworkReturned${released ? '(released)' : ''}',
   RetryFired() => 'RetryFired',
   TheRoomAnswered() => 'TheRoomAnswered',
   OutboxChanged(:final parts, :final due) =>
@@ -655,7 +656,7 @@ MachineEvent _draw(
         : Door.values[random.nextInt(Door.values.length)],
     why: RoomReach.values[1 + random.nextInt(RoomReach.values.length - 1)],
   ),
-  EventKind.networkReturned => const NetworkReturned(),
+  EventKind.networkReturned => NetworkReturned(released: random.nextBool()),
   EventKind.retryFired => const RetryFired(),
   EventKind.theRoomAnswered => const TheRoomAnswered(),
   EventKind.outboxChanged => OutboxChanged({

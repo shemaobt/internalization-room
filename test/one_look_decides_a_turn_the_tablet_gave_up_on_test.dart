@@ -227,7 +227,7 @@ void main() {
   );
 
   test(
-    'an opening the look finds under a standing halt is heard once when the halt lifts, and no second opening is asked',
+    'an opening given up under a standing halt is looked at after the lift and heard once, and no second opening is asked',
     () async {
       final harness = SalaHarness();
       harness.room
@@ -248,14 +248,20 @@ void main() {
       harness.room
         ..failHeldTurnWith = _theNetworkDrops
         ..finishHeldTurn();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(
+        harness.room.turnIdsLookedAt,
+        isEmpty,
+        reason: 'nenhum look sai com a sala parada',
+      );
+
+      sala.resolveWithPerson();
+      await waitFor('a parada sair', () => !read().needsPerson);
       await waitFor(
         'a sala olhar a abertura',
         () => harness.room.turnIdsLookedAt.length == 1,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-
-      sala.resolveWithPerson();
-      await waitFor('a parada sair', () => !read().needsPerson);
       await Future<void>.delayed(const Duration(milliseconds: 300));
 
       expect(harness.room.turnIdsAsked, hasLength(1));

@@ -55,7 +55,7 @@ final _aGivenUpTurnNeverFallsOutOfReach = Invariant<_Room>(
 );
 
 bool _decides(Machine before, LookEmpty event) => switch (before.look) {
-  (turn: final turn, stillAnswering: final waits, sounding: _) =>
+  TheLook(:final turn, stillAnswering: final waits) =>
     turn == event.turn && (!waits || event.theWaitRanOut),
   null => false,
 };
@@ -99,10 +99,9 @@ final _aFoundReplyPlaysAsIfOnTime = Invariant<_Room>(
     }
     final plays = effects.whereType<PlayTheReply>().length;
     final kept = effects.whereType<KeepTheReply>().length;
-    if (before.machine.look case (
+    if (before.machine.look case TheLook(
       stillAnswering: true,
       sounding: TheOpening(),
-      turn: _,
     )) {
       if (plays != 0 || kept != 1) return 'played $plays, kept $kept';
       return null;
@@ -111,6 +110,32 @@ final _aFoundReplyPlaysAsIfOnTime = Invariant<_Room>(
     return null;
   },
 );
+
+final _noLookGoesOutUnderAHalt = Invariant<_Room>(
+  'no look goes out while the room is halted',
+  (before, event, after, effects, world) {
+    if (after.machine.halt is! Blocking) return null;
+    if (effects.any(
+      (effect) => effect is LookAtTheSession || effect is LookAgain,
+    )) {
+      return 'a look went out under the halt';
+    }
+    return null;
+  },
+);
+
+final _aHaltNeverForgetsALook = Invariant<_Room>('a halt never forgets a look', (
+  before,
+  event,
+  after,
+  effects,
+  world,
+) {
+  if (before.machine.look == null || after.machine.look != null) return null;
+  if (before.machine.generation != after.machine.generation) return null;
+  if (event is LookFound || event is LookEmpty) return null;
+  return 'the look at ${before.machine.look!.turn.turnId} was dropped by ${describeEvent(event)}';
+});
 
 final _aLookAnswersOnlyTheTurnItReads = Invariant<_Room>(
   'a look answers only the turn the machine still reads',
@@ -143,8 +168,9 @@ final _aWaitIsDecidedOnlyByALandedAnswerOrTheWatchdog = Invariant<_Room>(
         when turn == look.turn &&
             (look.stillAnswering || event is LookPending) &&
             !(event is LookEmpty && event.theWaitRanOut)) {
-      if (!effects.contains(LookAgain(turn, sounding: look.sounding))) {
-        return 'a wait still open did not look again';
+      final again = effects.contains(LookAgain(turn, sounding: look.sounding));
+      if (before.machine.halt is Blocking ? again : !again) {
+        return 'a wait still open looked again $again under ${before.machine.halt}';
       }
       if (after.machine.look?.turn != turn) return 'the wait was dropped';
       if (after.machine.halt != before.machine.halt) {
@@ -163,6 +189,8 @@ void main() {
       _anEmptyLookShowsThePersonSign,
       _aFoundReplyPlaysAsIfOnTime,
       _aLookAnswersOnlyTheTurnItReads,
+      _noLookGoesOutUnderAHalt,
+      _aHaltNeverForgetsALook,
       _aWaitIsDecidedOnlyByALandedAnswerOrTheWatchdog,
     ], seeds: _seeds);
   });
@@ -265,18 +293,59 @@ void main() {
         },
       );
 
-      test('a look answered after a halt was raised changes nothing', () {
-        final (halted, effects) = reduce(
-          givenUp(const NothingKept()),
-          const RoomRaisedAHalt(),
+      group('a halt suspends the look, and its lift resumes it', () {
+        Machine halted(Machine machine) =>
+            reduce(machine, const RoomRaisedAHalt()).$1;
+        (Machine, List<Effect>) lifted(Machine machine) =>
+            reduce(machine, const LongPress(somebodyToAsk: false));
+
+        test('raising it keeps the look and stops looking again', () {
+          final (after, effects) = reduce(
+            stillAnswering(const NothingKept()),
+            const RoomRaisedAHalt(),
+          );
+
+          expect(effects, contains(const StopLooking()));
+          expect(after.look?.turn, turn);
+        });
+
+        test('a turn given up under it is looked at only after the lift', () {
+          final (sent, _) = reduce(const Machine(), const TurnSent(turn));
+          final (givenUp, effects) = reduce(
+            halted(sent),
+            const TurnGivenUp(turn),
+          );
+
+          expect(effects.whereType<LookAtTheSession>(), isEmpty);
+          final (_, onTheLift) = lifted(givenUp);
+          expect(onTheLift, contains(const LookAtTheSession(turn)));
+          expect(onTheLift, contains(const ResumeTheWait()));
+        });
+
+        test(
+          'a look still answered under it looks again only after the lift',
+          () {
+            final (waiting, effects) = reduce(
+              halted(givenUp(const NothingKept())),
+              const LookPending(turn),
+            );
+
+            expect(effects, isEmpty);
+            expect(reduce(waiting, const LookEmpty(turn)).$2, isEmpty);
+            final (_, onTheLift) = lifted(waiting);
+            expect(onTheLift, contains(const LookAgain(turn)));
+            expect(onTheLift, contains(const ResumeTheWait()));
+          },
         );
-        expect(effects, contains(const StopLooking()));
 
-        final (after, answered) = reduce(halted, const LookPending(turn));
+        test('a reply found under it is played as a turn under a halt is', () {
+          final (_, effects) = reduce(
+            halted(givenUp(const NothingKept())),
+            const LookFound(turn, reply),
+          );
 
-        expect(answered, isEmpty);
-        expect(after.halt, halted.halt);
-        expect(reduce(after, const LookPending(turn)).$2, isEmpty);
+          expect(effects.whereType<PlayTheReply>(), hasLength(1));
+        });
       });
 
       test(

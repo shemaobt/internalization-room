@@ -98,7 +98,11 @@ final class NetworkFailedAt extends AnsweringEvent {
 }
 
 final class NetworkReturned extends MachineEvent {
-  const NetworkReturned();
+  /// A person lifted the halt over a room out of reach and let the reach go: nothing
+  /// showed the room answers again.
+  final bool released;
+
+  const NetworkReturned({this.released = false});
 }
 
 final class RetryFired extends AnsweringEvent {
@@ -770,6 +774,11 @@ final class StopLooking extends Effect {
   const StopLooking();
 }
 
+/// The look a halt suspended goes on after its lift, under the busy watchdog.
+final class ResumeTheWait extends Effect {
+  const ResumeTheWait();
+}
+
 final class LetTheTurnGo extends Effect {
   final Turn turn;
 
@@ -883,7 +892,50 @@ final class HeldPanorama {
   int get hashCode => Object.hash(id, language, session);
 }
 
-typedef TheLook = ({Turn turn, Kept sounding, bool stillAnswering});
+/// The one look at a turn the tablet gave up on.
+final class TheLook {
+  final Turn turn;
+  final Kept sounding;
+
+  /// The room said it is still answering the turn.
+  final bool stillAnswering;
+
+  /// The look went out: false for a turn given up under a halt.
+  final bool asked;
+
+  /// A halt, or the room out of reach after its lift, holds the look back.
+  final bool suspended;
+
+  const TheLook(
+    this.turn, {
+    this.sounding = const NothingKept(),
+    this.stillAnswering = false,
+    this.asked = true,
+    this.suspended = false,
+  });
+
+  TheLook copyWith({bool? stillAnswering, bool? asked, bool? suspended}) =>
+      TheLook(
+        turn,
+        sounding: sounding,
+        stillAnswering: stillAnswering ?? this.stillAnswering,
+        asked: asked ?? this.asked,
+        suspended: suspended ?? this.suspended,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is TheLook &&
+      other.turn == turn &&
+      other.sounding == sounding &&
+      other.stillAnswering == stillAnswering &&
+      other.asked == asked &&
+      other.suspended == suspended;
+
+  @override
+  int get hashCode =>
+      Object.hash(turn, sounding, stillAnswering, asked, suspended);
+}
 
 final class Machine {
   final Halt halt;
@@ -906,7 +958,8 @@ final class Machine {
   /// What the turn in flight keeps to sound if it is given up.
   final Kept keptInFlight;
 
-  /// The turn the one look reads, from its give-up until the look is decided.
+  /// The turn the one look reads, from its give-up until the look is decided. A halt
+  /// suspends it and its lift resumes it.
   final TheLook? look;
 
   final LineOutcome? lastLine;
@@ -1146,11 +1199,10 @@ const _watch = ArmTheWatch();
   LookFound(:final turn, :final reply) => (
     _settleTheOpening(machine.copyWith(forgetTheLook: true), turn),
     [
-      if (machine.look case (
-        turn: final waited,
+      if (machine.look case TheLook(
         sounding: TheOpening(),
         stillAnswering: true,
-      ) when waited == turn)
+      ))
         KeepTheReply(turn, reply)
       else
         PlayTheReply(turn, reply),
@@ -1169,13 +1221,19 @@ const _watch = ArmTheWatch();
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
   LookPending(:final turn, :final sounding) => (
     machine.copyWith(
-      look: (turn: turn, sounding: sounding, stillAnswering: true),
+      look: machine.look!.copyWith(stillAnswering: true, asked: true),
     ),
-    [LookAgain(turn, sounding: sounding)],
+    [if (machine.halt is! Blocking) LookAgain(turn, sounding: sounding)],
   ),
   LookEmpty(:final turn, theWaitRanOut: false)
       when machine.look?.stillAnswering ?? false =>
-    (machine, [LookAgain(turn, sounding: machine.look!.sounding)]),
+    (
+      machine,
+      [
+        if (machine.halt is! Blocking)
+          LookAgain(turn, sounding: machine.look!.sounding),
+      ],
+    ),
   LookEmpty(
     sounding: final sounding && (TheOpening() || TheLineSaidAgain()),
     :final theWaitRanOut,
@@ -1221,11 +1279,15 @@ const _watch = ArmTheWatch();
     const [],
   ),
   NetworkFailedAt(:final door, :final why) => _fall(machine, door, why),
-  NetworkReturned() => _return(machine),
+  NetworkReturned(:final released) => _return(machine, released: released),
   RetryFired() => _retry(machine),
   TheRoomAnswered() => (_answered(machine), const []),
   OutboxChanged(:final parts, :final due) => _tally(machine, parts, due),
-  SessionRead() => _theHalt(_answered(machine), event),
+  SessionRead() => switch (_theHalt(_answered(machine), event)) {
+    (final read, final effects) => switch (_resumeTheLook(read)) {
+      (final resumed, final looks) => (resumed, [...effects, ...looks]),
+    },
+  },
   RoomRaisedAHalt() ||
   TheCallLanded() ||
   TheAnswerWarned() ||
@@ -1735,13 +1797,22 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   final next = machine.copyWith(halt: halt);
   if (halt is Blocking && machine.halt is! Blocking) {
     return (
-      next.copyWith(channel: const Silence(), forgetTheLook: true),
+      next.copyWith(
+        channel: const Silence(),
+        look: machine.look?.copyWith(suspended: true),
+      ),
       [...effects, if (machine.look != null) const StopLooking()],
     );
   }
   if (halt is! Blocking && machine.halt is Blocking) {
-    final lifted = next.copyWith(forgetTheFailures: true);
-    final resent = [...effects, if (machine.reachable) const ResendPending()];
+    final (lifted, resumed) = _resumeTheLook(
+      next.copyWith(forgetTheFailures: true),
+    );
+    final resent = [
+      ...effects,
+      if (machine.reachable) const ResendPending(),
+      ...resumed,
+    ];
     if (effects.contains(const ReplayTheSound(ThePart()))) {
       return (lifted, resent);
     }
@@ -1750,17 +1821,46 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   return (next, effects);
 }
 
+/// A look a halt held back goes on once the room is neither halted nor out of reach,
+/// under the busy watchdog again.
+(Machine, List<Effect>) _resumeTheLook(Machine machine) {
+  final look = machine.look;
+  if (look == null ||
+      !look.suspended ||
+      machine.halt is Blocking ||
+      !machine.reachable) {
+    return (machine, const []);
+  }
+  return (
+    machine.copyWith(look: look.copyWith(suspended: false, asked: true)),
+    [
+      if (!look.asked) LookAtTheSession(look.turn, sounding: look.sounding),
+      if (look.stillAnswering) LookAgain(look.turn, sounding: look.sounding),
+      const ResumeTheWait(),
+    ],
+  );
+}
+
 Machine _land(Machine machine, Turn turn) =>
     machine.inFlight == turn ? machine.copyWith(landTheTurn: true) : machine;
 
 (Machine, List<Effect>) _giveUp(Machine machine, Turn turn, Kept sounding) {
   if (machine.inFlight != turn) return (machine, const []);
+  final halted = machine.halt is Blocking;
   return (
     machine.copyWith(
       landTheTurn: true,
-      look: (turn: turn, sounding: sounding, stillAnswering: false),
+      look: TheLook(
+        turn,
+        sounding: sounding,
+        asked: !halted,
+        suspended: halted,
+      ),
     ),
-    [LetTheTurnGo(turn), LookAtTheSession(turn, sounding: sounding)],
+    [
+      LetTheTurnGo(turn),
+      if (!halted) LookAtTheSession(turn, sounding: sounding),
+    ],
   );
 }
 
@@ -1834,17 +1934,22 @@ Machine _settleTheOpening(Machine machine, Turn turn) => switch (machine.halt) {
   return (machine.copyWith(fallen: fallen), [fell, ArmTheRetry(step: fallen)]);
 }
 
-(Machine, List<Effect>) _return(Machine machine) {
+(Machine, List<Effect>) _return(Machine machine, {required bool released}) {
   if (machine.reachable) return (machine, const []);
   final (kept, dropped) = _leaveTheQueue(machine, _aboutTheFall);
   final halt = machine.halt;
+  final returned = kept.copyWith(
+    reach: Reach.reachable,
+    draining: true,
+    theVerdictWaitsForTheTap: false,
+  );
+  final (back, resumed) = released
+      ? (returned, const <Effect>[])
+      : _resumeTheLook(returned);
   return (
-    kept.copyWith(
-      reach: Reach.reachable,
-      draining: true,
-      theVerdictWaitsForTheTap: false,
-    ),
+    back,
     [
+      ...resumed,
       ...dropped,
       const CancelTheRetry(),
       const DrainTheOutbox(),
