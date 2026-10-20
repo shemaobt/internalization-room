@@ -1231,11 +1231,14 @@ const _watch = ArmTheWatch();
     (machine, [ShowTheSceneRehearsals(listed)]),
   TheSceneRehearsalsListed() => (machine, const []),
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
-  LookPending(:final turn, :final sounding) => (
+  LookPending(:final turn) => (
     machine.copyWith(
       look: machine.look!.copyWith(stillAnswering: true, asked: true),
     ),
-    [if (machine.halt is! Blocking) LookAgain(turn, sounding: sounding)],
+    [
+      if (machine.halt is! Blocking)
+        LookAgain(turn, sounding: machine.look!.sounding),
+    ],
   ),
   LookEmpty(:final turn, theWaitRanOut: false)
       when machine.look?.stillAnswering ?? false =>
