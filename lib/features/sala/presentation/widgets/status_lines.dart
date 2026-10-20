@@ -13,8 +13,8 @@ class StatusLines extends StatelessWidget {
     final colors = SalaColors.of(context);
     return Column(
       children: [
-        if (line case final line?) _StatusLine(line, colors.telha),
-        if (note case final note?) _StatusLine(note, colors.telha),
+        if (line case final line?) _StatusLine(line, colors.momentoInk),
+        if (note case final note?) _StatusLine(note, colors.mut),
       ],
     );
   }

@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/status_lines.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
@@ -26,6 +28,9 @@ const _armado = 'toque de novo para apagar as 1 frases traduzidas';
 const _recomecada = 'tradução recomeçada — o ensaio da passagem ficou';
 const _semFrase = 'ainda não tem frase traduzida';
 const _passaDoFim = 'a pausa nova passa do fim da gravação — um pouco antes';
+Color? _tinta(WidgetTester tester, String texto) =>
+    tester.widget<Text>(find.text(texto)).style?.color;
+
 const _barraDaFrase2 = 'Ouvir esta frase de novo e traduzir de novo — 2';
 
 final _duasLacunas = aSpokenWav(gaps: [(s(3.0), s(3.4)), (s(6.0), s(6.4))]);
@@ -129,6 +134,16 @@ void main() {
         greaterThan(tester.getBottomLeft(find.text(_passaDoFim)).dy),
         reason: 'a nota vem embaixo da linha dela, não em cima',
       );
+      expect(
+        _tinta(tester, _passaDoFim),
+        const Color(0xFF3F3E20),
+        reason: 'a linha dela saía no terracota da tela, não no verde dela',
+      );
+      expect(
+        _tinta(tester, _recomecada),
+        const Color(0xFF6D6C56),
+        reason: 'a nota saía no terracota da tela, não no verde claro dela',
+      );
       closeTheRoom(container);
     },
   );
@@ -173,7 +188,40 @@ void main() {
         tester.getTopLeft(find.text(_recomecada)).dy,
         greaterThan(tester.getBottomLeft(find.text(_semFrase)).dy),
       );
+      expect(
+        _tinta(tester, _semFrase),
+        const Color(0xFF3F3E20),
+        reason: 'a recusa do terminei saía no terracota, não no verde dela',
+      );
       closeTheRoom(container);
     },
   );
+
+  for (final (tema, status, nota) in [
+    (AppTheme.light, const Color(0xFF3F3E20), const Color(0xFF6D6C56)),
+    (AppTheme.dark, const Color(0xFFECEADC), const Color(0xFFA79E8C)),
+  ]) {
+    testWidgets(
+      'the status line reads in her verde and the note beneath it in her verde claro, in ${tema.brightness.name}',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: tema,
+            home: const StatusLines(line: 'a linha', note: 'a nota'),
+          ),
+        );
+
+        expect(
+          _tinta(tester, 'a linha'),
+          status,
+          reason: 'a linha de estado não lia no verde dela',
+        );
+        expect(
+          _tinta(tester, 'a nota'),
+          nota,
+          reason: 'a nota de recomeço não lia no verde claro dela',
+        );
+      },
+    );
+  }
 }
