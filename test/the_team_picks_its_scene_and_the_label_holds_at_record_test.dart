@@ -180,6 +180,10 @@ Future<_Room> _theScreenOpens(
     ..room.sceneAudio = Uint8List.fromList([1, 2, 3]);
   harness.playback.measured = const Duration(seconds: 20);
   await before?.call(harness);
+  tester.view
+    ..physicalSize = const Size(820, 2400)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final room = _Room(tester, harness, container);

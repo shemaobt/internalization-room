@@ -21,6 +21,9 @@ final class SceneFrase {
       starts >= 0 && ends > starts && ends <= take.inMilliseconds,
     _ => false,
   };
+
+  /// How long this frase is in [take], or nought for one with no place in it.
+  int spanIn(Duration? take) => placedIn(take) ? endsMs! - startsMs! : 0;
 }
 
 /// A scene rehearsal as the room keeps it for any tablet of the team, with no words.

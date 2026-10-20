@@ -36,6 +36,8 @@ const _pausaAtTheTap =
 const _pausedHint = 'pausado — toque no círculo para marcar onde a frase acaba';
 const _endedHint = 'fim do ensaio da cena';
 const _playPause = 'Tocar ou pausar a gravação';
+const _again = 'gravar o ensaio da cena de novo';
+const _terminei = 'terminei';
 const _confirm = 'Confirmar a tradução e seguir';
 
 final _redMicrophone = byLabel('ensaio da cena');
@@ -148,6 +150,10 @@ Future<(SalaHarness, ProviderContainer)> _translateOnScreen(
   harness.room.sceneRehearsals.add(rehearsal ?? _rehearsal());
   harness.room.sceneAudio = take ?? aSpokenWav(length: length);
   harness.playback.measured = length;
+  tester.view
+    ..physicalSize = const Size(820, 2400)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final notifier = container.read(salaSessionProvider.notifier);
@@ -623,6 +629,56 @@ void main() {
     );
 
     test(
+      'a frase the room kept when its answer was lost is never kept twice',
+      () async {
+        final room = await _onTheTranslateStep();
+        await _listening(room);
+        room.harness.room
+          ..frasesLandBeforeTheyFail = true
+          ..sceneAnswersFirst.add(const NetworkFailed('timeout'));
+        await _aFraseAt(room, _s(4.0));
+        room.harness.room.frasesLandBeforeTheyFail = false;
+
+        await _circle(room);
+        await waitFor(
+          'a sala responder de novo',
+          () => !room.state.scene.waiting,
+        );
+        await settle();
+        await _circle(room);
+        await settle();
+        if (_theFraseMicrophoneIsOpen(room.state)) await _circle(room);
+        await settle();
+
+        expect(
+          room.harness.room.sceneRehearsals.single.translatedFrases,
+          1,
+          reason: 'a sala guardou a frase uma vez só',
+        );
+      },
+    );
+
+    test(
+      '«gravar o ensaio da cena de novo» with the frase microphone open closes it and keeps nothing',
+      () async {
+        final room = await _onTheTranslateStep();
+        await _listening(room);
+        room.harness.playback.at = _s(4.0);
+        await _circle(room);
+        await _theFraseMicrophoneOpens(room);
+
+        room.sala.recordTheSceneAgain();
+        await settle();
+
+        expect(room.state.scene.step, SceneStep.record);
+        expect(room.state.channel, isNot(isA<Microphone>()));
+        room.sala.sceneTap();
+        await settle();
+        expect(room.harness.room.frasesKept, isEmpty);
+      },
+    );
+
+    test(
       'a frase recorded after «recomeçar a tradução» names the attempt the rehearsal is in',
       () async {
         final restarted = await _onTheTranslateStep(
@@ -718,6 +774,59 @@ void main() {
   });
 
   group('the words and the strip', () {
+    testWidgets(
+      'the translate step reads in her order: the instruction, the play control, the strip, «traduzir», the circle, the frases, «terminei», then «gravar o ensaio da cena de novo»',
+      (tester) async {
+        await _translateOnScreen(
+          tester,
+          rehearsal: _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        );
+
+        final tops = [
+          byLabel(_instruction),
+          byLabel(_playPause),
+          find.byType(SceneStrip),
+          byLabel(_translate),
+          byLabel(_tell),
+          byLabel('frase 1'),
+          byLabel(_terminei),
+          byLabel(_again),
+        ].map((control) => tester.getTopLeft(control).dy).toList();
+
+        for (var i = 1; i < tops.length; i++) {
+          expect(tops[i], greaterThan(tops[i - 1]), reason: 'o controle $i');
+        }
+        expect(find.text(_terminei), findsOneWidget);
+        expect(find.text(_again), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'each «frase N» is a bar as long as its frase against the longest',
+      (tester) async {
+        await _translateOnScreen(
+          tester,
+          rehearsal: _rehearsal(
+            frases: [_frase('f1', 0, 3000), _frase('f2', 3000, 9000)],
+          ),
+        );
+        double barOf(String frase) => tester
+            .getSize(
+              find
+                  .descendant(
+                    of: byLabel(frase),
+                    matching: find.byType(FractionallySizedBox),
+                  )
+                  .first,
+            )
+            .width;
+
+        expect(find.text('frase 1'), findsOneWidget);
+        expect(find.text('frase 2'), findsOneWidget);
+        expect(barOf('frase 1') / barOf('frase 2'), closeTo(0.5, 0.01));
+      },
+    );
+
     testWidgets(
       'the whole translate step never says «cortar», «corte» or «Trecho»',
       (tester) async {

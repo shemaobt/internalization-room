@@ -28,6 +28,10 @@ that names an attempt older than the rehearsal's current one, or none after a re
 - A pausa placed by the take reaching its end never passes the take's length as the room
   measured it.
 - Every frase names the rehearsal's current attempt.
+- A frase whose answer was lost may be kept by the room already: the room's list is read
+  before the microphone opens again, so a frase is never kept twice.
+- The frase upload follows the scene rehearsal's flow in the session notifier (ADRs
+  0085-0089); its move into the machine is that flow's, not this decision's.
 
 ## Considered Options
 

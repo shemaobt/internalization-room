@@ -25,7 +25,8 @@ enum SceneStep { record, translate, placesUnknown, sent }
 /// whether a call this screen made is in the air. On the record step it also holds the
 /// scene the team picked, the scene of the rehearsal recorded again, and when the
 /// question appeared and when the pick was made. On the translate step it holds the
-/// take's loudness, whether the team began listening, and the pending pausa.
+/// take's loudness, whether the team began listening, the pending pausa, and whether the
+/// answer to the last frase sent was lost.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
@@ -41,6 +42,7 @@ final class SceneScreen {
   final Duration? pausa;
   final bool listened;
   final Envelope? envelope;
+  final bool answerLost;
 
   const SceneScreen({
     this.step = SceneStep.record,
@@ -57,6 +59,7 @@ final class SceneScreen {
     this.pausa,
     this.listened = false,
     this.envelope,
+    this.answerLost = false,
   });
 
   SceneScreen copyWith({
@@ -75,6 +78,7 @@ final class SceneScreen {
     Duration? pausa,
     bool clearPausa = false,
     bool? listened,
+    bool? answerLost,
   }) => SceneScreen(
     step: step,
     rehearsal: rehearsal ?? this.rehearsal,
@@ -90,6 +94,7 @@ final class SceneScreen {
     pausa: clearPausa ? null : (pausa ?? this.pausa),
     listened: listened ?? this.listened,
     envelope: envelope,
+    answerLost: answerLost ?? this.answerLost,
   );
 
   SceneScreen get asWaiting => copyWith(waiting: true);

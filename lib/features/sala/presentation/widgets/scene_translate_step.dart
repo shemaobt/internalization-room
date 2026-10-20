@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -14,15 +16,14 @@ import 'motion.dart';
 import 'scene_strip.dart';
 
 /// The translate step, in her order: the instruction, the play control and the hint, the
-/// strip, «traduzir o ensaio da cena» until the team listens, the circle between «gravar de
-/// novo» and «terminei», then the frases told.
+/// strip, «traduzir o ensaio da cena» until the team listens, the circle, the frases told,
+/// «terminei», and «gravar o ensaio da cena de novo» under it.
 class SceneTranslateStep extends ConsumerWidget {
   final SceneScreen scene;
   final Channel channel;
   final String language;
   final bool sending;
-  final Widget again;
-  final Widget terminei;
+  final bool sendable;
 
   const SceneTranslateStep({
     super.key,
@@ -30,8 +31,7 @@ class SceneTranslateStep extends ConsumerWidget {
     required this.channel,
     required this.language,
     required this.sending,
-    required this.again,
-    required this.terminei,
+    required this.sendable,
   });
 
   @override
@@ -46,6 +46,10 @@ class SceneTranslateStep extends ConsumerWidget {
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
     final idle = !sending && !scene.waiting && !telling;
     final words = TextStyle(color: colors.ink, fontSize: 16);
+    final longest = frases.fold(
+      1,
+      (longest, frase) => max(longest, frase.spanIn(scene.length)),
+    );
 
     return SingleChildScrollView(
       child: Column(
@@ -103,47 +107,50 @@ class SceneTranslateStep extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: 12),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              again,
-              const SizedBox(width: 24),
-              RoundActionButton(
-                size: 180,
-                mood: telling
-                    ? ButtonMood.beckoning
-                    : scene.waiting
-                    ? ButtonMood.waiting
-                    : sending || !scene.listened
-                    ? ButtonMood.dimmed
-                    : ButtonMood.lit,
-                halo: colors.vermelhoMic,
-                semanticLabel: said('tell'),
-                onTap: notifier.tapTheTranslateCircle,
-                background: colors.vermelhoMic.withValues(alpha: 0.10),
-                border: Border.all(color: colors.vermelhoMic, width: 2),
-                child: Icon(
-                  telling ? LucideIcons.square : LucideIcons.mic,
-                  size: 56,
-                  color: colors.vermelhoMic,
-                ),
-              ),
-              const SizedBox(width: 24),
-              terminei,
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (frases.isNotEmpty) ...[
-            Wrap(
-              spacing: 16,
-              runSpacing: 4,
-              alignment: WrapAlignment.center,
-              children: [
-                for (final (i, _) in frases.indexed)
-                  _Written(said('frase', i + 1), style: words),
-              ],
+          RoundActionButton(
+            size: 180,
+            mood: telling
+                ? ButtonMood.beckoning
+                : scene.waiting
+                ? ButtonMood.waiting
+                : sending || !scene.listened
+                ? ButtonMood.dimmed
+                : ButtonMood.lit,
+            halo: colors.vermelhoMic,
+            semanticLabel: said('tell'),
+            onTap: notifier.tapTheTranslateCircle,
+            background: colors.vermelhoMic.withValues(alpha: 0.10),
+            border: Border.all(color: colors.vermelhoMic, width: 2),
+            child: Icon(
+              telling ? LucideIcons.square : LucideIcons.mic,
+              size: 56,
+              color: colors.vermelhoMic,
             ),
+          ),
+          if (frases.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (final (i, frase) in frases.indexed)
+              _FraseBar(
+                n: i + 1,
+                share: frase.spanIn(scene.length) / longest,
+                words: said('frase', i + 1),
+                style: words,
+              ),
           ],
+          const SizedBox(height: 16),
+          _WrittenButton(
+            said(sending ? 'sending' : 'send'),
+            live: sendable && !sending,
+            onTap: notifier.sendTheSceneRehearsal,
+            large: true,
+          ),
+          const SizedBox(height: 8),
+          _WrittenButton(
+            said('again'),
+            live: !sending,
+            onTap: notifier.recordTheSceneAgain,
+            bare: true,
+          ),
         ],
       ),
     );
@@ -193,8 +200,16 @@ class _WrittenButton extends StatelessWidget {
   final String words;
   final bool live;
   final VoidCallback onTap;
+  final bool large;
+  final bool bare;
 
-  const _WrittenButton(this.words, {required this.live, required this.onTap});
+  const _WrittenButton(
+    this.words, {
+    required this.live,
+    required this.onTap,
+    this.large = false,
+    this.bare = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -210,13 +225,79 @@ class _WrittenButton extends StatelessWidget {
           child: Opacity(
             opacity: live ? 1 : 0.35,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                border: Border.all(color: colors.vermelhoMic, width: 1.5),
-                borderRadius: BorderRadius.circular(999),
+              padding: EdgeInsets.symmetric(
+                horizontal: large ? 32 : 20,
+                vertical: large ? 14 : 10,
               ),
-              child: Text(words, style: TextStyle(color: colors.ink)),
+              decoration: bare
+                  ? null
+                  : BoxDecoration(
+                      color: large ? colors.vermelhoMic : null,
+                      border: Border.all(color: colors.vermelhoMic, width: 1.5),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+              child: Text(
+                words,
+                style: TextStyle(
+                  color: large ? colors.paper : colors.ink,
+                  fontSize: large ? 18 : 14,
+                  decoration: bare ? TextDecoration.underline : null,
+                ),
+              ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One frase told, as on hers: its number, a bar as long as its stretch against the
+/// longest, and «frase N».
+class _FraseBar extends StatelessWidget {
+  final int n;
+  final double share;
+  final String words;
+  final TextStyle style;
+
+  const _FraseBar({
+    required this.n,
+    required this.share,
+    required this.words,
+    required this.style,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    return Semantics(
+      label: words,
+      child: ExcludeSemantics(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(width: 24, child: Text('$n', style: style)),
+              SizedBox(
+                width: 200,
+                height: 10,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: share > 0 ? max(0.08, share) : 1,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colors.vermelhoMic.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(words, style: style),
+            ],
           ),
         ),
       ),

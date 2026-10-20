@@ -116,8 +116,7 @@ class SceneRehearsalView extends ConsumerWidget {
                 channel: session.channel,
                 language: language,
                 sending: sending,
-                again: again,
-                terminei: terminei,
+                sendable: sendable,
               ),
               SceneStep.placesUnknown => Semantics(
                 label: said('placesUnknown'),
@@ -247,8 +246,7 @@ class _ListenMode extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
-    int span(SceneFrase frase) =>
-        frase.placedIn(scene.length) ? frase.endsMs! - frase.startsMs! : 0;
+    int span(SceneFrase frase) => frase.spanIn(scene.length);
     final longest = frases.map(span).fold(0, max);
     return Column(
       mainAxisSize: MainAxisSize.min,

@@ -1772,9 +1772,10 @@ class FakeRoom implements RoomRepository {
     if (forgottenSessions.contains(sessionId)) {
       return const Refused(RefusalCode.notFound);
     }
-    if (sceneAnswersFirst.isNotEmpty) return sceneAnswersFirst.removeAt(0);
-    final refusal = failSceneWith;
-    if (refusal != null) return refusal;
+    final lost = sceneAnswersFirst.isNotEmpty
+        ? sceneAnswersFirst.removeAt(0)
+        : failSceneWith;
+    if (lost != null && !frasesLandBeforeTheyFail) return lost;
     final at = sceneRehearsals.indexWhere(
       (rehearsal) => rehearsal.rehearsalId == rehearsalId,
     );
@@ -1805,8 +1806,12 @@ class FakeRoom implements RoomRepository {
       ],
     );
     sceneRehearsals[at] = kept;
-    return Answered(kept);
+    return lost ?? Answered(kept);
   }
+
+  /// Whether a frase whose answer fails was kept by the room all the same, the way a
+  /// reply lost after the room acted is.
+  bool frasesLandBeforeTheyFail = false;
 
   /// Every «terminei» this room was sent: the rehearsal, its turn and the attempt it closed.
   final List<({String rehearsalId, String turnId, String? closes})> scenesSent =

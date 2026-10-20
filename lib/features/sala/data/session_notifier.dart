@@ -3478,7 +3478,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _ when rehearsal.placesKnownIn(length) => SceneStep.translate,
       _ => SceneStep.placesUnknown,
     };
-    final again =
+    final stillTranslating =
         step == SceneStep.translate &&
         asked.step == SceneStep.translate &&
         asked.rehearsal?.rehearsalId == rehearsal.rehearsalId;
@@ -3490,8 +3490,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         take: here,
         length: length,
         envelope: step == SceneStep.translate ? _envelopeOf(here) : null,
-        listened: again && asked.listened,
-        pausa: again && pausa != null && pausa > rehearsal.frontier
+        listened: stillTranslating && asked.listened,
+        pausa: stillTranslating && pausa != null && pausa > rehearsal.frontier
             ? pausa
             : null,
       ),
@@ -3825,6 +3825,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
       case _ when !shown.listened:
         return;
+      case _ when shown.pausa != null && shown.answerLost:
+        _handOff(_askWhatTheRoomKept());
       case _ when shown.pausa != null:
         _startListening('frase_${_stamp()}', owner: MicOwner.frase);
       case PartPlaying():
@@ -3951,15 +3953,56 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_theSceneMovedOn(waiting, generation)) return;
     switch (kept) {
       case Answered(:final value):
+        _theFraseWasKept(shown, value);
+      case final RoomFailure failure:
         state = state.copyWith(
-          scene: shown.copyWith(rehearsal: value, clearPausa: true),
-          sceneRehearsals: _listedWith(value),
+          scene: shown.copyWith(answerLost: failure is NetworkFailed),
         );
-        if (state.scene.moreToTell) _translateOnFrom(value.frontier);
+        _decideAt(failure, door: Door.sceneRehearsal);
+    }
+  }
+
+  /// A frase whose answer was lost may already be kept by the room: its list is read
+  /// before the microphone opens again, so a frase is never kept twice.
+  Future<void> _askWhatTheRoomKept() async {
+    final generation = _waitOnTheGeneration;
+    final shown = state.scene;
+    final sessionId = state.sessionId;
+    final rehearsal = shown.rehearsal!;
+    if (sessionId == null) return;
+    final waiting = shown.asWaiting;
+    state = state.copyWith(scene: waiting);
+    final listed = await _room.sceneRehearsalsOf(sessionId);
+    if (_theSceneMovedOn(waiting, generation)) return;
+    switch (listed) {
+      case Answered(:final value):
+        final held = value
+            .where((row) => row.rehearsalId == rehearsal.rehearsalId)
+            .firstOrNull;
+        if (held == null) {
+          state = state.copyWith(scene: shown);
+        } else if (held.frontier > rehearsal.frontier) {
+          _theFraseWasKept(shown, held);
+        } else {
+          state = state.copyWith(scene: shown.copyWith(answerLost: false));
+          _startListening('frase_${_stamp()}', owner: MicOwner.frase);
+        }
       case final RoomFailure failure:
         state = state.copyWith(scene: shown);
         _decideAt(failure, door: Door.sceneRehearsal);
     }
+  }
+
+  void _theFraseWasKept(SceneScreen shown, SceneRehearsalRecord kept) {
+    state = state.copyWith(
+      scene: shown.copyWith(
+        rehearsal: kept,
+        clearPausa: true,
+        answerLost: false,
+      ),
+      sceneRehearsals: _listedWith(kept),
+    );
+    if (state.scene.moreToTell) _translateOnFrom(kept.frontier);
   }
 
   void playTheFrase(String fraseId) => _gesture(() => _playTheFrase(fraseId));
@@ -4030,6 +4073,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _recordTheSceneAgain() {
     if (state.station is! SceneRehearsal || state.theSceneIsSending) return;
+    if (state.channel is Microphone) _dispatch(const MicDiscarded());
     _silenceTheRoom();
     state = state.copyWith(
       scene: SceneScreen(again: state.scene.rehearsal?.scene),
@@ -5430,13 +5474,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   (Envelope, {Duration lo, Duration hi})? _ondeAPausaCabe() {
     final parte = _parteNoAr;
     if (parte == null) return null;
-    final envelope = _envelopes.putIfAbsent(parte.path, () {
-      try {
-        return envelopeOf(File(parte.path).readAsBytesSync());
-      } on FileSystemException {
-        return null;
-      }
-    });
+    final envelope = _envelopeOf(parte.path);
     if (envelope == null) return null;
     final medido = _tamanhoDaParteMs[parte.path];
     final limites = pauseBounds(
