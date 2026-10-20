@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0101
 date: 2026-10-07
 amends: 0053 (the policy gains a row and an event that never counts), 0046 (in part: a wordless stretch is answered by her line shown, not the inaudible line)
 ---
