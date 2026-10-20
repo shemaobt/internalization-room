@@ -5,12 +5,14 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
+import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 
 const retellStretchExit = 'Ouvir e traduzir esta parte de novo';
 const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
 const continuarOEnsaio = 'Continuar o ensaio';
+const regravarAFrase1 = 'regravar a frase 1';
 
 Future<ProviderContainer> pumpToFindings(
   WidgetTester tester,
@@ -20,6 +22,7 @@ Future<ProviderContainer> pumpToFindings(
 }) async {
   harness ??= SalaHarness(filaEmMemoria: true);
   harness
+    ..recorder.rehearsalSpeaks = aSpokenWav()
     ..room.verdictChecked = false
     ..room.verdictHasFinding = hasFinding
     ..room.verdictFindingSegmentId = trecho;
@@ -78,19 +81,23 @@ void main() {
     },
   );
 
-  testWidgets('a verdict that names no stretch leaves the rehearsal standing', (
-    tester,
-  ) async {
+  testWidgets('a verdict that names no stretch draws no disc to record more, '
+      'and offers the frase\'s whole sentence instead', (tester) async {
     final container = await pumpToFindings(tester, true);
-    final rehearsed = container.read(salaSessionProvider).partes.length;
-    expect(rehearsed, greaterThan(0));
 
-    await tester.ensureVisible(byLabel(continuarOEnsaio));
-
-    await tester.tap(byLabel(continuarOEnsaio));
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(container.read(salaSessionProvider).partes.length, rehearsed);
+    expect(
+      byLabel(continuarOEnsaio),
+      findsNothing,
+      reason:
+          'o disco mandava a equipe gravar mais depois da última frase, o '
+          'caminho que ela tirou',
+    );
+    expect(byLabel(regravarAFrase1), findsOneWidget);
+    expect(
+      tester.widget<Semantics>(byLabel(regravarAFrase1)).properties.enabled,
+      isTrue,
+    );
+    expect(container.read(salaSessionProvider).stage, SalaStage.retro);
   });
 
   testWidgets('a verdict that names a stretch still tells that stretch again', (
@@ -112,17 +119,22 @@ void main() {
     );
   });
 
-  testWidgets('re-recording stays on offer when no stretch was named', (
+  testWidgets('re-recording stays on offer when no stretch was named, as the '
+      'whole sentence of a frase and never as more after the last', (
     tester,
   ) async {
-    final container = await pumpToFindings(tester, true);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await pumpToFindings(tester, true, harness: harness);
 
-    await tester.ensureVisible(byLabel(continuarOEnsaio));
-
-    await tester.tap(byLabel(continuarOEnsaio));
+    await tester.ensureVisible(byLabel(regravarAFrase1));
+    await tester.tap(byLabel(regravarAFrase1));
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+    final estado = container.read(salaSessionProvider);
+    expect(estado.btRegravacao?.frase, 1);
+    expect(estado.stage, SalaStage.retro);
   });
 
   testWidgets('a finding only re-recording can settle, with no stretch named, '
@@ -134,28 +146,35 @@ void main() {
       retellStretchExit,
       wholeClipExit,
       continuarOEnsaio,
+      regravarAFrase1,
     ].where((label) => byLabel(label).evaluate().isNotEmpty).toList();
     expect(
       offered,
-      [continuarOEnsaio],
+      [regravarAFrase1],
       reason:
           'as duas regras valem juntas aqui. A adição pertence à '
           'gravação, e traduzir de novo não tira dela o que a equipe pôs — '
           'nem um trecho, nem a gravação inteira: as duas são a mesma '
           'família de saída, e o ponteiro do achado não muda qual família '
           'responde ao tipo dele. Sobra regravar, que é a mesma saída que a '
-          'sala já oferece para uma adição COM trecho apontado',
+          'sala já oferece para uma adição COM trecho apontado — a frase '
+          'inteira, nunca um disco para gravar mais',
     );
 
     for (final label in offered) {
-      final room = await pumpToFindings(tester, true);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final room = await pumpToFindings(tester, true, harness: harness);
       final before = room.read(salaSessionProvider);
       await tester.ensureVisible(byLabel(label));
       await tester.tap(byLabel(label));
       await tester.pump(const Duration(milliseconds: 300));
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 300));
       final after = room.read(salaSessionProvider);
       expect(
-        after.btPhase != before.btPhase || after.stage != before.stage,
+        after.btPhase != before.btPhase ||
+            after.stage != before.stage ||
+            after.btRegravacao != before.btRegravacao,
         isTrue,
         reason: '"$label" was offered and did nothing',
       );

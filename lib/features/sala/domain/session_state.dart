@@ -156,6 +156,8 @@ enum EnsaioStatus { idle, recording, recorded }
 /// it checks what was heard, not a contract the room promises.
 const folgaDoFimDaParte = Duration(milliseconds: 750);
 
+const emVoltaDaFraseNova = Duration(milliseconds: 1500);
+
 /// Where the telling-back is, step by step.
 enum BtPhase { playing, capturing, thinking, findings, conferida }
 
@@ -167,6 +169,23 @@ enum BtAviso {
   pausaSoNaUltima,
   pausaPassaDoFim,
   pausaNaoFica,
+}
+
+enum PassoDaRegravacao {
+  ouvindo,
+  pronta,
+  gravando,
+  revendo,
+  enviando,
+  longaDemais,
+}
+
+class RegravacaoDaFrase {
+  final int frase;
+  final PassoDaRegravacao passo;
+  final String? path;
+
+  const RegravacaoDaFrase(this.frase, this.passo, {this.path});
 }
 
 /// One stretch the team told back: a slice of one rehearsal recording.
@@ -328,6 +347,9 @@ class SalaSessionState {
   final int btPass;
   final BtRecomeco? btRecomeco;
   final BtAviso? btAviso;
+  final RegravacaoDaFrase? btRegravacao;
+  final String? btFraseQueAguarda;
+  final int? btFraseGuardada;
   final int unsentTakes;
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
@@ -418,6 +440,9 @@ class SalaSessionState {
     this.btPass = 1,
     this.btRecomeco,
     this.btAviso,
+    this.btRegravacao,
+    this.btFraseQueAguarda,
+    this.btFraseGuardada,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
@@ -728,6 +753,8 @@ class SalaSessionState {
       canFinishBackTranslation &&
       btContadaInteira &&
       btContaEscolhida == null &&
+      btFraseQueAguarda == null &&
+      btRegravacao == null &&
       btTrechos.any((trecho) => trecho.contado);
 
   bool get btRestoDepoisDoCorte {
@@ -835,6 +862,27 @@ class SalaSessionState {
       (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
       ensaio != EnsaioStatus.recording;
 
+  Trecho? get btFraseTraduzidaDeNovo => switch (btTrechoTraduzidoDeNovo) {
+    final Trecho trecho
+        when trecho.contado &&
+            (btFraseQueAguarda == null ||
+                trecho.segmentId != btFraseQueAguarda) =>
+      trecho,
+    _ => null,
+  };
+
+  bool fraseRegravavel(Trecho trecho) =>
+      trecho.frase != null &&
+      btFraseTraduzidaDeNovo == null &&
+      btRegravacao?.passo != PassoDaRegravacao.enviando &&
+      (btFraseGuardada == null || btFraseGuardada == trecho.frase) &&
+      (btFraseQueAguarda == null || btFraseQueAguarda == trecho.segmentId) &&
+      !needsPerson &&
+      !offline &&
+      trecho.parte >= 0 &&
+      trecho.parte < partes.length &&
+      partes[trecho.parte].path.endsWith('.wav');
+
   /// Whether the last listening the clean verdict invites has anything to play.
   ///
   /// A session picked back up over a room that holds no rehearsal of its own carries the
@@ -850,6 +898,8 @@ class SalaSessionState {
       partes.isNotEmpty &&
       !needsPerson &&
       !offline &&
+      btRegravacao == null &&
+      btFraseQueAguarda == null &&
       (btPhase == BtPhase.findings ||
           btPhase == BtPhase.conferida ||
           (btPhase == BtPhase.playing &&
@@ -918,6 +968,12 @@ class SalaSessionState {
     bool clearRecomeco = false,
     BtAviso? btAviso,
     bool clearAviso = false,
+    RegravacaoDaFrase? btRegravacao,
+    bool clearBtRegravacao = false,
+    String? btFraseQueAguarda,
+    bool clearBtFraseQueAguarda = false,
+    int? btFraseGuardada,
+    bool clearBtFraseGuardada = false,
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
@@ -993,6 +1049,15 @@ class SalaSessionState {
       btPass: btPass ?? this.btPass,
       btRecomeco: clearRecomeco ? null : (btRecomeco ?? this.btRecomeco),
       btAviso: clearAviso ? null : (btAviso ?? this.btAviso),
+      btRegravacao: clearBtRegravacao
+          ? null
+          : (btRegravacao ?? this.btRegravacao),
+      btFraseQueAguarda: clearBtFraseQueAguarda
+          ? null
+          : (btFraseQueAguarda ?? this.btFraseQueAguarda),
+      btFraseGuardada: clearBtFraseGuardada
+          ? null
+          : (btFraseGuardada ?? this.btFraseGuardada),
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,

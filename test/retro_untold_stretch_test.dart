@@ -231,13 +231,10 @@ void main() {
 
     final antes = container.read(salaSessionProvider);
     expect(antes.btPhase, BtPhase.findings);
-    expect(byLabel(continuarOEnsaio), findsOneWidget);
+    expect(byLabel(continuarOEnsaio), findsNothing);
     final gravacoes = [for (final take in antes.keptTakes) take.takeId];
     expect(gravacoes, isNotEmpty);
 
-    await tester.ensureVisible(byLabel(continuarOEnsaio));
-
-    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
 
     // "Como hoje" mudou de sentido. Este caso esperava takes 0 e keptTakes vazio:
@@ -247,7 +244,7 @@ void main() {
     // gravou — e o mic azul passou a devolver ao ensaio com tudo guardado. Devolver
     // a este teste o takes 0 seria trazer o apagamento de volta com verde por cima.
     final depois = container.read(salaSessionProvider);
-    expect(depois.stage, SalaStage.ensaio);
+    expect(depois.stage, SalaStage.retro);
     expect(depois.takes, antes.takes);
     expect([for (final take in depois.keptTakes) take.takeId], gravacoes);
   });

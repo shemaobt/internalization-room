@@ -21,6 +21,7 @@ const _notYetMoved = <String, String>{
   '_aprovarRascunhoFinal': 'ENG-1444',
   '_asPartesDaSala': 'ENG-1444',
   '_createThePassage': 'ENG-1444',
+  '_enviarAFrase': 'ENG-1444',
   '_finishBackTranslation': 'ENG-1444',
   '_goConversa': 'ENG-1444',
   '_porCadaTrechoNaSuaParte': 'ENG-1444',

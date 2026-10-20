@@ -133,15 +133,15 @@ void main() {
     );
   });
 
-  testWidgets('falta sem endereço continua indo ao ensaio', (tester) async {
+  testWidgets('falta sem endereço não leva mais ao ensaio', (tester) async {
     final container = await pumpToPergunta(tester, trecho: null);
 
     expect(
       byLabel(continuarOEnsaio),
-      findsOneWidget,
+      findsNothing,
       reason:
-          'sem trecho apontado não há o que regravar — a saída continua '
-          'sendo o ensaio inteiro, como hoje',
+          'a falta se conserta na frase onde cabe, nunca gravando mais '
+          'depois da última',
     );
     for (final microfone in [micRetroLabel, micParteLabel]) {
       expect(

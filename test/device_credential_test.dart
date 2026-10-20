@@ -102,6 +102,12 @@ final Map<String, _Request> _everyRequest = {
     to: _oneSecond,
     idempotencyKey: 'chave-1',
   ),
+  'reRecordTheSentence': (room, audio) => room.reRecordTheSentence(
+    'sessao-1',
+    'trecho-1',
+    audio,
+    sentenceId: 'frase-0001',
+  ),
   'askForAPerson': (room, _) => room.askForAPerson('sessao-1'),
   'askForAPersonWithoutASession': (room, _) =>
       room.askForAPersonWithoutASession('aparelho-1'),

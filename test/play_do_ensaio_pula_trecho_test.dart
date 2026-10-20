@@ -176,7 +176,7 @@ void main() {
       reason: 'a sala está de volta às perguntas depois da última correção',
     );
 
-    it.sala.continuarOEnsaio();
+    it.sala.goEnsaio();
     await waitFor(
       'a sala voltar ao ensaio',
       () => it.estado.stage == SalaStage.ensaio,

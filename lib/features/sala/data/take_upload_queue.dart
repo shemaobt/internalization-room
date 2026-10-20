@@ -21,7 +21,11 @@ const takeUploadAttempts = 5;
 
 const sceneTakeKind = 'cena';
 
+const sentenceKind = 'frase';
+
 const largestTakeTheRoomKeeps = 25 * 1024 * 1024;
+
+const largestSentenceTheRoomTakes = 4 * 1024 * 1024;
 
 typedef OutboxTally = ({
   bool stranded,
@@ -334,6 +338,7 @@ class TakeUploadQueue {
   Future<List<PendingTake>> waiting({bool withTheCodeless = false}) async {
     final trying = <PendingTake>[];
     for (final entry in await pending()) {
+      if (entry.kind == sentenceKind) continue;
       if (entry.exhausted && !(withTheCodeless && entry.refusedWithNoCode)) {
         continue;
       }
@@ -853,6 +858,16 @@ class TakeUploadQueue {
     PendingTake? newest;
     for (final entry in await waiting()) {
       if (entry.kind == sceneTakeKind && entry.sessionId == sessionId) {
+        newest = entry;
+      }
+    }
+    return newest;
+  }
+
+  Future<PendingTake?> sentenceHeldIn(String sessionId) async {
+    PendingTake? newest;
+    for (final entry in await pending()) {
+      if (entry.kind == sentenceKind && entry.sessionId == sessionId) {
         newest = entry;
       }
     }
