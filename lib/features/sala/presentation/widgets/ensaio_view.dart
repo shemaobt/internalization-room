@@ -25,12 +25,12 @@ class EnsaioView extends ConsumerWidget {
       language,
     );
 
-    return SizedBox.expand(
+    final scrolling = SizedBox.expand(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
           children: [
-            SizedBox(height: 24 + MediaQuery.viewPaddingOf(context).top),
+            const SizedBox(height: 24),
             Semantics(
               header: true,
               label: titulo,
@@ -147,6 +147,7 @@ class EnsaioView extends ConsumerWidget {
         ),
       ),
     );
+    return SafeArea(bottom: false, child: scrolling);
   }
 
   VoiceState _voice(SalaSessionState session) {
