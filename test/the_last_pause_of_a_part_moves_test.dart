@@ -1,11 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+
+import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
@@ -79,6 +85,79 @@ Future<ProviderContainer> _duasFrasesEUmAchadoNa(
     'a frase apontada ficar para traduzir de novo',
     () => container.read(salaSessionProvider).btTrechoTraduzidoDeNovo != null,
     step: () => _passo(tester),
+  );
+  await _passo(tester);
+  return container;
+}
+
+Future<ProviderContainer> _voltaComAFraseQueAguarda(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  final pasta = Directory.systemTemp.createTempSync('sala-1223');
+  addTearDown(() => pasta.deleteSync(recursive: true));
+  const daSala = [
+    SegmentView(
+      segmentId: 'trecho-1',
+      takeId: 'gravacao-1',
+      startsMs: 0,
+      endsMs: 4000,
+      frase: 1,
+    ),
+    SegmentView(
+      segmentId: 'trecho-2',
+      takeId: 'gravacao-1',
+      startsMs: 4000,
+      endsMs: 10000,
+      frase: 2,
+    ),
+  ];
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+    sessionId: 'sessao-antiga',
+    stage: SalaStage.retro,
+    takes: [
+      KeptTake(
+        scopeId: KeptScope.parte(1),
+        path: (File(
+          '${pasta.path}/p1.wav',
+        )..writeAsBytesSync(aSpokenWav(length: parte))).path,
+        takeId: 'gravacao-1',
+      ),
+    ],
+  );
+  harness.room
+    ..segments.addAll(daSala)
+    ..takes.add(
+      TakeView(
+        takeId: 'gravacao-1',
+        kind: 'ensaio',
+        scope: KeptScope.parte(1),
+        ordinal: 1,
+      ),
+    )
+    ..retroSoFar = const BackTranslationProgress(
+      segments: daSala,
+      awaitingSegmentId: 'trecho-2',
+    );
+  final container = harness.container();
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: const SalaApp()),
+  );
+  await _passo(tester);
+  unawaited(
+    container
+        .read(salaSessionProvider.notifier)
+        .goConversa(book: 'Ruth', pericope: 'P01'),
+  );
+  await waitFor(
+    'a frase 2 voltar esperando a tradução',
+    () =>
+        container
+            .read(salaSessionProvider)
+            .btTrechoTraduzidoDeNovo
+            ?.segmentId ==
+        'trecho-2',
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   await _passo(tester);
   return container;
@@ -382,6 +461,24 @@ void main() {
         );
       }
       expect(harness.room.replacesAsked, ['trecho-1@gravacao-1:0-3200']);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a re-recorded frase that awaits its translation keeps its pause, even as the last of its part',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _voltaComAFraseQueAguarda(tester, harness);
+
+      expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-2');
+      for (final controle in [antes, ouvirAPausa, depois]) {
+        expect(
+          aceso(tester, controle),
+          isFalse,
+          reason: 'a frase que espera a tradução movia a pausa: $controle',
+        );
+      }
       closeTheRoom(container);
     },
   );

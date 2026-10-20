@@ -762,6 +762,7 @@ class SalaSessionState {
 
   bool get canAdjustThePause =>
       btPausaAjustavel &&
+      btFraseQueAguarda == null &&
       (thePauseStands ||
           (_btNaVez &&
               btTrechoTraduzidoDeNovo != null &&
