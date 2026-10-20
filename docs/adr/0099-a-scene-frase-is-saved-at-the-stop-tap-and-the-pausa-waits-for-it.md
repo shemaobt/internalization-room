@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0101
+status: accepted, amended by 0101 (every end but SCENE_REHEARSAL_SENDING lets a held frase go: a network loss, UNKNOWN_REFERENCE, TOO_LARGE and a 413 join the let-go list)
 date: 2026-10-19
 amends: 0014
 ---
