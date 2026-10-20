@@ -7585,6 +7585,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// again and let go only by a telling that lands — made the very first stretch of the
   /// next back translation upload as a correction of a stretch that does not exist.
   void _forgetThePassage() {
+    if (state.sessionId case final session?) {
+      unawaited(_recorder.forgetTheKeptRetellings(session).catchError((_) {}));
+    }
     unawaited(_coverageWatch?.cancel());
     _coverageWatch = null;
     _coverageSessionId = null;
