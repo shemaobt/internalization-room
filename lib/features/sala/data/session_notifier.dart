@@ -5147,6 +5147,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(value: final segmentos):
         _clearAll();
         _descartarATraducaoPendente();
+        _esquecerAFrase();
         state = state.copyWith(
           btTrechos: _trechosFrom(segmentos),
           btFindings: const [],
@@ -5874,6 +5875,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (guardada == null || state.sessionId != sessionId) return;
     _fraseNaFila = guardada;
     state = state.copyWith(btFraseGuardada: int.parse(guardada.scope));
+  }
+
+  void _esquecerAFrase() {
+    if (state.btRegravacao?.path case final path?) {
+      unawaited(_recorder.delete(path));
+    }
+    if (_fraseNaFila case final guardada?) {
+      _fraseNaFila = null;
+      unawaited(_takes.withdraw(guardada));
+    }
+    state = state.copyWith(
+      clearBtRegravacao: true,
+      clearBtFraseQueAguarda: true,
+      clearBtFraseGuardada: true,
+    );
   }
 
   void _guardarAFrase(int frase) {

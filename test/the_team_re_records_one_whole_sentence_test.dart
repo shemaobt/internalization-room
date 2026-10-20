@@ -1272,4 +1272,110 @@ void main() {
     expect(harness.room.restartsAsked, isEmpty);
     closeTheRoom(container);
   });
+
+  Future<void> recomecarDeVez(
+    WidgetTester tester,
+    ProviderContainer container,
+  ) async {
+    await recomecar(tester);
+    await tocar(tester, 'toque de novo para apagar as 4 frases traduzidas');
+    await waitFor(
+      'a tradução recomeçar',
+      () => container.read(salaSessionProvider).btTrechos.isEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+  }
+
+  testWidgets('a translation started over leaves no frase awaiting its '
+      'translation', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarAFrase(tester, harness, 2);
+    expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-2');
+
+    await recomecarDeVez(tester, container);
+
+    final aqui = container.read(salaSessionProvider);
+    expect(
+      aqui.btFraseQueAguarda,
+      isNull,
+      reason:
+          'a frase regravada seguia esperando uma tradução que a sala já '
+          'tinha arquivado',
+    );
+    expect(aqui.btTrechoTraduzidoDeNovo, isNull);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a translation started over closes the sentence\'s review and '
+      'lets its recording go', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    expect(naLinha('usar esta'), findsOneWidget);
+    expect(guardada(harness), isTrue);
+    final gravada = container.read(salaSessionProvider).btRegravacao!.path;
+
+    await recomecarDeVez(tester, container);
+
+    final aqui = container.read(salaSessionProvider);
+    expect(
+      aqui.btRegravacao,
+      isNull,
+      reason: 'a revisão da frase ficava aberta sobre frases que não existem',
+    );
+    expect(aqui.btFraseGuardada, isNull);
+    expect(guardada(harness), isFalse);
+    expect(harness.recorder.deleted, contains(gravada));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a translation started over lets a sentence held on the tablet '
+      'go, so it never lands on a frase told afterwards', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room.sentenceAnswersFirst.add(const NetworkFailed('sem rede'));
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    expect(container.read(salaSessionProvider).btFraseGuardada, 3);
+
+    await recomecarDeVez(tester, container);
+
+    expect(
+      container.read(salaSessionProvider).btFraseGuardada,
+      isNull,
+      reason: 'a frase guardada esperava uma frase 3 que a sala arquivou',
+    );
+    expect(guardada(harness), isFalse);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a translation started over while the old sentence plays ends '
+      'that re-record, and her next line is never said', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await tocar(tester, 'regravar a frase 3');
+    await _passo(tester);
+    expect(
+      container.read(salaSessionProvider).btRegravacao?.passo,
+      PassoDaRegravacao.ouvindo,
+    );
+
+    await recomecarDeVez(tester, container);
+    harness.voice.fixedLines.clear();
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(seconds: 12));
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btRegravacao,
+      isNull,
+      reason: 'a regravação voltava depois de a tradução recomeçar',
+    );
+    expect(harness.voice.fixedLines, isNot(contains(('N7', 'pt'))));
+    closeTheRoom(container);
+  });
 }

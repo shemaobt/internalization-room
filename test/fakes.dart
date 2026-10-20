@@ -2518,6 +2518,7 @@ class FakeRoom implements RoomRepository {
       ..clear()
       ..addAll(standingAfterRestart);
     retroSoFar = null;
+    awaitingSegmentId = null;
     return Answered(_numbered);
   }
 
