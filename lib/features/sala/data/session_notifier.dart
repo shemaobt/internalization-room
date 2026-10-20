@@ -3954,10 +3954,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (kept) {
       case Answered(:final value):
         _theFraseWasKept(shown, value);
+      case final NetworkFailed failure:
+        state = state.copyWith(scene: shown.copyWith(answerLost: true));
+        _decideAt(failure, door: Door.sceneRehearsal);
       case final RoomFailure failure:
-        state = state.copyWith(
-          scene: shown.copyWith(answerLost: failure is NetworkFailed),
-        );
+        state = state.copyWith(scene: shown);
         _decideAt(failure, door: Door.sceneRehearsal);
     }
   }
