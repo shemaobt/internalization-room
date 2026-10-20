@@ -6165,12 +6165,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           segment.startsMs == alvo.from.inMilliseconds &&
           segment.endsMs == alvo.to.inMilliseconds,
     );
+    for (final perdida in _perdidasNoTrecho.remove(alvo.segmentId) ?? {}) {
+      unawaited(_retirarDaFilaSeGuardada(perdida));
+    }
     if (sucessor < 0) {
       _theStretchIsGone(segments);
       return false;
-    }
-    for (final perdida in _perdidasNoTrecho.remove(alvo.segmentId) ?? {}) {
-      unawaited(_retirarDaFilaSeGuardada(perdida));
     }
     final trechos = _trechosFrom(segments, lugar: sucessor, noLugarDe: alvo);
     state = state.copyWith(

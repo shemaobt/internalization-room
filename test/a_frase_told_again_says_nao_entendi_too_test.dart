@@ -373,4 +373,47 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('the copy kept of a frase told again whose answer was lost '
+      'leaves the queue too when the next telling finds the frase gone', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseUm(tester, harness);
+    final fila = harness.takes as FakeTakeQueue;
+    await tocar(tester, _barra(1));
+    await gravarATraducao(tester, circulo: _deNovo);
+    final perdida = container.read(salaSessionProvider).btTraducaoPendente!;
+
+    harness.room
+      ..refuseTake = 'retro/${KeptScope.whole}'
+      ..loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
+    await _caiNaRede(tester, container);
+    await waitFor(
+      'a cópia da perdida entrar na fila',
+      () => fila.rows.any((linha) => linha.path == perdida),
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+
+    harness.room.recordThePartAgain(harness.room.takeIds.first);
+    await _deNovoNoCirculo(tester);
+    await tocar(tester, confirmar);
+    await waitFor(
+      'a frase sumir da fileira',
+      () => container.read(salaSessionProvider).btTrechos.isEmpty,
+      step: () => _passo(tester),
+    );
+    for (var passo = 0; passo < 5; passo++) {
+      await letTheRehearsalReachTheRoom(tester);
+    }
+
+    expect(
+      fila.rows.where((linha) => linha.path == perdida),
+      isEmpty,
+      reason:
+          'a perdida ficava na fila e subia como uma tomada da passagem '
+          'inteira de uma parte que a equipe gravou de novo',
+    );
+    closeTheRoom(container);
+  });
 }
