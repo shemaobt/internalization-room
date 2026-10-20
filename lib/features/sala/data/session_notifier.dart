@@ -4463,6 +4463,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
+  /// A list the room answered is its word for every rehearsal it names: their rows and
+  /// what they may hold unseen change together.
+  void _theRoomListed(List<SceneRehearsalRecord> listed, String sessionId) =>
+      state = state.copyWith(
+        sceneRehearsals: SceneRehearsalRecord.listedOver(
+          state.sceneRehearsals,
+          listed,
+          sessionId,
+        ),
+        sceneTranslationsUnseen: _settledBy(listed),
+      );
+
   /// What the room may hold unseen, less the rehearsals [listed] settles.
   Map<String, String> _settledBy(List<SceneRehearsalRecord> listed) => {
     for (final MapEntry(key: rehearsalId, value: fraseId)
@@ -4488,7 +4500,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_theSceneMovedOn(waiting, generation)) return false;
     switch (listed) {
       case Answered(:final value):
-        state = state.copyWith(sceneTranslationsUnseen: _settledBy(value));
+        _theRoomListed(value, sessionId);
         final now = value
             .where((rehearsal) => rehearsal.rehearsalId == told.rehearsalId)
             .firstOrNull;
@@ -4654,14 +4666,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final asked = state.scene;
     final sessionId = state.sessionId;
     if (sessionId == null || _theSceneMovedOn(asked, _generation)) return;
-    state = state.copyWith(
-      sceneRehearsals: SceneRehearsalRecord.listedOver(
-        state.sceneRehearsals,
-        listed,
-        sessionId,
-      ),
-      sceneTranslationsUnseen: _settledBy(listed),
-    );
+    _theRoomListed(listed, sessionId);
     final held = state.sceneRehearsals
         .where(
           (rehearsal) => rehearsal.rehearsalId == asked.rehearsal?.rehearsalId,

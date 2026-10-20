@@ -930,6 +930,53 @@ void main() {
       },
     );
 
+    testWidgets(
+      'and the list read too: another rehearsal\'s list read settles it and shows what the room holds when this one opens again',
+      (tester) async {
+        final screen = await nothingIsKnown(
+          tester,
+          alsoListed: [
+            _rehearsal(
+              n: 0,
+              frases: [_frase('g1', 0, 3000), _frase('g2', 3000, 6000)],
+            ),
+          ],
+        );
+        screen.sala.openTheListedSceneRehearsal('ensaio-da-cena-0');
+        await screen.until(
+          () =>
+              screen.state.scene.rehearsal?.n == 0 &&
+              !screen.state.scene.waiting,
+        );
+        await screen.listens();
+        await screen.tap(_translateAgainBar(1));
+        screen.room
+          ..frasesLandBeforeTheyFail = true
+          ..sceneAnswersFirst.add(const NetworkFailed('timeout'));
+        await screen.tellsTheFrase();
+        screen.room.frasesLandBeforeTheyFail = false;
+        screen.sala.openTheListedSceneRehearsal(_rehearsalId);
+        await screen.until(
+          () =>
+              screen.state.scene.rehearsal?.n == 1 &&
+              !screen.state.scene.waiting,
+        );
+        await screen.beat(500);
+
+        await screen.tap(_terminei);
+        await screen.until(() => screen.room.scenesSent.isNotEmpty);
+
+        expect(
+          screen.state.scene.rehearsal!.currentFrases[2].fraseId,
+          screen.room.sceneRehearsals
+              .singleWhere((rehearsal) => rehearsal.rehearsalId == _rehearsalId)
+              .currentFrases[2]
+              .fraseId,
+        );
+        await screen.beat(2000);
+      },
+    );
+
     for (final bar in [2, 3]) {
       testWidgets(
         'and the list read too: a tap on bar $bar keeps it unknown, and «terminei» reads the list first',
