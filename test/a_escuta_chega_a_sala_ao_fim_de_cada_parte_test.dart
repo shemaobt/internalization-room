@@ -176,21 +176,29 @@ void main() {
     },
   );
 
-  test('uma parte do ensaio segurada no meio relata o que soou', () async {
-    final it = await umEnsaioDeTresPartesGravado();
-    final segunda = it.partes[1].takeId!;
+  test(
+    'uma parte do ensaio segurada no meio relata o que soou, com o tamanho dela',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      final segunda = it.partes[1].takeId!;
+      it.harness.playback.length = partesDoEnsaio[1];
 
-    it.sala.ouvirACena(2);
-    await theClipOpens(it.harness);
-    it.harness.playback.at = const Duration(seconds: 3);
-    it.sala.ouvirACena(2);
-    await waitFor('a parte parar', () => it.estado.takePaused);
-    it.sala.theAppWentAway();
+      it.sala.ouvirACena(2);
+      await theClipOpens(it.harness);
+      it.harness.playback.at = const Duration(seconds: 3);
+      it.sala.ouvirACena(2);
+      await waitFor('a parte parar', () => it.estado.takePaused);
+      it.sala.theAppWentAway();
 
-    expect(it.harness.room.listeningReports.last, [
-      _ouvida(segunda, 0, 3000, 0),
-    ]);
-  });
+      expect(
+        it.harness.room.listeningReports.last,
+        [_ouvida(segunda, 0, 3000, 8000)],
+        reason:
+            'o player sabe o tamanho da parte inteira que tocou: escrito na '
+            'pausa, a sala julga a parte mesmo sem tamanho medido da gravação',
+      );
+    },
+  );
 
   test('sair do ensaio com uma parte soando relata o que soou', () async {
     final it = await umEnsaioDeTresPartesGravado();

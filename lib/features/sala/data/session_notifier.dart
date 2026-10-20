@@ -935,10 +935,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final soava = _aParteDoEnsaioQueSoa(antes);
     final soa = _aParteDoEnsaioQueSoa(depois);
     if (soava == soa) return;
-    if (soava != null) {
-      final ate = _ondeOSomEstaNoArquivo(soava);
-      _escuta.fechar(soava.path, ate.inMilliseconds);
-    }
+    if (soava != null) _fecharNoEnsaio(soava, _ondeOSomEstaNoArquivo(soava));
     if (soa != null) {
       final de = switch (antes.channel) {
         Paused(:final what) when what == soa => _ondeOSomEstaNoArquivo(soa),
@@ -965,12 +962,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (soa == null) return;
     final ate = soa.to ?? _playback.playingLength;
     if (ate == null) return;
-    if (soa.to == null) {
-      final medido = ate.inMilliseconds;
-      if (medido > 0) _escuta.medida(soa.path, medido);
-    }
-    _escuta.fechar(soa.path, ate.inMilliseconds);
+    _fecharNoEnsaio(soa, ate);
     _relatarAEscuta();
+  }
+
+  void _fecharNoEnsaio(PartSound som, Duration ate) {
+    final tamanho = som.to == null ? _playback.playingLength : null;
+    final medido = tamanho?.inMilliseconds ?? 0;
+    if (medido > 0) _escuta.medida(som.path, medido);
+    _escuta.fechar(som.path, ate.inMilliseconds);
   }
 
   void _cortarAEscutaNoAr() {
@@ -987,7 +987,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final soa = _aParteDoEnsaioQueSoa(state.machine);
     if (soa == null) return;
     final ate = _ondeOSomEstaNoArquivo(soa);
-    _escuta.fechar(soa.path, ate.inMilliseconds);
+    _fecharNoEnsaio(soa, ate);
     _escuta.abrir(soa.path, ate.inMilliseconds);
   }
 
@@ -7455,8 +7455,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     required bool semChaoTraduzido,
   }) async {
     bool apontada(KeptTake take) => gravacoes.contains(take.takeId);
-    final ultimaApontada = state.partes.lastIndexWhere(apontada);
-    if (ultimaApontada < 0) {
+    if (!state.partes.any(apontada)) {
       // A recording this tablet is not holding. There is nothing to lead them to and no
       // way to say so without words. Asked before anything is measured: a name that leads
       // nowhere is a person, and measuring the whole rehearsal first only makes them wait
@@ -7472,7 +7471,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // under the file it just replaced.
     for (var antes = 0; antes < state.partes.length; antes++) {
       final arquivo = state.partes[antes].path;
-      if (antes == ultimaApontada) break;
+      if (antes >= state.partes.lastIndexWhere(apontada)) break;
       if (_tamanhoDaParteMs.containsKey(arquivo)) continue;
       // Measuring waits on the player, and the watchdog that gives up on a wait only
       // watches a room that says it is thinking. Left speaking — which is where saying
