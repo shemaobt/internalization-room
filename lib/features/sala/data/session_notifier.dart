@@ -328,7 +328,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late int _readsSent;
   late int _readsApplied;
   late int _readsSentBeforeTheCall;
-  late Set<String> _contadasSemResposta;
+  late Map<String, Set<String>> _perdidasNoTrecho;
   late Map<String, int> _resumeFailures;
 
   /// The pass the room holds for each part number, kept only while the rehearsal stands
@@ -498,7 +498,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _readsSent = 0;
     _readsApplied = 0;
     _readsSentBeforeTheCall = 0;
-    _contadasSemResposta = {};
+    _perdidasNoTrecho = {};
     _resumeFailures = {};
     _passadasDaSala = null;
     _goneSessions = {};
@@ -5715,10 +5715,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gesture(() => _ouvirOTrechoContado(indice));
 
   void _ouvirOTrechoContado(int indice) {
-    if (state.station is! Retro || state.btPhase != BtPhase.playing) {
-      return;
-    }
-    if (state.needsPerson || state.offline) return;
+    if (!state.canHearAFrase) return;
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
     if (!trecho.contado) return;
@@ -5793,15 +5790,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           clearTrechoTraduzidoDeNovo: true,
           btChunkFailures: const [],
           btClipEnded: false,
-          btAviso: BtAviso.recomecada,
+          btRecomecada: true,
           clearBtRecusa: true,
         );
         _dispatch(const TheTranslationStartedOver());
 
         _after(
-          'aviso',
+          'recomecada',
           ref.read(restartLapseProvider),
-          () => state = state.copyWith(clearAviso: true),
+          () => state = state.copyWith(btRecomecada: false),
         );
         final agora = _generation;
         try {
@@ -6037,7 +6034,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ),
       );
     } on FileSystemException {
-      _contadasSemResposta.add(path);
       _guardarATraducao(path);
       if (_abandoned(generation)) return;
       state = state.copyWith(
@@ -6064,14 +6060,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         await _aPausaNaoFoi(code, sessionId, generation);
         return;
       case final RoomFailure failure:
-        if (failure case NetworkFailed()) _contadasSemResposta.add(path);
+        if (failure case NetworkFailed()) {
+          (_perdidasNoTrecho[alvo.segmentId!] ??= {}).add(path);
+        }
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
         _theCorrectionFailed(failure);
         return;
     }
 
-    _contadasSemResposta.clear();
     _theTellingLandedOn(
       told.segments,
       alvo: alvo,
@@ -6085,7 +6082,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
     );
-    _decideTheFailure(failure);
+    _leaveThinking();
+    _decideAt(
+      failure,
+      door: switch (failure) {
+        NetworkFailed(reason: RefusalCode.idempotencyKeyInFlight) => Door.step,
+        _ => Door.telling,
+      },
+    );
   }
 
   Future<void> _readWhatTheRefusalSays(
@@ -6106,8 +6110,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
     }
     if (_abandoned(generation)) return;
-    _theRefusalLandsOn(snapshot, alvo, path);
+    final seguir = _theRefusalLandsOn(snapshot, alvo);
     _applyTheSessionRead(snapshot, sent);
+    if (seguir) await _confirmarTraducao();
   }
 
   Future<void> _aPausaNaoFoi(
@@ -6139,7 +6144,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  void _theRefusalLandsOn(SessionSnapshot snapshot, Trecho alvo, String path) {
+  bool _theRefusalLandsOn(SessionSnapshot snapshot, Trecho alvo) {
     final segments = snapshot.backTranslation.segments;
     final sucessor = segments.indexWhere(
       (segment) =>
@@ -6149,16 +6154,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           segment.startsMs == alvo.from.inMilliseconds &&
           segment.endsMs == alvo.to.inMilliseconds,
     );
-    final aContadaPousou =
-        _contadasSemResposta.length == 1 && _contadasSemResposta.contains(path);
-    _contadasSemResposta.clear();
+    for (final perdida in _perdidasNoTrecho.remove(alvo.segmentId) ?? {}) {
+      unawaited(_retirarDaFilaSeGuardada(perdida));
+    }
     if (sucessor < 0) {
       _theStretchIsGone(segments);
-      return;
-    }
-    if (aContadaPousou) {
-      _theTellingLandedOn(segments, alvo: alvo, lugar: sucessor, path: path);
-      return;
+      return false;
     }
     final trechos = _trechosFrom(segments, lugar: sucessor, noLugarDe: alvo);
     state = state.copyWith(
@@ -6168,6 +6169,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _armarOTrecho(trechos[sucessor]);
     _rememberWhereTheyAre(const Retro());
+    return true;
   }
 
   void _theStretchIsGone(List<SegmentView> segments) {
@@ -7508,9 +7510,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btTrechos: _trechosFrom(segments, naParte: naParte));
   }
 
-  void _leadThemToTheTrecho(Trecho trecho, {VoidCallback? depois}) {
+  void _leadThemToTheTrecho(
+    Trecho trecho, {
+    VoidCallback? depois,
+    Duration? ate,
+  }) {
     if (_ondeTocar(trecho) == null) return;
-    _tocarOTrecho(trecho, depois: depois);
+    _tocarOTrecho(trecho, depois: depois, ate: ate);
   }
 
   /// Which take answers for a stretch's audio: the one its own id names, never the one
@@ -7536,14 +7542,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the best guess left. Null only for a stretch belonging to no part at all: that would
   /// be some other stretch's recording, not this one's, and playing it is worse than the
   /// silence a skip is.
-  (String, Duration, Duration)? _ondeTocar(Trecho trecho) {
+  (String, Duration, Duration)? _ondeTocar(Trecho trecho, {Duration? ate}) {
     final path = _pathForTrecho(trecho);
-    if (path != null) return (path, trecho.from, trecho.to);
+    if (path != null) return (path, trecho.from, ate ?? trecho.to);
     if (trecho.parte >= 0 && trecho.parte < state.partes.length) {
       return (
         state.partes[trecho.parte].path,
         trecho.lugarFrom,
-        trecho.lugarTo,
+        ate == null ? trecho.lugarTo : ate + trecho.lugarFrom - trecho.from,
       );
     }
     return null;
@@ -7556,8 +7562,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// boundary when a stretch spanned two recordings. A stretch cannot span two recordings
   /// any more — it is a slice of one — so the resolving and the stitching are gone with
   /// the ruler that needed them.
-  void _tocarOTrecho(Trecho trecho, {VoidCallback? depois}) {
-    final onde = _ondeTocar(trecho);
+  void _tocarOTrecho(Trecho trecho, {VoidCallback? depois, Duration? ate}) {
+    final onde = _ondeTocar(trecho, ate: ate);
     if (onde == null) return;
     void quiet() => unawaited(_playback.stop());
     _play(
@@ -7622,7 +7628,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
     if (!trecho.contado || trecho.segmentId == null) return;
+    final fimMovido = _trechoTraduzidoDeNovo?.segmentId == trecho.segmentId
+        ? _trechoEnd
+        : null;
     if (!_traduzirOTrechoDeNovo(trecho)) return;
+    if (fimMovido != null) _trechoEnd = fimMovido;
     state = state.copyWith(
       btPausaSoNaUltima: state.anEarlierPauseStays(
         trecho,
@@ -7630,7 +7640,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
       clearAviso: true,
     );
-    _leadThemToTheTrecho(trecho);
+    _leadThemToTheTrecho(trecho, ate: fimMovido);
   }
 
   bool _traduzirOTrechoDeNovo(Trecho trecho) {
@@ -7779,7 +7789,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_coverageWatch?.cancel());
     _coverageWatch = null;
     _coverageSessionId = null;
-    _contadasSemResposta.clear();
+    for (final perdida in _perdidasNoTrecho.values.expand(
+      (perdidas) => perdidas,
+    )) {
+      unawaited(_retirarDaFilaSeGuardada(perdida));
+    }
+    _perdidasNoTrecho.clear();
     _stretchKeys.clear();
     _passadasDaSala = null;
     _strandedSpoken = false;

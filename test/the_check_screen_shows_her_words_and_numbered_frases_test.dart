@@ -14,17 +14,22 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/pause_adjust_row.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
+        aceso,
         cabeca,
         confirmar,
         contarAteOFimDaParte,
+        gravar,
         entrarNaTraducao,
         gravarATraducao,
+        parte,
         tesoura,
         tocar;
 
@@ -200,6 +205,42 @@ List<String> _naLista(WidgetTester tester) => [
     texto.data ?? '',
 ];
 
+Future<ProviderContainer> _aFraseTresContada(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  _telaAlta(tester);
+  final container = await entrarNaTraducao(tester, harness, partes: 1);
+  harness.playback.at = cabeca;
+  await tocar(tester, tesoura);
+  await gravarATraducao(tester);
+  harness.room.fraseDaProximaFrase = 3;
+  await tocar(tester, confirmar);
+  await waitFor(
+    'a frase contada pousar',
+    () => container
+        .read(salaSessionProvider)
+        .btTrechos
+        .any((trecho) => trecho.contado),
+    step: () => _passo(tester),
+  );
+  return container;
+}
+
+Future<void> _naTelaDeUmAparelho(
+  WidgetTester tester, {
+  required double largura,
+  required double barra,
+}) async {
+  tester.view
+    ..physicalSize = Size(largura, 844)
+    ..devicePixelRatio = 1
+    ..padding = FakeViewPadding(top: barra)
+    ..viewPadding = FakeViewPadding(top: barra);
+  addTearDown(tester.view.reset);
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
 void main() {
   testWidgets('four frases the room numbered are listed one to four, each '
       'under its parte, below her heading', (tester) async {
@@ -319,6 +360,213 @@ void main() {
       harness.playback.played.last,
       contada,
       reason: 'a lista não tinha como ouvir a tradução de uma frase',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the loudspeaker of a frase plays the team\'s own translation '
+      'while the verdict is on the screen, as it does before one', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(
+      tester,
+      harness,
+      _achadosDaDoisEDaQuatro,
+    );
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    final terceira = harness.room.chunkFiles[2];
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    await tocar(tester, 'ouvir a minha tradução da frase 3');
+
+    expect(
+      harness.playback.played.last,
+      terceira,
+      reason:
+          'depois do veredito o alto-falante da linha ficava apagado, e a '
+          'equipe não ouvia o que contou justo quando queria',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the loudspeaker of a frase plays the team\'s own translation '
+      'on a conferida passage too', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(
+      tester,
+      harness,
+      _achadosDaDoisEDaQuatro,
+    );
+    harness.room
+      ..verdictChecked = true
+      ..verdictFindings = const [];
+    await _traduzirAFraseApontadaDeNovo(tester, container);
+    unawaited(
+      container.read(salaSessionProvider.notifier).finishBackTranslation(),
+    );
+    await waitFor(
+      'a conferência limpa chegar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      step: () => _passo(tester),
+    );
+    final terceira = harness.room.chunkFiles[2];
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    await tocar(tester, 'ouvir a minha tradução da frase 3');
+
+    expect(
+      harness.playback.played.last,
+      terceira,
+      reason:
+          'na passagem conferida o alto-falante da linha ficava apagado, e a '
+          'equipe não ouvia o que contou',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the loudspeaker of a frase is dimmed while the microphone is '
+      'open for the next one', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _aFraseTresContada(tester, harness);
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    await tocar(tester, gravar);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
+    expect(
+      aceso(tester, 'ouvir a minha tradução da frase 3'),
+      isFalse,
+      reason:
+          'o alto-falante seguia aceso com o microfone aberto, e o toque '
+          'não fazia nada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the loudspeaker of a frase is dimmed while the check runs', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _aFraseTresContada(tester, harness);
+    harness.room.fraseDaProximaFrase = 4;
+    await contarAteOFimDaParte(tester, harness);
+    harness.room.holdNextVerdict();
+    await tocar(tester, 'terminei');
+    await waitFor(
+      'a conferência começar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.thinking,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      aceso(tester, 'ouvir a minha tradução da frase 3'),
+      isFalse,
+      reason:
+          'o alto-falante seguia aceso enquanto a sala conferia, e o toque '
+          'não fazia nada',
+    );
+    harness.room.finishHeldVerdict();
+    await _passo(tester);
+    closeTheRoom(container);
+  });
+
+  testWidgets('the loudspeaker of a frase is dimmed while the room is out of '
+      'reach', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _aFraseTresContada(tester, harness);
+    harness.room.fraseDaProximaFrase = 4;
+    await contarAteOFimDaParte(tester, harness);
+    harness.room.reachable = false;
+    harness.network.reachable = false;
+    harness.room.failFinishWith = const NetworkFailed('timeout');
+    await tocar(tester, 'terminei');
+    await waitFor(
+      'a sala sair do alcance',
+      () => container.read(salaSessionProvider).offline,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      aceso(tester, 'ouvir a minha tradução da frase 3'),
+      isFalse,
+      reason: 'o alto-falante seguia aceso sem rede, e o toque não fazia nada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'the loudspeaker of a frase plays nothing while a person is called',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _aFraseTresContada(tester, harness);
+      harness.room.fraseDaProximaFrase = 4;
+      await contarAteOFimDaParte(tester, harness);
+      harness.room.failFinishWith = const Refused(RefusalCode.deviceRevoked);
+      await tocar(tester, 'terminei');
+      await waitFor(
+        'a tela chamar uma pessoa',
+        () => container.read(salaSessionProvider).needsPerson,
+        step: () => _passo(tester),
+      );
+
+      final antes = harness.playback.played.length;
+
+      container.read(salaSessionProvider.notifier).ouvirOTrechoContado(0);
+      await _passo(tester);
+
+      expect(container.read(salaSessionProvider).canHearAFrase, isFalse);
+      expect(
+        harness.playback.played,
+        hasLength(antes),
+        reason:
+            'a tela chamava uma pessoa e o alto-falante da linha ainda tocava '
+            'por cima',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('the loudspeaker of a frase is dimmed when this tablet holds no '
+      'rehearsal to play it from', (tester) async {
+    _telaAlta(tester);
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+    );
+    harness.room.retroSoFar = const BackTranslationProgress(
+      checked: true,
+      segments: _quatroFrases,
+    );
+    final container = harness.container();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const SalaApp()),
+    );
+    await _passo(tester);
+    unawaited(
+      container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth', pericope: 'P01'),
+    );
+    await waitFor(
+      'a tradução conferida voltar sem gravação neste tablet',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    expect(container.read(salaSessionProvider).partes, isEmpty);
+
+    expect(
+      aceso(tester, 'ouvir a minha tradução da frase 3'),
+      isFalse,
+      reason:
+          'o alto-falante seguia aceso numa sessão sem gravação nenhuma no '
+          'aparelho, e respondia com silêncio',
     );
     closeTheRoom(container);
   });
@@ -918,4 +1166,100 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  for (final (largura, barra) in [(390.0, 59.0), (768.0, 0.0)]) {
+    testWidgets(
+      'the check screen starts below the status bar and scrolls from there, '
+      'not from under it, on a ${largura.toInt()} px screen',
+      (tester) async {
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await _voltaATraducao(
+          tester,
+          harness,
+          const BackTranslationProgress(segments: _quatroFrases),
+        );
+        await _naTelaDeUmAparelho(tester, largura: largura, barra: barra);
+
+        final tela = find.byType(RetroView);
+        expect(
+          tester
+              .getTopLeft(
+                find.descendant(of: tela, matching: find.byType(Scrollable)),
+              )
+              .dy,
+          greaterThanOrEqualTo(barra),
+          reason:
+              'a lista rolava por baixo do relógio: a linha de pausa passava '
+              'sobre o sinal e a hora',
+        );
+        expect(
+          tester.getTopLeft(_cabecalho('Traduzir a gravação')).dy,
+          greaterThanOrEqualTo(barra),
+          reason: 'o título ficava debaixo da barra de estado',
+        );
+        expect(
+          tester.getTopLeft(find.byType(PauseAdjustRow)).dy,
+          greaterThanOrEqualTo(barra),
+          reason: 'a linha dos controles da pausa ficava sobre o relógio',
+        );
+        closeTheRoom(container);
+      },
+    );
+  }
+
+  for (final (largura, barra) in [(390.0, 59.0), (768.0, 0.0)]) {
+    testWidgets(
+      'the corner button covers no line of the check screen, at rest or '
+      'scrolled, on a ${largura.toInt()} px screen',
+      (tester) async {
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await _voltaATraducao(
+          tester,
+          harness,
+          const BackTranslationProgress(segments: _quatroFrases),
+        );
+        await _naTelaDeUmAparelho(tester, largura: largura, barra: barra);
+
+        final tela = find.byType(RetroView);
+        final rolagem = find.descendant(
+          of: tela,
+          matching: find.byType(Scrollable),
+        );
+        final posicao = tester.state<ScrollableState>(rolagem).position;
+        final janela = tester.getRect(rolagem);
+        final botao = byLabel('Escolher outra passagem');
+        expect(botao, findsOneWidget);
+        expect(posicao.maxScrollExtent, greaterThan(0));
+
+        for (final onde in [
+          0.0,
+          posicao.maxScrollExtent / 2,
+          posicao.maxScrollExtent,
+        ]) {
+          posicao.jumpTo(onde);
+          await _passo(tester);
+          final area = tester.getRect(botao);
+          final cobertas = [
+            for (final texto in tester.widgetList<Text>(
+              find.descendant(of: tela, matching: find.byType(Text)),
+            ))
+              if (tester
+                      .getRect(find.byWidget(texto))
+                      .intersect(janela)
+                      .overlaps(area) &&
+                  tester.getRect(find.byWidget(texto)).overlaps(area))
+                texto.data,
+          ];
+          expect(
+            cobertas,
+            isEmpty,
+            reason:
+                'o botão do canto ficava parado sobre a tela que rolava e '
+                'cobria a linha que passasse por baixo, rolado em $onde',
+          );
+        }
+        closeTheRoom(container);
+      },
+    );
+  }
 }

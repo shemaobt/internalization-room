@@ -41,6 +41,13 @@ class _Room {
     harness.room.reachable = false;
   }
 
+  void theKeyStaysInFlight() {
+    harness.network.reachable = false;
+    harness.room.replaceAnswersFirst.addAll(
+      List.filled(3, _theKeyStillInFlight),
+    );
+  }
+
   void theNetworkReturns() {
     harness.network.reachable = true;
     harness.room.reachable = true;
@@ -247,6 +254,27 @@ void main() {
     expect(room.estado.unreachable, isFalse);
     expect(room.offlineNotices, 0);
     expect(harness.room.replaceKeys, hasLength(1));
+    expect(harness.room.replacesAsked, isEmpty);
+  });
+
+  test('3 (c): a stretch told again whose key was still in flight after three '
+      'answers keeps the room in reach and is never sent again', () async {
+    final harness = SalaHarness();
+    final room = await _aFindingToTellAgain(harness);
+    room.theKeyStaysInFlight();
+
+    await room.sala.confirmarTraducao();
+    await waitFor(
+      'a sala sair do pensando',
+      () => room.estado.btPhase != BtPhase.thinking,
+    );
+    room.theNetworkReturns();
+    await settle(const Duration(milliseconds: 300));
+
+    expect(room.estado.unreachable, isFalse);
+    expect(room.offlineNotices, 0);
+    expect(harness.room.replaceKeys, hasLength(3));
+    expect(harness.room.replaceKeys.toSet(), hasLength(1));
     expect(harness.room.replacesAsked, isEmpty);
   });
 

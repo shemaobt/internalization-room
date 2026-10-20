@@ -278,11 +278,11 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a correction answered after an empty one, sent again by the '
-      'team, lands as the team\'s own when the room says the stretch moved '
-      'on', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true)
-      ..room.forgetsTheKeys = true;
+  testWidgets('a correction told again after an empty one and a lost answer '
+      'lands as the team\'s own when the room says the stretch moved on', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     final fila = harness.takes as FakeTakeQueue;
     await ateOTrechoNomeado(tester, harness);
@@ -291,19 +291,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     harness.room.failReplaceWith = null;
     await contarDeNovo(tester);
-    final contada = harness.recorder.lastPath;
-
     harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
     await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
+
+    await contarDeNovo(tester);
+    final contada = harness.recorder.lastPath;
     await tocar(tester, confirmar);
-    await tester.pump(const Duration(milliseconds: 600));
+    for (var passo = 0; passo < 8; passo++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
 
     expect(aceso(tester, confirmar), isFalse, reason: 'a contada pousou');
     expect(
       container.read(salaSessionProvider).btTrechos.map((t) => t.segmentId),
       harness.room.segments.map((s) => s.segmentId),
     );
+    expect(harness.room.replacesComArquivo.last, contada);
     expect([
       for (final guardada in fila.rows)
         if (guardada.path == contada) guardada.kind,
