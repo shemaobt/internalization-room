@@ -5478,13 +5478,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// needs, so both still read `_cabeca` live, as they always have.
   void _armCursorDeadline() {
     _timers.remove('cursor')?.cancel();
-    if (_writeCursorCrossingNow()) return;
+    if (_writeCursorCrossingNow() || _theClipEndsByTheCursor) return;
     final restante = _trechoStart - _cabeca;
     _after(
       'cursor',
       restante > _umInstanteOuvido ? restante : _umInstanteOuvido,
       () => state = state.copyWith(btOuvidoAlemDoCursor: true),
     );
+  }
+
+  /// A part told back to its end, landed on again, plays from its own end: its head can
+  /// never pass the cursor, so no deadline may say it did.
+  bool get _theClipEndsByTheCursor {
+    final medido = _tamanhoDaParteMs[_parteNoAr?.path];
+    return medido != null && Duration(milliseconds: medido) <= _trechoStart;
   }
 
   /// The same read [_armCursorDeadline] opens with, but never schedules anything: called
