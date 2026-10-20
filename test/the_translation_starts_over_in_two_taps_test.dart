@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -548,6 +549,73 @@ void main() {
         findsNothing,
         reason: 'a falha do recomeço ficava na tela a passagem inteira',
       );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'the rows after a restart are the ones the room answers with, never a list the tablet empties',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+      harness.room.standingAfterRestart = const [
+        SegmentView(
+          segmentId: 'trecho-9',
+          takeId: 'gravacao-2',
+          startsMs: 0,
+          endsMs: 3000,
+        ),
+      ];
+
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.tap(byLabel(_armado));
+      await waitFor(
+        'a sala responder o recomeço',
+        () => harness.room.restartsAsked.isNotEmpty,
+        step: () => _passo(tester),
+      );
+      await tester.pump(const Duration(seconds: 7));
+
+      expect(
+        [
+          for (final trecho in container.read(salaSessionProvider).btTrechos)
+            trecho.segmentId,
+        ],
+        ['trecho-9'],
+        reason:
+            'a tela apagava as linhas por conta própria em vez de ler a sala',
+      );
+      expect(
+        find.descendant(of: find.byType(FraseList), matching: find.text('1')),
+        findsOneWidget,
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a second tap five seconds after the first still starts the translation over',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+
+      await tester.tap(byLabel(_recomecar));
+      await _passo(tester);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.tap(byLabel(_armado));
+      await waitFor(
+        'a sala ser chamada',
+        () => harness.room.restartsAsked.isNotEmpty,
+        step: () => _passo(tester),
+      );
+
+      expect(
+        harness.room.restartsAsked,
+        hasLength(1),
+        reason: 'o botão desarmava antes dos seis segundos dela',
+      );
+      await tester.pump(const Duration(seconds: 7));
       closeTheRoom(container);
     },
   );

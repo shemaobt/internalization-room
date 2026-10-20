@@ -2441,6 +2441,8 @@ class FakeRoom implements RoomRepository {
 
   RoomFailure? failRestartWith;
 
+  List<SegmentView> standingAfterRestart = const [];
+
   @override
   Future<RoomAnswer<List<SegmentView>>> startTheTranslationOver(
     String sessionId,
@@ -2449,7 +2451,9 @@ class FakeRoom implements RoomRepository {
     final refusal = failRestartWith;
     if (refusal != null) return refusal;
     _retired.addAll(segmentIds);
-    segments.clear();
+    segments
+      ..clear()
+      ..addAll(standingAfterRestart);
     retroSoFar = null;
     return Answered(_numbered);
   }
