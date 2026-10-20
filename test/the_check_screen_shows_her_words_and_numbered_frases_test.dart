@@ -351,6 +351,42 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('the loudspeaker of a frase plays the team\'s own translation '
+      'on a conferida passage too', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(
+      tester,
+      harness,
+      _achadosDaDoisEDaQuatro,
+    );
+    harness.room
+      ..verdictChecked = true
+      ..verdictFindings = const [];
+    await _traduzirAFraseApontadaDeNovo(tester, container);
+    unawaited(
+      container.read(salaSessionProvider.notifier).finishBackTranslation(),
+    );
+    await waitFor(
+      'a conferência limpa chegar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      step: () => _passo(tester),
+    );
+    final terceira = harness.room.chunkFiles[2];
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    await tocar(tester, 'ouvir a minha tradução da frase 3');
+
+    expect(
+      harness.playback.played.last,
+      terceira,
+      reason:
+          'na passagem conferida o alto-falante da linha ficava apagado, e a '
+          'equipe não ouvia o que contou',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a bead says the frase the room numbered, or the parte it lies '
       'in, never «Trecho»', (tester) async {
     _telaAlta(tester);

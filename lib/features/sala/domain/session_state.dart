@@ -909,7 +909,9 @@ class SalaSessionState {
 
   bool get canHearAFrase =>
       stage == SalaStage.retro &&
-      (btPhase == BtPhase.playing || btPhase == BtPhase.findings);
+      (btPhase == BtPhase.playing ||
+          btPhase == BtPhase.findings ||
+          btPhase == BtPhase.conferida);
 
   SalaSessionState copyWith({
     bool? awaitingTheGuide,
