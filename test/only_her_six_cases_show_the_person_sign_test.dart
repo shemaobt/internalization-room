@@ -798,6 +798,37 @@ void main() {
     expect(logged, contains(allOf(contains('2'), contains('RoomRaisedAHalt'))));
   });
 
+  test('the reply\'s sound failing late, under a sign already standing, is not '
+      'counted again', () async {
+    final logged = <String>[];
+    final print = debugPrint;
+    debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+    addTearDown(() => debugPrint = print);
+    final harness = SalaHarness();
+    final room = await _onTheCanvas(harness);
+    harness.voice.refuses.add(turnoUrl);
+    await _theTeamSpeaks(room);
+    await _theRoomRests(room);
+    harness.voice
+      ..refuses.clear()
+      ..holdNextLine();
+    await _theTeamSpeaks(room);
+    await waitFor(
+      'a resposta tocar',
+      () => harness.voice.played.where((url) => url == turnoUrl).length == 2,
+    );
+    room.sala.haltForABrokenBuild();
+    await waitFor('o sinal', () => room.state.needsPerson);
+
+    harness.voice
+      ..succeeds = false
+      ..finishHeldLine();
+    await settle();
+
+    expect(room.state.needsPerson, isTrue);
+    expect(logged, isNot(contains(contains('(2 seguidas)'))));
+  });
+
   test('a wheel whose read never answers falls out of reach at the busy '
       'ceiling, the Choice being a way in', () async {
     final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 300))

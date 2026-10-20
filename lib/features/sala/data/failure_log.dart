@@ -18,14 +18,11 @@ MachineEvent decided(RoomResult result, FailureContext context) {
 
 MachineEvent decidedOnTheTablet(TabletFailure failure, FailureContext context) {
   final event = FailurePolicy.decideOnTheTablet(failure, context);
-  logTheTabletDecision(failure, event.runtimeType);
+  debugPrint(
+    'Falha do tablet decidida: ${_whatFailed(failure)} → ${event.runtimeType}',
+  );
   return event;
 }
-
-/// The one tablet failure the machine decides itself, the Guide's sound, is logged here
-/// with what the machine made of it.
-void logTheTabletDecision(TabletFailure failure, Type decided) =>
-    debugPrint('Falha do tablet decidida: ${_whatFailed(failure)} → $decided');
 
 String _why(RoomResult result) => switch (result) {
   RoomRefused(:final code) => 'recusada ($code)',

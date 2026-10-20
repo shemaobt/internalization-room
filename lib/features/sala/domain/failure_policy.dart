@@ -70,7 +70,7 @@ enum RefusalRule {
   aSpokenTurn,
 
   /// A refusal of any other request: its Step is let go.
-  counts,
+  letsTheStepGo,
 
   /// Nothing the door is refused changes the room.
   passes,
@@ -102,7 +102,7 @@ final class FailureContext {
     this.step,
     required this.generation,
     this.turn,
-    this.rule = RefusalRule.counts,
+    this.rule = RefusalRule.letsTheStepGo,
     this.door = Door.step,
     this.why = RoomReach.noNetwork,
     this.sounding = const NothingKept(),

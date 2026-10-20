@@ -29,7 +29,7 @@ final _theOpening = FailureContext(
 );
 
 FailureContext _notATurn({
-  RefusalRule rule = RefusalRule.counts,
+  RefusalRule rule = RefusalRule.letsTheStepGo,
   Door door = Door.outbox,
   RoomReach why = RoomReach.noNetwork,
 }) => FailureContext(
@@ -45,7 +45,7 @@ FailureContext _notATurn({
 FailureContext _at(
   Station station, {
   Turn? turn,
-  RefusalRule rule = RefusalRule.counts,
+  RefusalRule rule = RefusalRule.letsTheStepGo,
   Door door = Door.step,
   Kept sounding = const NothingKept(),
 }) => FailureContext(

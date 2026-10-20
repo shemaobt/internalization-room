@@ -1194,12 +1194,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         after.failing != Source.guide) {
       return;
     }
-    logTheTabletDecision(
-      TheSoundFailed(after.failures),
-      after.halt is Blocking && before.halt is! Blocking
-          ? RoomRaisedAHalt
-          : TheRefusalPassed,
-    );
+    decidedOnTheTablet(TheSoundFailed(after.failures), _failureContext());
   }
 
   Kept _whatIsSounding({bool theOpening = true}) {
@@ -1370,7 +1365,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// person sign; any other refusal lets its Step go.
   void _decideTheFailure(
     RoomFailure failure, {
-    RefusalRule rule = RefusalRule.counts,
+    RefusalRule rule = RefusalRule.letsTheStepGo,
     Door door = Door.step,
   }) {
     _leaveThinking();
@@ -1380,7 +1375,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _decideAt(
     RoomFailure failure, {
     Door door = Door.step,
-    RefusalRule rule = RefusalRule.counts,
+    RefusalRule rule = RefusalRule.letsTheStepGo,
   }) {
     if (_gone) return;
     _dispatch(decided(failure.result, _failureContext(door: door, rule: rule)));
@@ -1388,7 +1383,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   FailureContext _failureContext({
     Door door = Door.step,
-    RefusalRule rule = RefusalRule.counts,
+    RefusalRule rule = RefusalRule.letsTheStepGo,
     RoomReach why = RoomReach.noNetwork,
     Turn? turn,
   }) => FailureContext(
@@ -1446,17 +1441,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final turn = state.machine.inFlight;
     if (turn != null) return _giveUpOnTheTurn(turn, const RoomTimedOut());
     _cancelTimers();
-    if (_onAWayIn) return _theStepFell();
+    if (state.machine.onAWayIn) return _theStepFell();
     _leaveThinking();
     _dispatch(decided(const RoomTimedOut(), _failureContext()));
   }
-
-  bool get _onAWayIn => switch (state.station) {
-    Menu() => true,
-    Canvas() => state.sessionId == null,
-    Panorama() => state.panoramaSessionId == null,
-    _ => false,
-  };
 
   void _giveUpOnTheTurn(Turn turn, RoomResult result) => _dispatch(
     decided(result, _failureContext(turn: turn, rule: RefusalRule.aSpokenTurn)),
@@ -2457,7 +2445,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final theResume = '$book/$pericope/$speaking';
     void failed(
       RoomFailure failure, {
-      RefusalRule rule = RefusalRule.counts,
+      RefusalRule rule = RefusalRule.letsTheStepGo,
       Door door = Door.step,
     }) {
       if (_abandoned(generation)) return;
@@ -4309,7 +4297,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             shown,
             rule: failure.code == RefusalCode.fraseOutOfPlace
                 ? RefusalRule.readsTheListAgain
-                : RefusalRule.counts,
+                : RefusalRule.letsTheStepGo,
           );
         }
       case final RoomFailure failure:
@@ -4324,7 +4312,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theFraseWasNotKept(
     RoomFailure failure,
     SceneScreen shown, {
-    RefusalRule rule = RefusalRule.counts,
+    RefusalRule rule = RefusalRule.letsTheStepGo,
   }) {
     state = state.copyWith(scene: shown);
     _decideAt(failure, door: Door.sceneRehearsal, rule: rule);

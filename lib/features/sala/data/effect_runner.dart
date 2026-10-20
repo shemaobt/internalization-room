@@ -599,7 +599,7 @@ class EffectRunner {
         _decideAt(
           result,
           door: Door.sceneRehearsal,
-          rule: RefusalRule.counts,
+          rule: RefusalRule.letsTheStepGo,
           why: RoomReach.noNetwork,
         );
     }
@@ -639,7 +639,7 @@ class EffectRunner {
             _decideAt(
               const RoomNetworkFailed(),
               door: Door.probe,
-              rule: RefusalRule.counts,
+              rule: RefusalRule.letsTheStepGo,
               why: reach,
             );
           }
@@ -722,14 +722,14 @@ class EffectRunner {
         _decideAt(
           result,
           door: Door.person,
-          rule: RefusalRule.counts,
+          rule: RefusalRule.letsTheStepGo,
           why: RoomReach.noNetwork,
         );
       case RoomSessionGone() when host.session == session:
         _decideAt(
           result,
           door: Door.step,
-          rule: RefusalRule.counts,
+          rule: RefusalRule.letsTheStepGo,
           why: RoomReach.noNetwork,
         );
       case RoomSessionGone():

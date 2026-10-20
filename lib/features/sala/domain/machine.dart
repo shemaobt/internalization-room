@@ -1019,6 +1019,15 @@ final class Machine {
 
   bool get reachable => reach == Reach.reachable;
 
+  /// A Step that opens the room's door: the Choice, or a passage or a Panorama with no
+  /// session yet. Only there does a Step's fall leave the Reach (ADR 0093).
+  bool get onAWayIn => switch (station) {
+    Menu() => true,
+    Canvas() => session == null,
+    Panorama() => panorama?.session == null,
+    _ => false,
+  };
+
   String? get stationSession =>
       station is Panorama ? panorama?.session : session;
 
@@ -1306,7 +1315,7 @@ const _watch = ArmTheWatch();
     const [],
   ),
   NetworkFailedAt(:final door, :final why)
-      when door == Door.probe || (door == Door.step && _onAWayIn(machine)) =>
+      when door == Door.probe || (door == Door.step && machine.onAWayIn) =>
     _fall(machine, door, why),
   NetworkFailedAt(:final door) => (
     machine,
@@ -1411,13 +1420,6 @@ const _watch = ArmTheWatch();
   }
   return (arrived, const []);
 }
-
-bool _onAWayIn(Machine machine) => switch (machine.station) {
-  Menu() => true,
-  Canvas() => machine.session == null,
-  Panorama() => machine.panorama?.session == null,
-  _ => false,
-};
 
 bool _silent(Machine machine) =>
     machine.halt is! Blocking &&
