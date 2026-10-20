@@ -177,31 +177,6 @@ void main() {
     }
   });
 
-  test(
-    'A look that finds the turn still in flight, or fails itself, shows the person sign.',
-    () {
-      for (final theLook in <void Function(FakeRoom)>[
-        (room) => room.looksFindTheTurnInFlight = true,
-        (room) => room.failLooksWith = _theNetworkDrops,
-      ]) {
-        _aTake(
-          (room) {
-            _theServerNeverGotIt(room);
-            theLook(room);
-          },
-          (clock, take) {
-            clock.elapse(const Duration(seconds: 1));
-
-            expect(take.harness.room.turnIdsLookedAt, [take.takeTurnId]);
-            expect(take.room.needsPerson, isTrue);
-            expect(take.everOffline, isFalse);
-            expect(take.offlineNoticeSpoken, isFalse);
-          },
-        );
-      }
-    },
-  );
-
   test('The watchdog\'s give-up is decided by the failure policy.', () {
     _aTake(
       _theTurnTakesLongAndLands,

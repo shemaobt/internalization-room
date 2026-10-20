@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 import 'machine_generator.dart';
 
@@ -54,7 +55,7 @@ final _aGivenUpTurnNeverFallsOutOfReach = Invariant<_Room>(
 );
 
 final _anEmptyLookShowsThePersonSign = Invariant<_Room>(
-  'an empty look shows the person sign, unless it looked for an opening',
+  'an empty look shows the person sign, unless it looked for an opening or a line said again',
   (before, event, after, effects, world) {
     if (event is! LookEmpty) return null;
     if (event.sounding is TheOpening) {
@@ -63,6 +64,15 @@ final _anEmptyLookShowsThePersonSign = Invariant<_Room>(
       }
       if (!effects.contains(const LetTheOpeningGo())) {
         return 'a look for an opening did not let it go';
+      }
+      return null;
+    }
+    if (event.sounding is TheLineSaidAgain) {
+      if (after.machine.halt != before.machine.halt) {
+        return 'a look for a line said again changed the halt';
+      }
+      if (!effects.contains(const LetTheLineGo())) {
+        return 'a look for a line said again did not let it go';
       }
       return null;
     }
@@ -76,11 +86,39 @@ final _anEmptyLookShowsThePersonSign = Invariant<_Room>(
 );
 
 final _aFoundReplyPlaysAsIfOnTime = Invariant<_Room>(
-  'a reply the look found plays as if it had arrived on time',
+  'a reply the look found plays as if it had arrived on time, unless it is an Opening the room was still answering',
   (before, event, after, effects, world) {
     if (event is! LookFound) return null;
     final plays = effects.whereType<PlayTheReply>().length;
-    if (plays != 1) return 'played $plays times';
+    final kept = effects.whereType<KeepTheReply>().length;
+    final waited = before.machine.pendingLook;
+    if (waited != null &&
+        waited.turn == event.turn &&
+        waited.sounding is TheOpening) {
+      if (plays != 0 || kept != 1) return 'played $plays, kept $kept';
+      return null;
+    }
+    if (plays != 1 || kept != 0) return 'played $plays times, kept $kept';
+    return null;
+  },
+);
+
+final _aLookStillAnsweredLooksAgainUntilDecided = Invariant<_Room>(
+  'a look the room is still answering looks again until it is decided',
+  (before, event, after, effects, world) {
+    if (event is LookPending &&
+        (event.generation ?? before.machine.generation) >=
+            before.machine.generation) {
+      if (!effects.contains(LookAgain(event.turn, sounding: event.sounding))) {
+        return 'a look still answered did not look again';
+      }
+      if (after.machine.pendingLook == null) return 'nothing pending';
+      return null;
+    }
+    if ((event is LookFound || event is LookEmpty) &&
+        after.machine.pendingLook != null) {
+      return 'a decided look is still pending';
+    }
     return null;
   },
 );
@@ -92,6 +130,7 @@ void main() {
       _aGivenUpTurnNeverFallsOutOfReach,
       _anEmptyLookShowsThePersonSign,
       _aFoundReplyPlaysAsIfOnTime,
+      _aLookStillAnsweredLooksAgainUntilDecided,
     ], seeds: _seeds);
   });
 
@@ -107,4 +146,110 @@ void main() {
 
     expect(effects.whereType<LookAtTheSession>(), isEmpty);
   });
+
+  group(
+    'the machine answers «still answering» by looking again, and only the watchdog ends it',
+    () {
+      const turn = Turn('sessao-1', 'turno-7');
+      const reply = TurnResult(
+        sessionId: 'sessao-1',
+        audioUrl: '/voice/turno-7',
+        fixedLine: '',
+        transcript: '',
+        peerCue: false,
+        usedFailSafe: false,
+        degraded: false,
+        coverage: null,
+        done: false,
+      );
+
+      test('a look still answered is held and looked at again', () {
+        final (pending, effects) = reduce(
+          const Machine(),
+          const LookPending(turn, sounding: TheOpening('turno-7')),
+        );
+
+        expect(pending.pendingLook, (
+          turn: turn,
+          sounding: const TheOpening('turno-7'),
+        ));
+        expect(effects, [
+          const LookAgain(turn, sounding: TheOpening('turno-7')),
+        ]);
+      });
+
+      test('an Opening found after the wait is kept, not played', () {
+        final (pending, _) = reduce(
+          const Machine(),
+          const LookPending(turn, sounding: TheOpening('turno-7')),
+        );
+
+        final (found, effects) = reduce(pending, const LookFound(turn, reply));
+
+        expect(effects.whereType<KeepTheReply>(), hasLength(1));
+        expect(effects.whereType<PlayTheReply>(), isEmpty);
+        expect(found.pendingLook, isNull);
+      });
+
+      test('a team turn found after the wait plays', () {
+        final (pending, _) = reduce(const Machine(), const LookPending(turn));
+
+        final (_, effects) = reduce(pending, const LookFound(turn, reply));
+
+        expect(effects.whereType<PlayTheReply>(), hasLength(1));
+        expect(effects.whereType<KeepTheReply>(), isEmpty);
+      });
+
+      test(
+        'a line said again the look did not find is let go, with no halt',
+        () {
+          final (pending, _) = reduce(
+            const Machine(),
+            const LookPending(turn, sounding: TheLineSaidAgain()),
+          );
+
+          final (empty, effects) = reduce(
+            pending,
+            const LookEmpty(sounding: TheLineSaidAgain()),
+          );
+
+          expect(effects, [const LetTheLineGo()]);
+          expect(empty.halt, isA<NoHalt>());
+          expect(empty.pendingLook, isNull);
+        },
+      );
+
+      test(
+        'a look still answered from an older generation changes nothing',
+        () {
+          final machine = moveTheGeneration(const Machine());
+
+          final (after, effects) = reduce(
+            machine,
+            const LookPending(turn, generation: 0),
+          );
+
+          expect(effects, isEmpty);
+          expect(after.pendingLook, isNull);
+        },
+      );
+
+      test('leaving the generation forgets the pending look', () {
+        final (pending, _) = reduce(const Machine(), const LookPending(turn));
+
+        expect(moveTheGeneration(pending).pendingLook, isNull);
+      });
+
+      test('a line said again is kept in flight until it lands', () {
+        final (sent, _) = reduce(
+          const Machine(),
+          const TurnSent(turn, keeps: TheLineSaidAgain()),
+        );
+
+        expect(sent.keptInFlight, isA<TheLineSaidAgain>());
+        final (landed, _) = reduce(sent, const TurnAnswered(turn));
+        expect(landed.keptInFlight, isA<NothingKept>());
+      });
+    },
+  );
 }

@@ -164,6 +164,8 @@ Future<(SalaHarness, ProviderContainer)> relaunch(
   ProviderContainer container, {
   String? lingua,
   Duration? linkPoll,
+  Duration? busyCeiling,
+  Duration? lookAgain,
 }) async {
   container.dispose();
   final again = SalaHarness(
@@ -175,6 +177,8 @@ Future<(SalaHarness, ProviderContainer)> relaunch(
     look: harness.look,
     lingua: lingua ?? harness.lingua,
     linkPoll: linkPoll ?? harness.linkPoll,
+    busyCeiling: busyCeiling ?? harness.busyCeiling,
+    lookAgain: lookAgain ?? harness.lookAgain,
   );
   final next = again.container();
   addTearDown(next.dispose);

@@ -109,6 +109,11 @@ AnsweringEvent _stampedAnswer(
     sounding: sounding,
     generation: generation,
   ),
+  LookPending(:final turn, :final sounding) => LookPending(
+    turn,
+    sounding: sounding,
+    generation: generation,
+  ),
   TheRoomRefused(:final third, :final sounding) => TheRoomRefused(
     third: third,
     sounding: sounding,

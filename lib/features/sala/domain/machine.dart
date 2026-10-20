@@ -360,8 +360,9 @@ final class Turn {
 
 final class TurnSent extends MachineEvent {
   final Turn turn;
+  final Kept keeps;
 
-  const TurnSent(this.turn);
+  const TurnSent(this.turn, {this.keeps = const NothingKept()});
 }
 
 final class TurnAnswered extends AnsweringEvent {
@@ -400,6 +401,18 @@ final class LookEmpty extends AnsweringEvent {
   final Kept sounding;
 
   const LookEmpty({this.sounding = const NothingKept(), super.generation});
+}
+
+/// The room is still answering the turn the look asked for.
+final class LookPending extends AnsweringEvent {
+  final Turn turn;
+  final Kept sounding;
+
+  const LookPending(
+    this.turn, {
+    this.sounding = const NothingKept(),
+    super.generation,
+  });
 }
 
 final class TheOpeningMissed extends AnsweringEvent {
@@ -718,6 +731,32 @@ final class PlayTheReply extends Effect {
   const PlayTheReply(this.turn, this.reply);
 }
 
+/// The look found a reply the team rests on without hearing it: «Ouvir de novo» says it.
+final class KeepTheReply extends Effect {
+  final Turn turn;
+  final TurnResult reply;
+
+  const KeepTheReply(this.turn, this.reply);
+}
+
+final class LookAgain extends Effect {
+  final Turn turn;
+  final Kept sounding;
+
+  const LookAgain(this.turn, {this.sounding = const NothingKept()});
+
+  @override
+  bool operator ==(Object other) =>
+      other is LookAgain && other.turn == turn && other.sounding == sounding;
+
+  @override
+  int get hashCode => Object.hash(turn, sounding);
+}
+
+final class LetTheLineGo extends Effect {
+  const LetTheLineGo();
+}
+
 final class LetTheTurnGo extends Effect {
   final Turn turn;
 
@@ -831,6 +870,8 @@ final class HeldPanorama {
   int get hashCode => Object.hash(id, language, session);
 }
 
+typedef PendingLook = ({Turn turn, Kept sounding});
+
 final class Machine {
   final Halt halt;
   final Channel channel;
@@ -848,6 +889,12 @@ final class Machine {
 
   /// The turn whose POST is in the air: sent, and neither answered nor given up.
   final Turn? inFlight;
+
+  /// What the turn in flight keeps to sound if it is given up.
+  final Kept keptInFlight;
+
+  /// A look the room answered it is still answering, until the look is decided.
+  final PendingLook? pendingLook;
 
   final LineOutcome? lastLine;
 
@@ -879,6 +926,8 @@ final class Machine {
     this.noticeSaid = false,
     this.generation = 0,
     this.inFlight,
+    this.keptInFlight = const NothingKept(),
+    this.pendingLook,
     this.lastLine,
     this.lastMic,
     this.station = const Menu(),
@@ -925,6 +974,9 @@ final class Machine {
     int? generation,
     Turn? inFlight,
     bool landTheTurn = false,
+    Kept? keptInFlight,
+    PendingLook? pendingLook,
+    bool forgetTheLook = false,
     LineOutcome? lastLine,
     MicOutcome? lastMic,
     Station? station,
@@ -949,6 +1001,10 @@ final class Machine {
     noticeSaid: noticeSaid ?? this.noticeSaid,
     generation: generation ?? this.generation,
     inFlight: landTheTurn ? null : (inFlight ?? this.inFlight),
+    keptInFlight: landTheTurn
+        ? const NothingKept()
+        : (keptInFlight ?? this.keptInFlight),
+    pendingLook: forgetTheLook ? null : (pendingLook ?? this.pendingLook),
     lastLine: lastLine ?? this.lastLine,
     lastMic: lastMic ?? this.lastMic,
     station: station ?? this.station,
@@ -960,8 +1016,11 @@ final class Machine {
   );
 }
 
-Machine moveTheGeneration(Machine machine) =>
-    machine.copyWith(generation: machine.generation + 1, landTheTurn: true);
+Machine moveTheGeneration(Machine machine) => machine.copyWith(
+  generation: machine.generation + 1,
+  landTheTurn: true,
+  forgetTheLook: true,
+);
 
 const _enter = [SilenceTheRoom(), CloseAndDiscardTheMic()];
 const _watch = ArmTheWatch();
@@ -1058,7 +1117,10 @@ const _watch = ArmTheWatch();
   ),
   TheSessionIsGone() || ThePassageClosed() => _theSessionGone(machine),
   TheCallMetAClosedPassage() => (machine, const [CloseThePassage()]),
-  TurnSent(:final turn) => (machine.copyWith(inFlight: turn), const []),
+  TurnSent(:final turn, :final keeps) => (
+    machine.copyWith(inFlight: turn, keptInFlight: keeps),
+    const [],
+  ),
   TurnAnswered(:final turn) => (
     _settleTheOpening(_land(machine, turn), turn),
     const [],
@@ -1066,8 +1128,16 @@ const _watch = ArmTheWatch();
   TurnFailed(:final turn) => (_land(machine, turn), const []),
   TurnGivenUp(:final turn, :final sounding) => _giveUp(machine, turn, sounding),
   LookFound(:final turn, :final reply) => (
-    _settleTheOpening(machine, turn),
-    [PlayTheReply(turn, reply)],
+    _settleTheOpening(machine.copyWith(forgetTheLook: true), turn),
+    [
+      if (machine.pendingLook case (
+        turn: final waited,
+        sounding: TheOpening(),
+      ) when waited == turn)
+        KeepTheReply(turn, reply)
+      else
+        PlayTheReply(turn, reply),
+    ],
   ),
   TheRefusalPassed() => (machine, const []),
   TheHandFailed() => (machine, const []),
@@ -1080,10 +1150,23 @@ const _watch = ArmTheWatch();
     (machine, [ShowTheSceneRehearsals(listed)]),
   TheSceneRehearsalsListed() => (machine, const []),
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
-  LookEmpty(sounding: TheOpening()) ||
+  LookPending(:final turn, :final sounding) => (
+    machine.copyWith(pendingLook: (turn: turn, sounding: sounding)),
+    [LookAgain(turn, sounding: sounding)],
+  ),
+  LookEmpty(sounding: final sounding && (TheOpening() || TheLineSaidAgain())) =>
+    (
+      machine.copyWith(forgetTheLook: true),
+      [
+        if (sounding is TheLineSaidAgain)
+          const LetTheLineGo()
+        else
+          const LetTheOpeningGo(),
+      ],
+    ),
   TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
   LookEmpty(:final sounding) => switch (_theHalt(
-    machine,
+    machine.copyWith(forgetTheLook: true),
     RoomRaisedAHalt(sounding: sounding),
   )) {
     (final halted, final effects) when machine.station is SceneRehearsal => (
@@ -1841,6 +1924,7 @@ Machine _answered(Machine machine) =>
   TurnGivenUp() ||
   LookFound() ||
   LookEmpty() ||
+  LookPending() ||
   TheOpeningMissed() ||
   TheRoomRefused() ||
   ThePassageCannotOpen() ||

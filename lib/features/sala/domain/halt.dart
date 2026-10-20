@@ -23,6 +23,11 @@ final class TheOpening extends Kept {
   int get hashCode => failedTurnId.hashCode;
 }
 
+/// The room's last line, said again on the team's tap.
+final class TheLineSaidAgain extends Kept {
+  const TheLineSaidAgain();
+}
+
 final class TheResume extends Kept {
   const TheResume();
 }
