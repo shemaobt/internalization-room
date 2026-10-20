@@ -1759,6 +1759,16 @@ class FakeRoom implements RoomRepository {
     _holdingFrase = null;
   }
 
+  final List<Completer<void>> _oneFraseHolds = [];
+
+  /// Hold only the next frase the room is sent, the way a slow link holds one request:
+  /// the frases after it go through, and it answers when the completer is completed.
+  Completer<void> holdTheNextFrase() {
+    final hold = Completer<void>();
+    _oneFraseHolds.add(hold);
+    return hold;
+  }
+
   @override
   Future<RoomAnswer<SceneRehearsalRecord>> keepTheSceneFrase(
     String sessionId,
@@ -1777,6 +1787,7 @@ class FakeRoom implements RoomRepository {
       audio: bytes,
     ));
     await _holdingFrase?.future;
+    if (_oneFraseHolds.isNotEmpty) await _oneFraseHolds.removeAt(0).future;
     for (final late in _frasesLandingLate) {
       _keepAFrase(late.rehearsalId, late.bytes, late.startsMs, late.endsMs);
     }
@@ -1818,9 +1829,18 @@ class FakeRoom implements RoomRepository {
       if (heard != null && _sameBytes(heard, bytes)) return Answered(old);
     }
     final measured = old.durationMs;
+    final overlaps =
+        refusesOverlappingFrases &&
+        old.currentFrases.any(
+          (frase) =>
+              frase.placedIn(const Duration(days: 1)) &&
+              startsMs < frase.endsMs! &&
+              endsMs > frase.startsMs!,
+        );
     if (startsMs < 0 ||
         endsMs <= startsMs ||
-        (measured != null && endsMs > measured)) {
+        (measured != null && endsMs > measured) ||
+        overlaps) {
       return const Refused(RefusalCode.fraseOutOfPlace);
     }
     final fraseId = '$rehearsalId-frase-${old.frases.length + 1}';
@@ -1859,6 +1879,10 @@ class FakeRoom implements RoomRepository {
   /// Whether a frase whose answer fails was kept by the room all the same, the way a
   /// reply lost after the room acted is.
   bool frasesLandBeforeTheyFail = false;
+
+  /// Whether the room refuses a frase whose span strictly overlaps a current one, as
+  /// shema-api does once its overlap refusal lands.
+  bool refusesOverlappingFrases = false;
 
   /// Whether a frase whose answer fails is kept by the room only after it answered, the
   /// way a frase still being heard when the tablet gave up is: it lands before the next

@@ -3993,7 +3993,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The frase whose answer was lost goes again as the same bytes over the same span:
   /// the room keeps the same bytes as one frase, whatever happened to the first.
-  Future<void> _sendTheHeldFrase(_HeldFrase frase) {
+  Future<bool> _sendTheHeldFrase(_HeldFrase frase) {
     final generation = _waitOnTheGeneration;
     final shown = state.scene;
     final waiting = shown.asWaiting;
@@ -4003,7 +4003,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Only an answer that kept the frase, or a refusal of it, lets its file go: any other
   /// end may hide a frase the room kept, and the file stays held to be sent again.
-  Future<void> _sendTheSceneFrase(
+  /// Whether the screen that sent it was still there to take the answer.
+  Future<bool> _sendTheSceneFrase(
     _HeldFrase frase,
     SceneScreen shown,
     SceneScreen waiting,
@@ -4018,21 +4019,36 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       endsMs: frase.endsMs,
       afterRestart: frase.afterRestart,
     );
+    final here = !_theSceneMovedOn(waiting, generation);
     switch (kept) {
       case Answered(:final value):
-        _letTheFraseGo(rehearsalId);
-        if (!_theSceneMovedOn(waiting, generation)) {
-          _theFraseWasKept(shown, value);
-        }
+        _letTheFraseGo(rehearsalId, frase);
+        if (here) _theFraseWasKept(shown, value);
       case final Refused failure when _theFraseRefused.contains(failure.code):
-        _letTheFraseGo(rehearsalId);
-        _theFraseWasNotKept(failure, shown, waiting, generation);
+        _letTheFraseGo(rehearsalId, frase);
+        if (here) {
+          _theFraseWasNotKept(
+            failure,
+            shown,
+            rule: failure.code == RefusalCode.fraseOutOfPlace
+                ? RefusalRule.readsTheListAgain
+                : RefusalRule.counts,
+          );
+        }
       case final RoomFailure failure:
-        _theFraseWasNotKept(failure, shown, waiting, generation);
+        if (here) _theFraseWasNotKept(failure, shown);
     }
+    return here;
   }
 
-  void _letTheFraseGo(String rehearsalId) {
+  /// An answer lets go of the frase it answers, never of another one its rehearsal
+  /// holds since.
+  void _letTheFraseGo(String rehearsalId, _HeldFrase frase) {
+    if (_heldFrases[rehearsalId] == frase) _heldFrases.remove(rehearsalId);
+    unawaited(_recorder.delete(frase.path));
+  }
+
+  void _letGoOfTheHeldFrase(String rehearsalId) {
     final held = _heldFrases.remove(rehearsalId);
     if (held != null) unawaited(_recorder.delete(held.path));
   }
@@ -4041,19 +4057,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final MapEntry(key: rehearsalId, value: held) in [
       ..._heldFrases.entries,
     ]) {
-      if (held.sessionId == sessionId) _letTheFraseGo(rehearsalId);
+      if (held.sessionId == sessionId) _letGoOfTheHeldFrase(rehearsalId);
     }
   }
 
+  /// A frase refused as out of place may lie over one the room kept while this screen
+  /// was away: the list is read again, and the screen shows the kept one.
   void _theFraseWasNotKept(
     RoomFailure failure,
-    SceneScreen shown,
-    SceneScreen waiting,
-    int generation,
-  ) {
-    if (_theSceneMovedOn(waiting, generation)) return;
+    SceneScreen shown, {
+    RefusalRule rule = RefusalRule.counts,
+  }) {
     state = state.copyWith(scene: shown);
-    _decideAt(failure, door: Door.sceneRehearsal);
+    _decideAt(failure, door: Door.sceneRehearsal, rule: rule);
   }
 
   /// A pausa the team marked past the kept frase stays for the circle; otherwise the
@@ -4142,7 +4158,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.channel is Microphone) _dispatch(const MicDiscarded());
     if (state.scene.rehearsal case final rehearsal?) {
-      _letTheFraseGo(rehearsal.rehearsalId);
+      _letGoOfTheHeldFrase(rehearsal.rehearsalId);
     }
     _silenceTheRoom();
     state = state.copyWith(
@@ -4190,7 +4206,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (stillShown) state = state.copyWith(scene: shown);
     switch (restarted) {
       case Answered(:final value):
-        _letTheFraseGo(rehearsal.rehearsalId);
+        _letGoOfTheHeldFrase(rehearsal.rehearsalId);
         if (stillShown) await _showTheRehearsal(value, shown, generation);
       case final RoomFailure failure:
         _decideAt(failure, door: Door.sceneRehearsal);
@@ -4300,8 +4316,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _HeldFrase frase,
     String rehearsalId,
   ) async {
-    await _sendTheHeldFrase(frase);
-    if (!_heldFrases.containsKey(rehearsalId)) _sendTheSceneRehearsal();
+    final here = await _sendTheHeldFrase(frase);
+    if (here &&
+        !_heldFrases.containsKey(rehearsalId) &&
+        state.scene.rehearsal?.rehearsalId == rehearsalId) {
+      _sendTheSceneRehearsal();
+    }
   }
 
   /// «terminei» is a turn on the house path: the screen waits on it, closes on the
@@ -4320,7 +4340,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       generation,
       () => _theSceneGoes(sessionId, rehearsal, turnId, generation),
       play: (reply) async {
-        _letTheFraseGo(rehearsal.rehearsalId);
+        _letGoOfTheHeldFrase(rehearsal.rehearsalId);
         _closeTheSceneRehearsal();
         await _voiceTurn(reply, _waitOnTheGeneration);
       },

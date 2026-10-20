@@ -34,8 +34,12 @@ that names an attempt older than the rehearsal's current one, or none after a re
   held: a network failure, a 5xx, the tablet's timeout, an answer it cannot read, and any
   other refusal. While it is held, the next tap that would open the microphone for that
   rehearsal sends the same bytes, span and attempt again, whatever screen was rebuilt in
-  between; the room's same-bytes rule makes them one frase. «terminei» sends a held frase
-  first and the rehearsal once it is kept or refused.
+  between; the room's same-bytes rule makes them one frase. An answer lets go only of
+  the frase it answers. «terminei» sends a held frase first, and the rehearsal only if
+  the screen that asked is still there once the frase is kept or refused.
+- The room refuses a frase that overlaps a current one as FRASE_OUT_OF_PLACE; the tablet
+  then reads the list again, so a frase kept while its screen was away shows with its
+  frontier.
 - A held frase's file is deleted when it is let go, when its rehearsal is sent or
   recorded again, when its session is gone, and when the life ends. Frases a killed app
   left are swept at launch, once per process.

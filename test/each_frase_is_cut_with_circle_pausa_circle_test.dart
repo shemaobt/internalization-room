@@ -880,6 +880,130 @@ void main() {
           },
         );
 
+        for (final (named, resent) in [
+          ('kept', null),
+          ('refused', const Refused(RefusalCode.wordlessTelling)),
+        ]) {
+          test(
+            '«terminei» sends nothing when its screen moved on while the held frase was being sent again: $named',
+            () async {
+              final room = await _onTheTranslateStep(
+                rehearsal: _rehearsal(n: 2, frases: [_frase('f1', 0, 3000)]),
+                alsoListed: [
+                  _rehearsal(frases: [_frase('r1-f1', 0, 3000)]),
+                ],
+              );
+              await _listening(room);
+              await _aFraseWhoseAnswerIsLost(
+                room,
+                const NetworkFailed('timeout'),
+                keptBefore: false,
+              );
+              final resend = room.harness.room.holdTheNextFrase();
+              if (resent != null) {
+                room.harness.room.sceneAnswersFirst.add(resent);
+              }
+              room.sala.sendTheSceneRehearsal();
+              await settle();
+              room.sala.leaveTheSceneRehearsal();
+              await settle();
+              room.sala.openTheSceneRehearsal();
+              await translateOpens(room);
+              await settle();
+              room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
+              await waitFor(
+                'o ensaio 1 abrir',
+                () =>
+                    room.state.scene.rehearsal?.n == 1 &&
+                    !room.state.scene.waiting,
+              );
+
+              resend.complete();
+              await settle();
+              await settle();
+
+              expect(room.harness.room.scenesSent, isEmpty);
+            },
+          );
+        }
+
+        test(
+          'a late answer of a frase lets go of that frase only, never of the next one held',
+          () async {
+            final room = await _onTheTranslateStep(
+              length: const Duration(seconds: 20),
+              take: aSpokenWav(length: const Duration(seconds: 20)),
+            );
+            await _listening(room);
+            final first = room.harness.room.holdTheNextFrase();
+            await _aFraseAt(room, _s(4.0));
+            room.sala.leaveTheSceneRehearsal();
+            await settle();
+            room.sala.openTheSceneRehearsal();
+            await translateOpens(room);
+            await settle();
+            await _listening(room);
+            room.harness.playback.at = _s(4.0);
+            await _theTeamTellsItAgain(room);
+            expect(_currentFrasesOf(room), 1);
+            room.harness.playback.at = _s(8.0);
+            await _circle(room);
+            await _theFraseMicrophoneOpens(room);
+            final second = room.harness.room.holdTheNextFrase();
+            room.sala.tapTheTranslateCircle();
+            await waitFor(
+              'a segunda frase ir',
+              () => room.harness.room.frasesKept.length == 3,
+            );
+
+            first.complete();
+            await settle();
+            room.harness.room
+              ..frasesLandBeforeTheyFail = true
+              ..sceneAnswersFirst.add(const NetworkFailed('timeout'));
+            second.complete();
+            await waitFor('a sala responder', () => !room.state.scene.waiting);
+            room.harness.room.frasesLandBeforeTheyFail = false;
+            await settle();
+            await _theTeamTellsItAgain(room);
+
+            expect(_currentFrasesOf(room), 2);
+          },
+        );
+
+        test(
+          'a frase over one the room kept while its screen was away is refused, and the screen shows the kept one',
+          () async {
+            final room = await _onTheTranslateStep();
+            room.harness.room.refusesOverlappingFrases = true;
+            await _listening(room);
+            room.harness.room.holdNextFrase();
+            await _aFraseAt(room, _s(4.0));
+            room.sala.leaveTheSceneRehearsal();
+            await settle();
+            room.sala.openTheSceneRehearsal();
+            await translateOpens(room);
+            await settle();
+            room.harness.room.finishHeldFrase();
+            await settle();
+            await _listening(room);
+            final listed = room.asked('sceneRehearsalsOf');
+
+            await _aFraseAt(room, _s(4.0), already: 1);
+            await waitFor(
+              'a sala ler a lista de novo',
+              () => room.asked('sceneRehearsalsOf') > listed,
+            );
+            await settle();
+
+            expect(_currentFrasesOf(room), 1);
+            expect(
+              room.state.scene.rehearsal?.frontier,
+              const Duration(milliseconds: 4000),
+            );
+          },
+        );
+
         test(
           'a pausa marked past the held frase stays pending once the room kept it',
           () async {
