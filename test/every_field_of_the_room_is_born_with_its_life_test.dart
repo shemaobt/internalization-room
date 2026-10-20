@@ -13,10 +13,10 @@ const _whatCrossesLives = {
 };
 
 final _commentPattern = RegExp(r'//.*$', multiLine: true);
-final _fieldPattern = RegExp(
-  r'^  (?![^\n]*(=>|\bget\b|\bset\b))(\S[^\n]*?)\s(_\w+)(\s*=[^\n]*)?;$',
-  multiLine: true,
-);
+final _accessorPattern = RegExp(r'\b(get|set)\s+\w+\s*$');
+final _namePattern = RegExp(r'(_\w+)\s*$');
+
+typedef _Field = ({String name, String declaration, bool initialized});
 
 String _theClass(String source) {
   final start = source.indexOf('class SalaSessionNotifier ');
@@ -37,7 +37,45 @@ String _theBodyOf(String source, String signature) {
 }
 
 bool _isAssignedIn(String body, String field) =>
-    RegExp('\\b$field = ').hasMatch(body);
+    RegExp('\\b$field\\s*=(?![=>])').hasMatch(body);
+
+Iterable<String> _membersOf(String room) sync* {
+  var depth = 0;
+  var assigned = false;
+  var block = false;
+  final member = StringBuffer();
+  for (final char in room.substring(room.indexOf('{') + 1).split('')) {
+    if (depth == 0 && char == ';') {
+      yield member.toString();
+      member.clear();
+      assigned = false;
+      continue;
+    }
+    if (depth == 0 && char == '=') assigned = true;
+    if (depth == 0 && char == '{') block = !assigned;
+    if ('([{'.contains(char)) depth++;
+    if (')]}'.contains(char)) depth--;
+    member.write(char);
+    if (depth == 0 && char == '}' && block) {
+      member.clear();
+      block = false;
+    }
+  }
+}
+
+_Field? _aField(String member) {
+  final text = member
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .replaceAll(RegExp(r'@\w+ '), '')
+      .trim();
+  if (text.contains('=>')) return null;
+  final at = text.indexOf('=');
+  final head = (at < 0 ? text : text.substring(0, at)).trim();
+  if (head.endsWith(')') || _accessorPattern.hasMatch(head)) return null;
+  final name = _namePattern.firstMatch(head)?.group(1);
+  if (name == null) return null;
+  return (name: name, declaration: head, initialized: at >= 0);
+}
 
 void main() {
   test('every field of the room is born with its life', () {
@@ -49,18 +87,17 @@ void main() {
       _theBodyOf(room, 'SalaSessionState build() {'),
     ].join('\n');
 
-    final fields = _fieldPattern.allMatches(room).toList();
+    final fields = _membersOf(room).map(_aField).nonNulls.toList();
     expect(fields, isNotEmpty, reason: 'the guard reads no field of the room');
 
     final outlivesItsLife = <String>[];
     for (final field in fields) {
-      final name = field.group(3)!;
+      final (:name, :declaration, :initialized) = field;
       if (_whatCrossesLives.contains(name)) continue;
-      final declaration = field.group(2)!;
       final bornWithTheLife =
           declaration.startsWith('late ') &&
           !declaration.startsWith('late final ') &&
-          field.group(4) == null &&
+          !initialized &&
           _isAssignedIn(birth, name);
       if (!bornWithTheLife) outlivesItsLife.add(name);
     }

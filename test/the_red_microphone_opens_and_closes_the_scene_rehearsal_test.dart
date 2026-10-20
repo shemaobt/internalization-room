@@ -907,6 +907,8 @@ void main() {
       expect(room.state.scene.step, SceneStep.record);
       expect(room.state.scene.take, isNull);
       expect(room.state.scene.keep, isNot(isA<Keeping>()));
+      expect(await room.harness.takes.entries(), isEmpty);
+      expect(room.harness.room.scenesKept, isEmpty);
     },
   );
 

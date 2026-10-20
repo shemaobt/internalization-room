@@ -324,8 +324,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late TurnClock? _coverageClock;
 
   late String? _pendingTakePath;
-  late StreamSubscription<void>? _outboxFalls;
-  late StreamSubscription<String>? _outboxGone;
+  late StreamSubscription<void> _outboxFalls;
+  late StreamSubscription<String> _outboxGone;
   late EffectRunner _runner;
   late StreamSubscription<CoverageEvent>? _coverageWatch;
   late String? _coverageSessionId;
@@ -415,8 +415,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _pendingClock = null;
     _coverageClock = null;
     _pendingTakePath = null;
-    _outboxFalls = null;
-    _outboxGone = null;
+    _outboxFalls = _apart(
+      () => ref
+          .read(takeUploadQueueProvider)
+          .fallsOnTheNetwork
+          .listen((_) => _outOfReach(Door.outbox)),
+    );
+    _outboxGone = _apart(
+      () => ref
+          .read(takeUploadQueueProvider)
+          .sessionsGone
+          .listen(_theSessionIsGone),
+    );
     _coverageWatch = null;
     _coverageSessionId = null;
     _awaitingCoverageTurnId = null;
@@ -466,22 +476,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gone = true;
       _cancelTimers();
       _runner.dispose();
-      unawaited(_outboxFalls?.cancel());
-      unawaited(_outboxGone?.cancel());
+      unawaited(_outboxFalls.cancel());
+      unawaited(_outboxGone.cancel());
       unawaited(_coverageWatch?.cancel());
     });
-    _outboxFalls = _apart(
-      () => ref
-          .read(takeUploadQueueProvider)
-          .fallsOnTheNetwork
-          .listen((_) => _outOfReach(Door.outbox)),
-    );
-    _outboxGone = _apart(
-      () => ref
-          .read(takeUploadQueueProvider)
-          .sessionsGone
-          .listen(_theSessionIsGone),
-    );
     return SalaSessionState(machine: Machine(generation: _firstGeneration));
   }
 
@@ -596,6 +594,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int get _generation => state.machine.generation;
 
   bool _abandoned(int generation) => _gone || generation != _generation;
+
+  bool _endedSince(int life) => _gone || life != _firstGeneration;
 
   void _endTheGesturesAbandoned() {
     final abandoned = _waitingOnTheGeneration.difference(_chain.toSet());
@@ -3715,6 +3715,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_goneSessions.contains(sessionId)) return;
     final queue = _takes;
     final tooLarge = _tooLargeForTheRoom(path);
+    final life = _firstGeneration;
     final PendingTake row;
     try {
       row = await queue.enqueue(
@@ -3725,7 +3726,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         scene: keeping.label,
       );
     } on Object {
-      if (_goneSessions.contains(sessionId)) return;
+      if (_endedSince(life) || _goneSessions.contains(sessionId)) return;
       _sayARecordingIsStranded();
       _showTheTakeNotKept(
         NotKept(take: path, tooLarge: tooLarge),
@@ -3734,6 +3735,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       return;
     }
+    if (_endedSince(life)) return;
     if (_goneSessions.contains(sessionId)) {
       return queue.discardTheSession(sessionId);
     }
@@ -3765,7 +3767,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final row = waiting.row;
     final kept = row == null ? null : _takes.keptSceneOf(row);
     if (kept == null) return;
-    await _theRoomKept(kept, waiting, asked, _waitOnTheGeneration);
+    await _theRoomKept(kept, waiting, asked, generation);
   }
 
   Future<void> _theRoomKept(
@@ -4427,6 +4429,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int? chunkIndex,
   }) => _apart(() async {
     if (_gone) return;
+    final life = _firstGeneration;
     final queue = _takes;
     final sessionId = state.sessionId;
     if (_goneSessions.contains(sessionId)) return;
@@ -4436,7 +4439,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // The room lost the session — a 404 clears it — and a take has nowhere to go
       // without one. The bead had already been filled by `takeKeep`, so this returned in
       // silence and the recording read as delivered.
-      _sayARecordingIsStranded();
+      if (!_endedSince(life)) _sayARecordingIsStranded();
       return;
     }
     final PendingTake linha;
@@ -4453,7 +4456,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // A full disk throws here, on the copy or on the manifest write. It used to be an
       // unhandled async error behind an `unawaited`: the screen kept its beads and the
       // room went on as if the recording were queued.
-      if (!_goneSessions.contains(sessionId)) _sayARecordingIsStranded();
+      if (_endedSince(life) || _goneSessions.contains(sessionId)) return;
+      _sayARecordingIsStranded();
+      return;
+    }
+    if (_endedSince(life)) {
+      await queue.flush();
       return;
     }
     if (_goneSessions.contains(sessionId)) {
@@ -4658,10 +4666,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// does not say it, no one does.
   Future<void> _mindingThePlace(Future<void> Function() write) =>
       _apart(() async {
+        final life = _firstGeneration;
         try {
           await write();
         } on Object {
-          _sayARecordingIsStranded();
+          if (!_endedSince(life)) _sayARecordingIsStranded();
         }
       });
 
@@ -6952,7 +6961,7 @@ class _NotifierHost implements StationHost {
 
   @override
   Future<void> hearTheOutboxFlushed() async {
-    final generation = _notifier._generation;
+    final generation = _notifier._waitOnTheGeneration;
     await _notifier._adoptTheNames(_notifier._takes);
     await _notifier._theRoomKeptWhatWaited(generation);
   }
