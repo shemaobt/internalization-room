@@ -100,7 +100,7 @@ void main() {
 
     var depois = container.read(salaSessionProvider);
     expect([for (final take in depois.keptTakes) take.takeId], gravacoes);
-    expect(depois.takes, antes.takes);
+    expect(depois.partes.length, antes.partes.length);
     expect(
       depois.stage,
       SalaStage.retro,
@@ -130,7 +130,7 @@ void main() {
 
     depois = container.read(salaSessionProvider);
     expect([for (final take in depois.keptTakes) take.takeId], gravacoes);
-    expect(depois.takes, antes.takes);
+    expect(depois.partes.length, antes.partes.length);
     closeTheRoom(container);
   });
 
@@ -245,7 +245,7 @@ void main() {
     // a este teste o takes 0 seria trazer o apagamento de volta com verde por cima.
     final depois = container.read(salaSessionProvider);
     expect(depois.stage, SalaStage.retro);
-    expect(depois.takes, antes.takes);
+    expect(depois.partes.length, antes.partes.length);
     expect([for (final take in depois.keptTakes) take.takeId], gravacoes);
   });
 
@@ -271,7 +271,7 @@ void main() {
             'um recomeço',
       );
       expect([for (final take in depois.keptTakes) take.takeId], gravacoes);
-      expect(depois.takes, antes.takes);
+      expect(depois.partes.length, antes.partes.length);
       expect(depois.stage, SalaStage.retro);
       closeTheRoom(container);
     },

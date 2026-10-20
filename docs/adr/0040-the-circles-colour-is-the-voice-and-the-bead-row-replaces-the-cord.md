@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by the glossary (2026-10-06: the necklace's beads are her twelve, not Meaning Map elements), amended by 0062, amended by 0076
+status: accepted, amended by the glossary (2026-10-06: the necklace's beads are her twelve, not Meaning Map elements), amended by 0062, amended by 0076, amended by 0102
 date: 2026-09-25
 ---
 

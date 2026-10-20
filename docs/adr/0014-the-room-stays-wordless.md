@@ -61,6 +61,13 @@ its clock, «traduzir o ensaio da cena» and each «frase N». It is the eighth 
 under the moment label's reason, her words the team reads: her frozen screen is the bar, as for
 the check screen. VoiceOver reads each one's written words; the strip beside them stays wordless.
 
+Amended by ENG-1406 (2026-10-20, ADR 0102): the Rehearsal is her recording home
+(`widgets/ensaio_view.dart`): «Gravem o ensaio de vocês», or «Ensaio Final» once a part
+was joined, her sub-line, «Cena N» with each scene's title, and «gravem todas as partes
+primeiro». It is the ninth named exception, under the moment label's reason, her words
+the team reads. Her record, listen, record-again and stop controls are icons VoiceOver reads
+by her names; the rest of that screen stays wordless.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a

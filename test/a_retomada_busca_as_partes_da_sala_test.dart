@@ -823,7 +823,8 @@ void main() {
   });
 
   test(
-    'uma gravacao de ensaio sem numero e a parte no lugar em que a lista a traz',
+    'uma gravacao de ensaio sem numero fica de lado na sala, sem ser buscada, '
+    'quando ja ha a parte de uma cena',
     () async {
       final harness = SalaHarness();
 
@@ -837,7 +838,7 @@ void main() {
           const TakeView(
             takeId: 'gravacao-2',
             kind: 'ensaio',
-            scope: 'parte-2',
+            scope: KeptScope.whole,
           ),
           const TakeView(
             takeId: 'gravacao-1',
@@ -849,21 +850,27 @@ void main() {
       );
       await waitFor(
         'as partes voltarem da sala',
-        () => it.estado.partes.length == 2,
+        () => it.estado.partes.isNotEmpty,
       );
 
       expect(
         _nomesDasPartes(it),
-        ['gravacao-2', 'gravacao-1'],
+        ['gravacao-1'],
         reason:
-            'um ensaio que a sala não numera é a parte do lugar em que a '
-            'lista o traz: fora da fila das partes ele não toca nem se mede',
+            'o ensaio que o app de antes de 19 de agosto mandava inteiro sai '
+            'da tradução assim que a primeira cena tem a sua parte',
       );
       expect(
-        it.estado.btFimDasPartesMs,
-        [10000, 20000],
-        reason: 'e o colar o desenha como a qualquer outra parte',
+        harness.room.clipsFetched,
+        isNot(contains(_urlDaParte('gravacao-2'))),
+        reason: 'e fica guardado na sala: o tablet não o busca',
       );
+      expect(
+        [for (final take in it.estado.keptTakes) take.takeId],
+        contains('gravacao-2'),
+        reason: 'mas o conhece pelo nome: nunca se apaga',
+      );
+      expect(it.estado.btFimDasPartesMs, [10000]);
     },
   );
 
