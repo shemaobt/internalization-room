@@ -457,22 +457,38 @@ const rehearsalLabels = {
   'pause': {'pt': 'Pausar o ensaio', 'en': 'Pause the rehearsal'},
   'check': {'pt': 'Confirmar esta parte', 'en': 'Confirm this part'},
   'advance': {'pt': 'Ir para a tradução', 'en': 'Go to the translation'},
-  'part': {'pt': 'Parte {n}', 'en': 'Part {n}'},
-  'partPlaying': {'pt': 'Parte {n}, tocando', 'en': 'Part {n}, playing'},
-  'partNotDelivered': {
-    'pt': 'Parte {n}, ainda não enviada',
-    'en': 'Part {n}, not sent yet',
-  },
-  'partPlayingNotDelivered': {
-    'pt': 'Parte {n}, tocando, ainda não enviada',
-    'en': 'Part {n}, playing, not sent yet',
-  },
 };
 
-String rehearsalLabelFor(String state, String language, {int? part}) =>
-    (rehearsalLabels[state]![language] ??
-            rehearsalLabels[state]![floorLanguage]!)
-        .replaceAll('{n}', '$part');
+String rehearsalLabelFor(String state, String language) =>
+    rehearsalLabels[state]![language] ??
+    rehearsalLabels[state]![floorLanguage]!;
+
+/// Her recording home's words, byte for byte from her app (`strings.ts` at 18fa7c4); the
+/// playing and unsent cues VoiceOver reads are the room's own.
+const recordingHomeLabels = {
+  'title': {'pt': 'Gravem o ensaio de vocês', 'en': 'Record your rehearsal'},
+  'joinedTitle': {'pt': 'Ensaio Final', 'en': 'Final Rehearsal'},
+  'sub': {
+    'pt': 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.',
+    'en': 'Record, listen back, and record again as many times as you need.',
+  },
+  'scene': {'pt': 'Cena {n}', 'en': 'Scene {n}'},
+  'needsAll': {
+    'pt': 'gravem todas as partes primeiro',
+    'en': 'record every part first',
+  },
+  'record': {'pt': 'Gravar', 'en': 'Record'},
+  'listen': {'pt': 'Ouvir', 'en': 'Listen'},
+  'recordAgain': {'pt': 'Gravar de novo', 'en': 'Record again'},
+  'stop': {'pt': 'Parar', 'en': 'Stop'},
+  'playing': {'pt': 'tocando', 'en': 'playing'},
+  'notSent': {'pt': 'ainda não enviada', 'en': 'not sent yet'},
+};
+
+String recordingHomeLabelFor(String key, String language, {int? n}) =>
+    (recordingHomeLabels[key]![language] ??
+            recordingHomeLabels[key]![floorLanguage]!)
+        .replaceAll('{n}', '$n');
 
 const findingLabels = {
   'circle': {'pt': 'ouvir a resposta de novo', 'en': 'hear the verdict again'},

@@ -76,7 +76,12 @@ final class _Room {
 
   FakeRoom get room => harness.room;
 
-  int asked(String call) => room.calls.where((asked) => asked == call).length;
+  /// How many calls the room had taken when the scene rehearsal's screen was opened.
+  int _callsBefore = 0;
+
+  /// The calls since the scene rehearsal's screen was opened.
+  int asked(String call) =>
+      room.calls.skip(_callsBefore).where((asked) => asked == call).length;
 
   Future<void> pump([Duration by = Duration.zero]) => tester.pump(by);
 
@@ -170,6 +175,7 @@ Future<_Room> _theScreenOpens(
   List<SceneRehearsalRecord> rehearsals = const [],
   String lingua = 'pt',
   FutureOr<void> Function(SalaHarness harness)? before,
+  FutureOr<void> Function(SalaHarness harness)? atTheScreen,
   bool rests = true,
 }) async {
   final harness = SalaHarness(filaEmMemoria: true, lingua: lingua)
@@ -184,6 +190,9 @@ Future<_Room> _theScreenOpens(
     ..physicalSize = const Size(820, 2400)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+  // A screen whose scene door is set up as it opens is one on a passage whose scene
+  // list never answered: the passage's own ask meets the same door down.
+  if (atTheScreen != null) harness.room.failScenesWith = _offline;
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final room = _Room(tester, harness, container);
@@ -199,6 +208,11 @@ Future<_Room> _theScreenOpens(
     beat: const Duration(milliseconds: 100),
   );
   await tester.pump(const Duration(milliseconds: 1500));
+  if (atTheScreen != null) {
+    harness.room.failScenesWith = null;
+    await atTheScreen(harness);
+  }
+  room._callsBefore = room.room.calls.length;
   room.sala.openTheSceneRehearsal();
   await tester.pump();
   if (rests) {
@@ -561,7 +575,7 @@ void main() {
       (tester) async {
         final room = await _theScreenOpens(
           tester,
-          before: (harness) => harness.room.holdNextScenes(),
+          atTheScreen: (harness) => harness.room.holdNextScenes(),
           rests: false,
         );
         await room.pump(const Duration(seconds: 4));
@@ -615,7 +629,7 @@ void main() {
         final room = await _theScreenOpens(
           tester,
           rehearsals: [_rehearsal(1, scene: 'S1', sent: true)],
-          before: (harness) => harness.room.holdNextScenes(),
+          atTheScreen: (harness) => harness.room.holdNextScenes(),
           rests: false,
         );
         await room.pump(const Duration(seconds: 4));
@@ -652,7 +666,7 @@ void main() {
         final room = await _theScreenOpens(
           tester,
           rehearsals: [_rehearsal(1, scene: 'S1', sent: true)],
-          before: (harness) => harness.room.holdNextScenes(),
+          atTheScreen: (harness) => harness.room.holdNextScenes(),
           rests: false,
         );
         await room.pump(const Duration(seconds: 4));
@@ -686,7 +700,7 @@ void main() {
       (tester) async {
         final room = await _theScreenOpens(
           tester,
-          before: (harness) => harness.room.holdNextScenes(),
+          atTheScreen: (harness) => harness.room.holdNextScenes(),
           rests: false,
         );
         await room.pump(const Duration(milliseconds: 3900));
@@ -713,7 +727,7 @@ void main() {
       (tester) async {
         final room = await _theScreenOpens(
           tester,
-          before: (harness) => harness.room.failScenesWith = _offline,
+          atTheScreen: (harness) => harness.room.failScenesWith = _offline,
         );
 
         expect(room.asked('scenesOf'), 1);
@@ -738,7 +752,7 @@ void main() {
       (tester) async {
         final room = await _theScreenOpens(
           tester,
-          before: (harness) => harness.room.failScenesWith = _offline,
+          atTheScreen: (harness) => harness.room.failScenesWith = _offline,
         );
         room.harness.recorder.rehearsalSpeaks = _aTake(7);
         await room.pump(const Duration(milliseconds: 700));
@@ -766,7 +780,7 @@ void main() {
       (tester) async {
         final room = await _theScreenOpens(
           tester,
-          before: (harness) => harness.room.failScenesWith = _offline,
+          atTheScreen: (harness) => harness.room.failScenesWith = _offline,
         );
         await room.recordAndStop();
         await room.pumpUntil(
@@ -790,7 +804,7 @@ void main() {
       (tester) async {
         final room = await _theScreenOpens(
           tester,
-          before: (harness) => harness.room.failScenesWith = _offline,
+          atTheScreen: (harness) => harness.room.failScenesWith = _offline,
         );
         await room.pump(const Duration(seconds: 11));
         expect(room.asked('scenesOf'), 3);
@@ -812,7 +826,7 @@ void main() {
       (tester) async {
         final room = await _theScreenOpens(
           tester,
-          before: (harness) => harness.room.holdNextScenes(),
+          atTheScreen: (harness) => harness.room.holdNextScenes(),
           rests: false,
         );
         await room.pump(const Duration(seconds: 4));
@@ -839,7 +853,7 @@ void main() {
       (tester) async {
         final room = await _theScreenOpens(
           tester,
-          before: (harness) => harness.room.holdNextScenes(),
+          atTheScreen: (harness) => harness.room.holdNextScenes(),
           rests: false,
         );
         await room.pump(const Duration(seconds: 4));
@@ -885,7 +899,7 @@ void main() {
         final semantics = tester.ensureSemantics();
         final room = await _theScreenOpens(
           tester,
-          before: (harness) => harness.room.failScenesWith = _offline,
+          atTheScreen: (harness) => harness.room.failScenesWith = _offline,
         );
         expect(byLabel(_record), findsOneWidget);
 
@@ -905,11 +919,12 @@ void main() {
     );
 
     testWidgets(
-      'case 28: every way out forgets the scene list and stops asking for it',
+      'case 28: every way out stops asking for the scene list, and the next open '
+      'asks for it again',
       (tester) async {
         final room = await _theScreenOpens(
           tester,
-          before: (harness) => harness.room.failScenesWith = _offline,
+          atTheScreen: (harness) => harness.room.failScenesWith = _offline,
         );
         expect(room.asked('scenesOf'), 1);
 
@@ -972,7 +987,7 @@ void main() {
         'once', (tester) async {
       final room = await _theScreenOpens(
         tester,
-        before: (harness) => harness.room.failScenesWith = _offline,
+        atTheScreen: (harness) => harness.room.failScenesWith = _offline,
         rests: false,
       );
       await tester.pump(const Duration(milliseconds: 99));
@@ -1012,7 +1027,7 @@ void main() {
         final room = await _theScreenOpens(
           tester,
           scenes: const [Scene(sceneId: 'S1', title: 'As gerações de Perez')],
-          before: (harness) => harness.room.holdNextScenes(),
+          atTheScreen: (harness) => harness.room.holdNextScenes(),
           rests: false,
         );
         await room.pump(const Duration(seconds: 4));
@@ -1110,7 +1125,7 @@ void main() {
         final room = await _theScreenOpens(
           tester,
           rehearsals: [_rehearsal(1, scene: 'S1')],
-          before: (harness) => harness.room
+          atTheScreen: (harness) => harness.room
             ..holdNextScenes()
             ..holdNextClip(),
           rests: false,
@@ -1162,7 +1177,7 @@ void main() {
         final room = await _theScreenOpens(
           tester,
           rehearsals: [_rehearsal(1, scene: 'S1')],
-          before: (harness) {
+          atTheScreen: (harness) {
             harness.room.holdNextScenes();
             harness.playback.holdNextMeasurement();
           },
@@ -1716,7 +1731,7 @@ void main() {
         late _Room room;
         room = await _theScreenOpens(
           tester,
-          before: (harness) {
+          atTheScreen: (harness) {
             personsAsked = harness.room.personsAsked;
             harness.room.failScenesWith = const SessionGone();
           },
