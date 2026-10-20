@@ -473,43 +473,92 @@ void main() {
     await waitFor('a linha da sessão esquecida sair', () => it.linha == null);
   });
 
-  test(
-    'um ensaio aberto sem uma parte nao reescreve a linha guardada',
-    () async {
-      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
-
-      final it = await _reabrir(
-        harness,
-        parouEm: SalaStage.retro,
-        contado: _contado([1]),
-      );
-      await waitFor(
-        'o ensaio abrir',
-        () =>
-            it.estado.stage == SalaStage.ensaio && !it.estado.awaitingTheGuide,
-      );
-      it.sala.leaveThePassage();
-      await settle(const Duration(milliseconds: 300));
-
-      expect(it.linhaAgora, it.linhaAntes);
-    },
+  Future<void> oEnsaioAbre(_Retomada it) => waitFor(
+    'o ensaio abrir',
+    () => it.estado.stage == SalaStage.ensaio && !it.estado.awaitingTheGuide,
   );
 
+  Future<void> gravarUmaParteNoEnsaio(_Retomada it) async {
+    final antes = it.estado.partes.length;
+    it.sala.ensaioTap();
+    it.sala.ensaioTap();
+    await settle();
+    it.sala.takeKeep();
+    await waitFor('a parte entrar', () => it.estado.partes.length > antes);
+  }
+
+  test('um ensaio aberto sem uma parte guarda a linha como o que a equipe tem, '
+      'e a proxima abertura volta ao ensaio', () async {
+    final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1]),
+    );
+    await oEnsaioAbre(it);
+    await settle();
+
+    expect(it.linha?.stage, SalaStage.ensaio);
+    expect([for (final take in it.linha!.takes) take.takeId], ['gravacao-1']);
+
+    final volta = await _reabrirDeNovo(it);
+    await oEnsaioAbre(volta);
+    expect(_nomesDasPartes(volta), ['gravacao-1']);
+  });
+
   test(
-    'um ensaio aberto sem a primeira parte nao reescreve a linha guardada',
+    'um ensaio aberto sem a primeira parte guarda a linha no ensaio vazio, e '
+    'a proxima abertura abre o ensaio, nao a conversa',
     () async {
       final harness = SalaHarness()..room.refuseClipOf.add('gravacao-1');
 
       final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
-      await waitFor(
-        'o ensaio abrir',
-        () =>
-            it.estado.stage == SalaStage.ensaio && !it.estado.awaitingTheGuide,
-      );
-      it.sala.leaveThePassage();
-      await settle(const Duration(milliseconds: 300));
+      await oEnsaioAbre(it);
+      await settle();
 
-      expect(it.linhaAgora, it.linhaAntes);
+      expect(it.linha?.stage, SalaStage.ensaio);
+      expect(it.linha?.takes, isEmpty);
+
+      final volta = await _reabrirDeNovo(it);
+      await oEnsaioAbre(volta);
+      expect(volta.estado.partes, isEmpty);
+    },
+  );
+
+  test('depois de abrir sem uma parte, o que a equipe faz continua guardado na '
+      'linha', () async {
+    final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+    final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+    await oEnsaioAbre(it);
+
+    await gravarUmaParteNoEnsaio(it);
+    await gravarUmaParteNoEnsaio(it);
+    it.sala.startRetro();
+    await waitFor('a retro abrir', () => it.estado.stage == SalaStage.retro);
+    await settle();
+
+    expect(it.linha?.stage, SalaStage.retro);
+    expect(it.linha?.takes, hasLength(3));
+  });
+
+  test(
+    'a parte gravada onde a da sala sumiu, ainda na fila, volta do tablet na '
+    'proxima abertura',
+    () async {
+      final harness = SalaHarness()
+        ..room.refuseClipOf.add('gravacao-2')
+        ..room.unreachableTake = 'ensaio/${KeptScope.parte(2)}';
+      final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+      await oEnsaioAbre(it);
+      await gravarUmaParteNoEnsaio(it);
+      await settle();
+
+      final volta = await _reabrirDeNovo(it);
+      await oEnsaioAbre(volta);
+
+      expect(volta.estado.partes, hasLength(2));
+      expect(volta.estado.partes.last.pass, 2);
     },
   );
 

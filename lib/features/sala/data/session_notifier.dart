@@ -327,9 +327,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late Set<String> _contadasSemResposta;
   late Map<String, int> _resumeFailures;
 
-  /// The pass the room holds for each part, kept only while the rehearsal stands short of a
-  /// part the room no longer has: the row is not rewritten, and a part recorded goes up
-  /// above the room's own pass for its number.
+  /// The pass the room holds for each part number, kept only while the rehearsal stands
+  /// short of a part the room no longer has, so a part recorded there goes up above the
+  /// room's own pass for its number and is the current one on the server.
   late Map<int, int>? _passadasDaSala;
   late Set<String> _goneSessions;
 
@@ -2625,7 +2625,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Write down where they are, so leaving lands them back here rather than at the start.
   void _rememberWhereTheyAre(Station station) {
-    if (_gone || _passadasDaSala != null) return;
+    if (_gone) return;
     final passage = _emCurso;
     final pericope = passage?.pericope;
     final sessionId = state.sessionId;
@@ -2676,7 +2676,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation, {
     required void Function() landed,
   }) async {
-    if (Station.stored(waiting.stage) is Canvas || waiting.takes.isEmpty) {
+    final anEmptyEnsaio =
+        Station.stored(waiting.stage) is Ensaio && waiting.takes.isEmpty;
+    if (Station.stored(waiting.stage) is Canvas ||
+        (waiting.takes.isEmpty && !anEmptyEnsaio)) {
       return _Resume.nothingToRestore;
     }
     final here = [
@@ -2727,8 +2730,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _theResumeFailed(const RoomFoundNothing(), generation);
     }
     // A room holding no rehearsal is not a rehearsal to come back to, and it is not a
-    // failure either: the conversa is where a passage with nothing behind it starts.
-    if (takes.isEmpty && inteiro) return _Resume.nothingToRestore;
+    // failure either: the conversa is where a passage with nothing behind it starts —
+    // unless the row itself stood on the Ensaio with no part yet.
+    if (takes.isEmpty && inteiro && !anEmptyEnsaio) {
+      return _Resume.nothingToRestore;
+    }
     // Before the landing, while the room still says it is thinking. Measuring waits on the
     // player, and landed first the team is invited to tap over a rehearsal whose parts
     // have no end yet.
@@ -2748,11 +2754,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (faltavam) {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
-      // The row named files that are not here any more. Rewritten only now, and only with
-      // the recordings the room gave: a row rewritten without them makes the next opening
-      // find nothing to restore, and the rehearsal the room is holding would be out of
-      // the team's reach for good.
-      _rememberWhereTheyAre(Station.stored(waiting.stage));
+      // The row named files that are not here any more. Rewritten only now, with the
+      // recordings the room gave, and on the Ensaio when a part the room no longer has is
+      // missing among them: from here on it is written as on any other passage.
+      _rememberWhereTheyAre(
+        inteiro ? Station.stored(waiting.stage) : const Ensaio(),
+      );
     }
     unawaited(_countUnsent());
     return inteiro ? _Resume.landed : _Resume.landedShort;
@@ -2794,8 +2801,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       correntes[guardada.ordinal] = guardada;
     }
     final passadas = {
-      for (final (n, corrente) in correntes.values.indexed)
-        n + 1: corrente.pass ?? 1,
+      for (final MapEntry(key: numero, value: corrente) in correntes.entries)
+        ?numero: corrente.pass ?? 1,
     };
     final partes = <KeptTake>[];
     for (final corrente in correntes.values) {

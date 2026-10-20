@@ -37,14 +37,16 @@ Step's request sent again on the return or on any lift.
   A resume whose read fails, refused or lost, or whose rehearsal cannot be had, goes back to
   the Choice and keeps its session and the warning the session holds. A resume whose
   rehearsal names a part the room answers is gone for good (its 404) opens the Ensaio at that
-  part, not recorded, with the parts before it; the stored row is not rewritten, so the next
-  opening asks the room again, and a part the team records goes up above the room's own pass
-  for its number. Any other refusal of a part goes back to the Choice like the network. A
-  refused approval keeps the door its hole names, and otherwise returns the team to the Back-
-  translation as it stood before «terminei». A scene-rehearsal refusal keeps the scene
-  screen's own answer. Only the Guide's sound counts toward the sign; a rehearsal part or a
-  stretch that will not play leaves silence. A call for a person needs a session: none of her
-  six cases can happen before one exists, so the tablet never calls by its device.
+  part, not recorded, with the parts before it; the stored row is written once as what the
+  team now has, on the Ensaio, and from then on as on any other passage; a part the team
+  records goes up above the room's own pass for its number. A row on the Ensaio with no part
+  opens the Ensaio, not the conversa. Any other refusal of a part goes back to the Choice
+  like the network. A refused approval keeps the door its hole names, and otherwise returns
+  the team to the Back- translation as it stood before «terminei». A scene-rehearsal refusal
+  keeps the scene screen's own answer. Only the Guide's sound counts toward the sign; a
+  rehearsal part or a stretch that will not play leaves silence. A call for a person needs a
+  session: none of her six cases can happen before one exists, so the tablet never calls by
+  its device.
 - **What failed, and why, is kept for the operator.** Every decision of the policy is logged
   with its door and its reason, so the failures the team is no longer shown still reach the
   log.
