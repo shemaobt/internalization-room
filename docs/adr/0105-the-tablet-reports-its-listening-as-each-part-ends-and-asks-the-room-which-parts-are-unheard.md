@@ -17,8 +17,9 @@ the ticket (ENG-1419) on 19 and 20 October.
 - **The tablet reports the ledger on the listen door** as each part ends, on the
   Back-translation or on the Rehearsal, when it leaves the Back-translation or the passage,
   and when the app is paused in the background. «terminei» still carries it on the check.
-  A report never closes a span still open, and a failed one changes nothing the team sees
-  or hears.
+  A report never closes a span still open, except the app going away, which stops the
+  sound: that report closes the span at the position it reached. A failed report changes
+  nothing the team sees or hears.
 - **The ledger holds what sounded**, from where the sound started to where it stopped, on
   the Back-translation and on the Rehearsal alike. One start opens at the part's nought: at
   the cursor, when that cursor stands on ground already told back of that part, because that
