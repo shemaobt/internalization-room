@@ -548,10 +548,105 @@ void main() {
     );
   });
 
+  group(
+    'a halt longer than the busy watchdog owns the wait, and the room rests after the lift',
+    () {
+      const ceiling = Duration(seconds: 30);
+      void lift(_Room it) {
+        it.room.theDeskAttended();
+        it.sala.resolveWithPerson();
+      }
+
+      void restsAndTakesATurn(FakeAsync clock, _Room it) {
+        clock.elapse(const Duration(minutes: 10));
+
+        expect(it.state.awaitingTheGuide, isFalse);
+        expect(it.state.voice, VoiceState.invite);
+        final sent = it.room.turnIdsSent.length;
+        it.sala.conversaTap();
+        clock.elapse(const Duration(milliseconds: 100));
+        it.sala.conversaTap();
+        clock.elapse(const Duration(seconds: 5));
+        expect(it.room.turnIdsSent, hasLength(sent + 1));
+      }
+
+      test('a reply the first look found under the halt', () {
+        _aTakeTheNetworkLoses(
+          (room) => room
+            ..turnsLandBeforeTheyFail = true
+            ..holdTheLooks(),
+          (clock, it) {
+            clock.elapse(const Duration(seconds: 1));
+            it.sala.haltForABrokenBuild();
+            clock.elapse(const Duration(seconds: 1));
+            it.room.finishTheLooks();
+            clock.elapse(const Duration(seconds: 40));
+            lift(it);
+            clock.elapse(const Duration(seconds: 10));
+
+            expect(it.replies, 2, reason: 'a resposta da tomada toca uma vez');
+            restsAndTakesATurn(clock, it);
+          },
+          harness: SalaHarness(busyCeiling: ceiling),
+        );
+      });
+
+      test('a turn in flight answered under the halt', () {
+        _aTakeTheNetworkLoses(
+          (room) => room
+            ..failTurnsWith = null
+            ..holdNextTurn(),
+          (clock, it) {
+            clock.elapse(const Duration(milliseconds: 500));
+            it.sala.haltForABrokenBuild();
+            clock.elapse(const Duration(seconds: 1));
+            it.room.finishHeldTurn();
+            clock.elapse(const Duration(minutes: 10));
+            lift(it);
+            clock.elapse(const Duration(seconds: 10));
+
+            expect(it.replies, 2, reason: 'a resposta da tomada toca uma vez');
+            restsAndTakesATurn(clock, it);
+          },
+          harness: SalaHarness(busyCeiling: ceiling),
+        );
+      });
+
+      test('a resumed look found under a second halt', () {
+        _aTakeTheNetworkLoses(
+          (room) => room
+            ..turnsLandBeforeTheyFail = true
+            ..holdNextTurn(),
+          (clock, it) {
+            clock.elapse(const Duration(milliseconds: 500));
+            it.sala.haltForABrokenBuild();
+            clock.elapse(const Duration(seconds: 1));
+            it.room.finishHeldTurn();
+            clock.elapse(const Duration(seconds: 5));
+            it.room.holdTheLooks();
+            lift(it);
+            clock.elapse(const Duration(seconds: 1));
+            it.sala.haltForABrokenBuild();
+            clock.elapse(const Duration(seconds: 1));
+            it.room.finishTheLooks();
+            clock.elapse(const Duration(minutes: 10));
+            lift(it);
+            clock.elapse(const Duration(seconds: 10));
+
+            expect(it.replies, 2, reason: 'a resposta da tomada toca uma vez');
+            restsAndTakesATurn(clock, it);
+          },
+          harness: SalaHarness(busyCeiling: ceiling),
+        );
+      });
+    },
+  );
+
   group('the resumed look waits for the reach', () {
     Future<(SalaHarness, SalaSessionState Function())> liftedOutOfReach({
       required bool stored,
       bool backBeforeTheLift = false,
+      bool theReadIsRefused = false,
     }) async {
       final harness = SalaHarness(
         settleDelay: const Duration(milliseconds: 400),
@@ -580,6 +675,9 @@ void main() {
       if (backBeforeTheLift) {
         harness.network.reachable = true;
         harness.room.reachable = true;
+      }
+      if (theReadIsRefused) {
+        harness.room.failStateOnceWith = const Refused(RefusalCode.unreadable);
       }
 
       notifier.resolveWithPerson();
@@ -627,6 +725,25 @@ void main() {
         );
         await settle();
 
+        expect(read().needsPerson, isFalse);
+      },
+    );
+
+    test(
+      'and goes out when the read the lift asks is refused, the room already back',
+      () async {
+        final (harness, read) = await liftedOutOfReach(
+          stored: true,
+          backBeforeTheLift: true,
+          theReadIsRefused: true,
+        );
+        await waitFor(
+          'a resposta tocar depois da abertura',
+          () =>
+              harness.voice.played.where((url) => url == turnoUrl).length == 2,
+        );
+
+        expect(harness.room.turnIdsLookedAt, hasLength(1));
         expect(read().needsPerson, isFalse);
       },
     );

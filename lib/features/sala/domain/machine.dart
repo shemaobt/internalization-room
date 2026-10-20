@@ -1208,7 +1208,7 @@ const _watch = ArmTheWatch();
         PlayTheReply(turn, reply),
     ],
   ),
-  TheRefusalPassed() => (machine, const []),
+  TheRefusalPassed() => _resumeTheLook(machine),
   TheHandFailed() => (machine, const []),
   TheScenesMissed() => (machine, const []),
   TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>

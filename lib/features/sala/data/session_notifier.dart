@@ -1346,6 +1346,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // as a room that had stopped answering and called for a person two seconds before
     // the Guide finished the sentence.
     if (!state.awaitingTheGuide || state.channel is GuideSpeaking) return;
+    if (state.machine.halt is Blocking) return _watchBusyState();
     if (state.machine.look case final look? when look.stillAnswering) {
       return _dispatch(
         LookEmpty(
