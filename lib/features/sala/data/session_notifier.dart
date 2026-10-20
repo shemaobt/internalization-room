@@ -602,7 +602,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool _abandoned(int generation) => _gone || generation != _generation;
 
-  bool _endedSince(int life) => _gone || life != _firstGeneration;
+  int? get _thisLife => _gone ? null : _firstGeneration;
+
+  bool _endedSince(int? life) => _gone || life != _firstGeneration;
 
   void _endTheGesturesAbandoned() {
     final abandoned = _waitingOnTheGeneration.difference(_chain.toSet());
@@ -3745,7 +3747,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_goneSessions.contains(sessionId)) return;
     final queue = _takes;
     final tooLarge = _tooLargeForTheRoom(path);
-    final life = _firstGeneration;
+    final life = _thisLife;
     final PendingTake row;
     try {
       row = await queue.enqueue(
@@ -3765,7 +3767,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       return;
     }
-    if (_endedSince(life)) return;
+    if (_endedSince(life)) {
+      await queue.flush();
+      return;
+    }
     if (_goneSessions.contains(sessionId)) {
       return queue.discardTheSession(sessionId);
     }
@@ -4459,7 +4464,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int? chunkIndex,
   }) => _apart(() async {
     if (_gone) return;
-    final life = _firstGeneration;
+    final life = _thisLife;
     final queue = _takes;
     final sessionId = state.sessionId;
     if (_goneSessions.contains(sessionId)) return;
@@ -4696,7 +4701,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// does not say it, no one does.
   Future<void> _mindingThePlace(Future<void> Function() write) =>
       _apart(() async {
-        final life = _firstGeneration;
+        final life = _thisLife;
         try {
           await write();
         } on Object {

@@ -14,21 +14,23 @@ import 'a_scene_room.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
 
-class _AnOutboxThatFillsAsTheRoomCloses extends TakeUploadQueue {
-  _AnOutboxThatFillsAsTheRoomCloses({
+class _AnOutboxHeldAsTheRoomCloses extends TakeUploadQueue {
+  _AnOutboxHeldAsTheRoomCloses({
     required super.room,
     super.home,
     required super.recordings,
   });
 
-  Completer<void>? _armed;
-  final _full = Completer<void>();
+  Completer<bool>? _armed;
+  final _room = Completer<bool>();
   bool holding = false;
   bool stranded = false;
 
-  void holdTheNextTake() => _armed = _full;
+  void holdTheNextTake() => _armed = _room;
 
-  void theDiskIsFull() => _full.complete();
+  void theDiskIsFull() => _room.complete(false);
+
+  void theDiskTakesIt() => _room.complete(true);
 
   @override
   Future<PendingTake> enqueue(
@@ -40,11 +42,10 @@ class _AnOutboxThatFillsAsTheRoomCloses extends TakeUploadQueue {
     int? chunkIndex,
     String? scene,
   }) async {
-    if (_armed case final full?) {
+    if (_armed case final held?) {
       _armed = null;
       holding = true;
-      await full.future;
-      throw const FileSystemException('disco cheio');
+      if (!await held.future) throw const FileSystemException('disco cheio');
     }
     return super.enqueue(
       audio,
@@ -91,12 +92,12 @@ class _ADiskThatFillsAsTheRoomCloses extends FakeWorkInProgress {
 }
 
 SalaHarness _aRoomWith(
-  void Function(_AnOutboxThatFillsAsTheRoomCloses queue) handed, {
+  void Function(_AnOutboxHeldAsTheRoomCloses queue) handed, {
   WorkInProgress? disk,
 }) => SalaHarness(
   emAbertoNoDisco: disk,
   takesOverride: (room, home, recordings) {
-    final queue = _AnOutboxThatFillsAsTheRoomCloses(
+    final queue = _AnOutboxHeldAsTheRoomCloses(
       room: room,
       home: () async => home,
       recordings: recordings,
@@ -112,7 +113,7 @@ int _strandedSaid(SalaHarness harness) => harness.voice.assets
 
 Future<void> _theNewLifeCountsAStrandedTake(
   ProviderContainer container,
-  _AnOutboxThatFillsAsTheRoomCloses queue,
+  _AnOutboxHeldAsTheRoomCloses queue,
 ) async {
   queue.stranded = true;
   await container.read(salaSessionProvider.notifier).refreshUnsent();
@@ -122,7 +123,7 @@ Future<void> _theNewLifeCountsAStrandedTake(
 void main() {
   test('a scene take of an ended life that cannot be kept says nothing in the '
       'next, and the next says its own stranded line', () async {
-    late _AnOutboxThatFillsAsTheRoomCloses queue;
+    late _AnOutboxHeldAsTheRoomCloses queue;
     final room = await atRest(_aRoomWith((handed) => queue = handed));
     await theScreenOpens(room);
     queue.stranded = true;
@@ -162,7 +163,7 @@ void main() {
     'a rehearsal take of an ended life that cannot be queued says nothing in '
     'the next, and the next says its own stranded line',
     () async {
-      late _AnOutboxThatFillsAsTheRoomCloses queue;
+      late _AnOutboxHeldAsTheRoomCloses queue;
       final harness = _aRoomWith((handed) => queue = handed);
       final container = harness.container();
       addTearDown(container.dispose);
@@ -200,7 +201,7 @@ void main() {
     'a place of an ended life the disk refuses says nothing in the next, and '
     'the next says its own stranded line',
     () async {
-      late _AnOutboxThatFillsAsTheRoomCloses queue;
+      late _AnOutboxHeldAsTheRoomCloses queue;
       final disk = _ADiskThatFillsAsTheRoomCloses();
       final harness = _aRoomWith((handed) => queue = handed, disk: disk);
       final container = harness.container();
@@ -226,4 +227,32 @@ void main() {
       expect(_strandedSaid(harness), 1);
     },
   );
+
+  test('a scene take of an ended life the Outbox queues still goes up to '
+      'the room', () async {
+    late _AnOutboxHeldAsTheRoomCloses queue;
+    final room = await atRest(_aRoomWith((handed) => queue = handed));
+    await theScreenOpens(room);
+    room.harness.recorder.rehearsalSpeaks = Uint8List.fromList([
+      for (var i = 0; i < 1200; i++) (i * 7) % 251,
+    ]);
+    queue.holdTheNextTake();
+    await theSceneMicrophoneOpens(room);
+    room.sala.sceneTap();
+    await waitFor('a Fila segurar o take', () => queue.holding);
+
+    room.container.invalidate(salaSessionProvider);
+    room.container.read(salaSessionProvider);
+    queue.theDiskTakesIt();
+    await settle();
+
+    expect(
+      room.harness.room.scenesKept,
+      hasLength(1),
+      reason:
+          'o ensaio gravado é da equipe, não da sala que acabou; guardado na '
+          'Fila, ele sobe como sobe uma tomada do ensaio',
+    );
+    expect(room.state.scene.keep, isNull);
+  });
 }
