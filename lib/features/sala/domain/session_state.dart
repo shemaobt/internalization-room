@@ -786,6 +786,7 @@ class SalaSessionState {
 
   bool get canRetellAFrase =>
       stage == SalaStage.retro &&
+      partes.isNotEmpty &&
       !needsPerson &&
       !offline &&
       (btPhase == BtPhase.findings ||
