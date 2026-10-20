@@ -187,8 +187,16 @@ Future<_Screen> _aFraseNobodyUnderstood(
 }
 
 /// The four frases on screen, the take listened to, and frase [n]'s bar tapped.
-Future<_Screen> _aBarTapped(WidgetTester tester, int n) async {
-  final screen = await _onScreen(tester, rehearsal: _fourFrases);
+Future<_Screen> _aBarTapped(
+  WidgetTester tester,
+  int n, {
+  List<SceneRehearsalRecord> alsoListed = const [],
+}) async {
+  final screen = await _onScreen(
+    tester,
+    rehearsal: _fourFrases,
+    alsoListed: alsoListed,
+  );
   await screen.listens();
   await screen.tap(_translateAgainBar(n));
   return screen;
@@ -828,8 +836,11 @@ void main() {
 
     /// Frase 3 translated again, kept by the room, its answer lost and its list read
     /// lost too.
-    Future<_Screen> nothingIsKnown(WidgetTester tester) async {
-      final screen = await _aBarTapped(tester, 3);
+    Future<_Screen> nothingIsKnown(
+      WidgetTester tester, {
+      List<SceneRehearsalRecord> alsoListed = const [],
+    }) async {
+      final screen = await _aBarTapped(tester, 3, alsoListed: alsoListed);
       screen.room
         ..frasesLandBeforeTheyFail = true
         ..sceneAnswersFirst.add(const NetworkFailed('timeout'))
@@ -880,6 +891,77 @@ void main() {
         expect(listReads(screen), reads + 1);
         expect(screen.room.scenesSent, hasLength(1));
         await screen.beat(2000);
+      },
+    );
+
+    /// «terminei», once the list read before it lands, and what the scene sent
+    /// holds against what the screen showed when it went.
+    Future<void> theSceneGoesAsShown(_Screen screen) async {
+      final reads = listReads(screen);
+
+      await screen.tap(_terminei);
+      await screen.until(() => screen.room.scenesSent.isNotEmpty);
+
+      expect(listReads(screen), reads + 1);
+      expect(screen.room.scenesSent, hasLength(1));
+      expect(
+        screen.state.scene.rehearsal!.currentFrases[2].fraseId,
+        screen.room.sceneRehearsals
+            .singleWhere((rehearsal) => rehearsal.rehearsalId == _rehearsalId)
+            .currentFrases[2]
+            .fraseId,
+      );
+      await screen.beat(2000);
+    }
+
+    testWidgets(
+      'and the list read too: a new translation of that frase kept ends it, and «terminei» reads no list',
+      (tester) async {
+        final screen = await nothingIsKnown(tester);
+        await screen.tellsTheFrase();
+        final reads = listReads(screen);
+
+        await screen.tap(_terminei);
+        await screen.until(() => screen.room.scenesSent.isNotEmpty);
+
+        expect(listReads(screen), reads);
+        expect(screen.room.scenesSent, hasLength(1));
+        await screen.beat(2000);
+      },
+    );
+
+    for (final bar in [2, 3]) {
+      testWidgets(
+        'and the list read too: a tap on bar $bar keeps it unknown, and «terminei» reads the list first',
+        (tester) async {
+          final screen = await nothingIsKnown(tester);
+          await screen.tap(_translateAgainBar(bar));
+
+          await theSceneGoesAsShown(screen);
+        },
+      );
+    }
+
+    testWidgets(
+      'and the list read too: another rehearsal opened and this one opened again keeps it unknown, and «terminei» reads the list first',
+      (tester) async {
+        final screen = await nothingIsKnown(
+          tester,
+          alsoListed: [
+            _rehearsal(n: 0, frases: [_frase('g1', 0, 3000)]),
+          ],
+        );
+        for (final n in [0, 1]) {
+          screen.sala.openTheListedSceneRehearsal('ensaio-da-cena-$n');
+          await screen.until(
+            () =>
+                screen.state.scene.rehearsal?.n == n &&
+                !screen.state.scene.waiting,
+          );
+          await screen.beat(500);
+        }
+
+        await theSceneGoesAsShown(screen);
       },
     );
   });

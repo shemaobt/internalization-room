@@ -47,7 +47,7 @@ void main() {
     );
 
     expect(machine, same(onTheScene));
-    expect(effects, const [AskTheFraseAgain(afterTheList: true)]);
+    expect(effects, const [AskTheFraseAgainAfterTheList()]);
   });
 
   test('The capture microphone opening clears her line.', () {

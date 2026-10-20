@@ -28,9 +28,8 @@ enum SceneStep { record, translate, placesUnknown, sent }
 /// whether a call this screen made is in the air. On the record step it also holds the
 /// scene the team picked, the scene of the rehearsal recorded again, and when the
 /// question appeared and when the pick was made. On the translate step it holds
-/// whether the team began listening, the pending pausa, whether the room heard no words
-/// in the last frase, the frase being translated again, whether the room may have kept
-/// its new translation unseen, and whether «terminei» reached the voice.
+/// whether the team began listening, the pending pausa, her «não entendi», the frase being
+/// translated again, and whether «terminei» reached the voice.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
@@ -47,7 +46,6 @@ final class SceneScreen {
   final bool listened;
   final bool notUnderstood;
   final SceneFrase? translatingAgain;
-  final bool keptUnknown;
   final bool wentToTheVoice;
 
   const SceneScreen({
@@ -66,7 +64,6 @@ final class SceneScreen {
     this.listened = false,
     this.notUnderstood = false,
     this.translatingAgain,
-    this.keptUnknown = false,
     this.wentToTheVoice = false,
   });
 
@@ -89,7 +86,6 @@ final class SceneScreen {
     bool? notUnderstood,
     SceneFrase? translatingAgain,
     bool clearTranslatingAgain = false,
-    bool? keptUnknown,
     bool? wentToTheVoice,
   }) => SceneScreen(
     step: step,
@@ -109,7 +105,6 @@ final class SceneScreen {
     translatingAgain: clearTranslatingAgain
         ? null
         : (translatingAgain ?? this.translatingAgain),
-    keptUnknown: keptUnknown ?? this.keptUnknown,
     wentToTheVoice: wentToTheVoice ?? this.wentToTheVoice,
   );
 
@@ -117,11 +112,8 @@ final class SceneScreen {
 
   /// The screen with nothing asked again: her «não entendi» gone and no frase being
   /// translated again.
-  SceneScreen get nothingAskedAgain => copyWith(
-    notUnderstood: false,
-    clearTranslatingAgain: true,
-    keptUnknown: false,
-  );
+  SceneScreen get nothingAskedAgain =>
+      copyWith(notUnderstood: false, clearTranslatingAgain: true);
 
   /// The take as far as a frase may reach: this tablet's length, never past what the
   /// room measured.
@@ -381,6 +373,11 @@ class SalaSessionState {
   /// This session's scene rehearsals, by number, as the room last answered them.
   final List<SceneRehearsalRecord> sceneRehearsals;
 
+  /// The scene rehearsals whose room may hold a new translation the team has not seen,
+  /// each with the frase it was translated over: it stands until a list read lands or a
+  /// new translation of that frase is kept.
+  final Map<String, String> sceneTranslationsUnseen;
+
   /// The loudness of a scene take, once it was read off the UI thread; null for a take
   /// with none to read.
   final ({String take, Envelope? envelope})? sceneLoudness;
@@ -465,6 +462,7 @@ class SalaSessionState {
     this.cenaDaGravacao,
     this.scene = const SceneScreen(),
     this.sceneRehearsals = const [],
+    this.sceneTranslationsUnseen = const {},
     this.sceneLoudness,
     this.scenes = const ScenesAwaited(),
     this.scenesOfThePassage,
@@ -632,6 +630,11 @@ class SalaSessionState {
     (take: final take, :final envelope) when take == scene.take => envelope,
     _ => null,
   };
+
+  /// Whether the room may hold a new translation the team has not seen in the rehearsal
+  /// on the scene screen.
+  bool get sceneTranslationUnseen =>
+      sceneTranslationsUnseen.containsKey(scene.rehearsal?.rehearsalId);
 
   bool get theSceneIsSending =>
       sceneRehearsalIsOpen && (awaitingTheGuide || machine.inFlight != null);
@@ -1146,6 +1149,7 @@ class SalaSessionState {
     bool clearCenaDaGravacao = false,
     SceneScreen? scene,
     List<SceneRehearsalRecord>? sceneRehearsals,
+    Map<String, String>? sceneTranslationsUnseen,
     ({String take, Envelope? envelope})? sceneLoudness,
     SceneList? scenes,
     List<Scene>? scenesOfThePassage,
@@ -1232,6 +1236,8 @@ class SalaSessionState {
           : (cenaDaGravacao ?? this.cenaDaGravacao),
       scene: scene ?? this.scene,
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
+      sceneTranslationsUnseen:
+          sceneTranslationsUnseen ?? this.sceneTranslationsUnseen,
       sceneLoudness: sceneLoudness ?? this.sceneLoudness,
       scenes: scenes ?? this.scenes,
       scenesOfThePassage: scenesOfThePassage ?? this.scenesOfThePassage,

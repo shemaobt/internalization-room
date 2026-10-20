@@ -27,6 +27,7 @@ class SceneTranslateStep extends ConsumerWidget {
   final String language;
   final bool sending;
   final bool sendable;
+  final bool unseen;
 
   const SceneTranslateStep({
     super.key,
@@ -36,6 +37,7 @@ class SceneTranslateStep extends ConsumerWidget {
     required this.language,
     required this.sending,
     required this.sendable,
+    required this.unseen,
   });
 
   @override
@@ -142,7 +144,7 @@ class SceneTranslateStep extends ConsumerWidget {
               ),
             ),
           ],
-          if (scene.translatingAgain != null && !scene.keptUnknown) ...[
+          if (scene.translatingAgain != null && !unseen) ...[
             const SizedBox(height: 8),
             _WrittenButton(
               said('keepTheEarlier'),

@@ -3771,8 +3771,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final stillArmed = rehearsal.currentFrases
         .where((frase) => frase.fraseId == armed?.fraseId)
         .firstOrNull;
-    final herLineStands =
-        armed != null && stillArmed != null && asked.notUnderstood;
+    final herLineStands = stillArmed != null && asked.notUnderstood;
     if (armed != null && stillArmed == null) _silenceTheRoom();
     state = state.copyWith(
       scene: SceneScreen(
@@ -4172,9 +4171,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (!playing) _play(PartSound(0, take));
       return;
     }
-    if (state.scene.keptUnknown) {
-      return _handOff(_theListBefore(_playTheSceneRehearsal));
-    }
+    if (_theListFirst(_playTheSceneRehearsal)) return;
     final shown = state.scene.nothingAskedAgain;
     state = state.copyWith(scene: shown);
     if (translatingAgain != null) {
@@ -4339,7 +4336,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             _ => RefusalRule.counts,
           },
         );
-        if (state.scene.keptUnknown) await _theListDecides();
+        if (!state.scene.notUnderstood && state.sceneTranslationUnseen) {
+          await _theListDecides();
+        }
     }
     return true;
   }
@@ -4359,10 +4358,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the kept frase stays for the circle; otherwise the take plays on from where the
   /// translation now stops.
   void _theFraseWasKept(SceneScreen shown, SceneRehearsalRecord kept) {
-    if (shown.translatingAgain != null) {
+    if (shown.translatingAgain case final again?) {
+      final unseen = state.sceneTranslationsUnseen;
       state = state.copyWith(
         scene: shown.nothingAskedAgain.copyWith(rehearsal: kept),
         sceneRehearsals: _listedWith(kept),
+        sceneTranslationsUnseen: unseen[kept.rehearsalId] == again.fraseId
+            ? ({...unseen}..remove(kept.rehearsalId))
+            : unseen,
       );
       return;
     }
@@ -4417,7 +4420,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final shown = state.scene;
     if (state.station is! SceneRehearsal ||
         shown.translatingAgain == null ||
-        shown.keptUnknown ||
+        state.sceneTranslationUnseen ||
         shown.waiting ||
         state.theSceneIsSending ||
         state.channel is Microphone) {
@@ -4440,26 +4443,44 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Her «não entendi» stands on the translate step until the frase microphone opens
-  /// again or the screen moves on; after a translation again the room may have kept, it
-  /// waits for the list to decide.
-  void _theFraseNotUnderstood({required bool afterTheList}) =>
-      state = state.copyWith(
-        scene: state.scene.copyWith(
-          notUnderstood: !afterTheList,
-          keptUnknown: afterTheList,
-        ),
-      );
+  /// again or the screen moves on.
+  void _theFraseNotUnderstood() =>
+      state = state.copyWith(scene: state.scene.copyWith(notUnderstood: true));
 
-  /// The room may have kept the translation again whose answer was lost: the screen
-  /// waits on its list, which shows the new one if the room kept it, and her line with
-  /// «manter a tradução de antes» if not. A list read that fails leaves her line alone,
-  /// and play and «terminei» read the list again first. Whether the room kept it.
+  /// The room may have kept the translation again whose answer was lost: that stands with
+  /// the rehearsal, and the frase post waits on its list.
+  void _theFrasePerhapsKept() {
+    final shown = state.scene;
+    final told = shown.rehearsal;
+    final again = shown.translatingAgain;
+    if (told == null || again == null) return _theFraseNotUnderstood();
+    state = state.copyWith(
+      scene: shown.copyWith(notUnderstood: false),
+      sceneTranslationsUnseen: {
+        ...state.sceneTranslationsUnseen,
+        told.rehearsalId: again.fraseId,
+      },
+    );
+  }
+
+  /// What the room may hold unseen, less the rehearsals [listed] settles.
+  Map<String, String> _settledBy(List<SceneRehearsalRecord> listed) => {
+    for (final MapEntry(key: rehearsalId, value: fraseId)
+        in state.sceneTranslationsUnseen.entries)
+      if (!listed.any((rehearsal) => rehearsal.rehearsalId == rehearsalId))
+        rehearsalId: fraseId,
+  };
+
+  /// The screen waits on the list of a rehearsal whose room may hold a new translation the
+  /// team has not seen, which shows the new one if the room kept it, and her line with
+  /// «manter a tradução de antes» if not. A list read that fails leaves her line, and
+  /// what the room holds stays unknown. Whether the room kept it, or nothing was unknown.
   Future<bool> _theListDecides() async {
     final shown = state.scene;
     final sessionId = state.sessionId;
     final told = shown.rehearsal;
-    final again = shown.translatingAgain;
-    if (sessionId == null || told == null || again == null) return false;
+    final unseen = state.sceneTranslationsUnseen[told?.rehearsalId];
+    if (sessionId == null || told == null || unseen == null) return true;
     final waiting = shown.asWaiting;
     state = state.copyWith(scene: waiting);
     final generation = _waitOnTheGeneration;
@@ -4467,22 +4488,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_theSceneMovedOn(waiting, generation)) return false;
     switch (listed) {
       case Answered(:final value):
+        state = state.copyWith(sceneTranslationsUnseen: _settledBy(value));
         final now = value
             .where((rehearsal) => rehearsal.rehearsalId == told.rehearsalId)
             .firstOrNull;
         if (now != null &&
-            !now.currentFrases.any((frase) => frase.fraseId == again.fraseId)) {
+            !now.currentFrases.any((frase) => frase.fraseId == unseen)) {
           await _showTheRehearsal(now, waiting, generation);
           return !identical(state.scene, waiting);
         }
-        state = state.copyWith(
-          scene: shown.copyWith(notUnderstood: true, keptUnknown: false),
-        );
+        state = state.copyWith(scene: shown.copyWith(notUnderstood: true));
       case final RoomFailure failure:
         state = state.copyWith(scene: shown.copyWith(notUnderstood: true));
         _decideAt(failure, door: Door.sceneList);
     }
     return false;
+  }
+
+  /// Whether [gesture] waits for the list first: the room may hold a new translation the
+  /// team has not seen.
+  bool _theListFirst(void Function() gesture) {
+    final unseen = state.sceneTranslationUnseen;
+    if (unseen) _handOff(_theListBefore(gesture));
+    return unseen;
   }
 
   Future<void> _theListBefore(void Function() gesture) async {
@@ -4632,6 +4660,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         listed,
         sessionId,
       ),
+      sceneTranslationsUnseen: _settledBy(listed),
     );
     final held = state.sceneRehearsals
         .where(
@@ -4705,9 +4734,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.channel is Microphone) {
       return;
     }
-    if (state.scene.keptUnknown) {
-      return _handOff(_theListBefore(_sendTheSceneRehearsal));
-    }
+    if (_theListFirst(_sendTheSceneRehearsal)) return;
     if (_frases.of(rehearsal.rehearsalId) case final frase?) {
       _silenceTheRoom();
       return _handOff(_theHeldFraseBeforeTheSend(frase, rehearsal.rehearsalId));
@@ -8189,8 +8216,10 @@ class _NotifierHost implements StationHost {
       _notifier._theSceneRehearsalsHeard(listed);
 
   @override
-  void hearTheFraseNotUnderstood({required bool afterTheList}) =>
-      _notifier._theFraseNotUnderstood(afterTheList: afterTheList);
+  void hearTheFraseNotUnderstood() => _notifier._theFraseNotUnderstood();
+
+  @override
+  void hearTheFrasePerhapsKept() => _notifier._theFrasePerhapsKept();
 }
 
 final salaSessionProvider =

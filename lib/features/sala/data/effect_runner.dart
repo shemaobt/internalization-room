@@ -131,9 +131,12 @@ abstract interface class StationHost {
   /// The Station takes the scene rehearsals the room listed when it was asked again.
   void hearTheSceneRehearsals(List<SceneRehearsalRecord> listed);
 
-  /// The Station asks the frase on its screen again: the room did not keep it, or, when
-  /// [afterTheList], may have kept it and its list decides.
-  void hearTheFraseNotUnderstood({required bool afterTheList});
+  /// The Station asks the frase on its screen again: the room did not keep it.
+  void hearTheFraseNotUnderstood();
+
+  /// The room may have kept the frase on the Station's screen whose answer was lost: its
+  /// list decides.
+  void hearTheFrasePerhapsKept();
 }
 
 class EffectRunner {
@@ -293,8 +296,10 @@ class EffectRunner {
           _readTheSceneRehearsals();
         case ShowTheSceneRehearsals(:final listed):
           host.hearTheSceneRehearsals(listed);
-        case AskTheFraseAgain(:final afterTheList):
-          host.hearTheFraseNotUnderstood(afterTheList: afterTheList);
+        case AskTheFraseAgain():
+          host.hearTheFraseNotUnderstood();
+        case AskTheFraseAgainAfterTheList():
+          host.hearTheFrasePerhapsKept();
       }
     }
   }

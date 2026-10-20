@@ -844,12 +844,13 @@ final class ReadTheSceneRehearsals extends Effect {
   const ReadTheSceneRehearsals();
 }
 
-/// The frase on the scene screen was not kept; [afterTheList] when the room may have kept
-/// it after all, and its list decides.
 final class AskTheFraseAgain extends Effect {
-  final bool afterTheList;
+  const AskTheFraseAgain();
+}
 
-  const AskTheFraseAgain({this.afterTheList = false});
+/// The room may have kept the frase whose answer was lost: its list decides.
+final class AskTheFraseAgainAfterTheList extends Effect {
+  const AskTheFraseAgainAfterTheList();
 }
 
 final class ShowTheSceneRehearsals extends Effect {
@@ -1300,7 +1301,7 @@ const _watch = ArmTheWatch();
   ),
   TheTellingCameBackEmpty(readAgain: true)
       when machine.station is SceneRehearsal =>
-    (machine, const [AskTheFraseAgain(afterTheList: true)]),
+    (machine, const [AskTheFraseAgainAfterTheList()]),
   TheTellingCameBackEmpty() when machine.station is SceneRehearsal => (
     machine,
     const [AskTheFraseAgain()],
