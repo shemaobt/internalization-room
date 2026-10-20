@@ -8,8 +8,8 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
-import 'leave_passage_button.dart';
 import 'motion.dart';
+import 'stage_heading.dart';
 
 class EnsaioView extends ConsumerWidget {
   const EnsaioView({super.key});
@@ -31,31 +31,12 @@ class EnsaioView extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
           children: [
-            SizedBox(
-              width: double.infinity,
-              child: Stack(
-                alignment: Alignment.topCenter,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(60, 24, 60, 0),
-                    child: Semantics(
-                      header: true,
-                      label: titulo,
-                      child: ExcludeSemantics(
-                        child: Text(
-                          titulo,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: colors.ink,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const LeavePassageButton(carried: true),
-                ],
+            StageHeading(
+              text: titulo,
+              style: TextStyle(
+                color: colors.ink,
+                fontSize: 26,
+                fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 8),
