@@ -8,24 +8,24 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 
 class LeavePassageButton extends ConsumerWidget {
-  const LeavePassageButton({super.key});
+  final bool carried;
 
-  static const _inside = {
-    SalaStage.panorama,
-    SalaStage.conversa,
-    SalaStage.ensaio,
-    SalaStage.retro,
-  };
+  const LeavePassageButton({super.key, this.carried = false});
+
+  static const _floating = {SalaStage.panorama, SalaStage.conversa};
+  static const _carrying = {SalaStage.ensaio, SalaStage.retro};
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
-    if (!_inside.contains(session.stage)) return const SizedBox.shrink();
+    if (!(carried ? _carrying : _floating).contains(session.stage)) {
+      return const SizedBox.shrink();
+    }
     final away = session.wayOutIsHidden;
 
     return Positioned(
       left: 14,
-      top: 118 + MediaQuery.viewPaddingOf(context).top,
+      top: carried ? 8 : 118 + MediaQuery.viewPaddingOf(context).top,
       child: IgnorePointer(
         ignoring: away,
         child: AnimatedOpacity(

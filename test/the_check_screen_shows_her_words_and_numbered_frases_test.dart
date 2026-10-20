@@ -1204,4 +1204,60 @@ void main() {
       },
     );
   }
+
+  for (final (largura, barra) in [(390.0, 59.0), (768.0, 0.0)]) {
+    testWidgets(
+      'the corner button covers no line of the check screen, at rest or '
+      'scrolled, on a ${largura.toInt()} px screen',
+      (tester) async {
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await _voltaATraducao(
+          tester,
+          harness,
+          const BackTranslationProgress(segments: _quatroFrases),
+        );
+        await _naTelaDeUmAparelho(tester, largura: largura, barra: barra);
+
+        final tela = find.byType(RetroView);
+        final rolagem = find.descendant(
+          of: tela,
+          matching: find.byType(Scrollable),
+        );
+        final posicao = tester.state<ScrollableState>(rolagem).position;
+        final janela = tester.getRect(rolagem);
+        final botao = byLabel('Escolher outra passagem');
+        expect(botao, findsOneWidget);
+        expect(posicao.maxScrollExtent, greaterThan(0));
+
+        for (final onde in [
+          0.0,
+          posicao.maxScrollExtent / 2,
+          posicao.maxScrollExtent,
+        ]) {
+          posicao.jumpTo(onde);
+          await _passo(tester);
+          final area = tester.getRect(botao);
+          final cobertas = [
+            for (final texto in tester.widgetList<Text>(
+              find.descendant(of: tela, matching: find.byType(Text)),
+            ))
+              if (tester
+                      .getRect(find.byWidget(texto))
+                      .intersect(janela)
+                      .overlaps(area) &&
+                  tester.getRect(find.byWidget(texto)).overlaps(area))
+                texto.data,
+          ];
+          expect(
+            cobertas,
+            isEmpty,
+            reason:
+                'o botão do canto ficava parado sobre a tela que rolava e '
+                'cobria a linha que passasse por baixo, rolado em $onde',
+          );
+        }
+        closeTheRoom(container);
+      },
+    );
+  }
 }

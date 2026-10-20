@@ -14,6 +14,7 @@ import 'bead_row.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'frase_list.dart';
+import 'leave_passage_button.dart';
 import 'motion.dart';
 import 'pause_adjust_row.dart';
 
@@ -45,19 +46,31 @@ class RetroView extends ConsumerWidget {
       child: SingleChildScrollView(
         child: Column(
           children: [
-            const SizedBox(height: 24),
-            Semantics(
-              header: true,
-              label: titulo,
-              child: ExcludeSemantics(
-                child: Text(
-                  titulo,
-                  style: TextStyle(
-                    color: colors.ink,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w500,
+            SizedBox(
+              width: double.infinity,
+              child: Stack(
+                alignment: Alignment.topCenter,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(60, 24, 60, 0),
+                    child: Semantics(
+                      header: true,
+                      label: titulo,
+                      child: ExcludeSemantics(
+                        child: Text(
+                          titulo,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: colors.ink,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  const LeavePassageButton(carried: true),
+                ],
               ),
             ),
             const SizedBox(height: 8),
