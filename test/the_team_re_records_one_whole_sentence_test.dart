@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -1377,5 +1378,42 @@ void main() {
     );
     expect(harness.voice.fixedLines, isNot(contains(('N7', 'pt'))));
     closeTheRoom(container);
+  });
+
+  testWidgets('a dimmed «regravar» takes its own tap, so the row beneath it '
+      'never opens the frase to tell again', (tester) async {
+    var recontadas = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: FraseList(
+            language: 'pt',
+            rows: [
+              FraseRow(
+                n: 2,
+                parte: 1,
+                share: 0.5,
+                onHear: null,
+                onRetell: () => recontadas++,
+                regravar: 'regravar a frase 2',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('regravar a frase 2'));
+    await tester.pump();
+    expect(
+      recontadas,
+      0,
+      reason: 'o toque no regravar apagado abria a frase para traduzir de novo',
+    );
+
+    await tester.tap(find.text('parte 1'));
+    await tester.pump();
+    expect(recontadas, 1);
   });
 }
