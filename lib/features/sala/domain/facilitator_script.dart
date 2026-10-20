@@ -26,6 +26,14 @@ const tellLine = 'P1';
 /// approved. The approval's is the fourth, never rotated.
 const approvedLine = 'P3';
 
+const sentenceInPlaceLine = 'N4';
+
+const sentenceAwaitingLine = 'N5';
+
+const sentenceListenLine = 'N6';
+
+const sentenceRecordLine = 'N7';
+
 /// Marcia's pick: any acknowledgement but the one said last.
 int acknowledgementAfter(int last, Random random) =>
     (last + 1 + random.nextInt(instantAckLines.length - 1)) %
@@ -184,6 +192,26 @@ const sceneRehearsalLabels = {
   'keepTheEarlier': {
     'pt': 'manter a tradução de antes',
     'en': 'keep the earlier translation',
+  },
+  'respeakHint': {
+    'pt': 'gravem a frase inteira',
+    'en': 'record the whole sentence',
+  },
+  'listenN': {'pt': 'Ouvir — {n}', 'en': 'Listen — {n}'},
+  'recordAgain': {'pt': 'gravar de novo', 'en': 'record again'},
+  'useTake': {'pt': 'usar esta', 'en': 'use this one'},
+  'takeSending': {'pt': 'enviando…', 'en': 'sending…'},
+  'awaiting': {
+    'pt': 'regravada — traduzam esta frase',
+    'en': 're-recorded — translate this sentence',
+  },
+  'spliceFail': {
+    'pt': 'não deu para guardar a frase — tentar de novo',
+    'en': 'the sentence could not be saved — try again',
+  },
+  'spliceTooLong': {
+    'pt': 'frase longa demais — regravem a cena',
+    'en': 'sentence too long — re-record the scene',
   },
   'list': {
     'pt': 'ensaios da cena desta sessão',
@@ -418,7 +446,6 @@ const findingLabels = {
     'pt': 'Traduzir este trecho de novo',
     'en': 'Translate this stretch again',
   },
-  'continue': {'pt': 'Continuar o ensaio', 'en': 'Continue the rehearsal'},
 };
 
 String findingLabelFor(String control, String language) =>

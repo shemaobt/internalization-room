@@ -7,22 +7,30 @@ import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
+import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show
-        cabeca,
-        confirmar,
-        contarAteOFimDaParte,
-        entrarNaTraducao,
-        gravarATraducao,
-        tesoura,
-        tocar;
+    show cabeca, confirmar, entrarNaTraducao, parte, tesoura, tocar;
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
+
+Future<void> _traduzir(WidgetTester tester) async {
+  final circulo = find.descendant(
+    of: find.byType(RetroView),
+    matching: find.byType(FacilitatorCircle),
+  );
+  for (var toque = 0; toque < 2; toque++) {
+    await tester.tap(circulo);
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+  await tocar(tester, confirmar);
+}
 
 Future<ProviderContainer> _quatroFrasesComUmaNuance(
   WidgetTester tester,
@@ -34,22 +42,25 @@ Future<ProviderContainer> _quatroFrasesComUmaNuance(
     ..physicalSize = const Size(820, 2400)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+  harness.recorder.rehearsalSpeaks = aSpokenWav(length: parte);
   final container = await entrarNaTraducao(tester, harness);
-  for (var parte = 1; parte <= 2; parte++) {
+  for (var contada = 1; contada <= 2; contada++) {
     harness.playback.at = cabeca;
     await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
-    await contarAteOFimDaParte(tester, harness);
+    await _traduzir(tester);
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _traduzir(tester);
     await waitFor(
-      'a parte $parte ficar contada em duas frases',
+      'a parte $contada ficar contada em duas frases',
       () =>
           container
               .read(salaSessionProvider)
               .btTrechos
               .where((trecho) => trecho.contado)
               .length ==
-          parte * 2,
+          contada * 2,
       step: () => _passo(tester),
     );
   }
@@ -180,7 +191,8 @@ void main() {
 
   testWidgets(
     'a refused approval that sends the team back to the telling keeps '
-    'the nuance\'s colour and takes «regravar a frase 4» away',
+    'the nuance\'s colour, and «regravar» stands on every frase as outside '
+    'any conferida',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await _quatroFrasesComUmaNuance(
@@ -199,13 +211,15 @@ void main() {
       await _passo(tester);
 
       expect(_borda(tester, 4), ShemaBrand.azul);
-      expect(
-        byLabel('regravar a frase 4'),
-        findsNothing,
-        reason:
-            'o botão é da tradução conferida; fora dela regravar a frase segue a '
-            'regra de todas as frases',
-      );
+      for (var n = 1; n <= 4; n++) {
+        expect(
+          byLabel('regravar a frase $n'),
+          findsOneWidget,
+          reason:
+              'fora da tradução conferida regravar a frase segue a regra de '
+              'todas as frases',
+        );
+      }
       closeTheRoom(container);
     },
   );

@@ -771,28 +771,6 @@ void main() {
     );
   });
 
-  test('uma falta sem endereço continua acrescentando no fim', () async {
-    final it = await umEnsaioDeTresPartesContadoInteiro();
-    it.harness.room
-      ..verdictChecked = false
-      ..verdictHasFinding = true
-      ..verdictFindingSegmentId = null;
-    await pedirOVeredito(it);
-    expect(it.estado.btFindingTrecho, isNull);
-
-    it.sala.continuarOEnsaio();
-    await gravarUmaParteDoEnsaio(it);
-
-    expect(
-      it.partes,
-      hasLength(4),
-      reason:
-          'a falta que não cabe em trecho nenhum é o fim da história que '
-          'ninguém gravou: a tomada nova acrescenta-se',
-    );
-    expect(it.partes.last.scopeId, KeptScope.parte(4));
-  });
-
   test('o ensaio até aqui toca a parte regravada no lugar dela', () async {
     final it = await _oAchadoNaParteDois();
     final antes = it.partes;
@@ -921,7 +899,7 @@ void main() {
         ..verdictFindingSegmentId = null
         ..verdictFindingPlace = null;
       await pedirOVeredito(it);
-      it.sala.continuarOEnsaio();
+      it.sala.goEnsaio();
       expect(
         it.estado.parteARegravar,
         isNull,

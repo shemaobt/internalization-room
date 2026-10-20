@@ -96,7 +96,7 @@ class RetroView extends ConsumerWidget {
               halt: session.halt,
               voice: voz,
               tongue: lingua,
-              answersATouch: !conferida,
+              answersATouch: !conferida || session.btRegravacao != null,
               warning: session.warning ? warningNoticeLabelFor(language) : null,
               notUnderstood: session.wordlessTelling
                   ? retroLabelFor('notUnderstood', language)
@@ -193,19 +193,67 @@ class RetroView extends ConsumerWidget {
           onRetell: session.canRetellAFrase && trecho.segmentId != null
               ? () => notifier.traduzirAFraseDeNovo(onde)
               : null,
-          mark: switch (_markOn(trecho.frase, session)) {
-            null || BtFindingKind.nuance => null,
-            final kind => retroLabelFor(kind.name, language),
-          },
+          mark:
+              session.btFraseQueAguarda != null &&
+                  trecho.segmentId == session.btFraseQueAguarda
+              ? sceneRehearsalLabelFor('awaiting', language)
+              : switch (_markOn(trecho.frase, session)) {
+                  null || BtFindingKind.nuance => null,
+                  final kind => retroLabelFor(kind.name, language),
+                },
           nuance: _markOn(trecho.frase, session) == BtFindingKind.nuance,
           regravar:
-              _conferida(session) &&
-                  _markOn(trecho.frase, session) == BtFindingKind.nuance
+              session.fraseRegravavel(trecho) &&
+                  (session.btPhase != BtPhase.conferida ||
+                      _markOn(trecho.frase, session) == BtFindingKind.nuance)
               ? sceneRehearsalLabelFor(
                   'rerecordFrase',
                   language,
                   n: trecho.frase,
                 )
+              : null,
+          onRegravar:
+              session.btRegravacao == null ||
+                  session.btRegravacao?.frase == trecho.frase
+              ? () => notifier.regravarAFrase(trecho)
+              : null,
+          revisao:
+              session.btRegravacao?.frase == trecho.frase &&
+                  session.btRegravacao?.passo == PassoDaRegravacao.revendo
+              ? FraseRevisao(
+                  ouvir: sceneRehearsalLabelFor(
+                    'listenN',
+                    language,
+                    n: trecho.frase,
+                  ),
+                  onOuvir: notifier.ouvirAFraseGravada,
+                  gravarDeNovo: sceneRehearsalLabelFor('recordAgain', language),
+                  onGravarDeNovo: notifier.gravarAFraseDeNovo,
+                  usarEsta: sceneRehearsalLabelFor('useTake', language),
+                  onUsarEsta: notifier.usarEstaFrase,
+                )
+              : null,
+          estado: switch (session.btRegravacao) {
+            RegravacaoDaFrase(:final frase, passo: PassoDaRegravacao.enviando)
+                when frase == trecho.frase =>
+              sceneRehearsalLabelFor('takeSending', language),
+            RegravacaoDaFrase(
+              :final frase,
+              passo: PassoDaRegravacao.longaDemais,
+            )
+                when frase == trecho.frase =>
+              sceneRehearsalLabelFor('spliceTooLong', language),
+            null
+                when trecho.frase != null &&
+                    session.btFraseGuardada == trecho.frase =>
+              sceneRehearsalLabelFor('spliceFail', language),
+            _ => null,
+          },
+          onEstado:
+              session.btRegravacao == null &&
+                  trecho.frase != null &&
+                  session.btFraseGuardada == trecho.frase
+              ? notifier.tentarAFraseDeNovo
               : null,
         ),
     ];
@@ -270,6 +318,10 @@ class RetroView extends ConsumerWidget {
     if (session.wordlessTelling) {
       return retroLabelFor('notUnderstood', language);
     }
+    if (session.btRegravacao?.passo
+        case PassoDaRegravacao.pronta || PassoDaRegravacao.gravando) {
+      return sceneRehearsalLabelFor('respeakHint', language);
+    }
     if (_conferida(session)) {
       return '✓ ${retroLabelFor('translated', language)}';
     }
@@ -277,10 +329,7 @@ class RetroView extends ConsumerWidget {
   }
 
   int? _traduzindoDeNovo(SalaSessionState session) =>
-      switch (session.btTrechoTraduzidoDeNovo) {
-        Trecho(contado: true, :final frase?) => frase,
-        _ => null,
-      };
+      session.btFraseTraduzidaDeNovo?.frase;
 
   bool _conferida(SalaSessionState session) =>
       session.btPhase == BtPhase.conferida &&
@@ -301,20 +350,6 @@ class RetroView extends ConsumerWidget {
     String language,
     bool avanca,
   ) {
-    if (session.btPhase == BtPhase.findings &&
-        session.btFindingTrecho == null) {
-      return FadeUp(
-        child: RoundActionButton(
-          size: 78,
-          semanticLabel: findingLabelFor('continue', language),
-          gradient: BeadStyles.wood,
-          shadows: RoundActionButton.dropShadow,
-          halo: ShemaBrand.wood,
-          mood: ButtonMood.beckoning,
-          onTap: notifier.continuarOEnsaio,
-        ),
-      );
-    }
     if (!avanca) return null;
     final terminei = retroLabelFor(
       session.btConferindo ? 'checking' : 'advance',
@@ -351,6 +386,9 @@ class RetroView extends ConsumerWidget {
   }
 
   (VoiceState, Tongue?) _voz(SalaSessionState session, bool conferida) {
+    if (session.btRegravacao?.passo == PassoDaRegravacao.gravando) {
+      return (VoiceState.listening, Tongue.motherTongue);
+    }
     if (conferida) return (VoiceState.done, null);
     if (session.voice == VoiceState.listening) {
       return (VoiceState.listening, Tongue.bridge);
@@ -635,6 +673,10 @@ class RetroView extends ConsumerWidget {
     if (session.offline) return circleLabelFor('offline', language);
     if (session.wordlessTelling) {
       return retroLabelFor('notUnderstood', language);
+    }
+    if (session.btRegravacao?.passo
+        case PassoDaRegravacao.pronta || PassoDaRegravacao.gravando) {
+      return sceneRehearsalLabelFor('respeakHint', language);
     }
     switch (session.btPhase) {
       case BtPhase.playing:

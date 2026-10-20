@@ -136,6 +136,10 @@ final clipGraceProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 10),
 );
 
+final sentenceGraceProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 4),
+);
+
 final playbackCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(minutes: 6),
 );
@@ -2789,21 +2793,44 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _pickTheTellingBackUp(BackTranslationProgress told) {
     _leaveTheStepFor(const Retro());
     _arriveAt(const TheBackTranslationOpened());
+    _regravouNestaVisita = false;
     state = state.copyWith(
       awaitingTheGuide: false,
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
       btTrechos: _trechosFrom(told.segments),
       btFindings: told.findings,
       btVeredito: told.checked || told.findings.isNotEmpty,
+      btFraseQueAguarda: told.awaitingSegmentId,
+      clearBtFraseQueAguarda: told.awaitingSegmentId == null,
     );
     final sessionId = state.sessionId;
     if (sessionId != null) {
       unawaited(
         _porCadaTrechoNaSuaParte(sessionId, told.segments, _generation),
       );
+      unawaited(_lembrarDaFraseGuardada(sessionId));
     }
     if (told.checked) return;
+    if (told.awaitingSegmentId case final aguardando?) {
+      unawaited(_voltarAFraseQueAguarda(aguardando, _generation));
+      return;
+    }
     unawaited(_playFromTheUntoldGround(_generation));
+  }
+
+  Future<void> _voltarAFraseQueAguarda(
+    String aguardando,
+    int generation,
+  ) async {
+    await _medirAsPartes(state.partes, generation);
+    if (_abandoned(generation)) return;
+    state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+    await _sayALine(
+      LineKind.guide,
+      fixedLine: (name: sentenceAwaitingLine, language: _inTheSessionsLanguage),
+    );
+    if (_abandoned(generation)) return;
+    _levarAoTrechoNaoTraduzido(aguardando);
   }
 
   /// A rehearsal picked back up remembers what of it was already told back.
@@ -4697,6 +4724,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     _rememberWhereTheyAre(const Retro());
     _arriveAt(const TheBackTranslationOpened());
+    _regravouNestaVisita = false;
+    _largarARegravacao();
     state = state.copyWith(
       awaitingTheGuide: false,
       btPhase: BtPhase.playing,
@@ -5164,6 +5193,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.btPhase == BtPhase.thinking) {
       return;
     }
+    if (state.btRegravacao?.passo
+        case PassoDaRegravacao.gravando || PassoDaRegravacao.enviando) {
+      return;
+    }
     if (state.btRecomeco == null) {
       state = state.copyWith(btRecomeco: BtRecomeco.armado, clearAviso: true);
       _after('recomecoPronto', ref.read(restartWakeProvider), () {
@@ -5193,6 +5226,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(value: final segmentos):
         _clearAll();
         _descartarATraducaoPendente();
+        _esquecerAFrase();
         state = state.copyWith(
           btTrechos: _trechosFrom(segmentos),
           btFindings: const [],
@@ -5626,6 +5660,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       clearTraducaoPendente: true,
+      clearBtFraseQueAguarda:
+          alvo.segmentId != null && alvo.segmentId == state.btFraseQueAguarda,
       btFindings: [
         for (final finding in state.btFindings)
           if (alvo.frase == null || finding.frase != alvo.frase) finding,
@@ -5650,6 +5686,367 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoEnd = alcancado;
   }
 
+  void regravarAFrase(Trecho trecho) =>
+      _gesture(() => _handOff(_regravarAFrase(trecho)));
+
+  Future<void> _regravarAFrase(Trecho trecho) async {
+    final frase = trecho.frase;
+    if (frase == null || !state.fraseRegravavel(trecho)) return;
+    final aberta = state.btRegravacao;
+    if (aberta != null) {
+      if (aberta.frase == frase) _fecharARegravacao();
+      return;
+    }
+    final generation = _waitOnTheGeneration;
+    final vez = ++_regravacoes;
+    bool largada() => _abandoned(generation) || vez != _regravacoes;
+    final primeira = !_regravouNestaVisita;
+    _silenceTheRoom();
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.ouvindo),
+    );
+    if (primeira) {
+      await _sayALine(
+        LineKind.guide,
+        fixedLine: (name: sentenceListenLine, language: _inTheSessionsLanguage),
+      );
+    }
+    if (largada()) return;
+    final ouvida = Completer<void>();
+    void ouviu() {
+      if (!ouvida.isCompleted) ouvida.complete();
+    }
+
+    _tocarOTrecho(trecho, depois: ouviu);
+    _after(
+      'frase',
+      trecho.to - trecho.from + ref.read(sentenceGraceProvider),
+      ouviu,
+    );
+    await ouvida.future;
+    _timers.remove('frase')?.cancel();
+    if (largada()) return;
+    _silenceTheRoom();
+    if (primeira) {
+      await _sayALine(
+        LineKind.guide,
+        fixedLine: (name: sentenceRecordLine, language: _inTheSessionsLanguage),
+      );
+    }
+    if (largada()) return;
+    _regravouNestaVisita = true;
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.pronta),
+    );
+  }
+
+  Future<void> _fecharAFrase(int frase) async {
+    final generation = _waitOnTheGeneration;
+    final path = (await _closeTheMicrophone()).take;
+    if (_abandoned(generation)) return;
+    if (path == null || _anAccidentalTap(path)) {
+      if (path != null) unawaited(_recorder.delete(path));
+      state = state.copyWith(
+        btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.pronta),
+      );
+      return;
+    }
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    if (_fraseNaFila case final antiga?) unawaited(_takes.withdraw(antiga));
+    final guardada = await _takes.enqueue(
+      File(path),
+      sessionId: sessionId,
+      kind: sentenceKind,
+      scope: '$frase',
+    );
+    if (_abandoned(generation)) return;
+    _fraseNaFila = guardada;
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(
+        frase,
+        PassoDaRegravacao.revendo,
+        path: path,
+      ),
+      clearBtFraseGuardada: true,
+    );
+  }
+
+  PendingTake? _fraseNaFila;
+
+  void usarEstaFrase() => _gesture(() => _handOff(_usarEstaFrase()));
+
+  Future<void> _usarEstaFrase() async {
+    final guardada = _fraseNaFila;
+    if (state.btRegravacao?.passo != PassoDaRegravacao.revendo ||
+        guardada == null) {
+      return;
+    }
+    _silenceTheRoom();
+    await _enviarAFrase(guardada);
+  }
+
+  Future<void> _enviarAFrase(PendingTake guardada) async {
+    final frase = int.parse(guardada.scope);
+    final generation = _waitOnTheGeneration;
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(
+        frase,
+        PassoDaRegravacao.enviando,
+        path: guardada.path,
+      ),
+      clearBtFraseGuardada: true,
+    );
+    if (File(guardada.path).lengthSync() > largestSentenceTheRoomTakes) {
+      return _largarAFrase(guardada, PassoDaRegravacao.longaDemais);
+    }
+    var nome = _aFrase(frase)?.segmentId;
+    if (nome == null) {
+      await _readTheStretchesBack(guardada.sessionId, generation);
+      if (_abandoned(generation)) return;
+      nome = _aFrase(frase)?.segmentId;
+    }
+    if (nome == null) return _guardarAFrase(frase);
+    final resposta = await _room.reRecordTheSentence(
+      guardada.sessionId,
+      nome,
+      File(guardada.path),
+      sentenceId: guardada.id,
+    );
+    if (_abandoned(generation)) return;
+    switch (resposta) {
+      case Refused(code: RefusalCode.sentenceTooLong):
+        _largarAFrase(guardada, PassoDaRegravacao.longaDemais);
+      case Refused(
+        code: RefusalCode.sentenceTooShort || RefusalCode.sentenceFormatDiffers,
+      ):
+        _largarAFrase(guardada, PassoDaRegravacao.pronta);
+      case Answered(value: final laid):
+        await _aFraseNoLugar(guardada, nome, laid.segments, generation);
+      case Refused(
+        code: RefusalCode.stretchNoLongerCounts ||
+            RefusalCode.partNotWav ||
+            RefusalCode.sentenceIdReused,
+      ):
+        _fraseNaFila = null;
+        unawaited(_takes.withdraw(guardada));
+        state = state.copyWith(clearBtRegravacao: true);
+        await _readTheStretchesBack(guardada.sessionId, generation);
+      case Refused(code: RefusalCode.anotherSentenceAwaits):
+        _guardarAFrase(frase);
+        await _readTheStretchesBack(guardada.sessionId, generation);
+        if (_abandoned(generation)) return;
+        if (state.btFraseQueAguarda case final aguardando?) {
+          await _voltarAFraseQueAguarda(aguardando, generation);
+        }
+      case final RoomFailure failure:
+        _guardarAFrase(frase);
+        _decideTheFailure(failure);
+    }
+  }
+
+  Future<void> _aFraseNoLugar(
+    PendingTake guardada,
+    String nome,
+    List<SegmentView> segments,
+    int generation,
+  ) async {
+    _fraseNaFila = null;
+    unawaited(_takes.withdraw(guardada));
+    final frase = int.parse(guardada.scope);
+    final parte = state.trechoChamado(nome)?.parte;
+    final nova = segments.where((segment) => segment.segmentId == nome);
+    var trocada = false;
+    if (parte != null && nova.isNotEmpty) {
+      trocada = await _aParteComAFrase(
+        guardada.sessionId,
+        parte,
+        nova.first.takeId,
+        generation,
+      );
+      if (_abandoned(generation)) return;
+    }
+    final trechos = _trechosFrom(segments);
+    state = state.copyWith(
+      clearBtRegravacao: true,
+      btFraseQueAguarda: nome,
+      btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
+      btPhase: BtPhase.playing,
+      clearFindingSegment: true,
+      btFindings: [
+        for (final finding in state.btFindings)
+          if (finding.frase != frase) finding,
+      ],
+    );
+    _rememberWhereTheyAre(const Retro());
+    await _sayALine(
+      LineKind.guide,
+      fixedLine: (name: sentenceInPlaceLine, language: _inTheSessionsLanguage),
+    );
+    if (_abandoned(generation)) return;
+    final trecho = _armarOTrecho(state.trechoChamado(nome));
+    if (trecho != null && trocada) _tocarAFraseNova(trecho);
+  }
+
+  Future<bool> _aParteComAFrase(
+    String sessionId,
+    int parte,
+    String takeId,
+    int generation,
+  ) async {
+    final clip = await _room.fetchClip(
+      RoomRepository.takeAudioUrl(sessionId, takeId),
+    );
+    if (_abandoned(generation)) return false;
+    if (clip case Answered(:final value) when value.isNotEmpty) {
+      final antiga = state.partes[parte];
+      final String arquivo;
+      try {
+        arquivo = await _recorder.keepBytes(value, '${antiga.scopeId}-$takeId');
+      } on Exception {
+        return false;
+      }
+      if (_abandoned(generation)) return false;
+      state = state.copyWith(
+        keptTakes: [
+          for (final take in state.keptTakes)
+            identical(take, antiga)
+                ? KeptTake(
+                    scopeId: antiga.scopeId,
+                    path: arquivo,
+                    takeId: takeId,
+                    pass: antiga.pass,
+                  )
+                : take,
+        ],
+      );
+      await _medirAsPartes(state.partes, generation);
+      return true;
+    }
+    return false;
+  }
+
+  void _tocarAFraseNova(Trecho trecho) {
+    final onde = _ondeTocar(trecho);
+    if (onde == null) return;
+    final (path, from, to) = onde;
+    final de = from > emVoltaDaFraseNova
+        ? from - emVoltaDaFraseNova
+        : Duration.zero;
+    final ate = to + emVoltaDaFraseNova;
+    void quiet() => unawaited(_playback.stop());
+    _play(
+      StretchSound(path, named: trecho.segmentId, from: de, to: ate),
+      onComplete: () {
+        quiet();
+        _escuta.abrir(path, de.inMilliseconds);
+        _escuta.fechar(path, ate.inMilliseconds);
+        if (_tamanhoDaParteMs[path] case final medido?) {
+          _escuta.medida(path, medido);
+        }
+      },
+      onFailed: quiet,
+    );
+  }
+
+  Future<void> _lembrarDaFraseGuardada(String sessionId) async {
+    final guardada = await _takes.sentenceHeldIn(sessionId);
+    if (guardada == null || state.sessionId != sessionId) return;
+    _fraseNaFila = guardada;
+    state = state.copyWith(btFraseGuardada: int.parse(guardada.scope));
+  }
+
+  void _esquecerAFrase() {
+    if (state.btRegravacao?.path case final path?) {
+      unawaited(_recorder.delete(path));
+    }
+    if (_fraseNaFila case final guardada?) {
+      _fraseNaFila = null;
+      unawaited(_takes.withdraw(guardada));
+    }
+    state = state.copyWith(
+      clearBtRegravacao: true,
+      clearBtFraseQueAguarda: true,
+      clearBtFraseGuardada: true,
+    );
+  }
+
+  void _guardarAFrase(int frase) {
+    state = state.copyWith(clearBtRegravacao: true, btFraseGuardada: frase);
+  }
+
+  void tentarAFraseDeNovo() => _gesture(() => _handOff(_tentarAFraseDeNovo()));
+
+  Future<void> _tentarAFraseDeNovo() async {
+    final guardada = _fraseNaFila;
+    if (state.btRegravacao != null ||
+        state.btFraseGuardada == null ||
+        guardada == null) {
+      return;
+    }
+    _silenceTheRoom();
+    await _enviarAFrase(guardada);
+  }
+
+  void _largarAFrase(PendingTake guardada, PassoDaRegravacao passo) {
+    _fraseNaFila = null;
+    unawaited(_takes.withdraw(guardada));
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(int.parse(guardada.scope), passo),
+    );
+  }
+
+  Trecho? _aFrase(int frase) =>
+      state.btTrechos.where((trecho) => trecho.frase == frase).firstOrNull;
+
+  void ouvirAFraseGravada() => _gesture(() {
+    final path = state.btRegravacao?.path;
+    if (path == null) return;
+    _silenceTheRoom();
+    void quiet() => unawaited(_playback.stop());
+    _play(StretchSound(path), onComplete: quiet, onFailed: quiet);
+  });
+
+  void gravarAFraseDeNovo() => _gesture(() {
+    final regravacao = state.btRegravacao;
+    if (regravacao == null || regravacao.passo != PassoDaRegravacao.revendo) {
+      return;
+    }
+    _silenceTheRoom();
+    if (regravacao.path case final path?) unawaited(_recorder.delete(path));
+    if (_fraseNaFila case final antiga?) {
+      _fraseNaFila = null;
+      unawaited(_takes.withdraw(antiga));
+    }
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(
+        regravacao.frase,
+        PassoDaRegravacao.pronta,
+      ),
+    );
+  });
+
+  int _regravacoes = 0;
+
+  bool _regravouNestaVisita = false;
+
+  void _fecharARegravacao() {
+    _silenceTheRoom();
+    _largarARegravacao();
+  }
+
+  void _largarARegravacao() {
+    _regravacoes++;
+    final aberta = state.btRegravacao;
+    state = state.copyWith(clearBtRegravacao: true);
+    if (aberta case RegravacaoDaFrase(
+      passo: PassoDaRegravacao.revendo,
+      :final frase,
+    ) when _fraseNaFila != null) {
+      _guardarAFrase(frase);
+    }
+  }
+
   void retroTap() => _gesture(() => _retroTap());
 
   void _retroTap() {
@@ -5659,6 +6056,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.needsPerson) return;
+    if (state.btRegravacao case final regravacao?) {
+      switch (regravacao.passo) {
+        case PassoDaRegravacao.pronta:
+          _silenceTheRoom();
+          state = state.copyWith(
+            btRegravacao: RegravacaoDaFrase(
+              regravacao.frase,
+              PassoDaRegravacao.gravando,
+            ),
+          );
+          _dispatch(
+            MicOpened(
+              MicOwner.rehearsal,
+              take: 'frase_${regravacao.frase}_${_stamp()}',
+              generation: _generation,
+            ),
+          );
+        case PassoDaRegravacao.gravando:
+          _handOff(_fecharAFrase(regravacao.frase));
+        case PassoDaRegravacao.ouvindo ||
+            PassoDaRegravacao.revendo ||
+            PassoDaRegravacao.enviando ||
+            PassoDaRegravacao.longaDemais:
+          break;
+      }
+      return;
+    }
     switch (state.btPhase) {
       case BtPhase.playing:
         _abrirACaptura();
@@ -6385,6 +6809,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (_abandoned(generation)) return null;
         final trechos = _trechosFrom(snapshot.backTranslation.segments);
         if (trechos.isNotEmpty) state = state.copyWith(btTrechos: trechos);
+        final aguardando = snapshot.backTranslation.awaitingSegmentId;
+        state = state.copyWith(
+          btFraseQueAguarda: aguardando,
+          clearBtFraseQueAguarda: aguardando == null,
+        );
         _applyTheSessionRead(snapshot, sent);
         return null;
       case NetworkFailed() && final failure:
@@ -6690,9 +7119,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void manterATraducaoDeAntes() => _gesture(() => _manterATraducaoDeAntes());
 
   void _manterATraducaoDeAntes() {
-    if (state.btPhase != BtPhase.playing || _trechoTraduzidoDeNovo == null) {
-      return;
-    }
+    final trecho = _trechoTraduzidoDeNovo;
+    if (state.btPhase != BtPhase.playing || trecho == null) return;
+    final aguardando = state.btFraseQueAguarda;
+    if (aguardando != null && trecho.segmentId == aguardando) return;
     _silenceTheRoom();
     _descartarATraducaoPendente();
     _trechoTraduzidoDeNovo = null;
@@ -6700,20 +7130,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: _faseAntesDeTraduzirDeNovo ?? BtPhase.playing,
     );
-  }
-
-  /// Back to the rehearsal with everything kept, to record what the story still lacks.
-  ///
-  /// A finding of something missing that the analyst could not place in any stretch is a
-  /// passage whose stretches are right and whose end was never recorded. Nothing is asked
-  /// of the room here, because the stretches are still the session's, and the takes stay,
-  /// so the team records more and the next telling-back starts where the told ground
-  /// ends.
-  void continuarOEnsaio() => _gesture(() => _continuarOEnsaio());
-
-  void _continuarOEnsaio() {
-    if (state.btPhase != BtPhase.findings) return;
-    _voltarAoEnsaio();
   }
 
   /// Back to the rehearsal to record one part again, in the place that part already has.

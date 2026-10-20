@@ -258,7 +258,7 @@ void main() {
     },
   );
 
-  testWidgets('a saída para gravar mais diz continuar o ensaio', (
+  testWidgets('não há saída para gravar mais depois da última frase', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -278,10 +278,10 @@ void main() {
 
     expect(
       byLabel(continuarOEnsaioLabel),
-      findsOneWidget,
+      findsNothing,
       reason:
-          'esta saída acrescenta ao ensaio, e o nome dela tem de dizer '
-          'isso: "gravar esta parte de novo" era o nome do gesto oposto',
+          'gravar mais depois da última frase é o caminho que a regra de 21 '
+          'de setembro tirou: a falta se conserta na frase onde cabe',
     );
     expect(
       byLabel('Gravar esta parte de novo'),
@@ -289,13 +289,10 @@ void main() {
       reason: 'dois rótulos que só diferem pelo rabo nomeavam atos opostos',
     );
 
-    await tester.ensureVisible(byLabel(continuarOEnsaioLabel));
-
-    await tester.tap(byLabel(continuarOEnsaioLabel));
     await tester.pump(const Duration(milliseconds: 400));
 
     final depois = container.read(salaSessionProvider);
-    expect(depois.stage, SalaStage.ensaio);
+    expect(depois.stage, SalaStage.retro);
     expect(
       [for (final take in depois.keptTakes) take.takeId],
       [for (final take in antes.keptTakes) take.takeId],
