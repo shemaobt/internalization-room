@@ -32,6 +32,7 @@ class EnsaioView extends ConsumerWidget {
         child: Column(
           children: [
             StageHeading(
+              stage: SalaStage.ensaio,
               text: titulo,
               style: TextStyle(
                 color: colors.ink,

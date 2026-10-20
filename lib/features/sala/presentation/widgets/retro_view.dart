@@ -54,6 +54,7 @@ class RetroView extends ConsumerWidget {
         child: Column(
           children: [
             StageHeading(
+              stage: SalaStage.retro,
               text: titulo,
               style: TextStyle(
                 color: colors.ink,

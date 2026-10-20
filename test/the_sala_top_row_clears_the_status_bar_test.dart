@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
@@ -109,4 +110,28 @@ void main() {
       },
     );
   }
+
+  testWidgets('while the recording home fades into the check screen one corner '
+      'button stands, not two', (tester) async {
+    _onAPhone(tester, width: 390, bar: 59);
+    final container = await _atTheRecordingHome(tester);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 100));
+    notifier.takeKeep();
+    notifier.startRetro();
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(find.byType(EnsaioView), findsOneWidget);
+    expect(find.byType(RetroView), findsOneWidget);
+    expect(
+      byLabel('Escolher outra passagem'),
+      findsOneWidget,
+      reason:
+          'a cópia da tela que saía e a da que chegava desenhavam um botão '
+          'cada, a 16 px uma da outra, e as duas esmaeciam juntas',
+    );
+    closeTheRoom(container);
+  });
 }

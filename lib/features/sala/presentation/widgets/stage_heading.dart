@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/session_state.dart';
 import 'leave_passage_button.dart';
 
 class StageHeading extends StatelessWidget {
+  final SalaStage stage;
   final String text;
   final TextStyle style;
 
-  const StageHeading({super.key, required this.text, required this.style});
+  const StageHeading({
+    super.key,
+    required this.stage,
+    required this.text,
+    required this.style,
+  });
 
   static const _flank = 60.0;
 
@@ -41,17 +48,19 @@ class StageHeading extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(_flank, 24, _flank, 0),
                   child: heading,
                 ),
-                const LeavePassageButton(carriedAt: 8),
+                LeavePassageButton(carried: (stage: stage, top: 8)),
               ],
             ),
           );
         }
         return Column(
           children: [
-            const SizedBox(
+            SizedBox(
               width: double.infinity,
               height: 46,
-              child: Stack(children: [LeavePassageButton(carriedAt: 0)]),
+              child: Stack(
+                children: [LeavePassageButton(carried: (stage: stage, top: 0))],
+              ),
             ),
             heading,
           ],
