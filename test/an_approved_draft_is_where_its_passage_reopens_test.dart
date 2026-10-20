@@ -210,6 +210,31 @@ void main() {
   );
 
   testWidgets(
+    'a forced approval over a telling-back never checked, re-entered, lands '
+    'checked with the badge',
+    (tester) async {
+      final harness =
+          _aRoomHolding(
+              approved: ApprovedDraft(
+                version: 1,
+                releaseId: 'internalize-ruth-p01-v1',
+                approvedAt: DateTime.utc(2026, 10, 19, 14),
+                forced: true,
+              ),
+            )
+            ..room.createdOpened = true
+            ..room.retroSoFar = BackTranslationProgress(
+              segments: _checked.segments,
+            );
+
+      final room = await _enter(tester, harness);
+
+      _landsOnTheApprovedDraft(room);
+      expect(harness.playback.played, isEmpty);
+    },
+  );
+
+  testWidgets(
     'an approved passage the room never opened still lands on its draft, '
     'never on the Conversation at zero',
     (tester) async {
@@ -286,6 +311,33 @@ void main() {
           _landsOnTheApprovedDraft(room);
         });
       }
+    },
+  );
+
+  testWidgets(
+    'a tablet whose Outbox still holds a take of the session lands where it '
+    'stood, never on the approved draft',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1))
+        ..room.takeLandsAfter = const Duration(minutes: 1);
+      _aRowOn(harness, SalaStage.ensaio);
+      harness.room.openedSessions.add('sessao-antiga');
+      await tester.runAsync(() async {
+        final home = Directory.systemTemp.createTempSync('sala-no-outbox');
+        addTearDown(() => home.deleteSync(recursive: true));
+        await harness.takes.enqueue(
+          File('${home.path}/p1-de-novo.m4a')..writeAsBytesSync([5, 5]),
+          sessionId: 'sessao-antiga',
+          kind: 'ensaio',
+          scope: 'parte-1',
+          passNumber: 2,
+        );
+      });
+
+      final room = await _enter(tester, harness);
+
+      expect(_state(room).stage, SalaStage.ensaio);
+      expect(_theBadge(1), findsNothing);
     },
   );
 

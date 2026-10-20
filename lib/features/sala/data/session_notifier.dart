@@ -2597,7 +2597,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             return failed(failure);
         }
         if (_abandoned(generation)) return;
-        if (_anApprovedDraftIn(snapshot)) {
+        final approved = await _anApprovedDraftIn(snapshot);
+        if (_abandoned(generation)) return;
+        if (approved) {
           return _landOnTheApprovedDraft(snapshot, sent, generation, landed);
         }
         state = state.copyWith(
@@ -2634,7 +2636,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return failed(failure);
       }
       if (_abandoned(generation)) return;
-      if (_anApprovedDraftIn(read)) {
+      final approved = await _anApprovedDraftIn(read);
+      if (_abandoned(generation)) return;
+      if (approved) {
         return _landOnTheApprovedDraft(read, sent, generation, landed);
       }
       if (Station.stored(waiting.stage) is Retro) {
@@ -2664,11 +2668,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       _applyTheSessionRead(read, sent);
       if (opened != null || read.opened) return _landWhereTheyStopped();
-    } else if (_anApprovedDraftIn(created!)) {
-      return _landOnTheApprovedDraft(created, ++_readsSent, generation, landed);
-    } else if (opened != null || created.opened) {
-      _applyTheSessionRead(created, ++_readsSent);
-      return _landWhereTheyStopped();
+    } else {
+      final approved = await _anApprovedDraftIn(created!);
+      if (_abandoned(generation)) return;
+      if (approved) {
+        return _landOnTheApprovedDraft(
+          created,
+          ++_readsSent,
+          generation,
+          landed,
+        );
+      }
+      if (opened != null || created.opened) {
+        _applyTheSessionRead(created, ++_readsSent);
+        return _landWhereTheyStopped();
+      }
     }
     reachedTheOpeningTurn = true;
     await _askForTheOpening(
@@ -2686,8 +2700,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  bool _anApprovedDraftIn(SessionSnapshot read) =>
-      read.approved != null && !read.backTranslation.nothingTold;
+  /// A take of the session still in the Outbox un-approves the draft once it lands, so the
+  /// team stays where it stood.
+  Future<bool> _anApprovedDraftIn(SessionSnapshot read) async =>
+      read.approved != null &&
+      !read.backTranslation.nothingTold &&
+      (await _takes.tally(sessionId: read.sessionId)).unsentTakes == 0;
 
   /// The draft the room says is approved is where its passage reopens: its telling-back,
   /// checked, over the parts the room holds, and never the Opening (ADR 0106). A room that
@@ -2702,8 +2720,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await _theRoomsRehearsalUnder(read.sessionId, generation);
       if (_abandoned(generation)) return;
     }
-    _pickTheTellingBackUp(read.backTranslation);
+    final told = read.backTranslation;
+    _pickTheTellingBackUp(
+      BackTranslationProgress(
+        segments: told.segments,
+        checked: true,
+        findings: told.findings,
+      ),
+    );
     landed();
+    state = state.copyWith(
+      coverage: read.coverage,
+      moment: read.moment,
+      clearMoment: read.moment == null,
+    );
     _applyTheSessionRead(read, sent);
     _rememberWhereTheyAre(const Retro());
   }
