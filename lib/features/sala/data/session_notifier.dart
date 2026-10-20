@@ -356,6 +356,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The frase each rehearsal holds from the moment it is posted until the room kept or
   /// refused it: its file, span and attempt, sent again as they are.
   late Map<String, _HeldFrase> _heldFrases;
+
+  /// How many posts of each held frase's file are in the air: the upload reads the file
+  /// while it is sent, so a file is deleted only once none is.
+  late Map<String, int> _fraseFlights;
   StreamSubscription<CoverageEvent>? _coverageWatch;
   String? _coverageSessionId;
   String? _awaitingCoverageTurnId;
@@ -408,6 +412,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   SalaSessionState build() {
     _gone = false;
     _heldFrases = {};
+    _fraseFlights = {};
     if (!_theFrasesLeftBehindWereSwept) {
       _theFrasesLeftBehindWereSwept = true;
       unawaited(_recorder.sweepTheFrasesLeftBehind());
@@ -438,7 +443,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _firstGeneration = _highestGeneration + 1;
       _gone = true;
       for (final held in _heldFrases.values) {
-        unawaited(recorder.delete(held.path));
+        if (!_fraseFlights.containsKey(held.path)) {
+          unawaited(recorder.delete(held.path));
+        }
       }
       _cancelTimers();
       _runner.dispose();
@@ -3946,6 +3953,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final shown = state.scene;
     if (state.station is! SceneRehearsal ||
         shown.step != SceneStep.translate ||
+        shown.waiting ||
         shown.pausa != null ||
         !shown.moreToTell) {
       return;
@@ -4011,6 +4019,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
   ) async {
     final rehearsalId = shown.rehearsal!.rehearsalId;
+    _fraseFlights.update(frase.path, (posts) => posts + 1, ifAbsent: () => 1);
     final kept = await _room.keepTheSceneFrase(
       frase.sessionId,
       rehearsalId,
@@ -4019,6 +4028,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       endsMs: frase.endsMs,
       afterRestart: frase.afterRestart,
     );
+    if (_fraseFlights.update(frase.path, (posts) => posts - 1) == 0) {
+      _fraseFlights.remove(frase.path);
+    }
     final here = !_theSceneMovedOn(waiting, generation);
     switch (kept) {
       case Answered(:final value):
@@ -4038,6 +4050,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case final RoomFailure failure:
         if (here) _theFraseWasNotKept(failure, shown);
     }
+    _deleteTheFraseOnceIdle(frase.path);
     return here;
   }
 
@@ -4045,12 +4058,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// holds since.
   void _letTheFraseGo(String rehearsalId, _HeldFrase frase) {
     if (_heldFrases[rehearsalId] == frase) _heldFrases.remove(rehearsalId);
-    unawaited(_recorder.delete(frase.path));
+    _deleteTheFraseOnceIdle(frase.path);
   }
 
   void _letGoOfTheHeldFrase(String rehearsalId) {
     final held = _heldFrases.remove(rehearsalId);
-    if (held != null) unawaited(_recorder.delete(held.path));
+    if (held != null) _deleteTheFraseOnceIdle(held.path);
+  }
+
+  /// A frase's file goes once no post of it is in the air and nothing holds it; the
+  /// post still in the air deletes it when it lands.
+  void _deleteTheFraseOnceIdle(String path) {
+    if (_fraseFlights.containsKey(path) ||
+        _heldFrases.values.any((held) => held.path == path)) {
+      return;
+    }
+    unawaited(_recorder.delete(path));
   }
 
   void _letGoOfTheFrasesOf(String? sessionId) {
@@ -4297,6 +4320,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (_heldFrases[rehearsal.rehearsalId] case final frase?) {
+      _silenceTheRoom();
       return _handOff(_theHeldFraseBeforeTheSend(frase, rehearsal.rehearsalId));
     }
     final held = state.sceneTurn;

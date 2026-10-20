@@ -1005,6 +1005,77 @@ void main() {
         );
 
         test(
+          '«terminei» with a frase held while the take plays to its end sends the rehearsal once, and the screen stops waiting',
+          () async {
+            final room = await _onTheTranslateStep(
+              rehearsal: _rehearsal(frases: [_frase('f1', 0, 3000)]),
+            );
+            await _listening(room);
+            await _aFraseWhoseAnswerIsLost(
+              room,
+              const NetworkFailed('timeout'),
+              keptBefore: false,
+            );
+            room.sala.playTheSceneRehearsal();
+            await waitFor(
+              'o ensaio da cena tocar',
+              () => room.state.channel is PartPlaying,
+            );
+            final resend = room.harness.room.holdTheNextFrase();
+
+            room.sala.sendTheSceneRehearsal();
+            await settle();
+            room.harness.playback.finishPlayback();
+            await settle();
+            resend.complete();
+            await waitFor(
+              'o ensaio ir para a voz',
+              () => room.harness.room.scenesSent.isNotEmpty,
+            );
+            await settle();
+
+            expect(room.harness.room.scenesSent, hasLength(1));
+          },
+        );
+
+        test(
+          'a held frase\'s file stays while a post of it is still in the air',
+          () async {
+            final room = await _onTheTranslateStep();
+            await _listening(room);
+            final first = room.harness.room.holdTheNextFrase();
+            await _aFraseAt(room, _s(4.0));
+            final path = room.harness.recorder.lastPath;
+            room.sala.leaveTheSceneRehearsal();
+            await settle();
+            room.sala.openTheSceneRehearsal();
+            await translateOpens(room);
+            await settle();
+            await _listening(room);
+            room.harness.playback.at = _s(4.0);
+            await _circle(room);
+            final resend = room.harness.room.holdTheNextFrase();
+            room.sala.tapTheTranslateCircle();
+            await waitFor(
+              'o reenvio ir',
+              () => room.harness.room.frasesKept.length == 2,
+            );
+
+            first.complete();
+            await settle();
+            expect(
+              room.harness.recorder.deleted,
+              isNot(contains(path)),
+              reason: 'o reenvio ainda lê o arquivo',
+            );
+            resend.complete();
+            await settle();
+
+            expect(room.harness.recorder.deleted, contains(path));
+          },
+        );
+
+        test(
           'a pausa marked past the held frase stays pending once the room kept it',
           () async {
             final room = await _onTheTranslateStep(
