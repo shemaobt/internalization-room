@@ -5,7 +5,6 @@ import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
-import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 import 'a_station_host_double.dart';
 
@@ -99,7 +98,7 @@ class ARoomPort implements RoomPort {
   Stream<void> get networkReturned => const Stream.empty();
 
   @override
-  Future<TurnResult?> lookAt(Turn turn) async => null;
+  Future<LookAnswer> lookAt(Turn turn) async => const NothingLanded();
 
   @override
   Future<SessionReadAnswer> readTheSession(String session) {

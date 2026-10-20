@@ -189,7 +189,11 @@ void main() {
         () => harness.voice.played.contains(deNovoUrl),
       );
 
-      expect(harness.room.turnIdsAsked.whereType<String>(), hasLength(1));
+      expect(
+        harness.room.turnIdsAsked,
+        hasLength(2),
+        reason: 'a abertura uma vez, e o dito de novo sob um id próprio',
+      );
       expect(harness.room.sessionsSaidAgain, [session]);
     },
   );

@@ -223,6 +223,10 @@ final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 330),
 );
 
+final lookAgainIntervalProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 2),
+);
+
 /// How often an open microphone touches the room again. The shared client lets an idle
 /// connection go at 90 s and only the team's tap ends a take, so a take longer than that
 /// would otherwise hand its upload a connection that already lapsed. A provider, not a
@@ -586,6 +590,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       retryDelay: _onTheLadder,
       partCeiling: () => ref.read(playbackCeilingProvider),
       clipGrace: () => ref.read(clipGraceProvider),
+      lookAgainAfter: () => ref.read(lookAgainIntervalProvider),
       offlineNotice: () => _newLine(
         LineKind.offlineNotice,
         asset: offlineNoticeAsset(_inTheSessionsLanguage),
@@ -1036,39 +1041,41 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// A session the team walked back into holds no line of its own here, so the room is
-  /// asked for its last one. Not a turn: nothing is written, and a lost answer is not
-  /// looked at.
+  /// asked for its last one, under a turn id of its own: nothing is written, and a lost or
+  /// slow answer is looked at once (ADR 0097).
   Future<void> _askTheRoomToSayItAgain() async {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     final generation = _waitOnTheGeneration;
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
-    try {
-      switch (await _room.openSession(sessionId)) {
-        case Answered(value: final line):
-          if (_abandoned(generation)) return;
-          await _readyToSpeak(line.audioUrl, line.fixedLine);
-          if (_abandoned(generation)) return;
-          _watchBusyState();
-          final played = await _speak(
-            line.audioUrl,
-            line.fixedLine,
-            remember: !line.usedFailSafe,
-          );
-          if (_abandoned(generation)) return;
-          if (!played.heard) {
-            return _registerUnplayableTurn(leavesTeamTalk: false);
-          }
-          state = state.copyWith(awaitingTheGuide: false);
-        case final RoomFailure failure:
-          if (_abandoned(generation)) return;
-          _decideTheFailure(failure);
-      }
-    } on RoomFailure catch (failure) {
-      if (_abandoned(generation)) return;
-      _decideTheFailure(failure);
-    }
+    final turnId = _stamp();
+    await _sendATurn(
+      Turn(sessionId, turnId),
+      generation,
+      () => _room.openSession(sessionId, turnId: turnId),
+      keeps: const TheLineSaidAgain(),
+      play: (line) async {
+        if (_abandoned(generation)) return;
+        await _readyToSpeak(line.audioUrl, line.fixedLine);
+        if (_abandoned(generation)) return;
+        _watchBusyState();
+        final played = await _speak(
+          line.audioUrl,
+          line.fixedLine,
+          remember: !line.usedFailSafe,
+        );
+        if (_abandoned(generation)) return;
+        if (!played.heard) {
+          return _registerUnplayableTurn(leavesTeamTalk: false);
+        }
+        state = state.copyWith(awaitingTheGuide: false);
+      },
+      failed: (failure) {
+        if (_abandoned(generation)) return;
+        _decideTheFailure(failure);
+      },
+    );
   }
 
   /// Repeat the narrator's last line on the circle in `findings`, instead of the stretch
@@ -1196,6 +1203,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Kept _whatIsSounding({bool theOpening = true}) {
+    if (state.machine.keptInFlight case final TheLineSaidAgain line) {
+      return line;
+    }
     if (state.station is Retro &&
         (state.channel is Playing || !_parteJaTocou)) {
       return const ThePart();
@@ -1319,7 +1329,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         } else {
           _dispatch(NothingReplayed(generation: _generation));
         }
-      case NothingKept() || TheOpening():
+      case NothingKept() || TheOpening() || TheLineSaidAgain():
         break;
     }
     if (_emCurso case final passage?
@@ -1423,6 +1433,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // as a room that had stopped answering and called for a person two seconds before
     // the Guide finished the sentence.
     if (!state.awaitingTheGuide || state.channel is GuideSpeaking) return;
+    if (state.machine.halt is Blocking) return _watchBusyState();
+    if (state.machine.look case final look? when look.stillAnswering) {
+      return _dispatch(
+        LookEmpty(
+          look.turn,
+          sounding: look.sounding,
+          theWaitRanOut: true,
+          generation: _generation,
+        ),
+      );
+    }
     final turn = state.machine.inFlight;
     if (turn != null) return _giveUpOnTheTurn(turn, const RoomTimedOut());
     _cancelTimers();
@@ -1447,6 +1468,36 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (awaited != null) _handOff(awaited.play(reply));
   }
 
+  /// An Opening the room was still answering when the look found it: the team rests on it
+  /// unheard, and «Ouvir de novo» says it.
+  void _keepTheReplyTheLookFound(Turn turn, TurnResult reply) {
+    _awaitedReplies.remove(turn);
+    _paintCoverage(reply.coverage);
+    _openingOwed = false;
+    _openTurnId = null;
+    _leaveThinking();
+    state = state.copyWith(
+      moment: reply.moment,
+      clearMoment: reply.moment == null,
+      endOfThePassage: reply.done ? true : null,
+      lastSpoken: reply.usedFailSafe
+          ? null
+          : SpokenLine(url: reply.audioUrl, fixedLine: reply.fixedLine),
+      roomSaysItAgain: reply.usedFailSafe ? true : null,
+      awaitingTheGuide: false,
+    );
+  }
+
+  void _waitOnTheLookAgain() {
+    state = state.copyWith(awaitingTheGuide: true);
+    _watchBusyState();
+  }
+
+  void _letTheLineGo() {
+    _leaveThinking();
+    state = state.copyWith(awaitingTheGuide: false);
+  }
+
   /// One turn, sent once. A network failure, the client's 305 s give-up included, is
   /// looked at once; any other failure goes to [failed]. An answer to a turn the machine
   /// no longer holds in flight was already given up on, and the look decides it.
@@ -1456,6 +1507,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     Future<RoomAnswer<TurnResult>> Function() send, {
     required Future<void> Function(TurnResult reply) play,
     required void Function(RoomFailure failure) failed,
+    Kept keeps = const NothingKept(),
   }) async {
     Future<void> heard(TurnResult reply) async {
       try {
@@ -1468,7 +1520,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _awaitedReplies
       ..clear()
       ..[turn] = (play: heard, gestures: _chain);
-    _dispatch(TurnSent(turn));
+    _dispatch(TurnSent(turn, keeps: keeps));
     final answer = await _theTakeGoes(send);
     if (_abandoned(generation)) return;
     if (answer case NetworkFailed() && final fell) {
@@ -1573,7 +1625,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _releaseTheReach() {
-    _theRoomIsBack();
+    _dispatch(const NetworkReturned(released: true));
     _theRoomAnswered();
     _resumeFailures.clear();
   }
@@ -5801,13 +5853,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// needs, so both still read `_cabeca` live, as they always have.
   void _armCursorDeadline() {
     _timers.remove('cursor')?.cancel();
-    if (_writeCursorCrossingNow()) return;
+    if (_writeCursorCrossingNow() || _theClipEndsByTheCursor) return;
     final restante = _trechoStart - _cabeca;
     _after(
       'cursor',
       restante > _umInstanteOuvido ? restante : _umInstanteOuvido,
       () => state = state.copyWith(btOuvidoAlemDoCursor: true),
     );
+  }
+
+  /// A part told back to its end, landed on again, plays from its own end: its head can
+  /// never pass the cursor, so no deadline may say it did.
+  bool get _theClipEndsByTheCursor {
+    final medido = _tamanhoDaParteMs[_parteNoAr?.path];
+    return medido != null && Duration(milliseconds: medido) <= _trechoStart;
   }
 
   /// The same read [_armCursorDeadline] opens with, but never schedules anything: called
@@ -7720,6 +7779,16 @@ class _NotifierHost implements StationHost {
   @override
   void hearTheReplyFound(Turn turn, TurnResult reply) =>
       _notifier._playTheReplyTheLookFound(turn, reply);
+
+  @override
+  void hearTheReplyKept(Turn turn, TurnResult reply) =>
+      _notifier._keepTheReplyTheLookFound(turn, reply);
+
+  @override
+  void hearTheLineLetGo() => _notifier._letTheLineGo();
+
+  @override
+  void hearTheWaitResumed() => _notifier._waitOnTheLookAgain();
 
   @override
   void hearTheSoundKept(Kept kept) => _notifier._replay(kept);

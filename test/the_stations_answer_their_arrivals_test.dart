@@ -38,6 +38,11 @@ void _expectItStays(Station at, MachineEvent event, Matcher station) {
   expect(machine.generation, _generation);
 }
 
+const _aGivenUpTurn = Turn('sessao-1', 'turno-1');
+
+Machine _lookingAt(Machine machine) =>
+    machine.copyWith(look: const TheLook(_aGivenUpTurn));
+
 void main() {
   test('the Menu answers the passage being chosen with the Canvas', () {
     _expectTheArrival(const Menu(), const PassageChosen(), isA<Canvas>());
@@ -296,8 +301,8 @@ void main() {
   test('the sign held on the scene screen shows when the team is back on the '
       'Canvas', () {
     final (held, heldEffects) = reduce(
-      _at(const SceneRehearsal()),
-      const TheSceneTurnFoundNothing(generation: _generation),
+      _lookingAt(_at(const SceneRehearsal())),
+      const LookEmpty(_aGivenUpTurn, generation: _generation),
     );
 
     expect(held.halt, isNot(isA<Blocking>()));
@@ -361,8 +366,8 @@ void main() {
   test('a scene look that finds nothing once the screen closed shows the sign '
       'at once', () {
     final (machine, effects) = reduce(
-      _at(const Canvas()),
-      const TheSceneTurnFoundNothing(generation: _generation),
+      _lookingAt(_at(const Canvas())),
+      const LookEmpty(_aGivenUpTurn, generation: _generation),
     );
 
     expect(machine.halt, isA<Blocking>());

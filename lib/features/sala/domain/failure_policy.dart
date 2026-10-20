@@ -107,18 +107,6 @@ final class FailureContext {
     this.why = RoomReach.noNetwork,
     this.sounding = const NothingKept(),
   });
-
-  FailureContext copyWith({Turn? turn, Kept? sounding, int? generation}) =>
-      FailureContext(
-        station: station,
-        step: step,
-        generation: generation ?? this.generation,
-        turn: turn ?? this.turn,
-        rule: rule,
-        door: door,
-        why: why,
-        sounding: sounding ?? this.sounding,
-      );
 }
 
 /// The one place a room result or a failure of the tablet's own becomes an event (ADR

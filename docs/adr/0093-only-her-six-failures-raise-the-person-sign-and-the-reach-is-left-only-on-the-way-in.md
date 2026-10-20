@@ -2,14 +2,16 @@
 status: accepted
 date: 2026-10-20
 supersedes: 0050 (in part), 0073 (in part)
-amends: 0053, 0074
+amends: 0053, 0074, 0097
 ---
 
 # Only her six failures raise the person sign, and the Reach is left only on the way in
 
-This supersedes in part ADR 0050 and ADR 0073 and amends ADR 0053 and ADR 0074. It adds
-"superseded in part by 0093" to the status lines of 0050 and 0073 and "amended by 0093" to
-those of 0053 and 0074, and edits none of their Decisions. Settled on the ticket (ENG-1355),
+This supersedes in part ADR 0050 and ADR 0073 and amends ADR 0053, ADR 0074 and ADR 0097
+(a refusal of «Ouvir de novo» is no longer counted; ADR 0097's look and its wait for the
+reach stand, and its empty look decides by this policy). It adds "superseded in part by
+0093" to the status lines of 0050 and 0073 and "amended by 0093" to those of 0053, 0074 and
+0097, and edits none of their Decisions. Settled on the ticket (ENG-1355),
 19 and 20 October.
 
 ## Context

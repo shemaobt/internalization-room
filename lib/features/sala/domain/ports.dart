@@ -12,9 +12,9 @@ import 'turn_result.dart';
 abstract interface class RoomPort {
   Stream<void> get networkReturned;
 
-  /// The reply the room stored for [turn], or null for anything else: not stored, still
-  /// in flight, or a look that failed itself.
-  Future<TurnResult?> lookAt(Turn turn);
+  /// What the room holds of [turn]: the reply it stored, the turn it is still answering,
+  /// or nothing that landed (not stored, or a look that failed itself).
+  Future<LookAnswer> lookAt(Turn turn);
 
   Future<SessionReadAnswer> readTheSession(String session);
 
@@ -29,6 +29,25 @@ abstract interface class RoomPort {
 
   /// Tells the server the person arrived at the room for [session].
   Future<RoomResult> personArrived(String session);
+}
+
+/// What the one look found of a turn.
+sealed class LookAnswer {
+  const LookAnswer();
+}
+
+final class TheReplyLanded extends LookAnswer {
+  final TurnResult reply;
+
+  const TheReplyLanded(this.reply);
+}
+
+final class StillAnswering extends LookAnswer {
+  const StillAnswering();
+}
+
+final class NothingLanded extends LookAnswer {
+  const NothingLanded();
 }
 
 /// What the room answered to a Session read: the snapshot, or the result the failure

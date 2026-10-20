@@ -99,6 +99,17 @@ AnsweringEvent _stampedAnswer(
   TheCallMetAClosedPassage() => TheCallMetAClosedPassage(
     generation: generation,
   ),
+  LookEmpty(:final turn, :final sounding, :final theWaitRanOut) => LookEmpty(
+    turn,
+    sounding: sounding,
+    theWaitRanOut: theWaitRanOut,
+    generation: generation,
+  ),
+  LookPending(:final turn, :final sounding) => LookPending(
+    turn,
+    sounding: sounding,
+    generation: generation,
+  ),
   ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
   TheTellingCameBackEmpty() => TheTellingCameBackEmpty(generation: generation),
   TheStepFailed() => TheStepFailed(generation: generation),

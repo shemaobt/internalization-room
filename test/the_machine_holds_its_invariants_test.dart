@@ -332,7 +332,7 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
   (before, event, after, effects, world) {
     if (before.halt is Blocking || after.halt is! Blocking) return null;
     final herCase = switch (event) {
-      RoomRaisedAHalt() || TheSceneTurnFoundNothing() => true,
+      RoomRaisedAHalt() || TheSceneTurnFoundNothing() || LookEmpty() => true,
       PlayerFailed(source: Source.guide) =>
         before.failing == Source.guide && before.failures >= 1,
       StationEvent() =>
