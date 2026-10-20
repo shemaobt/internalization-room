@@ -7824,6 +7824,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _coverageWatch = null;
     _coverageSessionId = null;
     _roomFailures = 0;
+    for (final perdida in _perdidasNoTrecho.values.expand(
+      (perdidas) => perdidas,
+    )) {
+      unawaited(_retirarDaFilaSeGuardada(perdida));
+    }
     _perdidasNoTrecho.clear();
     _stretchKeys.clear();
     _resumeFailures = 0;

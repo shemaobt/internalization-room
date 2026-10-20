@@ -416,4 +416,38 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('the copy kept of a frase told again whose answer was lost '
+      'leaves the queue when the team leaves the passage', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseUm(tester, harness);
+    final fila = harness.takes as FakeTakeQueue;
+    await tocar(tester, _barra(1));
+    await gravarATraducao(tester, circulo: _deNovo);
+    final perdida = container.read(salaSessionProvider).btTraducaoPendente!;
+
+    harness.room
+      ..refuseTake = 'retro/${KeptScope.whole}'
+      ..loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
+    await _caiNaRede(tester, container);
+    await waitFor(
+      'a cópia da perdida entrar na fila',
+      () => fila.rows.any((linha) => linha.path == perdida),
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+
+    container.read(salaSessionProvider.notifier).leaveThePassage();
+    for (var passo = 0; passo < 5; passo++) {
+      await letTheRehearsalReachTheRoom(tester);
+    }
+
+    expect(
+      fila.rows.where((linha) => linha.path == perdida),
+      isEmpty,
+      reason:
+          'a perdida ficava na fila depois da passagem e subia como uma '
+          'tomada da passagem inteira de uma frase que talvez já esteja lá',
+    );
+    closeTheRoom(container);
+  });
 }
