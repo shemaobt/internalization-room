@@ -1,8 +1,13 @@
 part of '../station.dart';
 
-/// The Rehearsal; the Closing is not reached from it.
+/// The Rehearsal; the Closing is not reached from it, and the Back-translation is opened
+/// from it only once every scene has its part. A reopened passage that had already
+/// reached its telling-back resumes it whatever the Rehearsal weighed.
 final class Ensaio extends Station {
-  const Ensaio();
+  /// Whether every scene of the passage has its part, as the Rehearsal was last weighed.
+  final bool everySceneHasItsPart;
+
+  const Ensaio({this.everySceneHasItsPart = false});
 
   @override
   SalaStage get stage => SalaStage.ensaio;
@@ -14,7 +19,8 @@ final class Ensaio extends Station {
     TheChoiceOpened() => const Menu(),
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),
-    TheBackTranslationOpened() => const Retro(),
+    TheBackTranslationOpened() => everySceneHasItsPart ? const Retro() : this,
+    TheBackTranslationResumed() => const Retro(),
     TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
   };

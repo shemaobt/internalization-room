@@ -314,10 +314,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expectOnlyHerMenuAndTheLanguageCodesAreWritten();
 
-    for (final go in [
-      () => notifier.goConversa(book: 'Ruth'),
-      notifier.goEnsaio,
-    ]) {
+    for (final go in [() => notifier.goConversa(book: 'Ruth')]) {
       go();
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 1400));

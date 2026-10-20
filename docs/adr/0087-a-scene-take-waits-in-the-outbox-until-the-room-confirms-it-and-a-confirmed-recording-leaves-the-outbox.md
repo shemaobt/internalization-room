@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint)
 date: 2026-10-16
 amends: 0083, 0025
 ---

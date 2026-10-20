@@ -476,7 +476,7 @@ void main() {
             'as contas da sessão recusada reapareciam no ensaio da '
             'sessão nova, como se a equipe já tivesse gravado nela',
       );
-      expect(state.takes, 0);
+      expect(state.partes.length, 0);
       expect(
         state.btTrechos,
         isEmpty,
@@ -4847,7 +4847,7 @@ void main() {
           'refazia a mesma perícope para sempre num tablet esquecido ligado',
     );
     expect(after.sessionId, isNull);
-    expect(after.takes, 0);
+    expect(after.partes.length, 0);
   });
 
   test('the ensaio does not freeze on a play that never ends', () async {
@@ -5078,6 +5078,7 @@ void main() {
     await _intoFindings(harness, notifier, container);
 
     notifier.goEnsaio();
+    await settle();
     notifier.startRetro();
     await settle();
     harness.room.failWith = const Refused('UNAUTHORIZED');
@@ -6288,7 +6289,7 @@ void main() {
     await settle();
 
     expect(
-      container.read(salaSessionProvider).takes,
+      container.read(salaSessionProvider).partes.length,
       1,
       reason:
           'um keep rápido achava o caminho nulo e descartava a tomada em silêncio',
@@ -6310,7 +6311,7 @@ void main() {
     final guardada = container.read(salaSessionProvider).partes.firstOrNull;
     expect(guardada, isNotNull);
 
-    final contadas = container.read(salaSessionProvider).takes;
+    final contadas = container.read(salaSessionProvider).partes.length;
     harness.recorder.returnsNothing = true;
     notifier.ensaioTap();
     notifier.ensaioTap();
@@ -6326,7 +6327,7 @@ void main() {
           'a equipe confirmar um ensaio no vazio, do mesmo jeito que um bom',
     );
     expect(
-      state.takes,
+      state.partes.length,
       contadas,
       reason: 'e a conta não pode subir por uma gravação que nunca houve',
     );
@@ -6362,7 +6363,7 @@ void main() {
           'tomada, era copiado para guardadas/ e entrava no manifesto',
     );
     expect(
-      state.takes,
+      state.partes.length,
       0,
       reason: 'e a conta subia por uma passagem que a equipe contou no vazio',
     );
@@ -6928,7 +6929,7 @@ void main() {
     await gravaParte(notifier);
 
     final state = container.read(salaSessionProvider);
-    expect(state.takes, 3);
+    expect(state.partes.length, 3);
     expect(
       [for (final t in state.partes) t.scopeId],
       ['parte-1', 'parte-2', 'parte-3'],

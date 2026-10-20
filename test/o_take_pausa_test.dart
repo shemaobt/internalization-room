@@ -143,7 +143,7 @@ void main() {
         await settle();
 
         expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
-        expect(container.read(salaSessionProvider).takes, 1);
+        expect(container.read(salaSessionProvider).partes.length, 1);
       },
     );
   });
