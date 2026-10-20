@@ -15,6 +15,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -761,8 +762,10 @@ void main() {
   testWidgets(
     'a whole rehearsal the room holds with no number is no scene\'s part',
     (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
       await _retomarNoEnsaio(
         tester,
+        harness: harness,
         numeros: [1],
         arquivosNoTablet: false,
         naSala: const [
@@ -785,6 +788,8 @@ void main() {
         expect(_naLinha(n, _gravar), findsOneWidget);
       }
       expect(_discoAceso(tester), isFalse);
+      await _tocar(tester, _naLinha(1, _ouvir));
+      expect(harness.playback.played.last, contains('gravacao-1'));
     },
   );
 
@@ -908,6 +913,94 @@ void main() {
         'a equipe voltar à tradução',
         () => container.read(salaSessionProvider).stage == SalaStage.retro,
       );
+    },
+  );
+
+  test(
+    'a whole rehearsal the room holds with no number, reopened in its telling-'
+    'back, plays there',
+    () async {
+      final casa = Directory.systemTemp.createTempSync('sala-1406-inteiro');
+      addTearDown(() => casa.deleteSync(recursive: true));
+      final harness = SalaHarness()
+        ..playback.measured = const Duration(seconds: 10);
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+        sessionId: _sessao,
+        stage: SalaStage.retro,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.whole,
+            path: '${casa.path}/inteiro.m4a',
+            takeId: 'gravacao-inteira',
+          ),
+        ],
+      );
+      harness.room
+        ..passageScenes = _cenasEmPortugues
+        ..retroSoFar = const BackTranslationProgress(
+          segments: [
+            SegmentView(
+              segmentId: 'trecho-1',
+              takeId: 'gravacao-inteira',
+              startsMs: 0,
+              endsMs: 4000,
+            ),
+          ],
+        )
+        ..takes.add(
+          const TakeView(
+            takeId: 'gravacao-inteira',
+            kind: 'ensaio',
+            scope: KeptScope.whole,
+          ),
+        );
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final sala = container.read(salaSessionProvider.notifier);
+      await sala.abrirEscolha();
+      await settle();
+      unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
+
+      await waitFor(
+        'o ensaio inteiro tocar na tradução',
+        () => harness.playback.played.isNotEmpty,
+      );
+      final estado = container.read(salaSessionProvider);
+      expect(estado.stage, SalaStage.retro);
+      expect(estado.needsPerson, isFalse);
+    },
+  );
+
+  test(
+    'a scene list answered when the passage opened outlives a scene rehearsal '
+    'whose own ask fails',
+    () async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..room.passageScenes = _cenasEmPortugues;
+      final container = harness.container();
+      addTearDown(container.dispose);
+      SalaSessionState estado() => container.read(salaSessionProvider);
+      final sala = container.read(salaSessionProvider.notifier);
+      await sala.abrirEscolha();
+      await settle();
+      unawaited(sala.goConversa(book: 'Ruth'));
+      await waitFor('a sala se calar no convite', () {
+        final agora = estado();
+        return agora.scenes is ScenesHad &&
+            agora.station is Canvas &&
+            !agora.awaitingTheGuide &&
+            agora.machine.inFlight == null;
+      });
+
+      harness.room.failScenesWith = const NetworkFailed('sem rede');
+      sala.openTheSceneRehearsal();
+      await Future<void>.delayed(const Duration(seconds: 3));
+      sala.leaveTheSceneRehearsal();
+      await settle();
+      sala.goEnsaio();
+      await settle();
+
+      expect(estado().sceneRows, hasLength(4));
     },
   );
 }

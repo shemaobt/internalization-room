@@ -7,6 +7,12 @@ abstract class KeptScope {
   /// is a slice of one of these and not a part of the rehearsal in its own right.
   static bool isParte(String scopeId) => scopeId.startsWith('parte-');
 
+  /// Whether a scope names a recording of the rehearsal itself: one of its parts, or the
+  /// whole rehearsal an app before 19 August sent, which is no scene's part but is still
+  /// played and told back.
+  static bool isRehearsal(String scopeId) =>
+      isParte(scopeId) || scopeId == whole;
+
   /// The N of `parte-N`, the Scene the part answers for; null for any other scope.
   static int? numberOf(String scopeId) => isParte(scopeId)
       ? int.tryParse(scopeId.substring('parte-'.length))

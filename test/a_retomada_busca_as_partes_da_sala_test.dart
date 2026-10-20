@@ -823,7 +823,8 @@ void main() {
   });
 
   test(
-    'uma gravacao de ensaio sem numero fica inteira, fora das partes',
+    'uma gravacao de ensaio sem numero fica inteira: toca, mas nao e a parte de '
+    'nenhuma cena',
     () async {
       final harness = SalaHarness();
 
@@ -849,20 +850,20 @@ void main() {
       );
       await waitFor(
         'as partes voltarem da sala',
-        () =>
-            it.estado.stage == SalaStage.ensaio && it.estado.partes.isNotEmpty,
+        () => it.estado.partes.length == 2,
       );
 
       expect(
         _nomesDasPartes(it),
-        ['gravacao-1'],
+        ['gravacao-2', 'gravacao-1'],
         reason:
             'a sala só não numera o ensaio que o app de antes de 19 de agosto '
-            'mandava inteiro: ele não é a parte de nenhuma cena',
+            'mandava inteiro: ele toca e é contado como antes',
       );
-      expect(it.estado.btFimDasPartesMs, [
-        10000,
-      ], reason: 'e o colar desenha só as partes');
+      expect(it.estado.partNumbers, {
+        1,
+      }, reason: 'mas não é a parte de nenhuma cena');
+      expect(it.estado.btFimDasPartesMs, [10000, 20000]);
     },
   );
 

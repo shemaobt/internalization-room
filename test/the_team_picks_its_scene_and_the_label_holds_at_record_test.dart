@@ -186,6 +186,9 @@ Future<_Room> _theScreenOpens(
     ..room.sceneAudio = Uint8List.fromList([1, 2, 3]);
   harness.playback.measured = const Duration(seconds: 20);
   await before?.call(harness);
+  // A screen whose scene door is set up as it opens is one on a passage whose scene
+  // list never answered: the passage's own ask meets the same door down.
+  if (atTheScreen != null) harness.room.failScenesWith = _offline;
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final room = _Room(tester, harness, container);
@@ -201,7 +204,10 @@ Future<_Room> _theScreenOpens(
     beat: const Duration(milliseconds: 100),
   );
   await tester.pump(const Duration(milliseconds: 1500));
-  await atTheScreen?.call(harness);
+  if (atTheScreen != null) {
+    harness.room.failScenesWith = null;
+    await atTheScreen(harness);
+  }
   room._callsBefore = room.room.calls.length;
   room.sala.openTheSceneRehearsal();
   await tester.pump();

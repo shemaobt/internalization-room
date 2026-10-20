@@ -528,21 +528,20 @@ void main() {
 
     test('generator invariant 3: a failing sequence names its seed and '
         'its trace', () {
-      final aHaltNeverStands = Invariant<Machine>(
-        'a halt never stands',
-        (before, event, after, effects, world) => after.halt is NoHalt
-            ? null
-            : 'a halt stands: ${describeHalt(after.halt)}',
+      final nothingEverHappens = Invariant<Machine>(
+        'nothing ever happens',
+        (before, event, after, effects, world) =>
+            'it happened: ${describeEvent(event)}',
       );
       final events = [
         for (final entry in runSequence(_machine, [
-          aHaltNeverStands,
+          nothingEverHappens,
         ], 0).entries)
           describeEvent(entry.event),
       ];
 
       expect(
-        () => expectEverySeedHolds(_machine, [aHaltNeverStands], seeds: [0]),
+        () => expectEverySeedHolds(_machine, [nothingEverHappens], seeds: [0]),
         throwsA(
           isA<TestFailure>()
               .having(
@@ -553,7 +552,7 @@ void main() {
               .having(
                 (failure) => failure.message,
                 'message',
-                contains('a halt never stands'),
+                contains('nothing ever happens'),
               )
               .having(
                 (failure) => failure.message,

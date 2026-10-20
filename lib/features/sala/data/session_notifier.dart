@@ -3350,7 +3350,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (answer) {
       case Answered(:final value):
         if (state.scenes is! ScenesHad) {
-          state = state.copyWith(scenes: ScenesHad(value));
+          state = state.copyWith(
+            scenes: ScenesHad(value),
+            scenesOfThePassage: value,
+          );
           _stampTheQuestion();
           _weighTheRehearsal();
         }
@@ -3387,6 +3390,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _theScenesMissed(int asked) {
     if (!_readsTheScenes || state.scenes is ScenesHad) return;
+    // A list the room already answered for this session stands until a new answer
+    // replaces it: a failed ask never forgets it.
+    if (state.scenesOfThePassage case final known?) {
+      state = state.copyWith(scenes: ScenesHad(known));
+      _stampTheQuestion();
+      _weighTheRehearsal();
+      return;
+    }
     state = state.copyWith(scenes: const ScenesMissing());
     final wait = sceneListRetryWait(asked);
     if (wait == null) return;

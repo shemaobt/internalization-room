@@ -345,8 +345,12 @@ class SalaSessionState {
   /// This session's scene rehearsals, by number, as the room last answered them.
   final List<SceneRehearsalRecord> sceneRehearsals;
 
-  /// The passage's scenes, as the room answered them for this session.
+  /// The passage's scenes as the screen knows them now: the scene rehearsal's open waits
+  /// on a fresh ask.
   final SceneList scenes;
+
+  /// The passage's scenes as the room last answered them for this session.
+  final List<Scene>? scenesOfThePassage;
 
   /// The turn «terminei» last sent for a scene rehearsal and no reply has played for:
   /// the next «terminei» on that rehearsal goes under it again.
@@ -425,6 +429,7 @@ class SalaSessionState {
     this.scene = const SceneScreen(),
     this.sceneRehearsals = const [],
     this.scenes = const ScenesAwaited(),
+    this.scenesOfThePassage,
     this.sceneTurn,
   });
 
@@ -934,7 +939,7 @@ class SalaSessionState {
   /// slice of one of these and not a part of the rehearsal in its own right.
   List<KeptTake> get partes => [
     for (final take in keptTakes)
-      if (KeptScope.isParte(take.scopeId)) take,
+      if (KeptScope.isRehearsal(take.scopeId)) take,
   ]..sort((a, b) => _byNumber(a).compareTo(_byNumber(b)));
 
   static int _byNumber(KeptTake take) => KeptScope.numberOf(take.scopeId) ?? 0;
@@ -1067,6 +1072,7 @@ class SalaSessionState {
     SceneScreen? scene,
     List<SceneRehearsalRecord>? sceneRehearsals,
     SceneList? scenes,
+    List<Scene>? scenesOfThePassage,
     ({String rehearsalId, String turnId})? sceneTurn,
     bool clearSceneTurn = false,
   }) {
@@ -1156,6 +1162,7 @@ class SalaSessionState {
       scene: scene ?? this.scene,
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
       scenes: scenes ?? this.scenes,
+      scenesOfThePassage: scenesOfThePassage ?? this.scenesOfThePassage,
       sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),
     );
   }
