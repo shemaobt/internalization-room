@@ -2649,10 +2649,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             savedAt: _sessionSavedAt,
             language: _sessionLanguage,
             partBeingRecordedAgain: state.parteARegravar,
+            passesToGoAbove: _passadasDaSala ?? const {},
           ),
         ),
       ),
     );
+  }
+
+  /// The room's passes for the part numbers past [gravadas], or null when none is left.
+  Map<int, int>? _aindaPorGravar(Map<int, int> passadas, int gravadas) {
+    final resta = {
+      for (final MapEntry(:key, :value) in passadas.entries)
+        if (key > gravadas) key: value,
+    };
+    return resta.isEmpty ? null : resta;
   }
 
   _Resume _theResumeFailed(RoomResult result, int generation) {
@@ -2702,7 +2712,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             case Answered(:final value?):
               takes = value.partes;
               inteiro = value.inteiro;
-              if (!inteiro) _passadasDaSala = value.passadas;
+              if (!inteiro) {
+                _passadasDaSala = _aindaPorGravar(
+                  value.passadas,
+                  value.partes.length,
+                );
+              }
             case Answered():
               takes = null;
             case NetworkFailed():
@@ -2728,6 +2743,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return _Resume.abandoned;
     if (takes == null) {
       return _theResumeFailed(const RoomFoundNothing(), generation);
+    }
+    if (!faltavam) {
+      _passadasDaSala = _aindaPorGravar(waiting.passesToGoAbove, takes.length);
     }
     // A room holding no rehearsal is not a rehearsal to come back to, and it is not a
     // failure either: the conversa is where a passage with nothing behind it starts —
@@ -4703,6 +4721,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       path: path,
       pass: (_passadasDaSala?[parte] ?? 0) + 1,
     );
+    final passadas = _passadasDaSala;
+    if (passadas != null) _passadasDaSala = _aindaPorGravar(passadas, parte);
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [...state.keptTakes, nova],

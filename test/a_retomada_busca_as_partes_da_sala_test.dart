@@ -562,6 +562,87 @@ void main() {
     },
   );
 
+  List<TakeView> salaComPassadas(List<int> passadas) => [
+    for (final (i, passada) in passadas.indexed)
+      TakeView(
+        takeId: 'gravacao-${i + 1}',
+        kind: 'ensaio',
+        scope: KeptScope.parte(i + 1),
+        ordinal: i + 1,
+        pass: passada,
+      ),
+  ];
+
+  group('depois de reabrir o app, a parte gravada onde a da sala sumiu ainda '
+      'sobe acima da passada da sala', () {
+    test('a parte do meio', () async {
+      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.ensaio,
+        naSala: salaComPassadas([1, 2, 1]),
+      );
+      await oEnsaioAbre(it);
+      await settle();
+
+      final volta = await _reabrirDeNovo(it);
+      await oEnsaioAbre(volta);
+      final antes = harness.room.takePasses.length;
+      await gravarUmaParteNoEnsaio(volta);
+      await waitFor(
+        'a parte subir',
+        () => harness.room.takePasses.length > antes,
+      );
+
+      expect(harness.room.takePasses.last, 3);
+    });
+
+    test('a primeira parte, com a linha vazia', () async {
+      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-1');
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.ensaio,
+        naSala: salaComPassadas([2, 1, 1]),
+      );
+      await oEnsaioAbre(it);
+      await settle();
+
+      final volta = await _reabrirDeNovo(it);
+      await oEnsaioAbre(volta);
+      final antes = harness.room.takePasses.length;
+      await gravarUmaParteNoEnsaio(volta);
+      await waitFor(
+        'a parte subir',
+        () => harness.room.takePasses.length > antes,
+      );
+
+      expect(harness.room.takePasses.last, 3);
+    });
+
+    test('a parte depois do buraco', () async {
+      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.ensaio,
+        naSala: salaComPassadas([1, 1, 2]),
+      );
+      await oEnsaioAbre(it);
+      await settle();
+
+      final volta = await _reabrirDeNovo(it);
+      await oEnsaioAbre(volta);
+      final antes = harness.room.takePasses.length;
+      await gravarUmaParteNoEnsaio(volta);
+      await gravarUmaParteNoEnsaio(volta);
+      await waitFor(
+        'as duas partes subirem',
+        () => harness.room.takePasses.length > antes + 1,
+      );
+
+      expect(harness.room.takePasses.skip(antes), [2, 3]);
+    });
+  });
+
   test(
     'a parte gravada onde a da sala sumiu sobe acima da passada da sala',
     () async {
