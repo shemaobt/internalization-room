@@ -3652,6 +3652,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void sendTheSceneTakeAgain() => _gesture(() => _sendTheSceneTakeAgain());
 
   void _sceneTap() {
+    if (_recordingStarting) return;
     if (state.station is! SceneRehearsal ||
         state.scene.step != SceneStep.record ||
         state.scene.waiting ||
@@ -3748,14 +3749,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _theRoomKept(kept, waiting, keeping, generation);
   }
 
-  Future<void> _theRoomKeptWhatWaited() async {
+  Future<void> _theRoomKeptWhatWaited(int generation) async {
+    if (_abandoned(generation)) return;
     final asked = state.scene;
     final waiting = asked.keep;
     if (waiting is! NotKept) return;
     final row = waiting.row;
     final kept = row == null ? null : _takes.keptSceneOf(row);
     if (kept == null) return;
-    await _theRoomKept(kept, waiting, asked, _waitOnTheGeneration);
+    await _theRoomKept(kept, waiting, asked, generation);
   }
 
   Future<void> _theRoomKept(
@@ -6942,8 +6944,9 @@ class _NotifierHost implements StationHost {
 
   @override
   Future<void> hearTheOutboxFlushed() async {
+    final generation = _notifier._waitOnTheGeneration;
     await _notifier._adoptTheNames(_notifier._takes);
-    await _notifier._theRoomKeptWhatWaited();
+    await _notifier._theRoomKeptWhatWaited(generation);
   }
 
   @override
