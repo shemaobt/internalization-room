@@ -4102,7 +4102,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _recordTheSceneAgain() {
     if (state.station is! SceneRehearsal ||
         state.theSceneIsSending ||
-        state.scene.waiting) {
+        (state.scene.step == SceneStep.translate && state.scene.waiting)) {
       return;
     }
     if (state.channel is Microphone) _dispatch(const MicDiscarded());
