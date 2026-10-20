@@ -304,6 +304,37 @@ void main() {
       },
     );
 
+    test(
+      'a WAV whose header says it holds no sound goes up with no length',
+      () async {
+        final bytes = aWavTake();
+        ByteData.sublistView(bytes).setUint32(40, 0, Endian.little);
+        final queue = queueAt(() => clock);
+        await keep(queue, recorded('parte', bytes, extension: 'wav'));
+
+        await queue.flush();
+
+        expect(_fields(requests.single), {
+          'recorded_at': stopped.toUtc().toIso8601String(),
+          'sha256': sha256Of(bytes),
+        });
+      },
+    );
+
+    test('a WAV with 12 bits a sample goes up with no length', () async {
+      final bytes = aWavTake();
+      ByteData.sublistView(bytes).setUint16(34, 12, Endian.little);
+      final queue = queueAt(() => clock);
+      await keep(queue, recorded('parte', bytes, extension: 'wav'));
+
+      await queue.flush();
+
+      expect(_fields(requests.single), {
+        'recorded_at': stopped.toUtc().toIso8601String(),
+        'sha256': sha256Of(bytes),
+      });
+    });
+
     test('a cut WAV goes up with the length of what exists', () async {
       const padding = 3200;
       final bytes = aWavTake(

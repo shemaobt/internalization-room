@@ -50,6 +50,7 @@ Duration? wavLengthOf(Uint8List wav) {
       data.channels < 1 ||
       data.rate <= 0 ||
       data.bits < 8 ||
+      data.bits % 8 != 0 ||
       data.size == 0 ||
       data.size == 0xFFFFFFFF) {
     return null;
