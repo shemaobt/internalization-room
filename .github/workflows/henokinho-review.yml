@@ -24,7 +24,7 @@ jobs:
       # Raised with shema-api's: the reusable workflow's 40 was measured on smaller
       # pull requests than the ones this repo now gets (ENG-1692: #374 and #376 both
       # ended in error_max_turns with no review posted).
-      max_turns: 60
+      max_turns: 90
       app_id: ${{ vars.HENOKINHO_APP_ID }}
     secrets:
       app_private_key: ${{ secrets.HENOKINHO_APP_PRIVATE_KEY }}
