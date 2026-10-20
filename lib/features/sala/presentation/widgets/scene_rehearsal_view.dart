@@ -11,15 +11,12 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/scene_question.dart';
 import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
-import '../../data/playback_repository.dart';
-import '../../domain/pausa.dart';
 import 'bead_styles.dart';
-import 'motion.dart';
 import 'scene_question.dart';
-import 'scene_strip.dart';
+import 'scene_translate_step.dart';
 
-/// The scene rehearsal's screen. Her words on the translate step are written as on hers
-/// (ADR 0014); everywhere else they reach the team only through VoiceOver.
+/// The scene rehearsal's screen; her words reach the team only through VoiceOver, but on
+/// the translate step, which writes them (ADR 0014).
 class SceneRehearsalView extends ConsumerWidget {
   const SceneRehearsalView({super.key});
 
@@ -114,11 +111,11 @@ class SceneRehearsalView extends ConsumerWidget {
                   focused: scene.picked != null,
                 ),
               },
-              SceneStep.translate => _TranslateStep(
+              SceneStep.translate => SceneTranslateStep(
                 scene: scene,
                 channel: session.channel,
                 language: language,
-                still: sending,
+                sending: sending,
                 again: again,
                 terminei: terminei,
               ),
@@ -191,219 +188,6 @@ class SceneRehearsalView extends ConsumerWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// The translate step, in her order: the instruction, the play control and the hint, the
-/// strip, «traduzir o ensaio da cena» until the team listens, the circle between «gravar de
-/// novo» and «terminei», then the frases told.
-class _TranslateStep extends ConsumerWidget {
-  final SceneScreen scene;
-  final Channel channel;
-  final String language;
-  final bool still;
-  final Widget again;
-  final Widget terminei;
-
-  const _TranslateStep({
-    required this.scene,
-    required this.channel,
-    required this.language,
-    required this.still,
-    required this.again,
-    required this.terminei,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(salaSessionProvider.notifier);
-    final playback = ref.read(playbackRepositoryProvider);
-    final colors = SalaColors.of(context);
-    String said(String control, [int? n]) =>
-        sceneRehearsalLabelFor(control, language, n: n);
-    final playing = channel is PartPlaying;
-    final telling = channel is Microphone;
-    final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
-    final moving = !still && !scene.waiting && !telling;
-    final words = TextStyle(color: colors.ink, fontSize: 16);
-
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _Written(said('subTranslate'), style: words),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RoundActionButton(
-                size: 52,
-                mood: moving && scene.listened
-                    ? ButtonMood.lit
-                    : ButtonMood.dimmed,
-                semanticLabel: said('playPause'),
-                onTap: notifier.playTheSceneRehearsal,
-                border: Border.all(color: colors.vermelhoMic, width: 2),
-                child: Icon(
-                  playing ? LucideIcons.pause : LucideIcons.play,
-                  size: 22,
-                  color: colors.vermelhoMic,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Loop(
-                period: const Duration(seconds: 1),
-                animate: playing,
-                reducible: false,
-                builder: (context, _) =>
-                    switch (_hintOf(playing: playing, at: playback.position)) {
-                      final hint? => _Written(
-                        hint,
-                        style: TextStyle(color: colors.mut, fontSize: 16),
-                      ),
-                      null => const SizedBox.shrink(),
-                    },
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SceneStrip(
-            envelope: scene.envelope,
-            length: scene.length,
-            frases: frases,
-            pausa: scene.pausa,
-            playing: playing,
-          ),
-          if (!scene.listened) ...[
-            const SizedBox(height: 12),
-            _WrittenButton(
-              said('translate'),
-              live: moving,
-              onTap: notifier.playTheSceneRehearsal,
-            ),
-          ],
-          const SizedBox(height: 12),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              again,
-              const SizedBox(width: 24),
-              RoundActionButton(
-                size: 180,
-                mood: telling
-                    ? ButtonMood.beckoning
-                    : scene.waiting
-                    ? ButtonMood.waiting
-                    : still || !scene.listened
-                    ? ButtonMood.dimmed
-                    : ButtonMood.lit,
-                halo: colors.vermelhoMic,
-                semanticLabel: said('tell'),
-                onTap: notifier.tapTheTranslateCircle,
-                background: colors.vermelhoMic.withValues(alpha: 0.10),
-                border: Border.all(color: colors.vermelhoMic, width: 2),
-                child: Icon(
-                  telling ? LucideIcons.square : LucideIcons.mic,
-                  size: 56,
-                  color: colors.vermelhoMic,
-                ),
-              ),
-              const SizedBox(width: 24),
-              terminei,
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (frases.isNotEmpty) ...[
-            Wrap(
-              spacing: 16,
-              runSpacing: 4,
-              alignment: WrapAlignment.center,
-              children: [
-                for (final (i, _) in frases.indexed)
-                  _Written(said('frase', i + 1), style: words),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Her hint: the pausa waiting, the take playing with her clock, the end of the take,
-  /// or the take paused; nothing before the team listens.
-  String? _hintOf({required bool playing, required Duration at}) {
-    final told = scene.told;
-    final pausa = scene.pausa;
-    final frontier = scene.rehearsal?.frontier ?? Duration.zero;
-    if (!scene.listened) return null;
-    if (pausa != null) {
-      if (told != null && pausa >= told) {
-        return sceneRehearsalLabelFor('ended', language);
-      }
-      return retroLabelFor(
-        scene.envelope == null ? 'pauseAtTheTap' : 'pauseHint',
-        language,
-      );
-    }
-    if (playing) return sceneListeningLineFor(at, scene.length, language);
-    if (told != null && pauseBounds(frontier, told) == null) {
-      return sceneRehearsalLabelFor('ended', language);
-    }
-    return sceneRehearsalLabelFor('paused', language);
-  }
-}
-
-/// Her words written on the screen, read by VoiceOver as written.
-class _Written extends StatelessWidget {
-  final String words;
-  final TextStyle style;
-
-  const _Written(this.words, {required this.style});
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    label: words,
-    child: ExcludeSemantics(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Text(words, style: style, textAlign: TextAlign.center),
-      ),
-    ),
-  );
-}
-
-class _WrittenButton extends StatelessWidget {
-  final String words;
-  final bool live;
-  final VoidCallback onTap;
-
-  const _WrittenButton(this.words, {required this.live, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SalaColors.of(context);
-    return Semantics(
-      button: true,
-      enabled: live,
-      label: words,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: live ? onTap : null,
-        child: ExcludeSemantics(
-          child: Opacity(
-            opacity: live ? 1 : 0.35,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                border: Border.all(color: colors.vermelhoMic, width: 1.5),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(words, style: TextStyle(color: colors.ink)),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

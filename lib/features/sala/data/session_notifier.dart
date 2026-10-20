@@ -3451,6 +3451,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _ when rehearsal.placesKnownIn(length) => SceneStep.translate,
       _ => SceneStep.placesUnknown,
     };
+    final again =
+        step == SceneStep.translate &&
+        asked.step == SceneStep.translate &&
+        asked.rehearsal?.rehearsalId == rehearsal.rehearsalId;
+    final pausa = asked.pausa;
     state = state.copyWith(
       scene: SceneScreen(
         step: step,
@@ -3458,6 +3463,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         take: here,
         length: length,
         envelope: step == SceneStep.translate ? _envelopeOf(here) : null,
+        listened: again && asked.listened,
+        pausa: again && pausa != null && pausa > rehearsal.frontier
+            ? pausa
+            : null,
       ),
       sceneRehearsals: _listedWith(rehearsal),
     );
@@ -3777,6 +3786,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         shown.step != SceneStep.translate ||
         shown.take == null ||
         shown.rehearsal == null ||
+        shown.waiting ||
         state.theSceneIsSending ||
         state.needsPerson) {
       return;
@@ -3786,7 +3796,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _handOff(_keepTheSceneFrase());
       case Microphone():
         return;
-      case _ when shown.waiting || !shown.listened:
+      case _ when !shown.listened:
         return;
       case _ when shown.pausa != null:
         _startListening('frase_${_stamp()}', owner: MicOwner.frase);
@@ -3844,32 +3854,38 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final tap = _playback.position;
     _silenceTheRoom();
     final shown = state.scene;
+    final pausa = _thePausaAt(tap, shown);
+    if (pausa != null) {
+      state = state.copyWith(scene: shown.copyWith(pausa: pausa));
+    }
+  }
+
+  /// Never behind where the translation stopped nor past the take's end, so the room
+  /// can keep the frase.
+  Duration? _thePausaAt(Duration tap, SceneScreen shown) {
     final frontier = shown.rehearsal!.frontier;
     final envelope = shown.envelope;
-    final told = shown.told;
-    final bounds = told == null ? null : pauseBounds(frontier, told);
-    final pausa = envelope == null || told == null
-        ? (tap > frontier ? tap : null)
-        : bounds == null
-        ? null
-        : placeThePause(envelope, tap, lo: bounds.lo, hi: bounds.hi);
-    if (pausa == null) return;
-    state = state.copyWith(scene: shown.copyWith(pausa: pausa));
+    final end = shown.takeEnd;
+    if (envelope == null || end == null) {
+      final raw = end != null && tap > end ? end : tap;
+      return raw > frontier ? raw : null;
+    }
+    final bounds = pauseBounds(frontier, end);
+    if (bounds == null) return null;
+    return placeThePause(envelope, tap, lo: bounds.lo, hi: bounds.hi);
   }
 
   /// A take heard to its end ends its last frase at the take's end, when a frase is
   /// still left to tell there.
   void _theTakeEnded() {
     final shown = state.scene;
-    final told = shown.told;
     if (state.station is! SceneRehearsal ||
         shown.step != SceneStep.translate ||
         shown.pausa != null ||
-        told == null ||
-        pauseBounds(shown.rehearsal!.frontier, told) == null) {
+        !shown.moreToTell) {
       return;
     }
-    state = state.copyWith(scene: shown.copyWith(pausa: told));
+    state = state.copyWith(scene: shown.copyWith(pausa: shown.takeEnd));
   }
 
   /// The stop tap: the frase goes to the room with its place in the take, and the take
@@ -3883,7 +3899,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     final rehearsal = shown.rehearsal!;
     final pausa = shown.pausa!;
-    final path = (await _closeTheMicrophone()).take;
+    final MicOutcome closed;
+    try {
+      closed = await _closeTheMicrophone();
+    } on Object {
+      if (identical(state.scene, waiting)) state = state.copyWith(scene: shown);
+      return;
+    }
+    final path = closed.take;
     if (path == null || sessionId == null || _anAccidentalTap(path)) {
       if (path != null) unawaited(_recorder.delete(path));
       if (identical(state.scene, waiting)) state = state.copyWith(scene: shown);
@@ -3905,10 +3928,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           scene: shown.copyWith(rehearsal: value, clearPausa: true),
           sceneRehearsals: _listedWith(value),
         );
-        final told = state.scene.told;
-        if (told != null && pauseBounds(value.frontier, told) != null) {
-          _translateOnFrom(value.frontier);
-        }
+        if (state.scene.moreToTell) _translateOnFrom(value.frontier);
       case final RoomFailure failure:
         state = state.copyWith(scene: shown);
         _decideAt(failure, door: Door.sceneRehearsal);

@@ -536,6 +536,93 @@ void main() {
     );
 
     test(
+      'a second stop tap while the frase microphone closes keeps the frase once',
+      () async {
+        final room = await _onTheTranslateStep();
+        await _listening(room);
+        room.harness.playback.at = _s(4.0);
+        await _circle(room);
+        await _theFraseMicrophoneOpens(room);
+        room.harness.recorder.holdNextStop();
+
+        room.sala.tapTheTranslateCircle();
+        room.sala.tapTheTranslateCircle();
+        room.harness.recorder.finishStop();
+        await waitFor(
+          'a frase ir para a sala',
+          () => room.harness.room.frasesKept.isNotEmpty,
+        );
+        await settle();
+
+        expect(room.harness.room.frasesKept, hasLength(1));
+      },
+    );
+
+    test(
+      'a frase microphone that fails to close is closed again by the next circle tap',
+      () async {
+        final room = await _onTheTranslateStep();
+        await _listening(room);
+        room.harness.playback.at = _s(4.0);
+        await _circle(room);
+        await _theFraseMicrophoneOpens(room);
+        room.harness.recorder.stopThrows = true;
+
+        room.sala.tapTheTranslateCircle();
+        await settle();
+        room.harness.recorder.stopThrows = false;
+
+        expect(_theFraseMicrophoneIsOpen(room.state), isTrue);
+        await _theFraseIsSent(room);
+        expect(room.harness.room.frasesKept.single.endsMs, 4000);
+      },
+    );
+
+    test(
+      'the room\'s list read again keeps the pausa pending and the take listened to',
+      () async {
+        final room = await _onTheTranslateStep();
+        await _listening(room);
+        room.harness.playback.at = _s(4.0);
+        await _circle(room);
+        room.harness.room.sceneAnswersFirst.add(
+          const Refused(RefusalCode.notFound),
+        );
+        final listed = room.asked('sceneRehearsalsOf');
+        await _theFraseMicrophoneOpens(room);
+        await _theFraseIsSent(room);
+        await waitFor(
+          'a sala ler a lista de novo',
+          () => room.asked('sceneRehearsalsOf') > listed,
+        );
+        await settle();
+
+        await _theFraseMicrophoneOpens(room);
+        await _theFraseIsSent(room, already: 1);
+        final [first, second] = room.harness.room.frasesKept;
+        expect(
+          (second.startsMs, second.endsMs),
+          (first.startsMs, first.endsMs),
+        );
+      },
+    );
+
+    test(
+      'a tap past what the room measured, on a take kept as m4a, ends the frase at the room\'s length',
+      () async {
+        final room = await _onTheTranslateStep(
+          take: Uint8List.fromList(List.filled(4000, 7)),
+          rehearsal: _rehearsal(durationMs: 9500),
+        );
+        await _listening(room);
+
+        await _aFraseAt(room, _s(9.8));
+
+        expect(room.harness.room.frasesKept.single.endsMs, 9500);
+      },
+    );
+
+    test(
       'a frase recorded after «recomeçar a tradução» names the attempt the rehearsal is in',
       () async {
         final restarted = await _onTheTranslateStep(

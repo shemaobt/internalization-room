@@ -305,6 +305,9 @@ class FakeRecorder implements RecordingRepository {
   bool? answersPermission = true;
   bool startThrows = false;
 
+  /// Whether closing the microphone fails, the way a recorder that lost its file does.
+  bool stopThrows = false;
+
   @override
   Future<bool?> hasPermission() async => permitted ? answersPermission : false;
 
@@ -371,6 +374,9 @@ class FakeRecorder implements RecordingRepository {
     final held = _holdingStop;
     if (held != null) await held.future;
     _recording = false;
+    if (stopThrows) {
+      throw const FileSystemException('o gravador perdeu o arquivo');
+    }
     if (returnsNothing) return null;
     final deliverable =
         lastOwner == MicOwner.rehearsal ||

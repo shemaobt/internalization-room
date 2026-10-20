@@ -236,11 +236,11 @@ String sceneRehearsalLabelFor(String control, String language, {int? n}) =>
 String sceneListeningLineFor(Duration at, Duration? length, String language) {
   String clock(Duration time) =>
       '${time.inMinutes}:${'${time.inSeconds % 60}'.padLeft(2, '0')}';
-  final whole = length != null && length > Duration.zero
+  final ofTheTake = length != null && length > Duration.zero
       ? ' / ${clock(length)}'
       : '';
   return '${sceneRehearsalLabelFor('listening', language)} — '
-      '${clock(at)}$whole';
+      '${clock(at)}$ofTheTake';
 }
 
 /// A scene button's name: «cena N» and the scene's title.

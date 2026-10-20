@@ -96,11 +96,19 @@ final class SceneScreen {
 
   /// The take as far as a frase may reach: this tablet's length, never past what the
   /// room measured.
-  Duration? get told => switch ((length, rehearsal?.durationMs)) {
+  Duration? get takeEnd => switch ((length, rehearsal?.durationMs)) {
     (final Duration length, final int measured)
         when measured < length.inMilliseconds =>
       Duration(milliseconds: measured),
     (final length, _) => length,
+  };
+
+  /// Whether another frase fits between where the translation stopped and the take's
+  /// end.
+  bool get moreToTell => switch (takeEnd) {
+    final end? =>
+      pauseBounds(rehearsal?.frontier ?? Duration.zero, end) != null,
+    null => false,
   };
 
   /// Whether «terminei» applies: an unsent rehearsal with a translated frase, being

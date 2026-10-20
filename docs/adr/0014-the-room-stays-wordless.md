@@ -55,7 +55,7 @@ exception, under the moment label's reason, her words the team reads: her 1 Octo
 makes her frozen screen the bar, and on hers «na frase 3» points at a «3» on the screen.
 
 Amended by ENG-1348 (2026-10-19, ADR 0099): the scene rehearsal's translate step shows her
-words (`widgets/scene_rehearsal_view.dart`): her instruction «Ouçam o ensaio da cena; toquem no
+words (`widgets/scene_translate_step.dart`): her instruction «Ouçam o ensaio da cena; toquem no
 círculo para pausar onde a frase acaba, e de novo para traduzir só aquela frase.», her hint with
 its clock, «traduzir o ensaio da cena» and each «frase N». It is the eighth named exception,
 under the moment label's reason, her words the team reads: her frozen screen is the bar, as for
