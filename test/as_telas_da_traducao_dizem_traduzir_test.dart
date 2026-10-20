@@ -33,6 +33,8 @@ const _rotulosDeTraduzir = {
   'ouvir a minha tradução da frase {n}',
   'Ouvir esta frase de novo e traduzir de novo — {n}',
   'traduzindo de novo a frase {n} — toquem no círculo',
+  'traduzindo de novo a frase {n} — se precisar, movam a pausa; depois toquem no círculo',
+  'traduzindo de novo a frase {n} — toquem no círculo (a pausa só se move na última frase; para mudar uma pausa anterior, recomeçar a tradução)',
   'manter a tradução de antes',
   'regravada — traduzam esta frase',
   'enviando a tradução do ensaio da cena para a voz…',
