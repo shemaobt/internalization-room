@@ -5989,15 +5989,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           clearTrechoTraduzidoDeNovo: true,
           btChunkFailures: const [],
           btClipEnded: false,
-          btAviso: BtAviso.recomecada,
+          btRecomecada: true,
           clearBtRecusa: true,
         );
         _dispatch(const TheTranslationStartedOver());
 
         _after(
-          'aviso',
+          'recomecada',
           ref.read(restartLapseProvider),
-          () => state = state.copyWith(clearAviso: true),
+          () => state = state.copyWith(btRecomecada: false),
         );
         final agora = _generation;
         try {

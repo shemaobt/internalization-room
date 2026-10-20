@@ -184,13 +184,7 @@ enum BtPhase { playing, capturing, thinking, findings, conferida }
 
 enum BtRecomeco { armado, pronto }
 
-enum BtAviso {
-  recomecada,
-  recomecoFalhou,
-  pausaSoNaUltima,
-  pausaPassaDoFim,
-  pausaNaoFica,
-}
+enum BtAviso { recomecoFalhou, pausaSoNaUltima, pausaPassaDoFim, pausaNaoFica }
 
 enum PassoDaRegravacao {
   ouvindo,
@@ -346,6 +340,7 @@ class SalaSessionState {
   final int btPass;
   final BtRecomeco? btRecomeco;
   final BtAviso? btAviso;
+  final bool btRecomecada;
   final RegravacaoDaFrase? btRegravacao;
   final String? btFraseQueAguarda;
   final int? btFraseGuardada;
@@ -451,6 +446,7 @@ class SalaSessionState {
     this.btPass = 1,
     this.btRecomeco,
     this.btAviso,
+    this.btRecomecada = false,
     this.btRegravacao,
     this.btFraseQueAguarda,
     this.btFraseGuardada,
@@ -1132,6 +1128,7 @@ class SalaSessionState {
     BtRecomeco? btRecomeco,
     bool clearRecomeco = false,
     BtAviso? btAviso,
+    bool? btRecomecada,
     bool clearAviso = false,
     RegravacaoDaFrase? btRegravacao,
     bool clearBtRegravacao = false,
@@ -1215,6 +1212,7 @@ class SalaSessionState {
       btPass: btPass ?? this.btPass,
       btRecomeco: clearRecomeco ? null : (btRecomeco ?? this.btRecomeco),
       btAviso: clearAviso ? null : (btAviso ?? this.btAviso),
+      btRecomecada: btRecomecada ?? this.btRecomecada,
       btRegravacao: clearBtRegravacao
           ? null
           : (btRegravacao ?? this.btRegravacao),
