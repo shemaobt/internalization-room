@@ -23,33 +23,38 @@ frase's bar to translate it again, and holds «a tradução do ensaio da cena fo
 ## Decision
 
 - The scene frase is its own door. Its wordless refusal, its network failure (the tablet's own
-  timeout included), an answer it cannot read, and a refusal that names the frase
-  (UNKNOWN_REFERENCE, TOO_LARGE or a 413) are `TheTellingCameBackEmpty` (0068's event), never a
-  counted refusal, never the person sign, never the offline fall. A code that stops the room
-  still stops it, and a sent, gone or out-of-place rehearsal still reads the list again.
+  timeout included), an answer it cannot read, and every refusal of the frase, named
+  (UNKNOWN_REFERENCE, TOO_LARGE, a 413) or not (a 422), are `TheTellingCameBackEmpty` (0068's
+  event), never a counted refusal, never the person sign, never the offline fall. A code that
+  stops the room still stops it, a sent, gone or out-of-place rehearsal still reads the list
+  again, and SCENE_REHEARSAL_SENDING says nothing of the frase.
 - In the Scene rehearsal that event asks the frase again through one effect, and the mark lives
   on the scene screen, not on the machine: a new screen is born without it, and the frase
   microphone opening clears it.
 - Every end of a frase's post lets it go but SCENE_REHEARSAL_SENDING, which keeps it held to be
-  sent again (amending 0099's let-go list): a frase lost to the network or refused by name is
-  let go, the next circle opens the microphone, and the team speaks it again. The room's refusal of a frase over a span it already
-  kept (FRASE_OUT_OF_PLACE) now guards what the resend of the same bytes guarded: if the room
-  had kept the first, the new one is refused and the list read shows the kept one, never two.
-  A translation again lost the same way names the frase it replaces, so the room keeps the new
-  one over the lost one and the screen still shows one.
+  sent again (amending 0099's let-go list): a frase lost to the network or refused is let go,
+  the next circle opens the microphone, and the team speaks it again. The room's refusal of a
+  frase over a span it already kept (FRASE_OUT_OF_PLACE) now guards what the resend of the
+  same bytes guarded: if the room had kept the first, the new one is refused and the list read
+  shows the kept one, never two. A translation again names the frase it replaces, and the room
+  replaces the newest of that frase's chain, so the screen still shows one.
 - A frase translated again posts its own span and names the frase it replaces. The take does
   not play on after it lands. When its answer is lost (or cannot be read), the policy says
-  so with 0068's event marked to read the list again: her line shows and the list is read. If
-  the room kept the new one, it shows as kept and her line goes; if not, her line and «manter
-  a tradução de antes» stay. The notifier never tells a lost answer apart itself (0053).
+  so with 0068's event marked to read the list again, and the notifier never tells a lost
+  answer apart itself (0053). The screen keeps «traduzindo de novo…» and waits, with nothing
+  to tap, until the list read lands and decides: kept, it shows as kept with no line; not
+  kept, her line and «manter a tradução de antes». A list read that fails shows her line
+  with no «manter»: the next circle translates the piece again, and play and «terminei» read
+  the list first and decide from it; a «terminei» the list shows kept sends the scene.
 - A list read keeps a frase armed to be translated again while the list still holds it; if not,
   the arm drops and its stretch stops.
-- «terminei» with a held frase whose last try is not understood stops at her line, and the piece
+- «terminei» with a held frase whose last try is not kept stops at her line, and the piece
   stays at its cut. The scene goes once that piece is translated again and «terminei» is tapped,
   or on a second «terminei», which sends without it: on hers the refusal is seen before
   «terminei» can be pressed again.
 - «terminei» shows her line on the answer in its place, holds the screen 1.4 s, then closes it
-  and voices the reply on the Canvas. The send's inert screen (0085) stays inert through the 1.4 s.
+  and voices the reply on the Canvas. The send's inert screen (0085) stays inert through the
+  1.4 s.
 
 ## Considered Options
 
