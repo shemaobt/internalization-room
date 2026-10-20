@@ -3,12 +3,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:clock/clock.dart';
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/machine.dart';
 import '../domain/scene_rehearsal.dart';
+import '../domain/wav.dart';
 import 'recording_repository.dart';
 import 'room_answer.dart';
 import 'room_repository.dart';
@@ -104,6 +106,13 @@ class PendingTake {
 
   final String? refusal;
 
+  /// When the recording stopped, on the tablet's clock; its length when it is a WAV; and
+  /// the sha256 of the bytes that go up. Fixed when the row is written and sent unchanged
+  /// on every try. A row an older app wrote has none and sends none.
+  final DateTime? recordedAt;
+  final int? durationMs;
+  final String? sha256;
+
   const PendingTake({
     required this.id,
     required this.path,
@@ -121,6 +130,9 @@ class PendingTake {
     this.waits = 0,
     this.lastTry,
     this.refusal,
+    this.recordedAt,
+    this.durationMs,
+    this.sha256,
   });
 
   bool get exhausted => attempts >= takeUploadAttempts;
@@ -137,6 +149,9 @@ class PendingTake {
     original: original,
     takeId: takeId,
     lost: lost,
+    recordedAt: recordedAt,
+    durationMs: durationMs,
+    sha256: sha256,
   );
 
   bool get refusedWithNoCode =>
@@ -171,6 +186,9 @@ class PendingTake {
     waits: waits ?? this.waits,
     lastTry: lastTry ?? this.lastTry,
     refusal: refusal ?? this.refusal,
+    recordedAt: recordedAt,
+    durationMs: durationMs,
+    sha256: sha256,
   );
 
   Map<String, Object?> toJson() => {
@@ -190,6 +208,9 @@ class PendingTake {
     'waits': waits,
     'last_try': lastTry?.toUtc().toIso8601String(),
     'refusal': refusal,
+    'recorded_at': recordedAt?.toUtc().toIso8601String(),
+    'duration_ms': durationMs,
+    'sha256': sha256,
   };
 
   factory PendingTake.fromJson(
@@ -221,6 +242,12 @@ class PendingTake {
       final String code => code,
       _ => null,
     },
+    recordedAt: switch (json['recorded_at']) {
+      final String stamp => DateTime.parse(stamp),
+      _ => null,
+    },
+    durationMs: json['duration_ms'] as int?,
+    sha256: json['sha256'] as String?,
   );
 }
 
@@ -549,9 +576,11 @@ class TakeUploadQueue {
     final id = _mintId();
     final name = p.basenameWithoutExtension(audio.path);
     final kept = p.join(dir.path, '$kind-$name-$id${p.extension(audio.path)}');
+    final stopped = await audio.lastModified();
     if (audio.path != kept) {
       await audio.copy(kept);
     }
+    final bytes = await File(kept).readAsBytes();
     final entry = PendingTake(
       id: id,
       path: kept,
@@ -562,6 +591,9 @@ class TakeUploadQueue {
       chunkIndex: chunkIndex,
       scene: scene,
       original: kind == sceneTakeKind ? name : null,
+      recordedAt: stopped,
+      durationMs: wavLengthOf(bytes)?.inMilliseconds,
+      sha256: crypto.sha256.convert(bytes).toString(),
     );
     await _mutate((written) => [...written, entry]);
     return entry;
@@ -689,6 +721,9 @@ class TakeUploadQueue {
               scope: entry.scope,
               passNumber: entry.passNumber,
               chunkIndex: entry.chunkIndex,
+              recordedAt: entry.recordedAt,
+              durationMs: entry.durationMs,
+              sha256: entry.sha256,
             );
     } on FileSystemException {
       _inTheAir = null;
@@ -772,6 +807,9 @@ class TakeUploadQueue {
       entry.sessionId,
       file,
       scene: entry.scene,
+      recordedAt: entry.recordedAt,
+      durationMs: entry.durationMs,
+      sha256: entry.sha256,
     );
     switch (kept) {
       case Answered(:final value):
