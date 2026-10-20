@@ -152,6 +152,12 @@ Extended by name (ENG-1197, 2026-10-19), same end date: `btRecusa`, the refusal 
 trecho da gravação», «ainda não tem frase traduzida», «não deu para conferir agora — tentem de
 novo»), sits beside them on the same two classes and moves with them.
 
+Extended by name (ENG-1220, 2026-10-19), same end date: `btVeredito`, a verdict stands on this
+telling, so her sub-line and the frase bars stay after a frase is told again, on
+`SalaSessionState`; and `_faseAntesDeTraduzirDeNovo`, the phase a frase opened to be told again left,
+which «manter a tradução de antes» returns to, a private field of `SalaSessionNotifier`. Both
+sit beside the other `bt` fields and move with them.
+
 Extended by name (ENG-1223, 2026-10-19), same end date: `btRecomeco`, the arm of
 «recomeçar a tradução» (armed, then ready after 0.6 s, lapsing after 6 s), and `btAviso`,
 the line those gestures write under the circle («tradução recomeçada — o ensaio da passagem

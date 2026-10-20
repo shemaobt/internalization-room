@@ -75,6 +75,7 @@ void main() {
 
     await escolherTraduzirDeNovo(it);
     await entregarAPonte(it);
+    await pedirOVeredito(it);
     final aPonteNova = it.harness.recorder.lastPath;
 
     expect(aPonteNova, isNot(aPonteAntiga));
@@ -117,6 +118,7 @@ void main() {
 
       await escolherTraduzirDeNovo(it);
       await entregarAPonte(it);
+      await pedirOVeredito(it);
       await escolherTraduzirDeNovo(it);
       await entregarAPonte(it);
 
