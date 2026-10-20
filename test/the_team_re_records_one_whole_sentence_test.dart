@@ -44,7 +44,7 @@ Future<void> _traduzir(WidgetTester tester) async {
   await tocar(tester, confirmar);
 }
 
-Future<ProviderContainer> _quatroFrases(
+Future<ProviderContainer> quatroFrasesEmWav(
   WidgetTester tester,
   SalaHarness harness, {
   bool emWav = true,
@@ -184,7 +184,7 @@ void main() {
   testWidgets('every frase of a wav recording offers its whole sentence to '
       'be recorded again, lit', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
 
     for (var n = 1; n <= 4; n++) {
       expect(_naLista('regravar a frase $n'), findsOneWidget);
@@ -202,7 +202,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness, emWav: false);
+    final container = await quatroFrasesEmWav(tester, harness, emWav: false);
 
     expect(find.byType(FraseList), findsOneWidget);
     for (var n = 1; n <= 4; n++) {
@@ -220,7 +220,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     harness.voice.fixedLines.clear();
 
     await tocar(tester, 'regravar a frase 3');
@@ -260,7 +260,7 @@ void main() {
   testWidgets('a sentence whose playing never ends goes on to her second line '
       'after its own length and four seconds, not before', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     harness.voice.fixedLines.clear();
 
     await tocar(tester, 'regravar a frase 3');
@@ -282,7 +282,7 @@ void main() {
   testWidgets('while a sentence is being recorded again only its own row is '
       'lit, and that button closes it with nothing sent', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await tocar(tester, 'regravar a frase 3');
     harness.playback.finishPlayback();
     await _passo(tester);
@@ -322,7 +322,7 @@ void main() {
   testWidgets('a second re-record in the same visit says nothing and still '
       'plays the sentence, with the hint standing', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await regravarAte(tester, harness, 3);
     await tocar(tester, 'regravar a frase 3');
     harness.voice.fixedLines.clear();
@@ -350,7 +350,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await regravarAte(tester, harness, 3);
     await tocar(tester, 'regravar a frase 3');
     final notifier = container.read(salaSessionProvider.notifier);
@@ -377,7 +377,7 @@ void main() {
   testWidgets('the circle records the whole sentence, and a sentence kept '
       'opens its review on the row', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await regravarAte(tester, harness, 3);
 
     await _tocarOCirculo(tester);
@@ -413,7 +413,7 @@ void main() {
   testWidgets('a tap shorter than a third of a second is an accident and '
       'opens no review', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await regravarAte(tester, harness, 3);
     await _tocarOCirculo(tester);
     harness.recorder.rehearsalSpeaks = aSpokenWav(
@@ -450,7 +450,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await gravarAFrase(tester, harness, 3);
     harness.room.holdTheSentence = Completer<void>();
 
@@ -487,7 +487,7 @@ void main() {
   testWidgets('a sentence over four megabytes is refused before it is sent, '
       'with her line on the row', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await regravarAte(tester, harness, 3);
     await _tocarOCirculo(tester);
     harness.recorder
@@ -513,7 +513,7 @@ void main() {
   testWidgets('the room\'s own refusal of a sentence too long says the same '
       'line', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await gravarAFrase(tester, harness, 3);
     harness.room.sentenceAnswersFirst.add(const Refused('SENTENCE_TOO_LONG'));
 
@@ -530,7 +530,7 @@ void main() {
     testWidgets('a sentence the room refuses as $code goes back to «gravem a '
         'frase inteira», and nothing of it is kept', (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
-      final container = await _quatroFrases(tester, harness);
+      final container = await quatroFrasesEmWav(tester, harness);
       await gravarAFrase(
         tester,
         harness,
@@ -559,7 +559,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await gravarAFrase(tester, harness, 3);
     harness.room.sentenceAnswersFirst.add(const NetworkFailed('sem rede'));
 
@@ -625,7 +625,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     final antes = container.read(salaSessionProvider).partes.first;
     await gravarAFrase(tester, harness, 2);
     harness.voice.fixedLines.clear();
@@ -655,7 +655,7 @@ void main() {
   testWidgets('a new sentence at the very start of its part plays from the '
       'start, never from before it', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await gravarAFrase(tester, harness, 3);
 
     await tester.tap(naLinha('usar esta'));
@@ -686,7 +686,7 @@ void main() {
     'is closed and no other frase offers «regravar»',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
-      final container = await _quatroFrases(tester, harness);
+      final container = await quatroFrasesEmWav(tester, harness);
       await deitarAFrase(tester, harness, 2);
 
       expect(
@@ -716,7 +716,7 @@ void main() {
   testWidgets('the circle translates the re-recorded frase at exactly its new '
       'span, and once that lands the frase stops waiting', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await deitarAFrase(tester, harness, 2);
     final nova = harness.room.takes.last.takeId;
 
@@ -731,7 +731,11 @@ void main() {
     );
     expect(naLinha('regravada — traduzam esta frase'), findsNothing);
     expect(container.read(salaSessionProvider).btFraseQueAguarda, isNull);
-    expect(harness.room.calls, contains('finishBackTranslation'));
+    expect(
+      aceso(tester, 'terminei'),
+      isTrue,
+      reason: 'terminei seguia fechado depois de traduzirem a frase nova',
+    );
     closeTheRoom(container);
   });
 
@@ -780,12 +784,14 @@ void main() {
   testWidgets('the new sentence played in its place counts as heard on the '
       'new take, and the check is told so', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await deitarAFrase(tester, harness, 2);
     final nova = harness.room.takes.last.takeId;
 
     await _traduzir(tester);
     await _passo(tester);
+    await _passo(tester);
+    await tocar(tester, 'terminei');
     await _passo(tester);
 
     final relato = harness.room.playedByTakeSent.last;
@@ -808,7 +814,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await gravarAFrase(tester, harness, 3);
     harness.room
       ..awaitingSegmentId = 'trecho-1'
@@ -839,7 +845,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     harness.room
       ..verdictRefusal = CheckRefusal.fraseAwaiting
       ..verdictFixedLine = 'N5'
@@ -876,7 +882,7 @@ void main() {
     testWidgets('a sentence the room refuses as $code can never be laid in: '
         'it is dropped and the stretches are read again', (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
-      final container = await _quatroFrases(tester, harness);
+      final container = await quatroFrasesEmWav(tester, harness);
       await gravarAFrase(tester, harness, 3);
       harness.room.sentenceAnswersFirst.add(Refused(code));
 
@@ -903,7 +909,7 @@ void main() {
   testWidgets('at conferida the frase whose nuance the verdict named starts '
       'its re-record, and the circle records it', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     harness.room
       ..verdictChecked = true
       ..verdictNamedNuance = const BtFinding(
@@ -945,7 +951,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     harness.room
       ..verdictChecked = false
       ..verdictFindingSegmentId = 'trecho-3'
@@ -988,7 +994,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await gravarAFrase(tester, harness, 3);
 
     await tester.tap(naLinha('gravar de novo'));
@@ -1006,7 +1012,7 @@ void main() {
     'a new recording of a held sentence takes the held one\'s place',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
-      final container = await _quatroFrases(tester, harness);
+      final container = await quatroFrasesEmWav(tester, harness);
       await gravarAFrase(tester, harness, 3);
       harness.room.sentenceAnswersFirst.add(const NetworkFailed('sem rede'));
       await tester.tap(naLinha('usar esta'));
@@ -1023,7 +1029,7 @@ void main() {
   testWidgets('closing a re-record in its review keeps the recording held, '
       'with its line on the row', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await gravarAFrase(tester, harness, 3);
 
     await tocar(tester, 'regravar a frase 3');
@@ -1039,7 +1045,7 @@ void main() {
   testWidgets('a new take the tablet cannot keep still leaves the frase '
       'waiting, and plays nothing in its place', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     await gravarAFrase(tester, harness, 2);
     harness.recorder.keepBytesFails = true;
     harness.voice.fixedLines.clear();
@@ -1063,7 +1069,7 @@ void main() {
   testWidgets('a re-record left for the rehearsal does not stand when the team '
       'comes back to the telling', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrases(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     harness.room
       ..verdictChecked = false
       ..verdictFindingSegmentId = 'trecho-2'

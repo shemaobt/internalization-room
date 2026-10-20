@@ -26,6 +26,8 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         parte,
         tesoura,
         tocar;
+import 'the_team_re_records_one_whole_sentence_test.dart'
+    show quatroFrasesEmWav;
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
@@ -527,7 +529,7 @@ void main() {
   testWidgets('a tap on «regravar a frase 4» is that button\'s, never the '
       'row\'s retell', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _seteFrasesContadas(tester, harness);
+    final container = await quatroFrasesEmWav(tester, harness);
     harness.room
       ..verdictChecked = true
       ..verdictFindings = const []

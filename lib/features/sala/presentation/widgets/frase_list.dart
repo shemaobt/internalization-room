@@ -188,7 +188,6 @@ class _Pill extends StatelessWidget {
       child: Opacity(
         opacity: onTap == null ? 0.35 : 1,
         child: GestureDetector(
-          // A dimmed pill still takes its own tap, so the row under it never retells (ENG-1220 #10).
           onTap: onTap ?? () {},
           child: ExcludeSemantics(
             child: Container(

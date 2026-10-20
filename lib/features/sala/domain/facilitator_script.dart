@@ -192,6 +192,7 @@ const sceneRehearsalLabels = {
   'keepTheEarlier': {
     'pt': 'manter a tradução de antes',
     'en': 'keep the earlier translation',
+  },
   'respeakHint': {
     'pt': 'gravem a frase inteira',
     'en': 'record the whole sentence',

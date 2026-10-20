@@ -137,6 +137,8 @@ enum BtAviso {
   pausaSoNaUltima,
   pausaPassaDoFim,
   pausaNaoFica,
+}
+
 enum PassoDaRegravacao {
   ouvindo,
   pronta,
