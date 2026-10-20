@@ -8,6 +8,7 @@ import 'session_snapshot.dart';
 import 'coverage.dart';
 import 'hand_reply.dart';
 import 'kept_take.dart';
+import 'left_entry.dart';
 import 'moment.dart';
 import 'passagem.dart';
 import 'scene_question.dart';
@@ -215,26 +216,6 @@ class Trecho {
   });
 }
 
-class LeftEntry {
-  final String? pericope;
-  final String? book;
-  final bool panorama;
-  final String? session;
-  final String? language;
-  final bool said;
-  final Paused? held;
-
-  const LeftEntry({
-    this.pericope,
-    this.book,
-    this.panorama = false,
-    this.session,
-    this.language,
-    this.said = false,
-    this.held,
-  });
-}
-
 class SalaSessionState {
   final bool awaitingTheGuide;
 
@@ -249,8 +230,6 @@ class SalaSessionState {
   /// Whether the Panorama's line was said on this visit to its Station; from then on the
   /// circle records the team's turn.
   final bool panoramaSaid;
-  final String? sessionId;
-  final String? panoramaSessionId;
   final String? pericope;
   final Coverage coverage;
   final Moment? moment;
@@ -365,8 +344,6 @@ class SalaSessionState {
     this.endOfThePassage = false,
     this.reach = RoomReach.fine,
     this.panoramaSaid = false,
-    this.sessionId,
-    this.panoramaSessionId,
     this.pericope,
     this.coverage = Coverage.empty,
     this.moment,
@@ -437,7 +414,12 @@ class SalaSessionState {
     return entry.isPanorama == left.panorama && entry.pericope == left.pericope;
   }
 
-  String? thePanoramaSessionOf(String book, {required String? held}) {
+  String? get sessionId => machine.session;
+
+  String? get panoramaSessionId => machine.panorama?.session;
+
+  String? thePanoramaSessionOf(String book) {
+    final held = machine.panorama?.id;
     final ofTheBook = (naRoda ?? const <Passagem>[]).any(
       (entry) =>
           entry.isPanorama && entry.pericope == held && entry.book == book,
@@ -488,8 +470,7 @@ class SalaSessionState {
       !_aLineOfTheRoomPlays &&
       stationSessionId != null;
 
-  String? get stationSessionId =>
-      station is Panorama ? panoramaSessionId : sessionId;
+  String? get stationSessionId => machine.stationSession;
 
   bool get anArmedKnotLapsed =>
       noteMode &&
@@ -880,9 +861,6 @@ class SalaSessionState {
     bool? endOfThePassage,
     RoomReach? reach,
     bool? panoramaSaid,
-    String? sessionId,
-    String? panoramaSessionId,
-    bool clearPanoramaSession = false,
     String? pericope,
     bool clearSession = false,
     Coverage? coverage,
@@ -960,10 +938,6 @@ class SalaSessionState {
       endOfThePassage: endOfThePassage ?? this.endOfThePassage,
       reach: reach ?? this.reach,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
-      sessionId: clearSession ? null : (sessionId ?? this.sessionId),
-      panoramaSessionId: clearPanoramaSession
-          ? null
-          : (panoramaSessionId ?? this.panoramaSessionId),
       pericope: clearSession ? null : (pericope ?? this.pericope),
       coverage: coverage ?? this.coverage,
       moment: clearMoment ? null : (moment ?? this.moment),

@@ -117,6 +117,10 @@ AnsweringEvent _stampedAnswer(
   ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
   TheTellingCameBackEmpty() => TheTellingCameBackEmpty(generation: generation),
   TheOpeningMissed() => TheOpeningMissed(generation: generation),
+  TheSessionOpened(:final session) => TheSessionOpened(
+    session,
+    generation: generation,
+  ),
 };
 
 String? _aStaleAnswerChangedTheRoom(int seed) {

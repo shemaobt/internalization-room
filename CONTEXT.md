@@ -39,6 +39,10 @@ _Avoid_: escolha in prose (`escolha` is the enum value), menu for the station (t
 What the Choice writes, as Marcia's picker does: «Escolha a passagem», then one block per book with its pills. In code the Choice's Station is the class `Menu`; in prose the word means the written page only.
 _Avoid_: picker, ruler, passage list
 
+**Way back**:
+The return to the entry the team last left by the way out, offered on the Choice by the chevron and by the left entry's tinted pill. A Panorama whose line was said comes back in silence on the session the room still holds; any other entry is entered again in the language it was left in (ADR 0062, ADR 0092).
+_Avoid_: back button, return, chevron (the chevron is one way to take it)
+
 **Closing** (`fim`):
 The last station, where the necklace's cord closes into a circle and the session ends.
 _Avoid_: fecho, ending, fim in prose (`SalaStage.fim` is the enum, not the term)

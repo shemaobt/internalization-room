@@ -686,7 +686,9 @@ void main() {
     expect(atTheInvite.voice, VoiceState.invite);
     expect(atTheInvite.atTheTeamsIdleTurn, isFalse);
     expect(
-      atTheInvite.copyWith(sessionId: 'sessao-1').atTheTeamsIdleTurn,
+      atTheInvite
+          .copyWith(machine: atTheInvite.machine.copyWith(session: 'sessao-1'))
+          .atTheTeamsIdleTurn,
       isTrue,
     );
   });
