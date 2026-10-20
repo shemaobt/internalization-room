@@ -911,6 +911,8 @@ class SalaSessionState {
       stage == SalaStage.retro &&
       !needsPerson &&
       !offline &&
+      btRegravacao == null &&
+      btFraseQueAguarda == null &&
       (btPhase == BtPhase.playing ||
           btPhase == BtPhase.findings ||
           btPhase == BtPhase.conferida);

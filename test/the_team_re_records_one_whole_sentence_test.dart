@@ -1178,6 +1178,46 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while a frase is being re-recorded, no row\'s loudspeaker '
+      'plays', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await umAchadoNaFraseDois(tester, harness, container);
+    await regravarAte(tester, harness, 3);
+    expect(container.read(salaSessionProvider).btRegravacao?.frase, 3);
+
+    for (var n = 1; n <= 4; n++) {
+      expect(
+        _acesa(tester, 'ouvir a minha tradução da frase $n'),
+        isFalse,
+        reason:
+            'a frase $n tocava a tradução velha por cima da regravação da '
+            'frase 3',
+      );
+    }
+    closeTheRoom(container);
+  });
+
+  testWidgets('while a re-recorded frase awaits its translation, no row\'s '
+      'loudspeaker plays', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await umAchadoNaFraseDois(tester, harness, container);
+    await deitarAFrase(tester, harness, 3);
+    expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-3');
+
+    for (var n = 1; n <= 4; n++) {
+      expect(
+        _acesa(tester, 'ouvir a minha tradução da frase $n'),
+        isFalse,
+        reason:
+            'a frase $n tocava a tradução velha enquanto o círculo esperava '
+            'a tradução da frase 3',
+      );
+    }
+    closeTheRoom(container);
+  });
+
   testWidgets('while a re-recorded frase awaits its translation, a tap on '
       'another row leaves the circle on the frase that awaits', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
