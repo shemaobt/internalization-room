@@ -64,12 +64,17 @@ class TakeView {
   /// written before the tablet sent it.
   final int? pass;
 
+  /// The Scene rehearsal a joined part was laid in from. Absent from a part recorded as
+  /// itself, and from a listing written before the room answered it.
+  final String? origin;
+
   const TakeView({
     required this.takeId,
     required this.scope,
     this.kind = '',
     this.ordinal,
     this.pass,
+    this.origin,
   });
 
   static List<TakeView> listFrom(Map<String, dynamic> json) => [
@@ -83,6 +88,7 @@ class TakeView {
     scope: json['scope'] as String? ?? '',
     ordinal: json['ordinal'] as int?,
     pass: json['pass_number'] as int?,
+    origin: json['origin'] as String?,
   );
 }
 

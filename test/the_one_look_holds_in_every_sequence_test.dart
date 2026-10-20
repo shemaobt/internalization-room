@@ -192,6 +192,19 @@ final _aWaitIsDecidedOnlyByALandedAnswerOrTheWatchdog = Invariant<_Room>(
 );
 
 void main() {
+  test(
+    'a room still answering is looked at again for the sound the look holds',
+    () {
+      const turn = Turn('sessao-1', 'turno-1');
+      final (_, effects) = reduce(
+        const Machine(look: TheLook(turn, sounding: ThePart())),
+        const LookPending(turn, sounding: TheLineSaidAgain()),
+      );
+
+      expect(effects, contains(const LookAgain(turn, sounding: ThePart())));
+    },
+  );
+
   test('The generator\'s invariants hold with the one look.', () {
     expectEverySeedHolds(_machine, [
       _oneTakeIsNeverLookedAtTwice,

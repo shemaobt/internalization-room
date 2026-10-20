@@ -886,6 +886,9 @@ class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
     required String scope,
     int? passNumber,
     int? chunkIndex,
+    DateTime? recordedAt,
+    int? durationMs,
+    String? sha256,
   }) {
     if (!stumbled) {
       stumbled = true;
@@ -898,6 +901,9 @@ class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
       scope: scope,
       passNumber: passNumber,
       chunkIndex: chunkIndex,
+      recordedAt: recordedAt,
+      durationMs: durationMs,
+      sha256: sha256,
     );
   }
 }

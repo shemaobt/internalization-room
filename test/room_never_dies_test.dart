@@ -698,7 +698,7 @@ void main() {
   });
 
   test(
-    'a retro with no rehearsal calls nobody and never offers the terminei',
+    'a rehearsal with nothing recorded keeps the team on it, its circle live',
     () async {
       final harness = SalaHarness();
       final container = await inConversaHarness(harness);
@@ -706,16 +706,24 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
+      await settle();
       notifier.startRetro();
       await settle();
 
       final state = container.read(salaSessionProvider);
       expect(
-        state.btClipEnded,
-        isFalse,
-        reason: 'não haver ensaio nenhum não é um ensaio que chegou ao fim',
+        state.stage,
+        SalaStage.ensaio,
+        reason: 'não haver ensaio nenhum não abre a tradução',
       );
       expect(state.needsPerson, isFalse);
+      notifier.ensaioTap();
+      await settle();
+      expect(
+        container.read(salaSessionProvider).ensaio,
+        EnsaioStatus.recording,
+        reason: 'e o círculo continua a gravar: a sala não fica sem saída',
+      );
     },
   );
 

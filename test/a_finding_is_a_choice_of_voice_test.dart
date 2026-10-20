@@ -5,7 +5,6 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'fakes.dart';
@@ -198,19 +197,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(estadoDe(container).stage, SalaStage.ensaio);
-    expect(contasEm(tester, EnsaioView), [
-      'solid apagada',
-      'drained com anel',
-      'solid apagada',
+    expect(naLinhaDoEnsaio(tester, 'Gravar de novo'), [
+      false,
+      true,
+      false,
+      null,
     ]);
 
     await tocar(tester, gravarEstaParteDeNovo);
     await tocar(tester, terminar);
     expect(
-      contasEm(tester, EnsaioView),
-      ['solid', 'translucent com anel', 'solid'],
+      naLinhaDoEnsaio(tester, 'Ouvir'),
+      [true, true, true, null],
       reason:
-          'pendente a confirmação, as outras partes não ficam mais '
+          'pendente a confirmação, as outras linhas não ficam mais '
           'esmaecidas (ADR 0040: esmaecido é o que não se aplica agora)',
     );
     await tocar(tester, confirmarAParte);
@@ -224,7 +224,7 @@ void main() {
     expect([
       for (final trecho in depois.btTrechos) trecho.parte,
     ], isNot(contains(1)));
-    expect(contasEm(tester, EnsaioView), ['solid', 'solid', 'solid']);
+    expect(naLinhaDoEnsaio(tester, 'Gravar de novo'), [true, true, true, null]);
 
     final tocadas = harness.playback.played.length;
     await tocar(tester, irParaATraducao);

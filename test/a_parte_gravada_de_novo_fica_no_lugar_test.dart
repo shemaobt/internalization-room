@@ -9,7 +9,6 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
@@ -161,15 +160,6 @@ Future<List<String>> _ouvirOEnsaioAteAqui(Sala it) async {
   return List.of(it.harness.playback.played);
 }
 
-List<BeadRowEntry> _contasDoEnsaio(WidgetTester tester) => tester
-    .widget<BeadRow>(
-      find.descendant(
-        of: find.byType(EnsaioView),
-        matching: find.byType(BeadRow),
-      ),
-    )
-    .entries;
-
 Future<void> _tocar(WidgetTester tester, String label) async {
   await tester.ensureVisible(byLabel(label));
   await tester.tap(byLabel(label));
@@ -244,7 +234,7 @@ void main() {
     expect([agora[2].path, agora[2].takeId], [antes[2].path, antes[2].takeId]);
 
     expect(
-      it.estado.takes,
+      it.estado.partes.length,
       3,
       reason:
           'a conta do ensaio conta partes, e gravar a parte 2 de novo '
@@ -878,7 +868,7 @@ void main() {
           'gravação seguinte é uma parte nova, não a parte 2 outra vez',
     );
     expect(it.partes.last.scopeId, KeptScope.parte(4));
-    expect(it.estado.takes, 4);
+    expect(it.estado.partes.length, 4);
   });
 
   test(
@@ -888,6 +878,7 @@ void main() {
       final antes = it.partes;
 
       it.sala.gravarAParteDeNovo();
+      await settle();
       it.sala.startRetro();
       await waitFor(
         'a tradução voltar ao ar',
@@ -1073,19 +1064,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(
-      [
-        for (final conta in _contasDoEnsaio(tester))
-          (conta.fill, conta.current),
-      ],
-      [
-        (BeadFill.solid, false),
-        (BeadFill.drained, true),
-        (BeadFill.solid, false),
-      ],
+      naLinhaDoEnsaio(tester, 'Gravar de novo'),
+      [false, true, false, null],
       reason:
-          'a equipe veio refazer a parte 2, e é a conta dela que o ensaio '
-          'põe em evidência desde a entrada, esvaziada à espera do conserto '
-          '(ADR 0011): sem marca nenhuma a tela diz que vai nascer uma parte '
+          'a equipe veio refazer a parte 2, e é a linha dela que o ensaio '
+          'deixa acesa desde a entrada; as outras não se aplicam agora '
+          '(ADR 0040): sem marca nenhuma a tela diz que vai nascer uma parte '
           'nova no fim do ensaio',
     );
     expect(
@@ -1109,25 +1093,19 @@ void main() {
     );
 
     await _tocar(tester, 'Tocar para gravar esta parte de novo');
-    expect(
-      [for (final conta in _contasDoEnsaio(tester)) conta.fill],
-      [BeadFill.solid, BeadFill.translucent, BeadFill.solid],
-      reason: 'a regravação aberta é a conta 2, translúcida',
-    );
+    expect(naLinhaDoEnsaio(tester, 'Parar'), [
+      null,
+      true,
+      null,
+      null,
+    ], reason: 'a regravação aberta é a da linha 2');
     await _tocar(tester, 'Tocar ao terminar');
     expect(
-      [
-        for (final conta in _contasDoEnsaio(tester))
-          (conta.fill, conta.current),
-      ],
-      [
-        (BeadFill.solid, false),
-        (BeadFill.translucent, true),
-        (BeadFill.solid, false),
-      ],
+      naLinhaDoEnsaio(tester, 'Ouvir'),
+      [true, true, true, null],
       reason:
-          'a regravação pendente é a conta 2, translúcida, no seu lugar: '
-          'nenhuma conta nova nasce no fim',
+          'a regravação pendente fica no lugar da parte 2 e toda linha volta '
+          'a se ouvir: nenhuma parte nova nasce no fim',
     );
     expect(_discoAceso(tester), isFalse);
   });
@@ -1153,15 +1131,8 @@ void main() {
       reason: 'a parte 2 confirmada, o disco leva de volta à tradução',
     );
     expect(
-      [
-        for (final conta in _contasDoEnsaio(tester))
-          (conta.fill, conta.current),
-      ],
-      [
-        (BeadFill.solid, false),
-        (BeadFill.solid, false),
-        (BeadFill.solid, false),
-      ],
+      naLinhaDoEnsaio(tester, 'Gravar de novo'),
+      [true, true, true, null],
       reason:
           'a marca gasta-se no check: deixada de pé, a próxima '
           'gravação da equipe parecia vir tomar o lugar da parte 2 outra vez',

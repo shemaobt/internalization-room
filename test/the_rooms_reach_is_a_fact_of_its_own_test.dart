@@ -39,6 +39,7 @@ Future<void> _theRoomFalls(
   );
 }
 
+/// A passage opened with the room down, then its Rehearsal: the fall is the way in's.
 Future<ProviderContainer> _fallenInEnsaio(SalaHarness harness) async {
   final container = await _fallenInConversa(harness);
   container.read(salaSessionProvider.notifier).goEnsaio();

@@ -38,11 +38,12 @@ Step's request sent again on the return or on any lift.
   never counted. A Session read never raises the sign; a refused Watch read changes nothing.
   A resume whose read fails, refused or lost, or whose rehearsal cannot be had, goes back to
   the Choice and keeps its session and the warning the session holds. A resume whose
-  rehearsal names a part the room answers is gone for good (its 404) opens the Ensaio at that
-  part, not recorded, with the parts before it; the stored row is written once as what the
-  team now has, on the Ensaio, and from then on as on any other passage; a part the team
-  records goes up above the room's own pass for its number, which the row keeps until that
-  part is recorded, across a relaunch. A row on the Ensaio with no part opens the Ensaio, not
+  rehearsal names a part the room answers is gone for good (its 404) opens the Ensaio with
+  that part's scene row not recorded and every other row holding its own part; nothing is
+  renumbered (ADR 0102). The stored row is written once as what the team now has, on the
+  Ensaio, and from then on as on any other passage; a part the team records on a row with no
+  part goes up above the room's own pass for that number, which the row keeps until that row
+  is recorded, across a relaunch. A row on the Ensaio with no part opens the Ensaio, not
   the conversa. Any other refusal of a part goes back to the Choice like the network. A
   refused approval keeps the door its hole names, and otherwise returns the team to the Back-
   translation as it stood before «terminei». A scene-rehearsal refusal keeps the scene

@@ -65,6 +65,18 @@ Future<void> tocar(WidgetTester tester, String label) async {
   await tester.pump(const Duration(milliseconds: 300));
 }
 
+/// A control of the Back-translation's own, while the Rehearsal it left still fades out
+/// beneath it with controls of the same name.
+Future<void> _tocarNaTraducao(WidgetTester tester, String label) async {
+  final alvo = find.descendant(
+    of: find.byType(RetroView),
+    matching: byLabel(label),
+  );
+  await tester.ensureVisible(alvo);
+  await tester.tap(alvo);
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
 Future<ProviderContainer> entrarNaTraducao(
   WidgetTester tester,
   SalaHarness harness, {
@@ -161,7 +173,7 @@ void main() {
     );
 
     harness.playback.at = cabeca;
-    await tocar(tester, ouvir);
+    await _tocarNaTraducao(tester, ouvir);
     await tocar(tester, pausar);
     expect(
       aceso(tester, tesoura),
@@ -169,7 +181,7 @@ void main() {
       reason: 'pausada dentro do trecho pendente, há onde cortar',
     );
 
-    await tocar(tester, ouvir);
+    await _tocarNaTraducao(tester, ouvir);
     expect(aceso(tester, tesoura), isTrue, reason: 'tocando, corta');
 
     final capturas = harness.recorder.captures;
@@ -1534,7 +1546,7 @@ void main() {
 
     harness.playback.at = cabeca;
     await tocar(tester, tesoura);
-    await tocar(tester, ouvir);
+    await _tocarNaTraducao(tester, ouvir);
 
     expect(harness.playback.ranges.last, '0-4000');
     expect(harness.playback.sounding, isTrue);
