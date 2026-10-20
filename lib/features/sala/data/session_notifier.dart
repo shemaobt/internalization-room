@@ -7543,9 +7543,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btTrechos: _trechosFrom(segments, naParte: naParte));
   }
 
-  void _leadThemToTheTrecho(Trecho trecho, {VoidCallback? depois}) {
+  void _leadThemToTheTrecho(
+    Trecho trecho, {
+    VoidCallback? depois,
+    Duration? ate,
+  }) {
     if (_ondeTocar(trecho) == null) return;
-    _tocarOTrecho(trecho, depois: depois);
+    _tocarOTrecho(trecho, depois: depois, ate: ate);
   }
 
   /// Which take answers for a stretch's audio: the one its own id names, never the one
@@ -7591,7 +7595,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// boundary when a stretch spanned two recordings. A stretch cannot span two recordings
   /// any more — it is a slice of one — so the resolving and the stitching are gone with
   /// the ruler that needed them.
-  void _tocarOTrecho(Trecho trecho, {VoidCallback? depois}) {
+  void _tocarOTrecho(Trecho trecho, {VoidCallback? depois, Duration? ate}) {
     final onde = _ondeTocar(trecho);
     if (onde == null) return;
     void quiet() => unawaited(_playback.stop());
@@ -7600,7 +7604,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         onde.$1,
         named: trecho.segmentId,
         from: onde.$2,
-        to: onde.$3,
+        to: ate ?? onde.$3,
       ),
       onComplete: () {
         quiet();
@@ -7657,7 +7661,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
     if (!trecho.contado || trecho.segmentId == null) return;
+    final fimMovido = _trechoTraduzidoDeNovo?.segmentId == trecho.segmentId
+        ? _trechoEnd
+        : null;
     if (!_traduzirOTrechoDeNovo(trecho)) return;
+    if (fimMovido != null) _trechoEnd = fimMovido;
     state = state.copyWith(
       btPausaSoNaUltima: state.anEarlierPauseStays(
         trecho,
@@ -7665,7 +7673,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
       clearAviso: true,
     );
-    _leadThemToTheTrecho(trecho);
+    _leadThemToTheTrecho(trecho, ate: fimMovido);
   }
 
   bool _traduzirOTrechoDeNovo(Trecho trecho) {

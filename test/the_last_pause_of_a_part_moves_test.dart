@@ -259,6 +259,111 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a second tap on the bar of the frase being told again keeps the pause the team moved and replays up to it',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(
+        tester,
+        harness,
+        apontada: 'trecho-1',
+      );
+      await tocar(tester, _barra(2));
+      await tocar(tester, depois);
+
+      await tocar(tester, _barra(2));
+
+      expect(
+        container.read(salaSessionProvider).btCorte,
+        s(6.6),
+        reason: 'o segundo toque na barra devolvia a pausa ao fim de antes',
+      );
+      expect(
+        harness.playback.ranges.last,
+        '3200-6600',
+        reason: 'a frase tocava até o fim de antes e não até a pausa movida',
+      );
+      await tocar(tester, 'Tocar para gravar a tradução de novo');
+      await tocar(tester, 'Tocar ao terminar');
+      await tocar(tester, confirmar);
+      await waitFor(
+        'a frase voltar da sala',
+        () => harness.room.replacesAsked.isNotEmpty,
+        step: () => _passo(tester),
+      );
+      expect(
+        harness.room.replacesAsked,
+        ['trecho-2@gravacao-1:3200-6600'],
+        reason:
+            'a pausa movida se perdia no segundo toque e a sala recebia o fim velho',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    '«manter a tradução de antes» drops the pause the team moved, and the bar after it starts from the old end',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(
+        tester,
+        harness,
+        apontada: 'trecho-1',
+      );
+      await tocar(tester, _barra(2));
+      await tocar(tester, depois);
+
+      await tocar(tester, 'manter a tradução de antes');
+      await _passo(tester);
+
+      expect(
+        container.read(salaSessionProvider).btCorte,
+        s(6.2),
+        reason: 'a pausa movida seguia de pé depois de manter a tradução',
+      );
+      await tocar(tester, _barra(2));
+      expect(container.read(salaSessionProvider).btCorte, s(6.2));
+      expect(
+        harness.playback.ranges.last,
+        '3200-6200',
+        reason: 'a barra depois de manter tocava até uma pausa já largada',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'the bar of another frase drops the pause the team moved, and the last frase starts from the old end',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(
+        tester,
+        harness,
+        apontada: 'trecho-1',
+      );
+      await tocar(tester, _barra(2));
+      await tocar(tester, depois);
+      await tocar(tester, _barra(1));
+
+      await tocar(tester, _barra(2));
+
+      expect(
+        container.read(salaSessionProvider).btCorte,
+        s(6.2),
+        reason: 'a pausa movida sobrevivia ao toque na barra de outra frase',
+      );
+      expect(
+        harness.playback.ranges.last,
+        '3200-6200',
+        reason: 'a última frase tocava até a pausa que a outra barra largou',
+      );
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets('the bar of the last frase says her line that the pause may move', (
     tester,
   ) async {
