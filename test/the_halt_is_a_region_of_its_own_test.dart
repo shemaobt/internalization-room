@@ -74,10 +74,22 @@ void main() {
     test(
       'a look that finds no opening lets the opening go and raises no halt',
       () {
-        const opening = LookEmpty(sounding: TheOpening('turno-7'));
-        expect(_reduce(none, opening), _to(none, const [LetTheOpeningGo()]));
+        const turn = Turn('sessao-1', 'turno-7');
+        const opening = LookEmpty(turn, sounding: TheOpening('turno-7'));
+        (Halt, List<Effect>) looked(Halt halt) {
+          final (machine, effects) = reduce(
+            Machine(
+              halt: halt,
+              look: const TheLook(turn, sounding: TheOpening('turno-7')),
+            ),
+            opening,
+          );
+          return (machine.halt, effects);
+        }
+
+        expect(looked(none), _to(none, const [LetTheOpeningGo()]));
         expect(
-          _reduce(const Blocking(NothingKept(), serverKnows: true), opening),
+          looked(const Blocking(NothingKept(), serverKnows: true)),
           _to(const Blocking(NothingKept(), serverKnows: true), const [
             LetTheOpeningGo(),
           ]),

@@ -462,7 +462,7 @@ The one place every room result (answered, network failed, refused with a code, 
 _Avoid_: error handler, retry policy
 
 **One look**:
-What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server, once and without sending it again. A reply that landed plays as if it had arrived on time; anything else raises a blocking Halt that calls for a person and keeps the take, never the offline face, except over an Opening, which rests at the quiet invite.
+What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server without sending it again. Once the room answers that it is still answering the turn, it reads it again every two seconds, under the busy watchdog, and only a reply that landed or the watchdog running out decides it; the watchdog decides it as nothing found (ADR 0097). A halt holds the look back and its lift resumes it once the room is within reach. A reply that landed plays as if it had arrived on time, except an Opening found after the room said it was still answering, which rests silent with «Ouvir de novo» armed. Anything else raises a blocking Halt that calls for a person and keeps the take, never the offline face, except over an Opening, which rests at the quiet invite, and over a line said again, which rests with «Ouvir de novo» still armed.
 _Avoid_: retry, resend, poll
 
 **Session read**:

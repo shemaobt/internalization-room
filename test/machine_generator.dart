@@ -87,7 +87,7 @@ class World {
           drains = true;
         case ProbeTheRoom():
           probes = true;
-        case LookAtTheSession():
+        case LookAtTheSession() || LookAgain():
           looks = true;
         default:
           break;
@@ -216,6 +216,7 @@ String describeKept(Kept kept) => switch (kept) {
   NothingKept() => 'NothingKept',
   ThePart() => 'ThePart',
   TheOpening(:final failedTurnId) => 'TheOpening($failedTurnId)',
+  TheLineSaidAgain() => 'TheLineSaidAgain',
   TheResume() => 'TheResume',
   TheWheel() => 'TheWheel',
 };
@@ -246,7 +247,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   WatchFired() => 'WatchFired',
   NetworkFailedAt(:final door, :final why) =>
     'NetworkFailedAt(${door.name}, ${why.name})',
-  NetworkReturned() => 'NetworkReturned',
+  NetworkReturned(:final released) =>
+    'NetworkReturned${released ? '(released)' : ''}',
   RetryFired() => 'RetryFired',
   TheRoomAnswered() => 'TheRoomAnswered',
   OutboxChanged(:final parts, :final due) =>
@@ -283,7 +285,10 @@ String describeEvent(MachineEvent event) => switch (event) {
   TurnGivenUp(:final turn, :final sounding) =>
     'TurnGivenUp(${turn.turnId}, ${describeKept(sounding)})',
   LookFound(:final turn) => 'LookFound(${turn.turnId})',
-  TurnSent(:final turn) => 'TurnSent(${turn.turnId})',
+  LookPending(:final turn, :final sounding) =>
+    'LookPending(${turn.turnId}, ${describeKept(sounding)})',
+  TurnSent(:final turn, :final keeps) =>
+    'TurnSent(${turn.turnId}, ${describeKept(keeps)})',
   TurnAnswered(:final turn) => 'TurnAnswered(${turn.turnId})',
   TurnFailed(:final turn) => 'TurnFailed(${turn.turnId})',
   TheRefusalPassed() => 'TheRefusalPassed',
@@ -295,7 +300,9 @@ String describeEvent(MachineEvent event) => switch (event) {
     'TheSceneDoorFailed(readAgain: $readAgain)',
   TheCallWasRefused() => 'TheCallWasRefused',
   TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
-  LookEmpty(:final sounding) => 'LookEmpty(${describeKept(sounding)})',
+  LookEmpty(:final turn, :final sounding, :final theWaitRanOut) =>
+    'LookEmpty(${turn.turnId}, ${describeKept(sounding)}'
+        '${theWaitRanOut ? ', the wait ran out' : ''})',
   TheOpeningMissed() => 'TheOpeningMissed',
   TheRoomRefused(:final third, :final sounding) =>
     'TheRoomRefused(third: $third, ${describeKept(sounding)})',
@@ -361,11 +368,12 @@ String describeEffect(Effect effect) => switch (effect) {
   _ => effect.runtimeType.toString(),
 };
 
-Kept _drawKept(Random random) => switch (random.nextInt(5)) {
+Kept _drawKept(Random random) => switch (random.nextInt(6)) {
   0 => const NothingKept(),
   1 => const ThePart(),
   2 => TheOpening('turn-${random.nextInt(3)}'),
   3 => const TheResume(),
+  4 => const TheLineSaidAgain(),
   _ => const TheWheel(),
 };
 
@@ -419,6 +427,7 @@ enum EventKind {
   turnGivenUp,
   lookFound,
   lookEmpty,
+  lookPending,
   theOpeningMissed,
   theRoomRefused,
   thePassageCannotOpen,
@@ -490,6 +499,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TurnGivenUp() => EventKind.turnGivenUp,
   LookFound() => EventKind.lookFound,
   LookEmpty() => EventKind.lookEmpty,
+  LookPending() => EventKind.lookPending,
   TheOpeningMissed() => EventKind.theOpeningMissed,
   TheRoomRefused() => EventKind.theRoomRefused,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
@@ -533,7 +543,9 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.playerFailed => world.playerBusy,
   EventKind.micClosed || EventKind.micClosing => world.micOpen,
   EventKind.micAnswered => true,
-  EventKind.lookFound || EventKind.lookEmpty => world.looking,
+  EventKind.lookFound ||
+  EventKind.lookEmpty ||
+  EventKind.lookPending => world.looking,
   EventKind.sessionRead ||
   EventKind.roomRaisedAHalt ||
   EventKind.theAnswerWarned ||
@@ -633,160 +645,173 @@ MicAnswered _drawAMicAnswer(Random random) {
   );
 }
 
-MachineEvent _draw(EventKind kind, World world, Random random) =>
-    switch (kind) {
-      EventKind.sessionRead => _drawARead(world, random),
-      EventKind.roomRaisedAHalt => RoomRaisedAHalt(
-        sounding: _drawKept(random),
-        callsForAPerson: random.nextBool(),
+MachineEvent _draw(
+  EventKind kind,
+  World world,
+  Random random,
+) => switch (kind) {
+  EventKind.sessionRead => _drawARead(world, random),
+  EventKind.roomRaisedAHalt => RoomRaisedAHalt(
+    sounding: _drawKept(random),
+    callsForAPerson: random.nextBool(),
+  ),
+  EventKind.theCallLanded => const TheCallLanded(),
+  EventKind.theAnswerWarned => const TheAnswerWarned(),
+  EventKind.longPress => LongPress(somebodyToAsk: random.nextBool()),
+  EventKind.watchFired => const WatchFired(),
+  EventKind.networkFailedAt => NetworkFailedAt(
+    world.probing && random.nextBool()
+        ? Door.probe
+        : Door.values[random.nextInt(Door.values.length)],
+    why: RoomReach.values[1 + random.nextInt(RoomReach.values.length - 1)],
+  ),
+  EventKind.networkReturned => NetworkReturned(released: random.nextBool()),
+  EventKind.retryFired => const RetryFired(),
+  EventKind.theRoomAnswered => const TheRoomAnswered(),
+  EventKind.outboxChanged => OutboxChanged({
+    for (var part = 0, parts = random.nextInt(3); part < parts; part++)
+      'parte-$part': PartFact.values[random.nextInt(PartFact.values.length)],
+  }, due: Duration(seconds: random.nextInt(3) * 30)),
+  EventKind.lineArrived => LineArrived(
+    Line(
+      LineKind.values[random.nextInt(LineKind.values.length)],
+      random.nextInt(1 << 20),
+      source: _drawASource(random),
+    ),
+  ),
+  EventKind.playerOpened => const PlayerOpened(),
+  EventKind.playerEnded => const PlayerEnded(),
+  EventKind.playerFailed => PlayerFailed(
+    _drawASource(random),
+    sounding: _drawKept(random),
+  ),
+  EventKind.micOpened => MicOpened(
+    MicOwner.values[random.nextInt(MicOwner.values.length)],
+  ),
+  EventKind.micClosed => const MicClosed(),
+  EventKind.micAnswered => _drawAMicAnswer(random),
+  EventKind.micClosing => const MicClosing(),
+  EventKind.micDiscarded => const MicDiscarded(),
+  EventKind.beadTapped => BeadTapped([
+    for (var i = 0; i <= random.nextInt(3); i++) _drawASound(random),
+  ]),
+  EventKind.pauseTapped => const PauseTapped(),
+  EventKind.theHeldPartReturns => TheHeldPartReturns(
+    Paused(
+      PartSound(
+        random.nextInt(2),
+        'parte-${random.nextInt(2)}.m4a',
+        from: Duration(seconds: random.nextInt(20)),
       ),
-      EventKind.theCallLanded => const TheCallLanded(),
-      EventKind.theAnswerWarned => const TheAnswerWarned(),
-      EventKind.longPress => LongPress(somebodyToAsk: random.nextBool()),
-      EventKind.watchFired => const WatchFired(),
-      EventKind.networkFailedAt => NetworkFailedAt(
-        world.probing && random.nextBool()
-            ? Door.probe
-            : Door.values[random.nextInt(Door.values.length)],
-        why: RoomReach.values[1 + random.nextInt(RoomReach.values.length - 1)],
-      ),
-      EventKind.networkReturned => const NetworkReturned(),
-      EventKind.retryFired => const RetryFired(),
-      EventKind.theRoomAnswered => const TheRoomAnswered(),
-      EventKind.outboxChanged => OutboxChanged({
-        for (var part = 0, parts = random.nextInt(3); part < parts; part++)
-          'parte-$part':
-              PartFact.values[random.nextInt(PartFact.values.length)],
-      }, due: Duration(seconds: random.nextInt(3) * 30)),
-      EventKind.lineArrived => LineArrived(
-        Line(
-          LineKind.values[random.nextInt(LineKind.values.length)],
-          random.nextInt(1 << 20),
-          source: _drawASource(random),
-        ),
-      ),
-      EventKind.playerOpened => const PlayerOpened(),
-      EventKind.playerEnded => const PlayerEnded(),
-      EventKind.playerFailed => PlayerFailed(
-        _drawASource(random),
-        sounding: _drawKept(random),
-      ),
-      EventKind.micOpened => MicOpened(
-        MicOwner.values[random.nextInt(MicOwner.values.length)],
-      ),
-      EventKind.micClosed => const MicClosed(),
-      EventKind.micAnswered => _drawAMicAnswer(random),
-      EventKind.micClosing => const MicClosing(),
-      EventKind.micDiscarded => const MicDiscarded(),
-      EventKind.beadTapped => BeadTapped([
-        for (var i = 0; i <= random.nextInt(3); i++) _drawASound(random),
-      ]),
-      EventKind.pauseTapped => const PauseTapped(),
-      EventKind.theHeldPartReturns => TheHeldPartReturns(
-        Paused(
-          PartSound(
-            random.nextInt(2),
-            'parte-${random.nextInt(2)}.m4a',
-            from: Duration(seconds: random.nextInt(20)),
-          ),
-          started: false,
-          opened: false,
-        ),
-      ),
-      EventKind.gestureSilenced => GestureSilenced(
-        keepingTheHold: random.nextBool(),
-      ),
-      EventKind.interrupted => Interrupted(
-        take: 'conversa-${random.nextInt(3)}',
-        cut: CutPoint(
-          Duration(milliseconds: random.nextInt(9000)),
-          of: random.nextBool()
-              ? Duration(milliseconds: 9000 + random.nextInt(9000))
-              : null,
-        ),
-      ),
-      EventKind.gestureStarted => GestureStarted(random.nextInt(3)),
-      EventKind.gestureEnded => GestureEnded(random.nextInt(3)),
-      EventKind.nothingReplayed => const NothingReplayed(),
-      EventKind.lineNotSaid => LineNotSaid(
-        Line(
-          LineKind.values[random.nextInt(LineKind.values.length)],
-          random.nextInt(1 << 20),
-          source: _drawASource(random),
-        ),
-      ),
-      EventKind.stepLeft => const StepLeft(),
-      EventKind.leftThePassage => const LeftThePassage(),
-      EventKind.sessionGone => const TheSessionIsGone(),
-      EventKind.passageClosed => const ThePassageClosed(),
-      EventKind.turnGivenUp => TurnGivenUp(
-        _drawATurn(random),
-        sounding: _drawKept(random),
-      ),
-      EventKind.lookFound => LookFound(
-        _drawATurn(random),
-        TurnResult(
-          sessionId: 'sessao-1',
-          audioUrl: '/voice/turn-${random.nextInt(3)}',
-          fixedLine: '',
-          transcript: '',
-          peerCue: false,
-          usedFailSafe: false,
-          degraded: false,
-          coverage: null,
-          done: false,
-          turnId: 'turn-${random.nextInt(3)}',
-        ),
-      ),
-      EventKind.lookEmpty => LookEmpty(sounding: _drawKept(random)),
-      EventKind.theOpeningMissed => const TheOpeningMissed(),
-      EventKind.theRoomRefused => TheRoomRefused(
-        third: random.nextBool(),
-        sounding: _drawKept(random),
-      ),
-      EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
-      EventKind.theTellingCameBackEmpty => const TheTellingCameBackEmpty(),
-      EventKind.theVerdictAsked => const TheVerdictAsked(),
-      EventKind.theTranslationStartedOver => const TheTranslationStartedOver(),
-      EventKind.turnSent => TurnSent(_drawATurn(random)),
-      EventKind.turnAnswered => TurnAnswered(_drawATurn(random)),
-      EventKind.theRefusalPassed => const TheRefusalPassed(),
-      EventKind.theHandFailed => const TheHandFailed(),
-      EventKind.theScenesMissed => const TheScenesMissed(),
-      EventKind.theSceneRehearsalsListed => const TheSceneRehearsalsListed([]),
-      EventKind.theSceneDoorFailed => TheSceneDoorFailed(
-        readAgain: random.nextBool(),
-      ),
-      EventKind.theCallWasRefused => const TheCallWasRefused(),
-      EventKind.theCallMetAClosedPassage => const TheCallMetAClosedPassage(),
-      EventKind.turnFailed => TurnFailed(_drawATurn(random)),
-      EventKind.theChoiceOpened => const TheChoiceOpened(),
-      EventKind.passageChosen => const PassageChosen(),
-      EventKind.theRehearsalOpened => const TheRehearsalOpened(),
-      EventKind.theBackTranslationOpened => const TheBackTranslationOpened(),
-      EventKind.theBackTranslationResumed => const TheBackTranslationResumed(),
-      EventKind.theNecklaceClosed => const TheNecklaceClosed(),
-      EventKind.theRoomStartedOver => const TheRoomStartedOver(),
-      EventKind.thePanoramaChosen => ThePanoramaChosen(
-        _servedPanoramas[random.nextInt(_servedPanoramas.length)],
-      ),
-      EventKind.theSceneRehearsalOpened => const TheSceneRehearsalOpened(),
-      EventKind.theSceneRehearsalLeft => const TheSceneRehearsalLeft(),
-      EventKind.theLanguageChosen => const TheLanguageChosen(),
-      EventKind.thePanoramaAsked => ThePanoramaAsked(
-        _drawAPanorama(random),
-        _drawALanguage(random),
-      ),
-      EventKind.theSessionOpened => TheSessionOpened(
-        _drawASession(random),
-        generation: random.nextInt(4) == 0 ? theOlderGeneration : null,
-      ),
-      EventKind.theSessionLetGo => TheSessionLetGo(_drawASession(random)),
-      EventKind.theWayBackTaken => TheWayBackTaken(_drawAnEntryLeft(random)),
-      EventKind.theRehearsalWeighed => TheRehearsalWeighed(
-        everySceneHasItsPart: random.nextBool(),
-      ),
-    };
+      started: false,
+      opened: false,
+    ),
+  ),
+  EventKind.gestureSilenced => GestureSilenced(
+    keepingTheHold: random.nextBool(),
+  ),
+  EventKind.interrupted => Interrupted(
+    take: 'conversa-${random.nextInt(3)}',
+    cut: CutPoint(
+      Duration(milliseconds: random.nextInt(9000)),
+      of: random.nextBool()
+          ? Duration(milliseconds: 9000 + random.nextInt(9000))
+          : null,
+    ),
+  ),
+  EventKind.gestureStarted => GestureStarted(random.nextInt(3)),
+  EventKind.gestureEnded => GestureEnded(random.nextInt(3)),
+  EventKind.nothingReplayed => const NothingReplayed(),
+  EventKind.lineNotSaid => LineNotSaid(
+    Line(
+      LineKind.values[random.nextInt(LineKind.values.length)],
+      random.nextInt(1 << 20),
+      source: _drawASource(random),
+    ),
+  ),
+  EventKind.stepLeft => const StepLeft(),
+  EventKind.leftThePassage => const LeftThePassage(),
+  EventKind.sessionGone => const TheSessionIsGone(),
+  EventKind.passageClosed => const ThePassageClosed(),
+  EventKind.turnGivenUp => TurnGivenUp(
+    _drawATurn(random),
+    sounding: _drawKept(random),
+  ),
+  EventKind.lookFound => LookFound(
+    _drawATurn(random),
+    TurnResult(
+      sessionId: 'sessao-1',
+      audioUrl: '/voice/turn-${random.nextInt(3)}',
+      fixedLine: '',
+      transcript: '',
+      peerCue: false,
+      usedFailSafe: false,
+      degraded: false,
+      coverage: null,
+      done: false,
+      turnId: 'turn-${random.nextInt(3)}',
+    ),
+  ),
+  EventKind.lookEmpty => LookEmpty(
+    _drawATurn(random),
+    sounding: _drawKept(random),
+    theWaitRanOut: random.nextInt(4) == 0,
+  ),
+  EventKind.lookPending => LookPending(
+    _drawATurn(random),
+    sounding: _drawKept(random),
+  ),
+  EventKind.theOpeningMissed => const TheOpeningMissed(),
+  EventKind.theRoomRefused => TheRoomRefused(
+    third: random.nextBool(),
+    sounding: _drawKept(random),
+  ),
+  EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
+  EventKind.theTellingCameBackEmpty => const TheTellingCameBackEmpty(),
+  EventKind.theVerdictAsked => const TheVerdictAsked(),
+  EventKind.theTranslationStartedOver => const TheTranslationStartedOver(),
+  EventKind.turnSent => TurnSent(
+    _drawATurn(random),
+    keeps: random.nextBool() ? const TheLineSaidAgain() : const NothingKept(),
+  ),
+  EventKind.turnAnswered => TurnAnswered(_drawATurn(random)),
+  EventKind.theRefusalPassed => const TheRefusalPassed(),
+  EventKind.theHandFailed => const TheHandFailed(),
+  EventKind.theScenesMissed => const TheScenesMissed(),
+  EventKind.theSceneRehearsalsListed => const TheSceneRehearsalsListed([]),
+  EventKind.theSceneDoorFailed => TheSceneDoorFailed(
+    readAgain: random.nextBool(),
+  ),
+  EventKind.theCallWasRefused => const TheCallWasRefused(),
+  EventKind.theCallMetAClosedPassage => const TheCallMetAClosedPassage(),
+  EventKind.turnFailed => TurnFailed(_drawATurn(random)),
+  EventKind.theChoiceOpened => const TheChoiceOpened(),
+  EventKind.passageChosen => const PassageChosen(),
+  EventKind.theRehearsalOpened => const TheRehearsalOpened(),
+  EventKind.theBackTranslationOpened => const TheBackTranslationOpened(),
+  EventKind.theBackTranslationResumed => const TheBackTranslationResumed(),
+  EventKind.theNecklaceClosed => const TheNecklaceClosed(),
+  EventKind.theRoomStartedOver => const TheRoomStartedOver(),
+  EventKind.thePanoramaChosen => ThePanoramaChosen(
+    _servedPanoramas[random.nextInt(_servedPanoramas.length)],
+  ),
+  EventKind.theSceneRehearsalOpened => const TheSceneRehearsalOpened(),
+  EventKind.theSceneRehearsalLeft => const TheSceneRehearsalLeft(),
+  EventKind.theLanguageChosen => const TheLanguageChosen(),
+  EventKind.thePanoramaAsked => ThePanoramaAsked(
+    _drawAPanorama(random),
+    _drawALanguage(random),
+  ),
+  EventKind.theSessionOpened => TheSessionOpened(
+    _drawASession(random),
+    generation: random.nextInt(4) == 0 ? theOlderGeneration : null,
+  ),
+  EventKind.theSessionLetGo => TheSessionLetGo(_drawASession(random)),
+  EventKind.theWayBackTaken => TheWayBackTaken(_drawAnEntryLeft(random)),
+  EventKind.theRehearsalWeighed => TheRehearsalWeighed(
+    everySceneHasItsPart: random.nextBool(),
+  ),
+};
 
 const _servedPanoramas = ['OV-Esther', 'OV-Jonah', 'OV-Ruth'];
 
