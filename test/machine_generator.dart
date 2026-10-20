@@ -299,7 +299,9 @@ String describeEvent(MachineEvent event) => switch (event) {
     'TheSceneDoorFailed(readAgain: $readAgain)',
   TheCallWasRefused() => 'TheCallWasRefused',
   TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
-  LookEmpty(:final sounding) => 'LookEmpty(${describeKept(sounding)})',
+  LookEmpty(:final turn, :final sounding, :final theWaitRanOut) =>
+    'LookEmpty(${turn.turnId}, ${describeKept(sounding)}'
+        '${theWaitRanOut ? ', the wait ran out' : ''})',
   TheOpeningMissed() => 'TheOpeningMissed',
   TheRoomRefused(:final third, :final sounding) =>
     'TheRoomRefused(third: $third, ${describeKept(sounding)})',
@@ -740,7 +742,11 @@ MachineEvent _draw(
       turnId: 'turn-${random.nextInt(3)}',
     ),
   ),
-  EventKind.lookEmpty => LookEmpty(sounding: _drawKept(random)),
+  EventKind.lookEmpty => LookEmpty(
+    _drawATurn(random),
+    sounding: _drawKept(random),
+    theWaitRanOut: random.nextInt(4) == 0,
+  ),
   EventKind.lookPending => LookPending(
     _drawATurn(random),
     sounding: _drawKept(random),

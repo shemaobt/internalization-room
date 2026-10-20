@@ -1951,6 +1951,10 @@ class FakeRoom implements RoomRepository {
   /// reads what the room stored.
   int looksStillAnswering = 0;
 
+  /// What the looks after the room's last «still answering» answer instead of reading what
+  /// is stored, one each, in order.
+  final List<RoomFailure> looksFailAfterwards = [];
+
   Completer<void>? _holdingTheLineSaidAgain;
 
   /// Hold the room's last line said again on an Opened session, the way a slow room does.
@@ -2011,6 +2015,7 @@ class FakeRoom implements RoomRepository {
       looksStillAnswering--;
       return Refused(RefusalCode.unnamed(202));
     }
+    if (looksFailAfterwards.isNotEmpty) return looksFailAfterwards.removeAt(0);
     final stored = _stored[(sessionId, turnId)];
     return stored == null
         ? const Refused(RefusalCode.notFound)

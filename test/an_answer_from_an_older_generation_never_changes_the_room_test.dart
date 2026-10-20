@@ -105,8 +105,10 @@ AnsweringEvent _stampedAnswer(
   TheCallMetAClosedPassage() => TheCallMetAClosedPassage(
     generation: generation,
   ),
-  LookEmpty(:final sounding) => LookEmpty(
+  LookEmpty(:final turn, :final sounding, :final theWaitRanOut) => LookEmpty(
+    turn,
     sounding: sounding,
+    theWaitRanOut: theWaitRanOut,
     generation: generation,
   ),
   LookPending(:final turn, :final sounding) => LookPending(

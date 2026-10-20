@@ -398,9 +398,18 @@ final class LookFound extends AnsweringEvent {
 }
 
 final class LookEmpty extends AnsweringEvent {
+  final Turn turn;
   final Kept sounding;
 
-  const LookEmpty({this.sounding = const NothingKept(), super.generation});
+  /// The busy watchdog ran out over a look the room was still answering.
+  final bool theWaitRanOut;
+
+  const LookEmpty(
+    this.turn, {
+    this.sounding = const NothingKept(),
+    this.theWaitRanOut = false,
+    super.generation,
+  });
 }
 
 /// The room is still answering the turn the look asked for.
@@ -757,6 +766,10 @@ final class LetTheLineGo extends Effect {
   const LetTheLineGo();
 }
 
+final class StopLooking extends Effect {
+  const StopLooking();
+}
+
 final class LetTheTurnGo extends Effect {
   final Turn turn;
 
@@ -870,7 +883,7 @@ final class HeldPanorama {
   int get hashCode => Object.hash(id, language, session);
 }
 
-typedef PendingLook = ({Turn turn, Kept sounding});
+typedef TheLook = ({Turn turn, Kept sounding, bool stillAnswering});
 
 final class Machine {
   final Halt halt;
@@ -893,8 +906,8 @@ final class Machine {
   /// What the turn in flight keeps to sound if it is given up.
   final Kept keptInFlight;
 
-  /// A look the room answered it is still answering, until the look is decided.
-  final PendingLook? pendingLook;
+  /// The turn the one look reads, from its give-up until the look is decided.
+  final TheLook? look;
 
   final LineOutcome? lastLine;
 
@@ -927,7 +940,7 @@ final class Machine {
     this.generation = 0,
     this.inFlight,
     this.keptInFlight = const NothingKept(),
-    this.pendingLook,
+    this.look,
     this.lastLine,
     this.lastMic,
     this.station = const Menu(),
@@ -975,7 +988,7 @@ final class Machine {
     Turn? inFlight,
     bool landTheTurn = false,
     Kept? keptInFlight,
-    PendingLook? pendingLook,
+    TheLook? look,
     bool forgetTheLook = false,
     LineOutcome? lastLine,
     MicOutcome? lastMic,
@@ -1004,7 +1017,7 @@ final class Machine {
     keptInFlight: landTheTurn
         ? const NothingKept()
         : (keptInFlight ?? this.keptInFlight),
-    pendingLook: forgetTheLook ? null : (pendingLook ?? this.pendingLook),
+    look: forgetTheLook ? null : (look ?? this.look),
     lastLine: lastLine ?? this.lastLine,
     lastMic: lastMic ?? this.lastMic,
     station: station ?? this.station,
@@ -1127,12 +1140,16 @@ const _watch = ArmTheWatch();
   ),
   TurnFailed(:final turn) => (_land(machine, turn), const []),
   TurnGivenUp(:final turn, :final sounding) => _giveUp(machine, turn, sounding),
+  LookFound(:final turn) ||
+  LookPending(:final turn) ||
+  LookEmpty(:final turn) when machine.look?.turn != turn => (machine, const []),
   LookFound(:final turn, :final reply) => (
     _settleTheOpening(machine.copyWith(forgetTheLook: true), turn),
     [
-      if (machine.pendingLook case (
+      if (machine.look case (
         turn: final waited,
         sounding: TheOpening(),
+        stillAnswering: true,
       ) when waited == turn)
         KeepTheReply(turn, reply)
       else
@@ -1151,10 +1168,18 @@ const _watch = ArmTheWatch();
   TheSceneRehearsalsListed() => (machine, const []),
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
   LookPending(:final turn, :final sounding) => (
-    machine.copyWith(pendingLook: (turn: turn, sounding: sounding)),
+    machine.copyWith(
+      look: (turn: turn, sounding: sounding, stillAnswering: true),
+    ),
     [LookAgain(turn, sounding: sounding)],
   ),
-  LookEmpty(sounding: final sounding && (TheOpening() || TheLineSaidAgain())) =>
+  LookEmpty(:final turn, theWaitRanOut: false)
+      when machine.look?.stillAnswering ?? false =>
+    (machine, [LookAgain(turn, sounding: machine.look!.sounding)]),
+  LookEmpty(
+    sounding: final sounding && (TheOpening() || TheLineSaidAgain()),
+    :final theWaitRanOut,
+  ) =>
     (
       machine.copyWith(forgetTheLook: true),
       [
@@ -1162,18 +1187,22 @@ const _watch = ArmTheWatch();
           const LetTheLineGo()
         else
           const LetTheOpeningGo(),
+        if (theWaitRanOut) const StopLooking(),
       ],
     ),
   TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
-  LookEmpty(:final sounding) => switch (_theHalt(
+  LookEmpty(:final sounding, :final theWaitRanOut) => switch (_theHalt(
     machine.copyWith(forgetTheLook: true),
     RoomRaisedAHalt(sounding: sounding),
   )) {
-    (final halted, final effects) when machine.station is SceneRehearsal => (
+    (final halted, final effects) => (
       halted,
-      [...effects, const ReadTheSceneRehearsals()],
+      [
+        ...effects,
+        if (machine.station is SceneRehearsal) const ReadTheSceneRehearsals(),
+        if (theWaitRanOut) const StopLooking(),
+      ],
     ),
-    final halted => halted,
   },
   TheRoomRefused(:final third, :final sounding) => _refused(
     machine,
@@ -1707,7 +1736,7 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   if (halt is Blocking && machine.halt is! Blocking) {
     return (
       next.copyWith(channel: const Silence(), forgetTheLook: true),
-      effects,
+      [...effects, if (machine.look != null) const StopLooking()],
     );
   }
   if (halt is! Blocking && machine.halt is Blocking) {
@@ -1727,7 +1756,10 @@ Machine _land(Machine machine, Turn turn) =>
 (Machine, List<Effect>) _giveUp(Machine machine, Turn turn, Kept sounding) {
   if (machine.inFlight != turn) return (machine, const []);
   return (
-    machine.copyWith(landTheTurn: true),
+    machine.copyWith(
+      landTheTurn: true,
+      look: (turn: turn, sounding: sounding, stillAnswering: false),
+    ),
     [LetTheTurnGo(turn), LookAtTheSession(turn, sounding: sounding)],
   );
 }

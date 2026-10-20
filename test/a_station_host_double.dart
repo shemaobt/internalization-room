@@ -161,9 +161,6 @@ class AStationHost implements StationHost {
   void hearTheLineLetGo() => asked.add('hearTheLineLetGo');
 
   @override
-  bool stillLooksAt(Turn turn) => false;
-
-  @override
   Future<void> hearTheOutboxFlushed() async =>
       asked.add('hearTheOutboxFlushed');
 

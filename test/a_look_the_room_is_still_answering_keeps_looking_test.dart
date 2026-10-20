@@ -182,6 +182,54 @@ void main() {
     },
   );
 
+  group(
+    'after the room said it is still answering, a look that fails or finds nothing looks again',
+    () {
+      for (final (failure, name) in [
+        (_theNetworkDrops, 'the network drops'),
+        (const Refused(RefusalCode.notFound), 'nothing is stored there'),
+      ]) {
+        test('over a team turn, when $name', () {
+          _aTakeTheNetworkLoses(
+            (room) {
+              room
+                ..turnsLandBeforeTheyFail = true
+                ..looksStillAnswering = 1;
+              room.looksFailAfterwards.add(failure);
+            },
+            (clock, it) {
+              clock.elapse(const Duration(seconds: 6));
+
+              expect(it.room.turnIdsLookedAt, hasLength(3));
+              expect(it.replies, 2, reason: 'a resposta da tomada toca');
+              expect(it.state.needsPerson, isFalse);
+              expect(it.everOffline, isFalse);
+            },
+          );
+        });
+
+        test('over an Opening, when $name', () {
+          _anOpeningTheNetworkLoses(
+            (room) {
+              room
+                ..turnsLandBeforeTheyFail = true
+                ..looksStillAnswering = 1;
+              room.looksFailAfterwards.add(failure);
+            },
+            (clock, it) {
+              clock.elapse(const Duration(seconds: 6));
+
+              expect(it.room.turnIdsLookedAt, hasLength(3));
+              expect(it.harness.voice.played, isNot(contains(turnoUrl)));
+              expect(it.state.canHearAgain, isTrue);
+              expect(it.state.needsPerson, isFalse);
+            },
+          );
+        });
+      }
+    },
+  );
+
   test('a look that fails itself still calls a person', () {
     _aTakeTheNetworkLoses((room) => room.failLooksWith = _theNetworkDrops, (
       clock,
@@ -246,6 +294,29 @@ void main() {
   );
 
   test(
+    'the busy watchdog running out between two looks makes no further look',
+    () {
+      _anOpeningTheNetworkLoses(
+        (room) => room.looksStillAnswering = 1000,
+        (clock, it) {
+          clock.elapse(const Duration(seconds: 31));
+
+          expect(it.state.awaitingTheGuide, isFalse);
+          final looks = it.room.turnIdsLookedAt.length;
+
+          clock.elapse(const Duration(minutes: 2));
+
+          expect(it.room.turnIdsLookedAt, hasLength(looks));
+        },
+        harness: SalaHarness(
+          busyCeiling: const Duration(seconds: 30),
+          lookAgain: const Duration(seconds: 7),
+        ),
+      );
+    },
+  );
+
+  test(
     'a look the room was asked again when the busy watchdog ran out is not looked at again',
     () {
       _anOpeningTheNetworkLoses(
@@ -273,6 +344,27 @@ void main() {
     },
   );
 
+  test('a halt raised while the first look is in the air stops the looks', () {
+    _anOpeningTheNetworkLoses(
+      (room) => room
+        ..looksStillAnswering = 1000
+        ..holdTheLooks(),
+      (clock, it) {
+        clock.elapse(const Duration(seconds: 1));
+
+        expect(it.room.turnIdsLookedAt, hasLength(1));
+
+        it.sala.haltForABrokenBuild();
+        clock.elapse(const Duration(seconds: 1));
+        it.room.finishTheLooks();
+        clock.elapse(const Duration(minutes: 10));
+
+        expect(it.state.needsPerson, isTrue);
+        expect(it.room.turnIdsLookedAt, hasLength(1));
+      },
+    );
+  });
+
   test('a halt raised while the room is still answering stops the looks', () {
     _anOpeningTheNetworkLoses((room) => room.looksStillAnswering = 1000, (
       clock,
@@ -280,7 +372,7 @@ void main() {
     ) {
       clock.elapse(const Duration(seconds: 3));
       it.sala.haltForABrokenBuild();
-      clock.elapse(const Duration(seconds: 3));
+      clock.flushMicrotasks();
       final looks = it.room.turnIdsLookedAt.length;
 
       clock.elapse(const Duration(minutes: 10));

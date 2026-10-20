@@ -1346,9 +1346,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // as a room that had stopped answering and called for a person two seconds before
     // the Guide finished the sentence.
     if (!state.awaitingTheGuide || state.channel is GuideSpeaking) return;
-    if (state.machine.pendingLook case final look?) {
+    if (state.machine.look case final look? when look.stillAnswering) {
       return _dispatch(
-        LookEmpty(sounding: look.sounding, generation: _generation),
+        LookEmpty(
+          look.turn,
+          sounding: look.sounding,
+          theWaitRanOut: true,
+          generation: _generation,
+        ),
       );
     }
     final turn = state.machine.inFlight;
@@ -1396,8 +1401,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
     );
   }
-
-  bool _stillLooksAt(Turn turn) => state.machine.pendingLook?.turn == turn;
 
   void _letTheLineGo() {
     _leaveThinking();
@@ -7447,9 +7450,6 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheLineLetGo() => _notifier._letTheLineGo();
-
-  @override
-  bool stillLooksAt(Turn turn) => _notifier._stillLooksAt(turn);
 
   @override
   void hearTheSoundKept(Kept kept) => _notifier._replay(kept);

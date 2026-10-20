@@ -105,9 +105,6 @@ abstract interface class StationHost {
 
   void hearTheLineLetGo();
 
-  /// Whether the room is still waiting on the look at [turn] it was told is still answered.
-  bool stillLooksAt(Turn turn);
-
   /// The Station decides what a lifted halt sounds again (ADR 0055).
   void hearTheSoundKept(Kept kept);
 
@@ -267,6 +264,8 @@ class EffectRunner {
           _armTheLookAgain(turn, sounding);
         case LetTheLineGo():
           host.hearTheLineLetGo();
+        case StopLooking():
+          _lookAgain?.cancel();
         case LetTheTurnGo(:final turn):
           _letTheTurnGo(turn);
         case FellAt(:final door, :final why):
@@ -431,13 +430,11 @@ class EffectRunner {
     host.hearTheTurnLetGo();
   }
 
-  /// A look again answers only while the room still waits on it: the watchdog may have
-  /// decided the turn while it was in the air.
-  void _lookAt(Turn turn, Kept sounding, {bool again = false}) {
+  void _lookAt(Turn turn, Kept sounding) {
     final stamp = generation?.call();
     unawaited(
       room.lookAt(turn).then((answer) {
-        if (_disposed || (again && !host.stillLooksAt(turn))) return;
+        if (_disposed) return;
         host.answer(switch (answer) {
           TheReplyLanded(:final reply) => LookFound(
             turn,
@@ -449,7 +446,11 @@ class EffectRunner {
             sounding: sounding,
             generation: stamp,
           ),
-          NothingLanded() => LookEmpty(sounding: sounding, generation: stamp),
+          NothingLanded() => LookEmpty(
+            turn,
+            sounding: sounding,
+            generation: stamp,
+          ),
         });
       }),
     );
@@ -457,9 +458,10 @@ class EffectRunner {
 
   void _armTheLookAgain(Turn turn, Kept sounding) {
     _lookAgain?.cancel();
+    final stamp = generation?.call();
     _lookAgain = Timer(lookAgainAfter(), () {
       _lookAgain = null;
-      if (host.stillLooksAt(turn)) _lookAt(turn, sounding, again: true);
+      if (generation?.call() == stamp) _lookAt(turn, sounding);
     });
   }
 
