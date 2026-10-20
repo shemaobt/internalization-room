@@ -767,13 +767,15 @@ class SalaSessionState {
               btTrechoTraduzidoDeNovo != null &&
               btContaEscolhida == null));
 
-  bool theLastPauseMoves(Trecho frase) =>
+  bool theLastPauseMoves(Trecho frase, {BtPhase? naFase}) =>
       frase.contado &&
-      btPhase != BtPhase.conferida &&
+      (naFase ?? btPhase) != BtPhase.conferida &&
       _aUltimaDaSuaParte(frase);
 
-  bool anEarlierPauseStays(Trecho frase) =>
-      frase.contado && !_aUltimaDaSuaParte(frase);
+  bool anEarlierPauseStays(Trecho frase, {BtPhase? naFase}) =>
+      frase.contado &&
+      (naFase ?? btPhase) != BtPhase.conferida &&
+      !_aUltimaDaSuaParte(frase);
 
   bool _aUltimaDaSuaParte(Trecho frase) {
     Trecho? ultima;

@@ -6687,7 +6687,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leadThemToTheTrecho(trecho);
   }
 
-  Trecho? _armarOTrecho(Trecho? trecho) {
+  Trecho? _armarOTrecho(Trecho? trecho, {BtPhase? fase}) {
     if (trecho == null ||
         trecho.parte < 0 ||
         trecho.parte >= state.partes.length) {
@@ -6704,7 +6704,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _faseAntesDeTraduzirDeNovo = null;
     state = state.copyWith(
       btPausaAjustavel:
-          state.theLastPauseMoves(trecho) && _ondeAPausaCabe() != null,
+          state.theLastPauseMoves(trecho, naFase: fase) &&
+          _ondeAPausaCabe() != null,
       btPausaSoNaUltima: false,
     );
     return trecho;
@@ -7020,7 +7021,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!trecho.contado || trecho.segmentId == null) return;
     if (!_traduzirOTrechoDeNovo(trecho)) return;
     state = state.copyWith(
-      btPausaSoNaUltima: state.anEarlierPauseStays(trecho),
+      btPausaSoNaUltima: state.anEarlierPauseStays(
+        trecho,
+        naFase: _faseAntesDeTraduzirDeNovo,
+      ),
     );
     _leadThemToTheTrecho(trecho);
   }
@@ -7031,7 +7035,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         : _faseAntesDeTraduzirDeNovo;
     _silenceTheRoom();
     _descartarATraducaoPendente();
-    if (_armarOTrecho(trecho) == null) return false;
+    if (_armarOTrecho(trecho, fase: fase) == null) return false;
     _faseAntesDeTraduzirDeNovo = fase;
     state = state.copyWith(
       btPhase: BtPhase.playing,

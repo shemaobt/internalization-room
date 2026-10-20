@@ -262,6 +262,50 @@ void main() {
     },
   );
 
+  testWidgets(
+    'at conferida a second bar tap on the last frase keeps its pause where it fell',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(tester, harness);
+
+      await tocar(tester, _barra(1));
+      await tocar(tester, _barra(2));
+
+      for (final controle in [antes, ouvirAPausa, depois]) {
+        expect(
+          aceso(tester, controle),
+          isFalse,
+          reason: 'a pausa se movia numa passagem conferida: $controle',
+        );
+      }
+      expect(
+        find.text('traduzindo de novo a frase 2 — toquem no círculo'),
+        findsOneWidget,
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'at conferida the bar of an earlier frase says the plain line, since no pause moves there',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(tester, harness);
+
+      await tocar(tester, _barra(1));
+
+      expect(
+        find.text('traduzindo de novo a frase 1 — toquem no círculo'),
+        findsOneWidget,
+        reason:
+            'a conferida mandava recomeçar para mover uma pausa que ali não se move',
+      );
+      closeTheRoom(container);
+    },
+  );
+
   test('her two retell lines are hers in English too', () {
     expect(
       sceneRehearsalLabelFor('retellingLast', 'en', n: 2),
