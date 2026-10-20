@@ -122,7 +122,10 @@ AnsweringEvent _stampedAnswer(
     generation: generation,
   ),
   ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
-  TheTellingCameBackEmpty() => TheTellingCameBackEmpty(generation: generation),
+  TheTellingCameBackEmpty(:final readAgain) => TheTellingCameBackEmpty(
+    readAgain: readAgain,
+    generation: generation,
+  ),
   TheOpeningMissed() => TheOpeningMissed(generation: generation),
   TheSessionOpened(:final session) => TheSessionOpened(
     session,

@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
+import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel, settle;
@@ -78,11 +79,12 @@ Future<void> translateOpens(SceneRoom room) => waitFor(
 );
 
 /// The scene screen pumped over a session at rest in Articulação, open on the translate
-/// step of [rehearsal], whose take is [take], with [alsoListed] older in the list.
+/// step of [rehearsal], whose take is [take] (a spoken one [length] long by default), with
+/// [alsoListed] older in the list.
 Future<(SalaHarness, ProviderContainer)> translateOnScreen(
   WidgetTester tester, {
-  required Uint8List take,
-  required Duration length,
+  Uint8List? take,
+  Duration length = const Duration(seconds: 10),
   required SceneRehearsalRecord rehearsal,
   List<SceneRehearsalRecord> alsoListed = const [],
 }) async {
@@ -92,7 +94,7 @@ Future<(SalaHarness, ProviderContainer)> translateOnScreen(
   harness.room.sceneRehearsals
     ..addAll(alsoListed)
     ..add(rehearsal);
-  harness.room.sceneAudio = take;
+  harness.room.sceneAudio = take ?? aSpokenWav(length: length);
   harness.playback.measured = length;
   tester.view
     ..physicalSize = const Size(820, 2400)

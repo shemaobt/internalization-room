@@ -308,6 +308,42 @@ void main() {
       const TheTellingCameBackEmpty(generation: 4),
     ),
     (
+      'a frase refused naming an unknown frase is a frase not understood',
+      const RoomRefused(RefusalCode.unknownReference),
+      _notATurn(door: Door.sceneFrase, refusals: 2),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a frase refused as too large is a frase not understood',
+      const RoomRefused(RefusalCode.tooLarge),
+      _notATurn(door: Door.sceneFrase, refusals: 2),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a frase refused with a bare 413 is a frase not understood',
+      RoomRefused(RefusalCode.unnamed(413)),
+      _notATurn(door: Door.sceneFrase, refusals: 2),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a frase refused with an answer the tablet cannot read is a frase not understood',
+      const RoomRefused(RefusalCode.unreadable),
+      _notATurn(door: Door.sceneFrase, refusals: 2),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a translation again whose answer was lost is not understood and reads the list',
+      const RoomNetworkFailed(),
+      _notATurn(door: Door.sceneFrase, rule: RefusalRule.readsTheListAgain),
+      const TheTellingCameBackEmpty(readAgain: true, generation: 4),
+    ),
+    (
+      'a translation again whose answer the tablet cannot read is not understood and reads the list',
+      const RoomRefused(RefusalCode.unreadable),
+      _notATurn(door: Door.sceneFrase, rule: RefusalRule.readsTheListAgain),
+      const TheTellingCameBackEmpty(readAgain: true, generation: 4),
+    ),
+    (
       'a sent rehearsal met at the frase door reads the list again',
       const RoomRefused(RefusalCode.sceneRehearsalSent),
       _notATurn(door: Door.sceneFrase),

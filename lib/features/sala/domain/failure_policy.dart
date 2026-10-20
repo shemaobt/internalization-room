@@ -114,8 +114,18 @@ abstract final class FailurePolicy {
       _ when context.door == Door.sceneList => TheScenesMissed(
         generation: generation,
       ),
-      RoomRefused(code: RefusalCode.wordlessTelling) || RoomNetworkFailed()
-          when context.door == Door.sceneFrase =>
+      RoomNetworkFailed() || RoomRefused(code: RefusalCode.unreadable)
+          when context.door == Door.sceneFrase &&
+              rule == RefusalRule.readsTheListAgain =>
+        TheTellingCameBackEmpty(readAgain: true, generation: generation),
+      RoomRefused(
+        code: RefusalCode.wordlessTelling ||
+            RefusalCode.unknownReference ||
+            RefusalCode.tooLarge ||
+            RefusalCode.unreadable ||
+            'HTTP_413',
+      ) ||
+      RoomNetworkFailed() when context.door == Door.sceneFrase =>
         TheTellingCameBackEmpty(generation: generation),
       RoomRefused(
         code: RefusalCode.sceneRehearsalSent ||

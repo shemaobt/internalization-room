@@ -35,8 +35,10 @@ const _terminei = 'terminei';
 const _sending = 'enviando a tradução do ensaio da cena para a voz…';
 const _wentToTheVoice = 'a tradução do ensaio da cena foi para a voz';
 
-String _retell(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
-String _retelling(int n) => 'traduzindo de novo a frase $n — toquem no círculo';
+String _translateAgainBar(int n) =>
+    'Ouvir esta frase de novo e traduzir de novo — $n';
+String _translatingAgainLine(int n) =>
+    'traduzindo de novo a frase $n — toquem no círculo';
 String _hearMine(int n) => 'ouvir a minha tradução da frase $n';
 
 SceneFrase _frase(String id, int startsMs, int endsMs) =>
@@ -188,7 +190,7 @@ Future<_Screen> _aFraseNobodyUnderstood(
 Future<_Screen> _aBarTapped(WidgetTester tester, int n) async {
   final screen = await _onScreen(tester, rehearsal: _fourFrases);
   await screen.listens();
-  await screen.tap(_retell(n));
+  await screen.tap(_translateAgainBar(n));
   return screen;
 }
 
@@ -221,7 +223,7 @@ void main() {
 
         expect(byLabel(_notUnderstood), findsOneWidget);
         expect(find.text(_notUnderstood), findsOneWidget);
-        expect(byLabel(_retell(2)), findsNothing);
+        expect(byLabel(_translateAgainBar(2)), findsNothing);
         expect(screen.currentFrases, 1);
         expect(byLabel(_pausaAtTheTap), findsOneWidget);
 
@@ -293,14 +295,16 @@ void main() {
         expect(screen.shows(_notUnderstood), isTrue);
 
         await screen.tellsTheFrase();
-        await screen.until(() => byLabel(_retell(2)).evaluate().isNotEmpty);
+        await screen.until(
+          () => byLabel(_translateAgainBar(2)).evaluate().isNotEmpty,
+        );
         await screen.beat(500);
 
         final [first, second] = screen.room.frasesKept;
         expect(second.audio, isNot(first.audio));
         expect(screen.currentFrases, 2);
-        expect(byLabel(_retell(2)), findsOneWidget);
-        expect(byLabel(_retell(3)), findsNothing);
+        expect(byLabel(_translateAgainBar(2)), findsOneWidget);
+        expect(byLabel(_translateAgainBar(3)), findsNothing);
       },
     );
 
@@ -317,7 +321,7 @@ void main() {
         final [first, second] = screen.room.frasesKept;
         expect(second.audio, isNot(first.audio));
         expect(screen.currentFrases, 2);
-        expect(byLabel(_retell(2)), findsOneWidget);
+        expect(byLabel(_translateAgainBar(2)), findsOneWidget);
         expect(byLabel(_notUnderstood), findsNothing);
       },
     );
@@ -368,7 +372,7 @@ void main() {
 
         await screen.tellsTheFrase();
 
-        expect(byLabel(_retell(2)), findsOneWidget);
+        expect(byLabel(_translateAgainBar(2)), findsOneWidget);
         expect(byLabel(_notUnderstood), findsNothing);
       });
     });
@@ -401,10 +405,10 @@ void main() {
         final screen = await _aBarTapped(tester, 3);
 
         expect(screen.harness.playback.ranges.last, '9000-13000');
-        expect(screen.shows(_retelling(3)), isTrue);
+        expect(screen.shows(_translatingAgainLine(3)), isTrue);
 
         await screen.tap(_keepTheEarlier);
-        expect(byLabel(_retelling(3)), findsNothing);
+        expect(byLabel(_translatingAgainLine(3)), findsNothing);
         expect(screen.harness.playback.sounding, isFalse);
         expect(screen.room.frasesKept, isEmpty);
 
@@ -447,7 +451,7 @@ void main() {
       },
     );
 
-    testWidgets('a retold stretch played to its end places no pausa', (
+    testWidgets('a translatedAgain stretch played to its end places no pausa', (
       tester,
     ) async {
       final screen = await _aBarTapped(tester, 3);
@@ -470,7 +474,7 @@ void main() {
 
         await screen.tap(_playPause);
 
-        expect(byLabel(_retelling(2)), findsNothing);
+        expect(byLabel(_translatingAgainLine(2)), findsNothing);
         expect(screen.harness.playback.playedFrom, hasLength(plays + 1));
         expect(
           screen.harness.playback.playedFrom.last,
@@ -490,13 +494,15 @@ void main() {
     'a frase waiting to be sent again keeps the bars from arming, and the circle sends it',
     (tester) async {
       final screen = await _aPausaAfterFrase1(tester);
-      screen.room.sceneAnswersFirst.add(const Refused(RefusalCode.unreadable));
+      screen.room.sceneAnswersFirst.add(
+        const Refused(RefusalCode.sceneRehearsalSending),
+      );
       await screen.tellsTheFrase();
       final ranges = screen.harness.playback.ranges.length;
 
-      await screen.tap(_retell(1));
+      await screen.tap(_translateAgainBar(1));
 
-      expect(byLabel(_retelling(1)), findsNothing);
+      expect(byLabel(_translatingAgainLine(1)), findsNothing);
       expect(screen.harness.playback.ranges, hasLength(ranges));
       await screen.tap(_tell);
       await screen.until(() => screen.room.frasesKept.length > 1);
@@ -510,7 +516,9 @@ void main() {
     '«manter a tradução de antes» lets go of a translation again the room has not kept',
     (tester) async {
       final screen = await _aBarTapped(tester, 2);
-      screen.room.sceneAnswersFirst.add(const Refused(RefusalCode.unreadable));
+      screen.room.sceneAnswersFirst.add(
+        const Refused(RefusalCode.sceneRehearsalSending),
+      );
       await screen.tellsTheFrase();
 
       await screen.tap(_keepTheEarlier);
@@ -529,7 +537,9 @@ void main() {
     tester,
   ) async {
     final screen = await _aBarTapped(tester, 2);
-    screen.room.sceneAnswersFirst.add(const Refused(RefusalCode.unreadable));
+    screen.room.sceneAnswersFirst.add(
+      const Refused(RefusalCode.sceneRehearsalSending),
+    );
     await screen.tellsTheFrase();
 
     await screen.tap(_playPause);
@@ -550,7 +560,7 @@ void main() {
 
     await screen.tap(_terminei);
 
-    expect(byLabel(_retelling(2)), findsNothing);
+    expect(byLabel(_translatingAgainLine(2)), findsNothing);
     expect(byLabel(_keepTheEarlier), findsNothing);
     screen.room.finishHeldTurn();
     await screen.beat(2000);
@@ -577,6 +587,238 @@ void main() {
     );
   });
 
+  group('a list read while a frase is armed to be translated again', () {
+    /// Frase 5 told at 18.5 s and refused as NOT_FOUND, whose list read the room holds
+    /// until bar 2 is tapped, then answers with [listed].
+    Future<_Screen> theListLands(
+      WidgetTester tester, {
+      SceneRehearsalRecord? listed,
+    }) async {
+      final screen = await _onScreen(tester, rehearsal: _fourFrases);
+      await screen.listens();
+      screen.harness.playback.at = _s(18.5);
+      await screen.tap(_tell);
+      screen.room
+        ..sceneAnswersFirst.add(const Refused(RefusalCode.notFound))
+        ..holdNextSceneList();
+      if (listed != null) screen.room.sceneRehearsals[0] = listed;
+      await screen.tellsTheFrase();
+      await screen.tap(_translateAgainBar(2));
+      screen.room.finishHeldSceneList();
+      await screen.beat(500);
+      return screen;
+    }
+
+    testWidgets(
+      'keeps the frase armed when the list still holds it, and the circle records it',
+      (tester) async {
+        final screen = await theListLands(tester);
+
+        expect(screen.shows(_translatingAgainLine(2)), isTrue);
+        await screen.tellsTheFrase();
+        final sent = screen.room.frasesKept.last;
+        expect((sent.startsMs, sent.endsMs, sent.replaces), (4000, 9000, 'f2'));
+      },
+    );
+
+    testWidgets(
+      'drops the arm and stops its stretch when the list no longer holds the frase',
+      (tester) async {
+        final screen = await theListLands(
+          tester,
+          listed: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+        );
+
+        expect(byLabel(_translatingAgainLine(2)), findsNothing);
+        expect(byLabel(_keepTheEarlier), findsNothing);
+        expect(screen.harness.playback.sounding, isFalse);
+      },
+    );
+  });
+
+  testWidgets(
+    'a frase translated again twice, the second naming the first after the first answer was lost, replaces the newest',
+    (tester) async {
+      final screen = await _aBarTapped(tester, 3);
+      screen.room
+        ..frasesLandBeforeTheyFail = true
+        ..sceneAnswersFirst.add(const NetworkFailed('timeout'))
+        ..sceneListsAnswerFirst.add(const NetworkFailed('timeout'));
+      await screen.tellsTheFrase();
+      screen.room.frasesLandBeforeTheyFail = false;
+      expect(screen.shows(_notUnderstood), isTrue);
+
+      await screen.tellsTheFrase();
+
+      final [first, second] = screen.room.frasesKept;
+      expect((first.replaces, second.replaces), ('f3', 'f3'));
+      expect(screen.currentFrases, 4);
+      expect(byLabel(_translateAgainBar(3)), findsOneWidget);
+      expect(byLabel(_notUnderstood), findsNothing);
+      await screen.tap(_hearMine(3));
+      await screen.until(() => screen.room.clipsFetched.isNotEmpty);
+      expect(
+        screen.room.clipsFetched.last,
+        RoomRepository.sceneFraseAudioUrl(
+          _session,
+          _rehearsalId,
+          '$_rehearsalId-frase-6',
+        ),
+      );
+    },
+  );
+
+  group('«terminei» with a held frase whose last try fails', () {
+    for (final (named, failure) in [
+      ('nobody understood it', const Refused(RefusalCode.wordlessTelling)),
+      ('its answer was lost', const NetworkFailed('timeout')),
+    ]) {
+      /// Frase 2 held at 6 s, «terminei», and the resend fails with [failure].
+      Future<_Screen> theSendStops(WidgetTester tester) async {
+        final screen = await _aPausaAfterFrase1(tester);
+        screen.room.sceneAnswersFirst.add(
+          const Refused(RefusalCode.sceneRehearsalSending),
+        );
+        await screen.tellsTheFrase();
+        final posts = screen.room.frasesKept.length;
+        screen.room.sceneAnswersFirst.add(failure);
+        await screen.tap(_terminei);
+        await screen.until(
+          () =>
+              screen.room.frasesKept.length > posts &&
+              !screen.state.scene.waiting,
+        );
+        await screen.beat(500);
+        return screen;
+      }
+
+      testWidgets(
+        '$named: nothing is sent, her line shows and the piece stays at its cut; told again, «terminei» sends it',
+        (tester) async {
+          final screen = await theSendStops(tester);
+
+          expect(screen.room.scenesSent, isEmpty);
+          expect(screen.shows(_notUnderstood), isTrue);
+          expect(byLabel(_pausaHint), findsOneWidget);
+          await screen.tellsTheFrase();
+          expect(byLabel(_translateAgainBar(2)), findsOneWidget);
+          await screen.tap(_terminei);
+          await screen.until(() => screen.room.scenesSent.isNotEmpty);
+          expect(screen.room.scenesSent, hasLength(1));
+          expect(screen.currentFrases, 2);
+          await screen.beat(2000);
+        },
+      );
+
+      testWidgets('$named: a second «terminei» sends without it', (
+        tester,
+      ) async {
+        final screen = await theSendStops(tester);
+
+        await screen.tap(_terminei);
+        await screen.until(() => screen.room.scenesSent.isNotEmpty);
+
+        expect(screen.room.scenesSent, hasLength(1));
+        expect(screen.currentFrases, 1);
+        await screen.beat(2000);
+      });
+    }
+  });
+
+  group('a translation again whose answer was lost reads the list', () {
+    testWidgets(
+      'the room kept it: it shows as kept with no line, «ouvir» plays it and «terminei» carries it',
+      (tester) async {
+        final screen = await _aBarTapped(tester, 3);
+        screen.room
+          ..frasesLandBeforeTheyFail = true
+          ..sceneAnswersFirst.add(const NetworkFailed('timeout'));
+
+        await screen.tellsTheFrase();
+        screen.room.frasesLandBeforeTheyFail = false;
+
+        expect(byLabel(_notUnderstood), findsNothing);
+        expect(byLabel(_keepTheEarlier), findsNothing);
+        expect(byLabel(_translatingAgainLine(3)), findsNothing);
+        await screen.tap(_hearMine(3));
+        await screen.until(() => screen.room.clipsFetched.isNotEmpty);
+        expect(
+          screen.room.clipsFetched.last,
+          RoomRepository.sceneFraseAudioUrl(
+            _session,
+            _rehearsalId,
+            '$_rehearsalId-frase-5',
+          ),
+        );
+        await screen.beat(500);
+        await screen.tap(_terminei);
+        await screen.until(() => screen.room.scenesSent.isNotEmpty);
+        expect(screen.room.scenesSent, hasLength(1));
+        expect(screen.room.frasesKept, hasLength(1));
+        await screen.beat(2000);
+      },
+    );
+
+    testWidgets('the room did not keep it: her line and «manter»', (
+      tester,
+    ) async {
+      final screen = await _aBarTapped(tester, 3);
+      screen.room.sceneAnswersFirst.add(const NetworkFailed('timeout'));
+
+      await screen.tellsTheFrase();
+
+      expect(screen.shows(_notUnderstood), isTrue);
+      expect(byLabel(_keepTheEarlier), findsOneWidget);
+      expect(screen.currentFrases, 4);
+    });
+  });
+
+  group('a refusal that names the frase lets it go with her line', () {
+    for (final code in [
+      RefusalCode.unknownReference,
+      RefusalCode.tooLarge,
+      RefusalCode.unnamed(413),
+    ]) {
+      testWidgets('a new frase: $code', (tester) async {
+        final screen = await _aPausaAfterFrase1(tester);
+        screen.room.sceneAnswersFirst.add(Refused(code));
+        await screen.tellsTheFrase();
+
+        expect(screen.shows(_notUnderstood), isTrue);
+        await screen.theFraseMicrophoneOpens();
+        expect(screen.room.frasesKept, hasLength(1));
+      });
+
+      testWidgets('a translation again: $code', (tester) async {
+        final screen = await _aBarTapped(tester, 2);
+        screen.room.sceneAnswersFirst.add(Refused(code));
+        await screen.tellsTheFrase();
+
+        expect(screen.shows(_notUnderstood), isTrue);
+        await screen.theFraseMicrophoneOpens();
+        expect(screen.room.frasesKept, hasLength(1));
+      });
+    }
+
+    testWidgets(
+      'SCENE_REHEARSAL_SENDING keeps it held, and the circle sends it again',
+      (tester) async {
+        final screen = await _aPausaAfterFrase1(tester);
+        screen.room.sceneAnswersFirst.add(
+          const Refused(RefusalCode.sceneRehearsalSending),
+        );
+        await screen.tellsTheFrase();
+
+        expect(byLabel(_notUnderstood), findsNothing);
+        await screen.tap(_tell);
+        await screen.until(() => screen.room.frasesKept.length > 1);
+        final [first, second] = screen.room.frasesKept;
+        expect(second.audio, first.audio);
+        expect(screen.state.channel, isNot(isA<Microphone>()));
+      },
+    );
+  });
+
   group('the send-off', () {
     testWidgets(
       'terminei shows «enviando…», plays the acknowledgement, then her line, closes after about 1.4 s and the reply plays on the session screen',
@@ -593,6 +835,9 @@ void main() {
 
         await _theVoiceAnswers(screen);
         expect(byLabel(_wentToTheVoice), findsOneWidget);
+        expect(find.text(_sending), findsNothing);
+        expect(byLabel(_sending), findsNothing);
+        expect(byLabel(_terminei), findsNothing);
         final replies = screen.replies;
         await screen.beat(1300);
         expect(screen.state.stage, SalaStage.cena);
@@ -633,7 +878,7 @@ void main() {
       screen.sala
         ..leaveTheSceneRehearsal()
         ..recordTheSceneAgain()
-        ..retellTheFrase('f1')
+        ..translateTheFraseAgain('f1')
         ..hearTheFraseTranslation('f1')
         ..tapTheTranslateCircle();
       await screen.beat(500);

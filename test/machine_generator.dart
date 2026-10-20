@@ -307,7 +307,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheRoomRefused(:final third, :final sounding) =>
     'TheRoomRefused(third: $third, ${describeKept(sounding)})',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
-  TheTellingCameBackEmpty() => 'TheTellingCameBackEmpty',
+  TheTellingCameBackEmpty(:final readAgain) =>
+    'TheTellingCameBackEmpty(readAgain: $readAgain)',
   TheVerdictAsked() => 'TheVerdictAsked',
   TheTranslationStartedOver() => 'TheTranslationStartedOver',
   TheChoiceOpened() => 'TheChoiceOpened',
@@ -767,7 +768,9 @@ MachineEvent _draw(
     sounding: _drawKept(random),
   ),
   EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
-  EventKind.theTellingCameBackEmpty => const TheTellingCameBackEmpty(),
+  EventKind.theTellingCameBackEmpty => TheTellingCameBackEmpty(
+    readAgain: random.nextBool(),
+  ),
   EventKind.theVerdictAsked => const TheVerdictAsked(),
   EventKind.theTranslationStartedOver => const TheTranslationStartedOver(),
   EventKind.turnSent => TurnSent(

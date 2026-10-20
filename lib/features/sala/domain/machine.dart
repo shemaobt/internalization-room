@@ -497,7 +497,9 @@ final class TheCallMetAClosedPassage extends AnsweringEvent {
 }
 
 final class TheTellingCameBackEmpty extends AnsweringEvent {
-  const TheTellingCameBackEmpty({super.generation});
+  final bool readAgain;
+
+  const TheTellingCameBackEmpty({this.readAgain = false, super.generation});
 }
 
 sealed class Effect {
@@ -1292,10 +1294,12 @@ const _watch = ArmTheWatch();
     machine.copyWith(wordlessTelling: true),
     const [LetThePendingTranslationGo()],
   ),
-  TheTellingCameBackEmpty() when machine.station is SceneRehearsal => (
-    machine,
-    const [AskTheFraseAgain()],
-  ),
+  TheTellingCameBackEmpty(:final readAgain)
+      when machine.station is SceneRehearsal =>
+    (
+      machine,
+      [const AskTheFraseAgain(), if (readAgain) const ReadTheSceneRehearsals()],
+    ),
   TheTellingCameBackEmpty() => (machine, const []),
   TheVerdictAsked() => (machine.copyWith(wordlessTelling: false), const []),
   TheTranslationStartedOver() => (

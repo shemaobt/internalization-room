@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -9,7 +8,6 @@ import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
-import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
@@ -19,7 +17,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'a_scene_room.dart';
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel, settle;
 
 const _session = 'sessao-1';
@@ -40,8 +37,6 @@ const _playPause = 'Tocar ou pausar a gravação';
 const _again = 'gravar o ensaio da cena de novo';
 const _terminei = 'terminei';
 const _confirm = 'Confirmar a tradução e seguir';
-
-final _redMicrophone = byLabel('ensaio da cena');
 
 String _bar(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
 
@@ -175,54 +170,6 @@ int _currentFrasesOf(SceneRoom room, [int n = 1]) => room
     .singleWhere((rehearsal) => rehearsal.n == n)
     .translatedFrases;
 
-Future<void> _pumpUntil(
-  WidgetTester tester,
-  bool Function() done, {
-  Duration beat = const Duration(milliseconds: 100),
-}) async {
-  for (var vez = 0; vez < 40 && !done(); vez++) {
-    await tester.pump(beat);
-  }
-}
-
-/// The scene screen pumped over a session at rest in Articulação, open on the translate
-/// step of one unsent rehearsal whose take is [take].
-Future<(SalaHarness, ProviderContainer)> _translateOnScreen(
-  WidgetTester tester, {
-  Uint8List? take,
-  Duration length = const Duration(seconds: 10),
-  SceneRehearsalRecord? rehearsal,
-}) async {
-  final harness = SalaHarness(filaEmMemoria: true)
-    ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
-    ..room.nextMoment = articulation;
-  harness.room.sceneRehearsals.add(rehearsal ?? _rehearsal());
-  harness.room.sceneAudio = take ?? aSpokenWav(length: length);
-  harness.playback.measured = length;
-  tester.view
-    ..physicalSize = const Size(820, 2400)
-    ..devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
-  final container = await pumpSala(tester, harness);
-  addTearDown(() => closeTheRoom(container));
-  final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await tester.pump(const Duration(milliseconds: 300));
-  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
-  await _pumpUntil(
-    tester,
-    () => container.read(salaSessionProvider).voice == VoiceState.invite,
-  );
-  await tester.pump(const Duration(milliseconds: 1500));
-  await tester.tap(_redMicrophone);
-  await _pumpUntil(
-    tester,
-    () => container.read(salaSessionProvider).scene.step == SceneStep.translate,
-  );
-  await tester.pump(const Duration(milliseconds: 500));
-  return (harness, container);
-}
-
 Future<void> _tapAndSettle(WidgetTester tester, String label) async {
   await tester.tap(byLabel(label));
   await tester.pump(const Duration(milliseconds: 300));
@@ -234,7 +181,7 @@ Future<void> _onScreenPlaying(
   ProviderContainer container,
 ) async {
   await _tapAndSettle(tester, _translate);
-  await _pumpUntil(
+  await pumpUntil(
     tester,
     () => container.read(salaSessionProvider).channel is PartPlaying,
   );
@@ -248,12 +195,12 @@ Future<void> _onScreenTheFraseIsSent(
 ) async {
   final before = harness.room.frasesKept.length;
   await _tapAndSettle(tester, _tell);
-  await _pumpUntil(
+  await pumpUntil(
     tester,
     () => _theFraseMicrophoneIsOpen(container.read(salaSessionProvider)),
   );
   await _tapAndSettle(tester, _tell);
-  await _pumpUntil(tester, () => harness.room.frasesKept.length > before);
+  await pumpUntil(tester, () => harness.room.frasesKept.length > before);
   await tester.pump(const Duration(milliseconds: 500));
 }
 
@@ -277,10 +224,11 @@ void main() {
     testWidgets(
       'opening the translate step shows her instruction and plays nothing until «traduzir o ensaio da cena»',
       (tester) async {
-        final (harness, container) = await _translateOnScreen(
+        final (harness, container) = await translateOnScreen(
           tester,
           length: const Duration(seconds: 20),
           take: aSpokenWav(length: const Duration(seconds: 20)),
+          rehearsal: _rehearsal(),
         );
 
         expect(byLabel(_instruction), findsOneWidget);
@@ -342,9 +290,10 @@ void main() {
     testWidgets(
       'a tap 0.5 s after a frase ends, with a silence 0.3 s before the tap, lands in the middle of that silence and says her hint',
       (tester) async {
-        final (harness, container) = await _translateOnScreen(
+        final (harness, container) = await translateOnScreen(
           tester,
           take: aSpokenWav(gaps: [(_s(3.0), _s(3.2))]),
+          rehearsal: _rehearsal(),
         );
         await _onScreenPlaying(tester, harness, container);
         harness.playback.at = _s(3.5);
@@ -365,9 +314,10 @@ void main() {
     testWidgets(
       'a tap with no silence within reach leaves the pausa at the tap',
       (tester) async {
-        final (harness, container) = await _translateOnScreen(
+        final (harness, container) = await translateOnScreen(
           tester,
           take: aSpokenWav(gaps: [(_s(1.0), _s(1.4))]),
+          rehearsal: _rehearsal(),
         );
         await _onScreenPlaying(tester, harness, container);
         harness.playback.at = _s(6.0);
@@ -448,9 +398,10 @@ void main() {
     testWidgets('the play control pauses and marks a pausa like the circle', (
       tester,
     ) async {
-      final (harness, container) = await _translateOnScreen(
+      final (harness, container) = await translateOnScreen(
         tester,
         take: aSpokenWav(gaps: [(_s(3.0), _s(3.2))]),
+        rehearsal: _rehearsal(),
       );
       await _onScreenPlaying(tester, harness, container);
       harness.playback.at = _s(3.5);
@@ -469,7 +420,10 @@ void main() {
     testWidgets('paused with no pausa pending says her paused hint', (
       tester,
     ) async {
-      final (harness, container) = await _translateOnScreen(tester);
+      final (harness, container) = await translateOnScreen(
+        tester,
+        rehearsal: _rehearsal(),
+      );
       await _onScreenPlaying(tester, harness, container);
 
       harness.playback.failPlayback();
@@ -483,9 +437,10 @@ void main() {
     testWidgets(
       'circle to speak, circle to stop saves «frase N» and the take plays on with no further tap',
       (tester) async {
-        final (harness, container) = await _translateOnScreen(
+        final (harness, container) = await translateOnScreen(
           tester,
           take: aSpokenWav(gaps: [(_s(3.0), _s(3.2))]),
+          rehearsal: _rehearsal(),
         );
         await _onScreenPlaying(tester, harness, container);
         harness.playback.at = _s(3.5);
@@ -494,7 +449,7 @@ void main() {
         final calls = harness.room.calls.length;
 
         await _tapAndSettle(tester, _tell);
-        await _pumpUntil(
+        await pumpUntil(
           tester,
           () => _theFraseMicrophoneIsOpen(container.read(salaSessionProvider)),
         );
@@ -503,7 +458,7 @@ void main() {
           const Microphone(MicOwner.frase),
         );
         await _tapAndSettle(tester, _tell);
-        await _pumpUntil(tester, () => byLabel(_bar(1)).evaluate().isNotEmpty);
+        await pumpUntil(tester, () => byLabel(_bar(1)).evaluate().isNotEmpty);
         await tester.pump(const Duration(milliseconds: 300));
 
         expect(harness.room.frasesKept, hasLength(1));
@@ -563,9 +518,10 @@ void main() {
     testWidgets(
       'a frase the room refuses leaves the pausa pending and the circle records it again',
       (tester) async {
-        final (harness, container) = await _translateOnScreen(
+        final (harness, container) = await translateOnScreen(
           tester,
           take: aSpokenWav(gaps: [(_s(3.0), _s(3.2))]),
+          rehearsal: _rehearsal(),
         );
         harness.room.sceneAnswersFirst.add(
           const Refused(RefusalCode.wordlessTelling),
@@ -579,7 +535,7 @@ void main() {
         expect(byLabel(_bar(1)), findsNothing);
         expect(byLabel(_pausaHint), findsOneWidget);
         await _tapAndSettle(tester, _tell);
-        await _pumpUntil(
+        await pumpUntil(
           tester,
           () => _theFraseMicrophoneIsOpen(container.read(salaSessionProvider)),
         );
@@ -588,7 +544,7 @@ void main() {
           const Microphone(MicOwner.frase),
         );
         await _tapAndSettle(tester, _tell);
-        await _pumpUntil(tester, () => harness.room.frasesKept.length > 1);
+        await pumpUntil(tester, () => harness.room.frasesKept.length > 1);
         final [first, second] = harness.room.frasesKept;
         expect(
           (second.startsMs, second.endsMs),
@@ -823,7 +779,7 @@ void main() {
             await _listening(room);
             await _aFraseWhoseAnswerIsLost(
               room,
-              const Refused(RefusalCode.unreadable),
+              const Refused(RefusalCode.sceneRehearsalSending),
             );
             room.harness.room.sceneAnswersFirst.add(
               const Refused(RefusalCode.sceneRehearsalSending),
@@ -869,7 +825,7 @@ void main() {
             await _listening(room);
             await _aFraseWhoseAnswerIsLost(
               room,
-              const Refused(RefusalCode.unreadable),
+              const Refused(RefusalCode.sceneRehearsalSending),
               keptBefore: false,
             );
             room.harness.room.sceneRehearsals[0] = _rehearsal(
@@ -902,7 +858,7 @@ void main() {
             await _listening(room);
             await _aFraseWhoseAnswerIsLost(
               room,
-              const Refused(RefusalCode.unreadable),
+              const Refused(RefusalCode.sceneRehearsalSending),
               keptBefore: false,
             );
             final posts = room.harness.room.frasesKept.length;
@@ -936,7 +892,7 @@ void main() {
               await _listening(room);
               await _aFraseWhoseAnswerIsLost(
                 room,
-                const Refused(RefusalCode.unreadable),
+                const Refused(RefusalCode.sceneRehearsalSending),
                 keptBefore: false,
               );
               final resend = room.harness.room.holdTheNextFrase();
@@ -1000,7 +956,9 @@ void main() {
             await settle();
             room.harness.room
               ..frasesLandBeforeTheyFail = true
-              ..sceneAnswersFirst.add(const Refused(RefusalCode.unreadable));
+              ..sceneAnswersFirst.add(
+                const Refused(RefusalCode.sceneRehearsalSending),
+              );
             second.complete();
             await waitFor('a sala responder', () => !room.state.scene.waiting);
             room.harness.room.frasesLandBeforeTheyFail = false;
@@ -1053,7 +1011,7 @@ void main() {
             await _listening(room);
             await _aFraseWhoseAnswerIsLost(
               room,
-              const Refused(RefusalCode.unreadable),
+              const Refused(RefusalCode.sceneRehearsalSending),
               keptBefore: false,
             );
             room.sala.playTheSceneRehearsal();
@@ -1167,7 +1125,7 @@ void main() {
             await _listening(room);
             await _aFraseWhoseAnswerIsLost(
               room,
-              const Refused(RefusalCode.unreadable),
+              const Refused(RefusalCode.sceneRehearsalSending),
             );
             for (final n in [1, 2]) {
               room.sala.openTheListedSceneRehearsal('ensaio-da-cena-$n');
@@ -1205,7 +1163,7 @@ void main() {
             await _listening(room);
             await _aFraseWhoseAnswerIsLost(
               room,
-              const Refused(RefusalCode.unreadable),
+              const Refused(RefusalCode.sceneRehearsalSending),
               keptBefore: false,
             );
             return (room, room.harness.recorder.lastPath);
@@ -1277,7 +1235,7 @@ void main() {
         await _listening(room);
         await _aFraseWhoseAnswerIsLost(
           room,
-          const Refused(RefusalCode.unreadable),
+          const Refused(RefusalCode.sceneRehearsalSending),
           keptBefore: false,
         );
         room.harness.room.sceneRehearsals.clear();
@@ -1389,7 +1347,7 @@ void main() {
     testWidgets(
       'the take played to its end leaves the last frase ending at the take\'s end, never past what the room measured',
       (tester) async {
-        final (harness, container) = await _translateOnScreen(
+        final (harness, container) = await translateOnScreen(
           tester,
           rehearsal: _rehearsal(
             durationMs: 9980,
@@ -1410,7 +1368,7 @@ void main() {
     testWidgets('a take kept as m4a places the pausa at the tap', (
       tester,
     ) async {
-      final (harness, container) = await _translateOnScreen(
+      final (harness, container) = await translateOnScreen(
         tester,
         take: Uint8List.fromList(List.filled(4000, 7)),
         rehearsal: _rehearsal(frases: [_frase('f1', 0, 3000)]),
@@ -1427,9 +1385,10 @@ void main() {
     testWidgets('a take kept as m4a says her pausa is at the tap', (
       tester,
     ) async {
-      final (harness, container) = await _translateOnScreen(
+      final (harness, container) = await translateOnScreen(
         tester,
         take: Uint8List.fromList(List.filled(4000, 7)),
+        rehearsal: _rehearsal(),
       );
       await _onScreenPlaying(tester, harness, container);
       harness.playback.at = _s(3.1);
@@ -1443,7 +1402,7 @@ void main() {
     testWidgets(
       'her «fim do ensaio da cena» shows once the take played to its end, and once everything is translated',
       (tester) async {
-        final (harness, container) = await _translateOnScreen(
+        final (harness, container) = await translateOnScreen(
           tester,
           rehearsal: _rehearsal(frases: [_frase('f1', 0, 6000)]),
         );
@@ -1465,7 +1424,7 @@ void main() {
     testWidgets(
       'the translate step reads in her order: the instruction, the play control, the strip, «traduzir», the circle, the frases, «terminei», then «gravar o ensaio da cena de novo»',
       (tester) async {
-        await _translateOnScreen(
+        await translateOnScreen(
           tester,
           rehearsal: _rehearsal(frases: [_frase('f1', 0, 3000)]),
         );
@@ -1492,7 +1451,7 @@ void main() {
     testWidgets(
       'each «frase N» is a bar as long as its frase against the longest',
       (tester) async {
-        await _translateOnScreen(
+        await translateOnScreen(
           tester,
           rehearsal: _rehearsal(
             frases: [_frase('f1', 0, 3000), _frase('f2', 3000, 9000)],
@@ -1519,9 +1478,10 @@ void main() {
       'the whole translate step never says «cortar», «corte» or «Trecho»',
       (tester) async {
         final banned = RegExp(r'cortar|corte|trecho', caseSensitive: false);
-        final (harness, container) = await _translateOnScreen(
+        final (harness, container) = await translateOnScreen(
           tester,
           take: aSpokenWav(gaps: [(_s(3.0), _s(3.2))]),
+          rehearsal: _rehearsal(),
         );
         final seen = <String>[];
         void look() {
@@ -1536,13 +1496,13 @@ void main() {
         await _tapAndSettle(tester, _tell);
         look();
         await _tapAndSettle(tester, _tell);
-        await _pumpUntil(
+        await pumpUntil(
           tester,
           () => _theFraseMicrophoneIsOpen(container.read(salaSessionProvider)),
         );
         look();
         await _tapAndSettle(tester, _tell);
-        await _pumpUntil(tester, () => byLabel(_bar(1)).evaluate().isNotEmpty);
+        await pumpUntil(tester, () => byLabel(_bar(1)).evaluate().isNotEmpty);
         look();
 
         expect(seen, isNotEmpty);
@@ -1553,7 +1513,10 @@ void main() {
     testWidgets('the strip carries no words and cannot be tapped', (
       tester,
     ) async {
-      final (harness, container) = await _translateOnScreen(tester);
+      final (harness, container) = await translateOnScreen(
+        tester,
+        rehearsal: _rehearsal(),
+      );
       await _onScreenPlaying(tester, harness, container);
       harness.playback.at = _s(4.0);
       await _tapAndSettle(tester, _tell);

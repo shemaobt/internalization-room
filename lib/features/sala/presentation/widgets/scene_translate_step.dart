@@ -142,7 +142,7 @@ class SceneTranslateStep extends ConsumerWidget {
               ),
             ),
           ],
-          if (scene.retelling != null) ...[
+          if (scene.translatingAgain != null) ...[
             const SizedBox(height: 8),
             _WrittenButton(
               said('keepTheEarlier'),
@@ -158,21 +158,24 @@ class SceneTranslateStep extends ConsumerWidget {
                 n: i + 1,
                 share: frase.spanIn(scene.length) / longest,
                 words: said('frase', i + 1),
-                retell: said('retellFrase', i + 1),
+                translateAgain: said('retellFrase', i + 1),
                 hearMine: said('hearMine', i + 1),
                 live: idle,
                 style: words,
-                onRetell: () => notifier.retellTheFrase(frase.fraseId),
+                onTranslateAgain: () =>
+                    notifier.translateTheFraseAgain(frase.fraseId),
                 onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
               ),
           ],
-          const SizedBox(height: 16),
-          _WrittenButton(
-            said(sending ? 'sending' : 'send'),
-            live: sendable && !sending,
-            onTap: notifier.sendTheSceneRehearsal,
-            large: true,
-          ),
+          if (!scene.wentToTheVoice) ...[
+            const SizedBox(height: 16),
+            _WrittenButton(
+              said(sending ? 'sending' : 'send'),
+              live: sendable && !sending,
+              onTap: notifier.sendTheSceneRehearsal,
+              large: true,
+            ),
+          ],
           const SizedBox(height: 8),
           _WrittenButton(
             said('again'),
@@ -188,15 +191,15 @@ class SceneTranslateStep extends ConsumerWidget {
   /// Her line under the circle: the send-off, a frase the room did not understand, or
   /// the frase being translated again.
   String? _messageOf(List<SceneFrase> frases) {
-    final retold = frases.indexWhere(
-      (frase) => frase.fraseId == scene.retelling?.fraseId,
+    final again = frases.indexWhere(
+      (frase) => frase.fraseId == scene.translatingAgain?.fraseId,
     );
     if (scene.wentToTheVoice) {
       return sceneRehearsalLabelFor('wentToTheVoice', language);
     }
     if (scene.notUnderstood) return retroLabelFor('notUnderstood', language);
-    if (retold >= 0) {
-      return sceneRehearsalLabelFor('retelling', language, n: retold + 1);
+    if (again >= 0) {
+      return sceneRehearsalLabelFor('retelling', language, n: again + 1);
     }
     return null;
   }
@@ -304,22 +307,22 @@ class _FraseBar extends StatelessWidget {
   final int n;
   final double share;
   final String words;
-  final String retell;
+  final String translateAgain;
   final String hearMine;
   final bool live;
   final TextStyle style;
-  final VoidCallback onRetell;
+  final VoidCallback onTranslateAgain;
   final VoidCallback onHear;
 
   const _FraseBar({
     required this.n,
     required this.share,
     required this.words,
-    required this.retell,
+    required this.translateAgain,
     required this.hearMine,
     required this.live,
     required this.style,
-    required this.onRetell,
+    required this.onTranslateAgain,
     required this.onHear,
   });
 
@@ -334,10 +337,10 @@ class _FraseBar extends StatelessWidget {
           Semantics(
             button: true,
             enabled: live,
-            label: retell,
+            label: translateAgain,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: live ? onRetell : null,
+              onTap: live ? onTranslateAgain : null,
               child: ExcludeSemantics(
                 child: Opacity(
                   opacity: live ? 1 : 0.35,

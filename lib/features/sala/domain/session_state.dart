@@ -46,7 +46,7 @@ final class SceneScreen {
   final Duration? pausa;
   final bool listened;
   final bool notUnderstood;
-  final SceneFrase? retelling;
+  final SceneFrase? translatingAgain;
   final bool wentToTheVoice;
 
   const SceneScreen({
@@ -64,7 +64,7 @@ final class SceneScreen {
     this.pausa,
     this.listened = false,
     this.notUnderstood = false,
-    this.retelling,
+    this.translatingAgain,
     this.wentToTheVoice = false,
   });
 
@@ -85,8 +85,8 @@ final class SceneScreen {
     bool clearPausa = false,
     bool? listened,
     bool? notUnderstood,
-    SceneFrase? retelling,
-    bool clearRetelling = false,
+    SceneFrase? translatingAgain,
+    bool clearTranslatingAgain = false,
     bool? wentToTheVoice,
   }) => SceneScreen(
     step: step,
@@ -103,11 +103,18 @@ final class SceneScreen {
     pausa: clearPausa ? null : (pausa ?? this.pausa),
     listened: listened ?? this.listened,
     notUnderstood: notUnderstood ?? this.notUnderstood,
-    retelling: clearRetelling ? null : (retelling ?? this.retelling),
+    translatingAgain: clearTranslatingAgain
+        ? null
+        : (translatingAgain ?? this.translatingAgain),
     wentToTheVoice: wentToTheVoice ?? this.wentToTheVoice,
   );
 
   SceneScreen get asWaiting => copyWith(waiting: true);
+
+  /// The screen with nothing asked again: her «não entendi» gone and no frase being
+  /// translated again.
+  SceneScreen get nothingAskedAgain =>
+      copyWith(notUnderstood: false, clearTranslatingAgain: true);
 
   /// The take as far as a frase may reach: this tablet's length, never past what the
   /// room measured.
