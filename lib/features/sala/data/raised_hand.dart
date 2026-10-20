@@ -292,7 +292,7 @@ class RaisedHand {
       if (path != null) unawaited(recorder().delete(path));
       return;
     }
-    final keep = recorder();
+    final kept = recorder();
     final RoomAnswer<void> sent;
     try {
       sent = await inbox().sendQuestion(sessionId, File(path));
@@ -301,7 +301,7 @@ class RaisedHand {
     }
     switch (sent) {
       case Answered():
-        unawaited(keep.delete(path));
+        unawaited(kept.delete(path));
       case final RoomFailure failure:
         if (host.abandoned(generation)) return;
         host.decideAt(failure, door: Door.question);

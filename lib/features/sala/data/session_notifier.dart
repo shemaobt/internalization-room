@@ -548,6 +548,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _onPlaybackFailed = null;
     _launching = null;
     _launched = false;
+    _hand = RaisedHand(
+      host: _HandHost(this),
+      inbox: () => ref.read(handInboxRepositoryProvider),
+      recorder: () => _recorder,
+    );
     _semNome = {};
     _newestCount = 0;
     _fraseNaFila = null;
@@ -584,11 +589,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         asset: offlineNoticeAsset(_inTheSessionsLanguage),
       ),
       generation: () => _generation,
-    );
-    _hand = RaisedHand(
-      host: _HandHost(this),
-      inbox: () => ref.read(handInboxRepositoryProvider),
-      recorder: () => _recorder,
     );
     ref.onDispose(() {
       _firstGeneration = _highestGeneration + 1;
