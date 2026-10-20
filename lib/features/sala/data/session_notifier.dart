@@ -5285,10 +5285,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final primeira = todas ? 0 : naoOuvidas.first;
     if (state.needsPerson) {
       _parteTocando = primeira;
-      if (!todas) {
-        _naoOuvidasAFrente = naoOuvidas.skip(1).toList();
-        _paraDepoisDaUltima = true;
-      }
+      if (!todas) _armarAsPartes(naoOuvidas, paraDepoisDaUltima: true);
       return;
     }
     if (todas) {
@@ -5319,14 +5316,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool semChaoTraduzido = false,
     bool paraDepoisDaUltima = false,
   }) {
-    _naoOuvidasAFrente = partes.skip(1).toList();
-    _paraDepoisDaUltima = paraDepoisDaUltima;
-    _pousadaNaParteApontadaPelaRecusa = true;
+    _armarAsPartes(partes, paraDepoisDaUltima: paraDepoisDaUltima);
     _tocarParteDaRetro(
       partes.first,
       doComeco: true,
       semChaoTraduzido: semChaoTraduzido,
     );
+  }
+
+  void _armarAsPartes(List<int> partes, {required bool paraDepoisDaUltima}) {
+    _naoOuvidasAFrente = partes.skip(1).toList();
+    _paraDepoisDaUltima = paraDepoisDaUltima;
+    _pousadaNaParteApontadaPelaRecusa = true;
   }
 
   void _atravessar({bool doComeco = false}) {
@@ -5636,11 +5637,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final ultima = _parteTocando >= state.partes.length - 1;
     final pousada = _pousadaNaParteApontadaPelaRecusa;
     _pousadaNaParteApontadaPelaRecusa = false;
-    final aFrente = pousada && _naoOuvidasAFrente.isNotEmpty;
-    final para = pousada && !aFrente && _paraDepoisDaUltima;
+    final faltaOutra = pousada && _naoOuvidasAFrente.isNotEmpty;
+    final paraAqui = pousada && !faltaOutra && _paraDepoisDaUltima;
     state = state.copyWith(
-      btClipEnded: ultima || (pousada && !aFrente),
-      btParteFronteira: aFrente || (!ultima && !para),
+      btClipEnded: ultima || (pousada && !faltaOutra),
+      btParteFronteira: faltaOutra || (!ultima && !paraAqui),
       btFimDasPartesMs: _fimDaParteMs,
       btParteNoArMs: 0,
     );
@@ -7260,7 +7261,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     required bool semChaoTraduzido,
   }) async {
     bool apontada(KeptTake take) => gravacoes.contains(take.takeId);
-    if (!state.partes.any(apontada)) {
+    final ultimaApontada = state.partes.lastIndexWhere(apontada);
+    if (ultimaApontada < 0) {
       // A recording this tablet is not holding. There is nothing to lead them to and no
       // way to say so without words. Asked before anything is measured: a name that leads
       // nowhere is a person, and measuring the whole rehearsal first only makes them wait
@@ -7276,10 +7278,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // under the file it just replaced.
     for (var antes = 0; antes < state.partes.length; antes++) {
       final arquivo = state.partes[antes].path;
-      if (!state.partes.skip(antes + 1).any(apontada) &&
-          apontada(state.partes[antes])) {
-        break;
-      }
+      if (antes == ultimaApontada) break;
       if (_tamanhoDaParteMs.containsKey(arquivo)) continue;
       // Measuring waits on the player, and the watchdog that gives up on a wait only
       // watches a room that says it is thinking. Left speaking — which is where saying

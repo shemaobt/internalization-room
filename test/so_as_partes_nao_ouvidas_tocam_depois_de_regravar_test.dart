@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -15,8 +16,11 @@ const _cincoPartes = [
 
 /// A rehearsal of [partes], every part told back whole and played to its end: every part
 /// heard, the room standing with «terminei» lit.
-Future<Sala> _contadoInteiro(List<Duration> partes) async {
-  final harness = SalaHarness();
+Future<Sala> _contadoInteiro(
+  List<Duration> partes, {
+  SalaHarness? numaSala,
+}) async {
+  final harness = numaSala ?? SalaHarness();
   final container = harness.container();
   addTearDown(container.dispose);
   final it = Sala(harness, container);
@@ -155,6 +159,49 @@ void main() {
         reason: 'a quarta parte já foi ouvida: não há travessia para ela',
       );
       expect(it.harness.playback.played.skip(tocadas), [terceira]);
+    },
+  );
+
+  test(
+    'uma parada durante a fala dela, levantada, toca a parte que falta e para nela',
+    () async {
+      final it = await _contadoInteiro(
+        _cincoPartes,
+        numaSala: SalaHarness(watchesWithoutAHalt: true),
+      );
+      await _regravada(it, 2, _cincoPartes[2]);
+      final terceira = it.partes[2].path;
+      it.harness.room.listeningUnheardTakeIds = [it.partes[2].takeId!];
+      it.harness.voice.holdNextLine();
+      final tocadas = it.harness.playback.played.length;
+
+      it.sala.startRetro();
+      await waitFor(
+        'a P2 começar',
+        () => it.harness.voice.fixedLines.any((linha) => linha.$1 == 'P2'),
+      );
+      it.harness.room
+        ..serverStatus = 'needs_person'
+        ..serverHalt = HaltKind.blocking;
+      await waitFor('a sala parar', () => it.estado.needsPerson);
+      it.harness.voice.finishHeldLine();
+      it.harness.room.theDeskAttended();
+      await waitFor('a parada sair', () => !it.estado.needsPerson);
+      await waitFor(
+        'a parte que falta entrar no ar',
+        () => it.harness.playback.played.length > tocadas,
+      );
+      expect(it.harness.playback.played.skip(tocadas), [terceira]);
+
+      await _ateOFim(it, _cincoPartes[2]);
+
+      expect(
+        it.estado.btParteFronteira,
+        isFalse,
+        reason:
+            'a quarta parte já foi ouvida: a parada não muda onde o replay para',
+      );
+      expect(it.estado.canFinishBackTranslation, isTrue);
     },
   );
 

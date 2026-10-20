@@ -31,6 +31,10 @@ the ticket (ENG-1419) on 19 and 20 October.
 - **A refusal for unheard parts** plays every part it names in row order, crossing from one
   to the next. After the last, the crossing into the following part stays offered, as it
   did after a single landing.
+- A blocking halt during the replay withholds the sound as it does on any entry; the lifted
+  halt plays the part and the replay still stops where it would have.
+- The reports, the mark and the replay's list live in the notifier beside the Retro screen's
+  other fields, under ADR 0046's written exception, until that screen moves to the machine.
 - The mark that a part was recorded again lives in memory only: a relaunch between the
   recording and the entry takes today's path, without P2.
 
