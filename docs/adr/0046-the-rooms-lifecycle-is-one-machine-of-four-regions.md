@@ -174,6 +174,13 @@ sentence as it is, the circle ready, recording, the review, sending, too long),
 the session read) and `btFraseGuardada` (the frase whose recording could not be sent and is
 held in the outbox) sit beside them on the same two classes and move with them.
 
+Extended by name (ENG-1701, 2026-10-20), same end date: `btRecomecada`, the note «tradução
+recomeçada — o ensaio da passagem ficou» that a restart leaves under the circle for six seconds.
+It left `btAviso`, which holds one line at a time, so that a refusal landing in those six seconds
+prints beside the note instead of in its place, as her `restartNote` stands apart from her
+`btMsg`. It sits beside the others on the same two classes and moves with them; only its own
+timer clears it.
+
 Extended by name (ENG-1419, 2026-10-20), same end date: the Listening ledger's reports to the
 room (as each part ends, on leaving the Back-translation or the passage, when the app goes to
 the background), the ledger's spans written while a part sounds on the Rehearsal, and three
