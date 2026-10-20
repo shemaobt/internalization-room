@@ -19,11 +19,13 @@ final _duasLacunas = aSpokenWav(gaps: [(s(3.0), s(3.4)), (s(6.0), s(6.4))]);
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
 
-Future<ProviderContainer> _duasFrasesEUmAchadoNa(
+String _barra(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
+
+Future<ProviderContainer> _duasFrasesNoVeredito(
   WidgetTester tester,
-  SalaHarness harness,
-  String apontada,
-) async {
+  SalaHarness harness, {
+  String? apontada,
+}) async {
   final container = await entrarNaTraducao(tester, harness, partes: 1);
   for (final (n, toque) in [(1, s(4.2)), (2, s(7.0))]) {
     await pausarAos(tester, harness, toque);
@@ -44,18 +46,33 @@ Future<ProviderContainer> _duasFrasesEUmAchadoNa(
   harness.playback.finishPlayback();
   await _passo(tester);
   harness.room
-    ..verdictChecked = false
-    ..verdictHasFinding = true
+    ..verdictChecked = apontada == null
+    ..verdictHasFinding = apontada != null
     ..verdictFindingSegmentId = apontada;
   unawaited(
     container.read(salaSessionProvider.notifier).finishBackTranslation(),
   );
   await waitFor(
-    'o veredito apontar a frase',
-    () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+    'o veredito chegar',
+    () =>
+        container.read(salaSessionProvider).btPhase ==
+        (apontada == null ? BtPhase.conferida : BtPhase.findings),
     step: () => _passo(tester),
   );
   await _passo(tester);
+  return container;
+}
+
+Future<ProviderContainer> _duasFrasesEUmAchadoNa(
+  WidgetTester tester,
+  SalaHarness harness,
+  String apontada,
+) async {
+  final container = await _duasFrasesNoVeredito(
+    tester,
+    harness,
+    apontada: apontada,
+  );
   await tocar(tester, 'Traduzir este trecho de novo');
   await waitFor(
     'a frase apontada ficar para traduzir de novo',
@@ -113,6 +130,50 @@ void main() {
         ],
         [s(3.2), s(6.6)],
         reason: 'a frase seguia com o fim de antes',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a tap on the bar of the last frase of a part opens her controls, and the moved pause becomes its span',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(
+        tester,
+        harness,
+        apontada: 'trecho-1',
+      );
+
+      await tocar(tester, _barra(2));
+      for (final controle in [antes, ouvirAPausa, depois]) {
+        expect(
+          aceso(tester, controle),
+          isTrue,
+          reason:
+              'o toque na barra da última frase não abria a pausa: $controle',
+        );
+      }
+      await tocar(tester, depois);
+      await tocar(tester, 'Tocar para gravar a tradução de novo');
+      await tocar(tester, 'Tocar ao terminar');
+      await tocar(tester, confirmar);
+      await waitFor(
+        'a frase pousar com o fim novo',
+        () =>
+            container.read(salaSessionProvider).btTrechoTraduzidoDeNovo == null,
+        step: () => _passo(tester),
+      );
+
+      expect(harness.room.replacesAsked, ['trecho-2@gravacao-1:3200-6600']);
+      expect(
+        [
+          for (final trecho in container.read(salaSessionProvider).btTrechos)
+            trecho.to,
+        ],
+        [s(3.2), s(6.6)],
+        reason: 'a frase tocada na barra seguia com o fim de antes',
       );
       closeTheRoom(container);
     },
