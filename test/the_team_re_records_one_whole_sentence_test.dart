@@ -1195,4 +1195,28 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('while a told frase is open to be told again, no row offers '
+      '«regravar»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await umAchadoNaFraseDois(tester, harness, container);
+    expect(_naLista('regravar a frase 1'), findsOneWidget);
+
+    await tocar(tester, aBarra(2));
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-2',
+    );
+    for (var n = 1; n <= 4; n++) {
+      expect(
+        _naLista('regravar a frase $n'),
+        findsNothing,
+        reason: 'a regravação da frase começava no meio da tradução de novo',
+      );
+    }
+    closeTheRoom(container);
+  });
 }

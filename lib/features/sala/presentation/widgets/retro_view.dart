@@ -329,13 +329,7 @@ class RetroView extends ConsumerWidget {
   }
 
   int? _traduzindoDeNovo(SalaSessionState session) =>
-      switch (session.btTrechoTraduzidoDeNovo) {
-        Trecho(contado: true, :final frase?, :final segmentId)
-            when session.btFraseQueAguarda == null ||
-                segmentId != session.btFraseQueAguarda =>
-          frase,
-        _ => null,
-      };
+      session.btFraseTraduzidaDeNovo?.frase;
 
   bool _conferida(SalaSessionState session) =>
       session.btPhase == BtPhase.conferida &&

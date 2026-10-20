@@ -830,8 +830,18 @@ class SalaSessionState {
       (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
       ensaio != EnsaioStatus.recording;
 
+  Trecho? get btFraseTraduzidaDeNovo => switch (btTrechoTraduzidoDeNovo) {
+    final Trecho trecho
+        when trecho.contado &&
+            (btFraseQueAguarda == null ||
+                trecho.segmentId != btFraseQueAguarda) =>
+      trecho,
+    _ => null,
+  };
+
   bool fraseRegravavel(Trecho trecho) =>
       trecho.frase != null &&
+      btFraseTraduzidaDeNovo == null &&
       btRegravacao?.passo != PassoDaRegravacao.enviando &&
       (btFraseGuardada == null || btFraseGuardada == trecho.frase) &&
       (btFraseQueAguarda == null || btFraseQueAguarda == trecho.segmentId) &&
