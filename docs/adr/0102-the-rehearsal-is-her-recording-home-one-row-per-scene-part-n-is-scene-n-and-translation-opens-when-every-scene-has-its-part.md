@@ -35,8 +35,8 @@ and, since ENG-1207, the scene rehearsal it was joined from (`origin`), but no s
   its `ordinal`, never by its place in the listing, so a room holding part 3 alone shows it
   on row 3. The current part under a number is the newest row for it, as the server reads
   it, so a joined part recorded again by the team is no longer joined. A recording the room
-  holds with no number is the rehearsal an app before 19 August sent whole: it comes back
-  whole and is no scene's part.
+  holds with no number is the rehearsal an app before 19 August sent whole: it comes back whole: no scene's part, outside the rows and the
+  gate, and still played, measured and told back in the Back-translation.
 - **The Rehearsal opens the Back-translation only once every scene has its part.** The
   rule lives in the machine: the Rehearsal Station carries whether every scene has its part,
   weighed again whenever its parts or its scene list change, and does not answer the
@@ -46,8 +46,9 @@ and, since ENG-1207, the scene rehearsal it was joined from (`origin`), but no s
   disc also stays dark while a recording waits for the check or a finding's mark stands,
   as before. While at least one scene has a part and another has none, «gravem todas as
   partes primeiro» stands beneath it. The scene list is the passage's: asked when the
-  passage opens, beside the session, and kept for the whole session, so a Rehearsal the
-  room falls under still knows its scenes. While the scene list is awaited or missing, the
+  passage opens, beside the session, and kept for the whole session, so a Rehearsal the room falls under still knows its
+  scenes; the scene rehearsal's own screen asks again as it opens, and an ask that fails
+  never forgets a list the room already answered. While the scene list is awaited or missing, the
   Rehearsal stays closed and the list is asked again on the scene list's own retry ladder,
   at each tap of the circle and at each keep; a passage the room answers with no scenes
   keeps the one-part rule.
