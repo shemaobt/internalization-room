@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,6 +71,18 @@ const _quatroFrases = [
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
+
+double _drawnAt(WidgetTester tester, String label) => tester
+    .widgetList<Opacity>(
+      find.descendant(of: byLabel(label), matching: find.byType(Opacity)),
+    )
+    .fold(1.0, (opacity, veil) => opacity * veil.opacity);
+
+Tristate _enabledAt(WidgetTester tester, String label) => tester
+    .getSemantics(byLabel(label))
+    .getSemanticsData()
+    .flagsCollection
+    .isEnabled;
 
 Future<ProviderContainer> _voltaATraducao(
   WidgetTester tester,
@@ -218,6 +231,80 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  testWidgets(
+    'the armed button is drawn dimmed and disabled while it is still asleep',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text(_armado), findsOneWidget);
+      expect(
+        _drawnAt(tester, _armado),
+        0.4,
+        reason:
+            'o botão armado aparecia aceso e não fazia nada por meio segundo',
+      );
+      expect(
+        _enabledAt(tester, _armado),
+        Tristate.isFalse,
+        reason:
+            'o leitor de tela anunciava um botão que ainda ignorava o toque',
+      );
+      await tester.pump(const Duration(seconds: 7));
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'the armed button is lit once it wakes and stays lit for the rest of the window',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.text(_armado), findsOneWidget);
+      expect(
+        _drawnAt(tester, _armado),
+        1.0,
+        reason: 'o botão ficava apagado a janela inteira, depois de acordar',
+      );
+      expect(_enabledAt(tester, _armado), Tristate.isTrue);
+
+      await tester.pump(const Duration(seconds: 5));
+
+      expect(find.text(_armado), findsOneWidget);
+      expect(_drawnAt(tester, _armado), 1.0);
+      expect(_enabledAt(tester, _armado), Tristate.isTrue);
+      await tester.pump(const Duration(seconds: 7));
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('after six seconds the button is back to its own words and lit', (
+    tester,
+  ) async {
+    final harness = SalaHarness();
+    final container = await _voltaATraducao(tester, harness, _quatroFrases);
+
+    await tester.tap(byLabel(_recomecar));
+    await tester.pump(const Duration(milliseconds: 6100));
+
+    expect(find.text(_recomecar), findsOneWidget);
+    expect(find.text(_armado), findsNothing);
+    expect(
+      _drawnAt(tester, _recomecar),
+      1.0,
+      reason: 'o botão voltava às palavras dele ainda apagado',
+    );
+    expect(_enabledAt(tester, _recomecar), Tristate.isTrue);
+    closeTheRoom(container);
+  });
 
   testWidgets(
     'one tap and then seven seconds of nothing leave it disarmed, with nothing changed',
