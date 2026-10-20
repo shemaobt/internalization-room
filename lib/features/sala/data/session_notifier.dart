@@ -199,8 +199,8 @@ enum _Resume {
   /// The station they left, standing again, with the rehearsal under it.
   landed,
 
-  /// The room no longer has one of the parts: the Ensaio stands again at that part, not
-  /// recorded, with the parts before it.
+  /// The room no longer has one of the parts: the Ensaio stands again with that scene's row
+  /// not recorded and every other row holding its own part.
   landedShort,
 
   /// Nothing behind this passage to come back to: it opens at the conversa.
