@@ -909,6 +909,8 @@ class SalaSessionState {
 
   bool get canHearAFrase =>
       stage == SalaStage.retro &&
+      !needsPerson &&
+      !offline &&
       (btPhase == BtPhase.playing ||
           btPhase == BtPhase.findings ||
           btPhase == BtPhase.conferida);
