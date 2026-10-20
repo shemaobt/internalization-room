@@ -834,6 +834,24 @@ void main() {
       },
     );
 
+    testWidgets(
+      'the room did not keep it: the list read shows what the room holds, another tablet\'s frase included, with her line and «manter»',
+      (tester) async {
+        final screen = await _aBarTapped(tester, 3);
+        screen.room
+          ..sceneRehearsals[0] = _rehearsal(
+            frases: [..._fourFrases.frases, _frase('f5', 17000, 19000)],
+          )
+          ..sceneAnswersFirst.add(const NetworkFailed('timeout'));
+
+        await screen.tellsTheFrase();
+
+        expect(byLabel(_translateAgainBar(5)), findsOneWidget);
+        expect(screen.shows(_notUnderstood), isTrue);
+        expect(byLabel(_keepTheEarlier), findsOneWidget);
+      },
+    );
+
     /// Frase 3 translated again, kept by the room, its answer lost and its list read
     /// lost too.
     Future<_Screen> nothingIsKnown(

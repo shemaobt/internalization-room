@@ -4504,12 +4504,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         final now = value
             .where((rehearsal) => rehearsal.rehearsalId == told.rehearsalId)
             .firstOrNull;
-        if (now != null &&
-            !now.currentFrases.any((frase) => frase.fraseId == unseen)) {
-          await _showTheRehearsal(now, waiting, generation);
-          return !identical(state.scene, waiting);
+        if (now == null) {
+          state = state.copyWith(scene: shown.copyWith(notUnderstood: true));
+          return false;
         }
-        state = state.copyWith(scene: shown.copyWith(notUnderstood: true));
+        final kept = !now.currentFrases.any((frase) => frase.fraseId == unseen);
+        final asked = waiting.copyWith(notUnderstood: !kept);
+        state = state.copyWith(scene: asked);
+        await _showTheRehearsal(now, asked, generation);
+        return kept && !identical(state.scene, asked);
       case final RoomFailure failure:
         state = state.copyWith(scene: shown.copyWith(notUnderstood: true));
         _decideAt(failure, door: Door.sceneList);
