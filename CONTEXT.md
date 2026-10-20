@@ -320,6 +320,10 @@ _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own li
 The session this tablet was in when it last stood in a passage, kept on the tablet so a relaunch lands on it while the room still holds it. Let go when the team goes to the Choice, when the passage closes, when the room no longer knows the session and when the Desk unlinks the tablet.
 _Avoid_: pointer, last session, sessão atual
 
+**Station's session**:
+The session the team is in where it stands: the Panorama's at the Panorama Station, the passage's anywhere else, none on the Choice. Any other session the room still holds is an earlier one (ADR 0092).
+_Avoid_: current session (that is the relaunch record), active session
+
 ### Findings and mends
 
 **Verdict**:

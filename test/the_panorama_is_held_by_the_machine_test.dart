@@ -49,4 +49,14 @@ void main() {
       );
     },
   );
+
+  test('A machine told to forget the passage\'s session holds none', () {
+    expect(_held.copyWith(clearSession: true).session, isNull);
+    expect(_held.copyWith(clearSession: true).panorama, _held.panorama);
+  });
+
+  test('A machine told to forget the Panorama holds none', () {
+    expect(_held.copyWith(clearPanorama: true).panorama, isNull);
+    expect(_held.copyWith(clearPanorama: true).session, _held.session);
+  });
 }

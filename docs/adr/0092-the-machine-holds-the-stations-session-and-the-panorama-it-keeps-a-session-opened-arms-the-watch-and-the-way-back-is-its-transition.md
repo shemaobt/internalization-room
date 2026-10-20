@@ -33,8 +33,11 @@ Panorama's.
 - **The way back is a transition.** Taking it, the machine decides: a Panorama whose line was
   said, on the session it still holds, returns in silence and arms the Watch; any other
   Panorama is asked for again in the language it was left in; a passage is entered again in
-  its language. What the notifier still does for each is handed over to it (ADR 0066).
-- **One rule for the session.** Every question of "is this the current session" asks the
+  its language. What the notifier still does for each is handed over to it (ADR 0066). The
+  gesture keeps only the preparation every gesture makes before it moves the room: for a
+  Panorama left, it silences the room and leaves the Step before the machine decides; a
+  passage's entry does the same on its own way in.
+- **One rule for the session.** Every question of "is this the team's session" asks the
   Station's session; any other is an earlier session.
 
 ## Considered Options
@@ -45,8 +48,8 @@ made two rules for it.
 **A Station event for the way back, answered by every Station.** Rejected: seven Stations
 for one decision the machine takes once, from the Choice.
 
-**Reset the notifier's fields one by one instead of moving them.** Rejected for the reason
-PR A gave for a Life: a field added tomorrow is missed.
+**Reset the notifier's fields one by one instead of moving them.** Rejected for the reason a
+Life is born whole: a field added tomorrow is missed.
 
 ## Consequences
 

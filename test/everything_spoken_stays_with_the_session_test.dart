@@ -199,7 +199,7 @@ void main() {
   );
 
   test(
-    'a line said in an English Panorama returned to is said in English, though the room language became Portuguese',
+    'The Panorama\'s language is the one the room speaks at the Panorama',
     () async {
       final harness = SalaHarness(lingua: null)
         ..room.passages = const [

@@ -631,9 +631,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _generation;
     final waiting = _waitingOnTheGeneration;
     _waitingOnTheGeneration = {};
-    _dispatch(arrival);
-    if (_generation != generation) return _endTheGesturesOf(waiting);
-    _waitingOnTheGeneration.addAll(waiting);
+    try {
+      _dispatch(arrival);
+    } finally {
+      if (_generation != generation) {
+        _endTheGesturesOf(waiting);
+      } else {
+        _waitingOnTheGeneration.addAll(waiting);
+      }
+    }
   }
 
   void _clearAll() {
@@ -2162,8 +2168,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _letGoOf(String? sessionId, {List<String> kept = const []}) {
-    if (sessionId != null) _goneSessions.add(sessionId);
-    if (sessionId != null) _dispatch(TheSessionLetGo(sessionId));
+    if (sessionId != null) {
+      _goneSessions.add(sessionId);
+      _dispatch(TheSessionLetGo(sessionId));
+    }
     if (sessionId != null && state.leftEntry?.session == sessionId) {
       state = state.copyWith(clearLeftEntry: true);
     }

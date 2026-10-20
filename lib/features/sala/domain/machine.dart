@@ -689,10 +689,10 @@ final class EnterThePassageLeft extends LifecycleHandOff {
 
   @override
   bool operator ==(Object other) =>
-      other is EnterThePassageLeft && identical(other.left, left);
+      other is EnterThePassageLeft && other.left == left;
 
   @override
-  int get hashCode => identityHashCode(left);
+  int get hashCode => left.hashCode;
 }
 
 final class LookAtTheSession extends Effect {
@@ -931,7 +931,9 @@ final class Machine {
     bool? wordlessTelling,
     bool? theVerdictWaitsForTheTap,
     String? session,
+    bool clearSession = false,
     HeldPanorama? panorama,
+    bool clearPanorama = false,
   }) => Machine(
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
@@ -953,8 +955,8 @@ final class Machine {
     wordlessTelling: wordlessTelling ?? this.wordlessTelling,
     theVerdictWaitsForTheTap:
         theVerdictWaitsForTheTap ?? this.theVerdictWaitsForTheTap,
-    session: session ?? this.session,
-    panorama: panorama ?? this.panorama,
+    session: clearSession ? null : (session ?? this.session),
+    panorama: clearPanorama ? null : (panorama ?? this.panorama),
   );
 }
 
