@@ -1198,8 +1198,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('while a re-recorded frase awaits its translation, no row\'s '
-      'loudspeaker plays', (tester) async {
+  testWidgets('while a re-recorded frase awaits its translation, every '
+      'row\'s loudspeaker stays lit, as hers does', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await quatroFrasesEmWav(tester, harness);
     await umAchadoNaFraseDois(tester, harness, container);
@@ -1209,10 +1209,10 @@ void main() {
     for (var n = 1; n <= 4; n++) {
       expect(
         _acesa(tester, 'ouvir a minha tradução da frase $n'),
-        isFalse,
+        isTrue,
         reason:
-            'a frase $n tocava a tradução velha enquanto o círculo esperava '
-            'a tradução da frase 3',
+            'a frase $n ficava muda enquanto a frase 3 esperava a tradução, '
+            'e a lista dela segue tocando',
       );
     }
     closeTheRoom(container);
