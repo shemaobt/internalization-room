@@ -3777,17 +3777,22 @@ class QueueThatFinishesLate extends TakeUploadQueue {
 
   Duration? deletesTheCopyAfter;
 
+  final Set<String> _hidden = {};
+
+  @override
+  Future<List<PendingTake>> entries() async => [
+    for (final row in await super.entries())
+      if (!_hidden.contains(row.id)) row,
+  ];
+
   @override
   Future<void> withdraw(PendingTake row) async {
     final wait = deletesTheCopyAfter;
     if (wait == null) return super.withdraw(row);
-    final copy = File(row.path);
-    if (!copy.existsSync()) return super.withdraw(row);
-    final audio = await copy.readAsBytes();
-    await super.withdraw(row);
-    await copy.writeAsBytes(audio);
+    _hidden.add(row.id);
     await Future<void>.delayed(wait);
-    if (copy.existsSync()) await copy.delete();
+    await super.withdraw(row);
+    _hidden.remove(row.id);
   }
 }
 
