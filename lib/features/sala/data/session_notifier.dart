@@ -7626,9 +7626,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btTrechos: _trechosFrom(segments, naParte: naParte));
   }
 
-  void _leadThemToTheTrecho(Trecho trecho, {VoidCallback? depois}) {
+  void _leadThemToTheTrecho(
+    Trecho trecho, {
+    VoidCallback? depois,
+    Duration? ate,
+  }) {
     if (_ondeTocar(trecho) == null) return;
-    _tocarOTrecho(trecho, depois: depois);
+    _tocarOTrecho(trecho, depois: depois, ate: ate);
   }
 
   /// Which take answers for a stretch's audio: the one its own id names, never the one
@@ -7654,14 +7658,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the best guess left. Null only for a stretch belonging to no part at all: that would
   /// be some other stretch's recording, not this one's, and playing it is worse than the
   /// silence a skip is.
-  (String, Duration, Duration)? _ondeTocar(Trecho trecho) {
+  (String, Duration, Duration)? _ondeTocar(Trecho trecho, {Duration? ate}) {
     final path = _pathForTrecho(trecho);
-    if (path != null) return (path, trecho.from, trecho.to);
+    if (path != null) return (path, trecho.from, ate ?? trecho.to);
     if (trecho.parte >= 0 && trecho.parte < state.partes.length) {
       return (
         state.partes[trecho.parte].path,
         trecho.lugarFrom,
-        trecho.lugarTo,
+        ate == null ? trecho.lugarTo : ate + trecho.lugarFrom - trecho.from,
       );
     }
     return null;
@@ -7674,8 +7678,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// boundary when a stretch spanned two recordings. A stretch cannot span two recordings
   /// any more — it is a slice of one — so the resolving and the stitching are gone with
   /// the ruler that needed them.
-  void _tocarOTrecho(Trecho trecho, {VoidCallback? depois}) {
-    final onde = _ondeTocar(trecho);
+  void _tocarOTrecho(Trecho trecho, {VoidCallback? depois, Duration? ate}) {
+    final onde = _ondeTocar(trecho, ate: ate);
     if (onde == null) return;
     void quiet() => unawaited(_playback.stop());
     _play(
@@ -7740,7 +7744,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
     if (!trecho.contado || trecho.segmentId == null) return;
+    final fimMovido = _trechoTraduzidoDeNovo?.segmentId == trecho.segmentId
+        ? _trechoEnd
+        : null;
     if (!_traduzirOTrechoDeNovo(trecho)) return;
+    if (fimMovido != null) _trechoEnd = fimMovido;
     state = state.copyWith(
       btPausaSoNaUltima: state.anEarlierPauseStays(
         trecho,
@@ -7748,7 +7756,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
       clearAviso: true,
     );
-    _leadThemToTheTrecho(trecho);
+    _leadThemToTheTrecho(trecho, ate: fimMovido);
   }
 
   bool _traduzirOTrechoDeNovo(Trecho trecho) {
