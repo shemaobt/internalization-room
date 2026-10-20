@@ -161,6 +161,30 @@ void main() {
     );
   });
 
+  test('a sentence kept for its row is never sent by a flush, before or '
+      'after a restart', () async {
+    final room = FakeRoom();
+    await queueOn(room).enqueue(
+      aTake('frase'),
+      sessionId: 'sessao-1',
+      kind: sentenceKind,
+      scope: '3',
+    );
+
+    final afterRestart = queueOn(room);
+    expect(await afterRestart.flush(), 0);
+    expect(
+      room.takesKept,
+      isEmpty,
+      reason:
+          'a frase guardada subia sozinha como tomada, sem a equipe tocar '
+          'na linha',
+    );
+    expect(await afterRestart.pending(), hasLength(1));
+    expect((await afterRestart.sentenceHeldIn('sessao-1'))?.scope, '3');
+    expect(await afterRestart.sentenceHeldIn('sessao-2'), isNull);
+  });
+
   test('the queue survives the app being closed', () async {
     final room = FakeRoom()..reachable = false;
     await queueOn(room).enqueue(

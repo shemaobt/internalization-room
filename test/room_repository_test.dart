@@ -2189,6 +2189,59 @@ void main() {
       );
     });
 
+    test('a sentence recorded again goes up whole as audio/wav, under the id '
+        'the tablet minted for it', () async {
+      final wav = aWavTake();
+      late http.Request pedido;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          pedido = request;
+          return http.Response(
+            jsonEncode({
+              'session_id': 'sessao-1',
+              'segments': [
+                {
+                  'segment_id': 'trecho-3',
+                  'take_id': 'gravacao-3',
+                  'starts_ms': 0,
+                  'ends_ms': 3200,
+                  'frase': 3,
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.reRecordTheSentence(
+        'sessao-1',
+        'trecho-3',
+        await _tempRecording(extension: 'wav', bytes: wav),
+        sentenceId: '1792447878466000-0',
+      );
+
+      expect(
+        pedido.url.path,
+        '/api/internalization-room/sessions/sessao-1/segments/trecho-3/sentence',
+      );
+      expect(pedido.headers['X-Room-Device'], 'aparelho-1');
+      final body = latin1.decode(pedido.bodyBytes);
+      expect(
+        RegExp(
+          'name="sentence_id"\r\n\r\n([^\r]*)\r\n',
+        ).firstMatch(body)?.group(1),
+        '1792447878466000-0',
+        reason: 'sem o id da gravação um reenvio cortaria a frase duas vezes',
+      );
+      expect(_filePart(pedido).head, contains('content-type: audio/wav'));
+      expect(_filePart(pedido).content, wav);
+      final segment = _value(answer).segments.single;
+      expect((segment.takeId, segment.endsMs), ('gravacao-3', 3200));
+    });
+
     test('a stretch told again goes up as it always did', () async {
       await listening().replaceSegment(
         'sessao-1',

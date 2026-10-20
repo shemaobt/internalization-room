@@ -33,6 +33,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'retro_findings_exits_test.dart' as achados;
 import 'scenario_helpers.dart' show byLabel, stateReads;
 
 Set<Color> paintedBy(WidgetTester tester, Finder corner) {
@@ -136,6 +137,7 @@ const _holdingItsCredential = RememberedLink(
 const retellExit = 'Ouvir e traduzir esta parte de novo';
 const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
 const continuarOEnsaio = 'Continuar o ensaio';
+const regravarAFrase1 = 'regravar a frase 1';
 
 Future<ProviderContainer> pumpToFindings(
   WidgetTester tester,
@@ -864,7 +866,7 @@ void main() {
   testWidgets('an addition finding offers the way on and nothing else', (
     tester,
   ) async {
-    final container = await pumpToFindings(tester, true);
+    final container = await achados.pumpToFindings(tester, true);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(byLabel(retellExit), findsNothing);
@@ -877,27 +879,35 @@ void main() {
           'recording what the kind says is in it, so the pointer being '
           'absent must not smuggle the offer back in',
     );
-    expect(byLabel(continuarOEnsaio), findsOneWidget);
+    expect(byLabel(continuarOEnsaio), findsNothing);
+    expect(byLabel(regravarAFrase1), findsOneWidget);
   });
 
-  testWidgets('a finding with no stretch offers the way on', (tester) async {
-    final container = await pumpToFindings(tester, true);
+  testWidgets('a finding with no stretch offers the way on, as the whole '
+      'sentence of a frase', (tester) async {
+    final container = await achados.pumpToFindings(tester, true);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(byLabel(wholeClipExit), findsNothing);
-    expect(byLabel(continuarOEnsaio), findsOneWidget);
+    expect(
+      byLabel(regravarAFrase1),
+      findsOneWidget,
+      reason:
+          'sem o disco de continuar o ensaio, a saída é regravar inteira a '
+          'frase onde falta',
+    );
   });
 
   testWidgets('no finding at all still leaves the team a way out', (
     tester,
   ) async {
-    final container = await pumpToFindings(tester, false);
+    final container = await achados.pumpToFindings(tester, false);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     final offered =
         byLabel(retellExit).evaluate().length +
         byLabel(wholeClipExit).evaluate().length +
-        byLabel(continuarOEnsaio).evaluate().length;
+        byLabel(regravarAFrase1).evaluate().length;
     expect(offered, greaterThan(0));
   });
 

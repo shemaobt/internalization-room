@@ -181,9 +181,7 @@ void main() {
     final naSala = List.of(harness.room.segmentIds);
     final pedidos = harness.room.calls.length;
 
-    await tester.ensureVisible(byLabel(continuarOEnsaio));
-
-    await tester.tap(byLabel(continuarOEnsaio));
+    container.read(salaSessionProvider.notifier).goEnsaio();
     await tester.pump(const Duration(milliseconds: 400));
 
     final depois = container.read(salaSessionProvider);
@@ -217,9 +215,7 @@ void main() {
       final container = await aHistoriaSemOFim(tester, harness);
       final antigas = gravacoesDe(container.read(salaSessionProvider));
 
-      await tester.ensureVisible(byLabel(continuarOEnsaio));
-
-      await tester.tap(byLabel(continuarOEnsaio));
+      container.read(salaSessionProvider.notifier).goEnsaio();
       await tester.pump(const Duration(milliseconds: 400));
 
       var agora = container.read(salaSessionProvider);
@@ -262,9 +258,7 @@ void main() {
     final antes = container.read(salaSessionProvider);
     expect(antes.coverage.engaged, 5);
 
-    await tester.ensureVisible(byLabel(continuarOEnsaio));
-
-    await tester.tap(byLabel(continuarOEnsaio));
+    container.read(salaSessionProvider.notifier).goEnsaio();
     await tester.pump(const Duration(milliseconds: 700));
 
     expect(
@@ -302,9 +296,7 @@ void main() {
     final antigas = trechosDe(container.read(salaSessionProvider));
     final contadosAntes = harness.room.chunkTakes.length;
 
-    await tester.ensureVisible(byLabel(continuarOEnsaio));
-
-    await tester.tap(byLabel(continuarOEnsaio));
+    container.read(salaSessionProvider.notifier).goEnsaio();
     await tester.pump(const Duration(milliseconds: 400));
     await gravarUmaParte(tester, container);
     final nova = container.read(salaSessionProvider).keptTakes.last;
@@ -547,9 +539,7 @@ void main() {
     final container = await aHistoriaSemOFim(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await tester.ensureVisible(byLabel(continuarOEnsaio));
-
-    await tester.tap(byLabel(continuarOEnsaio));
+    container.read(salaSessionProvider.notifier).goEnsaio();
     await tester.pump(const Duration(milliseconds: 400));
     await gravarUmaParte(tester, container);
     final nova = container.read(salaSessionProvider).keptTakes.last;

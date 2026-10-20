@@ -15,6 +15,9 @@ class FraseRow {
   final bool nuance;
   final String? regravar;
   final VoidCallback? onRegravar;
+  final FraseRevisao? revisao;
+  final String? estado;
+  final VoidCallback? onEstado;
 
   const FraseRow({
     required this.n,
@@ -26,6 +29,27 @@ class FraseRow {
     this.nuance = false,
     this.regravar,
     this.onRegravar,
+    this.revisao,
+    this.estado,
+    this.onEstado,
+  });
+}
+
+class FraseRevisao {
+  final String ouvir;
+  final VoidCallback onOuvir;
+  final String gravarDeNovo;
+  final VoidCallback onGravarDeNovo;
+  final String usarEsta;
+  final VoidCallback onUsarEsta;
+
+  const FraseRevisao({
+    required this.ouvir,
+    required this.onOuvir,
+    required this.gravarDeNovo,
+    required this.onGravarDeNovo,
+    required this.usarEsta,
+    required this.onUsarEsta,
   });
 }
 
@@ -59,7 +83,7 @@ class FraseList extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        for (final row in rows)
+        for (final row in rows) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: Row(
@@ -108,7 +132,78 @@ class FraseList extends StatelessWidget {
               ],
             ),
           ),
+          if (row.revisao case final revisao?)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  RoundActionButton(
+                    size: 48,
+                    semanticLabel: revisao.ouvir,
+                    background: colors.card,
+                    border: Border.all(color: colors.line),
+                    onTap: revisao.onOuvir,
+                    child: Icon(LucideIcons.play, size: 20, color: colors.cord),
+                  ),
+                  _Pill(
+                    label: revisao.gravarDeNovo,
+                    onTap: revisao.onGravarDeNovo,
+                  ),
+                  _Pill(label: revisao.usarEsta, onTap: revisao.onUsarEsta),
+                ],
+              ),
+            ),
+          if (row.estado case final estado?)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: row.onEstado == null
+                  ? Text(
+                      estado,
+                      style: TextStyle(color: colors.mut, fontSize: 14),
+                    )
+                  : _Pill(label: estado, onTap: row.onEstado),
+            ),
+        ],
       ],
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+
+  const _Pill({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      child: Opacity(
+        opacity: onTap == null ? 0.35 : 1,
+        child: GestureDetector(
+          onTap: onTap ?? () {},
+          child: ExcludeSemantics(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.mut),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(color: colors.mut, fontSize: 14),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -207,36 +302,7 @@ class _FraseTile extends StatelessWidget {
                           ),
                         ),
                       if (row.regravar case final regravar?)
-                        Semantics(
-                          button: true,
-                          enabled: row.onRegravar != null,
-                          label: regravar,
-                          child: Opacity(
-                            opacity: row.onRegravar == null ? 0.35 : 1,
-                            child: GestureDetector(
-                              onTap: row.onRegravar ?? () {},
-                              child: ExcludeSemantics(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: colors.mut),
-                                  ),
-                                  child: Text(
-                                    regravar,
-                                    style: TextStyle(
-                                      color: colors.mut,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                        _Pill(label: regravar, onTap: row.onRegravar),
                     ],
                   ),
                 ],

@@ -19,6 +19,12 @@ abstract final class RefusalCode {
   static const pauseOnlyOnTheLastFrase = 'PAUSE_ONLY_ON_THE_LAST_FRASE';
   static const pausePastTheEnd = 'PAUSE_PAST_THE_END';
   static const pauseCannotStandThere = 'PAUSE_CANNOT_STAND_THERE';
+  static const sentenceTooLong = 'SENTENCE_TOO_LONG';
+  static const sentenceTooShort = 'SENTENCE_TOO_SHORT';
+  static const sentenceFormatDiffers = 'SENTENCE_FORMAT_DIFFERS';
+  static const anotherSentenceAwaits = 'ANOTHER_SENTENCE_AWAITS';
+  static const partNotWav = 'PART_NOT_WAV';
+  static const sentenceIdReused = 'SENTENCE_ID_REUSED';
 
   static const stopsTheRoom = {unauthorized, forbidden, deviceRevoked};
 

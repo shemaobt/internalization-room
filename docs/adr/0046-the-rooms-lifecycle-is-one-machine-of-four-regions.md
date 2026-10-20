@@ -165,3 +165,10 @@ ficou», «não deu para recomeçar agora — tentem de novo», and her three re
 pause). They sit beside the others on the same two classes and move with them. Clearing her
 «não entendi» on a restart is the machine's, by `TheTranslationStartedOver`, not the
 notifier's.
+
+Extended by name (ENG-1221, 2026-10-19), same end date: the whole-sentence re-record of a
+frase. `btRegravacao` (which frase is being recorded again, and the step: her lines and the
+sentence as it is, the circle ready, recording, the review, sending, too long),
+`btFraseQueAguarda` (the frase whose new sentence awaits its translation, from the lay-in or
+the session read) and `btFraseGuardada` (the frase whose recording could not be sent and is
+held in the outbox) sit beside them on the same two classes and move with them.

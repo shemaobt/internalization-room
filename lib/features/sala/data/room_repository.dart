@@ -523,6 +523,25 @@ class RoomRepository {
     asksForTheSession: false,
   );
 
+  Future<RoomAnswer<TellingAgain>> reRecordTheSentence(
+    String sessionId,
+    String segmentId,
+    File audio, {
+    required String sentenceId,
+  }) async => _room.askStreamed(
+    http.MultipartRequest(
+        'POST',
+        _uri('/sessions/$sessionId/segments/$segmentId/sentence'),
+      )
+      ..headers.addAll(_whoWeAre)
+      ..headers['X-Room-Device'] = await _deviceId()
+      ..fields['sentence_id'] = sentenceId
+      ..files.add(await _audioPart(audio)),
+    timeout: _longCallTimeout,
+    read: readJson(TellingAgain.fromJson),
+    asksForTheSession: false,
+  );
+
   /// The team's approval of its own final draft.
   ///
   /// The room packages the rows it already holds and hashes them, so nothing travels with

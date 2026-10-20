@@ -1870,7 +1870,11 @@ class FakeRoom implements RoomRepository {
         moment: nextMoment,
         keptRetellings: keptRetellings,
         backTranslation:
-            retroSoFar ?? BackTranslationProgress(segments: _numbered),
+            retroSoFar ??
+            BackTranslationProgress(
+              segments: _numbered,
+              awaitingSegmentId: awaitingSegmentId,
+            ),
       ),
     );
     if (_readsToHold > 0) {
@@ -1979,6 +1983,65 @@ class FakeRoom implements RoomRepository {
   void finishHeldReplace() {
     _substituicaoSegura?.complete();
     _substituicaoSegura = null;
+  }
+
+  final List<({String sentenceId, String segmentId})> sentencesSent = [];
+  final List<String> sentencesLaid = [];
+  final List<RoomFailure> sentenceAnswersFirst = [];
+  Duration sentenceLaysInAs = const Duration(milliseconds: 3200);
+  String? awaitingSegmentId;
+  Completer<void>? holdTheSentence;
+
+  @override
+  Future<RoomAnswer<TellingAgain>> reRecordTheSentence(
+    String sessionId,
+    String segmentId,
+    File audio, {
+    required String sentenceId,
+  }) async {
+    if (_guard('reRecordTheSentence') case final failure?) return failure;
+    sentencesSent.add((sentenceId: sentenceId, segmentId: segmentId));
+    await holdTheSentence?.future;
+    if (sentenceAnswersFirst.isNotEmpty) {
+      return sentenceAnswersFirst.removeAt(0);
+    }
+    if (!sentencesLaid.contains(sentenceId)) {
+      sentencesLaid.add(sentenceId);
+      _layIn(segmentId, audio);
+    }
+    return Answered(TellingAgain(segments: _numbered));
+  }
+
+  void _layIn(String segmentId, File audio) {
+    final old = segments.firstWhere((one) => one.segmentId == segmentId);
+    final before = takes.firstWhere((take) => take.takeId == old.takeId);
+    final laid = 'gravacao-${takeIds.length + 1}';
+    takeIds.add(laid);
+    takes.add(
+      TakeView(
+        takeId: laid,
+        kind: before.kind,
+        scope: before.scope,
+        ordinal: before.ordinal,
+        pass: before.pass,
+      ),
+    );
+    takeAudio[laid] = audio.readAsBytesSync();
+    final shift = sentenceLaysInAs.inMilliseconds - (old.endsMs - old.startsMs);
+    for (var at = 0; at < segments.length; at++) {
+      final one = segments[at];
+      if (one.takeId != old.takeId) continue;
+      segments[at] = SegmentView(
+        segmentId: one.segmentId,
+        takeId: laid,
+        startsMs: one.startsMs > old.startsMs
+            ? one.startsMs + shift
+            : one.startsMs,
+        endsMs: one.endsMs >= old.endsMs ? one.endsMs + shift : one.endsMs,
+        told: one.told,
+      );
+    }
+    awaitingSegmentId = segmentId;
   }
 
   @override
@@ -2455,6 +2518,7 @@ class FakeRoom implements RoomRepository {
       ..clear()
       ..addAll(standingAfterRestart);
     retroSoFar = null;
+    awaitingSegmentId = null;
     return Answered(_numbered);
   }
 
@@ -2798,7 +2862,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       final at = rows.indexWhere((entry) => entry.id == id);
       if (at < 0) continue;
       final entry = rows[at];
-      if (entry.stored) continue;
+      if (entry.stored || entry.kind == sentenceKind) continue;
       if (entry.kind == sceneTakeKind) {
         if (entry.exhausted) continue;
         switch (await room.keepSceneRehearsal(
@@ -2960,6 +3024,11 @@ class FakeTakeQueue implements TakeUploadQueue {
     if (held != null) await held.future;
     return result;
   }
+
+  @override
+  Future<PendingTake?> sentenceHeldIn(String sessionId) async => rows
+      .where((row) => row.kind == sentenceKind && row.sessionId == sessionId)
+      .lastOrNull;
 
   @override
   Future<void> withdraw(PendingTake row) async {
