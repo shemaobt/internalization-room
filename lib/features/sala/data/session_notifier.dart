@@ -239,6 +239,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
       ? state.copyWith(clearTrechoTraduzidoDeNovo: true)
       : state.copyWith(btTrechoTraduzidoDeNovo: trecho);
+  BtPhase? _faseAntesDeTraduzirDeNovo;
 
   final Set<String> _traducoesGuardadas = {};
 
@@ -2722,6 +2723,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
       btTrechos: _trechosFrom(told.segments),
       btFindings: told.findings,
+      btVeredito: told.checked || told.findings.isNotEmpty,
     );
     final sessionId = state.sessionId;
     if (sessionId != null) {
@@ -5314,16 +5316,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       path: path,
       needsPerson: told.needsPerson,
     );
-    if (_abandoned(generation)) return;
-    // The correction is finished, so the room goes and finds out what it was worth.
-    //
-    // Only a correction arrives here — an ordinary telling during the back-translation
-    // returns before this, and it should, because there is still passage left to hear and
-    // tell.
-    //
-    // Nothing had to be unlocked for this: the mark that the recording ended survives a
-    // correction, so the ask is allowed the moment it is made.
-    await finishBackTranslation();
   }
 
   void _theCorrectionFailed(RoomFailure failure) {
@@ -5857,11 +5849,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // it. It only showed after a correction the room made nothing of: one that lands
         // retires the name it replaces, so the pointer goes stale on its own and matches
         // nothing.
+        await _readTheStretchesBack(sessionId, generation);
+        if (_abandoned(generation) || state.needsPerson) return;
         state = state.copyWith(
           btPhase: BtPhase.conferida,
           awaitingTheGuide: false,
           clearFindingSegment: true,
           btFindings: [?verdict.namedNuance, ...verdict.findings],
+          btVeredito: true,
         );
         return;
       }
@@ -5886,6 +5881,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btFindingSegmentId: verdict.findingSegmentId,
         clearFindingSegment: verdict.findingSegmentId == null,
         btFindings: verdict.findings,
+        btVeredito: true,
       );
       // The stretch is no longer played at the team. Which voice needs to speak again is
       // theirs to say, and they say it by comparing the two — so hearing either one is a
@@ -6148,6 +6144,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = trecho.from;
     _trechoEnd = trecho.to;
     _trechoTraduzidoDeNovo = trecho;
+    _faseAntesDeTraduzirDeNovo = null;
     return trecho;
   }
 
@@ -6443,13 +6440,49 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _traduzirDeNovoEmPortugues() {
     final trecho = state.btFindingTrecho;
     if (state.btPhase != BtPhase.findings || trecho == null) return;
+    _traduzirOTrechoDeNovo(trecho);
+  }
+
+  void traduzirAFraseDeNovo(int indice) =>
+      _gesture(() => _traduzirAFraseDeNovo(indice));
+
+  void _traduzirAFraseDeNovo(int indice) {
+    if (!state.canRetellAFrase) return;
+    if (indice < 0 || indice >= state.btTrechos.length) return;
+    final trecho = state.btTrechos[indice];
+    if (!trecho.contado || trecho.segmentId == null) return;
+    if (_traduzirOTrechoDeNovo(trecho)) _leadThemToTheTrecho(trecho);
+  }
+
+  bool _traduzirOTrechoDeNovo(Trecho trecho) {
+    final fase = _trechoTraduzidoDeNovo == null
+        ? state.btPhase
+        : _faseAntesDeTraduzirDeNovo;
     _silenceTheRoom();
-    if (_armarOTrecho(trecho) == null) return;
+    _descartarATraducaoPendente();
+    if (_armarOTrecho(trecho) == null) return false;
+    _faseAntesDeTraduzirDeNovo = fase;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       awaitingTheGuide: false,
       btTraducaoPendente: trecho.retroPath,
       btTraducaoEmprestada: trecho.retroPath,
+    );
+    return true;
+  }
+
+  void manterATraducaoDeAntes() => _gesture(() => _manterATraducaoDeAntes());
+
+  void _manterATraducaoDeAntes() {
+    if (state.btPhase != BtPhase.playing || _trechoTraduzidoDeNovo == null) {
+      return;
+    }
+    _silenceTheRoom();
+    _descartarATraducaoPendente();
+    _trechoTraduzidoDeNovo = null;
+    _walkTheCursorBack(state.btTrechos);
+    state = state.copyWith(
+      btPhase: _faseAntesDeTraduzirDeNovo ?? BtPhase.playing,
     );
   }
 

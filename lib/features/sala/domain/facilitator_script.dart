@@ -173,6 +173,18 @@ const sceneRehearsalLabels = {
     'pt': 'regravar a frase {n}',
     'en': 're-record sentence {n}',
   },
+  'retellFrase': {
+    'pt': 'Ouvir esta frase de novo e traduzir de novo — {n}',
+    'en': 'Hear this sentence again and translate it again — {n}',
+  },
+  'retelling': {
+    'pt': 'traduzindo de novo a frase {n} — toquem no círculo',
+    'en': 'translating sentence {n} again — tap the circle',
+  },
+  'keepTheEarlier': {
+    'pt': 'manter a tradução de antes',
+    'en': 'keep the earlier translation',
+  },
   'list': {
     'pt': 'ensaios da cena desta sessão',
     'en': 'scene rehearsals of this session',

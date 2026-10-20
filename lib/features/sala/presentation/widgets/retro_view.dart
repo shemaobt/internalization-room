@@ -39,10 +39,7 @@ class RetroView extends ConsumerWidget {
     final colors = SalaColors.of(context);
     final titulo = retroLabelFor('title', language);
     final linha = _linha(session, language);
-    final veredito =
-        session.btPhase == BtPhase.findings ||
-        session.btPhase == BtPhase.conferida ||
-        session.btFindings.isNotEmpty;
+    final veredito = session.btVeredito || session.btFindings.isNotEmpty;
     return SizedBox.expand(
       child: SingleChildScrollView(
         child: Column(
@@ -103,6 +100,21 @@ class RetroView extends ConsumerWidget {
                   ? notifier.resolveWithPerson
                   : null,
             ),
+            if (_traduzindoDeNovo(session) case final n?) ...[
+              const SizedBox(height: 12),
+              _ManterADeAntes(
+                label: sceneRehearsalLabelFor('keepTheEarlier', language),
+                onTap: session.btPhase == BtPhase.playing
+                    ? notifier.manterATraducaoDeAntes
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                sceneRehearsalLabelFor('retelling', language, n: n),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.telha, fontSize: 15),
+              ),
+            ],
             if (linha != null) ...[
               const SizedBox(height: 12),
               ConstrainedBox(
@@ -164,6 +176,9 @@ class RetroView extends ConsumerWidget {
                 )
               : 1,
           onHear: aberta ? () => notifier.ouvirOTrechoContado(onde) : null,
+          onRetell: session.canRetellAFrase && trecho.segmentId != null
+              ? () => notifier.traduzirAFraseDeNovo(onde)
+              : null,
           mark: switch (_markOn(trecho.frase, session)) {
             null || BtFindingKind.nuance => null,
             final kind => retroLabelFor(kind.name, language),
@@ -201,6 +216,12 @@ class RetroView extends ConsumerWidget {
     }
     return null;
   }
+
+  int? _traduzindoDeNovo(SalaSessionState session) =>
+      switch (session.btTrechoTraduzidoDeNovo) {
+        Trecho(contado: true, :final frase?) => frase,
+        _ => null,
+      };
 
   bool _conferida(SalaSessionState session) =>
       session.btPhase == BtPhase.conferida &&
@@ -617,5 +638,41 @@ class RetroView extends ConsumerWidget {
       case BtPhase.conferida:
         return retroLabelFor('translated', language);
     }
+  }
+}
+
+class _ManterADeAntes extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+
+  const _ManterADeAntes({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      child: Opacity(
+        opacity: onTap == null ? 0.35 : 1,
+        child: GestureDetector(
+          onTap: onTap,
+          child: ExcludeSemantics(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colors.mut),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(color: colors.mut, fontSize: 15),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

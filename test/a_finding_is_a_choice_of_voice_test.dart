@@ -304,6 +304,15 @@ void main() {
     expect(harness.room.replacesComArquivo.single, nova);
     expect(harness.room.chunksSent, pedacos);
     expect(harness.room.segmentIds.sublist(1), trechosNaSala.sublist(1));
+    expect(
+      harness.room.playedByTakeSent.length,
+      vereditos,
+      reason: 'a sala conferia sozinha depois da tradução de novo',
+    );
+
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+
     expect(harness.room.playedByTakeSent.length, vereditos + 1);
     expect(estadoDe(container).btPhase, BtPhase.conferida);
     expect(contasEm(tester, RetroView), ['solid', 'solid', 'solid']);

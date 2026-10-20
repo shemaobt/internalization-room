@@ -260,6 +260,7 @@ class SalaSessionState {
   final List<Trecho> btTrechos;
   final List<BtFinding> btFindings;
   final bool btConferindo;
+  final bool btVeredito;
   final CheckRefusal? btRecusa;
   final String? btFindingSegmentId;
 
@@ -353,6 +354,7 @@ class SalaSessionState {
     this.btTrechos = const [],
     this.btFindings = const [],
     this.btConferindo = false,
+    this.btVeredito = false,
     this.btRecusa,
     this.btFindingSegmentId,
     this.btClipEnded = false,
@@ -782,6 +784,16 @@ class SalaSessionState {
   bool get canListenAtConferida =>
       btPhase == BtPhase.conferida && partes.isNotEmpty;
 
+  bool get canRetellAFrase =>
+      stage == SalaStage.retro &&
+      partes.isNotEmpty &&
+      !needsPerson &&
+      !offline &&
+      (btPhase == BtPhase.findings ||
+          btPhase == BtPhase.conferida ||
+          (btPhase == BtPhase.playing &&
+              (btVeredito || btFindings.isNotEmpty)));
+
   SalaSessionState copyWith({
     bool? awaitingTheGuide,
     LeftEntry? leftEntry,
@@ -818,6 +830,7 @@ class SalaSessionState {
     List<Trecho>? btTrechos,
     List<BtFinding>? btFindings,
     bool? btConferindo,
+    bool? btVeredito,
     CheckRefusal? btRecusa,
     bool clearBtRecusa = false,
     String? btFindingSegmentId,
@@ -885,6 +898,7 @@ class SalaSessionState {
       btTrechos: btTrechos ?? this.btTrechos,
       btFindings: btFindings ?? this.btFindings,
       btConferindo: btConferindo ?? this.btConferindo,
+      btVeredito: btVeredito ?? this.btVeredito,
       btRecusa: clearBtRecusa ? null : (btRecusa ?? this.btRecusa),
       btFindingSegmentId: clearFindingSegment
           ? null

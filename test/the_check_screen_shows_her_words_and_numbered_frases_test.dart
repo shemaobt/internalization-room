@@ -571,6 +571,9 @@ void main() {
       ..verdictFindings = const [];
 
     await _traduzirAFraseApontadaDeNovo(tester, container);
+    unawaited(
+      container.read(salaSessionProvider.notifier).finishBackTranslation(),
+    );
     await waitFor(
       'a conferência limpa chegar',
       () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
