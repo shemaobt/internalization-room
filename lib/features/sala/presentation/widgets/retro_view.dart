@@ -116,10 +116,21 @@ class RetroView extends ConsumerWidget {
                     : null,
               ),
               const SizedBox(height: 12),
-              Text(
-                sceneRehearsalLabelFor('retelling', language, n: n),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.telha, fontSize: 15),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  sceneRehearsalLabelFor(
+                    session.canAdjustThePause
+                        ? 'retellingLast'
+                        : session.btPausaSoNaUltima
+                        ? 'retellingOther'
+                        : 'retelling',
+                    language,
+                    n: n,
+                  ),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.telha, fontSize: 15),
+                ),
               ),
             ],
             if (linha != null) ...[
