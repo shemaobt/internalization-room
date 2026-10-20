@@ -33,17 +33,25 @@ Step's request sent again on the return or on any lift.
   failures beside the room's results. The build guard, a build that can reach no room, shows
   the sign too and calls nobody; it is not one of her cases.
 - **Nothing else halts the room.** A refusal of any other request lets its Step go and is
-  never counted. A Session read never raises the sign. A resume that fails goes back to the
-  Choice and keeps its session, and the warning the session holds. A scene-rehearsal refusal
-  keeps the scene screen's own answer. Only the Guide's sound counts toward the sign; a
-  rehearsal part or a stretch that will not play leaves silence.
+  never counted. A Session read never raises the sign; a refused Watch read changes nothing.
+  A resume whose read fails, refused or lost, or whose rehearsal cannot be had, goes back to
+  the Choice and keeps its session and the warning the session holds. A refused approval
+  keeps the door its hole names, and otherwise returns the team to the Back-translation as it
+  stood before «terminei». A scene-rehearsal refusal keeps the scene screen's own answer.
+  Only the Guide's sound counts toward the sign; a rehearsal part or a stretch that will not
+  play leaves silence. A call for a person needs a session: none of her six cases can happen
+  before one exists, so the tablet never calls by its device.
+- **What failed, and why, is kept for the operator.** Every decision of the policy is logged
+  with its door and its reason, so the failures the team is no longer shown still reach the
+  log.
 - **Nothing is resent by itself.** A lift sends nothing; the Verdict is asked again only by
   the team's «terminei», with her «não deu para conferir agora» line on the screen.
 - **The Reach is left only on the way in.** A network failure on a way in (a Station with no
-  session yet) falls as before, with its ladder, its notice and its one resend on the return.
-  Anywhere else it changes nothing and schedules nothing: a Step waiting on it is let go.
-  ENG-1371 replaces the way in's fall with the quiet invite and removes the rest of the
-  ladder; the Outbox keeps its own retry (ADR 0050, invariant 12).
+  session yet: the Choice, a passage or a Panorama not opened) falls as before, with its
+  ladder, its notice and its one resend on the return. Anywhere else it changes nothing and
+  schedules nothing: a Step waiting on it is let go. ENG-1371 replaces the way in's fall with
+  the quiet invite and removes the rest of the ladder; the Outbox keeps its own retry (ADR
+  0050, invariant 12).
 
 ## Considered Options
 

@@ -406,7 +406,7 @@ The room's action of signalling it needs someone, insisted on at intervals until
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
 **Reach**:
-Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure takes the room out of reach only on a way in, a Station with no session yet; anywhere else it changes nothing (ADR 0093). Coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
+Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure takes the room out of reach only on a way in, a Station with no session yet (the Choice, a passage or a Panorama not opened); anywhere else it changes nothing (ADR 0093). Coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
 _Avoid_: offline (the voice the circle draws while the reach is down, not the fact), connectivity, online/offline flag, Alcance
 
 **Pending request**:
