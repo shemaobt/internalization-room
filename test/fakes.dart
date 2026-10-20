@@ -41,6 +41,7 @@ import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
+import 'package:internalization_room/features/sala/domain/pausa.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
@@ -305,6 +306,9 @@ class FakeRecorder implements RecordingRepository {
   bool? answersPermission = true;
   bool startThrows = false;
 
+  /// Whether closing the microphone fails, the way a recorder that lost its file does.
+  bool stopThrows = false;
+
   @override
   Future<bool?> hasPermission() async => permitted ? answersPermission : false;
 
@@ -371,9 +375,14 @@ class FakeRecorder implements RecordingRepository {
     final held = _holdingStop;
     if (held != null) await held.future;
     _recording = false;
+    if (stopThrows) {
+      throw const FileSystemException('o gravador perdeu o arquivo');
+    }
     if (returnsNothing) return null;
     final deliverable =
-        lastOwner == MicOwner.rehearsal || lastOwner == MicOwner.scene;
+        lastOwner == MicOwner.rehearsal ||
+        lastOwner == MicOwner.scene ||
+        lastOwner == MicOwner.frase;
     final fala = rehearsalSpeaks;
     if (fala != null && deliverable) {
       final take = File(
@@ -386,6 +395,8 @@ class FakeRecorder implements RecordingRepository {
       ..writeAsStringSync(
         returnsEmpty
             ? ''
+            : lastOwner == MicOwner.frase
+            ? '$_aWholeTake$captures'
             : deliverable
             ? _aWholeTake
             : 'a equipe falou',
@@ -409,6 +420,11 @@ class FakeRecorder implements RecordingRepository {
 
   @override
   Future<void> delete(String path) async => deleted.add(path);
+
+  int sweeps = 0;
+
+  @override
+  Future<void> sweepTheFrasesLeftBehind() async => sweeps++;
 
   /// Whether keeping fetched audio fails, the way a dead disk does.
   bool keepBytesFails = false;
@@ -1737,10 +1753,158 @@ class FakeRoom implements RoomRepository {
       recordedAt: old.recordedAt,
       sentAt: old.sentAt,
       afterRestart: attempt,
+      durationMs: old.durationMs,
     );
     sceneRehearsals[at] = restarted;
     return Answered(restarted);
   }
+
+  /// Every frase this room was sent: its span, the attempt it names and its audio.
+  final List<
+    ({int startsMs, int endsMs, String? afterRestart, Uint8List audio})
+  >
+  frasesKept = [];
+
+  Completer<void>? _holdingFrase;
+
+  /// Hold the next frase's answer, after the room has been sent it, the way hearing it
+  /// holds it.
+  void holdNextFrase() => _holdingFrase = Completer<void>();
+
+  void finishHeldFrase() {
+    _holdingFrase?.complete();
+    _holdingFrase = null;
+  }
+
+  final List<Completer<void>> _oneFraseHolds = [];
+
+  /// Hold only the next frase the room is sent, the way a slow link holds one request:
+  /// the frases after it go through, and it answers when the completer is completed.
+  Completer<void> holdTheNextFrase() {
+    final hold = Completer<void>();
+    _oneFraseHolds.add(hold);
+    return hold;
+  }
+
+  @override
+  Future<RoomAnswer<SceneRehearsalRecord>> keepTheSceneFrase(
+    String sessionId,
+    String rehearsalId,
+    File audio, {
+    required int startsMs,
+    required int endsMs,
+    String? afterRestart,
+  }) async {
+    if (_guard('keepTheSceneFrase') case final failure?) return failure;
+    final bytes = audio.readAsBytesSync();
+    frasesKept.add((
+      startsMs: startsMs,
+      endsMs: endsMs,
+      afterRestart: afterRestart,
+      audio: bytes,
+    ));
+    await _holdingFrase?.future;
+    if (_oneFraseHolds.isNotEmpty) await _oneFraseHolds.removeAt(0).future;
+    for (final late in _frasesLandingLate) {
+      _keepAFrase(late.rehearsalId, late.bytes, late.startsMs, late.endsMs);
+    }
+    _frasesLandingLate.clear();
+    if (forgottenSessions.contains(sessionId)) {
+      return const Refused(RefusalCode.notFound);
+    }
+    final lost = sceneAnswersFirst.isNotEmpty
+        ? sceneAnswersFirst.removeAt(0)
+        : failSceneWith;
+    if (lost != null && frasesLandAfterTheyFail) {
+      _frasesLandingLate.add((
+        rehearsalId: rehearsalId,
+        bytes: bytes,
+        startsMs: startsMs,
+        endsMs: endsMs,
+      ));
+      return lost;
+    }
+    if (lost != null && !frasesLandBeforeTheyFail) return lost;
+    final kept = _keepAFrase(rehearsalId, bytes, startsMs, endsMs);
+    return lost ?? kept;
+  }
+
+  /// The room's rule: the same bytes are the same frase, whatever their span.
+  RoomAnswer<SceneRehearsalRecord> _keepAFrase(
+    String rehearsalId,
+    Uint8List bytes,
+    int startsMs,
+    int endsMs,
+  ) {
+    final at = sceneRehearsals.indexWhere(
+      (rehearsal) => rehearsal.rehearsalId == rehearsalId,
+    );
+    if (at < 0) return const Refused(RefusalCode.notFound);
+    final old = sceneRehearsals[at];
+    for (final frase in old.frases) {
+      final heard = _fraseBytes[frase.fraseId];
+      if (heard != null && _sameBytes(heard, bytes)) return Answered(old);
+    }
+    final measured = old.durationMs;
+    final overlaps =
+        refusesOverlappingFrases &&
+        old.currentFrases.any(
+          (frase) =>
+              frase.placedIn(const Duration(days: 1)) &&
+              startsMs < frase.endsMs! &&
+              endsMs > frase.startsMs!,
+        );
+    if (startsMs < 0 ||
+        endsMs <= startsMs ||
+        (measured != null && endsMs > measured) ||
+        overlaps) {
+      return const Refused(RefusalCode.fraseOutOfPlace);
+    }
+    final fraseId = '$rehearsalId-frase-${old.frases.length + 1}';
+    _fraseBytes[fraseId] = bytes;
+    final kept = SceneRehearsalRecord(
+      rehearsalId: old.rehearsalId,
+      sessionId: old.sessionId,
+      n: old.n,
+      scene: old.scene,
+      recordedAt: old.recordedAt,
+      sentAt: old.sentAt,
+      afterRestart: old.afterRestart,
+      durationMs: old.durationMs,
+      frases: [
+        ...old.frases,
+        SceneFrase(fraseId: fraseId, startsMs: startsMs, endsMs: endsMs),
+      ],
+    );
+    sceneRehearsals[at] = kept;
+    return Answered(kept);
+  }
+
+  static bool _sameBytes(Uint8List a, Uint8List b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  final Map<String, Uint8List> _fraseBytes = {};
+
+  final List<({String rehearsalId, Uint8List bytes, int startsMs, int endsMs})>
+  _frasesLandingLate = [];
+
+  /// Whether a frase whose answer fails was kept by the room all the same, the way a
+  /// reply lost after the room acted is.
+  bool frasesLandBeforeTheyFail = false;
+
+  /// Whether the room refuses a frase whose span strictly overlaps a current one, as
+  /// shema-api does once its overlap refusal lands.
+  bool refusesOverlappingFrases = false;
+
+  /// Whether a frase whose answer fails is kept by the room only after it answered, the
+  /// way a frase still being heard when the tablet gave up is: it lands before the next
+  /// frase the room is sent.
+  bool frasesLandAfterTheyFail = false;
 
   /// Every «terminei» this room was sent: the rehearsal, its turn and the attempt it closed.
   final List<({String rehearsalId, String turnId, String? closes})> scenesSent =
@@ -1779,6 +1943,7 @@ class FakeRoom implements RoomRepository {
         recordedAt: old.recordedAt,
         sentAt: '2026-10-15T15:00:00+00:00',
         afterRestart: old.afterRestart,
+        durationMs: old.durationMs,
         frases: old.frases,
       );
     }
@@ -3285,11 +3450,29 @@ class SalaHarness {
     clipGraceProvider.overrideWithValue(clipGrace),
     captureGuardProvider.overrideWithValue(captureGuard),
     fimLingerProvider.overrideWithValue(fimLinger),
+    sceneEnvelopeReaderProvider.overrideWithValue(readTheEnvelope),
     if (inboxWatch case final every?)
       roomInboxWatchProvider.overrideWithValue(every),
   ];
 
   ProviderContainer container() => ProviderContainer(overrides: overrides);
+
+  Completer<void>? _envelopeHeld;
+
+  /// Hold the take's loudness, the way a long take is still being read off the UI
+  /// thread when the screen opens.
+  void holdTheEnvelope() => _envelopeHeld = Completer<void>();
+
+  void giveTheEnvelope() => _envelopeHeld?.complete();
+
+  Future<Envelope?> readTheEnvelope(String path) async {
+    await _envelopeHeld?.future;
+    try {
+      return envelopeOf(File(path).readAsBytesSync());
+    } on FileSystemException {
+      return null;
+    }
+  }
 }
 
 class SpeakingPlayer extends Fake implements AudioPlayer {

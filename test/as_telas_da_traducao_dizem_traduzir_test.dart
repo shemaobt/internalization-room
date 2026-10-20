@@ -23,6 +23,8 @@ const _rotulosDeTraduzir = {
   'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo para traduzir',
   'a pausa ficou no toque — toquem no círculo para traduzir',
   'traduzir o ensaio da cena',
+  'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase acaba, e de novo para traduzir só aquela frase.',
+  'Toque para traduzir esta frase do ensaio da cena',
   'recomeçar a tradução',
   'toque de novo para apagar as {n} frases traduzidas',
   'tradução recomeçada — o ensaio da passagem ficou',
