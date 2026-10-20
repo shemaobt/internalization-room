@@ -41,6 +41,13 @@ class _Room {
     harness.room.reachable = false;
   }
 
+  void theKeyStaysInFlight() {
+    harness.network.reachable = false;
+    harness.room.replaceAnswersFirst.addAll(
+      List.filled(3, _theKeyStillInFlight),
+    );
+  }
+
   void theNetworkReturns() {
     harness.network.reachable = true;
     harness.room.reachable = true;
@@ -224,10 +231,11 @@ void main() {
 
   group('3 (c): a request sent while out of reach goes out once more under '
       'the same Idempotency-Key when the network returns', () {
-    test('a stretch told again lands on the Step that asked', () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
+    test('a stretch told again whose key was still in flight lands on the '
+        'Step that asked', () async {
+      final harness = SalaHarness();
       final room = await _aFindingToTellAgain(harness);
-      room.theNetworkFalls();
+      room.theKeyStaysInFlight();
 
       await room.sala.confirmarTraducao();
       await room.outOfReach('pela correção');
@@ -242,7 +250,7 @@ void main() {
         () => room.estado.btPhase != BtPhase.thinking,
       );
       await settle();
-      expect(harness.room.replaceKeys, hasLength(2));
+      expect(harness.room.replaceKeys, hasLength(4));
       expect(harness.room.replaceKeys.first, isNotEmpty);
       expect(harness.room.replaceKeys.toSet(), hasLength(1));
       expect(harness.room.replacesAsked, hasLength(1));
@@ -627,9 +635,9 @@ void main() {
 
   test('8: a request that fell waits under a blocking halt, and goes out once '
       'under its key when the halt lifts', () async {
-    final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
+    final harness = SalaHarness();
     final room = await _aFindingToTellAgain(harness);
-    room.theNetworkFalls();
+    room.theKeyStaysInFlight();
     await room.sala.confirmarTraducao();
     await room.outOfReach('pela correção');
     room.sala.haltForABrokenBuild();
@@ -639,7 +647,7 @@ void main() {
     await settle(const Duration(milliseconds: 200));
     expect(
       harness.room.replaceKeys,
-      hasLength(1),
+      hasLength(3),
       reason: 'nada sai sob a parada',
     );
 
@@ -654,7 +662,7 @@ void main() {
     );
     await settle(const Duration(milliseconds: 200));
 
-    expect(harness.room.replaceKeys, hasLength(2));
+    expect(harness.room.replaceKeys, hasLength(4));
     expect(harness.room.replaceKeys.toSet(), hasLength(1));
     expect(harness.room.replacesAsked, hasLength(1));
   });
@@ -908,9 +916,9 @@ void main() {
 
     test('a read that finds the session gone after a retry opens the Choice '
         'with the retry still on its way', () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
+      final harness = SalaHarness();
       final room = await _aFindingToTellAgain(harness);
-      room.theNetworkFalls();
+      room.theKeyStaysInFlight();
       await room.sala.confirmarTraducao();
       await room.outOfReach('pela correção');
       harness.network.reachable = true;

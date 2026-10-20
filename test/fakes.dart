@@ -1140,6 +1140,7 @@ class FakeRoom implements RoomRepository {
   RoomFailure? failReplaceWith;
   RoomFailure? loseTheNextReplaceAnswerWith;
   RoomFailure? loseTheNextReplaceAnswerAndLandItLaterWith;
+  final List<RoomFailure> replaceAnswersFirst = [];
   void Function()? _landingLater;
 
   void landTheLostReplace() {
@@ -2282,6 +2283,7 @@ class FakeRoom implements RoomRepository {
     if (_forgot('replaceSegment', sessionId) case final gone?) {
       return gone;
     }
+    if (replaceAnswersFirst.isNotEmpty) return replaceAnswersFirst.removeAt(0);
     final kept = forgetsTheKeys ? null : _replacesKept[idempotencyKey];
     if (kept != null) return kept;
     final answer = await _replaceSegment(
