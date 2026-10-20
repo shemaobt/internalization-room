@@ -447,6 +447,46 @@ void main() {
   );
 
   test(
+    'a scene take the Outbox confirms as the room closes reads nothing of the '
+    'room',
+    () async {
+      late _ConfirmsHeldBeforeTheRoomHears queue;
+      final room = await atRest(
+        SalaHarness(
+          takesOverride: (room, home, recordings) =>
+              queue = _ConfirmsHeldBeforeTheRoomHears(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
+        ),
+      );
+      await theScreenOpens(room);
+      room.harness.room.failSceneWith = _offline;
+      await _recordAScene(room);
+      await _notKept(room);
+      await waitFor('a sala cair', () => room.state.unreachable);
+
+      room.harness.room.failSceneWith = null;
+      queue.holdTheNextConfirmation();
+      room.sala.retryNow();
+      await waitFor('a Fila confirmar o take', () => queue.holding);
+      room.container.dispose();
+      final askedAtTheClose = queue.keptAsked;
+      queue.letTheConfirmationGo();
+      await settle();
+
+      expect(
+        queue.keptAsked,
+        askedAtTheClose,
+        reason:
+            'a sala fechou antes de ouvir a confirmação; ler o ensaio que '
+            'esperava é ler uma sala que já não existe',
+      );
+    },
+  );
+
+  test(
     'a take refused for good never covers a newer rehearsal the room kept',
     () async {
       final room = await atRest();
@@ -824,5 +864,39 @@ class _CountsHeldAfterTheKeep extends TakeUploadQueue {
       await _count.future;
     }
     return super.tally(sessionId: sessionId);
+  }
+}
+
+class _ConfirmsHeldBeforeTheRoomHears extends TakeUploadQueue {
+  _ConfirmsHeldBeforeTheRoomHears({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
+
+  bool _armed = false;
+  bool holding = false;
+  int keptAsked = 0;
+  final _confirmation = Completer<void>();
+
+  void holdTheNextConfirmation() => _armed = true;
+
+  void letTheConfirmationGo() => _confirmation.complete();
+
+  @override
+  Future<int> flush({bool withTheCodeless = false}) async {
+    final sent = await super.flush(withTheCodeless: withTheCodeless);
+    if (_armed) {
+      _armed = false;
+      holding = true;
+      await _confirmation.future;
+    }
+    return sent;
+  }
+
+  @override
+  SceneRehearsalRecord? keptSceneOf(String row) {
+    keptAsked++;
+    return super.keptSceneOf(row);
   }
 }

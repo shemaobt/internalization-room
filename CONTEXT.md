@@ -39,6 +39,10 @@ _Avoid_: escolha in prose (`escolha` is the enum value), menu for the station (t
 What the Choice writes, as Marcia's picker does: «Escolha a passagem», then one block per book with its pills. In code the Choice's Station is the class `Menu`; in prose the word means the written page only.
 _Avoid_: picker, ruler, passage list
 
+**Way back**:
+The return to the entry the team last left by the way out, offered on the Choice by the chevron and by the left entry's tinted pill. A Panorama whose line was said comes back in silence on the session the room still holds; any other entry is entered again in the language it was left in (ADR 0062, ADR 0092).
+_Avoid_: back button, return, chevron (the chevron is one way to take it)
+
 **Closing** (`fim`):
 The last station, where the necklace's cord closes into a circle and the session ends.
 _Avoid_: fecho, ending, fim in prose (`SalaStage.fim` is the enum, not the term)
@@ -324,6 +328,10 @@ _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own li
 The session this tablet was in when it last stood in a passage, kept on the tablet so a relaunch lands on it while the room still holds it. Let go when the team goes to the Choice, when the passage closes, when the room no longer knows the session and when the Desk unlinks the tablet.
 _Avoid_: pointer, last session, sessão atual
 
+**Station's session**:
+The session the team is in where it stands: the Panorama's at the Panorama Station, the passage's anywhere else, none on the Choice. Any other session the room still holds is an earlier one (ADR 0092).
+_Avoid_: current session (that is the relaunch record), active session
+
 ### Findings and mends
 
 **Verdict**:
@@ -480,3 +488,7 @@ _Avoid_: código, pairing code, device code, credential (what the link yields af
 **Device link**:
 The bond between one tablet and one team, drawn once a claim code is spent, and carrying the device credential: the only thing the tablet sends to be let in, on every request thereafter. Unlinking the tablet from the Desk revokes the credential, and the tablet returns to a fresh claim code.
 _Avoid_: vínculo, pairing, enrolment
+
+**Life**:
+The room from the moment a device link opens it until the link is revoked or the app ends. Everything the room keeps in memory is born with it, and nothing of one life reaches the next (ADR 0070); an answer from an earlier life is dropped by its generation.
+_Avoid_: instance, launch (a launch begins a life; a relink begins another), session (a session is the server's)

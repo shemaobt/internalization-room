@@ -197,4 +197,43 @@ void main() {
       );
     },
   );
+
+  test(
+    'The Panorama\'s language is the one the room speaks at the Panorama',
+    () async {
+      final harness = SalaHarness(lingua: null)
+        ..room.passages = const [
+          Passagem(
+            pericope: 'panorama',
+            audioUrl: '/voice/panorama',
+            kind: PassagemKind.panorama,
+          ),
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        ];
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final it = Sala(harness, container);
+      it.sala.chooseTheLanguage('en');
+      await settle();
+      await enterThePanorama(it.sala, () => it.estado);
+      await waitFor('the Panorama to be said', () => it.estado.panoramaSaid);
+      await settle();
+      it.sala.leaveThePassage();
+      await waitFor('the way back', () => it.estado.theWayBackIsLive);
+      it.sala.chooseTheLanguage('pt');
+      await settle();
+      await it.sala.returnToTheLeftEntry();
+      await waitFor(
+        'the Panorama to be back',
+        () => it.estado.stage == SalaStage.panorama && it.estado.panoramaSaid,
+      );
+      await settle();
+      it.harness.voice.assets.clear();
+
+      it.sala.sayTheMicIsBlocked();
+      await settle();
+
+      expect(it.harness.voice.assets, [micBlockedAsset('en')]);
+    },
+  );
 }
