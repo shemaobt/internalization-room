@@ -12,9 +12,11 @@ import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa;
 import 'scenario_helpers.dart' show settle;
 
+/// A passage reopened in the Rehearsal holding its third part: reopened with the room
+/// down, the scene list never answers, so the circle records the parts below it.
 Future<ProviderContainer> _resumingIntoEnsaio(SalaHarness harness) async {
   final gravada = File(
-    '${Directory.systemTemp.createTempSync('sala-1057').path}/p1.m4a',
+    '${Directory.systemTemp.createTempSync('sala-1057').path}/p3.m4a',
   )..writeAsBytesSync([1, 2, 3]);
   addTearDown(() => gravada.parent.deleteSync(recursive: true));
   harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
@@ -22,9 +24,9 @@ Future<ProviderContainer> _resumingIntoEnsaio(SalaHarness harness) async {
     stage: SalaStage.ensaio,
     takes: [
       KeptTake(
-        scopeId: KeptScope.parte(1),
+        scopeId: KeptScope.parte(3),
         path: gravada.path,
-        takeId: 'gravacao-1',
+        takeId: 'gravacao-3',
       ),
     ],
   );

@@ -19,7 +19,7 @@ The station where the team describes the passage out loud, and what the team tou
 _Avoid_: conversa in prose (`conversa` is the enum value), telling, narration
 
 **Rehearsal** (`ensaio`):
-The station where the team records the whole passage in the mother tongue, listens, re-records or keeps it.
+The station where the team records the passage scene by scene in the mother tongue, one Scene row per scene, listens and records again; the advance disc opens the Back-translation only once every scene has its part.
 _Avoid_: ensaio in prose (`ensaio` is the enum value), passage recording (the recording itself is the take)
 
 **Record entry**:
@@ -167,6 +167,10 @@ _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 A recording the team kept, identified locally by its scope (part or whole passage) and, after upload, by the server's identifier.
 _Avoid_: gravação, recording (too general), audio
 
+**Recording time** (`recorded_at`):
+The moment a take's recording stopped, on the tablet's own clock, read from the recording file when the take enters the Outbox. The Outbox row keeps it with the take's length (WAV only) and fingerprint, and every try sends the three unchanged, however late. The tablet never corrects its clock; the server notes how far off it was, on a joined part only.
+_Avoid_: upload time, timestamp, created_at
+
 **Accidental tap**:
 A scene take or a part too short to be anything the team said, or one the recorder handed back nothing for. It leaves nothing behind (ADR 0086).
 _Avoid_: empty take, short take, capture guard (the Conversation's window)
@@ -235,11 +239,11 @@ The numbered position of a stretch in the list the analyst receives in one readi
 _Avoid_: trecho, stretch, segmento, segment (the persistent objects)
 
 **Part**:
-One of the pieces the rehearsal recording is divided into, and the unit a stretch sits in. A stretch addresses its part by where the part sits in the row, so a part that moved would take the whole rehearsal with it. A part recorded again keeps its number and its place; what changes is the recording it holds, and the stretches told over the one it replaces are untold ground again. A part recorded again goes up under its own next pass, and a part recorded for the first time under its first.
+One of the pieces the rehearsal recording is divided into, and the unit a stretch sits in. A stretch addresses its part by where the part sits in the row, so a part that moved would take the whole rehearsal with it. A part recorded again keeps its number and its place; what changes is the recording it holds, and the stretches told over the one it replaces are untold ground again. A part recorded again goes up under its own next pass, and a part recorded for the first time under its first. Part N is Scene N; a part keeps the number the room holds for it and is never renumbered by its place in a listing.
 _Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch, composed passage (retired: the take the server assembled around a mend)
 
 **Necklace**:
-The cord of beads that is the room's progress indicator for the conversation: its twelve beads, of which as many are lit as the room says, show the conversation's coverage. Drawn over the Conversation and the Closing only; the Rehearsal, the Back-translation and the findings show the Bead row instead.
+The cord of beads that is the room's progress indicator for the conversation: its twelve beads, of which as many are lit as the room says, show the conversation's coverage. Drawn over the Conversation and the Closing only; the Back-translation and the findings show the Bead row instead, and the Rehearsal its Scene rows.
 _Avoid_: colar, progress bar, ghost bead
 
 **Bead** and **element**:
@@ -247,7 +251,7 @@ One of the necklace's twelve, whatever the passage's number of elements. The roo
 _Avoid_: conta, pearl, item, bead for an element of the Map, part bead or stretch bead (those sit on the Bead row)
 
 **Bead row**:
-The row at the top of the Rehearsal, the Back-translation and the findings, one bead per Part or Stretch: translucent while its recording is open or pending, solid once confirmed, drained while a finding points at it, ringed while it is the current one; a tap selects it and plays it. A dimmed bead is the exception: it does not apply right now, and a tap on it does nothing.
+The row at the top of the Back-translation and the findings, one bead per Stretch: translucent while its recording is open or pending, solid once confirmed, drained while a finding points at it, ringed while it is the current one; a tap selects it and plays it. A dimmed bead is the exception: it does not apply right now, and a tap on it does nothing.
 _Avoid_: cord, band, reading head (the cord, its strokes and its dot, retired on 2026-09-25), contas, bits, progress bar
 
 **Circle**:
@@ -255,7 +259,7 @@ The room's one control, the same size in every station: its colour is the voice 
 _Avoid_: círculo, facilitator circle, record circle, button, esfera
 
 **Advance disc**:
-The wood disc with no glyph that leads from one station to the next: to the Back-translation from the Rehearsal, to the verdict from the Back-translation; it lights only when nothing is pending and pulses while the room beckons.
+The wood disc with no glyph that leads from one station to the next: to the Back-translation from the Rehearsal, to the verdict from the Back-translation; it lights only when nothing is pending and pulses while the room beckons; on the Rehearsal it lights only once every scene has its part.
 _Avoid_: next button, continue, seguir, microphone (it never wears one)
 
 **Knot**:
@@ -308,6 +312,14 @@ _Avoid_: piece, trecho, segment (the back-translation's)
 The scene rehearsal's wordless picture of its take while translating. The loudness of the take is drawn so a silence reads as a valley. Each Scene frase is a band with a tick at its end, the player is a thin line, and the pending pause is a bold line. It carries no words and cannot be tapped.
 _Avoid_: waveform, timeline, ruler (the Ensaio's)
 
+**Scene row**:
+One row of the Rehearsal per Scene of the passage, in passage order, reading «Cena N» and the scene's title, holding that scene's Part with its record, listen and record-again controls. Part N is Scene N: a recording made from row N is kept as part N, and a part the room holds under number N shows on row N.
+_Avoid_: bead (the Back-translation's), clip row, part row, linha
+
+**Joined recording** (`origin`):
+A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final».
+_Avoid_: assembled recording, merged, Junção (in prose)
+
 **Red microphone**:
 The round red control beside the orange dot that opens the Scene rehearsal's screen, shown only while the Conversation rests and no raised-hand note or person call stands.
 _Avoid_: record entry, green check, orange dot
@@ -317,7 +329,7 @@ A session that holds a Guide line, its Opening at least. The room asks a session
 _Avoid_: started, begun
 
 **Outbox**:
-The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it.
+The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it. Each row keeps its recording's **Recording time**, its length when it is a WAV and its fingerprint (sha256), fixed when the row is written; a row an older app wrote has none and sends none.
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Resume point**:
