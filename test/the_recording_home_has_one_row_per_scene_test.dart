@@ -21,6 +21,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
+import 'um_ensaio_de_tres_partes.dart' show Sala;
 import 'the_translation_is_recorded_over_until_the_check_test.dart'
     show cabeca, confirmar, gravarATraducao, parte, tesoura, tocar;
 
@@ -123,6 +124,97 @@ bool _discoAceso(WidgetTester tester) =>
 
 List<PendingTake> _naFila(SalaHarness harness) =>
     (harness.takes as FakeTakeQueue).rows;
+
+const _duasCenas = [
+  Scene(sceneId: 'S1', title: 'A fome em Belém'),
+  Scene(sceneId: 'S2', title: 'Noemi decide voltar'),
+];
+
+const _oInteiro = TakeView(
+  takeId: 'gravacao-inteira',
+  kind: 'ensaio',
+  scope: KeptScope.whole,
+);
+
+/// A two-scene passage left in its telling-back, reopened on a tablet that no longer holds
+/// the recordings the room lists in [naSala], with [contados] told over them.
+Future<Sala> _reabrirNaTraducao({
+  required List<TakeView> naSala,
+  required List<SegmentView> contados,
+}) async {
+  final casa = Directory.systemTemp.createTempSync('sala-1406-inteiro');
+  addTearDown(() => casa.deleteSync(recursive: true));
+  final harness = SalaHarness()
+    ..playback.measured = const Duration(seconds: 10);
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+    sessionId: _sessao,
+    stage: SalaStage.retro,
+    takes: [
+      for (final take in naSala)
+        KeptTake(
+          scopeId: switch (take.ordinal) {
+            final n? => KeptScope.parte(n),
+            null => KeptScope.whole,
+          },
+          path: '${casa.path}/${take.takeId}.m4a',
+          takeId: take.takeId,
+        ),
+    ],
+  );
+  harness.room
+    ..passageScenes = _duasCenas
+    ..retroSoFar = BackTranslationProgress(segments: contados)
+    ..takes.addAll(naSala);
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final it = Sala(harness, container);
+  await it.sala.abrirEscolha();
+  await settle();
+  unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
+  await waitFor(
+    'a tradução reabrir tocando',
+    () => harness.playback.played.isNotEmpty,
+  );
+  return it;
+}
+
+/// Play the telling-back to its end and let the room answer «terminei» with a finding
+/// on [segmento].
+Future<void> _umAchadoEm(Sala it, String segmento) async {
+  for (var vez = 0; vez < 6 && !it.estado.canFinishBackTranslation; vez++) {
+    it.harness.playback.finishPlayback();
+    await settle();
+    if (it.estado.btParteFronteira) it.sala.ouvirGravacao();
+    await settle();
+  }
+  it.harness.room
+    ..verdictChecked = false
+    ..verdictHasFinding = true
+    ..verdictFindingSegmentId = segmento;
+  await it.sala.finishBackTranslation();
+  await waitFor(
+    'a sala responder',
+    () => it.estado.btPhase != BtPhase.thinking,
+  );
+}
+
+Future<void> _gravarACenaEGuardar(Sala it, int cena) async {
+  it.sala.gravarACena(cena);
+  await waitFor(
+    'a cena $cena gravar',
+    () => it.estado.ensaio == EnsaioStatus.recording,
+  );
+  it.sala.gravarACena(cena);
+  await waitFor(
+    'a cena $cena ficar pendente',
+    () => it.estado.ensaio == EnsaioStatus.recorded,
+  );
+  it.sala.takeKeep();
+  await waitFor(
+    'a cena $cena ficar guardada',
+    () => it.estado.ensaio == EnsaioStatus.idle,
+  );
+}
 
 Finder get _circulo => find.descendant(
   of: find.byType(EnsaioView),
@@ -1001,6 +1093,263 @@ void main() {
       await settle();
 
       expect(estado().sceneRows, hasLength(4));
+    },
+  );
+
+  test(
+    'a finding on the whole rehearsal leads to the scene rows with nothing marked, '
+    'and the circle records scene 1',
+    () async {
+      final it = await _reabrirNaTraducao(
+        naSala: const [_oInteiro],
+        contados: const [
+          SegmentView(
+            segmentId: 'trecho-inteiro',
+            takeId: 'gravacao-inteira',
+            startsMs: 0,
+            endsMs: 10000,
+          ),
+        ],
+      );
+      await _umAchadoEm(it, 'trecho-inteiro');
+
+      it.sala.gravarAParteDeNovo();
+      await waitFor(
+        'o ensaio abrir',
+        () => it.estado.stage == SalaStage.ensaio,
+      );
+      await settle();
+      expect(it.estado.needsPerson, isFalse);
+      expect(
+        [for (final row in it.estado.sceneRows) row.dimmed],
+        [false, false],
+      );
+      await waitFor(
+        'a linha guardar o ensaio',
+        () =>
+            it.harness.emAberto.rows['Ruth/P01/pt']?.stage == SalaStage.ensaio,
+      );
+      expect(
+        it.harness.emAberto.rows['Ruth/P01/pt']!.partBeingRecordedAgain,
+        isNull,
+        reason: 'reaberto, o ensaio não pode voltar com uma marca no inteiro',
+      );
+      it.sala.ensaioTap();
+      await waitFor(
+        'o círculo gravar',
+        () => it.estado.ensaio == EnsaioStatus.recording,
+      );
+      it.sala.ensaioTap();
+      await waitFor(
+        'ficar pendente',
+        () => it.estado.ensaio == EnsaioStatus.recorded,
+      );
+      it.sala.takeKeep();
+      await waitFor('guardar', () => it.estado.ensaio == EnsaioStatus.idle);
+
+      expect(
+        [for (final take in it.partes) take.scopeId],
+        [KeptScope.parte(1)],
+      );
+      expect(
+        [for (final take in it.estado.keptTakes) take.takeId],
+        contains('gravacao-inteira'),
+        reason: 'posto de lado, o inteiro fica guardado',
+      );
+    },
+  );
+
+  test(
+    'once scene 1 lands, the whole rehearsal leaves the Back-translation',
+    () async {
+      final it = await _reabrirNaTraducao(
+        naSala: const [_oInteiro],
+        contados: const [
+          SegmentView(
+            segmentId: 'trecho-inteiro',
+            takeId: 'gravacao-inteira',
+            startsMs: 0,
+            endsMs: 10000,
+          ),
+        ],
+      );
+      await _umAchadoEm(it, 'trecho-inteiro');
+      it.sala.gravarAParteDeNovo();
+      await waitFor(
+        'o ensaio abrir',
+        () => it.estado.stage == SalaStage.ensaio,
+      );
+      await settle();
+      await _gravarACenaEGuardar(it, 1);
+      await _gravarACenaEGuardar(it, 2);
+      final inteiro = it.estado.keptTakes
+          .singleWhere((take) => take.scopeId == KeptScope.whole)
+          .path;
+      final antes = it.harness.playback.played.length;
+
+      it.sala.startRetro();
+      await waitFor(
+        'a tradução tocar',
+        () => it.harness.playback.played.length > antes,
+      );
+
+      expect(it.estado.stage, SalaStage.retro);
+      expect(it.estado.btTrechos, isEmpty);
+      expect(
+        it.harness.playback.played.sublist(antes),
+        isNot(contains(inteiro)),
+      );
+    },
+  );
+
+  test(
+    'a finding on a whole rehearsal set aside behind its scene parts never loops '
+    'back to it',
+    () async {
+      final it = await _reabrirNaTraducao(
+        naSala: const [
+          _oInteiro,
+          TakeView(
+            takeId: 'gravacao-1',
+            kind: 'ensaio',
+            scope: 'parte-1',
+            ordinal: 1,
+          ),
+          TakeView(
+            takeId: 'gravacao-2',
+            kind: 'ensaio',
+            scope: 'parte-2',
+            ordinal: 2,
+          ),
+        ],
+        contados: const [
+          SegmentView(
+            segmentId: 'trecho-inteiro',
+            takeId: 'gravacao-inteira',
+            startsMs: 0,
+            endsMs: 10000,
+          ),
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 10000,
+          ),
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 10000,
+          ),
+        ],
+      );
+      final inteiro = it.estado.keptTakes
+          .singleWhere((take) => take.scopeId == KeptScope.whole)
+          .path;
+      await _umAchadoEm(it, 'trecho-inteiro');
+
+      it.sala.gravarAParteDeNovo();
+      await settle();
+
+      expect(
+        [for (final take in it.partes) take.scopeId],
+        [KeptScope.parte(1), KeptScope.parte(2)],
+      );
+      expect(it.estado.needsPerson, isFalse);
+      expect(it.harness.playback.played, isNot(contains(inteiro)));
+    },
+  );
+
+  testWidgets(
+    'with the whole rehearsal set aside the Back-translation says parte by the '
+    'scene\'s number',
+    (tester) async {
+      _umIpadEmPe(tester);
+      final casa = Directory.systemTemp.createTempSync('sala-1406-rotulos');
+      addTearDown(() => casa.deleteSync(recursive: true));
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..playback.measured = const Duration(seconds: 10);
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+        sessionId: _sessao,
+        stage: SalaStage.retro,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.whole,
+            path: '${casa.path}/inteiro.m4a',
+            takeId: 'gravacao-inteira',
+          ),
+          for (final n in [1, 2])
+            KeptTake(
+              scopeId: KeptScope.parte(n),
+              path: '${casa.path}/p$n.m4a',
+              takeId: 'gravacao-$n',
+            ),
+        ],
+      );
+      harness.room
+        ..passageScenes = _duasCenas
+        ..retroSoFar = const BackTranslationProgress(
+          segments: [
+            SegmentView(
+              segmentId: 'trecho-1',
+              takeId: 'gravacao-1',
+              startsMs: 0,
+              endsMs: 10000,
+              frase: 1,
+            ),
+            SegmentView(
+              segmentId: 'trecho-2',
+              takeId: 'gravacao-2',
+              startsMs: 0,
+              endsMs: 10000,
+              frase: 2,
+            ),
+          ],
+        )
+        ..takes.addAll(const [
+          _oInteiro,
+          TakeView(
+            takeId: 'gravacao-1',
+            kind: 'ensaio',
+            scope: 'parte-1',
+            ordinal: 1,
+          ),
+          TakeView(
+            takeId: 'gravacao-2',
+            kind: 'ensaio',
+            scope: 'parte-2',
+            ordinal: 2,
+          ),
+        ]);
+      final container = harness.container();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const SalaApp()),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      final notifier = container.read(salaSessionProvider.notifier);
+      await tester.runAsync(notifier.abrirEscolha);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.runAsync(
+        () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+      );
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+      expect(_estado(container).stage, SalaStage.retro);
+
+      final naLista = [
+        for (final texto in tester.widgetList<Text>(
+          find.descendant(
+            of: find.byType(FraseList),
+            matching: find.byType(Text),
+          ),
+        ))
+          texto.data ?? '',
+      ];
+      expect(naLista, containsAll(['parte 1', 'parte 2']));
+      expect(naLista, isNot(contains('parte 3')));
+      closeTheRoom(container);
     },
   );
 }

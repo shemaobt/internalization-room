@@ -917,11 +917,27 @@ class SalaSessionState {
   }
 
   /// The rehearsal's own recordings, in order — never a correction's own take, which is a
-  /// slice of one of these and not a part of the rehearsal in its own right.
-  List<KeptTake> get partes => [
-    for (final take in keptTakes)
-      if (KeptScope.isRehearsal(take.scopeId)) take,
-  ]..sort((a, b) => _byNumber(a).compareTo(_byNumber(b)));
+  /// slice of one of these and not a part of the rehearsal in its own right. The whole
+  /// rehearsal an app before 19 August sent is the rehearsal only while no scene has its
+  /// part; from the first one on it is set aside, kept but no longer played or told.
+  List<KeptTake> get partes {
+    final numbered = [
+      for (final take in keptTakes)
+        if (KeptScope.isParte(take.scopeId)) take,
+    ]..sort((a, b) => _byNumber(a).compareTo(_byNumber(b)));
+    if (numbered.isNotEmpty) return numbered;
+    return [
+      for (final take in keptTakes)
+        if (take.scopeId == KeptScope.whole) take,
+    ];
+  }
+
+  /// The recordings of a whole rehearsal set aside behind the scenes' own parts.
+  Set<String> get wholeSetAside => {
+    if (keptTakes.any((take) => KeptScope.isParte(take.scopeId)))
+      for (final take in keptTakes)
+        if (take.scopeId == KeptScope.whole) ?take.takeId,
+  };
 
   static int _byNumber(KeptTake take) => KeptScope.numberOf(take.scopeId) ?? 0;
 
