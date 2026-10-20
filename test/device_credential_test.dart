@@ -76,6 +76,13 @@ final Map<String, _Request> _everyRequest = {
   'scenesOf': (room, _) => room.scenesOf('sessao-1'),
   'keepSceneRehearsal': (room, audio) =>
       room.keepSceneRehearsal('sessao-1', audio),
+  'keepTheSceneFrase': (room, audio) => room.keepTheSceneFrase(
+    'sessao-1',
+    'ensaio-da-cena-1',
+    audio,
+    startsMs: 0,
+    endsMs: 3100,
+  ),
   'restartTheSceneTranslation': (room, _) => room.restartTheSceneTranslation(
     'sessao-1',
     'ensaio-da-cena-1',

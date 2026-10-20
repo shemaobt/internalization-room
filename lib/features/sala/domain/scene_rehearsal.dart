@@ -32,6 +32,7 @@ final class SceneRehearsalRecord {
   final DateTime? recordedAt;
   final String? sentAt;
   final String? afterRestart;
+  final int? durationMs;
   final List<SceneFrase> frases;
 
   const SceneRehearsalRecord({
@@ -42,6 +43,7 @@ final class SceneRehearsalRecord {
     this.recordedAt,
     this.sentAt,
     this.afterRestart,
+    this.durationMs,
     this.frases = const [],
   });
 
@@ -54,6 +56,7 @@ final class SceneRehearsalRecord {
         recordedAt: DateTime.tryParse(json['recorded_at'] as String? ?? ''),
         sentAt: json['sent_at'] as String?,
         afterRestart: json['after_restart'] as String?,
+        durationMs: json['duration_ms'] as int?,
         frases: [
           for (final frase in json['frases'] as List<dynamic>)
             SceneFrase(
