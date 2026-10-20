@@ -345,6 +345,47 @@ void main() {
     },
   );
 
+  testWidgets(
+    '«manter a tradução de antes» with the pause of the last frase open closes her controls',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesEUmAchadoNa(
+        tester,
+        harness,
+        'trecho-1',
+      );
+      await tocar(tester, 'Tocar para gravar a tradução de novo');
+      await tocar(tester, 'Tocar ao terminar');
+      await tocar(tester, confirmar);
+      await waitFor(
+        'a frase 1 pousar',
+        () =>
+            container.read(salaSessionProvider).btTrechoTraduzidoDeNovo == null,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+      await tocar(tester, _barra(2));
+      expect(aceso(tester, depois), isTrue);
+      await tocar(tester, depois);
+
+      await tocar(tester, 'manter a tradução de antes');
+      await _passo(tester);
+
+      expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+      for (final controle in [antes, ouvirAPausa, depois]) {
+        expect(
+          aceso(tester, controle),
+          isFalse,
+          reason:
+              'a pausa seguia aberta depois de manter a tradução: $controle',
+        );
+      }
+      expect(harness.room.replacesAsked, ['trecho-1@gravacao-1:0-3200']);
+      closeTheRoom(container);
+    },
+  );
+
   test('her two retell lines are hers in English too', () {
     expect(
       sceneRehearsalLabelFor('retellingLast', 'en', n: 2),
