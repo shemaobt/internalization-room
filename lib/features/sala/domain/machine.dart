@@ -1705,7 +1705,10 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   final (halt, effects) = _reduceTheHalt(machine.halt, event);
   final next = machine.copyWith(halt: halt);
   if (halt is Blocking && machine.halt is! Blocking) {
-    return (next.copyWith(channel: const Silence()), effects);
+    return (
+      next.copyWith(channel: const Silence(), forgetTheLook: true),
+      effects,
+    );
   }
   if (halt is! Blocking && machine.halt is Blocking) {
     final lifted = next.copyWith(forgetTheFailures: true);

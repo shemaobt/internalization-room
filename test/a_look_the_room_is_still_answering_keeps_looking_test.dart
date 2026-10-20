@@ -273,6 +273,23 @@ void main() {
     },
   );
 
+  test('a halt raised while the room is still answering stops the looks', () {
+    _anOpeningTheNetworkLoses((room) => room.looksStillAnswering = 1000, (
+      clock,
+      it,
+    ) {
+      clock.elapse(const Duration(seconds: 3));
+      it.sala.haltForABrokenBuild();
+      clock.elapse(const Duration(seconds: 3));
+      final looks = it.room.turnIdsLookedAt.length;
+
+      clock.elapse(const Duration(minutes: 10));
+
+      expect(it.state.needsPerson, isTrue);
+      expect(it.room.turnIdsLookedAt, hasLength(looks));
+    });
+  });
+
   group('a look answered after the passage was left changes nothing', () {
     test('a look still in the air when the team leaves', () {
       _aTakeTheNetworkLoses(
