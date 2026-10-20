@@ -5232,8 +5232,8 @@ void main() {
     );
   });
 
-  test('a stretch told again withdraws the fallback a first refusal parked in '
-      'the outbox', () async {
+  test('a stretch told again whose key was still in flight withdraws the '
+      'fallback it parked in the outbox once it lands', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictHasFinding = true
@@ -5255,15 +5255,27 @@ void main() {
     // no aparelho de verdade enquanto o envio ainda não aconteceu — em vez de já
     // sair como uma tomada entregue antes que a correção seja contada de novo.
     harness.room.refuseTake = 'retro/${KeptScope.whole}';
-    harness.room.failReplaceWith = const NetworkFailed('timeout');
+    harness.network.reachable = false;
+    harness.room.replaceAnswersFirst.addAll(
+      List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
+    );
     await notifier.confirmarTraducao();
-    await theRoomRefusesTheGuardedCopy(harness);
+    await waitFor(
+      'a sala ficar fora de alcance',
+      () => container.read(salaSessionProvider).unreachable,
+    );
+    await waitFor(
+      'a cópia de reserva entrar na fila',
+      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
+    );
     expect(
       (await harness.takes.entries()).where((e) => e.kind == 'retro'),
       hasLength(1),
     );
 
-    harness.room.failReplaceWith = null;
+    harness.network
+      ..reachable = true
+      ..networkComesBack();
     await waitFor(
       'a correção de reserva sair da fila',
       () async =>

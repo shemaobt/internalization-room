@@ -320,7 +320,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late int _readsApplied;
   late int _readsSentBeforeTheCall;
   late int _roomFailures;
-  late Set<String> _contadasSemResposta;
+  late Map<String, Set<String>> _perdidasNoTrecho;
   late int _resumeFailures;
   late Set<String> _goneSessions;
 
@@ -487,7 +487,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _readsApplied = 0;
     _readsSentBeforeTheCall = 0;
     _roomFailures = 0;
-    _contadasSemResposta = {};
+    _perdidasNoTrecho = {};
     _resumeFailures = 0;
     _goneSessions = {};
     _sessionSavedAt = null;
@@ -6045,7 +6045,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ),
       );
     } on FileSystemException {
-      _contadasSemResposta.add(path);
       _guardarATraducao(path);
       if (_abandoned(generation)) return;
       state = state.copyWith(
@@ -6072,7 +6071,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         await _aPausaNaoFoi(code, sessionId, generation);
         return;
       case final RoomFailure failure:
-        if (failure case NetworkFailed()) _contadasSemResposta.add(path);
+        if (failure case NetworkFailed()) {
+          (_perdidasNoTrecho[alvo.segmentId!] ??= {}).add(path);
+        }
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
         _theTranslationWaits(failure);
@@ -6080,7 +6081,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
     }
 
-    _contadasSemResposta.clear();
     _theTellingLandedOn(
       told.segments,
       alvo: alvo,
@@ -6094,7 +6094,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
     );
-    _decideTheFailure(failure);
+    _leaveThinking();
+    _decideAt(
+      failure,
+      door: switch (failure) {
+        NetworkFailed(reason: RefusalCode.idempotencyKeyInFlight) => Door.step,
+        _ => Door.telling,
+      },
+    );
   }
 
   Future<void> _readWhatTheRefusalSays(
@@ -6111,13 +6118,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case final RoomFailure failure:
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
-        _theTranslationWaits(failure);
         _theCorrectionFailed(failure);
         return;
     }
     if (_abandoned(generation)) return;
-    _theRefusalLandsOn(snapshot, alvo, path);
+    final seguir = _theRefusalLandsOn(snapshot, alvo);
     _applyTheSessionRead(snapshot, sent);
+    if (seguir) await _confirmarTraducao();
   }
 
   Future<void> _aPausaNaoFoi(
@@ -6153,7 +6160,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  void _theRefusalLandsOn(SessionSnapshot snapshot, Trecho alvo, String path) {
+  bool _theRefusalLandsOn(SessionSnapshot snapshot, Trecho alvo) {
     final segments = snapshot.backTranslation.segments;
     final sucessor = segments.indexWhere(
       (segment) =>
@@ -6163,16 +6170,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           segment.startsMs == alvo.from.inMilliseconds &&
           segment.endsMs == alvo.to.inMilliseconds,
     );
-    final aContadaPousou =
-        _contadasSemResposta.length == 1 && _contadasSemResposta.contains(path);
-    _contadasSemResposta.clear();
+    for (final perdida in _perdidasNoTrecho.remove(alvo.segmentId) ?? {}) {
+      unawaited(_retirarDaFilaSeGuardada(perdida));
+    }
     if (sucessor < 0) {
       _theStretchIsGone(segments);
-      return;
-    }
-    if (aContadaPousou) {
-      _theTellingLandedOn(segments, alvo: alvo, lugar: sucessor, path: path);
-      return;
+      return false;
     }
     final trechos = _trechosFrom(segments, lugar: sucessor, noLugarDe: alvo);
     state = state.copyWith(
@@ -6182,6 +6185,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _armarOTrecho(trechos[sucessor]);
     _rememberWhereTheyAre(const Retro());
+    return true;
   }
 
   void _theStretchIsGone(List<SegmentView> segments) {
@@ -6841,7 +6845,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _theTranslationWaits(RoomFailure failure) {
-    if (failure case NetworkFailed()) {
+    if (failure case NetworkFailed(
+      reason: RefusalCode.idempotencyKeyInFlight,
+    )) {
       _pending = _confirmarTraducao;
     }
   }
@@ -7826,7 +7832,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _coverageWatch = null;
     _coverageSessionId = null;
     _roomFailures = 0;
-    _contadasSemResposta.clear();
+    for (final perdida in _perdidasNoTrecho.values.expand(
+      (perdidas) => perdidas,
+    )) {
+      unawaited(_retirarDaFilaSeGuardada(perdida));
+    }
+    _perdidasNoTrecho.clear();
     _stretchKeys.clear();
     _resumeFailures = 0;
     _strandedSpoken = false;

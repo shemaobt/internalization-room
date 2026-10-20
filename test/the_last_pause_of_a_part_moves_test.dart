@@ -536,7 +536,9 @@ void main() {
       );
       await tocar(tester, _barra(2));
 
-      harness.room.reachable = false;
+      harness.room.replaceAnswersFirst.addAll(
+        List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
+      );
       harness.network.reachable = false;
       await tocar(tester, 'Tocar para gravar a tradução de novo');
       await tocar(tester, 'Tocar ao terminar');
