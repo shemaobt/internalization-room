@@ -26,8 +26,14 @@ face.
   instance. Two seconds is half the rate the server's own wait on a claimed Opening looks
   at, since the tablet's look crosses the network.
 - **The machine holds the turn the look reads**, from the give-up until the look is
-  decided, and an answer for any other turn changes nothing. A halt, the watchdog or a new
-  generation ends the look and stops the looking again.
+  decided, and an answer for any other turn changes nothing. Only a reply that landed, the
+  watchdog or a new generation ends a look.
+- **A halt holds the look back and never ends it.** While the room is halted no look goes
+  out, and a turn given up under the halt waits for the lift for its first look; an answer
+  that lands under the halt is kept as a turn's answer under a halt is. The lift resumes
+  the look under the busy watchdog, armed again, once the room is within reach: a lift
+  while out of reach waits for the room to answer again, a person letting the reach go
+  does not count.
 - **What the look then finds follows who asked for it.** A team turn, or a line said again
   on the team's tap, plays as One look finds always play. An Opening rests silent with
   «Ouvir de novo» armed: nobody asked to hear it.
