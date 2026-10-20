@@ -154,6 +154,16 @@ class AStationHost implements StationHost {
   void hearTheOpeningLetGo() => asked.add('hearTheOpeningLetGo');
 
   @override
+  void hearTheReplyKept(Turn turn, TurnResult reply) =>
+      asked.add('hearTheReplyKept:${turn.turnId}');
+
+  @override
+  void hearTheLineLetGo() => asked.add('hearTheLineLetGo');
+
+  @override
+  void hearTheWaitResumed() => asked.add('hearTheWaitResumed');
+
+  @override
   Future<void> hearTheOutboxFlushed() async =>
       asked.add('hearTheOutboxFlushed');
 
@@ -211,6 +221,7 @@ EffectRunner runnerOver(
   retryDelay: (_) => retryDelay,
   partCeiling: () => null,
   clipGrace: () => clipGrace,
+  lookAgainAfter: () => Duration.zero,
   offlineNotice: () =>
       const Line(LineKind.offlineNotice, 0, asset: 'offline.mp3'),
   generation: generation,
