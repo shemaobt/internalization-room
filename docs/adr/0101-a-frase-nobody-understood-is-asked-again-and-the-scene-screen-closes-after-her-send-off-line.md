@@ -46,6 +46,10 @@ frase's bar to translate it again, and holds «a tradução do ensaio da cena fo
   kept, her line and «manter a tradução de antes». A list read that fails shows her line
   with no «manter»: the next circle translates the piece again, and play and «terminei» read
   the list first and decide from it; a «terminei» the list shows kept sends the scene.
+- That the room may hold a translation the team has not seen stays with the rehearsal, not on
+  the screen: a bar tap, opening the rehearsal again or rebuilding the screen keeps it, and
+  play and «terminei» read the list first while it stands. A list read that lands, or a new
+  translation of that frase kept, ends it.
 - A list read keeps a frase armed to be translated again while the list still holds it; if not,
   the arm drops and its stretch stops.
 - «terminei» with a held frase whose last try is not kept stops at her line, and the piece
@@ -61,6 +65,9 @@ frase's bar to translate it again, and holds «a tradução do ensaio da cena fo
 **The machine's `wordlessTelling` fact, as the retro's.** Rejected: it is cleared only by a
 Station change, the capture microphone and the verdict, so on the scene screen it would outlive
 «gravar de novo», a row switch or a restart.
+
+**That uncertainty on the scene screen.** Rejected: a bar tap or a rebuilt screen dropped it,
+and «terminei» then sent the voice a translation the team never saw.
 
 **Keeping a frase lost to the network held, and resending its bytes at the next circle.**
 Rejected: her line asks the team to translate the piece again, and the tap must do what the line
