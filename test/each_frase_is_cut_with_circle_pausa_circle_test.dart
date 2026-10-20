@@ -43,6 +43,8 @@ const _confirm = 'Confirmar a tradução e seguir';
 
 final _redMicrophone = byLabel('ensaio da cena');
 
+String _bar(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
+
 SceneFrase _frase(String id, int startsMs, int endsMs) =>
     SceneFrase(fraseId: id, startsMs: startsMs, endsMs: endsMs);
 
@@ -156,6 +158,7 @@ Future<void> _aFraseWhoseAnswerIsLost(
   bool keptBefore = true,
 }) async {
   room.harness.room
+    ..refusesOverlappingFrases = true
     ..frasesLandBeforeTheyFail = keptBefore
     ..frasesLandAfterTheyFail = !keptBefore
     ..sceneAnswersFirst.add(failure);
@@ -500,14 +503,11 @@ void main() {
           const Microphone(MicOwner.frase),
         );
         await _tapAndSettle(tester, _tell);
-        await _pumpUntil(
-          tester,
-          () => byLabel('frase 1').evaluate().isNotEmpty,
-        );
+        await _pumpUntil(tester, () => byLabel(_bar(1)).evaluate().isNotEmpty);
         await tester.pump(const Duration(milliseconds: 300));
 
         expect(harness.room.frasesKept, hasLength(1));
-        expect(byLabel('frase 1'), findsOneWidget);
+        expect(byLabel(_bar(1)), findsOneWidget);
         expect(
           harness.playback.playedFrom.last,
           const Duration(milliseconds: 3100),
@@ -576,7 +576,7 @@ void main() {
 
         await _onScreenTheFraseIsSent(tester, harness, container);
 
-        expect(byLabel('frase 1'), findsNothing);
+        expect(byLabel(_bar(1)), findsNothing);
         expect(byLabel(_pausaHint), findsOneWidget);
         await _tapAndSettle(tester, _tell);
         await _pumpUntil(
@@ -823,7 +823,7 @@ void main() {
             await _listening(room);
             await _aFraseWhoseAnswerIsLost(
               room,
-              const NetworkFailed('timeout'),
+              const Refused(RefusalCode.unreadable),
             );
             room.harness.room.sceneAnswersFirst.add(
               const Refused(RefusalCode.sceneRehearsalSending),
@@ -869,7 +869,7 @@ void main() {
             await _listening(room);
             await _aFraseWhoseAnswerIsLost(
               room,
-              const NetworkFailed('timeout'),
+              const Refused(RefusalCode.unreadable),
               keptBefore: false,
             );
             room.harness.room.sceneRehearsals[0] = _rehearsal(
@@ -902,7 +902,7 @@ void main() {
             await _listening(room);
             await _aFraseWhoseAnswerIsLost(
               room,
-              const NetworkFailed('timeout'),
+              const Refused(RefusalCode.unreadable),
               keptBefore: false,
             );
             final posts = room.harness.room.frasesKept.length;
@@ -936,7 +936,7 @@ void main() {
               await _listening(room);
               await _aFraseWhoseAnswerIsLost(
                 room,
-                const NetworkFailed('timeout'),
+                const Refused(RefusalCode.unreadable),
                 keptBefore: false,
               );
               final resend = room.harness.room.holdTheNextFrase();
@@ -1000,7 +1000,7 @@ void main() {
             await settle();
             room.harness.room
               ..frasesLandBeforeTheyFail = true
-              ..sceneAnswersFirst.add(const NetworkFailed('timeout'));
+              ..sceneAnswersFirst.add(const Refused(RefusalCode.unreadable));
             second.complete();
             await waitFor('a sala responder', () => !room.state.scene.waiting);
             room.harness.room.frasesLandBeforeTheyFail = false;
@@ -1053,7 +1053,7 @@ void main() {
             await _listening(room);
             await _aFraseWhoseAnswerIsLost(
               room,
-              const NetworkFailed('timeout'),
+              const Refused(RefusalCode.unreadable),
               keptBefore: false,
             );
             room.sala.playTheSceneRehearsal();
@@ -1167,7 +1167,7 @@ void main() {
             await _listening(room);
             await _aFraseWhoseAnswerIsLost(
               room,
-              const NetworkFailed('timeout'),
+              const Refused(RefusalCode.unreadable),
             );
             for (final n in [1, 2]) {
               room.sala.openTheListedSceneRehearsal('ensaio-da-cena-$n');
@@ -1205,7 +1205,7 @@ void main() {
             await _listening(room);
             await _aFraseWhoseAnswerIsLost(
               room,
-              const NetworkFailed('timeout'),
+              const Refused(RefusalCode.unreadable),
               keptBefore: false,
             );
             return (room, room.harness.recorder.lastPath);
@@ -1277,7 +1277,7 @@ void main() {
         await _listening(room);
         await _aFraseWhoseAnswerIsLost(
           room,
-          const NetworkFailed('timeout'),
+          const Refused(RefusalCode.unreadable),
           keptBefore: false,
         );
         room.harness.room.sceneRehearsals.clear();
@@ -1454,7 +1454,7 @@ void main() {
         expect(byLabel(_endedHint), findsOneWidget);
         await _onScreenTheFraseIsSent(tester, harness, container);
 
-        expect(byLabel('frase 2'), findsOneWidget);
+        expect(byLabel(_bar(2)), findsOneWidget);
         expect(byLabel(_endedHint), findsOneWidget);
         expect(harness.playback.playedFrom, hasLength(1));
       },
@@ -1476,7 +1476,7 @@ void main() {
           find.byType(SceneStrip),
           byLabel(_translate),
           byLabel(_tell),
-          byLabel('frase 1'),
+          byLabel(_bar(1)),
           byLabel(_terminei),
           byLabel(_again),
         ].map((control) => tester.getTopLeft(control).dy).toList();
@@ -1511,7 +1511,7 @@ void main() {
 
         expect(find.text('frase 1'), findsOneWidget);
         expect(find.text('frase 2'), findsOneWidget);
-        expect(barOf('frase 1') / barOf('frase 2'), closeTo(0.5, 0.01));
+        expect(barOf(_bar(1)) / barOf(_bar(2)), closeTo(0.5, 0.01));
       },
     );
 
@@ -1542,10 +1542,7 @@ void main() {
         );
         look();
         await _tapAndSettle(tester, _tell);
-        await _pumpUntil(
-          tester,
-          () => byLabel('frase 1').evaluate().isNotEmpty,
-        );
+        await _pumpUntil(tester, () => byLabel(_bar(1)).evaluate().isNotEmpty);
         look();
 
         expect(seen, isNotEmpty);

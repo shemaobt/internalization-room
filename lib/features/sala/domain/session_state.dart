@@ -26,7 +26,9 @@ enum SceneStep { record, translate, placesUnknown, sent }
 /// whether a call this screen made is in the air. On the record step it also holds the
 /// scene the team picked, the scene of the rehearsal recorded again, and when the
 /// question appeared and when the pick was made. On the translate step it holds
-/// whether the team began listening, and the pending pausa.
+/// whether the team began listening, the pending pausa, whether the room heard no words
+/// in the last frase, the frase being translated again, and whether «terminei» reached
+/// the voice.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
@@ -41,6 +43,9 @@ final class SceneScreen {
   final DateTime? pickedAt;
   final Duration? pausa;
   final bool listened;
+  final bool notUnderstood;
+  final SceneFrase? retelling;
+  final bool wentToTheVoice;
 
   const SceneScreen({
     this.step = SceneStep.record,
@@ -56,6 +61,9 @@ final class SceneScreen {
     this.pickedAt,
     this.pausa,
     this.listened = false,
+    this.notUnderstood = false,
+    this.retelling,
+    this.wentToTheVoice = false,
   });
 
   SceneScreen copyWith({
@@ -74,6 +82,10 @@ final class SceneScreen {
     Duration? pausa,
     bool clearPausa = false,
     bool? listened,
+    bool? notUnderstood,
+    SceneFrase? retelling,
+    bool clearRetelling = false,
+    bool? wentToTheVoice,
   }) => SceneScreen(
     step: step,
     rehearsal: rehearsal ?? this.rehearsal,
@@ -88,6 +100,9 @@ final class SceneScreen {
     pickedAt: clearPickedAt ? null : (pickedAt ?? this.pickedAt),
     pausa: clearPausa ? null : (pausa ?? this.pausa),
     listened: listened ?? this.listened,
+    notUnderstood: notUnderstood ?? this.notUnderstood,
+    retelling: clearRetelling ? null : (retelling ?? this.retelling),
+    wentToTheVoice: wentToTheVoice ?? this.wentToTheVoice,
   );
 
   SceneScreen get asWaiting => copyWith(waiting: true);

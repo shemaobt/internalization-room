@@ -89,6 +89,8 @@ abstract final class FailurePolicy {
 
   static const _theHandsDoors = {Door.question, Door.inbox, Door.reply};
 
+  static const _theSceneDoors = {Door.sceneRehearsal, Door.sceneFrase};
+
   static MachineEvent decide(RoomResult result, FailureContext context) {
     final generation = context.generation;
     final sounding = context.sounding;
@@ -112,12 +114,15 @@ abstract final class FailurePolicy {
       _ when context.door == Door.sceneList => TheScenesMissed(
         generation: generation,
       ),
+      RoomRefused(code: RefusalCode.wordlessTelling) || RoomNetworkFailed()
+          when context.door == Door.sceneFrase =>
+        TheTellingCameBackEmpty(generation: generation),
       RoomRefused(
         code: RefusalCode.sceneRehearsalSent ||
             RefusalCode.restartOutOfOrder ||
             RefusalCode.notFound,
       )
-          when context.door == Door.sceneRehearsal =>
+          when _theSceneDoors.contains(context.door) =>
         TheSceneDoorFailed(readAgain: true, generation: generation),
       RoomSessionGone() when rule == RefusalRule.keepsTheResume =>
         keptTheResume,
@@ -148,7 +153,7 @@ abstract final class FailurePolicy {
       ),
       RoomRefused(:final code) when RefusalCode.stopsTheRoom.contains(code) =>
         halt,
-      RoomRefused() when context.door == Door.sceneRehearsal =>
+      RoomRefused() when _theSceneDoors.contains(context.door) =>
         TheSceneDoorFailed(
           readAgain: rule == RefusalRule.readsTheListAgain,
           generation: generation,

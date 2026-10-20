@@ -265,6 +265,10 @@ const sceneRehearsalLabels = {
     'en': 'paused — tap the circle to mark where the sentence ends',
   },
   'ended': {'pt': 'fim do ensaio da cena', 'en': 'end of the scene rehearsal'},
+  'wentToTheVoice': {
+    'pt': 'a tradução do ensaio da cena foi para a voz',
+    'en': 'the translation of the scene rehearsal went to the voice',
+  },
 };
 
 String sceneRehearsalLabelFor(String control, String language, {int? n}) =>

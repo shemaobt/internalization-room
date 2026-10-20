@@ -81,6 +81,7 @@ enum Door {
   telling,
   verdict,
   sceneRehearsal,
+  sceneFrase,
   sceneList,
 }
 
@@ -829,6 +830,10 @@ final class ReadTheSceneRehearsals extends Effect {
   const ReadTheSceneRehearsals();
 }
 
+final class AskTheFraseAgain extends Effect {
+  const AskTheFraseAgain();
+}
+
 final class ShowTheSceneRehearsals extends Effect {
   final List<SceneRehearsalRecord> listed;
 
@@ -1271,6 +1276,10 @@ const _watch = ArmTheWatch();
   TheTellingCameBackEmpty() when machine.station is Retro => (
     machine.copyWith(wordlessTelling: true),
     const [LetThePendingTranslationGo()],
+  ),
+  TheTellingCameBackEmpty() when machine.station is SceneRehearsal => (
+    machine,
+    const [AskTheFraseAgain()],
   ),
   TheTellingCameBackEmpty() => (machine, const []),
   TheVerdictAsked() => (machine.copyWith(wordlessTelling: false), const []),

@@ -130,6 +130,9 @@ abstract interface class StationHost {
 
   /// The Station takes the scene rehearsals the room listed when it was asked again.
   void hearTheSceneRehearsals(List<SceneRehearsalRecord> listed);
+
+  /// The Station asks the frase on its screen again: the room heard no words in it.
+  void hearTheFraseNotUnderstood();
 }
 
 class EffectRunner {
@@ -289,6 +292,8 @@ class EffectRunner {
           _readTheSceneRehearsals();
         case ShowTheSceneRehearsals(:final listed):
           host.hearTheSceneRehearsals(listed);
+        case AskTheFraseAgain():
+          host.hearTheFraseNotUnderstood();
       }
     }
   }

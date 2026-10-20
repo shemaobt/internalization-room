@@ -30,6 +30,16 @@ void main() {
     },
   );
 
+  test('An empty telling in the scene rehearsal asks the frase again and '
+      'changes nothing else.', () {
+    const onTheScene = Machine(station: SceneRehearsal());
+
+    final (machine, effects) = reduce(onTheScene, _empty);
+
+    expect(machine, same(onTheScene));
+    expect(effects, const [AskTheFraseAgain()]);
+  });
+
   test('The capture microphone opening clears her line.', () {
     final (machine, _) = reduce(
       _afterAnEmptyTelling(),

@@ -188,6 +188,9 @@ class AStationHost implements StationHost {
   @override
   void hearTheSceneRehearsals(List<SceneRehearsalRecord> listed) =>
       asked.add('hearTheSceneRehearsals:${listed.length}');
+
+  @override
+  void hearTheFraseNotUnderstood() => asked.add('hearTheFraseNotUnderstood');
 }
 
 typedef Ports = ({

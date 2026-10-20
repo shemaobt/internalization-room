@@ -296,6 +296,42 @@ void main() {
       const RoomRaisedAHalt(sounding: ThePart(), generation: 4),
     ),
     (
+      'a wordless frase is a frase not understood, never a counted refusal',
+      const RoomRefused(RefusalCode.wordlessTelling),
+      _notATurn(door: Door.sceneFrase, refusals: 2),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a frase whose network failed is not understood, never out of reach',
+      const RoomNetworkFailed(),
+      _notATurn(door: Door.sceneFrase),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a sent rehearsal met at the frase door reads the list again',
+      const RoomRefused(RefusalCode.sceneRehearsalSent),
+      _notATurn(door: Door.sceneFrase),
+      const TheSceneDoorFailed(readAgain: true, generation: 4),
+    ),
+    (
+      'a frase refused as out of place reads the list again',
+      const RoomRefused(RefusalCode.fraseOutOfPlace),
+      _notATurn(door: Door.sceneFrase, rule: RefusalRule.readsTheListAgain),
+      const TheSceneDoorFailed(readAgain: true, generation: 4),
+    ),
+    (
+      'a frase refused for any other reason is never counted',
+      RoomRefused(RefusalCode.unnamed(422)),
+      _notATurn(door: Door.sceneFrase, refusals: 2),
+      const TheSceneDoorFailed(generation: 4),
+    ),
+    (
+      'a frase refused with a code that stops the room calls a person',
+      const RoomRefused(RefusalCode.forbidden),
+      _notATurn(door: Door.sceneFrase),
+      const RoomRaisedAHalt(sounding: ThePart(), generation: 4),
+    ),
+    (
       'a call that is not a turn whose session is gone is the session gone',
       const RoomSessionGone(),
       _notATurn(),

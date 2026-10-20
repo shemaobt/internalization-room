@@ -504,6 +504,7 @@ class RoomRepository {
     required int startsMs,
     required int endsMs,
     String? afterRestart,
+    String? replaces,
   }) async {
     final request =
         http.MultipartRequest(
@@ -516,6 +517,7 @@ class RoomRepository {
           ..fields['ends_ms'] = '$endsMs'
           ..files.add(await _audioPart(audio));
     if (afterRestart != null) request.fields['after_restart'] = afterRestart;
+    if (replaces != null) request.fields['replaces'] = replaces;
     return _room.askStreamed(
       request,
       timeout: _longCallTimeout,
