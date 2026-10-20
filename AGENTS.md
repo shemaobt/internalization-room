@@ -73,7 +73,7 @@ new field or branch in the notifier.
 The migration runs in slices under ENG-1160 while plan work continues. Code that is still in
 the notifier moves out only through those slices. Rebase onto them, and build new lifecycle
 work on the machine. The one written exception: the Retro screen keeps its notifier fields,
-`btFindings`, `btConferindo`, `btRecusa` and `btVeredito` included, and its report that the verdict was heard, until
+`btFindings`, `btConferindo`, `btRecusa`, `btVeredito`, `btRecomeco` and `btAviso` included, and its report that the verdict was heard, until
 after the 2 November tablet freeze (ADR 0046).
 
 ## Secrets

@@ -127,6 +127,16 @@ const folgaDoFimDaParte = Duration(milliseconds: 750);
 /// Where the telling-back is, step by step.
 enum BtPhase { playing, capturing, thinking, findings, conferida }
 
+enum BtRecomeco { armado, pronto }
+
+enum BtAviso {
+  recomecada,
+  recomecoFalhou,
+  pausaSoNaUltima,
+  pausaPassaDoFim,
+  pausaNaoFica,
+}
+
 /// One stretch the team told back: a slice of one rehearsal recording.
 ///
 /// [from] and [to] are relative to [takeId]'s own file, never to the concatenated
@@ -284,6 +294,8 @@ class SalaSessionState {
   final Trecho? btTrechoTraduzidoDeNovo;
   final int? btContaEscolhida;
   final int btPass;
+  final BtRecomeco? btRecomeco;
+  final BtAviso? btAviso;
   final int unsentTakes;
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
@@ -372,6 +384,8 @@ class SalaSessionState {
     this.btTrechoTraduzidoDeNovo,
     this.btContaEscolhida,
     this.btPass = 1,
+    this.btRecomeco,
+    this.btAviso,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
@@ -717,7 +731,22 @@ class SalaSessionState {
       btTrechoTraduzidoDeNovo == null &&
       btContaEscolhida == null;
 
-  bool get canAdjustThePause => thePauseStands && btPausaAjustavel;
+  bool get canAdjustThePause =>
+      btPausaAjustavel &&
+      (thePauseStands ||
+          (_btNaVez &&
+              btTrechoTraduzidoDeNovo != null &&
+              btContaEscolhida == null));
+
+  bool theLastPauseMoves(Trecho frase) {
+    if (!frase.contado || btPhase == BtPhase.conferida) return false;
+    Trecho? ultima;
+    for (final trecho in btTrechos) {
+      if (trecho.takeId != frase.takeId) continue;
+      if (ultima == null || trecho.to >= ultima.to) ultima = trecho;
+    }
+    return ultima?.segmentId == frase.segmentId;
+  }
 
   bool get btTraducaoPendenteEmprestada =>
       btTraducaoPendente != null && btTraducaoPendente == btTraducaoEmprestada;
@@ -853,6 +882,10 @@ class SalaSessionState {
     int? btContaEscolhida,
     bool clearContaEscolhida = false,
     int? btPass,
+    BtRecomeco? btRecomeco,
+    bool clearRecomeco = false,
+    BtAviso? btAviso,
+    bool clearAviso = false,
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
@@ -926,6 +959,8 @@ class SalaSessionState {
           ? null
           : (btContaEscolhida ?? this.btContaEscolhida),
       btPass: btPass ?? this.btPass,
+      btRecomeco: clearRecomeco ? null : (btRecomeco ?? this.btRecomeco),
+      btAviso: clearAviso ? null : (btAviso ?? this.btAviso),
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,

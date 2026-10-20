@@ -174,6 +174,14 @@ final fimLingerProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 14),
 );
 
+final restartWakeProvider = Provider<Duration>(
+  (ref) => const Duration(milliseconds: 600),
+);
+
+final restartLapseProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 6),
+);
+
 final roomRetryBackoffProvider = Provider<List<Duration>>(
   (ref) => const [
     Duration(seconds: 5),
@@ -560,6 +568,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearLastSpoken: true,
       roomSaysItAgain: false,
       clearParteARegravar: true,
+      clearRecomeco: true,
     );
     _silenceTheRoom();
     _dispatch(const MicDiscarded());
@@ -5067,6 +5076,86 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void ouvirOTrechoPendente() => _gesture(() => _ouvirOTrechoPendente());
 
+  void recomecarATraducao() => _gesture(() => _recomecarATraducao());
+
+  void _recomecarATraducao() {
+    final sessionId = state.sessionId;
+    if (state.station is! Retro || sessionId == null) return;
+    if (state.btPhase == BtPhase.capturing ||
+        state.btPhase == BtPhase.thinking) {
+      return;
+    }
+    if (state.btRecomeco == null) {
+      state = state.copyWith(btRecomeco: BtRecomeco.armado, clearAviso: true);
+      _after('recomecoPronto', ref.read(restartWakeProvider), () {
+        if (state.btRecomeco != BtRecomeco.armado) return;
+        state = state.copyWith(btRecomeco: BtRecomeco.pronto);
+      });
+      _after(
+        'recomecoArmado',
+        ref.read(restartLapseProvider),
+        () => state = state.copyWith(clearRecomeco: true),
+      );
+      return;
+    }
+    if (state.btRecomeco != BtRecomeco.pronto) return;
+    state = state.copyWith(clearRecomeco: true);
+    _handOff(_recomecarNaSala(sessionId));
+  }
+
+  Future<void> _recomecarNaSala(String sessionId) async {
+    final generation = _waitOnTheGeneration;
+    final antes = state.btPhase;
+    _silenceTheRoom();
+    state = state.copyWith(btPhase: BtPhase.thinking);
+    final recomecada = await _room.startTheTranslationOver(sessionId);
+    if (_abandoned(generation)) return;
+    switch (recomecada) {
+      case Answered(value: final segmentos):
+        _clearAll();
+        _descartarATraducaoPendente();
+        state = state.copyWith(
+          btTrechos: _trechosFrom(segmentos),
+          btFindings: const [],
+          clearTrechoTraduzidoDeNovo: true,
+          btChunkFailures: const [],
+          btClipEnded: false,
+          btAviso: BtAviso.recomecada,
+          clearBtRecusa: true,
+        );
+        _dispatch(const TheTranslationStartedOver());
+
+        _after(
+          'aviso',
+          ref.read(restartLapseProvider),
+          () => state = state.copyWith(clearAviso: true),
+        );
+        final agora = _generation;
+        try {
+          await _sayALine(
+            LineKind.guide,
+            fixedLine: (name: tellLine, language: _inTheSessionsLanguage),
+          );
+        } on RoomFailure catch (failure) {
+          _decideAt(
+            failure,
+            door: Door.stretches,
+            rule: RefusalRule.passesUnlessItStops,
+          );
+        }
+        if (_abandoned(agora)) return;
+        state = state.copyWith(btPhase: BtPhase.playing);
+        await _playFromTheUntoldGround(agora);
+      case final RoomFailure failure:
+        state = state.copyWith(btPhase: antes, btAviso: BtAviso.recomecoFalhou);
+        _decideAt(
+          failure,
+          door: Door.stretches,
+          rule: RefusalRule.passesUnlessItStops,
+        );
+    }
+  }
+
   void _ouvirOTrechoPendente() {
     if (state.btContaEscolhida != null) {
       _silenceTheRoom();
@@ -5277,7 +5366,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           File(path),
           takeId: alvo.takeId,
           from: alvo.from,
-          to: alvo.to,
+          to: _trechoEnd,
           idempotencyKey: key,
         ),
       );
@@ -5298,6 +5387,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Refused(code: RefusalCode.stretchNoLongerCounts):
         if (_abandoned(generation)) return;
         await _readWhatTheRefusalSays(alvo, path, sessionId, generation);
+        return;
+      case Refused(
+        code: final code &&
+            (RefusalCode.pauseOnlyOnTheLastFrase ||
+                RefusalCode.pausePastTheEnd ||
+                RefusalCode.pauseCannotStandThere),
+      ):
+        if (_abandoned(generation)) return;
+        await _aPausaNaoFoi(code, sessionId, generation);
         return;
       case final RoomFailure failure:
         if (failure case NetworkFailed()) _contadasSemResposta.add(path);
@@ -5346,6 +5444,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     _theRefusalLandsOn(snapshot, alvo, path);
     _applyTheSessionRead(snapshot, sent);
+  }
+
+  Future<void> _aPausaNaoFoi(
+    String code,
+    String sessionId,
+    int generation,
+  ) async {
+    _trechoTraduzidoDeNovo = null;
+    _descartarATraducaoPendente();
+    _walkTheCursorBack(state.btTrechos);
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      awaitingTheGuide: false,
+      btAviso: switch (code) {
+        RefusalCode.pauseOnlyOnTheLastFrase => BtAviso.pausaSoNaUltima,
+        RefusalCode.pausePastTheEnd => BtAviso.pausaPassaDoFim,
+        _ => BtAviso.pausaNaoFica,
+      },
+    );
+    final sent = ++_readsSent;
+    final lido = await _room.fetchState(sessionId);
+    if (_abandoned(generation)) return;
+    switch (lido) {
+      case Answered(value: final snapshot):
+        _theStretchIsGone(snapshot.backTranslation.segments);
+        _applyTheSessionRead(snapshot, sent);
+      case final RoomFailure failure:
+        _decideAt(
+          failure,
+          door: Door.stretches,
+          rule: RefusalRule.passesUnlessItStops,
+        );
+    }
   }
 
   void _theRefusalLandsOn(SessionSnapshot snapshot, Trecho alvo, String path) {
@@ -5531,6 +5662,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = state.btTraducaoPendente!;
     final sessionId = state.sessionId;
     if (sessionId == null) return;
+    state = state.copyWith(clearAviso: true);
     final generation = _waitOnTheGeneration;
     _silenceTheRoom(holdTheClip: true);
     state = state.copyWith(
@@ -5741,6 +5873,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _dispatch(const TheVerdictAsked());
+    state = state.copyWith(clearAviso: true);
     _silenceTheRoom();
     final sessionId = state.sessionId;
     if (sessionId == null) {
@@ -6145,6 +6278,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoEnd = trecho.to;
     _trechoTraduzidoDeNovo = trecho;
     _faseAntesDeTraduzirDeNovo = null;
+    state = state.copyWith(
+      btPausaAjustavel:
+          state.theLastPauseMoves(trecho) && _ondeAPausaCabe() != null,
+    );
     return trecho;
   }
 

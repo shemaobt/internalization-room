@@ -103,6 +103,8 @@ final Map<String, _Request> _everyRequest = {
       room.finishBackTranslation('sessao-1', playedByTake: const []),
   'reportTheVerdictHeard': (room, _) =>
       room.reportTheVerdictHeard('sessao-1', '2026-10-19T19:58:13.123456Z'),
+  'startTheTranslationOver': (room, _) =>
+      room.startTheTranslationOver('sessao-1'),
   'fixedLineAddress': (room, _) => room.fixedLineAddress('F0', language: 'pt'),
   'fetchClip': (room, _) => room.fetchClip('/voice/p01'),
   'openClip': (room, _) => room.openClip('/voice/p01', from: 3, ifRange: 'e1'),

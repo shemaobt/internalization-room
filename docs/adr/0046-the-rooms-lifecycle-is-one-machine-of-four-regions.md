@@ -157,3 +157,11 @@ telling, so her sub-line and the frase bars stay after a frase is told again, on
 `SalaSessionState`; and `_faseAntesDeTraduzirDeNovo`, the phase a frase opened to be told again left,
 which «manter a tradução de antes» returns to, a private field of `SalaSessionNotifier`. Both
 sit beside the other `bt` fields and move with them.
+
+Extended by name (ENG-1223, 2026-10-19), same end date: `btRecomeco`, the arm of
+«recomeçar a tradução» (armed, then ready after 0.6 s, lapsing after 6 s), and `btAviso`,
+the line those gestures write under the circle («tradução recomeçada — o ensaio da passagem
+ficou», «não deu para recomeçar agora — tentem de novo», and her three refusals of a moved
+pause). They sit beside the others on the same two classes and move with them. Clearing her
+«não entendi» on a restart is the machine's, by `TheTranslationStartedOver`, not the
+notifier's.

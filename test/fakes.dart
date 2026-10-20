@@ -2048,7 +2048,7 @@ class FakeRoom implements RoomRepository {
           '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
         );
         replacesComArquivo.add(audio.path);
-        _tellAgain(segmentId);
+        _tellAgain(segmentId, to);
       };
       return later;
     }
@@ -2065,7 +2065,7 @@ class FakeRoom implements RoomRepository {
       serverStatus = 'needs_person';
       serverHalt = HaltKind.warning;
     }
-    _tellAgain(segmentId);
+    _tellAgain(segmentId, to);
     final told = Answered(
       TellingAgain(segments: _numbered, needsPerson: needsPerson),
     );
@@ -2080,7 +2080,7 @@ class FakeRoom implements RoomRepository {
 
   Answered<TellingAgain>? _answerLost;
 
-  void _tellAgain(String segmentId) {
+  void _tellAgain(String segmentId, Duration to) {
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     final antes = at >= 0 ? segments[at] : null;
     if (antes != null) {
@@ -2093,7 +2093,7 @@ class FakeRoom implements RoomRepository {
         segmentId: '${antes.segmentId}-v${++_versoes}',
         takeId: antes.takeId,
         startsMs: antes.startsMs,
-        endsMs: antes.endsMs,
+        endsMs: to.inMilliseconds,
         told: true,
       );
       _retired.add(antes.segmentId);
@@ -2435,6 +2435,27 @@ class FakeRoom implements RoomRepository {
   ) async {
     heardStamps.add(at);
     return failHeardWith ?? const Answered<void>(null);
+  }
+
+  final List<String> restartsAsked = [];
+
+  RoomFailure? failRestartWith;
+
+  List<SegmentView> standingAfterRestart = const [];
+
+  @override
+  Future<RoomAnswer<List<SegmentView>>> startTheTranslationOver(
+    String sessionId,
+  ) async {
+    restartsAsked.add(sessionId);
+    final refusal = failRestartWith;
+    if (refusal != null) return refusal;
+    _retired.addAll(segmentIds);
+    segments
+      ..clear()
+      ..addAll(standingAfterRestart);
+    retroSoFar = null;
+    return Answered(_numbered);
   }
 
   /// Every session the team's approval was sent for, in order.
