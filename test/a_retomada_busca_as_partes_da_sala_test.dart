@@ -413,35 +413,72 @@ void main() {
     );
   });
 
-  test('uma parte que nao baixa volta a escolha e guarda o ponto', () async {
+  test('uma parte que a sala nao tem mais abre o ensaio nessa parte, ainda '
+      'nao gravada', () async {
     final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
 
     final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
-    await _deVoltaAEscolha(it);
-    expect(it.estado.needsPerson, isFalse);
+    await waitFor(
+      'o ensaio abrir',
+      () => it.estado.stage == SalaStage.ensaio && !it.estado.awaitingTheGuide,
+    );
 
-    expect(
-      it.linhaAgora,
-      it.linhaAntes,
-      reason:
-          'meia retomada não é retomada: a linha continua nomeando as '
-          'três gravações que a equipe fez, para a próxima abertura tentar '
-          'de novo',
+    expect(it.estado.needsPerson, isFalse);
+    expect(_nomesDasPartes(it), ['gravacao-1']);
+    expect(it.estado.takes, 1);
+  });
+
+  test(
+    'uma primeira parte que a sala nao tem mais abre o ensaio no comeco',
+    () async {
+      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-1');
+
+      final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+      await waitFor(
+        'o ensaio abrir',
+        () =>
+            it.estado.stage == SalaStage.ensaio && !it.estado.awaitingTheGuide,
+      );
+
+      expect(it.estado.needsPerson, isFalse);
+      expect(it.estado.partes, isEmpty);
+    },
+  );
+
+  test('uma retomada da retro com uma parte que a sala nao tem mais abre o '
+      'ensaio nessa parte', () async {
+    final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1]),
     );
-    expect(it.harness.room.calls, isNot(contains('openSession')));
-    expect(
-      it.estado.partes,
-      isEmpty,
-      reason:
-          'as duas partes que baixaram não fazem um ensaio: tocá-lo com '
-          'um buraco no meio conta à equipe uma história cortada',
+    await waitFor(
+      'o ensaio abrir',
+      () => it.estado.stage == SalaStage.ensaio && !it.estado.awaitingTheGuide,
     );
+
+    expect(it.estado.needsPerson, isFalse);
+    expect(_nomesDasPartes(it), ['gravacao-1']);
+  });
+
+  test('uma sessao que o servidor nao guarda mais, achada ao buscar uma parte, '
+      'volta a escolha', () async {
+    final harness = SalaHarness()..room.failClipWith = const SessionGone();
+
+    final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+    await _deVoltaAEscolha(it);
+
+    expect(it.estado.needsPerson, isFalse);
+    await waitFor('a linha da sessão esquecida sair', () => it.linha == null);
   });
 
   test(
     'na segunda abertura com a sala de volta a equipe cai onde parou',
     () async {
-      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+      final harness = SalaHarness()
+        ..room.failClipWith = const NetworkFailed('a rede caiu');
 
       final parada = await _reabrir(
         harness,
@@ -450,7 +487,7 @@ void main() {
       );
       await _deVoltaAEscolha(parada);
 
-      harness.room.refuseClipOf.clear();
+      harness.room.failClipWith = null;
       final volta = await _reabrirDeNovo(parada);
       await waitFor(
         'a retro voltar',
@@ -621,7 +658,7 @@ void main() {
         case _Falha.aLista:
           harness.room.failTakesWith = const Refused('UNKNOWN_REFERENCE');
         case _Falha.umaParte:
-          harness.room.refuseClipOf.add('gravacao-2');
+          harness.room.failClipWith = const NetworkFailed('a rede caiu');
       }
 
       final it = await _reabrir(

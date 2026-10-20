@@ -187,9 +187,16 @@ const _gestureChain = #gestureChain;
 const _umInstanteOuvido = Duration(milliseconds: 400);
 
 /// What a reopening found where the team left off.
+/// The parts of the rehearsal the room could hand back, and whether that was all of them.
+typedef _PartesDaSala = ({List<KeptTake> partes, bool inteiro});
+
 enum _Resume {
   /// The station they left, standing again, with the rehearsal under it.
   landed,
+
+  /// The room no longer has one of the parts: the Ensaio stands again at that part, not
+  /// recorded, with the parts before it.
+  landedShort,
 
   /// Nothing behind this passage to come back to: it opens at the conversa.
   nothingToRestore,
@@ -2464,7 +2471,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           onde == _Resume.gone) {
         return;
       }
-      if (onde == _Resume.landed) {
+      if (onde == _Resume.landed || onde == _Resume.landedShort) {
         final SessionSnapshot snapshot;
         final sent = ++_readsSent;
         switch (await _room.fetchState(sessionId)) {
@@ -2485,7 +2492,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           moment: snapshot.moment,
           clearMoment: snapshot.moment == null,
         );
-        if (Station.stored(waiting.stage) is Retro) {
+        if (onde == _Resume.landed && Station.stored(waiting.stage) is Retro) {
           _pickTheTellingBackUp(snapshot.backTranslation);
           landed();
           unawaited(_countUnsent());
@@ -2668,6 +2675,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return _Resume.abandoned;
     final faltavam = here.length != waiting.takes.length;
     List<KeptTake>? takes = here;
+    var inteiro = true;
     if (faltavam) {
       // Armed per step, not once around the whole fetch: the ceiling is what a single
       // wait is allowed, and a listing plus a part plus a measurement counted as one wait
@@ -2677,11 +2685,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case Answered(value: final guardadas):
           if (_abandoned(generation)) return _Resume.abandoned;
           switch (await _asPartesDaSala(waiting, guardadas, here, generation)) {
-            case Answered(:final value):
-              takes = value;
+            case Answered(:final value?):
+              takes = value.partes;
+              inteiro = value.inteiro;
+            case Answered():
+              takes = null;
             case NetworkFailed():
               if (_abandoned(generation)) return _Resume.abandoned;
               return _theResumeFailed(const RoomNetworkFailed(), generation);
+            case final SessionGone gone:
+              if (_abandoned(generation)) return _Resume.abandoned;
+              _decideTheFailure(gone);
+              return _Resume.gone;
             case final RoomFailure failure:
               return _theResumeFailed(failure.result, generation);
           }
@@ -2705,7 +2720,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     // A room holding no rehearsal is not a rehearsal to come back to, and it is not a
     // failure either: the conversa is where a passage with nothing behind it starts.
-    if (takes.isEmpty) return _Resume.nothingToRestore;
+    if (takes.isEmpty && inteiro) return _Resume.nothingToRestore;
     // Before the landing, while the room still says it is thinking. Measuring waits on the
     // player, and landed first the team is invited to tap over a rehearsal whose parts
     // have no end yet.
@@ -2732,7 +2747,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _rememberWhereTheyAre(Station.stored(waiting.stage));
     }
     unawaited(_countUnsent());
-    return _Resume.landed;
+    return inteiro ? _Resume.landed : _Resume.landedShort;
   }
 
   /// The room's current parts, kept on a tablet that no longer holds them.
@@ -2754,7 +2769,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Null when the room could not hand the rehearsal over — one part's audio or the
   /// disk. Nothing is written for it: the resume point stays exactly as it was and the
   /// next opening tries again.
-  Future<RoomAnswer<List<KeptTake>?>> _asPartesDaSala(
+  /// The rehearsal the room holds, as far as its parts can be had: a part the room no
+  /// longer has ends it there, and [inteiro] says so.
+  Future<RoomAnswer<_PartesDaSala?>> _asPartesDaSala(
     ResumePoint waiting,
     List<TakeView> guardadas,
     List<KeptTake> aqui,
@@ -2793,8 +2810,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           audio = value;
         case NetworkFailed() && final fell:
           return fell;
-        case Answered() || Refused() || SessionGone():
-          return const Answered(null);
+        case SessionGone() && final gone:
+          return gone;
+        case Answered() || Refused():
+          return Answered((partes: partes, inteiro: false));
       }
       final String arquivo;
       try {
@@ -2805,7 +2824,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       } on Exception {
         return const Answered(null);
       }
-      if (_abandoned(generation)) return const Answered([]);
+      if (_abandoned(generation)) {
+        return const Answered((partes: <KeptTake>[], inteiro: true));
+      }
       partes.add(
         KeptTake(
           scopeId: escopo,
@@ -2815,7 +2836,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ),
       );
     }
-    return Answered(partes);
+    return Answered((partes: partes, inteiro: true));
   }
 
   /// How long each part turned out to be, so the room knows where each part ends.
