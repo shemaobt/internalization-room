@@ -194,6 +194,10 @@ _Avoid_: trecho, segment (the wire name), chunk (the ephemeral position)
 The point where the team says a frase ends while listening back, snapped to the middle of the nearest silence; moved and heard with her three controls «um pouco antes», «ouvir a pausa» and «um pouco depois». A Stretch ends at its pause, and so does a Scene frase.
 _Avoid_: cut, corte, Cortar aqui (ruled out by Marcia on 2026-09-15), split point, boundary
 
+**Restart** («recomeçar a tradução»):
+Two taps on the scene rehearsal: the first arms it and names how many frases it discards, and it disarms by itself after six seconds; the second sets those frases aside in the room and keeps the recording. Nothing is deleted.
+_Avoid_: reset, Zerar (the facilitator's), Recomeço
+
 **Capture**:
 The back-translation's open microphone, between the scissors and the tap on the circle. A closed capture becomes a stretch; a halt that lands inside one closes it and keeps nothing.
 _Avoid_: recording, gravação, chunk (the wire's name)
