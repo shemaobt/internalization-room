@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'a_wav_take.dart';
@@ -178,6 +179,99 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  testWidgets('the bar of the last frase says her line that the pause may move', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..recorder.rehearsalSpeaks = _duasLacunas;
+    final container = await _duasFrasesNoVeredito(
+      tester,
+      harness,
+      apontada: 'trecho-1',
+    );
+
+    await tocar(tester, _barra(2));
+
+    expect(
+      find.text(
+        'traduzindo de novo a frase 2 — se precisar, movam a pausa; depois toquem no círculo',
+      ),
+      findsOneWidget,
+      reason: 'a tela não dizia que a pausa da última frase se move',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'the bar of an earlier frase keeps its pause, dims her controls and says why',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(
+        tester,
+        harness,
+        apontada: 'trecho-2',
+      );
+
+      await tocar(tester, _barra(1));
+
+      for (final controle in [antes, ouvirAPausa, depois]) {
+        expect(
+          aceso(tester, controle),
+          isFalse,
+          reason: 'a pausa de uma frase do meio mudava o começo da seguinte',
+        );
+      }
+      final corte = container.read(salaSessionProvider).btCorte;
+      await tocar(tester, depois);
+      expect(container.read(salaSessionProvider).btCorte, corte);
+      expect(
+        find.text(
+          'traduzindo de novo a frase 1 — toquem no círculo (a pausa só se move na última frase; para mudar uma pausa anterior, recomeçar a tradução)',
+        ),
+        findsOneWidget,
+        reason: 'a tela não dizia por que a pausa da frase do meio não se move',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'the findings retell after the bar of an earlier frase says the plain line again',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(
+        tester,
+        harness,
+        apontada: 'trecho-1',
+      );
+      await tocar(tester, _barra(1));
+      await tocar(tester, 'manter a tradução de antes');
+      await _passo(tester);
+
+      await tocar(tester, 'Traduzir este trecho de novo');
+
+      expect(
+        find.text('traduzindo de novo a frase 1 — toquem no círculo'),
+        findsOneWidget,
+        reason: 'a linha da barra ficava no reconto que veio do achado',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  test('her two retell lines are hers in English too', () {
+    expect(
+      sceneRehearsalLabelFor('retellingLast', 'en', n: 2),
+      'translating sentence 2 again — move the pause if you need to; then tap the circle',
+    );
+    expect(
+      sceneRehearsalLabelFor('retellingOther', 'en', n: 1),
+      'translating sentence 1 again — tap the circle (the pause only moves on the last sentence; to change an earlier pause, start the translation over)',
+    );
+  });
 
   testWidgets(
     'an earlier frase told again keeps its pause, with her controls dimmed',
