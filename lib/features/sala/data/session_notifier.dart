@@ -6118,7 +6118,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case final RoomFailure failure:
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
-        _theTranslationWaits(failure);
         _theCorrectionFailed(failure);
         return;
     }
