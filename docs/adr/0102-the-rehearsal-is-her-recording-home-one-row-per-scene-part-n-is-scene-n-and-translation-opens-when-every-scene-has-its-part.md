@@ -35,8 +35,12 @@ and, since ENG-1207, the scene rehearsal it was joined from (`origin`), but no s
   its `ordinal`, never by its place in the listing, so a room holding part 3 alone shows it
   on row 3. The current part under a number is the newest row for it, as the server reads
   it, so a joined part recorded again by the team is no longer joined. A recording the room
-  holds with no number is the rehearsal an app before 19 August sent whole: it comes back whole: no scene's part, outside the rows and the
-  gate, and still played, measured and told back in the Back-translation.
+  holds with no number is the rehearsal an app before 19 August sent whole. It is no
+  scene's part and stays out of the rows and the gate. While it is the only recording it is
+  played, told and checked in the Back-translation, and a finding on it sends the team to
+  the scene rows with nothing marked; the moment the first scene part lands it is set
+  aside, kept with what was told over it and never deleted, and no longer played, told or
+  counted (the Definer, 20 October).
 - **The Rehearsal opens the Back-translation only once every scene has its part.** The
   rule lives in the machine: the Rehearsal Station carries whether every scene has its part,
   weighed again whenever its parts or its scene list change, and does not answer the
