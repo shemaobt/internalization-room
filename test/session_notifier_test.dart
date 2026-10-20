@@ -3956,7 +3956,7 @@ void main() {
   );
 
   test(
-    'a passage that opens brings down the acknowledgements and her start, tell and approval lines before the team speaks',
+    'a passage that opens brings down the acknowledgements and her start, tell, unheard and approval lines before the team speaks',
     () async {
       final harness = SalaHarness();
       final container = await inConversa(harness);
@@ -3970,6 +3970,7 @@ void main() {
           ('F2', testLanguage),
           ('P0', testLanguage),
           ('P1', testLanguage),
+          ('P2', testLanguage),
           ('P3', testLanguage),
         ]),
         reason:
@@ -4005,6 +4006,7 @@ void main() {
           ('F2', testLanguage),
           ('P0', testLanguage),
           ('P1', testLanguage),
+          ('P2', testLanguage),
           ('P3', testLanguage),
         ]),
       );
