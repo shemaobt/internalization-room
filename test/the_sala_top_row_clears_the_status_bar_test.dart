@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show byLabel;
 import 'sala_screen_test.dart' show pumpSala;
 
 void _onAPhone(
@@ -26,6 +28,13 @@ Future<ProviderContainer> _atTheRecordingHome(WidgetTester tester) async {
   await notifier.goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 300));
   notifier.goEnsaio();
+  await tester.pump(const Duration(milliseconds: 1600));
+  return container;
+}
+
+Future<ProviderContainer> _inTheConversa(WidgetTester tester) async {
+  final container = await pumpSala(tester, SalaHarness());
+  await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 1600));
   return container;
 }
@@ -59,6 +68,42 @@ void main() {
               .dy,
           greaterThanOrEqualTo(bar),
           reason: 'o título ficava debaixo da barra de estado',
+        );
+        closeTheRoom(container);
+      },
+    );
+
+    testWidgets('the necklace hangs below the status bar, not across it, on a '
+        '${width.toInt()} px screen', (tester) async {
+      _onAPhone(tester, width: width, bar: bar);
+      final container = await _inTheConversa(tester);
+
+      final beads = find.descendant(
+        of: find.byType(ColarOverlay),
+        matching: find.byType(AnimatedContainer),
+      );
+      expect(beads, findsWidgets);
+      for (var i = 0; i < beads.evaluate().length; i++) {
+        expect(
+          tester.getTopLeft(beads.at(i)).dy,
+          greaterThanOrEqualTo(bar),
+          reason: 'a conta $i do colar ficava sobre o relógio',
+        );
+      }
+      closeTheRoom(container);
+    });
+
+    testWidgets(
+      'the corner button stays where the conversa always carried it, 118 px '
+      'under the status bar, on a ${width.toInt()} px screen',
+      (tester) async {
+        _onAPhone(tester, width: width, bar: bar);
+        final container = await _inTheConversa(tester);
+
+        expect(
+          tester.getTopLeft(byLabel('Escolher outra passagem')),
+          Offset(14, 118 + bar),
+          reason: 'o botão do canto andou de onde a conversa o deixava',
         );
         closeTheRoom(container);
       },
