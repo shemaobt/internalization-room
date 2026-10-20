@@ -909,6 +909,7 @@ class SalaSessionState {
 
   bool get canHearAFrase =>
       stage == SalaStage.retro &&
+      partes.isNotEmpty &&
       !needsPerson &&
       !offline &&
       btRegravacao == null &&

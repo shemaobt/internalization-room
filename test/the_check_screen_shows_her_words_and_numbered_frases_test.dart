@@ -516,6 +516,46 @@ void main() {
     },
   );
 
+  testWidgets('the loudspeaker of a frase is dimmed when this tablet holds no '
+      'rehearsal to play it from', (tester) async {
+    _telaAlta(tester);
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+    );
+    harness.room.retroSoFar = const BackTranslationProgress(
+      checked: true,
+      segments: _quatroFrases,
+    );
+    final container = harness.container();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const SalaApp()),
+    );
+    await _passo(tester);
+    unawaited(
+      container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth', pericope: 'P01'),
+    );
+    await waitFor(
+      'a tradução conferida voltar sem gravação neste tablet',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    expect(container.read(salaSessionProvider).partes, isEmpty);
+
+    expect(
+      aceso(tester, 'ouvir a minha tradução da frase 3'),
+      isFalse,
+      reason:
+          'o alto-falante seguia aceso numa sessão sem gravação nenhuma no '
+          'aparelho, e respondia com silêncio',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a bead says the frase the room numbered, or the parte it lies '
       'in, never «Trecho»', (tester) async {
     _telaAlta(tester);
