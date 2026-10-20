@@ -212,60 +212,60 @@ _PortaDaRecusa? _portaDaRecusa(String blocker) => switch (blocker) {
 };
 
 class SalaSessionNotifier extends Notifier<SalaSessionState> {
-  final Map<String, Timer> _timers = {};
-  int _readsSent = 0;
-  int _readsApplied = 0;
-  int _readsSentBeforeTheCall = 0;
-  int _roomFailures = 0;
-  final Set<String> _contadasSemResposta = {};
-  int _resumeFailures = 0;
-  final Set<String> _goneSessions = {};
+  late Map<String, Timer> _timers;
+  late int _readsSent;
+  late int _readsApplied;
+  late int _readsSentBeforeTheCall;
+  late int _roomFailures;
+  late Set<String> _contadasSemResposta;
+  late int _resumeFailures;
+  late Set<String> _goneSessions;
 
   /// When and in what language the session now open was created, so a row rewritten by
   /// a later stage advance carries them instead of going blank the moment the team leaves
   /// the conversa. A resume judges by the language; the date is the record of when the
   /// session was born, and nothing decides by it (ADR 0031).
-  DateTime? _sessionSavedAt;
-  String? _sessionLanguage;
-  ({String id, String language})? _panoramaHeld;
-  int _calmTurns = 0;
-  Future<void> Function()? _pending;
-  CurrentSession? _landingOn;
+  late DateTime? _sessionSavedAt;
+  late String? _sessionLanguage;
+  late ({String id, String language})? _panoramaHeld;
+  late int _calmTurns;
+  late Future<void> Function()? _pending;
+  late CurrentSession? _landingOn;
 
   /// What plays the reply of the turn the machine holds in flight, and the gestures that
   /// wait on it, until the look the machine asks for comes back (ENG-1444 moves it).
-  final Map<Turn, _AwaitedReply> _awaitedReplies = {};
-  final Map<String, String> _stretchKeys = {};
-  bool _strandedSpoken = false;
-  bool _personAsked = false;
-  int _lastAcknowledgement = 0;
+  late Map<Turn, _AwaitedReply> _awaitedReplies;
+  late Map<String, String> _stretchKeys;
+  late bool _strandedSpoken;
+  late bool _personAsked;
+  late int _lastAcknowledgement;
   final _random = Random();
-  DateTime? _listeningSince;
-  bool _recordingStarting = false;
-  _Passage? _emCurso;
+  late DateTime? _listeningSince;
+  late bool _recordingStarting;
+  late _Passage? _emCurso;
   Trecho? get _trechoTraduzidoDeNovo => state.btTrechoTraduzidoDeNovo;
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
       ? state.copyWith(clearTrechoTraduzidoDeNovo: true)
       : state.copyWith(btTrechoTraduzidoDeNovo: trecho);
-  BtPhase? _faseAntesDeTraduzirDeNovo;
+  late BtPhase? _faseAntesDeTraduzirDeNovo;
 
-  final Set<String> _traducoesGuardadas = {};
+  late Set<String> _traducoesGuardadas;
 
   /// The outbox row a guarded translation landed on, by the path it was guarded for.
   ///
   /// Populated once `_guard` has actually enqueued the file, so a discard that races
   /// ahead of that enqueue finds nothing to withdraw — the same window `_semNome`
   /// already lives with for the rehearsal's own rows.
-  final Map<String, PendingTake> _traducaoNaFila = {};
+  late Map<String, PendingTake> _traducaoNaFila;
 
-  int _captureFails = 0;
+  late int _captureFails;
 
   /// Whether the part currently chosen has ever actually gone in the air.
   ///
   /// False only between the entry picking a part and `_tocarParteDaRetro` landing it —
   /// the one window nothing else in state tells apart from a part a hold left silent
   /// partway through.
-  bool _parteJaTocou = false;
+  late bool _parteJaTocou;
 
   Duration get _trechoStart => state.btCursor;
 
@@ -293,15 +293,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// naming any part but the last made the team cross and listen through everything after
   /// it to get the press back, which is hearing the story again: the very thing the jump
   /// over the ground already told exists to spare them.
-  bool _pousadaNaParteApontadaPelaRecusa = false;
+  late bool _pousadaNaParteApontadaPelaRecusa;
 
   /// The approval is in the air, and the approval has landed.
   ///
   /// Two, not one: the first stops a second press from minting a second request while the
   /// first is still out, and the second stops one after the answer is in, when the room is
   /// already speaking the line and closing the necklace.
-  bool _aprovando = false;
-  bool _aprovada = false;
+  late bool _aprovando;
+  late bool _aprovada;
 
   /// How long each part of the rehearsal turned out to be, by the file the part is kept
   /// as and never by where the part sits in the row.
@@ -310,38 +310,38 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// would outlive it. Keyed by the file, a swapped part needs only its own measurement,
   /// and the listening ledger — keyed by the file too — cannot disagree with the ruler
   /// about which recording a length belongs to.
-  final Map<String, int> _tamanhoDaParteMs = {};
-  final Map<String, Envelope?> _envelopes = {};
-  final EscutaDasPartes _escuta = EscutaDasPartes();
-  int _desdeMs = 0;
+  late Map<String, int> _tamanhoDaParteMs;
+  late Map<String, Envelope?> _envelopes;
+  late EscutaDasPartes _escuta;
+  late int _desdeMs;
 
   /// The opening turn this instance is asking for, minted once and carried across every
   /// retry of it — a resend under a fresh id is a fresh id the server has never seen, so
   /// it runs the whole pipeline again instead of answering with what it already produced.
-  String? _openTurnId;
-  bool _openingOwed = false;
-  TurnClock? _pendingClock;
-  TurnClock? _coverageClock;
+  late String? _openTurnId;
+  late bool _openingOwed;
+  late TurnClock? _pendingClock;
+  late TurnClock? _coverageClock;
 
-  String? _pendingTakePath;
-  StreamSubscription<void>? _outboxFalls;
-  StreamSubscription<String>? _outboxGone;
+  late String? _pendingTakePath;
+  late StreamSubscription<void>? _outboxFalls;
+  late StreamSubscription<String>? _outboxGone;
   late EffectRunner _runner;
-  StreamSubscription<CoverageEvent>? _coverageWatch;
-  String? _coverageSessionId;
-  String? _awaitingCoverageTurnId;
-  String? _resolvedCoverageTurnId;
-  String? _coverageReopenedForTurnId;
-  Coverage? _heldCoverage;
-  TurnClock? _heldCoverageClock;
+  late StreamSubscription<CoverageEvent>? _coverageWatch;
+  late String? _coverageSessionId;
+  late String? _awaitingCoverageTurnId;
+  late String? _resolvedCoverageTurnId;
+  late String? _coverageReopenedForTurnId;
+  late Coverage? _heldCoverage;
+  late TurnClock? _heldCoverageClock;
   int _lines = 0;
   int _gestures = 0;
-  final Map<int, int> _handedOff = {};
-  final Set<int> _waitingOnTheGeneration = {};
-  final Map<Line, Completer<Said>> _sayings = {};
-  final List<Completer<MicOutcome>> _closings = [];
-  VoidCallback? _onPlaybackComplete;
-  VoidCallback? _onPlaybackFailed;
+  late Map<int, int> _handedOff;
+  late Set<int> _waitingOnTheGeneration;
+  late Map<Line, Completer<Said>> _sayings;
+  late List<Completer<MicOutcome>> _closings;
+  late VoidCallback? _onPlaybackComplete;
+  late VoidCallback? _onPlaybackFailed;
 
   FacilitatorVoiceService get _voice => ref.read(facilitatorVoiceProvider);
   SoundPort get _sound => ref.read(soundPortProvider);
@@ -370,15 +370,75 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// container is disposed throws, and the throw lands in no one's `catch` — it showed up
   /// as two tests that failed only on a slower machine, which is the same thing happening
   /// where nobody was looking.
-  bool _gone = false;
+  late bool _gone;
 
   int _highestGeneration = 0;
   int _firstGeneration = 0;
 
+  void _aNewLife() {
+    _timers = {};
+    _readsSent = 0;
+    _readsApplied = 0;
+    _readsSentBeforeTheCall = 0;
+    _roomFailures = 0;
+    _contadasSemResposta = {};
+    _resumeFailures = 0;
+    _goneSessions = {};
+    _sessionSavedAt = null;
+    _sessionLanguage = null;
+    _panoramaHeld = null;
+    _calmTurns = 0;
+    _pending = null;
+    _landingOn = null;
+    _awaitedReplies = {};
+    _stretchKeys = {};
+    _strandedSpoken = false;
+    _personAsked = false;
+    _lastAcknowledgement = 0;
+    _listeningSince = null;
+    _recordingStarting = false;
+    _emCurso = null;
+    _faseAntesDeTraduzirDeNovo = null;
+    _traducoesGuardadas = {};
+    _traducaoNaFila = {};
+    _captureFails = 0;
+    _parteJaTocou = false;
+    _pousadaNaParteApontadaPelaRecusa = false;
+    _aprovando = false;
+    _aprovada = false;
+    _tamanhoDaParteMs = {};
+    _envelopes = {};
+    _escuta = EscutaDasPartes();
+    _desdeMs = 0;
+    _openTurnId = null;
+    _openingOwed = false;
+    _pendingClock = null;
+    _coverageClock = null;
+    _pendingTakePath = null;
+    _coverageWatch = null;
+    _coverageSessionId = null;
+    _awaitingCoverageTurnId = null;
+    _resolvedCoverageTurnId = null;
+    _coverageReopenedForTurnId = null;
+    _heldCoverage = null;
+    _heldCoverageClock = null;
+    _handedOff = {};
+    _waitingOnTheGeneration = {};
+    _sayings = {};
+    _closings = [];
+    _onPlaybackComplete = null;
+    _onPlaybackFailed = null;
+    _launching = null;
+    _launched = false;
+    _inboxRead = null;
+    _semNome = {};
+    _newestCount = 0;
+  }
+
   @override
   SalaSessionState build() {
+    _aNewLife();
     _gone = false;
-    _launching = null;
     listenSelf((_, now) {
       if (now.anArmedKnotLapsed) state = now.copyWith(noteMode: false);
       _highestGeneration = max(_highestGeneration, now.machine.generation);
@@ -1632,8 +1692,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  Future<void>? _launching;
-  bool _launched = false;
+  late Future<void>? _launching;
+  late bool _launched;
 
   /// Land on the Current session while the room still holds it, and on the Choice
   /// otherwise, unless the team already stands somewhere in the room. The record is read
@@ -3003,7 +3063,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return true;
   }
 
-  Future<void>? _inboxRead;
+  late Future<void>? _inboxRead;
 
   void lookForReplies() => unawaited(_pullInbox());
 
@@ -4347,7 +4407,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// A row that did not land on the flush its keep ran — refused, or held behind an
   /// earlier recording of its own part — lands on a later one, and the take has to learn
   /// its name then. Kept by row and not by scope, for the reason `takeIdOf` gives.
-  final Map<String, String> _semNome = {};
+  late Map<String, String> _semNome;
 
   Future<void> _guard(
     String path, {
@@ -4548,7 +4608,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// This is not the generation guard below it and does not replace it. That one is about
   /// a session that has ended publishing over the one that replaced it — a different
   /// question, and still asked.
-  int _newestCount = 0;
+  late int _newestCount;
 
   Future<void> _countUnsent() => _apart(() async {
     if (_gone) return;

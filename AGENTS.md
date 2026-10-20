@@ -70,6 +70,11 @@ person sign, resuming, an upload, a Station) lands as an event and a transition,
 at the machine level and in the generator (`test/machine_generator.dart`). It never lands as a
 new field or branch in the notifier.
 
+Every field of `SalaSessionNotifier` that belongs to a life is declared `late` with no
+initializer and born in `_aNewLife()`; only the generation's high-water mark and the gesture
+and line counters cross lives (enforced by
+`test/every_field_of_the_room_is_born_with_its_life_test.dart`).
+
 The migration runs in slices under ENG-1160 while plan work continues. Code that is still in
 the notifier moves out only through those slices. Rebase onto them, and build new lifecycle
 work on the machine. The one written exception: the Retro screen keeps its notifier fields,

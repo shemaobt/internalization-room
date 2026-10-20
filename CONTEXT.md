@@ -472,3 +472,7 @@ _Avoid_: código, pairing code, device code, credential (what the link yields af
 **Device link**:
 The bond between one tablet and one team, drawn once a claim code is spent, and carrying the device credential: the only thing the tablet sends to be let in, on every request thereafter. Unlinking the tablet from the Desk revokes the credential, and the tablet returns to a fresh claim code.
 _Avoid_: vínculo, pairing, enrolment
+
+**Life**:
+The room from the moment a device link opens it until the link is revoked or the app ends. Everything the room keeps in memory is born with it, and nothing of one life reaches the next (ADR 0070); an answer from an earlier life is dropped by its generation.
+_Avoid_: instance, launch (a launch begins a life; a relink begins another), session (a session is the server's)
