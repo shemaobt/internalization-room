@@ -2080,6 +2080,11 @@ class FakeRoom implements RoomRepository {
     turnIdsAsked.add(turnId);
     if (openedSessions.contains(sessionId)) {
       sessionsSaidAgain.add(sessionId);
+      final saidAgain = await _theLineSaidAgainArrives().timeout(
+        RoomRepository.turnTimeout,
+        onTimeout: () => const NetworkFailed('timeout'),
+      );
+      if (saidAgain != null) return saidAgain;
       return Answered(
         TurnResult(
           sessionId: sessionId,
@@ -2107,8 +2112,33 @@ class FakeRoom implements RoomRepository {
   /// waiting) is still there for the one look.
   bool turnsLandBeforeTheyFail = false;
 
-  /// Whether the one look finds the turn still in flight, the route's 202.
-  bool looksFindTheTurnInFlight = false;
+  /// How many looks find the turn still being answered, the route's 202, before a look
+  /// reads what the room stored.
+  int looksStillAnswering = 0;
+
+  /// What the looks after the room's last «still answering» answer instead of reading what
+  /// is stored, one each, in order.
+  final List<RoomFailure> looksFailAfterwards = [];
+
+  Completer<void>? _holdingTheLineSaidAgain;
+
+  /// Hold the room's last line said again on an Opened session, the way a slow room does.
+  void holdTheLineSaidAgain() => _holdingTheLineSaidAgain = Completer<void>();
+
+  void finishTheLineSaidAgain() {
+    _holdingTheLineSaidAgain?.complete();
+    _holdingTheLineSaidAgain = null;
+  }
+
+  /// What the next line said again on an Opened session answers instead of the line.
+  RoomFailure? failTheLineSaidAgainWith;
+
+  Future<RoomFailure?> _theLineSaidAgainArrives() async {
+    await _holdingTheLineSaidAgain?.future;
+    final failure = failTheLineSaidAgainWith;
+    failTheLineSaidAgainWith = null;
+    return failure;
+  }
 
   RoomFailure? failLooksWith;
 
@@ -2146,7 +2176,11 @@ class FakeRoom implements RoomRepository {
     if (held != null) await held.future;
     if (_guard('lookAtTheTurn') case final failure?) return failure;
     if (failLooksWith case final failure?) return failure;
-    if (looksFindTheTurnInFlight) return Refused(RefusalCode.unnamed(202));
+    if (looksStillAnswering > 0) {
+      looksStillAnswering--;
+      return Refused(RefusalCode.unnamed(202));
+    }
+    if (looksFailAfterwards.isNotEmpty) return looksFailAfterwards.removeAt(0);
     final stored = _stored[(sessionId, turnId)];
     return stored == null
         ? const Refused(RefusalCode.notFound)
@@ -2156,6 +2190,11 @@ class FakeRoom implements RoomRepository {
   Completer<void>? _holdingLook;
 
   void holdTheLooks() => _holdingLook = Completer<void>();
+
+  void finishTheLooks() {
+    _holdingLook?.complete();
+    _holdingLook = null;
+  }
 
   Completer<void>? _substituicaoSegura;
 
@@ -3333,6 +3372,7 @@ class SalaHarness {
   final bool watchesWithoutAHalt;
   final List<Duration> retryBackoff;
   final Duration? busyCeiling;
+  final Duration lookAgain;
   final Duration? rewarm;
   final Duration? playbackCeiling;
   final Duration clipGrace;
@@ -3364,6 +3404,7 @@ class SalaHarness {
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.connectivity,
     this.busyCeiling,
+    this.lookAgain = const Duration(seconds: 2),
     this.rewarm,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
@@ -3445,6 +3486,7 @@ class SalaHarness {
     coverageFallbackDelayProvider.overrideWithValue(settleDelay),
     roomRetryBackoffProvider.overrideWithValue(retryBackoff),
     busyStateCeilingProvider.overrideWithValue(busyCeiling),
+    lookAgainIntervalProvider.overrideWithValue(lookAgain),
     connectionRewarmIntervalProvider.overrideWithValue(rewarm),
     playbackCeilingProvider.overrideWithValue(playbackCeiling),
     clipGraceProvider.overrideWithValue(clipGrace),

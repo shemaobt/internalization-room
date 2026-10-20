@@ -33,6 +33,7 @@ void main() {
       retryDelay: (step) => step == 0 ? _first : _last,
       partCeiling: () => null,
       clipGrace: () => Duration.zero,
+      lookAgainAfter: () => Duration.zero,
       offlineNotice: () =>
           const Line(LineKind.offlineNotice, 0, asset: 'offline.mp3'),
       generation: () => machine.generation,

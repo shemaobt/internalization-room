@@ -101,7 +101,11 @@ void main() {
         );
 
         expect(harness.room.sessionsSaidAgain, [session]);
-        expect(harness.room.turnIdsAsked.last, isNull);
+        expect(
+          harness.room.turnIdsAsked.last,
+          allOf(isNotNull, isNot(harness.room.turnIdsAsked.first)),
+          reason: 'o dito de novo vai sob um turn id próprio (ADR 0097)',
+        );
 
         await waitFor(
           'the room to rest again',

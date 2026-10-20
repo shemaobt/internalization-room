@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -329,7 +330,7 @@ void main() {
   );
 
   test(
-    'the one look reads the reply the room stored for one turn, and anything else as nothing to play',
+    'a look reads 200 as landed, 202 as still answering and anything else as nothing landed',
     () async {
       final looked = <String>[];
       var status = 200;
@@ -357,13 +358,26 @@ void main() {
       final room = container.read(roomPortProvider);
       const turn = Turn('sessao-1', 'turno-9');
 
-      expect((await room.lookAt(turn))?.turnId, 'turno-9');
+      expect(
+        await room.lookAt(turn),
+        isA<TheReplyLanded>().having(
+          (landed) => landed.reply.turnId,
+          'turn id',
+          'turno-9',
+        ),
+      );
       expect(looked, [
         'GET /api/internalization-room/sessions/sessao-1/turns/turno-9',
       ]);
-      for (final nothing in [202, 404, 500]) {
+      status = 202;
+      expect(await room.lookAt(turn), isA<StillAnswering>());
+      for (final nothing in [404, 500]) {
         status = nothing;
-        expect(await room.lookAt(turn), isNull, reason: 'HTTP $nothing');
+        expect(
+          await room.lookAt(turn),
+          isA<NothingLanded>(),
+          reason: 'HTTP $nothing',
+        );
       }
     },
   );

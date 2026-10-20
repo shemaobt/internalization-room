@@ -78,16 +78,9 @@ cross lives (enforced by `test/every_field_of_the_room_is_born_with_its_life_tes
 
 Lifecycle code still in the notifier moves out to the machine through slices, and new lifecycle
 work is built on the machine. The one written exception: the Retro screen keeps its notifier fields,
-`btFindings`, `btConferindo`, `btRecusa`, `btVeredito`, `btRecomeco`, `btAviso`, `btRegravacao`,
-`btFraseQueAguarda` and `btFraseGuardada` included, and its report that the verdict was heard, until
-after the 2 November tablet freeze (ADR 0046).
-
-The migration runs in slices under ENG-1160 while plan work continues. Code that is still in
-the notifier moves out only through those slices. Rebase onto them, and build new lifecycle
-work on the machine. The one written exception: the Retro screen keeps its notifier fields,
-`btFindings`, `btConferindo`, `btRecusa`, `btVeredito`, `btRecomeco`, `btAviso`,
-`btPausaSoNaUltima`, `btRegravacao`, `btFraseQueAguarda` and `btFraseGuardada` included, and
-its report that the verdict was heard, until after the 2 November tablet freeze (ADR 0046).
+`btFindings`, `btConferindo`, `btRecusa`, `btVeredito`, `btRecomeco`, `btAviso`, `btPausaSoNaUltima`,
+`btRegravacao`, `btFraseQueAguarda` and `btFraseGuardada` included, and its report that the verdict
+was heard, until after the 2 November tablet freeze (ADR 0046).
 
 ## Secrets
 

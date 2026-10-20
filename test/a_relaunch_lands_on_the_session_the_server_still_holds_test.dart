@@ -187,9 +187,38 @@ void main() {
         );
 
         expect(again.harness.room.sessionsSaidAgain, [session]);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        expect(
+          again.harness.voice.played.where((url) => url == deNovoUrl),
+          hasLength(1),
+        );
       },
     );
   });
+
+  test(
+    'a relaunch while the conversation\'s microphone is open loses that take and says nothing',
+    () async {
+      final first = await _inP01();
+      final session = first.state.sessionId!;
+      final sent = first.harness.room.turnsSent;
+      first.notifier.conversaTap();
+      await waitFor(
+        'the microphone to open',
+        () => first.harness.recorder.captures == 1,
+      );
+
+      final again = await _relaunch(first);
+      await again.notifier.openTheRoom();
+      await _landsOn(again, session);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
+      expect(again.state.sessionId, session);
+      expect(again.harness.room.turnsSent, sent);
+      expect(await again.harness.takes.entries(), isEmpty);
+      expect(again.said, isEmpty);
+    },
+  );
 
   test(
     'a relaunch into a session whose Opening never landed asks nothing',
