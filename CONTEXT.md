@@ -167,6 +167,10 @@ _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 A recording the team kept, identified locally by its scope (part or whole passage) and, after upload, by the server's identifier.
 _Avoid_: gravação, recording (too general), audio
 
+**Recording time** (`recorded_at`):
+The moment a take's recording stopped, on the tablet's own clock, read from the recording file when the take enters the Outbox. The Outbox row keeps it with the take's length (WAV only) and fingerprint, and every try sends the three unchanged, however late. The tablet never corrects its clock; the server notes how far off it was (**Clock offset**, on a joined part only).
+_Avoid_: upload time, timestamp, created_at
+
 **Accidental tap**:
 A scene take or a part too short to be anything the team said, or one the recorder handed back nothing for. It leaves nothing behind (ADR 0086).
 _Avoid_: empty take, short take, capture guard (the Conversation's window)
@@ -317,7 +321,7 @@ A session that holds a Guide line, its Opening at least. The room asks a session
 _Avoid_: started, begun
 
 **Outbox**:
-The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it.
+The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it. Each row keeps its recording's **Recording time**, its length when it is a WAV and its fingerprint (sha256), fixed when the row is written; a row an older app wrote has none and sends none.
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Resume point**:

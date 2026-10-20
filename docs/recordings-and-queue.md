@@ -25,6 +25,8 @@ connection that comes and goes, never a session worked without one.
 Takes and stretches waiting to reach the server are copied into the outbox, whose manifest
 survives the app closing. Each row names its file rather than an absolute path, so the
 outbox still finds the audio after a restore or a reinstall changes the container prefix.
+Each row also keeps when its recording stopped, its length when it is a WAV and its fingerprint,
+fixed when the row is written and sent with every try (ADR 0104).
 The copy is kept after upload: the Rehearsal and the back-translation are the team's
 product.
 
