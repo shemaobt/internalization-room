@@ -1280,6 +1280,47 @@ void main() {
     );
   });
 
+  test(
+    'a conferida whose verdict could not read the names back still leads the '
+    'team to the stretch a refusal names',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      it.harness.room
+        ..verdictChecked = true
+        ..failStateOnceWith = Refused(RefusalCode.unnamed(400));
+      await pedirOVeredito(it);
+
+      expect(it.estado.btPhase, BtPhase.conferida);
+      expect(
+        it.estado.btTrechos.map((trecho) => trecho.segmentId),
+        everyElement(isNull),
+        reason:
+            'o veredito limpo seguiu para a conferida sem os nomes que não '
+            'conseguiu ler, e é este o chão da recusa',
+      );
+
+      it.harness.room
+        ..releaseBlockers = const ['untold_stretch']
+        ..releaseUntoldSegmentId = 'trecho-2';
+
+      await it.sala.aprovarRascunhoFinal();
+
+      expect(it.estado.needsPerson, isFalse);
+      expect(
+        it.estado.btTrechoTocando,
+        isTrue,
+        reason:
+            'a recusa nomeia um trecho que este tablet não conhecia pelo nome, '
+            'e a leitura que ela faz é a única que resolve o nome',
+      );
+      expect(
+        it.harness.playback.played.last,
+        it.partes[1].path,
+        reason: 'o trecho-2 mora na parte 2',
+      );
+    },
+  );
+
   test('nomeadas a parte não contada e a não ouvida, a equipe entra pela porta '
       'da não contada', () async {
     final it = await _tresPartesAteAConferida();

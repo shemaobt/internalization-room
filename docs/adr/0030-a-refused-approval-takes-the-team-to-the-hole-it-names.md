@@ -49,9 +49,10 @@ for, in the room's own order:** the untold stretch, the untold part, the unheard
 the check not done or never analysed. The order is the room's, not the order the gate
 raised the codes in, and it is read off one list in one place.
 
-**Before the untold-stretch door, the stretches are read back.** A passage that reached
-*conferida* on a clean first verdict never had them named, so it holds the stretches this
-tablet cut, and the name the refusal gives matches none of them.
+**Before the untold-stretch door, the stretches are read back.** A clean verdict reads
+them back before it lands on *conferida*, and lands without them when that read is
+refused; the passage then holds the stretches this tablet cut, and the name the refusal
+gives matches none of them.
 
 **A person is called only when there is nothing the team can do from this screen:** a hole
 with no door, a code this tablet does not know, a named hole whose ground never came, and
