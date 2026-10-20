@@ -173,3 +173,12 @@ sentence as it is, the circle ready, recording, the review, sending, too long),
 `btFraseQueAguarda` (the frase whose new sentence awaits its translation, from the lay-in or
 the session read) and `btFraseGuardada` (the frase whose recording could not be sent and is
 held in the outbox) sit beside them on the same two classes and move with them.
+
+Extended by name (ENG-1419, 2026-10-20), same end date: the Listening ledger's reports to the
+room (as each part ends, on leaving the Back-translation or the passage, when the app goes to
+the background), the ledger's spans written while a part sounds on the Rehearsal, and three
+private fields of `SalaSessionNotifier`: `_oQueFaltaOuvir` (the unheard parts a refusal or the
+entry after a part recorded again is still playing), `_umaParteFoiRegravada` (a part was
+recorded again since the last entry) and `_aTraducaoJaFoiDeixada` (this passage's
+Back-translation was left once in this life). They sit beside the others and move with them
+(ADR 0105).

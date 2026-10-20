@@ -227,7 +227,7 @@ A recording whose transcription holds no words. On the telling doors the server 
 _Avoid_: empty capture, silence, inaudible take
 
 **Listening ledger** (`escuta das partes`):
-What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. A part recorded again starts its listening over while the others keep theirs. The tablet reports it to the room as each part ends, when the team leaves the back-translation or the passage, when the app goes to the background, and with the check; a part the room has not named yet is left out of every report. Which parts are unheard is always the room's answer, never counted on the tablet (ADR 0105).
+What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. It holds only what sounded, on the back-translation and on the rehearsal alike, and entering the back-translation no longer forgets it; leaving the passage does. A part recorded again starts its listening over while the others keep theirs. The tablet reports it to the room as each part ends, when the team leaves the back-translation or the passage, when the app goes to the background, and with the check; a part the room has not named yet is left out of every report. Which parts are unheard is always the room's answer, never counted on the tablet (ADR 0105).
 _Avoid_: `_ouvido`, registro de escuta, played ranges, the concatenated passage, the rehearsal's whole length
 
 **Ruler**:

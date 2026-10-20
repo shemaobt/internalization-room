@@ -16,23 +16,32 @@ the ticket (ENG-1419) on 19 and 20 October.
 
 - **The tablet reports the ledger on the listen door** as each part ends, on the
   Back-translation or on the Rehearsal, when it leaves the Back-translation or the passage,
-  and when the app goes to the background. «terminei» still carries it on the check. A
-  report never closes a span still open, and a failed one changes nothing the team sees
+  and when the app is paused in the background. «terminei» still carries it on the check.
+  A report never closes a span still open, and a failed one changes nothing the team sees
   or hears.
+- **The ledger holds what sounded**, from where the sound started to where it stopped, on
+  the Back-translation and on the Rehearsal alike. One start opens at the part's nought: at
+  the cursor, when that cursor stands on ground already told back of that part, because that
+  ground was heard when it was told. Any other start (a lifted halt, a landing, a replay from
+  the middle) opens where the sound starts.
 - **The room is the only counter.** Which parts are unheard is always its answer; the tablet
   adds only a part the room has not named yet, which nobody can have heard.
 - **Entering the Back-translation no longer forgets the ledger**; leaving the passage does.
   Listening on the Rehearsal therefore counts.
 - **After a part is recorded again**, the next entry into the Back-translation asks the
-  room. Some parts still heard: the screen says «ainda falta ouvir um trecho da gravação»,
-  her P2 is said, and only the unheard parts play, in row order, each from its beginning,
-  stopping after the last with «terminei» lit. Every part unheard: her opening line P0 and
-  the whole recording. No answer, or a room too old to name the parts: today's path.
+  room. Some parts still heard: her P2 is said, and only the unheard parts play, in row
+  order, each from its beginning, stopping after the last with «terminei» lit. Every part
+  unheard: her opening line P0 and the whole recording, every part from its beginning. In
+  both, the screen says «ainda falta ouvir um trecho da gravação» until the last of those
+  parts has played, a stretch told back meanwhile included. No answer, or a room too old to
+  name the parts: today's path.
 - **A refusal for unheard parts** plays every part it names in row order, crossing from one
   to the next. After the last, the crossing into the following part stays offered, as it
-  did after a single landing.
+  did after a single landing: an existing test pins that crossing, and the ticket does not
+  ask to close it; only the replay after a part recorded again stops there.
 - A blocking halt during the replay withholds the sound as it does on any entry; the lifted
-  halt plays the part and the replay still stops where it would have.
+  halt plays the part from where it was held, and the replay still stops where it would
+  have.
 - The reports, the mark and the replay's list live in the notifier beside the Retro screen's
   other fields, under ADR 0046's written exception, until that screen moves to the machine.
 - The mark that a part was recorded again arms only once this passage's Back-translation
