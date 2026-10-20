@@ -238,6 +238,12 @@ class EffectRunner {
           host.handOver(effect);
         case ReadTheWheel():
           host.handOver(effect);
+        case OpenThePanorama():
+          host.handOver(effect);
+        case ReturnToThePanorama():
+          host.handOver(effect);
+        case EnterThePassageLeft():
+          host.handOver(effect);
         case SayTheOfflineNotice():
           _sayTheOfflineNotice();
         case LookAtTheSession(:final turn, :final sounding):

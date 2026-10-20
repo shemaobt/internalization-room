@@ -2223,6 +2223,16 @@ class FakeRoom implements RoomRepository {
   /// Every session id `personArrived` was called for, one entry per attempt.
   final List<String> personArrivedSessions = [];
 
+  Completer<void>? _holdingPersonArrived;
+
+  /// Holds the next arrival ping in flight, so a test can move the room before it lands.
+  void holdNextPersonArrived() => _holdingPersonArrived = Completer<void>();
+
+  void finishHeldPersonArrived() {
+    _holdingPersonArrived?.complete();
+    _holdingPersonArrived = null;
+  }
+
   @override
   Future<RoomAnswer<void>> personArrived(String sessionId) async {
     if (_guard('personArrived') case final failure?) return failure;
@@ -2230,6 +2240,8 @@ class FakeRoom implements RoomRepository {
       return gone;
     }
     personArrivedSessions.add(sessionId);
+    final held = _holdingPersonArrived;
+    if (held != null) await held.future;
     return personArrivedFailsWith ?? const Answered(null);
   }
 

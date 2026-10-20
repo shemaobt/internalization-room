@@ -18,6 +18,7 @@ import '../domain/facilitator_script.dart';
 import '../domain/failure_policy.dart';
 import '../domain/hand_reply.dart';
 import '../domain/kept_take.dart';
+import '../domain/left_entry.dart';
 import '../domain/passagem.dart';
 import '../domain/pausa.dart';
 import '../domain/coverage.dart';
@@ -231,7 +232,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// session was born, and nothing decides by it (ADR 0031).
   late DateTime? _sessionSavedAt;
   late String? _sessionLanguage;
-  late ({String id, String language})? _panoramaHeld;
   late int _calmTurns;
   late Future<void> Function()? _pending;
   late CurrentSession? _landingOn;
@@ -363,7 +363,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   String get _inTheSessionsLanguage => switch (state.station) {
     Menu() => _lingua,
-    Panorama() => _panoramaHeld?.language ?? _lingua,
+    Panorama() => state.machine.panorama?.language ?? _lingua,
     _ => _sessionLanguage ?? _lingua,
   };
 
@@ -390,7 +390,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _goneSessions = {};
     _sessionSavedAt = null;
     _sessionLanguage = null;
-    _panoramaHeld = null;
     _calmTurns = 0;
     _pending = null;
     _landingOn = null;
@@ -607,8 +606,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _endedSince(int? life) => _gone || life != _firstGeneration;
 
   void _endTheGesturesAbandoned() {
-    final abandoned = _waitingOnTheGeneration.difference(_chain.toSet());
-    _waitingOnTheGeneration.clear();
+    final waiting = _waitingOnTheGeneration;
+    _waitingOnTheGeneration = {};
+    _endTheGesturesOf(waiting);
+  }
+
+  void _endTheGesturesOf(Set<int> waiting) {
+    final abandoned = waiting.difference(_chain.toSet());
     if (_gone) return;
     for (final gesture in abandoned.intersection(state.machine.onTheirWay)) {
       _endTheGesture(gesture);
@@ -621,10 +625,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(awaitingTheGuide: false, endOfThePassage: false);
   }
 
-  void _arriveAt(StationEvent arrival) {
+  /// Dispatches an event that may move the Station. A gesture that waited on the
+  /// generation it moves from is ended; one its hand-offs begin on the new one waits on.
+  void _arriveAt(MachineEvent arrival) {
     final generation = _generation;
-    _dispatch(arrival);
-    if (_generation != generation) _endTheGesturesAbandoned();
+    final waiting = _waitingOnTheGeneration;
+    _waitingOnTheGeneration = {};
+    try {
+      _dispatch(arrival);
+    } finally {
+      if (_generation != generation) {
+        _endTheGesturesOf(waiting);
+      } else {
+        _waitingOnTheGeneration.addAll(waiting);
+      }
+    }
   }
 
   void _clearAll() {
@@ -1221,7 +1236,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _theSessionIsClosed(String sessionId) {
     if (_gone) return;
-    if (sessionId == _theSession) {
+    if (sessionId == _sessionId) {
       return _dispatch(ThePassageClosed(generation: _generation));
     }
     _letGoOf(sessionId);
@@ -1443,7 +1458,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
       Panorama(:final id) when !state.panoramaSaid => () => _entrarNoPanorama(
         id,
-        _panoramaHeld?.language,
+        state.machine.panorama?.language,
       ),
       _ => null,
     };
@@ -1836,7 +1851,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.voice == VoiceState.invite) {
       _silenceTheRoom();
-      _handOff(_entrarNoPanorama(station.id, _panoramaHeld?.language));
+      _handOff(_entrarNoPanorama(station.id, state.machine.panorama?.language));
     }
   }
 
@@ -1964,7 +1979,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _openTheEntry(Passagem entry) {
     if (!state.entriesOpen || !state.naRoda!.contains(entry)) return;
     if (state.isTheEntryLeft(entry, language: _lingua)) {
-      _handOff(_returnToTheLeftEntry());
+      _returnToTheLeftEntry();
       return;
     }
     _silenceTheRoom();
@@ -1986,11 +2001,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// for again on every tap: a retried touch would otherwise mint one abandoned panorama
   /// session per attempt.
   Future<void> _entrarNoPanorama(String id, [String? language]) async {
-    final held = (id: id, language: language ?? _lingua);
-    if (_panoramaHeld != held) {
-      state = state.copyWith(clearPanoramaSession: true);
-    }
-    _panoramaHeld = held;
+    final speaking = language ?? _lingua;
+    _dispatch(ThePanoramaAsked(id, speaking));
     _letGoOfTheCurrentSession();
     final generation = _waitOnTheGeneration;
     state = state.copyWith(awaitingTheGuide: true);
@@ -2009,10 +2021,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     SessionSnapshot? created;
     if (state.panoramaSessionId == null) {
-      switch (await _room.createSession(
-        pericope: id,
-        language: held.language,
-      )) {
+      switch (await _room.createSession(pericope: id, language: speaking)) {
         case Answered(value: final session):
           created = session;
         case final RoomFailure failure:
@@ -2021,8 +2030,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_abandoned(generation)) return;
     final panorama = state.panoramaSessionId ?? created!.sessionId;
-    state = state.copyWith(panoramaSessionId: panorama);
-    _runner.run(const [ArmTheWatch()]);
+    _dispatch(TheSessionOpened(panorama, generation: generation));
     _warmHerLines();
     _openingOwed = true;
     final turnId = _openTurnId ??= _stamp();
@@ -2053,14 +2061,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   LeftEntry? _whatTheLeaveLeaves() {
     final station = state.station;
-    final session = _theSession;
+    final session = _sessionId;
     if (station is Panorama) {
       if (session == null) return null;
       return LeftEntry(
         pericope: station.id,
         panorama: true,
         session: session,
-        language: _panoramaHeld?.language,
+        language: state.machine.panorama?.language,
         said: state.panoramaSaid,
       );
     }
@@ -2118,24 +2126,31 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The way back to the entry the team left: a return, not a new entry. The Panorama
   /// comes back silent once its line was said; a passage comes back through the resume.
-  Future<void> returnToTheLeftEntry() => _gestureThen(_returnToTheLeftEntry);
+  Future<void> returnToTheLeftEntry() async => _gesture(_returnToTheLeftEntry);
 
-  Future<void> _returnToTheLeftEntry() async {
+  void _returnToTheLeftEntry() {
     if (!state.theWayBackIsLive) return;
     final left = state.leftEntry!;
     state = state.copyWith(clearLeftEntry: true);
-    switch (left) {
-      case LeftEntry(panorama: true, pericope: final id?):
-        return _returnToThePanorama(id, left);
-      case LeftEntry(panorama: false, :final book?):
-        await goConversa(
-          book: book,
-          pericope: left.pericope,
-          language: left.language,
-        );
-      default:
-        return;
+    if (left case LeftEntry(panorama: true, pericope: final id?)) {
+      _silenceTheRoom();
+      _leaveTheStepFor(Panorama(id));
+      _clearAll();
     }
+    _arriveAt(TheWayBackTaken(left));
+  }
+
+  void _returnToThePanorama() {
+    state = state.copyWith(panoramaSaid: true);
+    unawaited(_pullInbox());
+  }
+
+  Future<void> _enterThePassageLeft(LeftEntry left) async {
+    await goConversa(
+      book: left.book!,
+      pericope: left.pericope,
+      language: left.language,
+    );
     final held = left.held;
     if (held != null &&
         state.sessionId == left.session &&
@@ -2144,34 +2159,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  void _returnToThePanorama(String id, LeftEntry left) {
-    _silenceTheRoom();
-    _leaveTheStepFor(Panorama(id));
-    _clearAll();
-    _arriveAt(ThePanoramaChosen(id));
-    if (left.said && state.panoramaSessionId == left.session) {
-      state = state.copyWith(panoramaSaid: true);
-      _runner.run(const [ArmTheWatch()]);
-      unawaited(_pullInbox());
-      return;
-    }
-    _handOff(_entrarNoPanorama(id, left.language));
-  }
-
-  String? get _theSession => state.sessionId ?? state.panoramaSessionId;
-
   void _theSessionIsGone([String? sessionId]) {
     if (_gone) return;
-    if (sessionId != null && sessionId != _theSession) {
+    if (sessionId != null && sessionId != _sessionId) {
       return _letGoOf(sessionId);
     }
     _dispatch(FailurePolicy.decide(const RoomSessionGone(), _failureContext()));
   }
 
   void _letGoOf(String? sessionId, {List<String> kept = const []}) {
-    if (sessionId != null) _goneSessions.add(sessionId);
-    if (sessionId == state.panoramaSessionId) {
-      state = state.copyWith(clearPanoramaSession: true);
+    if (sessionId != null) {
+      _goneSessions.add(sessionId);
+      _dispatch(TheSessionLetGo(sessionId));
     }
     if (sessionId != null && state.leftEntry?.session == sessionId) {
       state = state.copyWith(clearLeftEntry: true);
@@ -2189,7 +2188,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String language,
     int generation,
   ) async {
-    final after = state.thePanoramaSessionOf(book, held: _panoramaHeld?.id);
+    final after = state.thePanoramaSessionOf(book);
     final answer = await _room.createSession(
       pericope: pericope,
       afterSession: after,
@@ -2204,7 +2203,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _discardTheSession() {
-    final sessionId = _theSession;
+    final sessionId = _sessionId;
     final kept = [for (final take in state.keptTakes) take.path];
     _clearAll();
     _dropThePendingTake();
@@ -2238,7 +2237,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = SalaSessionState(
       reach: state.reach,
       machine: state.machine.withNoPassage(_gesturesOnTheirWay.onTheirWay),
-      panoramaSessionId: state.panoramaSessionId,
     );
     _letGoOfTheCurrentSession();
     _arriveAt(const TheRoomStartedOver());
@@ -2259,11 +2257,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _forgetThePassage();
     _emCurso = passage;
     state = SalaSessionState(
-      machine: _gesturesOnTheirWay,
+      machine: _gesturesOnTheirWay.copyWith(panorama: livro.machine.panorama),
       awaitingTheGuide: true,
       naRoda: livro.naRoda,
       comecadas: livro.comecadas,
-      panoramaSessionId: livro.panoramaSessionId,
     );
     _arriveAt(const PassageChosen());
     _stringTheNecklaceEarly(passage.pericope);
@@ -2381,12 +2378,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_goneSessions.contains(sessionId)) return _openTheChoice();
     if (!resumed) _startTheSessionClean((book: book, pericope: pericope));
     state = state.copyWith(
-      sessionId: sessionId,
       pericope: pericope,
       coverage: created?.coverage,
       moment: created?.moment,
     );
-    _runner.run(const [ArmTheWatch()]);
+    _dispatch(TheSessionOpened(sessionId, generation: generation));
     if (pericope != null) {
       _holdTheCurrentSession(sessionId, book, pericope, speaking);
     }
@@ -7375,6 +7371,12 @@ class _NotifierHost implements StationHost {
         _notifier._silenceTheHaltedRoom();
       case ResendPending():
         _notifier._resendPending();
+      case OpenThePanorama(:final id, :final language):
+        _notifier._handOff(_notifier._entrarNoPanorama(id, language));
+      case ReturnToThePanorama():
+        _notifier._returnToThePanorama();
+      case EnterThePassageLeft(:final left):
+        _notifier._handOff(_notifier._enterThePassageLeft(left));
     }
   }
 

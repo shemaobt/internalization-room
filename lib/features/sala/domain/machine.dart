@@ -1,6 +1,7 @@
 import 'channel.dart';
 import 'cut_point.dart';
 import 'halt.dart';
+import 'left_entry.dart';
 import 'room_reach.dart';
 import 'scene_rehearsal.dart';
 import 'session_snapshot.dart';
@@ -300,6 +301,34 @@ final class TheSceneRehearsalOpened extends StationEvent {
 
 final class TheSceneRehearsalLeft extends StationEvent {
   const TheSceneRehearsalLeft();
+}
+
+/// The team asks for a Panorama in a language: the same one keeps the session the machine
+/// holds for it, any other lets that session go.
+final class ThePanoramaAsked extends MachineEvent {
+  final String id;
+  final String language;
+
+  const ThePanoramaAsked(this.id, this.language);
+}
+
+/// The room answered a Station's open with its session.
+final class TheSessionOpened extends AnsweringEvent {
+  final String session;
+
+  const TheSessionOpened(this.session, {super.generation});
+}
+
+final class TheSessionLetGo extends MachineEvent {
+  final String session;
+
+  const TheSessionLetGo(this.session);
+}
+
+final class TheWayBackTaken extends MachineEvent {
+  final LeftEntry left;
+
+  const TheWayBackTaken(this.left);
 }
 
 final class TheLanguageChosen extends MachineEvent {
@@ -634,6 +663,38 @@ final class ReadTheWheel extends LifecycleHandOff {
   const ReadTheWheel();
 }
 
+final class OpenThePanorama extends LifecycleHandOff {
+  final String id;
+  final String? language;
+
+  const OpenThePanorama(this.id, this.language);
+
+  @override
+  bool operator ==(Object other) =>
+      other is OpenThePanorama && other.id == id && other.language == language;
+
+  @override
+  int get hashCode => Object.hash(id, language);
+}
+
+/// The Panorama comes back in silence: its line was said on the session it still holds.
+final class ReturnToThePanorama extends LifecycleHandOff {
+  const ReturnToThePanorama();
+}
+
+final class EnterThePassageLeft extends LifecycleHandOff {
+  final LeftEntry left;
+
+  const EnterThePassageLeft(this.left);
+
+  @override
+  bool operator ==(Object other) =>
+      other is EnterThePassageLeft && other.left == left;
+
+  @override
+  int get hashCode => left.hashCode;
+}
+
 final class LookAtTheSession extends Effect {
   final Turn turn;
   final Kept sounding;
@@ -750,6 +811,26 @@ final class MicOutcome {
   });
 }
 
+/// The Panorama the room holds across the Choice: its id, the language it was asked in,
+/// and its session once the room opened one.
+final class HeldPanorama {
+  final String id;
+  final String language;
+  final String? session;
+
+  const HeldPanorama(this.id, this.language, {this.session});
+
+  @override
+  bool operator ==(Object other) =>
+      other is HeldPanorama &&
+      other.id == id &&
+      other.language == language &&
+      other.session == session;
+
+  @override
+  int get hashCode => Object.hash(id, language, session);
+}
+
 final class Machine {
   final Halt halt;
   final Channel channel;
@@ -778,6 +859,11 @@ final class Machine {
 
   final bool theVerdictWaitsForTheTap;
 
+  /// The passage's session.
+  final String? session;
+
+  final HeldPanorama? panorama;
+
   const Machine({
     this.halt = const NoHalt(),
     this.channel = const Silence(),
@@ -798,9 +884,14 @@ final class Machine {
     this.station = const Menu(),
     this.wordlessTelling = false,
     this.theVerdictWaitsForTheTap = false,
+    this.session,
+    this.panorama,
   });
 
   bool get reachable => reach == Reach.reachable;
+
+  String? get stationSession =>
+      station is Panorama ? panorama?.session : session;
 
   bool get somethingPending => parts.values.contains(PartFact.pending);
 
@@ -814,6 +905,7 @@ final class Machine {
     generation: generation,
     station: station,
     theVerdictWaitsForTheTap: theVerdictWaitsForTheTap,
+    panorama: panorama,
   );
 
   Machine copyWith({
@@ -838,6 +930,10 @@ final class Machine {
     Station? station,
     bool? wordlessTelling,
     bool? theVerdictWaitsForTheTap,
+    String? session,
+    bool clearSession = false,
+    HeldPanorama? panorama,
+    bool clearPanorama = false,
   }) => Machine(
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
@@ -859,6 +955,8 @@ final class Machine {
     wordlessTelling: wordlessTelling ?? this.wordlessTelling,
     theVerdictWaitsForTheTap:
         theVerdictWaitsForTheTap ?? this.theVerdictWaitsForTheTap,
+    session: clearSession ? null : (session ?? this.session),
+    panorama: clearPanorama ? null : (panorama ?? this.panorama),
   );
 }
 
@@ -1025,8 +1123,64 @@ const _watch = ArmTheWatch();
     Menu() => (moveTheGeneration(machine), const [ReadTheWheel()]),
     _ => (machine, const []),
   },
+  ThePanoramaAsked(:final id, :final language) => switch (machine.panorama) {
+    HeldPanorama(id: final held, language: final spoken)
+        when held == id && spoken == language =>
+      (machine, const []),
+    _ => (machine.copyWith(panorama: HeldPanorama(id, language)), const []),
+  },
+  TheSessionOpened(:final session) => (
+    switch (machine.panorama) {
+      final HeldPanorama held when machine.station is Panorama =>
+        machine.copyWith(
+          panorama: HeldPanorama(held.id, held.language, session: session),
+        ),
+      _ when machine.station is Panorama => machine,
+      _ => machine.copyWith(session: session),
+    },
+    const [_watch],
+  ),
+  TheSessionLetGo(:final session) => switch (machine.panorama) {
+    final HeldPanorama held when held.session == session => (
+      machine.copyWith(panorama: HeldPanorama(held.id, held.language)),
+      const [],
+    ),
+    _ => (machine, const []),
+  },
+  TheWayBackTaken(:final left) => _takeTheWayBack(machine, left),
   StationEvent() => _reachTheStation(machine, event),
 };
+
+/// The Panorama comes back silent once its line was said on the session the machine
+/// still holds; any other entry left is entered again in the language it was left in.
+(Machine, List<Effect>) _takeTheWayBack(Machine machine, LeftEntry left) {
+  switch (left) {
+    case LeftEntry(panorama: true, pericope: final id?):
+      final (arrived, effects) = _reachTheStation(
+        machine,
+        ThePanoramaChosen(id),
+      );
+      final held = machine.panorama;
+      final silent =
+          left.said &&
+          held != null &&
+          held.id == id &&
+          held.session != null &&
+          held.session == left.session;
+      return (
+        arrived,
+        [
+          ...effects,
+          if (silent) ...const [_watch, ReturnToThePanorama()],
+          if (!silent) OpenThePanorama(id, left.language),
+        ],
+      );
+    case LeftEntry(panorama: false, book: _?):
+      return (machine, [EnterThePassageLeft(left)]);
+    default:
+      return (machine, const []);
+  }
+}
 
 (Machine, List<Effect>) _reachTheStation(Machine machine, StationEvent event) {
   final next = machine.station.answer(event);
@@ -1704,7 +1858,11 @@ Machine _answered(Machine machine) =>
   TheCallWasRefused() ||
   TheCallMetAClosedPassage() ||
   StationEvent() ||
-  TheLanguageChosen() => (halt, const []),
+  TheLanguageChosen() ||
+  ThePanoramaAsked() ||
+  TheSessionOpened() ||
+  TheSessionLetGo() ||
+  TheWayBackTaken() => (halt, const []),
 };
 
 (Halt, List<Effect>) _read(Halt halt, SessionRead read) {
