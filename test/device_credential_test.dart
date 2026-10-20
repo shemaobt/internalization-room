@@ -114,6 +114,8 @@ final Map<String, _Request> _everyRequest = {
   'personArrived': (room, _) => room.personArrived('sessao-1'),
   'finishBackTranslation': (room, _) =>
       room.finishBackTranslation('sessao-1', playedByTake: const []),
+  'reportTheListening': (room, _) =>
+      room.reportTheListening('sessao-1', playedByTake: const []),
   'reportTheVerdictHeard': (room, _) =>
       room.reportTheVerdictHeard('sessao-1', '2026-10-19T19:58:13.123456Z'),
   'startTheTranslationOver': (room, _) =>

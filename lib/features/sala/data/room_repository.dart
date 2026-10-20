@@ -648,6 +648,24 @@ class RoomRepository {
     asksForTheSession: true,
   );
 
+  Future<RoomAnswer<List<String>?>> reportTheListening(
+    String sessionId, {
+    required List<PlayedTake> playedByTake,
+  }) => _room.ask(
+    () => _client.post(
+      _uri('/sessions/$sessionId/back-translation/listened-whole'),
+      headers: _headers,
+      body: jsonEncode({
+        'played_by_take': [for (final parte in playedByTake) parte.toJson()],
+      }),
+    ),
+    timeout: _stateTimeout,
+    read: readJson(
+      (json) => (json['unheard_take_ids'] as List?)?.cast<String>(),
+    ),
+    asksForTheSession: false,
+  );
+
   Future<RoomAnswer<void>> reportTheVerdictHeard(String sessionId, String at) =>
       _room.ask(
         () => _client.post(
