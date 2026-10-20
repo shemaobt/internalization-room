@@ -5114,6 +5114,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.btPhase == BtPhase.thinking) {
       return;
     }
+    if (state.btRegravacao?.passo
+        case PassoDaRegravacao.gravando || PassoDaRegravacao.enviando) {
+      return;
+    }
     if (state.btRecomeco == null) {
       state = state.copyWith(btRecomeco: BtRecomeco.armado, clearAviso: true);
       _after('recomecoPronto', ref.read(restartWakeProvider), () {

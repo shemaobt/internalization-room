@@ -1219,4 +1219,57 @@ void main() {
     }
     closeTheRoom(container);
   });
+
+  Future<void> recomecar(WidgetTester tester) async {
+    await tocar(tester, 'recomeçar a tradução');
+    await tester.pump(const Duration(milliseconds: 700));
+  }
+
+  testWidgets('with the sentence\'s microphone open, «recomeçar a tradução» '
+      'is not taken', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await regravarAte(tester, harness, 3);
+    await _tocarOCirculo(tester);
+    expect(
+      container.read(salaSessionProvider).btRegravacao?.passo,
+      PassoDaRegravacao.gravando,
+    );
+
+    await recomecar(tester);
+
+    expect(
+      container.read(salaSessionProvider).btRecomeco,
+      isNull,
+      reason: 'o recomeço se armava com a frase sendo gravada',
+    );
+    expect(harness.room.restartsAsked, isEmpty);
+    closeTheRoom(container);
+  });
+
+  testWidgets('with the sentence on its way, «recomeçar a tradução» is not '
+      'taken', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    final segura = harness.room.holdTheSentence = Completer<void>();
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    expect(
+      container.read(salaSessionProvider).btRegravacao?.passo,
+      PassoDaRegravacao.enviando,
+    );
+
+    await recomecar(tester);
+
+    expect(
+      container.read(salaSessionProvider).btRecomeco,
+      isNull,
+      reason: 'o recomeço se armava com a frase a caminho da sala',
+    );
+    segura.complete();
+    await _passo(tester);
+    expect(harness.room.restartsAsked, isEmpty);
+    closeTheRoom(container);
+  });
 }
