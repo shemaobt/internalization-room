@@ -397,6 +397,10 @@ const retroLabels = {
     'pt': 'Aprovar como rascunho final',
     'en': 'Approve as the final draft',
   },
+  'approvedDraft': {
+    'pt': '✓ aprovado como rascunho final (v{n})',
+    'en': '✓ approved as the final draft (v{n})',
+  },
   'listenFirst': {'pt': 'Ouvir primeiro', 'en': 'Listen first'},
   'thinking': {'pt': 'Um instante', 'en': 'One moment'},
   'translated': {'pt': 'traduzida e conferida', 'en': 'translated and checked'},

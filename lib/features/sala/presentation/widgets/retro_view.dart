@@ -104,7 +104,9 @@ class RetroView extends ConsumerWidget {
               voice: voz,
               tongue: lingua,
               answersATouch: !conferida || session.btRegravacao != null,
-              warning: session.warning ? warningNoticeLabelFor(language) : null,
+              warning: session.warning && session.btRascunhoAprovado == null
+                  ? warningNoticeLabelFor(language)
+                  : null,
               notUnderstood: session.wordlessTelling
                   ? retroLabelFor('notUnderstood', language)
                   : null,
@@ -153,7 +155,10 @@ class RetroView extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 16),
-            SizedBox(height: 60, child: _actions(session, notifier, language)),
+            SizedBox(
+              height: 60,
+              child: _actions(session, notifier, language, colors),
+            ),
             const SizedBox(height: 32),
             FraseList(
               rows: _frases(session, notifier, language),
@@ -539,6 +544,7 @@ class RetroView extends ConsumerWidget {
     SalaSessionState session,
     SalaSessionNotifier notifier,
     String language,
+    SalaColors colors,
   ) {
     if (session.btPhase == BtPhase.findings) {
       final humor = session.btFindingTrecho == null
@@ -620,17 +626,27 @@ class RetroView extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 24),
-            RoundActionButton(
-              size: 60,
-              semanticLabel: retroLabelFor('approve', language),
-              gradient: BeadStyles.verde,
-              onTap: notifier.aprovarRascunhoFinal,
-              child: const Icon(
-                LucideIcons.check,
-                size: 24,
-                color: ShemaBrand.branco,
+            if (session.btRascunhoAprovado case final aprovado?)
+              Text(
+                retroLabelFor('approvedDraft', language, n: aprovado.version),
+                style: TextStyle(
+                  color: colors.ink,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w500,
+                ),
+              )
+            else
+              RoundActionButton(
+                size: 60,
+                semanticLabel: retroLabelFor('approve', language),
+                gradient: BeadStyles.verde,
+                onTap: notifier.aprovarRascunhoFinal,
+                child: const Icon(
+                  LucideIcons.check,
+                  size: 24,
+                  color: ShemaBrand.branco,
+                ),
               ),
-            ),
           ],
         ),
       );

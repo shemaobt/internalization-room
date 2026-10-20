@@ -419,6 +419,50 @@ void main() {
     );
   });
 
+  test('the session read carries the approved draft, and none when the room '
+      'says none', () async {
+    Map<String, Object?> state(String id) => {
+      'session_id': id,
+      'pericope': 'P01',
+      'status': 'in_progress',
+      'done': false,
+      if (id == 'aprovada')
+        'approved': {
+          'version': 2,
+          'release_id': 'internalize-x-p01-v2',
+          'approved_at': '2026-10-19T14:03:00+00:00',
+          'forced': true,
+        },
+      if (id == 'nula') 'approved': null,
+    };
+    final repository = RoomRepository(
+      client: MockClient(
+        (request) async => http.Response(
+          jsonEncode(state(request.url.pathSegments.last)),
+          200,
+        ),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    final aprovada = await repository.fetchState('aprovada');
+    final approved = (aprovada as Answered<SessionSnapshot>).value.approved;
+    expect(approved?.version, 2);
+    expect(approved?.releaseId, 'internalize-x-p01-v2');
+    expect(approved?.approvedAt, DateTime.utc(2026, 10, 19, 14, 3));
+    expect(approved?.forced, isTrue);
+    for (final none in ['nula', 'ausente']) {
+      expect(
+        await repository.fetchState(none),
+        isA<Answered<SessionSnapshot>>().having(
+          (read) => read.value.approved,
+          'approved',
+          isNull,
+        ),
+      );
+    }
+  });
+
   test(
     'the room\'s books are read from GET /books and answered in its order',
     () async {

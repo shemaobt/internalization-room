@@ -167,6 +167,38 @@ class BackTranslationProgress {
   bool get nothingTold => segments.isEmpty;
 }
 
+/// The approval the team's Draft stands under, while the room says the draft is still the
+/// one it approved (ADR 0071 of the API).
+class ApprovedDraft {
+  final int version;
+  final String releaseId;
+  final DateTime approvedAt;
+  final bool forced;
+
+  const ApprovedDraft({
+    required this.version,
+    required this.releaseId,
+    required this.approvedAt,
+    required this.forced,
+  });
+
+  static ApprovedDraft? fromJson(Object? raw) => switch (raw) {
+    {
+      'version': final int version,
+      'release_id': final String releaseId,
+      'approved_at': final String approvedAt,
+      'forced': final bool forced,
+    } =>
+      ApprovedDraft(
+        version: version,
+        releaseId: releaseId,
+        approvedAt: DateTime.parse(approvedAt),
+        forced: forced,
+      ),
+    _ => null,
+  };
+}
+
 /// Which kind of halt the room is under.
 ///
 /// [unnamed] is a halt a server older than the field raised: it carries no kind, and the
@@ -200,6 +232,8 @@ class SessionSnapshot {
 
   final List<KeptRetelling> keptRetellings;
 
+  final ApprovedDraft? approved;
+
   const SessionSnapshot({
     required this.sessionId,
     required this.pericope,
@@ -211,6 +245,7 @@ class SessionSnapshot {
     this.opened = false,
     this.moment,
     this.keptRetellings = const [],
+    this.approved,
   });
 
   factory SessionSnapshot.fromJson(Map<String, dynamic> json) =>
@@ -233,6 +268,7 @@ class SessionSnapshot {
         opened: json['opened'] as bool? ?? false,
         moment: Moment.fromJson(json['moment']),
         keptRetellings: KeptRetelling.listFrom(json),
+        approved: ApprovedDraft.fromJson(json['approved']),
       );
 
   /// A halt the server calls a warning asks for a person to come and watch and refuses

@@ -1281,7 +1281,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) {
     if (sent <= _readsApplied) return;
     _readsApplied = sent;
-    state = state.copyWith(keptRetellings: snapshot.keptRetellings);
+    state = state.copyWith(
+      keptRetellings: snapshot.keptRetellings,
+      btRascunhoAprovado: snapshot.approved,
+      clearBtRascunhoAprovado: snapshot.approved == null,
+    );
     if (rowWhenSent != null && identical(state.btTrechos, rowWhenSent)) {
       _takeTheStretches(snapshot.backTranslation);
     }
@@ -2593,6 +2597,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             return failed(failure);
         }
         if (_abandoned(generation)) return;
+        if (_anApprovedDraftIn(snapshot)) {
+          return _landOnTheApprovedDraft(snapshot, sent, generation, landed);
+        }
         state = state.copyWith(
           coverage: snapshot.coverage,
           moment: snapshot.moment,
@@ -2627,6 +2634,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return failed(failure);
       }
       if (_abandoned(generation)) return;
+      if (_anApprovedDraftIn(read)) {
+        return _landOnTheApprovedDraft(read, sent, generation, landed);
+      }
       if (Station.stored(waiting.stage) is Retro) {
         final told = read.backTranslation;
         // Only when there is a telling-back to land on. A checked answer carrying no
@@ -2654,8 +2664,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       _applyTheSessionRead(read, sent);
       if (opened != null || read.opened) return _landWhereTheyStopped();
-    } else if (opened != null || created!.opened) {
-      _applyTheSessionRead(created!, ++_readsSent);
+    } else if (_anApprovedDraftIn(created!)) {
+      return _landOnTheApprovedDraft(created, ++_readsSent, generation, landed);
+    } else if (opened != null || created.opened) {
+      _applyTheSessionRead(created, ++_readsSent);
       return _landWhereTheyStopped();
     }
     reachedTheOpeningTurn = true;
@@ -2672,6 +2684,47 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       },
       failed: failed,
     );
+  }
+
+  bool _anApprovedDraftIn(SessionSnapshot read) =>
+      read.approved != null && !read.backTranslation.nothingTold;
+
+  /// The draft the room says is approved is where its passage reopens: its telling-back,
+  /// checked, over the parts the room holds, and never the Opening (ADR 0106). A room that
+  /// cannot hand the parts over leaves the frases silent rather than the team elsewhere.
+  Future<void> _landOnTheApprovedDraft(
+    SessionSnapshot read,
+    int sent,
+    int generation,
+    void Function() landed,
+  ) async {
+    if (state.partes.isEmpty) {
+      await _theRoomsRehearsalUnder(read.sessionId, generation);
+      if (_abandoned(generation)) return;
+    }
+    _pickTheTellingBackUp(read.backTranslation);
+    landed();
+    _applyTheSessionRead(read, sent);
+    _rememberWhereTheyAre(const Retro());
+  }
+
+  Future<void> _theRoomsRehearsalUnder(String sessionId, int generation) async {
+    _watchBusyState();
+    if (await _room.takesOf(sessionId) case Answered(value: final guardadas)) {
+      if (_abandoned(generation)) return;
+      final partes = await _asPartesDaSala(
+        ResumePoint(sessionId: sessionId, stage: const Retro().stage),
+        guardadas,
+        const [],
+        generation,
+      );
+      if (partes case Answered(value: final takes?) when takes.isNotEmpty) {
+        await _medirAsPartes(takes, generation);
+        if (_abandoned(generation)) return;
+        state = state.copyWith(keptTakes: takes);
+        state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+      }
+    }
   }
 
   /// A session the room already opened is not opened again: the team lands at rest, and

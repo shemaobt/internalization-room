@@ -323,6 +323,10 @@ class SalaSessionState {
   final RegravacaoDaFrase? btRegravacao;
   final String? btFraseQueAguarda;
   final int? btFraseGuardada;
+
+  /// The approval the newest Session read says the draft stands under, held only while
+  /// the telling-back is checked: leaving the checked phase lets it go.
+  final ApprovedDraft? btRascunhoAprovado;
   final int unsentTakes;
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
@@ -424,6 +428,7 @@ class SalaSessionState {
     this.btRegravacao,
     this.btFraseQueAguarda,
     this.btFraseGuardada,
+    this.btRascunhoAprovado,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
@@ -1104,6 +1109,8 @@ class SalaSessionState {
     bool clearBtFraseQueAguarda = false,
     int? btFraseGuardada,
     bool clearBtFraseGuardada = false,
+    ApprovedDraft? btRascunhoAprovado,
+    bool clearBtRascunhoAprovado = false,
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
@@ -1189,6 +1196,11 @@ class SalaSessionState {
       btFraseGuardada: clearBtFraseGuardada
           ? null
           : (btFraseGuardada ?? this.btFraseGuardada),
+      btRascunhoAprovado:
+          clearBtRascunhoAprovado ||
+              (btPhase ?? this.btPhase) != BtPhase.conferida
+          ? null
+          : (btRascunhoAprovado ?? this.btRascunhoAprovado),
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
