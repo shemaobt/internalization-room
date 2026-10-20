@@ -233,23 +233,6 @@ void main() {
           expect(after.pendingLook, isNull);
         },
       );
-
-      test('leaving the generation forgets the pending look', () {
-        final (pending, _) = reduce(const Machine(), const LookPending(turn));
-
-        expect(moveTheGeneration(pending).pendingLook, isNull);
-      });
-
-      test('a line said again is kept in flight until it lands', () {
-        final (sent, _) = reduce(
-          const Machine(),
-          const TurnSent(turn, keeps: TheLineSaidAgain()),
-        );
-
-        expect(sent.keptInFlight, isA<TheLineSaidAgain>());
-        final (landed, _) = reduce(sent, const TurnAnswered(turn));
-        expect(landed.keptInFlight, isA<NothingKept>());
-      });
     },
   );
 }

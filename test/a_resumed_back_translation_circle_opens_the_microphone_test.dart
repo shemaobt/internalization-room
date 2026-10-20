@@ -66,63 +66,64 @@ Future<(SalaHarness, ProviderContainer)> _reopenedInto(
   return (harness, container);
 }
 
+Future<void> _tapAndWait(WidgetTester tester, Finder circle) async {
+  await tester.tap(circle);
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 200)),
+  );
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
 void main() {
   group(
     'a resumed Back-translation\'s circle that invites recording opens the Capture on its first tap',
     () {
-      for (final (landing, toldUpTo) in [
-        ('with ground still to tell', 12000),
-        ('told up to the end of its last part', 30000),
-      ]) {
-        testWidgets(landing, (tester) async {
+      testWidgets('with ground still to tell', (tester) async {
+        final (harness, container) = await _reopenedInto(
+          tester,
+          toldUpTo: 12000,
+        );
+        final captures = harness.recorder.captures;
+
+        await _tapAndWait(
+          tester,
+          byLabel(retroLabelFor('record', testLanguage)),
+        );
+
+        final state = container.read(salaSessionProvider);
+        expect(state.btPhase, BtPhase.capturing);
+        expect(state.channel, isA<Microphone>());
+        expect(harness.recorder.captures, captures + 1);
+        expect(
+          byLabel(retroLabelFor('recording', testLanguage)),
+          findsOneWidget,
+        );
+        closeTheRoom(container);
+      });
+
+      testWidgets(
+        'told up to the end of its last part, it does not invite recording',
+        (tester) async {
           final (harness, container) = await _reopenedInto(
             tester,
-            toldUpTo: toldUpTo,
+            toldUpTo: _aPart.inMilliseconds,
           );
-          final record = byLabel(retroLabelFor('record', testLanguage));
-          final invites = record.evaluate().isNotEmpty;
-          if (toldUpTo < _aPart.inMilliseconds) {
-            expect(
-              invites,
-              isTrue,
-              reason: 'o círculo convida a gravar onde há chão por contar',
-            );
-          } else if (!invites) {
-            final listen = byLabel(retroLabelFor('listenFirst', testLanguage));
-            expect(
-              listen,
-              findsOneWidget,
-              reason: 'nada resta por contar: o círculo não convida a gravar',
-            );
-            final captures = harness.recorder.captures;
-            await tester.tap(listen);
-            await tester.runAsync(
-              () => Future<void>.delayed(const Duration(milliseconds: 200)),
-            );
-            await tester.pump(const Duration(milliseconds: 100));
-            expect(harness.recorder.captures, captures);
-          }
+          final captures = harness.recorder.captures;
 
-          if (invites) {
-            final captures = harness.recorder.captures;
-            await tester.tap(record);
-            await tester.runAsync(
-              () => Future<void>.delayed(const Duration(milliseconds: 200)),
-            );
-            await tester.pump(const Duration(milliseconds: 100));
+          expect(
+            byLabel(retroLabelFor('record', testLanguage)),
+            findsNothing,
+            reason: 'nada resta por contar, e o toque não abriria nada',
+          );
+          await _tapAndWait(
+            tester,
+            byLabel(retroLabelFor('listenFirst', testLanguage)),
+          );
 
-            final state = container.read(salaSessionProvider);
-            expect(state.btPhase, BtPhase.capturing);
-            expect(state.channel, isA<Microphone>());
-            expect(harness.recorder.captures, captures + 1);
-            expect(
-              byLabel(retroLabelFor('recording', testLanguage)),
-              findsOneWidget,
-            );
-          }
+          expect(harness.recorder.captures, captures);
           closeTheRoom(container);
-        });
-      }
+        },
+      );
     },
   );
 }
