@@ -1028,6 +1028,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> hearAgain() async {
     if (!state.canHearAgain) return;
+    if (state.channel is PartPlaying) _silenceTheRoom();
     final line = state.lastSpoken;
     if (line != null) return _repeatLastSpoken(line);
     await _askTheRoomToSayItAgain();
