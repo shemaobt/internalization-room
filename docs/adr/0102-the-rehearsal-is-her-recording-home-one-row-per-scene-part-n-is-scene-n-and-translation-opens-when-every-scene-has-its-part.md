@@ -34,17 +34,27 @@ and, since ENG-1207, the scene rehearsal it was joined from (`origin`), but no s
 - **A part keeps the number the room holds for it.** A resume restores each current part by
   its `ordinal`, never by its place in the listing, so a room holding part 3 alone shows it
   on row 3. The current part under a number is the newest row for it, as the server reads
-  it, so a joined part recorded again by the team is no longer joined.
-- **The advance disc opens the Back-translation only once every scene has its part**, and
-  the Rehearsal's own gate refuses it otherwise, whatever calls it. The disc also stays
-  dark while a recording waits for the check or a finding's mark stands, as before. While at least one
-  scene has a part and another has none, «gravem todas as partes primeiro» stands beneath
-  it. While the scene list is awaited or missing, the disc stays closed and the list is
-  asked again on the scene list's own retry ladder; a passage the room answers with no
-  scenes keeps the one-part rule.
+  it, so a joined part recorded again by the team is no longer joined. A recording the room
+  holds with no number is the rehearsal an app before 19 August sent whole: it comes back
+  whole and is no scene's part.
+- **The Rehearsal opens the Back-translation only once every scene has its part.** The
+  rule lives in the machine: the Rehearsal Station carries whether every scene has its part,
+  weighed again whenever its parts or its scene list change, and does not answer the
+  Back-translation opened until it does, whatever asks. A reopened passage that had already
+  reached its telling-back resumes it with an arrival of its own, because the team is
+  picking up a translation already under way, not opening one from the Rehearsal. The
+  disc also stays dark while a recording waits for the check or a finding's mark stands,
+  as before. While at least one scene has a part and another has none, «gravem todas as
+  partes primeiro» stands beneath it. The scene list is the passage's: asked when the
+  passage opens, beside the session, and kept for the whole session, so a Rehearsal the
+  room falls under still knows its scenes. While the scene list is awaited or missing, the
+  Rehearsal stays closed and the list is asked again on the scene list's own retry ladder,
+  at each tap of the circle and at each keep; a passage the room answers with no scenes
+  keeps the one-part rule.
 - **The circle stays** (halt, warning, the person's long press, ADR 0040): it records the
-  part a finding sent the team back for, else the first scene with no part, and with every
-  scene recorded it does nothing.
+  part a finding sent the team back for, else the first scene with no part, and with every scene recorded it does nothing. With no scene list answered it never records
+  past the parts already held: only a number missing below the highest, or the first part,
+  since every passage has one scene at least.
 - **Parts beyond the last scene**, from sessions recorded before this, get no row; they are
   kept, played and told in the Back-translation, and nothing is deleted.
 - **The Bead row leaves the Rehearsal**; the Back-translation and the findings keep it,
