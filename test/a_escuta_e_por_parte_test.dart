@@ -22,7 +22,7 @@ const _aritmeticaGlobal = [
 /// The count is part of the net. A method losing one of its two call sites is a write the
 /// room stopped doing — holding the rehearsal and letting it run again, say — and a set of
 /// names alone answers that nothing changed.
-const _escrevemNaEscuta = {'abrir': 5, 'fechar': 4, 'medida': 3, 'inteira': 1};
+const _escrevemNaEscuta = {'abrir': 7, 'fechar': 5, 'medida': 3, 'inteira': 1};
 
 /// Every position the room is allowed to hand the ledger: the player's own answer, the
 /// length a part measured of itself, the length a part was measured at without playing,

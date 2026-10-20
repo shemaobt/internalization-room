@@ -936,11 +936,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final soa = _aParteDoEnsaioQueSoa(depois);
     if (soava == soa) return;
     if (soava != null) {
-      _escuta.fechar(soava.path, _playback.position.inMilliseconds);
+      final ate = _ondeOSomEstaNoArquivo(soava);
+      _escuta.fechar(soava.path, ate.inMilliseconds);
     }
     if (soa != null) {
       final de = switch (antes.channel) {
-        Paused(:final what) when what == soa => _playback.position,
+        Paused(:final what) when what == soa => _ondeOSomEstaNoArquivo(soa),
         _ => soa.from,
       };
       _escuta.abrir(soa.path, de.inMilliseconds);
@@ -956,20 +957,36 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _ => null,
       };
 
+  Duration _ondeOSomEstaNoArquivo(PartSound som) =>
+      som.to == null ? _playback.position : som.from + _playback.position;
+
   void _escutarOFimNoEnsaio() {
-    if (state.station is! Ensaio) return;
-    if (state.channel case PartPlaying(
-      part: PartSound(:final path, :final to),
-    )) {
-      if (!state.partes.any((parte) => parte.path == path)) return;
-      final tamanho = _playback.playingLength;
-      final ate = to ?? tamanho;
-      if (ate == null) return;
-      final medido = tamanho?.inMilliseconds ?? 0;
-      if (medido > 0) _escuta.medida(path, medido);
-      _escuta.fechar(path, ate.inMilliseconds);
-      _relatarAEscuta();
+    final soa = _aParteDoEnsaioQueSoa(state.machine);
+    if (soa == null) return;
+    final ate = soa.to ?? _playback.playingLength;
+    if (ate == null) return;
+    if (soa.to == null) {
+      final medido = ate.inMilliseconds;
+      if (medido > 0) _escuta.medida(soa.path, medido);
     }
+    _escuta.fechar(soa.path, ate.inMilliseconds);
+    _relatarAEscuta();
+  }
+
+  void _cortarAEscutaNoAr() {
+    if (state.station is Retro && state.btClipRodando) {
+      final arquivo = _parteNoAr?.path;
+      _anotarOQueFoiOuvido();
+      if (arquivo != null) {
+        _escuta.abrir(arquivo, _playback.position.inMilliseconds);
+      }
+      return;
+    }
+    final soa = _aParteDoEnsaioQueSoa(state.machine);
+    if (soa == null) return;
+    final ate = _ondeOSomEstaNoArquivo(soa);
+    _escuta.fechar(soa.path, ate.inMilliseconds);
+    _escuta.abrir(soa.path, ate.inMilliseconds);
   }
 
   void _relatarAEscuta() {
@@ -5344,7 +5361,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void theAppWentAway() => _relatarAEscuta();
+  void theAppWentAway() {
+    _cortarAEscutaNoAr();
+    _relatarAEscuta();
+  }
 
   void startRetro() => _gesture(() => _startRetro());
 

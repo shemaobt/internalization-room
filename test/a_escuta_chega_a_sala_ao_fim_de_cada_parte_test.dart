@@ -215,6 +215,94 @@ void main() {
     ]);
   });
 
+  test(
+    'no ensaio, uma parte já contada em trechos relata no tempo do próprio arquivo',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      it.sala.startRetro();
+      await waitFor(
+        'a tradução começar a tocar a primeira parte',
+        () => it.estado.btPhase == BtPhase.playing,
+      );
+      await traduzirUmTrecho(it, const Duration(seconds: 4));
+      await ouvirETraduzirAParteInteira(it, partesDoEnsaio[0]);
+      final primeira = it.partes[0].takeId!;
+
+      it.container.dispose();
+      it.container = it.harness.container();
+      addTearDown(it.container.dispose);
+      await it.sala.abrirEscolha();
+      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await waitFor(
+        'a retomada cair na tradução',
+        () => it.estado.stage == SalaStage.retro,
+      );
+      it.sala.goEnsaio();
+      await waitFor('o ensaio abrir', () => it.estado.station is Ensaio);
+      final tocadas = it.harness.playback.played.length;
+
+      it.sala.ouvirACena(1);
+      await theClipOpens(it.harness);
+      it.harness.playback
+        ..length = const Duration(seconds: 4)
+        ..at = const Duration(seconds: 4)
+        ..finishPlayback();
+      await waitFor(
+        'o segundo trecho entrar no ar',
+        () => it.harness.playback.played.length == tocadas + 2,
+      );
+      await theClipOpens(it.harness);
+      it.harness.playback.at = const Duration(seconds: 2);
+      it.sala.ouvirACena(1);
+      await waitFor('a parte parar', () => it.estado.takePaused);
+      it.sala.theAppWentAway();
+
+      expect(
+        it.harness.room.listeningReports.last.where(
+          (parte) => parte['take_id'] == primeira,
+        ),
+        [_ouvida(primeira, 0, 6000, 0)],
+        reason:
+            'o primeiro trecho soou de 0 a 4 s e o segundo, de 4 s, mais 2 s: '
+            'um trecho recortado conta a posição do seu próprio começo, e o '
+            'tamanho dele não é o da parte',
+      );
+    },
+  );
+
+  test(
+    'o app que sai com uma parte do ensaio soando relata o que ela soou',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      final segunda = it.partes[1].takeId!;
+
+      it.sala.ouvirACena(2);
+      await theClipOpens(it.harness);
+      it.harness.playback.at = const Duration(seconds: 6);
+      it.sala.theAppWentAway();
+
+      expect(it.harness.room.listeningReports.last, [
+        _ouvida(segunda, 0, 6000, 0),
+      ]);
+    },
+  );
+
+  test(
+    'o app que sai com uma parte da tradução soando relata o que ela soou',
+    () async {
+      final it = await _naTraducao();
+      final primeira = it.partes[0].takeId!;
+
+      await theClipOpens(it.harness);
+      it.harness.playback.at = const Duration(seconds: 6);
+      it.sala.theAppWentAway();
+
+      expect(it.harness.room.listeningReports.last, [
+        _ouvida(primeira, 0, 6000, 0),
+      ]);
+    },
+  );
+
   testWidgets('o app que vai para o fundo manda um relato', (tester) async {
     late Sala it;
     await tester.runAsync(() async {
