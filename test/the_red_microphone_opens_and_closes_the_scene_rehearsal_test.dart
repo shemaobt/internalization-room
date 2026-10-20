@@ -882,6 +882,36 @@ void main() {
     },
   );
 
+  test(
+    'a second tap on the scene circle while its recording is starting does nothing',
+    () async {
+      final room = await atRest();
+      await theScreenOpens(room);
+      room.harness.recorder.holdNextStart();
+
+      room.sala.sceneTap();
+      await settle(Duration.zero);
+      final soundsAtTheStart = room.harness.sounds.length;
+      room.sala.sceneTap();
+      room.harness.recorder.finishStart();
+      await settle();
+
+      expect(
+        room.state.channel,
+        isA<Microphone>().having((mic) => mic.owner, 'owner', MicOwner.scene),
+        reason:
+            'o segundo toque chegou antes de o gravador abrir; fechá-lo ali '
+            'guarda uma gravação que nunca começou',
+      );
+      expect(room.harness.sounds.skip(soundsAtTheStart), isEmpty);
+      expect(room.state.scene.step, SceneStep.record);
+      expect(room.state.scene.take, isNull);
+      expect(room.state.scene.keep, isNot(isA<Keeping>()));
+      expect(await room.harness.takes.entries(), isEmpty);
+      expect(room.harness.room.scenesKept, isEmpty);
+    },
+  );
+
   test('a relaunch never lands on the scene rehearsal', () async {
     final home = Directory.systemTemp.createTempSync('sala-sessao-atual');
     addTearDown(() => home.deleteSync(recursive: true));
