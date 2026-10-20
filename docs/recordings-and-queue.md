@@ -30,8 +30,9 @@ fixed when the row is written and sent with every try (ADR 0104).
 The copy is kept after upload: the Rehearsal and the back-translation are the team's
 product.
 
-Each row's last attempt is stamped in UTC, and the stamp alone is read leniently while every
-other field is read strictly. Why that asymmetry is worth having is in ADR 0016.
+Each row's last attempt and its recording time are stamped in UTC, and those two stamps alone
+are read leniently while every other field is read strictly. Why that asymmetry is worth having
+is in ADR 0016 (and, for the recording time, ADR 0104).
 
 Writing a recording off is a guess about the disk, never a verdict. A row whose audio the
 outbox could not find is looked at again on every flush, and the moment the file is back at

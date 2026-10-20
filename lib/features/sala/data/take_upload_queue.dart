@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart' as crypto;
@@ -242,14 +243,23 @@ class PendingTake {
       final String code => code,
       _ => null,
     },
-    recordedAt: switch (json['recorded_at'] as String?) {
-      final String stamp => DateTime.parse(stamp),
-      null => null,
+    recordedAt: switch (json['recorded_at']) {
+      final String stamp => DateTime.tryParse(stamp),
+      _ => null,
     },
     durationMs: json['duration_ms'] as int?,
     sha256: json['sha256'] as String?,
   );
 }
+
+Future<({int? durationMs, String sha256})> _whatTheCopyHolds(String path) =>
+    Isolate.run(() {
+      final bytes = File(path).readAsBytesSync();
+      return (
+        durationMs: wavLengthOf(bytes)?.inMilliseconds,
+        sha256: crypto.sha256.convert(bytes).toString(),
+      );
+    });
 
 class _CachedRead {
   final String folder;
@@ -580,7 +590,7 @@ class TakeUploadQueue {
     if (audio.path != kept) {
       await audio.copy(kept);
     }
-    final bytes = await File(kept).readAsBytes();
+    final held = await _whatTheCopyHolds(kept);
     final entry = PendingTake(
       id: id,
       path: kept,
@@ -592,8 +602,8 @@ class TakeUploadQueue {
       scene: scene,
       original: kind == sceneTakeKind ? name : null,
       recordedAt: stopped,
-      durationMs: wavLengthOf(bytes)?.inMilliseconds,
-      sha256: crypto.sha256.convert(bytes).toString(),
+      durationMs: held.durationMs,
+      sha256: held.sha256,
     );
     await _mutate((written) => [...written, entry]);
     return entry;

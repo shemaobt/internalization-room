@@ -49,5 +49,10 @@ value the tablet estimates is a take lost on the server.
 
 - ADR 0087's "the tablet announces no size or duration ... never counts a number" no longer
   holds for the scene take.
-- A malformed value in a row sets the manifest aside as any other field does (ADR 0016).
+- A malformed length or fingerprint in a row sets the manifest aside as any other field does
+  (ADR 0016). A malformed recording time does not: like the last-try stamp it is read
+  leniently, because the take still goes up without it and the room stamps its arrival, while
+  setting the manifest aside would strand every pending recording for a field that is optional.
+- The queued copy is read and hashed off the UI isolate: the keep tap waits for it, and 25 MB
+  took 135 to 155 ms on a Mac.
 - The room, not the tablet, says how far off the tablet's clock was.

@@ -353,24 +353,26 @@ void main() {
       expect(_fields(requests.single), containsPair('duration_ms', '1000'));
     });
 
-    test('a row whose recording time is not a time sets the manifest aside, '
-        'its history marked lost', () async {
+    test('a row whose recording time is not a time goes up with no time, '
+        'the manifest kept', () async {
       final dir = Directory('${home.path}/guardadas')
         ..createSync(recursive: true);
       File('${dir.path}/estranha.m4a').writeAsStringSync('a equipe contou');
       File('${dir.path}/fila.json').writeAsStringSync(
         '[{"id":"estranha","path":"${dir.path}/estranha.m4a",'
         '"session_id":"sessao-1","kind":"ensaio","scope":"inteira",'
-        '"recorded_at":1760954520}]',
+        '"recorded_at":"ontem de tarde","duration_ms":1000,"sha256":"abc"}]',
       );
       final queue = queueAt(() => clock);
 
-      await keep(
-        queue,
-        recorded('nova', utf8.encode('outra'), extension: 'm4a'),
-      );
+      await queue.flush();
 
-      expect(await queue.lostHistory(), isTrue);
+      expect(_fields(requests.single), {
+        'duration_ms': '1000',
+        'sha256': 'abc',
+      });
+      expect(await queue.pending(), isEmpty);
+      expect(await queue.lostHistory(), isFalse);
     });
 
     test('the device clock is not corrected', () async {
