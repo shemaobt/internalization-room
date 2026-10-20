@@ -275,7 +275,6 @@ class SalaSessionState {
   final bool roomSaysItAgain;
   final EnsaioStatus ensaio;
   final bool micTaken;
-  final int takes;
 
   final BtPhase btPhase;
 
@@ -398,7 +397,6 @@ class SalaSessionState {
     this.roomSaysItAgain = false,
     this.ensaio = EnsaioStatus.idle,
     this.micTaken = false,
-    this.takes = 0,
     this.btPhase = BtPhase.playing,
     this.btChunkFailures = const [],
     this.naRoda,
@@ -576,9 +574,14 @@ class SalaSessionState {
     ];
   }
 
-  int? _numberAt(int? index) => index != null && index < partes.length
-      ? KeptScope.numberOf(partes[index].scopeId)
-      : null;
+  /// The number of the part at [index] in [partes]; just past them, the scene of a
+  /// recording waiting for the check.
+  int? _numberAt(int? index) => switch (index) {
+    final at? when at < partes.length => KeptScope.numberOf(partes[at].scopeId),
+    final at? when at == partes.length && ensaio == EnsaioStatus.recorded =>
+      cenaDaGravacao,
+    _ => null,
+  };
 
   bool get canHearAgain =>
       (lastSpoken != null || roomSaysItAgain) &&
@@ -1052,7 +1055,6 @@ class SalaSessionState {
     bool? roomSaysItAgain,
     EnsaioStatus? ensaio,
     bool? micTaken,
-    int? takes,
     BtPhase? btPhase,
     List<int>? btChunkFailures,
     List<Passagem>? naRoda,
@@ -1132,7 +1134,6 @@ class SalaSessionState {
       roomSaysItAgain: roomSaysItAgain ?? this.roomSaysItAgain,
       ensaio: ensaio ?? this.ensaio,
       micTaken: micTaken ?? this.micTaken,
-      takes: takes ?? this.takes,
       btPhase: btPhase ?? this.btPhase,
       btChunkFailures: btChunkFailures ?? this.btChunkFailures,
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),

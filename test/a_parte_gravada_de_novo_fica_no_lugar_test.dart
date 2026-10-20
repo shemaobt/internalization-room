@@ -234,7 +234,7 @@ void main() {
     expect([agora[2].path, agora[2].takeId], [antes[2].path, antes[2].takeId]);
 
     expect(
-      it.estado.takes,
+      it.estado.partes.length,
       3,
       reason:
           'a conta do ensaio conta partes, e gravar a parte 2 de novo '
@@ -868,7 +868,7 @@ void main() {
           'gravação seguinte é uma parte nova, não a parte 2 outra vez',
     );
     expect(it.partes.last.scopeId, KeptScope.parte(4));
-    expect(it.estado.takes, 4);
+    expect(it.estado.partes.length, 4);
   });
 
   test(

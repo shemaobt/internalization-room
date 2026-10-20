@@ -190,7 +190,7 @@ void main() {
       reason:
           'as tomadas são o trabalho da equipe; voltar ao ensaio não as apaga',
     );
-    expect(depois.takes, antes.takes);
+    expect(depois.partes.length, antes.partes.length);
     expect(
       trechosDe(depois),
       trechosDe(antes),
@@ -239,7 +239,7 @@ void main() {
         antigas,
         reason: 'e as três anteriores continuam onde estavam',
       );
-      expect(agora.takes, 4);
+      expect(agora.partes.length, 4);
       expect(
         agora.keptTakes.last.takeId,
         isNotNull,

@@ -733,6 +733,51 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a recording waiting for the check sounds at its scene\'s place, its row '
+    'current while it plays',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _naCasaDoEnsaio(tester, harness: harness);
+      for (final n in [1, 3, 4]) {
+        await _gravarNaLinha(tester, n);
+      }
+      await _tocar(tester, _naLinha(2, _gravar));
+      await _tocar(tester, _naLinha(2, _parar));
+      final pendente = harness.recorder.lastPath!;
+      final antes = harness.playback.played.length;
+
+      await _tocar(tester, byLabel('Ouvir o ensaio até aqui'));
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(
+        tester
+            .widget<Semantics>(
+              find.byWidgetPredicate(
+                (widget) =>
+                    widget is Semantics &&
+                    (widget.properties.label ?? '').startsWith(_cena(2)),
+              ),
+            )
+            .properties
+            .selected,
+        isTrue,
+        reason: 'a gravação da cena 2 soa, e é a linha dela que se acende',
+      );
+      for (var vez = 0; vez < 3; vez++) {
+        harness.playback.finishPlayback();
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(harness.playback.played.sublist(antes), [
+        _aParte(container, 1).path,
+        pendente,
+        _aParte(container, 3).path,
+        _aParte(container, 4).path,
+      ]);
+    },
+  );
+
   testWidgets('listen on a row plays that scene\'s part alone', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _naCasaDoEnsaio(tester, harness: harness);

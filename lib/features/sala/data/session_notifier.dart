@@ -2779,9 +2779,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       awaitingTheGuide: false,
       keptTakes: takes,
-      // Counted among the rehearsal's own parts — a row read off the tablet can also
-      // carry a correction's own take, kept beside the parts but not one of them.
-      takes: takes.where((take) => KeptScope.isParte(take.scopeId)).length,
       parteARegravar: waiting.partBeingRecordedAgain,
     );
     _readTheScenesForTheRehearsal();
@@ -4667,14 +4664,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       PartSound(parte, path, from: trecho?.$1 ?? Duration.zero, to: trecho?.$2),
   ];
 
+  /// The parts in their scenes' order, and a recording waiting for the check for a scene
+  /// with no part yet at that scene's place.
   List<PartSound> _oEnsaioAteAqui() {
     final partes = state.partes;
     final pendente = _pendingTakePath;
-    final noLugar = pendente != null && _aParteDaGravacao != null;
+    final cena = state.cenaDaGravacao ?? 0;
+    final daPendente = [
+      if (pendente != null && _aParteDaGravacao == null)
+        PartSound(partes.length, pendente),
+    ];
+    final antes = partes.indexWhere(
+      (take) => (KeptScope.numberOf(take.scopeId) ?? 0) > cena,
+    );
     return [
-      for (var parte = 0; parte < partes.length; parte++)
+      for (var parte = 0; parte < partes.length; parte++) ...[
+        if (parte == antes) ...daPendente,
         ..._osSonsDaParte(parte),
-      if (pendente != null && !noLugar) PartSound(partes.length, pendente),
+      ],
+      if (antes < 0) ...daPendente,
     ];
   }
 
@@ -4835,7 +4843,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [...state.keptTakes, nova],
-      takes: state.partes.length + 1,
     );
     _deixarOInteiroDeLado();
     _weighTheRehearsal();
