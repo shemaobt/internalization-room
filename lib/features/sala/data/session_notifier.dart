@@ -7057,13 +7057,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _raiseAHalt();
           return null;
         }
-        // A passage the check cleared on its first verdict never had the names read back,
-        // so the stretches it holds are the ones this tablet cut, and the name the refusal
-        // gives matches none of them. Asked for after the ground, which a round trip
-        // cannot supply: without it the room stood silent for a whole wait and called a
-        // person anyway. A read that fails is not a hole with no ground, and it is left to
-        // reach the approval's own ladder rather than resolving the name against nothing
-        // and halting the room over a request the next press would repeat.
+        // The verdict's read of the names was refused off the network, so the passage
+        // landed on conferida holding only the stretches this tablet cut, and the name the
+        // refusal gives matches none of them: this read resolves it.
         final failure = await _readTheStretchesBack(sessionId, generation);
         if (failure != null) return failure;
         if (_abandoned(generation) || state.needsPerson) return null;
