@@ -670,7 +670,6 @@ class EffectRunner {
     callForAPerson();
   }
 
-  /// The same ask, for a halt with no session to name: the tablet asks by its own device.
   void _decideAt(
     RoomResult result, {
     required Door door,

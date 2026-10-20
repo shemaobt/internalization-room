@@ -1162,6 +1162,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     decidedOnTheTablet(const TheBuildCannotReachTheRoom(), _failureContext()),
   );
 
+  void _logTheGuidesSound(MachineEvent event, Machine before, Machine after) {
+    if (event is! PlayerFailed ||
+        event.source != Source.guide ||
+        identical(before, after) ||
+        after.failing != Source.guide) {
+      return;
+    }
+    logTheTabletDecision(
+      TheSoundFailed(after.failures),
+      after.halt is Blocking && before.halt is! Blocking
+          ? RoomRaisedAHalt
+          : TheRefusalPassed,
+    );
+  }
+
   Kept _whatIsSounding({bool theOpening = true}) {
     if (state.station is Retro &&
         (state.channel is Playing || !_parteJaTocou)) {
@@ -1188,6 +1203,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearSceneTurn: leavesTheScene,
     );
     _runner.run(effects, micWasOpen: before.channel is Microphone);
+    _logTheGuidesSound(event, before, machine);
     _followTheSound(before, machine);
     _followTheMicrophone(before, machine);
     _stampTheQuestion();
@@ -1328,9 +1344,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _decideTheFailure(
     RoomFailure failure, {
     RefusalRule rule = RefusalRule.counts,
+    Door door = Door.step,
   }) {
     _leaveThinking();
-    _decideAt(failure, rule: rule);
+    _decideAt(failure, door: door, rule: rule);
   }
 
   void _decideAt(
@@ -1397,6 +1414,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   bool get _onAWayIn => switch (state.station) {
+    Menu() => true,
     Canvas() => state.sessionId == null,
     Panorama() => state.panoramaSessionId == null,
     _ => false,
@@ -2367,22 +2385,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ? await _emAberto.of(book, pericope, speaking)
         : null;
     if (_abandoned(generation)) return;
-    void failed(RoomFailure failure, {RefusalRule rule = RefusalRule.counts}) {
+    final theResume = '$book/$pericope/$speaking';
+    void failed(
+      RoomFailure failure, {
+      RefusalRule rule = RefusalRule.counts,
+      Door door = Door.step,
+    }) {
       if (_abandoned(generation)) return;
       if (failure case Refused(
         :final code,
       ) when waiting != null && !RefusalCode.stopsTheRoom.contains(code)) {
-        final resumed = '$book/$pericope/$speaking';
-        final failures = (_resumeFailures[resumed] ?? 0) + 1;
-        _resumeFailures[resumed] = failures;
+        final failures = (_resumeFailures[theResume] ?? 0) + 1;
+        _resumeFailures[theResume] = failures;
         if (failures >= _resumeFailuresBeforeForgetting) {
-          _resumeFailures.remove(resumed);
+          _resumeFailures.remove(theResume);
           unawaited(
             _mindingThePlace(() => _emAberto.forget(book, pericope!, speaking)),
           );
         }
       }
-      _decideTheFailure(failure, rule: rule);
+      _decideTheFailure(failure, rule: rule, door: door);
     }
 
     final resumed = waiting != null;
@@ -2451,7 +2473,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           case final SessionGone gone:
             return failed(gone);
           case final RoomFailure failure:
-            return failed(failure, rule: RefusalRule.keepsTheResume);
+            return failed(
+              failure,
+              rule: RefusalRule.keepsTheResume,
+              door: Door.resume,
+            );
         }
         if (_abandoned(generation)) return;
         state = state.copyWith(
@@ -2472,6 +2498,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // After the telling-back is picked up, not before, so that the passage the team
         // comes back to is the one they left: a person resolving the halt finds them in
         // their retro rather than dropped back into the rehearsal.
+        _resumeFailures.remove(theResume);
         _applyTheSessionRead(snapshot, sent);
         return;
       }
@@ -2483,7 +2510,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case final SessionGone gone:
           return failed(gone);
         case final RoomFailure failure:
-          return failed(failure, rule: RefusalRule.keepsTheResume);
+          return failed(
+            failure,
+            rule: RefusalRule.keepsTheResume,
+            door: Door.resume,
+          );
       }
       if (_abandoned(generation)) return;
       if (Station.stored(waiting.stage) is Retro) {
@@ -2502,6 +2533,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (told.checked && !told.nothingTold) {
           _pickTheTellingBackUp(told);
           landed();
+          _resumeFailures.remove(theResume);
           _applyTheSessionRead(read, sent);
           return;
         }

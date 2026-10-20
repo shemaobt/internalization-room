@@ -1995,9 +1995,17 @@ class FakeRoom implements RoomRepository {
     );
   }
 
+  Completer<void>? _holdingBooks;
+
+  /// Hold the next ask for the served books, the way a link that never answers holds it.
+  void holdNextBooks() => _holdingBooks = Completer<void>();
+
   @override
   Future<RoomAnswer<List<String>>> servedBooks() async {
     if (_guard('servedBooks') case final failure?) return failure;
+    final held = _holdingBooks;
+    _holdingBooks = null;
+    if (held != null) await held.future;
     return failBooksWith ?? Answered(books);
   }
 
