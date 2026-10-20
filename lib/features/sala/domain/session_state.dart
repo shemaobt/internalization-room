@@ -334,6 +334,10 @@ class SalaSessionState {
   /// replacing one.
   final int? parteARegravar;
 
+  /// The Scene the open or pending recording of the Rehearsal is for, from 1; null while
+  /// nothing is being recorded there.
+  final int? cenaDaGravacao;
+
   final SceneScreen scene;
 
   /// This session's scene rehearsals, by number, as the room last answered them.
@@ -418,6 +422,7 @@ class SalaSessionState {
     this.unsentTakeScopes = const {},
     this.machine = const Machine(),
     this.parteARegravar,
+    this.cenaDaGravacao,
     this.scene = const SceneScreen(),
     this.sceneRehearsals = const [],
     this.scenes = const ScenesAwaited(),
@@ -457,8 +462,102 @@ class SalaSessionState {
       naRoda != null &&
       naRoda!.every((passagem) => passagem.isPanorama);
 
+  /// The advance disc lights: every Scene has its Part, with nothing recorded and waiting
+  /// and no finding's mark standing.
   bool get ensaioDone =>
-      takes >= 1 && ensaio == EnsaioStatus.idle && parteARegravar == null;
+      ensaio == EnsaioStatus.idle &&
+      parteARegravar == null &&
+      everySceneHasItsPart;
+
+  /// Whether every Scene has its Part. A passage the room answered with no scenes needs
+  /// one part; a scene list still awaited or missing is never covered.
+  bool get everySceneHasItsPart {
+    final numbers = partNumbers;
+    return switch (scenes) {
+      ScenesHad(scenes: final had) when had.isNotEmpty => [
+        for (var n = 1; n <= had.length; n++) n,
+      ].every(numbers.contains),
+      ScenesHad() => numbers.isNotEmpty,
+      _ => false,
+    };
+  }
+
+  /// Whether at least one Scene has its Part and another has none.
+  bool get someScenesWaitForTheirPart {
+    final count = scenes.scenes.length;
+    final had = partNumbers.where((n) => n <= count).length;
+    return had > 0 && had < count;
+  }
+
+  /// Whether a current Part was laid in from a Scene rehearsal.
+  bool get joined => partes.any((take) => take.origin != null);
+
+  Set<int> get partNumbers => {
+    for (final take in partes) ?KeptScope.numberOf(take.scopeId),
+  };
+
+  /// Where in [partes] the part numbered [number] sits; null when there is none.
+  int? partIndexOf(int number) {
+    final index = partes.indexWhere(
+      (take) => KeptScope.numberOf(take.scopeId) == number,
+    );
+    return index < 0 ? null : index;
+  }
+
+  /// The Scene the circle records: the part a finding sent the team back for, else the
+  /// first Scene with no part, else none; with no scene list, the lowest number free.
+  int? get sceneForTheCircle {
+    final marked = _numberAt(parteARegravar);
+    if (marked != null) return marked;
+    final numbers = partNumbers;
+    final count = scenes.scenes.length;
+    if (count == 0) return KeptScope.firstFree(numbers);
+    for (var scene = 1; scene <= count; scene++) {
+      if (!numbers.contains(scene)) return scene;
+    }
+    return null;
+  }
+
+  /// One row per Scene, in passage order; with a passage the room answered with no
+  /// scenes, one per Part plus one more. None while the list is awaited or missing.
+  List<SceneRow> get sceneRows {
+    final List<(int, String?)> numbered = switch (scenes) {
+      ScenesHad(scenes: final had) when had.isNotEmpty => [
+        for (final (index, scene) in had.indexed) (index + 1, scene.title),
+      ],
+      ScenesHad() => [
+        for (final n in [
+          ...partNumbers,
+          KeptScope.firstFree(partNumbers),
+        ]..sort())
+          (n, null),
+      ],
+      _ => const [],
+    };
+    final playing = parteDoEnsaioTocando;
+    final again = parteARegravar;
+    final marked = _numberAt(again);
+    return [
+      for (final (number, title) in numbered)
+        SceneRow(
+          number: number,
+          title: title,
+          part: switch (partIndexOf(number)) {
+            final index? => partes[index],
+            null => null,
+          },
+          unsent: unsentTakeScopes.contains(KeptScope.parte(number)),
+          recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
+          dimmed:
+              marked != null && marked != number && ensaio == EnsaioStatus.idle,
+          current: _numberAt(playing ?? again) == number,
+        ),
+    ];
+  }
+
+  int? _numberAt(int? index) => index != null && index < partes.length
+      ? KeptScope.numberOf(partes[index].scopeId)
+      : null;
 
   bool get canHearAgain =>
       (lastSpoken != null || roomSaysItAgain) &&
@@ -836,7 +935,9 @@ class SalaSessionState {
   List<KeptTake> get partes => [
     for (final take in keptTakes)
       if (KeptScope.isParte(take.scopeId)) take,
-  ];
+  ]..sort((a, b) => _byNumber(a).compareTo(_byNumber(b)));
+
+  static int _byNumber(KeptTake take) => KeptScope.numberOf(take.scopeId) ?? 0;
 
   bool get canPlayTheRehearsal =>
       (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
@@ -961,6 +1062,8 @@ class SalaSessionState {
     Machine? machine,
     int? parteARegravar,
     bool clearParteARegravar = false,
+    int? cenaDaGravacao,
+    bool clearCenaDaGravacao = false,
     SceneScreen? scene,
     List<SceneRehearsalRecord>? sceneRehearsals,
     SceneList? scenes,
@@ -1047,10 +1150,39 @@ class SalaSessionState {
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),
+      cenaDaGravacao: clearCenaDaGravacao
+          ? null
+          : (cenaDaGravacao ?? this.cenaDaGravacao),
       scene: scene ?? this.scene,
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
       scenes: scenes ?? this.scenes,
       sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),
     );
   }
+}
+
+/// One Scene row of the Rehearsal.
+class SceneRow {
+  final int number;
+
+  /// The Scene's title as the scenes door answered it; null for a passage with no scenes.
+  final String? title;
+  final KeptTake? part;
+  final bool unsent;
+  final bool recording;
+  final bool dimmed;
+
+  /// The part in the air, playing or held, or else the part a finding sent the team back
+  /// to record again.
+  final bool current;
+
+  const SceneRow({
+    required this.number,
+    required this.title,
+    required this.part,
+    required this.unsent,
+    required this.recording,
+    required this.dimmed,
+    required this.current,
+  });
 }

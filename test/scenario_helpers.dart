@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'fakes.dart';
@@ -211,3 +212,25 @@ Future<void> _enterTheEntry(
   expect(entry, isNotEmpty, reason: 'a roda não tem essa entrada');
   notifier.openTheEntry(entry.first);
 }
+
+Finder linhaDoEnsaio(int cena) => find.descendant(
+  of: find.byType(EnsaioView),
+  matching: find.byWidgetPredicate(
+    (widget) =>
+        widget is Semantics &&
+        (widget.properties.label == 'Cena $cena' ||
+            (widget.properties.label ?? '').startsWith('Cena $cena,')),
+  ),
+);
+
+/// Each Scene row's control under [controle], lit or not; a row without it reads null.
+List<bool?> naLinhaDoEnsaio(WidgetTester tester, String controle) => [
+  for (var cena = 1; linhaDoEnsaio(cena).evaluate().isNotEmpty; cena++)
+    switch (find
+        .descendant(of: linhaDoEnsaio(cena), matching: byLabel(controle))
+        .evaluate()) {
+      final achados when achados.isEmpty => null,
+      final achados =>
+        (achados.single.widget as Semantics).properties.enabled == true,
+    },
+];

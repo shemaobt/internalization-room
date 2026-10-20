@@ -8,7 +8,6 @@ import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/main.dart';
@@ -262,23 +261,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
 
     expect(
-      tester
-          .widget<BeadRow>(
-            find.descendant(
-              of: find.byType(EnsaioView),
-              matching: find.byType(BeadRow),
-            ),
-          )
-          .entries,
-      hasLength(3),
-      reason: 'uma conta por tomada guardada, no ensaio, como antes de contar',
+      find.descendant(of: find.byType(EnsaioView), matching: byLabel('Ouvir')),
+      findsNWidgets(3),
+      reason: 'uma linha por tomada guardada, no ensaio, como antes de contar',
     );
     expect(
       find.byType(ColarOverlay),
       findsNothing,
       reason:
-          'o progresso do ensaio é a fileira de contas dos pedaços; o '
-          'colar da conversa não desenha ali',
+          'o progresso do ensaio são as linhas das cenas; o colar da '
+          'conversa não desenha ali',
     );
     final depois = container.read(salaSessionProvider);
     expect(
@@ -301,6 +293,7 @@ void main() {
     await gravarUmaParte(tester, container);
     final nova = container.read(salaSessionProvider).keptTakes.last;
 
+    await tester.ensureVisible(byLabel(irParaARetro));
     await tester.tap(byLabel(irParaARetro));
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -547,6 +540,7 @@ void main() {
     final tocadas = harness.playback.played.length;
 
     harness.playback.holdNextMeasurement();
+    await tester.ensureVisible(byLabel(irParaARetro));
     await tester.tap(byLabel(irParaARetro));
     await tester.pump(const Duration(milliseconds: 200));
 

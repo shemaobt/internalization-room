@@ -5078,6 +5078,7 @@ void main() {
     await _intoFindings(harness, notifier, container);
 
     notifier.goEnsaio();
+    await settle();
     notifier.startRetro();
     await settle();
     harness.room.failWith = const Refused('UNAUTHORIZED');

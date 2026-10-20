@@ -823,7 +823,7 @@ void main() {
   });
 
   test(
-    'uma gravacao de ensaio sem numero e a parte no lugar em que a lista a traz',
+    'uma gravacao de ensaio sem numero toma o primeiro numero livre',
     () async {
       final harness = SalaHarness();
 
@@ -854,10 +854,11 @@ void main() {
 
       expect(
         _nomesDasPartes(it),
-        ['gravacao-2', 'gravacao-1'],
+        ['gravacao-1', 'gravacao-2'],
         reason:
-            'um ensaio que a sala não numera é a parte do lugar em que a '
-            'lista o traz: fora da fila das partes ele não toca nem se mede',
+            'a parte N é a cena N: a gravação numerada fica no número dela, '
+            'e a que a sala não numera toma o primeiro número livre — fora '
+            'da fila das partes ela não tocaria nem se mediria',
       );
       expect(
         it.estado.btFimDasPartesMs,
