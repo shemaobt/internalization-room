@@ -20,6 +20,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
+        aceso,
         cabeca,
         confirmar,
         contarAteOFimDaParte,
@@ -319,6 +320,33 @@ void main() {
       harness.playback.played.last,
       contada,
       reason: 'a lista não tinha como ouvir a tradução de uma frase',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the loudspeaker of a frase plays the team\'s own translation '
+      'while the verdict is on the screen, as it does before one', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(
+      tester,
+      harness,
+      _achadosDaDoisEDaQuatro,
+    );
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    final terceira = harness.room.chunkFiles[2];
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    await tocar(tester, 'ouvir a minha tradução da frase 3');
+
+    expect(
+      harness.playback.played.last,
+      terceira,
+      reason:
+          'depois do veredito o alto-falante da linha ficava apagado, e a '
+          'equipe não ouvia o que contou justo quando queria',
     );
     closeTheRoom(container);
   });

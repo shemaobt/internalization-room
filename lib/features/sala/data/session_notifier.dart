@@ -5532,9 +5532,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gesture(() => _ouvirOTrechoContado(indice));
 
   void _ouvirOTrechoContado(int indice) {
-    if (state.station is! Retro || state.btPhase != BtPhase.playing) {
-      return;
-    }
+    if (!state.canHearAFrase) return;
     if (state.needsPerson || state.offline) return;
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
