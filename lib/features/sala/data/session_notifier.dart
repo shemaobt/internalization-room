@@ -449,6 +449,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _inboxRead = null;
     _semNome = {};
     _newestCount = 0;
+    _fraseNaFila = null;
+    _regravacoes = 0;
+    _regravouNestaVisita = false;
   }
 
   @override
@@ -5772,7 +5775,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  PendingTake? _fraseNaFila;
+  late PendingTake? _fraseNaFila;
 
   void usarEstaFrase() => _gesture(() => _handOff(_usarEstaFrase()));
 
@@ -6026,9 +6029,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   });
 
-  int _regravacoes = 0;
+  late int _regravacoes;
 
-  bool _regravouNestaVisita = false;
+  late bool _regravouNestaVisita;
 
   void _fecharARegravacao() {
     _silenceTheRoom();
