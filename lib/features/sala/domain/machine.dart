@@ -285,6 +285,11 @@ final class TheBackTranslationOpened extends StationEvent {
   const TheBackTranslationOpened();
 }
 
+/// A reopened passage lands back on the telling-back the team had already started.
+final class TheBackTranslationResumed extends StationEvent {
+  const TheBackTranslationResumed();
+}
+
 final class TheNecklaceClosed extends StationEvent {
   const TheNecklaceClosed();
 }
@@ -337,6 +342,13 @@ final class TheWayBackTaken extends MachineEvent {
 
 final class TheLanguageChosen extends MachineEvent {
   const TheLanguageChosen();
+}
+
+/// The Rehearsal's parts or its scene list changed: whether every scene has its part.
+final class TheRehearsalWeighed extends MachineEvent {
+  final bool everySceneHasItsPart;
+
+  const TheRehearsalWeighed({required this.everySceneHasItsPart});
 }
 
 final class TheSessionIsGone extends AnsweringEvent {
@@ -1219,11 +1231,14 @@ const _watch = ArmTheWatch();
     (machine, [ShowTheSceneRehearsals(listed)]),
   TheSceneRehearsalsListed() => (machine, const []),
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
-  LookPending(:final turn, :final sounding) => (
+  LookPending(:final turn) => (
     machine.copyWith(
       look: machine.look!.copyWith(stillAnswering: true, asked: true),
     ),
-    [if (machine.halt is! Blocking) LookAgain(turn, sounding: sounding)],
+    [
+      if (machine.halt is! Blocking)
+        LookAgain(turn, sounding: machine.look!.sounding),
+    ],
   ),
   LookEmpty(:final turn, theWaitRanOut: false)
       when machine.look?.stillAnswering ?? false =>
@@ -1317,6 +1332,15 @@ const _watch = ArmTheWatch();
   TheSessionLetGo(:final session) => switch (machine.panorama) {
     final HeldPanorama held when held.session == session => (
       machine.copyWith(panorama: HeldPanorama(held.id, held.language)),
+      const [],
+    ),
+    _ => (machine, const []),
+  },
+  TheRehearsalWeighed(:final everySceneHasItsPart) => switch (machine.station) {
+    Ensaio() => (
+      machine.copyWith(
+        station: Ensaio(everySceneHasItsPart: everySceneHasItsPart),
+      ),
       const [],
     ),
     _ => (machine, const []),
@@ -2083,6 +2107,7 @@ Machine _answered(Machine machine) =>
   TheCallMetAClosedPassage() ||
   StationEvent() ||
   TheLanguageChosen() ||
+  TheRehearsalWeighed() ||
   ThePanoramaAsked() ||
   TheSessionOpened() ||
   TheSessionLetGo() ||

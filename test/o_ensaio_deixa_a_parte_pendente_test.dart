@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -56,9 +55,6 @@ Future<void> _confirmarAParte(WidgetTester tester) async {
   await letTheRehearsalReachTheRoom(tester);
 }
 
-List<BeadRowEntry> _contas(WidgetTester tester) =>
-    tester.widget<BeadRow>(find.byType(BeadRow)).entries;
-
 FacilitatorCircle _circulo(WidgetTester tester) =>
     tester.widget<FacilitatorCircle>(
       find.descendant(
@@ -105,21 +101,19 @@ void main() {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await _noEnsaio(tester, harness: harness);
 
-      expect(_contas(tester), isEmpty);
+      expect(naLinhaDoEnsaio(tester, 'Ouvir'), [null]);
       await _tocar(tester, _gravarOEnsaio);
-      expect(
-        [for (final conta in _contas(tester)) (conta.fill, conta.current)],
-        [(BeadFill.translucent, true)],
-        reason: 'a gravação aberta já é uma conta, translúcida e em evidência',
-      );
+      expect(naLinhaDoEnsaio(tester, 'Parar'), [
+        true,
+      ], reason: 'a gravação aberta é a da linha 1');
       expect(_circulo(tester).voice, VoiceState.listening);
       expect(_circulo(tester).tongue, Tongue.motherTongue);
 
       await _tocar(tester, _terminar);
       final primeira = harness.recorder.lastPath!;
       expect(
-        [for (final conta in _contas(tester)) conta.fill],
-        [BeadFill.translucent],
+        naLinhaDoEnsaio(tester, 'Gravar'),
+        [true],
         reason: 'a parte pendente ainda não foi confirmada',
       );
       expect(_aceso(tester, _ouvirOEnsaio), isTrue);
@@ -136,8 +130,8 @@ void main() {
       final terceira = harness.recorder.lastPath!;
 
       expect(
-        _contas(tester),
-        hasLength(1),
+        naLinhaDoEnsaio(tester, 'Gravar'),
+        [true],
         reason: 'gravar por cima é a mesma parte, não uma segunda',
       );
       expect(harness.recorder.captures, 3);
@@ -153,10 +147,7 @@ void main() {
 
       await _confirmarAParte(tester);
 
-      expect(
-        [for (final conta in _contas(tester)) (conta.fill, conta.current)],
-        [(BeadFill.solid, false)],
-      );
+      expect(naLinhaDoEnsaio(tester, 'Ouvir'), [true, null]);
       expect(_naFila(harness), [
         (path: terceira, scope: KeptScope.parte(1), chunkIndex: 1),
       ], reason: 'só a última gravação sobe, como a parte 1');
@@ -183,10 +174,8 @@ void main() {
         reason: 'com a parte 1 confirmada, nada toca enquanto a 2 grava',
       );
       await _tocar(tester, _terminar);
-      expect(
-        [for (final conta in _contas(tester)) (conta.fill, conta.current)],
-        [(BeadFill.solid, false), (BeadFill.translucent, true)],
-      );
+      expect(naLinhaDoEnsaio(tester, 'Ouvir'), [true, null]);
+      expect(naLinhaDoEnsaio(tester, 'Gravar'), [null, true]);
       expect(_apagado(tester, _irParaATraducao), isTrue);
 
       await tester.tap(byLabel(_irParaATraducao), warnIfMissed: false);
@@ -456,7 +445,6 @@ void main() {
       );
       for (final aposentado in [
         'Ouvir a gravação',
-        'Gravar de novo',
         'Guardar esta gravação',
         'Ouvir o ensaio guardado antes de gravar',
         'Parar de ouvir o ensaio guardado',
@@ -496,7 +484,7 @@ void main() {
 
     await _tocar(tester, 'Tap to record the rehearsal');
     expect(byLabel('Tap when you finish'), findsOneWidget);
-    expect(byLabel('Part 1'), findsOneWidget);
+    expect(byLabel('Scene 1'), findsOneWidget);
     await _tocar(tester, 'Tap when you finish');
     expect(byLabel('Tap to record this part again'), findsOneWidget);
 
@@ -507,6 +495,6 @@ void main() {
     await _tocar(tester, 'Confirm this part');
     await letTheRehearsalReachTheRoom(tester);
     expect(byLabel('Tap to record the next part'), findsOneWidget);
-    expect(byLabel('Part 1'), findsOneWidget);
+    expect(byLabel('Scene 1'), findsOneWidget);
   });
 }

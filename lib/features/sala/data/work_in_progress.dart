@@ -60,6 +60,7 @@ class ResumePoint {
           'scope': take.scopeId,
           'take': ?take.takeId,
           'pass': take.pass,
+          'origin': ?take.origin,
         },
     ],
   };
@@ -101,6 +102,7 @@ class ResumePoint {
               // whole rehearsal, which says nothing about which recording of which part
               // each take is. Counting from it would number parts nobody recorded again.
               pass: raw['pass'] as int? ?? 1,
+              origin: raw['origin'] as String?,
             ),
       ],
     );
