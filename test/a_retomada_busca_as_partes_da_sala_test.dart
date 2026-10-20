@@ -463,15 +463,104 @@ void main() {
     expect(_nomesDasPartes(it), ['gravacao-1']);
   });
 
-  test('uma sessao que o servidor nao guarda mais, achada ao buscar uma parte, '
-      'volta a escolha', () async {
-    final harness = SalaHarness()..room.failClipWith = const SessionGone();
+  test('uma sessao que o servidor nao guarda mais volta a escolha', () async {
+    final harness = SalaHarness()..room.forgetTheSession(_sessao);
 
     final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
     await _deVoltaAEscolha(it);
 
     expect(it.estado.needsPerson, isFalse);
     await waitFor('a linha da sessão esquecida sair', () => it.linha == null);
+  });
+
+  test(
+    'um ensaio aberto sem uma parte nao reescreve a linha guardada',
+    () async {
+      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1]),
+      );
+      await waitFor(
+        'o ensaio abrir',
+        () =>
+            it.estado.stage == SalaStage.ensaio && !it.estado.awaitingTheGuide,
+      );
+      it.sala.leaveThePassage();
+      await settle(const Duration(milliseconds: 300));
+
+      expect(it.linhaAgora, it.linhaAntes);
+    },
+  );
+
+  test(
+    'um ensaio aberto sem a primeira parte nao reescreve a linha guardada',
+    () async {
+      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-1');
+
+      final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+      await waitFor(
+        'o ensaio abrir',
+        () =>
+            it.estado.stage == SalaStage.ensaio && !it.estado.awaitingTheGuide,
+      );
+      it.sala.leaveThePassage();
+      await settle(const Duration(milliseconds: 300));
+
+      expect(it.linhaAgora, it.linhaAntes);
+    },
+  );
+
+  test(
+    'a parte gravada onde a da sala sumiu sobe acima da passada da sala',
+    () async {
+      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.ensaio,
+        naSala: [
+          for (final (n, passada) in const [(1, 1), (2, 2), (3, 1)])
+            TakeView(
+              takeId: 'gravacao-$n',
+              kind: 'ensaio',
+              scope: KeptScope.parte(n),
+              ordinal: n,
+              pass: passada,
+            ),
+        ],
+      );
+      await waitFor(
+        'o ensaio abrir',
+        () =>
+            it.estado.stage == SalaStage.ensaio && !it.estado.awaitingTheGuide,
+      );
+      final passadasAntes = harness.room.takePasses.length;
+      it.sala.ensaioTap();
+      it.sala.ensaioTap();
+      await settle();
+      it.sala.takeKeep();
+      await waitFor(
+        'a parte subir',
+        () => harness.room.takePasses.length > passadasAntes,
+      );
+
+      expect(harness.room.takePasses.last, 3);
+    },
+  );
+
+  test('uma parte que a sala recusa por outro motivo volta a escolha e guarda '
+      'a linha', () async {
+    final harness = SalaHarness()
+      ..room.failClipWith = const Refused(RefusalCode.forbidden);
+
+    final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+    await _deVoltaAEscolha(it);
+
+    expect(it.estado.needsPerson, isFalse);
+    expect(it.linhaAgora, it.linhaAntes);
   });
 
   test(

@@ -186,10 +186,15 @@ const _gestureChain = #gestureChain;
 
 const _umInstanteOuvido = Duration(milliseconds: 400);
 
-/// What a reopening found where the team left off.
-/// The parts of the rehearsal the room could hand back, and whether that was all of them.
-typedef _PartesDaSala = ({List<KeptTake> partes, bool inteiro});
+/// The parts of the rehearsal the room could hand back, whether that was all of them, and
+/// the pass the room holds for each part number.
+typedef _PartesDaSala = ({
+  List<KeptTake> partes,
+  bool inteiro,
+  Map<int, int> passadas,
+});
 
+/// What a reopening found where the team left off.
 enum _Resume {
   /// The station they left, standing again, with the rehearsal under it.
   landed,
@@ -321,6 +326,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late int _readsSentBeforeTheCall;
   late Set<String> _contadasSemResposta;
   late Map<String, int> _resumeFailures;
+
+  /// The pass the room holds for each part, kept only while the rehearsal stands short of a
+  /// part the room no longer has: the row is not rewritten, and a part recorded goes up
+  /// above the room's own pass for its number.
+  late Map<int, int>? _passadasDaSala;
   late Set<String> _goneSessions;
 
   /// When and in what language the session now open was created, so a row rewritten by
@@ -486,6 +496,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _readsSentBeforeTheCall = 0;
     _contadasSemResposta = {};
     _resumeFailures = {};
+    _passadasDaSala = null;
     _goneSessions = {};
     _sessionSavedAt = null;
     _sessionLanguage = null;
@@ -2614,7 +2625,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Write down where they are, so leaving lands them back here rather than at the start.
   void _rememberWhereTheyAre(Station station) {
-    if (_gone) return;
+    if (_gone || _passadasDaSala != null) return;
     final passage = _emCurso;
     final pericope = passage?.pericope;
     final sessionId = state.sessionId;
@@ -2688,15 +2699,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             case Answered(:final value?):
               takes = value.partes;
               inteiro = value.inteiro;
+              if (!inteiro) _passadasDaSala = value.passadas;
             case Answered():
               takes = null;
             case NetworkFailed():
               if (_abandoned(generation)) return _Resume.abandoned;
               return _theResumeFailed(const RoomNetworkFailed(), generation);
-            case final SessionGone gone:
-              if (_abandoned(generation)) return _Resume.abandoned;
-              _decideTheFailure(gone);
-              return _Resume.gone;
             case final RoomFailure failure:
               return _theResumeFailed(failure.result, generation);
           }
@@ -2769,8 +2777,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Null when the room could not hand the rehearsal over — one part's audio or the
   /// disk. Nothing is written for it: the resume point stays exactly as it was and the
   /// next opening tries again.
-  /// The rehearsal the room holds, as far as its parts can be had: a part the room no
-  /// longer has ends it there, and [inteiro] says so.
+  /// The rehearsal the room holds, as far as its parts can be had. A part the room
+  /// answers is gone for good (its 404) ends it there; any other answer that brings no
+  /// audio is no rehearsal at all, and the resume goes back to the Choice.
   Future<RoomAnswer<_PartesDaSala?>> _asPartesDaSala(
     ResumePoint waiting,
     List<TakeView> guardadas,
@@ -2784,6 +2793,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (guardada.kind != 'ensaio') continue;
       correntes[guardada.ordinal] = guardada;
     }
+    final passadas = {
+      for (final (n, corrente) in correntes.values.indexed)
+        n + 1: corrente.pass ?? 1,
+    };
     final partes = <KeptTake>[];
     for (final corrente in correntes.values) {
       final escopo = KeptScope.parte(partes.length + 1);
@@ -2810,10 +2823,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           audio = value;
         case NetworkFailed() && final fell:
           return fell;
-        case SessionGone() && final gone:
-          return gone;
-        case Answered() || Refused():
-          return Answered((partes: partes, inteiro: false));
+        case Refused(code: RefusalCode.notFound):
+          return Answered((partes: partes, inteiro: false, passadas: passadas));
+        case Answered() || Refused() || SessionGone():
+          return const Answered(null);
       }
       final String arquivo;
       try {
@@ -2825,7 +2838,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return const Answered(null);
       }
       if (_abandoned(generation)) {
-        return const Answered((partes: <KeptTake>[], inteiro: true));
+        return const Answered((
+          partes: <KeptTake>[],
+          inteiro: true,
+          passadas: <int, int>{},
+        ));
       }
       partes.add(
         KeptTake(
@@ -2836,7 +2853,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ),
       );
     }
-    return Answered((partes: partes, inteiro: true));
+    return Answered((partes: partes, inteiro: true, passadas: passadas));
   }
 
   /// How long each part turned out to be, so the room knows where each part ends.
@@ -4674,7 +4691,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // not parts of the rehearsal in their own right.
     final parte = state.partes.length + 1;
     final escopo = KeptScope.parte(parte);
-    final nova = KeptTake(scopeId: escopo, path: path);
+    final nova = KeptTake(
+      scopeId: escopo,
+      path: path,
+      pass: (_passadasDaSala?[parte] ?? 0) + 1,
+    );
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [...state.keptTakes, nova],
@@ -7521,6 +7542,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _coverageSessionId = null;
     _contadasSemResposta.clear();
     _stretchKeys.clear();
+    _passadasDaSala = null;
     _strandedSpoken = false;
     _personAsked = false;
     _runner.endTheWatch();
