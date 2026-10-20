@@ -54,6 +54,13 @@ frase numbered as the voice numbers it and labelled with its «parte». It is th
 exception, under the moment label's reason, her words the team reads: her 1 October rule
 makes her frozen screen the bar, and on hers «na frase 3» points at a «3» on the screen.
 
+Amended by ENG-1406 (2026-10-20, ADR 0102): the Rehearsal is her recording home
+(`widgets/ensaio_view.dart`): «Gravem o ensaio de vocês», or «Ensaio Final» once a part
+was joined, her sub-line, «Cena N» with each scene's title, and «gravem todas as partes
+primeiro». It is the eighth named exception, under the moment label's reason, her words
+the team reads. Her record, listen, record-again and stop controls are icons VoiceOver reads
+by her names; the rest of that screen stays wordless.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a
