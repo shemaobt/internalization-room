@@ -2807,7 +2807,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Each keeps the number the room holds for it, because part N is Scene N: a room
   /// holding part 3 alone hands it back on row 3, never renumbered by its place in the
   /// listing. A recording the room does not number is the rehearsal an app before
-  /// 19 August sent whole: it comes back whole and is no scene's part. Each keeps where
+  /// 19 August sent whole: it comes back whole and is no scene's part, and behind a part
+  /// of a scene it is set aside, known by its name and never fetched. Each keeps where
   /// the room says it was joined from.
   ///
   /// A file still on the tablet under a current part's name is kept as it is: it is the
@@ -2830,6 +2831,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (guardada.kind != 'ensaio') continue;
       correntes[guardada.ordinal] = guardada;
     }
+    final deLado = correntes.keys.any((ordinal) => ordinal != null);
     final partes = <KeptTake>[];
     for (final MapEntry(key: ordinal, value: corrente) in correntes.entries) {
       final escopo = ordinal == null
@@ -2837,6 +2839,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           : KeptScope.parte(ordinal);
       final passada = corrente.pass ?? 1;
       final nossa = aqui.where((take) => take.takeId == corrente.takeId);
+      if (ordinal == null && deLado && nossa.isEmpty) {
+        partes.add(
+          KeptTake(
+            scopeId: escopo,
+            path: '$escopo-${corrente.takeId}',
+            takeId: corrente.takeId,
+            pass: passada,
+          ),
+        );
+        continue;
+      }
       if (nossa.isNotEmpty) {
         partes.add(
           KeptTake(
@@ -2909,12 +2922,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leaveTheStepFor(const Retro());
     _arriveAt(const TheBackTranslationResumed());
     _regravouNestaVisita = false;
+    final trechos = _trechosFrom(told.segments);
+    final achados = _osAchadosQueFicam(told.findings, trechos);
     state = state.copyWith(
       awaitingTheGuide: false,
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
-      btTrechos: _trechosFrom(told.segments),
-      btFindings: told.findings,
-      btVeredito: told.checked || told.findings.isNotEmpty,
+      btTrechos: trechos,
+      btFindings: achados,
+      btVeredito: told.checked || achados.isNotEmpty,
       btFraseQueAguarda: told.awaitingSegmentId,
       clearBtFraseQueAguarda: told.awaitingSegmentId == null,
     );
@@ -2957,9 +2972,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// leave-and-return later.
   void _keepTheStretchesAlreadyTold(BackTranslationProgress told) {
     if (told.nothingTold) return;
+    final trechos = _trechosFrom(told.segments);
     state = state.copyWith(
-      btTrechos: _trechosFrom(told.segments),
-      btFindings: told.findings,
+      btTrechos: trechos,
+      btFindings: _osAchadosQueFicam(told.findings, trechos),
     );
   }
 
@@ -7657,21 +7673,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _deixarOInteiroDeLado() {
     final deLado = state.wholeSetAside;
     if (deLado.isEmpty) return;
-    final saem = {
+    final trechos = [
       for (final trecho in state.btTrechos)
-        if (deLado.contains(trecho.takeId) && trecho.frase != null)
-          trecho.frase,
-    };
+        if (!deLado.contains(trecho.takeId)) trecho,
+    ];
     state = state.copyWith(
-      btTrechos: [
-        for (final trecho in state.btTrechos)
-          if (!deLado.contains(trecho.takeId)) trecho,
-      ],
-      btFindings: [
-        for (final finding in state.btFindings)
-          if (!saem.contains(finding.frase)) finding,
-      ],
+      btTrechos: trechos,
+      btFindings: _osAchadosQueFicam(state.btFindings, trechos),
     );
+  }
+
+  /// With a whole rehearsal set aside, only a finding on a stretch the tablet keeps
+  /// stands: the rest were the whole's.
+  List<BtFinding> _osAchadosQueFicam(
+    List<BtFinding> findings,
+    List<Trecho> trechos,
+  ) {
+    if (state.wholeSetAside.isEmpty) return findings;
+    final contados = {for (final trecho in trechos) ?trecho.segmentId};
+    return [
+      for (final finding in findings)
+        if (contados.contains(finding.segmentId)) finding,
+    ];
   }
 
   void _voltarAoEnsaio() {

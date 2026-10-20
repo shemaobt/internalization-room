@@ -823,8 +823,8 @@ void main() {
   });
 
   test(
-    'uma gravacao de ensaio sem numero fica de lado, guardada, quando ja ha a '
-    'parte de uma cena',
+    'uma gravacao de ensaio sem numero fica de lado na sala, sem ser buscada, '
+    'quando ja ha a parte de uma cena',
     () async {
       final harness = SalaHarness();
 
@@ -850,7 +850,7 @@ void main() {
       );
       await waitFor(
         'as partes voltarem da sala',
-        () => it.estado.keptTakes.length == 2,
+        () => it.estado.partes.isNotEmpty,
       );
 
       expect(
@@ -861,9 +861,14 @@ void main() {
             'da tradução assim que a primeira cena tem a sua parte',
       );
       expect(
+        harness.room.clipsFetched,
+        isNot(contains(_urlDaParte('gravacao-2'))),
+        reason: 'e fica guardado na sala: o tablet não o busca',
+      );
+      expect(
         [for (final take in it.estado.keptTakes) take.takeId],
         contains('gravacao-2'),
-        reason: 'e fica guardado: nunca se apaga',
+        reason: 'mas o conhece pelo nome: nunca se apaga',
       );
       expect(it.estado.btFimDasPartesMs, [10000]);
     },

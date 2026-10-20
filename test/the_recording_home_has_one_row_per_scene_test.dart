@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -214,6 +216,67 @@ Future<void> _gravarACenaEGuardar(Sala it, int cena) async {
     'a cena $cena ficar guardada',
     () => it.estado.ensaio == EnsaioStatus.idle,
   );
+}
+
+const _achadoNoInteiro = BtFinding(
+  kind: BtFindingKind.missing,
+  frase: 1,
+  segmentId: 'trecho-inteiro',
+);
+
+const _contadoNoInteiro = SegmentView(
+  segmentId: 'trecho-inteiro',
+  takeId: 'gravacao-inteira',
+  startsMs: 0,
+  endsMs: 10000,
+  frase: 1,
+);
+
+/// A two-scene passage reopened on the tablet that recorded it, at [parouEm], holding
+/// the whole rehearsal and, when [comACena1], scene 1's part not yet named by the room.
+Future<Sala> _reabrirComOInteiro({
+  required SalaStage parouEm,
+  required bool comACena1,
+  List<BtFinding> achados = const [_achadoNoInteiro],
+}) async {
+  final casa = Directory.systemTemp.createTempSync('sala-1406-achado');
+  addTearDown(() => casa.deleteSync(recursive: true));
+  final harness = SalaHarness()
+    ..playback.measured = const Duration(seconds: 10);
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+    sessionId: _sessao,
+    stage: parouEm,
+    takes: [
+      KeptTake(
+        scopeId: KeptScope.whole,
+        path: (File(
+          '${casa.path}/inteiro.m4a',
+        )..writeAsBytesSync([1, 2, 3])).path,
+        takeId: 'gravacao-inteira',
+      ),
+      if (comACena1)
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: (File('${casa.path}/p1.m4a')..writeAsBytesSync([1, 2, 3])).path,
+        ),
+    ],
+  );
+  harness.room
+    ..passageScenes = _duasCenas
+    ..retroSoFar = BackTranslationProgress(
+      segments: const [_contadoNoInteiro],
+      findings: achados,
+    )
+    ..takes.add(_oInteiro);
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final it = Sala(harness, container);
+  await it.sala.abrirEscolha();
+  await settle();
+  unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
+  await waitFor('a passagem reabrir', () => it.estado.stage == parouEm);
+  await settle();
+  return it;
 }
 
 Finder get _circulo => find.descendant(
@@ -1243,9 +1306,6 @@ void main() {
           ),
         ],
       );
-      final inteiro = it.estado.keptTakes
-          .singleWhere((take) => take.scopeId == KeptScope.whole)
-          .path;
       await _umAchadoEm(it, 'trecho-inteiro');
 
       it.sala.gravarAParteDeNovo();
@@ -1256,7 +1316,12 @@ void main() {
         [KeptScope.parte(1), KeptScope.parte(2)],
       );
       expect(it.estado.needsPerson, isFalse);
-      expect(it.harness.playback.played, isNot(contains(inteiro)));
+      expect(
+        it.harness.playback.played.where(
+          (path) => path.contains('gravacao-inteira'),
+        ),
+        isEmpty,
+      );
     },
   );
 
@@ -1350,6 +1415,86 @@ void main() {
       expect(naLista, containsAll(['parte 1', 'parte 2']));
       expect(naLista, isNot(contains('parte 3')));
       closeTheRoom(container);
+    },
+  );
+
+  test(
+    'a passage reopened in the Rehearsal brings back no finding on the whole '
+    'rehearsal set aside',
+    () async {
+      final it = await _reabrirComOInteiro(
+        parouEm: SalaStage.ensaio,
+        comACena1: true,
+      );
+
+      expect(it.estado.btTrechos, isEmpty);
+      expect(it.estado.btFindings, isEmpty);
+    },
+  );
+
+  test(
+    'a passage reopened in its telling-back brings back no finding on the whole '
+    'rehearsal set aside',
+    () async {
+      final it = await _reabrirComOInteiro(
+        parouEm: SalaStage.retro,
+        comACena1: true,
+      );
+
+      expect(it.estado.btTrechos, isEmpty);
+      expect(it.estado.btFindings, isEmpty);
+    },
+  );
+
+  test(
+    'a finding with no address on the whole rehearsal leaves with it when scene 1 '
+    'lands',
+    () async {
+      final it = await _reabrirComOInteiro(
+        parouEm: SalaStage.ensaio,
+        comACena1: false,
+        achados: const [
+          BtFinding(kind: BtFindingKind.missing, frase: null, segmentId: null),
+        ],
+      );
+      expect(it.estado.btFindings, hasLength(1));
+
+      await _gravarACenaEGuardar(it, 1);
+
+      expect(it.estado.btFindings, isEmpty);
+    },
+  );
+
+  test(
+    'a resume on another tablet never fetches a whole rehearsal set aside behind '
+    'a scene part',
+    () async {
+      final it = await _reabrirNaTraducao(
+        naSala: const [
+          _oInteiro,
+          TakeView(
+            takeId: 'gravacao-1',
+            kind: 'ensaio',
+            scope: 'parte-1',
+            ordinal: 1,
+          ),
+        ],
+        contados: const [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      );
+
+      expect(
+        it.harness.room.clipsFetched,
+        isNot(
+          contains(RoomRepository.takeAudioUrl(_sessao, 'gravacao-inteira')),
+        ),
+      );
     },
   );
 }
