@@ -934,9 +934,8 @@ void main() {
     expect(tocavel(), isTrue);
   });
 
-  testWidgets('a long press unsticks a retro the room abandoned', (
-    tester,
-  ) async {
+  testWidgets('a retro whose telling the room refuses is never stuck and '
+      'calls nobody', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.takeLandsAfter = const Duration(milliseconds: 300);
     final container = await pumpSala(tester, harness);
@@ -967,11 +966,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 300));
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
 
-    await tester.longPress(find.byType(FacilitatorCircle).first);
-    await tester.pump(const Duration(milliseconds: 100));
-
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
     expect(
       container.read(salaSessionProvider).voice,
       VoiceState.invite,
@@ -1349,7 +1345,7 @@ void main() {
     'the way out stays out of reach while the room waits for a person',
     (tester) async {
       final harness = SalaHarness(linkedAs: _holdingItsCredential)
-        ..room.failWith = const Refused('UNAUTHORIZED');
+        ..room.failTurnsWith = const Refused('UNAUTHORIZED');
       final container = await pumpSala(tester, harness);
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');

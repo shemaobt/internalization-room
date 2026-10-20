@@ -4,8 +4,12 @@ import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
-const _reachable = Machine();
-const _outOfReach = Machine(reach: Reach.outOfReach, noticeSaid: true);
+const _reachable = Machine(station: Canvas());
+const _outOfReach = Machine(
+  station: Canvas(),
+  reach: Reach.outOfReach,
+  noticeSaid: true,
+);
 const _onePartPending = {'linha-1': PartFact.pending};
 const _notice = Line(LineKind.offlineNotice, 1, source: Source.guide);
 
@@ -53,10 +57,24 @@ void main() {
     });
   });
 
-  group('5: a network failure at any door takes the room out of reach', () {
-    for (final door in Door.values.where((door) => door != Door.verdict)) {
-      test('the ${door.name} door', () {
-        final (machine, effects) = reduce(_reachable, NetworkFailedAt(door));
+  group('5: a network failure on a way in takes the room out of reach', () {
+    for (final (name, wayIn) in const [
+      ('a Canvas with no session', Machine(station: Canvas())),
+      ('a Panorama held by nobody', Machine(station: Panorama('OV-Ruth'))),
+      (
+        'a Panorama with no session of its own beside the passage\'s',
+        Machine(
+          station: Panorama('OV-Ruth'),
+          session: 'sessao-1',
+          panorama: HeldPanorama('OV-Ruth', 'pt'),
+        ),
+      ),
+    ]) {
+      test('the step door of $name', () {
+        final (machine, effects) = reduce(
+          wayIn,
+          const NetworkFailedAt(Door.step),
+        );
 
         expect(machine.reach, Reach.outOfReach);
         expect(effects, contains(const ArmTheRetry()));
@@ -71,11 +89,11 @@ void main() {
 
     test('a return the room never answered climbs the ladder too', () {
       final (_, effects) = _run(_reachable, const [
-        NetworkFailedAt(Door.watch),
+        NetworkFailedAt(Door.step),
         NetworkReturned(),
-        NetworkFailedAt(Door.watch),
+        NetworkFailedAt(Door.step),
         NetworkReturned(),
-        NetworkFailedAt(Door.watch),
+        NetworkFailedAt(Door.step),
       ]);
 
       expect(effects.whereType<ArmTheRetry>().map((arm) => arm.step), [
@@ -87,12 +105,12 @@ void main() {
 
     test('an answer after the return starts the ladder over', () {
       final (_, effects) = _run(_reachable, const [
-        NetworkFailedAt(Door.watch),
+        NetworkFailedAt(Door.step),
         NetworkReturned(),
-        NetworkFailedAt(Door.watch),
+        NetworkFailedAt(Door.step),
         NetworkReturned(),
         TheRoomAnswered(),
-        NetworkFailedAt(Door.watch),
+        NetworkFailedAt(Door.step),
       ]);
 
       expect(effects.whereType<ArmTheRetry>().map((arm) => arm.step), [
@@ -101,60 +119,6 @@ void main() {
         0,
       ]);
     });
-
-    test('a fall at the Verdict\'s door arms no retry', () {
-      final (machine, effects) = reduce(
-        _reachable,
-        const NetworkFailedAt(Door.verdict),
-      );
-
-      expect(machine.reach, Reach.outOfReach);
-      expect(effects.whereType<ArmTheRetry>(), isEmpty);
-    });
-
-    test(
-      'out of reach with the Verdict waiting, a retry asks for no probe',
-      () {
-        final (_, effects) = _run(_reachable, const [
-          NetworkFailedAt(Door.verdict),
-          RetryFired(),
-        ]);
-
-        expect(effects, isNot(contains(const ProbeTheRoom())));
-      },
-    );
-
-    test('a probe that fails while the Verdict waits arms no retry', () {
-      final (_, effects) = _run(_reachable, const [
-        NetworkFailedAt(Door.verdict),
-        NetworkFailedAt(Door.probe),
-      ]);
-
-      expect(effects.whereType<ArmTheRetry>(), isEmpty);
-    });
-
-    test('leaving the Retro gives the ladder back', () {
-      final (_, effects) = _run(const Machine(station: Retro()), const [
-        NetworkFailedAt(Door.verdict),
-        TheChoiceOpened(),
-        RetryFired(),
-      ]);
-
-      expect(effects.whereType<ArmTheRetry>(), hasLength(1));
-      expect(effects, contains(const ProbeTheRoom()));
-    });
-
-    test('after the tap\'s return, another door that falls climbs the ladder '
-        'again', () {
-      final (_, effects) = _run(_reachable, const [
-        NetworkFailedAt(Door.verdict),
-        NetworkReturned(),
-        NetworkFailedAt(Door.watch),
-      ]);
-
-      expect(effects.whereType<ArmTheRetry>(), hasLength(1));
-    });
-
     test('a probe that fails climbs the ladder', () {
       final (machine, effects) = _run(_outOfReach, const [
         NetworkFailedAt(Door.probe),
@@ -167,6 +131,34 @@ void main() {
         const ArmTheRetry(step: 2),
       ]);
     });
+  });
+
+  group('a network failure with no turn, off a way in, changes nothing and '
+      'schedules no retry', () {
+    const doors = [
+      Door.watch,
+      Door.outbox,
+      Door.coverage,
+      Door.stretches,
+      Door.person,
+      Door.verdict,
+      Door.step,
+    ];
+    for (final room in const [
+      Machine(station: Canvas(), session: 'sessao-1'),
+      Machine(station: Retro(), session: 'sessao-1'),
+    ]) {
+      for (final door in doors) {
+        test('the ${door.name} door on ${room.station.stage.name}', () {
+          final (machine, effects) = reduce(room, NetworkFailedAt(door));
+
+          expect(machine.reachable, isTrue);
+          expect(effects, [
+            if (door == Door.step || door == Door.verdict) const LetTheStepGo(),
+          ]);
+        });
+      }
+    }
   });
 
   test('8: the return drains the Outbox and re-sends the pending request '
@@ -182,8 +174,7 @@ void main() {
     expect(effects, contains(const CancelTheRetry()));
   });
 
-  test('8: under a blocking halt the return re-sends nothing, and the lift '
-      're-sends once', () {
+  test('a lifted halt resends nothing', () {
     final (_, returned) = reduce(
       _outOfReach.copyWith(halt: const Blocking(NothingKept())),
       const NetworkReturned(),
@@ -194,7 +185,12 @@ void main() {
     );
 
     expect(returned.whereType<ResendPending>(), isEmpty);
-    expect(lifted.whereType<ResendPending>(), hasLength(1));
+    expect(lifted.whereType<ResendPending>(), isEmpty);
+    final (_, liftedWhileReachable) = _run(
+      _reachable.copyWith(halt: const Blocking(NothingKept())),
+      const [LongPress(somebodyToAsk: false)],
+    );
+    expect(liftedWhileReachable.whereType<ResendPending>(), isEmpty);
   });
 
   test('4 (d): the return reads the session at once and arms the Watch '
@@ -207,10 +203,10 @@ void main() {
   group('10: the offline notice is said once per outage', () {
     test('two falls in one outage ask for it once', () {
       final (_, effects) = _run(_reachable, const [
-        NetworkFailedAt(Door.watch),
-        NetworkFailedAt(Door.inbox),
+        NetworkFailedAt(Door.step),
+        NetworkFailedAt(Door.probe),
         NetworkReturned(),
-        NetworkFailedAt(Door.watch),
+        NetworkFailedAt(Door.step),
       ]);
 
       expect(effects.whereType<SayTheOfflineNotice>(), hasLength(1));
@@ -218,10 +214,10 @@ void main() {
 
     test('a second outage, after the room answered, asks for it again', () {
       final (_, effects) = _run(_reachable, const [
-        NetworkFailedAt(Door.watch),
+        NetworkFailedAt(Door.step),
         NetworkReturned(),
         TheRoomAnswered(),
-        NetworkFailedAt(Door.outbox),
+        NetworkFailedAt(Door.step),
       ]);
 
       expect(effects.whereType<SayTheOfflineNotice>(), hasLength(2));
@@ -229,9 +225,9 @@ void main() {
 
     test('a return the room never answered is still the same outage', () {
       final (_, effects) = _run(_reachable, const [
-        NetworkFailedAt(Door.watch),
+        NetworkFailedAt(Door.step),
         NetworkReturned(),
-        NetworkFailedAt(Door.watch),
+        NetworkFailedAt(Door.step),
       ]);
 
       expect(effects.whereType<SayTheOfflineNotice>(), hasLength(1));

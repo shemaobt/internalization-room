@@ -23,14 +23,6 @@ final class TheOpening extends Kept {
   int get hashCode => failedTurnId.hashCode;
 }
 
-final class TheResume extends Kept {
-  const TheResume();
-}
-
-final class TheWheel extends Kept {
-  const TheWheel();
-}
-
 sealed class Halt {
   const Halt();
 }

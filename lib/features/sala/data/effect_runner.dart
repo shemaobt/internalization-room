@@ -114,7 +114,7 @@ abstract interface class StationHost {
   /// The Station shows the reach's face, and at a Step keeps the Pending request.
   void hearTheFall(Door door, RoomReach why);
 
-  void hearTheRefusalCounted();
+  void hearTheStepLetGo();
 
   void hearThePendingTranslationLetGo();
 
@@ -258,8 +258,8 @@ class EffectRunner {
           _askForAPersonAgain();
         case CloseThePassage():
           _closeThePassage();
-        case CountTheRefusal():
-          host.hearTheRefusalCounted();
+        case LetTheStepGo():
+          host.hearTheStepLetGo();
         case LetThePendingTranslationGo():
           host.hearThePendingTranslationLetGo();
         case RefuseThePassage():
@@ -421,10 +421,29 @@ class EffectRunner {
           .then(
             (reply) => host.answer(
               reply == null
-                  ? LookEmpty(sounding: sounding, generation: stamp)
+                  ? _foundNothing(turn, sounding, stamp)
                   : LookFound(turn, reply, generation: stamp),
             ),
           ),
+    );
+  }
+
+  MachineEvent _foundNothing(Turn turn, Kept sounding, int? stamp) {
+    final here = host.failureContext(
+      door: Door.step,
+      rule: RefusalRule.aSpokenTurn,
+      why: RoomReach.noNetwork,
+    );
+    return FailurePolicy.decide(
+      const RoomFoundNothing(),
+      FailureContext(
+        station: here.station,
+        step: here.step,
+        generation: stamp ?? here.generation,
+        turn: turn,
+        rule: here.rule,
+        sounding: sounding,
+      ),
     );
   }
 
@@ -652,16 +671,9 @@ class EffectRunner {
   }
 
   void _anEarlierSessionAnswered(String session, RoomResult result) {
-    if (result is RoomNetworkFailed) {
-      _calling = false;
-      return _decideAt(
-        result,
-        door: Door.person,
-        rule: RefusalRule.counts,
-        why: RoomReach.noNetwork,
-      );
+    if (result is! RoomNetworkFailed) {
+      host.hearAnEarlierSessionsCall(session, result);
     }
-    host.hearAnEarlierSessionsCall(session, result);
     _calling = false;
     callForAPerson();
   }
@@ -725,7 +737,11 @@ class EffectRunner {
         );
       case RoomSessionGone():
         host.hearAnEarlierSessionGone(session);
-      case RoomAnswered() || RoomRefused() || RoomTimedOut():
+      case RoomAnswered() ||
+          RoomRefused() ||
+          RoomTimedOut() ||
+          RoomAnsweredWithoutAReply() ||
+          RoomFoundNothing():
         break;
     }
   }

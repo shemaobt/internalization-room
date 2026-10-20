@@ -816,7 +816,8 @@ void main() {
     await waitFor(
       'a conferência cair',
       () =>
-          container.read(salaSessionProvider).machine.theVerdictWaitsForTheTap,
+          container.read(salaSessionProvider).btRecusa ==
+          CheckRefusal.checkUnavailable,
       step: () => _passo(tester),
     );
     await _passo(tester);

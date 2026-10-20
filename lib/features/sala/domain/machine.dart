@@ -1,5 +1,6 @@
 import 'channel.dart';
 import 'cut_point.dart';
+import 'failure_policy.dart';
 import 'halt.dart';
 import 'left_entry.dart';
 import 'room_reach.dart';
@@ -24,12 +25,10 @@ sealed class AnsweringEvent extends MachineEvent {
 
 final class SessionRead extends AnsweringEvent {
   final SessionSnapshot snapshot;
-  final Kept sounding;
   final bool sentBeforeTheCallLanded;
 
   const SessionRead(
     this.snapshot, {
-    this.sounding = const NothingKept(),
     this.sentBeforeTheCallLanded = false,
     super.generation,
   });
@@ -396,25 +395,8 @@ final class LookFound extends AnsweringEvent {
   const LookFound(this.turn, this.reply, {super.generation});
 }
 
-final class LookEmpty extends AnsweringEvent {
-  final Kept sounding;
-
-  const LookEmpty({this.sounding = const NothingKept(), super.generation});
-}
-
 final class TheOpeningMissed extends AnsweringEvent {
   const TheOpeningMissed({super.generation});
-}
-
-final class TheRoomRefused extends AnsweringEvent {
-  final bool third;
-  final Kept sounding;
-
-  const TheRoomRefused({
-    this.third = false,
-    this.sounding = const NothingKept(),
-    super.generation,
-  });
 }
 
 final class ThePassageCannotOpen extends AnsweringEvent {
@@ -459,6 +441,18 @@ final class TheCallMetAClosedPassage extends AnsweringEvent {
 
 final class TheTellingCameBackEmpty extends AnsweringEvent {
   const TheTellingCameBackEmpty({super.generation});
+}
+
+final class TheStepFailed extends AnsweringEvent {
+  const TheStepFailed({super.generation});
+}
+
+final class TheResumeFailed extends AnsweringEvent {
+  const TheResumeFailed({super.generation});
+}
+
+final class TheSceneTurnFoundNothing extends AnsweringEvent {
+  const TheSceneTurnFoundNothing({super.generation});
 }
 
 sealed class Effect {
@@ -752,8 +746,8 @@ final class CloseThePassage extends Effect {
   const CloseThePassage();
 }
 
-final class CountTheRefusal extends Effect {
-  const CountTheRefusal();
+final class LetTheStepGo extends Effect {
+  const LetTheStepGo();
 }
 
 final class LetThePendingTranslationGo extends Effect {
@@ -857,7 +851,9 @@ final class Machine {
 
   final bool wordlessTelling;
 
-  final bool theVerdictWaitsForTheTap;
+  /// A scene rehearsal's look found nothing: the person sign shows once the team is
+  /// back on the Canvas.
+  final bool aHaltWaitsForTheCanvas;
 
   /// The passage's session.
   final String? session;
@@ -883,7 +879,7 @@ final class Machine {
     this.lastMic,
     this.station = const Menu(),
     this.wordlessTelling = false,
-    this.theVerdictWaitsForTheTap = false,
+    this.aHaltWaitsForTheCanvas = false,
     this.session,
     this.panorama,
   });
@@ -904,7 +900,6 @@ final class Machine {
     noticeSaid: noticeSaid,
     generation: generation,
     station: station,
-    theVerdictWaitsForTheTap: theVerdictWaitsForTheTap,
     panorama: panorama,
   );
 
@@ -929,7 +924,7 @@ final class Machine {
     MicOutcome? lastMic,
     Station? station,
     bool? wordlessTelling,
-    bool? theVerdictWaitsForTheTap,
+    bool? aHaltWaitsForTheCanvas,
     String? session,
     bool clearSession = false,
     HeldPanorama? panorama,
@@ -953,8 +948,8 @@ final class Machine {
     lastMic: lastMic ?? this.lastMic,
     station: station ?? this.station,
     wordlessTelling: wordlessTelling ?? this.wordlessTelling,
-    theVerdictWaitsForTheTap:
-        theVerdictWaitsForTheTap ?? this.theVerdictWaitsForTheTap,
+    aHaltWaitsForTheCanvas:
+        aHaltWaitsForTheCanvas ?? this.aHaltWaitsForTheCanvas,
     session: clearSession ? null : (session ?? this.session),
     panorama: clearPanorama ? null : (panorama ?? this.panorama),
   );
@@ -1056,7 +1051,8 @@ const _watch = ArmTheWatch();
     ),
     [const StopTheSound(), for (final line in machine.queue) DropTheLine(line)],
   ),
-  TheSessionIsGone() || ThePassageClosed() => _theSessionGone(machine),
+  TheSessionIsGone() ||
+  ThePassageClosed() => _backToTheChoice(machine, discarding: true),
   TheCallMetAClosedPassage() => (machine, const [CloseThePassage()]),
   TurnSent(:final turn) => (machine.copyWith(inFlight: turn), const []),
   TurnAnswered(:final turn) => (
@@ -1080,24 +1076,15 @@ const _watch = ArmTheWatch();
     (machine, [ShowTheSceneRehearsals(listed)]),
   TheSceneRehearsalsListed() => (machine, const []),
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
-  LookEmpty(sounding: TheOpening()) ||
   TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
-  LookEmpty(:final sounding) => switch (_theHalt(
-    machine,
-    RoomRaisedAHalt(sounding: sounding),
-  )) {
-    (final halted, final effects) when machine.station is SceneRehearsal => (
-      halted,
-      [...effects, const ReadTheSceneRehearsals()],
-    ),
-    final halted => halted,
-  },
-  TheRoomRefused(:final third, :final sounding) => _refused(
-    machine,
-    third,
-    sounding,
-  ),
   ThePassageCannotOpen() => (machine, const [RefuseThePassage()]),
+  TheStepFailed() => (machine, const [LetTheStepGo()]),
+  TheResumeFailed() => _backToTheChoice(machine, discarding: false),
+  TheSceneTurnFoundNothing() when machine.station is SceneRehearsal => (
+    machine.copyWith(aHaltWaitsForTheCanvas: true),
+    const [LetTheStepGo(), ReadTheSceneRehearsals()],
+  ),
+  TheSceneTurnFoundNothing() => _theHalt(machine, const RoomRaisedAHalt()),
   TheTellingCameBackEmpty() when machine.station is Retro => (
     machine.copyWith(wordlessTelling: true),
     const [LetThePendingTranslationGo()],
@@ -1108,7 +1095,13 @@ const _watch = ArmTheWatch();
     machine.copyWith(wordlessTelling: false),
     const [],
   ),
-  NetworkFailedAt(:final door, :final why) => _fall(machine, door, why),
+  NetworkFailedAt(:final door, :final why)
+      when door == Door.probe || (door == Door.step && _onAWayIn(machine)) =>
+    _fall(machine, door, why),
+  NetworkFailedAt(:final door) => (
+    machine,
+    [if (door == Door.step || door == Door.verdict) const LetTheStepGo()],
+  ),
   NetworkReturned() => _return(machine),
   RetryFired() => _retry(machine),
   TheRoomAnswered() => (_answered(machine), const []),
@@ -1185,18 +1178,22 @@ const _watch = ArmTheWatch();
 (Machine, List<Effect>) _reachTheStation(Machine machine, StationEvent event) {
   final next = machine.station.answer(event);
   if (next == machine.station) return (machine, const []);
-  return (
-    moveTheGeneration(machine).copyWith(
-      station: next,
-      wordlessTelling: false,
-      theVerdictWaitsForTheTap: false,
-    ),
-    [
-      if (machine.theVerdictWaitsForTheTap && !machine.reachable)
-        ArmTheRetry(step: machine.fallen),
-    ],
+  final arrived = moveTheGeneration(machine).copyWith(
+    station: next,
+    wordlessTelling: false,
+    aHaltWaitsForTheCanvas: false,
   );
+  if (machine.aHaltWaitsForTheCanvas && next is Canvas) {
+    return _theHalt(arrived, const RoomRaisedAHalt());
+  }
+  return (arrived, const []);
 }
+
+bool _onAWayIn(Machine machine) => switch (machine.station) {
+  Canvas() => machine.session == null,
+  Panorama() => machine.panorama?.session == null,
+  _ => false,
+};
 
 bool _silent(Machine machine) =>
     machine.halt is! Blocking &&
@@ -1410,14 +1407,20 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
       _ => channel,
     },
   );
-  if (!source.counts) return _drain(silent);
+  if (source != Source.guide) return _drain(silent);
   final failures = machine.failing == source ? machine.failures + 1 : 1;
   final counted = silent.copyWith(failing: source, failures: failures);
-  if (failures < 2) return _drain(counted);
-  return _theHalt(
-    counted,
-    RoomRaisedAHalt(sounding: channel is Playing ? const ThePart() : sounding),
-  );
+  return switch (FailurePolicy.decideOnTheTablet(
+    TheSoundFailed(failures),
+    FailureContext(
+      station: machine.station,
+      generation: machine.generation,
+      sounding: sounding,
+    ),
+  )) {
+    final RoomRaisedAHalt halt => _theHalt(counted, halt),
+    _ => _drain(counted),
+  };
 }
 
 (Machine, List<Effect>) _openTheMic(
@@ -1626,11 +1629,10 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   }
   if (halt is! Blocking && machine.halt is Blocking) {
     final lifted = next.copyWith(forgetTheFailures: true);
-    final resent = [...effects, if (machine.reachable) const ResendPending()];
     if (effects.contains(const ReplayTheSound(ThePart()))) {
-      return (lifted, resent);
+      return (lifted, effects);
     }
-    return _drain(lifted, resent);
+    return _drain(lifted, effects);
   }
   return (next, effects);
 }
@@ -1665,35 +1667,35 @@ Machine _settleTheOpening(Machine machine, Turn turn) => switch (machine.halt) {
   _ => machine,
 };
 
-(Machine, List<Effect>) _refused(Machine machine, bool third, Kept sounding) {
-  if (!third) return (machine, const [CountTheRefusal()]);
-  final (halted, effects) = _theHalt(
-    machine,
-    RoomRaisedAHalt(sounding: sounding),
-  );
-  return (halted, [const CountTheRefusal(), ...effects]);
-}
-
-(Machine, List<Effect>) _theSessionGone(Machine machine) => (
+/// A gone session is discarded on the way back; a resume that failed keeps it, so the
+/// next open of the passage asks again (ADR 0064), and so does the warning it holds.
+(Machine, List<Effect>) _backToTheChoice(
+  Machine machine, {
+  required bool discarding,
+}) => (
   machine.copyWith(
-    halt: const NoHalt(),
+    halt: switch (machine.halt) {
+      Warning() ||
+      Blocking(warningBeneath: true) when !discarding => const Warning(),
+      _ => const NoHalt(),
+    },
     channel: const Silence(),
     queue: const [],
     owners: const {},
     forgetTheFailures: true,
+    aHaltWaitsForTheCanvas: false,
   ),
   [
     const StopTheSound(),
     const CloseAndDiscardTheMic(),
     for (final line in machine.queue) DropTheLine(line),
-    const DiscardTheSession(),
+    if (discarding) const DiscardTheSession(),
     const OpenTheChoice(),
   ],
 );
 
 (Machine, List<Effect>) _fall(Machine machine, Door door, RoomReach why) {
   final fell = FellAt(door, why: why);
-  final waits = door == Door.verdict || machine.theVerdictWaitsForTheTap;
   if (machine.reachable) {
     final fallen = machine.noticeSaid ? machine.fallen + 1 : 0;
     return (
@@ -1701,16 +1703,14 @@ Machine _settleTheOpening(Machine machine, Turn turn) => switch (machine.halt) {
         reach: Reach.outOfReach,
         fallen: fallen,
         noticeSaid: true,
-        theVerdictWaitsForTheTap: waits,
       ),
       [
         fell,
-        if (!waits) ArmTheRetry(step: fallen),
+        ArmTheRetry(step: fallen),
         if (!machine.noticeSaid) const SayTheOfflineNotice(),
       ],
     );
   }
-  if (waits) return (machine.copyWith(theVerdictWaitsForTheTap: true), [fell]);
   if (door != Door.probe) return (machine, [fell]);
   final fallen = machine.fallen + 1;
   return (machine.copyWith(fallen: fallen), [fell, ArmTheRetry(step: fallen)]);
@@ -1721,11 +1721,7 @@ Machine _settleTheOpening(Machine machine, Turn turn) => switch (machine.halt) {
   final (kept, dropped) = _leaveTheQueue(machine, _aboutTheFall);
   final halt = machine.halt;
   return (
-    kept.copyWith(
-      reach: Reach.reachable,
-      draining: true,
-      theVerdictWaitsForTheTap: false,
-    ),
+    kept.copyWith(reach: Reach.reachable, draining: true),
     [
       ...dropped,
       const CancelTheRetry(),
@@ -1743,10 +1739,7 @@ Machine _answered(Machine machine) =>
 
 (Machine, List<Effect>) _retry(Machine machine) {
   if (!machine.reachable) {
-    return (
-      machine,
-      [if (!machine.theVerdictWaitsForTheTap) const ProbeTheRoom()],
-    );
+    return (machine, const [ProbeTheRoom()]);
   }
   if (!machine.somethingPending || machine.draining) {
     return (machine, const []);
@@ -1840,11 +1833,12 @@ Machine _answered(Machine machine) =>
   ThePassageClosed() ||
   TurnGivenUp() ||
   LookFound() ||
-  LookEmpty() ||
   TheOpeningMissed() ||
-  TheRoomRefused() ||
   ThePassageCannotOpen() ||
   TheTellingCameBackEmpty() ||
+  TheStepFailed() ||
+  TheResumeFailed() ||
+  TheSceneTurnFoundNothing() ||
   TheVerdictAsked() ||
   TheTranslationStartedOver() ||
   TurnSent() ||
@@ -1865,10 +1859,11 @@ Machine _answered(Machine machine) =>
   TheWayBackTaken() => (halt, const []),
 };
 
+/// A read never raises the person sign: over none it applies its warning only (ADR 0093).
 (Halt, List<Effect>) _read(Halt halt, SessionRead read) {
   final snapshot = read.snapshot;
   final Halt told = snapshot.needsPerson
-      ? const Blocking(NothingKept())
+      ? (halt is Blocking ? const Blocking(NothingKept()) : halt)
       : snapshot.halt == HaltKind.warning
       ? const Warning()
       : const NoHalt();
@@ -1888,14 +1883,6 @@ Machine _answered(Machine machine) =>
         const [_watch],
       ),
     (final Blocking blocking, _) => _lift(blocking, told),
-    (_, Blocking()) => (
-      Blocking(
-        read.sounding,
-        warningBeneath: halt is Warning,
-        serverKnows: true,
-      ),
-      const [..._enter, _watch],
-    ),
     (NoHalt(), NoHalt()) => (halt, const []),
     _ => (told, const [_watch]),
   };

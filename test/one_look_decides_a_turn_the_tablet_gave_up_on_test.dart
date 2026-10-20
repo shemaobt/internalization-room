@@ -230,7 +230,7 @@ void main() {
   });
 
   test(
-    'a turn the tablet gave up on whose look never answers still calls a person when the wait is stuck',
+    'a turn the tablet gave up on whose look never answers lets the stuck wait go and calls nobody',
     () {
       _aTake(
         (room) => room
@@ -244,7 +244,8 @@ void main() {
 
           clock.elapse(const Duration(seconds: 30));
 
-          expect(take.room.needsPerson, isTrue);
+          expect(take.room.needsPerson, isFalse);
+          expect(take.room.awaitingTheGuide, isFalse);
         },
         harness: SalaHarness(busyCeiling: const Duration(seconds: 30)),
       );
@@ -320,7 +321,7 @@ void main() {
   );
 
   test(
-    'A door that is not a turn still falls out of reach as today.',
+    'A door that is not a turn, off a way in, keeps the room reachable with no offline face, no notice and no retry.',
     () async {
       final harness = SalaHarness(
         retryBackoff: const [Duration(milliseconds: 20)],
@@ -332,19 +333,22 @@ void main() {
       await _keepARehearsalPart(sala);
 
       await waitFor(
-        'a sala ficar fora de alcance pela Outbox',
-        () => container.read(salaSessionProvider).unreachable,
-      );
-      expect(container.read(salaSessionProvider).voice, VoiceState.offline);
-      await waitFor(
-        'o aviso de fora do ar ser dito',
-        () => harness.voice.assets.contains(offlineNoticeAsset(testLanguage)),
+        'a Outbox tentar subir a parte',
+        () => harness.room.calls.contains('sendTake'),
       );
       final checks = harness.network.checks;
-      await waitFor(
-        'a escada perguntar à sala de novo',
-        () => harness.network.checks > checks,
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(container.read(salaSessionProvider).unreachable, isFalse);
+      expect(
+        container.read(salaSessionProvider).voice,
+        isNot(VoiceState.offline),
       );
+      expect(
+        harness.voice.assets,
+        isNot(contains(offlineNoticeAsset(testLanguage))),
+      );
+      expect(harness.network.checks, checks);
     },
   );
 }

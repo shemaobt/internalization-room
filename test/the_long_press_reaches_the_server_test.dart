@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -19,20 +18,31 @@ Future<void> _aTurn(SalaSessionNotifier notifier) async {
   await settle();
 }
 
+/// A spoken turn the room refuses: the person sign, and the call that tells the server.
+Future<void> _aTurnTheRoomRefuses(
+  SalaHarness harness,
+  SalaSessionNotifier notifier,
+  SalaSessionState Function() read,
+) async {
+  harness.room.failTurnsWith = const Refused('BAD_REQUEST');
+  await _aTurn(notifier);
+  await waitFor('a sala parar', () => read().needsPerson);
+  await waitFor('o pedido chegar à mesa', () => harness.room.personsAsked > 0);
+  harness.room.failTurnsWith = null;
+}
+
 void main() {
   test('the long press on a confirmed blocking halt tells the room a person '
       'arrived, once per press', () async {
     // A cadence far longer than any answer the fake gives, so that what the touch does
     // is measured by the touch and not by the next beat of the watch arriving under it.
-    final harness = SalaHarness(settleDelay: const Duration(seconds: 5))
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.blocking;
+    final harness = SalaHarness(settleDelay: const Duration(seconds: 5));
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await waitFor('a sala parar', () => read().needsPerson);
+    await _aTurnTheRoomRefuses(harness, notifier, read);
     final sessionId = read().sessionId!;
     final asked = _calls(harness, 'fetchState');
 
@@ -75,15 +85,13 @@ void main() {
   test('a failed person-arrived changes nothing: the re-read still happens '
       'and nothing is retried', () async {
     final harness = SalaHarness(settleDelay: const Duration(seconds: 5))
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.blocking
       ..room.personArrivedFailsWith = const Refused('UNAUTHORIZED');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await waitFor('a sala parar', () => read().needsPerson);
+    await _aTurnTheRoomRefuses(harness, notifier, read);
     final asked = _calls(harness, 'fetchState');
 
     notifier.resolveWithPerson();
@@ -116,22 +124,18 @@ void main() {
     'a halt with no session never tells the server a person arrived',
     () async {
       final harness = SalaHarness();
-      final container = await inConversa(harness);
+      final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
-      harness.room.failWith = const SessionGone();
-      await _aTurn(notifier);
-      await waitFor('a sala parar sem sessão', () => read().needsPerson);
-      harness.room.failWith = null;
+      notifier.haltForABrokenBuild();
+      await settle();
+      expect(read().needsPerson, isTrue);
       expect(read().sessionId, isNull);
 
       notifier.resolveWithPerson();
-      await waitFor(
-        'o círculo voltar ao convite',
-        () => read().voice == VoiceState.invite,
-      );
+      await waitFor('a parada sair', () => !read().needsPerson);
 
       expect(
         harness.room.personArrivedSessions,

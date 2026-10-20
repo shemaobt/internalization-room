@@ -26,7 +26,7 @@ const _notYetMoved = <String, String>{
   '_goConversa': 'ENG-1444',
   '_porCadaTrechoNaSuaParte': 'ENG-1444',
   '_tellThatStretchAgain': 'ENG-1444',
-  '_theTranslationWaits': 'ENG-1444',
+  '_underItsKey': 'ENG-1444',
   '_watchCoverageChannel': 'ENG-1444',
 };
 
@@ -41,7 +41,10 @@ final _namesAFailure = RegExp(
   r'\b(Room)?(NetworkFailed|Refused|SessionGone)\b|\bRoom(Failure|Result)\b',
 );
 
-final _aMethod = RegExp(r'^  (?![\s/])[\w<>?, ]*?\b(_?\w+)\(', multiLine: true);
+final _aMethod = RegExp(
+  r'^  (?![\s/])[\w<>?, ]*?\b(_?\w+)(?:<\w+>)?\(',
+  multiLine: true,
+);
 
 /// Where a case's pattern ends: at its colon in a switch, or at the parenthesis that
 /// closes an `if (… case …)`.
@@ -152,6 +155,10 @@ const _whatOnlyThePolicyDecides = [
   'TurnGivenUp',
   'TheRoomRefused',
   'ThePassageCannotOpen',
+  'RoomRaisedAHalt',
+  'TheStepFailed',
+  'TheResumeFailed',
+  'TheSceneTurnFoundNothing',
 ];
 
 final _comment = RegExp(r'//.*$', multiLine: true);

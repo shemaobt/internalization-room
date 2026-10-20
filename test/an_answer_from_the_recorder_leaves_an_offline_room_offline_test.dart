@@ -45,15 +45,17 @@ Future<ProviderContainer> _reopensIntoEnsaio(SalaHarness harness) async {
 }
 
 Future<ProviderContainer> _reopensOfflineIntoEnsaio(SalaHarness harness) async {
-  final container = await _resumingIntoEnsaio(harness);
+  final container = await _reopensIntoEnsaio(harness);
   final notifier = container.read(salaSessionProvider.notifier);
   harness.room.reachable = false;
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   harness.network.reachable = false;
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
-    'a sala cair offline no ensaio',
+    'a sala cair offline ao abrir a passagem de novo',
     () => container.read(salaSessionProvider).offline,
   );
+  notifier.goEnsaio();
+  await settle();
   expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
   return container;
 }

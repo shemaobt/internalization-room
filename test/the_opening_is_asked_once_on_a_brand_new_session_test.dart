@@ -164,28 +164,26 @@ void main() {
     },
   );
 
-  test(
-    'a resumed passage gets its beads and its halt back from the session read '
-    'without a turn',
-    () async {
-      final harness = SalaHarness();
-      _aCanvasRow(harness, opened: true);
-      harness.room
-        ..nextCoverage = coverage(engaged: 3)
-        ..serverStatus = 'needs_person'
-        ..serverHalt = HaltKind.blocking;
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
+  test('a resumed passage gets its beads back from the session read without a '
+      'turn, and a read that says a person is needed raises no sign', () async {
+    final harness = SalaHarness();
+    _aCanvasRow(harness, opened: true);
+    harness.room
+      ..nextCoverage = coverage(engaged: 3)
+      ..serverStatus = 'needs_person'
+      ..serverHalt = HaltKind.blocking;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
 
-      await enterThePassage(notifier, read, 'P01');
-      await waitFor('the halt to be back', () => read().needsPerson);
+    await enterThePassage(notifier, read, 'P01');
+    await waitFor('the beads to be back', () => read().coverage.engaged == 3);
+    await settle();
 
-      expect(read().coverage.engaged, 3);
-      expect(_opensAsked(harness), 0);
-    },
-  );
+    expect(read().needsPerson, isFalse);
+    expect(_opensAsked(harness), 0);
+  });
 
   group('a resumed passage entered while out of reach', () {
     Future<(SalaHarness, SalaSessionState Function(), int)> enterOutOfReach({
@@ -238,9 +236,8 @@ void main() {
   });
 
   group('a resumed passage whose session read fell with the network', () {
-    Future<(SalaHarness, SalaSessionState Function())> theRoomComesBack({
-      required bool opened,
-    }) async {
+    Future<(SalaHarness, SalaSessionNotifier, SalaSessionState Function())>
+    theReadFalls({required bool opened}) async {
       final harness = SalaHarness();
       _aCanvasRow(harness, opened: opened);
       harness.room.failStateOnceWith = const NetworkFailed('sem rede');
@@ -249,14 +246,27 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
       await enterThePassage(notifier, read, 'P01');
-      await waitFor('the room to be out of reach', () => read().offline);
-
-      notifier.retryNow();
-      return (harness, read);
+      await waitFor('the session to be read', () => stateReads(harness) > 0);
+      await settle();
+      return (harness, notifier, read);
     }
 
-    test('enters again when the room comes back and lands quiet', () async {
-      final (harness, read) = await theRoomComesBack(opened: true);
+    test('goes back to the Choice calmly and keeps its session', () async {
+      final (harness, _, read) = await theReadFalls(opened: true);
+
+      expect(read().stage, SalaStage.escolha);
+      expect(read().offline, isFalse);
+      expect(read().needsPerson, isFalse);
+      expect(
+        harness.emAberto.rows['Ruth/P01/pt']?.sessionId,
+        _rememberedSession,
+      );
+    });
+
+    test('opened again, enters and lands quiet', () async {
+      final (harness, notifier, read) = await theReadFalls(opened: true);
+
+      await enterThePassage(notifier, read, 'P01');
       await waitFor('the passage to land at rest', () => read().canHearAgain);
       await settle();
 
@@ -265,9 +275,11 @@ void main() {
       expect(_opensAsked(harness), 0);
     });
 
-    test('enters again when the room comes back and asks its opening if the '
-        'session was never opened', () async {
-      final (harness, _) = await theRoomComesBack(opened: false);
+    test('opened again, asks its opening if the session was never '
+        'opened', () async {
+      final (harness, notifier, read) = await theReadFalls(opened: false);
+
+      await enterThePassage(notifier, read, 'P01');
       await waitFor(
         'the opening to be said',
         () => harness.voice.played.contains(turnoUrl),
@@ -277,8 +289,8 @@ void main() {
     });
   });
 
-  test('a passage another tablet opened, which the room has halted, shows the '
-      'person sign at once', () async {
+  test('a passage another tablet opened, which the room has halted, lands '
+      'with no sign', () async {
     final harness = SalaHarness()
       ..room.createdOpened = true
       ..room.serverStatus = 'needs_person'
@@ -289,8 +301,13 @@ void main() {
     SalaSessionState read() => container.read(salaSessionProvider);
 
     await enterThePassage(notifier, read, 'P01');
+    await waitFor(
+      'the passage to land',
+      () => read().sessionId != null && read().voice == VoiceState.invite,
+    );
+    await settle();
 
-    await waitFor('the person sign', () => read().needsPerson);
+    expect(read().needsPerson, isFalse);
   });
 
   test(
@@ -322,8 +339,8 @@ void main() {
   );
 
   test(
-    'a stored Rehearsal whose session read fell with the network enters again '
-    'when the room comes back and lands on the Rehearsal',
+    'a stored Rehearsal whose session read fell with the network goes back to '
+    'the Choice, and opened again lands on the Rehearsal',
     () async {
       final home = Directory.systemTemp.createTempSync('sala-ensaio-lembrado');
       addTearDown(() => home.deleteSync(recursive: true));
@@ -340,22 +357,17 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
       await enterThePassage(notifier, read, 'P01');
-      await waitFor('the room to be out of reach', () => read().offline);
+      await waitFor('the session to be read', () => stateReads(harness) == 1);
+      await settle();
+      expect(read().stage, SalaStage.escolha);
+      expect(read().offline, isFalse);
 
-      notifier.retryNow();
-
+      await enterThePassage(notifier, read, 'P01');
       await waitFor(
         'the entry to read the session again',
-        () => stateReads(harness) == 3,
+        () => stateReads(harness) == 2,
       );
       await settle();
-      expect(
-        stateReads(harness),
-        3,
-        reason:
-            'the read that fell, the probe that finds the room back, and '
-            'the entry that reads the session again',
-      );
       expect(read().stage, SalaStage.ensaio);
       expect(read().sessionId, _rememberedSession);
     },

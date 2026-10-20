@@ -393,7 +393,8 @@ void main() {
   );
 
   test(
-    "a dead disk under the scene take's download falls out of reach, never in silence",
+    "a dead disk under the scene take's download keeps the room in reach, says "
+    'nothing and calls nobody',
     () async {
       final harness = SalaHarness();
       harness.room
@@ -412,13 +413,26 @@ void main() {
       harness.recorder.keepBytesFails = true;
 
       room.sala.openTheSceneRehearsal();
-      await waitFor('a sala cair', () => room.state.unreachable);
-      await settle();
+      await waitFor(
+        'a tela do ensaio da cena abrir',
+        () => room.state.stage == SalaStage.cena,
+      );
+      await settle(const Duration(milliseconds: 400));
 
-      expect(harness.voice.assets, contains(offlineNoticeAsset(testLanguage)));
+      expect(room.state.unreachable, isFalse);
+      expect(room.state.offline, isFalse);
+      expect(
+        harness.voice.assets,
+        isNot(contains(offlineNoticeAsset(testLanguage))),
+      );
       expect(room.state.needsPerson, isFalse);
       expect(harness.room.personsAsked, persons);
       expect(room.state.stage, SalaStage.cena);
+      expect(
+        room.state.scene.waiting,
+        isFalse,
+        reason: 'a espera da tela é solta, nunca fica parada em silêncio',
+      );
     },
   );
 }

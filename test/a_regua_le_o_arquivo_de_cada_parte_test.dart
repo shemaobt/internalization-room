@@ -340,7 +340,7 @@ void main() {
     },
   );
 
-  test('um id que nenhuma parte tem chama a pessoa antes de medir nada', () async {
+  test('um id que nenhuma parte tem não chama a pessoa nem mede nada', () async {
     final it = await _aSalaNoAchadoDaSegundaParte();
     // The part recorded again goes in unmeasured, so there is a part left for a landing
     // to measure — and a name that leads nowhere must not make the team wait for it.
@@ -356,14 +356,18 @@ void main() {
     final medicoes = it.harness.playback.measurements.length;
     await pedirOVeredito(it);
 
-    expect(it.estado.needsPerson, isTrue);
+    expect(
+      it.estado.needsPerson,
+      isFalse,
+      reason: 'um nome que não leva a parte nenhuma não é um caso dela',
+    );
     expect(
       it.harness.playback.measurements.length,
       medicoes,
       reason:
           'o nome não vira parte nenhuma, então não há para onde levar '
           'a equipe: medir o ensaio inteiro antes de descobrir isso só a faz '
-          'esperar pela pessoa que já era para ter sido chamada',
+          'esperar por nada',
     );
   });
 }

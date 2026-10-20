@@ -322,8 +322,8 @@ void main() {
     expect(harness.room.personAsksFor, [primeira]);
   });
 
-  test('a call for an earlier session that fell on the network leaves the call '
-      'for the current session to the return of the room', () async {
+  test('a call for an earlier session that fell on the network keeps the room '
+      'in reach, and the current session is still called for', () async {
     final harness = SalaHarness();
     final container = await _naPassagem(harness);
     final primeira = _estado(container).sessionId!;
@@ -348,22 +348,28 @@ void main() {
 
     harness.room.finishHeldAskForAPerson();
     await waitFor(
-      'a sala ficar fora de alcance',
-      () => _estado(container).unreachable,
+      'o pedido da primeira sessão cair',
+      () => harness.room.personAsksFor.isNotEmpty,
     );
-    await settle(_severalStepsOfTheLadder);
-    expect(harness.room.personAsksFor, [primeira]);
-
     harness.room.askForAPersonFailsWith = null;
     harness.network.reachable = true;
-    harness.network.networkComesBack();
-    await waitFor(
-      'a sala chamar alguém na volta',
-      () => harness.room.personsAsked == 1,
-    );
     await settle(_severalStepsOfTheLadder);
 
-    expect(harness.room.personAsksFor, [primeira, segunda]);
+    expect(
+      _estado(container).unreachable,
+      isFalse,
+      reason:
+          'o pedido de pessoa não é uma entrada: a rede que cai não muda nada',
+    );
+    expect(_estado(container).needsPerson, isTrue);
+    expect(harness.room.personAsksFor.first, primeira);
+    expect(
+      harness.room.personAsksFor.skip(1),
+      allOf(isNotEmpty, everyElement(segunda)),
+      reason:
+          'o sinal desta sessão está de pé, e a mesa só sabe dele pelo pedido '
+          'do tablet',
+    );
   });
 
   test('a passage closed after the team left it never erases the Resume point '

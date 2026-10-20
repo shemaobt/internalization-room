@@ -57,7 +57,12 @@ class World {
         probing &&
         event is! NetworkReturned &&
         !(event is NetworkFailedAt && event.door == Door.probe);
-    var looks = looking && event is! LookFound && event is! LookEmpty;
+    var looks =
+        looking &&
+        event is! LookFound &&
+        event is! RoomRaisedAHalt &&
+        event is! TheOpeningMissed &&
+        event is! TheSceneTurnFoundNothing;
     var reach = switch (event) {
       NetworkFailedAt() => false,
       NetworkReturned() => true,
@@ -216,8 +221,6 @@ String describeKept(Kept kept) => switch (kept) {
   NothingKept() => 'NothingKept',
   ThePart() => 'ThePart',
   TheOpening(:final failedTurnId) => 'TheOpening($failedTurnId)',
-  TheResume() => 'TheResume',
-  TheWheel() => 'TheWheel',
 };
 
 String describeHalt(Halt halt) => switch (halt) {
@@ -229,13 +232,8 @@ String describeHalt(Halt halt) => switch (halt) {
 };
 
 String describeEvent(MachineEvent event) => switch (event) {
-  SessionRead(
-    :final snapshot,
-    :final sounding,
-    :final sentBeforeTheCallLanded,
-  ) =>
+  SessionRead(:final snapshot, :final sentBeforeTheCallLanded) =>
     'SessionRead(status: ${snapshot.status}, halt: ${snapshot.halt.name}, '
-        'sounding: ${describeKept(sounding)}, '
         'sentBeforeTheCallLanded: $sentBeforeTheCallLanded)',
   RoomRaisedAHalt(:final sounding, :final callsForAPerson) =>
     'RoomRaisedAHalt(${describeKept(sounding)}, '
@@ -295,12 +293,12 @@ String describeEvent(MachineEvent event) => switch (event) {
     'TheSceneDoorFailed(readAgain: $readAgain)',
   TheCallWasRefused() => 'TheCallWasRefused',
   TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
-  LookEmpty(:final sounding) => 'LookEmpty(${describeKept(sounding)})',
   TheOpeningMissed() => 'TheOpeningMissed',
-  TheRoomRefused(:final third, :final sounding) =>
-    'TheRoomRefused(third: $third, ${describeKept(sounding)})',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
   TheTellingCameBackEmpty() => 'TheTellingCameBackEmpty',
+  TheStepFailed() => 'TheStepFailed',
+  TheResumeFailed() => 'TheResumeFailed',
+  TheSceneTurnFoundNothing() => 'TheSceneTurnFoundNothing',
   TheVerdictAsked() => 'TheVerdictAsked',
   TheTranslationStartedOver() => 'TheTranslationStartedOver',
   TheChoiceOpened() => 'TheChoiceOpened',
@@ -358,12 +356,10 @@ String describeEffect(Effect effect) => switch (effect) {
   _ => effect.runtimeType.toString(),
 };
 
-Kept _drawKept(Random random) => switch (random.nextInt(5)) {
+Kept _drawKept(Random random) => switch (random.nextInt(3)) {
   0 => const NothingKept(),
   1 => const ThePart(),
-  2 => TheOpening('turn-${random.nextInt(3)}'),
-  3 => const TheResume(),
-  _ => const TheWheel(),
+  _ => TheOpening('turn-${random.nextInt(3)}'),
 };
 
 SessionRead _drawARead(World world, Random random) => SessionRead(
@@ -375,7 +371,6 @@ SessionRead _drawARead(World world, Random random) => SessionRead(
     done: false,
     halt: HaltKind.values[random.nextInt(HaltKind.values.length)],
   ),
-  sounding: _drawKept(random),
   sentBeforeTheCallLanded: world.callOutstanding && random.nextBool(),
 );
 
@@ -415,11 +410,12 @@ enum EventKind {
   passageClosed,
   turnGivenUp,
   lookFound,
-  lookEmpty,
   theOpeningMissed,
-  theRoomRefused,
   thePassageCannotOpen,
   theTellingCameBackEmpty,
+  theStepFailed,
+  theResumeFailed,
+  theSceneTurnFoundNothing,
   theVerdictAsked,
   theTranslationStartedOver,
   turnSent,
@@ -484,11 +480,12 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   ThePassageClosed() => EventKind.passageClosed,
   TurnGivenUp() => EventKind.turnGivenUp,
   LookFound() => EventKind.lookFound,
-  LookEmpty() => EventKind.lookEmpty,
   TheOpeningMissed() => EventKind.theOpeningMissed,
-  TheRoomRefused() => EventKind.theRoomRefused,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
   TheTellingCameBackEmpty() => EventKind.theTellingCameBackEmpty,
+  TheStepFailed() => EventKind.theStepFailed,
+  TheResumeFailed() => EventKind.theResumeFailed,
+  TheSceneTurnFoundNothing() => EventKind.theSceneTurnFoundNothing,
   TheVerdictAsked() => EventKind.theVerdictAsked,
   TheTranslationStartedOver() => EventKind.theTranslationStartedOver,
   TurnSent() => EventKind.turnSent,
@@ -526,7 +523,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.playerFailed => world.playerBusy,
   EventKind.micClosed || EventKind.micClosing => world.micOpen,
   EventKind.micAnswered => true,
-  EventKind.lookFound || EventKind.lookEmpty => world.looking,
+  EventKind.lookFound => world.looking,
   EventKind.sessionRead ||
   EventKind.roomRaisedAHalt ||
   EventKind.theAnswerWarned ||
@@ -553,9 +550,11 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.passageClosed ||
   EventKind.turnGivenUp ||
   EventKind.theOpeningMissed ||
-  EventKind.theRoomRefused ||
   EventKind.thePassageCannotOpen ||
   EventKind.theTellingCameBackEmpty ||
+  EventKind.theStepFailed ||
+  EventKind.theResumeFailed ||
+  EventKind.theSceneTurnFoundNothing ||
   EventKind.theVerdictAsked ||
   EventKind.theTranslationStartedOver ||
   EventKind.turnSent ||
@@ -729,14 +728,12 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
           turnId: 'turn-${random.nextInt(3)}',
         ),
       ),
-      EventKind.lookEmpty => LookEmpty(sounding: _drawKept(random)),
       EventKind.theOpeningMissed => const TheOpeningMissed(),
-      EventKind.theRoomRefused => TheRoomRefused(
-        third: random.nextBool(),
-        sounding: _drawKept(random),
-      ),
       EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
       EventKind.theTellingCameBackEmpty => const TheTellingCameBackEmpty(),
+      EventKind.theStepFailed => const TheStepFailed(),
+      EventKind.theResumeFailed => const TheResumeFailed(),
+      EventKind.theSceneTurnFoundNothing => const TheSceneTurnFoundNothing(),
       EventKind.theVerdictAsked => const TheVerdictAsked(),
       EventKind.theTranslationStartedOver => const TheTranslationStartedOver(),
       EventKind.turnSent => TurnSent(_drawATurn(random)),

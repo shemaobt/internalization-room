@@ -95,18 +95,18 @@ void main() {
     },
   );
 
-  test(
-    'an opening refused with a code that stops the room still calls a person',
-    () async {
-      final room = await _enterP01(
-        SalaHarness()
-          ..room.failHeldTurnWith = const Refused(RefusalCode.deviceRevoked),
-      );
-      await _theOpeningIsAsked(room);
+  test('an opening refused with a code that stops the room rests at the invite '
+      'with no sign', () async {
+    final room = await _enterP01(
+      SalaHarness()
+        ..room.failHeldTurnWith = const Refused(RefusalCode.deviceRevoked),
+    );
+    await _theOpeningIsAsked(room);
+    await _theRoomRests(room);
 
-      await waitFor('a person to be called', () => room.read().needsPerson);
-    },
-  );
+    expect(room.read().voice, VoiceState.invite);
+    expect(room.read().needsPerson, isFalse);
+  });
 
   test('after an opening whose clip will not play, the next tap records a team '
       'turn', () async {

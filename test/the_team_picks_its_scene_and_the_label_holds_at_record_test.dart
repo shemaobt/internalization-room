@@ -1689,7 +1689,6 @@ void main() {
                   generation: 4,
                   door: Door.sceneList,
                   rule: rule,
-                  refusals: 2,
                 ),
               ),
               isA<TheScenesMissed>().having(

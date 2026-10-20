@@ -79,7 +79,7 @@ void main() {
   });
 
   test('the second read of a reopening with no rehearsal to hand back applies '
-      'the halt it carries, as one the room only read', () async {
+      'what it carries and raises no sign', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
       ..room.serverHalt = HaltKind.blocking
@@ -99,18 +99,14 @@ void main() {
     expect(read().btPhase, BtPhase.conferida);
     expect(
       read().needsPerson,
-      isTrue,
-      reason: 'a leitura que devolveu a conferida trazia a parada',
+      isFalse,
+      reason: 'uma leitura nunca levanta o sinal da pessoa',
     );
-    expect(
-      harness.room.personsAsked,
-      0,
-      reason: 'uma parada lida não é um novo pedido de pessoa',
-    );
+    expect(harness.room.personsAsked, 0);
   });
 
-  test('the read after a turn applies the halt and the warning it carries, '
-      'without a call', () async {
+  test('the read after a turn that says a person is needed keeps the warning '
+      'and raises no sign', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
       ..room.serverHalt = HaltKind.warning;
@@ -121,18 +117,24 @@ void main() {
     await waitFor('o aviso chegar', () => read().warning);
 
     harness.room.serverHalt = HaltKind.blocking;
+    final turns = harness.room.turnsSent;
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
+    await waitFor('o turno chegar', () => harness.room.turnsSent > turns);
+    final reads = stateReads(harness);
     await waitFor(
-      'a leitura depois do turno parar a sala',
-      () => read().needsPerson,
+      'a leitura depois do turno',
+      () => stateReads(harness) > reads,
     );
+    await settle();
 
     expect(
-      harness.room.personsAsked,
-      0,
-      reason: 'uma parada lida não é um novo pedido de pessoa',
+      read().needsPerson,
+      isFalse,
+      reason: 'uma leitura nunca levanta o sinal da pessoa',
     );
+    expect(read().warning, isTrue);
+    expect(harness.room.personsAsked, 0);
   });
 }

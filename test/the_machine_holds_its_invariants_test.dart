@@ -73,11 +73,18 @@ Invariant<S> aSessionReadIsAppliedWholeOrNotAtAll<S>(Halt Function(S) haltOf) =>
         if (event is! SessionRead) return null;
         final was = haltOf(before);
         final now = haltOf(after);
+        if (was is! Blocking) {
+          final warns = event.snapshot.needsPerson
+              ? was
+              : _whatTheSessionReadTells(event.snapshot);
+          if (_kind(now) == _kind(warns)) return null;
+          return 'the Session read over ${_kind(was)} told '
+              '${_kind(warns)}, the halt became ${describeHalt(now)}';
+        }
         final told = _whatTheSessionReadTells(event.snapshot);
         final applied =
             _kind(now) == _kind(told) && (now is! Blocking || now.serverKnows);
         final refusedWhole =
-            was is Blocking &&
             now is Blocking &&
             now.kept == was.kept &&
             now.serverKnows == was.serverKnows &&
@@ -247,22 +254,6 @@ final theOutboxNeverIdlesReachableWithAPartPending = Invariant<Machine>(
   },
 );
 
-bool _asksTheRoomAgain(Effect effect) => switch (effect) {
-  ProbeTheRoom() || ArmTheRetry() || ResendPending() => true,
-  _ => false,
-};
-
-final aVerdictWaitingForTheTapIsNeverAskedAgainOnItsOwn = Invariant<Machine>(
-  'ADR 0073, a Verdict waiting for the tap asks the room nothing on its own',
-  (before, event, after, effects, world) {
-    if (!after.theVerdictWaitsForTheTap) return null;
-    final asks = effects.where(_asksTheRoomAgain);
-    if (asks.isEmpty) return null;
-    return 'with the Verdict waiting for the tap, ${describeEvent(event)} '
-        'asked ${asks.map(describeEffect).join(', ')}';
-  },
-);
-
 final aLanguageChosenReadsTheWheelOnlyOnTheChoice = Invariant<Machine>(
   'ADR 0077, a language chosen reads the Wheel again on the Choice and nowhere else',
   (before, event, after, effects, world) {
@@ -335,6 +326,24 @@ Invariant<Machine> _nothingOfTheSessionSurvives(
   }
   return null;
 });
+
+final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
+  'ADR 0093, nothing but her six cases enters the person sign',
+  (before, event, after, effects, world) {
+    if (before.halt is Blocking || after.halt is! Blocking) return null;
+    final herCase = switch (event) {
+      RoomRaisedAHalt() || TheSceneTurnFoundNothing() => true,
+      PlayerFailed(source: Source.guide) =>
+        before.failing == Source.guide && before.failures >= 1,
+      StationEvent() =>
+        before.aHaltWaitsForTheCanvas && after.station is Canvas,
+      _ => false,
+    };
+    if (herCase) return null;
+    return '${describeEvent(event)} entered the person sign over '
+        '${describeHalt(before.halt)}';
+  },
+);
 
 final aStationsSessionNeverOpensWithoutTheWatch = Invariant<Machine>(
   'ADR 0092, a Station\'s session never opens without the Watch',
@@ -441,11 +450,6 @@ void main() {
       _holds(theOutboxNeverIdlesReachableWithAPartPending);
     });
 
-    test('ADR 0073: a Verdict waiting for the tap asks the room nothing on '
-        'its own', () {
-      _holds(aVerdictWaitingForTheTapIsNeverAskedAgainOnItsOwn);
-    });
-
     test('ADR invariant 6: nothing of a gone session survives', () {
       _holds(nothingOfAGoneSessionSurvives);
     });
@@ -470,8 +474,14 @@ void main() {
         theScreenNeverShowsASoundTheChannelDoesNotHold,
         aLanguageChosenReadsTheWheelOnlyOnTheChoice,
         aStationsSessionNeverOpensWithoutTheWatch,
+        nothingButHerSixCasesEntersThePersonSign,
       ], seeds: _seeds);
     });
+  });
+
+  test('generator invariant: nothing but her six cases enters the person '
+      'sign', () {
+    _holds(nothingButHerSixCasesEntersThePersonSign);
   });
 
   test('ADR 0092: a Station\'s session never opens without the Watch', () {

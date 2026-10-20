@@ -1,12 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 SessionRead _read({
   String status = 'in_progress',
   HaltKind halt = HaltKind.unnamed,
-  Kept sounding = const NothingKept(),
 }) => SessionRead(
   SessionSnapshot(
     sessionId: 'sessao-1',
@@ -16,7 +17,6 @@ SessionRead _read({
     done: false,
     halt: halt,
   ),
-  sounding: sounding,
 );
 
 SessionRead get _nothingStands => _read();
@@ -24,8 +24,8 @@ SessionRead get _nothingStoodBeforeTheCall =>
     SessionRead(_nothingStands.snapshot, sentBeforeTheCallLanded: true);
 SessionRead get _aWarningStands =>
     _read(status: 'needs_person', halt: HaltKind.warning);
-SessionRead _aBlockingHalt({Kept sounding = const NothingKept()}) =>
-    _read(status: 'needs_person', halt: HaltKind.blocking, sounding: sounding);
+SessionRead _aBlockingHalt() =>
+    _read(status: 'needs_person', halt: HaltKind.blocking);
 
 const _entering = [SilenceTheRoom(), CloseAndDiscardTheMic()];
 
@@ -71,19 +71,16 @@ void main() {
       expect(_reduce(none, _nothingStands), _to(none, const <Effect>[]));
     });
 
-    test(
-      'a look that finds no opening lets the opening go and raises no halt',
-      () {
-        const opening = LookEmpty(sounding: TheOpening('turno-7'));
-        expect(_reduce(none, opening), _to(none, const [LetTheOpeningGo()]));
-        expect(
-          _reduce(const Blocking(NothingKept(), serverKnows: true), opening),
-          _to(const Blocking(NothingKept(), serverKnows: true), const [
-            LetTheOpeningGo(),
-          ]),
-        );
-      },
-    );
+    test('an opening missed lets the opening go and raises no halt', () {
+      const opening = TheOpeningMissed();
+      expect(_reduce(none, opening), _to(none, const [LetTheOpeningGo()]));
+      expect(
+        _reduce(const Blocking(NothingKept(), serverKnows: true), opening),
+        _to(const Blocking(NothingKept(), serverKnows: true), const [
+          LetTheOpeningGo(),
+        ]),
+      );
+    });
 
     test('a read warning marks the room and arms the Watch', () {
       expect(
@@ -92,14 +89,39 @@ void main() {
       );
     });
 
-    test('a read blocking halt enters without a call for a person', () {
+    test('a Session read that says the room needs a person raises no sign', () {
       expect(
-        _reduce(none, _aBlockingHalt(sounding: const ThePart())),
-        _to(const Blocking(ThePart(), serverKnows: true), const [
-          ..._entering,
-          ArmTheWatch(),
-        ]),
+        _reduce(none, _aBlockingHalt()),
+        isA<(Halt, List<Effect>)>()
+            .having((result) => result.$1, 'the halt', none)
+            .having(
+              (result) => result.$2,
+              'the effects',
+              isNot(contains(const CallForAPerson())),
+            ),
       );
+    });
+
+    test('a rehearsal part\'s sound failing twice brings no sign', () {
+      var machine = const Machine(
+        station: Retro(),
+        channel: PartPlaying(PartSound(0, 'parte-0.m4a')),
+      );
+      for (var failure = 0; failure < 2; failure++) {
+        (machine, _) = reduce(
+          machine.copyWith(
+            channel: const PartPlaying(PartSound(0, 'parte-0.m4a')),
+          ),
+          const PlayerFailed(Source.take('parte-0.m4a')),
+        );
+      }
+      expect(machine.halt, isNot(isA<Blocking>()));
+
+      var guide = const Machine();
+      for (var failure = 0; failure < 2; failure++) {
+        (guide, _) = reduce(guide, const PlayerFailed(Source.guide));
+      }
+      expect(guide.halt, isA<Blocking>());
     });
 
     test('a raised halt calls for a person and arms the Watch', () {
@@ -196,17 +218,17 @@ void main() {
       );
     });
 
-    test('a read blocking halt wins over it and remembers the warning', () {
+    test('a Session read that says the room needs a person raises no sign '
+        'over it', () {
       expect(
         _reduce(warning, _aBlockingHalt()),
-        _to(
-          const Blocking(
-            NothingKept(),
-            warningBeneath: true,
-            serverKnows: true,
-          ),
-          const [..._entering, ArmTheWatch()],
-        ),
+        isA<(Halt, List<Effect>)>()
+            .having((result) => result.$1, 'the halt', warning)
+            .having(
+              (result) => result.$2,
+              'the effects',
+              isNot(contains(const CallForAPerson())),
+            ),
       );
     });
 
@@ -304,7 +326,7 @@ void main() {
       'a read blocking halt keeps it as it was, and the server knows it',
       () {
         expect(
-          _reduce(unknown, _aBlockingHalt(sounding: const NothingKept())),
+          _reduce(unknown, _aBlockingHalt()),
           _to(known, const [ArmTheWatch()]),
         );
         expect(

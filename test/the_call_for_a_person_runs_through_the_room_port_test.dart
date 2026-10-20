@@ -5,7 +5,6 @@ import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/refusal_code.dart';
-import 'package:internalization_room/features/sala/domain/room_reach.dart';
 
 import 'a_station_host_double.dart';
 import 'fake_ports.dart';
@@ -87,18 +86,13 @@ void main() {
   );
 
   test(
-    'a call for a person that fails on the network takes the room out of reach at the person\'s door',
+    'a call for a person that fails on the network asks again on the ladder',
     () async {
       runner.run(const [CallForAPerson()]);
       room.answerTheCall(const RoomNetworkFailed());
       await pumpEventQueue();
 
-      expect(
-        host.answers.single,
-        isA<NetworkFailedAt>()
-            .having((fell) => fell.door, 'door', Door.person)
-            .having((fell) => fell.why, 'why', RoomReach.noNetwork),
-      );
+      expect(host.answers.single, isA<TheCallWasRefused>());
       expect(_theSignAfter(host.answers), isA<Blocking>());
     },
   );
@@ -166,19 +160,16 @@ void main() {
   );
 
   test(
-    'a call for an earlier session that fails on the network falls at the person\'s door and does not ask again',
+    'a call for an earlier session that fails on the network still asks for the room\'s session, and the machine is told nothing',
     () async {
       runner.run(const [CallForAPerson()]);
       host.session = 'sessao-2';
       room.answerTheCall(const RoomNetworkFailed());
       await pumpEventQueue();
 
-      expect(
-        host.answers.single,
-        isA<NetworkFailedAt>().having((fell) => fell.door, 'door', Door.person),
-      );
+      expect(room.heard, ['call:sessao-1', 'call:sessao-2']);
+      expect(host.answers, isEmpty);
       expect(host.earlierCallsHeard, isEmpty);
-      expect(room.heard, ['call:sessao-1']);
     },
   );
 

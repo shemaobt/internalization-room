@@ -79,7 +79,8 @@ void main() {
     expect(harness.room.chunkSpans, ['0-10000']);
   });
 
-  test('a stretch recorded into nothing does not pass as told back', () async {
+  test('a stretch recorded into nothing does not pass as told back, and shows '
+      'no person sign', () async {
     final harness = SalaHarness();
     final container = await _inRetro(harness);
 
@@ -102,10 +103,8 @@ void main() {
     );
     expect(
       container.read(salaSessionProvider).needsPerson,
-      isTrue,
-      reason:
-          'este ramo voltava calado para o player, que é a sala não dizendo '
-          'nada sobre um aparelho que parou de gravar',
+      isFalse,
+      reason: 'uma tomada vazia nunca é um caso dela para a pessoa',
     );
   });
 
