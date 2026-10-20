@@ -269,6 +269,10 @@ const sceneRehearsalLabels = {
     'pt': 'a tradução do ensaio da cena foi para a voz',
     'en': 'the translation of the scene rehearsal went to the voice',
   },
+  'restarted': {
+    'pt': 'tradução recomeçada — o ensaio da cena ficou',
+    'en': 'translation started over — the scene rehearsal stays',
+  },
 };
 
 String sceneRehearsalLabelFor(String control, String language, {int? n}) =>

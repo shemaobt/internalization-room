@@ -138,6 +138,12 @@ final class SceneRehearsalRecord {
     milliseconds: _current.fold(0, (end, frase) => max(end, frase.endsMs ?? 0)),
   );
 
+  /// The frase whose pausa may move: the last current frase ending where the
+  /// translation stopped.
+  SceneFrase? get lastFrase => currentFrases
+      .where((frase) => frase.endsMs == frontier.inMilliseconds)
+      .lastOrNull;
+
   /// Whether every current frase has a place inside [take], the length of the
   /// recording this tablet holds.
   bool placesKnownIn(Duration? take) =>

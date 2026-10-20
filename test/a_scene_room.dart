@@ -73,6 +73,14 @@ Future<void> theSceneMicrophoneOpens(SceneRoom room) async {
   );
 }
 
+/// «recomeçar a tradução» tapped twice, past the wake that keeps a double tap from
+/// firing: the room's harness wakes it at once.
+Future<void> restartTheTranslationInTwoTaps(SceneRoom room) async {
+  room.sala.restartTheSceneTranslation();
+  await settle();
+  room.sala.restartTheSceneTranslation();
+}
+
 Future<void> translateOpens(SceneRoom room) => waitFor(
   'o ensaio abrir na tradução',
   () => room.state.scene.step == SceneStep.translate,
