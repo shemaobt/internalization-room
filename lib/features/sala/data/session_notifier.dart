@@ -7334,71 +7334,70 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final deLado = state.wholeSetAside;
     return [
       for (var onde = 0; onde < told.length; onde++)
-        if (!deLado.contains(told[onde].takeId))
-          () {
-            final segment = told[onde];
-            final from = Duration(milliseconds: segment.startsMs);
-            final to = Duration(milliseconds: segment.endsMs);
-            // The room says what a stretch is called, where it sits and whether anyone has
-            // explained it; the tablet knows what it is holding. Taking the room's reading
-            // wholesale threw away the copy of the telling this tablet recorded, and the
-            // blue voice had nothing to play — in every session, not only in one picked
-            // back up.
-            //
-            // The two travel together or not at all: a stretch the room says is not told
-            // has no explanation to hold a file for. Its own recording was replaced, and
-            // the telling that belonged to the audio nobody will hear again does not carry
-            // over — the same rule the room keeps on its side.
-            //
-            // By name where the room said one, and by the slice where it did not. The
-            // slice alone stopped answering the day a recording could be replaced under a
-            // correction: every stretch of that part moves to another file at another time
-            // at once, and a stretch nobody touched came back matching nothing and lost the
-            // telling this tablet holds for it.
-            final chamado = state.btTrechos.where(
-              (trecho) =>
-                  trecho.segmentId != null &&
-                  trecho.segmentId == segment.segmentId,
-            );
-            final aFatia = state.btTrechos.where(
-              (trecho) =>
-                  trecho.takeId == segment.takeId &&
-                  trecho.from == from &&
-                  trecho.to == to,
-            );
-            final aqui = chamado.isNotEmpty ? chamado : aFatia;
-            // What this stretch was a moment ago: found by identity, and where identity was
-            // the very thing the mend broke, by the place the replacement took.
-            final antes = aqui.isNotEmpty
-                ? aqui.first
-                : (onde == lugar ? noLugarDe : null);
-            // Where it sits, which is the slice of a part it covers, and has nothing to do
-            // with the file it plays. A stretch out of a rehearsal part sits where it
-            // plays, and so does one the room's listing placed on a part. One that neither
-            // names keeps the place of the stretch it stands in for.
-            final daqui = partes.indexWhere((p) => p.takeId == segment.takeId);
-            final aParte = daqui >= 0
-                ? daqui
-                : (naParte[segment.takeId] ?? daqui);
-            final parte = aParte >= 0 ? aParte : (antes?.parte ?? aParte);
-            return Trecho(
-              segmentId: segment.segmentId,
-              takeId: segment.takeId,
-              retroPath: !segment.told
-                  ? null
-                  : onde == lugar
-                  ? contadoEm
-                  : (aqui.isNotEmpty ? aqui.first.retroPath : null),
-              parte: parte,
-              from: from,
-              to: to,
-              lugarFrom: aParte >= 0 ? from : (antes?.lugarFrom ?? from),
-              lugarTo: aParte >= 0 ? to : (antes?.lugarTo ?? to),
-              contado: segment.told,
-              frase: segment.frase,
-            );
-          }(),
-    ];
+        () {
+          final segment = told[onde];
+          final from = Duration(milliseconds: segment.startsMs);
+          final to = Duration(milliseconds: segment.endsMs);
+          // The room says what a stretch is called, where it sits and whether anyone has
+          // explained it; the tablet knows what it is holding. Taking the room's reading
+          // wholesale threw away the copy of the telling this tablet recorded, and the
+          // blue voice had nothing to play — in every session, not only in one picked
+          // back up.
+          //
+          // The two travel together or not at all: a stretch the room says is not told
+          // has no explanation to hold a file for. Its own recording was replaced, and
+          // the telling that belonged to the audio nobody will hear again does not carry
+          // over — the same rule the room keeps on its side.
+          //
+          // By name where the room said one, and by the slice where it did not. The
+          // slice alone stopped answering the day a recording could be replaced under a
+          // correction: every stretch of that part moves to another file at another time
+          // at once, and a stretch nobody touched came back matching nothing and lost the
+          // telling this tablet holds for it.
+          final chamado = state.btTrechos.where(
+            (trecho) =>
+                trecho.segmentId != null &&
+                trecho.segmentId == segment.segmentId,
+          );
+          final aFatia = state.btTrechos.where(
+            (trecho) =>
+                trecho.takeId == segment.takeId &&
+                trecho.from == from &&
+                trecho.to == to,
+          );
+          final aqui = chamado.isNotEmpty ? chamado : aFatia;
+          // What this stretch was a moment ago: found by identity, and where identity was
+          // the very thing the mend broke, by the place the replacement took.
+          final antes = aqui.isNotEmpty
+              ? aqui.first
+              : (onde == lugar ? noLugarDe : null);
+          // Where it sits, which is the slice of a part it covers, and has nothing to do
+          // with the file it plays. A stretch out of a rehearsal part sits where it
+          // plays, and so does one the room's listing placed on a part. One that neither
+          // names keeps the place of the stretch it stands in for.
+          final daqui = partes.indexWhere((p) => p.takeId == segment.takeId);
+          final aParte = daqui >= 0
+              ? daqui
+              : (naParte[segment.takeId] ?? daqui);
+          final parte = aParte >= 0 ? aParte : (antes?.parte ?? aParte);
+          return Trecho(
+            segmentId: segment.segmentId,
+            takeId: segment.takeId,
+            retroPath: !segment.told
+                ? null
+                : onde == lugar
+                ? contadoEm
+                : (aqui.isNotEmpty ? aqui.first.retroPath : null),
+            parte: parte,
+            from: from,
+            to: to,
+            lugarFrom: aParte >= 0 ? from : (antes?.lugarFrom ?? from),
+            lugarTo: aParte >= 0 ? to : (antes?.lugarTo ?? to),
+            contado: segment.told,
+            frase: segment.frase,
+          );
+        }(),
+    ].where((trecho) => !deLado.contains(trecho.takeId)).toList();
   }
 
   /// Which part of the rehearsal each stretch this tablet has no recording for belongs
