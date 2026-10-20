@@ -469,6 +469,13 @@ void main() {
       findsOneWidget,
       reason: 'a frase ia para a sala sem a equipe ver que estava indo',
     );
+    for (var n = 1; n <= 4; n++) {
+      expect(
+        _naLista('regravar a frase $n'),
+        findsNothing,
+        reason: 'regravar seguia oferecido com uma frase a caminho da sala',
+      );
+    }
     harness.room.holdTheSentence!.complete();
     await _passo(tester);
     closeTheRoom(container);
@@ -1050,6 +1057,45 @@ void main() {
       isEmpty,
       reason: 'a parte velha tocava no lugar da frase nova',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a re-record left for the rehearsal does not stand when the team '
+      'comes back to the telling', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrases(tester, harness);
+    harness.room
+      ..verdictChecked = false
+      ..verdictFindingSegmentId = 'trecho-2'
+      ..verdictFindings = const [
+        BtFinding(
+          kind: BtFindingKind.addition,
+          frase: 2,
+          segmentId: 'trecho-2',
+        ),
+      ];
+    await tocar(tester, 'terminei');
+    await waitFor(
+      'o achado chegar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    await regravarAte(tester, harness, 2);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.gravarAParteDeNovo();
+    await _passo(tester);
+    notifier.startRetro();
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btRegravacao,
+      isNull,
+      reason:
+          'a volta à tradução abria o microfone da frase, não o da tradução',
+    );
+    expect(pista(), findsNothing);
     closeTheRoom(container);
   });
 }

@@ -799,15 +799,9 @@ class SalaSessionState {
       (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
       ensaio != EnsaioStatus.recording;
 
-  /// Whether the last listening the clean verdict invites has anything to play.
-  ///
-  /// A session picked back up over a room that holds no rehearsal of its own carries the
-  /// room's stretches and no file at all, and a lit player answering with silence has no
-  /// way to explain itself in a room with no written word. It lives here rather than on
-  /// the screen so the affordance and the verb it opens read the same fact; the verb keeps
-  /// its own guard as well, because it is reachable from more than this one press.
   bool fraseRegravavel(Trecho trecho) =>
       trecho.frase != null &&
+      btRegravacao?.passo != PassoDaRegravacao.enviando &&
       (btFraseGuardada == null || btFraseGuardada == trecho.frase) &&
       (btFraseQueAguarda == null || btFraseQueAguarda == trecho.segmentId) &&
       !needsPerson &&
@@ -816,6 +810,13 @@ class SalaSessionState {
       trecho.parte < partes.length &&
       partes[trecho.parte].path.endsWith('.wav');
 
+  /// Whether the last listening the clean verdict invites has anything to play.
+  ///
+  /// A session picked back up over a room that holds no rehearsal of its own carries the
+  /// room's stretches and no file at all, and a lit player answering with silence has no
+  /// way to explain itself in a room with no written word. It lives here rather than on
+  /// the screen so the affordance and the verb it opens read the same fact; the verb keeps
+  /// its own guard as well, because it is reachable from more than this one press.
   bool get canListenAtConferida =>
       btPhase == BtPhase.conferida && partes.isNotEmpty;
 

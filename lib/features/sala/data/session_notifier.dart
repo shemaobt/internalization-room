@@ -4635,6 +4635,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _rememberWhereTheyAre(const Retro());
     _arriveAt(const TheBackTranslationOpened());
     _regravouNestaVisita = false;
+    _largarARegravacao();
     state = state.copyWith(
       awaitingTheGuide: false,
       btPhase: BtPhase.playing,
@@ -5808,8 +5809,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _regravouNestaVisita = false;
 
   void _fecharARegravacao() {
-    _regravacoes++;
     _silenceTheRoom();
+    _largarARegravacao();
+  }
+
+  void _largarARegravacao() {
+    _regravacoes++;
     final aberta = state.btRegravacao;
     state = state.copyWith(clearBtRegravacao: true);
     if (aberta case RegravacaoDaFrase(
