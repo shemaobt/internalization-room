@@ -3386,6 +3386,7 @@ class SalaHarness {
   final Duration clipGrace;
   final CaptureGuard captureGuard;
   final Duration fimLinger;
+  final Duration restartLapse;
 
   /// Whether the outbox keeps its rows in memory instead of on disk. Opt-in, for widget
   /// tests, whose binding never lets the real queue's IO finish.
@@ -3421,6 +3422,7 @@ class SalaHarness {
       minBytes: 1,
     ),
     this.fimLinger = const Duration(seconds: 30),
+    this.restartLapse = const Duration(seconds: 6),
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
     this.emAbertoNoDisco,
@@ -3500,6 +3502,7 @@ class SalaHarness {
     clipGraceProvider.overrideWithValue(clipGrace),
     captureGuardProvider.overrideWithValue(captureGuard),
     fimLingerProvider.overrideWithValue(fimLinger),
+    restartLapseProvider.overrideWithValue(restartLapse),
     sceneEnvelopeReaderProvider.overrideWithValue(readTheEnvelope),
     if (inboxWatch case final every?)
       roomInboxWatchProvider.overrideWithValue(every),
