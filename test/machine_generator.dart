@@ -306,12 +306,15 @@ String describeEvent(MachineEvent event) => switch (event) {
   PassageChosen() => 'PassageChosen',
   TheRehearsalOpened() => 'TheRehearsalOpened',
   TheBackTranslationOpened() => 'TheBackTranslationOpened',
+  TheBackTranslationResumed() => 'TheBackTranslationResumed',
   TheNecklaceClosed() => 'TheNecklaceClosed',
   TheRoomStartedOver() => 'TheRoomStartedOver',
   ThePanoramaChosen(:final id) => 'ThePanoramaChosen($id)',
   TheSceneRehearsalOpened() => 'TheSceneRehearsalOpened',
   TheSceneRehearsalLeft() => 'TheSceneRehearsalLeft',
   TheLanguageChosen() => 'TheLanguageChosen',
+  TheRehearsalWeighed(:final everySceneHasItsPart) =>
+    'TheRehearsalWeighed($everySceneHasItsPart)',
 };
 
 String describeLine(Line line) => '${line.kind.name}#${line.id}';
@@ -427,12 +430,14 @@ enum EventKind {
   passageChosen,
   theRehearsalOpened,
   theBackTranslationOpened,
+  theBackTranslationResumed,
   theNecklaceClosed,
   theRoomStartedOver,
   thePanoramaChosen,
   theSceneRehearsalOpened,
   theSceneRehearsalLeft,
   theLanguageChosen,
+  theRehearsalWeighed,
 }
 
 EventKind kindOf(MachineEvent event) => switch (event) {
@@ -492,12 +497,14 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   PassageChosen() => EventKind.passageChosen,
   TheRehearsalOpened() => EventKind.theRehearsalOpened,
   TheBackTranslationOpened() => EventKind.theBackTranslationOpened,
+  TheBackTranslationResumed() => EventKind.theBackTranslationResumed,
   TheNecklaceClosed() => EventKind.theNecklaceClosed,
   TheRoomStartedOver() => EventKind.theRoomStartedOver,
   ThePanoramaChosen() => EventKind.thePanoramaChosen,
   TheSceneRehearsalOpened() => EventKind.theSceneRehearsalOpened,
   TheSceneRehearsalLeft() => EventKind.theSceneRehearsalLeft,
   TheLanguageChosen() => EventKind.theLanguageChosen,
+  TheRehearsalWeighed() => EventKind.theRehearsalWeighed,
 };
 
 bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
@@ -555,12 +562,14 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.passageChosen ||
   EventKind.theRehearsalOpened ||
   EventKind.theBackTranslationOpened ||
+  EventKind.theBackTranslationResumed ||
   EventKind.theNecklaceClosed ||
   EventKind.theRoomStartedOver ||
   EventKind.thePanoramaChosen ||
   EventKind.theSceneRehearsalOpened ||
   EventKind.theSceneRehearsalLeft => true,
   EventKind.theLanguageChosen => true,
+  EventKind.theRehearsalWeighed => true,
 };
 
 Source _drawASource(Random random) => switch (random.nextInt(4)) {
@@ -734,6 +743,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.passageChosen => const PassageChosen(),
       EventKind.theRehearsalOpened => const TheRehearsalOpened(),
       EventKind.theBackTranslationOpened => const TheBackTranslationOpened(),
+      EventKind.theBackTranslationResumed => const TheBackTranslationResumed(),
       EventKind.theNecklaceClosed => const TheNecklaceClosed(),
       EventKind.theRoomStartedOver => const TheRoomStartedOver(),
       EventKind.thePanoramaChosen => ThePanoramaChosen(
@@ -742,6 +752,9 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.theSceneRehearsalOpened => const TheSceneRehearsalOpened(),
       EventKind.theSceneRehearsalLeft => const TheSceneRehearsalLeft(),
       EventKind.theLanguageChosen => const TheLanguageChosen(),
+      EventKind.theRehearsalWeighed => TheRehearsalWeighed(
+        everySceneHasItsPart: random.nextBool(),
+      ),
     };
 
 const _servedPanoramas = ['OV-Esther', 'OV-Jonah', 'OV-Ruth'];

@@ -173,7 +173,7 @@ void main() {
 
     test('the Rehearsal', () {
       _expectTheArrival(
-        const Ensaio(),
+        const Ensaio(everySceneHasItsPart: true),
         const TheBackTranslationOpened(),
         isA<Retro>(),
       );
@@ -246,6 +246,41 @@ void main() {
       const SceneRehearsal(),
       const TheSceneRehearsalLeft(),
       isA<Canvas>(),
+    );
+  });
+
+  test(
+    'the Rehearsal does not open the Back-translation while a scene has no part',
+    () {
+      _expectItStays(
+        const Ensaio(),
+        const TheBackTranslationOpened(),
+        isA<Ensaio>(),
+      );
+    },
+  );
+
+  test('the Rehearsal answers the telling-back picked up again on a reopening '
+      'with the Back-translation, whatever it weighed', () {
+    _expectTheArrival(
+      const Ensaio(),
+      const TheBackTranslationResumed(),
+      isA<Retro>(),
+    );
+  });
+
+  test('the Rehearsal weighed keeps its Station and its generation', () {
+    final (weighed, effects) = reduce(
+      _at(const Ensaio()),
+      const TheRehearsalWeighed(everySceneHasItsPart: true),
+    );
+
+    expect(weighed.generation, _generation);
+    expect(effects, isEmpty);
+    expect(
+      reduce(weighed, const TheBackTranslationOpened()).$1.station,
+      isA<Retro>(),
+      reason: 'weighed whole, the Rehearsal opens the Back-translation',
     );
   });
 

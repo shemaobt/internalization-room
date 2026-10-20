@@ -280,6 +280,11 @@ final class TheBackTranslationOpened extends StationEvent {
   const TheBackTranslationOpened();
 }
 
+/// A reopened passage lands back on the telling-back the team had already started.
+final class TheBackTranslationResumed extends StationEvent {
+  const TheBackTranslationResumed();
+}
+
 final class TheNecklaceClosed extends StationEvent {
   const TheNecklaceClosed();
 }
@@ -304,6 +309,13 @@ final class TheSceneRehearsalLeft extends StationEvent {
 
 final class TheLanguageChosen extends MachineEvent {
   const TheLanguageChosen();
+}
+
+/// The Rehearsal's parts or its scene list changed: whether every scene has its part.
+final class TheRehearsalWeighed extends MachineEvent {
+  final bool everySceneHasItsPart;
+
+  const TheRehearsalWeighed({required this.everySceneHasItsPart});
 }
 
 final class TheSessionIsGone extends AnsweringEvent {
@@ -1025,6 +1037,15 @@ const _watch = ArmTheWatch();
     Menu() => (moveTheGeneration(machine), const [ReadTheWheel()]),
     _ => (machine, const []),
   },
+  TheRehearsalWeighed(:final everySceneHasItsPart) => switch (machine.station) {
+    Ensaio() => (
+      machine.copyWith(
+        station: Ensaio(everySceneHasItsPart: everySceneHasItsPart),
+      ),
+      const [],
+    ),
+    _ => (machine, const []),
+  },
   StationEvent() => _reachTheStation(machine, event),
 };
 
@@ -1704,7 +1725,8 @@ Machine _answered(Machine machine) =>
   TheCallWasRefused() ||
   TheCallMetAClosedPassage() ||
   StationEvent() ||
-  TheLanguageChosen() => (halt, const []),
+  TheLanguageChosen() ||
+  TheRehearsalWeighed() => (halt, const []),
 };
 
 (Halt, List<Effect>) _read(Halt halt, SessionRead read) {

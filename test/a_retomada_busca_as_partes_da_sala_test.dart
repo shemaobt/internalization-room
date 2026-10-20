@@ -823,7 +823,7 @@ void main() {
   });
 
   test(
-    'uma gravacao de ensaio sem numero toma o primeiro numero livre',
+    'uma gravacao de ensaio sem numero fica inteira, fora das partes',
     () async {
       final harness = SalaHarness();
 
@@ -837,7 +837,7 @@ void main() {
           const TakeView(
             takeId: 'gravacao-2',
             kind: 'ensaio',
-            scope: 'parte-2',
+            scope: KeptScope.whole,
           ),
           const TakeView(
             takeId: 'gravacao-1',
@@ -849,22 +849,20 @@ void main() {
       );
       await waitFor(
         'as partes voltarem da sala',
-        () => it.estado.partes.length == 2,
+        () =>
+            it.estado.stage == SalaStage.ensaio && it.estado.partes.isNotEmpty,
       );
 
       expect(
         _nomesDasPartes(it),
-        ['gravacao-1', 'gravacao-2'],
+        ['gravacao-1'],
         reason:
-            'a parte N é a cena N: a gravação numerada fica no número dela, '
-            'e a que a sala não numera toma o primeiro número livre — fora '
-            'da fila das partes ela não tocaria nem se mediria',
+            'a sala só não numera o ensaio que o app de antes de 19 de agosto '
+            'mandava inteiro: ele não é a parte de nenhuma cena',
       );
-      expect(
-        it.estado.btFimDasPartesMs,
-        [10000, 20000],
-        reason: 'e o colar o desenha como a qualquer outra parte',
-      );
+      expect(it.estado.btFimDasPartesMs, [
+        10000,
+      ], reason: 'e o colar desenha só as partes');
     },
   );
 

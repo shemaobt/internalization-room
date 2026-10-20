@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'bt_finding.dart';
 import 'channel.dart';
 import 'halt.dart';
@@ -343,25 +345,22 @@ class SalaSessionState {
   /// This session's scene rehearsals, by number, as the room last answered them.
   final List<SceneRehearsalRecord> sceneRehearsals;
 
-  /// The passage's scenes, as the room answered them on this visit to the scene rehearsal.
+  /// The passage's scenes, as the room answered them for this session.
   final SceneList scenes;
 
   /// The turn «terminei» last sent for a scene rehearsal and no reply has played for:
   /// the next «terminei» on that rehearsal goes under it again.
   final ({String rehearsalId, String turnId})? sceneTurn;
 
-  /// Whether the bead at [index] does not apply right now (ADR 0040: dimmed means it does
-  /// not apply). True for every part but the one a finding sent the team back to record,
+  /// Whether Scene row [scene] does not apply right now (ADR 0040: dimmed means it does
+  /// not apply). True for every row but the one a finding sent the team back to record,
   /// while that record-again stands open and nothing has been recorded for it yet. Once
-  /// that recording is pending — waiting for the green check — every bead applies again,
-  /// so this reads false throughout: the one rule the row and the tap both read, instead
-  /// of the row drawing dim on a bead the tap would still play.
-  bool beadIsDimmed(int index) {
-    final again = parteARegravar;
-    return ensaio == EnsaioStatus.idle &&
-        again != null &&
-        again < partes.length &&
-        index != again;
+  /// that recording is pending — waiting for the green check — every row applies again,
+  /// so this reads false throughout: the one rule the row and its gestures both read,
+  /// instead of the row drawing dim where a gesture would still act.
+  bool sceneRowIsDimmed(int scene) {
+    final marked = _numberAt(parteARegravar);
+    return ensaio == EnsaioStatus.idle && marked != null && marked != scene;
   }
 
   const SalaSessionState({
@@ -505,17 +504,20 @@ class SalaSessionState {
   }
 
   /// The Scene the circle records: the part a finding sent the team back for, else the
-  /// first Scene with no part, else none; with no scene list, the lowest number free.
+  /// first Scene with no part, else none. A passage the room answered with no scenes
+  /// takes the lowest number free. With no scene list answered it never goes past the
+  /// parts already held: only a number missing below the highest, or the first part.
   int? get sceneForTheCircle {
     final marked = _numberAt(parteARegravar);
     if (marked != null) return marked;
     final numbers = partNumbers;
-    final count = scenes.scenes.length;
-    if (count == 0) return KeptScope.firstFree(numbers);
-    for (var scene = 1; scene <= count; scene++) {
-      if (!numbers.contains(scene)) return scene;
-    }
-    return null;
+    final free = KeptScope.firstFree(numbers);
+    return switch (scenes) {
+      ScenesHad(scenes: final had) when had.isNotEmpty =>
+        free <= had.length ? free : null,
+      ScenesHad() => free,
+      _ => free <= numbers.fold(1, max) ? free : null,
+    };
   }
 
   /// One row per Scene, in passage order; with a passage the room answered with no
@@ -536,7 +538,6 @@ class SalaSessionState {
     };
     final playing = parteDoEnsaioTocando;
     final again = parteARegravar;
-    final marked = _numberAt(again);
     return [
       for (final (number, title) in numbered)
         SceneRow(
@@ -548,8 +549,7 @@ class SalaSessionState {
           },
           unsent: unsentTakeScopes.contains(KeptScope.parte(number)),
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
-          dimmed:
-              marked != null && marked != number && ensaio == EnsaioStatus.idle,
+          dimmed: sceneRowIsDimmed(number),
           current: _numberAt(playing ?? again) == number,
         ),
     ];

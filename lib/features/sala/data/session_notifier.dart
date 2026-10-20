@@ -1014,7 +1014,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       reach: !before.reachable && machine.reachable ? RoomReach.fine : null,
       scene: leavesTheScene ? const SceneScreen() : null,
       sceneRehearsals: leavesTheScene ? const [] : null,
-      scenes: leavesTheScene ? const ScenesAwaited() : null,
       clearSceneTurn: leavesTheScene,
     );
     _runner.run(effects, micWasOpen: before.channel is Microphone);
@@ -2319,6 +2318,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       coverage: created?.coverage,
       moment: created?.moment,
     );
+    // The scenes are the passage's, asked while the session opens on the network it
+    // needs anyway, so a Rehearsal the room falls under still knows its rows.
+    unawaited(_askForTheScenes());
     _runner.run(const [ArmTheWatch()]);
     if (pericope != null) {
       _holdTheCurrentSession(sessionId, book, pericope, speaking);
@@ -2635,8 +2637,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// Each keeps the number the room holds for it, because part N is Scene N: a room
   /// holding part 3 alone hands it back on row 3, never renumbered by its place in the
-  /// listing. A recording the room does not number takes the lowest number still free.
-  /// Each keeps where the room says it was joined from.
+  /// listing. A recording the room does not number is the rehearsal an app before
+  /// 19 August sent whole: it comes back whole and is no scene's part. Each keeps where
+  /// the room says it was joined from.
   ///
   /// A file still on the tablet under a current part's name is kept as it is: it is the
   /// team's own recording, and fetching a copy over the room's link would spend their
@@ -2658,10 +2661,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (guardada.kind != 'ensaio') continue;
       correntes[guardada.ordinal] = guardada;
     }
-    final numerados = {for (final ordinal in correntes.keys) ?ordinal};
     final partes = <KeptTake>[];
     for (final MapEntry(key: ordinal, value: corrente) in correntes.entries) {
-      final escopo = KeptScope.parte(ordinal ?? KeptScope.firstFree(numerados));
+      final escopo = ordinal == null
+          ? KeptScope.whole
+          : KeptScope.parte(ordinal);
       final passada = corrente.pass ?? 1;
       final nossa = aqui.where((take) => take.takeId == corrente.takeId);
       if (nossa.isNotEmpty) {
@@ -2734,7 +2738,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// to tell, and not to a rehearsal it has already recorded.
   void _pickTheTellingBackUp(BackTranslationProgress told) {
     _leaveTheStepFor(const Retro());
-    _arriveAt(const TheBackTranslationOpened());
+    _arriveAt(const TheBackTranslationResumed());
     _regravouNestaVisita = false;
     state = state.copyWith(
       awaitingTheGuide: false,
@@ -3345,9 +3349,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return false;
     switch (answer) {
       case Answered(:final value):
-        if (_readsTheScenes && state.scenes is! ScenesHad) {
+        if (state.scenes is! ScenesHad) {
           state = state.copyWith(scenes: ScenesHad(value));
           _stampTheQuestion();
+          _weighTheRehearsal();
         }
         return true;
       case final RoomFailure failure:
@@ -3362,9 +3367,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The Rehearsal draws one row per Scene, so it reads the passage's scenes on every
   /// arrival until the room has answered them.
   void _readTheScenesForTheRehearsal() {
+    _weighTheRehearsal();
     if (state.scenes is ScenesHad) return;
     _timers.remove('sceneListRetry')?.cancel();
     unawaited(_askForTheScenes(onMiss: () => _theScenesMissed(0)));
+  }
+
+  /// The Rehearsal opens the Back-translation only as the machine last weighed it, so it
+  /// is weighed again whenever its parts or its scene list change.
+  void _weighTheRehearsal() {
+    if (state.station case Ensaio(
+      :final everySceneHasItsPart,
+    ) when everySceneHasItsPart != state.everySceneHasItsPart) {
+      _dispatch(
+        TheRehearsalWeighed(everySceneHasItsPart: state.everySceneHasItsPart),
+      );
+    }
   }
 
   void _theScenesMissed(int asked) {
@@ -4164,7 +4182,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.needsPerson) return;
     if (state.ensaio == EnsaioStatus.recording) return;
     if (indice < 0 || indice >= state.partes.length) return;
-    if (state.beadIsDimmed(indice)) return;
     if (indice == state.parteDoEnsaioTocando) {
       playTheRehearsal();
       return;
@@ -4233,13 +4250,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final row = state.sceneRows.where((row) => row.number == cena).firstOrNull;
     if (row == null || row.dimmed) return;
-    final daLinha = state.cenaDaGravacao == cena;
+    final daCena = state.cenaDaGravacao == cena;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
         _abrirOMicrofoneDaCena(cena);
-      case EnsaioStatus.recorded when daLinha:
+      case EnsaioStatus.recorded when daCena:
         _abrirOMicrofoneDaCena(cena);
-      case EnsaioStatus.recording when daLinha:
+      case EnsaioStatus.recording when daCena:
         _handOff(_finishTake());
       case EnsaioStatus.recorded || EnsaioStatus.recording:
         return;
@@ -4251,7 +4268,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _ouvirACena(int cena) {
     final indice = state.partIndexOf(cena);
-    if (indice != null) _tocarAParte(indice);
+    if (indice == null || state.sceneRowIsDimmed(cena)) return;
+    _tocarAParte(indice);
   }
 
   /// The circle records the part a finding sent the team back for, else the first Scene
@@ -4262,6 +4280,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.needsPerson || state.playPing) return;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
+        _readTheScenesForTheRehearsal();
         final cena = state.sceneForTheCircle;
         if (cena != null) _abrirOMicrofoneDaCena(cena);
       case EnsaioStatus.recorded:
@@ -4318,25 +4337,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = _pendingTakePath;
     _pendingTakePath = null;
     if (path == null) {
-      state = state.copyWith(
-        ensaio: EnsaioStatus.idle,
-        clearCenaDaGravacao: true,
-      );
+      state = state.copyWith(ensaio: EnsaioStatus.idle);
       return;
     }
     // Part N is Scene N: the recording is kept under the number of the row it was made
     // from, in place of the part already there.
-    final numero =
-        state.cenaDaGravacao ??
-        state.sceneForTheCircle ??
-        KeptScope.firstFree(state.partNumbers);
+    final numero = state.cenaDaGravacao ?? state.sceneForTheCircle;
+    if (numero == null) {
+      state = state.copyWith(ensaio: EnsaioStatus.idle);
+      return;
+    }
     state = state.copyWith(
       clearParteARegravar: true,
       clearCenaDaGravacao: true,
     );
-    // A scene list that ran out of retries is asked again at each keep, the moment the
-    // team next needs it to move on.
-    if (state.scenes is ScenesMissing) _readTheScenesForTheRehearsal();
+    // A scene list not answered yet is asked again at each keep, the moment the team
+    // next needs it to move on.
+    _readTheScenesForTheRehearsal();
     if (state.partIndexOf(numero) case final noLugar?) {
       _aParteVoltaAoSeuLugar(noLugar, path);
       return;
@@ -4348,6 +4365,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       keptTakes: [...state.keptTakes, nova],
       takes: state.partes.length + 1,
     );
+    _weighTheRehearsal();
     unawaited(
       _guard(
         path,
@@ -4719,7 +4737,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is Ensaio && state.ensaio != EnsaioStatus.idle) {
       return;
     }
-    if (state.station is Ensaio && !state.everySceneHasItsPart) return;
+    if (state.station.answer(const TheBackTranslationOpened()) is! Retro) {
+      return;
+    }
     // Before the write, not after: the mark belongs to the Rehearsal alone, and a row
     // saved for the retro must never carry one to restore.
     _leaveTheStepFor(const Retro());

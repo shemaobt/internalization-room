@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -122,6 +123,11 @@ bool _discoAceso(WidgetTester tester) =>
 List<PendingTake> _naFila(SalaHarness harness) =>
     (harness.takes as FakeTakeQueue).rows;
 
+Finder get _circulo => find.descendant(
+  of: find.byType(EnsaioView),
+  matching: find.byType(FacilitatorCircle),
+);
+
 SalaSessionState _estado(ProviderContainer container) =>
     container.read(salaSessionProvider);
 
@@ -137,13 +143,17 @@ Future<ProviderContainer> _retomarNoEnsaio(
   bool arquivosNoTablet = true,
   List<TakeView> naSala = const [],
   List<Scene> cenas = _cenasEmPortugues,
+  SalaHarness? harness,
+  void Function(SalaHarness)? antes,
 }) async {
   _umIpadEmPe(tester);
   final casa = Directory.systemTemp.createTempSync('sala-1406-retomada');
   addTearDown(() => casa.deleteSync(recursive: true));
-  final harness = SalaHarness(filaEmMemoria: true)
+  harness ??= SalaHarness(filaEmMemoria: true);
+  harness
     ..room.passageScenes = cenas
     ..room.takes.addAll(naSala);
+  antes?.call(harness);
   harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: _sessao,
     stage: SalaStage.ensaio,
@@ -288,6 +298,20 @@ void main() {
     expect(_naLinha(2, _ouvir), findsOneWidget);
     expect(_naLinha(2, _gravarDeNovo), findsOneWidget);
   });
+
+  testWidgets(
+    'a Portuguese session shows the Portuguese titles under Cena N in a '
+    'Portuguese room',
+    (tester) async {
+      await _naCasaDoEnsaio(tester);
+
+      expect(find.text(_titulo), findsOneWidget);
+      for (var n = 1; n <= 4; n++) {
+        expect(find.text('Cena $n'), findsOneWidget);
+        expect(find.text(_cenasEmPortugues[n - 1].title), findsOneWidget);
+      }
+    },
+  );
 
   testWidgets(
     'an English session shows the map\'s English titles under Scene N in an '
@@ -530,6 +554,29 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets(
+    'the rehearsal so far plays the parts in scene order, whatever order they '
+    'were recorded in',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _naCasaDoEnsaio(tester, harness: harness);
+      await _gravarNaLinha(tester, 3);
+      await _gravarNaLinha(tester, 1);
+      final antes = harness.playback.played.length;
+
+      await _tocar(tester, byLabel('Ouvir o ensaio até aqui'));
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(harness.playback.played.sublist(antes), [
+        _aParte(container, 1).path,
+        _aParte(container, 3).path,
+      ]);
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+    },
+  );
+
   testWidgets('listen on a row plays that scene\'s part alone', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _naCasaDoEnsaio(tester, harness: harness);
@@ -550,13 +597,9 @@ void main() {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.failScenesWith = const NetworkFailed('sem rede');
       final container = await _naCasaDoEnsaio(tester, harness: harness);
-      final circulo = find.descendant(
-        of: find.byType(EnsaioView),
-        matching: find.byType(FacilitatorCircle),
-      );
 
-      await _tocar(tester, circulo);
-      await _tocar(tester, circulo);
+      await _tocar(tester, _circulo);
+      await _tocar(tester, _circulo);
       await _confirmarAParte(tester);
       expect(_estado(container).partes, hasLength(1));
       expect(_discoAceso(tester), isFalse);
@@ -580,19 +623,202 @@ void main() {
         ..room.failScenesWith = const NetworkFailed('sem rede');
       await _naCasaDoEnsaio(tester, harness: harness);
       await tester.pump(const Duration(seconds: 12));
-      harness.room.failScenesWith = null;
-      final circulo = find.descendant(
-        of: find.byType(EnsaioView),
-        matching: find.byType(FacilitatorCircle),
-      );
 
-      await _tocar(tester, circulo);
-      await _tocar(tester, circulo);
+      await _tocar(tester, _circulo);
+      harness.room.failScenesWith = null;
+      await _tocar(tester, _circulo);
       await _confirmarAParte(tester);
 
       for (var n = 1; n <= 4; n++) {
         expect(_linha(n), findsOneWidget);
       }
+    },
+  );
+
+  testWidgets(
+    'with the scene list missing, the circle never records past the parts the '
+    'room holds',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _retomarNoEnsaio(
+        tester,
+        numeros: [1, 2, 3, 4],
+        harness: harness,
+        antes: (harness) =>
+            harness.room.failScenesWith = const NetworkFailed('sem rede'),
+      );
+      await tester.pump(const Duration(seconds: 12));
+
+      await _tocar(tester, _circulo);
+      await _tocar(tester, _circulo);
+      await _confirmarAParte(tester);
+
+      expect([
+        for (final linha in _naFila(harness)) linha.scope,
+      ], isNot(contains(KeptScope.parte(5))));
+      expect(harness.recorder.captures, 0);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'with the scene list still on its way, the circle never records past the '
+    'parts the room holds',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      await _retomarNoEnsaio(
+        tester,
+        numeros: [1, 2, 3, 4],
+        harness: harness,
+        antes: (harness) => harness.room.holdNextScenes(),
+      );
+
+      await _tocar(tester, _circulo);
+      await _tocar(tester, _circulo);
+      await _confirmarAParte(tester);
+
+      expect([
+        for (final linha in _naFila(harness)) linha.scope,
+      ], isNot(contains(KeptScope.parte(5))));
+      expect(harness.recorder.captures, 0);
+    },
+  );
+
+  testWidgets(
+    'a tap on the circle asks again for a scene list that ran out of retries',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _retomarNoEnsaio(
+        tester,
+        numeros: [1, 2, 3, 4],
+        harness: harness,
+        antes: (harness) =>
+            harness.room.failScenesWith = const NetworkFailed('sem rede'),
+      );
+      await tester.pump(const Duration(seconds: 12));
+      harness.room.failScenesWith = null;
+
+      await _tocar(tester, _circulo);
+      await tester.pump(const Duration(milliseconds: 400));
+
+      for (var n = 1; n <= 4; n++) {
+        expect(_linha(n), findsOneWidget);
+      }
+      expect(_discoAceso(tester), isTrue);
+      await _tocar(tester, byLabel(_irParaATraducao));
+      expect(_estado(container).stage, SalaStage.retro);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('with every scene recorded a tap on the circle records nothing', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naCasaDoEnsaio(tester, harness: harness);
+    for (var n = 1; n <= 4; n++) {
+      await _gravarNaLinha(tester, n);
+    }
+    final gravacoes = harness.recorder.captures;
+
+    await _tocar(tester, _circulo);
+
+    expect(_estado(container).ensaio, EnsaioStatus.idle);
+    expect(harness.recorder.captures, gravacoes);
+  });
+
+  testWidgets(
+    'a part beyond the last scene has no row and is still kept and played',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _retomarNoEnsaio(
+        tester,
+        numeros: [1, 2, 3, 4, 5],
+        harness: harness,
+      );
+
+      expect(find.text('Cena 5'), findsNothing);
+      for (var n = 1; n <= 4; n++) {
+        expect(_naLinha(n, _ouvir), findsOneWidget);
+      }
+      final quinta = _aParte(container, 5).path;
+      await _tocar(tester, byLabel('Ouvir o ensaio até aqui'));
+      for (var parte = 0; parte < 4; parte++) {
+        harness.playback.finishPlayback();
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(harness.playback.played.last, quinta);
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(_discoAceso(tester), isTrue);
+      await _tocar(tester, byLabel(_irParaATraducao));
+      expect(_estado(container).stage, SalaStage.retro);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a whole rehearsal the room holds with no number is no scene\'s part',
+    (tester) async {
+      await _retomarNoEnsaio(
+        tester,
+        numeros: [1],
+        arquivosNoTablet: false,
+        naSala: const [
+          TakeView(
+            takeId: 'gravacao-inteira',
+            kind: 'ensaio',
+            scope: KeptScope.whole,
+          ),
+          TakeView(
+            takeId: 'gravacao-1',
+            kind: 'ensaio',
+            scope: 'parte-1',
+            ordinal: 1,
+          ),
+        ],
+      );
+
+      expect(_naLinha(1, _ouvir), findsOneWidget);
+      for (var n = 2; n <= 4; n++) {
+        expect(_naLinha(n, _gravar), findsOneWidget);
+      }
+      expect(_discoAceso(tester), isFalse);
+    },
+  );
+
+  testWidgets(
+    'a Rehearsal reached with the room down already knows the passage\'s '
+    'scenes and records more than one part',
+    (tester) async {
+      _umIpadEmPe(tester);
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..room.passageScenes = _cenasEmPortugues;
+      final container = await pumpSala(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.goConversa(book: 'Ruth');
+      await tester.pump(const Duration(milliseconds: 200));
+      harness.network.reachable = false;
+      harness.room.reachable = false;
+      notifier.goEnsaio();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      for (var n = 1; n <= 4; n++) {
+        expect(_linha(n), findsOneWidget);
+      }
+      await _tocar(tester, _naLinha(1, _gravar));
+      await _tocar(tester, _naLinha(1, _parar));
+      await _tocar(tester, byLabel(_confirmar));
+      await _tocar(tester, _naLinha(2, _gravar));
+      await _tocar(tester, _naLinha(2, _parar));
+      await _tocar(tester, byLabel(_confirmar));
+
+      expect(
+        [for (final take in _estado(container).partes) take.scopeId],
+        [KeptScope.parte(1), KeptScope.parte(2)],
+      );
+      closeTheRoom(container);
     },
   );
 
@@ -603,13 +829,9 @@ void main() {
     await _naCasaDoEnsaio(tester, harness: harness);
     await _gravarNaLinha(tester, 1);
     await _gravarNaLinha(tester, 3);
-    final circulo = find.descendant(
-      of: find.byType(EnsaioView),
-      matching: find.byType(FacilitatorCircle),
-    );
 
-    await _tocar(tester, circulo);
-    await _tocar(tester, circulo);
+    await _tocar(tester, _circulo);
+    await _tocar(tester, _circulo);
     await _confirmarAParte(tester);
 
     final enviada = _naFila(harness).last;
@@ -639,6 +861,53 @@ void main() {
       for (var n = 1; n <= 4; n++) {
         expect(_linha(n), findsOneWidget);
       }
+    },
+  );
+
+  test(
+    'a passage left in its translation reopens there with scenes still missing '
+    'their part',
+    () async {
+      final casa = Directory.systemTemp.createTempSync('sala-1406-na-traducao');
+      addTearDown(() => casa.deleteSync(recursive: true));
+      final harness = SalaHarness()
+        ..room.passageScenes = _cenasEmPortugues
+        ..room.retroSoFar = const BackTranslationProgress(
+          segments: [
+            SegmentView(
+              segmentId: 'trecho-1',
+              takeId: 'gravacao-1',
+              startsMs: 0,
+              endsMs: 4000,
+            ),
+          ],
+        )
+        ..playback.measured = const Duration(seconds: 10);
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+        sessionId: _sessao,
+        stage: SalaStage.retro,
+        takes: [
+          for (final n in [1, 2])
+            KeptTake(
+              scopeId: KeptScope.parte(n),
+              path: (File(
+                '${casa.path}/p$n.m4a',
+              )..writeAsBytesSync([1, 2, 3])).path,
+              takeId: 'gravacao-$n',
+            ),
+        ],
+      );
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final sala = container.read(salaSessionProvider.notifier);
+      await sala.abrirEscolha();
+      await settle();
+      unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
+
+      await waitFor(
+        'a equipe voltar à tradução',
+        () => container.read(salaSessionProvider).stage == SalaStage.retro,
+      );
     },
   );
 }
