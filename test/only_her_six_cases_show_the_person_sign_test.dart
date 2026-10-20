@@ -525,6 +525,26 @@ void main() {
 
     expect(room.state.needsPerson, isFalse);
     expect(room.state.naRoda, isNotEmpty);
+    expect(room.state.entriesOpen, isTrue);
+  });
+
+  test('an empty wheel brings no sign, and the touch reads it again', () async {
+    final harness = SalaHarness()..room.passages = const [];
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final room = _Room(harness, container);
+    await room.sala.abrirEscolha();
+    await waitFor('a roda vazia aparecer', () => room.state.naRoda != null);
+    await settle();
+    final reads = room.asked('servedBooks');
+
+    room.sala.escolhaTap();
+    await waitFor(
+      'a roda ser lida de novo',
+      () => room.asked('servedBooks') > reads,
+    );
+
+    expect(room.state.needsPerson, isFalse);
   });
 
   test('a resume the room refuses goes back to the passage menu, and the next '

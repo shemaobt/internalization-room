@@ -60,7 +60,9 @@ The session lifecycle is one pure machine: `reduce(Machine, MachineEvent)` retur
 - **Command.** Effects are data. One `EffectRunner` executes them through four ports: `RoomPort`,
   `SoundPort` (voice and parts, one at a time), `RecorderPort` and `StorePort`. Every answer returns as an
   event stamped with the machine's `generation`, and `reduce` drops a stale one.
-- **Strategy.** Every room result goes through one `FailurePolicy` that turns it into an event, and so does every failure of the tablet's own that may call a person: the reply's sound failing, the microphone failing to start, the tablet that cannot record.
+- **Strategy.** Every room result goes through one `FailurePolicy` that turns it into an event,
+  and so does every failure of the tablet's own that may call a person: the reply's sound
+  failing, the microphone failing to start, the tablet that cannot record.
   The room client gives each door one of four results: answered, network failed,
   refused(code), session gone (ADR 0047).
 

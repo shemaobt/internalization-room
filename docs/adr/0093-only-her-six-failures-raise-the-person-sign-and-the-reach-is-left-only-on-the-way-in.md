@@ -34,9 +34,9 @@ Step's request sent again on the return or on any lift.
   the sign too and calls nobody; it is not one of her cases.
 - **Nothing else halts the room.** A refusal of any other request lets its Step go and is
   never counted. A Session read never raises the sign. A resume that fails goes back to the
-  Choice and keeps its session. A scene-rehearsal refusal keeps the scene screen's own
-  answer. Only the Guide's sound counts toward the sign; a rehearsal part or a stretch that
-  will not play leaves silence.
+  Choice and keeps its session, and the warning the session holds. A scene-rehearsal refusal
+  keeps the scene screen's own answer. Only the Guide's sound counts toward the sign; a
+  rehearsal part or a stretch that will not play leaves silence.
 - **Nothing is resent by itself.** A lift sends nothing; the Verdict is asked again only by
   the team's «terminei», with her «não deu para conferir agora» line on the screen.
 - **The Reach is left only on the way in.** A network failure on a way in (a Station with no
@@ -52,7 +52,8 @@ opened while the server is away would have no way back but a relaunch.
 
 ## Consequences
 
-- A short network blip during a turn now shows the sign; that is her behaviour.
+- A network blip during a turn is still decided by the One look: a reply that landed plays,
+  nothing found shows the sign.
 - A team relaunching into a session the Desk marks as needing a person sees no sign.
 - A stretch whose key was still in flight is not sent again on a return; the team tells it
   again.

@@ -153,7 +153,6 @@ const _whatOnlyThePolicyDecides = [
   'NetworkFailedAt',
   'TheSessionIsGone',
   'TurnGivenUp',
-  'TheRoomRefused',
   'ThePassageCannotOpen',
   'RoomRaisedAHalt',
   'TheStepFailed',

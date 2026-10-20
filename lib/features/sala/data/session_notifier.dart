@@ -1023,7 +1023,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _registerUnplayableTurn();
       return;
     }
-    _settleNetworkHealth();
+    _theRoomAnswered();
     _resumeFailures = 0;
     _openTurnId = null;
     _openingOwed = false;
@@ -1169,7 +1169,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _stopCallingForAPerson() {
     _personAsked = false;
-    _settleNetworkHealth();
+    _theRoomAnswered();
     _resumeFailures = 0;
   }
 
@@ -1277,7 +1277,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _refuseThePassage() => unawaited(abrirEscolha());
 
-  void _settleNetworkHealth() =>
+  void _theRoomAnswered() =>
       _dispatch(FailurePolicy.decide(const RoomAnswered(), _failureContext()));
 
   void _watchBusyState() {
@@ -1453,7 +1453,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _releaseTheReach() {
     _theRoomIsBack();
-    _settleNetworkHealth();
+    _theRoomAnswered();
     _resumeFailures = 0;
   }
 
@@ -1775,7 +1775,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _registerUnplayableTurn();
       return;
     }
-    _settleNetworkHealth();
+    _theRoomAnswered();
     _resumeFailures = 0;
     _openTurnId = null;
     _openingOwed = false;
@@ -1921,9 +1921,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.needsPerson) return;
     if (state.voice != VoiceState.invite) return;
     final roda = state.naRoda;
-    if (roda == null) {
-      // The wheel never loaded. There is nothing to say and nothing to enter, so the
-      // touch is the retry — otherwise this screen has no live gesture at all.
+    if (roda == null || roda.isEmpty) {
+      // The wheel never loaded, or offers nothing. There is nothing to say and nothing to
+      // enter, so the touch is the retry — otherwise this screen has no live gesture at all.
       _handOff(abrirEscolha());
     }
   }
@@ -2460,7 +2460,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// A session the room already opened is not opened again: the team lands at rest, and
   /// «Ouvir de novo» asks the room for its last line.
   void _landWhereTheyStopped() {
-    _settleNetworkHealth();
+    _theRoomAnswered();
     _resumeFailures = 0;
     state = state.copyWith(
       awaitingTheGuide: false,
@@ -2569,7 +2569,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (faltavam) {
       // Armed per step, not once around the whole fetch: the ceiling is what a single
       // wait is allowed, and a listing plus a part plus a measurement counted as one wait
-      // calls a person on a link that is slow but working.
+      // gives up on a link that is slow but working.
       _watchBusyState();
       switch (await _room.takesOf(waiting.sessionId)) {
         case Answered(value: final guardadas):
@@ -2586,8 +2586,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case final SessionGone gone:
           // This is the first call that names the remembered session on a resume, so the
           // answer that retires a session arrives here, and swallowed it would make every
-          // opening ask a dead session for a rehearsal and call a person who has nothing
-          // to resolve.
+          // opening ask a dead session for a rehearsal.
           if (_abandoned(generation)) return _Resume.abandoned;
           _decideTheFailure(gone);
           return _Resume.gone;
@@ -7123,10 +7122,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Mostly counters and latches with no home in the state object, so nothing about them
   /// is reset by rebuilding it; the cursor, the cut, the stretch being told again and the
   /// pending translation live in the state and are let go here too, the pending file with
-  /// them. `leaveThePassage` reset none of them and `_startOver` reset most: the stretch being
-  /// told again — armed when the team asks to tell one
-  /// again and let go only by a telling that lands — made the very first stretch of the
-  /// next back translation upload as a correction of a stretch that does not exist.
+  /// them. `leaveThePassage` reset none of them and `_startOver` reset most: the stretch
+  /// being told again — armed when the team asks to tell one again and let go only by a
+  /// telling that lands — made the very first stretch of the next back translation upload
+  /// as a correction of a stretch that does not exist.
   void _forgetThePassage() {
     unawaited(_coverageWatch?.cancel());
     _coverageWatch = null;

@@ -1054,7 +1054,10 @@ const _watch = ArmTheWatch();
   TheSessionIsGone() ||
   ThePassageClosed() => _backToTheChoice(machine, discarding: true),
   TheCallMetAClosedPassage() => (machine, const [CloseThePassage()]),
-  TurnSent(:final turn) => (machine.copyWith(inFlight: turn), const []),
+  TurnSent(:final turn) => (
+    machine.copyWith(inFlight: turn, aHaltWaitsForTheCanvas: false),
+    const [],
+  ),
   TurnAnswered(:final turn) => (
     _settleTheOpening(_land(machine, turn), turn),
     const [],

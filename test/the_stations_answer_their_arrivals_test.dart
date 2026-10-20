@@ -312,6 +312,24 @@ void main() {
     expect(backEffects, contains(const CallForAPerson()));
   });
 
+  test('a scene rehearsal sent again forgets the sign held for the Canvas', () {
+    const turn = Turn('sessao-1', 'turno-8');
+    var (machine, _) = reduce(
+      _at(const SceneRehearsal()),
+      const TheSceneTurnFoundNothing(generation: _generation),
+    );
+    for (final event in const <MachineEvent>[
+      TurnSent(turn),
+      TurnAnswered(turn),
+      TheSceneRehearsalLeft(),
+    ]) {
+      (machine, _) = reduce(machine, event);
+    }
+
+    expect(machine.station, isA<Canvas>());
+    expect(machine.halt, isNot(isA<Blocking>()));
+  });
+
   test('a held sign is forgotten with the passage', () {
     final (held, _) = reduce(
       _at(const SceneRehearsal()),
