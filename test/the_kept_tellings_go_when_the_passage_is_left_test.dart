@@ -97,4 +97,29 @@ void main() {
       );
     },
   );
+
+  testWidgets('a telling that lands after the passage was left is not kept', (
+    tester,
+  ) async {
+    final tellings = [aKept('S1', 1), aKept('S2', 2), aKept('S3', 3)];
+    final (harness, container) = await atRestAfterATurn(tester, tellings);
+    harness.room.keptAudio = {
+      for (final telling in tellings)
+        telling.audioUrl: Uint8List.fromList(List.filled(8, 30)),
+    };
+    harness.room.holdNextKeptRetelling();
+    await tester.tap(byLabel('Hear how you told part 2'));
+    await tester.pump(const Duration(milliseconds: 200));
+    container.read(salaSessionProvider.notifier).leaveThePassage();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    harness.room.finishHeldKeptRetelling();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(
+      _keptOnTheTablet(harness),
+      isEmpty,
+      reason: 'o take que chegou depois da saída ficou guardado no tablet',
+    );
+  });
 }

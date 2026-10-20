@@ -3614,6 +3614,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _keptRetellingOnTheTablet(
       'kept-$sessionId-${take.scope}-${take.turnNumber}',
       take.audioUrl,
+      generation,
     );
     if (path == null || _abandoned(generation) || state.keptRetellingsAreAway) {
       return;
@@ -3622,14 +3623,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _play(PartSound(0, path));
   }
 
-  Future<String?> _keptRetellingOnTheTablet(String name, String url) async {
+  Future<String?> _keptRetellingOnTheTablet(
+    String name,
+    String url,
+    int generation,
+  ) async {
     final held = await _heldOnTheTablet(name);
     if (held != null) return held;
     return switch (await _room.fetchKeptRetelling(url)) {
-      Answered(:final value) when value.isNotEmpty => await _recorder.keepBytes(
-        value,
-        name,
-      ),
+      Answered(:final value) when value.isNotEmpty && !_abandoned(generation) =>
+        await _recorder.keepBytes(value, name),
       _ => null,
     };
   }
