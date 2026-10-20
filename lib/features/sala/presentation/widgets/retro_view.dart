@@ -120,7 +120,7 @@ class RetroView extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
                   sceneRehearsalLabelFor(
-                    session.btPausaAjustavel
+                    session.canAdjustThePause
                         ? 'retellingLast'
                         : session.btPausaSoNaUltima
                         ? 'retellingOther'
