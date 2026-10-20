@@ -237,6 +237,7 @@ Future<void> _naTelaDeUmAparelho(
     ..devicePixelRatio = 1
     ..padding = FakeViewPadding(top: barra)
     ..viewPadding = FakeViewPadding(top: barra);
+  addTearDown(tester.view.reset);
   await tester.pump(const Duration(milliseconds: 100));
 }
 
