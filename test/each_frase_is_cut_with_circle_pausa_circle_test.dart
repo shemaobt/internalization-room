@@ -46,13 +46,14 @@ SceneFrase _frase(String id, int startsMs, int endsMs) =>
     SceneFrase(fraseId: id, startsMs: startsMs, endsMs: endsMs);
 
 SceneRehearsalRecord _rehearsal({
+  int n = 1,
   String? afterRestart,
   int? durationMs,
   List<SceneFrase> frases = const [],
 }) => SceneRehearsalRecord(
-  rehearsalId: 'ensaio-da-cena-1',
+  rehearsalId: 'ensaio-da-cena-$n',
   sessionId: _session,
-  n: 1,
+  n: n,
   afterRestart: afterRestart,
   durationMs: durationMs,
   frases: frases,
@@ -73,9 +74,12 @@ Future<SceneRoom> _onTheTranslateStep({
   Uint8List? take,
   Duration length = const Duration(seconds: 10),
   SceneRehearsalRecord? rehearsal,
+  List<SceneRehearsalRecord> alsoListed = const [],
 }) async {
   final room = await atRest();
-  room.harness.room.sceneRehearsals.add(rehearsal ?? _rehearsal());
+  room.harness.room.sceneRehearsals
+    ..addAll(alsoListed)
+    ..add(rehearsal ?? _rehearsal());
   room.harness.room.sceneAudio = take ?? aSpokenWav(length: length);
   room.harness.playback.measured = length;
   room.sala.openTheSceneRehearsal();
@@ -125,6 +129,45 @@ Future<void> _aFraseAt(SceneRoom room, Duration at, {int already = 0}) async {
   await _theFraseMicrophoneOpens(room);
   await _theFraseIsSent(room, already: already);
 }
+
+/// What a team does for a frase it saw go nowhere: tap the circle, and again if it
+/// opened the microphone, until the room was sent something.
+Future<void> _theTeamTellsItAgain(SceneRoom room) async {
+  final posts = room.harness.room.frasesKept.length;
+  for (
+    var tap = 0;
+    tap < 4 && room.harness.room.frasesKept.length == posts;
+    tap++
+  ) {
+    room.sala.tapTheTranslateCircle();
+    await settle();
+    await waitFor('a tela parar de esperar', () => !room.state.scene.waiting);
+  }
+  await settle();
+}
+
+/// A frase at 4 s whose post ends with [failure] after the room did or did not keep it.
+Future<void> _aFraseWhoseAnswerIsLost(
+  SceneRoom room,
+  RoomFailure failure, {
+  bool keptBefore = true,
+}) async {
+  room.harness.room
+    ..frasesLandBeforeTheyFail = keptBefore
+    ..frasesLandAfterTheyFail = !keptBefore
+    ..sceneAnswersFirst.add(failure);
+  await _aFraseAt(room, _s(4.0));
+  room.harness.room
+    ..frasesLandBeforeTheyFail = false
+    ..frasesLandAfterTheyFail = false;
+}
+
+int _currentFrasesOf(SceneRoom room, [int n = 1]) => room
+    .harness
+    .room
+    .sceneRehearsals
+    .singleWhere((rehearsal) => rehearsal.n == n)
+    .translatedFrases;
 
 Future<void> _pumpUntil(
   WidgetTester tester,
@@ -628,33 +671,144 @@ void main() {
       },
     );
 
-    test(
+    group(
       'a frase the room kept when its answer was lost is never kept twice',
+      () {
+        test('a network failure, told again at the same pausa', () async {
+          final room = await _onTheTranslateStep();
+          await _listening(room);
+          await _aFraseWhoseAnswerIsLost(room, const NetworkFailed('timeout'));
+
+          await _theTeamTellsItAgain(room);
+
+          expect(_currentFrasesOf(room), 1);
+        });
+
+        test('an answer the tablet cannot read', () async {
+          final room = await _onTheTranslateStep();
+          await _listening(room);
+          await _aFraseWhoseAnswerIsLost(
+            room,
+            const Refused(RefusalCode.unreadable),
+          );
+
+          await _theTeamTellsItAgain(room);
+
+          expect(_currentFrasesOf(room), 1);
+        });
+
+        test(
+          'a frase the room was still hearing when the tablet gave up',
+          () async {
+            final room = await _onTheTranslateStep();
+            await _listening(room);
+            await _aFraseWhoseAnswerIsLost(
+              room,
+              const NetworkFailed('HTTP 503'),
+              keptBefore: false,
+            );
+
+            await _theTeamTellsItAgain(room);
+
+            expect(_currentFrasesOf(room), 1);
+          },
+        );
+
+        test('another rehearsal opened and this one opened again', () async {
+          final room = await _onTheTranslateStep(
+            rehearsal: _rehearsal(n: 2),
+            alsoListed: [_rehearsal()],
+          );
+          await _listening(room);
+          await _aFraseWhoseAnswerIsLost(room, const NetworkFailed('timeout'));
+          for (final n in [1, 2]) {
+            room.sala.openTheListedSceneRehearsal('ensaio-da-cena-$n');
+            await waitFor(
+              'o ensaio $n abrir',
+              () =>
+                  room.state.scene.rehearsal?.n == n &&
+                  !room.state.scene.waiting,
+            );
+            await settle();
+          }
+
+          await _listening(room);
+          room.harness.playback.at = _s(4.0);
+          await _theTeamTellsItAgain(room);
+
+          expect(_currentFrasesOf(room, 2), 1);
+        });
+      },
+    );
+
+    test(
+      'a frase held after a lost answer whose rehearsal the room no longer has is let go, and the room is not asked for its list again and again',
       () async {
         final room = await _onTheTranslateStep();
         await _listening(room);
-        room.harness.room
-          ..frasesLandBeforeTheyFail = true
-          ..sceneAnswersFirst.add(const NetworkFailed('timeout'));
-        await _aFraseAt(room, _s(4.0));
-        room.harness.room.frasesLandBeforeTheyFail = false;
-
-        await _circle(room);
-        await waitFor(
-          'a sala responder de novo',
-          () => !room.state.scene.waiting,
+        await _aFraseWhoseAnswerIsLost(
+          room,
+          const NetworkFailed('timeout'),
+          keptBefore: false,
         );
-        await settle();
-        await _circle(room);
-        await settle();
-        if (_theFraseMicrophoneIsOpen(room.state)) await _circle(room);
+        room.harness.room.sceneRehearsals.clear();
+        final listed = room.asked('sceneRehearsalsOf');
+
+        await _theTeamTellsItAgain(room);
         await settle();
 
+        expect(room.asked('sceneRehearsalsOf') - listed, lessThanOrEqualTo(1));
+        room.sala.tapTheTranslateCircle();
+        await settle();
         expect(
-          room.harness.room.sceneRehearsals.single.translatedFrases,
-          1,
-          reason: 'a sala guardou a frase uma vez só',
+          _theFraseMicrophoneIsOpen(room.state),
+          isTrue,
+          reason: 'sem frase guardada, o círculo grava de novo',
         );
+      },
+    );
+
+    test(
+      '«gravar o ensaio da cena de novo» while the stop tap closes the microphone changes nothing, and the frase is kept once',
+      () async {
+        final room = await _onTheTranslateStep();
+        await _listening(room);
+        room.harness.playback.at = _s(4.0);
+        await _circle(room);
+        await _theFraseMicrophoneOpens(room);
+        room.harness.recorder.holdNextStop();
+
+        room.sala.tapTheTranslateCircle();
+        room.sala.recordTheSceneAgain();
+        await settle();
+        expect(room.state.scene.step, SceneStep.translate);
+        room.harness.recorder.finishStop();
+        await waitFor(
+          'a frase ir para a sala',
+          () => room.harness.room.frasesKept.isNotEmpty,
+        );
+        await settle();
+
+        expect(_currentFrasesOf(room), 1);
+      },
+    );
+
+    test(
+      'a frase whose screen was left while the stop tap closed the microphone is never sent',
+      () async {
+        final room = await _onTheTranslateStep();
+        await _listening(room);
+        room.harness.playback.at = _s(4.0);
+        await _circle(room);
+        await _theFraseMicrophoneOpens(room);
+        room.harness.recorder.holdNextStop();
+
+        room.sala.tapTheTranslateCircle();
+        room.sala.leaveTheSceneRehearsal();
+        room.harness.recorder.finishStop();
+        await settle();
+
+        expect(room.harness.room.frasesKept, isEmpty);
       },
     );
 
@@ -672,6 +826,11 @@ void main() {
 
         expect(room.state.scene.step, SceneStep.record);
         expect(room.state.channel, isNot(isA<Microphone>()));
+        expect(
+          room.harness.recorder.deleted,
+          [room.harness.recorder.lastPath],
+          reason: 'o arquivo da frase foi descartado',
+        );
         room.sala.sceneTap();
         await settle();
         expect(room.harness.room.frasesKept, isEmpty);

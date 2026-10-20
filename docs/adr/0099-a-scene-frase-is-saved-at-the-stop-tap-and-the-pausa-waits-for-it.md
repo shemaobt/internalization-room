@@ -28,8 +28,12 @@ that names an attempt older than the rehearsal's current one, or none after a re
 - A pausa placed by the take reaching its end never passes the take's length as the room
   measured it.
 - Every frase names the rehearsal's current attempt.
-- A frase whose answer was lost may be kept by the room already: the room's list is read
-  before the microphone opens again, so a frase is never kept twice.
+- A frase the room may have kept without saying so (a network failure, a 5xx, the
+  tablet's timeout, an answer it cannot read) keeps its file and span on the tablet, held
+  by its rehearsal. The next tap that would open the microphone sends those same bytes
+  again, and the room's same-bytes rule makes them one frase. Only a kept answer or a
+  refusal of that frase lets the file go. «gravar de novo» waits while a frase is closing
+  or in the air, and a frase whose screen moved on before it was sent is never sent.
 - The frase upload follows the scene rehearsal's flow in the session notifier (ADRs
   0085-0089); its move into the machine is that flow's, not this decision's.
 
@@ -40,5 +44,6 @@ voice late, and the screen cannot play on from the frase until the room has kept
 
 ## Consequences
 
-A frase is lost if the app dies while it is in the air, and the team records it again. The room
+A frase is lost if the app dies while it is in the air, and the team records it again: the
+held file lives as long as the session's notifier. The room
 is silent for the seconds the server spends hearing each frase.

@@ -394,6 +394,8 @@ class FakeRecorder implements RecordingRepository {
       ..writeAsStringSync(
         returnsEmpty
             ? ''
+            : lastOwner == MicOwner.frase
+            ? '$_aWholeTake$captures'
             : deliverable
             ? _aWholeTake
             : 'a equipe falou',
@@ -1762,31 +1764,62 @@ class FakeRoom implements RoomRepository {
     String? afterRestart,
   }) async {
     if (_guard('keepTheSceneFrase') case final failure?) return failure;
+    final bytes = audio.readAsBytesSync();
     frasesKept.add((
       startsMs: startsMs,
       endsMs: endsMs,
       afterRestart: afterRestart,
-      audio: audio.readAsBytesSync(),
+      audio: bytes,
     ));
     await _holdingFrase?.future;
+    for (final late in _frasesLandingLate) {
+      _keepAFrase(late.rehearsalId, late.bytes, late.startsMs, late.endsMs);
+    }
+    _frasesLandingLate.clear();
     if (forgottenSessions.contains(sessionId)) {
       return const Refused(RefusalCode.notFound);
     }
     final lost = sceneAnswersFirst.isNotEmpty
         ? sceneAnswersFirst.removeAt(0)
         : failSceneWith;
+    if (lost != null && frasesLandAfterTheyFail) {
+      _frasesLandingLate.add((
+        rehearsalId: rehearsalId,
+        bytes: bytes,
+        startsMs: startsMs,
+        endsMs: endsMs,
+      ));
+      return lost;
+    }
     if (lost != null && !frasesLandBeforeTheyFail) return lost;
+    final kept = _keepAFrase(rehearsalId, bytes, startsMs, endsMs);
+    return lost ?? kept;
+  }
+
+  /// The room's rule: the same bytes are the same frase, whatever their span.
+  RoomAnswer<SceneRehearsalRecord> _keepAFrase(
+    String rehearsalId,
+    Uint8List bytes,
+    int startsMs,
+    int endsMs,
+  ) {
     final at = sceneRehearsals.indexWhere(
       (rehearsal) => rehearsal.rehearsalId == rehearsalId,
     );
     if (at < 0) return const Refused(RefusalCode.notFound);
     final old = sceneRehearsals[at];
+    for (final frase in old.frases) {
+      final heard = _fraseBytes[frase.fraseId];
+      if (heard != null && _sameBytes(heard, bytes)) return Answered(old);
+    }
     final measured = old.durationMs;
     if (startsMs < 0 ||
         endsMs <= startsMs ||
         (measured != null && endsMs > measured)) {
       return const Refused('FRASE_OUT_OF_PLACE');
     }
+    final fraseId = '$rehearsalId-frase-${old.frases.length + 1}';
+    _fraseBytes[fraseId] = bytes;
     final kept = SceneRehearsalRecord(
       rehearsalId: old.rehearsalId,
       sessionId: old.sessionId,
@@ -1798,20 +1831,34 @@ class FakeRoom implements RoomRepository {
       durationMs: old.durationMs,
       frases: [
         ...old.frases,
-        SceneFrase(
-          fraseId: 'frase-${old.frases.length + 1}',
-          startsMs: startsMs,
-          endsMs: endsMs,
-        ),
+        SceneFrase(fraseId: fraseId, startsMs: startsMs, endsMs: endsMs),
       ],
     );
     sceneRehearsals[at] = kept;
-    return lost ?? Answered(kept);
+    return Answered(kept);
   }
+
+  static bool _sameBytes(Uint8List a, Uint8List b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  final Map<String, Uint8List> _fraseBytes = {};
+
+  final List<({String rehearsalId, Uint8List bytes, int startsMs, int endsMs})>
+  _frasesLandingLate = [];
 
   /// Whether a frase whose answer fails was kept by the room all the same, the way a
   /// reply lost after the room acted is.
   bool frasesLandBeforeTheyFail = false;
+
+  /// Whether a frase whose answer fails is kept by the room only after it answered, the
+  /// way a frase still being heard when the tablet gave up is: it lands before the next
+  /// frase the room is sent.
+  bool frasesLandAfterTheyFail = false;
 
   /// Every «terminei» this room was sent: the rehearsal, its turn and the attempt it closed.
   final List<({String rehearsalId, String turnId, String? closes})> scenesSent =
