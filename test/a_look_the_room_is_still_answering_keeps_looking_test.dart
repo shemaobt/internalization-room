@@ -156,6 +156,32 @@ void main() {
     },
   );
 
+  test(
+    'a fail-safe Opening the room was still answering rests with «Ouvir de novo» asking the room',
+    () {
+      _anOpeningTheNetworkLoses(
+        (room) => room
+          ..turnsLandBeforeTheyFail = true
+          ..turnsAreCanned = true
+          ..looksStillAnswering = 1,
+        (clock, it) {
+          clock.elapse(const Duration(seconds: 3));
+
+          expect(it.room.turnIdsLookedAt, hasLength(2));
+          expect(it.harness.voice.played, isNot(contains(turnoUrl)));
+          expect(it.state.canHearAgain, isTrue);
+
+          final asked = it.room.turnIdsAsked.length;
+          it.room.failTurnsWith = null;
+          unawaited(it.sala.hearAgain());
+          clock.elapse(const Duration(seconds: 1));
+
+          expect(it.room.turnIdsAsked, hasLength(asked + 1));
+        },
+      );
+    },
+  );
+
   test('a look that fails itself still calls a person', () {
     _aTakeTheNetworkLoses((room) => room.failLooksWith = _theNetworkDrops, (
       clock,

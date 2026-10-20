@@ -121,6 +121,18 @@ void main() {
           );
 
           expect(harness.recorder.captures, captures);
+
+          harness.playback.finishPlayback();
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 200)),
+          );
+          await tester.pump(const Duration(milliseconds: 100));
+
+          expect(
+            container.read(salaSessionProvider).canFinishBackTranslation,
+            isTrue,
+            reason: 'a parte que já tocou até o fim deixa a equipe terminar',
+          );
           closeTheRoom(container);
         },
       );

@@ -139,6 +139,8 @@ void main() {
       expect(again.everOffline, isFalse);
       expect(again.offlineNoticeSpoken, isFalse);
       expect(again.state.needsPerson, isFalse);
+      expect(again.state.voice, VoiceState.invite);
+      expect(again.state.awaitingTheGuide, isFalse);
       expect(again.state.canHearAgain, isTrue);
     },
   );
