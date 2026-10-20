@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0049, 0050, 0067 and 0068
+status: accepted, amended by 0049, 0050, 0067 and 0068; extended by name by 0106
 date: 2026-09-29
 amends: 0033, 0036, 0044
 ---
@@ -180,3 +180,9 @@ It left `btAviso`, which holds one line at a time, so that a refusal landing in 
 prints beside the note instead of in its place, as her `restartNote` stands apart from her
 `btMsg`. It sits beside the others on the same two classes and moves with them; only its own
 timer clears it.
+
+Extended by name (ENG-1235, 2026-10-20), same end date: `btRascunhoAprovado`, the approval the
+newest Session read says the draft stands under, which writes «✓ aprovado como rascunho final
+(v{n})» where the approve button stands and keeps the Warning mark off the circle (ADR 0106).
+It sits beside the others on `SalaSessionState` and moves with them; every applied Session read
+sets or clears it, and leaving the checked phase clears it.

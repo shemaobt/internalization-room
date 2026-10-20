@@ -25,6 +25,12 @@ passage as a conversation at zero.
   a resume from any row. The landing is the Back-translation, checked, with «✓ aprovado como
   rascunho final (v{n})» where the approve button stands. The Opening is never asked there, and
   the Resume point is written on the Back-translation.
+- **A forced approval lands the same**, checked, even over a telling-back the check never
+  passed: that the approval was forced stays on the record for the consultant and the packet,
+  and nothing on the tablet changes it (the Definer, 2026-10-20).
+- **A tablet whose Outbox still holds a take of the session lands where it stood.** That take
+  un-approves the draft once it reaches the room, so the approved draft is not where the team
+  is.
 - **The parts come from the room when the tablet holds none.** A room that cannot hand them
   over leaves the frases silent and listening dimmed; it raises no halt and shows no sign.
 - **No Warning mark on the approved draft.** The room's warning is not lifted: the Desk still
@@ -42,7 +48,8 @@ row, and the room is the one that knows the draft is approved.
 
 ## Consequences
 
-- A Choice entry of an approved passage costs the parts' download on a tablet that no longer
-  holds them.
+- A Choice entry of an approved passage downloads its parts whenever the tablet holds no Resume
+  point for it, the tablet that approved included: the approval forgets the point, and with it
+  which files on the tablet are the parts.
 - The value lives in the Retro screen's notifier fields (ADR 0046's written exception), not on
   the machine, until after the 2 November freeze.
