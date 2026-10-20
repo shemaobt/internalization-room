@@ -479,6 +479,11 @@ void main() {
           reason: 'a frase que espera a tradução movia a pausa: $controle',
         );
       }
+      expect(
+        find.textContaining('movam a pausa'),
+        findsNothing,
+        reason: 'a frase que espera a tradução convidava a mover a pausa',
+      );
       closeTheRoom(container);
     },
   );
