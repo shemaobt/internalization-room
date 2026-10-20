@@ -186,6 +186,10 @@ Future<_Room> _theScreenOpens(
     ..room.sceneAudio = Uint8List.fromList([1, 2, 3]);
   harness.playback.measured = const Duration(seconds: 20);
   await before?.call(harness);
+  tester.view
+    ..physicalSize = const Size(820, 2400)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   // A screen whose scene door is set up as it opens is one on a passage whose scene
   // list never answered: the passage's own ask meets the same door down.
   if (atTheScreen != null) harness.room.failScenesWith = _offline;

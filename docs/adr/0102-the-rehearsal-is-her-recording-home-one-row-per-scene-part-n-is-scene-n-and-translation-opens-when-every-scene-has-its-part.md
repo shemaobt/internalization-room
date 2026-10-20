@@ -64,7 +64,7 @@ and, since ENG-1207, the scene rehearsal it was joined from (`origin`), but no s
   kept, played and told in the Back-translation, and nothing is deleted.
 - **The Bead row leaves the Rehearsal**; the Back-translation and the findings keep it,
   and there the segments are still «parte N».
-- **Her recording home is the eighth named exception of ADR 0014**, under the moment
+- **Her recording home is the ninth named exception of ADR 0014**, under the moment
   label's reason: her words, which the team reads.
 
 ## Considered Options

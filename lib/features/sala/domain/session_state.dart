@@ -13,6 +13,7 @@ import 'kept_take.dart';
 import 'left_entry.dart';
 import 'moment.dart';
 import 'passagem.dart';
+import 'pausa.dart';
 import 'scene_question.dart';
 import 'scene_rehearsal.dart';
 import 'station.dart';
@@ -26,7 +27,8 @@ enum SceneStep { record, translate, placesUnknown, sent }
 /// answered it, its take as a file on this tablet and the take's measured length, and
 /// whether a call this screen made is in the air. On the record step it also holds the
 /// scene the team picked, the scene of the rehearsal recorded again, and when the
-/// question appeared and when the pick was made.
+/// question appeared and when the pick was made. On the translate step it holds
+/// whether the team began listening, and the pending pausa.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
@@ -39,6 +41,8 @@ final class SceneScreen {
   final String? again;
   final DateTime? askedAt;
   final DateTime? pickedAt;
+  final Duration? pausa;
+  final bool listened;
 
   const SceneScreen({
     this.step = SceneStep.record,
@@ -52,9 +56,12 @@ final class SceneScreen {
     this.again,
     this.askedAt,
     this.pickedAt,
+    this.pausa,
+    this.listened = false,
   });
 
   SceneScreen copyWith({
+    SceneRehearsalRecord? rehearsal,
     bool? waiting,
     String? label,
     bool clearLabel = false,
@@ -66,9 +73,12 @@ final class SceneScreen {
     bool clearAskedAt = false,
     DateTime? pickedAt,
     bool clearPickedAt = false,
+    Duration? pausa,
+    bool clearPausa = false,
+    bool? listened,
   }) => SceneScreen(
     step: step,
-    rehearsal: rehearsal,
+    rehearsal: rehearsal ?? this.rehearsal,
     take: take,
     length: length,
     waiting: waiting ?? this.waiting,
@@ -78,9 +88,28 @@ final class SceneScreen {
     again: again,
     askedAt: clearAskedAt ? null : (askedAt ?? this.askedAt),
     pickedAt: clearPickedAt ? null : (pickedAt ?? this.pickedAt),
+    pausa: clearPausa ? null : (pausa ?? this.pausa),
+    listened: listened ?? this.listened,
   );
 
   SceneScreen get asWaiting => copyWith(waiting: true);
+
+  /// The take as far as a frase may reach: this tablet's length, never past what the
+  /// room measured.
+  Duration? get takeEnd => switch ((length, rehearsal?.durationMs)) {
+    (final Duration length, final int measured)
+        when measured < length.inMilliseconds =>
+      Duration(milliseconds: measured),
+    (final length, _) => length,
+  };
+
+  /// Whether another frase fits between where the translation stopped and the take's
+  /// end.
+  bool get moreToTell => switch (takeEnd) {
+    final end? =>
+      pauseBounds(rehearsal?.frontier ?? Duration.zero, end) != null,
+    null => false,
+  };
 
   /// Whether «terminei» applies: an unsent rehearsal with a translated frase, being
   /// translated, with nothing in the air.
@@ -324,6 +353,10 @@ class SalaSessionState {
   /// This session's scene rehearsals, by number, as the room last answered them.
   final List<SceneRehearsalRecord> sceneRehearsals;
 
+  /// The loudness of a scene take, once it was read off the UI thread; null for a take
+  /// with none to read.
+  final ({String take, Envelope? envelope})? sceneLoudness;
+
   /// The passage's scenes as the screen knows them now: the scene rehearsal's open waits
   /// on a fresh ask.
   final SceneList scenes;
@@ -405,6 +438,7 @@ class SalaSessionState {
     this.cenaDaGravacao,
     this.scene = const SceneScreen(),
     this.sceneRehearsals = const [],
+    this.sceneLoudness,
     this.scenes = const ScenesAwaited(),
     this.scenesOfThePassage,
     this.sceneTurn,
@@ -560,6 +594,13 @@ class SalaSessionState {
   bool get sceneRehearsalIsOpen => station is SceneRehearsal;
 
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
+  /// The loudness of the take on the scene screen, until it is read or for a take with
+  /// none: a pausa then stays at the tap.
+  Envelope? get sceneEnvelope => switch (sceneLoudness) {
+    (take: final take, :final envelope) when take == scene.take => envelope,
+    _ => null,
+  };
+
   bool get theSceneIsSending =>
       sceneRehearsalIsOpen && (awaitingTheGuide || machine.inFlight != null);
 
@@ -1064,6 +1105,7 @@ class SalaSessionState {
     bool clearCenaDaGravacao = false,
     SceneScreen? scene,
     List<SceneRehearsalRecord>? sceneRehearsals,
+    ({String take, Envelope? envelope})? sceneLoudness,
     SceneList? scenes,
     List<Scene>? scenesOfThePassage,
     ({String rehearsalId, String turnId})? sceneTurn,
@@ -1150,6 +1192,7 @@ class SalaSessionState {
           : (cenaDaGravacao ?? this.cenaDaGravacao),
       scene: scene ?? this.scene,
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
+      sceneLoudness: sceneLoudness ?? this.sceneLoudness,
       scenes: scenes ?? this.scenes,
       scenesOfThePassage: scenesOfThePassage ?? this.scenesOfThePassage,
       sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),

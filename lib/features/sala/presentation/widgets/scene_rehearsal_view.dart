@@ -13,8 +13,10 @@ import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'scene_question.dart';
+import 'scene_translate_step.dart';
 
-/// The scene rehearsal's screen; her words reach the team only through VoiceOver.
+/// The scene rehearsal's screen; her words reach the team only through VoiceOver, but on
+/// the translate step, which writes them (ADR 0014).
 class SceneRehearsalView extends ConsumerWidget {
   const SceneRehearsalView({super.key});
 
@@ -109,23 +111,13 @@ class SceneRehearsalView extends ConsumerWidget {
                   focused: scene.picked != null,
                 ),
               },
-              SceneStep.translate => Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  RoundActionButton(
-                    size: 120,
-                    mood: playable,
-                    semanticLabel: said('translate'),
-                    onTap: notifier.playTheSceneRehearsal,
-                    border: Border.all(color: colors.vermelhoMic, width: 2),
-                    child: playIcon,
-                  ),
-                  const SizedBox(height: 32),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [again, const SizedBox(width: 24), terminei],
-                  ),
-                ],
+              SceneStep.translate => SceneTranslateStep(
+                scene: scene,
+                envelope: session.sceneEnvelope,
+                channel: session.channel,
+                language: language,
+                sending: sending,
+                sendable: sendable,
               ),
               SceneStep.placesUnknown => Semantics(
                 label: said('placesUnknown'),
@@ -255,8 +247,7 @@ class _ListenMode extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
-    int span(SceneFrase frase) =>
-        frase.placedIn(scene.length) ? frase.endsMs! - frase.startsMs! : 0;
+    int span(SceneFrase frase) => frase.spanIn(scene.length);
     final longest = frases.map(span).fold(0, max);
     return Column(
       mainAxisSize: MainAxisSize.min,
