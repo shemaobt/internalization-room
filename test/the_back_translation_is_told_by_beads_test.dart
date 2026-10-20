@@ -289,6 +289,128 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a stretch told over a take the part was recorded again over is '
+      'never a strike, three times running', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    for (var recusa = 0; recusa < 3; recusa++) {
+      harness.playback.at = cabeca;
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      harness.room.replaceThePart(harness.room.takeIds.last);
+      await tocar(tester, confirmar);
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+
+    expect(harness.room.chunkKeys, hasLength(3), reason: 'três recusas');
+    expect(
+      container.read(salaSessionProvider).needsPerson,
+      isFalse,
+      reason:
+          'a terceira recusa do trecho que não vale mais chamava uma pessoa',
+    );
+    expect(harness.room.personsAsked, 0);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a stretch refused because its take was replaced reads the room '
+      'again, and the row is the one the room has now', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    expect(container.read(salaSessionProvider).btTrechos, hasLength(1));
+
+    harness.playback.at = const Duration(seconds: 7);
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    final substituida = harness.room.takeIds.last;
+    harness.room
+      ..replaceThePart(substituida)
+      ..recordThePartAgain(substituida);
+    final leituras = harness.room.calls.where((c) => c == 'fetchState').length;
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      harness.room.calls.where((c) => c == 'fetchState').length,
+      greaterThan(leituras),
+      reason: 'a recusa não foi lida, só contada',
+    );
+    expect(
+      container.read(salaSessionProvider).btTrechos,
+      isEmpty,
+      reason: 'a fileira ficava com o trecho da gravação que já não vale',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'the recording of a stretch refused because its take was replaced '
+    'is dropped, not kept for a resend',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await entrarNaTraducao(tester, harness, partes: 1);
+      harness.playback.at = cabeca;
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      final gravada = container.read(salaSessionProvider).btTraducaoPendente!;
+      harness.room.replaceThePart(harness.room.takeIds.last);
+
+      await tocar(tester, confirmar);
+      await tester.pump(const Duration(milliseconds: 600));
+      await letTheRehearsalReachTheRoom(tester);
+
+      expect(aceso(tester, confirmar), isFalse, reason: 'a pendente sai');
+      expect(
+        harness.recorder.deleted,
+        contains(gravada),
+        reason: 'a gravação era de uma gravação que já não vale',
+      );
+      expect(
+        harness.room.takesReceived.where((take) => take.kind == 'retro'),
+        isEmpty,
+        reason: 'guardada, ela subiria como uma tomada da passagem inteira',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('a re-read that fails after the refusal is a telling not '
+      'understood, and the recording is kept', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    harness.room
+      ..replaceThePart(harness.room.takeIds.last)
+      ..failStateOnceWith = const NetworkFailed('timeout');
+
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+    for (var passo = 0; passo < 5; passo++) {
+      await letTheRehearsalReachTheRoom(tester);
+    }
+
+    final depois = container.read(salaSessionProvider);
+    expect(
+      depois.wordlessTelling,
+      isTrue,
+      reason: 'a releitura que cai é a frase que ela não entendeu',
+    );
+    expect(depois.offline, isFalse);
+    expect(depois.btChunkFailures, hasLength(1));
+    expect(
+      harness.room.takesReceived.where((take) => take.kind == 'retro'),
+      hasLength(1),
+      reason: 'a gravação segue guardada, como no trecho que se conta de novo',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('B3c — sem corte, a tradução vai do cursor até a cabeça', (
     tester,
   ) async {

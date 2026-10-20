@@ -5883,6 +5883,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (seguir) await _confirmarTraducao();
   }
 
+  Future<void> _readWhatTheChunkRefusalSays(
+    String path,
+    String sessionId,
+    int generation,
+  ) async {
+    final sent = ++_readsSent;
+    switch (await _room.fetchState(sessionId)) {
+      case Answered(value: final snapshot):
+        if (_abandoned(generation)) return;
+        _theStretchIsGone(snapshot.backTranslation.segments);
+        _applyTheSessionRead(snapshot, sent);
+      case final RoomFailure failure:
+        _guardarATraducao(path);
+        if (_abandoned(generation)) return;
+        _theCorrectionFailed(failure);
+    }
+  }
+
   Future<void> _aPausaNaoFoi(
     String code,
     String sessionId,
@@ -6552,6 +6570,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(:final value):
         if (_abandoned(generation)) return;
         frase = value.frase;
+      case Refused(code: RefusalCode.stretchNoLongerCounts):
+        if (_abandoned(generation)) return;
+        await _readWhatTheChunkRefusalSays(path, sessionId, generation);
+        return;
       case final RoomFailure failure:
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
