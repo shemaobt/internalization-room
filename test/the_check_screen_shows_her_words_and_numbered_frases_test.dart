@@ -14,6 +14,8 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/pause_adjust_row.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -223,6 +225,20 @@ Future<ProviderContainer> _aFraseTresContada(
     step: () => _passo(tester),
   );
   return container;
+}
+
+Future<void> _naTelaDeUmAparelho(
+  WidgetTester tester, {
+  required double largura,
+  required double barra,
+}) async {
+  tester.view
+    ..physicalSize = Size(largura, 844)
+    ..devicePixelRatio = 1
+    ..padding = FakeViewPadding(top: barra)
+    ..viewPadding = FakeViewPadding(top: barra);
+  addTearDown(tester.view.reset);
+  await tester.pump(const Duration(milliseconds: 100));
 }
 
 void main() {
@@ -1149,4 +1165,100 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  for (final (largura, barra) in [(390.0, 59.0), (768.0, 0.0)]) {
+    testWidgets(
+      'the check screen starts below the status bar and scrolls from there, '
+      'not from under it, on a ${largura.toInt()} px screen',
+      (tester) async {
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await _voltaATraducao(
+          tester,
+          harness,
+          const BackTranslationProgress(segments: _quatroFrases),
+        );
+        await _naTelaDeUmAparelho(tester, largura: largura, barra: barra);
+
+        final tela = find.byType(RetroView);
+        expect(
+          tester
+              .getTopLeft(
+                find.descendant(of: tela, matching: find.byType(Scrollable)),
+              )
+              .dy,
+          greaterThanOrEqualTo(barra),
+          reason:
+              'a lista rolava por baixo do relógio: a linha de pausa passava '
+              'sobre o sinal e a hora',
+        );
+        expect(
+          tester.getTopLeft(_cabecalho('Traduzir a gravação')).dy,
+          greaterThanOrEqualTo(barra),
+          reason: 'o título ficava debaixo da barra de estado',
+        );
+        expect(
+          tester.getTopLeft(find.byType(PauseAdjustRow)).dy,
+          greaterThanOrEqualTo(barra),
+          reason: 'a linha dos controles da pausa ficava sobre o relógio',
+        );
+        closeTheRoom(container);
+      },
+    );
+  }
+
+  for (final (largura, barra) in [(390.0, 59.0), (768.0, 0.0)]) {
+    testWidgets(
+      'the corner button covers no line of the check screen, at rest or '
+      'scrolled, on a ${largura.toInt()} px screen',
+      (tester) async {
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await _voltaATraducao(
+          tester,
+          harness,
+          const BackTranslationProgress(segments: _quatroFrases),
+        );
+        await _naTelaDeUmAparelho(tester, largura: largura, barra: barra);
+
+        final tela = find.byType(RetroView);
+        final rolagem = find.descendant(
+          of: tela,
+          matching: find.byType(Scrollable),
+        );
+        final posicao = tester.state<ScrollableState>(rolagem).position;
+        final janela = tester.getRect(rolagem);
+        final botao = byLabel('Escolher outra passagem');
+        expect(botao, findsOneWidget);
+        expect(posicao.maxScrollExtent, greaterThan(0));
+
+        for (final onde in [
+          0.0,
+          posicao.maxScrollExtent / 2,
+          posicao.maxScrollExtent,
+        ]) {
+          posicao.jumpTo(onde);
+          await _passo(tester);
+          final area = tester.getRect(botao);
+          final cobertas = [
+            for (final texto in tester.widgetList<Text>(
+              find.descendant(of: tela, matching: find.byType(Text)),
+            ))
+              if (tester
+                      .getRect(find.byWidget(texto))
+                      .intersect(janela)
+                      .overlaps(area) &&
+                  tester.getRect(find.byWidget(texto)).overlaps(area))
+                texto.data,
+          ];
+          expect(
+            cobertas,
+            isEmpty,
+            reason:
+                'o botão do canto ficava parado sobre a tela que rolava e '
+                'cobria a linha que passasse por baixo, rolado em $onde',
+          );
+        }
+        closeTheRoom(container);
+      },
+    );
+  }
 }
