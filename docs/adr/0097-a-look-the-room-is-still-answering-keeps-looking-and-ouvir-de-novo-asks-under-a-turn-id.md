@@ -32,8 +32,9 @@ face.
   out, and a turn given up under the halt waits for the lift for its first look; an answer
   that lands under the halt is kept as a turn's answer under a halt is. The lift resumes
   the look under the busy watchdog, armed again, once the room is within reach: a lift
-  while out of reach waits for the room to answer again, a person letting the reach go
-  does not count.
+  while out of reach waits for the room to answer again, a refusal included; a person
+  letting the reach go does not count. The halt owns the wait: the busy watchdog decides
+  nothing while the room is halted.
 - **What the look then finds follows who asked for it.** A team turn, or a line said again
   on the team's tap, plays as One look finds always play. An Opening rests silent with
   «Ouvir de novo» armed: nobody asked to hear it.
