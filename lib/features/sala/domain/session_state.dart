@@ -856,6 +856,8 @@ class SalaSessionState {
       partes.isNotEmpty &&
       !needsPerson &&
       !offline &&
+      btRegravacao == null &&
+      btFraseQueAguarda == null &&
       (btPhase == BtPhase.findings ||
           btPhase == BtPhase.conferida ||
           (btPhase == BtPhase.playing &&

@@ -1131,4 +1131,68 @@ void main() {
     expect(pista(), findsNothing);
     closeTheRoom(container);
   });
+
+  Future<void> umAchadoNaFraseDois(
+    WidgetTester tester,
+    SalaHarness harness,
+    ProviderContainer container,
+  ) async {
+    harness.room
+      ..verdictChecked = false
+      ..verdictFindingSegmentId = 'trecho-3'
+      ..verdictFindings = const [
+        BtFinding(kind: BtFindingKind.missing, frase: 2, segmentId: 'trecho-3'),
+      ];
+    await tocar(tester, 'terminei');
+    await waitFor(
+      'o achado chegar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+  }
+
+  String aBarra(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
+
+  testWidgets('while a frase is being re-recorded, a tap on another row or on '
+      'its dimmed «regravar» opens nothing to tell again', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await umAchadoNaFraseDois(tester, harness, container);
+    expect(container.read(salaSessionProvider).canRetellAFrase, isTrue);
+    await regravarAte(tester, harness, 3);
+
+    await tester.tap(_naLista('regravar a frase 1'));
+    await _passo(tester);
+    await tocar(tester, aBarra(2));
+    await _passo(tester);
+
+    final aqui = container.read(salaSessionProvider);
+    expect(
+      aqui.btTrechoTraduzidoDeNovo,
+      isNull,
+      reason: 'a linha abria a tradução de novo no meio da regravação da frase',
+    );
+    expect(aqui.btRegravacao?.frase, 3);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while a re-recorded frase awaits its translation, a tap on '
+      'another row leaves the circle on the frase that awaits', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await umAchadoNaFraseDois(tester, harness, container);
+    await deitarAFrase(tester, harness, 3);
+    expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-3');
+
+    await tocar(tester, aBarra(1));
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-3',
+      reason: 'outra frase tomava o círculo da frase que esperava a tradução',
+    );
+    closeTheRoom(container);
+  });
 }
