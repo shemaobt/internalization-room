@@ -110,7 +110,7 @@ What the room hears or sounds at one moment: silence, an open microphone and who
 _Avoid_: audio state, voice (the Circle's colour), player
 
 **Microphone owner**:
-Whose open microphone the Channel holds: the conversation's, the rehearsal's, the capture's, the question's or the scene rehearsal's. The circle's words follow it.
+Whose open microphone the Channel holds: the conversation's, the rehearsal's, the capture's, the question's, the scene rehearsal's or a scene frase's. The circle's words follow it.
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
 **Microphone answer**:
@@ -187,7 +187,7 @@ A piece of the back-translation already told: it points at a rehearsal take and 
 _Avoid_: trecho, segment (the wire name), chunk (the ephemeral position)
 
 **Pause** (`pausa`):
-The point where the team says a frase ends while listening back, snapped to the middle of the nearest silence; moved and heard with her three controls «um pouco antes», «ouvir a pausa» and «um pouco depois». A Stretch ends at its pause.
+The point where the team says a frase ends while listening back, snapped to the middle of the nearest silence; moved and heard with her three controls «um pouco antes», «ouvir a pausa» and «um pouco depois». A Stretch ends at its pause, and so does a Scene frase.
 _Avoid_: cut, corte, Cortar aqui (ruled out by Marcia on 2026-09-15), split point, boundary
 
 **Capture**:
@@ -299,6 +299,14 @@ _Avoid_: scene picker, scene menu
 **Scene label**:
 The scene the team tapped on the Scene question, read at the tap that starts the recording; never guessed, and never changed by a retry of the upload.
 _Avoid_: scene guess (the classifier's, Observation Room only), sceneId
+
+**Scene frase** (`frase N` on screen):
+One frase of a Scene rehearsal, told in the bridge language: the stretch of the take from the previous pause to this one. It is saved by the room at the stop tap with its place in the take, and numbered on screen by its place in the take.
+_Avoid_: piece, trecho, segment (the back-translation's)
+
+**Scene strip**:
+The scene rehearsal's wordless picture of its take while translating. The loudness of the take is drawn so a silence reads as a valley. Each Scene frase is a band with a tick at its end, the player is a thin line, and the pending pause is a bold line. It carries no words and cannot be tapped.
+_Avoid_: waveform, timeline, ruler (the Ensaio's)
 
 **Red microphone**:
 The round red control beside the orange dot that opens the Scene rehearsal's screen, shown only while the Conversation rests and no raised-hand note or person call stands.

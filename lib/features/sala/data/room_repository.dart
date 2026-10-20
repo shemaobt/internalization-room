@@ -494,6 +494,36 @@ class RoomRepository {
     asksForTheSession: false,
   );
 
+  /// One frase of a scene rehearsal, told from [startsMs] to [endsMs] of its take,
+  /// under the attempt [afterRestart]. It names a rehearsal, whose 404 never ends the
+  /// session.
+  Future<RoomAnswer<SceneRehearsalRecord>> keepTheSceneFrase(
+    String sessionId,
+    String rehearsalId,
+    File audio, {
+    required int startsMs,
+    required int endsMs,
+    String? afterRestart,
+  }) async {
+    final request =
+        http.MultipartRequest(
+            'POST',
+            _uri('/sessions/$sessionId/scene-rehearsals/$rehearsalId/frases'),
+          )
+          ..headers.addAll(_whoWeAre)
+          ..headers['X-Room-Device'] = await _deviceId()
+          ..fields['starts_ms'] = '$startsMs'
+          ..fields['ends_ms'] = '$endsMs'
+          ..files.add(await _audioPart(audio));
+    if (afterRestart != null) request.fields['after_restart'] = afterRestart;
+    return _room.askStreamed(
+      request,
+      timeout: _longCallTimeout,
+      read: readJson(SceneRehearsalRecord.fromJson),
+      asksForTheSession: false,
+    );
+  }
+
   /// A new version of one stretch: the explanation redone over the same slice.
   ///
   /// The audio is required. A replacement with none was the mother tongue of one stretch

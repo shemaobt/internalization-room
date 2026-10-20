@@ -141,6 +141,10 @@ Future<(SalaHarness, ProviderContainer)> _inArticulation(
   final harness = given ?? SalaHarness(filaEmMemoria: true)
     ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
     ..room.nextMoment = _articulation;
+  tester.view
+    ..physicalSize = const Size(820, 2400)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final notifier = container.read(salaSessionProvider.notifier);
