@@ -38,6 +38,7 @@ String rotuloDoCirculo(WidgetTester tester) => tester
     .semanticLabel;
 
 Future<void> tocarOCirculo(WidgetTester tester) async {
+  await tester.ensureVisible(find.byType(FacilitatorCircle));
   await tester.tap(find.byType(FacilitatorCircle));
   await tester.pump(const Duration(milliseconds: 300));
 }

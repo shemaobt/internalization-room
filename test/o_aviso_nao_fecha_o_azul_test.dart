@@ -117,6 +117,13 @@ Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
         container.read(salaSessionProvider).warning &&
         container.read(salaSessionProvider).btPhase != BtPhase.thinking,
   );
+  await notifier.finishBackTranslation();
+  await waitFor(
+    'o achado apontar o segundo trecho',
+    () =>
+        container.read(salaSessionProvider).btPhase == BtPhase.findings &&
+        container.read(salaSessionProvider).btFindingTrecho != null,
+  );
   return container;
 }
 

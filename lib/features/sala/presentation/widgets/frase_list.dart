@@ -10,6 +10,7 @@ class FraseRow {
   final int? parte;
   final double share;
   final VoidCallback? onHear;
+  final VoidCallback? onRetell;
   final String? mark;
   final bool nuance;
   final String? regravar;
@@ -23,6 +24,7 @@ class FraseRow {
     required this.parte,
     required this.share,
     required this.onHear,
+    this.onRetell,
     this.mark,
     this.nuance = false,
     this.regravar,
@@ -88,7 +90,22 @@ class FraseList extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Flexible(
-                  child: _FraseTile(row: row, language: language),
+                  child: switch (row.n) {
+                    final n? => Semantics(
+                      button: true,
+                      enabled: row.onRetell != null,
+                      label: sceneRehearsalLabelFor(
+                        'retellFrase',
+                        language,
+                        n: n,
+                      ),
+                      child: GestureDetector(
+                        onTap: row.onRetell,
+                        child: _FraseTile(row: row, language: language),
+                      ),
+                    ),
+                    null => _FraseTile(row: row, language: language),
+                  },
                 ),
                 if (row.n case final n?) ...[
                   const SizedBox(width: 12),
@@ -171,7 +188,8 @@ class _Pill extends StatelessWidget {
       child: Opacity(
         opacity: onTap == null ? 0.35 : 1,
         child: GestureDetector(
-          onTap: onTap,
+          // A dimmed pill still takes its own tap, so the row under it never retells (ENG-1220 #10).
+          onTap: onTap ?? () {},
           child: ExcludeSemantics(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

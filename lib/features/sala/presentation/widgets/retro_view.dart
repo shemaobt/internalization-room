@@ -15,6 +15,7 @@ import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'frase_list.dart';
 import 'motion.dart';
+import 'pause_adjust_row.dart';
 
 class RetroView extends ConsumerWidget {
   const RetroView({super.key});
@@ -39,10 +40,7 @@ class RetroView extends ConsumerWidget {
     final colors = SalaColors.of(context);
     final titulo = retroLabelFor('title', language);
     final linha = _linha(session, language);
-    final veredito =
-        session.btPhase == BtPhase.findings ||
-        session.btPhase == BtPhase.conferida ||
-        session.btFindings.isNotEmpty;
+    final veredito = session.btVeredito || session.btFindings.isNotEmpty;
     return SizedBox.expand(
       child: SingleChildScrollView(
         child: Column(
@@ -83,7 +81,13 @@ class RetroView extends ConsumerWidget {
             SizedBox(
               height: 48,
               child: avanca
-                  ? _thePauseControls(session, notifier, language)
+                  ? PauseAdjustRow(
+                      lit: session.canAdjustThePause,
+                      language: language,
+                      onEarlier: notifier.pausaUmPoucoAntes,
+                      onHear: notifier.ouvirAPausa,
+                      onLater: notifier.pausaUmPoucoDepois,
+                    )
                   : null,
             ),
             const SizedBox(height: 24),
@@ -103,6 +107,21 @@ class RetroView extends ConsumerWidget {
                   ? notifier.resolveWithPerson
                   : null,
             ),
+            if (_traduzindoDeNovo(session) case final n?) ...[
+              const SizedBox(height: 12),
+              _ManterADeAntes(
+                label: sceneRehearsalLabelFor('keepTheEarlier', language),
+                onTap: session.btPhase == BtPhase.playing
+                    ? notifier.manterATraducaoDeAntes
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                sceneRehearsalLabelFor('retelling', language, n: n),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.telha, fontSize: 15),
+              ),
+            ],
             if (linha != null) ...[
               const SizedBox(height: 12),
               ConstrainedBox(
@@ -121,6 +140,13 @@ class RetroView extends ConsumerWidget {
               rows: _frases(session, notifier, language),
               language: language,
             ),
+            if (session.btTrechos.any((trecho) => trecho.contado)) ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _recomeco(session, colors, notifier, language),
+              ),
+            ],
             const SizedBox(height: 24),
             SizedBox(
               height: 78,
@@ -164,6 +190,9 @@ class RetroView extends ConsumerWidget {
                 )
               : 1,
           onHear: aberta ? () => notifier.ouvirOTrechoContado(onde) : null,
+          onRetell: session.canRetellAFrase && trecho.segmentId != null
+              ? () => notifier.traduzirAFraseDeNovo(onde)
+              : null,
           mark:
               session.btFraseQueAguarda != null &&
                   trecho.segmentId == session.btFraseQueAguarda
@@ -230,7 +259,52 @@ class RetroView extends ConsumerWidget {
     ];
   }
 
+  Widget _recomeco(
+    SalaSessionState session,
+    SalaColors colors,
+    SalaSessionNotifier notifier,
+    String language,
+  ) {
+    final rotulo = session.btRecomeco == null
+        ? retroLabelFor('restart', language)
+        : retroLabelFor(
+            'restartArmed',
+            language,
+            n: session.btTrechos.where((trecho) => trecho.contado).length,
+          );
+    return Semantics(
+      button: true,
+      label: rotulo,
+      child: ExcludeSemantics(
+        child: GestureDetector(
+          onTap: notifier.recomecarATraducao,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: colors.mut),
+            ),
+            child: Text(
+              rotulo,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.mut, fontSize: 15),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   String? _linha(SalaSessionState session, String language) {
+    final aviso = switch (session.btAviso) {
+      BtAviso.recomecada => 'restarted',
+      BtAviso.recomecoFalhou => 'restartFailed',
+      BtAviso.pausaSoNaUltima => 'pauseOnlyOnTheLast',
+      BtAviso.pausaPassaDoFim => 'pausePastTheEnd',
+      BtAviso.pausaNaoFica => 'pauseCannotStandThere',
+      null => null,
+    };
+    if (aviso != null) return retroLabelFor(aviso, language);
     if (session.machine.theVerdictWaitsForTheTap) {
       return retroLabelFor('checkFailed', language);
     }
@@ -253,6 +327,12 @@ class RetroView extends ConsumerWidget {
     }
     return null;
   }
+
+  int? _traduzindoDeNovo(SalaSessionState session) =>
+      switch (session.btTrechoTraduzidoDeNovo) {
+        Trecho(contado: true, :final frase?) => frase,
+        _ => null,
+      };
 
   bool _conferida(SalaSessionState session) =>
       session.btPhase == BtPhase.conferida &&
@@ -591,41 +671,6 @@ class RetroView extends ConsumerWidget {
     );
   }
 
-  Widget _thePauseControls(
-    SalaSessionState session,
-    SalaSessionNotifier notifier,
-    String language,
-  ) {
-    final mood = session.canAdjustThePause ? ButtonMood.lit : ButtonMood.dimmed;
-    Widget control(String label, IconData glyph, VoidCallback onTap) =>
-        RoundActionButton(
-          size: 48,
-          semanticLabel: retroLabelFor(label, language),
-          gradient: BeadStyles.wood,
-          mood: mood,
-          onTap: onTap,
-          child: Icon(glyph, size: 20, color: ShemaBrand.branco),
-        );
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        control(
-          'pauseEarlier',
-          LucideIcons.chevronLeft,
-          notifier.pausaUmPoucoAntes,
-        ),
-        const SizedBox(width: 24),
-        control('hearThePause', LucideIcons.ear, notifier.ouvirAPausa),
-        const SizedBox(width: 24),
-        control(
-          'pauseLater',
-          LucideIcons.chevronRight,
-          notifier.pausaUmPoucoDepois,
-        ),
-      ],
-    );
-  }
-
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);
     if (session.offline) return circleLabelFor('offline', language);
@@ -662,5 +707,41 @@ class RetroView extends ConsumerWidget {
       case BtPhase.conferida:
         return retroLabelFor('translated', language);
     }
+  }
+}
+
+class _ManterADeAntes extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+
+  const _ManterADeAntes({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      child: Opacity(
+        opacity: onTap == null ? 0.35 : 1,
+        child: GestureDetector(
+          onTap: onTap,
+          child: ExcludeSemantics(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colors.mut),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(color: colors.mut, fontSize: 15),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -181,6 +181,17 @@ const sceneRehearsalLabels = {
     'pt': 'regravar a frase {n}',
     'en': 're-record sentence {n}',
   },
+  'retellFrase': {
+    'pt': 'Ouvir esta frase de novo e traduzir de novo — {n}',
+    'en': 'Hear this sentence again and translate it again — {n}',
+  },
+  'retelling': {
+    'pt': 'traduzindo de novo a frase {n} — toquem no círculo',
+    'en': 'translating sentence {n} again — tap the circle',
+  },
+  'keepTheEarlier': {
+    'pt': 'manter a tradução de antes',
+    'en': 'keep the earlier translation',
   'respeakHint': {
     'pt': 'gravem a frase inteira',
     'en': 'record the whole sentence',
@@ -350,10 +361,40 @@ const retroLabels = {
     'pt': 'não entendi — traduzam de novo esse pedaço',
     'en': 'I didn\'t catch that — translate that piece again',
   },
+  'restart': {'pt': 'recomeçar a tradução', 'en': 'start the translation over'},
+  'restartArmed': {
+    'pt': 'toque de novo para apagar as {n} frases traduzidas',
+    'en': 'tap again to discard the {n} translated sentences',
+  },
+  'restarted': {
+    'pt': 'tradução recomeçada — o ensaio da passagem ficou',
+    'en': 'translation started over — the passage rehearsal stays',
+  },
+  'pauseOnlyOnTheLast': {
+    'pt':
+        'a pausa só se move na última frase — as frases mudaram; toquem na barra de novo',
+    'en':
+        'the pause only moves on the last sentence — the sentences changed; tap the bar again',
+  },
+  'pausePastTheEnd': {
+    'pt': 'a pausa nova passa do fim da gravação — um pouco antes',
+    'en': 'the new pause is past the end of the recording — a little earlier',
+  },
+  'pauseCannotStandThere': {
+    'pt':
+        'a pausa não pode ficar aí — a frase foi atualizada; toquem na barra de novo',
+    'en':
+        'the pause can\'t go there — the sentence was updated; tap the bar again',
+  },
+  'restartFailed': {
+    'pt': 'não deu para recomeçar agora — tentem de novo',
+    'en': 'couldn\'t start over right now — try again',
+  },
 };
 
-String retroLabelFor(String control, String language) =>
-    retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!;
+String retroLabelFor(String control, String language, {int? n}) =>
+    (retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!)
+        .replaceAll('{n}', '$n');
 
 const rehearsalLabels = {
   'firstPart': {

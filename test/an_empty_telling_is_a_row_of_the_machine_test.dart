@@ -62,6 +62,16 @@ void main() {
     expect(effects, isEmpty);
   });
 
+  test('Starting the translation over clears her line.', () {
+    final (machine, effects) = reduce(
+      _afterAnEmptyTelling(),
+      const TheTranslationStartedOver(),
+    );
+
+    expect(machine.wordlessTelling, isFalse);
+    expect(effects, isEmpty);
+  });
+
   test('A halt does not clear her line, raised or lifted.', () {
     final (halted, _) = reduce(_afterAnEmptyTelling(), const RoomRaisedAHalt());
     expect(halted.halt, isA<Blocking>());

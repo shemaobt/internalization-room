@@ -129,6 +129,14 @@ const emVoltaDaFraseNova = Duration(milliseconds: 1500);
 /// Where the telling-back is, step by step.
 enum BtPhase { playing, capturing, thinking, findings, conferida }
 
+enum BtRecomeco { armado, pronto }
+
+enum BtAviso {
+  recomecada,
+  recomecoFalhou,
+  pausaSoNaUltima,
+  pausaPassaDoFim,
+  pausaNaoFica,
 enum PassoDaRegravacao {
   ouvindo,
   pronta,
@@ -279,6 +287,7 @@ class SalaSessionState {
   final List<Trecho> btTrechos;
   final List<BtFinding> btFindings;
   final bool btConferindo;
+  final bool btVeredito;
   final CheckRefusal? btRecusa;
   final String? btFindingSegmentId;
 
@@ -302,6 +311,8 @@ class SalaSessionState {
   final Trecho? btTrechoTraduzidoDeNovo;
   final int? btContaEscolhida;
   final int btPass;
+  final BtRecomeco? btRecomeco;
+  final BtAviso? btAviso;
   final RegravacaoDaFrase? btRegravacao;
   final String? btFraseQueAguarda;
   final int? btFraseGuardada;
@@ -375,6 +386,7 @@ class SalaSessionState {
     this.btTrechos = const [],
     this.btFindings = const [],
     this.btConferindo = false,
+    this.btVeredito = false,
     this.btRecusa,
     this.btFindingSegmentId,
     this.btClipEnded = false,
@@ -392,6 +404,8 @@ class SalaSessionState {
     this.btTrechoTraduzidoDeNovo,
     this.btContaEscolhida,
     this.btPass = 1,
+    this.btRecomeco,
+    this.btAviso,
     this.btRegravacao,
     this.btFraseQueAguarda,
     this.btFraseGuardada,
@@ -742,7 +756,22 @@ class SalaSessionState {
       btTrechoTraduzidoDeNovo == null &&
       btContaEscolhida == null;
 
-  bool get canAdjustThePause => thePauseStands && btPausaAjustavel;
+  bool get canAdjustThePause =>
+      btPausaAjustavel &&
+      (thePauseStands ||
+          (_btNaVez &&
+              btTrechoTraduzidoDeNovo != null &&
+              btContaEscolhida == null));
+
+  bool theLastPauseMoves(Trecho frase) {
+    if (!frase.contado || btPhase == BtPhase.conferida) return false;
+    Trecho? ultima;
+    for (final trecho in btTrechos) {
+      if (trecho.takeId != frase.takeId) continue;
+      if (ultima == null || trecho.to >= ultima.to) ultima = trecho;
+    }
+    return ultima?.segmentId == frase.segmentId;
+  }
 
   bool get btTraducaoPendenteEmprestada =>
       btTraducaoPendente != null && btTraducaoPendente == btTraducaoEmprestada;
@@ -820,6 +849,16 @@ class SalaSessionState {
   bool get canListenAtConferida =>
       btPhase == BtPhase.conferida && partes.isNotEmpty;
 
+  bool get canRetellAFrase =>
+      stage == SalaStage.retro &&
+      partes.isNotEmpty &&
+      !needsPerson &&
+      !offline &&
+      (btPhase == BtPhase.findings ||
+          btPhase == BtPhase.conferida ||
+          (btPhase == BtPhase.playing &&
+              (btVeredito || btFindings.isNotEmpty)));
+
   SalaSessionState copyWith({
     bool? awaitingTheGuide,
     LeftEntry? leftEntry,
@@ -856,6 +895,7 @@ class SalaSessionState {
     List<Trecho>? btTrechos,
     List<BtFinding>? btFindings,
     bool? btConferindo,
+    bool? btVeredito,
     CheckRefusal? btRecusa,
     bool clearBtRecusa = false,
     String? btFindingSegmentId,
@@ -878,6 +918,10 @@ class SalaSessionState {
     int? btContaEscolhida,
     bool clearContaEscolhida = false,
     int? btPass,
+    BtRecomeco? btRecomeco,
+    bool clearRecomeco = false,
+    BtAviso? btAviso,
+    bool clearAviso = false,
     RegravacaoDaFrase? btRegravacao,
     bool clearBtRegravacao = false,
     String? btFraseQueAguarda,
@@ -929,6 +973,7 @@ class SalaSessionState {
       btTrechos: btTrechos ?? this.btTrechos,
       btFindings: btFindings ?? this.btFindings,
       btConferindo: btConferindo ?? this.btConferindo,
+      btVeredito: btVeredito ?? this.btVeredito,
       btRecusa: clearBtRecusa ? null : (btRecusa ?? this.btRecusa),
       btFindingSegmentId: clearFindingSegment
           ? null
@@ -956,6 +1001,8 @@ class SalaSessionState {
           ? null
           : (btContaEscolhida ?? this.btContaEscolhida),
       btPass: btPass ?? this.btPass,
+      btRecomeco: clearRecomeco ? null : (btRecomeco ?? this.btRecomeco),
+      btAviso: clearAviso ? null : (btAviso ?? this.btAviso),
       btRegravacao: clearBtRegravacao
           ? null
           : (btRegravacao ?? this.btRegravacao),

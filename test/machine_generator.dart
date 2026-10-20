@@ -301,6 +301,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
   TheTellingCameBackEmpty() => 'TheTellingCameBackEmpty',
   TheVerdictAsked() => 'TheVerdictAsked',
+  TheTranslationStartedOver() => 'TheTranslationStartedOver',
   TheChoiceOpened() => 'TheChoiceOpened',
   PassageChosen() => 'PassageChosen',
   TheRehearsalOpened() => 'TheRehearsalOpened',
@@ -411,6 +412,7 @@ enum EventKind {
   thePassageCannotOpen,
   theTellingCameBackEmpty,
   theVerdictAsked,
+  theTranslationStartedOver,
   turnSent,
   turnAnswered,
   theRefusalPassed,
@@ -475,6 +477,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
   TheTellingCameBackEmpty() => EventKind.theTellingCameBackEmpty,
   TheVerdictAsked() => EventKind.theVerdictAsked,
+  TheTranslationStartedOver() => EventKind.theTranslationStartedOver,
   TurnSent() => EventKind.turnSent,
   TurnAnswered() => EventKind.turnAnswered,
   TheRefusalPassed() => EventKind.theRefusalPassed,
@@ -537,6 +540,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.thePassageCannotOpen ||
   EventKind.theTellingCameBackEmpty ||
   EventKind.theVerdictAsked ||
+  EventKind.theTranslationStartedOver ||
   EventKind.turnSent ||
   EventKind.turnAnswered ||
   EventKind.theRefusalPassed ||
@@ -713,6 +717,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
       EventKind.theTellingCameBackEmpty => const TheTellingCameBackEmpty(),
       EventKind.theVerdictAsked => const TheVerdictAsked(),
+      EventKind.theTranslationStartedOver => const TheTranslationStartedOver(),
       EventKind.turnSent => TurnSent(_drawATurn(random)),
       EventKind.turnAnswered => TurnAnswered(_drawATurn(random)),
       EventKind.theRefusalPassed => const TheRefusalPassed(),

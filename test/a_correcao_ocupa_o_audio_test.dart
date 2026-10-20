@@ -104,6 +104,7 @@ void main() {
         () => it.estado.btPhase == BtPhase.capturing,
       );
       await entregarAPonte(it);
+      await pedirOVeredito(it);
 
       final depois = _no(it.container, 1);
       expect(depois.from, antes.from);
