@@ -387,19 +387,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int get _parteTocando => state.btParte;
   set _parteTocando(int parte) => state = state.copyWith(btParte: parte);
 
-  /// The part in the air is the one the verdict named in a refusal — unheard or untold —
-  /// and hearing it to its end hands the finish back.
+  /// The part in the air is one the room named — by a refusal, unheard or untold, or as
+  /// unheard after a part was recorded again — and hearing the last of them to its end
+  /// hands the finish back.
   ///
   /// The finish was already the team's — it is how the refusal was asked for — and the
-  /// refusal only takes it away for the length of this one part. Without this, a refusal
+  /// refusal only takes it away for the length of these parts. Without this, a refusal
   /// naming any part but the last made the team cross and listen through everything after
   /// it to get the press back, which is hearing the story again: the very thing the jump
   /// over the ground already told exists to spare them.
-  late bool _pousadaNaParteApontadaPelaRecusa;
-  late List<int> _naoOuvidasAFrente;
-  late bool _paraDepoisDaUltima;
+  late _OQueFaltaOuvir? _oQueFaltaOuvir;
   late bool _umaParteFoiRegravada;
-  late bool _aTraducaoJaFoiAberta;
+  late bool _aTraducaoJaFoiDeixada;
 
   /// The approval is in the air, and the approval has landed.
   ///
@@ -512,11 +511,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _traducaoNaFila = {};
     _captureFails = 0;
     _parteJaTocou = false;
-    _pousadaNaParteApontadaPelaRecusa = false;
-    _naoOuvidasAFrente = [];
-    _paraDepoisDaUltima = false;
+    _oQueFaltaOuvir = null;
     _umaParteFoiRegravada = false;
-    _aTraducaoJaFoiAberta = false;
+    _aTraducaoJaFoiDeixada = false;
     _aprovando = false;
     _aprovada = false;
     _tamanhoDaParteMs = {};
@@ -740,7 +737,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _leaveTheStepFor(Station next) {
     if (state.station == next) return;
     if (state.station is Retro) {
-      _aTraducaoJaFoiAberta = true;
+      _aTraducaoJaFoiDeixada = true;
       _relatarAEscuta();
     }
     _dispatch(const StepLeft());
@@ -922,7 +919,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _thePartEnded() {
-    _escutarNoEnsaio();
+    _escutarOFimNoEnsaio();
     final next = switch (state.channel) {
       Playing(:final next) || Paused(:final next) => next,
       _ => null,
@@ -934,10 +931,35 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     callback?.call();
   }
 
-  void _escutarNoEnsaio() {
+  void _escutarNoEnsaio(Machine antes, Machine depois) {
+    final soava = _aParteDoEnsaioQueSoa(antes);
+    final soa = _aParteDoEnsaioQueSoa(depois);
+    if (soava == soa) return;
+    if (soava != null) {
+      _escuta.fechar(soava.path, _playback.position.inMilliseconds);
+    }
+    if (soa != null) {
+      final de = switch (antes.channel) {
+        Paused(:final what) when what == soa => _playback.position,
+        _ => soa.from,
+      };
+      _escuta.abrir(soa.path, de.inMilliseconds);
+    }
+  }
+
+  PartSound? _aParteDoEnsaioQueSoa(Machine machine) =>
+      switch (machine.channel) {
+        PartPlaying(opened: true, :final part)
+            when machine.station is Ensaio &&
+                state.partes.any((parte) => parte.path == part.path) =>
+          part,
+        _ => null,
+      };
+
+  void _escutarOFimNoEnsaio() {
     if (state.station is! Ensaio) return;
-    if (state.channel case Playing(
-      sound: PartSound(:final path, from: final de, :final to),
+    if (state.channel case PartPlaying(
+      part: PartSound(:final path, :final to),
     )) {
       if (!state.partes.any((parte) => parte.path == path)) return;
       final tamanho = _playback.playingLength;
@@ -945,7 +967,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (ate == null) return;
       final medido = tamanho?.inMilliseconds ?? 0;
       if (medido > 0) _escuta.medida(path, medido);
-      _escuta.abrir(path, de.inMilliseconds);
       _escuta.fechar(path, ate.inMilliseconds);
       _relatarAEscuta();
     }
@@ -1241,6 +1262,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _dispatch(MachineEvent event) {
     final before = state.machine;
     final (machine, effects) = reduce(before, event);
+    if (before.halt is! Blocking && machine.halt is Blocking) {
+      _anotarOQueFoiOuvido();
+    }
     final leavesTheScene =
         before.station is SceneRehearsal && machine.station is! SceneRehearsal;
     state = state.copyWith(
@@ -1250,6 +1274,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       sceneRehearsals: leavesTheScene ? const [] : null,
       clearSceneTurn: leavesTheScene,
     );
+    _escutarNoEnsaio(before, machine);
     _runner.run(effects, micWasOpen: before.channel is Microphone);
     _followTheSound(before, machine);
     _followTheMicrophone(before, machine);
@@ -1345,7 +1370,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             state.btPhase == BtPhase.playing &&
             _parteNoAr != null &&
             !state.btCortado) {
-          _tocarParteDaRetro(_parteTocando);
+          if (_oQueFaltaOuvir != null) {
+            _tocarParteDaRetro(
+              _parteTocando,
+              doComeco: true,
+              desde: _ondeAParteParou,
+            );
+          } else {
+            _tocarParteDaRetro(_parteTocando);
+          }
         } else {
           _dispatch(NothingReplayed(generation: _generation));
         }
@@ -4998,7 +5031,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (!saem.contains(finding.frase)) finding,
       ],
     );
-    if (_aTraducaoJaFoiAberta) _umaParteFoiRegravada = true;
+    if (_aTraducaoJaFoiDeixada) _umaParteFoiRegravada = true;
     unawaited(_medirAParteRegravada(path, _generation));
     unawaited(
       _guard(
@@ -5379,22 +5412,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// air like any other part picked back up, at the cursor its told ground leaves, so the
   /// team hears whatever of it is still untold and nothing that is not.
   ///
-  /// The parts stepped over are reported as heard. The room's gate wants evidence that
-  /// the rehearsal was heard end to end before it reads the passage, and the team did hear
-  /// these parts, when it told them back — in the round before this one. Reported as this
-  /// round's listening alone, the gate would refuse a passage whose every stretch is told,
-  /// and the only way through it would be hearing the whole story again, which is the
-  /// "the old ones come back" this path exists to avoid. The gate does not know the rounds
-  /// apart, so this client tells it a truth about the rehearsal rather than about the
-  /// round; whoever changes the gate needs to know this client leans on it that way.
+  /// The parts stepped over are reported as heard: the team heard them when it told them
+  /// back. The room adds reports up per take (shema-api ADR 0074), so this is redundant
+  /// for a round this build reported, and still true for one an older build never did.
   Future<void> _playFromTheUntoldGround(int generation) async {
-    if (!await _medirOColar(generation)) return;
+    if (!await _medirAsPartesDaRetro(generation)) return;
     _sairDaEspera();
     _tocarDoChaoNaoContado();
   }
 
   Future<void> _ouvirOQueFaltaDepoisDeRegravar(int generation) async {
-    if (!await _medirOColar(generation)) return;
+    if (!await _medirAsPartesDaRetro(generation)) return;
     final naoOuvidas = await _asPartesNaoOuvidas(generation);
     if (_abandoned(generation)) return;
     if (naoOuvidas == null || naoOuvidas.isEmpty) {
@@ -5403,7 +5431,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     final todas = naoOuvidas.length == state.partes.length;
-    if (!todas) state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
+    state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
     try {
       await _sayALine(
         LineKind.guide,
@@ -5421,17 +5449,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_abandoned(generation)) return;
     _sairDaEspera();
-    final primeira = todas ? 0 : naoOuvidas.first;
     if (state.needsPerson) {
-      _parteTocando = primeira;
-      if (!todas) _armarAsPartes(naoOuvidas, paraDepoisDaUltima: true);
+      _parteTocando = naoOuvidas.first;
+      _armarAsPartes(naoOuvidas, paraNaUltima: true);
       return;
     }
-    if (todas) {
-      _tocarParteDaRetro(0, doComeco: true);
-      return;
-    }
-    _ouvirAsPartes(naoOuvidas, paraDepoisDaUltima: true);
+    _ouvirAsPartes(naoOuvidas, paraNaUltima: true);
   }
 
   Future<List<int>?> _asPartesNaoOuvidas(int generation) async {
@@ -5453,9 +5476,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _ouvirAsPartes(
     List<int> partes, {
     bool semChaoTraduzido = false,
-    bool paraDepoisDaUltima = false,
+    bool paraNaUltima = false,
   }) {
-    _armarAsPartes(partes, paraDepoisDaUltima: paraDepoisDaUltima);
+    _armarAsPartes(partes, paraNaUltima: paraNaUltima);
     _tocarParteDaRetro(
       partes.first,
       doComeco: true,
@@ -5463,28 +5486,38 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void _armarAsPartes(List<int> partes, {required bool paraDepoisDaUltima}) {
-    _naoOuvidasAFrente = partes.skip(1).toList();
-    _paraDepoisDaUltima = paraDepoisDaUltima;
-    _pousadaNaParteApontadaPelaRecusa = true;
+  void _armarAsPartes(List<int> partes, {required bool paraNaUltima}) {
+    _oQueFaltaOuvir = _OQueFaltaOuvir(
+      partes.skip(1).toList(),
+      paraNaUltima: paraNaUltima,
+    );
   }
 
   void _atravessar({bool doComeco = false}) {
-    if (_naoOuvidasAFrente.isEmpty) {
+    final falta = _oQueFaltaOuvir;
+    if (falta == null || falta.aFrente.isEmpty) {
       _tocarParteDaRetro(_parteTocando + 1, doComeco: doComeco);
       return;
     }
-    _ouvirAsPartes(_naoOuvidasAFrente, paraDepoisDaUltima: _paraDepoisDaUltima);
+    _ouvirAsPartes(falta.aFrente, paraNaUltima: falta.paraNaUltima);
   }
 
-  Future<bool> _medirOColar(int generation) async {
+  Duration get _ondeAParteParou => _parteJaTocou
+      ? Duration(
+          milliseconds: max(
+            0,
+            state.btOuvidoMs - _inicioDaParteMs(_parteTocando),
+          ),
+        )
+      : Duration.zero;
+
+  Future<bool> _medirAsPartesDaRetro(int generation) async {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
     _parteJaTocou = false;
     _tamanhoDaParteMs.clear();
-    _pousadaNaParteApontadaPelaRecusa = false;
-    _naoOuvidasAFrente = [];
+    _oQueFaltaOuvir = null;
     _desdeMs = 0;
     state = state.copyWith(
       clearFindingSegment: true,
@@ -5685,15 +5718,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// A part nobody has told back has its cursor at nought, so this is the ordinary start
   /// for every part of a rehearsal being told back for the first time.
   ///
-  /// What is reported as heard is **not** moved with it: the heard span still opens at the
-  /// part's own nought. The room's gate asks of each part what the team has heard of *that
-  /// part*, across every round — it wants a cover from nought to the end of that part, it
-  /// refuses a part reported empty, and it adds reports up per take, so a part recorded
-  /// again starts over with nothing (ADR 0105). The ground this part was told back on *was*
-  /// heard, in the round that told it; this is the same truth [_playFromTheUntoldGround]
-  /// tells about the parts it steps over, and the app is the only one who can tell it.
-  /// Opening at the cursor left the picked-up part's own beginning uncovered and the
-  /// finish was refused.
+  /// What is reported as heard opens where the sound starts, but for one start: at the
+  /// cursor, over ground already told back of this part, it opens at the part's nought,
+  /// because that ground was heard when it was told, and a session an older build never
+  /// reported would otherwise be refused a part it finished telling. The room adds reports
+  /// up per take and counts a part heard when at most 0.75 s of it, and at most half, went
+  /// unplayed (shema-api ADR 0074).
   ///
   /// [doComeco] sounds it from its own nought instead, for the one gesture whose whole
   /// subject is hearing rather than telling. The **Cursor** does not move with it: it is
@@ -5726,7 +5756,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoEnd = _trechoStart;
     final de = desde ?? (doComeco ? Duration.zero : _trechoStart);
     _desdeMs = de.inMilliseconds;
-    _escuta.abrir(state.partes[parte].path, 0);
+    final arquivo = state.partes[parte].path;
+    if (de > Duration.zero &&
+        de == _trechoStart &&
+        de <= _ondeParouNesteArquivo(parte)) {
+      _escuta.abrir(arquivo, 0);
+    } else {
+      _escuta.abrir(arquivo, de.inMilliseconds);
+    }
     state = state.copyWith(
       btParteFronteira: false,
       // A part going in the air is by definition a clip that has not ended. It never had
@@ -5774,13 +5811,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // part, and a part nothing could measure then held the boundary open past the end of
     // the row: the room offered a crossing into a part that is not there.
     final ultima = _parteTocando >= state.partes.length - 1;
-    final pousada = _pousadaNaParteApontadaPelaRecusa;
-    _pousadaNaParteApontadaPelaRecusa = false;
-    final faltaOutra = pousada && _naoOuvidasAFrente.isNotEmpty;
-    final paraAqui = pousada && !faltaOutra && _paraDepoisDaUltima;
+    final falta = _oQueFaltaOuvir;
+    final faltaOutra = falta != null && falta.aFrente.isNotEmpty;
+    final ouvidas = falta != null && !faltaOutra;
+    if (ouvidas) _oQueFaltaOuvir = null;
     state = state.copyWith(
-      btClipEnded: ultima || (pousada && !faltaOutra),
-      btParteFronteira: faltaOutra || (!ultima && !paraAqui),
+      btClipEnded: ultima || ouvidas,
+      btParteFronteira:
+          faltaOutra || (!ultima && !(ouvidas && falta.paraNaUltima)),
+      clearBtRecusa: ouvidas,
       btFimDasPartesMs: _fimDaParteMs,
       btParteNoArMs: 0,
     );
@@ -6882,7 +6921,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: BtPhase.thinking,
       awaitingTheGuide: true,
-      clearBtRecusa: true,
+      clearBtRecusa: _oQueFaltaOuvir == null,
     );
     _watchBusyState();
 
@@ -7089,7 +7128,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(const TheVerdictAsked());
     state = state.copyWith(clearAviso: true);
     _silenceTheRoom();
-    _naoOuvidasAFrente = [];
+    _oQueFaltaOuvir = null;
     final sessionId = state.sessionId;
     if (sessionId == null) {
       _raiseAHalt();
@@ -7986,10 +8025,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _traducoesGuardadas.clear();
     _traducaoNaFila.clear();
     _tamanhoDaParteMs.clear();
-    _pousadaNaParteApontadaPelaRecusa = false;
-    _naoOuvidasAFrente = [];
+    _oQueFaltaOuvir = null;
     _umaParteFoiRegravada = false;
-    _aTraducaoJaFoiAberta = false;
+    _aTraducaoJaFoiDeixada = false;
     _aprovando = false;
     _aprovada = false;
     _escuta.esquecerTudo();
@@ -8178,3 +8216,10 @@ final salaSessionProvider =
     NotifierProvider<SalaSessionNotifier, SalaSessionState>(
       SalaSessionNotifier.new,
     );
+
+final class _OQueFaltaOuvir {
+  final List<int> aFrente;
+  final bool paraNaUltima;
+
+  const _OQueFaltaOuvir(this.aFrente, {required this.paraNaUltima});
+}

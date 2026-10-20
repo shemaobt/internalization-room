@@ -1,7 +1,10 @@
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'um_ensaio_de_tres_partes.dart';
@@ -26,23 +29,11 @@ Future<Sala> _naTraducao() async {
   return it;
 }
 
-Future<void> _ateOFim(Sala it, Duration quanto) async {
-  await theClipOpens(it.harness);
-  it.harness.playback
-    ..length = quanto
-    ..at = quanto
-    ..finishPlayback();
-  await waitFor(
-    'a parte acabar',
-    () => it.estado.btParteFronteira || it.estado.btClipEnded,
-  );
-}
-
 /// The first part played to its end, then the second crossed into and held four seconds
 /// in: what the ledger holds that no part's end has reported yet.
 Future<Sala> _umaParteOuvidaEOutraSegurada() async {
   final it = await _naTraducao();
-  await _ateOFim(it, partesDoEnsaio[0]);
+  await ouvirAteOFim(it, partesDoEnsaio[0]);
   it.sala.ouvirGravacao();
   await waitFor('a segunda parte entrar no ar', () => it.estado.btClipRodando);
   await theClipOpens(it.harness);
@@ -56,7 +47,7 @@ void main() {
   test('cada parte que acaba chega à sala na hora', () async {
     final it = await _naTraducao();
 
-    await _ateOFim(it, partesDoEnsaio[0]);
+    await ouvirAteOFim(it, partesDoEnsaio[0]);
 
     expect(it.harness.room.listeningReports, [
       [_ouvida(it.partes[0].takeId!, 0, 10000, 10000)],
@@ -123,7 +114,7 @@ void main() {
     final falas = it.harness.voice.played.length;
 
     for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-      await _ateOFim(it, partesDoEnsaio[onde]);
+      await ouvirAteOFim(it, partesDoEnsaio[onde]);
       if (onde < partesDoEnsaio.length - 1) {
         expect(it.estado.btParteFronteira, isTrue);
         it.sala.ouvirGravacao();
@@ -172,7 +163,7 @@ void main() {
             it.estado.stage == SalaStage.retro &&
             it.estado.btPhase == BtPhase.playing,
       );
-      await _ateOFim(it, partesDoEnsaio[0]);
+      await ouvirAteOFim(it, partesDoEnsaio[0]);
 
       expect(
         it.harness.room.listeningReports.last,
@@ -184,4 +175,74 @@ void main() {
       );
     },
   );
+
+  test('uma parte do ensaio segurada no meio relata o que soou', () async {
+    final it = await umEnsaioDeTresPartesGravado();
+    final segunda = it.partes[1].takeId!;
+
+    it.sala.ouvirACena(2);
+    await theClipOpens(it.harness);
+    it.harness.playback.at = const Duration(seconds: 3);
+    it.sala.ouvirACena(2);
+    await waitFor('a parte parar', () => it.estado.takePaused);
+    it.sala.theAppWentAway();
+
+    expect(it.harness.room.listeningReports.last, [
+      _ouvida(segunda, 0, 3000, 0),
+    ]);
+  });
+
+  test('sair do ensaio com uma parte soando relata o que soou', () async {
+    final it = await umEnsaioDeTresPartesGravado();
+    final primeira = it.partes[0].takeId!;
+    final segunda = it.partes[1].takeId!;
+
+    it.sala.ouvirACena(2);
+    await theClipOpens(it.harness);
+    it.harness.playback.at = const Duration(seconds: 3);
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução começar a tocar a primeira parte',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.btPhase == BtPhase.playing,
+    );
+    await ouvirAteOFim(it, partesDoEnsaio[0]);
+
+    expect(it.harness.room.listeningReports.last, [
+      _ouvida(primeira, 0, 10000, 10000),
+      _ouvida(segunda, 0, 3000, 0),
+    ]);
+  });
+
+  testWidgets('o app que vai para o fundo manda um relato', (tester) async {
+    late Sala it;
+    await tester.runAsync(() async {
+      it = await umEnsaioGravado(
+        partesDoEnsaio,
+        numaSala: SalaHarness(filaEmMemoria: true),
+      );
+    });
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: it.container,
+        child: const SalaApp(),
+      ),
+    );
+    await tester.runAsync(() async {
+      it.sala.startRetro();
+      await waitFor(
+        'a tradução começar a tocar a primeira parte',
+        () => it.estado.btPhase == BtPhase.playing,
+      );
+      await ouvirAteOFim(it, partesDoEnsaio[0]);
+    });
+    final relatos = it.harness.room.listeningReports.length;
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+
+    expect(it.harness.room.listeningReports, hasLength(relatos + 1));
+    closeTheRoom(it.container);
+  });
 }

@@ -83,6 +83,8 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
     if (lifecycle == AppLifecycleState.hidden ||
         lifecycle == AppLifecycleState.paused) {
       _replyWatch?.cancel();
+    }
+    if (lifecycle == AppLifecycleState.paused) {
       ref.read(salaSessionProvider.notifier).theAppWentAway();
     }
     if (lifecycle == AppLifecycleState.resumed &&
