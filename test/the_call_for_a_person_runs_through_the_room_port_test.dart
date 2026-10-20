@@ -3,7 +3,6 @@ import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
-import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/refusal_code.dart';
 
 import 'a_station_host_double.dart';
@@ -43,7 +42,6 @@ void main() {
 
     expect(host.answers.single, isA<TheCallLanded>());
     expect(host.callsLanded, 1);
-    expect(host.callsLandedWithoutASession, 0);
     expect(
       _theSignAfter(host.answers),
       isA<Blocking>().having((sign) => sign.serverKnows, 'serverKnows', true),
@@ -58,7 +56,7 @@ void main() {
       await pumpEventQueue();
 
       expect(host.answers.single, isA<TheCallWasRefused>());
-      expect(host.callsLanded + host.callsLandedWithoutASession, 0);
+      expect(host.callsLanded, 0);
       expect(_theSignAfter(host.answers), isA<Blocking>());
     },
   );
@@ -186,50 +184,15 @@ void main() {
     },
   );
 
-  test(
-    'a call with no session asks the room by the tablet; the Station hears it landed, and the machine is told nothing',
-    () async {
-      host.session = null;
+  test('a call for a person with no session asks the room nothing', () async {
+    host.session = null;
 
-      runner.run(const [CallForAPerson()]);
-      room.answerTheTabletCall(const TabletCallAnswered(RoomAnswered()));
-      await pumpEventQueue();
+    runner.run(const [CallForAPerson()]);
+    await pumpEventQueue();
 
-      expect(room.heard, ['call by the tablet']);
-      expect(host.callsLandedWithoutASession, 1);
-      expect(host.callsLanded, 0);
-      expect(host.answers, isEmpty);
-    },
-  );
-
-  test(
-    'a call with no session for an unknown tablet changes nothing',
-    () async {
-      host.session = null;
-
-      runner.run(const [CallForAPerson()]);
-      room.answerTheTabletCall(const TheTabletIsUnknown());
-      await pumpEventQueue();
-
-      expect(host.callsLanded + host.callsLandedWithoutASession, 0);
-      expect(host.answers, isEmpty);
-      expect(host.asked, isEmpty);
-    },
-  );
-
-  test(
-    'a call with no session whose device link cannot be read is asked again on the ladder',
-    () async {
-      host.session = null;
-
-      runner.run(const [CallForAPerson()]);
-      room.answerTheTabletCall(const TheDeviceLinkUnread());
-      await pumpEventQueue();
-
-      expect(room.heard, ['call by the tablet', 'call by the tablet']);
-      expect(host.answers, isEmpty);
-    },
-  );
+    expect(room.heard, isEmpty);
+    expect(host.answers, isEmpty);
+  });
 
   test(
     'a person-arrived mark reaches the room port with the room\'s session; with none, it asks nothing',
@@ -301,25 +264,12 @@ void main() {
     earlier.dispose();
     host.session = 'sessao-2';
     room.answerTheCall(const RoomRefused(RefusalCode.passageClosed));
-    host.session = null;
-    final withoutASession = runnerOver(
-      fakePorts(ASoundPort(), room: room),
-      host,
-    );
-    withoutASession.run(const [CallForAPerson()]);
-    withoutASession.dispose();
-    room.answerTheTabletCall(const TheDeviceLinkUnread());
     await pumpEventQueue();
 
     expect(host.answers, isEmpty);
-    expect(host.callsLanded + host.callsLandedWithoutASession, 0);
+    expect(host.callsLanded, 0);
     expect(host.earlierCallsHeard, isEmpty);
     expect(host.asked, isEmpty);
-    expect(room.heard, [
-      'call:sessao-1',
-      'arrived:sessao-1',
-      'call:sessao-1',
-      'call by the tablet',
-    ]);
+    expect(room.heard, ['call:sessao-1', 'arrived:sessao-1', 'call:sessao-1']);
   });
 }

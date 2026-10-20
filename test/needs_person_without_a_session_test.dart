@@ -1,13 +1,9 @@
 import 'dart:io';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -67,14 +63,6 @@ void main() {
       reason: 'a parada fica na tela mesmo sem nenhum pedido sair',
     );
     expect(
-      harness.room.deviceAsksReceived,
-      isEmpty,
-      reason:
-          'o aparelho tem id no vínculo; se a lista não está vazia, o '
-          'pedido saiu de verdade — e um build quebrado não tem para onde '
-          'esse pedido ir',
-    );
-    expect(
       harness.room.calls,
       isEmpty,
       reason:
@@ -105,11 +93,6 @@ void main() {
 
       expect(container.read(salaSessionProvider).needsPerson, isTrue);
       expect(harness.room.personsAsked, 1);
-      expect(
-        harness.room.deviceAsksReceived,
-        isEmpty,
-        reason: 'sessão viva nunca é motivo para perguntar pelo aparelho',
-      );
     },
   );
 
@@ -168,11 +151,6 @@ void main() {
       reason: 'a sessão sumiu; o destino é um só, a Escolha',
     );
     expect(
-      harness.room.deviceAsksReceived,
-      isEmpty,
-      reason: 'sem parada, não há por que pedir a ninguém',
-    );
-    expect(
       harness.voice.assets.length,
       playedBeforeResolve,
       reason:
@@ -180,69 +158,5 @@ void main() {
           'uma parada que a equipe já resolveu',
     );
     expect(harness.voice.fixedLines.length, fixedBeforeResolve);
-  });
-
-  group('askForAPersonWithoutASession (repositório)', () {
-    setUpAll(() {
-      dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
-    });
-
-    test('case 6: o pedido que sai, com a credencial', () async {
-      late http.BaseRequest seen;
-      final repository = RoomRepository(
-        client: MockClient((request) async {
-          seen = request;
-          return http.Response('{}', 200);
-        }),
-      )..presents('credencial-1');
-      addTearDown(repository.dispose);
-
-      await repository.askForAPersonWithoutASession('aparelho-D');
-
-      expect(seen.method, 'POST');
-      expect(
-        seen.url.path,
-        '/api/internalization-room/devices/aparelho-D/needs-person',
-      );
-      expect(seen.headers['X-Device-Credential'], 'credencial-1');
-    });
-
-    test(
-      '404 e 409 são o mesmo final: não há equipe para este aparelho',
-      () async {
-        Future<void> expectStatus(int status) async {
-          final repository = RoomRepository(
-            client: MockClient((_) async => http.Response('{}', status)),
-          );
-          addTearDown(repository.dispose);
-          expect(
-            await repository.askForAPersonWithoutASession('aparelho-D'),
-            isA<Refused>().having(
-              (refusal) => refusal.code,
-              'code',
-              RefusalCode.nobodyToReach,
-            ),
-          );
-        }
-
-        await expectStatus(404);
-        await expectStatus(409);
-      },
-    );
-
-    test(
-      'um 500 é a falha comum, que insiste — não a falta de equipe',
-      () async {
-        final repository = RoomRepository(
-          client: MockClient((_) async => http.Response('{}', 500)),
-        );
-        addTearDown(repository.dispose);
-
-        expect(
-          await repository.askForAPersonWithoutASession('aparelho-D'),
-          isA<NetworkFailed>(),
-        );
-      },
-    );
   });
 }

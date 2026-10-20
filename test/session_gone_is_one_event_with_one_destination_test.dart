@@ -154,12 +154,6 @@ void main() {
       expect(_estado(container).stage, SalaStage.escolha);
       expect(_estado(container).needsPerson, isFalse);
       expect(harness.room.personsAsked, 0);
-      expect(
-        harness.room.deviceAsksReceived,
-        isEmpty,
-        reason:
-            'nenhuma pessoa é chamada por uma sessão que o servidor esqueceu',
-      );
     },
   );
 
@@ -371,7 +365,6 @@ void main() {
 
     expect(_estado(container).needsPerson, isFalse);
     expect(harness.room.personsAsked, 0);
-    expect(harness.room.deviceAsksReceived, isEmpty);
     expect(harness.room.personArrivedSessions, isEmpty);
   });
 
@@ -398,7 +391,6 @@ void main() {
 
     expect(harness.room.calls, contains('askForAPerson'));
     expect(_estado(container).needsPerson, isFalse);
-    expect(harness.room.deviceAsksReceived, isEmpty);
     expect(harness.room.personArrivedSessions, isEmpty);
   });
 
@@ -422,7 +414,6 @@ void main() {
 
     expect(_estado(container).needsPerson, isFalse);
     expect(harness.room.personsAsked, 0);
-    expect(harness.room.deviceAsksReceived, isEmpty);
     expect(harness.room.personArrivedSessions, isEmpty);
   });
 
@@ -555,7 +546,6 @@ void main() {
 
     expect(_estado(container).needsPerson, isFalse);
     expect(harness.room.personsAsked, 0);
-    expect(harness.room.deviceAsksReceived, isEmpty);
     expect(_estado(container).sessionId, harness.room.sessionIds.last);
     expect(harness.room.metBefore.last, isFalse);
   });

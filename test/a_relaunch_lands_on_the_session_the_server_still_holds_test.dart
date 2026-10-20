@@ -313,45 +313,36 @@ void main() {
     },
   );
 
-  test(
-    'a relaunch with no reach never shows the old Canvas, and the Choice shows no '
-    'offline face',
-    () async {
-      final first = await _inP01();
-      final session = first.state.sessionId!;
+  test('a relaunch with no reach never shows the old Canvas', () async {
+    final first = await _inP01();
+    final session = first.state.sessionId!;
 
-      final again = await _relaunch(first);
-      final stations = <Station>[];
-      again.container.listen(
-        salaSessionProvider,
-        (_, next) => stations.add(next.station),
-      );
-      again.harness.network.reachable = false;
-      again.harness.room.reachable = false;
-      await again.notifier.openTheRoom();
-      await settle();
+    final again = await _relaunch(first);
+    final stations = <Station>[];
+    again.container.listen(
+      salaSessionProvider,
+      (_, next) => stations.add(next.station),
+    );
+    again.harness.network.reachable = false;
+    again.harness.room.reachable = false;
+    await again.notifier.openTheRoom();
+    await waitFor('the room to be out of reach', () => again.state.offline);
+    await settle();
 
-      expect(stations, everyElement(isA<Menu>()));
-      expect(again.state.station, isA<Menu>());
-      expect(
-        again.state.offline,
-        isFalse,
-        reason:
-            'the Choice is not a way in: a network failure there changes nothing',
-      );
+    expect(stations, everyElement(isA<Menu>()));
+    expect(again.state.station, isA<Menu>());
 
-      again.harness.network.reachable = true;
-      again.harness.room.reachable = true;
-      await again.notifier.openTheRoom();
-      await _theChoiceShowsItsWheel(again);
+    again.harness.network.reachable = true;
+    again.harness.room.reachable = true;
+    again.notifier.retryNow();
+    await _theChoiceShowsItsWheel(again);
 
-      final later = await _relaunch(again);
-      await later.notifier.openTheRoom();
-      await _landsOn(later, session);
+    final later = await _relaunch(again);
+    await later.notifier.openTheRoom();
+    await _landsOn(later, session);
 
-      expect(later.state.station, isA<Canvas>());
-    },
-  );
+    expect(later.state.station, isA<Canvas>());
+  });
 
   test('a relaunch holding nothing opens the Choice', () async {
     final tablet = await _aTablet();

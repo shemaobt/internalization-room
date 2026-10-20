@@ -102,8 +102,6 @@ final Map<String, _Request> _everyRequest = {
     sentenceId: 'frase-0001',
   ),
   'askForAPerson': (room, _) => room.askForAPerson('sessao-1'),
-  'askForAPersonWithoutASession': (room, _) =>
-      room.askForAPersonWithoutASession('aparelho-1'),
   'personArrived': (room, _) => room.personArrived('sessao-1'),
   'finishBackTranslation': (room, _) =>
       room.finishBackTranslation('sessao-1', playedByTake: const []),

@@ -73,7 +73,6 @@ class AStationHost implements StationHost {
   void hearThePassageClosed(String session) => passagesClosedHeard.add(session);
 
   int callsLanded = 0;
-  int callsLandedWithoutASession = 0;
   final List<(String, RoomResult)> earlierCallsHeard = [];
   final List<String> earlierSessionsGone = [];
 
@@ -81,8 +80,6 @@ class AStationHost implements StationHost {
   void hearTheCallLanded() => callsLanded++;
 
   @override
-  void hearTheCallLandedWithoutASession() => callsLandedWithoutASession++;
-
   @override
   void hearAnEarlierSessionsCall(String session, RoomResult result) =>
       earlierCallsHeard.add((session, result));

@@ -9,7 +9,7 @@ const _intoTheMapper = [
   '_decideAt(',
   '_outOfReach(',
   '_theStepFell(',
-  '_theResumeFell(',
+  '_theResumeFailed(',
   '_theSessionIsGone(',
   '_giveUpOnTheTurn(',
   'rethrow',

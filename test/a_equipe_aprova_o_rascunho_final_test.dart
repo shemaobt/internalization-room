@@ -338,8 +338,8 @@ void main() {
     'comprehension_needs_more_work',
     'no_telling_back',
   ]) {
-    testWidgets('a recusa por $codigo deixa a equipe na conferida, sem '
-        'chamar ninguém', (tester) async {
+    testWidgets('a recusa por $codigo devolve a equipe à tradução como '
+        'antes do terminei, sem chamar ninguém', (tester) async {
       final it = await _ateAConferida(tester);
       final falasAntes = it.harness.voice.fixedLines.length;
       it.harness.room.releaseBlockers = [codigo];
@@ -361,11 +361,11 @@ void main() {
         reason: 'e nada foi aprovado, então a linha da aprovação não é dita',
       );
       expect(_estado(it.container).stage, SalaStage.retro);
-      expect(_estado(it.container).btPhase, BtPhase.conferida);
+      expect(_estado(it.container).canFinishBackTranslation, isTrue);
       expect(
-        byLabel(_aprovar),
+        byLabel('terminei'),
         findsOneWidget,
-        reason: 'o gesto continua na tela para a equipe apertar de novo',
+        reason: 'a equipe volta a ter o terminei para conferir de novo',
       );
 
       closeTheRoom(it.container);
@@ -1028,8 +1028,8 @@ void main() {
     closeTheRoom(it.container);
   });
 
-  testWidgets('um código que este tablet não conhece deixa a equipe na '
-      'conferida, sem chamar ninguém', (tester) async {
+  testWidgets('um código que este tablet não conhece devolve a equipe à '
+      'tradução como antes do terminei, sem chamar ninguém', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.releaseBlockers = const ['something_new'];
 
@@ -1044,14 +1044,14 @@ void main() {
           'não é um dos seis casos do sinal',
     );
     expect(it.harness.room.personsAsked, 0);
-    expect(_estado(it.container).btPhase, BtPhase.conferida);
-    expect(byLabel(_aprovar), findsOneWidget);
+    expect(_estado(it.container).canFinishBackTranslation, isTrue);
+    expect(byLabel('terminei'), findsOneWidget);
 
     closeTheRoom(it.container);
   });
 
-  testWidgets('um trecho não contado sem o trecho nomeado deixa a equipe na '
-      'conferida, sem chamar ninguém', (tester) async {
+  testWidgets('um trecho não contado sem o trecho nomeado devolve a equipe à '
+      'tradução como antes do terminei, sem chamar ninguém', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.releaseBlockers = const ['untold_stretch'];
 
@@ -1066,14 +1066,14 @@ void main() {
           'novo o que já estava contado',
     );
     expect(it.harness.room.personsAsked, 0);
-    expect(_estado(it.container).btPhase, BtPhase.conferida);
-    expect(byLabel(_aprovar), findsOneWidget);
+    expect(_estado(it.container).canFinishBackTranslation, isTrue);
+    expect(byLabel('terminei'), findsOneWidget);
 
     closeTheRoom(it.container);
   });
 
-  testWidgets('uma parte não contada sem a gravação nomeada deixa a equipe na '
-      'conferida, sem chamar ninguém', (tester) async {
+  testWidgets('uma parte não contada sem a gravação nomeada devolve a equipe à '
+      'tradução como antes do terminei, sem chamar ninguém', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.releaseBlockers = const ['untold_part'];
 
@@ -1085,14 +1085,14 @@ void main() {
       reason: 'pelo mesmo motivo do trecho: o buraco sem chão não tem porta',
     );
     expect(it.harness.room.personsAsked, 0);
-    expect(_estado(it.container).btPhase, BtPhase.conferida);
-    expect(byLabel(_aprovar), findsOneWidget);
+    expect(_estado(it.container).canFinishBackTranslation, isTrue);
+    expect(byLabel('terminei'), findsOneWidget);
 
     closeTheRoom(it.container);
   });
 
-  testWidgets('uma resposta sem versão e sem buracos não fecha a passagem nem '
-      'chama ninguém', (tester) async {
+  testWidgets('uma resposta sem versão e sem buracos não fecha a passagem, '
+      'devolve a equipe à tradução e não chama ninguém', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.release = const ApprovalAnswer();
 
@@ -1111,7 +1111,7 @@ void main() {
           'nada foi cunhado e nada foi nomeado: lê-la como aprovação fecharia '
           'a passagem por cima de nada',
     );
-    expect(_estado(it.container).btPhase, BtPhase.conferida);
+    expect(_estado(it.container).canFinishBackTranslation, isTrue);
 
     closeTheRoom(it.container);
   });

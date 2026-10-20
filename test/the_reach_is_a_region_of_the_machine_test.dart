@@ -59,6 +59,7 @@ void main() {
 
   group('5: a network failure on a way in takes the room out of reach', () {
     for (final (name, wayIn) in const [
+      ('the Choice', Machine()),
       ('a Canvas with no session', Machine(station: Canvas())),
       ('a Panorama held by nobody', Machine(station: Panorama('OV-Ruth'))),
       (

@@ -238,6 +238,7 @@ void main() {
         RoomRefused(RefusalCode.unnamed(500)),
         const RoomSessionGone(),
         const RoomNetworkFailed(),
+        const RoomFoundNothing(),
       ]) {
         _decides(result, resume, const TheResumeFailed(generation: 4));
       }

@@ -44,7 +44,6 @@ void main() {
         isTrue,
         reason: 'o servidor mesmo não devolveu nenhuma passagem',
       );
-      expect(harness.room.deviceAsksReceived, isEmpty);
       expect(
         harness.voice.fixedLines,
         isNot(contains(('E0', testLanguage))),
@@ -130,7 +129,6 @@ void main() {
         reason: 'cada toque na roda tem de bater na porta de novo',
       );
       expect(harness.room.personsAsked, 0);
-      expect(harness.room.deviceAsksReceived, isEmpty);
       expect(harness.voice.fixedLines, isNot(contains(('E0', testLanguage))));
     },
   );
@@ -867,7 +865,6 @@ void main() {
       await settle();
 
       expect(container.read(salaSessionProvider).needsPerson, isFalse);
-      expect(harness.room.deviceAsksReceived, isEmpty);
     },
   );
 

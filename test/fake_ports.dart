@@ -136,7 +136,6 @@ class ARoomPort implements RoomPort {
   void answerTheReach(RoomReach reach) => _reaches.removeAt(0).complete(reach);
 
   final List<Completer<RoomResult>> _calls = [];
-  final List<Completer<TabletCallAnswer>> _tabletCalls = [];
   final List<Completer<RoomResult>> _arrivals = [];
 
   @override
@@ -148,17 +147,6 @@ class ARoomPort implements RoomPort {
   }
 
   void answerTheCall(RoomResult result) => _calls.removeAt(0).complete(result);
-
-  @override
-  Future<TabletCallAnswer> askForAPersonWithoutASession() {
-    heard.add('call by the tablet');
-    final call = Completer<TabletCallAnswer>();
-    _tabletCalls.add(call);
-    return call.future;
-  }
-
-  void answerTheTabletCall(TabletCallAnswer answer) =>
-      _tabletCalls.removeAt(0).complete(answer);
 
   @override
   Future<RoomResult> personArrived(String session) {

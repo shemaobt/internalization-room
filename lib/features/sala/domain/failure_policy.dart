@@ -107,6 +107,18 @@ final class FailureContext {
     this.why = RoomReach.noNetwork,
     this.sounding = const NothingKept(),
   });
+
+  FailureContext copyWith({Turn? turn, Kept? sounding, int? generation}) =>
+      FailureContext(
+        station: station,
+        step: step,
+        generation: generation ?? this.generation,
+        turn: turn ?? this.turn,
+        rule: rule,
+        door: door,
+        why: why,
+        sounding: sounding ?? this.sounding,
+      );
 }
 
 /// The one place a room result or a failure of the tablet's own becomes an event (ADR
@@ -150,8 +162,10 @@ abstract final class FailurePolicy {
           readAgain: rule == RefusalRule.readsTheListAgain,
           generation: generation,
         ),
-      RoomSessionGone() || RoomRefused() || RoomNetworkFailed()
-          when rule == RefusalRule.keepsTheResume =>
+      RoomSessionGone() ||
+      RoomRefused() ||
+      RoomNetworkFailed() ||
+      RoomFoundNothing() when rule == RefusalRule.keepsTheResume =>
         TheResumeFailed(generation: generation),
       RoomSessionGone() => TheSessionIsGone(generation: generation),
       RoomNetworkFailed() || RoomTimedOut() when turn != null => TurnGivenUp(

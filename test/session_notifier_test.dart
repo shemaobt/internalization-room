@@ -518,7 +518,7 @@ void main() {
       await notifier.abrirEscolha();
       await settle();
 
-      harness.room.failWith = const Refused('BAD_REQUEST');
+      harness.room.failStateOnceWith = const Refused('BAD_REQUEST');
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
@@ -529,6 +529,11 @@ void main() {
             'uma única recusa é passageira — não é motivo para abandonar o id',
       );
 
+      await waitFor(
+        'a Escolha abrir as entradas',
+        () => container.read(salaSessionProvider).entriesOpen,
+      );
+      harness.room.failStateOnceWith = const Refused('BAD_REQUEST');
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
@@ -4381,8 +4386,7 @@ void main() {
     expect(harness.voice.fixedLines, isNot(contains(('E0', testLanguage))));
   });
 
-  test('a wheel lost to the network shows no offline face, and the touch reads '
-      'it once the network is back', () async {
+  test('the wheel reloads itself when the network comes back', () async {
     final harness = SalaHarness()..network.reachable = false;
     final container = harness.container();
     addTearDown(container.dispose);
@@ -4390,21 +4394,19 @@ void main() {
     harness.room.reachable = false;
     await notifier.abrirEscolha();
     await settle();
-    expect(container.read(salaSessionProvider).offline, isFalse);
-    expect(
-      harness.voice.assets,
-      isNot(contains(offlineNoticeAsset(testLanguage))),
-    );
+    expect(container.read(salaSessionProvider).offline, isTrue);
 
     harness.room.reachable = true;
     harness.network.reachable = true;
-    notifier.escolhaTap();
+    harness.network.networkComesBack();
     await settle(const Duration(milliseconds: 300));
 
     expect(
       container.read(salaSessionProvider).naRoda,
       hasLength(3),
-      reason: 'o toque é a nova tentativa de ler a roda',
+      reason:
+          '_comeBack não conhecia a escolha: a rede voltava e a roda '
+          'continuava vazia para sempre',
     );
   });
 

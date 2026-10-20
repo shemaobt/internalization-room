@@ -199,7 +199,6 @@ void main() {
       isNot(contains('sendTake')),
       reason: 'a linha sai da Outbox descartada, não enviada',
     );
-    expect(harness.room.deviceAsksReceived, isEmpty);
     expect(harness.room.personArrivedSessions, hasLength(chegadas));
   });
 
@@ -254,7 +253,6 @@ void main() {
     await settle(_severalStepsOfTheLadder);
 
     expect(_estado(container).needsPerson, isFalse);
-    expect(harness.room.deviceAsksReceived, isEmpty);
     expect(harness.room.personArrivedSessions, isEmpty);
   });
 

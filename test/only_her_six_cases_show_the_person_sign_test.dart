@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
@@ -186,6 +187,50 @@ Future<_Room> _aCheckedPassage(SalaHarness harness) async {
     'a passagem ser conferida',
     () => room.state.btPhase == BtPhase.conferida,
   );
+  return room;
+}
+
+const _thePanorama = Passagem(
+  pericope: 'OV-Ruth',
+  audioUrl: '/voice/panorama',
+  kind: PassagemKind.panorama,
+  book: 'Ruth',
+);
+
+Future<_Room> _onThePanorama(SalaHarness harness) async {
+  harness.room.passages = [_thePanorama, ...harness.room.passages];
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final room = _Room(harness, container);
+  await enterThePanorama(room.sala, () => room.state);
+  await waitFor(
+    'o Panorama descansar no convite',
+    () =>
+        room.state.panoramaSessionId != null &&
+        room.state.voice == VoiceState.invite &&
+        !room.state.awaitingTheGuide,
+  );
+  await settle();
+  return room;
+}
+
+/// P01 opened, spoken into once and left, so that opening it again resumes its session.
+Future<_Room> _aPassageToResume(SalaHarness harness) async {
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final room = _Room(harness, container);
+  await enterThePassage(room.sala, () => room.state, 'P01');
+  await waitFor(
+    'a passagem descansar no convite',
+    () =>
+        room.state.sessionId != null &&
+        room.state.voice == VoiceState.invite &&
+        !room.state.awaitingTheGuide,
+  );
+  await _theTeamSpeaks(room);
+  await _theRoomRests(room);
+  room.sala.leaveThePassage();
+  await waitFor('a Escolha abrir', () => room.state.entriesOpen);
   return room;
 }
 
@@ -492,16 +537,25 @@ void main() {
   });
 
   test('three refusals of another request bring no sign', () async {
-    final harness = SalaHarness();
-    final room = await _aCheckedPassage(harness);
-    harness.room.failReleaseWith = Refused(RefusalCode.unnamed(500));
+    final harness = SalaHarness()
+      ..room.failBooksWith = Refused(RefusalCode.unnamed(500));
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final room = _Room(harness, container);
 
-    for (var refusal = 0; refusal < 3; refusal++) {
-      await room.sala.aprovarRascunhoFinal();
-      await settle();
+    await room.sala.abrirEscolha();
+    for (var refusal = 1; refusal < 3; refusal++) {
+      await waitFor(
+        'a roda ser recusada',
+        () =>
+            room.asked('servedBooks') == refusal &&
+            !room.state.awaitingTheGuide,
+      );
+      room.sala.escolhaTap();
     }
+    await waitFor('a terceira recusa', () => room.asked('servedBooks') == 3);
+    await settle();
 
-    expect(harness.room.releasesAsked, hasLength(3));
     expect(room.state.needsPerson, isFalse);
   });
 
@@ -634,5 +688,222 @@ void main() {
       () => room.state.stage == SalaStage.conversa,
     );
     await waitFor('o sinal da pessoa', () => room.state.needsPerson);
+  });
+
+  group('a resume whose Session read fails goes calmly back to the passage '
+      'menu', () {
+    for (final (how, failure) in <(String, RoomFailure)>[
+      ('refused', Refused(RefusalCode.unnamed(500))),
+      ('lost on the network', const NetworkFailed('sem rede')),
+    ]) {
+      test(how, () async {
+        final harness = SalaHarness();
+        final room = await _aPassageToResume(harness);
+        final reads = room.asked('fetchState');
+        harness.room.failStateOnceWith = failure;
+
+        await enterThePassage(room.sala, () => room.state, 'P01');
+        await waitFor(
+          'a leitura da retomada falhar',
+          () => room.asked('fetchState') > reads,
+        );
+        await waitFor(
+          'a Escolha voltar',
+          () => room.state.stage == SalaStage.escolha && room.state.entriesOpen,
+        );
+
+        expect(room.state.needsPerson, isFalse);
+      });
+    }
+  });
+
+  test('a resume into the Back-translation whose Session read is refused goes '
+      'calmly back to the passage menu', () async {
+    final harness = SalaHarness()
+      ..room.failStateOnceWith = Refused(RefusalCode.unnamed(500));
+    final casa = Directory.systemTemp.createTempSync('sala-1355-retro');
+    addTearDown(() => casa.deleteSync(recursive: true));
+    harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: (File('${casa.path}/p1.m4a')..writeAsBytesSync([1, 2, 3])).path,
+          takeId: 'gravacao-1',
+        ),
+      ],
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final room = _Room(harness, container);
+    await room.sala.abrirEscolha();
+
+    await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor(
+      'a Escolha voltar',
+      () => room.state.stage == SalaStage.escolha && room.state.entriesOpen,
+    );
+
+    expect(room.asked('fetchState'), 1);
+    expect(room.state.needsPerson, isFalse);
+  });
+
+  test(
+    'a launch with the room out of reach fills the Choice by itself once the '
+    'room is back',
+    () async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final room = _Room(harness, container);
+      room.theNetworkFalls();
+
+      await room.sala.abrirEscolha();
+      await waitFor('a sala cair', () => room.state.unreachable);
+      room.theNetworkReturns();
+
+      await waitFor('a roda aparecer sozinha', () => room.state.naRoda != null);
+      expect(room.state.needsPerson, isFalse);
+    },
+  );
+
+  test('a decided failure is logged with its door and its reason', () async {
+    final logged = <String>[];
+    final print = debugPrint;
+    debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+    addTearDown(() => debugPrint = print);
+    final harness = SalaHarness();
+    final room = await _aCheckedPassage(harness);
+    harness.room.failReleaseWith = Refused(RefusalCode.unnamed(500));
+
+    await room.sala.aprovarRascunhoFinal();
+    await settle();
+
+    expect(
+      logged,
+      contains(allOf(contains(Door.step.name), contains('HTTP_500'))),
+    );
+  });
+
+  group('the Panorama', () {
+    test('a Panorama turn answered without a reply brings the person '
+        'sign', () async {
+      final harness = SalaHarness();
+      final room = await _onThePanorama(harness);
+      harness.room.answersTurnsWithoutAReply = true;
+
+      room.sala.panoramaTap();
+      await waitFor(
+        'o microfone abrir no Panorama',
+        () => room.state.voice == VoiceState.listening,
+      );
+      room.sala.panoramaTap();
+
+      await waitFor('o sinal da pessoa', () => room.state.needsPerson);
+    });
+
+    test('a Panorama whose owed opening is answered without a reply rests at '
+        'the invite', () async {
+      final harness = SalaHarness()..room.answersTurnsWithoutAReply = true;
+
+      final room = await _onThePanorama(harness);
+
+      expect(room.state.needsPerson, isFalse);
+    });
+  });
+
+  test('an empty rehearsal take: no sign and no halt', () async {
+    final harness = SalaHarness();
+    final room = await _onTheCanvas(harness);
+    room.sala.goEnsaio();
+    harness.recorder.returnsEmpty = true;
+
+    room.sala.ensaioTap();
+    await settle();
+    room.sala.ensaioTap();
+    await settle();
+    room.sala.takeKeep();
+    await settle();
+
+    expect(room.state.needsPerson, isFalse);
+    expect(room.state.awaitingTheGuide, isFalse);
+  });
+
+  test('a back-translation opened with no rehearsal part: no sign and no '
+      'halt', () async {
+    final harness = SalaHarness();
+    final room = await _onTheCanvas(harness);
+
+    room.sala.startRetro();
+    await settle();
+
+    expect(room.state.needsPerson, isFalse);
+    expect(room.state.awaitingTheGuide, isFalse);
+  });
+
+  group('a refused approval', () {
+    test('whose hole has no door returns the team to the Back-translation as '
+        'it stood before «terminei»', () async {
+      final harness = SalaHarness();
+      final room = await _aCheckedPassage(harness);
+      harness.room.releaseBlockers = ['coverage_floor_not_met'];
+
+      await room.sala.aprovarRascunhoFinal();
+      await settle();
+
+      expect(room.state.needsPerson, isFalse);
+      expect(room.state.canFinishBackTranslation, isTrue);
+    });
+
+    test('refused with a code returns the team to the Back-translation as it '
+        'stood before «terminei»', () async {
+      final harness = SalaHarness();
+      final room = await _aCheckedPassage(harness);
+      harness.room.failReleaseWith = Refused(RefusalCode.unnamed(422));
+
+      await room.sala.aprovarRascunhoFinal();
+      await settle();
+
+      expect(room.state.needsPerson, isFalse);
+      expect(room.state.canFinishBackTranslation, isTrue);
+    });
+  });
+
+  test('a refused Watch read changes nothing, and the next beat reads '
+      'again', () async {
+    final harness = SalaHarness(watchesWithoutAHalt: true);
+    final room = await _onTheCanvas(harness);
+    final reads = stateReads(harness);
+    harness.room.failStateOnceWith = Refused(RefusalCode.unnamed(500));
+
+    await waitFor('a Watch ler', () => stateReads(harness) > reads);
+    await waitFor('a Watch ler de novo', () => stateReads(harness) > reads + 1);
+
+    expect(room.state.needsPerson, isFalse);
+    expect(room.state.unreachable, isFalse);
+    expect(room.state.voice, VoiceState.invite);
+  });
+
+  test('a scene rehearsal sent again that lands forgets the sign held for the '
+      'Canvas', () async {
+    final harness = SalaHarness();
+    final room = await _onTheSceneScreen(harness);
+    harness.room.failHeldTurnWith = const NetworkFailed('a rede caiu');
+    await _terminei(room);
+    await waitFor(
+      'a sala olhar a sessão',
+      () => harness.room.turnIdsLookedAt.isNotEmpty,
+    );
+    await _theRoomRests(room);
+
+    room.sala.sendTheSceneRehearsal();
+    await waitFor(
+      'a conversa voltar',
+      () => room.state.stage == SalaStage.conversa,
+    );
+    await settle();
+
+    expect(room.state.needsPerson, isFalse);
   });
 }

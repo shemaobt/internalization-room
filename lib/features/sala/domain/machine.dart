@@ -1051,8 +1051,7 @@ const _watch = ArmTheWatch();
     ),
     [const StopTheSound(), for (final line in machine.queue) DropTheLine(line)],
   ),
-  TheSessionIsGone() ||
-  ThePassageClosed() => _backToTheChoice(machine, discarding: true),
+  TheSessionIsGone() || ThePassageClosed() => _theSessionGone(machine),
   TheCallMetAClosedPassage() => (machine, const [CloseThePassage()]),
   TurnSent(:final turn) => (
     machine.copyWith(inFlight: turn, aHaltWaitsForTheCanvas: false),
@@ -1082,7 +1081,7 @@ const _watch = ArmTheWatch();
   TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
   ThePassageCannotOpen() => (machine, const [RefuseThePassage()]),
   TheStepFailed() => (machine, const [LetTheStepGo()]),
-  TheResumeFailed() => _backToTheChoice(machine, discarding: false),
+  TheResumeFailed() => _theResumeFailed(machine),
   TheSceneTurnFoundNothing() when machine.station is SceneRehearsal => (
     machine.copyWith(aHaltWaitsForTheCanvas: true),
     const [LetTheStepGo(), ReadTheSceneRehearsals()],
@@ -1193,6 +1192,7 @@ const _watch = ArmTheWatch();
 }
 
 bool _onAWayIn(Machine machine) => switch (machine.station) {
+  Menu() => true,
   Canvas() => machine.session == null,
   Panorama() => machine.panorama?.session == null,
   _ => false,
@@ -1670,32 +1670,39 @@ Machine _settleTheOpening(Machine machine, Turn turn) => switch (machine.halt) {
   _ => machine,
 };
 
-/// A gone session is discarded on the way back; a resume that failed keeps it, so the
-/// next open of the passage asks again (ADR 0064), and so does the warning it holds.
-(Machine, List<Effect>) _backToTheChoice(
-  Machine machine, {
-  required bool discarding,
-}) => (
-  machine.copyWith(
-    halt: switch (machine.halt) {
-      Warning() ||
-      Blocking(warningBeneath: true) when !discarding => const Warning(),
-      _ => const NoHalt(),
-    },
-    channel: const Silence(),
-    queue: const [],
-    owners: const {},
-    forgetTheFailures: true,
-    aHaltWaitsForTheCanvas: false,
-  ),
+(Machine, List<Effect>) _theSessionGone(Machine machine) => (
+  _leftThePassage(machine, const NoHalt()),
   [
-    const StopTheSound(),
-    const CloseAndDiscardTheMic(),
-    for (final line in machine.queue) DropTheLine(line),
-    if (discarding) const DiscardTheSession(),
+    ..._leavingThePassage(machine),
+    const DiscardTheSession(),
     const OpenTheChoice(),
   ],
 );
+
+/// A resume that failed keeps its session, so the next open of the passage asks again
+/// (ADR 0064), and so does the warning the session holds.
+(Machine, List<Effect>) _theResumeFailed(Machine machine) => (
+  _leftThePassage(machine, switch (machine.halt) {
+    Warning() || Blocking(warningBeneath: true) => const Warning(),
+    _ => const NoHalt(),
+  }),
+  [..._leavingThePassage(machine), const OpenTheChoice()],
+);
+
+Machine _leftThePassage(Machine machine, Halt halt) => machine.copyWith(
+  halt: halt,
+  channel: const Silence(),
+  queue: const [],
+  owners: const {},
+  forgetTheFailures: true,
+  aHaltWaitsForTheCanvas: false,
+);
+
+List<Effect> _leavingThePassage(Machine machine) => [
+  const StopTheSound(),
+  const CloseAndDiscardTheMic(),
+  for (final line in machine.queue) DropTheLine(line),
+];
 
 (Machine, List<Effect>) _fall(Machine machine, Door door, RoomReach why) {
   final fell = FellAt(door, why: why);
