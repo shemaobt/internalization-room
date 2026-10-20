@@ -1076,6 +1076,48 @@ void main() {
         );
 
         test(
+          'a frase whose post is in the air when the life is rebuilt is deleted when the post lands',
+          () async {
+            final room = await _onTheTranslateStep();
+            await _listening(room);
+            final post = room.harness.room.holdTheNextFrase();
+            room.harness.room.sceneAnswersFirst.add(
+              const NetworkFailed('timeout'),
+            );
+            await _aFraseAt(room, _s(4.0));
+            final path = room.harness.recorder.lastPath;
+
+            room.container.invalidate(salaSessionProvider);
+            room.container.read(salaSessionProvider);
+            await settle();
+            post.complete();
+            await settle();
+
+            expect(room.harness.recorder.deleted, contains(path));
+          },
+        );
+
+        for (final (named, answer) in [
+          ('kept', null),
+          ('refused', const Refused(RefusalCode.wordlessTelling)),
+        ]) {
+          test('each frase file is deleted once: $named', () async {
+            final room = await _onTheTranslateStep();
+            await _listening(room);
+            if (answer != null) room.harness.room.sceneAnswersFirst.add(answer);
+
+            await _aFraseAt(room, _s(4.0));
+            await settle();
+
+            final path = room.harness.recorder.lastPath;
+            expect(
+              room.harness.recorder.deleted.where((deleted) => deleted == path),
+              hasLength(1),
+            );
+          });
+        }
+
+        test(
           'a pausa marked past the held frase stays pending once the room kept it',
           () async {
             final room = await _onTheTranslateStep(
