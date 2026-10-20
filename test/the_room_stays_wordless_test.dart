@@ -17,6 +17,7 @@ const _herWordsTheTeamReads = {
   'lib/features/sala/presentation/widgets/scene_question.dart',
   'lib/features/sala/presentation/widgets/frase_list.dart',
   'lib/features/sala/presentation/widgets/retro_view.dart',
+  'lib/features/sala/presentation/widgets/status_lines.dart',
   'lib/features/sala/presentation/widgets/scene_translate_step.dart',
 };
 
