@@ -54,6 +54,13 @@ frase numbered as the voice numbers it and labelled with its «parte». It is th
 exception, under the moment label's reason, her words the team reads: her 1 October rule
 makes her frozen screen the bar, and on hers «na frase 3» points at a «3» on the screen.
 
+Amended by ENG-1348 (2026-10-19, ADR 0099): the scene rehearsal's translate step shows her
+words (`widgets/scene_rehearsal_view.dart`): her instruction «Ouçam o ensaio da cena; toquem no
+círculo para pausar onde a frase acaba, e de novo para traduzir só aquela frase.», her hint with
+its clock, «traduzir o ensaio da cena» and each «frase N». It is the eighth named exception,
+under the moment label's reason, her words the team reads: her frozen screen is the bar, as for
+the check screen. VoiceOver reads each one's written words; the strip beside them stays wordless.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a
