@@ -175,9 +175,6 @@ class RetroView extends ConsumerWidget {
     SalaSessionNotifier notifier,
     String language,
   ) {
-    final aberta =
-        session.btPhase != BtPhase.conferida &&
-        session.btPhase != BtPhase.findings;
     final contadas = [
       for (final (onde, trecho) in session.btTrechos.indexed)
         if (trecho.contado) (onde, trecho),
@@ -200,7 +197,9 @@ class RetroView extends ConsumerWidget {
                       maior.inMicroseconds,
                 )
               : 1,
-          onHear: aberta ? () => notifier.ouvirOTrechoContado(onde) : null,
+          onHear: session.canHearAFrase
+              ? () => notifier.ouvirOTrechoContado(onde)
+              : null,
           onRetell: session.canRetellAFrase && trecho.segmentId != null
               ? () => notifier.traduzirAFraseDeNovo(onde)
               : null,
