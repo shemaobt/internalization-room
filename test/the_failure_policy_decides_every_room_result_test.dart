@@ -356,10 +356,22 @@ void main() {
       const TheSceneDoorFailed(readAgain: true, generation: 4),
     ),
     (
-      'a frase refused for any other reason is never counted',
+      'a frase refused with no name is a frase not understood, never counted',
       RoomRefused(RefusalCode.unnamed(422)),
       _notATurn(door: Door.sceneFrase, refusals: 2),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a frase met while its rehearsal is being sent is never a frase not understood',
+      const RoomRefused(RefusalCode.sceneRehearsalSending),
+      _notATurn(door: Door.sceneFrase, refusals: 2),
       const TheSceneDoorFailed(generation: 4),
+    ),
+    (
+      'a translation again refused with no name is a frase not understood',
+      RoomRefused(RefusalCode.unnamed(422)),
+      _notATurn(door: Door.sceneFrase, rule: RefusalRule.readsTheListAgain),
+      const TheTellingCameBackEmpty(generation: 4),
     ),
     (
       'a frase refused with a code that stops the room calls a person',

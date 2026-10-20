@@ -142,7 +142,7 @@ class SceneTranslateStep extends ConsumerWidget {
               ),
             ),
           ],
-          if (scene.translatingAgain != null) ...[
+          if (scene.translatingAgain != null && !scene.keptUnknown) ...[
             const SizedBox(height: 8),
             _WrittenButton(
               said('keepTheEarlier'),

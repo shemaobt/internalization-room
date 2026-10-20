@@ -844,8 +844,12 @@ final class ReadTheSceneRehearsals extends Effect {
   const ReadTheSceneRehearsals();
 }
 
+/// The frase on the scene screen was not kept; [afterTheList] when the room may have kept
+/// it after all, and its list decides.
 final class AskTheFraseAgain extends Effect {
-  const AskTheFraseAgain();
+  final bool afterTheList;
+
+  const AskTheFraseAgain({this.afterTheList = false});
 }
 
 final class ShowTheSceneRehearsals extends Effect {
@@ -1294,12 +1298,13 @@ const _watch = ArmTheWatch();
     machine.copyWith(wordlessTelling: true),
     const [LetThePendingTranslationGo()],
   ),
-  TheTellingCameBackEmpty(:final readAgain)
+  TheTellingCameBackEmpty(readAgain: true)
       when machine.station is SceneRehearsal =>
-    (
-      machine,
-      [const AskTheFraseAgain(), if (readAgain) const ReadTheSceneRehearsals()],
-    ),
+    (machine, const [AskTheFraseAgain(afterTheList: true)]),
+  TheTellingCameBackEmpty() when machine.station is SceneRehearsal => (
+    machine,
+    const [AskTheFraseAgain()],
+  ),
   TheTellingCameBackEmpty() => (machine, const []),
   TheVerdictAsked() => (machine.copyWith(wordlessTelling: false), const []),
   TheTranslationStartedOver() => (

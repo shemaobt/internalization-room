@@ -637,7 +637,7 @@ void main() {
   });
 
   testWidgets(
-    'a frase translated again twice, the second naming the first after the first answer was lost, replaces the newest',
+    'a translation again whose answer and list read were both lost says her line without «manter», and translated again it replaces the newest',
     (tester) async {
       final screen = await _aBarTapped(tester, 3);
       screen.room
@@ -647,6 +647,7 @@ void main() {
       await screen.tellsTheFrase();
       screen.room.frasesLandBeforeTheyFail = false;
       expect(screen.shows(_notUnderstood), isTrue);
+      expect(byLabel(_keepTheEarlier), findsNothing);
 
       await screen.tellsTheFrase();
 
@@ -672,6 +673,7 @@ void main() {
     for (final (named, failure) in [
       ('nobody understood it', const Refused(RefusalCode.wordlessTelling)),
       ('its answer was lost', const NetworkFailed('timeout')),
+      ('the room refused it with no name', Refused(RefusalCode.unnamed(422))),
     ]) {
       /// Frase 2 held at 6 s, «terminei», and the resend fails with [failure].
       Future<_Screen> theSendStops(WidgetTester tester) async {
@@ -773,11 +775,143 @@ void main() {
     });
   });
 
-  group('a refusal that names the frase lets it go with her line', () {
+  group('a translation again whose answer was lost', () {
+    /// Frase 3 translated again, its answer lost after the room kept it if [kept], and
+    /// the list read the room holds until the room's `finishHeldSceneList`.
+    Future<_Screen> theListIsRead(
+      WidgetTester tester, {
+      required bool kept,
+    }) async {
+      final screen = await _aBarTapped(tester, 3);
+      screen.room
+        ..frasesLandBeforeTheyFail = kept
+        ..sceneAnswersFirst.add(const NetworkFailed('timeout'))
+        ..holdNextSceneList();
+      final posts = screen.room.frasesKept.length;
+      await screen.theFraseMicrophoneOpens();
+      await screen.tap(_tell);
+      await screen.until(() => screen.room.frasesKept.length > posts);
+      await screen.beat(500);
+      screen.room.frasesLandBeforeTheyFail = false;
+      return screen;
+    }
+
+    testWidgets(
+      'shows only «traduzindo de novo» while the list is read, and the circle waits',
+      (tester) async {
+        final screen = await theListIsRead(tester, kept: true);
+
+        expect(screen.shows(_translatingAgainLine(3)), isTrue);
+        expect(byLabel(_notUnderstood), findsNothing);
+        expect(byLabel(_keepTheEarlier), findsNothing);
+        await screen.tap(_tell);
+        expect(screen.state.channel, isNot(isA<Microphone>()));
+        screen.room.finishHeldSceneList();
+        await screen.beat(500);
+        expect(byLabel(_notUnderstood), findsNothing);
+        expect(byLabel(_translatingAgainLine(3)), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'the room did not keep it: the list read shows her line and «manter»',
+      (tester) async {
+        final screen = await theListIsRead(tester, kept: false);
+
+        screen.room.finishHeldSceneList();
+        await screen.beat(500);
+
+        expect(screen.shows(_notUnderstood), isTrue);
+        expect(byLabel(_keepTheEarlier), findsOneWidget);
+      },
+    );
+
+    /// Frase 3 translated again, kept by the room, its answer lost and its list read
+    /// lost too.
+    Future<_Screen> nothingIsKnown(WidgetTester tester) async {
+      final screen = await _aBarTapped(tester, 3);
+      screen.room
+        ..frasesLandBeforeTheyFail = true
+        ..sceneAnswersFirst.add(const NetworkFailed('timeout'))
+        ..sceneListsAnswerFirst.add(const NetworkFailed('timeout'));
+      await screen.tellsTheFrase();
+      screen.room.frasesLandBeforeTheyFail = false;
+      return screen;
+    }
+
+    int listReads(_Screen screen) =>
+        screen.room.calls.where((call) => call == 'sceneRehearsalsOf').length;
+
+    testWidgets(
+      'and the list read too: play reads the list first, shows the new one and plays on',
+      (tester) async {
+        final screen = await nothingIsKnown(tester);
+        final reads = listReads(screen);
+        final plays = screen.harness.playback.playedFrom.length;
+
+        await screen.tap(_playPause);
+        await screen.beat(500);
+
+        expect(listReads(screen), reads + 1);
+        expect(byLabel(_notUnderstood), findsNothing);
+        expect(screen.harness.playback.playedFrom, hasLength(plays + 1));
+        await screen.tap(_hearMine(3));
+        await screen.until(() => screen.room.clipsFetched.isNotEmpty);
+        expect(
+          screen.room.clipsFetched.last,
+          RoomRepository.sceneFraseAudioUrl(
+            _session,
+            _rehearsalId,
+            '$_rehearsalId-frase-5',
+          ),
+        );
+      },
+    );
+
+    testWidgets(
+      'and the list read too: «terminei» reads the list first and sends the scene once',
+      (tester) async {
+        final screen = await nothingIsKnown(tester);
+        final reads = listReads(screen);
+
+        await screen.tap(_terminei);
+        await screen.until(() => screen.room.scenesSent.isNotEmpty);
+
+        expect(listReads(screen), reads + 1);
+        expect(screen.room.scenesSent, hasLength(1));
+        await screen.beat(2000);
+      },
+    );
+  });
+
+  testWidgets(
+    '«terminei» goes on when the list shows the held translation again was kept',
+    (tester) async {
+      final screen = await _aBarTapped(tester, 3);
+      screen.room.sceneAnswersFirst.add(
+        const Refused(RefusalCode.sceneRehearsalSending),
+      );
+      await screen.tellsTheFrase();
+      screen.room
+        ..frasesLandBeforeTheyFail = true
+        ..sceneAnswersFirst.add(const NetworkFailed('timeout'));
+
+      await screen.tap(_terminei);
+      await screen.until(() => screen.room.scenesSent.isNotEmpty);
+
+      expect(screen.room.scenesSent, hasLength(1));
+      expect(byLabel(_notUnderstood), findsNothing);
+      await screen.beat(2000);
+    },
+  );
+
+  group('a refusal of the frase lets it go with her line', () {
     for (final code in [
       RefusalCode.unknownReference,
       RefusalCode.tooLarge,
       RefusalCode.unnamed(413),
+      RefusalCode.unnamed(422),
+      RefusalCode.unreadable,
     ]) {
       testWidgets('a new frase: $code', (tester) async {
         final screen = await _aPausaAfterFrase1(tester);

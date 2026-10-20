@@ -29,8 +29,8 @@ enum SceneStep { record, translate, placesUnknown, sent }
 /// scene the team picked, the scene of the rehearsal recorded again, and when the
 /// question appeared and when the pick was made. On the translate step it holds
 /// whether the team began listening, the pending pausa, whether the room heard no words
-/// in the last frase, the frase being translated again, and whether «terminei» reached
-/// the voice.
+/// in the last frase, the frase being translated again, whether the room may have kept
+/// its new translation unseen, and whether «terminei» reached the voice.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
@@ -47,6 +47,7 @@ final class SceneScreen {
   final bool listened;
   final bool notUnderstood;
   final SceneFrase? translatingAgain;
+  final bool keptUnknown;
   final bool wentToTheVoice;
 
   const SceneScreen({
@@ -65,6 +66,7 @@ final class SceneScreen {
     this.listened = false,
     this.notUnderstood = false,
     this.translatingAgain,
+    this.keptUnknown = false,
     this.wentToTheVoice = false,
   });
 
@@ -87,6 +89,7 @@ final class SceneScreen {
     bool? notUnderstood,
     SceneFrase? translatingAgain,
     bool clearTranslatingAgain = false,
+    bool? keptUnknown,
     bool? wentToTheVoice,
   }) => SceneScreen(
     step: step,
@@ -106,6 +109,7 @@ final class SceneScreen {
     translatingAgain: clearTranslatingAgain
         ? null
         : (translatingAgain ?? this.translatingAgain),
+    keptUnknown: keptUnknown ?? this.keptUnknown,
     wentToTheVoice: wentToTheVoice ?? this.wentToTheVoice,
   );
 
@@ -113,8 +117,11 @@ final class SceneScreen {
 
   /// The screen with nothing asked again: her «não entendi» gone and no frase being
   /// translated again.
-  SceneScreen get nothingAskedAgain =>
-      copyWith(notUnderstood: false, clearTranslatingAgain: true);
+  SceneScreen get nothingAskedAgain => copyWith(
+    notUnderstood: false,
+    clearTranslatingAgain: true,
+    keptUnknown: false,
+  );
 
   /// The take as far as a frase may reach: this tablet's length, never past what the
   /// room measured.

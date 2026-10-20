@@ -38,7 +38,7 @@ void main() {
   });
 
   test('An empty telling in the scene rehearsal that reads the list again asks '
-      'the frase again and reads the list.', () {
+      'the frase again after the list.', () {
     const onTheScene = Machine(station: SceneRehearsal());
 
     final (machine, effects) = reduce(
@@ -47,7 +47,7 @@ void main() {
     );
 
     expect(machine, same(onTheScene));
-    expect(effects, const [AskTheFraseAgain(), ReadTheSceneRehearsals()]);
+    expect(effects, const [AskTheFraseAgain(afterTheList: true)]);
   });
 
   test('The capture microphone opening clears her line.', () {

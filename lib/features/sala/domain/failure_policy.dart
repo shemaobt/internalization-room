@@ -91,6 +91,12 @@ abstract final class FailurePolicy {
 
   static const _theSceneDoors = {Door.sceneRehearsal, Door.sceneFrase};
 
+  /// The refusals at the frase door that say nothing of the frase itself.
+  static const _theFraseIsNotRefused = {
+    RefusalCode.sceneRehearsalSending,
+    RefusalCode.fraseOutOfPlace,
+  };
+
   static MachineEvent decide(RoomResult result, FailureContext context) {
     final generation = context.generation;
     final sounding = context.sounding;
@@ -118,13 +124,6 @@ abstract final class FailurePolicy {
           when context.door == Door.sceneFrase &&
               rule == RefusalRule.readsTheListAgain =>
         TheTellingCameBackEmpty(readAgain: true, generation: generation),
-      RoomRefused(
-        code: RefusalCode.wordlessTelling ||
-            RefusalCode.unknownReference ||
-            RefusalCode.tooLarge ||
-            RefusalCode.unreadable ||
-            'HTTP_413',
-      ) ||
       RoomNetworkFailed() when context.door == Door.sceneFrase =>
         TheTellingCameBackEmpty(generation: generation),
       RoomRefused(
@@ -163,6 +162,10 @@ abstract final class FailurePolicy {
       ),
       RoomRefused(:final code) when RefusalCode.stopsTheRoom.contains(code) =>
         halt,
+      RoomRefused(:final code)
+          when context.door == Door.sceneFrase &&
+              !_theFraseIsNotRefused.contains(code) =>
+        TheTellingCameBackEmpty(generation: generation),
       RoomRefused() when _theSceneDoors.contains(context.door) =>
         TheSceneDoorFailed(
           readAgain: rule == RefusalRule.readsTheListAgain,

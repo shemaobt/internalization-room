@@ -190,7 +190,8 @@ class AStationHost implements StationHost {
       asked.add('hearTheSceneRehearsals:${listed.length}');
 
   @override
-  void hearTheFraseNotUnderstood() => asked.add('hearTheFraseNotUnderstood');
+  void hearTheFraseNotUnderstood({required bool afterTheList}) =>
+      asked.add('hearTheFraseNotUnderstood:$afterTheList');
 }
 
 typedef Ports = ({
