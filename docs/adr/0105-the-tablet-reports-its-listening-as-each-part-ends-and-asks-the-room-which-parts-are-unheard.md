@@ -35,8 +35,12 @@ the ticket (ENG-1419) on 19 and 20 October.
   halt plays the part and the replay still stops where it would have.
 - The reports, the mark and the replay's list live in the notifier beside the Retro screen's
   other fields, under ADR 0046's written exception, until that screen moves to the machine.
-- The mark that a part was recorded again lives in memory only: a relaunch between the
-  recording and the entry takes today's path, without P2.
+- The mark that a part was recorded again arms only once this passage's Back-translation
+  was entered in this life, a resume that landed on it included: a scene recorded again on
+  the Rehearsal before the first entry leaves that entry on today's path, with no P2 and no
+  P0, because the first entry is the first listen's (ENG-1408).
+- The mark lives in memory only: a relaunch between the recording and the entry takes
+  today's path, without P2.
 
 ## Considered Options
 

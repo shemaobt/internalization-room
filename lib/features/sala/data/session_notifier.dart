@@ -399,6 +399,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late List<int> _naoOuvidasAFrente;
   late bool _paraDepoisDaUltima;
   late bool _umaParteFoiRegravada;
+  late bool _aTraducaoJaFoiAberta;
 
   /// The approval is in the air, and the approval has landed.
   ///
@@ -515,6 +516,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _naoOuvidasAFrente = [];
     _paraDepoisDaUltima = false;
     _umaParteFoiRegravada = false;
+    _aTraducaoJaFoiAberta = false;
     _aprovando = false;
     _aprovada = false;
     _tamanhoDaParteMs = {};
@@ -737,7 +739,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _leaveTheStepFor(Station next) {
     if (state.station == next) return;
-    if (state.station is Retro) _relatarAEscuta();
+    if (state.station is Retro) {
+      _aTraducaoJaFoiAberta = true;
+      _relatarAEscuta();
+    }
     _dispatch(const StepLeft());
     state = state.copyWith(awaitingTheGuide: false, endOfThePassage: false);
   }
@@ -4993,7 +4998,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (!saem.contains(finding.frase)) finding,
       ],
     );
-    _umaParteFoiRegravada = true;
+    if (_aTraducaoJaFoiAberta) _umaParteFoiRegravada = true;
     unawaited(_medirAParteRegravada(path, _generation));
     unawaited(
       _guard(
@@ -7984,6 +7989,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _pousadaNaParteApontadaPelaRecusa = false;
     _naoOuvidasAFrente = [];
     _umaParteFoiRegravada = false;
+    _aTraducaoJaFoiAberta = false;
     _aprovando = false;
     _aprovada = false;
     _escuta.esquecerTudo();

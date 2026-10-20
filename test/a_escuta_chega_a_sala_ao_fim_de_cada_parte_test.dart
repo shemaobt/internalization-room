@@ -148,7 +148,7 @@ void main() {
     () async {
       final it = await umEnsaioDeTresPartesGravado();
 
-      it.sala.tocarAParte(1);
+      it.sala.ouvirACena(2);
       await theClipOpens(it.harness);
       it.harness.playback
         ..length = partesDoEnsaio[1]

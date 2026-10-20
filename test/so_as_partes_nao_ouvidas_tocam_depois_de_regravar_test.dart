@@ -356,6 +356,74 @@ void main() {
     },
   );
 
+  test(
+    'uma cena gravada de novo no ensaio antes da primeira entrada deixa a entrada como hoje',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      final antiga = it.partes[1].path;
+      it.sala.gravarACena(2);
+      await waitFor(
+        'a cena 2 gravar',
+        () => it.estado.ensaio == EnsaioStatus.recording,
+      );
+      it.sala.gravarACena(2);
+      await waitFor(
+        'a cena 2 ficar pendente',
+        () => it.estado.ensaio == EnsaioStatus.recorded,
+      );
+      it.sala.takeKeep();
+      await waitFor(
+        'a cena 2 nova tomar o lugar da parte 2 e ganhar nome',
+        () => it.partes[1].path != antiga && it.partes[1].takeId != null,
+      );
+      it.harness.playback.lengths[it.partes[1].path] = partesDoEnsaio[1];
+      it.harness.room.listeningUnheardTakeIds = [
+        for (final parte in it.partes) parte.takeId!,
+      ];
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+
+      await _entrar(it);
+
+      expect(
+        _linhas(it, linhas),
+        isEmpty,
+        reason: 'a primeira entrada fica intacta: nem P2, nem P0',
+      );
+      expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
+    },
+  );
+
+  test(
+    'depois de uma retomada que caiu na tradução, a parte gravada de novo toca sozinha depois da P2',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      it.container.dispose();
+      it.container = it.harness.container();
+      addTearDown(it.container.dispose);
+      await it.sala.abrirEscolha();
+      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await waitFor(
+        'a retomada cair na tradução',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            it.estado.btPhase == BtPhase.playing &&
+            it.harness.playback.sounding,
+      );
+      await _ateOFim(it, partesDoEnsaio[2]);
+      await _regravada(it, 1, partesDoEnsaio[1]);
+      final segunda = it.partes[1];
+      it.harness.room.listeningUnheardTakeIds = [segunda.takeId!];
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+
+      await _entrar(it);
+
+      expect(_linhas(it, linhas), ['P2']);
+      expect(it.harness.playback.played.skip(tocadas), [segunda.path]);
+    },
+  );
+
   test('a primeira entrada na tradução não diz linha nova', () async {
     final it = await umEnsaioDeTresPartesGravado();
     it.harness.room.listeningUnheardTakeIds = [
