@@ -1496,6 +1496,13 @@ void main() {
           'ensaio-da-cena-1',
           attempt: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
         ),
+        'keepTheSceneFrase': (room) async => room.keepTheSceneFrase(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          await _tempRecording(),
+          startsMs: 0,
+          endsMs: 3100,
+        ),
         'replaceSegment': (room) async => room.replaceSegment(
           'sessao-1',
           'trecho-1',
@@ -1978,6 +1985,78 @@ void main() {
         (answer as Answered<SceneRehearsalRecord>).value.afterRestart,
         'c3d1a1f0-5b7e-4c1a-9a43-0d6e3f2b8a11',
       );
+    });
+
+    test(
+      'a frase posts its span, the attempt and its audio as this tablet, and the record carries the take\'s measured length',
+      () async {
+        late http.BaseRequest seen;
+        late String body;
+        final repository = RoomRepository(
+          client: MockClient((request) async {
+            seen = request;
+            body = request.body;
+            return http.Response(
+              jsonEncode(record(afterRestart: 'tentativa-1')),
+              200,
+            );
+          }),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        final answer = await repository.keepTheSceneFrase(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          await _tempRecording(),
+          startsMs: 3100,
+          endsMs: 7400,
+          afterRestart: 'tentativa-1',
+        );
+
+        expect(seen.method, 'POST');
+        expect(
+          seen.url.path,
+          '/api/internalization-room/sessions/sessao-1/scene-rehearsals/'
+          'ensaio-da-cena-1/frases',
+        );
+        expect(seen.headers['X-Room-Device'], 'aparelho-1');
+        expect(seen.headers['content-type'], contains('multipart/form-data'));
+        for (final (field, value) in [
+          ('starts_ms', '3100'),
+          ('ends_ms', '7400'),
+          ('after_restart', 'tentativa-1'),
+        ]) {
+          expect(body, contains('name="$field"\r\n\r\n$value\r\n'));
+        }
+        expect(body, contains('name="file"'));
+        expect(
+          (answer as Answered<SceneRehearsalRecord>).value.durationMs,
+          20000,
+        );
+      },
+    );
+
+    test('a frase with no restart names no attempt', () async {
+      late String body;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          body = request.body;
+          return http.Response(jsonEncode(record()), 200);
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      await repository.keepTheSceneFrase(
+        'sessao-1',
+        'ensaio-da-cena-1',
+        await _tempRecording(),
+        startsMs: 0,
+        endsMs: 3100,
+      );
+
+      expect(body, isNot(contains('name="after_restart"')));
     });
 
     test('the two 409 codes come back as refusals naming them', () async {
