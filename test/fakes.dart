@@ -884,6 +884,19 @@ class FakeInbox implements HandInboxRepository {
     _holdingCheck = null;
   }
 
+  final List<Completer<void>> _checksHeldAlone = [];
+  int _checksTakenAlone = 0;
+
+  void holdOneCheck() => _checksHeldAlone.add(Completer<void>());
+
+  void finishTheFirstHeldCheck() {
+    for (final held in _checksHeldAlone) {
+      if (held.isCompleted) continue;
+      held.complete();
+      return;
+    }
+  }
+
   @override
   Future<RoomAnswer<List<HandReply>>> fetchReplies() async {
     checks++;
@@ -892,6 +905,9 @@ class FakeInbox implements HandInboxRepository {
         : Answered(replies);
     final held = _holdingCheck;
     if (held != null) await held.future;
+    if (_checksTakenAlone < _checksHeldAlone.length) {
+      await _checksHeldAlone[_checksTakenAlone++].future;
+    }
     return answer;
   }
 

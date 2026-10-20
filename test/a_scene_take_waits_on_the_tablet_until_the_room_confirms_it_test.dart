@@ -867,8 +867,6 @@ class _CountsHeldAfterTheKeep extends TakeUploadQueue {
   }
 }
 
-/// An Outbox whose flush, once armed, confirms what waited and then waits to be let go
-/// before the room hears it.
 class _ConfirmsHeldBeforeTheRoomHears extends TakeUploadQueue {
   _ConfirmsHeldBeforeTheRoomHears({
     required super.room,

@@ -415,6 +415,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _pendingClock = null;
     _coverageClock = null;
     _pendingTakePath = null;
+    _outboxFalls = null;
+    _outboxGone = null;
     _coverageWatch = null;
     _coverageSessionId = null;
     _awaitingCoverageTurnId = null;
@@ -3026,8 +3028,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  Future<void> _pullInbox() =>
-      _inboxRead ??= _readTheInbox().whenComplete(() => _inboxRead = null);
+  Future<void> _pullInbox() {
+    if (_inboxRead case final reading?) return reading;
+    late final Future<void> reading;
+    reading = _readTheInbox().whenComplete(() {
+      if (identical(_inboxRead, reading)) _inboxRead = null;
+    });
+    return _inboxRead = reading;
+  }
 
   Future<void> _readTheInbox() async {
     final List<HandReply> fetched;
@@ -3757,7 +3765,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final row = waiting.row;
     final kept = row == null ? null : _takes.keptSceneOf(row);
     if (kept == null) return;
-    await _theRoomKept(kept, waiting, asked, generation);
+    await _theRoomKept(kept, waiting, asked, _waitOnTheGeneration);
   }
 
   Future<void> _theRoomKept(
@@ -6944,7 +6952,7 @@ class _NotifierHost implements StationHost {
 
   @override
   Future<void> hearTheOutboxFlushed() async {
-    final generation = _notifier._waitOnTheGeneration;
+    final generation = _notifier._generation;
     await _notifier._adoptTheNames(_notifier._takes);
     await _notifier._theRoomKeptWhatWaited(generation);
   }

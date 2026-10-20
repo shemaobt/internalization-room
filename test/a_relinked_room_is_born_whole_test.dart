@@ -234,4 +234,38 @@ void main() {
     );
     expect(_read(container).sessionId, 'sessao-7');
   });
+
+  testWidgets('a reply check of the room before the revocation never lets '
+      'the relinked room check twice at once', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+      inboxWatch: const Duration(hours: 1),
+    );
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.inbox.holdOneCheck();
+    _room(container).lookForReplies();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await _theDeskUnlinks(tester, container, harness);
+    harness.inbox.holdOneCheck();
+    final checksBeforeTheRelink = harness.inbox.checks;
+    await _theDeskLinksAgain(tester, harness);
+    expect(harness.inbox.checks, checksBeforeTheRelink + 1);
+    harness.inbox.finishTheFirstHeldCheck();
+    await tester.pump(const Duration(milliseconds: 100));
+    _room(container).lookForReplies();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      harness.inbox.checks,
+      checksBeforeTheRelink + 1,
+      reason:
+          'a sala nova ainda espera a resposta que ela mesma pediu; a da sala '
+          'de antes, chegando, não pode abrir uma segunda leitura por cima',
+    );
+    harness.inbox.finishTheFirstHeldCheck();
+    await tester.pump(const Duration(milliseconds: 100));
+  });
 }
