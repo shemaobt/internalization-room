@@ -38,7 +38,8 @@ const _wentToTheVoice = 'a tradução do ensaio da cena foi para a voz';
 String _translateAgainBar(int n) =>
     'Ouvir esta frase de novo e traduzir de novo — $n';
 String _translatingAgainLine(int n) =>
-    'traduzindo de novo a frase $n — toquem no círculo';
+    'traduzindo de novo a frase $n — toquem no círculo (a pausa só se move na '
+    'última frase; para mudar uma pausa anterior, recomeçar a tradução)';
 String _hearMine(int n) => 'ouvir a minha tradução da frase $n';
 
 SceneFrase _frase(String id, int startsMs, int endsMs) =>

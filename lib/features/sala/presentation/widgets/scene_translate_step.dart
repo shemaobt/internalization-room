@@ -14,12 +14,14 @@ import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'motion.dart';
+import 'pause_adjust_row.dart';
 import 'scene_strip.dart';
 
 /// The translate step, in her order: the instruction, the play control and the hint, the
-/// strip, «traduzir o ensaio da cena» until the team listens, the circle, her message
-/// under it and «manter a tradução de antes» while a frase is translated again, the
-/// frases told, «terminei», and «gravar o ensaio da cena de novo» under it.
+/// strip, her adjust row under a pending pausa, «traduzir o ensaio da cena» until the
+/// team listens, the circle, her message under it and «manter a tradução de antes» while
+/// a frase is translated again, the frases told, «terminei», «recomeçar a tradução», and
+/// «gravar o ensaio da cena de novo» under them.
 class SceneTranslateStep extends ConsumerWidget {
   final SceneScreen scene;
   final Envelope? envelope;
@@ -28,6 +30,11 @@ class SceneTranslateStep extends ConsumerWidget {
   final bool sending;
   final bool sendable;
   final bool unseen;
+  final bool adjusts;
+  final bool moving;
+  final SceneLine? line;
+  final bool restartShown;
+  final BtRecomeco? restart;
 
   const SceneTranslateStep({
     super.key,
@@ -38,6 +45,11 @@ class SceneTranslateStep extends ConsumerWidget {
     required this.sending,
     required this.sendable,
     required this.unseen,
+    required this.adjusts,
+    required this.moving,
+    required this.line,
+    required this.restartShown,
+    required this.restart,
   });
 
   @override
@@ -101,10 +113,30 @@ class SceneTranslateStep extends ConsumerWidget {
           SceneStrip(
             envelope: envelope,
             length: scene.length,
-            frases: frases,
+            frases: [
+              for (final frase in frases)
+                if (moving && frase.fraseId == scene.translatingAgain?.fraseId)
+                  SceneFrase(
+                    fraseId: frase.fraseId,
+                    startsMs: frase.startsMs,
+                    endsMs: scene.pausa?.inMilliseconds ?? frase.endsMs,
+                  )
+                else
+                  frase,
+            ],
             pausa: scene.pausa,
             playing: playing,
           ),
+          if (adjusts) ...[
+            const SizedBox(height: 12),
+            PauseAdjustRow(
+              lit: idle,
+              language: language,
+              onEarlier: notifier.pauseEarlier,
+              onHear: notifier.hearThePause,
+              onLater: notifier.pauseLater,
+            ),
+          ],
           if (!scene.listened) ...[
             const SizedBox(height: 12),
             _WrittenButton(
@@ -178,6 +210,18 @@ class SceneTranslateStep extends ConsumerWidget {
               large: true,
             ),
           ],
+          if (restartShown || line != null) ...[
+            const SizedBox(height: 12),
+            SceneRestartControl(
+              shown: restartShown,
+              written: true,
+              armed: restart,
+              n: scene.rehearsal?.translatedFrases ?? 0,
+              line: line,
+              live: idle,
+              language: language,
+            ),
+          ],
           const SizedBox(height: 8),
           _WrittenButton(
             said('again'),
@@ -190,8 +234,10 @@ class SceneTranslateStep extends ConsumerWidget {
     );
   }
 
-  /// Her line under the circle: the send-off, a frase the room did not understand, or
-  /// the frase being translated again.
+  /// Her line under the circle: the send-off, a moved pause the room refused, a frase
+  /// the room did not understand, or the frase being translated again: the last one
+  /// whose pause may move, the last one on a take with no loudness to read, or an
+  /// earlier one.
   String? _messageOf(List<SceneFrase> frases) {
     final again = frases.indexWhere(
       (frase) => frase.fraseId == scene.translatingAgain?.fraseId,
@@ -199,12 +245,29 @@ class SceneTranslateStep extends ConsumerWidget {
     if (scene.wentToTheVoice) {
       return sceneRehearsalLabelFor('wentToTheVoice', language);
     }
-    if (scene.notUnderstood) return retroLabelFor('notUnderstood', language);
-    if (again >= 0) {
-      return sceneRehearsalLabelFor('retelling', language, n: again + 1);
+    if (_refusalOf(line) case final refusal?) {
+      return retroLabelFor(refusal, language);
     }
-    return null;
+    if (scene.notUnderstood) return retroLabelFor('notUnderstood', language);
+    if (again < 0) return null;
+    final last = frases[again].fraseId == scene.rehearsal?.lastFrase?.fraseId;
+    return sceneRehearsalLabelFor(
+      moving
+          ? 'retellingLast'
+          : last
+          ? 'retelling'
+          : 'retellingOther',
+      language,
+      n: again + 1,
+    );
   }
+
+  static String? _refusalOf(SceneLine? line) => switch (line) {
+    SceneLine.pauseOnlyOnTheLast => 'pauseOnlyOnTheLast',
+    SceneLine.pausePastTheEnd => 'pausePastTheEnd',
+    SceneLine.pauseCannotStandThere => 'pauseCannotStandThere',
+    _ => null,
+  };
 
   /// Her hint: the pausa waiting, the take playing with her clock, the end of the take,
   /// or the take paused; nothing before the team listens.
@@ -224,6 +287,74 @@ class SceneTranslateStep extends ConsumerWidget {
     if (playing) return sceneListeningLineFor(at, scene.length, language);
     if (!scene.moreToTell) return sceneRehearsalLabelFor('ended', language);
     return sceneRehearsalLabelFor('paused', language);
+  }
+}
+
+/// «recomeçar a tradução» while it applies, armed by its first tap with the count it
+/// discards, and her line once the room answered it or failed to, written only where
+/// the step may carry words.
+class SceneRestartControl extends ConsumerWidget {
+  final bool shown;
+  final bool written;
+  final BtRecomeco? armed;
+  final int n;
+  final SceneLine? line;
+  final bool live;
+  final String language;
+
+  const SceneRestartControl({
+    super.key,
+    required this.shown,
+    required this.written,
+    required this.armed,
+    required this.n,
+    required this.line,
+    required this.live,
+    required this.language,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = SalaColors.of(context);
+    final words = switch (line) {
+      SceneLine.restarted => sceneRehearsalLabelFor('restarted', language),
+      SceneLine.restartFailed => retroLabelFor('restartFailed', language),
+      _ => null,
+    };
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (shown)
+          RoundActionButton(
+            size: 52,
+            mood: live ? ButtonMood.lit : ButtonMood.dimmed,
+            semanticLabel: armed == null
+                ? sceneRehearsalLabelFor('restart', language)
+                : retroLabelFor('restartArmed', language, n: n),
+            onTap: ref
+                .read(salaSessionProvider.notifier)
+                .restartTheSceneTranslation,
+            child: Icon(
+              LucideIcons.rotateCcw,
+              size: 22,
+              color: colors.vermelhoMic,
+            ),
+          ),
+        if (words != null) ...[
+          const SizedBox(height: 8),
+          if (written)
+            Semantics(
+              liveRegion: true,
+              child: _Written(
+                words,
+                style: TextStyle(color: colors.mut, fontSize: 16),
+              ),
+            )
+          else
+            Semantics(liveRegion: true, label: words),
+        ],
+      ],
+    );
   }
 }
 

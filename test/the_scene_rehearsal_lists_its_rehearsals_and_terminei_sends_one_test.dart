@@ -627,11 +627,15 @@ void main() {
       harness.room.holdNextRestart();
 
       await tester.tap(byLabel('recomeçar a tradução'));
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.tap(
+        byLabel('toque de novo para apagar as 1 frases traduzidas'),
+      );
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(_enabled(tester, _terminei), isFalse);
       harness.room.finishHeldRestart();
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(seconds: 7));
     });
 
     testWidgets('listen mode: no terminei', (tester) async {
@@ -1143,7 +1147,10 @@ void main() {
       List<SceneRehearsalRecord> rehearsals,
       SceneStep step,
     ) async {
-      final room = await _atRest(rehearsals);
+      final room = await _atRest(
+        rehearsals,
+        SalaHarness(restartWake: Duration.zero),
+      );
       await _theScreenOpens(room, on: _showing(2, step));
       room.harness.room.holdNextTurn();
       room.sala.sendTheSceneRehearsal();
@@ -1206,6 +1213,8 @@ void main() {
         _rehearsal(n: 2, frases: [_frase('f1', 0, 24000)]),
       ], SceneStep.placesUnknown);
 
+      room.sala.restartTheSceneTranslation();
+      await settle();
       room.sala.restartTheSceneTranslation();
       await settle();
 
@@ -1562,6 +1571,8 @@ void main() {
       harness.room.holdNextRestart();
       final notifier = container.read(salaSessionProvider.notifier);
       notifier.restartTheSceneTranslation();
+      await tester.pump(const Duration(milliseconds: 700));
+      notifier.restartTheSceneTranslation();
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(_enabled(tester, byLabel(_sentRow)), isFalse);
@@ -1570,7 +1581,7 @@ void main() {
       expect(container.read(salaSessionProvider).scene.rehearsal?.n, 2);
 
       harness.room.finishHeldRestart();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(seconds: 7));
     });
   });
 

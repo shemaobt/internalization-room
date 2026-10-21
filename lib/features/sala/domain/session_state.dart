@@ -23,6 +23,16 @@ enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim, cena }
 /// Where the scene rehearsal's screen is.
 enum SceneStep { record, translate, placesUnknown, sent }
 
+/// Her line beside the scene rehearsal's controls: «recomeçar a tradução» answered or
+/// failed, or a moved pause the room refused, one per refusal code.
+enum SceneLine {
+  restarted,
+  restartFailed,
+  pauseOnlyOnTheLast,
+  pausePastTheEnd,
+  pauseCannotStandThere,
+}
+
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
 /// answered it, its take as a file on this tablet and the take's measured length, and
 /// whether a call this screen made is in the air. On the record step it also holds the
@@ -391,6 +401,12 @@ class SalaSessionState {
   /// the next «terminei» on that rehearsal goes under it again.
   final ({String rehearsalId, String turnId})? sceneTurn;
 
+  /// «recomeçar a tradução» on the scene rehearsal armed by its first tap, kept beside the
+  /// screen so its timers never replace the screen a call waits on.
+  final BtRecomeco? sceneRestart;
+
+  final SceneLine? sceneLine;
+
   /// Whether Scene row [scene] does not apply right now (ADR 0040: dimmed means it does
   /// not apply). True for every row but the one a finding sent the team back to record,
   /// while that record-again stands open and nothing has been recorded for it yet. Once
@@ -467,6 +483,8 @@ class SalaSessionState {
     this.scenes = const ScenesAwaited(),
     this.scenesOfThePassage,
     this.sceneTurn,
+    this.sceneRestart,
+    this.sceneLine,
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -630,6 +648,41 @@ class SalaSessionState {
     (take: final take, :final envelope) when take == scene.take => envelope,
     _ => null,
   };
+
+  /// The frase being translated again whose pausa the team may move: the last one, on a
+  /// take with loudness to read.
+  SceneFrase? get sceneFraseOnTheMove =>
+      switch ((scene.translatingAgain, scene.rehearsal?.lastFrase)) {
+        (final again?, final last?)
+            when again.fraseId == last.fraseId && sceneEnvelope != null =>
+          again,
+        _ => null,
+      };
+
+  /// Where a pending pausa may go: past the start of the frase on the move, else past
+  /// where the translation stopped, and short of the take's end.
+  ({Duration lo, Duration hi})? get scenePausaBounds => switch (scene.takeEnd) {
+    final end? => pauseBounds(scenePausaFloor, end),
+    null => null,
+  };
+
+  Duration get scenePausaFloor =>
+      scene.rehearsal?.pausaFloor(sceneFraseOnTheMove) ?? Duration.zero;
+
+  /// Whether the pending pausa shows her adjust row: on a take with loudness to read,
+  /// never at the take's own end placed by itself unless the last frase's pausa is on
+  /// the move.
+  bool get scenePausaAdjusts =>
+      scene.pausa != null &&
+      sceneEnvelope != null &&
+      (sceneFraseOnTheMove != null || scene.pausa != scene.takeEnd);
+
+  /// Whether «recomeçar a tradução» applies: a rehearsal being translated, so never a
+  /// sent one, with a translated frase.
+  bool get sceneRestartShown =>
+      (scene.step == SceneStep.translate ||
+          scene.step == SceneStep.placesUnknown) &&
+      (scene.rehearsal?.translatedFrases ?? 0) > 0;
 
   /// Whether the room may hold a new translation the team has not seen in the rehearsal
   /// on the scene screen.
@@ -1166,6 +1219,10 @@ class SalaSessionState {
     List<Scene>? scenesOfThePassage,
     ({String rehearsalId, String turnId})? sceneTurn,
     bool clearSceneTurn = false,
+    BtRecomeco? sceneRestart,
+    bool clearSceneRestart = false,
+    SceneLine? sceneLine,
+    bool clearSceneLine = false,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
@@ -1257,6 +1314,10 @@ class SalaSessionState {
       scenes: scenes ?? this.scenes,
       scenesOfThePassage: scenesOfThePassage ?? this.scenesOfThePassage,
       sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),
+      sceneRestart: clearSceneRestart
+          ? null
+          : (sceneRestart ?? this.sceneRestart),
+      sceneLine: clearSceneLine ? null : (sceneLine ?? this.sceneLine),
     );
   }
 }

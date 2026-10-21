@@ -287,6 +287,13 @@ final fimLingerProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 14),
 );
 
+/// The room's refusals of a moved pause, each with her line for why.
+const _aMoveRefused = {
+  RefusalCode.pauseOnlyOnTheLastFrase: SceneLine.pauseOnlyOnTheLast,
+  RefusalCode.pausePastTheEnd: SceneLine.pausePastTheEnd,
+  RefusalCode.pauseCannotStandThere: SceneLine.pauseCannotStandThere,
+};
+
 final restartWakeProvider = Provider<Duration>(
   (ref) => const Duration(milliseconds: 600),
 );
@@ -3497,6 +3504,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       scene: const SceneScreen(),
       scenes: const ScenesAwaited(),
+      clearSceneRestart: true,
+      clearSceneLine: true,
     );
     _handOff(_openTheScreen(sessionId));
   }
@@ -3716,6 +3725,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         .where((frase) => frase.fraseId == armed?.fraseId)
         .firstOrNull;
     final herLineStands = stillArmed != null && asked.notUnderstood;
+    final floor = rehearsal.pausaFloor(stillArmed);
     if (armed != null && stillArmed == null) _silenceTheRoom();
     state = state.copyWith(
       scene: SceneScreen(
@@ -3724,7 +3734,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         take: here,
         length: length,
         listened: stillTranslating && asked.listened,
-        pausa: pausa != null && pausa > rehearsal.frontier ? pausa : null,
+        pausa: pausa != null && pausa > floor ? pausa : null,
         translatingAgain: stillArmed,
         notUnderstood: herLineStands,
       ),
@@ -4070,6 +4080,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.needsPerson) {
       return;
     }
+    _theRefusalLineGoes();
     switch (state.channel) {
       case Microphone(owner: MicOwner.frase):
         _handOff(_keepTheSceneFrase());
@@ -4119,14 +4130,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (_theListFirst(_playTheSceneRehearsal)) return;
+    _theRefusalLineGoes();
     final shown = state.scene.nothingAskedAgain;
     state = state.copyWith(scene: shown);
     if (translatingAgain != null) {
       _letItsNewTranslationGo(rehearsal.rehearsalId, translatingAgain);
+      state = state.copyWith(scene: shown.copyWith(clearPausa: true));
       _translateOnFrom(rehearsal.frontier);
     } else if (!shown.listened) {
       state = state.copyWith(scene: shown.copyWith(listened: true));
       _translateOnFrom(rehearsal.frontier);
+    } else if (playing && pausa != null) {
+      _silenceTheRoom();
     } else if (playing) {
       _markThePausa();
     } else if (pausa != null) {
@@ -4219,7 +4234,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       sessionId: sessionId,
       path: path,
       startsMs: translatedAgain?.startsMs ?? rehearsal.frontier.inMilliseconds,
-      endsMs: translatedAgain?.endsMs ?? shown.pausa!.inMilliseconds,
+      endsMs: translatedAgain == null
+          ? shown.pausa!.inMilliseconds
+          : shown.pausa?.inMilliseconds ?? translatedAgain.endsMs!,
       afterRestart: rehearsal.afterRestart,
       replaces: translatedAgain?.fraseId,
     );
@@ -4272,6 +4289,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (kept) {
       case Answered(:final value):
         _theFraseWasKept(shown, value);
+      case final Refused refused when _aMoveRefused.containsKey(refused.code):
+        _theMoveWasNotKept(refused, shown, _aMoveRefused[refused.code]!);
       case final RoomFailure failure:
         _theFraseWasNotKept(
           failure,
@@ -4283,11 +4302,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             _ => RefusalRule.letsTheStepGo,
           },
         );
-        if (!state.scene.notUnderstood && state.sceneTranslationUnseen) {
-          await _theListDecides();
+        if (!state.scene.notUnderstood &&
+            state.sceneTranslationUnseen &&
+            await _theListDecides() &&
+            _aMove(shown.translatingAgain, frase.endsMs)) {
+          _goOnFromTheMove();
         }
     }
     return true;
+  }
+
+  /// Whether a translation again of [again] ending at [endsMs] moved its pause.
+  static bool _aMove(SceneFrase? again, int? endsMs) =>
+      again != null && endsMs != null && endsMs != again.endsMs;
+
+  /// A moved pause the room kept: the take goes on from its new end.
+  void _goOnFromTheMove() {
+    if (!state.scene.moreToTell) return;
+    _translateOnFrom(state.scene.rehearsal!.frontier);
+  }
+
+  /// A moved pause the room refused is dropped with her line for why, and the frases
+  /// are read again.
+  void _theMoveWasNotKept(Refused refused, SceneScreen shown, SceneLine why) {
+    _silenceTheRoom();
+    state = state.copyWith(
+      scene: shown.nothingAskedAgain.copyWith(clearPausa: true),
+      sceneLine: why,
+    );
+    _decideAt(
+      refused,
+      door: Door.sceneRehearsal,
+      rule: RefusalRule.readsTheListAgain,
+    );
   }
 
   /// A frase refused as out of place may lie over one the room kept while this screen
@@ -4301,19 +4348,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _decideAt(failure, door: Door.sceneFrase, rule: rule);
   }
 
-  /// A frase translated again stays paused where it is. A pausa the team marked past
-  /// the kept frase stays for the circle; otherwise the take plays on from where the
-  /// translation now stops.
+  /// A frase translated again stays paused where it is, unless its pause moved: the take
+  /// then plays on from the new end. A pausa the team marked past the kept frase stays
+  /// for the circle; otherwise the take plays on from where the translation now stops.
   void _theFraseWasKept(SceneScreen shown, SceneRehearsalRecord kept) {
     if (shown.translatingAgain case final again?) {
       final unseen = state.sceneTranslationsUnseen;
+      final moved = _aMove(again, shown.pausa?.inMilliseconds);
       state = state.copyWith(
-        scene: shown.nothingAskedAgain.copyWith(rehearsal: kept),
+        scene: shown.nothingAskedAgain.copyWith(
+          rehearsal: kept,
+          clearPausa: true,
+        ),
         sceneRehearsals: _listedWith(kept),
         sceneTranslationsUnseen: unseen[kept.rehearsalId] == again.fraseId
             ? ({...unseen}..remove(kept.rehearsalId))
             : unseen,
       );
+      if (moved) _goOnFromTheMove();
       return;
     }
     final pausa = shown.pausa;
@@ -4342,6 +4394,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _silenceTheRoom();
+    _theRefusalLineGoes();
+    final alreadyMoving = state.sceneFraseOnTheMove?.fraseId == fraseId
+        ? shown.pausa
+        : null;
     state = state.copyWith(
       scene: shown.nothingAskedAgain.copyWith(
         translatingAgain: frase,
@@ -4349,14 +4405,80 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         listened: true,
       ),
     );
+    final pausa = state.sceneFraseOnTheMove == null
+        ? null
+        : alreadyMoving ?? Duration(milliseconds: frase.endsMs!);
+    if (pausa != null) {
+      state = state.copyWith(scene: state.scene.copyWith(pausa: pausa));
+    }
     _play(
       PartSound(
         0,
         take,
         from: Duration(milliseconds: frase.startsMs!),
-        to: Duration(milliseconds: frase.endsMs!),
+        to: pausa ?? Duration(milliseconds: frase.endsMs!),
       ),
     );
+  }
+
+  /// «um pouco antes» and «um pouco depois»: the pending pausa moves to the next silence
+  /// that way within 1.5 s, else by 0.4 s, within its bounds (ADR 0076).
+  void pauseEarlier() => _gesture(() => _nudgeTheScenePausa(Nudge.earlier));
+
+  void pauseLater() => _gesture(() => _nudgeTheScenePausa(Nudge.later));
+
+  void _nudgeTheScenePausa(Nudge to) {
+    final pausa = state.scene.pausa;
+    final envelope = state.sceneEnvelope;
+    final bounds = state.scenePausaBounds;
+    if (!_thePausaAdjusts ||
+        pausa == null ||
+        envelope == null ||
+        bounds == null) {
+      return;
+    }
+    final nudged = nudgeThePause(
+      envelope,
+      pausa,
+      to,
+      lo: bounds.lo,
+      hi: bounds.hi,
+    );
+    if (to == Nudge.later ? nudged <= pausa : nudged >= pausa) return;
+    _silenceTheRoom();
+    _theRefusalLineGoes();
+    state = state.copyWith(scene: state.scene.copyWith(pausa: nudged));
+  }
+
+  /// «ouvir a pausa»: up to 1.5 s before the pausa, never from before the previous
+  /// pause, stopping at the pausa.
+  void hearThePause() => _gesture(_hearThePause);
+
+  void _hearThePause() {
+    final SceneScreen(:pausa, :take) = state.scene;
+    if (!_thePausaAdjusts || pausa == null || take == null) return;
+    final from = theMomentBefore(pausa, state.scenePausaFloor);
+    _silenceTheRoom();
+    _theRefusalLineGoes();
+    _play(PartSound(0, take, from: from, to: pausa));
+  }
+
+  /// Whether the row moves the pausa: never while a frase waits to be sent again, which
+  /// goes at the pausa it was told at.
+  bool get _thePausaAdjusts =>
+      state.station is SceneRehearsal &&
+      state.scene.step == SceneStep.translate &&
+      _frases.of(state.scene.rehearsal!.rehearsalId) == null &&
+      !state.scene.waiting &&
+      !state.theSceneIsSending &&
+      !state.needsPerson &&
+      state.channel is! Microphone &&
+      state.scenePausaAdjusts;
+
+  /// A refused move's or a failed restart's line goes at the team's next gesture.
+  void _theRefusalLineGoes() {
+    if (state.sceneLine case null || SceneLine.restarted) return;
+    state = state.copyWith(clearSceneLine: true);
   }
 
   /// «manter a tradução de antes»: the frase being translated again is given up, and so
@@ -4378,7 +4500,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       shown.translatingAgain!,
     );
     _silenceTheRoom();
-    state = state.copyWith(scene: shown.nothingAskedAgain);
+    _theRefusalLineGoes();
+    state = state.copyWith(
+      scene: shown.nothingAskedAgain.copyWith(clearPausa: true),
+    );
   }
 
   /// A new translation of the frase translated again that still waits to be sent again
@@ -4562,6 +4687,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     state = state.copyWith(
       scene: SceneScreen(again: state.scene.rehearsal?.scene),
+      clearSceneRestart: true,
+      clearSceneLine: true,
     );
     if (state.scenes is ScenesMissing) unawaited(_askForTheScenes());
     _stampTheQuestion();
@@ -4570,20 +4697,40 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void restartTheSceneTranslation() =>
       _gesture(() => _restartTheSceneTranslation());
 
+  /// «recomeçar a tradução» takes two taps: the first arms it, which wakes after
+  /// [restartWakeProvider] so a double tap never fires it and lapses after
+  /// [restartLapseProvider]; the second sets the frases aside in the room.
   void _restartTheSceneTranslation() {
     final shown = state.scene;
-    final rehearsal = shown.rehearsal;
     final sessionId = state.sessionId;
     if (state.station is! SceneRehearsal ||
-        shown.step != SceneStep.placesUnknown ||
+        !state.sceneRestartShown ||
         shown.waiting ||
         state.theSceneIsSending ||
-        rehearsal == null ||
+        state.needsPerson ||
+        state.channel is Microphone ||
         sessionId == null) {
       return;
     }
+    if (state.sceneRestart == null) {
+      _theRefusalLineGoes();
+      state = state.copyWith(sceneRestart: BtRecomeco.armado);
+      _after('sceneRestartWakes', ref.read(restartWakeProvider), () {
+        if (state.sceneRestart != BtRecomeco.armado) return;
+        state = state.copyWith(sceneRestart: BtRecomeco.pronto);
+      });
+      _after(
+        'sceneRestartLapses',
+        ref.read(restartLapseProvider),
+        () => state = state.copyWith(clearSceneRestart: true),
+      );
+      return;
+    }
+    if (state.sceneRestart != BtRecomeco.pronto) return;
+    _timers.remove('sceneRestartLapses')?.cancel();
+    _silenceTheRoom();
     final waiting = shown.asWaiting;
-    state = state.copyWith(scene: waiting);
+    state = state.copyWith(scene: waiting, clearSceneRestart: true);
     _handOff(_restartTheTranslation(sessionId, shown, waiting));
   }
 
@@ -4606,10 +4753,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (restarted) {
       case Answered(:final value):
         _frases.letGoOf(rehearsal.rehearsalId);
-        if (stillShown) await _showTheRehearsal(value, shown, generation);
+        if (stillShown) {
+          final fresh = shown.nothingAskedAgain.copyWith(
+            listened: false,
+            clearPausa: true,
+          );
+          state = state.copyWith(scene: fresh);
+          _sayTheSceneLine(SceneLine.restarted);
+          await _showTheRehearsal(value, fresh, generation);
+        }
       case final RoomFailure failure:
+        if (stillShown) _sayTheSceneLine(SceneLine.restartFailed);
         _decideAt(failure, door: Door.sceneRehearsal);
     }
+  }
+
+  /// «tradução recomeçada» stands for [restartLapseProvider]; a failure's line stands
+  /// until the team's next gesture.
+  void _sayTheSceneLine(SceneLine line) {
+    state = state.copyWith(sceneLine: line);
+    if (line != SceneLine.restarted) return;
+    _after('sceneLine', ref.read(restartLapseProvider), () {
+      if (state.sceneLine != SceneLine.restarted) return;
+      state = state.copyWith(clearSceneLine: true);
+    });
   }
 
   void _theSceneRehearsalsHeard(List<SceneRehearsalRecord> listed) {
@@ -4654,7 +4821,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _silenceTheRoom();
     final waiting = shown.asWaiting;
-    state = state.copyWith(scene: waiting);
+    state = state.copyWith(
+      scene: waiting,
+      clearSceneRestart: true,
+      clearSceneLine: true,
+    );
     _handOff(_openTheRow(row, shown, waiting));
   }
 
@@ -4690,6 +4861,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (_theListFirst(_sendTheSceneRehearsal)) return;
+    _theRefusalLineGoes();
     if (_frases.of(rehearsal.rehearsalId) case final frase?) {
       _silenceTheRoom();
       return _handOff(_theHeldFraseBeforeTheSend(frase, rehearsal.rehearsalId));
@@ -4718,6 +4890,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (here &&
         _frases.of(rehearsalId) == null &&
         !state.scene.notUnderstood &&
+        !_aMoveRefused.containsValue(state.sceneLine) &&
         state.scene.rehearsal?.rehearsalId == rehearsalId) {
       _sendTheSceneRehearsal();
     }

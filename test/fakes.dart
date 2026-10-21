@@ -3508,6 +3508,7 @@ class SalaHarness {
   final Duration clipGrace;
   final CaptureGuard captureGuard;
   final Duration fimLinger;
+  final Duration restartWake;
   final Duration restartLapse;
 
   /// Whether the outbox keeps its rows in memory instead of on disk. Opt-in, for widget
@@ -3544,6 +3545,7 @@ class SalaHarness {
       minBytes: 1,
     ),
     this.fimLinger = const Duration(seconds: 30),
+    this.restartWake = const Duration(milliseconds: 600),
     this.restartLapse = const Duration(seconds: 6),
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
@@ -3624,6 +3626,7 @@ class SalaHarness {
     clipGraceProvider.overrideWithValue(clipGrace),
     captureGuardProvider.overrideWithValue(captureGuard),
     fimLingerProvider.overrideWithValue(fimLinger),
+    restartWakeProvider.overrideWithValue(restartWake),
     restartLapseProvider.overrideWithValue(restartLapse),
     sceneEnvelopeReaderProvider.overrideWithValue(readTheEnvelope),
     if (inboxWatch case final every?)
