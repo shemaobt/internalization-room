@@ -191,6 +191,47 @@ void main() {
   );
 
   testWidgets(
+    'a Watch beat that reads the approval gone while the parts come down is '
+    'not undone by the older read the landing came with',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1), watching: true)
+        ..room.createdOpened = true;
+      int reads() => harness.room.calls.where((c) => c == 'fetchState').length;
+
+      await _enter(
+        tester,
+        harness,
+        by: (notifier) async {
+          await notifier.abrirEscolha();
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          harness.room.holdNextClip();
+          final entering = notifier.goConversa(book: 'Ruth', pericope: 'P01');
+          final before = reads();
+          await waitFor(
+            'a first Watch beat while the part is still coming down',
+            () => reads() > before,
+          );
+          harness.room.approvedDraft = null;
+          final gone = reads();
+          await waitFor(
+            'a beat that reads the approval gone',
+            () => reads() > gone,
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          for (var beat = 0; beat < 40; beat++) {
+            harness.room.holdTheNextRead();
+          }
+          harness.room.finishHeldClip();
+          await entering;
+        },
+      );
+
+      expect(_theBadge(1), findsNothing);
+      expect(byLabel(retroLabelFor('approve', testLanguage)), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'keeping the earlier translation of a frase brings the badge back at once',
     (tester) async {
       final harness = _aRoomHolding(approved: _approvedAs(1))
@@ -237,6 +278,40 @@ void main() {
 
       expect(_state(room).stage, SalaStage.retro);
       expect(_state(room).partes, isNotEmpty);
+    },
+  );
+
+  group(
+    'an approved draft whose parts the room cannot hand over lands on the draft, '
+    'silent, on every entry',
+    () {
+      for (final (why, failure) in [
+        ('the network', const NetworkFailed('sem rede') as RoomFailure),
+        ('a lasting refusal', const Refused(RefusalCode.unreadable)),
+      ]) {
+        testWidgets(why, (tester) async {
+          final harness = _aRoomHolding(approved: _approvedAs(1))
+            ..room.createdOpened = true
+            ..room.failTakesWith = failure;
+          final room = await _enter(tester, harness);
+          _landsOnTheApprovedDraft(room);
+
+          await tester.runAsync(() async {
+            final notifier = room.container.read(salaSessionProvider.notifier)
+              ..leaveThePassage();
+            await Future<void>.delayed(const Duration(milliseconds: 300));
+            await notifier.abrirEscolha();
+            await Future<void>.delayed(const Duration(milliseconds: 200));
+            await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+            await Future<void>.delayed(const Duration(seconds: 1));
+          });
+          await tester.pump(const Duration(milliseconds: 100));
+
+          _landsOnTheApprovedDraft(room);
+          expect(_state(room).needsPerson, isFalse);
+          expect(harness.room.personsAsked, 0);
+        });
+      }
     },
   );
 

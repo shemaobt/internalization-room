@@ -32,15 +32,17 @@ passage as a conversation at zero.
   where it stood**: a take, a stretch or a frase told again. It un-approves the draft once it
   reaches the room, so the approved draft is not where the team is.
 - **The parts come from the room when the tablet holds none.** A room that cannot hand them
-  over leaves the frases silent and listening dimmed; it raises no halt and shows no sign. The
-  Back-translation row that landing writes holds no parts, and a row like it never reads as
-  nothing to restore: the next entry fetches the room's rehearsal, as any resume short of its
-  files does.
+  over leaves the frases silent and listening dimmed; it raises no halt and shows no sign, on
+  the first entry and on every later one while the read says approved. The Back-translation
+  row that landing writes holds no parts. On the next entry an approved draft fetches its parts
+  through its landing again; a draft no longer approved fetches the room's rehearsal, and a
+  rehearsal that cannot be had then goes calmly to the Choice (ADR 0093).
 - **No Warning mark on the approved draft.** The room's warning is not lifted: the Desk still
   sees it and attends it.
 - **The badge is what the newest applied Session read says** (ADR 0048), and only a read sets
-  or clears it. A landing numbers its read once the parts are down, so a Watch beat it raced
-  never outranks it. Whether the badge is drawn, in place of the approve button and the Warning
+  or clears it. Every read keeps the number it was sent under and an older one never overwrites
+  a newer one: a Watch beat sent while a landing's parts come down outranks the read that
+  landing came with. Whether the badge is drawn, in place of the approve button and the Warning
   mark, is decided where it is drawn: in the checked phase, and only while nothing of this
   session waits in the Outbox (its takes, its stretches, a frase held to be sent).
 - A read with no `approved`, a server that does not send it among them, lands as before.

@@ -2630,7 +2630,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           clearMoment: snapshot.moment == null,
         );
         if (onde == _Resume.landed &&
-            await _landedOnTheApprovedDraft(snapshot, generation, landed)) {
+            await _landedOnTheApprovedDraft(
+              snapshot,
+              sent,
+              generation,
+              landed,
+            )) {
           return;
         }
         if (onde == _Resume.landed && Station.stored(waiting.stage) is Retro) {
@@ -2670,7 +2675,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         moment: read.moment,
         clearMoment: read.moment == null,
       );
-      if (await _landedOnTheApprovedDraft(read, generation, landed)) return;
+      if (await _landedOnTheApprovedDraft(read, sent, generation, landed)) {
+        return;
+      }
       if (Station.stored(waiting.stage) is Retro) {
         final told = read.backTranslation;
         // Only when there is a telling-back to land on. A checked answer carrying no
@@ -2695,9 +2702,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _applyTheSessionRead(read, sent);
       if (opened != null || read.opened) return _landWhereTheyStopped();
     } else {
-      if (await _landedOnTheApprovedDraft(created!, generation, landed)) return;
+      final sent = ++_readsSent;
+      if (await _landedOnTheApprovedDraft(created!, sent, generation, landed)) {
+        return;
+      }
       if (opened != null || created.opened) {
-        _applyTheSessionRead(created, ++_readsSent);
+        _applyTheSessionRead(created, sent);
         return _landWhereTheyStopped();
       }
     }
@@ -2719,10 +2729,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The draft the room says is approved is where its passage reopens: its telling-back,
   /// checked, over the parts the room holds, and never the Opening (ADR 0106). Anything of
   /// the session still in the Outbox un-approves the draft once it lands, so the team stays
-  /// where it stood. The read is numbered once the parts are down, so a Watch beat it raced
-  /// never outranks it.
+  /// where it stood. The read keeps the number it was sent under, so a Watch beat sent while
+  /// the parts come down outranks it.
   Future<bool> _landedOnTheApprovedDraft(
     SessionSnapshot read,
+    int sent,
     int generation,
     void Function() landed,
   ) async {
@@ -2746,7 +2757,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
     );
     landed();
-    _applyTheSessionRead(read, ++_readsSent);
+    _applyTheSessionRead(read, sent);
     _rememberWhereTheyAre(const Retro());
     await _countUnsent();
     return true;
@@ -2857,6 +2868,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return resta.isEmpty ? null : resta;
   }
 
+  Future<bool> _theDraftIsApproved(String sessionId) async =>
+      switch (await _room.fetchState(sessionId)) {
+        Answered(value: SessionSnapshot(approved: _?)) => true,
+        _ => false,
+      };
+
   _Resume _theResumeFailed(RoomResult result, int generation) {
     if (_abandoned(generation)) return _Resume.abandoned;
     _dispatch(
@@ -2884,6 +2901,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (stage is Canvas ||
         (waiting.takes.isEmpty && !anEmptyEnsaio && !aPartlessRetro)) {
       return _Resume.nothingToRestore;
+    }
+    // An approved draft's parts are the landing's to fetch, and its landing stands silent
+    // when they cannot be had (ADR 0106).
+    if (aPartlessRetro && await _theDraftIsApproved(waiting.sessionId)) {
+      return _abandoned(generation)
+          ? _Resume.abandoned
+          : _Resume.nothingToRestore;
     }
     final here = [
       for (final take in waiting.takes)
