@@ -39,6 +39,7 @@ const _listenMode =
     'A tradução deste ensaio da cena já foi para a voz. Toquem numa frase para '
     'ouvir o ensaio naquela parte, e no alto-falante para ouvir a tradução de '
     'vocês.';
+const _terminei = 'terminei';
 const _restart = 'recomeçar a tradução';
 const _restarted = 'tradução recomeçada — o ensaio da cena ficou';
 const _restartFailed = 'não deu para recomeçar agora — tentem de novo';
@@ -408,6 +409,27 @@ void main() {
     );
 
     testWidgets(
+      'a moved pause waiting to be sent again cannot be moved or heard, and the circle sends it at its end',
+      (tester) async {
+        final screen = await _theLastBarTapped(tester);
+        await screen.tap(_later);
+        screen.room.sceneAnswersFirst.add(
+          const Refused(RefusalCode.sceneRehearsalSending),
+        );
+        await screen.tellsTheFrase();
+        final heard = screen.playback.ranges.length;
+
+        await screen.tap(_later);
+        await screen.tap(_hearThePause);
+
+        expect(screen.playback.ranges, hasLength(heard));
+        await screen.tap(_tell);
+        await screen.until(() => screen.room.frasesKept.length > 1);
+        expect(screen.room.frasesKept.last.endsMs, 10000);
+      },
+    );
+
+    testWidgets(
       'a moved pause survives a list read while its frase is still the last one',
       (tester) async {
         final screen = await _onScreen(
@@ -520,6 +542,20 @@ void main() {
 
       expect(screen.shows(_onlyOnTheLast), isFalse);
       expect(screen.shows(_lastFraseLine(3)), isTrue);
+    });
+
+    testWidgets('«terminei» clears a refusal line', (tester) async {
+      final screen = await _aMoveRefused(
+        tester,
+        RefusalCode.pauseOnlyOnTheLastFrase,
+      );
+      screen.room.holdNextTurn();
+
+      await screen.tap(_terminei);
+
+      expect(screen.shows(_onlyOnTheLast), isFalse);
+      screen.room.finishHeldTurn();
+      await screen.beat(2000);
     });
   });
 

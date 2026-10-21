@@ -3615,12 +3615,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         .where((frase) => frase.fraseId == armed?.fraseId)
         .firstOrNull;
     final herLineStands = stillArmed != null && asked.notUnderstood;
-    final floor = switch (stillArmed) {
-      SceneFrase(:final fraseId, :final startsMs?)
-          when fraseId == rehearsal.lastFrase?.fraseId =>
-        Duration(milliseconds: startsMs),
-      _ => rehearsal.frontier,
-    };
+    final floor = rehearsal.pausaFloor(stillArmed);
     if (armed != null && stillArmed == null) _silenceTheRoom();
     state = state.copyWith(
       scene: SceneScreen(
@@ -4314,8 +4309,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final pausa = state.scene.pausa;
     final envelope = state.sceneEnvelope;
     final bounds = state.scenePausaBounds;
-    if (!_thePausaAdjusts || pausa == null || envelope == null) return;
-    if (bounds == null) return;
+    if (!_thePausaAdjusts ||
+        pausa == null ||
+        envelope == null ||
+        bounds == null) {
+      return;
+    }
     _silenceTheRoom();
     _theRefusalLineGoes();
     state = state.copyWith(
@@ -4330,20 +4329,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void hearThePause() => _gesture(_hearThePause);
 
   void _hearThePause() {
-    final SceneScreen(:pausa, :take, :rehearsal) = state.scene;
+    final SceneScreen(:pausa, :take) = state.scene;
     if (!_thePausaAdjusts || pausa == null || take == null) return;
-    final floor = switch (state.sceneFraseOnTheMove) {
-      SceneFrase(:final startsMs?) => Duration(milliseconds: startsMs),
-      _ => rehearsal!.frontier,
-    };
+    final from = theMomentBefore(pausa, state.scenePausaFloor);
     _silenceTheRoom();
     _theRefusalLineGoes();
-    _play(PartSound(0, take, from: theMomentBefore(pausa, floor), to: pausa));
+    _play(PartSound(0, take, from: from, to: pausa));
   }
 
+  /// Whether the row moves the pausa: never while a frase waits to be sent again, which
+  /// goes at the pausa it was told at.
   bool get _thePausaAdjusts =>
       state.station is SceneRehearsal &&
       state.scene.step == SceneStep.translate &&
+      _frases.of(state.scene.rehearsal!.rehearsalId) == null &&
       !state.scene.waiting &&
       !state.theSceneIsSending &&
       !state.needsPerson &&
@@ -4736,6 +4735,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (_theListFirst(_sendTheSceneRehearsal)) return;
+    _theRefusalLineGoes();
     if (_frases.of(rehearsal.rehearsalId) case final frase?) {
       _silenceTheRoom();
       return _handOff(_theHeldFraseBeforeTheSend(frase, rehearsal.rehearsalId));

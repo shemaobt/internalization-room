@@ -657,15 +657,13 @@ class SalaSessionState {
 
   /// Where a pending pausa may go: past the start of the frase on the move, else past
   /// where the translation stopped, and short of the take's end.
-  ({Duration lo, Duration hi})? get scenePausaBounds {
-    final end = scene.takeEnd;
-    if (end == null) return null;
-    final floor = switch (sceneFraseOnTheMove) {
-      SceneFrase(:final startsMs?) => Duration(milliseconds: startsMs),
-      _ => scene.rehearsal?.frontier ?? Duration.zero,
-    };
-    return pauseBounds(floor, end);
-  }
+  ({Duration lo, Duration hi})? get scenePausaBounds => switch (scene.takeEnd) {
+    final end? => pauseBounds(scenePausaFloor, end),
+    null => null,
+  };
+
+  Duration get scenePausaFloor =>
+      scene.rehearsal?.pausaFloor(sceneFraseOnTheMove) ?? Duration.zero;
 
   /// Whether the pending pausa shows her adjust row: on a take with loudness to read,
   /// never at the take's own end placed by itself unless the last frase's pausa is on

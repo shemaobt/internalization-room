@@ -144,6 +144,15 @@ final class SceneRehearsalRecord {
       .where((frase) => frase.endsMs == frontier.inMilliseconds)
       .lastOrNull;
 
+  /// Where a pausa may not reach back past: the start of [moving] while it is the last
+  /// frase, else where the translation stopped.
+  Duration pausaFloor(SceneFrase? moving) => switch (moving) {
+    SceneFrase(:final fraseId, :final startsMs?)
+        when fraseId == lastFrase?.fraseId =>
+      Duration(milliseconds: startsMs),
+    _ => frontier,
+  };
+
   /// Whether every current frase has a place inside [take], the length of the
   /// recording this tablet holds.
   bool placesKnownIn(Duration? take) =>
