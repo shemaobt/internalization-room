@@ -203,6 +203,10 @@ enum _Resume {
   /// Nothing behind this passage to come back to: it opens at the conversa.
   nothingToRestore,
 
+  /// The row held no parts, and the session read it asked landed the team on the approved
+  /// draft (ADR 0106).
+  onTheApprovedDraft,
+
   /// The room could not hand the rehearsal back: the team is back on the Choice and the
   /// resume point is left exactly as it was, so the next opening tries again.
   failed,
@@ -2608,6 +2612,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           onde == _Resume.gone) {
         return;
       }
+      if (onde == _Resume.onTheApprovedDraft) {
+        _resumeFailures.remove(theResume);
+        return;
+      }
       if (onde == _Resume.landed || onde == _Resume.landedShort) {
         final SessionSnapshot snapshot;
         final sent = ++_readsSent;
@@ -2868,12 +2876,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return resta.isEmpty ? null : resta;
   }
 
-  Future<bool> _theDraftIsApproved(String sessionId) async =>
-      switch (await _room.fetchState(sessionId)) {
-        Answered(value: SessionSnapshot(approved: _?)) => true,
-        _ => false,
-      };
-
   _Resume _theResumeFailed(RoomResult result, int generation) {
     if (_abandoned(generation)) return _Resume.abandoned;
     _dispatch(
@@ -2903,11 +2905,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _Resume.nothingToRestore;
     }
     // An approved draft's parts are the landing's to fetch, and its landing stands silent
-    // when they cannot be had (ADR 0106).
-    if (aPartlessRetro && await _theDraftIsApproved(waiting.sessionId)) {
-      return _abandoned(generation)
-          ? _Resume.abandoned
-          : _Resume.nothingToRestore;
+    // when they cannot be had (ADR 0106). One read decides it and lands it.
+    if (aPartlessRetro) {
+      final sent = ++_readsSent;
+      if (await _room.fetchState(waiting.sessionId) case Answered(
+        value: final read,
+      )) {
+        if (_abandoned(generation)) return _Resume.abandoned;
+        if (await _landedOnTheApprovedDraft(read, sent, generation, landed)) {
+          return _abandoned(generation)
+              ? _Resume.abandoned
+              : _Resume.onTheApprovedDraft;
+        }
+      }
+      if (_abandoned(generation)) return _Resume.abandoned;
     }
     final here = [
       for (final take in waiting.takes)

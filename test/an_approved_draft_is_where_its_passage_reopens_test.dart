@@ -315,6 +315,59 @@ void main() {
     },
   );
 
+  group('a Back-translation row with no parts, entered again', () {
+    void aPartlessRow(SalaHarness harness) {
+      harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = const ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.retro,
+      );
+      harness.room.openedSessions.add('sessao-antiga');
+    }
+
+    testWidgets(
+      'with a re-told frase still in the Outbox gets its parts from the room, '
+      'and no badge',
+      (tester) async {
+        final harness = _aRoomHolding(approved: _approvedAs(1));
+        aPartlessRow(harness);
+        await tester.runAsync(() async {
+          final home = Directory.systemTemp.createTempSync(
+            'sala-frase-na-fila',
+          );
+          addTearDown(() => home.deleteSync(recursive: true));
+          await harness.takes.enqueue(
+            File('${home.path}/frase-1.m4a')..writeAsBytesSync([5, 5]),
+            sessionId: 'sessao-antiga',
+            kind: sentenceKind,
+            scope: '1',
+          );
+        });
+
+        final room = await _enter(tester, harness);
+
+        expect(_state(room).stage, SalaStage.retro);
+        expect(_state(room).partes, hasLength(1));
+        expect(_theBadge(1), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'decides and lands on its approved draft from one read of the session',
+      (tester) async {
+        final harness = _aRoomHolding(approved: _approvedAs(1));
+        aPartlessRow(harness);
+
+        final room = await _enter(tester, harness);
+
+        _landsOnTheApprovedDraft(room);
+        expect(
+          harness.room.calls.where((call) => call == 'fetchState'),
+          hasLength(1),
+        );
+      },
+    );
+  });
+
   testWidgets('tapping a frase of the approved draft plays its part', (
     tester,
   ) async {

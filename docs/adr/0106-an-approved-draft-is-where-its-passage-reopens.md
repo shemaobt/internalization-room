@@ -34,8 +34,9 @@ passage as a conversation at zero.
 - **The parts come from the room when the tablet holds none.** A room that cannot hand them
   over leaves the frases silent and listening dimmed; it raises no halt and shows no sign, on
   the first entry and on every later one while the read says approved. The Back-translation
-  row that landing writes holds no parts. On the next entry an approved draft fetches its parts
-  through its landing again; a draft no longer approved fetches the room's rehearsal, and a
+  row that landing writes holds no parts. On the next entry one Session read decides and lands
+  it: when it says approved and nothing of the session waits in the Outbox, the landing fetches
+  the parts again; otherwise the row fetches the room's rehearsal as any resume does, and a
   rehearsal that cannot be had then goes calmly to the Choice (ADR 0093).
 - **No Warning mark on the approved draft.** The room's warning is not lifted: the Desk still
   sees it and attends it.
