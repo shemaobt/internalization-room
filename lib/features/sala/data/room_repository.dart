@@ -168,7 +168,10 @@ class RoomRepository {
   );
 
   Future<RoomAnswer<SessionSnapshot>> fetchState(String sessionId) => _room.ask(
-    () => _client.get(_uri('/sessions/$sessionId'), headers: _headers),
+    () => _client.get(
+      _uri('/sessions/$sessionId?include_stale=true'),
+      headers: _headers,
+    ),
     timeout: _stateTimeout,
     read: readJson(SessionSnapshot.fromJson),
     asksForTheSession: true,
@@ -562,7 +565,9 @@ class RoomRepository {
   }) async => _room.askStreamed(
     http.MultipartRequest(
         'POST',
-        _uri('/sessions/$sessionId/segments/$segmentId/replace'),
+        _uri(
+          '/sessions/$sessionId/segments/$segmentId/replace?include_stale=true',
+        ),
       )
       ..headers.addAll(_whoWeAre)
       ..headers['Idempotency-Key'] = idempotencyKey
@@ -584,7 +589,9 @@ class RoomRepository {
   }) async => _room.askStreamed(
     http.MultipartRequest(
         'POST',
-        _uri('/sessions/$sessionId/segments/$segmentId/sentence'),
+        _uri(
+          '/sessions/$sessionId/segments/$segmentId/sentence?include_stale=true',
+        ),
       )
       ..headers.addAll(_whoWeAre)
       ..headers['X-Room-Device'] = await _deviceId()
