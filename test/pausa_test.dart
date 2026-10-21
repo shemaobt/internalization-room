@@ -66,8 +66,18 @@ void main() {
       'than 0.2 s to the cursor', () {
     expect(
       pauseAtTheTap(s(9.95), s(9.85), s(10)),
-      s(9.9),
+      s(10),
       reason: 'o piso de 0,2 s empurrava a pausa para 10,05 s, além da parte',
+    );
+  });
+
+  test('a tap at the part\'s end or beyond a short measure is never pulled '
+      'back', () {
+    expect(pauseAtTheTap(s(30), s(12), s(30)), s(30));
+    expect(
+      pauseAtTheTap(s(44), s(30), s(30)),
+      s(44),
+      reason: 'o teto puxava a pausa para trás do cursor, 30000-29900',
     );
   });
 }

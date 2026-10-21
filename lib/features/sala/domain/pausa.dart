@@ -167,9 +167,8 @@ Duration nudgeThePause(
 
 Duration pauseAtTheTap(Duration tap, Duration cursor, Duration? length) {
   final floor = cursor + _shortestStretch;
-  if (length == null) return tap < floor ? floor : tap;
-  final hi = length - _endMargin;
-  return _clamp(tap, floor < hi ? floor : hi, hi);
+  final lo = length != null && length < floor ? length : floor;
+  return tap < lo ? lo : tap;
 }
 
 bool isAStub(Duration cursor, Duration end) => end - cursor < _shortestTail;
