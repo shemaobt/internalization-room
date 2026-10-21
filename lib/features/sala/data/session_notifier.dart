@@ -2792,7 +2792,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       switch (await _room.takesOf(waiting.sessionId)) {
         case Answered(value: final guardadas):
           if (_abandoned(generation)) return _Resume.abandoned;
-          switch (await _asPartesDaSala(waiting, guardadas, here, generation)) {
+          switch (await _asPartesDaSala(
+            waiting.sessionId,
+            guardadas,
+            here,
+            generation,
+          )) {
             case Answered(:final value):
               takes = value;
             case NetworkFailed():
@@ -2873,7 +2878,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// disk. Nothing is written for it: the resume point stays exactly as it was and the
   /// next opening tries again.
   Future<RoomAnswer<List<KeptTake>?>> _asPartesDaSala(
-    ResumePoint waiting,
+    String sessionId,
     List<TakeView> guardadas,
     List<KeptTake> aqui,
     int generation,
@@ -2918,7 +2923,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       _watchBusyState();
       final clip = await _room.fetchClip(
-        RoomRepository.takeAudioUrl(waiting.sessionId, corrente.takeId),
+        RoomRepository.takeAudioUrl(sessionId, corrente.takeId),
       );
       final Uint8List audio;
       switch (clip) {
@@ -5887,6 +5892,70 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (seguir) await _confirmarTraducao();
   }
 
+  Future<void> _readWhatTheChunkRefusalSays(
+    Refused refusal,
+    String path,
+    String sessionId,
+    int generation,
+  ) async {
+    _watchBusyState();
+    final sent = ++_readsSent;
+    switch (await _room.fetchState(sessionId)) {
+      case Answered(value: final snapshot):
+        final unread = await _keepTheCurrentTakes(
+          refusal,
+          sessionId,
+          generation,
+        );
+        if (unread != null) {
+          return _theRefusalCouldNotBeRead(path, unread, generation);
+        }
+        if (_abandoned(generation)) return;
+        _theStretchIsGone(snapshot.backTranslation.segments);
+        _applyTheSessionRead(snapshot, sent);
+      case final RoomFailure failure:
+        _theRefusalCouldNotBeRead(path, failure, generation);
+    }
+  }
+
+  void _theRefusalCouldNotBeRead(
+    String path,
+    RoomFailure failure,
+    int generation,
+  ) {
+    _guardarATraducao(path);
+    if (_abandoned(generation)) return;
+    _theCorrectionFailed(failure);
+  }
+
+  Future<RoomFailure?> _keepTheCurrentTakes(
+    Refused refusal,
+    String sessionId,
+    int generation,
+  ) async {
+    switch (await _room.takesOf(sessionId)) {
+      case Answered(value: final guardadas):
+        switch (await _asPartesDaSala(
+          sessionId,
+          guardadas,
+          state.keptTakes,
+          generation,
+        )) {
+          case Answered(value: final partes?):
+            if (_abandoned(generation)) return null;
+            state = state.copyWith(keptTakes: partes);
+            await _medirAsPartes(partes, generation);
+            return null;
+          case Answered():
+            return refusal;
+          case final RoomFailure failure:
+            return failure;
+        }
+      case final RoomFailure failure:
+        return failure;
+    }
+  }
+
   Future<void> _aPausaNaoFoi(
     String code,
     String sessionId,
@@ -6556,6 +6625,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(:final value):
         if (_abandoned(generation)) return;
         frase = value.frase;
+      case Refused(code: RefusalCode.stretchNoLongerCounts) && final refused:
+        if (_abandoned(generation)) return;
+        await _readWhatTheChunkRefusalSays(
+          refused,
+          path,
+          sessionId,
+          generation,
+        );
+        return;
       case final RoomFailure failure:
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
