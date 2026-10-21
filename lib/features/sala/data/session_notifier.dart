@@ -884,9 +884,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the next one.
   ///
   /// [holdTheClip] for the gestures that come back to the very part they leave — the
-  /// circle's three taps and telling a stretch again. A hold silences the rehearsal just as well and is what keeps the clip
-  /// open: stopped, the room loses the length that the listening ceiling and the end of
-  /// the part are both measured against.
+  /// circle's three taps and telling a stretch again. A hold silences the rehearsal just
+  /// as well and is what keeps the clip open: stopped, the room loses the length that the
+  /// listening ceiling and the end of the part are both measured against.
   ///
   /// It never cancels the room's timers, never moves the generation and never touches the
   /// recorder: those belong to [_clearAll], which leaves a passage rather than moving
