@@ -207,7 +207,10 @@ class RaisedHand {
   };
 
   List<HandReply> _unsounded(HandReply reply) =>
-      _replies(reply, (kept) => kept.asFailed());
+      _replies((kept) => _sameClip(kept, reply), (kept) => kept.asFailed());
+
+  bool _sameClip(HandReply a, HandReply b) =>
+      a.id == b.id && a.audioUrl == b.audioUrl;
 
   /// A reply is heard when the desk agrees, and not before.
   ///
@@ -242,9 +245,12 @@ class RaisedHand {
   /// as a failure of the reply at the address that was marked; an outage counts nothing.
   /// Both pull; a pull is one GET, and after an outage it changes nothing.
   Future<void> _markHeard(HandReply marked) async {
-    final generation = host.waitOnTheGeneration;
+    HandReply? heard;
     host.state = _state.copyWith(
-      replies: _replies(marked, (reply) => reply.asHeard()),
+      replies: _replies(
+        (kept) => _sameClip(kept, marked),
+        (kept) => heard = kept.asHeard(),
+      ),
       clearPlayingReply: true,
     );
     final RoomFailure failure;
@@ -258,23 +264,19 @@ class RaisedHand {
     if (host.gone) return;
     host.state = _state.copyWith(
       replies: _replies(
-        marked,
-        (reply) => failure is Refused ? reply.asFailed() : reply.asUnheard(),
+        (kept) => identical(kept, heard),
+        (kept) => failure is Refused ? kept.asFailed() : kept.asUnheard(),
       ),
     );
-    if (host.abandoned(generation)) return;
     unawaited(pull());
   }
 
   List<HandReply> _replies(
-    HandReply replied,
+    bool Function(HandReply) which,
     HandReply Function(HandReply) change,
   ) => [
     for (final kept in _state.replies)
-      if (kept.id == replied.id && kept.audioUrl == replied.audioUrl)
-        change(kept)
-      else
-        kept,
+      if (which(kept)) change(kept) else kept,
   ];
 
   void cancelQuestion() {

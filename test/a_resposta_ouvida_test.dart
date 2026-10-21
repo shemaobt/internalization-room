@@ -42,6 +42,23 @@ class _Desk {
   String? markedUrl;
 
   Completer<void>? _holding;
+  Completer<void>? _theFirstMark;
+  Completer<void>? _theReads;
+
+  /// The first mark hangs and then never reaches the desk; later marks are answered.
+  void theFirstMarkHangs() => _theFirstMark = Completer<void>();
+
+  void theFirstMarkFailsAtLast() {
+    _theFirstMark?.complete();
+    _theFirstMark = null;
+  }
+
+  void holdsTheReads() => _theReads = Completer<void>();
+
+  void readsAtLast() {
+    _theReads?.complete();
+    _theReads = null;
+  }
 
   /// Keep the desk from answering, so the window between the tap and the answer can be
   /// looked at instead of assumed away.
@@ -55,6 +72,7 @@ class _Desk {
   http.Client get client => MockClient((request) async {
     if (request.url.path.endsWith('/questions/replies')) {
       reads++;
+      await _theReads?.future;
       return http.Response(
         jsonEncode({
           'replies': [
@@ -69,6 +87,10 @@ class _Desk {
     }
     if (request.url.path.endsWith('/heard')) {
       marks++;
+      if (marks == 1 && _theFirstMark != null) {
+        await _theFirstMark!.future;
+        throw const SocketException('sem rede');
+      }
       await _holding?.future;
       if (unreachable) throw const SocketException('sem rede');
       final id = request.url.pathSegments[request.url.pathSegments.length - 2];
@@ -640,11 +662,65 @@ void main() {
   );
 
   test(
-    'a mark refused after the room moved to a new conversation still counts against the reply',
+    'a mark refused after the room left the conversation leaves the reply offered',
     () async {
       final desk = _Desk()
         ..answers = 400
         ..holdsTheAnswer();
+      final harness = _tabletTalkingTo(desk);
+      final container = await _opensTheRoom(desk, harness);
+
+      await _theTeamTapsTheHand(container);
+      await waitFor('a marca chegar à mesa', () => desk.marks == 1);
+      container.read(salaSessionProvider.notifier).goEnsaio();
+      await settle();
+      desk.answersAtLast();
+      await settle();
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).oldestUnheardReply?.audioUrl,
+        _replyUrl,
+        reason:
+            'a marca recusada depois da troca de tela deixou a resposta como '
+            'ouvida até a reabertura',
+      );
+    },
+  );
+
+  test(
+    'a mark refused after the room left the conversation brings the reply at its new address',
+    () async {
+      const recordedAgain = '/voz/resposta-1-regravada';
+      final desk = _Desk()
+        ..answers = 400
+        ..holdsTheAnswer();
+      final harness = _tabletTalkingTo(desk);
+      final container = await _opensTheRoom(desk, harness);
+
+      await _theTeamTapsTheHand(container);
+      await waitFor('a marca chegar à mesa', () => desk.marks == 1);
+      container.read(salaSessionProvider.notifier).goEnsaio();
+      await settle();
+      desk.current['resposta-1'] = recordedAgain;
+      desk.answersAtLast();
+      await settle();
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).oldestUnheardReply?.audioUrl,
+        recordedAgain,
+        reason:
+            'a recusa depois da troca de tela não releu a caixa e a mão seguia '
+            'oferecendo o clipe que a facilitadora já substituiu',
+      );
+    },
+  );
+
+  test(
+    'a mark that fails late does not take back a newer mark the desk accepted',
+    () async {
+      final desk = _Desk()..theFirstMarkHangs();
       final harness = _tabletTalkingTo(desk);
       final container = await _opensTheRoom(desk, harness);
 
@@ -656,23 +732,27 @@ void main() {
       );
       await waitFor('a sala reler a caixa', () => desk.reads > readsBefore);
       await settle();
-      desk.answersAtLast();
+      await _theTeamTapsTheHand(container);
+      await waitFor(
+        'a mesa registrar a escuta',
+        () => desk.heard['resposta-1'] == true,
+      );
+      await settle();
+      expect(_timesPlayed(harness), 2);
+
+      desk.holdsTheReads();
+      desk.theFirstMarkFailsAtLast();
       await settle();
 
-      await _theTeamTapsTheHand(container);
       expect(
-        _timesPlayed(harness),
-        2,
+        container.read(salaSessionProvider).oldestUnheardReply,
+        isNull,
         reason:
-            'a marca recusada deixou a resposta como ouvida até a reabertura',
+            'a marca velha que falhou tarde devolveu à mão a resposta que a '
+            'mesa já aceitou como ouvida',
       );
-      await _theTeamTapsTheHand(container);
-      expect(
-        _timesPlayed(harness),
-        2,
-        reason: 'a recusa depois da troca de conversa não contou como falha',
-      );
-      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      desk.readsAtLast();
+      await settle();
     },
   );
 
