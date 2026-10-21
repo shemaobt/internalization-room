@@ -3172,6 +3172,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
       btTrechos: trechos,
+      btTrechosRegravados: const [],
       btFindings: achados,
       btVeredito: told.checked || achados.isNotEmpty,
       btFraseQueAguarda: told.awaitingSegmentId,
@@ -3180,7 +3181,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId != null) {
       unawaited(
-        _porCadaTrechoNaSuaParte(sessionId, told.segments, _generation),
+        _porCadaTrechoNaSuaParte(
+          sessionId,
+          told.segments,
+          _generation,
+          regravados: told.stale,
+        ),
       );
       unawaited(_lembrarDaFraseGuardada(sessionId));
     }
@@ -3215,6 +3221,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// a second time — the duplication the way back to the rehearsal exists to avoid, one
   /// leave-and-return later.
   void _keepTheStretchesAlreadyTold(BackTranslationProgress told) {
+    state = state.copyWith(btTrechosRegravados: const []);
+    final sessionId = state.sessionId;
+    if (sessionId != null && told.stale.isNotEmpty) {
+      unawaited(
+        _porCadaTrechoNaSuaParte(
+          sessionId,
+          const [],
+          _generation,
+          regravados: told.stale,
+        ),
+      );
+    }
     if (told.nothingTold) return;
     final trechos = _trechosFrom(told.segments);
     state = state.copyWith(
@@ -7991,15 +8009,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _porCadaTrechoNaSuaParte(
     String sessionId,
     List<SegmentView> segments,
-    int generation,
-  ) async {
-    final faltando = {
-      for (final segment in segments)
+    int generation, {
+    List<SegmentView> regravados = const [],
+  }) async {
+    Set<String> semGravacao(List<SegmentView> lidos) => {
+      for (final segment in lidos)
         if (segment.takeId.isNotEmpty &&
             !state.keptTakes.any((take) => take.takeId == segment.takeId))
           segment.takeId,
     };
-    if (faltando.isEmpty) return;
+    final faltando = semGravacao(segments);
+    final regravadosFaltando = semGravacao(regravados);
+    if (faltando.isEmpty && regravadosFaltando.isEmpty) return;
     // The row of stretches as it stands before the listing waits. The rehearsal goes on
     // playing under it, and a team that cuts a stretch inside that window has it in this
     // list and nowhere else yet.
@@ -8022,7 +8043,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     final naParte = <String, int>{};
     for (final guardada in guardadas) {
-      if (!faltando.contains(guardada.takeId)) continue;
+      if (!faltando.contains(guardada.takeId) &&
+          !regravadosFaltando.contains(guardada.takeId)) {
+        continue;
+      }
       final numero = guardada.ordinal;
       if (numero == null) continue;
       final onde = state.partes.indexWhere(
@@ -8032,10 +8056,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       naParte[guardada.takeId] = onde;
     }
     if (naParte.isEmpty) return;
+    state = state.copyWith(
+      btTrechosRegravados: [
+        for (final trecho in _trechosFrom(regravados, naParte: naParte))
+          if (trecho.parte >= 0) trecho,
+      ],
+    );
     // Only over a row nothing else has touched. This reading is built out of the answer
     // the resume came in with, so writing it over a row that moved meanwhile would take
     // the stretch the team just told back off the screen.
-    if (!identical(state.btTrechos, eram)) return;
+    if (faltando.isEmpty || !identical(state.btTrechos, eram)) return;
     state = state.copyWith(btTrechos: _trechosFrom(segments, naParte: naParte));
   }
 

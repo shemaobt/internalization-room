@@ -271,6 +271,128 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a session picked back up lists the stale frases the room '
+      'serves, on the part their recording answered for', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        'parte 1',
+        'regravada — traduzam de novo',
+        '1',
+        'parte 2',
+      ],
+      reason:
+          'reaberta a sessão, a sala servia a frase regravada e a lista não a '
+          'mostrava',
+    );
+    expect(container.read(salaSessionProvider).btTrechos, hasLength(1));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a session picked back up on the rehearsal still lists its '
+      'stale frases when the team comes to the check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+      parouEm: SalaStage.ensaio,
+    );
+    container.read(salaSessionProvider.notifier).startRetro();
+    await waitFor(
+      'a ida à tradução',
+      () => container.read(salaSessionProvider).stage == SalaStage.retro,
+      step: () => _passo(tester),
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        'parte 1',
+        'regravada — traduzam de novo',
+        '1',
+        'parte 2',
+      ],
+      reason:
+          'reaberta no ensaio, a sessão perdia as frases regravadas que a sala '
+          'servia',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a frase just told shows the number its answer carries, not '
       'a count the tablet keeps, before the session is read again', (
     tester,
