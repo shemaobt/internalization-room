@@ -1248,6 +1248,10 @@ class FakeRoom implements RoomRepository {
   /// What the room answers about the telling-back, when a test wants to state it rather
   /// than build it up by telling stretches back.
   BackTranslationProgress? retroSoFar;
+
+  /// The approval the room says the session's draft stands under, on the open and on
+  /// every read.
+  ApprovedDraft? approvedDraft;
   String? verdictFindingSegmentId;
 
   /// Which place on the cord the analyst points at, when it points by place instead of by
@@ -2083,6 +2087,8 @@ class FakeRoom implements RoomRepository {
         halt: serverHalt,
         opened: createdOpened,
         moment: nextMoment,
+        backTranslation: retroSoFar ?? const BackTranslationProgress(),
+        approved: approvedDraft,
       ),
     );
   }
@@ -2156,6 +2162,7 @@ class FakeRoom implements RoomRepository {
               segments: _numbered,
               awaitingSegmentId: awaitingSegmentId,
             ),
+        approved: approvedDraft,
       ),
     );
     if (_readsToHold > 0) {

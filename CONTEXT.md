@@ -366,6 +366,14 @@ _Avoid_: reason, error code, bloqueio, refusal (the answer that carries them)
 The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line, asked of the room by name. The room closes only after it, and a refused one takes the team to the hole its blockers name.
 _Avoid_: aprovação, finalize, release (the server's record of it), approve button
 
+**Draft** (*rascunho*):
+The team's recording of a passage with its frases and telling-back, kept across openings because it is the room's live **Session** of that passage (ADR 0071 of the API). An approval leaves it open under its version; a new take un-approves it.
+_Avoid_: rascunho final (the approved version's words on the screen), session (what holds it)
+
+**Approved draft** (*rascunho final aprovado*):
+A **Draft** whose **Session read** says `approved`: a re-entry lands on its **Back-translation**, checked, with «✓ aprovado como rascunho final (v{n})» where the approve button stands, its frases and their parts — never on the **Conversation** and never under the **Warning mark**. The badge goes as soon as a session read says the draft is no longer approved or the team leaves the checked phase.
+_Avoid_: approved mark (the «●» on the Choice), finished passage, closed passage
+
 **Approved mark**:
 «●» after the passage's reference, read «tem um ensaio salvo», for a passage the server holds a live release of, from any tablet, forced or not. Read from the room on every load of the Wheel; never from what this tablet started or finished. A Zerar takes it away.
 _Avoid_: finished mark, done mark, started mark, ✓

@@ -344,6 +344,9 @@ class SalaSessionState {
   final RegravacaoDaFrase? btRegravacao;
   final String? btFraseQueAguarda;
   final int? btFraseGuardada;
+
+  /// The approval the newest Session read says the draft stands under.
+  final ApprovedDraft? btRascunhoAprovado;
   final int unsentTakes;
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
@@ -450,6 +453,7 @@ class SalaSessionState {
     this.btRegravacao,
     this.btFraseQueAguarda,
     this.btFraseGuardada,
+    this.btRascunhoAprovado,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
@@ -1035,6 +1039,17 @@ class SalaSessionState {
       trecho.parte < partes.length &&
       partes[trecho.parte].path.endsWith('.wav');
 
+  /// The approval drawn on the checked telling-back, in place of the approve button and the
+  /// Warning mark: only while nothing of this session waits in the Outbox (ADR 0106).
+  ApprovedDraft? get approvedDraftDrawn =>
+      stage == SalaStage.retro &&
+          btPhase == BtPhase.conferida &&
+          unsentTakes == 0 &&
+          unsentChunks == 0 &&
+          btFraseGuardada == null
+      ? btRascunhoAprovado
+      : null;
+
   /// Whether the last listening the clean verdict invites has anything to play.
   ///
   /// A session picked back up over a room that holds no rehearsal of its own carries the
@@ -1133,6 +1148,8 @@ class SalaSessionState {
     bool clearBtFraseQueAguarda = false,
     int? btFraseGuardada,
     bool clearBtFraseGuardada = false,
+    ApprovedDraft? btRascunhoAprovado,
+    bool clearBtRascunhoAprovado = false,
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
@@ -1219,6 +1236,9 @@ class SalaSessionState {
       btFraseGuardada: clearBtFraseGuardada
           ? null
           : (btFraseGuardada ?? this.btFraseGuardada),
+      btRascunhoAprovado: clearBtRascunhoAprovado
+          ? null
+          : (btRascunhoAprovado ?? this.btRascunhoAprovado),
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,

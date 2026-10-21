@@ -203,6 +203,10 @@ enum _Resume {
   /// Nothing behind this passage to come back to: it opens at the conversa.
   nothingToRestore,
 
+  /// The row held no parts, and the session read it asked landed the team on the approved
+  /// draft (ADR 0106).
+  onTheApprovedDraft,
+
   /// The room could not hand the rehearsal back: the team is back on the Choice and the
   /// resume point is left exactly as it was, so the next opening tries again.
   failed,
@@ -1373,7 +1377,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) {
     if (sent <= _readsApplied) return;
     _readsApplied = sent;
-    state = state.copyWith(keptRetellings: snapshot.keptRetellings);
+    state = state.copyWith(
+      keptRetellings: snapshot.keptRetellings,
+      btRascunhoAprovado: snapshot.approved,
+      clearBtRascunhoAprovado: snapshot.approved == null,
+    );
     if (rowWhenSent != null && identical(state.btTrechos, rowWhenSent)) {
       _takeTheStretches(snapshot.backTranslation);
     }
@@ -2604,6 +2612,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           onde == _Resume.gone) {
         return;
       }
+      if (onde == _Resume.onTheApprovedDraft) {
+        _resumeFailures.remove(theResume);
+        return;
+      }
       if (onde == _Resume.landed || onde == _Resume.landedShort) {
         final SessionSnapshot snapshot;
         final sent = ++_readsSent;
@@ -2625,6 +2637,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           moment: snapshot.moment,
           clearMoment: snapshot.moment == null,
         );
+        if (onde == _Resume.landed &&
+            await _landedOnTheApprovedDraft(
+              snapshot,
+              sent,
+              generation,
+              landed,
+            )) {
+          return;
+        }
         if (onde == _Resume.landed && Station.stored(waiting.stage) is Retro) {
           _pickTheTellingBackUp(snapshot.backTranslation);
           landed();
@@ -2657,6 +2678,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           );
       }
       if (_abandoned(generation)) return;
+      state = state.copyWith(
+        coverage: read.coverage,
+        moment: read.moment,
+        clearMoment: read.moment == null,
+      );
+      if (await _landedOnTheApprovedDraft(read, sent, generation, landed)) {
+        return;
+      }
       if (Station.stored(waiting.stage) is Retro) {
         final told = read.backTranslation;
         // Only when there is a telling-back to land on. A checked answer carrying no
@@ -2678,16 +2707,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return;
         }
       }
-      state = state.copyWith(
-        coverage: read.coverage,
-        moment: read.moment,
-        clearMoment: read.moment == null,
-      );
       _applyTheSessionRead(read, sent);
       if (opened != null || read.opened) return _landWhereTheyStopped();
-    } else if (opened != null || created!.opened) {
-      _applyTheSessionRead(created!, ++_readsSent);
-      return _landWhereTheyStopped();
+    } else {
+      final sent = ++_readsSent;
+      if (await _landedOnTheApprovedDraft(created!, sent, generation, landed)) {
+        return;
+      }
+      if (opened != null || created.opened) {
+        _applyTheSessionRead(created, sent);
+        return _landWhereTheyStopped();
+      }
     }
     await _askForTheOpening(
       sessionId,
@@ -2702,6 +2732,69 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       },
       failed: failed,
     );
+  }
+
+  /// The draft the room says is approved is where its passage reopens: its telling-back,
+  /// checked, over the parts the room holds, and never the Opening (ADR 0106). Anything of
+  /// the session still in the Outbox un-approves the draft once it lands, so the team stays
+  /// where it stood. The read keeps the number it was sent under, so a Watch beat sent while
+  /// the parts come down outranks it.
+  Future<bool> _landedOnTheApprovedDraft(
+    SessionSnapshot read,
+    int sent,
+    int generation,
+    void Function() landed,
+  ) async {
+    if (read.approved == null || read.backTranslation.nothingTold) return false;
+    final waiting = (await _takes.pending()).any(
+      (entry) =>
+          entry.sessionId == read.sessionId && entry.kind != sceneTakeKind,
+    );
+    if (waiting || _abandoned(generation)) return _abandoned(generation);
+    if (state.partes.isEmpty) {
+      await _theRoomsRehearsalUnder(read.sessionId, generation);
+      if (_abandoned(generation)) return true;
+    }
+    final told = read.backTranslation;
+    state = state.copyWith(clearBtFraseGuardada: true);
+    _pickTheTellingBackUp(
+      BackTranslationProgress(
+        segments: told.segments,
+        checked: true,
+        findings: told.findings,
+      ),
+    );
+    landed();
+    state = state.copyWith(
+      coverage: read.coverage,
+      moment: read.moment,
+      clearMoment: read.moment == null,
+    );
+    _applyTheSessionRead(read, sent);
+    _rememberWhereTheyAre(const Retro());
+    await _countUnsent();
+    return true;
+  }
+
+  Future<void> _theRoomsRehearsalUnder(String sessionId, int generation) async {
+    _watchBusyState();
+    if (await _room.takesOf(sessionId) case Answered(value: final guardadas)) {
+      if (_abandoned(generation)) return;
+      final partes = await _asPartesDaSala(
+        sessionId,
+        guardadas,
+        const [],
+        generation,
+      );
+      if (partes case Answered(
+        value: _PartesDaSala(partes: final takes),
+      ) when takes.isNotEmpty) {
+        await _medirAsPartes(takes, generation);
+        if (_abandoned(generation)) return;
+        state = state.copyWith(keptTakes: takes);
+        state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+      }
+    }
   }
 
   /// A session the room already opened is not opened again: the team lands at rest, and
@@ -2809,18 +2902,35 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation, {
     required void Function() landed,
   }) async {
-    final anEmptyEnsaio =
-        Station.stored(waiting.stage) is Ensaio && waiting.takes.isEmpty;
-    if (Station.stored(waiting.stage) is Canvas ||
-        (waiting.takes.isEmpty && !anEmptyEnsaio)) {
+    final stage = Station.stored(waiting.stage);
+    final anEmptyEnsaio = stage is Ensaio && waiting.takes.isEmpty;
+    final aPartlessRetro = stage is Retro && waiting.takes.isEmpty;
+    if (stage is Canvas ||
+        (waiting.takes.isEmpty && !anEmptyEnsaio && !aPartlessRetro)) {
       return _Resume.nothingToRestore;
+    }
+    // An approved draft's parts are the landing's to fetch, and its landing stands silent
+    // when they cannot be had (ADR 0106). One read decides it and lands it.
+    if (aPartlessRetro) {
+      final sent = ++_readsSent;
+      if (await _room.fetchState(waiting.sessionId) case Answered(
+        value: final read,
+      )) {
+        if (_abandoned(generation)) return _Resume.abandoned;
+        if (await _landedOnTheApprovedDraft(read, sent, generation, landed)) {
+          return _abandoned(generation)
+              ? _Resume.abandoned
+              : _Resume.onTheApprovedDraft;
+        }
+      }
+      if (_abandoned(generation)) return _Resume.abandoned;
     }
     final here = [
       for (final take in waiting.takes)
         if (await File(take.path).exists()) take,
     ];
     if (_abandoned(generation)) return _Resume.abandoned;
-    final faltavam = here.length != waiting.takes.length;
+    final faltavam = aPartlessRetro || here.length != waiting.takes.length;
     List<KeptTake>? takes = here;
     var inteiro = true;
     if (faltavam) {

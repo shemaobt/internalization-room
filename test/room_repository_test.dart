@@ -419,6 +419,49 @@ void main() {
     );
   });
 
+  test('the session read carries the approved draft, and none when the room '
+      'says none', () async {
+    Map<String, Object?> state(String id) => {
+      'session_id': id,
+      'pericope': 'P01',
+      'status': 'in_progress',
+      'done': false,
+      if (id == 'aprovada')
+        'approved': {
+          'version': 2,
+          'release_id': 'internalize-x-p01-v2',
+          'approved_at': '2026-10-19T14:03:00+00:00',
+          'forced': true,
+        },
+      if (id == 'so-a-versao') 'approved': {'version': 3},
+      if (id == 'nula') 'approved': null,
+    };
+    final repository = RoomRepository(
+      client: MockClient(
+        (request) async => http.Response(
+          jsonEncode(state(request.url.pathSegments.last)),
+          200,
+        ),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    int? version(RoomAnswer<SessionSnapshot> read) =>
+        (read as Answered<SessionSnapshot>).value.approved?.version;
+    expect(version(await repository.fetchState('aprovada')), 2);
+    expect(version(await repository.fetchState('so-a-versao')), 3);
+    for (final none in ['nula', 'ausente']) {
+      expect(
+        await repository.fetchState(none),
+        isA<Answered<SessionSnapshot>>().having(
+          (read) => read.value.approved,
+          'approved',
+          isNull,
+        ),
+      );
+    }
+  });
+
   test(
     'the room\'s books are read from GET /books and answered in its order',
     () async {
