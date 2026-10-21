@@ -391,6 +391,33 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a part the player could not measure keeps the 0.2 s room inside '
+      'its own length', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.recorder.rehearsalSpeaks = umaLacunaAos3;
+    final container = await entrarNaTraducao(
+      tester,
+      harness,
+      partes: 1,
+      medida: null,
+    );
+    harness.playback.length = parte;
+    await pausarAos(tester, harness, s(9.95));
+    await traduzirEConfirmar(tester);
+    expect(harness.room.chunkSpans, ['0-9900']);
+
+    harness.playback.at = s(9.95);
+    await tester.pump(passaDoCursor);
+    await traduzirEConfirmar(tester);
+
+    expect(
+      harness.room.chunkSpans,
+      ['0-9900'],
+      reason: 'sem medida o piso ficava sem teto e a frase passava do fim',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a tail of 0.3 s left at the end of the part is not offered as a '
       'frase', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

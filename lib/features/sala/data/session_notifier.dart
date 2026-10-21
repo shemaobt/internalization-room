@@ -5666,27 +5666,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btPausaAjustavel: ondeCabe != null);
     if (noFim) return toque;
     if (ondeCabe == null) {
-      final medido = _tamanhoDaParteMs[_parteNoAr?.path];
+      final parte = _parteNoAr;
       return pauseAtTheTap(
         toque,
         _trechoStart,
-        medido == null ? null : Duration(milliseconds: medido),
+        parte == null ? null : _oTamanhoDa(parte),
       );
     }
     final (envelope, :lo, :hi) = ondeCabe;
     return placeThePause(envelope, toque, lo: lo, hi: hi);
   }
 
+  Duration? _oTamanhoDa(KeptTake parte) {
+    final medido = _tamanhoDaParteMs[parte.path];
+    if (medido != null) return Duration(milliseconds: medido);
+    return _envelopeOf(parte.path)?.length;
+  }
+
   (Envelope, {Duration lo, Duration hi})? _ondeAPausaCabe() {
     final parte = _parteNoAr;
     if (parte == null) return null;
     final envelope = _envelopeOf(parte.path);
-    if (envelope == null) return null;
-    final medido = _tamanhoDaParteMs[parte.path];
-    final limites = pauseBounds(
-      _trechoStart,
-      medido == null ? envelope.length : Duration(milliseconds: medido),
-    );
+    final tamanho = _oTamanhoDa(parte);
+    if (envelope == null || tamanho == null) return null;
+    final limites = pauseBounds(_trechoStart, tamanho);
     if (limites == null) return null;
     return (envelope, lo: limites.lo, hi: limites.hi);
   }
