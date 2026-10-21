@@ -13,6 +13,7 @@ const _shortestSilence = Duration(milliseconds: 150);
 const _nearPeakPercentile = 98;
 const _shortestStretch = Duration(milliseconds: 200);
 const _endMargin = Duration(milliseconds: 100);
+const _shortestTail = Duration(milliseconds: 500);
 const _lookBack = Duration(milliseconds: 1500);
 const _lookAhead = Duration(milliseconds: 250);
 const _nudgeStep = Duration(milliseconds: 400);
@@ -170,6 +171,8 @@ Duration pauseAtTheTap(Duration tap, Duration cursor, Duration? length) {
   final hi = length - _endMargin;
   return _clamp(tap, floor < hi ? floor : hi, hi);
 }
+
+bool isAStub(Duration cursor, Duration end) => end - cursor < _shortestTail;
 
 Duration theMomentBefore(Duration pausa, Duration cursor) {
   final from = pausa - _lookBack;

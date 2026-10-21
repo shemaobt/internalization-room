@@ -6433,6 +6433,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _abrirACaptura() {
     if (_trechoTraduzidoDeNovo == null && !state.btCortado) {
       if (_cabeca <= _trechoStart) return;
+      if ((state.btParteFronteira || state.btClipEnded) &&
+          isAStub(_trechoStart, _cabeca)) {
+        return;
+      }
       _silenceTheRoom(holdTheClip: true);
       _trechoEnd = _aPausaNo(_cabeca);
     } else {

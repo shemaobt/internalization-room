@@ -348,6 +348,27 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a tail of 0.3 s left at the end of the part is not offered as a '
+      'frase', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+    await pausarAos(tester, harness, s(9.7));
+    await traduzirEConfirmar(tester);
+    expect(harness.room.chunkSpans, ['0-9700']);
+
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    await traduzirEConfirmar(tester);
+
+    expect(
+      harness.room.chunkSpans,
+      ['0-9700'],
+      reason: 'o círculo abria o microfone e os 0,3 s do fim viravam uma frase',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('the pausa never goes past the part\'s end', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarComAFala(tester, harness, umaLacunaAos3);
