@@ -68,7 +68,9 @@ into an earlier visit's take on the way back from a finding, with no event the t
 
 A Resume point write that fails, a manifest set aside and a part kept with no session are
 no longer spoken. The first two are logged and silent; the third shows as a failed take on
-its row and its tap fails the same way until the session is back. A whole recording, which no
+its row for the rest of this visit; its tap fails the same way; when the passage reopens as
+another session the take is not offered, and its file stays on the tablet, never deleted, like
+the Outbox rows of a session the room let go of (ADR 0087). A whole recording, which no
 Scene row holds, is never shown, whatever happens to its upload. A part beyond the last
 scene has no row and shows nothing; the Outbox still retries it. Tablets holding takes in
 an Outbox an older app wrote show them through the notice after the update, and nothing
