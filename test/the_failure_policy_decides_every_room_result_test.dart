@@ -260,6 +260,7 @@ void main() {
       for (final code in [
         RefusalCode.unnamed(409),
         RefusalCode.deviceRevoked,
+        'TURN_COLLISION',
       ]) {
         _decides(
           RoomRefused(code),
