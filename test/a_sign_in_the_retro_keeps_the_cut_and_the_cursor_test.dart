@@ -139,26 +139,6 @@ Future<ProviderContainer> _freshlyInRetro(
   return container;
 }
 
-/// The team cuts, records and closes a translation over the resumed part — the ground
-/// the cut/pending-translation blocker measures. Leaves the room in `playing`, with the
-/// clip held (not sounding) and a translation pending, cut at [ate].
-Future<void> _cutsAndRecordsATranslation(
-  SalaHarness harness,
-  SalaSessionNotifier notifier,
-  SalaSessionState Function() read,
-  Duration ate,
-) async {
-  harness.playback.at = ate;
-  notifier.cortarTrecho();
-  notifier.retroTap();
-  await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
-  notifier.retroTap();
-  await waitFor(
-    'a tradução ficar pendente',
-    () => read().btTraducaoPendente != null,
-  );
-}
-
 void main() {
   testWidgets(
     'T2: the circle says listen first when nothing has been heard since the '
@@ -328,38 +308,17 @@ void main() {
     );
   });
 
-  test('T9: a halt landing after a cut and a pending translation, tapped away '
-      'before the confirm, sends the cut the team actually made', () async {
-    final harness = SalaHarness();
-    final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
-    await _cutsAndRecordsATranslation(
-      harness,
-      notifier,
-      read,
-      const Duration(seconds: 4),
-    );
-
-    await _haltLandsBlocking(notifier, read);
-    await _liftsTheHalt(notifier, read);
-    await notifier.confirmarTraducao();
-    await settle();
-
-    expect(harness.room.chunkSpans, ['0-4000']);
-  });
-
   test('T10: a halt landing and tapped away while the confirm itself is still in '
       'flight does not touch the cursor or the cut waiting on it', () async {
     final harness = SalaHarness();
     final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
-    await _cutsAndRecordsATranslation(
-      harness,
-      notifier,
-      read,
-      const Duration(seconds: 4),
-    );
+    harness.playback.at = const Duration(seconds: 4);
+    notifier.retroTap();
+    notifier.retroTap();
+    await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
 
     harness.room.holdNextChunk();
-    final confirming = notifier.confirmarTraducao();
+    notifier.retroTap();
     await waitFor(
       'a sala pensar enquanto o V viaja',
       () => read().btPhase == BtPhase.thinking,
@@ -369,7 +328,6 @@ void main() {
     await _liftsTheHalt(notifier, read);
 
     harness.room.finishHeldChunk();
-    await confirming;
     await settle();
 
     // `chunkSpans` is captured from the arguments at the call, before the halt ever
@@ -386,15 +344,16 @@ void main() {
     () async {
       final harness = SalaHarness();
       final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
-      await _cutsAndRecordsATranslation(
-        harness,
-        notifier,
-        read,
-        const Duration(seconds: 4),
+      harness.playback.at = const Duration(seconds: 4);
+      notifier.retroTap();
+      notifier.retroTap();
+      await waitFor(
+        'a captura abrir',
+        () => read().btPhase == BtPhase.capturing,
       );
 
       harness.room.holdNextChunk();
-      final confirming = notifier.confirmarTraducao();
+      notifier.retroTap();
       await waitFor(
         'a sala pensar enquanto o V viaja',
         () => read().btPhase == BtPhase.thinking,
@@ -403,7 +362,6 @@ void main() {
       final tocadas = harness.playback.played.length;
 
       harness.room.finishHeldChunk();
-      await confirming;
       await settle();
 
       expect(read().needsPerson, isTrue);
@@ -421,43 +379,11 @@ void main() {
         await _playingWithAToldStretchAndAWarningArmed(harness);
 
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     await settle();
 
     expect(read().btCorte, const Duration(seconds: 12));
   });
-
-  test(
-    'P3: a halt caught listening to the pending translation does not wipe '
-    'it, and the confirm that follows still sends the cut the team made',
-    () async {
-      final harness = SalaHarness();
-      final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
-      await _cutsAndRecordsATranslation(
-        harness,
-        notifier,
-        read,
-        const Duration(seconds: 4),
-      );
-
-      notifier.ouvirGravacao();
-      await waitFor('a tradução pendente tocar', () => read().btRetroTocando);
-
-      await _haltLandsBlocking(notifier, read);
-      await _liftsTheHalt(notifier, read);
-
-      expect(
-        read().btTraducaoPendente,
-        isNotNull,
-        reason: 'a tradução pendente sobrevive à parada',
-      );
-
-      await notifier.confirmarTraducao();
-      await settle();
-
-      expect(harness.room.chunkSpans, ['0-4000']);
-    },
-  );
 
   test(
     'P4: a halt caught listening to the cut stretch does not wipe the cut',
@@ -466,7 +392,7 @@ void main() {
       final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
 
       harness.playback.at = const Duration(seconds: 4);
-      notifier.cortarTrecho();
+      notifier.retroTap();
       await waitFor('o corte ficar de pé', () => read().btCortado);
       notifier.ouvirGravacao();
       await waitFor('o trecho cortado tocar', () => read().btTrechoTocando);
@@ -483,13 +409,11 @@ void main() {
       'own place', () async {
     final harness = SalaHarness();
     final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
-    await _cutsAndRecordsATranslation(
-      harness,
-      notifier,
-      read,
-      const Duration(seconds: 4),
-    );
-    await notifier.confirmarTraducao();
+    harness.playback.at = const Duration(seconds: 4);
+    notifier.retroTap();
+    notifier.retroTap();
+    await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
+    notifier.retroTap();
     await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
 
     harness.room.verdictChecked = false;

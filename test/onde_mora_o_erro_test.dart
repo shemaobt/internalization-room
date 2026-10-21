@@ -13,7 +13,6 @@ import 'scenario_helpers.dart';
 const ouvirOTrecho = 'Ouvir o trecho e a tradução';
 const micParteLabel = 'voltar e regravar uma parte';
 const micRetro = 'Traduzir este trecho de novo';
-const confirmar = 'Confirmar a tradução e seguir';
 
 SalaHarness? harnessDaVez;
 
@@ -53,7 +52,7 @@ Future<ProviderContainer> pumpToPergunta(
 
   for (final at in const [Duration(seconds: 10), Duration(seconds: 20)]) {
     harness.playback.at = at;
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
     await confirmarATraducaoNaTela(tester, container);
@@ -92,7 +91,6 @@ Future<void> traduzirDeNovo(
   notifier(container).retroTap();
   await tester.pump(const Duration(milliseconds: 300));
   await terminarACaptura(tester, container);
-  await tester.tap(byLabel(confirmar));
   await tester.pump(const Duration(milliseconds: 800));
 }
 
@@ -193,7 +191,6 @@ void main() {
     notifier(container).retroTap();
     await tester.pump(const Duration(milliseconds: 300));
     await terminarACaptura(tester, container);
-    await tester.tap(byLabel(confirmar));
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(

@@ -95,7 +95,6 @@ Future<void> _traduzirDeNovoPeloCaminhoCurto(Sala it) async {
     () => it.estado.btPhase == BtPhase.capturing,
   );
   await fecharACaptura(it.container);
-  await it.sala.confirmarTraducao();
   await waitFor(
     'a sala voltar do veredito',
     () => it.estado.btPhase != BtPhase.thinking,

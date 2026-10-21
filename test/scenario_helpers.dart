@@ -72,7 +72,7 @@ Future<void> traduzirAParteInteira(
 ) async {
   final notifier = container.read(salaSessionProvider.notifier);
   harness.playback.at = umaParteInteira;
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await tester.pump(const Duration(milliseconds: 200));
   await confirmarATraducaoNaTela(tester, container);

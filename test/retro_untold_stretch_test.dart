@@ -122,7 +122,7 @@ void main() {
     // E as tomadas seguem inteiras por todo o caminho que a sala abre daqui.
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
     await confirmarATraducaoNaTela(tester, container);
@@ -163,7 +163,7 @@ void main() {
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
     await confirmarATraducaoNaTela(tester, container);
@@ -197,7 +197,6 @@ void main() {
     // O tocador parado atrás do início do trecho nomeado é onde a equipe o
     // deixa ao ouvir a metade anterior antes de contar esta.
     harness.playback.at = const Duration(seconds: 1);
-    notifier.cortarTrecho();
     notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -399,7 +398,7 @@ Future<ProviderContainer> pumpUpToTheEndOfTheTelling(
   await tester.pump(const Duration(milliseconds: 200));
 
   harness.playback.at = const Duration(seconds: 10);
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await tester.pump(const Duration(milliseconds: 200));
   await confirmarATraducaoNaTela(tester, container);

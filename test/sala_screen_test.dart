@@ -831,7 +831,7 @@ void main() {
     notifier.startRetro();
     await tester.pump(const Duration(milliseconds: 200));
     harness.playback.at = const Duration(seconds: 10);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
     await confirmarATraducaoNaTela(tester, container);
@@ -958,7 +958,7 @@ void main() {
 
     harness.room.failWith = const Refused('UNAUTHORIZED');
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 100));
     await confirmarATraducaoNaTela(tester, container);

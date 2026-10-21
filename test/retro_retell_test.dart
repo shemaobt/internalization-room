@@ -47,7 +47,7 @@ Future<void> _traduzTrecho(
 }) async {
   final notifier = container.read(salaSessionProvider.notifier);
   harness.playback.at = em;
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await settle();
   await confirmarATraducao(container);
@@ -67,7 +67,6 @@ Future<void> _traduzDeNovo(
     () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
   );
   await fecharACaptura(container);
-  await notifier.confirmarTraducao();
   // Every way out of the telling leaves the thinking — the room answered, the room
   // refused, the recorder came back empty — so this is the wait that spans them all.
   await waitFor(
@@ -208,7 +207,6 @@ void main() {
         () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
       );
       await fecharACaptura(container);
-      await notifier.confirmarTraducao();
       await waitFor(
         'a sala sair do pensando',
         () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,

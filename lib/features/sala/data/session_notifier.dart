@@ -882,10 +882,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the next one.
   ///
   /// [holdTheClip] for the gestures that come back to the very part they leave — the
-  /// scissors, the circle that opens and closes a capture, telling a stretch again, and
-  /// the check. A hold silences the rehearsal just as well and is what keeps the clip
-  /// open: stopped, the room loses the length that the listening ceiling and the end of
-  /// the part are both measured against.
+  /// circle's three taps and telling a stretch again. A hold silences the rehearsal just
+  /// as well and is what keeps the clip open: stopped, the room loses the length that the
+  /// listening ceiling and the end of the part are both measured against.
   ///
   /// It never cancels the room's timers, never moves the generation and never touches the
   /// recorder: those belong to [_clearAll], which leaves a passage rather than moving
@@ -3146,6 +3145,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
       btTrechos: trechos,
+      btTrechosRegravados: const [],
       btFindings: achados,
       btVeredito: told.checked || achados.isNotEmpty,
       btFraseQueAguarda: told.awaitingSegmentId,
@@ -3154,7 +3154,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId != null) {
       unawaited(
-        _porCadaTrechoNaSuaParte(sessionId, told.segments, _generation),
+        _porCadaTrechoNaSuaParte(
+          sessionId,
+          told.segments,
+          _generation,
+          regravados: told.stale,
+        ),
       );
       unawaited(_lembrarDaFraseGuardada(sessionId));
     }
@@ -3189,6 +3194,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// a second time — the duplication the way back to the rehearsal exists to avoid, one
   /// leave-and-return later.
   void _keepTheStretchesAlreadyTold(BackTranslationProgress told) {
+    state = state.copyWith(btTrechosRegravados: const []);
+    final sessionId = state.sessionId;
+    if (sessionId != null && told.stale.isNotEmpty) {
+      unawaited(
+        _porCadaTrechoNaSuaParte(
+          sessionId,
+          const [],
+          _generation,
+          regravados: told.stale,
+        ),
+      );
+    }
     if (told.nothingTold) return;
     final trechos = _trechosFrom(told.segments);
     state = state.copyWith(
@@ -4135,7 +4152,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The pausa where the tap fell, snapped to the nearest silence of the take; at the
-  /// tap itself for a take with no loudness to read (ADR 0076).
+  /// tap for a take with no loudness to read, but never within 0.2 s of the last pausa
+  /// (ADR 0076, as amended).
   void _markThePausa() {
     final tap = _playback.position;
     _silenceTheRoom();
@@ -4154,7 +4172,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final end = shown.takeEnd;
     if (envelope == null || end == null) {
       final raw = end != null && tap > end ? end : tap;
-      return raw > frontier ? raw : null;
+      return raw > frontier ? pauseAtTheTap(raw, frontier, end) : null;
     }
     final bounds = pauseBounds(frontier, end);
     if (bounds == null) return null;
@@ -5259,6 +5277,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             take,
       ],
       btTrechos: trechos,
+      btTrechosRegravados: [
+        ...state.btTrechosRegravados,
+        for (final trecho in state.btTrechos)
+          if (trecho.parte == parte && trecho.contado) trecho,
+      ],
       btFindings: [
         for (final finding in state.btFindings)
           if (!saem.contains(finding.frase)) finding,
@@ -5668,13 +5691,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _tocarDoChaoNaoContado();
       return;
     }
-    final todas = naoOuvidas.length == state.partes.length;
+    final doComeco = !state.joined || naoOuvidas.length == state.partes.length;
     state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
     try {
       await _sayALine(
         LineKind.guide,
         fixedLine: (
-          name: todas ? startLine : unheardLine,
+          name: doComeco ? startLine : unheardLine,
           language: _inTheSessionsLanguage,
         ),
       );
@@ -5683,7 +5706,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_abandoned(generation)) return;
     _sairDaEspera();
-    _ouvirAsPartes(naoOuvidas, paraNaUltima: true);
+    _ouvirAsPartes(
+      doComeco
+          ? [for (var onde = 0; onde < state.partes.length; onde++) onde]
+          : naoOuvidas,
+      paraNaUltima: true,
+    );
   }
 
   Future<List<int>?> _asPartesNaoOuvidas(int generation) async {
@@ -6190,6 +6218,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _esquecerAFrase();
         state = state.copyWith(
           btTrechos: _trechosFrom(segmentos),
+          btTrechosRegravados: const [],
           btFindings: const [],
           clearTrechoTraduzidoDeNovo: true,
           btChunkFailures: const [],
@@ -6265,33 +6294,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _quietTheStretch() => unawaited(_playback.stop());
-
-  /// End a stretch here, at the pausa the tap snaps to. The scissors only place the pausa:
-  /// the translation is the circle's.
-  void cortarTrecho() => _gesture(() => _cortarTrecho());
-
-  void _cortarTrecho() {
-    if (!state.canCut) return;
-    if (_trechoTraduzidoDeNovo != null) return;
-    if (state.btTrechoTocando || state.btTrechoPausada) {
-      final cabeca = state.btTrechoDesde! + _playback.position;
-      _semOTrechoNoAr();
-      if (cabeca > _trechoStart && cabeca < _trechoEnd) {
-        if (_aPausaNo(cabeca) case final pausa?) _trechoEnd = pausa;
-      }
-      return;
-    }
-    // A belt. No way the room starts playback puts the playhead behind the cursor any
-    // more — a part picked back up opens at its cursor, crossing into a part opens at
-    // that part's, and holding the clip and letting it run again never rewinds — but
-    // the position is the player's answer, not the room's, and a player that comes back
-    // from behind it would send a stretch that ends before it begins and then walk the
-    // cursor backwards over every stretch after it. Unconditional: a cut can never end
-    // before it begins, whatever else stands.
-    _silenceTheRoom(holdTheClip: true);
-    if (_cabeca <= _trechoStart) return;
-    if (_aPausaNo(_cabeca) case final pausa?) _trechoEnd = pausa;
-  }
 
   Duration? _aPausaNo(Duration toque) {
     final noFim = state.btParteFronteira || state.btClipEnded;
@@ -6379,10 +6381,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// event landing.
   ///
   /// `SalaSessionState.nothingHeardSinceCursor` is what the circle's label reads — a
-  /// plain field, the way `canCut` and `canConfirmTranslation` are, because nothing else
+  /// plain field, the way `canConfirmTranslation` is, because nothing else
   /// in state changes while a part simply plays on, and a label baked from a live read at
   /// the last state change would go stale the moment the room stopped touching state for
-  /// it. The capture and the scissors do not read this field: a fact this timer can only
+  /// it. The pausa and the capture do not read this field: a fact this timer can only
   /// answer to the nearest hundred milliseconds is not the belt a cut's own boundary
   /// needs, so both still read `_cabeca` live, as they always have.
   void _armCursorDeadline() {
@@ -7119,7 +7121,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // that is still open behind it, and the next listening carries that same part
         // on. Stopped, the room loses the length the end of the part is measured by.
         _silenceTheRoom(holdTheClip: true);
-        _handOff(_finishChunkCapture());
+        _handOff(_closeTheCaptureAndSend());
       case BtPhase.findings:
         _silenceTheRoom();
         _handOff(_repeatTheFinding());
@@ -7131,18 +7133,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _abrirACaptura() {
     if (_trechoTraduzidoDeNovo == null && !state.btCortado) {
-      if (_cabeca <= _trechoStart) return;
       if ((state.btParteFronteira || state.btClipEnded) &&
           isAStub(_trechoStart, _cabeca)) {
         return;
       }
       _silenceTheRoom(holdTheClip: true);
+      if (_cabeca <= _trechoStart) return;
       final pausa = _aPausaNo(_cabeca);
       if (pausa == null) return;
       _trechoEnd = pausa;
-    } else {
-      _silenceTheRoom(holdTheClip: true);
+      return;
     }
+    _silenceTheRoom(holdTheClip: true);
     _startChunkCapture();
   }
 
@@ -7157,25 +7159,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  Future<void> _finishChunkCapture() async {
+  Future<bool> _finishChunkCapture() async {
     final generation = _waitOnTheGeneration;
     state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
     _watchBusyState();
     final path = (await _closeTheMicrophone()).take;
-    if (_abandoned(generation)) return;
+    if (_abandoned(generation)) return false;
     final sessionId = state.sessionId;
 
     if (path != null && !_hasAudio(path)) {
       _trechoStart = _ondeParouNesteArquivo(_parteTocando);
       state = state.copyWith(btPhase: BtPhase.playing, awaitingTheGuide: false);
       unawaited(_recorder.delete(path));
-      return;
+      return false;
     }
 
     if (path == null || sessionId == null) {
       state = state.copyWith(btPhase: BtPhase.playing, awaitingTheGuide: false);
       if (path != null) unawaited(_recorder.delete(path));
-      return;
+      return false;
     }
 
     final substituida = state.btTraducaoPendenteEmprestada
@@ -7189,9 +7191,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (substituida != null) {
       unawaited(_retirarDaFilaSeGuardada(substituida));
     }
+    return true;
   }
 
-  Future<void> confirmarTraducao() => _gestureThen(() => _confirmarTraducao());
+  Future<void> _closeTheCaptureAndSend() async {
+    if (await _finishChunkCapture()) await _confirmarTraducao();
+  }
 
   Future<void> _confirmarTraducao() async {
     if (!state.canConfirmTranslation) return;
@@ -7955,15 +7960,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _porCadaTrechoNaSuaParte(
     String sessionId,
     List<SegmentView> segments,
-    int generation,
-  ) async {
-    final faltando = {
-      for (final segment in segments)
+    int generation, {
+    List<SegmentView> regravados = const [],
+  }) async {
+    Set<String> semGravacao(List<SegmentView> lidos) => {
+      for (final segment in lidos)
         if (segment.takeId.isNotEmpty &&
             !state.keptTakes.any((take) => take.takeId == segment.takeId))
           segment.takeId,
     };
-    if (faltando.isEmpty) return;
+    final faltando = semGravacao(segments);
+    final regravadosFaltando = semGravacao(regravados);
+    if (faltando.isEmpty && regravadosFaltando.isEmpty) return;
     // The row of stretches as it stands before the listing waits. The rehearsal goes on
     // playing under it, and a team that cuts a stretch inside that window has it in this
     // list and nowhere else yet.
@@ -7986,7 +7994,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     final naParte = <String, int>{};
     for (final guardada in guardadas) {
-      if (!faltando.contains(guardada.takeId)) continue;
+      if (!faltando.contains(guardada.takeId) &&
+          !regravadosFaltando.contains(guardada.takeId)) {
+        continue;
+      }
       final numero = guardada.ordinal;
       if (numero == null) continue;
       final onde = state.partes.indexWhere(
@@ -7996,10 +8007,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       naParte[guardada.takeId] = onde;
     }
     if (naParte.isEmpty) return;
+    state = state.copyWith(
+      btTrechosRegravados: [
+        for (final trecho in _trechosFrom(regravados, naParte: naParte))
+          if (trecho.parte >= 0) trecho,
+      ],
+    );
     // Only over a row nothing else has touched. This reading is built out of the answer
     // the resume came in with, so writing it over a row that moved meanwhile would take
     // the stretch the team just told back off the screen.
-    if (!identical(state.btTrechos, eram)) return;
+    if (faltando.isEmpty || !identical(state.btTrechos, eram)) return;
     state = state.copyWith(btTrechos: _trechosFrom(segments, naParte: naParte));
   }
 

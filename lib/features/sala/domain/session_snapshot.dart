@@ -29,9 +29,19 @@ class SegmentView {
     this.frase,
   });
 
-  static List<SegmentView> listFrom(Map<String, dynamic> json) => [
+  static List<SegmentView> listFrom(Map<String, dynamic> json) =>
+      _listed(json, stale: false);
+
+  static List<SegmentView> staleFrom(Map<String, dynamic> json) =>
+      _listed(json, stale: true);
+
+  static List<SegmentView> _listed(
+    Map<String, dynamic> json, {
+    required bool stale,
+  }) => [
     for (final raw in (json['segments'] as List? ?? const []))
-      if (raw is Map) SegmentView.fromJson(raw.cast<String, dynamic>()),
+      if (raw is Map && (raw['stale'] == true) == stale)
+        SegmentView.fromJson(raw.cast<String, dynamic>()),
   ];
 
   factory SegmentView.fromJson(Map<String, dynamic> json) => SegmentView(
@@ -146,6 +156,7 @@ class BackTranslationProgress {
   final String? findingSegmentId;
   final List<BtFinding> findings;
   final String? awaitingSegmentId;
+  final List<SegmentView> stale;
 
   const BackTranslationProgress({
     this.segments = const [],
@@ -153,6 +164,7 @@ class BackTranslationProgress {
     this.findingSegmentId,
     this.findings = const [],
     this.awaitingSegmentId,
+    this.stale = const [],
   });
 
   factory BackTranslationProgress.fromJson(Map<String, dynamic> json) =>
@@ -162,6 +174,7 @@ class BackTranslationProgress {
         findingSegmentId: json['finding_segment_id'] as String?,
         findings: BtFinding.listFrom(json),
         awaitingSegmentId: json['awaiting_segment_id'] as String?,
+        stale: SegmentView.staleFrom(json),
       );
 
   bool get nothingTold => segments.isEmpty;

@@ -131,8 +131,8 @@ void main() {
         playback.position,
         const Duration(seconds: 7),
         reason:
-            'e do mesmo ponto — cortarTrecho lê esta posição direto para '
-            'fechar um trecho',
+            'e do mesmo ponto — o toque que marca a pausa lê esta posição '
+            'direto para fechar um trecho',
       );
       expect(
         tocador.carregados,
@@ -215,8 +215,8 @@ void main() {
         playback.position,
         const Duration(seconds: 30),
         reason:
-            'e a posição segue contada do começo do arquivo: cortarTrecho '
-            'compara esta leitura com o cursor',
+            'e a posição segue contada do começo do arquivo: o toque que marca '
+            'a pausa compara esta leitura com o cursor',
       );
       expect(feitos.single.tocando, isTrue);
     });

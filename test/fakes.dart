@@ -3420,15 +3420,8 @@ Future<void> theRoomRefusesTheGuardedCopy(SalaHarness harness) => waitFor(
   ),
 );
 
-Future<void> confirmarATraducao(ProviderContainer container) async {
-  final sala = container.read(salaSessionProvider.notifier);
-  sala.retroTap();
-  await waitFor(
-    'a tradução ficar pendente',
-    () => container.read(salaSessionProvider).btTraducaoPendente != null,
-  );
-  await sala.confirmarTraducao();
-}
+Future<void> confirmarATraducao(ProviderContainer container) =>
+    fecharACaptura(container);
 
 Future<void> fecharACaptura(ProviderContainer container) async {
   container.read(salaSessionProvider.notifier).retroTap();
@@ -3442,15 +3435,9 @@ Future<void> confirmarATraducaoNaTela(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
-  final sala = container.read(salaSessionProvider.notifier);
-  sala.retroTap();
+  container.read(salaSessionProvider.notifier).retroTap();
   await tester.pump(const Duration(milliseconds: 300));
-  expect(
-    container.read(salaSessionProvider).btTraducaoPendente,
-    isNotNull,
-    reason: 'o segundo toque deixa a tradução pendente',
-  );
-  await sala.confirmarTraducao();
+  await tester.pump(const Duration(milliseconds: 300));
 }
 
 class SalaHarness {

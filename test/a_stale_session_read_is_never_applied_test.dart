@@ -75,15 +75,10 @@ Future<void> _tellsAStretchUpTo(
 ) async {
   final antes = read().btTrechos.length;
   harness.playback.at = ate;
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
   notifier.retroTap();
-  await waitFor(
-    'a tradução ficar pendente',
-    () => read().btTraducaoPendente != null,
-  );
-  await notifier.confirmarTraducao();
   await waitFor('o trecho pousar', () => read().btTrechos.length == antes + 1);
 }
 

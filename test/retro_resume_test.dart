@@ -584,7 +584,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       harness.playback.at = const Duration(seconds: 44);
-      notifier.cortarTrecho();
+      notifier.retroTap();
       notifier.retroTap();
       await settle();
       await confirmarATraducao(container);
@@ -615,7 +615,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     harness.playback.at = const Duration(seconds: 8);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     notifier.retroTap();
@@ -632,7 +632,7 @@ void main() {
     );
 
     harness.playback.at = const Duration(seconds: 44);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);

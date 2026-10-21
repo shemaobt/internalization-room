@@ -15,7 +15,7 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show cabeca, confirmar, entrarNaTraducao, parte, tesoura, tocar;
+    show cabeca, entrarNaTraducao, parte, tocar, tocarNoCirculo;
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
@@ -29,7 +29,6 @@ Future<void> _traduzir(WidgetTester tester) async {
     await tester.tap(circulo);
     await tester.pump(const Duration(milliseconds: 300));
   }
-  await tocar(tester, confirmar);
 }
 
 Future<ProviderContainer> _quatroFrasesComUmaNuance(
@@ -46,11 +45,12 @@ Future<ProviderContainer> _quatroFrasesComUmaNuance(
   final container = await entrarNaTraducao(tester, harness);
   for (var contada = 1; contada <= 2; contada++) {
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await _traduzir(tester);
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
+    await tocarNoCirculo(tester);
     await _traduzir(tester);
     await waitFor(
       'a parte $contada ficar contada em duas frases',

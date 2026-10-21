@@ -433,7 +433,7 @@ void main() {
       room.notifier.startRetro();
       await _passTime(tester, 300);
       room.harness.playback.at = const Duration(seconds: 2);
-      room.notifier.cortarTrecho();
+      room.notifier.retroTap();
       room.notifier.retroTap();
       await _passTime(tester, 300);
 

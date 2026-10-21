@@ -415,6 +415,95 @@ void main() {
     );
   });
 
+  test(
+    'a session read asks the room for the stretches a part recorded again left stale',
+    () async {
+      late http.BaseRequest seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response(
+            jsonEncode({
+              'session_id': 'sessao-1',
+              'pericope': 'P01',
+              'status': 'in_progress',
+              'done': false,
+            }),
+            200,
+          );
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      await repository.fetchState('sessao-1');
+
+      expect(seen.url.path, '/api/internalization-room/sessions/sessao-1');
+      expect(
+        seen.url.queryParameters,
+        {'include_stale': 'true'},
+        reason:
+            'sem pedir, a sala nunca servia os trechos de uma parte gravada de '
+            'novo, e a lista os perdia',
+      );
+    },
+  );
+
+  test(
+    'a stale stretch in the session read is handed over apart, never as a stretch that counts',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (request) async => http.Response(
+            jsonEncode({
+              'session_id': 'sessao-1',
+              'pericope': 'P01',
+              'status': 'in_progress',
+              'done': false,
+              'back_translation': {
+                'segments': [
+                  {
+                    'segment_id': 'trecho-1',
+                    'take_id': 'gravacao-1',
+                    'starts_ms': 0,
+                    'ends_ms': 4000,
+                    'frase': 1,
+                    'stale': false,
+                  },
+                  {
+                    'segment_id': 'trecho-2',
+                    'take_id': 'gravacao-2',
+                    'starts_ms': 0,
+                    'ends_ms': 3000,
+                    'frase': null,
+                    'stale': true,
+                  },
+                ],
+              },
+            }),
+            200,
+          ),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final told = _value(
+        await repository.fetchState('sessao-1'),
+      ).backTranslation;
+
+      expect(
+        [for (final segment in told.segments) segment.segmentId],
+        ['trecho-1'],
+        reason:
+            'um trecho regravado contava como trecho traduzido: entrava na '
+            'conferência e movia o cursor',
+      );
+      expect(
+        [for (final segment in told.stale) segment.segmentId],
+        ['trecho-2'],
+      );
+    },
+  );
+
   test('the session read carries the approved draft, and none when the room '
       'says none', () async {
     Map<String, Object?> state(String id) => {
@@ -2482,6 +2571,105 @@ void main() {
       final segment = _value(answer).segments.single;
       expect((segment.takeId, segment.endsMs), ('gravacao-3', 3200));
     });
+
+    test(
+      'the replace and sentence doors ask for the stale stretches too',
+      () async {
+        final seen = <http.BaseRequest>[];
+        final repository = RoomRepository(
+          client: MockClient((request) async {
+            seen.add(request);
+            return http.Response(
+              jsonEncode({'session_id': 'sessao-1', 'segments': []}),
+              200,
+            );
+          }),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        await repository.replaceSegment(
+          'sessao-1',
+          'trecho-1',
+          await _tempRecording(),
+          takeId: 'gravacao-1',
+          from: Duration.zero,
+          to: const Duration(seconds: 4),
+          idempotencyKey: 'chave-1',
+        );
+        await repository.reRecordTheSentence(
+          'sessao-1',
+          'trecho-3',
+          await _tempRecording(extension: 'wav', bytes: aWavTake()),
+          sentenceId: '1792447878466000-0',
+        );
+
+        expect(
+          [for (final request in seen) request.url.queryParameters],
+          [
+            {'include_stale': 'true'},
+            {'include_stale': 'true'},
+          ],
+          reason:
+              'as respostas trazem a lista da passagem, e sem pedir ela vinha '
+              'sem os trechos regravados',
+        );
+      },
+    );
+
+    test(
+      'a stale stretch in the answer of a stretch told again never comes back as one that counts',
+      () async {
+        final repository = RoomRepository(
+          client: MockClient(
+            (request) async => http.Response(
+              jsonEncode({
+                'session_id': 'sessao-1',
+                'segments': [
+                  {
+                    'segment_id': 'trecho-1',
+                    'take_id': 'gravacao-1',
+                    'starts_ms': 0,
+                    'ends_ms': 4000,
+                    'frase': 1,
+                    'stale': false,
+                  },
+                  {
+                    'segment_id': 'trecho-2',
+                    'take_id': 'gravacao-2',
+                    'starts_ms': 0,
+                    'ends_ms': 3000,
+                    'frase': null,
+                    'stale': true,
+                  },
+                ],
+              }),
+              200,
+            ),
+          ),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        final answer = await repository.replaceSegment(
+          'sessao-1',
+          'trecho-1',
+          await _tempRecording(),
+          takeId: 'gravacao-1',
+          from: Duration.zero,
+          to: const Duration(seconds: 4),
+          idempotencyKey: 'chave-1',
+        );
+
+        expect(
+          [for (final segment in _value(answer).segments) segment.segmentId],
+          ['trecho-1'],
+          reason:
+              'a resposta sobrescreve a lista do tablet, e o trecho regravado '
+              'voltava como trecho traduzido',
+        );
+      },
+    );
 
     test('a stretch told again goes up as it always did', () async {
       await listening().replaceSegment(

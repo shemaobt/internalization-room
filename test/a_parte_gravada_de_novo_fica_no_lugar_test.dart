@@ -90,7 +90,7 @@ Future<void> _contarUmTrecho(Sala it, Duration quanto) async {
   final antes = it.estado.btTrechos.length + it.estado.btChunkFailures.length;
   it.harness.playback.length = quanto;
   it.harness.playback.at = quanto;
-  it.sala.cortarTrecho();
+  it.sala.retroTap();
   it.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
@@ -383,7 +383,12 @@ void main() {
             'retro sem nome que subiu no mesmo flush',
       );
 
-      await it.sala.confirmarTraducao();
+      it.sala.retroTap();
+      await waitFor(
+        'o microfone abrir de novo no trecho',
+        () => it.estado.btPhase == BtPhase.capturing,
+      );
+      await confirmarATraducao(it.container);
       await waitFor(
         'o trecho pendente subir com o nome da parte',
         () =>
@@ -1455,7 +1460,7 @@ Future<_Conferida> _ateAConferida(
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
   harness.playback.at = umaParteInteira;
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await tester.pump(const Duration(milliseconds: 200));
   await confirmarATraducaoNaTela(tester, container);

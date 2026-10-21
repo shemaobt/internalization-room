@@ -57,7 +57,7 @@ Future<void> ouvirETraduzirAParteInteira(Sala it, Duration quanto) async {
   await theClipOpens(it.harness);
   it.harness.playback.length = quanto;
   it.harness.playback.at = quanto;
-  it.sala.cortarTrecho();
+  it.sala.retroTap();
   it.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
@@ -171,7 +171,7 @@ Future<void> traduzirUmTrecho(Sala it, Duration em) async {
   final antes = it.estado.btTrechos.length;
   await theClipOpens(it.harness);
   it.harness.playback.at = em;
-  it.sala.cortarTrecho();
+  it.sala.retroTap();
   it.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
@@ -188,7 +188,6 @@ Future<void> traduzirUmTrecho(Sala it, Duration em) async {
 Future<void> entregarAPonte(Sala it) async {
   final antes = it.harness.room.replacesAsked.length;
   await fecharACaptura(it.container);
-  await it.sala.confirmarTraducao();
   await waitFor(
     'a ponte nova substituir o trecho',
     () => it.harness.room.replacesAsked.length == antes + 1,

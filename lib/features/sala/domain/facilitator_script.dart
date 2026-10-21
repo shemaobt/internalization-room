@@ -345,10 +345,6 @@ const retroLabels = {
     'en': 'Listen to the translation',
   },
   'pause': {'pt': 'Pausar', 'en': 'Pause'},
-  'pauseHere': {
-    'pt': 'Pausar onde a frase acaba',
-    'en': 'Pause where the sentence ends',
-  },
   'pauseEarlier': {'pt': 'um pouco antes', 'en': 'a little earlier'},
   'hearThePause': {'pt': 'ouvir a pausa', 'en': 'hear the pause'},
   'pauseLater': {'pt': 'um pouco depois', 'en': 'a little later'},
@@ -362,10 +358,6 @@ const retroLabels = {
   'pauseAtTheTap': {
     'pt': 'a pausa ficou no toque — toquem no círculo para traduzir',
     'en': 'the pause is at your tap — tap the circle to translate',
-  },
-  'confirm': {
-    'pt': 'Confirmar a tradução e seguir',
-    'en': 'Confirm the translation and go on',
   },
   'advance': {'pt': 'terminei', 'en': 'done'},
   'checking': {'pt': 'conferindo…', 'en': 'checking…'},
@@ -385,6 +377,10 @@ const retroLabels = {
   'addition': {'pt': 'acrescentado', 'en': 'added'},
   'missing': {'pt': 'faltou depois desta', 'en': 'missing after this'},
   'unclear': {'pt': 'não ficou claro', 'en': 'unclear'},
+  'stale': {
+    'pt': 'regravada — traduzam de novo',
+    'en': 're-recorded — translate again',
+  },
   'title': {'pt': 'Traduzir a gravação', 'en': 'Translate the recording'},
   'subTell': {
     'pt':

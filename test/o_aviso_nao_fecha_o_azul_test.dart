@@ -42,11 +42,10 @@ Future<void> _traduzTrecho(
 }) async {
   final notifier = container.read(salaSessionProvider.notifier);
   harness.playback.at = em;
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await settle();
   await fecharACaptura(container);
-  await notifier.confirmarTraducao();
   await settle();
 }
 
@@ -63,7 +62,6 @@ Future<void> traduzirDeNovoOApontado(
     () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
   );
   await fecharACaptura(container);
-  await notifier.confirmarTraducao();
 }
 
 /// A sala parada num achado no segundo trecho, com o aviso de "chame uma
@@ -140,10 +138,10 @@ Future<ProviderContainer> _paradaBloqueante(SalaHarness harness) async {
   final notifier = container.read(salaSessionProvider.notifier);
   harness.recorder.startThrows = true;
   harness.playback.at = const Duration(seconds: 20);
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await settle();
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await waitFor(
     'a sala parar de vez',
@@ -267,7 +265,6 @@ void main() {
         () => read().btPhase == BtPhase.capturing,
       );
       await fecharACaptura(container);
-      await notifier.confirmarTraducao();
       await waitFor(
         'a sala sair do pensando',
         () => read().btPhase != BtPhase.thinking,
