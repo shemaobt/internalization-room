@@ -278,9 +278,16 @@ void main() {
   test(
     'a halt on the way into a telling-back with nothing told withholds the sound',
     () async {
-      final harness = SalaHarness()..room.serverStatus = 'needs_person';
+      final harness = SalaHarness();
+      harness.playback.holdNextMeasurement();
 
       final container = await _reopen(harness, parouEm: SalaStage.retro);
+      await waitFor(
+        'a entrada medir as partes',
+        () => harness.playback.measurements.isNotEmpty,
+      );
+      container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+      harness.playback.finishHeldMeasurement();
       await waitFor(
         'a sala parar e a entrada terminar de medir as partes',
         () =>

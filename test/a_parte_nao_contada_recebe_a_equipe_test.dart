@@ -281,35 +281,38 @@ void main() {
     expect(trecho.to, const Duration(seconds: 4));
   });
 
-  test('um id que nenhuma parte tem chama uma pessoa', () async {
-    final it = await umEnsaioDeTresPartesContadoInteiro();
-    final tocadas = it.harness.playback.played.length;
-    final medidasAntes = it.harness.playback.measurements.length;
+  test(
+    'um id que nenhuma parte tem não leva a nada nem chama ninguém',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      final tocadas = it.harness.playback.played.length;
+      final medidasAntes = it.harness.playback.measurements.length;
 
-    it.harness.room
-      ..verdictChecked = false
-      ..verdictUntoldTakeIds = ['ninguem'];
-    await pedirOVeredito(it);
+      it.harness.room
+        ..verdictChecked = false
+        ..verdictUntoldTakeIds = ['ninguem'];
+      await pedirOVeredito(it);
 
-    expect(
-      it.estado.needsPerson,
-      isTrue,
-      reason:
-          'um nome que este tablet não sabe virar parte nenhuma é uma '
-          'pessoa, e não uma tela a mais para a equipe adivinhar',
-    );
-    expect(it.estado.btPhase, isNot(BtPhase.thinking));
-    expect(
-      it.harness.playback.played.length,
-      tocadas,
-      reason: 'não há parte em que cair, então nada entra no ar',
-    );
-    expect(
-      it.harness.playback.measurements.length,
-      medidasAntes,
-      reason: 'a parada chega antes de qualquer medida',
-    );
-  });
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason:
+            'um nome que este tablet não sabe virar parte nenhuma não é um dos '
+            'seis casos do sinal da pessoa',
+      );
+      expect(it.estado.btPhase, isNot(BtPhase.thinking));
+      expect(
+        it.harness.playback.played.length,
+        tocadas,
+        reason: 'não há parte em que cair, então nada entra no ar',
+      );
+      expect(
+        it.harness.playback.measurements.length,
+        medidasAntes,
+        reason: 'não há parte a que levar a equipe, então nada é medido',
+      );
+    },
+  );
 
   test('nomeadas várias, a equipe cai na primeira', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();
@@ -351,7 +354,7 @@ void main() {
     },
   );
 
-  test('uma recusa atrasada não muda nada', () async {
+  test('uma recusa atrasada não muda nada nem chama ninguém', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro(
       tetoDaEspera: const Duration(seconds: 2),
     );
@@ -365,8 +368,8 @@ void main() {
 
     final aperto = it.sala.finishBackTranslation();
     await waitFor(
-      'a sala desistir da espera e chamar uma pessoa',
-      () => it.estado.needsPerson,
+      'a sala desistir da espera',
+      () => it.estado.btPhase != BtPhase.thinking,
     );
     it.harness.voice.finishHeldFetch();
     await aperto;
@@ -374,8 +377,12 @@ void main() {
     expect(
       it.harness.playback.played.length,
       tocadas,
-      reason: 'a sala já desistiu desta espera e parou para uma pessoa',
+      reason: 'a sala já desistiu desta espera',
     );
-    expect(it.estado.needsPerson, isTrue);
+    expect(
+      it.estado.needsPerson,
+      isFalse,
+      reason: 'uma espera sem fala que se esgota não chama ninguém',
+    );
   });
 }

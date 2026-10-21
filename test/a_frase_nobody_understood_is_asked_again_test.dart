@@ -335,15 +335,15 @@ void main() {
     );
 
     testWidgets(
-      'a code that stops the room still calls a person at the frase door',
+      'a frase refused as forbidden is not understood and calls nobody',
       (tester) async {
         final screen = await _aPausaAfterFrase1(tester);
         screen.room.sceneAnswersFirst.add(const Refused(RefusalCode.forbidden));
 
         await screen.tellsTheFrase();
 
-        expect(screen.state.needsPerson, isTrue);
-        expect(byLabel(_notUnderstood), findsNothing);
+        expect(screen.state.needsPerson, isFalse);
+        expect(byLabel(_notUnderstood), findsOneWidget);
         closeTheRoom(screen.container);
         await screen.beat();
       },

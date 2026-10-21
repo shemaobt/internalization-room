@@ -20,19 +20,14 @@ void main() {
     SalaSessionState read() => container.read(salaSessionProvider);
     await waitFor('o aviso chegar', () => read().warning);
 
-    harness.room.holdNextTurn();
+    harness.room
+      ..holdNextAskForAPerson()
+      ..failTurnsWith = const Refused('BAD_REQUEST');
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
-    await settle();
-    harness.room.serverHalt = HaltKind.blocking;
     await waitFor('a parada vencer o aviso', () => read().needsPerson);
-
-    harness.network.reachable = false;
-    harness.room.reachable = false;
-    harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
-    harness.room.finishHeldTurn();
-    await waitFor('a sala ficar sem alcance', () => read().unreachable);
+    harness.room.failTurnsWith = null;
 
     notifier.resolveWithPerson();
     await settle();
@@ -40,7 +35,7 @@ void main() {
     expect(
       read().needsPerson,
       isFalse,
-      reason: 'soltou sem ninguém a quem perguntar',
+      reason: 'soltou sem que o servidor soubesse da parada',
     );
     expect(
       read().warning,
@@ -49,5 +44,6 @@ void main() {
           'o aviso só acaba quando uma leitura da sessão diz que acabou; a '
           'parada que passou por cima dele não o levou embora',
     );
+    harness.room.finishHeldAskForAPerson();
   });
 }

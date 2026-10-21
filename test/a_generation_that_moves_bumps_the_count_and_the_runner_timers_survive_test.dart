@@ -2,6 +2,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'a_station_host_double.dart';
 import 'fakes.dart';
@@ -24,7 +25,10 @@ void main() {
     final container = ProviderContainer(overrides: SalaHarness().overrides);
     addTearDown(container.dispose);
     final host = AStationHost()..roomIsReachable = false;
-    var machine = reduce(const Machine(), const NetworkFailedAt(Door.step)).$1;
+    var machine = reduce(
+      const Machine(station: Canvas()),
+      const NetworkFailedAt(Door.step),
+    ).$1;
     final runner = runnerOver(
       portsOf(container),
       host,

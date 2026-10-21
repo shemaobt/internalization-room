@@ -70,7 +70,7 @@ class _Circle extends ConsumerWidget {
       voice: session.voice,
       reach: session.reach,
       semanticLabel: escolhaLabelFor(
-        session.livroInteiroFeito || session.wheelHalted
+        session.livroInteiroFeito || session.wheelOffersNothing
             ? 'allDone'
             : 'readTheWheel',
         language,

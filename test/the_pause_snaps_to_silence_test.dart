@@ -328,6 +328,131 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a circle tap 0.1 s after the last pausa tells a frase of 0.2 s, '
+      'not a sliver', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    await pausarAos(tester, harness, s(4));
+    await traduzirEConfirmar(tester);
+    expect(container.read(salaSessionProvider).btCursor, s(4));
+
+    harness.playback.at = s(4.1);
+    await tester.pump(passaDoCursor);
+    await traduzirEConfirmar(tester);
+
+    expect(
+      harness.room.chunkSpans.last,
+      '4000-4200',
+      reason: 'sem envelope a pausa ficava no toque e a frase tinha 0,1 s',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'a tap with less than 0.2 s of the part left after the last pausa '
+    'tells nothing, not a sliver',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await entrarComAFala(tester, harness, null);
+      await pausarAos(tester, harness, s(9.9));
+      await traduzirEConfirmar(tester);
+      expect(harness.room.chunkSpans, ['0-9900']);
+
+      harness.playback.at = s(9.95);
+      await tester.pump(passaDoCursor);
+      expect(container.read(salaSessionProvider).btClipRodando, isTrue);
+      final rotulo = rotuloDoCirculo(tester);
+
+      await tocarOCirculo(tester);
+
+      expect(
+        container.read(salaSessionProvider).btClipRodando,
+        isFalse,
+        reason: 'como no dela, o toque pausa a gravação mesmo sem frase',
+      );
+      expect(harness.playback.sounding, isFalse);
+      expect(rotuloDoCirculo(tester), rotulo);
+
+      await tocarOCirculo(tester);
+      await tocar(tester, confirmar);
+
+      expect(
+        harness.room.chunkSpans,
+        ['0-9900'],
+        reason:
+            'o teto do piso levava a pausa ao fim e mandava uma frase de 0,1 s',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('the scissors with less than 0.2 s of the part left place no '
+      'pausa either', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    await pausarAos(tester, harness, s(9.9));
+    await traduzirEConfirmar(tester);
+    expect(harness.room.chunkSpans, ['0-9900']);
+
+    await pausarAos(tester, harness, s(9.95));
+    await traduzirEConfirmar(tester);
+
+    expect(
+      harness.room.chunkSpans,
+      ['0-9900'],
+      reason: 'a tesoura punha a pausa no fim e o círculo mandava 0,1 s',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a part the player could not measure keeps the 0.2 s room inside '
+      'its own length', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.recorder.rehearsalSpeaks = umaLacunaAos3;
+    final container = await entrarNaTraducao(
+      tester,
+      harness,
+      partes: 1,
+      medida: null,
+    );
+    harness.playback.length = parte;
+    await pausarAos(tester, harness, s(9.95));
+    await traduzirEConfirmar(tester);
+    expect(harness.room.chunkSpans, ['0-9900']);
+
+    harness.playback.at = s(9.95);
+    await tester.pump(passaDoCursor);
+    await traduzirEConfirmar(tester);
+
+    expect(
+      harness.room.chunkSpans,
+      ['0-9900'],
+      reason: 'sem medida o piso ficava sem teto e a frase passava do fim',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tail of 0.3 s left at the end of the part is not offered as a '
+      'frase', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+    await pausarAos(tester, harness, s(9.7));
+    await traduzirEConfirmar(tester);
+    expect(harness.room.chunkSpans, ['0-9700']);
+
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    await traduzirEConfirmar(tester);
+
+    expect(
+      harness.room.chunkSpans,
+      ['0-9700'],
+      reason: 'o círculo abria o microfone e os 0,3 s do fim viravam uma frase',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('the pausa never goes past the part\'s end', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarComAFala(tester, harness, umaLacunaAos3);
