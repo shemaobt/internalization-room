@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -348,6 +349,27 @@ void main() {
         expect(_state(room).stage, SalaStage.retro);
         expect(_state(room).partes, hasLength(1));
         expect(_theBadge(1), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'lands on its approved draft with the coverage and the moment of that read',
+      (tester) async {
+        final harness = _aRoomHolding(approved: _approvedAs(1))
+          ..room.nextCoverage = coverage(engaged: 3)
+          ..room.nextMoment = const Moment(
+            at: MomentAt.articulation,
+            part: 2,
+            parts: 3,
+          );
+        aPartlessRow(harness);
+
+        final room = await _enter(tester, harness);
+
+        _landsOnTheApprovedDraft(room);
+        expect(_state(room).coverage.engaged, 3);
+        expect(_state(room).moment?.at, MomentAt.articulation);
+        expect(_state(room).moment?.part, 2);
       },
     );
 

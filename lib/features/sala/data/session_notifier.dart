@@ -2765,6 +2765,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
     );
     landed();
+    state = state.copyWith(
+      coverage: read.coverage,
+      moment: read.moment,
+      clearMoment: read.moment == null,
+    );
     _applyTheSessionRead(read, sent);
     _rememberWhereTheyAre(const Retro());
     await _countUnsent();
