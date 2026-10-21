@@ -27,6 +27,9 @@ Finder onTheCircle(String label) => find.descendant(
   matching: byLabel(label),
 );
 
+Finder theAdvanceDisc(String label) =>
+    find.descendant(of: find.byType(EnsaioView), matching: byLabel(label));
+
 final _sceneRow = RegExp(r'^(Cena|Scene) \d');
 
 Finder offTheRows(String label) => find.byElementPredicate((element) {

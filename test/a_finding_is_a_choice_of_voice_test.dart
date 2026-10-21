@@ -228,7 +228,9 @@ void main() {
     expect(naLinhaDoEnsaio(tester, 'Gravar de novo'), [true, true, true, null]);
 
     final tocadas = harness.playback.played.length;
-    await tocar(tester, irParaATraducao);
+    await tester.ensureVisible(theAdvanceDisc(irParaATraducao));
+    await tester.tap(theAdvanceDisc(irParaATraducao));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
     expect(estadoDe(container).stage, SalaStage.retro);
     expect(harness.playback.played.length, greaterThan(tocadas));

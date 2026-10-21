@@ -261,8 +261,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
 
     expect(
-      find.descendant(of: find.byType(EnsaioView), matching: byLabel('Ouvir')),
-      findsNWidgets(3),
+      find
+              .descendant(
+                of: find.byType(EnsaioView),
+                matching: byLabel('Ouvir'),
+              )
+              .evaluate()
+              .length -
+          offTheRows('Ouvir').evaluate().length,
+      3,
       reason: 'uma linha por tomada guardada, no ensaio, como antes de contar',
     );
     expect(
@@ -293,8 +300,8 @@ void main() {
     await gravarUmaParte(tester, container);
     final nova = container.read(salaSessionProvider).keptTakes.last;
 
-    await tester.ensureVisible(byLabel(irParaARetro));
-    await tester.tap(byLabel(irParaARetro));
+    await tester.ensureVisible(theAdvanceDisc(irParaARetro));
+    await tester.tap(theAdvanceDisc(irParaARetro));
     await tester.pump(const Duration(milliseconds: 400));
 
     var agora = container.read(salaSessionProvider);
@@ -540,8 +547,8 @@ void main() {
     final tocadas = harness.playback.played.length;
 
     harness.playback.holdNextMeasurement();
-    await tester.ensureVisible(byLabel(irParaARetro));
-    await tester.tap(byLabel(irParaARetro));
+    await tester.ensureVisible(theAdvanceDisc(irParaARetro));
+    await tester.tap(theAdvanceDisc(irParaARetro));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(

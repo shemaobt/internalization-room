@@ -110,13 +110,16 @@ Future<void> _gravarNaLinha(
 }
 
 bool _discoAceso(WidgetTester tester) =>
-    tester.widget<Semantics>(byLabel(_irParaATraducao)).properties.enabled ==
+    tester
+            .widget<Semantics>(theAdvanceDisc(_irParaATraducao))
+            .properties
+            .enabled ==
         true &&
     tester
             .widget<AnimatedOpacity>(
               find
                   .descendant(
-                    of: byLabel(_irParaATraducao),
+                    of: theAdvanceDisc(_irParaATraducao),
                     matching: find.byType(AnimatedOpacity),
                   )
                   .first,
@@ -374,7 +377,7 @@ void main() {
 
       expect(_discoAceso(tester), isFalse);
       expect(find.text(_todasAsPartes), findsOneWidget);
-      await _tocar(tester, byLabel(_irParaATraducao));
+      await _tocar(tester, theAdvanceDisc(_irParaATraducao));
       expect(_estado(container).stage, SalaStage.ensaio);
       container.read(salaSessionProvider.notifier).startRetro();
       await tester.pump(const Duration(milliseconds: 200));
@@ -397,7 +400,7 @@ void main() {
 
     expect(_discoAceso(tester), isTrue);
     expect(find.text(_todasAsPartes), findsNothing);
-    await _tocar(tester, byLabel(_irParaATraducao));
+    await _tocar(tester, theAdvanceDisc(_irParaATraducao));
     expect(_estado(container).stage, SalaStage.retro);
     closeTheRoom(container);
   });
@@ -688,7 +691,7 @@ void main() {
     );
 
     await theRoomNamesTheParts(tester, container, parts: 2);
-    await _tocar(tester, byLabel(_irParaATraducao));
+    await _tocar(tester, theAdvanceDisc(_irParaATraducao));
     await tester.pump(const Duration(milliseconds: 300));
     harness.playback.at = cabeca;
     await tocar(tester, tesoura);
@@ -906,7 +909,7 @@ void main() {
         expect(_linha(n), findsOneWidget);
       }
       expect(_discoAceso(tester), isTrue);
-      await _tocar(tester, byLabel(_irParaATraducao));
+      await _tocar(tester, theAdvanceDisc(_irParaATraducao));
       expect(_estado(container).stage, SalaStage.retro);
       closeTheRoom(container);
     },
@@ -953,7 +956,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(_discoAceso(tester), isTrue);
-      await _tocar(tester, byLabel(_irParaATraducao));
+      await _tocar(tester, theAdvanceDisc(_irParaATraducao));
       expect(_estado(container).stage, SalaStage.retro);
       closeTheRoom(container);
     },

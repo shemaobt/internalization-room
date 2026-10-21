@@ -35,7 +35,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'retro_findings_exits_test.dart' as achados;
 import 'scenario_helpers.dart'
-    show byLabel, offTheRows, onTheCircle, stateReads;
+    show byLabel, offTheRows, onTheCircle, stateReads, theAdvanceDisc;
 
 Set<Color> paintedBy(WidgetTester tester, Finder corner) {
   final colours = <Color>{};
@@ -1022,7 +1022,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     notifier.takeKeep();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(byLabel('Traduzir a gravação'), findsOneWidget);
+    expect(theAdvanceDisc('Traduzir a gravação'), findsOneWidget);
 
     notifier.playTheRehearsal();
     await tester.pump(const Duration(milliseconds: 200));
@@ -1030,7 +1030,7 @@ void main() {
     expect(container.read(salaSessionProvider).playPing, isTrue);
     expect(
       tester
-          .widget<Semantics>(byLabel('Traduzir a gravação'))
+          .widget<Semantics>(theAdvanceDisc('Traduzir a gravação'))
           .properties
           .enabled,
       isTrue,
@@ -1041,7 +1041,7 @@ void main() {
           .widget<AnimatedOpacity>(
             find
                 .descendant(
-                  of: byLabel('Traduzir a gravação'),
+                  of: theAdvanceDisc('Traduzir a gravação'),
                   matching: find.byType(AnimatedOpacity),
                 )
                 .first,

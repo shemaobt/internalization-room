@@ -141,7 +141,7 @@ Future<String> _gravarPorCima(Sala it) async {
 
 bool _discoAceso(WidgetTester tester) =>
     tester
-        .widget<Semantics>(byLabel('Traduzir a gravação'))
+        .widget<Semantics>(theAdvanceDisc('Traduzir a gravação'))
         .properties
         .enabled ==
     true;
@@ -1187,7 +1187,7 @@ void main() {
 
     final partes = container.read(salaSessionProvider).partes;
     final medidasAntes = List.of(harness.playback.measurements);
-    await tester.tap(byLabel('Traduzir a gravação'));
+    await tester.tap(theAdvanceDisc('Traduzir a gravação'));
     await tester.pump(const Duration(milliseconds: 400));
     expect(
       container.read(salaSessionProvider).stage,
