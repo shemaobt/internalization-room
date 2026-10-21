@@ -9,7 +9,6 @@ import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/moment.dart';
 import '../../domain/session_state.dart';
-import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'kept_retelling_buttons.dart';
 import 'moment_label.dart';
@@ -47,27 +46,6 @@ class ConversaView extends ConsumerWidget {
                 onTap: notifier.conversaTap,
                 onLongPress: session.canResolveWithPerson
                     ? notifier.resolveWithPerson
-                    : null,
-              ),
-              const SizedBox(height: 44),
-              SizedBox(
-                height: 64,
-                child: !session.needsPerson && !session.noteMode
-                    ? FadeUp(
-                        child: RoundActionButton(
-                          size: 64,
-                          mood: ButtonMood.beckoning,
-                          gradient: BeadStyles.verde,
-                          shadows: RoundActionButton.dropShadow,
-                          semanticLabel: recordEntryLabelFor(language),
-                          onTap: notifier.goEnsaio,
-                          child: const Icon(
-                            LucideIcons.check,
-                            size: 26,
-                            color: ShemaBrand.branco,
-                          ),
-                        ),
-                      )
                     : null,
               ),
             ],

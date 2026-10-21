@@ -89,9 +89,6 @@ class _Room {
   bool get redMicrophoneIsSeen =>
       isSeen(_labelled(sceneRehearsalLabelFor('enter', language)));
 
-  bool get recordEntryIsSeen =>
-      isSeen(_labelled(recordEntryLabelFor(language)));
-
   Finder get orangeDot => _labelled(roomLabelFor('recordEnsaio', language));
 
   bool get orangeDotIsSeen => isSeen(orangeDot);
@@ -196,7 +193,6 @@ void main() {
       );
       expect(room.momentLabelIsSeen, isTrue);
       expect(room.redMicrophoneIsSeen, isTrue);
-      expect(room.recordEntryIsSeen, isTrue);
       expect(room.circleIsBlueGreen, isFalse);
 
       await room.raisesTheHand();
@@ -207,7 +203,6 @@ void main() {
       expect(room.hearAgainIsSeen, isFalse);
       expect(room.momentLabelIsSeen, isFalse);
       expect(room.redMicrophoneIsSeen, isFalse);
-      expect(room.recordEntryIsSeen, isFalse);
     },
   );
 
@@ -274,28 +269,24 @@ void main() {
     await room.nothingReachesTheFacilitator();
   });
 
-  testWidgets(
-    'Leaving note mode brings back the hear-again button and the record entry',
-    (tester) async {
-      final room = await _inConversa(tester);
-      expect(
-        room.hearAgainIsSeen,
-        isTrue,
-        reason: 'o caso precisa começar com ela',
-      );
-      expect(room.recordEntryIsSeen, isTrue);
-      await room.raisesTheHand();
-      await room.beat(1000);
-      expect(room.hearAgainIsSeen, isFalse);
-      expect(room.recordEntryIsSeen, isFalse);
+  testWidgets('Leaving note mode brings back the hear-again button', (
+    tester,
+  ) async {
+    final room = await _inConversa(tester);
+    expect(
+      room.hearAgainIsSeen,
+      isTrue,
+      reason: 'o caso precisa começar com ela',
+    );
+    await room.raisesTheHand();
+    await room.beat(1000);
+    expect(room.hearAgainIsSeen, isFalse);
 
-      await room.raisesTheHand();
-      await room.beat(1000);
+    await room.raisesTheHand();
+    await room.beat(1000);
 
-      expect(room.hearAgainIsSeen, isTrue);
-      expect(room.recordEntryIsSeen, isTrue);
-    },
-  );
+    expect(room.hearAgainIsSeen, isTrue);
+  });
 
   testWidgets('The hand reads «Deixar uma pergunta para o facilitador» at the '
       'idle turn, and still does while a question is armed', (tester) async {
