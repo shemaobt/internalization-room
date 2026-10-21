@@ -894,6 +894,71 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a part recorded again keeps its frases listed in its place, '
+      'marked «regravada — traduzam de novo», with no number and out of the '
+      'check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(tester, harness, const [
+      BtFinding(kind: BtFindingKind.addition, frase: 2, segmentId: 'trecho-2'),
+    ]);
+
+    await tocar(tester, 'voltar e regravar uma parte');
+    await waitFor(
+      'o ensaio abrir na parte 1',
+      () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
+      step: () => _passo(tester),
+    );
+    for (final gesto in [
+      'Tocar para gravar esta parte de novo',
+      'Tocar ao terminar',
+      'Confirmar esta parte',
+    ]) {
+      await tocar(tester, gesto);
+    }
+    await waitFor(
+      'a parte 1 regravada ficar no lugar',
+      () => container
+          .read(salaSessionProvider)
+          .btTrechos
+          .every((trecho) => trecho.parte != 0),
+      step: () => _passo(tester),
+    );
+    container.read(salaSessionProvider.notifier).startRetro();
+    await waitFor(
+      'a volta à tradução',
+      () => container.read(salaSessionProvider).stage == SalaStage.retro,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        'parte 1',
+        'regravada — traduzam de novo',
+        'parte 1',
+        'regravada — traduzam de novo',
+        '3',
+        'parte 2',
+        '4',
+        'parte 2',
+      ],
+      reason:
+          'as frases da parte gravada de novo sumiam da lista, e a equipe '
+          'perdia de vista o que tinha traduzido dela',
+    );
+    expect(
+      {
+        for (final trecho in container.read(salaSessionProvider).btTrechos)
+          trecho.parte,
+      },
+      {1},
+      reason: 'uma frase regravada fica fora da conferência',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a team that comes back to the check sees the marks its last '
       'check left', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

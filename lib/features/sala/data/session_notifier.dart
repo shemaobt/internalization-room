@@ -5285,6 +5285,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             take,
       ],
       btTrechos: trechos,
+      btTrechosRegravados: [
+        ...state.btTrechosRegravados,
+        for (final trecho in state.btTrechos)
+          if (trecho.parte == parte && trecho.contado) trecho,
+      ],
       btFindings: [
         for (final finding in state.btFindings)
           if (!saem.contains(finding.frase)) finding,

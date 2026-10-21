@@ -321,6 +321,7 @@ class SalaSessionState {
   /// Passages of this book with work waiting in them, by pericope, for the resume lookup.
   final Set<String> comecadas;
   final List<Trecho> btTrechos;
+  final List<Trecho> btTrechosRegravados;
   final List<BtFinding> btFindings;
   final bool btConferindo;
   final bool btVeredito;
@@ -442,6 +443,7 @@ class SalaSessionState {
     this.naRoda,
     this.comecadas = const {},
     this.btTrechos = const [],
+    this.btTrechosRegravados = const [],
     this.btFindings = const [],
     this.btConferindo = false,
     this.btVeredito = false,
@@ -1164,6 +1166,7 @@ class SalaSessionState {
     Set<String>? comecadas,
     bool clearRoda = false,
     List<Trecho>? btTrechos,
+    List<Trecho>? btTrechosRegravados,
     List<BtFinding>? btFindings,
     bool? btConferindo,
     bool? btVeredito,
@@ -1250,6 +1253,7 @@ class SalaSessionState {
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       comecadas: comecadas ?? this.comecadas,
       btTrechos: btTrechos ?? this.btTrechos,
+      btTrechosRegravados: btTrechosRegravados ?? this.btTrechosRegravados,
       btFindings: btFindings ?? this.btFindings,
       btConferindo: btConferindo ?? this.btConferindo,
       btVeredito: btVeredito ?? this.btVeredito,

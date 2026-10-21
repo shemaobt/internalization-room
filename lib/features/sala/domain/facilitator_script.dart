@@ -388,6 +388,10 @@ const retroLabels = {
   'addition': {'pt': 'acrescentado', 'en': 'added'},
   'missing': {'pt': 'faltou depois desta', 'en': 'missing after this'},
   'unclear': {'pt': 'não ficou claro', 'en': 'unclear'},
+  'stale': {
+    'pt': 'regravada — traduzam de novo',
+    'en': 're-recorded — translate again',
+  },
   'title': {'pt': 'Traduzir a gravação', 'en': 'Translate the recording'},
   'subTell': {
     'pt':
