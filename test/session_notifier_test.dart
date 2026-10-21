@@ -5008,7 +5008,7 @@ void main() {
         final harness = SalaHarness(
           clipGrace: const Duration(milliseconds: 60),
           filaEmMemoria: true,
-        )..playback.length = const Duration(milliseconds: 200);
+        )..playback.length = const Duration(seconds: 1);
         ProviderContainer? container;
         var explained = false;
         addTearDown(() => container?.dispose());
@@ -5028,10 +5028,10 @@ void main() {
           harness.playback.at = const Duration(milliseconds: 40);
           notifier.cortarTrecho();
           notifier.retroTap();
-          await settle(const Duration(milliseconds: 400));
+          await settle(const Duration(milliseconds: 1200));
           explained = true;
         }());
-        async.elapse(const Duration(seconds: 1));
+        async.elapse(const Duration(seconds: 2));
         expect(explained, isTrue);
 
         expect(

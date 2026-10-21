@@ -433,7 +433,11 @@ void main() {
         () => harness.room.chunkSpans.isNotEmpty,
       );
 
-      expect(harness.room.chunkSpans, ['4000-4001']);
+      expect(
+        harness.room.chunkSpans,
+        ['4000-4200'],
+        reason: 'um passo além do início contava uma frase de 1 ms',
+      );
     },
   );
 }
