@@ -334,6 +334,10 @@ const retroLabels = {
     'en': 'Tap to record the translation again',
   },
   'recording': {'pt': 'Tocar ao terminar', 'en': 'Tap when you finish'},
+  'listening': {
+    'pt': 'ouvindo a gravação de vocês…',
+    'en': 'listening to your recording…',
+  },
   'paused': {
     'pt': 'pausado — toque no círculo para marcar onde a frase acaba',
     'en': 'paused — tap the circle to mark where the sentence ends',
