@@ -2030,9 +2030,17 @@ class FakeRoom implements RoomRepository {
     );
   }
 
+  Completer<void>? _holdingBooks;
+
+  /// Hold the next ask for the served books, the way a link that never answers holds it.
+  void holdNextBooks() => _holdingBooks = Completer<void>();
+
   @override
   Future<RoomAnswer<List<String>>> servedBooks() async {
     if (_guard('servedBooks') case final failure?) return failure;
+    final held = _holdingBooks;
+    _holdingBooks = null;
+    if (held != null) await held.future;
     return failBooksWith ?? Answered(books);
   }
 
@@ -2487,20 +2495,6 @@ class FakeRoom implements RoomRepository {
 
   /// Every device id the device-scoped ask was made for, one entry per attempt —
   /// including one that is about to fail, the way `calls` tracks `askForAPerson`.
-  final List<String> deviceAsksReceived = [];
-
-  /// What the next calls to the device-scoped ask throw, consumed in order. Separate
-  /// from `failWith` because a case has to fail this route without touching the
-  /// session-scoped one, and has to fail it a fixed number of times and then stop.
-  final List<RoomFailure> deviceAskFailures = [];
-
-  @override
-  Future<RoomAnswer<void>> askForAPersonWithoutASession(String deviceId) async {
-    deviceAsksReceived.add(deviceId);
-    if (deviceAskFailures.isNotEmpty) return deviceAskFailures.removeAt(0);
-    return const Answered(null);
-  }
-
   /// Which scope's upload to hold, and until when. Lets a test put a real gap between
   /// one take reaching the room and another guard() call finding the outbox already
   /// mid-flush — the overlap a slow network opens and a fast fake never does on its own.
@@ -2601,10 +2595,13 @@ class FakeRoom implements RoomRepository {
     return _theTurnAnswers(sessionId, turnId);
   }
 
+  /// Whether a turn is answered with nothing to play: no url and no fixed line.
+  bool answersTurnsWithoutAReply = false;
+
   TurnResult _turn(String sessionId) => TurnResult(
     sessionId: sessionId,
-    audioUrl: fixedLine.isEmpty ? turnoUrl : '',
-    fixedLine: fixedLine,
+    audioUrl: answersTurnsWithoutAReply || fixedLine.isNotEmpty ? '' : turnoUrl,
+    fixedLine: answersTurnsWithoutAReply ? '' : fixedLine,
     transcript: 'a equipe falou',
     peerCue: peerCue,
     usedFailSafe: turnsAreCanned,

@@ -296,9 +296,8 @@ void main() {
   });
 
   testWidgets('a frase told again whose key is still in flight after three '
-      'answers goes out of reach and goes again under that key, as before', (
-    tester,
-  ) async {
+      'answers keeps the room in reach, is never sent again on its own, and '
+      'goes again under that key when the team confirms', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _vereditoNaFraseUm(tester, harness);
     final gravacao = harness.room.takeIds.first;
@@ -310,17 +309,35 @@ void main() {
     harness.room.replaceAnswersFirst.addAll(
       List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
     );
-    await _caiNaRede(tester, container);
-    expect(
-      container.read(salaSessionProvider).unreachable,
-      isTrue,
-      reason: 'a chave ainda em voo não é uma frase perdida: o servidor a tem',
+    await tocar(tester, confirmar);
+    await waitFor(
+      'a chave ainda em voo chegar ao teto',
+      () => harness.room.replaceKeys.length == pedidos + 3,
+      step: () => _passo(tester),
     );
-    expect(find.text(_naoEntendi), findsNothing);
-
     harness.network
       ..reachable = true
       ..networkComesBack();
+    for (var passo = 0; passo < 5; passo++) {
+      await _passo(tester);
+    }
+    expect(
+      container.read(salaSessionProvider).unreachable,
+      isFalse,
+      reason: 'uma rede que falha fora de uma entrada não muda nada',
+    );
+    expect(
+      find.text(_naoEntendi),
+      findsNothing,
+      reason: 'a chave ainda em voo não é uma frase perdida: o servidor a tem',
+    );
+    expect(
+      harness.room.replaceKeys.skip(pedidos),
+      hasLength(3),
+      reason: 'nada sai de novo sozinho quando a rede volta',
+    );
+
+    await tocar(tester, confirmar);
     await waitFor(
       'a frase pousar sob a mesma chave',
       () => container.read(salaSessionProvider).btTraducaoPendente == null,

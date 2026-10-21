@@ -10,6 +10,7 @@ import '../domain/scene_rehearsal.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/session_state.dart';
 import '../domain/turn_result.dart';
+import 'failure_log.dart';
 import 'room_answer.dart';
 
 /// Where a Session read stands in the room's order of reads, and the row it was sent over.
@@ -71,11 +72,9 @@ abstract interface class StationHost {
   /// The Station hears that the room closed the passage of [session].
   void hearThePassageClosed(String session);
 
-  /// The Station hears a call that landed; with a session it also stamps the read order,
-  /// so a read sent before the landing cannot lift the halt.
+  /// The Station hears a call that landed and stamps the read order, so a read sent
+  /// before the landing cannot lift the halt.
   void hearTheCallLanded();
-
-  void hearTheCallLandedWithoutASession();
 
   /// A call's answer for a session that is no longer the room's acts on that session.
   void hearAnEarlierSessionsCall(String session, RoomResult result);
@@ -122,7 +121,7 @@ abstract interface class StationHost {
   /// The Station shows the reach's face, and at a Step keeps the Pending request.
   void hearTheFall(Door door, RoomReach why);
 
-  void hearTheRefusalCounted();
+  void hearTheStepLetGo();
 
   void hearThePendingTranslationLetGo();
 
@@ -279,8 +278,8 @@ class EffectRunner {
           _askForAPersonAgain();
         case CloseThePassage():
           _closeThePassage();
-        case CountTheRefusal():
-          host.hearTheRefusalCounted();
+        case LetTheStepGo():
+          host.hearTheStepLetGo();
         case LetThePendingTranslationGo():
           host.hearThePendingTranslationLetGo();
         case RefuseThePassage():
@@ -600,7 +599,7 @@ class EffectRunner {
         _decideAt(
           result,
           door: Door.sceneRehearsal,
-          rule: RefusalRule.counts,
+          rule: RefusalRule.letsTheStepGo,
           why: RoomReach.noNetwork,
         );
     }
@@ -640,7 +639,7 @@ class EffectRunner {
             _decideAt(
               const RoomNetworkFailed(),
               door: Door.probe,
-              rule: RefusalRule.counts,
+              rule: RefusalRule.letsTheStepGo,
               why: reach,
             );
           }
@@ -667,10 +666,10 @@ class EffectRunner {
   /// no trace anywhere: the session never entered the desk's queue, no facilitator was
   /// told, and nobody arrived to tap the screen that is the only thing that asked again.
   void callForAPerson() {
-    if (_calling || !host.callIsWanted) return;
-    _calling = true;
     final session = host.session;
-    unawaited(session == null ? _callWithoutASession() : _call(session));
+    if (_calling || !host.callIsWanted || session == null) return;
+    _calling = true;
+    unawaited(_call(session));
   }
 
   Future<void> _call(String session) async {
@@ -694,40 +693,11 @@ class EffectRunner {
   }
 
   void _anEarlierSessionAnswered(String session, RoomResult result) {
-    if (result is RoomNetworkFailed) {
-      _calling = false;
-      return _decideAt(
-        result,
-        door: Door.person,
-        rule: RefusalRule.counts,
-        why: RoomReach.noNetwork,
-      );
+    if (result is! RoomNetworkFailed) {
+      host.hearAnEarlierSessionsCall(session, result);
     }
-    host.hearAnEarlierSessionsCall(session, result);
     _calling = false;
     callForAPerson();
-  }
-
-  /// The same ask, for a halt with no session to name: the tablet asks by its own device.
-  Future<void> _callWithoutASession() async {
-    final answer = await room.askForAPersonWithoutASession();
-    if (_disposed) return;
-    _calling = false;
-    switch (answer) {
-      case TabletCallAnswered(result: RoomAnswered()):
-        if (host.callIsWanted) host.hearTheCallLandedWithoutASession();
-      case TabletCallAnswered(:final result):
-        _decideAt(
-          result,
-          door: Door.person,
-          rule: RefusalRule.asksAgain,
-          why: RoomReach.noNetwork,
-        );
-      case TheTabletIsUnknown() || TheRoomIsGone():
-        break;
-      case TheDeviceLinkUnread():
-        _askForAPersonAgain();
-    }
   }
 
   void _decideAt(
@@ -736,10 +706,7 @@ class EffectRunner {
     required RefusalRule rule,
     required RoomReach why,
   }) => host.answerWhereAsked(
-    FailurePolicy.decide(
-      result,
-      host.failureContext(door: door, rule: rule, why: why),
-    ),
+    decided(result, host.failureContext(door: door, rule: rule, why: why)),
   );
 
   void _tellAPersonArrived() {
@@ -755,19 +722,23 @@ class EffectRunner {
         _decideAt(
           result,
           door: Door.person,
-          rule: RefusalRule.counts,
+          rule: RefusalRule.letsTheStepGo,
           why: RoomReach.noNetwork,
         );
       case RoomSessionGone() when host.session == session:
         _decideAt(
           result,
           door: Door.step,
-          rule: RefusalRule.counts,
+          rule: RefusalRule.letsTheStepGo,
           why: RoomReach.noNetwork,
         );
       case RoomSessionGone():
         host.hearAnEarlierSessionGone(session);
-      case RoomAnswered() || RoomRefused() || RoomTimedOut():
+      case RoomAnswered() ||
+          RoomRefused() ||
+          RoomTimedOut() ||
+          RoomAnsweredWithoutAReply() ||
+          RoomFoundNothing():
         break;
     }
   }

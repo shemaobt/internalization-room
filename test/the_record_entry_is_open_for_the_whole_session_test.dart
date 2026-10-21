@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -37,6 +38,21 @@ Future<ProviderContainer> _pumpInConversa(
   await tester.pump(const Duration(milliseconds: 300));
   await tester.pump(const Duration(seconds: 2));
   return container;
+}
+
+/// A spoken turn the room refuses: the person sign stands on the Canvas.
+Future<void> _aTurnTheRoomRefuses(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  final notifier = container.read(salaSessionProvider.notifier);
+  SalaSessionState read() => container.read(salaSessionProvider);
+  harness.room.failTurnsWith = const Refused('BAD_REQUEST');
+  notifier.conversaTap();
+  await _pumpWhile(tester, () => read().voice != VoiceState.listening);
+  notifier.conversaTap();
+  await _pumpWhile(tester, () => !read().needsPerson);
 }
 
 void main() {
@@ -135,13 +151,11 @@ void main() {
   testWidgets(
     'a blocking halt hides the entry, and the desk attending brings it back',
     (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true)
-        ..room.serverStatus = 'needs_person'
-        ..room.serverHalt = HaltKind.blocking;
+      final harness = SalaHarness(filaEmMemoria: true);
       final container = await _pumpInConversa(tester, harness);
       SalaSessionState read() => container.read(salaSessionProvider);
 
-      await _pumpWhile(tester, () => !read().needsPerson);
+      await _aTurnTheRoomRefuses(tester, harness, container);
       expect(read().needsPerson, isTrue);
 
       expect(
@@ -163,13 +177,11 @@ void main() {
   );
 
   testWidgets('nothing moves when the halt hides the entry', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true)
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.blocking;
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await _pumpInConversa(tester, harness);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _pumpWhile(tester, () => !read().needsPerson);
+    await _aTurnTheRoomRefuses(tester, harness, container);
     expect(read().needsPerson, isTrue);
     expect(byLabel(_entry), findsNothing);
 

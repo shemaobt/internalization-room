@@ -407,10 +407,8 @@ void main() {
       room.harness.room.failSceneWith = _offline;
       await _recordAScene(room);
       await _notKept(room);
-      await waitFor('a sala cair', () => room.state.unreachable);
 
       room.harness.room.failSceneWith = null;
-      room.sala.retryNow();
       await translateOpens(room);
 
       expect(room.harness.room.scenesKept, hasLength(1));
@@ -435,10 +433,8 @@ void main() {
       room.harness.room.failSceneWith = _offline;
       await _recordAScene(room);
       await _notKept(room);
-      await waitFor('a sala cair', () => room.state.unreachable);
 
       room.harness.room.failSceneWith = null;
-      room.sala.retryNow();
       await waitFor('a contagem depois do take aceito', () => queue.holding);
       room.container.dispose();
       queue.letTheCountGo();
@@ -465,11 +461,9 @@ void main() {
       room.harness.room.failSceneWith = _offline;
       await _recordAScene(room);
       await _notKept(room);
-      await waitFor('a sala cair', () => room.state.unreachable);
 
       room.harness.room.failSceneWith = null;
       queue.holdTheNextConfirmation();
-      room.sala.retryNow();
       await waitFor('a Fila confirmar o take', () => queue.holding);
       room.container.dispose();
       final askedAtTheClose = queue.keptAsked;
@@ -546,12 +540,10 @@ void main() {
     room.harness.room.failSceneWith = _offline;
     await _recordAScene(room);
     await _notKept(room);
-    await waitFor('a sala cair', () => room.state.unreachable);
     room.sala.leaveTheSceneRehearsal();
     await settle();
 
     room.harness.room.failSceneWith = null;
-    room.sala.retryNow();
     await waitFor(
       'a sala confirmar o take',
       () => room.harness.room.scenesKept.isNotEmpty,

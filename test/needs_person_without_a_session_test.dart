@@ -1,13 +1,9 @@
 import 'dart:io';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -42,52 +38,7 @@ Future<ProviderContainer> _inConversa(
   return container;
 }
 
-Future<ProviderContainer> _haltedWithNoSession(
-  SalaHarness harness,
-  LinkedTeam ledger,
-) async {
-  final container = _tablet(harness, ledger);
-  harness.room.failWith = const Refused(RefusalCode.notFound);
-  await container.read(salaSessionProvider.notifier).abrirEscolha();
-  await settle();
-  return container;
-}
-
 void main() {
-  test(
-    'case 1: a halt with no session to name asks for a person by the device',
-    () async {
-      final ledger = _ledgerOnDisk();
-      await ledger.rememberDevice('aparelho-D');
-      final harness = SalaHarness();
-      final container = await _haltedWithNoSession(harness, ledger);
-      addTearDown(container.dispose);
-
-      final state = container.read(salaSessionProvider);
-      expect(state.sessionId, isNull);
-      expect(state.needsPerson, isTrue);
-      expect(harness.room.deviceAsksReceived, ['aparelho-D']);
-      expect(harness.room.calls, isNot(contains('askForAPerson')));
-    },
-  );
-
-  test(
-    'a call by the tablet that landed is not sent again while the halt stands',
-    () async {
-      final ledger = _ledgerOnDisk();
-      await ledger.rememberDevice('aparelho-D');
-      final harness = SalaHarness();
-      final container = await _haltedWithNoSession(harness, ledger);
-      addTearDown(container.dispose);
-
-      await container.read(salaSessionProvider.notifier).abrirEscolha();
-      await settle();
-
-      expect(container.read(salaSessionProvider).needsPerson, isTrue);
-      expect(harness.room.deviceAsksReceived, ['aparelho-D']);
-    },
-  );
-
   test('case 2 (Emenda 1, trava de regressão): um build quebrado para na tela '
       'e não pede a ninguém', () async {
     // Emenda 1: o "Question" do plano supunha uma falha comum;
@@ -110,14 +61,6 @@ void main() {
       state.needsPerson,
       isTrue,
       reason: 'a parada fica na tela mesmo sem nenhum pedido sair',
-    );
-    expect(
-      harness.room.deviceAsksReceived,
-      isEmpty,
-      reason:
-          'o aparelho tem id no vínculo; se a lista não está vazia, o '
-          'pedido saiu de verdade — e um build quebrado não tem para onde '
-          'esse pedido ir',
     );
     expect(
       harness.room.calls,
@@ -150,116 +93,8 @@ void main() {
 
       expect(container.read(salaSessionProvider).needsPerson, isTrue);
       expect(harness.room.personsAsked, 1);
-      expect(
-        harness.room.deviceAsksReceived,
-        isEmpty,
-        reason: 'sessão viva nunca é motivo para perguntar pelo aparelho',
-      );
     },
   );
-
-  test(
-    'case 4a: falhas de rede insistem com o backoff, e param assim que uma chega',
-    () async {
-      final ledger = _ledgerOnDisk();
-      await ledger.rememberDevice('aparelho-D');
-      final harness = SalaHarness(
-        retryBackoff: const [Duration(milliseconds: 20)],
-      );
-      harness.room.deviceAskFailures.addAll([
-        const NetworkFailed('sem rede'),
-        const NetworkFailed('sem rede'),
-      ]);
-      final container = await _haltedWithNoSession(harness, ledger);
-      addTearDown(container.dispose);
-      await waitFor(
-        'as três tentativas do pedido pelo aparelho',
-        () => harness.room.deviceAsksReceived.length == 3,
-      );
-      await settle(const Duration(milliseconds: 200));
-
-      expect(
-        harness.room.deviceAsksReceived,
-        ['aparelho-D', 'aparelho-D', 'aparelho-D'],
-        reason:
-            'duas falhas e um sucesso são três tentativas, e nem uma a mais depois',
-      );
-    },
-  );
-
-  test(
-    'case 4b: um 409 (ninguém a quem chegar) é final, sem novas tentativas',
-    () async {
-      final ledger = _ledgerOnDisk();
-      await ledger.rememberDevice('aparelho-D');
-      final harness = SalaHarness(
-        retryBackoff: const [Duration(milliseconds: 20)],
-      );
-      harness.room.deviceAskFailures.add(
-        const Refused(RefusalCode.nobodyToReach),
-      );
-      final container = await _haltedWithNoSession(harness, ledger);
-      addTearDown(container.dispose);
-      await settle(const Duration(milliseconds: 200));
-
-      expect(
-        harness.room.deviceAsksReceived,
-        ['aparelho-D'],
-        reason: 'perguntar de novo não muda que não há equipe para o aparelho',
-      );
-    },
-  );
-
-  test('case 4c (trava de regressão): a long press cannot resolve a halt no '
-      'team can ever be reached for', () async {
-    final ledger = _ledgerOnDisk();
-    await ledger.rememberDevice('aparelho-D');
-    final harness = SalaHarness(
-      retryBackoff: const [Duration(milliseconds: 20)],
-    );
-    harness.room.deviceAskFailures.add(
-      const Refused(RefusalCode.nobodyToReach),
-    );
-    final container = await _haltedWithNoSession(harness, ledger);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await settle(const Duration(milliseconds: 200));
-    expect(
-      container.read(salaSessionProvider).needsPerson,
-      isTrue,
-      reason: 'a parada chegou pelo aparelho, sem equipe encontrada',
-    );
-
-    notifier.resolveWithPerson();
-    await settle();
-    await settle(const Duration(milliseconds: 200));
-
-    expect(
-      container.read(salaSessionProvider).needsPerson,
-      isTrue,
-      reason:
-          'a reabertura automática falha pelo mesmo motivo da parada '
-          'original, e a sala volta a pedir uma pessoa — o toque não tem '
-          'como ter efeito quando não há ninguém a alcançar',
-    );
-  });
-
-  test('case 5: sem id de aparelho no vínculo, nenhum pedido sai', () async {
-    final ledger = _ledgerOnDisk();
-    final harness = SalaHarness();
-    final container = await _haltedWithNoSession(harness, ledger);
-    addTearDown(container.dispose);
-
-    final state = container.read(salaSessionProvider);
-    expect(
-      state.needsPerson,
-      isTrue,
-      reason: 'a parada fica na tela mesmo sem ninguém para avisar',
-    );
-    expect(state.sessionId, isNull);
-    expect(harness.room.deviceAsksReceived, isEmpty);
-    expect(harness.room.personsAsked, 0);
-  });
 
   test('case 8 (Emenda 3): um 404 tardio na sessão não repara a sala depois '
       'que a pessoa já chegou, e leva à Escolha', () async {
@@ -316,11 +151,6 @@ void main() {
       reason: 'a sessão sumiu; o destino é um só, a Escolha',
     );
     expect(
-      harness.room.deviceAsksReceived,
-      isEmpty,
-      reason: 'sem parada, não há por que pedir a ninguém',
-    );
-    expect(
       harness.voice.assets.length,
       playedBeforeResolve,
       reason:
@@ -328,69 +158,5 @@ void main() {
           'uma parada que a equipe já resolveu',
     );
     expect(harness.voice.fixedLines.length, fixedBeforeResolve);
-  });
-
-  group('askForAPersonWithoutASession (repositório)', () {
-    setUpAll(() {
-      dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
-    });
-
-    test('case 6: o pedido que sai, com a credencial', () async {
-      late http.BaseRequest seen;
-      final repository = RoomRepository(
-        client: MockClient((request) async {
-          seen = request;
-          return http.Response('{}', 200);
-        }),
-      )..presents('credencial-1');
-      addTearDown(repository.dispose);
-
-      await repository.askForAPersonWithoutASession('aparelho-D');
-
-      expect(seen.method, 'POST');
-      expect(
-        seen.url.path,
-        '/api/internalization-room/devices/aparelho-D/needs-person',
-      );
-      expect(seen.headers['X-Device-Credential'], 'credencial-1');
-    });
-
-    test(
-      '404 e 409 são o mesmo final: não há equipe para este aparelho',
-      () async {
-        Future<void> expectStatus(int status) async {
-          final repository = RoomRepository(
-            client: MockClient((_) async => http.Response('{}', status)),
-          );
-          addTearDown(repository.dispose);
-          expect(
-            await repository.askForAPersonWithoutASession('aparelho-D'),
-            isA<Refused>().having(
-              (refusal) => refusal.code,
-              'code',
-              RefusalCode.nobodyToReach,
-            ),
-          );
-        }
-
-        await expectStatus(404);
-        await expectStatus(409);
-      },
-    );
-
-    test(
-      'um 500 é a falha comum, que insiste — não a falta de equipe',
-      () async {
-        final repository = RoomRepository(
-          client: MockClient((_) async => http.Response('{}', 500)),
-        );
-        addTearDown(repository.dispose);
-
-        expect(
-          await repository.askForAPersonWithoutASession('aparelho-D'),
-          isA<NetworkFailed>(),
-        );
-      },
-    );
   });
 }

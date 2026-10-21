@@ -55,14 +55,19 @@ void main() {
     expect(harness.room.pericopesAsked, ['P02']);
   });
 
-  test('a Wheel that holds only the Panorama calls for a person', () async {
-    final harness = SalaHarness()..room.passages = const [_panorama];
-    final container = harness.container();
-    addTearDown(container.dispose);
+  test(
+    'a Wheel that holds only the Panorama calls nobody and stays on the Choice',
+    () async {
+      final harness = SalaHarness()..room.passages = const [_panorama];
+      final container = harness.container();
+      addTearDown(container.dispose);
 
-    await container.read(salaSessionProvider.notifier).abrirEscolha();
-    await settle();
+      await container.read(salaSessionProvider.notifier).abrirEscolha();
+      await settle();
 
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
-  });
+      final state = container.read(salaSessionProvider);
+      expect(state.needsPerson, isFalse);
+      expect(state.naRoda, [_panorama]);
+    },
+  );
 }

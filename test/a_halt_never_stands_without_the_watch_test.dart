@@ -49,19 +49,6 @@ void main() {
     });
   });
 
-  test('a halt the room only read is watched', () {
-    fakeAsync((async) {
-      final harness = SalaHarness(settleDelay: _period, filaEmMemoria: true)
-        ..room.serverStatus = 'needs_person'
-        ..room.serverHalt = HaltKind.blocking;
-      final container = _inConversa(async, harness);
-
-      expect(_read(container).needsPerson, isTrue);
-      _expectTheWatchBeats(async, harness);
-      container.dispose();
-    });
-  });
-
   test('a halt with no session has nothing to read and the long press '
       'releases it', () {
     fakeAsync((async) {
@@ -69,10 +56,8 @@ void main() {
       final container = harness.container();
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const Refused(RefusalCode.notFound);
-      unawaited(notifier.abrirEscolha());
-      async.elapse(const Duration(milliseconds: 200));
-      harness.room.failWith = null;
+      notifier.haltForABrokenBuild();
+      async.elapse(Duration.zero);
       expect(_read(container).needsPerson, isTrue);
       expect(_read(container).sessionId, isNull);
 
@@ -87,8 +72,8 @@ void main() {
     });
   });
 
-  test('a halt that goes offline and comes back is still standing and '
-      'watched', () {
+  test('a halt whose Watch read falls on the network stays standing and '
+      'watched, and the room stays in reach', () {
     fakeAsync((async) {
       final harness = SalaHarness(settleDelay: _period, filaEmMemoria: true);
       final container = _inConversa(async, harness);
@@ -108,45 +93,22 @@ void main() {
       harness.network.reachable = false;
       harness.room.failStateOnceWith = const NetworkFailed('sem rede');
       async.elapse(_period + const Duration(milliseconds: 100));
-      expect(_read(container).unreachable, isTrue);
+      expect(
+        _read(container).unreachable,
+        isFalse,
+        reason: 'longe de uma entrada, a rede que cai não muda nada',
+      );
 
       harness.network.reachable = true;
       async.elapse(const Duration(milliseconds: 200));
-      expect(_read(container).unreachable, isFalse);
       harness.room.finishHeldTurn();
 
       expect(
         _read(container).needsPerson,
         isTrue,
-        reason: 'a queda não levou a parada',
+        reason: 'a leitura que caiu não levou a parada',
       );
       _expectTheWatchBeats(async, harness);
-      container.dispose();
-    });
-  });
-
-  test('a halt written by the server alone stops the room within the '
-      'Watch\'s period, with no gesture', () {
-    fakeAsync((async) {
-      final harness = SalaHarness(
-        settleDelay: _period,
-        watchesWithoutAHalt: true,
-        filaEmMemoria: true,
-      );
-      final container = _inConversa(async, harness);
-      expect(_read(container).needsPerson, isFalse);
-
-      harness.room
-        ..serverStatus = 'needs_person'
-        ..serverHalt = HaltKind.blocking;
-      async.elapse(_period + const Duration(milliseconds: 50));
-
-      expect(_read(container).needsPerson, isTrue);
-      expect(
-        harness.room.personsAsked,
-        0,
-        reason: 'uma parada lida não é um novo pedido de pessoa',
-      );
       container.dispose();
     });
   });
