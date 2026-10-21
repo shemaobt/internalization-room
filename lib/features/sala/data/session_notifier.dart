@@ -4180,7 +4180,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final end = shown.takeEnd;
     if (envelope == null || end == null) {
       final raw = end != null && tap > end ? end : tap;
-      return raw > frontier ? raw : null;
+      return raw > frontier ? pauseAtTheTap(raw, frontier, end) : null;
     }
     final bounds = pauseBounds(frontier, end);
     if (bounds == null) return null;
