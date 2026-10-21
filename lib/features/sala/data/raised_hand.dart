@@ -148,13 +148,14 @@ class RaisedHand {
   /// be decoded, is cut short, or never arrives stays unheard.
   ///
   /// It is offered again on the next touch of the hand, and the second failure at the
-  /// same address sets it aside on the tablet: it stops counting as unheard, so the hand
-  /// plays the next reply or arms a question. A clip that never decodes is served from
-  /// the tablet's copy every time and would otherwise hold the gesture until the
-  /// facilitator records it again. Nothing is marked, and the desk keeps showing the
-  /// reply as not heard. The inbox is read again on the failure, as it is after a
-  /// refused mark, and a reply recorded again arrives at its new address with no
-  /// failures, which is what lifts the set-aside.
+  /// same address, a sound that did not play or a mark the desk refused, sets it aside on
+  /// the tablet: it stops counting as unheard, so the hand plays the next reply or arms a
+  /// question. A clip that never decodes is served from the tablet's copy every time and
+  /// would otherwise hold the gesture until the facilitator records it again. Nothing is
+  /// marked for a sound that did not play, and the desk keeps showing the reply as not
+  /// heard. The inbox is read again on the failure, as it is after a refused mark, and a
+  /// reply recorded again arrives at its new address with no failures, which is what
+  /// lifts the set-aside.
   ///
   /// A room that cannot serve the clip is not set aside: the Failure policy decides it at the
   /// reply door, where it changes nothing in the room (ADR 0071), and the reply keeps its dot
@@ -188,7 +189,7 @@ class RaisedHand {
           (kept) => kept.id == reply.id && kept.audioUrl != reply.audioUrl,
         );
     if (said == Said.said && current) {
-      unawaited(_markHeard(reply.id, audioUrl: reply.audioUrl));
+      unawaited(_markHeard(reply));
       return;
     }
     if (_state.playingReplyId == reply.id) {
@@ -205,24 +206,19 @@ class RaisedHand {
     _ => false,
   };
 
-  List<HandReply> _unsounded(HandReply reply) => [
-    for (final kept in _state.replies)
-      if (kept.id == reply.id && kept.audioUrl == reply.audioUrl)
-        kept.asUnsounded()
-      else
-        kept,
-  ];
+  List<HandReply> _unsounded(HandReply reply) =>
+      _replies(reply, (kept) => kept.asFailed());
 
   /// A reply is heard when the desk agrees, and not before.
   ///
   /// The mark was made on the tablet whatever the desk answered, and it survives only as
   /// long as the screen does: rebuilt state reads the reply back from the desk, which
   /// never learned, and the team is played the same answer again. Leaving it unheard is
-  /// the honest state — it is offered again, which is a small harm and self-correcting.
+  /// the honest state: it is offered again, until a second failure sets it aside.
   ///
   /// No retry. The precedent for a call that must land is the one that asks for a person,
   /// and it retries because nobody comes if it is lost. Nothing is lost here: the reply
-  /// stays in the desk's list and the next tap marks it again. An unbounded retry on
+  /// stays in the desk's list and the next tap plays it and marks it again. An unbounded retry on
   /// bookkeeping buys nothing and is not free.
   ///
   /// The mark and the gesture move together, and the mark is taken back if the desk
@@ -242,37 +238,43 @@ class RaisedHand {
   /// reply moved on: the facilitator recorded again while this one played, and the address
   /// the tablet holds has stopped answering. The inbox is otherwise read thirty seconds
   /// after a turn, and not at all while the room sits on the Choice, so without this pull
-  /// the hand kept offering a clip that sounds nothing and marks nothing. The answer is a
-  /// bool that cannot tell that refusal from an outage, so every refusal pulls; a pull is
-  /// one GET, and after an outage it changes nothing.
-  Future<void> _markHeard(String replyId, {required String audioUrl}) async {
+  /// the hand kept offering a clip that sounds nothing and marks nothing. A refusal counts
+  /// as a failure of the reply at the address that was marked; an outage counts nothing.
+  /// Both pull; a pull is one GET, and after an outage it changes nothing.
+  Future<void> _markHeard(HandReply marked) async {
     final generation = host.waitOnTheGeneration;
     host.state = _state.copyWith(
-      replies: _replies(replyId, (reply) => reply.asHeard()),
+      replies: _replies(marked, (reply) => reply.asHeard()),
       clearPlayingReply: true,
     );
-    final HandReply Function(HandReply) takenBack;
-    switch (await inbox().markHeard(replyId, audioUrl: audioUrl)) {
+    final RoomFailure failure;
+    switch (await inbox().markHeard(marked.id, audioUrl: marked.audioUrl)) {
       case Answered():
         return;
-      case final Refused failure:
-        host.decideAt(failure, door: Door.inbox);
-        takenBack = (reply) => reply.asUnsounded();
-      case final RoomFailure failure:
-        host.decideAt(failure, door: Door.inbox);
-        takenBack = (reply) => reply.asUnheard();
+      case final RoomFailure refused:
+        failure = refused;
     }
+    host.decideAt(failure, door: Door.inbox);
+    if (host.gone) return;
+    host.state = _state.copyWith(
+      replies: _replies(
+        marked,
+        (reply) => failure is Refused ? reply.asFailed() : reply.asUnheard(),
+      ),
+    );
     if (host.abandoned(generation)) return;
-    host.state = _state.copyWith(replies: _replies(replyId, takenBack));
     unawaited(pull());
   }
 
   List<HandReply> _replies(
-    String replyId,
+    HandReply replied,
     HandReply Function(HandReply) change,
   ) => [
-    for (final reply in _state.replies)
-      if (reply.id == replyId) change(reply) else reply,
+    for (final kept in _state.replies)
+      if (kept.id == replied.id && kept.audioUrl == replied.audioUrl)
+        change(kept)
+      else
+        kept,
   ];
 
   void cancelQuestion() {
