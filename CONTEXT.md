@@ -22,10 +22,6 @@ _Avoid_: conversa in prose (`conversa` is the enum value), telling, narration
 The station where the team records the passage scene by scene in the mother tongue, one Scene row per scene, listens and records again; the advance disc opens the Back-translation only once every scene has its part.
 _Avoid_: ensaio in prose (`ensaio` is the enum value), passage recording (the recording itself is the take)
 
-**Record entry**:
-The green check on the Conversation that closes it and opens the Rehearsal, reachable from the first turn of a passage until the session ends; a blocking halt is the one thing that hides it.
-_Avoid_: botão de gravar, record button, green microphone (the glyph it wore until 2026-09-25), handoff, rehearsal gate (it gates nothing)
-
 **Back-translation** (`retro`):
 The station where the rehearsal recording plays back and the team tells, stretch by stretch and in the bridge language, what each piece says, until "Conferir a tradução" fires the check.
 On screen and in the voice its Portuguese is *traduzir / tradução*; *contar* belongs to the Conversation alone, and *recontar* to the External Check.
@@ -333,8 +329,12 @@ A rehearsal with at least one current Part laid in from a Scene rehearsal, which
 _Avoid_: assembled recording, merged, Junção (in prose)
 
 **Red microphone**:
-The round red control beside the orange dot that opens the Scene rehearsal's screen, shown only while the Conversation rests and no raised-hand note or person call stands.
-_Avoid_: record entry, green check, orange dot
+The round red control beside the orange dot that opens the Scene rehearsal's screen, shown only while the Conversation rests and no raised-hand note or person call stands. With the orange dot it is one of the two ways from the Conversation to a recording.
+_Avoid_: orange dot (the other way, into the Rehearsal)
+
+**Orange dot**:
+The small orange control at the Conversation's right edge that opens the Rehearsal, the recording of the whole passage. It lights when the voice has said its send-off, when the completion floor is met, or at the Ensaio Final moment, and goes dark while the voice is busy, a microphone other than the raised-hand note's is open or a person is called; before it lights, nothing on the Conversation reaches the Rehearsal (ADR 0037, superseded).
+_Avoid_: record entry, record button, botão de gravar, green check, green microphone (the glyphs the way into the Rehearsal wore until 2026-10-21), handoff, rehearsal gate (it gates nothing)
 
 **Opened**:
 A session that holds a Guide line, its Opening at least. The room asks a session's Opening only while it is not opened.
