@@ -62,7 +62,12 @@ into an earlier visit's take on the way back from a finding, with no event the t
 
 A Resume point write that fails, a manifest set aside and a part kept with no session are
 no longer spoken. The first two are logged and silent; the third shows as a failed take on
-its row and its tap fails the same way until the session is back. A part beyond the last
+its row and its tap fails the same way until the session is back. A whole recording, which no
+Scene row holds, is never shown, whatever happens to its upload. A part beyond the last
 scene has no row and shows nothing; the Outbox still retries it. Tablets holding takes in
 an Outbox an older app wrote show them through the notice after the update, and nothing
 is deleted.
+
+The visit's own rows, the keeps that never reached the Outbox and the send-now gesture stay
+in the notifier, like the scene's own retry, until the Outbox's lifecycle moves into the
+machine; that is a debt against the room's core (AGENTS.md), taken knowingly.

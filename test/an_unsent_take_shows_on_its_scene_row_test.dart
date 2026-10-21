@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -538,9 +540,9 @@ void main() {
     tester,
   ) async {
     final casa = await _naCasa(tester);
-    casa.room.unreachableTake = 'ensaio/parte-2';
+    casa.room.refuseTake = 'ensaio/parte-2';
     await casa.guardar(2);
-    casa.room.refuseTake = 'ensaio/parte-3';
+    casa.room.takeAnswersFirst.add(const Refused('UNKNOWN_REFERENCE'));
     await casa.guardar(3);
     await casa.relancar();
 
@@ -548,9 +550,10 @@ void main() {
     expect(casa.naLinha(2, find.text(_enviarAgora(2, '0:48'))), findsOneWidget);
     expect(casa.naLinha(3, find.text(_enviarAgora(3, '0:48'))), findsOneWidget);
 
-    casa.room.refuseTake = null;
+    final antes = casa.envios;
     await casa.tocar(find.text(_enviarAgora(3, '0:48')));
 
+    expect(casa.envios - antes, 1, reason: 'só a cena 3 foi tentada');
     expect(casa.naSala, contains('ensaio/parte-3'));
     expect(casa.naSala, isNot(contains('ensaio/parte-2')));
     expect(casa.naLinha(2, find.text(_enviarAgora(2, '0:48'))), findsOneWidget);
@@ -667,6 +670,78 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a double tap on «falhou» for a keep the Outbox could not take sends it '
+    'once',
+    (tester) async {
+      final harness = SalaHarness(
+        takesOverride: (room, home, recordings) => _QueueThatRefusesOnce(
+          room: room,
+          home: () async => home,
+          recordings: recordings,
+        ),
+      );
+      final casa = await _naCasa(tester, harness: harness);
+      await casa.gravar(2);
+      await casa.emTempoReal(() async {
+        casa.sala.takeKeep();
+        await settle(const Duration(milliseconds: 600));
+      });
+      final falhou = casa.naLinha(2, find.text(_falhou));
+
+      await casa.emTempoReal(() async {
+        await tester.ensureVisible(falhou);
+        await tester.tap(falhou);
+        await tester.tap(falhou);
+        await settle(const Duration(milliseconds: 800));
+      });
+
+      expect(
+        casa.room.takesReceived.where((take) => take.scope == 'parte-2'),
+        hasLength(1),
+      );
+    },
+  );
+
+  testWidgets(
+    'a keep the Outbox refuses after the team left the passage never shows '
+    'on the next passage\'s rows',
+    (tester) async {
+      final harness = SalaHarness(
+        takesOverride: (room, home, recordings) => _QueueThatRefusesWhenLetGo(
+          room: room,
+          home: () async => home,
+          recordings: recordings,
+        ),
+      );
+      final casa = await _naCasa(tester, harness: harness);
+      final fila = harness.takes as _QueueThatRefusesWhenLetGo;
+      await casa.gravar(3);
+      await casa.emTempoReal(() async {
+        casa.sala.takeKeep();
+        await waitFor('a Outbox segurar a cena 3', () => fila.holding);
+        casa.sala.leaveThePassage();
+        await settle();
+        await casa.sala.goConversa(book: 'Ruth', pericope: 'P02');
+        await waitFor(
+          'a passagem nova abrir',
+          () => casa.estado.sessionId != null && !casa.estado.awaitingTheGuide,
+        );
+        casa.sala.goEnsaio();
+        await waitFor(
+          'as cenas chegarem',
+          () => casa.estado.sceneRows.length == _cenas.length,
+        );
+        fila.letGo();
+        await settle(const Duration(milliseconds: 300));
+        await casa.sala.refreshUnsent();
+        await settle();
+      });
+
+      expect(find.text(_falhou), findsNothing);
+    },
+  );
+
   testWidgets('while a row records, the send button does nothing', (
     tester,
   ) async {
@@ -731,5 +806,33 @@ class _QueueThatRefusesOnce extends TakeUploadQueue {
       chunkIndex: chunkIndex,
       scene: scene,
     );
+  }
+}
+
+class _QueueThatRefusesWhenLetGo extends TakeUploadQueue {
+  _QueueThatRefusesWhenLetGo({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
+
+  final _held = Completer<void>();
+  bool holding = false;
+
+  void letGo() => _held.complete();
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+    String? scene,
+  }) async {
+    holding = true;
+    await _held.future;
+    throw const FileSystemException('o disco está cheio');
   }
 }

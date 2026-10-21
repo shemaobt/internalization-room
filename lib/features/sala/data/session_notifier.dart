@@ -5359,7 +5359,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final audio = File(path);
     if (!await audio.exists()) return;
     if (sessionId == null) {
-      if (!_endedSince(life)) _notInTheOutbox(path, kind, scope, passNumber);
+      if (!_endedSince(life)) {
+        _notInTheOutbox(path, kind, scope, passNumber, sessionId);
+      }
       return;
     }
     final PendingTake linha;
@@ -5374,7 +5376,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     } on Object {
       if (_endedSince(life) || _goneSessions.contains(sessionId)) return;
-      _notInTheOutbox(path, kind, scope, passNumber);
+      _notInTheOutbox(path, kind, scope, passNumber, sessionId);
       return;
     }
     if (_endedSince(life)) {
@@ -5396,9 +5398,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _adoptTheNames(queue);
   });
 
-  void _notInTheOutbox(String path, String kind, String scope, int? pass) {
+  void _notInTheOutbox(
+    String path,
+    String kind,
+    String scope,
+    int? pass,
+    String? sessionId,
+  ) {
     final number = KeptScope.numberOf(scope);
-    if (kind != 'ensaio' || number == null) return;
+    if (kind != 'ensaio' || number == null || state.sessionId != sessionId) {
+      return;
+    }
     _notQueued[number] = (path: path, pass: pass);
     unawaited(_countUnsent());
   }
@@ -5416,7 +5426,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _enviarAgora(int cena) async {
     final scope = KeptScope.parte(cena);
-    if (_notQueued[cena] case (:final path, :final pass)) {
+    if (_notQueued.remove(cena) case (:final path, :final pass)) {
       return _guard(
         path,
         kind: 'ensaio',
@@ -5648,8 +5658,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return measured;
   }
 
-  /// Mind the team's place on disk. A write or an erasure the disk will not take is
-  /// logged, not told: the team is never shown the mechanics of a failure.
   Future<void> _mindingThePlace(Future<void> Function() write) =>
       _apart(() async {
         try {
