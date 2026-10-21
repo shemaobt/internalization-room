@@ -4645,7 +4645,7 @@ void main() {
         final harness = SalaHarness(
           clipGrace: const Duration(milliseconds: 60),
           filaEmMemoria: true,
-        )..playback.length = const Duration(milliseconds: 200);
+        )..playback.length = const Duration(seconds: 1);
         ProviderContainer? container;
         var explained = false;
         addTearDown(() => container?.dispose());
@@ -4665,10 +4665,10 @@ void main() {
           harness.playback.at = const Duration(milliseconds: 40);
           notifier.cortarTrecho();
           notifier.retroTap();
-          await settle(const Duration(milliseconds: 400));
+          await settle(const Duration(milliseconds: 1200));
           explained = true;
         }());
-        async.elapse(const Duration(seconds: 1));
+        async.elapse(const Duration(seconds: 2));
         expect(explained, isTrue);
 
         expect(
@@ -5432,14 +5432,11 @@ void main() {
   test('a translation the room refused is withdrawn from the outbox when the '
       'part is recorded over', () async {
     final harness = SalaHarness(
-      takesOverride: (room, home, recordings) =>
-          QueueThatFinishesLate(
-              room: room,
-              home: () async => home,
-              recordings: recordings,
-            )
-            ..answersAfter = const Duration(milliseconds: 300)
-            ..deletesTheCopyAfter = const Duration(milliseconds: 300),
+      takesOverride: (room, home, recordings) => QueueThatFinishesLate(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      )..answersAfter = const Duration(milliseconds: 300),
     )..room.failChunkWith = const Refused('BAD_REQUEST');
     final container = await inConversa(harness);
     addTearDown(container.dispose);

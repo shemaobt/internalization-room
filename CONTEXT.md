@@ -270,6 +270,10 @@ _Avoid_: nó, question, bead (a knot is not one)
 The team's side channel to the facilitator: it sends a Knot, checks for the facilitator's replies, plays a reply and marks it heard. A failure anywhere on it changes nothing in the room and speaks no line (ADR 0071).
 _Avoid_: mão levantada, question button, note
 
+**Set-aside reply**:
+A facilitator's reply the Raised hand stops offering after two failures, a sound that did not play or a heard mark the Desk refused; a tap that cuts it is not one. It lives in the tablet's memory only: a new address from the Desk or a relaunch offers the reply again, and the Desk keeps it unheard.
+_Avoid_: blocked reply, skipped reply, dropped reply, resposta descartada
+
 **Idle turn**:
 The moment the Conversation or the Panorama waits on the team and nothing else is happening: the voice at the invite or done, no line of the room's own playing (a reply may), no Halt calling for a person, no microphone open, and a session to send to. The Raised hand is offered only then, and a Knot armed in it is abandoned when it ends.
 _Avoid_: idle, the team's turn (that also covers the open microphone)

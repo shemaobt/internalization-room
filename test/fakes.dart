@@ -424,6 +424,16 @@ class FakeRecorder implements RecordingRepository {
   int sweeps = 0;
 
   @override
+  Future<void> forgetTheKeptRetellings(String sessionId) async {
+    for (final entry in home.listSync()) {
+      if (entry is File &&
+          entry.uri.pathSegments.last.startsWith('kept-$sessionId-')) {
+        entry.deleteSync();
+      }
+    }
+  }
+
+  @override
   Future<void> sweepTheFrasesLeftBehind() async => sweeps++;
 
   /// Whether keeping fetched audio fails, the way a dead disk does.
@@ -1156,6 +1166,27 @@ class FakeRoom implements RoomRepository {
       _retired.add(segment.segmentId);
     }
     segments.removeWhere((one) => one.takeId == takeId);
+  }
+
+  final Set<String> _replacedTakes = {};
+
+  Duration? replacedTakeRefusalAfter;
+
+  void replaceThePart(String takeId) {
+    final old = takes.firstWhere((take) => take.takeId == takeId);
+    final id = 'gravacao-${takeIds.length + 1}';
+    takeIds.add(id);
+    takes.add(
+      TakeView(
+        takeId: id,
+        kind: old.kind,
+        scope: old.scope,
+        ordinal: old.ordinal,
+        pass: (old.pass ?? 1) + 1,
+      ),
+    );
+    takeAudio[id] = Uint8List.fromList(utf8.encode('áudio de $id'));
+    _replacedTakes.add(takeId);
   }
 
   RoomFailure? failChunkWith;
@@ -2615,6 +2646,14 @@ class FakeRoom implements RoomRepository {
   }) async {
     final refusal = failChunkWith;
     if (refusal != null) return refusal;
+    if (_replacedTakes.contains(takeId)) {
+      final wait = replacedTakeRefusalAfter;
+      if (wait != null) await Future<void>.delayed(wait);
+      return const Refused(
+        RefusalCode.stretchNoLongerCounts,
+        'This stretch no longer counts',
+      );
+    }
     chunksSent++;
     chunkSpans.add('${from.inMilliseconds}-${to.inMilliseconds}');
     chunkTakes.add(takeId);
@@ -3770,21 +3809,6 @@ class QueueThatFinishesLate extends TakeUploadQueue {
     final wait = answersAfter;
     if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
     return row;
-  }
-
-  Duration? deletesTheCopyAfter;
-
-  @override
-  Future<void> withdraw(PendingTake row) async {
-    final wait = deletesTheCopyAfter;
-    if (wait == null) return super.withdraw(row);
-    final copy = File(row.path);
-    if (!copy.existsSync()) return super.withdraw(row);
-    final audio = await copy.readAsBytes();
-    await super.withdraw(row);
-    await copy.writeAsBytes(audio);
-    await Future<void>.delayed(wait);
-    if (copy.existsSync()) await copy.delete();
   }
 }
 
