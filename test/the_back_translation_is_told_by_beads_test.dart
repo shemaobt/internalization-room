@@ -26,6 +26,8 @@ const passaDoCursor = Duration(seconds: 1);
 const gravar = 'Tocar para gravar a tradução deste trecho';
 const pausadaNoToque =
     'a pausa ficou no toque — toquem no círculo para traduzir';
+const fimDaGravacao = 'fim da gravação';
+const pausado = 'pausado — toque no círculo para marcar onde a frase acaba';
 const terminar = 'Tocar ao terminar';
 const ouvir = 'Ouvir';
 const pausar = 'Pausar';
@@ -125,7 +127,8 @@ Future<void> contarAteOFimDaParte(
   harness.playback.at = parte;
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 300));
-  await gravarATraducao(tester, circulo: gravar);
+  final noFim = byLabel(fimDaGravacao).evaluate().isNotEmpty;
+  await gravarATraducao(tester, circulo: noFim ? fimDaGravacao : gravar);
   await tocar(tester, confirmar);
 }
 
@@ -297,7 +300,7 @@ void main() {
 
     harness.playback.at = cabeca;
     await tocar(tester, pausar);
-    await gravarATraducao(tester, circulo: gravar);
+    await gravarATraducao(tester, circulo: pausado);
     await tocar(tester, confirmar);
 
     expect(harness.room.chunkSpans, ['0-4000']);
@@ -320,7 +323,7 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await gravarATraducao(tester, circulo: gravar);
+    await gravarATraducao(tester, circulo: fimDaGravacao);
 
     expect(aceso(tester, conferir), isFalse);
     await tester.tap(byLabel(conferir));
@@ -1544,7 +1547,9 @@ void main() {
     expect(byLabel('Listen'), findsOneWidget);
 
     harness.playback.at = cabeca;
-    await tester.tap(byLabel("Tap to record this stretch's translation"));
+    await tester.tap(
+      byLabel('paused — tap the circle to mark where the sentence ends'),
+    );
     await tester.pump(const Duration(milliseconds: 300));
     expect(byLabel('Tap when you finish'), findsOneWidget);
     closeTheRoom(container);

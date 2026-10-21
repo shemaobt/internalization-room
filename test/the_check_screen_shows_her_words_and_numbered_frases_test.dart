@@ -26,8 +26,8 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         cabeca,
         confirmar,
         contarAteOFimDaParte,
-        gravar,
         entrarNaTraducao,
+        fimDaGravacao,
         gravarATraducao,
         parte,
         tesoura,
@@ -435,7 +435,7 @@ void main() {
     harness.playback.finishPlayback();
     await _passo(tester);
 
-    await tocar(tester, gravar);
+    await tocar(tester, fimDaGravacao);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
     expect(

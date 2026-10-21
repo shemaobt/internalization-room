@@ -702,6 +702,11 @@ class RetroView extends ConsumerWidget {
     }
     switch (session.btPhase) {
       case BtPhase.playing:
+        if (session.btClipEnded &&
+            session.btTraducaoPendente == null &&
+            session.btTrechoTraduzidoDeNovo == null) {
+          return retroLabelFor('endOfTheRecording', language);
+        }
         if (session.thePauseStands) {
           return retroLabelFor(
             session.btPausaAjustavel ? 'pauseHint' : 'pauseAtTheTap',
@@ -712,6 +717,9 @@ class RetroView extends ConsumerWidget {
             !session.btCortado &&
             session.nothingHeardSinceCursor) {
           return retroLabelFor('listenFirst', language);
+        }
+        if (session.btClipPausada && session.btTraducaoPendente == null) {
+          return retroLabelFor('paused', language);
         }
         return retroLabelFor(
           session.btTraducaoPendente != null ? 'recordAgain' : 'record',

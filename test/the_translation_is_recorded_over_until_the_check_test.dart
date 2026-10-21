@@ -26,6 +26,8 @@ import 'the_back_translation_is_told_by_beads_test.dart' show pausadaNoToque;
 const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
 
+const pausado = 'pausado — toque no círculo para marcar onde a frase acaba';
+const fimDaGravacao = 'fim da gravação';
 const gravar = 'Tocar para gravar a tradução deste trecho';
 const gravarDeNovo = 'Tocar para gravar a tradução de novo';
 const terminar = 'Tocar ao terminar';
@@ -219,7 +221,7 @@ void main() {
 
     harness.playback.at = cabeca;
     await tocar(tester, pausar);
-    await tocar(tester, gravar);
+    await tocar(tester, pausado);
 
     expect(await olhar(tester), 'azul ouvindo');
     expect(aceso(tester, ouvir), isFalse);
@@ -348,7 +350,7 @@ void main() {
     await tocar(tester, pausar);
     expect(await olhar(tester), 'telha parado');
 
-    await tocar(tester, gravar);
+    await tocar(tester, pausado);
     expect(await olhar(tester), 'azul ouvindo');
 
     await tocar(tester, terminar);
@@ -453,7 +455,7 @@ void main() {
     await tocarAConta(tester, 0);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, gravar);
+    await tocar(tester, pausado);
     await tocar(tester, terminar);
     await tocar(tester, confirmar);
 
@@ -559,7 +561,11 @@ void main() {
       harness.playback.at = parte;
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 300));
-      await gravarATraducao(tester, harness, circulo: gravar);
+      await gravarATraducao(
+        tester,
+        harness,
+        circulo: vez == 0 ? gravar : fimDaGravacao,
+      );
       await tocar(tester, confirmar);
     }
     await tocar(tester, conferir);
@@ -642,7 +648,11 @@ void main() {
       harness.playback.at = parte;
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 300));
-      await gravarATraducao(tester, harness, circulo: gravar);
+      await gravarATraducao(
+        tester,
+        harness,
+        circulo: vez == 0 ? gravar : fimDaGravacao,
+      );
       await tocar(tester, confirmar);
     }
     expect(aceso(tester, conferir), isTrue);
