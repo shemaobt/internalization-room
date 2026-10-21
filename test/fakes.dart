@@ -3774,21 +3774,6 @@ class QueueThatFinishesLate extends TakeUploadQueue {
     if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
     return row;
   }
-
-  Duration? deletesTheCopyAfter;
-
-  @override
-  Future<void> withdraw(PendingTake row) async {
-    final wait = deletesTheCopyAfter;
-    if (wait == null) return super.withdraw(row);
-    final copy = File(row.path);
-    if (!copy.existsSync()) return super.withdraw(row);
-    final audio = await copy.readAsBytes();
-    await super.withdraw(row);
-    await copy.writeAsBytes(audio);
-    await Future<void>.delayed(wait);
-    if (copy.existsSync()) await copy.delete();
-  }
 }
 
 class QueueThatFlushesLate extends TakeUploadQueue {
