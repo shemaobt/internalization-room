@@ -1293,9 +1293,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         (state.channel is Playing || !_parteJaTocou)) {
       return const ThePart();
     }
-    final opening = _openTurnId;
-    if (theOpening && _openingOwed && opening != null) {
-      return TheOpening(opening);
+    if (theOpening && _openingOwed && _openTurnId != null) {
+      return const TheOpening();
     }
     return const NothingKept();
   }

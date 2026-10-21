@@ -12,7 +12,7 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 import 'machine_generator.dart';
 
 const _turn = Turn('sessao-1', 'turno-7');
-const _kept = TheOpening('turno-7');
+const _kept = TheOpening();
 
 final _aTurn = FailureContext(
   station: Station.stored(SalaStage.conversa),

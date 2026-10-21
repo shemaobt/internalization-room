@@ -222,7 +222,7 @@ String describeFailure<S>(MachineUnderTest<S> machine, Trace<S> trace) {
 String describeKept(Kept kept) => switch (kept) {
   NothingKept() => 'NothingKept',
   ThePart() => 'ThePart',
-  TheOpening(:final failedTurnId) => 'TheOpening($failedTurnId)',
+  TheOpening() => 'TheOpening',
   TheLineSaidAgain() => 'TheLineSaidAgain',
 };
 
@@ -370,7 +370,7 @@ String describeEffect(Effect effect) => switch (effect) {
 Kept _drawKept(Random random) => switch (random.nextInt(4)) {
   0 => const NothingKept(),
   1 => const ThePart(),
-  2 => TheOpening('turn-${random.nextInt(3)}'),
+  2 => TheOpening(),
   _ => const TheLineSaidAgain(),
 };
 

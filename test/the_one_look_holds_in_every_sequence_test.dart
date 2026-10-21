@@ -257,18 +257,16 @@ void main() {
 
       test('a look still answered is looked at again', () {
         final (_, effects) = reduce(
-          givenUp(const TheOpening('turno-7')),
-          const LookPending(turn, sounding: TheOpening('turno-7')),
+          givenUp(const TheOpening()),
+          const LookPending(turn, sounding: TheOpening()),
         );
 
-        expect(effects, [
-          const LookAgain(turn, sounding: TheOpening('turno-7')),
-        ]);
+        expect(effects, [const LookAgain(turn, sounding: TheOpening())]);
       });
 
       test('an Opening found after the wait is kept, not played', () {
         final (_, effects) = reduce(
-          stillAnswering(const TheOpening('turno-7')),
+          stillAnswering(const TheOpening()),
           const LookFound(turn, reply),
         );
 

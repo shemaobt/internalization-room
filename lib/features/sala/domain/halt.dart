@@ -11,16 +11,7 @@ final class ThePart extends Kept {
 }
 
 final class TheOpening extends Kept {
-  final String failedTurnId;
-
-  const TheOpening(this.failedTurnId);
-
-  @override
-  bool operator ==(Object other) =>
-      other is TheOpening && other.failedTurnId == failedTurnId;
-
-  @override
-  int get hashCode => failedTurnId.hashCode;
+  const TheOpening();
 }
 
 /// The room's last line, said again on the team's tap.
