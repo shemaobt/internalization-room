@@ -171,8 +171,8 @@ Future<_Room> _inThePanorama(
 void main() {
   testWidgets(
     'In a passage session a tap on the hand turns the circle blue-green with '
-    'the hand inside, and the hear-again button, the moment label, the red '
-    'microphone and the record entry are not on screen',
+    'the hand inside, and the hear-again button, the moment label and the red '
+    'microphone are not on screen',
     (tester) async {
       final room = await _inConversa(
         tester,
