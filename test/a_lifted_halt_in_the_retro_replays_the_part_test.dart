@@ -194,8 +194,8 @@ void main() {
   });
 
   testWidgets(
-    'T2: the circle says listen first when nothing has been heard since the '
-    'cursor, and a tap leaves the state unchanged',
+    'T2: a tap on the circle while nothing has been heard since the cursor '
+    'opens no microphone',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.takeLandsAfter = const Duration(seconds: 1);
@@ -203,12 +203,12 @@ void main() {
       SalaSessionState read() => container.read(salaSessionProvider);
 
       expect(read().btPhase, BtPhase.playing);
-      expect(byLabel('Ouvir primeiro'), findsOneWidget);
+      expect(read().nothingHeardSinceCursor, isTrue);
 
       final startsBefore = harness.sounds
           .where((s) => s == 'recorder:start')
           .length;
-      await tester.tap(byLabel('Ouvir primeiro'));
+      await tester.tap(byLabel('ouvindo a gravação de vocês…'));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
@@ -221,22 +221,6 @@ void main() {
         startsBefore,
         reason: 'nenhum microfone abriu',
       );
-      closeTheRoom(container);
-    },
-  );
-
-  testWidgets(
-    'the circle stops saying listen first once the part has run past the '
-    'cursor, with no gesture of its own',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true);
-      final container = await _freshlyInRetro(tester, harness);
-      expect(byLabel('Ouvir primeiro'), findsOneWidget);
-
-      await tester.pump(const Duration(seconds: 1));
-
-      expect(byLabel('Ouvir primeiro'), findsNothing);
-      expect(byLabel('ouvindo a gravação de vocês…'), findsOneWidget);
       closeTheRoom(container);
     },
   );
@@ -305,9 +289,12 @@ void main() {
     expect(retroLabelFor('listenFirst', 'en'), 'Listen first');
   });
 
-  testWidgets('T5w: in english the circle says listen first', (tester) async {
+  testWidgets('T5w: in english the circle held before anything was heard says '
+      'listen first', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await _freshlyInRetro(tester, harness);
+    await tester.tap(byLabel('Pause'));
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(byLabel('Listen first'), findsOneWidget);
     closeTheRoom(container);

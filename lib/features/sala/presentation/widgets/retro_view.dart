@@ -727,6 +727,9 @@ class RetroView extends ConsumerWidget {
             language,
           );
         }
+        if (session.btClipRodando) {
+          return retroLabelFor('listening', language);
+        }
         if (session.btTrechoTraduzidoDeNovo == null &&
             !session.btCortado &&
             session.nothingHeardSinceCursor) {
@@ -734,9 +737,6 @@ class RetroView extends ConsumerWidget {
             session.btClipEnded ? 'paused' : 'listenFirst',
             language,
           );
-        }
-        if (session.btClipRodando) {
-          return retroLabelFor('listening', language);
         }
         if (session.btClipPausada &&
             session.btTraducaoPendente == null &&

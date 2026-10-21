@@ -13,6 +13,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         entrarNaTraducao,
         fimDaGravacao,
         gravar,
+        ouvindo,
         parte,
         passaDoCursor,
         pausado,
@@ -58,6 +59,22 @@ void main() {
       rotuloDoCirculo(tester),
       'ouvindo a gravação de vocês…',
       reason: 'o círculo convidava a gravar com a gravação tocando',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a part running before its head passes the cursor reads her '
+      '«ouvindo a gravação de vocês…», not listen first', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btClipRodando, isTrue);
+    expect(state.nothingHeardSinceCursor, isTrue);
+    expect(
+      rotuloDoCirculo(tester),
+      ouvindo,
+      reason: 'a parte tocando antes do cursor dizia ouvir primeiro',
     );
     closeTheRoom(container);
   });
@@ -233,19 +250,22 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('the part the verdict sent them back to still says to listen '
-      'first while it plays, not «pausado»', (tester) async {
+  testWidgets('the part the verdict sent them back to reads her «ouvindo a '
+      'gravação de vocês…» while it plays, not listen first', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await deVoltaAParteContadaAteOFim(tester, harness);
 
     harness.playback.at = s(6.0);
     await tester.pump(passaDoCursor);
 
-    expect(container.read(salaSessionProvider).btClipRodando, isTrue);
+    final state = container.read(salaSessionProvider);
+    expect(state.btClipRodando, isTrue);
+    expect(state.nothingHeardSinceCursor, isTrue);
     expect(
       rotuloDoCirculo(tester),
-      'Ouvir primeiro',
-      reason: 'a parte ainda tocando dizia pausado, antes de ser ouvida',
+      ouvindo,
+      reason:
+          'a parte que o veredito mandou ouvir, tocando, dizia ouvir primeiro',
     );
     closeTheRoom(container);
   });

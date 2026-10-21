@@ -130,7 +130,7 @@ void main() {
           );
           await _tapAndWait(
             tester,
-            byLabel(retroLabelFor('listenFirst', testLanguage)),
+            byLabel(retroLabelFor('listening', testLanguage)),
           );
 
           expect(harness.recorder.captures, captures);
