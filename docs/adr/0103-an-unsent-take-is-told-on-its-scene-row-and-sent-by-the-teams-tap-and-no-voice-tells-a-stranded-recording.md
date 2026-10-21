@@ -25,8 +25,10 @@ failure lines out of the room.
 - **An Unsent take shows on its Scene row.** A take of this session still in the Outbox,
   waiting, failed or refused for good, or kept by this visit and not put in the Outbox. A
   row speaks only for the newest pass of its part: a row behind a newer pass the room holds
-  is not shown and never sent again, and its file stays on the tablet. A row whose audio is
-  gone is not an unsent take; its row shows what the room holds.
+  is not shown and never sent again, and its file stays on the tablet. A row whose file is
+  not on the tablet, whatever the Outbox wrote about it, is not an unsent take; its row shows
+  what the room holds. The count of unsent takes the approved draft waits on is these rows'
+  own.
 - **A visit is this app run of the session**, whatever the team leaves and comes back to
   in it; only a relaunch makes a waiting take one of an earlier visit. A take whose newest
   recording this visit did not put in the Outbox is from an earlier visit: the home shows her notice «Uma gravação
