@@ -21,13 +21,12 @@ import 'the_back_translation_is_told_by_beads_test.dart'
     show
         cabeca,
         conferir,
-        confirmar,
         contarAteOFimDaParte,
         entrarNaTraducao,
         gravarATraducao,
         ouvir,
-        tesoura,
-        tocar;
+        tocar,
+        tocarNoCirculo;
 import 'session_notifier_test.dart'
     show inConversaWithoutPausing, tellTwoStretches;
 
@@ -141,9 +140,8 @@ Future<ProviderContainer> _contadaAoVivo(
   addTearDown(tester.view.reset);
   final container = await entrarNaTraducao(tester, harness, partes: 1);
   harness.playback.at = cabeca;
-  await tocar(tester, tesoura);
+  await tocarNoCirculo(tester);
   await gravarATraducao(tester);
-  await tocar(tester, confirmar);
   await waitFor(
     'a primeira frase chegar',
     () => container.read(salaSessionProvider).btTrechos.length == 1,
@@ -422,9 +420,8 @@ void main() {
     harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
     harness.playback.at = const Duration(seconds: 7);
     await tester.pump(const Duration(seconds: 1));
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     await waitFor(
       'a fala vazia voltar',
       () => container.read(salaSessionProvider).wordlessTelling,
@@ -455,7 +452,7 @@ void main() {
     final container = await _contadaAoVivo(tester, harness);
     harness.playback.at = const Duration(seconds: 7);
     await tester.pump(const Duration(seconds: 1));
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await tocar(
       tester,
       'a pausa ficou no toque — toquem no círculo para traduzir',
@@ -485,9 +482,8 @@ void main() {
       harness.room.holdNextChunk();
       harness.playback.at = const Duration(seconds: 7);
       await tester.pump(const Duration(seconds: 1));
-      await tocar(tester, tesoura);
+      await tocarNoCirculo(tester);
       await gravarATraducao(tester);
-      await tocar(tester, confirmar);
       await waitFor(
         'a frase ir para a sala',
         () => container.read(salaSessionProvider).btPhase == BtPhase.thinking,
@@ -540,9 +536,8 @@ void main() {
       );
       harness.playback.at = cabeca;
       await tester.pump(const Duration(seconds: 1));
-      await tocar(tester, tesoura);
+      await tocarNoCirculo(tester);
       await gravarATraducao(tester);
-      await tocar(tester, confirmar);
       await waitFor(
         'a nova frase 1 chegar',
         () => container.read(salaSessionProvider).btTrechos.length == 1,
@@ -621,9 +616,8 @@ void main() {
       await tocar(tester, ouvir);
       harness.playback.at = const Duration(seconds: 7);
       await tester.pump(const Duration(seconds: 1));
-      await tocar(tester, tesoura);
+      await tocarNoCirculo(tester);
       await gravarATraducao(tester);
-      await tocar(tester, confirmar);
       await waitFor(
         'a segunda frase chegar',
         () => container.read(salaSessionProvider).btTrechos.length == 2,
@@ -752,13 +746,16 @@ void main() {
         reason: 'o recomeço não dizia a instrução de traduzir',
       );
 
-      await waitFor(
-        'o clipe voltar a rodar',
-        () => container.read(salaSessionProvider).canCut,
-      );
+      await waitFor('o clipe voltar a rodar', () {
+        final estado = container.read(salaSessionProvider);
+        return estado.btPhase == BtPhase.playing &&
+            estado.btClipRodando &&
+            !estado.btCortado &&
+            estado.btTraducaoPendente == null;
+      });
       final enviados = harness.room.chunkSpans.length;
       harness.playback.at = const Duration(seconds: 5);
-      notifier.cortarTrecho();
+      notifier.retroTap();
       notifier.retroTap();
       await settle();
       await confirmarATraducao(container);

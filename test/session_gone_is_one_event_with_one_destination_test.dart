@@ -90,7 +90,7 @@ Future<void> _abrirACapturaDeUmTrecho(
     () => _estado(container).btClipRodando,
   );
   harness.playback.at = const Duration(seconds: 2);
-  sala.cortarTrecho();
+  sala.retroTap();
   sala.retroTap();
   await waitFor(
     'o microfone abrir para o trecho',

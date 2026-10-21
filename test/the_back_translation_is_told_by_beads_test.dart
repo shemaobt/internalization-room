@@ -121,6 +121,16 @@ Future<void> gravarATraducao(
   await tocar(tester, terminar);
 }
 
+Future<void> tocarNoCirculo(WidgetTester tester) async {
+  final circulo = find.descendant(
+    of: find.byType(RetroView),
+    matching: find.byType(FacilitatorCircle),
+  );
+  await tester.ensureVisible(circulo);
+  await tester.tap(circulo);
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
 Future<void> contarAteOFimDaParte(
   WidgetTester tester,
   SalaHarness harness,
@@ -128,9 +138,9 @@ Future<void> contarAteOFimDaParte(
   harness.playback.at = parte;
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 300));
-  final noFim = byLabel(fimDaGravacao).evaluate().isNotEmpty;
-  await gravarATraducao(tester, circulo: noFim ? fimDaGravacao : gravar);
-  await tocar(tester, confirmar);
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
 }
 
 Future<PendingTake> guardar(FakeTakeQueue fila, String scope) => fila.enqueue(
@@ -155,56 +165,37 @@ void main() {
     expect(harness.playback.playedFrom.last, Duration.zero);
     expect(contas(tester), ['translucent com anel']);
     expect(aceso(tester, pausar), isTrue);
-    expect(aceso(tester, tesoura), isTrue);
-    expect(aceso(tester, confirmar), isFalse);
+    expect(container.read(salaSessionProvider).canConfirmTranslation, isFalse);
     expect(aceso(tester, conferir), isFalse);
     expect(corda(), findsNothing, reason: 'as contas substituem a corda');
     closeTheRoom(container);
   });
 
-  testWidgets('B2 — a tesoura só corta: para o clipe, não abre o microfone, '
-      'e nasce a conta do resto', (tester) async {
+  testWidgets('B2 — o primeiro toque no círculo só pausa: para o clipe, não '
+      'abre o microfone, e nasce a conta do resto', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
 
     await tocar(tester, pausar);
-    expect(
-      aceso(tester, tesoura),
-      isFalse,
-      reason: 'parada no cursor, a cabeça está num limite do trecho',
-    );
-
     harness.playback.at = cabeca;
     await _tocarNaTraducao(tester, ouvir);
     await tocar(tester, pausar);
-    expect(
-      aceso(tester, tesoura),
-      isTrue,
-      reason: 'pausada dentro do trecho pendente, há onde cortar',
-    );
-
     await _tocarNaTraducao(tester, ouvir);
-    expect(aceso(tester, tesoura), isTrue, reason: 'tocando, corta');
 
     final capturas = harness.recorder.captures;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
 
     expect(harness.playback.sounding, isFalse, reason: 'cortar para o clipe');
     expect(
       harness.recorder.captures,
       capturas,
-      reason: 'a tesoura não abre o microfone',
+      reason: 'o primeiro toque não abre o microfone',
     );
     expect(
       container.read(salaSessionProvider).btPhase,
       isNot(BtPhase.capturing),
     );
     expect(contas(tester), ['translucent com anel', 'translucent']);
-    expect(
-      aceso(tester, tesoura),
-      isFalse,
-      reason: 'a cabeça ficou no corte, que é um limite',
-    );
     closeTheRoom(container);
   });
 
@@ -213,9 +204,8 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     await tester.pump(passaDoCursor);
     expect(
       container.read(salaSessionProvider).nothingHeardSinceCursor,
@@ -236,59 +226,36 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('B3 — só o V manda a tradução, confirma o trecho e toca o '
-      'seguinte', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await entrarNaTraducao(tester, harness);
-
-    harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-
-    expect(harness.room.chunksSent, 0, reason: 'nada vai antes do V');
-    expect(aceso(tester, confirmar), isTrue);
-    final gravada = harness.recorder.lastPath;
-
-    await tocar(tester, confirmar);
-
-    expect(harness.room.chunkSpans, ['0-4000']);
-    expect(harness.room.chunkFiles, [gravada]);
-    expect(contas(tester), ['solid', 'translucent com anel']);
-    expect(
-      harness.playback.sounding,
-      isTrue,
-      reason: 'o trecho seguinte toca sozinho',
-    );
-    expect(harness.playback.playedFrom.last, cabeca);
-    expect(aceso(tester, confirmar), isFalse);
-    closeTheRoom(container);
-  });
-
   testWidgets('B3b — um V recusado guarda a tradução pendente', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocar(tester, pausadaNoToque);
+    harness.room.failChunkWith = const Refused('BAD_REQUEST');
+    await tocar(tester, terminar);
     final gravada = harness.recorder.lastPath;
     final capturas = harness.recorder.captures;
-
-    harness.room.failChunkWith = const Refused('BAD_REQUEST');
-    await tocar(tester, confirmar);
 
     final depois = container.read(salaSessionProvider);
     expect(depois.btChunkFailures, hasLength(1));
     expect(depois.needsPerson, isFalse);
     expect(contas(tester), ['translucent com anel', 'translucent']);
-    expect(aceso(tester, confirmar), isTrue);
+    expect(container.read(salaSessionProvider).canConfirmTranslation, isTrue);
 
     harness.room.failChunkWith = null;
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
 
     expect(harness.room.chunkSpans, ['0-4000']);
-    expect(harness.room.chunkFiles, [gravada]);
-    expect(harness.recorder.captures, capturas, reason: 'não se grava de novo');
+    expect(harness.room.chunkFiles, [harness.recorder.lastPath]);
+    expect(harness.room.chunkFiles, isNot(contains(gravada)));
+    expect(
+      harness.recorder.captures,
+      capturas + 1,
+      reason: 'o toque depois da recusa mandava a mesma gravação de novo',
+    );
     expect(contas(tester), ['solid', 'translucent com anel']);
     closeTheRoom(container);
   });
@@ -299,10 +266,10 @@ void main() {
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     for (var recusa = 0; recusa < 3; recusa++) {
       harness.playback.at = cabeca;
-      await tocar(tester, tesoura);
-      await gravarATraducao(tester);
+      await tocarNoCirculo(tester);
+      await tocar(tester, pausadaNoToque);
       harness.room.replaceThePart(harness.room.takeIds.last);
-      await tocar(tester, confirmar);
+      await tocar(tester, terminar);
       await tester.pump(const Duration(milliseconds: 600));
     }
 
@@ -322,20 +289,19 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     expect(container.read(salaSessionProvider).btTrechos, hasLength(1));
 
     harness.playback.at = const Duration(seconds: 7);
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocar(tester, pausadaNoToque);
     final substituida = harness.room.takeIds.last;
     harness.room
       ..replaceThePart(substituida)
       ..recordThePartAgain(substituida);
     final leituras = harness.room.calls.where((c) => c == 'fetchState').length;
-    await tocar(tester, confirmar);
+    await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(
@@ -358,16 +324,20 @@ void main() {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await entrarNaTraducao(tester, harness, partes: 1);
       harness.playback.at = cabeca;
-      await tocar(tester, tesoura);
-      await gravarATraducao(tester);
-      final gravada = container.read(salaSessionProvider).btTraducaoPendente!;
+      await tocarNoCirculo(tester);
+      await tocar(tester, pausadaNoToque);
       harness.room.replaceThePart(harness.room.takeIds.last);
 
-      await tocar(tester, confirmar);
+      await tocar(tester, terminar);
+      final gravada = harness.recorder.lastPath;
       await tester.pump(const Duration(milliseconds: 600));
       await letTheRehearsalReachTheRoom(tester);
 
-      expect(aceso(tester, confirmar), isFalse, reason: 'a pendente sai');
+      expect(
+        container.read(salaSessionProvider).canConfirmTranslation,
+        isFalse,
+        reason: 'a pendente sai',
+      );
       expect(
         harness.recorder.deleted,
         contains(gravada),
@@ -387,13 +357,13 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocar(tester, pausadaNoToque);
     harness.room
       ..replaceThePart(harness.room.takeIds.last)
       ..failStateOnceWith = const NetworkFailed('timeout');
 
-    await tocar(tester, confirmar);
+    await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 600));
     for (var passo = 0; passo < 5; passo++) {
       await letTheRehearsalReachTheRoom(tester);
@@ -420,13 +390,13 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocar(tester, pausadaNoToque);
     harness.room
       ..replaceThePart(harness.room.takeIds.last)
       ..failTakesWith = const NetworkFailed('timeout');
 
-    await tocar(tester, confirmar);
+    await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 600));
     for (var passo = 0; passo < 5; passo++) {
       await letTheRehearsalReachTheRoom(tester);
@@ -452,17 +422,16 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocar(tester, pausadaNoToque);
     harness.room.replaceThePart('gravacao-1');
-    await tocar(tester, confirmar);
+    await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 600));
     expect(harness.room.chunksSent, 0, reason: 'a primeira foi recusada');
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(
@@ -480,13 +449,13 @@ void main() {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await entrarNaTraducao(tester, harness, partes: 1);
       harness.playback.at = cabeca;
-      await tocar(tester, tesoura);
-      await gravarATraducao(tester);
+      await tocarNoCirculo(tester);
+      await tocar(tester, pausadaNoToque);
       harness.room
         ..replaceThePart('gravacao-1')
         ..refuseClipOf.add('gravacao-2');
 
-      await tocar(tester, confirmar);
+      await tocar(tester, terminar);
       await tester.pump(const Duration(milliseconds: 600));
       for (var passo = 0; passo < 5; passo++) {
         await letTheRehearsalReachTheRoom(tester);
@@ -516,14 +485,14 @@ void main() {
       );
       final container = await entrarNaTraducao(tester, harness, partes: 1);
       harness.playback.at = cabeca;
-      await tocar(tester, tesoura);
-      await gravarATraducao(tester);
+      await tocarNoCirculo(tester);
+      await tocar(tester, pausadaNoToque);
       harness.room
         ..replaceThePart('gravacao-1')
         ..replacedTakeRefusalAfter = const Duration(milliseconds: 1500)
         ..holdNextState();
 
-      await tocar(tester, confirmar);
+      await tocar(tester, terminar);
       await tester.pump(const Duration(milliseconds: 1600));
       await tester.pump(const Duration(milliseconds: 900));
       harness.room.finishHeldState();
@@ -534,7 +503,11 @@ void main() {
         isFalse,
         reason: 'a espera armada antes do envio estourava no meio da releitura',
       );
-      expect(aceso(tester, confirmar), isFalse, reason: 'a releitura terminou');
+      expect(
+        container.read(salaSessionProvider).canConfirmTranslation,
+        isFalse,
+        reason: 'a releitura terminou',
+      );
       closeTheRoom(container);
     },
   );
@@ -547,8 +520,9 @@ void main() {
 
     harness.playback.at = cabeca;
     await tocar(tester, pausar);
-    await gravarATraducao(tester, circulo: pausado);
-    await tocar(tester, confirmar);
+    await tocar(tester, pausado);
+    await tocarNoCirculo(tester);
+    await tocar(tester, terminar);
 
     expect(harness.room.chunkSpans, ['0-4000']);
     closeTheRoom(container);
@@ -570,7 +544,8 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await gravarATraducao(tester, circulo: fimDaGravacao);
+    await tocar(tester, fimDaGravacao);
+    await tocar(tester, fimDaGravacao);
 
     expect(aceso(tester, conferir), isFalse);
     await tester.tap(byLabel(conferir));
@@ -581,7 +556,7 @@ void main() {
       reason: 'com uma tradução pendente o disco não pede nada',
     );
 
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
 
     expect(harness.room.chunkSpans, ['0-10000', '0-10000']);
     expect(contas(tester), ['solid', 'solid']);
@@ -598,9 +573,8 @@ void main() {
     final container = await entrarNaTraducao(tester, harness, partes: 1);
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     await contarAteOFimDaParte(tester, harness);
     await tocar(tester, conferir);
     await tester.pump(const Duration(milliseconds: 600));
@@ -625,9 +599,8 @@ void main() {
     final gravacao = harness.room.takeIds.first;
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     await contarAteOFimDaParte(tester, harness);
 
     harness.room
@@ -652,16 +625,15 @@ void main() {
       daChegada,
       reason: 'ouvir toca a fatia do próprio trecho nomeado',
     );
-    expect(aceso(tester, tesoura), isFalse);
     expect(contas(tester), ['solid com anel', 'solid']);
     await tocar(tester, pausar);
 
     harness.room.verdictUntoldSegmentId = null;
     final vereditos = harness.room.playedByTakeSent.length;
-    await gravarATraducao(tester, circulo: gravar);
+    await tocarNoCirculo(tester);
     expect(harness.room.replacesAsked, isEmpty, reason: 'nada antes do V');
 
-    await tocar(tester, confirmar);
+    await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
@@ -686,9 +658,8 @@ void main() {
   }) async {
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     await contarAteOFimDaParte(tester, harness);
     harness.room
       ..verdictChecked = false
@@ -698,7 +669,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    if (gravando) await gravarATraducao(tester, circulo: gravar);
+    if (gravando) await tocarNoCirculo(tester);
     return container;
   }
 
@@ -708,7 +679,7 @@ void main() {
     final container = await ateOTrechoNomeado(tester, harness);
 
     harness.room.holdNextReplace();
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     expect(contas(tester), ['solid com anel', 'solid']);
 
     harness.room.finishHeldReplace();
@@ -723,7 +694,7 @@ void main() {
     final gravacao = harness.room.takeIds.first;
 
     harness.room.failReplaceWith = const NetworkFailed('sem rede');
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
     expect(contas(tester), ['solid com anel', 'solid']);
     expect(container.read(salaSessionProvider).unreachable, isFalse);
@@ -736,7 +707,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byType(FacilitatorCircle));
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
@@ -750,7 +720,7 @@ void main() {
     final container = await ateOTrechoNomeado(tester, harness);
 
     final vereditos = harness.room.playedByTakeSent.length;
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
     expect(harness.room.replacesAsked, hasLength(1));
     expect(harness.room.playedByTakeSent, hasLength(vereditos));
@@ -774,7 +744,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     container.read(salaSessionProvider.notifier).retroTap();
     await tester.pump(const Duration(milliseconds: 300));
-    await container.read(salaSessionProvider.notifier).confirmarTraducao();
+    container.read(salaSessionProvider.notifier).retroTap();
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(
@@ -799,7 +769,7 @@ void main() {
     final gravacao = harness.room.takeIds.first;
 
     harness.recorder.returnsEmpty = true;
-    await tocar(tester, gravar);
+    await tocarNoCirculo(tester);
     await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 600));
     expect(
@@ -810,8 +780,8 @@ void main() {
     expect(contas(tester), ['solid com anel', 'solid']);
 
     harness.recorder.returnsEmpty = false;
-    await gravarATraducao(tester, circulo: gravar);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
@@ -826,13 +796,13 @@ void main() {
     final gravacao = harness.room.takeIds.first;
 
     harness.recorder.returnsNothing = true;
-    await tocar(tester, gravar);
+    await tocarNoCirculo(tester);
     await tocar(tester, terminar);
     expect(contas(tester), ['solid com anel', 'solid']);
 
     harness.recorder.returnsNothing = false;
-    await gravarATraducao(tester, circulo: gravar);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
@@ -841,16 +811,12 @@ void main() {
   });
 
   Future<void> confirmarEEsperar(WidgetTester tester) async {
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
   }
 
   Future<void> contarOutraVez(WidgetTester tester) async {
-    await tester.ensureVisible(find.byType(FacilitatorCircle));
-    await tester.tap(find.byType(FacilitatorCircle));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.byType(FacilitatorCircle));
-    await tester.pump(const Duration(milliseconds: 300));
+    await tocarNoCirculo(tester);
   }
 
   Future<void> perderAResposta(WidgetTester tester, SalaHarness harness) async {
@@ -876,12 +842,14 @@ void main() {
     await perderAResposta(tester, harness);
     final leituras = harness.room.calls.where((c) => c == 'fetchState').length;
     await contarOutraVez(tester);
-    final contadaDeNovo = container
-        .read(salaSessionProvider)
-        .btTraducaoPendente!;
     await confirmarEEsperar(tester);
+    final contadaDeNovo = harness.recorder.lastPath!;
 
-    expect(aceso(tester, confirmar), isFalse, reason: 'nada pendente');
+    expect(
+      container.read(salaSessionProvider).canConfirmTranslation,
+      isFalse,
+      reason: 'nada pendente',
+    );
     expect(
       harness.room.calls.where((c) => c == 'fetchState').length,
       greaterThan(leituras),
@@ -1069,15 +1037,15 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
     SalaSessionState estado() => container.read(salaSessionProvider);
-    final pendente = estado().btTraducaoPendente!;
 
     harness.room.failReplaceWith = const Refused(
       'STRETCH_NO_LONGER_COUNTS',
       'Esse trecho já foi trocado por outro',
     );
     await confirmarEEsperar(tester);
+    final pendente = harness.recorder.lastPath!;
 
-    expect(aceso(tester, confirmar), isFalse, reason: 'a pendente sai');
+    expect(estado().canConfirmTranslation, isFalse, reason: 'a pendente sai');
     expect(harness.recorder.deleted, contains(pendente));
     expect(
       [for (final trecho in estado().btTrechos) trecho.segmentId],
@@ -1091,10 +1059,10 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester, circulo: gravar);
+    await tocarNoCirculo(tester);
     await confirmarEEsperar(tester);
     expect(
-      aceso(tester, confirmar),
+      estado().canConfirmTranslation,
       isFalse,
       reason: 'a mesma recusa de novo segue o mesmo caminho',
     );
@@ -1123,6 +1091,8 @@ void main() {
     await confirmarEEsperar(tester);
 
     final capturas = harness.recorder.captures;
+    sala.retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
     sala.retroTap();
     await tester.pump(const Duration(milliseconds: 300));
     sala.retroTap();
@@ -1172,9 +1142,9 @@ void main() {
     expect(contas(tester), ['solid com anel', 'solid'], reason: 'o braço fica');
 
     await contarOutraVez(tester);
-    final terceira = container.read(salaSessionProvider).btTraducaoPendente!;
     await confirmarEEsperar(tester);
-    expect(aceso(tester, confirmar), isFalse);
+    final terceira = harness.recorder.lastPath!;
+    expect(container.read(salaSessionProvider).canConfirmTranslation, isFalse);
     sala.ouvirOTrechoContado(0);
     await tester.pump(const Duration(milliseconds: 300));
     expect(harness.playback.played.last, terceira);
@@ -1191,13 +1161,13 @@ void main() {
 
     await perderAResposta(tester, harness);
     await contarOutraVez(tester);
-    final segunda = container.read(salaSessionProvider).btTraducaoPendente!;
     expect(contas(tester), [
       'solid com anel',
       'solid',
     ], reason: 'armada sobre o trecho');
 
     await confirmarEEsperar(tester);
+    final segunda = harness.recorder.lastPath!;
     expect(harness.room.replacesAsked.last, 'trecho-1-v1@$gravacao:0-4000');
     expect(harness.room.replacesComArquivo.last, segunda);
     closeTheRoom(container);
@@ -1208,23 +1178,23 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
-    final pendente = container.read(salaSessionProvider).btTraducaoPendente!;
 
     harness.room.recordThePartAgain(harness.room.takeIds.first);
     await confirmarEEsperar(tester);
+    final pendente = harness.recorder.lastPath!;
 
     expect(
       container.read(salaSessionProvider).btTrechos,
       isEmpty,
       reason: 'a tradução recomeçada não deixa fileira velha na tela',
     );
-    expect(aceso(tester, confirmar), isFalse);
+    expect(container.read(salaSessionProvider).canConfirmTranslation, isFalse);
     expect(harness.recorder.deleted, contains(pendente));
 
     harness.room.failChunkWith = const Refused('BAD_REQUEST');
+    sala.retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
     for (var falha = 0; falha < 2; falha++) {
-      sala.retroTap();
-      await tester.pump(const Duration(milliseconds: 300));
       sala.retroTap();
       await tester.pump(const Duration(milliseconds: 300));
       await confirmarEEsperar(tester);
@@ -1260,6 +1230,8 @@ void main() {
     final capturas = harness.recorder.captures;
     sala.retroTap();
     await tester.pump(const Duration(milliseconds: 300));
+    sala.retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(
       harness.recorder.captures,
       greaterThan(capturas),
@@ -1273,9 +1245,8 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     await contarAteOFimDaParte(tester, harness);
     harness.room
       ..verdictChecked = false
@@ -1326,8 +1297,8 @@ void main() {
     ], reason: 'armada sobre o trecho');
 
     await contarOutraVez(tester);
-    final terceira = container.read(salaSessionProvider).btTraducaoPendente!;
     await confirmarEEsperar(tester);
+    final terceira = harness.recorder.lastPath!;
     expect(harness.room.replacesAsked.last, 'trecho-1-v1@$gravacao:0-4000');
     expect(harness.room.replacesComArquivo.last, terceira);
     closeTheRoom(container);
@@ -1343,17 +1314,15 @@ void main() {
     final [primeira, segunda] = harness.room.takeIds.take(2).toList();
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     await tocar(tester, ouvir);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     await contarAteOFimDaParte(tester, harness);
     harness.playback.at = parte;
     harness.playback.finishPlayback();
@@ -1379,14 +1348,12 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester, circulo: gravar);
+    await tocarNoCirculo(tester);
 
     await perderAResposta(tester, harness);
     await contarOutraVez(tester);
-    final contadaNoServidor = container
-        .read(salaSessionProvider)
-        .btTraducaoPendente!;
     await confirmarEEsperar(tester);
+    final contadaNoServidor = harness.recorder.lastPath!;
 
     sala.ouvirOTrechoContado(ondeEsta(segunda));
     await tester.pump(const Duration(milliseconds: 300));
@@ -1417,9 +1384,9 @@ void main() {
         const NetworkFailed('timeout');
     await confirmarEEsperar(tester);
     await contarOutraVez(tester);
-    final segunda = container.read(salaSessionProvider).btTraducaoPendente!;
     harness.room.failReplaceWith = const Refused('BAD_REQUEST');
     await confirmarEEsperar(tester);
+    final segunda = harness.recorder.lastPath!;
     expect(
       container.read(salaSessionProvider).btTraducaoPendente,
       segunda,
@@ -1429,10 +1396,12 @@ void main() {
     harness.room
       ..failReplaceWith = null
       ..landTheLostReplace();
+    await contarOutraVez(tester);
     await confirmarEEsperar(tester);
+    final terceira = harness.recorder.lastPath!;
 
     expect(
-      aceso(tester, confirmar),
+      container.read(salaSessionProvider).canConfirmTranslation,
       isFalse,
       reason: 'a perdida pousou, e a contada de novo pousou sobre ela',
     );
@@ -1440,7 +1409,8 @@ void main() {
       'trecho-1@$gravacao:0-4000',
       'trecho-1-v1@$gravacao:0-4000',
     ]);
-    expect(harness.room.replacesComArquivo.last, segunda);
+    expect(harness.room.replacesComArquivo.last, terceira);
+    expect(harness.room.replacesComArquivo, isNot(contains(segunda)));
     closeTheRoom(container);
   });
 
@@ -1452,9 +1422,8 @@ void main() {
     final gravacao = harness.room.takeIds.first;
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     await contarAteOFimDaParte(tester, harness);
 
     harness.room
@@ -1465,22 +1434,26 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester, circulo: gravar);
+    await tocarNoCirculo(tester);
+    harness.room.failReplaceWith = const Refused('BAD_REQUEST');
+    await tocar(tester, terminar);
+    await tester.pump(const Duration(milliseconds: 600));
     final capturas = harness.recorder.captures;
 
-    harness.room.failReplaceWith = const Refused('BAD_REQUEST');
-    await tocar(tester, confirmar);
-    await tester.pump(const Duration(milliseconds: 600));
-
-    expect(aceso(tester, confirmar), isTrue);
+    expect(container.read(salaSessionProvider).canConfirmTranslation, isTrue);
 
     harness.room.failReplaceWith = null;
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked.last, 'trecho-1@$gravacao:0-4000');
     expect(harness.room.chunksSent, 2, reason: 'nenhum trecho novo');
-    expect(harness.recorder.captures, capturas, reason: 'não se grava de novo');
+    expect(
+      harness.recorder.captures,
+      capturas + 1,
+      reason: 'o toque depois da recusa mandava a mesma gravação de novo',
+    );
     closeTheRoom(container);
   });
 
@@ -1491,9 +1464,8 @@ void main() {
     final primeira = harness.room.takeIds.first;
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -1521,95 +1493,13 @@ void main() {
 
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
-    await gravarATraducao(tester, circulo: gravar);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
 
     expect(harness.room.chunkSpans, ['0-4000']);
     closeTheRoom(container);
   });
-
-  testWidgets('B3h — com a sala atrasada a cópia guardada sai da fila', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true)
-      ..room.takeLandsAfter = const Duration(seconds: 1);
-    final container = await entrarNaTraducao(tester, harness);
-    final fila = harness.takes as FakeTakeQueue;
-
-    harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    final gravada = harness.recorder.lastPath;
-
-    harness.room.failChunkWith = const Refused('BAD_REQUEST');
-    await tocar(tester, confirmar);
-    await letTheRehearsalReachTheRoom(tester);
-    await tocar(tester, confirmar);
-    await letTheRehearsalReachTheRoom(tester);
-    harness.room.failChunkWith = null;
-    await tocar(tester, confirmar);
-    await letTheRehearsalReachTheRoom(tester);
-
-    List<String> guardadas() => [
-      for (final linha in fila.rows)
-        if (linha.path == gravada) linha.kind,
-    ];
-
-    expect(harness.room.chunkFiles, [gravada]);
-    expect(
-      guardadas(),
-      isEmpty,
-      reason:
-          'com a sala atrasada a cópia guardada ainda não pousou quando o '
-          'trecho pousa pela porta dele, e sai da fila sem subir como a '
-          'passagem inteira',
-    );
-    await waitFor(
-      'a sala nomear a cópia guardada que já estava no ar',
-      () => harness.room.takesKept.contains('retro/${KeptScope.whole}'),
-      step: () => letTheRehearsalReachTheRoom(tester),
-    );
-    expect(
-      guardadas(),
-      isEmpty,
-      reason: 'o envio que já estava no ar pousa na sala e não volta à fila',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets(
-    'B3h2 — com a sala em dia, a tradução recusada fica na fila, enviada',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true);
-      final container = await entrarNaTraducao(tester, harness);
-      final fila = harness.takes as FakeTakeQueue;
-
-      harness.playback.at = cabeca;
-      await tocar(tester, tesoura);
-      await gravarATraducao(tester);
-      final gravada = harness.recorder.lastPath;
-
-      harness.room.failChunkWith = const Refused('BAD_REQUEST');
-      await tocar(tester, confirmar);
-      await letTheRehearsalReachTheRoom(tester);
-      await tocar(tester, confirmar);
-      await letTheRehearsalReachTheRoom(tester);
-      harness.room.failChunkWith = null;
-      await tocar(tester, confirmar);
-      await letTheRehearsalReachTheRoom(tester);
-
-      expect(harness.room.chunkFiles, [gravada]);
-      expect(
-        [
-          for (final linha in fila.rows)
-            if (linha.path == gravada) (linha.kind, linha.stored),
-        ],
-        [('retro', true)],
-        reason: 'com a sala em dia a cópia guardada já foi enviada, e fica',
-      );
-      closeTheRoom(container);
-    },
-  );
 
   testWidgets('B4b — o disco fica apagado enquanto sobra chão por contar na '
       'última parte', (tester) async {
@@ -1617,14 +1507,13 @@ void main() {
     final container = await entrarNaTraducao(tester, harness, partes: 1);
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(aceso(tester, confirmar), isFalse);
+    expect(container.read(salaSessionProvider).canConfirmTranslation, isFalse);
     expect(aceso(tester, conferir), isFalse);
     closeTheRoom(container);
   });
@@ -1642,8 +1531,9 @@ void main() {
 
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
-    await gravarATraducao(tester, circulo: gravar);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.playback.at = Duration.zero;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -1660,7 +1550,12 @@ void main() {
 
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
-    await gravarATraducao(tester, circulo: gravar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    harness.room.failChunkWith = const Refused('BAD_REQUEST');
+    await tocarNoCirculo(tester);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(container.read(salaSessionProvider).btChunkFailures, isNotEmpty);
     final gravada = harness.recorder.lastPath;
     container.read(salaSessionProvider.notifier).leaveThePassage();
     await tester.pump(const Duration(milliseconds: 300));
@@ -1692,9 +1587,13 @@ void main() {
       169,
     );
     expect(tester.getTopLeft(byLabel(gravar)), const Offset(330, 297));
-    expect(tester.getTopLeft(byLabel(pausar)), const Offset(296, 473));
-    expect(tester.getTopLeft(byLabel(tesoura)), const Offset(380, 473));
-    expect(tester.getTopLeft(byLabel(confirmar)), const Offset(464, 473));
+    expect(
+      tester.getTopLeft(byLabel(pausar)),
+      const Offset(380, 473),
+      reason:
+          'o botão ficava à esquerda da tesoura e da confirmação, que os três '
+          'toques tiraram',
+    );
     expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 589));
     closeTheRoom(container);
   });
@@ -1722,8 +1621,6 @@ void main() {
 
     expect(byLabel("Tap to record this stretch's translation"), findsOneWidget);
     expect(byLabel('Pause'), findsOneWidget);
-    expect(byLabel('Pause where the sentence ends'), findsOneWidget);
-    expect(byLabel('Confirm the translation and go on'), findsOneWidget);
     expect(byLabel('done'), findsOneWidget);
     expect(byLabel('part 1'), findsOneWidget);
 
@@ -1736,6 +1633,7 @@ void main() {
       byLabel('paused — tap the circle to mark where the sentence ends'),
     );
     await tester.pump(const Duration(milliseconds: 300));
+    await tocarNoCirculo(tester);
     expect(byLabel('Tap when you finish'), findsOneWidget);
     closeTheRoom(container);
   });
@@ -1749,8 +1647,8 @@ void main() {
 
       harness.playback.at = cabeca;
       await tester.pump(passaDoCursor);
-      await tester.tap(byLabel("Tap to record this stretch's translation"));
-      await tester.pump(const Duration(milliseconds: 300));
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
       harness.recorder.holdNextStop();
       await tester.tap(byLabel('Tap when you finish'));
       await tester.pump(const Duration(milliseconds: 300));
@@ -1777,37 +1675,11 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await _tocarNaTraducao(tester, ouvir);
 
     expect(harness.playback.ranges.last, '0-4000');
     expect(harness.playback.sounding, isTrue);
-    closeTheRoom(container);
-  });
-
-  testWidgets('B9b — cortar de novo enquanto o trecho repete move o corte', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await entrarNaTraducao(tester, harness);
-
-    harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
-
-    harness.playback.at = const Duration(seconds: 8);
-    await tocar(tester, tesoura);
-    await tocar(tester, ouvir);
-    expect(harness.playback.ranges.last, '4000-8000');
-
-    harness.playback.at = const Duration(seconds: 2);
-    expect(aceso(tester, tesoura), isTrue);
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
-
-    expect(harness.room.chunkSpans, ['0-4000', '4000-6000']);
     closeTheRoom(container);
   });
 }

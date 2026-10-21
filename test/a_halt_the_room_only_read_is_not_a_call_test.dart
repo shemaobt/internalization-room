@@ -67,10 +67,10 @@ void main() {
 
       harness.recorder.startThrows = true;
       harness.playback.at = const Duration(seconds: 2);
-      notifier.cortarTrecho();
+      notifier.retroTap();
       notifier.retroTap();
       await settle();
-      notifier.cortarTrecho();
+      notifier.retroTap();
       notifier.retroTap();
       await settle();
 

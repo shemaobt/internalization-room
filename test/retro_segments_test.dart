@@ -50,11 +50,10 @@ Future<void> _traduzTrecho(
 }) async {
   final notifier = container.read(salaSessionProvider.notifier);
   harness.playback.at = em;
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await settle();
   await fecharACaptura(container);
-  await notifier.confirmarTraducao();
   await settle();
 }
 

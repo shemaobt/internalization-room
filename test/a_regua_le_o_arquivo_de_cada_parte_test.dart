@@ -86,7 +86,7 @@ Future<void> _contarAParteNoAr(Sala it, Duration quanto) async {
   it.harness.playback
     ..length = quanto
     ..at = quanto;
-  it.sala.cortarTrecho();
+  it.sala.retroTap();
   it.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
@@ -208,7 +208,7 @@ void main() {
       'a sala entrar na espera da medição',
       () => it.estado.btPhase == BtPhase.thinking,
     );
-    it.sala.cortarTrecho();
+    it.sala.retroTap();
     it.sala.retroTap();
     await Future<void>.delayed(const Duration(milliseconds: 80));
 

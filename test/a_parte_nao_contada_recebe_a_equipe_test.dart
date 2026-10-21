@@ -211,7 +211,7 @@ void main() {
     final trechosAntes = it.estado.btTrechos.length;
     await theClipOpens(it.harness);
     it.harness.playback.at = const Duration(seconds: 4);
-    it.sala.cortarTrecho();
+    it.sala.retroTap();
     it.sala.retroTap();
     await waitFor(
       'o microfone abrir',
@@ -251,7 +251,7 @@ void main() {
     final trechosAntes = it.estado.btTrechos.length;
     await theClipOpens(it.harness);
     it.harness.playback.at = const Duration(seconds: 4);
-    it.sala.cortarTrecho();
+    it.sala.retroTap();
     it.sala.retroTap();
     expect(
       it.estado.btPhase,

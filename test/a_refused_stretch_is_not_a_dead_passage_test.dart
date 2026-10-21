@@ -164,7 +164,7 @@ Future<void> _ateAParteTresNoAr(_Retomada it) async {
 Future<void> _contarUmTrechoRecusado(_Retomada it) async {
   final recusadosAntes = it.estado.btChunkFailures.length;
   it.harness.playback.at = const Duration(seconds: 7);
-  it.sala.cortarTrecho();
+  it.sala.retroTap();
   it.sala.retroTap();
   await waitFor(
     'o microfone abrir',
@@ -180,7 +180,12 @@ Future<void> _contarUmTrechoRecusado(_Retomada it) async {
 
 Future<void> _confirmarDeNovoARecusada(_Retomada it) async {
   final recusadosAntes = it.estado.btChunkFailures.length;
-  await it.sala.confirmarTraducao();
+  it.sala.retroTap();
+  await waitFor(
+    'o microfone abrir de novo',
+    () => it.estado.btPhase == BtPhase.capturing,
+  );
+  await confirmarATraducao(it.container);
   await waitFor(
     'a sala recusar o trecho de novo',
     () => it.estado.btChunkFailures.length > recusadosAntes,
@@ -237,7 +242,7 @@ void main() {
       room.sendChunkStatus = 404;
 
       it.harness.playback.at = const Duration(seconds: 7);
-      it.sala.cortarTrecho();
+      it.sala.retroTap();
       it.sala.retroTap();
       await waitFor(
         'o microfone abrir',
@@ -275,7 +280,7 @@ void main() {
       room.sendChunkStatus = 422;
 
       it.harness.playback.at = const Duration(seconds: 7);
-      it.sala.cortarTrecho();
+      it.sala.retroTap();
       it.sala.retroTap();
       await waitFor(
         'o microfone abrir',
@@ -363,7 +368,7 @@ void main() {
         reason: 'o clipe toca antes do corte',
       );
 
-      it.sala.cortarTrecho();
+      it.sala.retroTap();
       it.sala.retroTap();
       await settle();
       expect(
@@ -402,7 +407,7 @@ void main() {
       final it = await _retomadaNaRetro(harness);
 
       harness.playback.at = _inicioDoTrecho - const Duration(milliseconds: 1);
-      it.sala.cortarTrecho();
+      it.sala.retroTap();
       it.sala.retroTap();
       await settle();
       expect(it.estado.btPhase, isNot(BtPhase.capturing));
@@ -413,7 +418,7 @@ void main() {
 
       await _ateAParteTresNoAr(it);
       harness.playback.at = _inicioDoTrecho + const Duration(milliseconds: 1);
-      it.sala.cortarTrecho();
+      it.sala.retroTap();
       it.sala.retroTap();
       await waitFor(
         'o microfone abrir',

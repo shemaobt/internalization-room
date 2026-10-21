@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1231/ENG-1737 (2026-10-21: a part with no envelope keeps its pausa at least 0.2 s after the last one, and places none where the part has no room for 0.2 s; the scissors are gone, and the circle's first tap places the pausa)
 date: 2026-10-13
 amends: 0040
 ---

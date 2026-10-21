@@ -19,7 +19,6 @@ const ouvirOTrechoLabel = 'Ouvir o trecho e a tradução';
 const micParteLabel = 'voltar e regravar uma parte';
 const micRetroLabel = 'Traduzir este trecho de novo';
 const gravarDeNovoLabel = 'Tocar para gravar a tradução de novo';
-const confirmarLabel = 'Confirmar a tradução e seguir';
 
 /// Every button on the finding the team can put a finger on, in the order they are drawn.
 ///
@@ -195,7 +194,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(byLabel('Tocar ao terminar'));
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(byLabel(confirmarLabel));
     await letTheRehearsalReachTheRoom(tester);
     await tester.pump(const Duration(milliseconds: 600));
 

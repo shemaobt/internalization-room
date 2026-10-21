@@ -53,7 +53,7 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
 
   await waitFor('o aviso chegar', () => read().warning);
   harness.playback.at = const Duration(seconds: 2);
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
 
@@ -142,31 +142,6 @@ void main() {
     );
   });
 
-  test('after the lift, the check sends nothing', () async {
-    final harness = SalaHarness();
-    final (container, notifier, read) = await _capturingWithAWarningArmed(
-      harness,
-    );
-    await _haltLandsBlocking(notifier, read);
-    final chunksBefore = harness.room.chunksSent;
-
-    notifier.resolveWithPerson();
-    await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
-
-    await notifier.confirmarTraducao();
-    await settle();
-
-    expect(
-      harness.room.calls,
-      isNot(contains('sendChunk')),
-      reason:
-          'a captura já estava fechada quando a parada pousou; o V depois '
-          'do atendimento não pode mandá-la como se fosse uma tradução '
-          'pendente',
-    );
-    expect(harness.room.chunksSent, chunksBefore);
-  });
-
   test('after the lift, the circle opens a fresh capture', () async {
     final harness = SalaHarness();
     final (container, notifier, read) = await _capturingWithAWarningArmed(
@@ -177,7 +152,6 @@ void main() {
     await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
     notifier.retroTap();
     await waitFor(
       'uma nova captura abrir',
@@ -271,7 +245,7 @@ void main() {
         .where((s) => s == 'recorder:discard')
         .length;
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
     notifier.retroTap();

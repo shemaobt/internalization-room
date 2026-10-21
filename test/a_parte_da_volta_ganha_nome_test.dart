@@ -71,7 +71,7 @@ void main() {
     // Conta o trecho da parte 3.
     await theClipOpens(harness);
     harness.playback.at = umaParteInteira;
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -101,7 +101,7 @@ void main() {
     // Corta o trecho da parte 4 — a gravação que acabou de ser guardada.
     await theClipOpens(harness);
     harness.playback.at = umaParteInteira;
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -170,7 +170,7 @@ void main() {
 
     await theClipOpens(harness);
     harness.playback.at = umaParteInteira;
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -212,7 +212,7 @@ void main() {
     );
     await theClipOpens(harness);
     harness.playback.at = umaParteInteira;
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -241,7 +241,7 @@ void main() {
     for (var i = 0; i < 3; i++) {
       await theClipOpens(harness);
       harness.playback.at = umaParteInteira + Duration(seconds: i + 1);
-      notifier.cortarTrecho();
+      if (i == 0) notifier.retroTap();
       notifier.retroTap();
       await settle();
       await confirmarATraducao(container);
@@ -292,7 +292,7 @@ void main() {
 
     await theClipOpens(harness);
     harness.playback.at = umaParteInteira;
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);

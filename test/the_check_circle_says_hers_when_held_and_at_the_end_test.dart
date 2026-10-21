@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
 import 'fakes.dart';
@@ -8,7 +9,6 @@ import 'the_back_translation_is_told_by_beads_test.dart'
     show
         cabeca,
         conferir,
-        confirmar,
         contarAteOFimDaParte,
         entrarNaTraducao,
         fimDaGravacao,
@@ -19,8 +19,9 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         passaDoCursor,
         pausado,
         pausar,
-        tesoura,
-        tocar;
+        terminar,
+        tocar,
+        tocarNoCirculo;
 import 'the_pause_snaps_to_silence_test.dart'
     show entrarComAFala, rotuloDoCirculo, s;
 
@@ -90,7 +91,15 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await gravarATraducao(tester, circulo: fimDaGravacao);
+    await tocar(tester, fimDaGravacao);
+    await tocar(tester, fimDaGravacao);
+    harness.room.failChunkWith = const Refused('BAD_REQUEST');
+    await tocar(tester, terminar);
+    await waitFor(
+      'a sala recusar a frase',
+      () => container.read(salaSessionProvider).btChunkFailures.isNotEmpty,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
 
     expect(container.read(salaSessionProvider).btClipEnded, isTrue);
     expect(
@@ -105,11 +114,10 @@ void main() {
       'da gravação», not the pause hint', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarComAFala(tester, harness, null);
-    harness.recorder.returnsNothing = true;
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await gravarATraducao(tester, circulo: fimDaGravacao);
+    await tocar(tester, fimDaGravacao);
 
     final state = container.read(salaSessionProvider);
     expect(state.btCortado, isTrue);
@@ -178,9 +186,8 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
     final primeira = harness.room.takeIds.first;
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));

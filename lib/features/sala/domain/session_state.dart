@@ -321,6 +321,7 @@ class SalaSessionState {
   /// Passages of this book with work waiting in them, by pericope, for the resume lookup.
   final Set<String> comecadas;
   final List<Trecho> btTrechos;
+  final List<Trecho> btTrechosRegravados;
   final List<BtFinding> btFindings;
   final bool btConferindo;
   final bool btVeredito;
@@ -337,7 +338,7 @@ class SalaSessionState {
   final Duration btCorte;
 
   /// Whether the head has passed [btCursor] since it was last set — the one fact the
-  /// capture, the scissors and the circle's label all read to ask whether anything has
+  /// capture and the circle's label both read to ask whether anything has
   /// been heard since the cursor.
   final bool btOuvidoAlemDoCursor;
   final bool btPausaAjustavel;
@@ -442,6 +443,7 @@ class SalaSessionState {
     this.naRoda,
     this.comecadas = const {},
     this.btTrechos = const [],
+    this.btTrechosRegravados = const [],
     this.btFindings = const [],
     this.btConferindo = false,
     this.btVeredito = false,
@@ -910,8 +912,8 @@ class SalaSessionState {
 
   bool get btCortado => btCorte > btCursor;
 
-  /// Whether nothing has been heard since the cursor: the guard the capture, the
-  /// scissors and the circle's label all share.
+  /// Whether nothing has been heard since the cursor: the guard the capture and the
+  /// circle's label share.
   bool get nothingHeardSinceCursor => !btOuvidoAlemDoCursor;
 
   int? get _btInicioDaParteMs {
@@ -949,24 +951,6 @@ class SalaSessionState {
     return btParte < partes.length - 1 ||
         parte == null ||
         (btCorte + folgaDoFimDaParte).inMilliseconds < parte;
-  }
-
-  bool get canCut {
-    if (!_btNaVez || btTraducaoPendente != null) return false;
-    if (btTrechoTraduzidoDeNovo != null || btContaEscolhida != null) {
-      return false;
-    }
-    if (btTrechoTocando || btTrechoPausada) {
-      return btCortado && !btClipEnded && !btParteFronteira;
-    }
-    if (btClipRodando) return true;
-    if (btClipEnded || btParteFronteira) return false;
-    final inicio = _btInicioDaParteMs;
-    if (inicio == null) return false;
-    final cabeca = btOuvidoMs - inicio;
-    final limite = btCortado ? btCorte.inMilliseconds : _btParteMs;
-    return cabeca > btCursor.inMilliseconds &&
-        (limite == null || cabeca < limite);
   }
 
   bool get thePauseStands =>
@@ -1169,6 +1153,7 @@ class SalaSessionState {
     Set<String>? comecadas,
     bool clearRoda = false,
     List<Trecho>? btTrechos,
+    List<Trecho>? btTrechosRegravados,
     List<BtFinding>? btFindings,
     bool? btConferindo,
     bool? btVeredito,
@@ -1255,6 +1240,7 @@ class SalaSessionState {
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       comecadas: comecadas ?? this.comecadas,
       btTrechos: btTrechos ?? this.btTrechos,
+      btTrechosRegravados: btTrechosRegravados ?? this.btTrechosRegravados,
       btFindings: btFindings ?? this.btFindings,
       btConferindo: btConferindo ?? this.btConferindo,
       btVeredito: btVeredito ?? this.btVeredito,

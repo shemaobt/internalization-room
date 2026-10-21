@@ -174,7 +174,7 @@ Future<_Cena> _naFronteiraDaParte() async {
 Future<_Cena> _prontoParaTerminei() async {
   final cena = await _noRetro();
   cena.harness.playback.at = const Duration(milliseconds: 40);
-  cena.sala.cortarTrecho();
+  cena.sala.retroTap();
   cena.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
@@ -325,7 +325,7 @@ void main() {
       () async {
         final cena = await _noRetro();
         cena.harness.playback.at = const Duration(milliseconds: 40);
-        cena.sala.cortarTrecho();
+        cena.sala.retroTap();
         cena.sala.retroTap();
         await waitFor(
           'o microfone abrir',
@@ -405,7 +405,7 @@ void main() {
         return cena;
       },
       (cena) async {
-        cena.sala.cortarTrecho();
+        cena.sala.retroTap();
         cena.sala.retroTap();
         await waitFor(
           'o microfone abrir',
@@ -420,7 +420,7 @@ void main() {
       () async {
         final cena = await _noRetro();
         cena.harness.playback.at = const Duration(milliseconds: 400);
-        cena.sala.cortarTrecho();
+        cena.sala.retroTap();
         cena.sala.retroTap();
         await waitFor(
           'o microfone abrir',
@@ -440,7 +440,7 @@ void main() {
         return cena;
       },
       (cena) async {
-        cena.sala.cortarTrecho();
+        cena.sala.retroTap();
         cena.sala.retroTap();
         expect(
           _estado(cena).btPhase,

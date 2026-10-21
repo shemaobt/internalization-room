@@ -383,6 +383,50 @@ void main() {
       },
     );
 
+    test(
+      'a take with no loudness to read still keeps the pausa 0.2 s after the previous one, not a sliver',
+      () async {
+        final room = await _onTheTranslateStep(
+          take: Uint8List.fromList(List.filled(4000, 7)),
+          rehearsal: _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        );
+        await _listening(room);
+
+        await _aFraseAt(room, _s(3.1));
+
+        final sent = room.harness.room.frasesKept.single;
+        expect(sent.startsMs, 3000);
+        expect(
+          sent.endsMs,
+          3200,
+          reason:
+              'sem envelope a pausa ficava no toque, e a sala recebia uma frase de '
+              '0,1 s',
+        );
+      },
+    );
+
+    test(
+      'a take with no loudness to read and no room left for 0.2 s places no pausa',
+      () async {
+        final room = await _onTheTranslateStep(
+          take: Uint8List.fromList(List.filled(4000, 7)),
+          rehearsal: _rehearsal(frases: [_frase('f1', 0, 9900)]),
+        );
+        await _listening(room);
+
+        room.harness.playback.at = _s(9.95);
+        await _circle(room);
+
+        expect(
+          room.state.scene.pausa,
+          isNull,
+          reason: 'a pausa ficava no toque, e a frase seguinte teria 0,05 s',
+        );
+        expect(room.harness.room.frasesKept, isEmpty);
+      },
+    );
+
     test('a pausa is never within 0.1 s of the end', () async {
       final room = await _onTheTranslateStep();
       await _listening(room);
@@ -1374,12 +1418,12 @@ void main() {
         rehearsal: _rehearsal(frases: [_frase('f1', 0, 3000)]),
       );
       await _onScreenPlaying(tester, harness, container);
-      harness.playback.at = _s(3.1);
+      harness.playback.at = _s(3.5);
 
       await _tapAndSettle(tester, _tell);
 
       await _onScreenTheFraseIsSent(tester, harness, container);
-      expect(harness.room.frasesKept.single.endsMs, 3100);
+      expect(harness.room.frasesKept.single.endsMs, 3500);
     });
 
     testWidgets('a take kept as m4a says her pausa is at the tap', (
