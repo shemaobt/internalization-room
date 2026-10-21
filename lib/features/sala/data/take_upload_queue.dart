@@ -406,15 +406,16 @@ class TakeUploadQueue {
     return null;
   }
 
-  static Map<String, List<PendingTake>> _unsentPartsIn(
+  Future<Map<String, List<PendingTake>>> _unsentPartsIn(
     List<PendingTake>? written,
     String? sessionId,
-  ) {
+  ) async {
     final parts = <String, List<PendingTake>>{};
     for (final entry in written ?? const <PendingTake>[]) {
       if (!entry.stored &&
           entry.kind == 'ensaio' &&
-          entry.sessionId == sessionId) {
+          entry.sessionId == sessionId &&
+          !await _reallyGone(entry)) {
         parts.putIfAbsent(entry.scope, () => []).add(entry);
       }
     }
@@ -438,7 +439,7 @@ class TakeUploadQueue {
       due: _due(waiting),
       unsentTakes: _unsentIn(written, 'ensaio', sessionId),
       unsentChunks: _unsentIn(written, 'retro', sessionId),
-      unsentParts: _unsentPartsIn(written, sessionId),
+      unsentParts: await _unsentPartsIn(written, sessionId),
     );
   }
 

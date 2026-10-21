@@ -27,18 +27,23 @@ Finder onTheCircle(String label) => find.descendant(
   matching: byLabel(label),
 );
 
-Finder theAdvanceDisc(String label) =>
+Finder inTheHome(String label) =>
     find.descendant(of: find.byType(EnsaioView), matching: byLabel(label));
 
-final _sceneRow = RegExp(r'^(Cena|Scene) \d');
+bool _isASceneRow(Widget widget) =>
+    widget.runtimeType.toString() == '_SceneRowView';
+
+Finder onTheRows(String label) => find.descendant(
+  of: find.byWidgetPredicate(_isASceneRow),
+  matching: byLabel(label),
+);
 
 Finder offTheRows(String label) => find.byElementPredicate((element) {
   final widget = element.widget;
   if (widget is! Semantics || widget.properties.label != label) return false;
   var inside = false;
   element.visitAncestorElements((above) {
-    final w = above.widget;
-    inside = w is Semantics && _sceneRow.hasMatch(w.properties.label ?? '');
+    inside = _isASceneRow(above.widget);
     return !inside;
   });
   return !inside;

@@ -178,7 +178,7 @@ void main() {
       expect(naLinhaDoEnsaio(tester, 'Gravar'), [null, true]);
       expect(_apagado(tester, _irParaATraducao), isTrue);
 
-      await tester.tap(theAdvanceDisc(_irParaATraducao), warnIfMissed: false);
+      await tester.tap(inTheHome(_irParaATraducao), warnIfMissed: false);
       await tester.pump(const Duration(milliseconds: 200));
       _sala(container).startRetro();
       await tester.pump(const Duration(milliseconds: 200));
@@ -460,7 +460,7 @@ void main() {
           : _pausarOEnsaio;
       expect(offTheRows(tocar), findsOneWidget, reason: quando);
       expect(offTheRows(_confirmar), findsOneWidget, reason: quando);
-      expect(theAdvanceDisc(_irParaATraducao), findsOneWidget, reason: quando);
+      expect(inTheHome(_irParaATraducao), findsOneWidget, reason: quando);
     }
 
     nadaAposentado('vazio');
@@ -480,11 +480,11 @@ void main() {
     expect(offTheRows('Record'), findsOneWidget);
     expect(offTheRows('Listen'), findsOneWidget);
     expect(offTheRows('Send the recording'), findsOneWidget);
-    expect(theAdvanceDisc('Translate the recording'), findsOneWidget);
+    expect(inTheHome('Translate the recording'), findsOneWidget);
 
     await _tocar(tester, 'Record');
     expect(offTheRows('Stop'), findsOneWidget);
-    expect(offTheRows('Scene 1'), findsOneWidget);
+    expect(byLabel('Scene 1'), findsOneWidget);
     await _tocar(tester, 'Stop');
     expect(offTheRows('Record again'), findsOneWidget);
 
@@ -495,6 +495,6 @@ void main() {
     await _tocar(tester, 'Send the recording');
     await letTheRehearsalReachTheRoom(tester);
     expect(offTheRows('Record'), findsOneWidget);
-    expect(offTheRows('Scene 1'), findsOneWidget);
+    expect(byLabel('Scene 1'), findsOneWidget);
   });
 }

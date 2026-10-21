@@ -742,6 +742,170 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a take recorded over by a newer recording the room holds is not unsent, '
+    'here or after a relaunch',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.refuseTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      casa.room.refuseTake = null;
+      await casa.guardar(2);
+      expect(casa.room.takePasses.last, 2);
+
+      expect(casa.naLinha(2, find.text(_falhou)), findsNothing);
+      expect(find.text(_aviso), findsNothing);
+      expect(find.textContaining('enviar agora'), findsNothing);
+      expect(casa.naLinha(2, byLabel(_ouvir)), findsOneWidget);
+
+      final antes = casa.envios;
+      await casa.relancar();
+
+      expect(find.text(_aviso), findsNothing);
+      expect(find.textContaining('enviar agora'), findsNothing);
+      expect(find.text(_falhou), findsNothing);
+      expect(
+        casa.envios,
+        antes,
+        reason: 'a gravação de baixo não sobe de novo',
+      );
+    },
+  );
+
+  testWidgets(
+    'a row whose audio is gone is not an unsent take, and its scene can be '
+    'recorded',
+    (tester) async {
+      _umIpadEmPe(tester);
+      final casaDasTomadas = Directory.systemTemp.createTempSync('sala-1420');
+      addTearDown(() => casaDasTomadas.deleteSync(recursive: true));
+      final guardadas = Directory('${casaDasTomadas.path}/guardadas')
+        ..createSync();
+      final parte2 = File('${guardadas.path}/ensaio-parte-2.m4a')
+        ..writeAsBytesSync([5, 6, 7, 8]);
+      File('${guardadas.path}/fila.json').writeAsStringSync(
+        jsonEncode([
+          PendingTake(
+            id: 'perdida-1',
+            path: '${guardadas.path}/ensaio-parte-1.m4a',
+            sessionId: 'sessao-antiga',
+            kind: 'ensaio',
+            scope: 'parte-1',
+            passNumber: 1,
+            chunkIndex: 1,
+            lost: true,
+            waits: 2,
+          ).toJson(),
+        ]),
+      );
+      final harness = SalaHarness(takesHome: casaDasTomadas)
+        ..room.passageScenes = _cenas
+        ..playback.measured = _umaParte;
+      harness.room.takes.add(
+        const TakeView(
+          takeId: 'gravacao-2',
+          kind: 'ensaio',
+          scope: 'parte-2',
+          ordinal: 2,
+        ),
+      );
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.ensaio,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.parte(2),
+            path: parte2.path,
+            takeId: 'gravacao-2',
+          ),
+        ],
+      );
+      final container = (await tester.runAsync(_aoVivo(harness)))!;
+      addTearDown(container.dispose);
+      await tester.pumpWidget(_aCasa(container));
+      final casa = _Casa(tester, harness, container, _cenas);
+      await casa.emTempoReal(() async {
+        await casa.sala.abrirEscolha();
+        await settle();
+        await casa.sala.goConversa(book: 'Ruth', pericope: 'P01');
+        await waitFor(
+          'a sala voltar à casa do ensaio',
+          () =>
+              casa.estado.stage == SalaStage.ensaio &&
+              casa.estado.sceneRows.length == _cenas.length,
+        );
+        await settle(const Duration(milliseconds: 600));
+      });
+
+      expect(find.text(_aviso), findsNothing);
+      expect(find.textContaining('enviar agora'), findsNothing);
+      expect(casa.naLinha(1, find.text(_falhou)), findsNothing);
+      expect(casa.naLinha(1, byLabel(_gravar)), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a recount while this visit\'s keep is being written never shows the '
+    'earlier-visit notice',
+    (tester) async {
+      final harness = SalaHarness(
+        takesOverride: (room, home, recordings) => _QueueHeldAfterWriting(
+          room: room,
+          home: () async => home,
+          recordings: recordings,
+        ),
+      );
+      final casa = await _naCasa(tester, harness: harness);
+      final fila = harness.takes as _QueueHeldAfterWriting;
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.gravar(2);
+      await casa.emTempoReal(() async {
+        casa.sala.takeKeep();
+        await waitFor('a linha ser escrita', () => fila.written);
+        await casa.sala.refreshUnsent();
+        await settle();
+      });
+
+      expect(find.text(_aviso), findsNothing);
+      expect(find.textContaining('enviar agora'), findsNothing);
+
+      await casa.emTempoReal(() async {
+        fila.letGo();
+        await settle(const Duration(milliseconds: 400));
+      });
+    },
+  );
+
+  testWidgets(
+    'a take that failed in this visit still shows «falhou» after the team '
+    'leaves the passage and comes back to it',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+      final sessao = casa.estado.sessionId;
+
+      await casa.emTempoReal(() async {
+        casa.sala.leaveThePassage();
+        await settle();
+        await casa.sala.goConversa(book: 'Ruth', pericope: 'P01');
+        await waitFor(
+          'a sala voltar à casa do ensaio',
+          () =>
+              casa.estado.stage == SalaStage.ensaio &&
+              casa.estado.sceneRows.length == _cenas.length,
+        );
+        await settle(const Duration(milliseconds: 600));
+      });
+
+      expect(casa.estado.sessionId, sessao, reason: 'a mesma sessão');
+      expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+      expect(find.text(_aviso), findsNothing);
+      expect(find.textContaining('enviar agora'), findsNothing);
+    },
+  );
+
   testWidgets('while a row records, the send button does nothing', (
     tester,
   ) async {
@@ -834,5 +998,42 @@ class _QueueThatRefusesWhenLetGo extends TakeUploadQueue {
     holding = true;
     await _held.future;
     throw const FileSystemException('o disco está cheio');
+  }
+}
+
+class _QueueHeldAfterWriting extends TakeUploadQueue {
+  _QueueHeldAfterWriting({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
+
+  final _held = Completer<void>();
+  bool written = false;
+
+  void letGo() => _held.complete();
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+    String? scene,
+  }) async {
+    final row = await super.enqueue(
+      audio,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+      scene: scene,
+    );
+    written = true;
+    await _held.future;
+    return row;
   }
 }

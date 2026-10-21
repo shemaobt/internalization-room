@@ -4,7 +4,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show offTheRows, onTheCircle, theAdvanceDisc;
+import 'scenario_helpers.dart' show offTheRows, onTheCircle, inTheHome;
 
 Future<ProviderContainer> _pumpNoEnsaio(
   WidgetTester tester, {
@@ -52,7 +52,7 @@ void main() {
     );
     expect(offTheRows('Send the recording'), findsOneWidget);
     expect(
-      theAdvanceDisc('Translate the recording'),
+      inTheHome('Translate the recording'),
       findsOneWidget,
       reason: 'o botão que leva à tradução também não fica preso ao português',
     );

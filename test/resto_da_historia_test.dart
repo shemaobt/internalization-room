@@ -9,7 +9,6 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -261,15 +260,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
 
     expect(
-      find
-              .descendant(
-                of: find.byType(EnsaioView),
-                matching: byLabel('Ouvir'),
-              )
-              .evaluate()
-              .length -
-          offTheRows('Ouvir').evaluate().length,
-      3,
+      onTheRows('Ouvir'),
+      findsNWidgets(3),
       reason: 'uma linha por tomada guardada, no ensaio, como antes de contar',
     );
     expect(
@@ -300,8 +292,8 @@ void main() {
     await gravarUmaParte(tester, container);
     final nova = container.read(salaSessionProvider).keptTakes.last;
 
-    await tester.ensureVisible(theAdvanceDisc(irParaARetro));
-    await tester.tap(theAdvanceDisc(irParaARetro));
+    await tester.ensureVisible(inTheHome(irParaARetro));
+    await tester.tap(inTheHome(irParaARetro));
     await tester.pump(const Duration(milliseconds: 400));
 
     var agora = container.read(salaSessionProvider);
@@ -547,8 +539,8 @@ void main() {
     final tocadas = harness.playback.played.length;
 
     harness.playback.holdNextMeasurement();
-    await tester.ensureVisible(theAdvanceDisc(irParaARetro));
-    await tester.tap(theAdvanceDisc(irParaARetro));
+    await tester.ensureVisible(inTheHome(irParaARetro));
+    await tester.tap(inTheHome(irParaARetro));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(

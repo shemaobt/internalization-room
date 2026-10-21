@@ -578,6 +578,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _semNome = {};
     _rowsOfThisVisit = {};
     _notQueued = {};
+    _keepsInFlight = {};
     _lengths = {};
     _newestCount = 0;
     _fraseNaFila = null;
@@ -5340,7 +5341,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   late Set<String> _rowsOfThisVisit;
 
-  late Map<int, ({String path, int? pass})> _notQueued;
+  late Map<String?, Map<int, ({String path, int? pass})>> _notQueued;
+
+  late Set<(String?, int)> _keepsInFlight;
 
   late Map<String, Duration?> _lengths;
 
@@ -5364,6 +5367,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
+    final inFlight = switch (KeptScope.numberOf(scope)) {
+      final number? when kind == 'ensaio' => (sessionId, number),
+      _ => null,
+    };
+    if (inFlight != null) _keepsInFlight.add(inFlight);
     final PendingTake linha;
     try {
       linha = await queue.enqueue(
@@ -5375,9 +5383,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: chunkIndex,
       );
     } on Object {
+      _keepsInFlight.remove(inFlight);
       if (_endedSince(life) || _goneSessions.contains(sessionId)) return;
       _notInTheOutbox(path, kind, scope, passNumber, sessionId);
       return;
+    }
+    if (kind == 'ensaio') {
+      _rowsOfThisVisit.add(linha.id);
+      _keepsInFlight.remove(inFlight);
     }
     if (_endedSince(life)) {
       await queue.flush();
@@ -5388,8 +5401,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (kind == 'ensaio') {
       _semNome[linha.id] = path;
-      _rowsOfThisVisit.add(linha.id);
-      if (KeptScope.numberOf(scope) case final n?) _notQueued.remove(n);
+      if (KeptScope.numberOf(scope) case final n?) {
+        _notQueued[sessionId]?.remove(n);
+      }
     }
     if (kind == 'retro') _traducaoNaFila[path] = linha;
     await _countUnsent();
@@ -5406,10 +5420,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String? sessionId,
   ) {
     final number = KeptScope.numberOf(scope);
-    if (kind != 'ensaio' || number == null || state.sessionId != sessionId) {
-      return;
-    }
-    _notQueued[number] = (path: path, pass: pass);
+    if (kind != 'ensaio' || number == null) return;
+    (_notQueued[sessionId] ??= {})[number] = (path: path, pass: pass);
     unawaited(_countUnsent());
   }
 
@@ -5426,7 +5438,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _enviarAgora(int cena) async {
     final scope = KeptScope.parte(cena);
-    if (_notQueued.remove(cena) case (:final path, :final pass)) {
+    if (_notQueued[state.sessionId]?.remove(cena) case (
+      :final path,
+      :final pass,
+    )) {
       return _guard(
         path,
         kind: 'ensaio',
@@ -5436,13 +5451,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     }
     final queue = _takes;
-    final sessionId = state.sessionId;
-    for (final row in await queue.pending()) {
-      if (row.kind == 'ensaio' &&
-          row.sessionId == sessionId &&
-          row.scope == scope) {
-        await queue.dueAgain(row.id);
-      }
+    final tally = await queue.tally(sessionId: state.sessionId);
+    for (final row in _theNewestPass(tally.unsentParts)[cena] ?? const []) {
+      await queue.dueAgain(row.id);
     }
     await queue.flush();
     await _countUnsent();
@@ -5615,40 +5626,63 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_gone) return;
     _dispatch(OutboxChanged(tally.parts, due: tally.due));
     if (_abandoned(generation) || counting != _newestCount) return;
-    state = state.copyWith(unsentParts: _unsentPartsOf(tally.unsentParts));
+    final speaking = _theNewestPass(tally.unsentParts);
+    state = state.copyWith(unsentParts: _unsentPartsOf(speaking));
     if (sessionId != null) {
       state = state.copyWith(
         unsentTakes: tally.unsentTakes,
         unsentChunks: tally.unsentChunks,
       );
     }
-    if (await _measured(tally.unsentParts) &&
+    if (await _measured(speaking) &&
         !_abandoned(generation) &&
         counting == _newestCount) {
-      state = state.copyWith(unsentParts: _unsentPartsOf(tally.unsentParts));
+      state = state.copyWith(unsentParts: _unsentPartsOf(speaking));
     }
   });
 
-  Map<int, UnsentPart> _unsentPartsOf(
+  Map<int, List<PendingTake>> _theNewestPass(
     Map<String, List<PendingTake>> outbox,
-  ) => {
-    for (final MapEntry(key: scope, value: rows) in outbox.entries)
-      ?KeptScope.numberOf(scope): UnsentPart(
-        fromAnEarlierVisit: !_rowsOfThisVisit.contains(rows.last.id),
+  ) {
+    final speaking = <int, List<PendingTake>>{};
+    for (final MapEntry(key: scope, value: rows) in outbox.entries) {
+      final number = KeptScope.numberOf(scope);
+      if (number == null) continue;
+      final held = switch (state.partIndexOf(number)) {
+        final index? => state.partes[index].pass,
+        null => 0,
+      };
+      final newest = rows.map((row) => row.passNumber ?? 1).fold(held, max);
+      final current = [
+        for (final row in rows)
+          if ((row.passNumber ?? 1) == newest) row,
+      ];
+      if (current.isNotEmpty) speaking[number] = current;
+    }
+    return speaking;
+  }
+
+  bool _ofThisVisit(int number, PendingTake newest) =>
+      _rowsOfThisVisit.contains(newest.id) ||
+      _keepsInFlight.contains((state.sessionId, number));
+
+  Map<int, UnsentPart> _unsentPartsOf(Map<int, List<PendingTake>> speaking) => {
+    for (final MapEntry(key: number, value: rows) in speaking.entries)
+      number: UnsentPart(
+        fromAnEarlierVisit: !_ofThisVisit(number, rows.last),
         failed: rows.any((row) => row.tries > 0 || row.exhausted || row.lost),
         length: _lengths[rows.last.path],
       ),
-    for (final number in _notQueued.keys)
-      if (!outbox.containsKey(KeptScope.parte(number)))
+    for (final number in _notQueued[state.sessionId]?.keys ?? const <int>[])
+      if (!speaking.containsKey(number))
         number: const UnsentPart(fromAnEarlierVisit: false, failed: true),
   };
 
-  Future<bool> _measured(Map<String, List<PendingTake>> outbox) async {
+  Future<bool> _measured(Map<int, List<PendingTake>> speaking) async {
     var measured = false;
-    for (final rows in outbox.values) {
+    for (final MapEntry(key: number, value: rows) in speaking.entries) {
       final newest = rows.last;
-      if (_rowsOfThisVisit.contains(newest.id) ||
-          _lengths.containsKey(newest.path)) {
+      if (_ofThisVisit(number, newest) || _lengths.containsKey(newest.path)) {
         continue;
       }
       _lengths[newest.path] = await _playback.howLong(newest.path);
@@ -8382,8 +8416,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _perdidasNoTrecho.clear();
     _stretchKeys.clear();
     _passadasDaSala = null;
-    _rowsOfThisVisit.clear();
-    _notQueued.clear();
     _personAsked = false;
     _runner.endTheWatch();
     _runner.forgetTheLadder();
