@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -40,12 +41,7 @@ const _checked = BackTranslationProgress(
   checked: true,
 );
 
-ApprovedDraft _approvedAs(int version) => ApprovedDraft(
-  version: version,
-  releaseId: 'internalize-ruth-p01-v$version',
-  approvedAt: DateTime.utc(2026, 10, 19, 14),
-  forced: false,
-);
+ApprovedDraft _approvedAs(int version) => ApprovedDraft(version: version);
 
 typedef _Room = ({SalaHarness harness, ProviderContainer container});
 
@@ -148,13 +144,99 @@ void main() {
     'with «✓ aprovado como rascunho final (v1)»',
     (tester) async {
       final harness = _aRoomHolding(approved: _approvedAs(1))
-        ..room.createdOpened = true;
+        ..room.createdOpened = true
+        ..room.nextCoverage = coverage(engaged: 9);
 
       final room = await _enter(tester, harness);
 
       _landsOnTheApprovedDraft(room);
       expect(_state(room).btTrechos, hasLength(2));
+      expect(_state(room).coverage.beadsFilled, 9);
       expect(harness.voice.played, isNot(contains(turnoUrl)));
+    },
+  );
+
+  testWidgets(
+    'a Watch beat read while the parts come down leaves the badge drawn',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1), watching: true)
+        ..room.createdOpened = true;
+      int reads() => harness.room.calls.where((c) => c == 'fetchState').length;
+
+      await _enter(
+        tester,
+        harness,
+        by: (notifier) async {
+          await notifier.abrirEscolha();
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          harness.room.holdNextClip();
+          final entering = notifier.goConversa(book: 'Ruth', pericope: 'P01');
+          final before = reads();
+          await waitFor(
+            'a Watch beat while the part is still coming down',
+            () => reads() > before,
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          for (var beat = 0; beat < 40; beat++) {
+            harness.room.holdTheNextRead();
+          }
+          harness.room.finishHeldClip();
+          await entering;
+        },
+      );
+
+      expect(_theBadge(1), findsOneWidget);
+      expect(byLabel(retroLabelFor('approve', testLanguage)), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'keeping the earlier translation of a frase brings the badge back at once',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1))
+        ..room.createdOpened = true;
+      final room = await _enter(tester, harness);
+
+      await tester.runAsync(() async {
+        final notifier = room.container.read(salaSessionProvider.notifier)
+          ..traduzirAFraseDeNovo(0);
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        notifier.manterATraducaoDeAntes();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(_theBadge(1), findsOneWidget);
+      expect(byLabel(retroLabelFor('approve', testLanguage)), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a passage whose approved landing could not get its parts gets them on the '
+    'next entry, after the approval is gone',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1))
+        ..room.createdOpened = true
+        ..room.failTakesWith = const NetworkFailed('sem rede');
+      final room = await _enter(tester, harness);
+      _landsOnTheApprovedDraft(room);
+
+      harness.room
+        ..approvedDraft = null
+        ..failTakesWith = null;
+      await tester.runAsync(() async {
+        final notifier = room.container.read(salaSessionProvider.notifier)
+          ..leaveThePassage();
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await notifier.abrirEscolha();
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(_state(room).stage, SalaStage.retro);
+      expect(_state(room).partes, isNotEmpty);
     },
   );
 
@@ -213,19 +295,11 @@ void main() {
     'a forced approval over a telling-back never checked, re-entered, lands '
     'checked with the badge',
     (tester) async {
-      final harness =
-          _aRoomHolding(
-              approved: ApprovedDraft(
-                version: 1,
-                releaseId: 'internalize-ruth-p01-v1',
-                approvedAt: DateTime.utc(2026, 10, 19, 14),
-                forced: true,
-              ),
-            )
-            ..room.createdOpened = true
-            ..room.retroSoFar = BackTranslationProgress(
-              segments: _checked.segments,
-            );
+      final harness = _aRoomHolding(approved: _approvedAs(1))
+        ..room.createdOpened = true
+        ..room.retroSoFar = BackTranslationProgress(
+          segments: _checked.segments,
+        );
 
       final room = await _enter(tester, harness);
 
@@ -314,30 +388,63 @@ void main() {
     },
   );
 
+  group(
+    'a tablet whose Outbox still holds something of the session that changes the '
+    'draft lands where it stood, never on the approved draft',
+    () {
+      for (final (what, kind, scope) in [
+        ('a take', 'ensaio', 'parte-1'),
+        ('a re-told frase', sentenceKind, '1'),
+      ]) {
+        testWidgets(what, (tester) async {
+          final harness = _aRoomHolding(approved: _approvedAs(1))
+            ..room.takeLandsAfter = const Duration(minutes: 1);
+          _aRowOn(harness, SalaStage.ensaio);
+          harness.room.openedSessions.add('sessao-antiga');
+          await tester.runAsync(() async {
+            final home = Directory.systemTemp.createTempSync('sala-no-outbox');
+            addTearDown(() => home.deleteSync(recursive: true));
+            await harness.takes.enqueue(
+              File('${home.path}/de-novo.m4a')..writeAsBytesSync([5, 5]),
+              sessionId: 'sessao-antiga',
+              kind: kind,
+              scope: scope,
+              passNumber: 2,
+            );
+          });
+
+          final room = await _enter(tester, harness);
+
+          expect(_state(room).stage, SalaStage.ensaio);
+          expect(_theBadge(1), findsNothing);
+        });
+      }
+    },
+  );
+
   testWidgets(
-    'a tablet whose Outbox still holds a take of the session lands where it '
-    'stood, never on the approved draft',
+    'a re-told frase still in the Outbox keeps the badge off the checked '
+    'translation, with the approve button',
     (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1))
-        ..room.takeLandsAfter = const Duration(minutes: 1);
-      _aRowOn(harness, SalaStage.ensaio);
+      final harness = _aRoomHolding(approved: _approvedAs(1));
+      _aRowOn(harness, SalaStage.retro);
       harness.room.openedSessions.add('sessao-antiga');
       await tester.runAsync(() async {
-        final home = Directory.systemTemp.createTempSync('sala-no-outbox');
+        final home = Directory.systemTemp.createTempSync('sala-frase-na-fila');
         addTearDown(() => home.deleteSync(recursive: true));
         await harness.takes.enqueue(
-          File('${home.path}/p1-de-novo.m4a')..writeAsBytesSync([5, 5]),
+          File('${home.path}/frase-1.m4a')..writeAsBytesSync([5, 5]),
           sessionId: 'sessao-antiga',
-          kind: 'ensaio',
-          scope: 'parte-1',
-          passNumber: 2,
+          kind: sentenceKind,
+          scope: '1',
         );
       });
 
       final room = await _enter(tester, harness);
 
-      expect(_state(room).stage, SalaStage.ensaio);
+      expect(_state(room).stage, SalaStage.retro);
       expect(_theBadge(1), findsNothing);
+      expect(byLabel(retroLabelFor('approve', testLanguage)), findsOneWidget);
     },
   );
 

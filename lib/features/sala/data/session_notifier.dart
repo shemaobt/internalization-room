@@ -2597,16 +2597,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             return failed(failure);
         }
         if (_abandoned(generation)) return;
-        final approved = await _anApprovedDraftIn(snapshot);
-        if (_abandoned(generation)) return;
-        if (approved) {
-          return _landOnTheApprovedDraft(snapshot, sent, generation, landed);
-        }
         state = state.copyWith(
           coverage: snapshot.coverage,
           moment: snapshot.moment,
           clearMoment: snapshot.moment == null,
         );
+        if (await _landedOnTheApprovedDraft(snapshot, generation, landed)) {
+          return;
+        }
         if (Station.stored(waiting.stage) is Retro) {
           _pickTheTellingBackUp(snapshot.backTranslation);
           landed();
@@ -2636,11 +2634,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return failed(failure);
       }
       if (_abandoned(generation)) return;
-      final approved = await _anApprovedDraftIn(read);
-      if (_abandoned(generation)) return;
-      if (approved) {
-        return _landOnTheApprovedDraft(read, sent, generation, landed);
-      }
+      state = state.copyWith(
+        coverage: read.coverage,
+        moment: read.moment,
+        clearMoment: read.moment == null,
+      );
+      if (await _landedOnTheApprovedDraft(read, generation, landed)) return;
       if (Station.stored(waiting.stage) is Retro) {
         final told = read.backTranslation;
         // Only when there is a telling-back to land on. A checked answer carrying no
@@ -2661,24 +2660,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return;
         }
       }
-      state = state.copyWith(
-        coverage: read.coverage,
-        moment: read.moment,
-        clearMoment: read.moment == null,
-      );
       _applyTheSessionRead(read, sent);
       if (opened != null || read.opened) return _landWhereTheyStopped();
     } else {
-      final approved = await _anApprovedDraftIn(created!);
-      if (_abandoned(generation)) return;
-      if (approved) {
-        return _landOnTheApprovedDraft(
-          created,
-          ++_readsSent,
-          generation,
-          landed,
-        );
-      }
+      if (await _landedOnTheApprovedDraft(created!, generation, landed)) return;
       if (opened != null || created.opened) {
         _applyTheSessionRead(created, ++_readsSent);
         return _landWhereTheyStopped();
@@ -2700,27 +2685,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// A take of the session still in the Outbox un-approves the draft once it lands, so the
-  /// team stays where it stood.
-  Future<bool> _anApprovedDraftIn(SessionSnapshot read) async =>
-      read.approved != null &&
-      !read.backTranslation.nothingTold &&
-      (await _takes.tally(sessionId: read.sessionId)).unsentTakes == 0;
-
   /// The draft the room says is approved is where its passage reopens: its telling-back,
-  /// checked, over the parts the room holds, and never the Opening (ADR 0106). A room that
-  /// cannot hand the parts over leaves the frases silent rather than the team elsewhere.
-  Future<void> _landOnTheApprovedDraft(
+  /// checked, over the parts the room holds, and never the Opening (ADR 0106). Anything of
+  /// the session still in the Outbox un-approves the draft once it lands, so the team stays
+  /// where it stood. The read is numbered once the parts are down, so a Watch beat it raced
+  /// never outranks it.
+  Future<bool> _landedOnTheApprovedDraft(
     SessionSnapshot read,
-    int sent,
     int generation,
     void Function() landed,
   ) async {
+    if (read.approved == null || read.backTranslation.nothingTold) return false;
+    final waiting = (await _takes.pending()).any(
+      (entry) =>
+          entry.sessionId == read.sessionId && entry.kind != sceneTakeKind,
+    );
+    if (waiting || _abandoned(generation)) return _abandoned(generation);
     if (state.partes.isEmpty) {
       await _theRoomsRehearsalUnder(read.sessionId, generation);
-      if (_abandoned(generation)) return;
+      if (_abandoned(generation)) return true;
     }
     final told = read.backTranslation;
+    state = state.copyWith(clearBtFraseGuardada: true);
     _pickTheTellingBackUp(
       BackTranslationProgress(
         segments: told.segments,
@@ -2729,13 +2715,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
     );
     landed();
-    state = state.copyWith(
-      coverage: read.coverage,
-      moment: read.moment,
-      clearMoment: read.moment == null,
-    );
-    _applyTheSessionRead(read, sent);
+    _applyTheSessionRead(read, ++_readsSent);
     _rememberWhereTheyAre(const Retro());
+    await _countUnsent();
+    return true;
   }
 
   Future<void> _theRoomsRehearsalUnder(String sessionId, int generation) async {
@@ -2852,7 +2835,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation, {
     required void Function() landed,
   }) async {
-    if (Station.stored(waiting.stage) is Canvas || waiting.takes.isEmpty) {
+    final stage = Station.stored(waiting.stage);
+    if (stage is Canvas || (waiting.takes.isEmpty && stage is! Retro)) {
       return _Resume.nothingToRestore;
     }
     final here = [
@@ -2860,7 +2844,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (await File(take.path).exists()) take,
     ];
     if (_abandoned(generation)) return _Resume.abandoned;
-    final faltavam = here.length != waiting.takes.length;
+    final faltavam =
+        waiting.takes.isEmpty || here.length != waiting.takes.length;
     List<KeptTake>? takes = here;
     if (faltavam) {
       // Armed per step, not once around the whole fetch: the ceiling is what a single
@@ -2890,6 +2875,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case NetworkFailed():
           if (_abandoned(generation)) return _Resume.abandoned;
           return _theResumeFell();
+        case Refused() when waiting.takes.isEmpty:
+          return _Resume.nothingToRestore;
         case final Refused refused:
           return _theResumeHalts(refused, generation);
       }

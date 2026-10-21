@@ -433,6 +433,7 @@ void main() {
           'approved_at': '2026-10-19T14:03:00+00:00',
           'forced': true,
         },
+      if (id == 'so-a-versao') 'approved': {'version': 3},
       if (id == 'nula') 'approved': null,
     };
     final repository = RoomRepository(
@@ -445,12 +446,10 @@ void main() {
     );
     addTearDown(repository.dispose);
 
-    final aprovada = await repository.fetchState('aprovada');
-    final approved = (aprovada as Answered<SessionSnapshot>).value.approved;
-    expect(approved?.version, 2);
-    expect(approved?.releaseId, 'internalize-x-p01-v2');
-    expect(approved?.approvedAt, DateTime.utc(2026, 10, 19, 14, 3));
-    expect(approved?.forced, isTrue);
+    int? version(RoomAnswer<SessionSnapshot> read) =>
+        (read as Answered<SessionSnapshot>).value.approved?.version;
+    expect(version(await repository.fetchState('aprovada')), 2);
+    expect(version(await repository.fetchState('so-a-versao')), 3);
     for (final none in ['nula', 'ausente']) {
       expect(
         await repository.fetchState(none),

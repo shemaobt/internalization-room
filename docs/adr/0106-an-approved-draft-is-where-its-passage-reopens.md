@@ -28,15 +28,21 @@ passage as a conversation at zero.
 - **A forced approval lands the same**, checked, even over a telling-back the check never
   passed: that the approval was forced stays on the record for the consultant and the packet,
   and nothing on the tablet changes it (the Definer, 2026-10-20).
-- **A tablet whose Outbox still holds a take of the session lands where it stood.** That take
-  un-approves the draft once it reaches the room, so the approved draft is not where the team
-  is.
+- **A tablet whose Outbox still holds anything of the session that changes the packet lands
+  where it stood**: a take, a stretch or a frase told again. It un-approves the draft once it
+  reaches the room, so the approved draft is not where the team is.
 - **The parts come from the room when the tablet holds none.** A room that cannot hand them
-  over leaves the frases silent and listening dimmed; it raises no halt and shows no sign.
+  over leaves the frases silent and listening dimmed; it raises no halt and shows no sign. The
+  Back-translation row that landing writes holds no parts, and a row like it never reads as
+  nothing to restore: the next entry fetches the room's rehearsal, as any resume short of its
+  files does.
 - **No Warning mark on the approved draft.** The room's warning is not lifted: the Desk still
   sees it and attends it.
-- **The badge follows every applied Session read**, newest first (ADR 0048), and goes as soon as
-  the telling-back leaves its checked phase.
+- **The badge is what the newest applied Session read says** (ADR 0048), and only a read sets
+  or clears it. A landing numbers its read once the parts are down, so a Watch beat it raced
+  never outranks it. Whether the badge is drawn, in place of the approve button and the Warning
+  mark, is decided where it is drawn: in the checked phase, and only while nothing of this
+  session waits in the Outbox (its takes, its stretches, a frase held to be sent).
 - A read with no `approved`, a server that does not send it among them, lands as before.
 
 ## Considered Options
@@ -53,3 +59,6 @@ row, and the room is the one that knows the draft is approved.
   which files on the tablet are the parts.
 - The value lives in the Retro screen's notifier fields (ADR 0046's written exception), not on
   the machine, until after the 2 November freeze.
+- Which Station a read lands on stays a branch of the notifier's entry until the entry decision
+  moves into the machine.
+- The tablet reads only the approval's version; the rest of the field is the server's record.

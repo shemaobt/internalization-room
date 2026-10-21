@@ -324,8 +324,7 @@ class SalaSessionState {
   final String? btFraseQueAguarda;
   final int? btFraseGuardada;
 
-  /// The approval the newest Session read says the draft stands under, held only while
-  /// the telling-back is checked: leaving the checked phase lets it go.
+  /// The approval the newest Session read says the draft stands under.
   final ApprovedDraft? btRascunhoAprovado;
   final int unsentTakes;
   final int unsentChunks;
@@ -1018,6 +1017,17 @@ class SalaSessionState {
   /// way to explain itself in a room with no written word. It lives here rather than on
   /// the screen so the affordance and the verb it opens read the same fact; the verb keeps
   /// its own guard as well, because it is reachable from more than this one press.
+  /// The approval drawn on the checked telling-back, in place of the approve button and the
+  /// Warning mark: only while nothing of this session waits in the Outbox (ADR 0106).
+  ApprovedDraft? get approvedDraftDrawn =>
+      stage == SalaStage.retro &&
+          btPhase == BtPhase.conferida &&
+          unsentTakes == 0 &&
+          unsentChunks == 0 &&
+          btFraseGuardada == null
+      ? btRascunhoAprovado
+      : null;
+
   bool get canListenAtConferida =>
       btPhase == BtPhase.conferida && partes.isNotEmpty;
 
@@ -1196,9 +1206,7 @@ class SalaSessionState {
       btFraseGuardada: clearBtFraseGuardada
           ? null
           : (btFraseGuardada ?? this.btFraseGuardada),
-      btRascunhoAprovado:
-          clearBtRascunhoAprovado ||
-              (btPhase ?? this.btPhase) != BtPhase.conferida
+      btRascunhoAprovado: clearBtRascunhoAprovado
           ? null
           : (btRascunhoAprovado ?? this.btRascunhoAprovado),
       unsentTakes: unsentTakes ?? this.unsentTakes,

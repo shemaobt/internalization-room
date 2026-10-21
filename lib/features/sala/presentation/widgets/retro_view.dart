@@ -104,7 +104,7 @@ class RetroView extends ConsumerWidget {
               voice: voz,
               tongue: lingua,
               answersATouch: !conferida || session.btRegravacao != null,
-              warning: session.warning && session.btRascunhoAprovado == null
+              warning: session.warning && session.approvedDraftDrawn == null
                   ? warningNoticeLabelFor(language)
                   : null,
               notUnderstood: session.wordlessTelling
@@ -626,7 +626,7 @@ class RetroView extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 24),
-            if (session.btRascunhoAprovado case final aprovado?)
+            if (session.approvedDraftDrawn case final aprovado?)
               Text(
                 retroLabelFor('approvedDraft', language, n: aprovado.version),
                 style: TextStyle(

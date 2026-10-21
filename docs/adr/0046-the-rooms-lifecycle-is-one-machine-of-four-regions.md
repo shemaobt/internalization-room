@@ -184,5 +184,5 @@ timer clears it.
 Extended by name (ENG-1235, 2026-10-20), same end date: `btRascunhoAprovado`, the approval the
 newest Session read says the draft stands under, which writes «✓ aprovado como rascunho final
 (v{n})» where the approve button stands and keeps the Warning mark off the circle (ADR 0106).
-It sits beside the others on `SalaSessionState` and moves with them; every applied Session read
-sets or clears it, and leaving the checked phase clears it.
+It sits beside the others on `SalaSessionState` and moves with them; only an applied Session
+read sets or clears it, and it is drawn only on the checked telling-back.
