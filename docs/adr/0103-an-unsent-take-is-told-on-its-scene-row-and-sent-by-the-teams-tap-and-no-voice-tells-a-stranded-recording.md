@@ -23,16 +23,20 @@ failure lines out of the room.
 ## Decision
 
 - **An Unsent take shows on its Scene row.** A take of this session still in the Outbox,
-  waiting, failed or refused for good, or kept by this visit and not put in the Outbox.
-- **A visit is this app run of the session.** A take whose newest recording this visit did
-  not put in the Outbox is from an earlier visit: the home shows her notice «Uma gravação
+  waiting, failed or refused for good, or kept by this visit and not put in the Outbox. A
+  row speaks only for the newest pass of its part: a row behind a newer pass the room holds
+  is not shown and never sent again, and its file stays on the tablet. A row whose audio is
+  gone is not an unsent take; its row shows what the room holds.
+- **A visit is this app run of the session**, whatever the team leaves and comes back to
+  in it; only a relaunch makes a waiting take one of an earlier visit. A take whose newest
+  recording this visit did not put in the Outbox is from an earlier visit: the home shows her notice «Uma gravação
   ainda está neste computador e não foi enviada.» and, on its row, «Cena N · m:ss — enviar
   agora», the length measured on the tablet from the audio it holds. A take of this visit
   whose send failed shows «falhou — toque para tentar de novo». A take of this visit still
   on its first try shows nothing new.
-- **Either tap sends the part now**: every Outbox row of that part is given its tries back
-  and the Outbox flushes, so an older pass still leaves before a newer one (ADR 0025); a
-  take refused for good is sent once more. A keep that never reached the Outbox is put in
+- **Either tap sends the part now**: every Outbox row of the part's newest pass is given its
+  tries back and the Outbox flushes, in the order recorded (ADR 0025); a take refused for
+  good is sent once more. A keep that never reached the Outbox is put in
   it again. The tap does nothing while a microphone records on the home.
 - **The automatic retry stays**, untouched, until Marcia rules; it is never the only way to
   send.

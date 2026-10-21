@@ -345,7 +345,7 @@ The queue of takes, scene takes and stretches waiting to reach the server, with 
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Unsent take**:
-A take of a Part of this session that is still in the Outbox (waiting, failed or refused for good), or that this visit kept and could not put in the Outbox. Its Scene row shows it: a take left by an earlier visit with her notice «Uma gravação ainda está neste computador e não foi enviada.» and «Cena N · m:ss — enviar agora»; a take whose send failed in this visit with «falhou — toque para tentar de novo». Either tap sends it now, with its tries given back. A visit is this app run of the session: a relaunch makes every take still waiting one of an earlier visit. The Outbox still retries it by itself.
+A take of a Part of this session still on this tablet, the newest pass of its Part, that is still in the Outbox (waiting, failed or refused for good), or that this visit kept and could not put in the Outbox. Its Scene row shows it: a take left by an earlier visit with her notice «Uma gravação ainda está neste computador e não foi enviada.» and «Cena N · m:ss — enviar agora»; a take whose send failed in this visit with «falhou — toque para tentar de novo». Either tap sends it now, with its tries given back. A visit is this app run of the session: a relaunch makes every take still waiting one of an earlier visit. The Outbox still retries it by itself.
 _Avoid_: stranded take, stuck recording, gravação presa, pending take (the Outbox's row)
 
 **Resume point**:
