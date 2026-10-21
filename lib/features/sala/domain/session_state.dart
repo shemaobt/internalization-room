@@ -802,12 +802,10 @@ class SalaSessionState {
       : theWayBackIsOffered && voice == VoiceState.invite;
 
   /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
-  /// microphone other than the raised-hand note's is open, or a person is called, except
-  /// at the Back-translation's resting screen (ADR 0019).
+  /// microphone other than the raised-hand note's is open, or the person sign stands
+  /// (ADR 0107).
   bool get wayOutIsHidden {
-    if (needsPerson) {
-      return !(stage == SalaStage.retro && btPhase == BtPhase.conferida);
-    }
+    if (needsPerson) return true;
     return switch (voice) {
       VoiceState.thinking || VoiceState.speaking => true,
       _ => switch (channel) {
@@ -831,7 +829,7 @@ class SalaSessionState {
 
   bool get wheelOffersNothing => naRoda?.isEmpty ?? false;
 
-  bool get canResolveWithPerson => needsPerson || offline;
+  bool get canResolveWithPerson => offline;
 
   bool get offline => voice == VoiceState.offline;
 

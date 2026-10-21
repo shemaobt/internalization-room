@@ -87,6 +87,19 @@ double? _escalaDaOnda(WidgetTester tester) {
       .getMaxScaleOnAxis();
 }
 
+bool _circuloApagado(WidgetTester tester) =>
+    tester
+        .widget<AnimatedOpacity>(
+          find
+              .descendant(
+                of: _circulo(),
+                matching: find.byType(AnimatedOpacity),
+              )
+              .first,
+        )
+        .opacity ==
+    0;
+
 Future<String> olhar(WidgetTester tester) async {
   final circulo = _circulo();
   final tinta = _pinturas(
@@ -759,7 +772,8 @@ void main() {
     await pararPorUmaPessoa(tester, container);
 
     expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
-    expect(await olhar(tester), 'clay parado');
+    expect(await olhar(tester), endsWith('parado'));
+    expect(_circuloApagado(tester), isTrue);
     closeTheRoom(container);
   });
 
@@ -780,7 +794,8 @@ void main() {
     await pararPorUmaPessoa(tester, container);
 
     expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
-    expect(await olhar(tester), 'clay parado');
+    expect(await olhar(tester), endsWith('parado'));
+    expect(_circuloApagado(tester), isTrue);
     closeTheRoom(container);
   });
 
@@ -860,10 +875,7 @@ void main() {
     container.read(salaSessionProvider.notifier).haltForABrokenBuild();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(
-      tester.widget<FacilitatorCircle>(_circulo()).semanticLabel,
-      circleLabelFor('needsPerson', 'en'),
-    );
+    expect(byLabel(circleLabelFor('needsPerson', 'en')), findsOneWidget);
     closeTheRoom(container);
   });
 

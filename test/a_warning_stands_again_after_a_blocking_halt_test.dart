@@ -29,7 +29,7 @@ void main() {
     await waitFor('a parada vencer o aviso', () => read().needsPerson);
     harness.room.failTurnsWith = null;
 
-    notifier.resolveWithPerson();
+    notifier.teamTapped();
     await settle();
 
     expect(

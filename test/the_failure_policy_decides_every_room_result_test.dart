@@ -161,7 +161,7 @@ void main() {
       _decidesOnTheTablet(
         const TheSoundFailed(2),
         context,
-        const RoomRaisedAHalt(sounding: ThePart(), generation: 4),
+        const RoomRaisedAHalt(generation: 4),
       );
     });
 

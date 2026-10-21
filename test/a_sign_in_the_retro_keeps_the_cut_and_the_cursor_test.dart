@@ -15,7 +15,7 @@ import 'session_notifier_test.dart' show inConversa;
 import 'scenario_helpers.dart';
 
 /// A tablet reopening straight into an unchecked telling-back, with one part already
-/// named. Copied from `the_desk_lifts_the_halt_test.dart` and
+/// named. Copied from `the_watch_outlives_the_sign_test.dart` and
 /// `a_halt_in_the_middle_of_a_capture_closes_the_microphone_test.dart`: fixtures never
 /// travel between modules, only the shape does.
 Future<(ProviderContainer, String)> _reopensIntoRetro(
@@ -95,29 +95,6 @@ _playingWithAToldStretchAndAWarningArmed(SalaHarness harness) async {
   return (container, notifier, read, path);
 }
 
-/// A room reopened into the retro with a blocking halt landing while the entry still
-/// measures its parts, before it ever chose a part to play — the narrow case `_entradaParouSemTocar` alone used to
-/// cover.
-Future<(SalaSessionNotifier, SalaSessionState Function(), String)>
-_reopensBlockedBeforeAnyPlay(SalaHarness harness) async {
-  harness.playback.holdNextMeasurement();
-  final (container, path) = await _reopensIntoRetro(harness);
-  final notifier = container.read(salaSessionProvider.notifier);
-  SalaSessionState read() => container.read(salaSessionProvider);
-  await waitFor(
-    'a retro medir as partes',
-    () => harness.playback.measurements.isNotEmpty,
-  );
-  notifier.haltForABrokenBuild();
-  harness.playback.finishHeldMeasurement();
-  await waitFor(
-    'a entrada escolher a parte',
-    () => read().btPhase == BtPhase.playing,
-  );
-  expect(read().needsPerson, isTrue);
-  return (notifier, read, path);
-}
-
 /// The person sign lands over whatever the retro holds: the build guard's, which calls
 /// nobody, so the server's warning keeps standing beneath it.
 Future<void> _haltLandsBlocking(
@@ -128,12 +105,12 @@ Future<void> _haltLandsBlocking(
   await waitFor('a sala parar', () => read().needsPerson);
 }
 
-/// A long press with nobody to ask hands the room back.
+/// The team's tap on the sign hands the room back.
 Future<void> _liftsTheHalt(
   SalaSessionNotifier notifier,
   SalaSessionState Function() read,
 ) async {
-  notifier.resolveWithPerson();
+  notifier.teamTapped();
   await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 }
 
@@ -183,36 +160,6 @@ Future<void> _cutsAndRecordsATranslation(
 }
 
 void main() {
-  test('T1: a blocking halt lifted mid-part plays the current part again from '
-      'the cursor, not from wherever the head had reached', () async {
-    final harness = SalaHarness();
-    final (_, notifier, read, path) =
-        await _playingWithAToldStretchAndAWarningArmed(harness);
-    // The head is read live, ahead of the told cursor: a lift that replayed from it
-    // instead of from the cursor would start the part here.
-    harness.playback.at = const Duration(milliseconds: 15000);
-    final playsBefore = harness.playback.playedFrom.length;
-
-    await _haltLandsBlocking(notifier, read);
-    await _liftsTheHalt(notifier, read);
-    await waitFor(
-      'a parte voltar a tocar',
-      () => harness.playback.playedFrom.length > playsBefore,
-    );
-
-    expect(read().needsPerson, isFalse);
-    expect(
-      harness.playback.played.last,
-      path,
-      reason: 'a mesma parte, não outra',
-    );
-    expect(
-      harness.playback.playedFrom.last,
-      const Duration(milliseconds: 12000),
-      reason: 'do cursor onde a fala parou, não da cabeça nem do começo',
-    );
-  });
-
   testWidgets(
     'T2: the circle says listen first when nothing has been heard since the '
     'cursor, and a tap leaves the state unchanged',
@@ -264,39 +211,6 @@ void main() {
     },
   );
 
-  test('T3: a halt lifted while a bead replay was sounding resumes the part '
-      'from the cursor, not the bead', () async {
-    final harness = SalaHarness();
-    final (_, notifier, read, path) =
-        await _playingWithAToldStretchAndAWarningArmed(harness);
-
-    notifier.ouvirOTrechoContado(0);
-    await waitFor(
-      'o trecho contado tocar',
-      () => read().btTrechoTocando || read().btRetroTocando,
-    );
-    final playsBefore = harness.playback.playedFrom.length;
-
-    await _haltLandsBlocking(notifier, read);
-    expect(read().btTrechoTocando, isFalse);
-    expect(read().btRetroTocando, isFalse);
-
-    await _liftsTheHalt(notifier, read);
-    await waitFor(
-      'a parte voltar a tocar',
-      () => harness.playback.playedFrom.length > playsBefore,
-    );
-
-    expect(read().btTrechoTocando, isFalse);
-    expect(read().btRetroTocando, isFalse);
-    expect(harness.playback.played.last, path);
-    expect(
-      harness.playback.playedFrom.last,
-      const Duration(milliseconds: 12000),
-      reason: 'o cursor do trecho já contado, não o começo da parte',
-    );
-  });
-
   test('T4: while the halt stands, nothing sounds', () async {
     final harness = SalaHarness();
     final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
@@ -334,27 +248,6 @@ void main() {
 
     expect(byLabel('Listen first'), findsOneWidget);
     closeTheRoom(container);
-  });
-
-  test('T6: a halt already blocking when the entry chose its part plays it '
-      'once lifted, the same as any other lift', () async {
-    final harness = SalaHarness();
-    final (notifier, read, path) = await _reopensBlockedBeforeAnyPlay(harness);
-    expect(
-      harness.playback.playedFrom,
-      isEmpty,
-      reason: 'a entrada escolheu a parte e parou antes de tocar',
-    );
-
-    await _liftsTheHalt(notifier, read);
-    await waitFor(
-      'a parte tocar pela primeira vez',
-      () => harness.playback.playedFrom.isNotEmpty,
-    );
-
-    expect(read().needsPerson, isFalse);
-    expect(harness.playback.played.last, path);
-    expect(harness.playback.playedFrom.last, Duration.zero);
   });
 
   test(

@@ -177,19 +177,19 @@ void main() {
 
   test('a lifted halt resends nothing', () {
     final (_, returned) = reduce(
-      _outOfReach.copyWith(halt: const Blocking(NothingKept())),
+      _outOfReach.copyWith(halt: const Blocking()),
       const NetworkReturned(),
     );
-    final (_, lifted) = _run(
-      _outOfReach.copyWith(halt: const Blocking(NothingKept())),
-      [const NetworkReturned(), const LongPress(somebodyToAsk: false)],
-    );
+    final (_, lifted) = _run(_outOfReach.copyWith(halt: const Blocking()), [
+      const NetworkReturned(),
+      const TeamTapped(),
+    ]);
 
     expect(returned.whereType<ResendPending>(), isEmpty);
     expect(lifted.whereType<ResendPending>(), isEmpty);
     final (_, liftedWhileReachable) = _run(
-      _reachable.copyWith(halt: const Blocking(NothingKept())),
-      const [LongPress(somebodyToAsk: false)],
+      _reachable.copyWith(halt: const Blocking()),
+      const [TeamTapped()],
     );
     expect(liftedWhileReachable.whereType<ResendPending>(), isEmpty);
   });

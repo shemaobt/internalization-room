@@ -41,23 +41,14 @@ final class Warning extends Halt {
 }
 
 final class Blocking extends Halt {
-  final Kept kept;
   final bool warningBeneath;
-  final bool serverKnows;
 
-  const Blocking(
-    this.kept, {
-    this.warningBeneath = false,
-    this.serverKnows = false,
-  });
+  const Blocking({this.warningBeneath = false});
 
   @override
   bool operator ==(Object other) =>
-      other is Blocking &&
-      other.kept == kept &&
-      other.warningBeneath == warningBeneath &&
-      other.serverKnows == serverKnows;
+      other is Blocking && other.warningBeneath == warningBeneath;
 
   @override
-  int get hashCode => Object.hash(kept, warningBeneath, serverKnows);
+  int get hashCode => warningBeneath.hashCode;
 }

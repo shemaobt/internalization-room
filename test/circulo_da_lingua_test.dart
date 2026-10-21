@@ -162,8 +162,6 @@ void main() {
           colors,
         ),
         ('done', VoiceState.done, const NoHalt()): BeadStyles.telha(colors),
-        ('needsPerson', VoiceState.invite, const Blocking(NothingKept())):
-            BeadStyles.clay(colors),
         ('offline', VoiceState.offline, const NoHalt()): BeadStyles.clay(
           colors,
         ),
@@ -238,7 +236,7 @@ void main() {
       tester,
       VoiceState.invite,
       AppTheme.light,
-      halt: const Blocking(NothingKept()),
+      halt: const Blocking(),
       warning: true,
     );
 
@@ -251,11 +249,20 @@ void main() {
           'sendo o do corpo parado',
     );
     expect(
-      _haltedGlyph(tester),
-      isTrue,
+      tester
+          .widget<AnimatedOpacity>(
+            find
+                .descendant(
+                  of: find.byType(FacilitatorCircle),
+                  matching: find.byType(AnimatedOpacity),
+                )
+                .first,
+          )
+          .opacity,
+      0,
       reason:
-          'e o corpo parado continua desenhando o seu ícone — o aviso '
-          'nunca chega a competir com uma parada que já está na tela',
+          'o círculo some sob o sinal da pessoa — o aviso nunca chega a '
+          'competir com uma parada que já está na tela',
     );
   });
 
@@ -267,7 +274,6 @@ void main() {
         ('listening', VoiceState.listening, NoHalt()),
         ('speaking', VoiceState.speaking, NoHalt()),
         ('done', VoiceState.done, NoHalt()),
-        ('needsPerson', VoiceState.invite, Blocking(NothingKept())),
         ('offline', VoiceState.offline, NoHalt()),
       ];
 
@@ -290,7 +296,7 @@ void main() {
                 'uma cor do disco (Henok, revertendo o PR #230)',
           );
 
-          if (parada is Blocking || voz == VoiceState.offline) {
+          if (voz == VoiceState.offline) {
             expect(
               _haltedGlyph(tester),
               isTrue,

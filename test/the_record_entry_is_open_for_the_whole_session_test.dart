@@ -149,7 +149,7 @@ void main() {
   });
 
   testWidgets(
-    'a blocking halt hides the entry, and the desk attending brings it back',
+    'a blocking halt hides the entry, and the team\'s tap brings it back',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await _pumpInConversa(tester, harness);
@@ -164,13 +164,13 @@ void main() {
         reason: 'só uma parada bloqueante esconde a entrada',
       );
 
-      harness.room.theDeskAttended();
-      await _pumpWhile(tester, () => read().needsPerson);
+      container.read(salaSessionProvider.notifier).teamTapped();
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(
         byLabel(_entry),
         findsOneWidget,
-        reason: 'a entrada volta assim que a mesa atende a parada',
+        reason: 'a entrada volta assim que a equipe toca o sinal',
       );
       closeTheRoom(container);
     },
@@ -187,8 +187,8 @@ void main() {
 
     final withHalt = tester.getRect(find.byType(FacilitatorCircle).first);
 
-    harness.room.theDeskAttended();
-    await _pumpWhile(tester, () => read().needsPerson);
+    container.read(salaSessionProvider.notifier).teamTapped();
+    await tester.pump(const Duration(milliseconds: 100));
     expect(byLabel(_entry), findsOneWidget);
 
     final withEntry = tester.getRect(find.byType(FacilitatorCircle).first);

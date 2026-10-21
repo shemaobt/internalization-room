@@ -3,9 +3,11 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/cut_point.dart';
+import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/left_entry.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/refusal_code.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
@@ -37,7 +39,7 @@ class World {
 
   World after(MachineEvent event, List<Effect> effects) {
     var armed = watchArmed && event is! WatchFired;
-    var calling = callOutstanding && event is! TheCallLanded;
+    var calling = callOutstanding;
     var busy =
         playerBusy &&
         event is! PlayerEnded &&
@@ -227,21 +229,17 @@ String describeKept(Kept kept) => switch (kept) {
 String describeHalt(Halt halt) => switch (halt) {
   NoHalt() => 'NoHalt',
   Warning() => 'Warning',
-  Blocking(:final kept, :final warningBeneath, :final serverKnows) =>
-    'Blocking(${describeKept(kept)}, warningBeneath: $warningBeneath, '
-        'serverKnows: $serverKnows)',
+  Blocking(:final warningBeneath) =>
+    'Blocking(warningBeneath: $warningBeneath)',
 };
 
 String describeEvent(MachineEvent event) => switch (event) {
-  SessionRead(:final snapshot, :final sentBeforeTheCallLanded) =>
-    'SessionRead(status: ${snapshot.status}, halt: ${snapshot.halt.name}, '
-        'sentBeforeTheCallLanded: $sentBeforeTheCallLanded)',
-  RoomRaisedAHalt(:final sounding, :final callsForAPerson) =>
-    'RoomRaisedAHalt(${describeKept(sounding)}, '
-        'callsForAPerson: $callsForAPerson)',
-  TheCallLanded() => 'TheCallLanded',
+  SessionRead(:final snapshot) =>
+    'SessionRead(status: ${snapshot.status}, halt: ${snapshot.halt.name})',
+  RoomRaisedAHalt(:final callsForAPerson) =>
+    'RoomRaisedAHalt(callsForAPerson: $callsForAPerson)',
   TheAnswerWarned() => 'TheAnswerWarned',
-  LongPress(:final somebodyToAsk) => 'LongPress(somebodyToAsk: $somebodyToAsk)',
+  TeamTapped() => 'TeamTapped',
   WatchFired() => 'WatchFired',
   NetworkFailedAt(:final door, :final why) =>
     'NetworkFailedAt(${door.name}, ${why.name})',
@@ -301,6 +299,9 @@ String describeEvent(MachineEvent event) => switch (event) {
   LookEmpty(:final turn, :final sounding, :final theWaitRanOut) =>
     'LookEmpty(${turn.turnId}, ${describeKept(sounding)}'
         '${theWaitRanOut ? ', the wait ran out' : ''})',
+  LookFailed(:final turn, :final result, :final sounding) =>
+    'LookFailed(${turn.turnId}, ${result.runtimeType}, '
+        '${describeKept(sounding)})',
   TheOpeningMissed() => 'TheOpeningMissed',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
   TheTellingCameBackEmpty(:final readAgain) =>
@@ -358,7 +359,6 @@ String describeMachine(Machine machine) =>
     '${machine.draining ? ', draining' : ''}';
 
 String describeEffect(Effect effect) => switch (effect) {
-  ReplayTheSound(:final kept) => 'ReplayTheSound(${describeKept(kept)})',
   PlayLine(:final line) => 'PlayLine(${describeLine(line)})',
   PlayPart(:final part) => 'PlayPart(${describeSound(part)})',
   PlayStretch(:final stretch) => 'PlayStretch(${describeSound(stretch)})',
@@ -384,15 +384,13 @@ SessionRead _drawARead(World world, Random random) => SessionRead(
     done: false,
     halt: HaltKind.values[random.nextInt(HaltKind.values.length)],
   ),
-  sentBeforeTheCallLanded: world.callOutstanding && random.nextBool(),
 );
 
 enum EventKind {
   sessionRead,
   roomRaisedAHalt,
-  theCallLanded,
   theAnswerWarned,
-  longPress,
+  teamTapped,
   watchFired,
   networkFailedAt,
   networkReturned,
@@ -424,6 +422,7 @@ enum EventKind {
   turnGivenUp,
   lookFound,
   lookEmpty,
+  lookFailed,
   lookPending,
   theOpeningMissed,
   thePassageCannotOpen,
@@ -464,9 +463,8 @@ enum EventKind {
 EventKind kindOf(MachineEvent event) => switch (event) {
   SessionRead() => EventKind.sessionRead,
   RoomRaisedAHalt() => EventKind.roomRaisedAHalt,
-  TheCallLanded() => EventKind.theCallLanded,
   TheAnswerWarned() => EventKind.theAnswerWarned,
-  LongPress() => EventKind.longPress,
+  TeamTapped() => EventKind.teamTapped,
   WatchFired() => EventKind.watchFired,
   NetworkFailedAt() => EventKind.networkFailedAt,
   NetworkReturned() => EventKind.networkReturned,
@@ -498,6 +496,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TurnGivenUp() => EventKind.turnGivenUp,
   LookFound() => EventKind.lookFound,
   LookEmpty() => EventKind.lookEmpty,
+  LookFailed() => EventKind.lookFailed,
   LookPending() => EventKind.lookPending,
   TheOpeningMissed() => EventKind.theOpeningMissed,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
@@ -538,7 +537,6 @@ EventKind kindOf(MachineEvent event) => switch (event) {
 bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.watchFired => world.watchArmed,
   EventKind.retryFired => world.retryArmed,
-  EventKind.theCallLanded => world.callOutstanding,
   EventKind.playerOpened ||
   EventKind.playerEnded ||
   EventKind.playerFailed => world.playerBusy,
@@ -546,11 +544,12 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.micAnswered => true,
   EventKind.lookFound ||
   EventKind.lookEmpty ||
+  EventKind.lookFailed ||
   EventKind.lookPending => world.looking,
   EventKind.sessionRead ||
   EventKind.roomRaisedAHalt ||
   EventKind.theAnswerWarned ||
-  EventKind.longPress ||
+  EventKind.teamTapped ||
   EventKind.networkFailedAt ||
   EventKind.networkReturned ||
   EventKind.theRoomAnswered ||
@@ -655,12 +654,10 @@ MachineEvent _draw(
 ) => switch (kind) {
   EventKind.sessionRead => _drawARead(world, random),
   EventKind.roomRaisedAHalt => RoomRaisedAHalt(
-    sounding: _drawKept(random),
     callsForAPerson: random.nextBool(),
   ),
-  EventKind.theCallLanded => const TheCallLanded(),
   EventKind.theAnswerWarned => const TheAnswerWarned(),
-  EventKind.longPress => LongPress(somebodyToAsk: random.nextBool()),
+  EventKind.teamTapped => const TeamTapped(),
   EventKind.watchFired => const WatchFired(),
   EventKind.networkFailedAt => NetworkFailedAt(
     world.probing && random.nextBool()
@@ -759,6 +756,13 @@ MachineEvent _draw(
     _drawATurn(random),
     sounding: _drawKept(random),
     theWaitRanOut: random.nextInt(4) == 0,
+  ),
+  EventKind.lookFailed => LookFailed(
+    _drawATurn(random),
+    random.nextBool()
+        ? const RoomNetworkFailed()
+        : const RoomRefused(RefusalCode.unauthorized),
+    sounding: _drawKept(random),
   ),
   EventKind.lookPending => LookPending(
     _drawATurn(random),

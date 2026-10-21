@@ -401,7 +401,7 @@ void main() {
 
   testWidgets(
     'a halt in the Panorama calls for a person by the Panorama\'s session, and '
-    'the Desk\'s lift on that session clears it',
+    'the team\'s tap clears it',
     (tester) async {
       final sala = await _theSala(
         tester,
@@ -411,34 +411,8 @@ void main() {
 
       expect(sala.harness.room.personAsksFor, [panorama]);
 
-      sala.harness.room.theDeskAttended();
-      await _until(
-        sala,
-        'the Desk\'s lift to reach the tablet',
-        () => !_read(sala).needsPerson,
-      );
-      closeTheRoom(sala.container);
-    },
-  );
-
-  testWidgets(
-    'a long press over a halt in the Panorama tells the Panorama\'s session a '
-    'person arrived',
-    (tester) async {
-      final sala = await _theSala(
-        tester,
-        SalaHarness()..room.passages = _aBookWithItsPanorama,
-      );
-      final panorama = await aHaltInThePanoramaCalledFor(sala);
-
-      sala.notifier.resolveWithPerson();
-      await _until(
-        sala,
-        'the arrival to reach the room',
-        () => sala.harness.room.personArrivedSessions.isNotEmpty,
-      );
-
-      expect(sala.harness.room.personArrivedSessions, [panorama]);
+      sala.notifier.teamTapped();
+      await _until(sala, 'the sign to clear', () => !_read(sala).needsPerson);
       closeTheRoom(sala.container);
     },
   );

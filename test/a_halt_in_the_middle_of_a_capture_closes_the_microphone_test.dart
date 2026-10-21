@@ -150,7 +150,7 @@ void main() {
     await _haltLandsBlocking(notifier, read);
     final chunksBefore = harness.room.chunksSent;
 
-    notifier.resolveWithPerson();
+    notifier.teamTapped();
     await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 
     await notifier.confirmarTraducao();
@@ -173,7 +173,7 @@ void main() {
       harness,
     );
     await _haltLandsBlocking(notifier, read);
-    notifier.resolveWithPerson();
+    notifier.teamTapped();
     await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 
     harness.playback.at = const Duration(seconds: 2);

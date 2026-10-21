@@ -365,7 +365,6 @@ void main() {
 
     expect(_estado(container).needsPerson, isFalse);
     expect(harness.room.personsAsked, 0);
-    expect(harness.room.personArrivedSessions, isEmpty);
   });
 
   test('invariant 3: a halt standing when the call for a person answers gone '
@@ -391,7 +390,6 @@ void main() {
 
     expect(harness.room.calls, contains('askForAPerson'));
     expect(_estado(container).needsPerson, isFalse);
-    expect(harness.room.personArrivedSessions, isEmpty);
   });
 
   test('invariant 3: a halt standing when a door answers gone is cleared, and '
@@ -414,7 +412,6 @@ void main() {
 
     expect(_estado(container).needsPerson, isFalse);
     expect(harness.room.personsAsked, 0);
-    expect(harness.room.personArrivedSessions, isEmpty);
   });
 
   test('Q1: gone from an older session\'s Outbox row removes that session\'s '

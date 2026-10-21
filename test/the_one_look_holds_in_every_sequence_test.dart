@@ -320,7 +320,7 @@ void main() {
         Machine halted(Machine machine) =>
             reduce(machine, const RoomRaisedAHalt()).$1;
         (Machine, List<Effect>) lifted(Machine machine) =>
-            reduce(machine, const LongPress(somebodyToAsk: false));
+            reduce(machine, const TeamTapped());
 
         test('raising it keeps the look and stops looking again', () {
           final (after, effects) = reduce(

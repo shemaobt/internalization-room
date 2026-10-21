@@ -330,7 +330,7 @@ void main() {
   );
 
   test(
-    'a look reads 200 as landed, 202 as still answering and anything else as nothing landed',
+    'a look reads 200 as landed, 202 as still answering, 404 as nothing landed and any other failure as a failed look',
     () async {
       final looked = <String>[];
       var status = 200;
@@ -371,14 +371,10 @@ void main() {
       ]);
       status = 202;
       expect(await room.lookAt(turn), isA<StillAnswering>());
-      for (final nothing in [404, 500]) {
-        status = nothing;
-        expect(
-          await room.lookAt(turn),
-          isA<NothingLanded>(),
-          reason: 'HTTP $nothing',
-        );
-      }
+      status = 404;
+      expect(await room.lookAt(turn), isA<NothingLanded>());
+      status = 500;
+      expect(await room.lookAt(turn), isA<TheLookFailed>());
     },
   );
 
@@ -1558,7 +1554,6 @@ void main() {
         'keepSceneRehearsal': (room) async =>
             room.keepSceneRehearsal('sessao-1', await _tempRecording()),
         'askForAPerson': (room) => room.askForAPerson('sessao-1'),
-        'personArrived': (room) => room.personArrived('sessao-1'),
         'approveRelease': (room) => room.approveRelease('sessao-1'),
         'finishBackTranslation': (room) =>
             room.finishBackTranslation('sessao-1', playedByTake: const []),

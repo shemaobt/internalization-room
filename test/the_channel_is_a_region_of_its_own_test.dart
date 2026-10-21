@@ -232,7 +232,7 @@ void main() {
       test('a halt the room raises silences the part in the air', () {
         final (machine, effects) = reduce(
           _part1Playing,
-          const RoomRaisedAHalt(sounding: ThePart()),
+          const RoomRaisedAHalt(),
         );
 
         expect(machine.channel, const Silence());
@@ -465,7 +465,7 @@ void main() {
       const NetworkFailedAt(Door.step),
       const LineArrived(_notice),
       const NetworkReturned(),
-      const LongPress(somebodyToAsk: false),
+      const TeamTapped(),
     ]);
 
     expect(effects, isNot(contains(const PlayLine(_notice))));
@@ -517,10 +517,7 @@ void main() {
   test('a line that arrives under a blocking halt waits for the lift', () {
     final (halted, _) = reduce(const Machine(), const RoomRaisedAHalt());
     final (waiting, arriving) = reduce(halted, const LineArrived(_notice));
-    final (lifted, lifting) = reduce(
-      waiting,
-      const LongPress(somebodyToAsk: false),
-    );
+    final (lifted, lifting) = reduce(waiting, const TeamTapped());
 
     expect(arriving, isEmpty);
     expect(waiting.queue, [_notice]);

@@ -89,7 +89,7 @@ void main() {
       'a blocking halt': const Machine(
         station: Canvas(),
         channel: GuideSpeaking(_guide),
-        halt: Blocking(NothingKept()),
+        halt: Blocking(),
       ),
       'the Panorama station': const Machine(
         station: Panorama('OV-Ruth'),

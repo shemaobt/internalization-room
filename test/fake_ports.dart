@@ -87,8 +87,7 @@ class ASoundPort implements SoundPort {
 }
 
 /// A room port that reaches nothing: it writes down what it was asked, and a Session read,
-/// a reach, a call for a person or a person-arrived mark answers only when the test says
-/// so.
+/// a reach or a call for a person answers only when the test says so.
 class ARoomPort implements RoomPort {
   final List<String> heard = [];
   final List<Completer<SessionReadAnswer>> _reads = [];
@@ -135,7 +134,6 @@ class ARoomPort implements RoomPort {
   void answerTheReach(RoomReach reach) => _reaches.removeAt(0).complete(reach);
 
   final List<Completer<RoomResult>> _calls = [];
-  final List<Completer<RoomResult>> _arrivals = [];
 
   @override
   Future<RoomResult> askForAPerson(String session) {
@@ -146,17 +144,6 @@ class ARoomPort implements RoomPort {
   }
 
   void answerTheCall(RoomResult result) => _calls.removeAt(0).complete(result);
-
-  @override
-  Future<RoomResult> personArrived(String session) {
-    heard.add('arrived:$session');
-    final arrival = Completer<RoomResult>();
-    _arrivals.add(arrival);
-    return arrival.future;
-  }
-
-  void answerTheArrival(RoomResult result) =>
-      _arrivals.removeAt(0).complete(result);
 }
 
 /// A recorder port that records nothing: it writes down what it was asked, and a start or

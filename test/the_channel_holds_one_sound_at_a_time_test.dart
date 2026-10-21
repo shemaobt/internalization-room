@@ -498,7 +498,7 @@ void main() {
       expect(harness.voice.assets, isNot(contains(bloqueado)));
 
       final marca = harness.sounds.length;
-      sala.resolveWithPerson();
+      sala.teamTapped();
       await waitFor(
         'a parada sair',
         () => !read().needsPerson && read().sessionId != null,
@@ -685,8 +685,7 @@ void main() {
     await sala.refreshUnsent();
     await settle();
 
-    harness.room.theDeskAttended();
-    sala.resolveWithPerson();
+    sala.teamTapped();
 
     await waitFor(
       'a linha da gravação presa tocar com o turno ainda preso',

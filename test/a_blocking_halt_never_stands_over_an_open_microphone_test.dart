@@ -163,7 +163,7 @@ void main() {
 
     notifier.haltForABrokenBuild();
     await tester.pump(const Duration(milliseconds: 100));
-    notifier.resolveWithPerson();
+    notifier.teamTapped();
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(harness.recorder.deleted, hasLength(1), reason: 'descartado');

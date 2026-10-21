@@ -1259,7 +1259,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(_enabled(tester, _terminei), isFalse);
-      sala.resolveWithPerson();
+      sala.teamTapped();
       await _pumpUntil(
         tester,
         () => !container.read(salaSessionProvider).needsPerson,

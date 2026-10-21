@@ -20,8 +20,6 @@ SessionRead _read({
 );
 
 SessionRead get _nothingStands => _read();
-SessionRead get _nothingStoodBeforeTheCall =>
-    SessionRead(_nothingStands.snapshot, sentBeforeTheCallLanded: true);
 SessionRead get _aWarningStands =>
     _read(status: 'needs_person', halt: HaltKind.warning);
 SessionRead _aBlockingHalt() =>
@@ -43,8 +41,7 @@ bool _ofTheHalt(Effect effect) => switch (effect) {
   ArmTheWatch() ||
   CallForAPerson() ||
   StopCallingForAPerson() ||
-  TellAPersonArrived() ||
-  ReplayTheSound() => true,
+  GoOnAfterTheSign() => true,
   _ => false,
 };
 
@@ -75,10 +72,8 @@ void main() {
       const opening = TheOpeningMissed();
       expect(_reduce(none, opening), _to(none, const [LetTheOpeningGo()]));
       expect(
-        _reduce(const Blocking(NothingKept(), serverKnows: true), opening),
-        _to(const Blocking(NothingKept(), serverKnows: true), const [
-          LetTheOpeningGo(),
-        ]),
+        _reduce(const Blocking(), opening),
+        _to(const Blocking(), const [LetTheOpeningGo()]),
       );
     });
 
@@ -100,10 +95,8 @@ void main() {
 
         expect(looked(none), _to(none, const [LetTheOpeningGo()]));
         expect(
-          looked(const Blocking(NothingKept(), serverKnows: true)),
-          _to(const Blocking(NothingKept(), serverKnows: true), const [
-            LetTheOpeningGo(),
-          ]),
+          looked(const Blocking()),
+          _to(const Blocking(), const [LetTheOpeningGo()]),
         );
       },
     );
@@ -152,8 +145,8 @@ void main() {
 
     test('a raised halt calls for a person and arms the Watch', () {
       expect(
-        _reduce(none, const RoomRaisedAHalt(sounding: ThePart())),
-        _to(const Blocking(ThePart()), const [
+        _reduce(none, const RoomRaisedAHalt()),
+        _to(const Blocking(), const [
           ..._entering,
           CallForAPerson(),
           ArmTheWatch(),
@@ -164,7 +157,7 @@ void main() {
     test('a raised halt that cannot call still arms the Watch', () {
       expect(
         _reduce(none, const RoomRaisedAHalt(callsForAPerson: false)),
-        _to(const Blocking(NothingKept()), const [..._entering, ArmTheWatch()]),
+        _to(const Blocking(), const [..._entering, ArmTheWatch()]),
       );
     });
 
@@ -182,12 +175,10 @@ void main() {
       );
     });
 
-    test('a long press, going offline and a landed call change nothing', () {
+    test('a tap and going offline change nothing', () {
       for (final event in [
-        const LongPress(somebodyToAsk: true),
-        const LongPress(somebodyToAsk: false),
+        const TeamTapped(),
         const NetworkFailedAt(Door.watch),
-        const TheCallLanded(),
       ]) {
         expect(
           _acrossTheReach(none, event),
@@ -215,14 +206,8 @@ void main() {
 
     test('stands beneath a blocking halt', () {
       expect(
-        _reduce(
-          const Blocking(ThePart(), serverKnows: true),
-          const TheAnswerWarned(),
-        ),
-        _to(
-          const Blocking(ThePart(), warningBeneath: true, serverKnows: true),
-          const [ArmTheWatch()],
-        ),
+        _reduce(const Blocking(), const TheAnswerWarned()),
+        _to(const Blocking(warningBeneath: true), const [ArmTheWatch()]),
       );
     });
   });
@@ -261,7 +246,7 @@ void main() {
     test('a raised halt wins over it and remembers the warning', () {
       expect(
         _reduce(warning, const RoomRaisedAHalt()),
-        _to(const Blocking(NothingKept(), warningBeneath: true), const [
+        _to(const Blocking(warningBeneath: true), const [
           ..._entering,
           CallForAPerson(),
           ArmTheWatch(),
@@ -272,17 +257,10 @@ void main() {
     test('a raised halt that cannot call wins over it without a call', () {
       expect(
         _reduce(warning, const RoomRaisedAHalt(callsForAPerson: false)),
-        _to(const Blocking(NothingKept(), warningBeneath: true), const [
+        _to(const Blocking(warningBeneath: true), const [
           ..._entering,
           ArmTheWatch(),
         ]),
-      );
-    });
-
-    test('a landed call changes nothing', () {
-      expect(
-        _reduce(warning, const TheCallLanded()),
-        _to(warning, const <Effect>[]),
       );
     });
 
@@ -293,13 +271,9 @@ void main() {
       );
     });
 
-    test('a long press refuses the team nothing and lifts nothing', () {
+    test('a tap refuses the team nothing and lifts nothing', () {
       expect(
-        _reduce(warning, const LongPress(somebodyToAsk: true)),
-        _to(warning, const <Effect>[]),
-      );
-      expect(
-        _reduce(warning, const LongPress(somebodyToAsk: false)),
+        _reduce(warning, const TeamTapped()),
         _to(warning, const <Effect>[]),
       );
     });
@@ -317,185 +291,87 @@ void main() {
   });
 
   group('from a blocking halt', () {
-    const known = Blocking(ThePart(), serverKnows: true);
-    const overAWarning = Blocking(
-      ThePart(),
-      warningBeneath: true,
-      serverKnows: true,
-    );
-    const unknown = Blocking(ThePart());
+    const sign = Blocking();
+    const overAWarning = Blocking(warningBeneath: true);
 
-    test('a read with nothing standing lifts it: the kept sound replays and '
-        'the Watch beats on', () {
+    test('a read with nothing standing keeps it, and the Watch beats on', () {
+      expect(_reduce(sign, _nothingStands), _to(sign, const [ArmTheWatch()]));
       expect(
-        _reduce(known, _nothingStands),
+        _reduce(overAWarning, _nothingStands),
+        _to(sign, const [ArmTheWatch()]),
+      );
+    });
+
+    test('a read warning keeps it and remembers the warning beneath', () {
+      expect(
+        _reduce(sign, _aWarningStands),
+        _to(overAWarning, const [ArmTheWatch()]),
+      );
+    });
+
+    test('a read blocking halt keeps it as it was', () {
+      expect(_reduce(sign, _aBlockingHalt()), _to(sign, const [ArmTheWatch()]));
+      expect(
+        _reduce(overAWarning, _aBlockingHalt()),
+        _to(overAWarning, const [ArmTheWatch()]),
+      );
+    });
+
+    test('another raised halt keeps it and calls', () {
+      expect(
+        _reduce(sign, const RoomRaisedAHalt()),
+        _to(sign, const [CallForAPerson(), ArmTheWatch()]),
+      );
+    });
+
+    test('another raised halt that cannot call only keeps the Watch', () {
+      expect(
+        _reduce(sign, const RoomRaisedAHalt(callsForAPerson: false)),
+        _to(sign, const [ArmTheWatch()]),
+      );
+    });
+
+    test('the Watch firing reads the state and beats again', () {
+      expect(
+        _reduce(sign, const WatchFired()),
+        _to(sign, const [ReadTheState(), ArmTheWatch()]),
+      );
+    });
+
+    test('the team\'s tap clears it and the Watch beats on', () {
+      expect(
+        _reduce(sign, const TeamTapped()),
         _to(const NoHalt(), const [
           StopCallingForAPerson(),
-          ReplayTheSound(ThePart()),
+          GoOnAfterTheSign(),
           ArmTheWatch(),
         ]),
       );
     });
 
-    test('a read warning lifts it into the warning, still watched', () {
+    test('tapped over a warning, the warning stands again, still watched', () {
       expect(
-        _reduce(known, _aWarningStands),
+        _reduce(overAWarning, const TeamTapped()),
         _to(const Warning(), const [
           StopCallingForAPerson(),
-          ReplayTheSound(ThePart()),
+          GoOnAfterTheSign(),
           ArmTheWatch(),
         ]),
       );
     });
 
     test(
-      'a read blocking halt keeps it as it was, and the server knows it',
+      'going offline keeps it; coming back calls again and arms the Watch',
       () {
         expect(
-          _reduce(unknown, _aBlockingHalt()),
-          _to(known, const [ArmTheWatch()]),
+          _acrossTheReach(sign, const NetworkFailedAt(Door.watch)),
+          _to(sign, const <Effect>[]),
         );
         expect(
-          _reduce(overAWarning, _aBlockingHalt()),
-          _to(overAWarning, const [ArmTheWatch()]),
+          _acrossTheReach(sign, const NetworkReturned()),
+          _to(sign, const [CallForAPerson(), ArmTheWatch()]),
         );
       },
     );
-
-    test('a read with nothing standing does not lift a halt the server has not '
-        'heard of yet', () {
-      expect(
-        _reduce(unknown, _nothingStands),
-        _to(unknown, const [ArmTheWatch()]),
-      );
-    });
-
-    test('a read warning over a halt the server has not heard of yet keeps '
-        'the halt and remembers the warning', () {
-      expect(
-        _reduce(unknown, _aWarningStands),
-        _to(const Blocking(ThePart(), warningBeneath: true), const [
-          ArmTheWatch(),
-        ]),
-      );
-    });
-
-    test('a landed call tells the halt the server knows it', () {
-      expect(
-        _reduce(unknown, const TheCallLanded()),
-        _to(known, const <Effect>[]),
-      );
-    });
-
-    test('another raised halt keeps the first halt\'s sound and calls', () {
-      expect(
-        _reduce(known, const RoomRaisedAHalt(sounding: NothingKept())),
-        _to(known, const [CallForAPerson(), ArmTheWatch()]),
-      );
-    });
-
-    test('another raised halt that cannot call only keeps the Watch', () {
-      expect(
-        _reduce(known, const RoomRaisedAHalt(callsForAPerson: false)),
-        _to(known, const [ArmTheWatch()]),
-      );
-    });
-
-    test('going offline keeps a halt the server has not heard of', () {
-      expect(
-        _acrossTheReach(unknown, const NetworkFailedAt(Door.watch)),
-        _to(unknown, const <Effect>[]),
-      );
-    });
-
-    test('a read that went out before the call landed never lifts it', () {
-      expect(
-        _reduce(known, _nothingStoodBeforeTheCall),
-        _to(known, const [ArmTheWatch()]),
-      );
-    });
-
-    test('the Watch firing reads the state and beats again', () {
-      expect(
-        _reduce(known, const WatchFired()),
-        _to(known, const [ReadTheState(), ArmTheWatch()]),
-      );
-    });
-
-    test('a long press with somebody to ask tells a person arrived and reads '
-        'the state', () {
-      expect(
-        _reduce(known, const LongPress(somebodyToAsk: true)),
-        _to(known, const [TellAPersonArrived(), ReadTheState()]),
-      );
-    });
-
-    test('a long press with nobody to ask releases it locally', () {
-      expect(
-        _reduce(known, const LongPress(somebodyToAsk: false)),
-        _to(const NoHalt(), const [
-          StopCallingForAPerson(),
-          ReplayTheSound(ThePart()),
-          ArmTheWatch(),
-        ]),
-      );
-    });
-
-    test('a long press on a halt the server never heard of releases it '
-        'locally', () {
-      expect(
-        _reduce(unknown, const LongPress(somebodyToAsk: true)),
-        _to(const NoHalt(), const [
-          StopCallingForAPerson(),
-          ReplayTheSound(ThePart()),
-          ArmTheWatch(),
-        ]),
-      );
-    });
-
-    test('lifted over a warning, the warning stands again, still watched', () {
-      expect(
-        _reduce(overAWarning, const LongPress(somebodyToAsk: false)),
-        _to(const Warning(), const [
-          StopCallingForAPerson(),
-          ReplayTheSound(ThePart()),
-          ArmTheWatch(),
-        ]),
-      );
-    });
-
-    test('going offline keeps it; coming back arms the Watch again', () {
-      expect(
-        _acrossTheReach(known, const NetworkFailedAt(Door.watch)),
-        _to(known, const <Effect>[]),
-      );
-      expect(
-        _acrossTheReach(known, const NetworkReturned()),
-        _to(known, const [ArmTheWatch()]),
-      );
-    });
-
-    test('coming back within reach calls again for a halt the server has not '
-        'heard of', () {
-      expect(
-        _acrossTheReach(unknown, const NetworkReturned()),
-        _to(unknown, const [CallForAPerson(), ArmTheWatch()]),
-      );
-    });
-
-    test('a halt kept over an opening is lifted with nothing asked', () {
-      const failed = '1727700000000';
-      expect(
-        _reduce(
-          const Blocking(TheOpening(failed), serverKnows: true),
-          _nothingStands,
-        ),
-        _to(const NoHalt(), const [
-          StopCallingForAPerson(),
-          ReplayTheSound(TheOpening(failed)),
-          ArmTheWatch(),
-        ]),
-      );
-    });
   });
 }

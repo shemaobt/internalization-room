@@ -351,8 +351,7 @@ void main() {
   group('a halt suspends the look, and its lift resumes it', () {
     const ceiling = Duration(seconds: 30);
     void lift(_Room it) {
-      it.room.theDeskAttended();
-      it.sala.resolveWithPerson();
+      it.sala.teamTapped();
     }
 
     test('over a team turn the room is still answering', () {
@@ -556,8 +555,7 @@ void main() {
     () {
       const ceiling = Duration(seconds: 30);
       void lift(_Room it) {
-        it.room.theDeskAttended();
-        it.sala.resolveWithPerson();
+        it.sala.teamTapped();
       }
 
       void restsAndTakesATurn(FakeAsync clock, _Room it) {
@@ -650,22 +648,22 @@ void main() {
     const held = Machine(
       station: Canvas(),
       session: 'sessao-1',
-      halt: Blocking(NothingKept()),
+      halt: Blocking(),
       look: TheLook(turn, asked: false, suspended: true),
     );
 
-    test('goes out at the lift with the room within reach', () {
-      final (_, effects) = reduce(held, const LongPress(somebodyToAsk: false));
+    test('goes out at the tap with the room within reach', () {
+      final (_, effects) = reduce(held, const TeamTapped());
 
       expect(effects, contains(const LookAtTheSession(turn)));
     });
 
     test(
-      'lifted out of reach, waits for the room and goes out on its return',
+      'tapped out of reach, waits for the room and goes out on its return',
       () {
         final (lifted, effects) = reduce(
           held.copyWith(reach: Reach.outOfReach),
-          const LongPress(somebodyToAsk: false),
+          const TeamTapped(),
         );
         expect(effects, isNot(contains(const LookAtTheSession(turn))));
 
@@ -700,7 +698,7 @@ void main() {
       await settle();
       expect(harness.room.turnIdsLookedAt, isEmpty);
 
-      notifier.resolveWithPerson();
+      notifier.teamTapped();
       return (harness, read);
     }
 

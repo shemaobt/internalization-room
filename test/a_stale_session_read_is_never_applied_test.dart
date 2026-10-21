@@ -141,8 +141,7 @@ void main() {
     harness.room.failTurnsWith = null;
 
     await _aReadIsHeld(harness);
-    harness.room.theDeskAttended();
-    notifier.resolveWithPerson();
+    notifier.teamTapped();
     await waitFor('a sala soltar', () => !read().needsPerson);
 
     final halts = await _haltsAfterTheOldReadLands(harness, container);

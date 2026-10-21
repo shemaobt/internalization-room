@@ -120,7 +120,7 @@ void main() {
     final handle = tester.ensureSemantics();
 
     for (final (name, voice, halt) in [
-      ('needsPerson', VoiceState.invite, const Blocking(NothingKept())),
+      ('needsPerson', VoiceState.invite, const Blocking()),
       ('offline', VoiceState.offline, const NoHalt()),
       ('blocked', VoiceState.blocked, const NoHalt()),
     ]) {

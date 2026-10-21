@@ -97,7 +97,7 @@ void main() {
     expect(halted.halt, isA<Blocking>());
     expect(halted.wordlessTelling, isTrue);
 
-    final (lifted, _) = reduce(halted, const LongPress(somebodyToAsk: false));
+    final (lifted, _) = reduce(halted, const TeamTapped());
     expect(lifted.halt, isA<NoHalt>());
     expect(lifted.wordlessTelling, isTrue);
   });

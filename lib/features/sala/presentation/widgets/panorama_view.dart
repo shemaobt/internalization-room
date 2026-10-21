@@ -22,9 +22,7 @@ class PanoramaView extends ConsumerWidget {
         voice: session.voice,
         reach: session.reach,
         noteMode: session.noteMode,
-        semanticLabel: session.needsPerson
-            ? circleLabelFor('needsPerson', language)
-            : session.offline
+        semanticLabel: session.offline
             ? circleLabelFor('offline', language)
             : session.voice == VoiceState.listening
             ? circleLabelFor('listening', language)

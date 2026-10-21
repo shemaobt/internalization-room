@@ -32,6 +32,8 @@ class _Take {
 
   bool get everOffline => seen.any((state) => state.offline);
 
+  bool get everNeededAPerson => seen.any((state) => state.needsPerson);
+
   bool get offlineNoticeSpoken =>
       harness.voice.assets.contains(offlineNoticeAsset(testLanguage));
 
@@ -257,7 +259,7 @@ void main() {
         reason: 'nenhum look sai com a sala parada',
       );
 
-      sala.resolveWithPerson();
+      sala.teamTapped();
       await waitFor('a parada sair', () => !read().needsPerson);
       await waitFor(
         'a sala olhar a abertura',
@@ -291,8 +293,7 @@ void main() {
         ..finishHeldTurn();
       await Future<void>.delayed(const Duration(milliseconds: 200));
 
-      harness.room.theDeskAttended();
-      sala.resolveWithPerson();
+      sala.teamTapped();
       await waitFor('a sala soltar', () => !read().needsPerson);
       await Future<void>.delayed(const Duration(milliseconds: 200));
 
@@ -300,6 +301,85 @@ void main() {
       expect(_replies(harness), 0);
     },
   );
+
+  test('a look that fails over an Opening rests at the quiet invite', () async {
+    final harness = SalaHarness();
+    harness.room.holdNextTurn();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
+    await waitFor(
+      'a abertura sair',
+      () => harness.room.turnIdsAsked.length == 1,
+    );
+    harness.room
+      ..failLooksWith = _theNetworkDrops
+      ..failHeldTurnWith = _theNetworkDrops
+      ..finishHeldTurn();
+    await waitFor(
+      'a sala olhar a abertura',
+      () => harness.room.turnIdsLookedAt.length == 1,
+    );
+    await waitFor(
+      'o convite descansar',
+      () => read().voice == VoiceState.invite && !read().awaitingTheGuide,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    expect(read().needsPerson, isFalse);
+    expect(read().voice, VoiceState.invite);
+    expect(harness.room.calls, isNot(contains('askForAPerson')));
+  });
+
+  test('a look that fails over a spoken turn shows the sign', () {
+    for (final failure in [
+      const Refused(RefusalCode.unauthorized),
+      _theNetworkDrops,
+    ]) {
+      _aTake(
+        (room) => room
+          ..failTurnsWith = _theNetworkDrops
+          ..failLooksWith = failure,
+        (clock, take) {
+          clock.elapse(const Duration(seconds: 2));
+
+          expect(take.harness.room.turnIdsLookedAt, [take.takeTurnId]);
+          expect(take.room.needsPerson, isTrue, reason: '$failure');
+          expect(
+            take.harness.room.calls.where((call) => call == 'askForAPerson'),
+            hasLength(1),
+          );
+        },
+      );
+    }
+  });
+
+  test('a look that fails while the room is still answering looks again', () {
+    _aTake(
+      (room) => room
+        ..failTurnsWith = _theNetworkDrops
+        ..looksStillAnswering = 1
+        ..looksFailAfterwards.add(_theNetworkDrops),
+      (clock, take) {
+        clock.elapse(const Duration(seconds: 5));
+
+        expect(take.harness.room.turnIdsLookedAt.length, greaterThan(2));
+        expect(take.everNeededAPerson, isFalse);
+      },
+    );
+  });
+
+  test('a look the room answers 404 is still a turn nobody holds', () {
+    _aTake(_theServerNeverGotIt, (clock, take) {
+      clock.elapse(const Duration(seconds: 2));
+
+      expect(take.harness.room.turnIdsLookedAt, [take.takeTurnId]);
+      expect(take.room.needsPerson, isTrue);
+    });
+  });
 
   test(
     'A door that is not a turn, off a way in, keeps the room reachable with no offline face, no notice and no retry.',

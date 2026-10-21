@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -53,17 +52,6 @@ void _theRoomHoldsAWarning(_Sala sala) {
   sala.harness.room
     ..serverStatus = 'needs_person'
     ..serverHalt = HaltKind.warning;
-}
-
-Future<void> _aPanoramaTurnTheRoomRefuses(_Sala sala) async {
-  sala.harness.room.failTurnsWith = const Refused('BAD_REQUEST');
-  sala.notifier.panoramaTap();
-  await waitFor(
-    'the microphone to open',
-    () => _read(sala).voice == VoiceState.listening,
-  );
-  sala.notifier.panoramaTap();
-  await waitFor('the person sign', () => _read(sala).needsPerson);
 }
 
 void main() {
@@ -127,44 +115,5 @@ void main() {
       () => _read(sala).station is Menu && _read(sala).naRoda != null,
     );
     expect(_read(sala).needsPerson, isFalse);
-  });
-
-  test('an answer that the Panorama left is gone, heard on the Choice, lets '
-      'only that Panorama go', () async {
-    final sala = _aRoomThatWatches();
-    await _theIdlePanorama(sala);
-    final panorama = sala.harness.room.sessionIds.last;
-    await _aPanoramaTurnTheRoomRefuses(sala);
-    sala.harness.room
-      ..failTurnsWith = null
-      ..holdNextPersonArrived();
-    sala.notifier.resolveWithPerson();
-    await waitFor(
-      'the person to be told arrived',
-      () => sala.harness.room.personArrivedSessions.contains(panorama),
-    );
-    sala.harness.room.theDeskAttended();
-    await waitFor('the person sign to go', () => !_read(sala).needsPerson);
-    sala.notifier.leaveThePassage();
-    await waitFor('the way back', () => _read(sala).theWayBackIsOffered);
-    await waitFor('the Choice to be read', () => _read(sala).entriesOpen);
-    final readsOfTheChoice = sala.harness.room.calls
-        .where((call) => call == 'passagesOf')
-        .length;
-
-    sala.harness.room
-      ..forgetTheSession(panorama)
-      ..personArrivedFailsWith = const SessionGone()
-      ..finishHeldPersonArrived();
-    await waitFor('the way back to go', () => !_read(sala).theWayBackIsOffered);
-    await Future<void>.delayed(_period * 2);
-
-    expect(_read(sala).station, isA<Menu>());
-    expect(_read(sala).entriesOpen, isTrue);
-    expect(_read(sala).needsPerson, isFalse);
-    expect(
-      sala.harness.room.calls.where((call) => call == 'passagesOf').length,
-      readsOfTheChoice,
-    );
   });
 }

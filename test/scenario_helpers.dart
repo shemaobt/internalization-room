@@ -152,8 +152,7 @@ Future<void> theHaltIsLifted(
   SalaSessionState Function() read,
 ) async {
   harness.voice.roomFailsWith = null;
-  harness.room.theDeskAttended();
-  notifier.resolveWithPerson();
+  notifier.teamTapped();
   await waitFor('a sala soltar', () => !read().needsPerson);
   await settle();
 }

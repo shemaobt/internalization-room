@@ -1255,52 +1255,53 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
   });
 
-  testWidgets('a saída da passagem não fica ocupada em conferida sob parada', (
-    tester,
-  ) async {
-    final it = await _ateAConferida(tester);
-    it.harness.voice.refuses.add('P3');
+  testWidgets(
+    'em conferida sob parada a saída some, e volta com o toque no sinal',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.voice.refuses.add('P3');
 
-    await tester.tap(byLabel(_aprovar));
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(byLabel(_aprovar));
-    await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(byLabel(_aprovar));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(byLabel(_aprovar));
+      await tester.pump(const Duration(milliseconds: 400));
 
-    expect(
-      _estado(it.container).needsPerson,
-      isTrue,
-      reason:
-          'a linha da Guia que falha duas vezes seguidas para a sala para '
-          'uma pessoa — se não parar, não há parada que medir',
-    );
-    expect(_estado(it.container).btPhase, BtPhase.conferida);
-    expect(byLabel(_sairDaPassagem), findsOneWidget);
-    expect(
-      tester
-          .widget<IgnorePointer>(
-            find
-                .ancestor(
-                  of: byLabel(_sairDaPassagem),
-                  matching: find.byType(IgnorePointer),
-                )
-                .first,
-          )
-          .ignoring,
-      isFalse,
-      reason:
-          'nenhuma estação é beco sem saída: estar na árvore não é estar '
-          'viva — apagada e surda, a saída é a mesma que não existir',
-    );
+      expect(
+        _estado(it.container).needsPerson,
+        isTrue,
+        reason:
+            'a linha da Guia que falha duas vezes seguidas para a sala para '
+            'uma pessoa — se não parar, não há parada que medir',
+      );
+      expect(_estado(it.container).btPhase, BtPhase.conferida);
+      expect(byLabel(_sairDaPassagem), findsOneWidget);
+      expect(
+        tester
+            .widget<IgnorePointer>(
+              find
+                  .ancestor(
+                    of: byLabel(_sairDaPassagem),
+                    matching: find.byType(IgnorePointer),
+                  )
+                  .first,
+            )
+            .ignoring,
+        isTrue,
+        reason: 'sob o sinal da pessoa a saída se apaga, como tudo (ADR 0107)',
+      );
 
-    await tester.tap(byLabel(_sairDaPassagem));
-    await tester.pump(const Duration(milliseconds: 400));
+      it.container.read(salaSessionProvider.notifier).teamTapped();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.tap(byLabel(_sairDaPassagem));
+      await tester.pump(const Duration(milliseconds: 400));
 
-    expect(
-      _estado(it.container).stage,
-      SalaStage.escolha,
-      reason: 'e o toque tem de valer, não ser engolido por um botão inerte',
-    );
-  });
+      expect(
+        _estado(it.container).stage,
+        SalaStage.escolha,
+        reason: 'e o toque tem de valer, não ser engolido por um botão inerte',
+      );
+    },
+  );
 
   testWidgets('sem gravação no tablet a conferida não oferece o ouvir', (
     tester,
