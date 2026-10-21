@@ -328,6 +328,26 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a circle tap 0.1 s after the last pausa tells a frase of 0.2 s, '
+      'not a sliver', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    await pausarAos(tester, harness, s(4));
+    await traduzirEConfirmar(tester);
+    expect(container.read(salaSessionProvider).btCursor, s(4));
+
+    harness.playback.at = s(4.1);
+    await tester.pump(passaDoCursor);
+    await traduzirEConfirmar(tester);
+
+    expect(
+      harness.room.chunkSpans.last,
+      '4000-4200',
+      reason: 'sem envelope a pausa ficava no toque e a frase tinha 0,1 s',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('the pausa never goes past the part\'s end', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarComAFala(tester, harness, umaLacunaAos3);
