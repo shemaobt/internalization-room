@@ -196,7 +196,7 @@ _Avoid_: cut, corte, Cortar aqui (ruled out by Marcia on 2026-09-15), split poin
 
 **Restart** («recomeçar a tradução»):
 Two taps on the scene rehearsal: the first arms it and names how many frases it discards, and it disarms by itself after six seconds; the second sets those frases aside in the room and keeps the recording. Nothing is deleted.
-_Avoid_: reset, Zerar (the facilitator's), Recomeço
+_Avoid_: reset, Zerar (the facilitator's)
 
 **Capture**:
 The back-translation's open microphone, between the scissors and the tap on the circle. A closed capture becomes a stretch; a halt that lands inside one closes it and keeps nothing.
