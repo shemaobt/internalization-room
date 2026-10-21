@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
@@ -67,11 +69,53 @@ List<String> _linhas(Sala it, int desde) => [
   for (final (linha, _) in it.harness.voice.fixedLines.skip(desde)) linha,
 ];
 
+/// The passage picked back up as a joined recording: the row kept for it says each part
+/// was laid in from a scene rehearsal, and the tablet comes back on the translation with
+/// the last part, [ultima] long, played to its end.
+Future<void> _retomadaJuntada(Sala it, Duration ultima) async {
+  for (final MapEntry(:key, :value)
+      in it.harness.emAberto.rows.entries.toList()) {
+    it.harness.emAberto.rows[key] = ResumePoint(
+      sessionId: value.sessionId,
+      stage: value.stage,
+      takes: [
+        for (final (onde, take) in value.takes.indexed)
+          KeptTake(
+            scopeId: take.scopeId,
+            path: take.path,
+            takeId: take.takeId,
+            pass: take.pass,
+            origin: 'ensaio-da-cena-${onde + 1}',
+          ),
+      ],
+      savedAt: value.savedAt,
+      language: value.language,
+      partBeingRecordedAgain: value.partBeingRecordedAgain,
+      passesToGoAbove: value.passesToGoAbove,
+    );
+  }
+  it.container.dispose();
+  it.container = it.harness.container();
+  addTearDown(it.container.dispose);
+  await it.sala.abrirEscolha();
+  await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await waitFor(
+    'a retomada cair na tradução',
+    () =>
+        it.estado.stage == SalaStage.retro &&
+        it.estado.btPhase == BtPhase.playing &&
+        it.harness.playback.sounding,
+  );
+  expect(it.estado.joined, isTrue, reason: 'o cenário é uma gravação juntada');
+  await ouvirAteOFim(it, ultima);
+}
+
 void main() {
   test(
     'a parte gravada de novo numa passagem de cinco toca sozinha depois da fala dela',
     () async {
       final it = await umEnsaioContadoInteiro(_cincoPartes);
+      await _retomadaJuntada(it, _cincoPartes[4]);
       await _regravada(it, 2, _cincoPartes[2], semNome: true);
       final terceira = it.partes[2].path;
       it.harness.room.listeningUnheardTakeIds = const [];
@@ -121,6 +165,7 @@ void main() {
         _cincoPartes,
         numaSala: SalaHarness(watchesWithoutAHalt: true),
       );
+      await _retomadaJuntada(it, _cincoPartes[4]);
       await _regravada(it, 2, _cincoPartes[2]);
       final terceira = it.partes[2].path;
       it.harness.room.listeningUnheardTakeIds = [it.partes[2].takeId!];
@@ -162,6 +207,7 @@ void main() {
     'duas partes não ouvidas tocam em ordem e nunca seguem para uma já ouvida',
     () async {
       final it = await umEnsaioContadoInteiro(_cincoPartes);
+      await _retomadaJuntada(it, _cincoPartes[4]);
       await _regravada(it, 3, _cincoPartes[3]);
       final segunda = it.partes[1];
       final quarta = it.partes[3];
@@ -272,6 +318,52 @@ void main() {
     },
   );
 
+  test(
+    'on a recording no join touched, a part recorded again brings P-start and the whole recording from its first part, not P-unheard',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      await _regravada(it, 1, partesDoEnsaio[1]);
+      it.harness.room.listeningUnheardTakeIds = [it.partes[1].takeId!];
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+      final desde = it.harness.playback.playedFrom.length;
+
+      await _entrar(it);
+      expect(
+        _linhas(it, linhas),
+        ['P0'],
+        reason:
+            'só a segunda faltava ouvir, e a sala dizia a P2 e tocava só ela; '
+            'numa gravação sem junção a dela diz a P-start e toca tudo',
+      );
+      expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
+
+      await ouvirAteOFim(it, partesDoEnsaio[0]);
+      it.sala.ouvirGravacao();
+      await waitFor(
+        'a segunda parte entrar no ar',
+        () => it.harness.playback.played.length == tocadas + 2,
+      );
+      await ouvirAteOFim(it, partesDoEnsaio[1]);
+      it.sala.ouvirGravacao();
+      await waitFor(
+        'a terceira parte entrar no ar',
+        () => it.harness.playback.played.length == tocadas + 3,
+      );
+
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        [for (final parte in it.partes) parte.path],
+        reason: 'a gravação inteira, parte por parte',
+      );
+      expect(it.harness.playback.playedFrom.skip(desde), [
+        Duration.zero,
+        Duration.zero,
+        Duration.zero,
+      ]);
+    },
+  );
+
   test('a abertura também mostra o que falta ouvir', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();
     await _regravada(it, 1, partesDoEnsaio[1]);
@@ -296,6 +388,7 @@ void main() {
       _cincoPartes,
       numaSala: SalaHarness(watchesWithoutAHalt: true),
     );
+    await _retomadaJuntada(it, _cincoPartes[4]);
     await _regravada(it, 3, _cincoPartes[3]);
     final quarta = it.partes[3];
     it.harness.room.listeningUnheardTakeIds = [quarta.takeId!];
@@ -343,6 +436,7 @@ void main() {
     'o aviso fica enquanto falta tocar uma parte nomeada e sai depois da última',
     () async {
       final it = await umEnsaioContadoInteiro(_cincoPartes);
+      await _retomadaJuntada(it, _cincoPartes[4]);
       await _regravada(it, 1, _cincoPartes[1]);
       final quarta = it.partes[3];
       it.harness.room.listeningUnheardTakeIds = [
@@ -385,6 +479,7 @@ void main() {
           _cincoPartes,
           numaSala: SalaHarness(filaEmMemoria: true),
         );
+        await _retomadaJuntada(it, _cincoPartes[4]);
       });
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -479,22 +574,10 @@ void main() {
   );
 
   test(
-    'depois de uma retomada que caiu na tradução, a parte gravada de novo toca sozinha depois da P2',
+    'on a joined recording picked back up, a part recorded again plays alone after P-unheard',
     () async {
       final it = await umEnsaioDeTresPartesContadoInteiro();
-      it.container.dispose();
-      it.container = it.harness.container();
-      addTearDown(it.container.dispose);
-      await it.sala.abrirEscolha();
-      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
-      await waitFor(
-        'a retomada cair na tradução',
-        () =>
-            it.estado.stage == SalaStage.retro &&
-            it.estado.btPhase == BtPhase.playing &&
-            it.harness.playback.sounding,
-      );
-      await ouvirAteOFim(it, partesDoEnsaio[2]);
+      await _retomadaJuntada(it, partesDoEnsaio[2]);
       await _regravada(it, 1, partesDoEnsaio[1]);
       final segunda = it.partes[1];
       it.harness.room.listeningUnheardTakeIds = [segunda.takeId!];

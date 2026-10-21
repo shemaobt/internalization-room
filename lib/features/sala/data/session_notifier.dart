@@ -5694,13 +5694,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _tocarDoChaoNaoContado();
       return;
     }
-    final todas = naoOuvidas.length == state.partes.length;
+    final doComeco = !state.joined || naoOuvidas.length == state.partes.length;
     state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
     try {
       await _sayALine(
         LineKind.guide,
         fixedLine: (
-          name: todas ? startLine : unheardLine,
+          name: doComeco ? startLine : unheardLine,
           language: _inTheSessionsLanguage,
         ),
       );
@@ -5709,7 +5709,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_abandoned(generation)) return;
     _sairDaEspera();
-    _ouvirAsPartes(naoOuvidas, paraNaUltima: true);
+    _ouvirAsPartes(
+      doComeco
+          ? [for (var onde = 0; onde < state.partes.length; onde++) onde]
+          : naoOuvidas,
+      paraNaUltima: true,
+    );
   }
 
   Future<List<int>?> _asPartesNaoOuvidas(int generation) async {
