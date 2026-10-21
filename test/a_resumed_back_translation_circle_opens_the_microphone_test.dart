@@ -78,7 +78,7 @@ Future<void> _tapAndWait(WidgetTester tester, Finder circle) async {
 
 void main() {
   group(
-    'a resumed Back-translation\'s circle that invites recording places the pausa on its first tap and opens the Capture on its second',
+    'a resumed Back-translation\'s circle places the pausa on its first tap and opens the Capture on its second only where ground is left to tell',
     () {
       testWidgets('with ground still to tell', (tester) async {
         final (harness, container) = await _reopenedInto(
