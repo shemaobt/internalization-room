@@ -6,10 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
@@ -127,8 +129,6 @@ Future<void> contarAteOFimDaParte(
   await gravarATraducao(tester, circulo: gravar);
   await tocar(tester, confirmar);
 }
-
-const _volta = [Duration(seconds: 4)];
 
 Future<PendingTake> guardar(FakeTakeQueue fila, String scope) => fila.enqueue(
   File('/gravacoes/$scope.m4a'),
@@ -289,6 +289,252 @@ void main() {
     expect(contas(tester), ['solid', 'translucent com anel']);
     closeTheRoom(container);
   });
+
+  testWidgets('a stretch told over a take the part was recorded again over is '
+      'never a strike, three times running', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    for (var recusa = 0; recusa < 3; recusa++) {
+      harness.playback.at = cabeca;
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      harness.room.replaceThePart(harness.room.takeIds.last);
+      await tocar(tester, confirmar);
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+
+    expect(harness.room.chunkKeys, hasLength(3), reason: 'três recusas');
+    expect(
+      container.read(salaSessionProvider).needsPerson,
+      isFalse,
+      reason:
+          'a terceira recusa do trecho que não vale mais chamava uma pessoa',
+    );
+    expect(harness.room.personsAsked, 0);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a stretch refused because its take was replaced reads the room '
+      'again, and the row is the one the room has now', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    expect(container.read(salaSessionProvider).btTrechos, hasLength(1));
+
+    harness.playback.at = const Duration(seconds: 7);
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    final substituida = harness.room.takeIds.last;
+    harness.room
+      ..replaceThePart(substituida)
+      ..recordThePartAgain(substituida);
+    final leituras = harness.room.calls.where((c) => c == 'fetchState').length;
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      harness.room.calls.where((c) => c == 'fetchState').length,
+      greaterThan(leituras),
+      reason: 'a recusa não foi lida, só contada',
+    );
+    expect(
+      container.read(salaSessionProvider).btTrechos,
+      isEmpty,
+      reason: 'a fileira ficava com o trecho da gravação que já não vale',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'the recording of a stretch refused because its take was replaced '
+    'is dropped, not kept for a resend',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await entrarNaTraducao(tester, harness, partes: 1);
+      harness.playback.at = cabeca;
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      final gravada = container.read(salaSessionProvider).btTraducaoPendente!;
+      harness.room.replaceThePart(harness.room.takeIds.last);
+
+      await tocar(tester, confirmar);
+      await tester.pump(const Duration(milliseconds: 600));
+      await letTheRehearsalReachTheRoom(tester);
+
+      expect(aceso(tester, confirmar), isFalse, reason: 'a pendente sai');
+      expect(
+        harness.recorder.deleted,
+        contains(gravada),
+        reason: 'a gravação era de uma gravação que já não vale',
+      );
+      expect(
+        harness.room.takesReceived.where((take) => take.kind == 'retro'),
+        isEmpty,
+        reason: 'guardada, ela subiria como uma tomada da passagem inteira',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('a re-read that fails after the refusal is a telling not '
+      'understood, and the recording is kept', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    harness.room
+      ..replaceThePart(harness.room.takeIds.last)
+      ..failStateOnceWith = const NetworkFailed('timeout');
+
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+    for (var passo = 0; passo < 5; passo++) {
+      await letTheRehearsalReachTheRoom(tester);
+    }
+
+    final depois = container.read(salaSessionProvider);
+    expect(
+      depois.wordlessTelling,
+      isTrue,
+      reason: 'a releitura que cai é a frase que ela não entendeu',
+    );
+    expect(depois.offline, isFalse);
+    expect(depois.btChunkFailures, hasLength(1));
+    expect(
+      harness.room.takesReceived.where((take) => take.kind == 'retro'),
+      hasLength(1),
+      reason: 'a gravação segue guardada, como no trecho que se conta de novo',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a read of the takes that fails after the refusal is a telling '
+      'not understood too, and the recording is kept', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    harness.room
+      ..replaceThePart(harness.room.takeIds.last)
+      ..failTakesWith = const NetworkFailed('timeout');
+
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+    for (var passo = 0; passo < 5; passo++) {
+      await letTheRehearsalReachTheRoom(tester);
+    }
+
+    final depois = container.read(salaSessionProvider);
+    expect(
+      depois.wordlessTelling,
+      isTrue,
+      reason: 'a lista de gravações que cai é a frase que ela não entendeu',
+    );
+    expect(depois.btChunkFailures, hasLength(1));
+    expect(
+      harness.room.takesReceived.where((take) => take.kind == 'retro'),
+      hasLength(1),
+      reason: 'a gravação segue guardada para o trecho que se conta de novo',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a refusal for a replaced take the next stretch goes to '
+      'the take the room counts now', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    harness.room.replaceThePart('gravacao-1');
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(harness.room.chunksSent, 0, reason: 'a primeira foi recusada');
+
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      harness.room.chunkTakes,
+      ['gravacao-2'],
+      reason: 'o trecho seguinte ia outra vez para a gravação substituída',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'a refusal whose new take cannot be handed over keeps the telling '
+    'as a failure of its stretch, instead of dropping it in silence',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await entrarNaTraducao(tester, harness, partes: 1);
+      harness.playback.at = cabeca;
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      harness.room
+        ..replaceThePart('gravacao-1')
+        ..refuseClipOf.add('gravacao-2');
+
+      await tocar(tester, confirmar);
+      await tester.pump(const Duration(milliseconds: 600));
+      for (var passo = 0; passo < 5; passo++) {
+        await letTheRehearsalReachTheRoom(tester);
+      }
+
+      expect(
+        container.read(salaSessionProvider).btChunkFailures,
+        hasLength(1),
+        reason: 'a sala recusou o trecho e a releitura não veio: é uma falha',
+      );
+      expect(
+        harness.room.takesReceived.where((take) => take.kind == 'retro'),
+        hasLength(1),
+        reason: 'a gravação da equipe sumia sem aviso a cada tentativa',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a slow refusal leaves the re-read its own wait, so the room does '
+    'not give up in the middle of it',
+    (tester) async {
+      final harness = SalaHarness(
+        filaEmMemoria: true,
+        busyCeiling: const Duration(seconds: 2),
+      );
+      final container = await entrarNaTraducao(tester, harness, partes: 1);
+      harness.playback.at = cabeca;
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      harness.room
+        ..replaceThePart('gravacao-1')
+        ..replacedTakeRefusalAfter = const Duration(milliseconds: 1500)
+        ..holdNextState();
+
+      await tocar(tester, confirmar);
+      await tester.pump(const Duration(milliseconds: 1600));
+      await tester.pump(const Duration(milliseconds: 900));
+      harness.room.finishHeldState();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isFalse,
+        reason: 'a espera armada antes do envio estourava no meio da releitura',
+      );
+      expect(aceso(tester, confirmar), isFalse, reason: 'a releitura terminou');
+      closeTheRoom(container);
+    },
+  );
 
   testWidgets('B3c — sem corte, a tradução vai do cursor até a cabeça', (
     tester,
@@ -467,8 +713,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('B7d — uma substituição que cai na rede é tentada de novo como '
-      'substituição', (tester) async {
+  testWidgets('B7d — uma substituição que cai na rede não sobe sozinha, e é '
+      'contada de novo como substituição', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
     final gravacao = harness.room.takeIds.first;
@@ -477,9 +723,17 @@ void main() {
     await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
     expect(contas(tester), ['solid com anel', 'solid']);
+    expect(container.read(salaSessionProvider).unreachable, isFalse);
 
     harness.room.failReplaceWith = null;
-    container.read(salaSessionProvider.notifier).retryNow();
+    await tester.pump(const Duration(seconds: 5));
+    expect(harness.room.replacesAsked, isEmpty, reason: 'nada sobe sozinho');
+    await tester.ensureVisible(find.byType(FacilitatorCircle));
+    await tester.tap(find.byType(FacilitatorCircle));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byType(FacilitatorCircle));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
@@ -503,8 +757,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     expect(harness.room.playedByTakeSent, hasLength(vereditos));
 
+    expect(
+      container.read(salaSessionProvider).btRecusa,
+      CheckRefusal.checkUnavailable,
+      reason: 'a linha dela: não deu para conferir agora',
+    );
+
     harness.room.failFinishWith = null;
-    container.read(salaSessionProvider.notifier).retryNow();
+    await tocar(tester, conferir);
     await tester.pump(const Duration(milliseconds: 600));
     final capturas = harness.recorder.captures;
     container.read(salaSessionProvider.notifier).retroTap();
@@ -523,7 +783,7 @@ void main() {
     expect(
       harness.room.playedByTakeSent,
       hasLength(vereditos + 1),
-      reason: 'o veredito perdido é pedido de novo na volta, e chega',
+      reason: 'o veredito perdido é pedido de novo pelo terminei, e chega',
     );
     closeTheRoom(container);
   });
@@ -534,16 +794,16 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness, gravando: false);
     final gravacao = harness.room.takeIds.first;
-    final sala = container.read(salaSessionProvider.notifier);
 
     harness.recorder.returnsEmpty = true;
     await tocar(tester, gravar);
     await tocar(tester, terminar);
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
-
-    harness.room.theDeskAttended();
-    sala.resolveWithPerson();
     await tester.pump(const Duration(milliseconds: 600));
+    expect(
+      container.read(salaSessionProvider).needsPerson,
+      isFalse,
+      reason: 'uma tomada vazia nunca chama a pessoa',
+    );
     expect(contas(tester), ['solid com anel', 'solid']);
 
     harness.recorder.returnsEmpty = false;
@@ -582,36 +842,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
   }
 
-  Future<void> contarDeNovo(
-    WidgetTester tester,
-    SalaHarness harness,
-    String trecho,
-  ) async {
-    harness.room.verdictUntoldSegmentId = trecho;
-    await tocar(tester, conferir);
-    await tester.pump(const Duration(milliseconds: 600));
-    harness.playback.finishPlayback();
+  Future<void> contarOutraVez(WidgetTester tester) async {
+    await tester.ensureVisible(find.byType(FacilitatorCircle));
+    await tester.tap(find.byType(FacilitatorCircle));
     await tester.pump(const Duration(milliseconds: 300));
-    harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester, circulo: gravar);
+    await tester.tap(find.byType(FacilitatorCircle));
+    await tester.pump(const Duration(milliseconds: 300));
   }
 
-  Future<void> aSalaVolta(WidgetTester tester, ProviderContainer container) =>
-      waitFor(
-        'a sala soltar a pendente',
-        () => container.read(salaSessionProvider).btTraducaoPendente == null,
-        step: () => tester.pump(const Duration(milliseconds: 100)),
-      );
-
-  Future<void> aSalaPedeDeNovo(
-    WidgetTester tester,
-    SalaHarness harness,
-    int pedidos,
-  ) => waitFor(
-    'a sala ser pedida de novo',
-    () => harness.room.replaceKeys.length > pedidos,
-    step: () => tester.pump(const Duration(milliseconds: 100)),
-  );
+  Future<void> perderAResposta(WidgetTester tester, SalaHarness harness) async {
+    harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
+    await confirmarEEsperar(tester);
+  }
 
   Future<void> falharAoConferir(
     WidgetTester tester,
@@ -622,19 +864,19 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
   }
 
-  testWidgets('B7h — a correção guardada com a resposta perdida pousa na '
-      'recusa seguinte, sem strike', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true, retryBackoff: _volta)
-      ..room.forgetsTheKeys = true;
+  testWidgets('B7h — a correção com a resposta perdida, contada de novo, '
+      'pousa no trecho que o servidor guardou, sem strike', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
 
-    harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
-    await confirmarEEsperar(tester);
-    final contadaNoServidor = harness.room.replacesComArquivo.single;
+    await perderAResposta(tester, harness);
     final leituras = harness.room.calls.where((c) => c == 'fetchState').length;
-
-    await aSalaVolta(tester, container);
+    await contarOutraVez(tester);
+    final contadaDeNovo = container
+        .read(salaSessionProvider)
+        .btTraducaoPendente!;
+    await confirmarEEsperar(tester);
 
     expect(aceso(tester, confirmar), isFalse, reason: 'nada pendente');
     expect(
@@ -652,12 +894,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(
       harness.playback.played.last,
-      contadaNoServidor,
-      reason: 'a voz azul do trecho 1 é a explicação que o servidor guardou',
+      contadaDeNovo,
+      reason: 'a voz azul do trecho 1 é a explicação que pousou por último',
     );
     expect(
       harness.recorder.deleted,
-      isNot(contains(contadaNoServidor)),
+      isNot(contains(contadaDeNovo)),
       reason: 'o arquivo que pousou é o do trecho, não se apaga',
     );
     harness.playback.finishPlayback();
@@ -668,9 +910,7 @@ void main() {
     expect(
       container.read(salaSessionProvider).needsPerson,
       isFalse,
-      reason:
-          'duas falhas comuns depois do pouso são o primeiro e o segundo '
-          'strike, não o segundo e o terceiro',
+      reason: 'nenhuma recusa do veredito chama a pessoa',
     );
     closeTheRoom(container);
   });
@@ -781,17 +1021,15 @@ void main() {
   });
 
   testWidgets('B7h2 — a correção guardada com a resposta perdida sai da fila '
-      'quando pousa na recusa seguinte', (tester) async {
+      'quando a contada de novo pousa sobre ela', (tester) async {
     const aoPousar = Duration(seconds: 1);
-    final harness = SalaHarness(filaEmMemoria: true, retryBackoff: _volta)
-      ..room.forgetsTheKeys = true
+    final harness = SalaHarness(filaEmMemoria: true)
       ..room.takeLandsAfter = aoPousar;
     final container = await ateOTrechoNomeado(tester, harness);
     final fila = harness.takes as FakeTakeQueue;
 
     harness.room.refuseTake = 'retro/${KeptScope.whole}';
-    harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
-    await confirmarEEsperar(tester);
+    await perderAResposta(tester, harness);
     await letTheRehearsalReachTheRoom(tester);
     final contadaNoServidor = harness.room.replacesComArquivo.single;
     expect(
@@ -803,7 +1041,8 @@ void main() {
       reason: 'a resposta perdida guarda a correção na fila',
     );
 
-    await aSalaVolta(tester, container);
+    await contarOutraVez(tester);
+    await confirmarEEsperar(tester);
     await waitFor(
       'a correção sair da fila',
       () => fila.rows.every((linha) => linha.path != contadaNoServidor),
@@ -821,9 +1060,9 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('B7i — a stretch that no longer counts is told by its code, '
-      'drops the pending translation, and is never a strike, not even the '
-      'same refusal again', (tester) async {
+  testWidgets('B7i — a stretch that no longer counts is told by its code and '
+      'drops the pending translation, the same refusal again too, and no '
+      'number of refusals brings the person sign', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
     SalaSessionState estado() => container.read(salaSessionProvider);
@@ -859,18 +1098,11 @@ void main() {
 
     await falharAoConferir(tester, harness);
     await falharAoConferir(tester, harness);
-    expect(
-      estado().needsPerson,
-      isFalse,
-      reason:
-          'duas falhas comuns depois de duas recusas iguais são o primeiro e o '
-          'segundo strike: a recusa nunca conta',
-    );
     await falharAoConferir(tester, harness);
     expect(
       estado().needsPerson,
-      isTrue,
-      reason: 'e a terceira falha comum chama',
+      isFalse,
+      reason: 'recusa nenhuma, em qualquer número, chama a pessoa',
     );
     closeTheRoom(container);
   });
@@ -878,15 +1110,14 @@ void main() {
   testWidgets('B7j — o pouso mantém o cursor e o que a equipe já ouviu', (
     tester,
   ) async {
-    final harness = SalaHarness(filaEmMemoria: true, retryBackoff: _volta)
-      ..room.forgetsTheKeys = true;
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
     final ouvidoAntes = harness.room.playedByTakeSent.last;
 
-    harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
+    await perderAResposta(tester, harness);
+    await contarOutraVez(tester);
     await confirmarEEsperar(tester);
-    await aSalaVolta(tester, container);
 
     final capturas = harness.recorder.captures;
     sala.retroTap();
@@ -910,34 +1141,40 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('B7k — a releitura que falha não solta nada, e a próxima '
-      'confirmação pousa', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true, retryBackoff: _volta)
-      ..room.forgetsTheKeys = true;
+  testWidgets('B7k — a releitura que falha é uma frase não entendida, nada '
+      'sai sozinho, e a próxima confirmação pousa', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
 
-    harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
-    await confirmarEEsperar(tester);
-    final contadaNoServidor = harness.room.replacesComArquivo.single;
-
-    harness.room.holdNextReplace();
-    await aSalaPedeDeNovo(tester, harness, harness.room.replaceKeys.length);
+    await perderAResposta(tester, harness);
+    await contarOutraVez(tester);
     harness.room.failStateOnceWith = const NetworkFailed('timeout');
-    harness.room.finishHeldReplace();
-    await tester.pump(const Duration(milliseconds: 50));
+    await confirmarEEsperar(tester);
+    final pedidos = harness.room.replaceKeys.length;
+    for (var passo = 0; passo < 5; passo++) {
+      await letTheRehearsalReachTheRoom(tester);
+    }
     expect(
-      container.read(salaSessionProvider).btTraducaoPendente,
-      isNotNull,
-      reason: 'a pendente fica',
+      container.read(salaSessionProvider).wordlessTelling,
+      isTrue,
+      reason: 'a releitura que cai é a frase que ela não entendeu',
+    );
+    expect(container.read(salaSessionProvider).offline, isFalse);
+    expect(
+      harness.room.replaceKeys,
+      hasLength(pedidos),
+      reason: 'nada sai sozinho quando a rede volta',
     );
     expect(contas(tester), ['solid com anel', 'solid'], reason: 'o braço fica');
 
-    await aSalaVolta(tester, container);
+    await contarOutraVez(tester);
+    final terceira = container.read(salaSessionProvider).btTraducaoPendente!;
+    await confirmarEEsperar(tester);
     expect(aceso(tester, confirmar), isFalse);
     sala.ouvirOTrechoContado(0);
     await tester.pump(const Duration(milliseconds: 300));
-    expect(harness.playback.played.last, contadaNoServidor);
+    expect(harness.playback.played.last, terceira);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     closeTheRoom(container);
@@ -945,22 +1182,17 @@ void main() {
 
   testWidgets('B7l — a tradução gravada depois de uma resposta perdida '
       'conta de novo o trecho que pousou', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true, retryBackoff: _volta)
-      ..room.forgetsTheKeys = true;
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
     final gravacao = harness.room.takeIds.first;
 
-    harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
-    await confirmarEEsperar(tester);
-    await aSalaVolta(tester, container);
-    expect(aceso(tester, confirmar), isFalse, reason: 'a primeira pousou');
-
-    await contarDeNovo(tester, harness, 'trecho-1-v1');
+    await perderAResposta(tester, harness);
+    await contarOutraVez(tester);
     final segunda = container.read(salaSessionProvider).btTraducaoPendente!;
     expect(contas(tester), [
       'solid com anel',
       'solid',
-    ], reason: 'armada sobre o sucessor');
+    ], reason: 'armada sobre o trecho');
 
     await confirmarEEsperar(tester);
     expect(harness.room.replacesAsked.last, 'trecho-1-v1@$gravacao:0-4000');
@@ -1005,9 +1237,8 @@ void main() {
   });
 
   testWidgets('the read after a correction refused because the stretch no '
-      'longer counts applies the halt and the warning it carries', (
-    tester,
-  ) async {
+      'longer counts never raises the person sign, though the server says it '
+      'needs a person', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
@@ -1017,39 +1248,25 @@ void main() {
     harness.room
       ..serverStatus = 'needs_person'
       ..serverHalt = HaltKind.blocking;
+    final lidas = stateReads(harness);
     await confirmarEEsperar(tester);
 
-    expect(read().needsPerson, isTrue, reason: 'a releitura trouxe a parada');
-    expect(
-      harness.room.personsAsked,
-      0,
-      reason: 'uma parada lida não é um novo pedido de pessoa',
-    );
+    expect(stateReads(harness), greaterThan(lidas), reason: 'a sala releu');
+    expect(read().needsPerson, isFalse);
+    expect(harness.room.personsAsked, 0);
     final capturas = harness.recorder.captures;
     sala.retroTap();
     await tester.pump(const Duration(milliseconds: 300));
     expect(
       harness.recorder.captures,
-      capturas,
-      reason: 'todo gesto fecha sob a parada',
-    );
-
-    harness.room.serverHalt = HaltKind.warning;
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(read().needsPerson, isFalse);
-    expect(read().warning, isTrue, reason: 'a segunda leitura trouxe o aviso');
-    final lidas = stateReads(harness);
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      stateReads(harness),
-      greaterThan(lidas),
-      reason: 'a vigia segue armada sob o aviso',
+      greaterThan(capturas),
+      reason: 'o círculo segue gravando',
     );
     closeTheRoom(container);
   });
 
-  testWidgets('the read after a verdict applies the halt it carries, as one '
-      'the room only read', (tester) async {
+  testWidgets('the read after a verdict never raises the person sign, though '
+      'the server says it needs a person', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
@@ -1067,94 +1284,49 @@ void main() {
 
     expect(
       container.read(salaSessionProvider).needsPerson,
-      isTrue,
-      reason: 'a releitura dos trechos trouxe a parada, e ela vale inteira',
-    );
-    expect(
-      harness.room.personsAsked,
-      0,
-      reason: 'uma parada lida não é um novo pedido de pessoa',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets('B7n — outra falha entre duas recusas quebra o "em seguida"', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true, retryBackoff: _volta)
-      ..room.forgetsTheKeys = true;
-    final container = await ateOTrechoNomeado(tester, harness);
-
-    harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
-    await confirmarEEsperar(tester);
-    await aSalaVolta(tester, container);
-
-    harness.room.verdictUntoldSegmentId = 'trecho-1-v1';
-    await tocar(tester, conferir);
-    await tester.pump(const Duration(milliseconds: 600));
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-    harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester, circulo: gravar);
-
-    harness.room.failReplaceWith = const Refused('BAD_REQUEST');
-    await confirmarEEsperar(tester);
-    harness.room.failReplaceWith = const Refused(
-      RefusalCode.stretchNoLongerCounts,
-    );
-    await confirmarEEsperar(tester);
-    harness.room.failReplaceWith = null;
-    expect(
-      aceso(tester, confirmar),
       isFalse,
-      reason: 'a recusa solta a pendente em vez de guardá-la como strike',
+      reason: 'uma leitura nunca levanta o sinal da pessoa',
     );
-
-    await falharAoConferir(tester, harness);
-    expect(
-      container.read(salaSessionProvider).needsPerson,
-      isFalse,
-      reason:
-          'a recusa depois de outra falha não é "em seguida": só a falha e '
-          'a conferência contam. A recusa sobre um trecho que ainda vale é '
-          'injetada; o servidor de hoje não a produz',
-    );
+    expect(harness.room.personsAsked, 0);
     closeTheRoom(container);
   });
 
   testWidgets('B7o — a segunda gravação que cai na rede depois de uma resposta '
-      'perdida conta de novo o trecho que pousou', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true, retryBackoff: _volta)
-      ..room.forgetsTheKeys = true;
+      'perdida também não foi entendida, e a terceira conta de novo o trecho '
+      'que pousou', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
     final gravacao = harness.room.takeIds.first;
 
-    harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
-    await confirmarEEsperar(tester);
-    await aSalaVolta(tester, container);
-    await contarDeNovo(tester, harness, 'trecho-1-v1');
-    final segunda = container.read(salaSessionProvider).btTraducaoPendente!;
-
+    await perderAResposta(tester, harness);
+    await contarOutraVez(tester);
     harness.room.failReplaceWith = const NetworkFailed('timeout');
     await confirmarEEsperar(tester);
+    harness.room.failReplaceWith = null;
+    final pedidos = harness.room.replaceKeys.length;
+    for (var passo = 0; passo < 5; passo++) {
+      await letTheRehearsalReachTheRoom(tester);
+    }
     expect(
-      container.read(salaSessionProvider).btTraducaoPendente,
-      segunda,
-      reason: 'a segunda segue pendente',
+      container.read(salaSessionProvider).wordlessTelling,
+      isTrue,
+      reason: 'a segunda que a rede perdeu também é a não entendida',
+    );
+    expect(
+      harness.room.replaceKeys,
+      hasLength(pedidos),
+      reason: 'a segunda não sai sozinha quando a rede volta',
     );
     expect(contas(tester), [
       'solid com anel',
       'solid',
-    ], reason: 'armada sobre o sucessor');
+    ], reason: 'armada sobre o trecho');
 
-    harness.room.failReplaceWith = null;
-    await waitFor(
-      'a segunda gravação chegar à sala',
-      () => harness.room.replacesComArquivo.last == segunda,
-      step: () => tester.pump(const Duration(milliseconds: 100)),
-    );
+    await contarOutraVez(tester);
+    final terceira = container.read(salaSessionProvider).btTraducaoPendente!;
+    await confirmarEEsperar(tester);
     expect(harness.room.replacesAsked.last, 'trecho-1-v1@$gravacao:0-4000');
-    expect(harness.room.replacesComArquivo.last, segunda);
+    expect(harness.room.replacesComArquivo.last, terceira);
     closeTheRoom(container);
   });
 
@@ -1162,8 +1334,7 @@ void main() {
       'trecho recusado, não outro trecho contado na mesma fatia', (
     tester,
   ) async {
-    final harness = SalaHarness(filaEmMemoria: true, retryBackoff: _volta)
-      ..room.forgetsTheKeys = true;
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
     final [primeira, segunda] = harness.room.takeIds.take(2).toList();
@@ -1207,10 +1378,12 @@ void main() {
     harness.room.verdictUntoldSegmentId = null;
     await gravarATraducao(tester, circulo: gravar);
 
-    harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
+    await perderAResposta(tester, harness);
+    await contarOutraVez(tester);
+    final contadaNoServidor = container
+        .read(salaSessionProvider)
+        .btTraducaoPendente!;
     await confirmarEEsperar(tester);
-    final contadaNoServidor = harness.room.replacesComArquivo.single;
-    await aSalaVolta(tester, container);
 
     sala.ouvirOTrechoContado(ondeEsta(segunda));
     await tester.pump(const Duration(milliseconds: 300));
@@ -1233,21 +1406,21 @@ void main() {
 
   testWidgets('B7q — uma gravação que o servidor não captou não prova que a '
       'resposta perdida antes dela não vai pousar', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true, retryBackoff: _volta)
-      ..room.forgetsTheKeys = true;
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
     final gravacao = harness.room.takeIds.first;
-    final primeira = container.read(salaSessionProvider).btTraducaoPendente!;
 
     harness.room.loseTheNextReplaceAnswerAndLandItLaterWith =
         const NetworkFailed('timeout');
     await confirmarEEsperar(tester);
+    await contarOutraVez(tester);
+    final segunda = container.read(salaSessionProvider).btTraducaoPendente!;
     harness.room.failReplaceWith = const Refused('BAD_REQUEST');
-    await aSalaPedeDeNovo(tester, harness, harness.room.replaceKeys.length);
+    await confirmarEEsperar(tester);
     expect(
       container.read(salaSessionProvider).btTraducaoPendente,
-      primeira,
-      reason: 'o reenvio não captado guarda a pendente',
+      segunda,
+      reason: 'a recusa guarda a pendente',
     );
 
     harness.room
@@ -1255,11 +1428,16 @@ void main() {
       ..landTheLostReplace();
     await confirmarEEsperar(tester);
 
-    expect(aceso(tester, confirmar), isFalse, reason: 'a perdida pousou');
     expect(
-      harness.room.replacesAsked,
-      everyElement('trecho-1@$gravacao:0-4000'),
+      aceso(tester, confirmar),
+      isFalse,
+      reason: 'a perdida pousou, e a contada de novo pousou sobre ela',
     );
+    expect(harness.room.replacesAsked, [
+      'trecho-1@$gravacao:0-4000',
+      'trecho-1-v1@$gravacao:0-4000',
+    ]);
+    expect(harness.room.replacesComArquivo.last, segunda);
     closeTheRoom(container);
   });
 

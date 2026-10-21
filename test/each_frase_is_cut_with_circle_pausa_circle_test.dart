@@ -75,7 +75,7 @@ Future<SceneRoom> _onTheTranslateStep({
   List<SceneRehearsalRecord> alsoListed = const [],
   bool loudnessLate = false,
 }) async {
-  final room = await atRest();
+  final room = await atRest(SalaHarness(filaEmMemoria: true));
   if (loudnessLate) room.harness.holdTheEnvelope();
   room.harness.room.sceneRehearsals
     ..addAll(alsoListed)

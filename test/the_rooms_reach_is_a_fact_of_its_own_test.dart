@@ -1,12 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
-import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -35,42 +32,18 @@ Future<void> _theRoomFalls(
 ) async {
   harness.network.reachable = false;
   harness.room.reachable = false;
+  await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
   await waitFor(
-    'a sala cair no meio da conversa',
+    'a sala cair ao abrir a passagem de novo',
     () => container.read(salaSessionProvider).offline,
   );
 }
 
-/// A passage reopened in the Rehearsal with the room down, holding its second part: the
-/// scene list never answers, so the circle records the part below it.
+/// A passage opened with the room down, then its Rehearsal: the fall is the way in's.
 Future<ProviderContainer> _fallenInEnsaio(SalaHarness harness) async {
-  final gravada = File(
-    '${Directory.systemTemp.createTempSync('sala-1061').path}/p2.m4a',
-  )..writeAsBytesSync([1, 2, 3]);
-  addTearDown(() => gravada.parent.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.ensaio,
-    takes: [
-      KeptTake(
-        scopeId: KeptScope.parte(2),
-        path: gravada.path,
-        takeId: 'gravacao-2',
-      ),
-    ],
-  );
-  final container = harness.container();
-  addTearDown(container.dispose);
-  final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
+  final container = await _fallenInConversa(harness);
+  container.read(salaSessionProvider.notifier).goEnsaio();
   await settle();
-  harness.room.reachable = false;
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-  harness.network.reachable = false;
-  await waitFor(
-    'a sala cair offline no ensaio',
-    () => container.read(salaSessionProvider).offline,
-  );
   return container;
 }
 
@@ -283,6 +256,7 @@ void main() {
       expect(read().unreachable, isFalse);
       expect(read().reach, RoomReach.fine);
 
+      await notifier.goConversa(book: 'Ruth');
       await waitFor('a sala cair de novo', () => read().offline);
       expect(_noticesSpoken(harness), 2);
       await _theLadderClimbs(harness, 'na segunda queda');
@@ -386,8 +360,7 @@ void main() {
       await waitFor('o microfone abrir', () => read().channel is Microphone);
       notifier.conversaTap();
       await waitFor('o turno sair', () => harness.room.turnsSent == 1);
-      harness.room.serverStatus = 'needs_person';
-      harness.room.serverHalt = HaltKind.blocking;
+      notifier.haltForABrokenBuild();
       await waitFor('a sala parar com o turno no ar', () => read().needsPerson);
 
       harness.room.failHeldTurnWith = const NetworkFailed('sem rede');

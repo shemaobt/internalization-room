@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/capture_guard.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/cut_point.dart';
@@ -327,38 +325,6 @@ void main() {
 
       expect(room.state.voice, VoiceState.done);
     });
-
-    test(
-      'a cut turn counts toward the calm streak that forgives a failure',
-      () async {
-        final harness = SalaHarness();
-        harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
-          sessionId: 'sessao-velha',
-          stage: SalaStage.retro,
-        );
-        final container = harness.container();
-        addTearDown(container.dispose);
-        final room = _Room(harness, container);
-        await room.notifier.abrirEscolha();
-        await settle();
-        Future<void> aCheckTheRoomRefuses() async {
-          harness.room.failWith = const Refused('BAD_REQUEST');
-          await room.notifier.goConversa(book: 'Ruth', pericope: 'P01');
-          await settle();
-          harness.room.failWith = null;
-        }
-
-        await aCheckTheRoomRefuses();
-        await room.aRealTake();
-        await _cutWhileSheSpeaks(on: room);
-        await room.aGhostTake();
-
-        await aCheckTheRoomRefuses();
-        await aCheckTheRoomRefuses();
-
-        expect(room.state.needsPerson, isFalse);
-      },
-    );
   });
 
   group('a tap while the acknowledgement plays with the reply waiting', () {

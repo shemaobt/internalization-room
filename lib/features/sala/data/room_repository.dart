@@ -631,22 +631,6 @@ class RoomRepository {
     asksForTheSession: true,
   );
 
-  /// The device-scoped ask, for a halt that has no session to ask through.
-  Future<RoomAnswer<void>> askForAPersonWithoutASession(String deviceId) =>
-      _room.ask(
-        () => _client.post(
-          _uri('/devices/$deviceId/needs-person'),
-          headers: _headers,
-        ),
-        timeout: _stateTimeout,
-        read: readJson((_) {}),
-        asksForTheSession: false,
-        atThisDoor: const {
-          404: Refused(RefusalCode.nobodyToReach),
-          409: Refused(RefusalCode.nobodyToReach),
-        },
-      );
-
   Future<RoomAnswer<BackTranslationVerdict>> finishBackTranslation(
     String sessionId, {
     required List<PlayedTake> playedByTake,
@@ -669,6 +653,24 @@ class RoomRepository {
     timeout: _longCallTimeout,
     read: readJson(BackTranslationVerdict.fromJson),
     asksForTheSession: true,
+  );
+
+  Future<RoomAnswer<List<String>?>> reportTheListening(
+    String sessionId, {
+    required List<PlayedTake> playedByTake,
+  }) => _room.ask(
+    () => _client.post(
+      _uri('/sessions/$sessionId/back-translation/listened-whole'),
+      headers: _headers,
+      body: jsonEncode({
+        'played_by_take': [for (final parte in playedByTake) parte.toJson()],
+      }),
+    ),
+    timeout: _stateTimeout,
+    read: readJson(
+      (json) => (json['unheard_take_ids'] as List?)?.cast<String>(),
+    ),
+    asksForTheSession: false,
   );
 
   Future<RoomAnswer<void>> reportTheVerdictHeard(String sessionId, String at) =>

@@ -547,20 +547,22 @@ void main() {
   });
 
   testWidgets(
-    'While the room is out of reach the hand is hidden, a tap on it does '
-    'nothing and the circle still retries the room',
+    'A Watch read that falls on the network leaves the room in reach and the '
+    'reply waiting on the hand',
     (tester) async {
       final room = await _inConversaWithAReply(tester, watching: true);
       room.harness.network.reachable = false;
       room.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
-      await room.until('a sala cair', () => room.estado.offline);
+      await room.until(
+        'a leitura da vigia cair',
+        () => room.harness.room.failStateOnceWith == null,
+      );
+      await room.beat(300);
 
-      expect(_hand, findsNothing);
+      expect(room.estado.offline, isFalse);
+      expect(_hand, findsOneWidget);
 
-      await room.aTapOnTheHiddenHandPlaysNothing();
       room.harness.network.reachable = true;
-      room.sala.conversaTap();
-      await room.until('a sala voltar', () => !room.estado.offline);
       await room.atTheInvite();
       await room.theReplyStillWaitsOnTheHand();
       closeTheRoom(room.container);
@@ -668,10 +670,9 @@ void main() {
       final room = _Room(tester, harness, container);
       harness.room.failCreateOnceWith = const Refused('BAD_REQUEST');
       await enterThePanorama(room.sala, () => room.estado, step: room.beat);
-      await room.until('a sala chamar alguém', () => room.estado.needsPerson);
-      room.sala.resolveWithPerson();
-      await room.until('a parada sair', () => !room.estado.needsPerson);
       await room.beat(300);
+
+      expect(room.estado.needsPerson, isFalse);
 
       expect(room.estado.stage, SalaStage.panorama);
       expect(_hand, findsNothing);

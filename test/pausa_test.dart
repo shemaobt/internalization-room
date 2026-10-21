@@ -61,4 +61,28 @@ void main() {
           '0,2 s depois, que conta 0,4 s',
     );
   });
+
+  test('a tap whose 0.2 s frase does not fit before the part\'s end places no '
+      'pausa, not a sliver', () {
+    expect(
+      pauseAtTheTap(s(9.95), s(9.85), s(10)),
+      isNull,
+      reason: 'o teto levava a pausa ao fim da parte, uma frase de 0,15 s',
+    );
+    expect(
+      pauseAtTheTap(s(30.1), s(30), s(30)),
+      isNull,
+      reason: 'sobre uma medida curta o toque ficava, uma frase de 0,1 s',
+    );
+  });
+
+  test('a tap at the part\'s end or beyond a short measure is never pulled '
+      'back', () {
+    expect(pauseAtTheTap(s(30), s(12), s(30)), s(30));
+    expect(
+      pauseAtTheTap(s(44), s(30), s(30)),
+      s(44),
+      reason: 'o teto puxava a pausa para trás do cursor, 30000-29900',
+    );
+  });
 }

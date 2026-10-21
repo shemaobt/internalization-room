@@ -22,17 +22,11 @@ AnsweringEvent _stampedAnswer(
   AnsweringEvent event,
   int generation,
 ) => switch (event) {
-  SessionRead(
-    :final snapshot,
-    :final sounding,
-    :final sentBeforeTheCallLanded,
-  ) =>
-    SessionRead(
-      snapshot,
-      sounding: sounding,
-      sentBeforeTheCallLanded: sentBeforeTheCallLanded,
-      generation: generation,
-    ),
+  SessionRead(:final snapshot, :final sentBeforeTheCallLanded) => SessionRead(
+    snapshot,
+    sentBeforeTheCallLanded: sentBeforeTheCallLanded,
+    generation: generation,
+  ),
   TheCallLanded() => TheCallLanded(generation: generation),
   TheRoomAnswered() => TheRoomAnswered(generation: generation),
   TheAnswerWarned() => TheAnswerWarned(generation: generation),
@@ -116,14 +110,14 @@ AnsweringEvent _stampedAnswer(
     sounding: sounding,
     generation: generation,
   ),
-  TheRoomRefused(:final third, :final sounding) => TheRoomRefused(
-    third: third,
-    sounding: sounding,
-    generation: generation,
-  ),
   ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
   TheTellingCameBackEmpty(:final readAgain) => TheTellingCameBackEmpty(
     readAgain: readAgain,
+    generation: generation,
+  ),
+  TheStepFailed() => TheStepFailed(generation: generation),
+  TheResumeFailed() => TheResumeFailed(generation: generation),
+  TheSceneTurnFoundNothing() => TheSceneTurnFoundNothing(
     generation: generation,
   ),
   TheOpeningMissed() => TheOpeningMissed(generation: generation),

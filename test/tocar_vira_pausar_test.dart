@@ -225,12 +225,12 @@ void main() {
   test('um teto que vence antes do dublê nunca deixa o player real soando com '
       'o estado dizendo parado', () async {
     final harness = SalaHarness(clipGrace: const Duration(milliseconds: 20))
-      ..playback.length = const Duration(milliseconds: 50)
       ..room.verdictChecked = false
       ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await pumpAoApontado(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
+    harness.playback.length = const Duration(milliseconds: 50);
 
     notifier.ouvirOTrechoEATraducao();
     await waitFor(

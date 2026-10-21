@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -99,9 +100,7 @@ void main() {
 
     await waitFor('o aviso chegar', () => read().warning);
 
-    harness.room.serverHalt = HaltKind.blocking;
-    // The warning armed the watch, so the room can learn the halt turned blocking on a
-    // beat of its own; the turn is the other way in, and either one stops the team.
+    harness.room.failTurnsWith = const Refused('BAD_REQUEST');
     await _aTurn(notifier);
     await waitFor('a sala parar de vez', () => read().needsPerson);
 

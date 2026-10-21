@@ -49,23 +49,35 @@ Future<void> _theIdlePanorama(_Sala sala) async {
   );
 }
 
-void _theRoomHoldsAHalt(_Sala sala) {
+void _theRoomHoldsAWarning(_Sala sala) {
   sala.harness.room
     ..serverStatus = 'needs_person'
-    ..serverHalt = HaltKind.blocking;
+    ..serverHalt = HaltKind.warning;
+}
+
+Future<void> _aPanoramaTurnTheRoomRefuses(_Sala sala) async {
+  sala.harness.room.failTurnsWith = const Refused('BAD_REQUEST');
+  sala.notifier.panoramaTap();
+  await waitFor(
+    'the microphone to open',
+    () => _read(sala).voice == VoiceState.listening,
+  );
+  sala.notifier.panoramaTap();
+  await waitFor('the person sign', () => _read(sala).needsPerson);
 }
 
 void main() {
-  test('an idle Panorama reads its session within a beat and shows a halt the '
-      'room holds for it', () async {
+  test('an idle Panorama reads its session within a beat and marks a warning '
+      'the room holds for it, never the person sign', () async {
     final sala = _aRoomThatWatches();
     await _theIdlePanorama(sala);
     final before = stateReads(sala.harness);
 
-    _theRoomHoldsAHalt(sala);
+    _theRoomHoldsAWarning(sala);
 
-    await waitFor('the person sign', () => _read(sala).needsPerson);
+    await waitFor('the warning', () => _read(sala).warning);
     expect(stateReads(sala.harness), greaterThan(before));
+    expect(_read(sala).needsPerson, isFalse);
   });
 
   test('the Panorama returned to in silence watches its session too', () async {
@@ -80,9 +92,9 @@ void main() {
     );
     final before = stateReads(sala.harness);
 
-    _theRoomHoldsAHalt(sala);
+    _theRoomHoldsAWarning(sala);
 
-    await waitFor('the person sign', () => _read(sala).needsPerson);
+    await waitFor('the warning', () => _read(sala).warning);
     expect(stateReads(sala.harness), greaterThan(before));
   });
 
@@ -122,9 +134,10 @@ void main() {
     final sala = _aRoomThatWatches();
     await _theIdlePanorama(sala);
     final panorama = sala.harness.room.sessionIds.last;
-    _theRoomHoldsAHalt(sala);
-    await waitFor('the person sign', () => _read(sala).needsPerson);
-    sala.harness.room.holdNextPersonArrived();
+    await _aPanoramaTurnTheRoomRefuses(sala);
+    sala.harness.room
+      ..failTurnsWith = null
+      ..holdNextPersonArrived();
     sala.notifier.resolveWithPerson();
     await waitFor(
       'the person to be told arrived',

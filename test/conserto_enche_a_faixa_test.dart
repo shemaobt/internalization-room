@@ -177,9 +177,8 @@ void main() {
     },
   );
 
-  testWidgets('uma gravação que não devolveu arquivo esvazia a faixa de novo', (
-    tester,
-  ) async {
+  testWidgets('uma gravação que não devolveu arquivo esvazia a faixa de novo, '
+      'sem chamar ninguém', (tester) async {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
@@ -191,10 +190,10 @@ void main() {
 
     expect(
       container.read(salaSessionProvider).needsPerson,
-      isTrue,
+      isFalse,
       reason:
-          'gravação sem um byte dentro é o caminho que para para uma '
-          'pessoa — se isso mudar, este cenário deixou de medir o que diz',
+          'uma gravação de tradução vazia não é um dos seis casos do sinal '
+          'da pessoa',
     );
     expect(
       _faixasVazias(tester, container),
@@ -349,9 +348,8 @@ void main() {
     );
   });
 
-  testWidgets('a sala que desistiu de esperar esvazia a faixa de novo', (
-    tester,
-  ) async {
+  testWidgets('a sala que desistiu de esperar esvazia a faixa de novo, sem '
+      'chamar ninguém', (tester) async {
     final container = await _pumpToPergunta(
       tester,
       teto: const Duration(seconds: 2),
@@ -372,10 +370,10 @@ void main() {
 
     expect(
       container.read(salaSessionProvider).needsPerson,
-      isTrue,
+      isFalse,
       reason:
-          'o teto do estado ocupado para para uma pessoa — se isso mudar, '
-          'este cenário deixou de medir o que diz',
+          'uma espera sem fala que se esgota solta o passo e não chama '
+          'ninguém',
     );
     expect(
       harness.room.replacesAsked,
@@ -387,9 +385,9 @@ void main() {
       [0],
       reason:
           'é a falha sem nenhum outro sinal na tela: nada foi recusado, o '
-          'círculo não está offline, só uma pessoa foi chamada. Se a faixa '
-          'ficar cheia aqui, o colar diz que o conserto foi feito e é a única '
-          'coisa que a equipe tem para ler',
+          'círculo não está offline, ninguém foi chamado. Se a faixa ficar '
+          'cheia aqui, o colar diz que o conserto foi feito e é a única coisa '
+          'que a equipe tem para ler',
     );
 
     harness.recorder.finishStop();

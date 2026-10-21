@@ -16,6 +16,7 @@ import 'facilitator_circle.dart';
 import 'frase_list.dart';
 import 'motion.dart';
 import 'pause_adjust_row.dart';
+import 'stage_heading.dart';
 import 'status_lines.dart';
 
 class RetroView extends ConsumerWidget {
@@ -48,23 +49,17 @@ class RetroView extends ConsumerWidget {
         ? _linha(session, language)
         : null;
     final veredito = session.btVeredito || session.btFindings.isNotEmpty;
-    return SizedBox.expand(
+    final scrolling = SizedBox.expand(
       child: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: 24 + MediaQuery.viewPaddingOf(context).top),
-            Semantics(
-              header: true,
-              label: titulo,
-              child: ExcludeSemantics(
-                child: Text(
-                  titulo,
-                  style: TextStyle(
-                    color: colors.ink,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+            StageHeading(
+              stage: SalaStage.retro,
+              text: titulo,
+              style: TextStyle(
+                color: colors.ink,
+                fontSize: 26,
+                fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 8),
@@ -176,6 +171,7 @@ class RetroView extends ConsumerWidget {
         ),
       ),
     );
+    return SafeArea(bottom: false, child: scrolling);
   }
 
   List<FraseRow> _frases(
@@ -327,9 +323,6 @@ class RetroView extends ConsumerWidget {
       null => null,
     };
     if (aviso != null) return retroLabelFor(aviso, language);
-    if (session.machine.theVerdictWaitsForTheTap) {
-      return retroLabelFor('checkFailed', language);
-    }
     final recusa = switch (session.btRecusa) {
       CheckRefusal.partUnheard => 'partUnheard',
       CheckRefusal.nothingTranslated => 'nothingTranslated',

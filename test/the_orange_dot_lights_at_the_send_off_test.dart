@@ -8,7 +8,6 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -359,15 +358,7 @@ void main() {
         watching: true,
       );
 
-      harness.room
-        ..serverStatus = 'needs_person'
-        ..serverHalt = HaltKind.blocking;
-      final reads = stateReads(harness);
-      await _pumpUntil(
-        tester,
-        () => stateReads(harness) != reads,
-        beat: const Duration(seconds: 1),
-      );
+      container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(container.read(salaSessionProvider).needsPerson, isTrue);

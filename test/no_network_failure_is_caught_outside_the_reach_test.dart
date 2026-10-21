@@ -11,7 +11,7 @@ const _theReach = [
   '_outOfReach(',
   '_fellOnTheNetwork(',
   '_theStepFell(',
-  '_theResumeFell(',
+  '_theResumeFailed(',
   '_giveUpOnTheTurn(',
 ];
 

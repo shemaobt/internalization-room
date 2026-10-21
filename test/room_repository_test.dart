@@ -1184,6 +1184,94 @@ void main() {
   );
 
   test(
+    'a escuta vai à sala pela porta da escuta com o mesmo corpo da conferência',
+    () async {
+      http.BaseRequest? seen;
+      late String seenBody;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          seenBody = request.body;
+          return http.Response(
+            jsonEncode({
+              'session_id': 's1',
+              'automatic_check': false,
+              'fixed_line': '',
+              'refusal': null,
+              'untranslated': [],
+              'unheard_take_ids': ['t2'],
+            }),
+            200,
+          );
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      final naoOuvidas = _value(
+        await repository.reportTheListening(
+          's1',
+          playedByTake: const [
+            PlayedTake(
+              takeId: 't1',
+              playedRanges: [
+                [0, 10000],
+              ],
+              clipDurationMs: 10000,
+            ),
+          ],
+        ),
+      );
+
+      expect(seen!.method, 'POST');
+      expect(
+        seen!.url.path,
+        endsWith('/sessions/s1/back-translation/listened-whole'),
+      );
+      expect(jsonDecode(seenBody), {
+        'played_by_take': [
+          {
+            'take_id': 't1',
+            'played_ranges': [
+              [0, 10000],
+            ],
+            'clip_duration_ms': 10000,
+          },
+        ],
+      });
+      expect(naoOuvidas, ['t2']);
+    },
+  );
+
+  test(
+    'uma resposta sem as partes não ouvidas se lê como não sabida, não como nenhuma',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response(jsonEncode({'session_id': 's1'}), 200),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final naoOuvidas = _value(
+        await repository.reportTheListening(
+          's1',
+          playedByTake: const [
+            PlayedTake(
+              takeId: 't1',
+              playedRanges: [
+                [0, 10000],
+              ],
+              clipDurationMs: 10000,
+            ),
+          ],
+        ),
+      );
+
+      expect(naoOuvidas, isNull);
+    },
+  );
+
+  test(
     'a verdict heard to its end is reported with the round\'s stamp exactly as the room gave it',
     () async {
       http.BaseRequest? seen;
@@ -1522,8 +1610,6 @@ void main() {
                 room.collectTheCredential('aparelho-1'),
             'askForACode': (room) => room.askForACode('aparelho-1'),
             'readTheLink': (room) => room.readTheLink('aparelho-1'),
-            'askForAPersonWithoutASession': (room) =>
-                room.askForAPersonWithoutASession('aparelho-1'),
           };
 
       test(
@@ -1717,14 +1803,6 @@ void main() {
           _refusedWith(RefusalCode.credentialTaken),
         );
         expect(_value(await answering(204).readTheLink('aparelho-1')), isNull);
-        expect(
-          await answering(404).askForAPersonWithoutASession('aparelho-1'),
-          _refusedWith(RefusalCode.nobodyToReach),
-        );
-        expect(
-          await answering(409).askForAPersonWithoutASession('aparelho-1'),
-          _refusedWith(RefusalCode.nobodyToReach),
-        );
       });
     },
   );

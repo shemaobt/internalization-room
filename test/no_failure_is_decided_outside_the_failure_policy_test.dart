@@ -9,7 +9,7 @@ const _intoTheMapper = [
   '_decideAt(',
   '_outOfReach(',
   '_theStepFell(',
-  '_theResumeFell(',
+  '_theResumeFailed(',
   '_theSessionIsGone(',
   '_giveUpOnTheTurn(',
   'rethrow',
@@ -20,13 +20,14 @@ const _intoTheMapper = [
 const _notYetMoved = <String, String>{
   '_aprovarRascunhoFinal': 'ENG-1444',
   '_asPartesDaSala': 'ENG-1444',
+  '_confirmarTraducao': 'ENG-1444',
   '_createThePassage': 'ENG-1444',
   '_enviarAFrase': 'ENG-1444',
   '_finishBackTranslation': 'ENG-1444',
   '_goConversa': 'ENG-1444',
   '_porCadaTrechoNaSuaParte': 'ENG-1444',
   '_tellThatStretchAgain': 'ENG-1444',
-  '_theTranslationWaits': 'ENG-1444',
+  '_underItsKey': 'ENG-1444',
   '_watchCoverageChannel': 'ENG-1444',
 };
 
@@ -41,7 +42,10 @@ final _namesAFailure = RegExp(
   r'\b(Room)?(NetworkFailed|Refused|SessionGone)\b|\bRoom(Failure|Result)\b',
 );
 
-final _aMethod = RegExp(r'^  (?![\s/])[\w<>?, ]*?\b(_?\w+)\(', multiLine: true);
+final _aMethod = RegExp(
+  r'^  (?![\s/])[\w<>?, ]*?\b(_?\w+)(?:<\w+>)?\(',
+  multiLine: true,
+);
 
 /// Where a case's pattern ends: at its colon in a switch, or at the parenthesis that
 /// closes an `if (… case …)`.
@@ -150,8 +154,11 @@ const _whatOnlyThePolicyDecides = [
   'NetworkFailedAt',
   'TheSessionIsGone',
   'TurnGivenUp',
-  'TheRoomRefused',
   'ThePassageCannotOpen',
+  'RoomRaisedAHalt',
+  'TheStepFailed',
+  'TheResumeFailed',
+  'TheSceneTurnFoundNothing',
 ];
 
 final _comment = RegExp(r'//.*$', multiLine: true);

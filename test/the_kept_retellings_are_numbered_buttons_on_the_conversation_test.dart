@@ -54,14 +54,11 @@ Future<(SalaHarness, ProviderContainer)> atRestAfterATurn(
   List<KeptRetelling> kept, {
   String lingua = 'en',
   bool watching = false,
+  int parts = 3,
 }) async {
   final harness = SalaHarness(lingua: lingua, watchesWithoutAHalt: watching)
     ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
-    ..room.nextMoment = const Moment(
-      at: MomentAt.articulation,
-      part: 3,
-      parts: 3,
-    )
+    ..room.nextMoment = Moment(at: MomentAt.articulation, part: 3, parts: parts)
     ..room.keptRetellings = kept;
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));

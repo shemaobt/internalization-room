@@ -488,7 +488,7 @@ class SalaSessionState {
   bool get entriesOpen =>
       stage == SalaStage.escolha &&
       naRoda != null &&
-      !wheelHalted &&
+      naRoda!.isNotEmpty &&
       !needsPerson &&
       voice == VoiceState.invite;
 
@@ -884,10 +884,7 @@ class SalaSessionState {
 
   bool get warning => halt is Warning;
 
-  bool get wheelHalted => switch (halt) {
-    Blocking(kept: TheWheel()) => true,
-    _ => false,
-  };
+  bool get wheelOffersNothing => naRoda?.isEmpty ?? false;
 
   bool get canResolveWithPerson => needsPerson || offline;
 

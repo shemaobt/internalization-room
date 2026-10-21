@@ -504,7 +504,7 @@ void main() {
       () async {
         final cena = await _prontoParaTerminei();
         // Um trecho numa gravação que este tablet não tem: não há parte para gravar
-        // de novo, e a sala chama uma pessoa em vez de seguir.
+        // de novo, e a sala só se cala, sem chamar ninguém.
         cena.harness.room
           ..verdictChecked = false
           ..verdictFindingSegmentId = 'trecho-1'
@@ -533,10 +533,9 @@ void main() {
       },
       (cena) async {
         cena.sala.gravarAParteDeNovo();
-        await waitFor(
-          'a sala chamar uma pessoa',
-          () => _estado(cena).needsPerson,
-        );
+        await waitFor('a sala se calar', () => !cena.harness.playback.sounding);
+        expect(_estado(cena).needsPerson, isFalse);
+        expect(_estado(cena).btPhase, BtPhase.findings);
       },
     ),
   ], _matrizDaRetro);

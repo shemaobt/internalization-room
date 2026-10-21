@@ -56,46 +56,41 @@ void main() {
     );
   });
 
-  test(
-    'a parada bloqueante lida sobre um aviso vence, e a mesa levanta as duas',
-    () async {
-      final harness = SalaHarness();
-      final container = await achadoComAvisoAtivo(harness);
-      SalaSessionState read() => container.read(salaSessionProvider);
-      final pedidos = harness.room.personsAsked;
+  test('uma leitura que diz parada sobre um aviso não para a sala, e a mesa '
+      'acaba o aviso', () async {
+    final harness = SalaHarness();
+    final container = await achadoComAvisoAtivo(harness);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    final pedidos = harness.room.personsAsked;
 
-      expect(read().warning, isTrue);
+    expect(read().warning, isTrue);
 
-      // O mesmo par de colunas, agora dizendo a parada de verdade: o servidor
-      // escreve a parada bloqueante por cima do aviso que estava lá.
-      harness.room.serverStatus = 'needs_person';
-      harness.room.serverHalt = HaltKind.blocking;
+    // O mesmo par de colunas, agora dizendo a parada de verdade: o servidor
+    // escreve a parada bloqueante por cima do aviso que estava lá.
+    harness.room.serverStatus = 'needs_person';
+    harness.room.serverHalt = HaltKind.blocking;
 
-      await waitFor('a sala parar de vez', () => read().needsPerson);
+    final lidas = stateReads(harness);
+    await waitFor('a vigia ler a parada', () => stateReads(harness) > lidas);
+    await settle();
 
-      expect(
-        read().warning,
-        isFalse,
-        reason:
-            'a leitura que bloqueia não é a leitura que avisa: o verde '
-            'sobre uma sala parada é a mentira que o círculo existe para não '
-            'contar',
-      );
-      expect(
-        harness.room.personsAsked,
-        pedidos,
-        reason:
-            'a vigia leu a parada; o servidor já a tinha, e um pedido do '
-            'tablet aqui apagaria um atendimento que a mesa já tivesse dado '
-            '(ENG-962)',
-      );
+    expect(
+      read().needsPerson,
+      isFalse,
+      reason: 'uma leitura nunca levanta o sinal da pessoa',
+    );
+    expect(
+      read().warning,
+      isTrue,
+      reason: 'o aviso que estava de pé continua de pé',
+    );
+    expect(harness.room.personsAsked, pedidos);
 
-      harness.room.theDeskAttended();
+    harness.room.theDeskAttended();
 
-      await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
-      expect(read().warning, isFalse);
-    },
-  );
+    await waitFor('o círculo sair do verde', () => !read().warning);
+    expect(read().needsPerson, isFalse);
+  });
 
   test(
     'uma leitura que ainda diz o aviso o mantém e não chama ninguém',
@@ -220,14 +215,18 @@ void main() {
   test(
     'a parada bloqueante que a leitura troca por um aviso deixa o aviso vigiado',
     () async {
-      final harness = SalaHarness()
-        ..room.serverStatus = 'needs_person'
-        ..room.serverHalt = HaltKind.blocking;
+      final harness = SalaHarness();
       final container = await inConversa(harness);
       addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
+      harness.room.failTurnsWith = const Refused('BAD_REQUEST');
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
       await waitFor('a sala parar de vez', () => read().needsPerson);
+      harness.room.failTurnsWith = null;
 
       // O pedido do tablet não chegou, então a sala continua marcada com o
       // aviso que o orçamento levantou: a leitura seguinte devolve a equipe,
@@ -251,58 +250,31 @@ void main() {
     },
   );
 
-  test('a rede que cai e volta devolve o aviso vigiado', () async {
+  test('a rede que cai longe de uma entrada não larga a vigia do '
+      'aviso', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
       ..room.serverHalt = HaltKind.warning;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    await waitFor('o aviso chegar', () => read().warning);
-
-    harness.room.reachable = false;
-    await waitFor('a sala cair', () => read().offline);
-    harness.room.reachable = true;
-    await waitFor('a sala voltar', () => !read().offline);
-
-    // A equipe não toca em nada depois da volta: sem a vigia, nada mais nesta
-    // estação relê o estado.
-    harness.room.theDeskAttended();
-
-    await waitFor('o círculo sair do verde', () => !read().warning);
-  });
-
-  test('o toque longo numa sala fora não larga a vigia do aviso', () async {
-    final harness = SalaHarness()
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.warning;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
     await waitFor('o aviso chegar', () => read().warning);
 
     harness.network.reachable = false;
     harness.room.reachable = false;
-    await waitFor('a sala cair', () => read().offline);
-
-    // Fora, o toque longo é a tentativa de voltar e continua a ser a saída
-    // local que sempre foi — mas a sessão continua marcada com o aviso.
-    notifier.resolveWithPerson();
-    await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
-
+    await _someBeats(harness);
     expect(
-      read().warning,
-      isTrue,
+      read().offline,
+      isFalse,
       reason:
-          'o toque não é a mesa: soltar a sala não apaga um aviso que '
-          'ninguém veio olhar',
+          'a leitura da vigia não é uma entrada: a rede que cai não muda nada',
     );
-
     harness.network.reachable = true;
     harness.room.reachable = true;
+
+    // A equipe não toca em nada depois da volta: sem a vigia, nada mais nesta
+    // estação relê o estado.
     harness.room.theDeskAttended();
 
     await waitFor('o círculo sair do verde', () => !read().warning);

@@ -84,6 +84,9 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
         lifecycle == AppLifecycleState.paused) {
       _replyWatch?.cancel();
     }
+    if (lifecycle == AppLifecycleState.paused) {
+      ref.read(salaSessionProvider.notifier).theAppWentAway();
+    }
     if (lifecycle == AppLifecycleState.resumed &&
         ref.read(deviceLinkProvider).linked) {
       unawaited(_openRoom());
