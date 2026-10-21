@@ -884,8 +884,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the next one.
   ///
   /// [holdTheClip] for the gestures that come back to the very part they leave — the
-  /// scissors, the circle that opens and closes a capture, telling a stretch again, and
-  /// the check. A hold silences the rehearsal just as well and is what keeps the clip
+  /// circle's three taps and telling a stretch again. A hold silences the rehearsal just as well and is what keeps the clip
   /// open: stopped, the room loses the length that the listening ceiling and the end of
   /// the part are both measured against.
   ///
@@ -4179,7 +4178,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The pausa where the tap fell, snapped to the nearest silence of the take; at the
-  /// tap itself for a take with no loudness to read (ADR 0076).
+  /// tap for a take with no loudness to read, but never within 0.2 s of the last pausa
+  /// (ADR 0076, as amended).
   void _markThePausa() {
     final tap = _playback.position;
     _silenceTheRoom();
@@ -6407,10 +6407,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// event landing.
   ///
   /// `SalaSessionState.nothingHeardSinceCursor` is what the circle's label reads — a
-  /// plain field, the way `canCut` and `canConfirmTranslation` are, because nothing else
+  /// plain field, the way `canConfirmTranslation` is, because nothing else
   /// in state changes while a part simply plays on, and a label baked from a live read at
   /// the last state change would go stale the moment the room stopped touching state for
-  /// it. The capture and the scissors do not read this field: a fact this timer can only
+  /// it. The pausa and the capture do not read this field: a fact this timer can only
   /// answer to the nearest hundred milliseconds is not the belt a cut's own boundary
   /// needs, so both still read `_cabeca` live, as they always have.
   void _armCursorDeadline() {

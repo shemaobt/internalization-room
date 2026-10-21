@@ -338,7 +338,7 @@ class SalaSessionState {
   final Duration btCorte;
 
   /// Whether the head has passed [btCursor] since it was last set — the one fact the
-  /// capture, the scissors and the circle's label all read to ask whether anything has
+  /// capture and the circle's label both read to ask whether anything has
   /// been heard since the cursor.
   final bool btOuvidoAlemDoCursor;
   final bool btPausaAjustavel;
@@ -912,8 +912,8 @@ class SalaSessionState {
 
   bool get btCortado => btCorte > btCursor;
 
-  /// Whether nothing has been heard since the cursor: the guard the capture, the
-  /// scissors and the circle's label all share.
+  /// Whether nothing has been heard since the cursor: the guard the capture and the
+  /// circle's label share.
   bool get nothingHeardSinceCursor => !btOuvidoAlemDoCursor;
 
   int? get _btInicioDaParteMs {
