@@ -80,6 +80,7 @@ enum Door {
   telling,
   verdict,
   sceneRehearsal,
+  sceneFrase,
   sceneList,
 }
 
@@ -484,7 +485,9 @@ final class TheCallMetAClosedPassage extends AnsweringEvent {
 }
 
 final class TheTellingCameBackEmpty extends AnsweringEvent {
-  const TheTellingCameBackEmpty({super.generation});
+  final bool readAgain;
+
+  const TheTellingCameBackEmpty({this.readAgain = false, super.generation});
 }
 
 final class TheStepFailed extends AnsweringEvent {
@@ -839,6 +842,15 @@ final class RefuseThePassage extends Effect {
 
 final class ReadTheSceneRehearsals extends Effect {
   const ReadTheSceneRehearsals();
+}
+
+final class AskTheFraseAgain extends Effect {
+  const AskTheFraseAgain();
+}
+
+/// The room may have kept the frase whose answer was lost: its list decides.
+final class AskTheFraseAgainAfterTheList extends Effect {
+  const AskTheFraseAgainAfterTheList();
 }
 
 final class ShowTheSceneRehearsals extends Effect {
@@ -1307,6 +1319,13 @@ const _watch = ArmTheWatch();
   TheTellingCameBackEmpty() when machine.station is Retro => (
     machine.copyWith(wordlessTelling: true),
     const [LetThePendingTranslationGo()],
+  ),
+  TheTellingCameBackEmpty(readAgain: true)
+      when machine.station is SceneRehearsal =>
+    (machine, const [AskTheFraseAgainAfterTheList()]),
+  TheTellingCameBackEmpty() when machine.station is SceneRehearsal => (
+    machine,
+    const [AskTheFraseAgain()],
   ),
   TheTellingCameBackEmpty() => (machine, const []),
   TheVerdictAsked() => (machine.copyWith(wordlessTelling: false), const []),

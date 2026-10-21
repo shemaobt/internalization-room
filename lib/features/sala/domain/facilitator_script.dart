@@ -22,6 +22,10 @@ const startLine = 'P0';
 
 const tellLine = 'P1';
 
+/// The third of Marcia's process lines, read by position: start, tell, unheard,
+/// approved. Said when a part recorded again leaves some of the rehearsal still heard.
+const unheardLine = 'P2';
+
 /// The fourth of Marcia's process lines, read by position: start, tell, unheard,
 /// approved. The approval's is the fourth, never rotated.
 const approvedLine = 'P3';
@@ -265,6 +269,10 @@ const sceneRehearsalLabels = {
     'en': 'paused — tap the circle to mark where the sentence ends',
   },
   'ended': {'pt': 'fim do ensaio da cena', 'en': 'end of the scene rehearsal'},
+  'wentToTheVoice': {
+    'pt': 'a tradução do ensaio da cena foi para a voz',
+    'en': 'the translation of the scene rehearsal went to the voice',
+  },
 };
 
 String sceneRehearsalLabelFor(String control, String language, {int? n}) =>

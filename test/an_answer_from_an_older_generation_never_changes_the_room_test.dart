@@ -111,7 +111,10 @@ AnsweringEvent _stampedAnswer(
     generation: generation,
   ),
   ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
-  TheTellingCameBackEmpty() => TheTellingCameBackEmpty(generation: generation),
+  TheTellingCameBackEmpty(:final readAgain) => TheTellingCameBackEmpty(
+    readAgain: readAgain,
+    generation: generation,
+  ),
   TheStepFailed() => TheStepFailed(generation: generation),
   TheResumeFailed() => TheResumeFailed(generation: generation),
   TheSceneTurnFoundNothing() => TheSceneTurnFoundNothing(

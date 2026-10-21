@@ -227,7 +227,7 @@ A recording whose transcription holds no words. On the telling doors the server 
 _Avoid_: empty capture, silence, inaudible take
 
 **Listening ledger** (`escuta das partes`):
-What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. A part recorded again starts its listening over while the others keep theirs, and a part the room has not named yet is left out of the report the tablet sends when the team fires the check.
+What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. It holds only what sounded, on the back-translation and on the rehearsal alike, but for a part stepped over because it was told back whole and a part picked up at its cursor over ground already told, both counted from their start, and entering the back-translation no longer forgets it; leaving the passage does. A part recorded again starts its listening over while the others keep theirs. The tablet reports it to the room as each part ends, when the team leaves the back-translation or the passage, when the app goes to the background, and with the check; a part the room has not named yet is left out of every report. Which parts are unheard is always the room's answer, never counted on the tablet (ADR 0105).
 _Avoid_: `_ouvido`, registro de escuta, played ranges, the concatenated passage, the rehearsal's whole length
 
 **Ruler**:
@@ -309,8 +309,12 @@ The scene the team tapped on the Scene question, read at the tap that starts the
 _Avoid_: scene guess (the classifier's, Observation Room only), sceneId
 
 **Scene frase** (`frase N` on screen):
-One frase of a Scene rehearsal, told in the bridge language: the stretch of the take from the previous pause to this one. It is saved by the room at the stop tap with its place in the take, and numbered on screen by its place in the take.
+One frase of a Scene rehearsal, told in the bridge language: the stretch of the take from the previous pause to this one. It is saved by the room at the stop tap with its place in the take, and numbered on screen by its place in the take. A frase translated again replaces it on screen and for the voice; the replaced one stays with the room as history.
 _Avoid_: piece, trecho, segment (the back-translation's)
+
+**Translating a frase again** (`traduzindo de novo a frase N`):
+The team taps a Scene frase's bar on the translate step: its stretch of the take plays, and the next circle records a new translation of that same stretch, which replaces it. «manter a tradução de antes» gives it up.
+_Avoid_: retell (her code's word), re-record (the retro's «regravar a frase», ENG-1221)
 
 **Scene strip**:
 The scene rehearsal's wordless picture of its take while translating. The loudness of the take is drawn so a silence reads as a valley. Each Scene frase is a band with a tick at its end, the player is a thin line, and the pending pause is a bold line. It carries no words and cannot be tapped.

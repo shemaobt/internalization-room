@@ -17,8 +17,9 @@ import 'motion.dart';
 import 'scene_strip.dart';
 
 /// The translate step, in her order: the instruction, the play control and the hint, the
-/// strip, «traduzir o ensaio da cena» until the team listens, the circle, the frases told,
-/// «terminei», and «gravar o ensaio da cena de novo» under it.
+/// strip, «traduzir o ensaio da cena» until the team listens, the circle, her message
+/// under it and «manter a tradução de antes» while a frase is translated again, the
+/// frases told, «terminei», and «gravar o ensaio da cena de novo» under it.
 class SceneTranslateStep extends ConsumerWidget {
   final SceneScreen scene;
   final Envelope? envelope;
@@ -26,6 +27,7 @@ class SceneTranslateStep extends ConsumerWidget {
   final String language;
   final bool sending;
   final bool sendable;
+  final bool unseen;
 
   const SceneTranslateStep({
     super.key,
@@ -35,6 +37,7 @@ class SceneTranslateStep extends ConsumerWidget {
     required this.language,
     required this.sending,
     required this.sendable,
+    required this.unseen,
   });
 
   @override
@@ -53,6 +56,7 @@ class SceneTranslateStep extends ConsumerWidget {
       1,
       (longest, frase) => max(longest, frase.spanIn(scene.length)),
     );
+    final message = _messageOf(frases);
 
     return SingleChildScrollView(
       child: Column(
@@ -130,6 +134,25 @@ class SceneTranslateStep extends ConsumerWidget {
               color: colors.vermelhoMic,
             ),
           ),
+          if (message != null) ...[
+            const SizedBox(height: 12),
+            Semantics(
+              liveRegion: true,
+              child: _Written(
+                message,
+                style: TextStyle(color: colors.mut, fontSize: 16),
+              ),
+            ),
+          ],
+          if (scene.translatingAgain != null && !unseen) ...[
+            const SizedBox(height: 8),
+            _WrittenButton(
+              said('keepTheEarlier'),
+              live: !scene.waiting && !telling,
+              onTap: notifier.keepTheEarlierTranslation,
+              bare: true,
+            ),
+          ],
           if (frases.isNotEmpty) ...[
             const SizedBox(height: 12),
             for (final (i, frase) in frases.indexed)
@@ -137,16 +160,24 @@ class SceneTranslateStep extends ConsumerWidget {
                 n: i + 1,
                 share: frase.spanIn(scene.length) / longest,
                 words: said('frase', i + 1),
+                translateAgain: said('retellFrase', i + 1),
+                hearMine: said('hearMine', i + 1),
+                live: idle,
                 style: words,
+                onTranslateAgain: () =>
+                    notifier.translateTheFraseAgain(frase.fraseId),
+                onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
               ),
           ],
-          const SizedBox(height: 16),
-          _WrittenButton(
-            said(sending ? 'sending' : 'send'),
-            live: sendable && !sending,
-            onTap: notifier.sendTheSceneRehearsal,
-            large: true,
-          ),
+          if (!scene.wentToTheVoice) ...[
+            const SizedBox(height: 16),
+            _WrittenButton(
+              said(sending ? 'sending' : 'send'),
+              live: sendable && !sending,
+              onTap: notifier.sendTheSceneRehearsal,
+              large: true,
+            ),
+          ],
           const SizedBox(height: 8),
           _WrittenButton(
             said('again'),
@@ -157,6 +188,22 @@ class SceneTranslateStep extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Her line under the circle: the send-off, a frase the room did not understand, or
+  /// the frase being translated again.
+  String? _messageOf(List<SceneFrase> frases) {
+    final again = frases.indexWhere(
+      (frase) => frase.fraseId == scene.translatingAgain?.fraseId,
+    );
+    if (scene.wentToTheVoice) {
+      return sceneRehearsalLabelFor('wentToTheVoice', language);
+    }
+    if (scene.notUnderstood) return retroLabelFor('notUnderstood', language);
+    if (again >= 0) {
+      return sceneRehearsalLabelFor('retelling', language, n: again + 1);
+    }
+    return null;
   }
 
   /// Her hint: the pausa waiting, the take playing with her clock, the end of the take,
@@ -256,53 +303,92 @@ class _WrittenButton extends StatelessWidget {
 }
 
 /// One frase told, as on hers: its number, a bar as long as its stretch against the
-/// longest, and «frase N».
+/// longest that plays its stretch and translates it again, «frase N», and the speaker
+/// that plays the team's translation of it.
 class _FraseBar extends StatelessWidget {
   final int n;
   final double share;
   final String words;
+  final String translateAgain;
+  final String hearMine;
+  final bool live;
   final TextStyle style;
+  final VoidCallback onTranslateAgain;
+  final VoidCallback onHear;
 
   const _FraseBar({
     required this.n,
     required this.share,
     required this.words,
+    required this.translateAgain,
+    required this.hearMine,
+    required this.live,
     required this.style,
+    required this.onTranslateAgain,
+    required this.onHear,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
-    return Semantics(
-      label: words,
-      child: ExcludeSemantics(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(width: 24, child: Text('$n', style: style)),
-              SizedBox(
-                width: 200,
-                height: 10,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: FractionallySizedBox(
-                    widthFactor: share > 0 ? max(0.08, share) : 1,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colors.vermelhoMic.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(5),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            button: true,
+            enabled: live,
+            label: translateAgain,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: live ? onTranslateAgain : null,
+              child: ExcludeSemantics(
+                child: Opacity(
+                  opacity: live ? 1 : 0.35,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(width: 24, child: Text('$n', style: style)),
+                      SizedBox(
+                        width: 200,
+                        height: 10,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: FractionallySizedBox(
+                            widthFactor: share > 0 ? max(0.08, share) : 1,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: colors.vermelhoMic.withValues(
+                                  alpha: 0.6,
+                                ),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Text(words, style: style),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(words, style: style),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(width: 12),
+          RoundActionButton(
+            size: 40,
+            mood: live ? ButtonMood.lit : ButtonMood.dimmed,
+            semanticLabel: hearMine,
+            onTap: onHear,
+            child: Icon(
+              LucideIcons.volume2,
+              size: 18,
+              color: colors.vermelhoMic,
+            ),
+          ),
+        ],
       ),
     );
   }

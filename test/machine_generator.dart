@@ -303,7 +303,8 @@ String describeEvent(MachineEvent event) => switch (event) {
         '${theWaitRanOut ? ', the wait ran out' : ''})',
   TheOpeningMissed() => 'TheOpeningMissed',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
-  TheTellingCameBackEmpty() => 'TheTellingCameBackEmpty',
+  TheTellingCameBackEmpty(:final readAgain) =>
+    'TheTellingCameBackEmpty(readAgain: $readAgain)',
   TheStepFailed() => 'TheStepFailed',
   TheResumeFailed() => 'TheResumeFailed',
   TheSceneTurnFoundNothing() => 'TheSceneTurnFoundNothing',
@@ -765,7 +766,9 @@ MachineEvent _draw(
   ),
   EventKind.theOpeningMissed => const TheOpeningMissed(),
   EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
-  EventKind.theTellingCameBackEmpty => const TheTellingCameBackEmpty(),
+  EventKind.theTellingCameBackEmpty => TheTellingCameBackEmpty(
+    readAgain: random.nextBool(),
+  ),
   EventKind.theStepFailed => const TheStepFailed(),
   EventKind.theResumeFailed => const TheResumeFailed(),
   EventKind.theSceneTurnFoundNothing => const TheSceneTurnFoundNothing(),
