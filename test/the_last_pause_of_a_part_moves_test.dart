@@ -293,7 +293,7 @@ void main() {
         '3200-6600',
         reason: 'a frase tocava até o fim de antes e não até a pausa movida',
       );
-      await tocar(tester, 'Tocar para gravar a tradução de novo');
+      await tocar(tester, 'ouvindo a gravação de vocês…');
       await tocar(tester, 'Tocar ao terminar');
       await waitFor(
         'a frase voltar da sala',
@@ -335,7 +335,7 @@ void main() {
               frase: one.frase,
             ),
         ]);
-      await tocar(tester, 'Tocar para gravar a tradução de novo');
+      await tocar(tester, 'ouvindo a gravação de vocês…');
       await tocar(tester, 'Tocar ao terminar');
       await waitFor(
         'as frases voltarem na gravação que este aparelho não tem',

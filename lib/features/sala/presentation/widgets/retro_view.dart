@@ -727,7 +727,7 @@ class RetroView extends ConsumerWidget {
             language,
           );
         }
-        if (session.btClipRodando) {
+        if (session.btClipRodando || session.btTrechoTocando) {
           return retroLabelFor('listening', language);
         }
         if (session.btTrechoTraduzidoDeNovo == null &&

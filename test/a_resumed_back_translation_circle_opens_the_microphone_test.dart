@@ -20,7 +20,7 @@ const _aPart = Duration(seconds: 30);
 
 /// A tablet reopened into the Back-translation of a one-part rehearsal, told back as far
 /// as [toldUpTo], with the player walking the part the way a real one does.
-Future<(SalaHarness, ProviderContainer)> _reopenedInto(
+Future<(SalaHarness, ProviderContainer)> reopenedInto(
   WidgetTester tester, {
   required int toldUpTo,
 }) async {
@@ -81,7 +81,7 @@ void main() {
     'a resumed Back-translation\'s circle places the pausa on its first tap and opens the Capture on its second only where ground is left to tell',
     () {
       testWidgets('with ground still to tell', (tester) async {
-        final (harness, container) = await _reopenedInto(
+        final (harness, container) = await reopenedInto(
           tester,
           toldUpTo: 12000,
         );
@@ -117,7 +117,7 @@ void main() {
       testWidgets(
         'told up to the end of its last part, it does not invite recording',
         (tester) async {
-          final (harness, container) = await _reopenedInto(
+          final (harness, container) = await reopenedInto(
             tester,
             toldUpTo: _aPart.inMilliseconds,
           );
