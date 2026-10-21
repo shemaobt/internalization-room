@@ -5924,18 +5924,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     switch (await _room.takesOf(sessionId)) {
       case Answered(value: final guardadas):
-        final current = await _asPartesDaSala(
+        switch (await _asPartesDaSala(
           sessionId,
           guardadas,
           state.keptTakes,
           generation,
-        );
-        if (current case Answered(value: final partes?)) {
-          if (_abandoned(generation)) return null;
-          state = state.copyWith(keptTakes: partes);
-          await _medirAsPartes(partes, generation);
+        )) {
+          case Answered(value: final partes?):
+            if (_abandoned(generation)) return null;
+            state = state.copyWith(keptTakes: partes);
+            await _medirAsPartes(partes, generation);
+            return null;
+          case Answered():
+            return null;
+          case final RoomFailure failure:
+            return failure;
         }
-        return current is RoomFailure ? current : null;
       case final RoomFailure failure:
         return failure;
     }
