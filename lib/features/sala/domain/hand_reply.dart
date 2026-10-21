@@ -20,7 +20,15 @@ class HandReply {
 
   bool get offered => !heard && failedPlays < _failedPlaysBeforeSetAside;
 
-  HandReply asHeard() => HandReply(id: id, audioUrl: audioUrl, heard: true);
+  HandReply asHeard() => HandReply(
+    id: id,
+    audioUrl: audioUrl,
+    heard: true,
+    failedPlays: failedPlays,
+  );
+
+  HandReply asUnheard() =>
+      HandReply(id: id, audioUrl: audioUrl, failedPlays: failedPlays);
 
   HandReply asUnsounded() =>
       HandReply(id: id, audioUrl: audioUrl, failedPlays: failedPlays + 1);

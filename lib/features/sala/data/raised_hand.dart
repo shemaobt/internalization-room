@@ -248,28 +248,31 @@ class RaisedHand {
   Future<void> _markHeard(String replyId, {required String audioUrl}) async {
     final generation = host.waitOnTheGeneration;
     host.state = _state.copyWith(
-      replies: _replies(replyId, heard: true),
+      replies: _replies(replyId, (reply) => reply.asHeard()),
       clearPlayingReply: true,
     );
+    final HandReply Function(HandReply) takenBack;
     switch (await inbox().markHeard(replyId, audioUrl: audioUrl)) {
       case Answered():
         return;
+      case final Refused failure:
+        host.decideAt(failure, door: Door.inbox);
+        takenBack = (reply) => reply.asUnsounded();
       case final RoomFailure failure:
         host.decideAt(failure, door: Door.inbox);
+        takenBack = (reply) => reply.asUnheard();
     }
     if (host.abandoned(generation)) return;
-    host.state = _state.copyWith(replies: _replies(replyId, heard: false));
+    host.state = _state.copyWith(replies: _replies(replyId, takenBack));
     unawaited(pull());
   }
 
-  List<HandReply> _replies(String replyId, {required bool heard}) => [
+  List<HandReply> _replies(
+    String replyId,
+    HandReply Function(HandReply) change,
+  ) => [
     for (final reply in _state.replies)
-      if (reply.id != replyId)
-        reply
-      else if (heard)
-        reply.asHeard()
-      else
-        HandReply(id: reply.id, audioUrl: reply.audioUrl),
+      if (reply.id == replyId) change(reply) else reply,
   ];
 
   void cancelQuestion() {

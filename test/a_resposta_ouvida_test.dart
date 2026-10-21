@@ -114,6 +114,21 @@ Future<void> _theTeamTapsTheHand(ProviderContainer container) async {
 int _timesPlayed(SalaHarness harness) =>
     harness.voice.played.where((url) => url == _replyUrl).length;
 
+Future<void> _theTeamHearsTheReplyAndTheDeskRefusesTheMark(
+  _Desk desk,
+  ProviderContainer container,
+) async {
+  final marksBefore = desk.marks;
+  await _theTeamTapsTheHand(container);
+  await waitFor('a mesa recusar a marca', () => desk.marks > marksBefore);
+  await settle();
+}
+
+_Desk _aDeskWithTwoRepliesAndNoMarkAccepted() => _Desk()
+  ..answers = 400
+  ..heard['resposta-2'] = false
+  ..current['resposta-2'] = '/voz/resposta-2';
+
 void main() {
   setUpAll(() {
     dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
@@ -316,7 +331,7 @@ void main() {
     );
 
     desk.current['resposta-1'] = recordedAgain;
-    desk.answers = 500;
+    desk.answers = 400;
     final readsBefore = desk.reads;
     await _theTeamTapsTheHand(container);
     await waitFor(
@@ -410,7 +425,7 @@ void main() {
   );
 
   test('a desk that refuses the mark is not taken as agreement', () async {
-    final desk = _Desk()..answers = 500;
+    final desk = _Desk()..answers = 400;
     final harness = _tabletTalkingTo(desk);
     final container = await _opensTheRoom(desk, harness);
 
@@ -475,6 +490,121 @@ void main() {
       expect(desk.markedUrl, recordedAgain);
     },
   );
+
+  test(
+    'a reply whose heard mark the desk refuses twice is set aside and the next tap plays the newer reply',
+    () async {
+      final desk = _aDeskWithTwoRepliesAndNoMarkAccepted();
+      final harness = _tabletTalkingTo(desk);
+      final container = await _opensTheRoom(desk, harness);
+
+      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
+      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
+      expect(_timesPlayed(harness), 2);
+
+      await _theTeamTapsTheHand(container);
+      expect(
+        harness.voice.played.last,
+        '/voz/resposta-2',
+        reason:
+            'a resposta cuja marca a mesa recusou duas vezes seguia na mão, '
+            'presa na frente da que veio depois',
+      );
+      expect(_timesPlayed(harness), 2);
+    },
+  );
+
+  test(
+    'a reply whose heard mark the desk refuses twice is set aside and the next tap arms note mode when no other reply waits',
+    () async {
+      final desk = _Desk()..answers = 400;
+      final harness = _tabletTalkingTo(desk);
+      final container = await _opensTheRoom(desk, harness);
+
+      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
+      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
+
+      await _theTeamTapsTheHand(container);
+      expect(
+        _timesPlayed(harness),
+        2,
+        reason: 'a sala tocou pela terceira vez a resposta que a mesa recusa',
+      );
+      expect(
+        container.read(salaSessionProvider).noteMode,
+        isTrue,
+        reason: 'a equipe não conseguia levantar uma pergunta nova',
+      );
+      expect(desk.heard['resposta-1'], isFalse);
+    },
+  );
+
+  test(
+    'one failed sound then one refused heard mark on the same reply set it aside',
+    () async {
+      final desk = _Desk()..answers = 400;
+      final harness = _tabletTalkingTo(desk)..voice.succeeds = false;
+      final container = await _opensTheRoom(desk, harness);
+
+      await _theTeamTapsTheHand(container);
+      expect(desk.marks, 0);
+      harness.voice.succeeds = true;
+      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
+
+      await _theTeamTapsTheHand(container);
+      expect(
+        _timesPlayed(harness),
+        2,
+        reason: 'a falha de som e a marca recusada somavam duas e não bastavam',
+      );
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+    },
+  );
+
+  test(
+    'a relaunch after a set-aside offers the reply again and it needs two failures again',
+    () async {
+      final desk = _Desk()..answers = 400;
+      final harness = _tabletTalkingTo(desk);
+      final container = await _opensTheRoom(desk, harness);
+      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
+      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
+      expect(container.read(salaSessionProvider).hasUnheardReply, isFalse);
+
+      final again = await _opensTheRoom(desk, harness);
+      expect(
+        again.read(salaSessionProvider).oldestUnheardReply?.id,
+        'resposta-1',
+        reason: 'a reabertura devia oferecer de novo a resposta posta de lado',
+      );
+
+      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, again);
+      expect(
+        again.read(salaSessionProvider).oldestUnheardReply?.id,
+        'resposta-1',
+        reason: 'uma única recusa depois da reabertura já a punha de lado',
+      );
+    },
+  );
+
+  test('a heard mark that never reaches the desk counts nothing', () async {
+    final desk = _Desk()..unreachable = true;
+    final harness = _tabletTalkingTo(desk);
+    final container = await _opensTheRoom(desk, harness);
+
+    for (var taps = 0; taps < 3; taps++) {
+      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
+    }
+
+    expect(
+      container.read(salaSessionProvider).oldestUnheardReply?.id,
+      'resposta-1',
+      reason:
+          'uma marca que não chegou à mesa não foi recusada por ela: a rede '
+          'fora não põe a resposta de lado',
+    );
+    expect(_timesPlayed(harness), 3);
+  });
 
   test('a reply the desk agrees was heard is never played again', () async {
     final desk = _Desk();
