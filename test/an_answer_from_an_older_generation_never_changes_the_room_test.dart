@@ -56,7 +56,6 @@ AnsweringEvent _stampedAnswer(
       owner: owner,
       generation: generation,
     ),
-  NothingReplayed() => NothingReplayed(generation: generation),
   TheSessionIsGone() => TheSessionIsGone(generation: generation),
   ThePassageClosed() => ThePassageClosed(generation: generation),
   WatchFired() => WatchFired(generation: generation),

@@ -101,7 +101,7 @@ abstract interface class StationHost {
 
   void hearTheLineLetGo();
 
-  /// The Station waits again on a look the lift of a halt resumed.
+  /// The Station waits again on a look the team's tap resumed.
   void hearTheWaitResumed();
 
   /// The Station takes the hand-offs the sign held back, once the team's tap cleared it.

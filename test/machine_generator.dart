@@ -272,7 +272,6 @@ String describeEvent(MachineEvent event) => switch (event) {
     'Interrupted(at: ${cut.at.inMilliseconds}ms, of: ${cut.of?.inMilliseconds}ms)',
   GestureStarted(:final gesture) => 'GestureStarted($gesture)',
   GestureEnded(:final gesture) => 'GestureEnded($gesture)',
-  NothingReplayed() => 'NothingReplayed',
   LineNotSaid(:final line) => 'LineNotSaid(${describeLine(line)})',
   StepLeft() => 'StepLeft',
   LeftThePassage() => 'LeftThePassage',
@@ -413,7 +412,6 @@ enum EventKind {
   interrupted,
   gestureStarted,
   gestureEnded,
-  nothingReplayed,
   lineNotSaid,
   stepLeft,
   leftThePassage,
@@ -487,7 +485,6 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   Interrupted() => EventKind.interrupted,
   GestureStarted() => EventKind.gestureStarted,
   GestureEnded() => EventKind.gestureEnded,
-  NothingReplayed() => EventKind.nothingReplayed,
   LineNotSaid() => EventKind.lineNotSaid,
   StepLeft() => EventKind.stepLeft,
   LeftThePassage() => EventKind.leftThePassage,
@@ -564,7 +561,6 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.interrupted ||
   EventKind.gestureStarted ||
   EventKind.gestureEnded ||
-  EventKind.nothingReplayed ||
   EventKind.lineNotSaid ||
   EventKind.stepLeft ||
   EventKind.leftThePassage ||
@@ -721,7 +717,6 @@ MachineEvent _draw(
   ),
   EventKind.gestureStarted => GestureStarted(random.nextInt(3)),
   EventKind.gestureEnded => GestureEnded(random.nextInt(3)),
-  EventKind.nothingReplayed => const NothingReplayed(),
   EventKind.lineNotSaid => LineNotSaid(
     Line(
       LineKind.values[random.nextInt(LineKind.values.length)],

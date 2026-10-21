@@ -39,7 +39,6 @@ final class TheAnswerWarned extends AnsweringEvent {
   const TheAnswerWarned({super.generation});
 }
 
-/// The team's tap on the person sign: the only way out of it (ADR 0107).
 final class TeamTapped extends MachineEvent {
   const TeamTapped();
 }
@@ -220,10 +219,6 @@ final class GestureEnded extends MachineEvent {
   final int gesture;
 
   const GestureEnded(this.gesture);
-}
-
-final class NothingReplayed extends AnsweringEvent {
-  const NothingReplayed({super.generation});
 }
 
 final class LineNotSaid extends AnsweringEvent {
@@ -414,7 +409,6 @@ final class LookEmpty extends AnsweringEvent {
   });
 }
 
-/// The look itself failed: no network, or a device the room refused.
 final class LookFailed extends AnsweringEvent {
   final Turn turn;
   final RoomResult result;
@@ -544,7 +538,6 @@ final class ReadTheState extends Effect {
   const ReadTheState();
 }
 
-/// The sign is cleared: the Station takes the hand-offs a halt held back.
 final class GoOnAfterTheSign extends Effect {
   const GoOnAfterTheSign();
 }
@@ -915,7 +908,7 @@ final class TheLook {
   /// The look went out: false for a turn given up under a halt.
   final bool asked;
 
-  /// A halt, or the room out of reach after its lift, holds the look back.
+  /// A halt, or the room out of reach after the tap on it, holds the look back.
   final bool suspended;
 
   const TheLook(
@@ -971,7 +964,7 @@ final class Machine {
   final Kept keptInFlight;
 
   /// The turn the one look reads, from its give-up until the look is decided. A halt
-  /// suspends it and its lift resumes it.
+  /// suspends it and the team's tap resumes it.
   final TheLook? look;
 
   final LineOutcome? lastLine;
@@ -1184,7 +1177,6 @@ const _watch = ArmTheWatch();
   GestureEnded(:final gesture) => _drain(
     machine.copyWith(onTheirWay: {...machine.onTheirWay}..remove(gesture)),
   ),
-  NothingReplayed() => _drain(machine),
   LineNotSaid(:final line, :final because) => _answer(
     machine,
     line,
@@ -1262,32 +1254,19 @@ const _watch = ArmTheWatch();
         LookAgain(turn, sounding: machine.look!.sounding),
     ],
   ),
-  LookEmpty(
-    sounding: final sounding && (TheOpening() || TheLineSaidAgain()),
-    :final theWaitRanOut,
-  ) =>
-    (
-      machine.copyWith(forgetTheLook: true),
-      [
-        if (sounding is TheLineSaidAgain)
-          const LetTheLineGo()
-        else
-          const LetTheOpeningGo(),
-        if (theWaitRanOut) const StopLooking(),
-      ],
-    ),
+  LookEmpty(sounding: final sounding && (TheOpening() || TheLineSaidAgain())) ||
   LookFailed(
     sounding: final sounding && (TheOpening() || TheLineSaidAgain()),
-  ) =>
-    (
-      machine.copyWith(forgetTheLook: true),
-      [
-        if (sounding is TheLineSaidAgain)
-          const LetTheLineGo()
-        else
-          const LetTheOpeningGo(),
-      ],
-    ),
+  ) => (
+    machine.copyWith(forgetTheLook: true),
+    [
+      if (sounding is TheLineSaidAgain)
+        const LetTheLineGo()
+      else
+        const LetTheOpeningGo(),
+      if (event case LookEmpty(theWaitRanOut: true)) const StopLooking(),
+    ],
+  ),
   LookFailed(:final turn, :final result, :final sounding) => reduce(
     machine.copyWith(forgetTheLook: true),
     FailurePolicy.decide(
@@ -1890,10 +1869,10 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
     );
   }
   if (halt is! Blocking && machine.halt is Blocking) {
-    final (lifted, resumed) = _resumeTheLook(
+    final (rested, resumed) = _resumeTheLook(
       next.copyWith(forgetTheFailures: true),
     );
-    return _drain(lifted, [...effects, ...resumed]);
+    return _drain(rested, [...effects, ...resumed]);
   }
   return (next, effects);
 }
@@ -2098,7 +2077,6 @@ Machine _answered(Machine machine) =>
       Interrupted() ||
       GestureStarted() ||
       GestureEnded() ||
-      NothingReplayed() ||
       LineNotSaid() ||
       StepLeft() ||
       LeftThePassage() ||

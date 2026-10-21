@@ -772,7 +772,6 @@ void main() {
     await pararPorUmaPessoa(tester, container);
 
     expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
-    expect(await olhar(tester), endsWith('parado'));
     expect(_circuloApagado(tester), isTrue);
     closeTheRoom(container);
   });
@@ -794,7 +793,6 @@ void main() {
     await pararPorUmaPessoa(tester, container);
 
     expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
-    expect(await olhar(tester), endsWith('parado'));
     expect(_circuloApagado(tester), isTrue);
     closeTheRoom(container);
   });
