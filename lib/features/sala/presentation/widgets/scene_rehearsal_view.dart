@@ -118,6 +118,7 @@ class SceneRehearsalView extends ConsumerWidget {
                 language: language,
                 sending: sending,
                 sendable: sendable,
+                unseen: session.sceneTranslationUnseen,
               ),
               SceneStep.placesUnknown => Semantics(
                 label: said('placesUnknown'),

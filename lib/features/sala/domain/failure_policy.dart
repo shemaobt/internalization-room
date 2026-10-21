@@ -118,6 +118,14 @@ abstract final class FailurePolicy {
 
   static const _theHandsDoors = {Door.question, Door.inbox, Door.reply};
 
+  static const _theSceneDoors = {Door.sceneRehearsal, Door.sceneFrase};
+
+  /// The refusals at the frase door that say nothing of the frase itself.
+  static const _theFraseIsNotRefused = {
+    RefusalCode.sceneRehearsalSending,
+    RefusalCode.fraseOutOfPlace,
+  };
+
   static MachineEvent decide(RoomResult result, FailureContext context) {
     final generation = context.generation;
     final sounding = context.sounding;
@@ -138,14 +146,24 @@ abstract final class FailurePolicy {
       _ when context.door == Door.sceneList => TheScenesMissed(
         generation: generation,
       ),
+      RoomNetworkFailed() || RoomRefused(code: RefusalCode.unreadable)
+          when context.door == Door.sceneFrase &&
+              rule == RefusalRule.readsTheListAgain =>
+        TheTellingCameBackEmpty(readAgain: true, generation: generation),
+      RoomNetworkFailed() when context.door == Door.sceneFrase =>
+        TheTellingCameBackEmpty(generation: generation),
       RoomRefused(
         code: RefusalCode.sceneRehearsalSent ||
             RefusalCode.restartOutOfOrder ||
             RefusalCode.notFound,
       )
-          when context.door == Door.sceneRehearsal =>
+          when _theSceneDoors.contains(context.door) =>
         TheSceneDoorFailed(readAgain: true, generation: generation),
-      RoomRefused() when context.door == Door.sceneRehearsal =>
+      RoomRefused(:final code)
+          when context.door == Door.sceneFrase &&
+              !_theFraseIsNotRefused.contains(code) =>
+        TheTellingCameBackEmpty(generation: generation),
+      RoomRefused() when _theSceneDoors.contains(context.door) =>
         TheSceneDoorFailed(
           readAgain: rule == RefusalRule.readsTheListAgain,
           generation: generation,

@@ -2137,6 +2137,38 @@ void main() {
       expect(body, isNot(contains('name="after_restart"')));
     });
 
+    for (final (named, replaces) in [
+      ('a frase translated again names the frase it replaces', 'frase-3'),
+      ('a new frase names nothing it replaces', null),
+    ]) {
+      test(named, () async {
+        late String body;
+        final repository = RoomRepository(
+          client: MockClient((request) async {
+            body = request.body;
+            return http.Response(jsonEncode(record()), 200);
+          }),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        await repository.keepTheSceneFrase(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          await _tempRecording(),
+          startsMs: 9000,
+          endsMs: 13000,
+          replaces: replaces,
+        );
+
+        if (replaces == null) {
+          expect(body, isNot(contains('name="replaces"')));
+        } else {
+          expect(body, contains('name="replaces"\r\n\r\n$replaces\r\n'));
+        }
+      });
+    }
+
     test('the two 409 codes come back as refusals naming them', () async {
       for (final code in [
         RefusalCode.sceneRehearsalSent,

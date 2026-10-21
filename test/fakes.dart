@@ -1631,6 +1631,9 @@ class FakeRoom implements RoomRepository {
   /// What the next keeps answer, one each, before [failSceneWith] is read.
   final List<RoomFailure> sceneAnswersFirst = [];
 
+  /// What the next reads of the scene rehearsals' list answer, one each.
+  final List<RoomFailure> sceneListsAnswerFirst = [];
+
   /// The code a restart is refused with, when it is set.
   String? refuseRestartWith;
 
@@ -1679,6 +1682,9 @@ class FakeRoom implements RoomRepository {
     String sessionId,
   ) async {
     if (_guard('sceneRehearsalsOf') case final failure?) return failure;
+    if (sceneListsAnswerFirst.isNotEmpty) {
+      return sceneListsAnswerFirst.removeAt(0);
+    }
     final listed = List.of(sceneRehearsals);
     if (_holdTheNextSceneList) {
       _holdTheNextSceneList = false;
@@ -1794,9 +1800,16 @@ class FakeRoom implements RoomRepository {
     return Answered(restarted);
   }
 
-  /// Every frase this room was sent: its span, the attempt it names and its audio.
+  /// Every frase this room was sent: its span, the attempt it names, its audio and the
+  /// frase it replaces.
   final List<
-    ({int startsMs, int endsMs, String? afterRestart, Uint8List audio})
+    ({
+      int startsMs,
+      int endsMs,
+      String? afterRestart,
+      Uint8List audio,
+      String? replaces,
+    })
   >
   frasesKept = [];
 
@@ -1829,6 +1842,7 @@ class FakeRoom implements RoomRepository {
     required int startsMs,
     required int endsMs,
     String? afterRestart,
+    String? replaces,
   }) async {
     if (_guard('keepTheSceneFrase') case final failure?) return failure;
     final bytes = audio.readAsBytesSync();
@@ -1837,11 +1851,18 @@ class FakeRoom implements RoomRepository {
       endsMs: endsMs,
       afterRestart: afterRestart,
       audio: bytes,
+      replaces: replaces,
     ));
     await _holdingFrase?.future;
     if (_oneFraseHolds.isNotEmpty) await _oneFraseHolds.removeAt(0).future;
     for (final late in _frasesLandingLate) {
-      _keepAFrase(late.rehearsalId, late.bytes, late.startsMs, late.endsMs);
+      _keepAFrase(
+        late.rehearsalId,
+        late.bytes,
+        late.startsMs,
+        late.endsMs,
+        late.replaces,
+      );
     }
     _frasesLandingLate.clear();
     if (forgottenSessions.contains(sessionId)) {
@@ -1856,20 +1877,38 @@ class FakeRoom implements RoomRepository {
         bytes: bytes,
         startsMs: startsMs,
         endsMs: endsMs,
+        replaces: replaces,
       ));
       return lost;
     }
     if (lost != null && !frasesLandBeforeTheyFail) return lost;
-    final kept = _keepAFrase(rehearsalId, bytes, startsMs, endsMs);
+    final kept = _keepAFrase(rehearsalId, bytes, startsMs, endsMs, replaces);
     return lost ?? kept;
   }
 
-  /// The room's rule: the same bytes are the same frase, whatever their span.
+  /// The newest frase of the chain [replaces] begins, as the room resolves a frase that
+  /// names one already replaced.
+  static String? _theNewestOf(String? replaces, List<SceneFrase> frases) {
+    var head = replaces;
+    while (true) {
+      final next = frases
+          .where((frase) => frase.fraseId == head)
+          .firstOrNull
+          ?.replacedBy;
+      if (next == null) return head;
+      head = next;
+    }
+  }
+
+  /// The room's rule: the same bytes are the same frase, whatever their span. A frase
+  /// that names the one it replaces may lie over the newest of its chain, and the
+  /// replaced one stays as history.
   RoomAnswer<SceneRehearsalRecord> _keepAFrase(
     String rehearsalId,
     Uint8List bytes,
     int startsMs,
     int endsMs,
+    String? replaces,
   ) {
     final at = sceneRehearsals.indexWhere(
       (rehearsal) => rehearsal.rehearsalId == rehearsalId,
@@ -1880,11 +1919,13 @@ class FakeRoom implements RoomRepository {
       final heard = _fraseBytes[frase.fraseId];
       if (heard != null && _sameBytes(heard, bytes)) return Answered(old);
     }
+    final head = _theNewestOf(replaces, old.frases);
     final measured = old.durationMs;
     final overlaps =
         refusesOverlappingFrases &&
         old.currentFrases.any(
           (frase) =>
+              frase.fraseId != head &&
               frase.placedIn(const Duration(days: 1)) &&
               startsMs < frase.endsMs! &&
               endsMs > frase.startsMs!,
@@ -1907,7 +1948,15 @@ class FakeRoom implements RoomRepository {
       afterRestart: old.afterRestart,
       durationMs: old.durationMs,
       frases: [
-        ...old.frases,
+        for (final frase in old.frases)
+          frase.fraseId == head
+              ? SceneFrase(
+                  fraseId: frase.fraseId,
+                  startsMs: frase.startsMs,
+                  endsMs: frase.endsMs,
+                  replacedBy: fraseId,
+                )
+              : frase,
         SceneFrase(fraseId: fraseId, startsMs: startsMs, endsMs: endsMs),
       ],
     );
@@ -1925,7 +1974,15 @@ class FakeRoom implements RoomRepository {
 
   final Map<String, Uint8List> _fraseBytes = {};
 
-  final List<({String rehearsalId, Uint8List bytes, int startsMs, int endsMs})>
+  final List<
+    ({
+      String rehearsalId,
+      Uint8List bytes,
+      int startsMs,
+      int endsMs,
+      String? replaces,
+    })
+  >
   _frasesLandingLate = [];
 
   /// Whether a frase whose answer fails was kept by the room all the same, the way a

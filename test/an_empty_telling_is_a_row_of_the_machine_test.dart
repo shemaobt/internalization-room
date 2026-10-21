@@ -18,17 +18,37 @@ void main() {
     expect(effects, const [LetThePendingTranslationGo()]);
   });
 
-  test(
-    'An empty telling anywhere but the Back-translation changes nothing.',
-    () {
-      const onTheCanvas = Machine(station: Canvas());
+  test('An empty telling on the Canvas changes nothing.', () {
+    const onTheCanvas = Machine(station: Canvas());
 
-      final (machine, effects) = reduce(onTheCanvas, _empty);
+    final (machine, effects) = reduce(onTheCanvas, _empty);
 
-      expect(machine, same(onTheCanvas));
-      expect(effects, isEmpty);
-    },
-  );
+    expect(machine, same(onTheCanvas));
+    expect(effects, isEmpty);
+  });
+
+  test('An empty telling in the scene rehearsal asks the frase again and '
+      'changes nothing else.', () {
+    const onTheScene = Machine(station: SceneRehearsal());
+
+    final (machine, effects) = reduce(onTheScene, _empty);
+
+    expect(machine, same(onTheScene));
+    expect(effects, const [AskTheFraseAgain()]);
+  });
+
+  test('An empty telling in the scene rehearsal that reads the list again asks '
+      'the frase again after the list.', () {
+    const onTheScene = Machine(station: SceneRehearsal());
+
+    final (machine, effects) = reduce(
+      onTheScene,
+      const TheTellingCameBackEmpty(readAgain: true),
+    );
+
+    expect(machine, same(onTheScene));
+    expect(effects, const [AskTheFraseAgainAfterTheList()]);
+  });
 
   test('The capture microphone opening clears her line.', () {
     final (machine, _) = reduce(
