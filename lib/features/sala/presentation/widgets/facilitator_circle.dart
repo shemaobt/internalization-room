@@ -67,12 +67,9 @@ class FacilitatorCircle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final underTheSign = halt is Blocking;
-    return IgnorePointer(
-      ignoring: underTheSign,
-      child: ExcludeSemantics(
-        excluding: underTheSign,
-        child: _circle(context, underTheSign ? 0 : opacity),
-      ),
+    return ExcludeSemantics(
+      excluding: underTheSign,
+      child: _circle(context, underTheSign ? 0 : opacity),
     );
   }
 

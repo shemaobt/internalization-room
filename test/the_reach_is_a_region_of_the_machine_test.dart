@@ -175,7 +175,7 @@ void main() {
     expect(effects, contains(const CancelTheRetry()));
   });
 
-  test('a lifted halt resends nothing', () {
+  test('a tapped sign resends nothing', () {
     final (_, returned) = reduce(
       _outOfReach.copyWith(halt: const Blocking()),
       const NetworkReturned(),

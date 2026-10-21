@@ -1305,6 +1305,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final (machine, effects) = reduce(before, event);
     final leavesTheScene =
         before.station is SceneRehearsal && machine.station is! SceneRehearsal;
+    if (machine.halt is Blocking && before.halt is! Blocking) {
+      _anotarOQueFoiOuvido();
+    }
     state = state.copyWith(
       machine: machine,
       reach: !before.reachable && machine.reachable ? RoomReach.fine : null,

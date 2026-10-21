@@ -104,8 +104,8 @@ Future<void> _pumpCirculo(
   ),
 );
 
-/// Whether the circle drew one of the glyphs a halted state wears — the userCheck,
-/// the cloudOff/serverOff, or the micOff — the mark a warning must never cover.
+/// Whether the circle drew one of the glyphs a halted state wears — the cloudOff/
+/// serverOff, or the micOff — the mark a warning must never cover.
 bool _haltedGlyph(WidgetTester tester) => tester
     .widgetList<Icon>(
       find.descendant(
@@ -115,7 +115,6 @@ bool _haltedGlyph(WidgetTester tester) => tester
     )
     .any(
       (marca) => const [
-        LucideIcons.userCheck,
         LucideIcons.cloudOff,
         LucideIcons.serverOff,
         LucideIcons.micOff,

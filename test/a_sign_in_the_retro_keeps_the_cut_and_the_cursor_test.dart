@@ -48,7 +48,7 @@ Future<(ProviderContainer, String)> _reopensIntoRetro(
 
 /// A room reopened into the retro, warned but not yet blocked, with the resumed part
 /// already playing — the ground most of this file measures. The cursor starts at
-/// nought: only T1 and T3 need it pinned elsewhere, and do that themselves.
+/// nought.
 Future<
   (ProviderContainer, SalaSessionNotifier, SalaSessionState Function(), String)
 >
@@ -211,6 +211,30 @@ void main() {
     },
   );
 
+  test('a sign raised while the part sounds keeps where the part reached, and '
+      'listening after the tap resumes there', () async {
+    final harness = SalaHarness();
+    final (_, notifier, read, path) =
+        await _playingWithAToldStretchAndAWarningArmed(harness);
+    harness.playback.at = const Duration(milliseconds: 15000);
+
+    await _haltLandsBlocking(notifier, read);
+    await _liftsTheHalt(notifier, read);
+    final playsBefore = harness.playback.playedFrom.length;
+    notifier.ouvirGravacao();
+    await waitFor(
+      'a parte voltar a tocar',
+      () => harness.playback.playedFrom.length > playsBefore,
+    );
+
+    expect(harness.playback.played.last, path);
+    expect(
+      harness.playback.playedFrom.last,
+      const Duration(milliseconds: 15000),
+      reason: 'de onde a parte tinha chegado, como a pausa da equipe',
+    );
+  });
+
   test('T4: while the halt stands, nothing sounds', () async {
     final harness = SalaHarness();
     final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
@@ -304,7 +328,7 @@ void main() {
     );
   });
 
-  test('T9: a halt landing after a cut and a pending translation, lifted '
+  test('T9: a halt landing after a cut and a pending translation, tapped away '
       'before the confirm, sends the cut the team actually made', () async {
     final harness = SalaHarness();
     final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
@@ -323,7 +347,7 @@ void main() {
     expect(harness.room.chunkSpans, ['0-4000']);
   });
 
-  test('T10: a halt landing and lifted while the confirm itself is still in '
+  test('T10: a halt landing and tapped away while the confirm itself is still in '
       'flight does not touch the cursor or the cut waiting on it', () async {
     final harness = SalaHarness();
     final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);

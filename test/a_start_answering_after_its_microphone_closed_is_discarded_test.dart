@@ -129,7 +129,7 @@ void main() {
       expect(read().partes, hasLength(partsBefore));
     });
 
-    test('a blocking halt is lifted', () async {
+    test('a blocking halt is cleared by the tap', () async {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 3));
       final container = await _inTheRehearsalWithAWarning(harness);
       final notifier = container.read(salaSessionProvider.notifier);

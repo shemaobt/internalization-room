@@ -142,7 +142,7 @@ void main() {
     );
   });
 
-  test('after the lift, the check sends nothing', () async {
+  test('after the tap, the check sends nothing', () async {
     final harness = SalaHarness();
     final (container, notifier, read) = await _capturingWithAWarningArmed(
       harness,
@@ -167,7 +167,7 @@ void main() {
     expect(harness.room.chunksSent, chunksBefore);
   });
 
-  test('after the lift, the circle opens a fresh capture', () async {
+  test('after the tap, the circle opens a fresh capture', () async {
     final harness = SalaHarness();
     final (container, notifier, read) = await _capturingWithAWarningArmed(
       harness,

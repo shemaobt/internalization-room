@@ -126,7 +126,7 @@ void main() {
   });
 
   test('an older read that says blocking never halts again a room a newer '
-      'read lifted', () async {
+      'tap cleared', () async {
     final harness = _beating();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -149,7 +149,7 @@ void main() {
     expect(
       halts,
       everyElement(isFalse),
-      reason: 'a leitura velha diz o que a mesa já desfez',
+      reason: 'a leitura velha diz o que o toque já desfez',
     );
   });
 

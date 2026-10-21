@@ -144,36 +144,39 @@ void main() {
     },
   );
 
-  testWidgets('after a lift over an open microphone, the way out is there and '
-      'answers a tap', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = harness.container();
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SalaApp()),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.goConversa(book: 'Ruth');
-    await tester.pump(const Duration(milliseconds: 300));
+  testWidgets(
+    'after a tap on the sign over an open microphone, the way out is there and '
+    'answers a tap',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = harness.container();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const SalaApp()),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.goConversa(book: 'Ruth');
+      await tester.pump(const Duration(milliseconds: 300));
 
-    notifier.conversaTap();
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(harness.recorder.captures, 1, reason: 'o microfone abriu');
+      notifier.conversaTap();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(harness.recorder.captures, 1, reason: 'o microfone abriu');
 
-    notifier.haltForABrokenBuild();
-    await tester.pump(const Duration(milliseconds: 100));
-    notifier.teamTapped();
-    await tester.pump(const Duration(milliseconds: 500));
+      notifier.haltForABrokenBuild();
+      await tester.pump(const Duration(milliseconds: 100));
+      notifier.teamTapped();
+      await tester.pump(const Duration(milliseconds: 500));
 
-    expect(harness.recorder.deleted, hasLength(1), reason: 'descartado');
-    await tester.tap(byLabel('Escolher outra passagem'));
-    await tester.pump(const Duration(milliseconds: 500));
+      expect(harness.recorder.deleted, hasLength(1), reason: 'descartado');
+      await tester.tap(byLabel('Escolher outra passagem'));
+      await tester.pump(const Duration(milliseconds: 500));
 
-    expect(
-      container.read(salaSessionProvider).stage,
-      SalaStage.escolha,
-      reason: 'a saída respondeu ao toque',
-    );
-  });
+      expect(
+        container.read(salaSessionProvider).stage,
+        SalaStage.escolha,
+        reason: 'a saída respondeu ao toque',
+      );
+    },
+  );
 }

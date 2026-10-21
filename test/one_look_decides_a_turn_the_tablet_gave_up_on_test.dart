@@ -230,7 +230,7 @@ void main() {
   );
 
   test(
-    'an opening given up under a standing halt is looked at after the lift and heard once, and no second opening is asked',
+    'an opening given up under a standing halt is looked at after the tap and heard once, and no second opening is asked',
     () async {
       final harness = SalaHarness();
       harness.room
@@ -273,7 +273,7 @@ void main() {
   );
 
   test(
-    'an opening refused under a standing halt is let go, and the lift asks nothing',
+    'an opening refused under a standing halt is let go, and the tap asks nothing',
     () async {
       final harness = SalaHarness()..room.holdNextTurn();
       final container = harness.container();

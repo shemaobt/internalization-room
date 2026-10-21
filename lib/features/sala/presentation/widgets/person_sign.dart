@@ -6,23 +6,50 @@ import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import 'shema_mark.dart';
 
-class PersonSign extends ConsumerWidget {
+class PersonSign extends ConsumerStatefulWidget {
   const PersonSign({super.key});
 
-  static const _wash = Color.fromRGBO(137, 170, 163, .16);
+  @override
+  ConsumerState<PersonSign> createState() => _PersonSignState();
+}
+
+class _PersonSignState extends ConsumerState<PersonSign>
+    with SingleTickerProviderStateMixin {
+  late final _fade = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+    value: ref.read(salaSessionProvider).needsPerson ? 1 : 0,
+  );
+  late final _opacity = CurvedAnimation(parent: _fade, curve: Curves.ease);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void dispose() {
+    _opacity.dispose();
+    _fade.dispose();
+    super.dispose();
+  }
+
+  void _tapped() {
+    if (_fade.isCompleted) ref.read(salaSessionProvider.notifier).teamTapped();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final shown = ref.watch(
       salaSessionProvider.select((session) => session.needsPerson),
     );
+    ref.listen(
+      salaSessionProvider.select((session) => session.needsPerson),
+      (_, now) => now ? _fade.forward() : _fade.reverse(),
+    );
+    final colors = SalaColors.of(context);
     return Positioned.fill(
-      child: IgnorePointer(
-        ignoring: !shown,
-        child: AnimatedOpacity(
-          opacity: shown ? 1 : 0,
-          duration: const Duration(milliseconds: 1600),
-          curve: Curves.ease,
+      child: AnimatedBuilder(
+        animation: _fade,
+        builder: (context, sign) =>
+            IgnorePointer(ignoring: _fade.isDismissed, child: sign),
+        child: FadeTransition(
+          opacity: _opacity,
           child: Semantics(
             button: shown,
             label: shown
@@ -30,17 +57,21 @@ class PersonSign extends ConsumerWidget {
                 : null,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: ref.read(salaSessionProvider.notifier).teamTapped,
-              child: const ColoredBox(
-                color: _wash,
+              onTap: _tapped,
+              child: ColoredBox(
+                color: colors.personSignWash,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    ShemaMark(size: 76, opacity: 0.8),
-                    SizedBox(height: 26),
+                    const ShemaMark(size: 76, opacity: 0.8),
+                    const SizedBox(height: 26),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: [_Figure(), SizedBox(width: 14), _Figure()],
+                      children: [
+                        _Figure(colors.shemaMark),
+                        const SizedBox(width: 14),
+                        _Figure(colors.shemaMark),
+                      ],
                     ),
                   ],
                 ),
@@ -54,12 +85,13 @@ class PersonSign extends ConsumerWidget {
 }
 
 class _Figure extends StatelessWidget {
-  const _Figure();
+  final Color color;
 
-  static const _line = BorderSide(color: ShemaBrand.verde, width: 1.4);
+  const _Figure(this.color);
 
   @override
   Widget build(BuildContext context) {
+    final line = BorderSide(color: color, width: 1.4);
     return Opacity(
       opacity: 0.5,
       child: SizedBox(
@@ -70,22 +102,22 @@ class _Figure extends StatelessWidget {
           alignment: Alignment.topCenter,
           children: [
             Container(
-              decoration: const BoxDecoration(
-                border: Border.fromBorderSide(_line),
-                borderRadius: BorderRadius.vertical(
+              decoration: BoxDecoration(
+                border: Border.fromBorderSide(line),
+                borderRadius: const BorderRadius.vertical(
                   top: Radius.elliptical(17, 20.4),
                   bottom: Radius.elliptical(17, 13.6),
                 ),
               ),
             ),
             Positioned(
-              top: _line.width - 9,
+              top: line.width - 9,
               child: Container(
                 width: 14,
                 height: 14,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.fromBorderSide(_line),
+                  border: Border.fromBorderSide(line),
                 ),
               ),
             ),

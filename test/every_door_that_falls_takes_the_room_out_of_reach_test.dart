@@ -489,7 +489,7 @@ void main() {
   });
 
   test('8: a take closed while the network is gone is never sent again, not '
-      'when the network returns nor when the sign lifts', () async {
+      'when the network returns nor when the sign is tapped away', () async {
     final harness = SalaHarness(
       watchesWithoutAHalt: true,
       settleDelay: const Duration(milliseconds: 60),

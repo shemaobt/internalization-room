@@ -348,7 +348,7 @@ void main() {
     },
   );
 
-  group('a halt suspends the look, and its lift resumes it', () {
+  group('a halt suspends the look, and the team\'s tap resumes it', () {
     const ceiling = Duration(seconds: 30);
     void lift(_Room it) {
       it.sala.teamTapped();
@@ -416,7 +416,7 @@ void main() {
     });
 
     group(
-      'a turn given up under the halt makes its first look after the lift',
+      'a turn given up under the halt makes its first look after the tap',
       () {
         void halted(
           void Function(FakeRoom) arrange,
@@ -495,7 +495,7 @@ void main() {
     );
 
     test(
-      'a team reply the first look found under the halt plays once after the lift',
+      'a team reply the first look found under the halt plays once after the tap',
       () {
         _aTakeTheNetworkLoses(
           (room) => room
@@ -522,7 +522,7 @@ void main() {
     );
 
     test(
-      'an Opening the first look found under the halt is heard once after the lift',
+      'an Opening the first look found under the halt is heard once after the tap',
       () {
         _anOpeningTheNetworkLoses(
           (room) => room
@@ -551,7 +551,7 @@ void main() {
   });
 
   group(
-    'a halt longer than the busy watchdog owns the wait, and the room rests after the lift',
+    'a halt longer than the busy watchdog owns the wait, and the room rests after the tap',
     () {
       const ceiling = Duration(seconds: 30);
       void lift(_Room it) {
@@ -702,7 +702,7 @@ void main() {
       return (harness, read);
     }
 
-    test('goes out at the lift and plays the reply it finds', () async {
+    test('goes out at the tap and plays the reply it finds', () async {
       final (harness, read) = await liftedUnderAHalt(stored: true);
 
       await waitFor(
@@ -715,7 +715,7 @@ void main() {
     });
 
     test(
-      'goes out at the lift and calls a person when it finds nothing',
+      'goes out at the tap and calls a person when it finds nothing',
       () async {
         final (harness, read) = await liftedUnderAHalt(stored: false);
 

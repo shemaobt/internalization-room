@@ -316,7 +316,7 @@ void main() {
         },
       );
 
-      group('a halt suspends the look, and its lift resumes it', () {
+      group('a halt suspends the look, and the team\'s tap resumes it', () {
         Machine halted(Machine machine) =>
             reduce(machine, const RoomRaisedAHalt()).$1;
         (Machine, List<Effect>) lifted(Machine machine) =>
@@ -332,7 +332,7 @@ void main() {
           expect(after.look?.turn, turn);
         });
 
-        test('a turn given up under it is looked at only after the lift', () {
+        test('a turn given up under it is looked at only after the tap', () {
           final (sent, _) = reduce(const Machine(), const TurnSent(turn));
           final (givenUp, effects) = reduce(
             halted(sent),
@@ -346,7 +346,7 @@ void main() {
         });
 
         test(
-          'a look still answered under it looks again only after the lift',
+          'a look still answered under it looks again only after the tap',
           () {
             final (waiting, effects) = reduce(
               halted(givenUp(const NothingKept())),

@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/person_sign.dart';
 
 import 'fakes.dart';
@@ -18,6 +20,7 @@ const _theSign = 'Um momento para uma pessoa';
 const _hearAgain = 'Ouvir de novo';
 const _leavePassage = 'Escolher outra passagem';
 const _redMicrophone = 'ensaio da cena';
+const _orangeDot = 'Gravar o ensaio de vocês';
 
 typedef _Sala = ({
   WidgetTester tester,
@@ -42,8 +45,11 @@ Future<void> _pass(_Sala sala, [int beats = 3]) async {
 int _replies(_Sala sala) =>
     sala.harness.voice.played.where((url) => url == turnoUrl).length;
 
-Future<_Sala> _atRestInTheConversation(WidgetTester tester) async {
-  final harness = SalaHarness();
+Future<_Sala> _atRestInTheConversation(
+  WidgetTester tester, [
+  SalaHarness? withThis,
+]) async {
+  final harness = withThis ?? SalaHarness();
   final container = await pumpSala(tester, harness);
   final sala = (tester: tester, harness: harness, container: container);
   unawaited(
@@ -56,7 +62,8 @@ Future<_Sala> _atRestInTheConversation(WidgetTester tester) async {
     'the opening to be heard and the room to rest',
     () =>
         _read(sala).sessionId != null &&
-        _read(sala).voice == VoiceState.invite &&
+        (_read(sala).voice == VoiceState.invite ||
+            _read(sala).voice == VoiceState.done) &&
         !_read(sala).awaitingTheGuide &&
         _replies(sala) == 1,
   );
@@ -73,14 +80,25 @@ Future<void> _speak(_Sala sala) async {
 
 var _heardAtTheSign = 0;
 
-Future<_Sala> _underTheSign(WidgetTester tester) async {
-  final sala = await _atRestInTheConversation(tester);
+Future<_Sala> _theSignRises(
+  WidgetTester tester, [
+  SalaHarness? withThis,
+]) async {
+  final sala = await _atRestInTheConversation(tester, withThis);
   sala.harness.room.failTurnsWith = const Refused('PIPELINE_REFUSED');
   await _speak(sala);
   await _until(sala, 'the person sign', () => _read(sala).needsPerson);
   _heardAtTheSign = sala.harness.voice.played.length;
-  await _pass(sala, 20);
   sala.harness.room.failTurnsWith = null;
+  return sala;
+}
+
+Future<_Sala> _underTheSign(
+  WidgetTester tester, [
+  SalaHarness? withThis,
+]) async {
+  final sala = await _theSignRises(tester, withThis);
+  await _pass(sala, 20);
   return sala;
 }
 
@@ -103,6 +121,12 @@ List<String> _labelsHeard(WidgetTester tester) {
   return labels;
 }
 
+double _opacityOf(Finder what) => find
+    .ancestor(of: what, matching: find.byType(AnimatedOpacity))
+    .evaluate()
+    .map((element) => (element.widget as AnimatedOpacity).opacity)
+    .first;
+
 bool _hitTestable(String label) =>
     byLabel(label).hitTestable().evaluate().isNotEmpty;
 
@@ -111,9 +135,28 @@ void main() {
     'the sign is a wash with no words, and the circle, the moment label, the dot, the red microphone and the passage button are gone',
     (tester) async {
       final heard = tester.ensureSemantics();
-      final sala = await _underTheSign(tester);
+      final sala = await _atRestInTheConversation(
+        tester,
+        SalaHarness()
+          ..room.done = true
+          ..room.nextMoment = const Moment(
+            at: MomentAt.familiarization,
+            parts: 3,
+          ),
+      );
+      await _until(sala, 'a moment', () => _read(sala).moment != null);
+      await _pass(sala, 10);
+      expect(_opacityOf(find.byType(MomentLabel)), greaterThan(0));
+      expect(_opacityOf(byLabel(_orangeDot)), greaterThan(0));
+      sala.harness.room.failTurnsWith = const Refused('PIPELINE_REFUSED');
+      await _speak(sala);
+      await _until(sala, 'the person sign', () => _read(sala).needsPerson);
+      _heardAtTheSign = sala.harness.voice.played.length;
+      await _pass(sala, 20);
 
       expect(byLabel(_theSign), findsOneWidget);
+      expect(_opacityOf(find.byType(MomentLabel)), 0);
+      expect(_opacityOf(byLabel(_orangeDot)), 0);
       expect(
         find.descendant(
           of: find.byType(PersonSign),
@@ -236,6 +279,57 @@ void main() {
         () => _read(sala).entriesOpen,
       );
       closeTheRoom(container);
+    },
+  );
+
+  testWidgets('a tap while the sign is still rising leaves it standing', (
+    tester,
+  ) async {
+    final sala = await _theSignRises(tester);
+
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(_read(sala).needsPerson, isTrue);
+
+    await _pass(sala, 20);
+    await _tapACorner(sala);
+
+    expect(_read(sala).needsPerson, isFalse);
+    closeTheRoom(sala.container);
+  });
+
+  testWidgets(
+    'a double tap on the sign clears it and never opens the microphone',
+    (tester) async {
+      final sala = await _underTheSign(tester);
+      final circle = tester.getCenter(find.byType(FacilitatorCircle));
+
+      await tester.tapAt(circle);
+      await tester.pump(const Duration(milliseconds: 120));
+      await tester.tapAt(circle);
+      await _pass(sala, 20);
+
+      expect(_read(sala).needsPerson, isFalse);
+      expect(_read(sala).voice, isNot(VoiceState.listening));
+      closeTheRoom(sala.container);
+    },
+  );
+
+  testWidgets(
+    'the circle leaves what VoiceOver hears as soon as the sign starts to rise',
+    (tester) async {
+      final heard = tester.ensureSemantics();
+      final sala = await _theSignRises(tester);
+      final label = tester
+          .widget<FacilitatorCircle>(find.byType(FacilitatorCircle))
+          .semanticLabel;
+
+      await tester.pump(const Duration(milliseconds: 16));
+
+      expect(_labelsHeard(tester), isNot(contains(label)));
+      heard.dispose();
+      closeTheRoom(sala.container);
     },
   );
 }

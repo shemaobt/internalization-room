@@ -514,7 +514,7 @@ void main() {
     });
   });
 
-  test('a line that arrives under a blocking halt waits for the lift', () {
+  test('a line that arrives under a blocking halt waits for the tap', () {
     final (halted, _) = reduce(const Machine(), const RoomRaisedAHalt());
     final (waiting, arriving) = reduce(halted, const LineArrived(_notice));
     final (lifted, lifting) = reduce(waiting, const TeamTapped());

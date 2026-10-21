@@ -115,6 +115,35 @@ void main() {
   );
 
   test(
+    'um sinal no meio da parte que falta guarda onde ela chegou, e ouvir depois do toque segue dali',
+    () async {
+      final it = await umEnsaioContadoInteiro(_cincoPartes);
+      await _regravada(it, 2, _cincoPartes[2], semNome: true);
+      final terceira = it.partes[2].path;
+      it.harness.room.listeningUnheardTakeIds = const [];
+      await _entrar(it);
+      it.harness.playback.at = const Duration(seconds: 4);
+
+      it.sala.haltForABrokenBuild();
+      await waitFor('o sinal', () => it.estado.needsPerson);
+      it.sala.teamTapped();
+      final tocadas = it.harness.playback.playedFrom.length;
+      it.sala.ouvirGravacao();
+      await waitFor(
+        'a parte voltar a tocar',
+        () => it.harness.playback.playedFrom.length > tocadas,
+      );
+
+      expect(it.harness.playback.played.last, terceira);
+      expect(
+        it.harness.playback.playedFrom.last,
+        const Duration(seconds: 4),
+        reason: 'de onde a parte tinha chegado quando o sinal subiu',
+      );
+    },
+  );
+
+  test(
     'a sala pedindo uma pessoa durante a fala dela não mostra o sinal, e a parte que falta toca e para nela',
     () async {
       final it = await umEnsaioContadoInteiro(

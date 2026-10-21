@@ -661,7 +661,7 @@ void main() {
   });
 
   test('a turn the room gave up on no longer holds a waiting line once the '
-      'halt is lifted', () async {
+      'sign is tapped away', () async {
     _OutboxThatGaveUp? outbox;
     final harness = SalaHarness(
       busyCeiling: const Duration(milliseconds: 300),
