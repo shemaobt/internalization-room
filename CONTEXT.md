@@ -425,7 +425,7 @@ The state in which the room cannot carry on alone and calls for a person, insist
 _Avoid_: sala parada, stuck room, pause
 
 **Person sign**:
-How a blocking Halt is drawn: a soft wash over the whole screen with the Shema mark and two outlined figures, with no words and no sound. The circle, the moment label, the orange dot, the red microphone and the passage button fade under it. A tap anywhere clears it and the room rests; nothing is replayed or resent, and nothing the Desk does clears it or holds it (ADR 0107).
+How a blocking Halt is drawn: a soft wash over the whole screen with the Shema mark and two outlined figures, with no words and no sound. The circle, the moment label, the orange dot, the red microphone and the passage button fade under it. While any of it is on screen it takes every tap, and a tap anywhere on it once fully shown clears it and the room rests; nothing is replayed or resent, and nothing the Desk does clears it or holds it (ADR 0107).
 _Avoid_: handoff (her CSS name), halt screen, sinal de pessoa, the userCheck glyph (retired)
 
 **Warning**:

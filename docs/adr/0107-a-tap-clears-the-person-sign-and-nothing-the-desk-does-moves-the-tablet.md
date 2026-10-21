@@ -6,13 +6,18 @@ amends: 0019, 0046, 0053, 0093, 0097
 
 # A tap clears the person sign, and nothing the Desk does moves the tablet
 
-A team under a blocking Halt waited on the Desk: the sign lifted only when a Session read
+This amends ADRs 0019, 0046, 0053, 0093 and 0097 without editing their decisions: it adds
+"amended by 0107" to their status lines. The server half is shema-api ADR 0076, which makes
+the Desk's visit a record. The Definer settled the rules on ENG-1354 (Definition of 19
+October, amended 21 October, and the decision comment of 21 October).
+
+## Context
+
+A team under a blocking Halt waited on the Desk. The sign lifted only when a Session read
 stopped saying `needs_person`, when a long press found the call had not landed, or when a
 long press told the server a person arrived. A facilitator who never came, or a call that
-never landed, held the team indefinitely. Marcia's handoff is a wordless wash the team
-clears with a tap. The Definer settled the rules on ENG-1354 (Definition of 19 October,
-amended 21 October, and the decision comment of 21 October); shema-api ADR 0076 makes the
-Desk's visit a record on the server side.
+never landed, held the team indefinitely, and the lift replayed what had been sounding.
+Marcia's handoff is a wordless wash the team clears with a tap.
 
 ## Decision
 
@@ -26,18 +31,40 @@ Desk's visit a record on the server side.
   lands marks nothing on the halt. The long press over the offline face stays, for
   ENG-1356.
 - **The sign is drawn as a wash** over the whole screen: the Shema mark and two outlined
-  figures, no words, no sound. The circle fades and leaves the semantics tree, so the
-  wash alone carries «Um momento para uma pessoa» to VoiceOver. The passage button fades
-  too, on every screen.
+  figures, no words, no sound. The circle fades and leaves the semantics tree as soon as
+  the sign starts to rise, so the wash alone carries «Um momento para uma pessoa» to
+  VoiceOver. The passage button fades too, on every screen.
+- **While any of the wash is on screen, it takes every tap**, fading in or out, and nothing
+  beneath it receives one. Only a tap on the fully shown wash clears the sign. A tap meant
+  for the circle as the sign rises does not clear a sign nobody saw, and a second tap as
+  it fades never opens the microphone.
+- **A sign raised over a sounding part writes where the part reached**, as the team's own
+  pause does. After the tap, listening resumes from there.
 - **A failed look is a failure.** A look that fails on the network or on a refused device
   reaches the failure policy through its own door: over an Opening it rests at the quiet
   invite, over a spoken turn it shows the sign, and while the room is still answering it
   looks again. A 404 is still a turn the room holds nothing of.
 - **The one-call-in-the-air flag is released by any end of the call**, thrown or not.
 
+## Considered Options
+
+**Keep the Desk's visit as the lift.** Rejected: it is what held the team. The visit stays a
+record on the Desk (shema-api ADR 0076).
+
+**Keep the long press over the sign.** Rejected: a wordless team cannot be told to hold
+the circle, and the press asked the server rather than the team.
+
+**Clear the sign on a tap at any time, the fade included.** Rejected after review: a tap
+meant for the circle cleared a sign that was still almost invisible, and a double tap
+opened the microphone through the fading wash.
+
+**Replay what was sounding on the tap, as the lift did.** Rejected: nothing is replayed.
+The part's place is kept instead, so the team's next listen picks it up.
+
 ## Amends
 
-- 0046, invariant 11: the gesture under the sign is the tap, and it always clears it.
+- 0046, invariant 11: the gesture under the sign is the tap, and on the fully shown sign it
+  always clears it.
 - 0053: «only the team's tap clears it» now holds; the Warning stays.
 - 0093: «a lift sends nothing» is the tap's rule; a Session read neither raises nor clears
   the sign.
