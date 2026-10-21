@@ -311,7 +311,7 @@ void main() {
     );
 
     harness.playback.at = const Duration(seconds: 12);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
     await confirmarATraducaoNaTela(tester, container);
@@ -391,7 +391,7 @@ void main() {
       );
 
       harness.playback.at = const Duration(seconds: 12);
-      notifier.cortarTrecho();
+      notifier.retroTap();
       notifier.retroTap();
       await settle();
       await confirmarATraducao(container);
@@ -455,7 +455,7 @@ void main() {
     );
 
     harness.playback.at = const Duration(seconds: 12);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     expect(
@@ -465,7 +465,7 @@ void main() {
     );
 
     harness.playback.at = const Duration(seconds: 28);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -549,7 +549,7 @@ void main() {
       reason:
           'medir espera pelo tocador, e a sala está ocupada enquanto espera',
     );
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     notifier.ouvirGravacao();
     await tester.pump(const Duration(milliseconds: 200));

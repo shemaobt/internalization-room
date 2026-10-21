@@ -43,7 +43,7 @@ void main() {
 
     harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
     harness.playback.at = umaParteInteira;
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -89,7 +89,7 @@ void main() {
     await settle();
 
     harness.playback.at = const Duration(seconds: 20);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -117,7 +117,6 @@ void main() {
 
     harness.room.failReplaceWith = const Refused(RefusalCode.wordlessTelling);
     await fecharACaptura(container);
-    await notifier.confirmarTraducao();
     await waitFor(
       'a tradução de novo guardada chegar à sala',
       () => harness.room.takesReceived.any((take) => take.kind == 'retro'),

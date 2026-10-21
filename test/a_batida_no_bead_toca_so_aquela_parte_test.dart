@@ -108,12 +108,11 @@ Future<(ProviderContainer, SalaHarness)> _achadoNaParteUm(
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
   harness.playback.at = const Duration(seconds: 10);
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await tester.pump(const Duration(milliseconds: 200));
   notifier.retroTap();
   await tester.pump(const Duration(milliseconds: 300));
-  await notifier.confirmarTraducao();
   await tester.pump(const Duration(milliseconds: 600));
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 200));

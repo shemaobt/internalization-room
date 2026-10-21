@@ -9,6 +9,8 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -76,7 +78,7 @@ Future<void> _tapAndWait(WidgetTester tester, Finder circle) async {
 
 void main() {
   group(
-    'a resumed Back-translation\'s circle that invites recording opens the Capture on its first tap',
+    'a resumed Back-translation\'s circle places the pausa on its first tap and opens the Capture on its second only where ground is left to tell',
     () {
       testWidgets('with ground still to tell', (tester) async {
         final (harness, container) = await _reopenedInto(
@@ -87,7 +89,18 @@ void main() {
 
         await _tapAndWait(
           tester,
-          byLabel(retroLabelFor('record', testLanguage)),
+          byLabel(retroLabelFor('listening', testLanguage)),
+        );
+
+        expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+        expect(harness.recorder.captures, captures);
+
+        await _tapAndWait(
+          tester,
+          find.descendant(
+            of: find.byType(RetroView),
+            matching: find.byType(FacilitatorCircle),
+          ),
         );
 
         final state = container.read(salaSessionProvider);

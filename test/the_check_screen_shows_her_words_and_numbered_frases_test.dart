@@ -24,14 +24,12 @@ import 'the_back_translation_is_told_by_beads_test.dart'
     show
         aceso,
         cabeca,
-        confirmar,
         contarAteOFimDaParte,
         entrarNaTraducao,
         fimDaGravacao,
-        gravarATraducao,
         parte,
-        tesoura,
-        tocar;
+        tocar,
+        tocarNoCirculo;
 
 const _quatroFrases = [
   SegmentView(
@@ -143,9 +141,9 @@ Future<ProviderContainer> _quatroFrasesConferidas(
   final container = await entrarNaTraducao(tester, harness);
   for (var parte = 1; parte <= 2; parte++) {
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await contarAteOFimDaParte(tester, harness);
     await waitFor(
       'a parte $parte ficar contada em duas frases',
@@ -189,7 +187,6 @@ Future<void> _traduzirAFraseApontadaDeNovo(
   await tocar(tester, 'Tocar para gravar a tradução de novo');
   await tocar(tester, 'Tocar ao terminar');
   await _passo(tester);
-  await tocar(tester, confirmar);
   await waitFor(
     'a frase traduzida de novo pousar',
     () => container.read(salaSessionProvider).btTrechoTraduzidoDeNovo == null,
@@ -212,10 +209,10 @@ Future<ProviderContainer> _aFraseTresContada(
   _telaAlta(tester);
   final container = await entrarNaTraducao(tester, harness, partes: 1);
   harness.playback.at = cabeca;
-  await tocar(tester, tesoura);
-  await gravarATraducao(tester);
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
   harness.room.fraseDaProximaFrase = 3;
-  await tocar(tester, confirmar);
+  await tocarNoCirculo(tester);
   await waitFor(
     'a frase contada pousar',
     () => container
@@ -271,6 +268,190 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a session picked back up lists the stale frases the room '
+      'serves, on the part their recording answered for', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        'parte 1',
+        'regravada — traduzam de novo',
+        '1',
+        'parte 2',
+      ],
+      reason:
+          'reaberta a sessão, a sala servia a frase regravada e a lista não a '
+          'mostrava',
+    );
+    expect(container.read(salaSessionProvider).btTrechos, hasLength(1));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a session picked back up on the rehearsal still lists its '
+      'stale frases when the team comes to the check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+      parouEm: SalaStage.ensaio,
+    );
+    container.read(salaSessionProvider.notifier).startRetro();
+    await waitFor(
+      'a ida à tradução',
+      () => container.read(salaSessionProvider).stage == SalaStage.retro,
+      step: () => _passo(tester),
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        'parte 1',
+        'regravada — traduzam de novo',
+        '1',
+        'parte 2',
+      ],
+      reason:
+          'reaberta no ensaio, a sessão perdia as frases regravadas que a sala '
+          'servia',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('starting the translation over clears the stale frases too', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+
+    await tocar(tester, 'recomeçar a tradução');
+    await tester.pump(const Duration(milliseconds: 700));
+    await tocar(tester, 'toque de novo para apagar as 1 frases traduzidas');
+    await waitFor(
+      'a tradução recomeçar',
+      () => container.read(salaSessionProvider).btTrechos.isEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      isEmpty,
+      reason:
+          'recomeçada a tradução, as frases regravadas ficavam na lista de uma '
+          'tradução que já não existia',
+    );
+    await tester.pump(const Duration(seconds: 7));
+    closeTheRoom(container);
+  });
+
   testWidgets('a frase just told shows the number its answer carries, not '
       'a count the tablet keeps, before the session is read again', (
     tester,
@@ -279,10 +460,10 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.fraseDaProximaFrase = 7;
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase contada pousar',
       () => container
@@ -338,10 +519,10 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.fraseDaProximaFrase = 3;
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase contada pousar',
       () => container
@@ -435,6 +616,7 @@ void main() {
     harness.playback.finishPlayback();
     await _passo(tester);
 
+    await tocar(tester, fimDaGravacao);
     await tocar(tester, fimDaGravacao);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
@@ -585,10 +767,10 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.fraseDaProximaFrase = 7;
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase contada pousar',
       () => container
@@ -645,9 +827,9 @@ void main() {
     );
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await contarAteOFimDaParte(tester, harness);
     harness.room
       ..verdictChecked = false
@@ -890,6 +1072,71 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a part recorded again keeps its frases listed in its place, '
+      'marked «regravada — traduzam de novo», with no number and out of the '
+      'check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesConferidas(tester, harness, const [
+      BtFinding(kind: BtFindingKind.addition, frase: 2, segmentId: 'trecho-2'),
+    ]);
+
+    await tocar(tester, 'voltar e regravar uma parte');
+    await waitFor(
+      'o ensaio abrir na parte 1',
+      () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
+      step: () => _passo(tester),
+    );
+    for (final gesto in [
+      'Tocar para gravar esta parte de novo',
+      'Tocar ao terminar',
+      'Confirmar esta parte',
+    ]) {
+      await tocar(tester, gesto);
+    }
+    await waitFor(
+      'a parte 1 regravada ficar no lugar',
+      () => container
+          .read(salaSessionProvider)
+          .btTrechos
+          .every((trecho) => trecho.parte != 0),
+      step: () => _passo(tester),
+    );
+    container.read(salaSessionProvider.notifier).startRetro();
+    await waitFor(
+      'a volta à tradução',
+      () => container.read(salaSessionProvider).stage == SalaStage.retro,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        'parte 1',
+        'regravada — traduzam de novo',
+        'parte 1',
+        'regravada — traduzam de novo',
+        '3',
+        'parte 2',
+        '4',
+        'parte 2',
+      ],
+      reason:
+          'as frases da parte gravada de novo sumiam da lista, e a equipe '
+          'perdia de vista o que tinha traduzido dela',
+    );
+    expect(
+      {
+        for (final trecho in container.read(salaSessionProvider).btTrechos)
+          trecho.parte,
+      },
+      {1},
+      reason: 'uma frase regravada fica fora da conferência',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a team that comes back to the check sees the marks its last '
       'check left', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -1007,10 +1254,10 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.holdNextChunk();
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase seguir para a sala',
       () => container.read(salaSessionProvider).btPhase == BtPhase.thinking,
@@ -1058,9 +1305,9 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await contarAteOFimDaParte(tester, harness);
     harness.room.failFinishWith = const NetworkFailed('HTTP 502');
 
@@ -1095,10 +1342,10 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a sala não entender a frase',
       () => container.read(salaSessionProvider).wordlessTelling,
@@ -1120,9 +1367,9 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await contarAteOFimDaParte(tester, harness);
 
     await tocar(tester, 'terminei');

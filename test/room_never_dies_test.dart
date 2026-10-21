@@ -479,7 +479,7 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 12);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -545,7 +545,7 @@ void main() {
 
     harness.room.failChunkWith = const Refused('BAD_REQUEST');
     harness.playback.at = const Duration(seconds: 12);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -556,7 +556,7 @@ void main() {
 
     harness.room.failChunkWith = null;
     harness.playback.at = const Duration(seconds: 30);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -1112,7 +1112,6 @@ void main() {
           Future<void> confirm() async {
             notifier.retroTap();
             await settle();
-            await notifier.confirmarTraducao();
           }
 
           notifier.goEnsaio();
@@ -1123,7 +1122,7 @@ void main() {
           notifier.startRetro();
           await settle();
           harness.playback.at = const Duration(seconds: 12);
-          notifier.cortarTrecho();
+          notifier.retroTap();
           notifier.retroTap();
           await settle();
           await confirm();
@@ -1154,7 +1153,7 @@ void main() {
           notifier.startRetro();
           await settle();
           harness.playback.at = const Duration(seconds: 9);
-          notifier.cortarTrecho();
+          notifier.retroTap();
           notifier.retroTap();
           await settle();
           await confirm();

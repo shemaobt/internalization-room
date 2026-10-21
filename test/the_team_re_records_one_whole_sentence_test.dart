@@ -24,7 +24,7 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show aceso, cabeca, confirmar, entrarNaTraducao, parte, tesoura, tocar;
+    show aceso, cabeca, entrarNaTraducao, parte, tocar;
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
@@ -41,8 +41,12 @@ Future<void> _tocarOCirculo(WidgetTester tester) async {
 
 Future<void> _traduzir(WidgetTester tester) async {
   await _tocarOCirculo(tester);
+  await _traduzirDeNovo(tester);
+}
+
+Future<void> _traduzirDeNovo(WidgetTester tester) async {
   await _tocarOCirculo(tester);
-  await tocar(tester, confirmar);
+  await _tocarOCirculo(tester);
 }
 
 Future<ProviderContainer> quatroFrasesEmWav(
@@ -60,7 +64,6 @@ Future<ProviderContainer> quatroFrasesEmWav(
   final container = await entrarNaTraducao(tester, harness);
   for (var contada = 1; contada <= 2; contada++) {
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
     await _traduzir(tester);
     harness.playback.at = parte;
     harness.playback.finishPlayback();
@@ -748,7 +751,7 @@ void main() {
     await deitarAFrase(tester, harness, 2);
     final nova = harness.room.takes.last.takeId;
 
-    await _traduzir(tester);
+    await _traduzirDeNovo(tester);
     await _passo(tester);
     await _passo(tester);
 
@@ -816,7 +819,7 @@ void main() {
     await deitarAFrase(tester, harness, 2);
     final nova = harness.room.takes.last.takeId;
 
-    await _traduzir(tester);
+    await _traduzirDeNovo(tester);
     await _passo(tester);
     await _passo(tester);
     await tocar(tester, 'terminei');

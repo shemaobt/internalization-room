@@ -83,6 +83,7 @@ void main() {
       );
 
       it.sala.retroTap();
+      it.sala.retroTap();
       await waitFor(
         'o microfone abrir',
         () => it.estado.btPhase == BtPhase.capturing,

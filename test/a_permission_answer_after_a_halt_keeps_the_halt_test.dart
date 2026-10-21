@@ -59,7 +59,7 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
 
   await waitFor('o aviso chegar', () => read().warning);
   harness.playback.at = const Duration(seconds: 2);
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
 

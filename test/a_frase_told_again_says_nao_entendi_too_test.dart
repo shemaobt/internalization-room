@@ -14,12 +14,12 @@ import 'fakes.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         cabeca,
-        confirmar,
         contarAteOFimDaParte,
         entrarNaTraducao,
         gravarATraducao,
-        tesoura,
-        tocar;
+        terminar,
+        tocar,
+        tocarNoCirculo;
 
 const _naoEntendi = 'não entendi — traduzam de novo esse pedaço';
 const _deNovo = 'Tocar para gravar a tradução de novo';
@@ -43,9 +43,8 @@ Future<ProviderContainer> _vereditoNaFraseUm(
   _telaAlta(tester);
   final container = await entrarNaTraducao(tester, harness, partes: 1);
   harness.playback.at = cabeca;
-  await tocar(tester, tesoura);
+  await tocarNoCirculo(tester);
   await gravarATraducao(tester);
-  await tocar(tester, confirmar);
   await contarAteOFimDaParte(tester, harness);
   await waitFor(
     'as duas frases ficarem contadas',
@@ -87,7 +86,6 @@ Future<void> _caiNaRede(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
-  await tocar(tester, confirmar);
   await waitFor('a frase voltar da rede', () {
     final estado = container.read(salaSessionProvider);
     return estado.wordlessTelling || estado.unreachable;
@@ -103,9 +101,10 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final gravacao = harness.room.takeIds.first;
     await tocar(tester, _barra(1));
-    await gravarATraducao(tester, circulo: _deNovo);
+    await tocar(tester, _deNovo);
 
     harness.room.failReplaceWith = const NetworkFailed('sem rede');
+    await tocar(tester, terminar);
     await _caiNaRede(tester, container);
     harness.room.failReplaceWith = null;
     for (var passo = 0; passo < 5; passo++) {
@@ -131,7 +130,6 @@ void main() {
     );
 
     await _deNovoNoCirculo(tester);
-    await tocar(tester, confirmar);
     expect(
       harness.room.replacesAsked,
       ['trecho-1@$gravacao:0-4000'],
@@ -146,12 +144,15 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _vereditoNaFraseUm(tester, harness);
     await tocar(tester, _barra(1));
-    await gravarATraducao(tester, circulo: _deNovo);
+    await tocar(tester, _deNovo);
     harness.room.failReplaceWith = const NetworkFailed('sem rede');
 
     for (var vez = 1; vez <= 3; vez++) {
-      if (vez > 1) await _deNovoNoCirculo(tester);
-      await tocar(tester, confirmar);
+      if (vez == 1) {
+        await tocar(tester, terminar);
+      } else {
+        await _deNovoNoCirculo(tester);
+      }
       await waitFor('a frase $vez voltar da rede', () {
         final estado = container.read(salaSessionProvider);
         return harness.room.replaceKeys.length >= vez &&
@@ -179,15 +180,15 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final gravacao = harness.room.takeIds.first;
     await tocar(tester, _barra(1));
-    await gravarATraducao(tester, circulo: _deNovo);
+    await tocar(tester, _deNovo);
 
     harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
+    await tocar(tester, terminar);
     await _caiNaRede(tester, container);
     expect(find.text(_naoEntendi), findsOneWidget);
 
     await _deNovoNoCirculo(tester);
-    final segunda = container.read(salaSessionProvider).btTraducaoPendente!;
-    await tocar(tester, confirmar);
+    final segunda = harness.recorder.lastPath!;
     await waitFor(
       'a segunda pousar',
       () => container.read(salaSessionProvider).btTraducaoPendente == null,
@@ -221,15 +222,15 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final gravacao = harness.room.takeIds.first;
     await tocar(tester, _barra(1));
-    await gravarATraducao(tester, circulo: _deNovo);
-    final contada = container.read(salaSessionProvider).btTraducaoPendente!;
+    await tocar(tester, _deNovo);
 
     harness.room.loseTheNextReplaceAnswerAndLandItLaterWith = const Refused(
       'BAD_REQUEST',
     );
-    await tocar(tester, confirmar);
+    await tocar(tester, terminar);
     harness.room.landTheLostReplace();
-    await tocar(tester, confirmar);
+    await _deNovoNoCirculo(tester);
+    final contada = harness.recorder.lastPath!;
     await waitFor(
       'a frase pousar',
       () => container.read(salaSessionProvider).btTraducaoPendente == null,
@@ -259,16 +260,16 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _vereditoNaFraseUm(tester, harness);
     await tocar(tester, _barra(1));
-    await gravarATraducao(tester, circulo: _deNovo);
+    await tocar(tester, _deNovo);
     harness.room.loseTheNextReplaceAnswerAndLandItLaterWith = const Refused(
       'BAD_REQUEST',
     );
-    await tocar(tester, confirmar);
+    await tocar(tester, terminar);
     harness.room.landTheLostReplace();
     final pedidos = harness.room.replaceKeys.length;
 
     harness.room.failStateOnceWith = const NetworkFailed('sem rede');
-    await tocar(tester, confirmar);
+    await _deNovoNoCirculo(tester);
     await waitFor('a leitura voltar da rede', () {
       final estado = container.read(salaSessionProvider);
       return estado.wordlessTelling ||
@@ -297,19 +298,19 @@ void main() {
 
   testWidgets('a frase told again whose key is still in flight after three '
       'answers keeps the room in reach, is never sent again on its own, and '
-      'goes again under that key when the team confirms', (tester) async {
+      'goes again when the team tells it once more', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _vereditoNaFraseUm(tester, harness);
     final gravacao = harness.room.takeIds.first;
     await tocar(tester, _barra(1));
-    await gravarATraducao(tester, circulo: _deNovo);
+    await tocar(tester, _deNovo);
     final pedidos = harness.room.replaceKeys.length;
 
     harness.network.reachable = false;
     harness.room.replaceAnswersFirst.addAll(
       List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
     );
-    await tocar(tester, confirmar);
+    await tocar(tester, terminar);
     await waitFor(
       'a chave ainda em voo chegar ao teto',
       () => harness.room.replaceKeys.length == pedidos + 3,
@@ -337,14 +338,13 @@ void main() {
       reason: 'nada sai de novo sozinho quando a rede volta',
     );
 
-    await tocar(tester, confirmar);
+    await _deNovoNoCirculo(tester);
     await waitFor(
-      'a frase pousar sob a mesma chave',
+      'a frase pousar',
       () => container.read(salaSessionProvider).btTraducaoPendente == null,
       step: () => _passo(tester),
     );
     expect(harness.room.replaceKeys.skip(pedidos), hasLength(4));
-    expect(harness.room.replaceKeys.skip(pedidos).toSet(), hasLength(1));
     expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
     closeTheRoom(container);
   });
@@ -357,12 +357,13 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final fila = harness.takes as FakeTakeQueue;
     await tocar(tester, _barra(1));
-    await gravarATraducao(tester, circulo: _deNovo);
-    final perdida = container.read(salaSessionProvider).btTraducaoPendente!;
+    await tocar(tester, _deNovo);
 
     harness.room
       ..refuseTake = 'retro/${KeptScope.whole}'
       ..loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
+    await tocar(tester, terminar);
+    final perdida = harness.recorder.lastPath!;
     await _caiNaRede(tester, container);
     await waitFor(
       'a cópia da perdida entrar na fila',
@@ -371,7 +372,6 @@ void main() {
     );
 
     await _deNovoNoCirculo(tester);
-    await tocar(tester, confirmar);
     await waitFor(
       'a segunda pousar',
       () => container.read(salaSessionProvider).btTraducaoPendente == null,
@@ -399,12 +399,13 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final fila = harness.takes as FakeTakeQueue;
     await tocar(tester, _barra(1));
-    await gravarATraducao(tester, circulo: _deNovo);
-    final perdida = container.read(salaSessionProvider).btTraducaoPendente!;
+    await tocar(tester, _deNovo);
 
     harness.room
       ..refuseTake = 'retro/${KeptScope.whole}'
       ..loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
+    await tocar(tester, terminar);
+    final perdida = harness.recorder.lastPath!;
     await _caiNaRede(tester, container);
     await waitFor(
       'a cópia da perdida entrar na fila',
@@ -414,7 +415,6 @@ void main() {
 
     harness.room.recordThePartAgain(harness.room.takeIds.first);
     await _deNovoNoCirculo(tester);
-    await tocar(tester, confirmar);
     await waitFor(
       'a frase sumir da fileira',
       () => container.read(salaSessionProvider).btTrechos.isEmpty,
@@ -440,12 +440,13 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final fila = harness.takes as FakeTakeQueue;
     await tocar(tester, _barra(1));
-    await gravarATraducao(tester, circulo: _deNovo);
-    final perdida = container.read(salaSessionProvider).btTraducaoPendente!;
+    await tocar(tester, _deNovo);
 
     harness.room
       ..refuseTake = 'retro/${KeptScope.whole}'
       ..loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
+    await tocar(tester, terminar);
+    final perdida = harness.recorder.lastPath!;
     await _caiNaRede(tester, container);
     await waitFor(
       'a cópia da perdida entrar na fila',

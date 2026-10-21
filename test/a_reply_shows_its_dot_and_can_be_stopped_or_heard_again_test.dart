@@ -330,6 +330,37 @@ void main() {
   );
 
   testWidgets(
+    'the team cuts a reply with the circle three times and it is still offered on the fourth tap',
+    (tester) async {
+      final room = await _withAReplyWaiting(tester);
+
+      for (var cuts = 0; cuts < 3; cuts++) {
+        await room.theReplyIsPlaying();
+        final turns = room.harness.room.turnsSent;
+        room.sala.conversaTap();
+        await room.until(
+          'o microfone abrir',
+          () => room.estado.voice == VoiceState.listening,
+        );
+        room.sala.conversaTap();
+        await room.until(
+          'a vez sair',
+          () => room.harness.room.turnsSent > turns,
+        );
+        await room.atTheInvite();
+      }
+
+      expect(room.estado.hasUnheardReply, isTrue);
+      await room.theReplyIsPlaying();
+      expect(
+        room.timesTheReplyPlayed,
+        4,
+        reason: 'cortar a resposta com o círculo a punha de lado à segunda vez',
+      );
+    },
+  );
+
+  testWidgets(
     'Tapping the circle on the Panorama before its first line was heard stops '
     'a playing reply before the room is asked',
     (tester) async {

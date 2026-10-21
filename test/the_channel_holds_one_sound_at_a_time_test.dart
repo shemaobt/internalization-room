@@ -133,7 +133,7 @@ void main() {
     harness.playback.holdNextOpening();
     sala.ouvirGravacao();
     await waitFor('a segunda parte ser pedida', () => read().btParte == 1);
-    sala.cortarTrecho();
+    sala.retroTap();
 
     expect(read().btCursor, Duration.zero);
     expect(
@@ -452,7 +452,7 @@ void main() {
     harness.voice.failHeldLine(const NetworkFailed('sem rede'));
     await settle();
 
-    expect(read().replies.single.failedPlays, 0);
+    expect(read().replies.single.failures, 0);
   });
 
   test('a background line arriving while a gesture is on its way never lets a '

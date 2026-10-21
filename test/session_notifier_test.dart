@@ -48,7 +48,7 @@ Future<void> _intoFindings(
   for (final at in const [Duration(seconds: 12), Duration(seconds: 30)]) {
     await theClipOpens(harness);
     harness.playback.at = at;
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -121,7 +121,7 @@ Future<void> tellTwoStretches(
   ].indexed) {
     final captures = harness.recorder.captures;
     harness.playback.at = cut;
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await waitFor(
       'o microfone abrir para o trecho ${index + 1}',
@@ -138,7 +138,9 @@ Future<void> tellTwoStretches(
       () =>
           harness.playback.played.length > reopenings &&
           harness.playback.open &&
-          container.read(salaSessionProvider).canCut,
+          container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+          !container.read(salaSessionProvider).btCortado &&
+          container.read(salaSessionProvider).btTraducaoPendente == null,
     );
   }
 }
@@ -1861,7 +1863,7 @@ void main() {
       notifier.startRetro();
       await settle();
       harness.playback.at = const Duration(seconds: 2);
-      notifier.cortarTrecho();
+      notifier.retroTap();
       notifier.retroTap();
       await settle();
       await confirmarATraducao(container);
@@ -4475,7 +4477,7 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -4573,7 +4575,7 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -4613,7 +4615,7 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -4665,7 +4667,7 @@ void main() {
           await settle(const Duration(milliseconds: 50));
 
           harness.playback.at = const Duration(milliseconds: 40);
-          notifier.cortarTrecho();
+          notifier.retroTap();
           notifier.retroTap();
           await settle(const Duration(milliseconds: 1200));
           explained = true;
@@ -4684,11 +4686,7 @@ void main() {
         final notifier = container!.read(salaSessionProvider.notifier);
         notifier.retroTap();
         async.elapse(const Duration(milliseconds: 50));
-        expect(
-          container!.read(salaSessionProvider).btTraducaoPendente,
-          isNotNull,
-        );
-        unawaited(notifier.confirmarTraducao());
+        expect(container!.read(salaSessionProvider).btTraducaoPendente, isNull);
         async.elapse(const Duration(milliseconds: 120));
 
         expect(container!.read(salaSessionProvider).btClipEnded, isFalse);
@@ -4728,7 +4726,7 @@ void main() {
     // twice. The stretches stay now and a cut over told ground never leaves the tablet,
     // so the refusal this test is about only happens over ground nobody has told yet.
     harness.playback.at = const Duration(seconds: 40);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -4806,7 +4804,7 @@ void main() {
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
     final capturesBefore = harness.recorder.captures;
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
 
     notifier.retroTap();
     await settle();
@@ -4838,7 +4836,6 @@ void main() {
       () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
     );
     await fecharACaptura(container);
-    await notifier.confirmarTraducao();
     await settle();
 
     final after = container.read(salaSessionProvider);
@@ -4878,7 +4875,6 @@ void main() {
       'o microfone abrir',
       () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
     );
-    await fecharACaptura(container);
 
     // A cópia de reserva que o guard enfileira fica pendente, do jeito que fica
     // no aparelho de verdade enquanto o envio ainda não aconteceu — em vez de já
@@ -4887,7 +4883,7 @@ void main() {
     harness.room.replaceAnswersFirst.addAll(
       List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
     );
-    await notifier.confirmarTraducao();
+    await fecharACaptura(container);
     await waitFor(
       'a cópia de reserva entrar na fila',
       () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
@@ -4898,7 +4894,12 @@ void main() {
       hasLength(1),
     );
 
-    await notifier.confirmarTraducao();
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir de novo',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+    await fecharACaptura(container);
     await waitFor(
       'a correção de reserva sair da fila',
       () async =>
@@ -5121,7 +5122,7 @@ void main() {
       await settle();
       final capturesBefore = harness.recorder.captures;
       harness.playback.at = const Duration(seconds: 2);
-      notifier.cortarTrecho();
+      notifier.retroTap();
       notifier.retroTap();
       await settle();
 
@@ -5302,7 +5303,7 @@ void main() {
     harness.room.failWith = const NetworkFailed('sem rede');
     final capturasAntes = harness.recorder.captures;
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await waitFor(
       'o microfone abrir para o trecho',
@@ -5354,7 +5355,7 @@ void main() {
     final spokenBefore = harness.voice.played.length;
     final capturasAntes = harness.recorder.captures;
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await waitFor(
       'o microfone abrir para o trecho',
@@ -5404,7 +5405,7 @@ void main() {
 
     final capturasAntes = harness.recorder.captures;
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await waitFor(
       'o microfone abrir para o trecho',
@@ -5453,7 +5454,7 @@ void main() {
 
     final capturasDoTrecho = harness.recorder.captures;
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await waitFor(
       'o microfone abrir para o trecho',
@@ -5484,6 +5485,7 @@ void main() {
       reason: 'a cópia de reserva conta como um trecho por enviar',
     );
 
+    harness.room.failChunkWith = null;
     final capturasAntes = harness.recorder.captures;
     notifier.retroTap();
     await waitFor(
@@ -5561,7 +5563,7 @@ void main() {
     );
 
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await waitFor(
       'o microfone abrir para o trecho',
@@ -5613,7 +5615,7 @@ void main() {
     );
 
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await waitFor(
       'o microfone abrir para o trecho',
@@ -5637,7 +5639,12 @@ void main() {
       hasLength(1),
     );
 
-    unawaited(notifier.confirmarTraducao());
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir de novo',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+    notifier.retroTap();
     harness.room.finishHeldChunk();
     await waitFor(
       'a cópia de reserva sair da fila',
@@ -5692,7 +5699,7 @@ void main() {
 
     final capturasDoTrecho = harness.recorder.captures;
     harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await waitFor(
       'o microfone abrir para o trecho',
@@ -5855,7 +5862,7 @@ void main() {
       harness.room.reachable = false;
       final capturasAntes = harness.recorder.captures;
       harness.playback.at = const Duration(seconds: 2);
-      notifier.cortarTrecho();
+      notifier.retroTap();
       notifier.retroTap();
       await waitFor(
         'o microfone abrir para o trecho',
@@ -6156,7 +6163,7 @@ void main() {
       );
 
       harness.playback.at = const Duration(seconds: 2);
-      notifier.cortarTrecho();
+      notifier.retroTap();
       notifier.retroTap();
       await waitFor(
         'o microfone abrir para o trecho',
@@ -6199,7 +6206,7 @@ void main() {
       await settle();
 
       harness.playback.at = const Duration(seconds: 2);
-      notifier.cortarTrecho();
+      notifier.retroTap();
       notifier.retroTap();
       await settle();
       await confirmarATraducao(container);
@@ -6894,7 +6901,7 @@ void main() {
     notifier.ouvirGravacao();
     await settle();
     harness.playback.at = const Duration(seconds: 3);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -7065,7 +7072,7 @@ void main() {
     harness.playback.at = const Duration(seconds: 10);
     harness.playback.finishPlayback();
     await settle();
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
@@ -7077,7 +7084,7 @@ void main() {
     notifier.ouvirGravacao();
     await settle();
     harness.playback.at = const Duration(seconds: 3);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);

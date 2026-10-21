@@ -188,24 +188,42 @@ class RetroView extends ConsumerWidget {
       for (final (onde, trecho) in session.btTrechos.indexed)
         if (trecho.contado) (onde, trecho),
     ];
-    final maior = contadas.fold(
-      Duration.zero,
-      (maior, contada) => contada.$2.to - contada.$2.from > maior
-          ? contada.$2.to - contada.$2.from
-          : maior,
-    );
-    return [
+    final maior =
+        [
+          for (final (_, trecho) in contadas) trecho,
+          ...session.btTrechosRegravados,
+        ].fold(
+          Duration.zero,
+          (maior, trecho) =>
+              trecho.to - trecho.from > maior ? trecho.to - trecho.from : maior,
+        );
+    double share(Trecho trecho) => maior > Duration.zero
+        ? max(
+            0.08,
+            (trecho.to - trecho.from).inMicroseconds / maior.inMicroseconds,
+          )
+        : 1;
+    final regravadas = [
+      for (final (_, trecho)
+          in [...session.btTrechosRegravados.indexed]..sort(
+            (a, b) => a.$2.parte == b.$2.parte
+                ? a.$1.compareTo(b.$1)
+                : a.$2.parte.compareTo(b.$2.parte),
+          ))
+        FraseRow(
+          n: null,
+          parte: trecho.parte >= 0 ? trecho.parte + 1 : null,
+          share: share(trecho),
+          onHear: null,
+          mark: retroLabelFor('stale', language),
+        ),
+    ];
+    final atuais = [
       for (final (onde, trecho) in contadas)
         FraseRow(
           n: trecho.frase,
           parte: trecho.parte >= 0 ? trecho.parte + 1 : null,
-          share: maior > Duration.zero
-              ? max(
-                  0.08,
-                  (trecho.to - trecho.from).inMicroseconds /
-                      maior.inMicroseconds,
-                )
-              : 1,
+          share: share(trecho),
           onHear: session.canHearAFrase
               ? () => notifier.ouvirOTrechoContado(onde)
               : null,
@@ -276,6 +294,16 @@ class RetroView extends ConsumerWidget {
               : null,
         ),
     ];
+    final linhas = <FraseRow>[];
+    var antes = 0;
+    for (final linha in atuais) {
+      while (antes < regravadas.length &&
+          (regravadas[antes].parte ?? 0) < (linha.parte ?? 0)) {
+        linhas.add(regravadas[antes++]);
+      }
+      linhas.add(linha);
+    }
+    return [...linhas, ...regravadas.skip(antes)];
   }
 
   Widget _recomeco(
@@ -670,34 +698,6 @@ class RetroView extends ConsumerWidget {
               color: ShemaBrand.branco,
             ),
           ),
-          const SizedBox(width: 24),
-          RoundActionButton(
-            size: 60,
-            semanticLabel: retroLabelFor('pauseHere', language),
-            gradient: BeadStyles.wood,
-            mood: session.canCut ? ButtonMood.lit : ButtonMood.dimmed,
-            onTap: notifier.cortarTrecho,
-            child: const Icon(
-              LucideIcons.scissors,
-              size: 24,
-              color: ShemaBrand.branco,
-            ),
-          ),
-          const SizedBox(width: 24),
-          RoundActionButton(
-            size: 60,
-            semanticLabel: retroLabelFor('confirm', language),
-            gradient: BeadStyles.verde,
-            mood: session.canConfirmTranslation
-                ? ButtonMood.lit
-                : ButtonMood.dimmed,
-            onTap: () => unawaited(notifier.confirmarTraducao()),
-            child: const Icon(
-              LucideIcons.check,
-              size: 24,
-              color: ShemaBrand.branco,
-            ),
-          ),
         ],
       ),
     );
@@ -730,7 +730,13 @@ class RetroView extends ConsumerWidget {
         if (session.btTrechoTraduzidoDeNovo == null &&
             !session.btCortado &&
             session.nothingHeardSinceCursor) {
-          return retroLabelFor('listenFirst', language);
+          return retroLabelFor(
+            session.btClipEnded ? 'paused' : 'listenFirst',
+            language,
+          );
+        }
+        if (session.btClipRodando) {
+          return retroLabelFor('listening', language);
         }
         if (session.btClipPausada &&
             session.btTraducaoPendente == null &&

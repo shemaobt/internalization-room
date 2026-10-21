@@ -62,7 +62,7 @@ Future<_Conferida> _ateAConferida(
   await tester.pump(const Duration(milliseconds: 200));
 
   harness.playback.at = const Duration(seconds: 10);
-  sala.cortarTrecho();
+  sala.retroTap();
   sala.retroTap();
   await tester.pump(const Duration(milliseconds: 200));
   await confirmarATraducaoNaTela(tester, container);
@@ -529,7 +529,7 @@ void main() {
     await semAprovar(BtPhase.playing);
 
     harness.playback.at = const Duration(seconds: 10);
-    sala.cortarTrecho();
+    sala.retroTap();
     sala.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
     await semAprovar(BtPhase.capturing);
@@ -541,7 +541,6 @@ void main() {
     harness.recorder.finishStop();
     await letTheRehearsalReachTheRoom(tester);
     await tester.pump(const Duration(milliseconds: 400));
-    await sala.confirmarTraducao();
     await tester.pump(const Duration(milliseconds: 400));
 
     harness.playback.finishPlayback();

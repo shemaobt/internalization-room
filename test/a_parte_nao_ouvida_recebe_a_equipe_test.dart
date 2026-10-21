@@ -80,7 +80,7 @@ void main() {
       final trechos = it.estado.btTrechos.length;
       final pedacos = it.harness.room.chunksSent;
       it.harness.playback.at = const Duration(seconds: 3);
-      it.sala.cortarTrecho();
+      it.sala.retroTap();
       it.sala.retroTap();
 
       expect(

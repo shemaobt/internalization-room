@@ -451,7 +451,7 @@ void main() {
     harness.recorder.returnsEmpty = true;
     harness.playback.at = const Duration(seconds: 2);
 
-    room.sala.cortarTrecho();
+    room.sala.retroTap();
     room.sala.retroTap();
     await waitFor(
       'a captura abrir',

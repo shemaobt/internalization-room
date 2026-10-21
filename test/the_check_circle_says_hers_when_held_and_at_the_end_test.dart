@@ -1,4 +1,6 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
 import 'fakes.dart';
@@ -6,20 +8,16 @@ import 'o_take_pausa_test.dart' show pumpAoGravado;
 import 'scenario_helpers.dart' show byLabel, settle;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
-        cabeca,
         conferir,
-        confirmar,
         contarAteOFimDaParte,
         entrarNaTraducao,
         fimDaGravacao,
         gravar,
-        gravarATraducao,
         parte,
-        ouvir,
         passaDoCursor,
         pausado,
         pausar,
-        tesoura,
+        terminar,
         tocar;
 import 'the_pause_snaps_to_silence_test.dart'
     show entrarComAFala, rotuloDoCirculo, s;
@@ -46,6 +44,37 @@ void main() {
       isFalse,
       reason: 'o take parado no ensaio se dizia um clipe parado da tradução',
     );
+  });
+
+  testWidgets('a part running past the cursor reads her «ouvindo a gravação '
+      'de vocês…», not the invitation to record', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+
+    expect(container.read(salaSessionProvider).btClipRodando, isTrue);
+    expect(
+      rotuloDoCirculo(tester),
+      'ouvindo a gravação de vocês…',
+      reason: 'o círculo convidava a gravar com a gravação tocando',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('an english room hears its recording played in english, not in '
+      'portuguese', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+
+    expect(
+      rotuloDoCirculo(tester),
+      'listening to your recording…',
+      reason: 'o rótulo da gravação tocando ficava em português',
+    );
+    closeTheRoom(container);
   });
 
   testWidgets('a clip held with no pause standing reads her «pausado», not '
@@ -90,7 +119,15 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await gravarATraducao(tester, circulo: fimDaGravacao);
+    await tocar(tester, fimDaGravacao);
+    await tocar(tester, fimDaGravacao);
+    harness.room.failChunkWith = const Refused('BAD_REQUEST');
+    await tocar(tester, terminar);
+    await waitFor(
+      'a sala recusar a frase',
+      () => container.read(salaSessionProvider).btChunkFailures.isNotEmpty,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
 
     expect(container.read(salaSessionProvider).btClipEnded, isTrue);
     expect(
@@ -105,11 +142,10 @@ void main() {
       'da gravação», not the pause hint', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarComAFala(tester, harness, null);
-    harness.recorder.returnsNothing = true;
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await gravarATraducao(tester, circulo: fimDaGravacao);
+    await tocar(tester, fimDaGravacao);
 
     final state = container.read(salaSessionProvider);
     expect(state.btCortado, isTrue);
@@ -172,28 +208,12 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('the end of a part the verdict sent them back to is not the end '
-      'of the recording while the next part is still offered', (tester) async {
+  testWidgets('a part told to its end and heard whole again after the verdict '
+      'sent them back to it reads her «pausado», not listen first', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await entrarNaTraducao(tester, harness);
-    final primeira = harness.room.takeIds.first;
-    harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
-    harness.playback.at = parte;
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, ouvir);
-    await contarAteOFimDaParte(tester, harness);
-    harness.playback.at = parte;
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-    harness.room
-      ..verdictChecked = false
-      ..verdictUnheardTakeIds = [primeira];
-    await tester.tap(byLabel(conferir));
-    await tester.pump(const Duration(milliseconds: 600));
+    final container = await deVoltaAParteContadaAteOFim(tester, harness);
 
     harness.playback.at = parte;
     harness.playback.finishPlayback();
@@ -202,13 +222,50 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.btClipEnded, isTrue);
     expect(state.btParteFronteira, isTrue);
+    expect(state.nothingHeardSinceCursor, isTrue);
     expect(
       rotuloDoCirculo(tester),
-      'Ouvir primeiro',
+      pausado,
       reason:
-          'a parte que o veredito mandou ouvir dizia fim da gravação com a '
-          'parte seguinte ainda oferecida',
+          'a parte que o veredito mandou ouvir, ouvida inteira, seguia dizendo '
+          'ouvir primeiro',
     );
     closeTheRoom(container);
   });
+
+  testWidgets('the part the verdict sent them back to still says to listen '
+      'first while it plays, not «pausado»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await deVoltaAParteContadaAteOFim(tester, harness);
+
+    harness.playback.at = s(6.0);
+    await tester.pump(passaDoCursor);
+
+    expect(container.read(salaSessionProvider).btClipRodando, isTrue);
+    expect(
+      rotuloDoCirculo(tester),
+      'Ouvir primeiro',
+      reason: 'a parte ainda tocando dizia pausado, antes de ser ouvida',
+    );
+    closeTheRoom(container);
+  });
+}
+
+Future<ProviderContainer> deVoltaAParteContadaAteOFim(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  final container = await entrarNaTraducao(tester, harness);
+  final primeira = harness.room.takeIds.first;
+  await contarAteOFimDaParte(tester, harness);
+  await contarAteOFimDaParte(tester, harness);
+  harness.playback.at = parte;
+  harness.playback.finishPlayback();
+  await tester.pump(const Duration(milliseconds: 300));
+  harness.room
+    ..verdictChecked = false
+    ..verdictUnheardTakeIds = [primeira];
+  await tester.tap(byLabel(conferir));
+  await tester.pump(const Duration(milliseconds: 600));
+  return container;
 }

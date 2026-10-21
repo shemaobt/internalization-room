@@ -23,9 +23,10 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
+import 'the_back_translation_is_told_by_beads_test.dart' show tocarNoCirculo;
 import 'um_ensaio_de_tres_partes.dart' show Sala;
 import 'the_translation_is_recorded_over_until_the_check_test.dart'
-    show cabeca, confirmar, gravarATraducao, parte, tesoura, tocar;
+    show cabeca, gravarATraducao, parte;
 
 const _cenasEmPortugues = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -691,9 +692,8 @@ void main() {
     await _tocar(tester, inTheHome(_irParaATraducao));
     await tester.pump(const Duration(milliseconds: 300));
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester, harness);
-    await tocar(tester, confirmar);
     await waitFor(
       'a frase traduzida entrar na lista',
       () => _estado(container).btTrechos.any((trecho) => trecho.contado),
