@@ -69,7 +69,11 @@ List<String> _linhas(Sala it, int desde) => [
   for (final (linha, _) in it.harness.voice.fixedLines.skip(desde)) linha,
 ];
 
-Future<void> _retomadaJuntada(Sala it, Duration ultima) async {
+Future<void> _retomadaJuntada(
+  Sala it,
+  Duration ultima, {
+  Set<int>? juntas,
+}) async {
   for (final MapEntry(:key, :value)
       in it.harness.emAberto.rows.entries.toList()) {
     it.harness.emAberto.rows[key] = ResumePoint(
@@ -82,7 +86,9 @@ Future<void> _retomadaJuntada(Sala it, Duration ultima) async {
             path: take.path,
             takeId: take.takeId,
             pass: take.pass,
-            origin: 'ensaio-da-cena-${onde + 1}',
+            origin: juntas == null || juntas.contains(onde)
+                ? 'ensaio-da-cena-${onde + 1}'
+                : null,
           ),
       ],
       savedAt: value.savedAt,
@@ -585,6 +591,30 @@ void main() {
 
       expect(_linhas(it, linhas), ['P2']);
       expect(it.harness.playback.played.skip(tocadas), [segunda.path]);
+    },
+  );
+
+  test(
+    'a joined recording whose only joined part is recorded again by hand is one no join touched, so P-start and the whole recording',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      await _retomadaJuntada(it, partesDoEnsaio[2], juntas: {1});
+      await _regravada(it, 1, partesDoEnsaio[1]);
+      it.harness.room.listeningUnheardTakeIds = [it.partes[1].takeId!];
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+
+      await _entrar(it);
+
+      expect(it.estado.joined, isFalse);
+      expect(
+        _linhas(it, linhas),
+        ['P0'],
+        reason:
+            'a parte gravada à mão não é mais juntada, na dela também '
+            '(join.ts:70): a gravação deixa de ser juntada e ouve-se inteira',
+      );
+      expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
     },
   );
 
