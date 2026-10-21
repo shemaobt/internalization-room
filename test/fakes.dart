@@ -1168,6 +1168,27 @@ class FakeRoom implements RoomRepository {
     segments.removeWhere((one) => one.takeId == takeId);
   }
 
+  final Set<String> _replacedTakes = {};
+
+  Duration? replacedTakeRefusalAfter;
+
+  void replaceThePart(String takeId) {
+    final old = takes.firstWhere((take) => take.takeId == takeId);
+    final id = 'gravacao-${takeIds.length + 1}';
+    takeIds.add(id);
+    takes.add(
+      TakeView(
+        takeId: id,
+        kind: old.kind,
+        scope: old.scope,
+        ordinal: old.ordinal,
+        pass: (old.pass ?? 1) + 1,
+      ),
+    );
+    takeAudio[id] = Uint8List.fromList(utf8.encode('áudio de $id'));
+    _replacedTakes.add(takeId);
+  }
+
   RoomFailure? failChunkWith;
 
   /// What the next stretches told back are answered with, in order, before the room
@@ -2628,6 +2649,14 @@ class FakeRoom implements RoomRepository {
   }) async {
     final refusal = failChunkWith;
     if (refusal != null) return refusal;
+    if (_replacedTakes.contains(takeId)) {
+      final wait = replacedTakeRefusalAfter;
+      if (wait != null) await Future<void>.delayed(wait);
+      return const Refused(
+        RefusalCode.stretchNoLongerCounts,
+        'This stretch no longer counts',
+      );
+    }
     chunksSent++;
     chunkSpans.add('${from.inMilliseconds}-${to.inMilliseconds}');
     chunkTakes.add(takeId);
