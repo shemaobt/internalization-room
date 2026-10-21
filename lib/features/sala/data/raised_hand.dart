@@ -84,10 +84,10 @@ class RaisedHand {
     // address seen played a 404 and marked the new reply heard without a sound.
     final merged = [
       for (final reply in fetched)
-        _tallied(switch (known[reply.id]) {
+        switch (known[reply.id]) {
           final kept? when kept.audioUrl == reply.audioUrl => kept,
-          _ => reply,
-        }),
+          _ => _tallied(reply),
+        },
     ];
     if (_sameReplies(merged, _state.replies)) return;
     host.state = _state.copyWith(replies: merged);

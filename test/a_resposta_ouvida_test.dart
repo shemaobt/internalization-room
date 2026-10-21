@@ -818,6 +818,45 @@ void main() {
     },
   );
 
+  for (final (name, unreachable, answers) in [
+    ('never reaches the desk', true, 200),
+    ('is refused by the desk', false, 400),
+  ]) {
+    test(
+      'a mark that $name while a new reply arrives leaves the first reply offered',
+      () async {
+        final desk = _Desk()
+          ..unreachable = unreachable
+          ..answers = answers
+          ..holdsTheAnswer();
+        final harness = _tabletTalkingTo(desk);
+        final container = await _opensTheRoom(desk, harness);
+
+        await _theTeamTapsTheHand(container);
+        await waitFor('a marca chegar à mesa', () => desk.marks == 1);
+        desk
+          ..heard['resposta-2'] = false
+          ..current['resposta-2'] = '/voz/resposta-2';
+        final readsBefore = desk.reads;
+        container.read(salaSessionProvider.notifier).lookForReplies();
+        await waitFor('a sala reler a caixa', () => desk.reads > readsBefore);
+        await settle();
+        desk.answersAtLast();
+        await settle();
+        await settle();
+
+        await _theTeamTapsTheHand(container);
+        expect(
+          _timesPlayed(harness),
+          2,
+          reason:
+              'a resposta ficou como ouvida na tela quando a mesa não aceitou '
+              'a marca, porque a releitura trocou o objeto marcado',
+        );
+      },
+    );
+  }
+
   test('a reply the desk agrees was heard is never played again', () async {
     final desk = _Desk();
     final harness = _tabletTalkingTo(desk);
