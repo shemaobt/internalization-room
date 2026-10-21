@@ -813,7 +813,7 @@ class SalaSessionState {
   };
 
   bool get btClipPausada => switch (_paused) {
-    Paused(what: PartSound()) => true,
+    Paused(what: PartSound()) => stage == SalaStage.retro,
     _ => false,
   };
 

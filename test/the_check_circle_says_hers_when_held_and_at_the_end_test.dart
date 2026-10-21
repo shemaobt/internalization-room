@@ -2,7 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'o_take_pausa_test.dart' show pumpAoGravado;
+import 'scenario_helpers.dart' show byLabel, settle;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         cabeca,
@@ -24,6 +25,29 @@ import 'the_pause_snaps_to_silence_test.dart'
     show entrarComAFala, rotuloDoCirculo, s;
 
 void main() {
+  test('a take held in the Ensaio is not a clip held on the check', () async {
+    final harness = SalaHarness();
+    final container = await pumpAoGravado(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.playTheRehearsal();
+    await waitFor(
+      'o take estar tocando',
+      () => container.read(salaSessionProvider).playPing,
+    );
+
+    notifier.playTheRehearsal();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.takePaused, isTrue);
+    expect(
+      state.btClipPausada,
+      isFalse,
+      reason: 'o take parado no ensaio se dizia um clipe parado da tradução',
+    );
+  });
+
   testWidgets('a clip held with no pause standing reads her «pausado», not '
       'the invitation to record', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
