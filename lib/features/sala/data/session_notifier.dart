@@ -1297,9 +1297,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _dispatch(MachineEvent event) {
     final before = state.machine;
     final (machine, effects) = reduce(before, event);
-    if (before.halt is! Blocking && machine.halt is Blocking) {
-      _anotarOQueFoiOuvido();
-    }
     final leavesTheScene =
         before.station is SceneRehearsal && machine.station is! SceneRehearsal;
     state = state.copyWith(
@@ -1405,15 +1402,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             state.btPhase == BtPhase.playing &&
             _parteNoAr != null &&
             !state.btCortado) {
-          if (_oQueFaltaOuvir != null) {
-            _tocarParteDaRetro(
-              _parteTocando,
-              doComeco: true,
-              desde: _ondeAParteParou,
-            );
-          } else {
-            _tocarParteDaRetro(_parteTocando);
-          }
+          _tocarParteDaRetro(_parteTocando);
         } else {
           _dispatch(NothingReplayed(generation: _generation));
         }
@@ -5233,11 +5222,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_abandoned(generation)) return;
     _sairDaEspera();
-    if (state.needsPerson) {
-      _parteTocando = naoOuvidas.first;
-      _armarAsPartes(naoOuvidas, paraNaUltima: true);
-      return;
-    }
     _ouvirAsPartes(naoOuvidas, paraNaUltima: true);
   }
 
@@ -5285,15 +5269,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _ouvirAsPartes(falta.aFrente, paraNaUltima: falta.paraNaUltima);
   }
-
-  Duration get _ondeAParteParou => _parteJaTocou
-      ? Duration(
-          milliseconds: max(
-            0,
-            state.btOuvidoMs - _inicioDaParteMs(_parteTocando),
-          ),
-        )
-      : Duration.zero;
 
   Future<bool> _medirAsPartesDaRetro(int generation) async {
     _trechoStart = Duration.zero;

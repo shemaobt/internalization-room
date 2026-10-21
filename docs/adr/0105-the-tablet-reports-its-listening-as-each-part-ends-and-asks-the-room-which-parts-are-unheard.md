@@ -40,9 +40,8 @@ the ticket (ENG-1419) on 19 and 20 October.
   to the next. After the last, the crossing into the following part stays offered, as it
   did after a single landing: an existing test pins that crossing, and the ticket does not
   ask to close it; only the replay after a part recorded again stops there.
-- A blocking halt during the replay withholds the sound as it does on any entry; the lifted
-  halt plays the part from where it was held, and the replay still stops where it would
-  have.
+- The replay has no rule for a blocking halt: under ADR 0093 none of her six cases can land
+  while it plays, and a Session read saying `needs_person` changes nothing.
 - The reports, the mark and the replay's list live in the notifier beside the Retro screen's
   other fields, under ADR 0046's written exception, until that screen moves to the machine.
 - The mark that a part was recorded again arms only once this passage's Back-translation
