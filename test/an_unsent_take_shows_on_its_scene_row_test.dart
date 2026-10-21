@@ -772,77 +772,84 @@ void main() {
     },
   );
 
-  testWidgets(
-    'a row whose audio is gone is not an unsent take, and its scene can be '
-    'recorded',
-    (tester) async {
-      _umIpadEmPe(tester);
-      final casaDasTomadas = Directory.systemTemp.createTempSync('sala-1420');
-      addTearDown(() => casaDasTomadas.deleteSync(recursive: true));
-      final guardadas = Directory('${casaDasTomadas.path}/guardadas')
-        ..createSync();
-      final parte2 = File('${guardadas.path}/ensaio-parte-2.m4a')
-        ..writeAsBytesSync([5, 6, 7, 8]);
-      File('${guardadas.path}/fila.json').writeAsStringSync(
-        jsonEncode([
-          PendingTake(
-            id: 'perdida-1',
-            path: '${guardadas.path}/ensaio-parte-1.m4a',
-            sessionId: 'sessao-antiga',
-            kind: 'ensaio',
-            scope: 'parte-1',
-            passNumber: 1,
-            chunkIndex: 1,
-            lost: true,
-            waits: 2,
-          ).toJson(),
-        ]),
-      );
-      final harness = SalaHarness(takesHome: casaDasTomadas)
-        ..room.passageScenes = _cenas
-        ..playback.measured = _umaParte;
-      harness.room.takes.add(
-        const TakeView(
-          takeId: 'gravacao-2',
-          kind: 'ensaio',
-          scope: 'parte-2',
-          ordinal: 2,
-        ),
-      );
-      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-        sessionId: 'sessao-antiga',
-        stage: SalaStage.ensaio,
-        takes: [
-          KeptTake(
-            scopeId: KeptScope.parte(2),
-            path: parte2.path,
-            takeId: 'gravacao-2',
-          ),
-        ],
-      );
-      final container = (await tester.runAsync(_aoVivo(harness)))!;
-      addTearDown(container.dispose);
-      await tester.pumpWidget(_aCasa(container));
-      final casa = _Casa(tester, harness, container, _cenas);
-      await casa.emTempoReal(() async {
-        await casa.sala.abrirEscolha();
-        await settle();
-        await casa.sala.goConversa(book: 'Ruth', pericope: 'P01');
-        await waitFor(
-          'a sala voltar à casa do ensaio',
-          () =>
-              casa.estado.stage == SalaStage.ensaio &&
-              casa.estado.sceneRows.length == _cenas.length,
+  for (final (como, lost) in [
+    ('written off', true),
+    ('refused for good and never written off', false),
+  ]) {
+    testWidgets(
+      'a row whose audio is gone is not an unsent take, and its scene can be '
+      'recorded: $como',
+      (tester) async {
+        _umIpadEmPe(tester);
+        final casaDasTomadas = Directory.systemTemp.createTempSync('sala-1420');
+        addTearDown(() => casaDasTomadas.deleteSync(recursive: true));
+        final guardadas = Directory('${casaDasTomadas.path}/guardadas')
+          ..createSync();
+        final parte2 = File('${guardadas.path}/ensaio-parte-2.m4a')
+          ..writeAsBytesSync([5, 6, 7, 8]);
+        File('${guardadas.path}/fila.json').writeAsStringSync(
+          jsonEncode([
+            PendingTake(
+              id: 'perdida-1',
+              path: '${guardadas.path}/ensaio-parte-1.m4a',
+              sessionId: 'sessao-antiga',
+              kind: 'ensaio',
+              scope: 'parte-1',
+              passNumber: 1,
+              chunkIndex: 1,
+              lost: lost,
+              waits: lost ? 2 : 0,
+              attempts: lost ? 0 : takeUploadAttempts,
+              refusal: lost ? null : 'UNKNOWN_REFERENCE',
+            ).toJson(),
+          ]),
         );
-        await settle(const Duration(milliseconds: 600));
-      });
+        final harness = SalaHarness(takesHome: casaDasTomadas)
+          ..room.passageScenes = _cenas
+          ..playback.measured = _umaParte;
+        harness.room.takes.add(
+          const TakeView(
+            takeId: 'gravacao-2',
+            kind: 'ensaio',
+            scope: 'parte-2',
+            ordinal: 2,
+          ),
+        );
+        harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+          sessionId: 'sessao-antiga',
+          stage: SalaStage.ensaio,
+          takes: [
+            KeptTake(
+              scopeId: KeptScope.parte(2),
+              path: parte2.path,
+              takeId: 'gravacao-2',
+            ),
+          ],
+        );
+        final container = (await tester.runAsync(_aoVivo(harness)))!;
+        addTearDown(container.dispose);
+        await tester.pumpWidget(_aCasa(container));
+        final casa = _Casa(tester, harness, container, _cenas);
+        await casa.emTempoReal(() async {
+          await casa.sala.abrirEscolha();
+          await settle();
+          await casa.sala.goConversa(book: 'Ruth', pericope: 'P01');
+          await waitFor(
+            'a sala voltar à casa do ensaio',
+            () =>
+                casa.estado.stage == SalaStage.ensaio &&
+                casa.estado.sceneRows.length == _cenas.length,
+          );
+          await settle(const Duration(milliseconds: 600));
+        });
 
-      expect(find.text(_aviso), findsNothing);
-      expect(find.textContaining('enviar agora'), findsNothing);
-      expect(casa.naLinha(1, find.text(_falhou)), findsNothing);
-      expect(casa.naLinha(1, byLabel(_gravar)), findsOneWidget);
-    },
-  );
+        expect(find.text(_aviso), findsNothing);
+        expect(find.textContaining('enviar agora'), findsNothing);
+        expect(casa.naLinha(1, find.text(_falhou)), findsNothing);
+        expect(casa.naLinha(1, byLabel(_gravar)), findsOneWidget);
+      },
+    );
+  }
 
   testWidgets(
     'a recount while this visit\'s keep is being written never shows the '
@@ -871,6 +878,45 @@ void main() {
 
       await casa.emTempoReal(() async {
         fila.letGo();
+        await settle(const Duration(milliseconds: 400));
+      });
+    },
+  );
+
+  testWidgets(
+    'a scene recorded again while its first keep is still being written never '
+    'shows the earlier-visit notice when the first one finishes',
+    (tester) async {
+      final harness = SalaHarness(
+        takesOverride: (room, home, recordings) => _QueueHeldPerKeep(
+          room: room,
+          home: () async => home,
+          recordings: recordings,
+        ),
+      );
+      final casa = await _naCasa(tester, harness: harness);
+      final fila = harness.takes as _QueueHeldPerKeep;
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.gravar(2);
+      await casa.emTempoReal(() async {
+        casa.sala.takeKeep();
+        await waitFor('a primeira linha ser escrita', () => fila.written == 1);
+      });
+      await casa.gravar(2);
+      await casa.emTempoReal(() async {
+        casa.sala.takeKeep();
+        await waitFor('a segunda linha ser escrita', () => fila.written == 2);
+        fila.letGo(0);
+        await settle(const Duration(milliseconds: 300));
+        await casa.sala.refreshUnsent();
+        await settle();
+      });
+
+      expect(find.text(_aviso), findsNothing);
+      expect(find.textContaining('enviar agora'), findsNothing);
+
+      await casa.emTempoReal(() async {
+        fila.letGo(1);
         await settle(const Duration(milliseconds: 400));
       });
     },
@@ -1034,6 +1080,45 @@ class _QueueHeldAfterWriting extends TakeUploadQueue {
     );
     written = true;
     await _held.future;
+    return row;
+  }
+}
+
+class _QueueHeldPerKeep extends TakeUploadQueue {
+  _QueueHeldPerKeep({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
+
+  final List<Completer<void>> _held = [];
+  int written = 0;
+
+  void letGo(int keep) => _held[keep].complete();
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+    String? scene,
+  }) async {
+    final held = Completer<void>();
+    _held.add(held);
+    final row = await super.enqueue(
+      audio,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+      scene: scene,
+    );
+    written++;
+    await held.future;
     return row;
   }
 }

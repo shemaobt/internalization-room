@@ -415,7 +415,7 @@ class TakeUploadQueue {
       if (!entry.stored &&
           entry.kind == 'ensaio' &&
           entry.sessionId == sessionId &&
-          !await _reallyGone(entry)) {
+          await File(entry.path).exists()) {
         parts.putIfAbsent(entry.scope, () => []).add(entry);
       }
     }
@@ -426,6 +426,7 @@ class TakeUploadQueue {
     final written = await _written();
     final waiting = await this.waiting();
     final trying = {for (final entry in waiting) entry.id};
+    final unsentParts = await _unsentPartsIn(written, sessionId);
     return (
       parts: {
         for (final row in _confirmed.keys) row: PartFact.sent,
@@ -437,9 +438,11 @@ class TakeUploadQueue {
               : PartFact.stranded,
       },
       due: _due(waiting),
-      unsentTakes: _unsentIn(written, 'ensaio', sessionId),
+      unsentTakes: written == null
+          ? 1
+          : unsentParts.values.fold(0, (count, rows) => count + rows.length),
       unsentChunks: _unsentIn(written, 'retro', sessionId),
-      unsentParts: await _unsentPartsIn(written, sessionId),
+      unsentParts: unsentParts,
     );
   }
 

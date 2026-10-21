@@ -5343,7 +5343,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   late Map<String?, Map<int, ({String path, int? pass})>> _notQueued;
 
-  late Set<(String?, int)> _keepsInFlight;
+  late Map<(String?, int), int> _keepsInFlight;
 
   late Map<String, Duration?> _lengths;
 
@@ -5371,7 +5371,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final number? when kind == 'ensaio' => (sessionId, number),
       _ => null,
     };
-    if (inFlight != null) _keepsInFlight.add(inFlight);
+    if (inFlight != null) {
+      _keepsInFlight.update(inFlight, (keeps) => keeps + 1, ifAbsent: () => 1);
+    }
     final PendingTake linha;
     try {
       linha = await queue.enqueue(
@@ -5383,14 +5385,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: chunkIndex,
       );
     } on Object {
-      _keepsInFlight.remove(inFlight);
+      _aKeepLeftTheAir(inFlight);
       if (_endedSince(life) || _goneSessions.contains(sessionId)) return;
       _notInTheOutbox(path, kind, scope, passNumber, sessionId);
       return;
     }
     if (kind == 'ensaio') {
       _rowsOfThisVisit.add(linha.id);
-      _keepsInFlight.remove(inFlight);
+      _aKeepLeftTheAir(inFlight);
     }
     if (_endedSince(life)) {
       await queue.flush();
@@ -5630,7 +5632,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(unsentParts: _unsentPartsOf(speaking));
     if (sessionId != null) {
       state = state.copyWith(
-        unsentTakes: tally.unsentTakes,
+        unsentTakes: _unsentTakesOf(tally, speaking),
         unsentChunks: tally.unsentChunks,
       );
     }
@@ -5662,9 +5664,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return speaking;
   }
 
+  int _unsentTakesOf(OutboxTally tally, Map<int, List<PendingTake>> speaking) {
+    var behindANewerPass = 0;
+    for (final MapEntry(key: scope, value: rows) in tally.unsentParts.entries) {
+      final number = KeptScope.numberOf(scope);
+      if (number == null) continue;
+      behindANewerPass += rows.length - (speaking[number]?.length ?? 0);
+    }
+    final notQueued = [
+      for (final number in _notQueued[state.sessionId]?.keys ?? const <int>[])
+        if (!speaking.containsKey(number)) number,
+    ];
+    return tally.unsentTakes - behindANewerPass + notQueued.length;
+  }
+
+  void _aKeepLeftTheAir((String?, int)? inFlight) {
+    if (inFlight == null) return;
+    final keeps = (_keepsInFlight[inFlight] ?? 1) - 1;
+    if (keeps > 0) {
+      _keepsInFlight[inFlight] = keeps;
+    } else {
+      _keepsInFlight.remove(inFlight);
+    }
+  }
+
   bool _ofThisVisit(int number, PendingTake newest) =>
       _rowsOfThisVisit.contains(newest.id) ||
-      _keepsInFlight.contains((state.sessionId, number));
+      _keepsInFlight.containsKey((state.sessionId, number));
 
   Map<int, UnsentPart> _unsentPartsOf(Map<int, List<PendingTake>> speaking) => {
     for (final MapEntry(key: number, value: rows) in speaking.entries)

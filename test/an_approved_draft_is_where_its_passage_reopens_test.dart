@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -535,6 +536,63 @@ void main() {
           _landsOnTheApprovedDraft(room);
         });
       }
+    },
+  );
+
+  testWidgets(
+    'a take recorded over by a newer recording the room holds keeps nothing '
+    'from the approved draft\'s badge',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1));
+      harness.room.takes
+        ..clear()
+        ..add(
+          const TakeView(
+            takeId: _gravacao,
+            kind: 'ensaio',
+            scope: 'parte-1',
+            ordinal: 1,
+            pass: 2,
+          ),
+        );
+      final home = Directory.systemTemp.createTempSync('sala-recoberta');
+      addTearDown(() => home.deleteSync(recursive: true));
+      harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.retro,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.parte(1),
+            path: (File('${home.path}/p1b.m4a')..writeAsBytesSync([2])).path,
+            takeId: _gravacao,
+            pass: 2,
+          ),
+        ],
+      );
+      harness.room.openedSessions.add('sessao-antiga');
+      final guardadas = Directory('${harness.takesHome.path}/guardadas')
+        ..createSync(recursive: true);
+      final recoberta = File('${guardadas.path}/ensaio-p1a.m4a')
+        ..writeAsBytesSync([1]);
+      File('${guardadas.path}/fila.json').writeAsStringSync(
+        jsonEncode([
+          PendingTake(
+            id: 'r1',
+            path: recoberta.path,
+            sessionId: 'sessao-antiga',
+            kind: 'ensaio',
+            scope: 'parte-1',
+            passNumber: 1,
+            chunkIndex: 1,
+            attempts: takeUploadAttempts,
+            refusal: 'UNKNOWN_REFERENCE',
+          ).toJson(),
+        ]),
+      );
+
+      final room = await _enter(tester, harness);
+
+      _landsOnTheApprovedDraft(room);
     },
   );
 
