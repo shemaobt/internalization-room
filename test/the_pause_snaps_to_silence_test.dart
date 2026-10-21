@@ -360,7 +360,21 @@ void main() {
 
       harness.playback.at = s(9.95);
       await tester.pump(passaDoCursor);
-      await traduzirEConfirmar(tester);
+      expect(container.read(salaSessionProvider).btClipRodando, isTrue);
+      final rotulo = rotuloDoCirculo(tester);
+
+      await tocarOCirculo(tester);
+
+      expect(
+        container.read(salaSessionProvider).btClipRodando,
+        isFalse,
+        reason: 'como no dela, o toque pausa a gravação mesmo sem frase',
+      );
+      expect(harness.playback.sounding, isFalse);
+      expect(rotuloDoCirculo(tester), rotulo);
+
+      await tocarOCirculo(tester);
+      await tocar(tester, confirmar);
 
       expect(
         harness.room.chunkSpans,
