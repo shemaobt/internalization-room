@@ -5649,7 +5649,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final cabeca = state.btTrechoDesde! + _playback.position;
       _semOTrechoNoAr();
       if (cabeca > _trechoStart && cabeca < _trechoEnd) {
-        _trechoEnd = _aPausaNo(cabeca);
+        if (_aPausaNo(cabeca) case final pausa?) _trechoEnd = pausa;
       }
       return;
     }
@@ -5662,29 +5662,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // before it begins, whatever else stands.
     _silenceTheRoom(holdTheClip: true);
     if (_cabeca <= _trechoStart) return;
-    _trechoEnd = _aPausaNo(_cabeca);
+    if (_aPausaNo(_cabeca) case final pausa?) _trechoEnd = pausa;
   }
 
-  Duration _aPausaNo(Duration toque) {
-    final ondeCabe = state.btParteFronteira || state.btClipEnded
-        ? null
-        : _ondeAPausaCabe();
+  Duration? _aPausaNo(Duration toque) {
+    final noFim = state.btParteFronteira || state.btClipEnded;
+    final ondeCabe = noFim ? null : _ondeAPausaCabe();
     state = state.copyWith(btPausaAjustavel: ondeCabe != null);
-    if (ondeCabe == null) return toque;
+    if (noFim) return toque;
+    if (ondeCabe == null) {
+      final parte = _parteNoAr;
+      return pauseAtTheTap(
+        toque,
+        _trechoStart,
+        parte == null ? null : _oTamanhoDa(parte),
+      );
+    }
     final (envelope, :lo, :hi) = ondeCabe;
     return placeThePause(envelope, toque, lo: lo, hi: hi);
+  }
+
+  Duration? _oTamanhoDa(KeptTake parte) {
+    final medido = _tamanhoDaParteMs[parte.path];
+    if (medido != null) return Duration(milliseconds: medido);
+    return _envelopeOf(parte.path)?.length;
   }
 
   (Envelope, {Duration lo, Duration hi})? _ondeAPausaCabe() {
     final parte = _parteNoAr;
     if (parte == null) return null;
     final envelope = _envelopeOf(parte.path);
-    if (envelope == null) return null;
-    final medido = _tamanhoDaParteMs[parte.path];
-    final limites = pauseBounds(
-      _trechoStart,
-      medido == null ? envelope.length : Duration(milliseconds: medido),
-    );
+    final tamanho = _oTamanhoDa(parte);
+    if (envelope == null || tamanho == null) return null;
+    final limites = pauseBounds(_trechoStart, tamanho);
     if (limites == null) return null;
     return (envelope, lo: limites.lo, hi: limites.hi);
   }
@@ -6499,8 +6509,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _abrirACaptura() {
     if (_trechoTraduzidoDeNovo == null && !state.btCortado) {
       if (_cabeca <= _trechoStart) return;
+      if ((state.btParteFronteira || state.btClipEnded) &&
+          isAStub(_trechoStart, _cabeca)) {
+        return;
+      }
       _silenceTheRoom(holdTheClip: true);
-      _trechoEnd = _aPausaNo(_cabeca);
+      final pausa = _aPausaNo(_cabeca);
+      if (pausa == null) return;
+      _trechoEnd = pausa;
     } else {
       _silenceTheRoom(holdTheClip: true);
     }
