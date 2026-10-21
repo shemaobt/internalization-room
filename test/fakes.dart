@@ -1160,6 +1160,8 @@ class FakeRoom implements RoomRepository {
 
   final Set<String> _replacedTakes = {};
 
+  Duration? replacedTakeRefusalAfter;
+
   void replaceThePart(String takeId) {
     final old = takes.firstWhere((take) => take.takeId == takeId);
     final id = 'gravacao-${takeIds.length + 1}';
@@ -2638,6 +2640,8 @@ class FakeRoom implements RoomRepository {
     final refusal = failChunkWith;
     if (refusal != null) return refusal;
     if (_replacedTakes.contains(takeId)) {
+      final wait = replacedTakeRefusalAfter;
+      if (wait != null) await Future<void>.delayed(wait);
       return const Refused(
         RefusalCode.stretchNoLongerCounts,
         'This stretch no longer counts',

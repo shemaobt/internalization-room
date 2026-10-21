@@ -469,6 +469,72 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets(
+    'a refusal whose new take cannot be handed over keeps the telling '
+    'and counts, instead of dropping it in silence',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await entrarNaTraducao(tester, harness, partes: 1);
+      harness.playback.at = cabeca;
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      harness.room
+        ..replaceThePart('gravacao-1')
+        ..refuseClipOf.add('gravacao-2');
+
+      await tocar(tester, confirmar);
+      await tester.pump(const Duration(milliseconds: 600));
+      for (var passo = 0; passo < 5; passo++) {
+        await letTheRehearsalReachTheRoom(tester);
+      }
+
+      expect(
+        container.read(salaSessionProvider).btChunkFailures,
+        hasLength(1),
+        reason: 'a sala recusou o trecho e a releitura não veio: é uma falha',
+      );
+      expect(
+        harness.room.takesReceived.where((take) => take.kind == 'retro'),
+        hasLength(1),
+        reason: 'a gravação da equipe sumia sem aviso a cada tentativa',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a slow refusal leaves the re-read its own wait, so the room does '
+    'not give up in the middle of it',
+    (tester) async {
+      final harness = SalaHarness(
+        filaEmMemoria: true,
+        busyCeiling: const Duration(seconds: 2),
+      );
+      final container = await entrarNaTraducao(tester, harness, partes: 1);
+      harness.playback.at = cabeca;
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      harness.room
+        ..replaceThePart('gravacao-1')
+        ..replacedTakeRefusalAfter = const Duration(milliseconds: 1500)
+        ..holdNextState();
+
+      await tocar(tester, confirmar);
+      await tester.pump(const Duration(milliseconds: 1600));
+      await tester.pump(const Duration(milliseconds: 900));
+      harness.room.finishHeldState();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isFalse,
+        reason: 'a espera armada antes do envio estourava no meio da releitura',
+      );
+      expect(aceso(tester, confirmar), isFalse, reason: 'a releitura terminou');
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets('B3c — sem corte, a tradução vai do cursor até a cabeça', (
     tester,
   ) async {

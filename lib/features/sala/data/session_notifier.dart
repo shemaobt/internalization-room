@@ -5889,14 +5889,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _readWhatTheChunkRefusalSays(
+    Refused refusal,
     String path,
     String sessionId,
     int generation,
   ) async {
+    _watchBusyState();
     final sent = ++_readsSent;
     switch (await _room.fetchState(sessionId)) {
       case Answered(value: final snapshot):
-        final unread = await _keepTheCurrentTakes(sessionId, generation);
+        final unread = await _keepTheCurrentTakes(
+          refusal,
+          sessionId,
+          generation,
+        );
         if (unread != null) {
           return _theRefusalCouldNotBeRead(path, unread, generation);
         }
@@ -5919,6 +5925,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<RoomFailure?> _keepTheCurrentTakes(
+    Refused refusal,
     String sessionId,
     int generation,
   ) async {
@@ -5936,7 +5943,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             await _medirAsPartes(partes, generation);
             return null;
           case Answered():
-            return null;
+            return refusal;
           case final RoomFailure failure:
             return failure;
         }
@@ -6614,9 +6621,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(:final value):
         if (_abandoned(generation)) return;
         frase = value.frase;
-      case Refused(code: RefusalCode.stretchNoLongerCounts):
+      case Refused(code: RefusalCode.stretchNoLongerCounts) && final refused:
         if (_abandoned(generation)) return;
-        await _readWhatTheChunkRefusalSays(path, sessionId, generation);
+        await _readWhatTheChunkRefusalSays(
+          refused,
+          path,
+          sessionId,
+          generation,
+        );
         return;
       case final RoomFailure failure:
         _guardarATraducao(path);
