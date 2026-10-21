@@ -14,15 +14,15 @@ import 'sala_screen_test.dart' show pumpSala;
 import 'um_ensaio_de_tres_partes.dart';
 import 'scenario_helpers.dart';
 
-const _gravarOEnsaio = 'Tocar para gravar o ensaio';
-const _gravarAProxima = 'Tocar para gravar a próxima parte';
-const _terminar = 'Tocar ao terminar';
-const _confirmar = 'Confirmar esta parte';
-const _gravarDeNovo = 'Tocar para gravar esta parte de novo';
+const _gravarOEnsaio = 'Gravar';
+const _gravarAProxima = 'Gravar';
+const _terminar = 'Parar';
+const _confirmar = 'Enviar a gravação';
+const _gravarDeNovo = 'Gravar de novo';
 
 Future<void> _tocar(WidgetTester tester, String label) async {
-  await tester.ensureVisible(byLabel(label));
-  await tester.tap(byLabel(label));
+  await tester.ensureVisible(offTheRows(label));
+  await tester.tap(offTheRows(label));
   await tester.pump(const Duration(milliseconds: 200));
 }
 
@@ -320,8 +320,8 @@ void main() {
     );
   });
 
-  testWidgets('o bead de uma parte ainda não entregue mostra isso, e some '
-      'ao ser entregue', (tester) async {
+  testWidgets('a linha de uma parte que falhou ao subir diz isso, e a marca '
+      'some ao ser entregue', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     harness.room.refuseTake = 'ensaio/${KeptScope.parte(2)}';
     final container = await _ensaioDeTresPartes(tester, harness: harness);
@@ -332,26 +332,18 @@ void main() {
 
     expect(
       [
-        for (final linha in _linhas(tester))
-          !(linha.label ?? '').contains('ainda não enviada'),
+        for (var cena = 1; cena <= 4; cena++)
+          find
+              .descendant(
+                of: linhaDoEnsaio(cena),
+                matching: byLabel('Tentar enviar de novo'),
+              )
+              .evaluate()
+              .isNotEmpty,
       ],
-      [true, false, true, true],
+      [false, true, false, false],
     );
-    expect(
-      _linhas(tester)[1].label,
-      'Cena 2, ainda não enviada',
-      reason: 'a única coisa que uma sala sem texto tem para dizer isso',
-    );
-
-    notifier.ouvirACena(2);
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(
-      _linhas(tester)[1].label,
-      'Cena 2, tocando, ainda não enviada',
-      reason: 'soando e ainda não entregue, o bead diz as duas coisas',
-    );
-    notifier.ouvirACena(2);
-    await tester.pump(const Duration(milliseconds: 200));
+    expect(_linhas(tester)[1].label, 'Cena 2');
 
     harness.room.refuseTake = null;
     await harness.takes.flush();
@@ -359,11 +351,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
-      [
-        for (final linha in _linhas(tester))
-          !(linha.label ?? '').contains('ainda não enviada'),
-      ],
-      [true, true, true, true],
+      byLabel('Tentar enviar de novo'),
+      findsNothing,
       reason: 'entregue, a marca sai',
     );
     expect(_linhas(tester)[1].label, 'Cena 2');
@@ -425,7 +414,7 @@ void main() {
     (tester) async {
       await _achadoNaParteUm(tester);
 
-      expect(byLabel(_gravarDeNovo), findsOneWidget);
+      expect(onTheCircle(_gravarDeNovo), findsOneWidget);
     },
   );
 

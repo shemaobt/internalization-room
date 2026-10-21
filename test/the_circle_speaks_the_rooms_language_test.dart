@@ -15,7 +15,7 @@ void main() {
     final tables = {
       'circleLabels': circleLabels,
       'retroLabels': retroLabels,
-      'rehearsalLabels': rehearsalLabels,
+      'recordingHomeLabels': recordingHomeLabels,
       'sceneRehearsalLabels': sceneRehearsalLabels,
       'findingLabels': findingLabels,
       'escolhaLabels': escolhaLabels,

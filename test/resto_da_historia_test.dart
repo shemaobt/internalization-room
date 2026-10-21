@@ -16,7 +16,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart';
 
 const continuarOEnsaio = 'Continuar o ensaio';
-const irParaARetro = 'Ir para a tradução';
+const irParaARetro = 'Traduzir a gravação';
 
 List<String?> gravacoesDe(SalaSessionState state) => [
   for (final take in state.keptTakes) take.takeId,

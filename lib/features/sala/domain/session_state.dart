@@ -330,7 +330,7 @@ class SalaSessionState {
   final int? btFraseGuardada;
   final int unsentTakes;
   final int unsentChunks;
-  final Set<String> unsentTakeScopes;
+  final Map<int, UnsentPart> unsentParts;
 
   final Machine machine;
 
@@ -430,7 +430,7 @@ class SalaSessionState {
     this.btFraseGuardada,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
-    this.unsentTakeScopes = const {},
+    this.unsentParts = const {},
     this.machine = const Machine(),
     this.parteARegravar,
     this.cenaDaGravacao,
@@ -539,6 +539,9 @@ class SalaSessionState {
     };
   }
 
+  bool get aTakeFromAnEarlierVisitWaits =>
+      sceneRows.any((row) => row.unsent?.fromAnEarlierVisit ?? false);
+
   /// One row per Scene, in passage order; with a passage the room answered with no
   /// scenes, one per Part plus one more. None while the list is awaited or missing.
   List<SceneRow> get sceneRows {
@@ -566,7 +569,7 @@ class SalaSessionState {
             final index? => partes[index],
             null => null,
           },
-          unsent: unsentTakeScopes.contains(KeptScope.parte(number)),
+          unsent: unsentParts[number],
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
           dimmed: sceneRowIsDimmed(number),
           current: _numberAt(playing ?? again) == number,
@@ -1109,7 +1112,7 @@ class SalaSessionState {
     bool clearBtFraseGuardada = false,
     int? unsentTakes,
     int? unsentChunks,
-    Set<String>? unsentTakeScopes,
+    Map<int, UnsentPart>? unsentParts,
     Machine? machine,
     int? parteARegravar,
     bool clearParteARegravar = false,
@@ -1193,7 +1196,7 @@ class SalaSessionState {
           : (btFraseGuardada ?? this.btFraseGuardada),
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
-      unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
+      unsentParts: unsentParts ?? this.unsentParts,
       machine: machine ?? this.machine,
       parteARegravar: clearParteARegravar
           ? null
@@ -1218,7 +1221,7 @@ class SceneRow {
   /// The Scene's title as the scenes door answered it; null for a passage with no scenes.
   final String? title;
   final KeptTake? part;
-  final bool unsent;
+  final UnsentPart? unsent;
   final bool recording;
   final bool dimmed;
 

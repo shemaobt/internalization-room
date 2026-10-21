@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -19,80 +18,14 @@ import 'scenario_helpers.dart' show settle;
 import 'session_notifier_test.dart' show inConversa;
 import 'um_ensaio_de_tres_partes.dart';
 
-class _DiskThatRefusesTheTake extends TakeUploadQueue {
-  _DiskThatRefusesTheTake({
-    required super.room,
-    super.home,
-    required super.recordings,
-  });
+String get _bloqueado => micBlockedAsset(testLanguage);
 
-  bool asked = false;
+int _vezesDitas(SalaHarness harness) =>
+    harness.voice.assets.where((asset) => asset == _bloqueado).length;
 
-  @override
-  Future<PendingTake> enqueue(
-    File audio, {
-    required String sessionId,
-    required String kind,
-    required String scope,
-    int? passNumber,
-    int? chunkIndex,
-    String? scene,
-  }) async {
-    asked = true;
-    throw const FileSystemException('disco cheio');
-  }
-}
-
-class _OutboxThatGaveUp extends TakeUploadQueue {
-  _OutboxThatGaveUp({
-    required super.room,
-    super.home,
-    required super.recordings,
-  });
-
-  bool gaveUp = false;
-
-  @override
-  Future<OutboxTally> tally({required String? sessionId}) async {
-    final counted = await super.tally(sessionId: sessionId);
-    return (
-      stranded: gaveUp || counted.stranded,
-      unsentTakes: counted.unsentTakes,
-      unsentChunks: counted.unsentChunks,
-      unsentTakeScopes: counted.unsentTakeScopes,
-      parts: counted.parts,
-      due: counted.due,
-    );
-  }
-}
-
-class _LedgerThatCannotWrite extends FakeWorkInProgress {
-  bool refuses = false;
-
-  @override
-  Future<void> remember(
-    String book,
-    String pericope,
-    String language,
-    ResumePoint point,
-  ) async {
-    if (refuses) throw const FileSystemException('disco cheio');
-    return super.remember(book, pericope, language, point);
-  }
-}
-
-String get _stranded => strandedTakeAsset(testLanguage);
-
-Future<(SalaHarness, ProviderContainer, _DiskThatRefusesTheTake Function())>
-_inTheRehearsalOverAFullDisk() async {
-  _DiskThatRefusesTheTake? disk;
-  final harness = SalaHarness(
-    takesOverride: (room, home, recordings) => disk = _DiskThatRefusesTheTake(
-      room: room,
-      home: () async => home,
-      recordings: recordings,
-    ),
-  );
+Future<(SalaHarness, ProviderContainer)>
+_inTheRehearsalWithAPartRecorded() async {
+  final harness = SalaHarness();
   final container = await inConversa(harness);
   addTearDown(container.dispose);
   final sala = container.read(salaSessionProvider.notifier);
@@ -107,7 +40,7 @@ _inTheRehearsalOverAFullDisk() async {
     'a parte ficar gravada',
     () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
   );
-  return (harness, container, () => disk!);
+  return (harness, container);
 }
 
 Future<(ProviderContainer, SalaSessionState Function())> _reopensOnPartTwoOfTwo(
@@ -168,18 +101,18 @@ Future<(ProviderContainer, SalaSessionState Function())> _reopensOnPartTwoOfTwo(
 void main() {
   test('a Guide line that arrives while a part plays waits for the part to '
       'end, then plays', () async {
-    final (harness, container, disk) = await _inTheRehearsalOverAFullDisk();
+    final (harness, container) = await _inTheRehearsalWithAPartRecorded();
     final sala = container.read(salaSessionProvider.notifier);
 
     sala.takeKeep();
     sala.playTheRehearsal();
     await waitFor('a parte tocar', () => harness.playback.sounding);
-    await waitFor('o disco recusar a parte', () => disk().asked);
+    sala.sayTheMicIsBlocked();
     await settle();
 
     expect(
       harness.voice.assets,
-      isNot(contains(_stranded)),
+      isNot(contains(_bloqueado)),
       reason: 'uma linha nunca interrompe uma parte: ela espera o Canal livre',
     );
     expect(harness.playback.sounding, isTrue);
@@ -187,7 +120,7 @@ void main() {
     harness.playback.finishPlayback();
     await waitFor(
       'a linha tocar depois da parte',
-      () => harness.voice.assets.contains(_stranded),
+      () => harness.voice.assets.contains(_bloqueado),
     );
   });
 
@@ -321,7 +254,6 @@ void main() {
     it.harness.room.verdictChecked = true;
     await pedirOVeredito(it);
     expect(it.estado.btPhase, BtPhase.conferida);
-    final bloqueado = micBlockedAsset(testLanguage);
     it.harness.room
       ..releaseBlockers = const ['untold_stretch']
       ..releaseUntoldSegmentId = 'trecho-1';
@@ -336,34 +268,27 @@ void main() {
     await waitFor('a parte tocar', () => it.estado.channel is PartPlaying);
     it.sala.sayTheMicIsBlocked();
     await settle();
-    expect(it.harness.voice.assets, isNot(contains(bloqueado)));
+    expect(it.harness.voice.assets, isNot(contains(_bloqueado)));
 
     it.harness.room.answerHeldRead(it.harness.room.heldReads.length - 1);
     await waitFor('o trecho tocar', () => it.estado.btTrechoTocando);
 
     expect(
       it.harness.voice.assets,
-      isNot(contains(bloqueado)),
+      isNot(contains(_bloqueado)),
       reason:
           'a linha esperava, e nenhum silêncio entre o gesto e o trecho a solta',
     );
     it.harness.playback.finishPlayback();
     await waitFor(
       'a linha tocar depois do trecho',
-      () => it.harness.voice.assets.contains(bloqueado),
+      () => it.harness.voice.assets.contains(_bloqueado),
     );
   });
 
   test('a line waiting while a gesture silences the room and then finds '
       'nothing to play is played', () async {
-    _OutboxThatGaveUp? outbox;
-    final harness = SalaHarness(
-      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
-        room: room,
-        home: () async => home,
-        recordings: recordings,
-      ),
-    );
+    final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
     final it = Sala(harness, container);
@@ -400,14 +325,14 @@ void main() {
     harness.voice.holdNextLine();
     it.sala.sayTheMicIsBlocked();
     await waitFor('a Guia falar', () => it.estado.channel is GuideSpeaking);
-    outbox!.gaveUp = true;
-    await it.sala.refreshUnsent();
-    expect(harness.voice.assets, isNot(contains(_stranded)));
+    it.sala.sayTheMicIsBlocked();
+    await settle();
+    expect(_vezesDitas(harness), 1);
 
     it.sala.ouvirOTrechoEATraducao();
     await waitFor(
       'a linha que esperava tocar quando o gesto não tocou nada',
-      () => harness.voice.assets.contains(_stranded),
+      () => _vezesDitas(harness) == 2,
     );
   });
 
@@ -424,7 +349,6 @@ void main() {
       addTearDown(container.dispose);
       final sala = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
-      final bloqueado = micBlockedAsset(testLanguage);
       await sala.abrirEscolha();
       await waitFor('a roda carregar', () => read().naRoda != null);
       await settle();
@@ -448,7 +372,7 @@ void main() {
       await settle();
 
       expect(
-        harness.voice.assets.where((asset) => asset == bloqueado),
+        harness.voice.assets.where((asset) => asset == _bloqueado),
         hasLength(1),
         reason:
             'a linha que esperava nunca começa para ser cortada logo depois',
@@ -460,14 +384,7 @@ void main() {
     'a line waiting under a halt is never started and then cut when the long '
     'press releases it into the conversation opening again',
     () async {
-      _OutboxThatGaveUp? outbox;
-      final harness = SalaHarness(
-        takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
-          room: room,
-          home: () async => home,
-          recordings: recordings,
-        ),
-      );
+      final harness = SalaHarness();
       harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-guardada',
         stage: SalaStage.ensaio,
@@ -494,17 +411,14 @@ void main() {
       addTearDown(container.dispose);
       final sala = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
-      final bloqueado = micBlockedAsset(testLanguage);
       await sala.abrirEscolha();
       await settle();
       unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
       await waitFor('a sala parar', () => read().needsPerson);
       sala.sayTheMicIsBlocked();
-      outbox!.gaveUp = true;
-      await sala.refreshUnsent();
       await settle();
-      expect(read().machine.queue, hasLength(2));
-      expect(harness.voice.assets, isNot(contains(bloqueado)));
+      expect(read().machine.queue, hasLength(1));
+      expect(harness.voice.assets, isNot(contains(_bloqueado)));
 
       harness.room.refuseClipOf.clear();
       final marca = harness.sounds.length;
@@ -553,33 +467,24 @@ void main() {
 
   test('a background line arriving while a gesture is on its way never lets a '
       'waiting line start and be cut', () async {
-    _OutboxThatGaveUp? outbox;
-    final harness = SalaHarness(
-      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
-        room: room,
-        home: () async => home,
-        recordings: recordings,
-      ),
-    );
+    final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
     final sala = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
-    final bloqueado = micBlockedAsset(testLanguage);
     await sala.abrirEscolha();
     await waitFor('a roda carregar', () => read().naRoda != null);
     await settle();
     harness.voice.holdNextLine();
     sala.sayTheMicIsBlocked();
     await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
-    sala.sayTheMicIsBlocked();
     harness.network.holdNextCheck();
 
     sala.openTheEntry(read().naRoda!.first);
     await settle();
-    outbox!.gaveUp = true;
-    await sala.refreshUnsent();
+    sala.sayTheMicIsBlocked();
     await settle();
+    expect(read().machine.queue, hasLength(1));
     final marca = harness.sounds.length;
     harness.network.finishHeldCheck();
     await waitFor(
@@ -590,7 +495,7 @@ void main() {
     await settle();
 
     expect(
-      harness.voice.assets.where((asset) => asset == bloqueado),
+      harness.voice.assets.where((asset) => asset == _bloqueado),
       hasLength(1),
       reason:
           'a linha que esperava nunca começa para ser cortada: '
@@ -598,44 +503,9 @@ void main() {
     );
   });
 
-  test("a background line a gesture's own flow happens to start waits for that "
-      'gesture, whose own opening plays first', () async {
-    final ledger = _LedgerThatCannotWrite();
-    final harness = SalaHarness(emAbertoNoDisco: ledger);
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final sala = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await sala.abrirEscolha();
-    await waitFor('a roda carregar', () => read().naRoda != null);
-    await settle();
-    ledger.refuses = true;
-    final marca = harness.sounds.length;
-
-    sala.openTheEntry(read().naRoda!.first);
-    await waitFor(
-      'a linha da gravação presa tocar',
-      () => harness.voice.assets.contains(_stranded),
-    );
-
-    final depois = harness.sounds.skip(marca).toList();
-    expect(
-      depois.indexOf('voice:line'),
-      allOf(isNonNegative, lessThan(depois.indexOf('voice:asset'))),
-      reason: 'a abertura do gesto toca antes da linha de fundo: $depois',
-    );
-  });
-
   test('no background line plays between the acknowledgement and the reply of '
       'a turn', () async {
-    _OutboxThatGaveUp? outbox;
-    final harness = SalaHarness(
-      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
-        room: room,
-        home: () async => home,
-        recordings: recordings,
-      ),
-    );
+    final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final sala = container.read(salaSessionProvider.notifier);
@@ -646,7 +516,7 @@ void main() {
     harness.voice.aoFalar = () {
       if (harness.voice.assets.length == vistas) return;
       vistas = harness.voice.assets.length;
-      if (harness.voice.assets.last == _stranded) {
+      if (harness.voice.assets.last == _bloqueado) {
         respostaAntes ??= harness.voice.played.length > antes;
       }
     };
@@ -656,31 +526,22 @@ void main() {
     await waitFor('o microfone abrir', () => read().channel is Microphone);
     sala.conversaTap();
     await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
-    outbox!.gaveUp = true;
-    await sala.refreshUnsent();
+    sala.sayTheMicIsBlocked();
     await settle();
     harness.voice.finishHeldLine();
     await settle();
     harness.room.finishHeldTurn();
 
     await waitFor(
-      'a linha da gravação presa tocar',
-      () => harness.voice.assets.contains(_stranded),
+      'a linha de fundo tocar',
+      () => harness.voice.assets.contains(_bloqueado),
     );
     expect(respostaAntes, isTrue, reason: 'a resposta do turno vem antes');
   });
 
   test('a turn the room gave up on no longer holds a waiting line once the '
       'halt is lifted', () async {
-    _OutboxThatGaveUp? outbox;
-    final harness = SalaHarness(
-      busyCeiling: const Duration(milliseconds: 300),
-      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
-        room: room,
-        home: () async => home,
-        recordings: recordings,
-      ),
-    );
+    final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 300));
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     addTearDown(harness.room.finishHeldTurn);
@@ -691,23 +552,22 @@ void main() {
     await waitFor('o microfone abrir', () => read().channel is Microphone);
     sala.conversaTap();
     await waitFor('o vigia chamar uma pessoa', () => read().needsPerson);
-    outbox!.gaveUp = true;
-    await sala.refreshUnsent();
+    sala.sayTheMicIsBlocked();
     await settle();
 
     harness.room.theDeskAttended();
     sala.resolveWithPerson();
 
     await waitFor(
-      'a linha da gravação presa tocar com o turno ainda preso',
-      () => harness.voice.assets.contains(_stranded),
+      'a linha de fundo tocar com o turno ainda preso',
+      () => harness.voice.assets.contains(_bloqueado),
     );
   });
 
   group('the spontaneous lines wait for the Channel', () {
-    test('the stranded line arriving under an open microphone plays only after '
+    test('a courtesy line arriving under an open microphone plays only after '
         'it closes', () async {
-      final (harness, container, disk) = await _inTheRehearsalOverAFullDisk();
+      final (harness, container) = await _inTheRehearsalWithAPartRecorded();
       final sala = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
@@ -717,15 +577,15 @@ void main() {
         'a parte seguinte começar a ser gravada',
         () => read().ensaio == EnsaioStatus.recording,
       );
-      await waitFor('o disco recusar a parte', () => disk().asked);
+      sala.sayTheMicIsBlocked();
       await settle();
 
-      expect(harness.voice.assets, isNot(contains(_stranded)));
+      expect(harness.voice.assets, isNot(contains(_bloqueado)));
 
       sala.ensaioTap();
       await waitFor(
         'a linha tocar depois do microfone',
-        () => harness.voice.assets.contains(_stranded),
+        () => harness.voice.assets.contains(_bloqueado),
       );
     });
   });

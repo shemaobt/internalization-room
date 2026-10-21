@@ -21,14 +21,15 @@ const continuarOEnsaio = 'Continuar o ensaio';
 
 const gravarATraducaoDeNovo = 'Tocar para gravar a tradução de novo';
 const terminar = 'Tocar ao terminar';
+const pararAGravacao = 'Parar';
 const ouvirATraducao = 'Ouvir a tradução';
 const confirmarATraducao = 'Confirmar a tradução e seguir';
 const tesoura = 'Pausar onde a frase acaba';
 const conferir = 'terminei';
 
-const gravarEstaParteDeNovo = 'Tocar para gravar esta parte de novo';
-const confirmarAParte = 'Confirmar esta parte';
-const irParaATraducao = 'Ir para a tradução';
+const gravarEstaParteDeNovo = 'Gravar de novo';
+const confirmarAParte = 'Enviar a gravação';
+const irParaATraducao = 'Traduzir a gravação';
 const sairDaPassagem = 'Escolher outra passagem';
 
 const rotulosDaGrade = [
@@ -205,7 +206,7 @@ void main() {
     ]);
 
     await tocar(tester, gravarEstaParteDeNovo);
-    await tocar(tester, terminar);
+    await tocar(tester, pararAGravacao);
     expect(
       naLinhaDoEnsaio(tester, 'Ouvir'),
       [true, true, true, null],

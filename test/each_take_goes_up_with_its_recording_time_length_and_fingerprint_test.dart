@@ -372,7 +372,7 @@ void main() {
         'sha256': 'abc',
       });
       expect(await queue.pending(), isEmpty);
-      expect(await queue.lostHistory(), isFalse);
+      expect(File('${dir.path}/fila.json.ilegivel').existsSync(), isFalse);
     });
 
     test('the device clock is not corrected', () async {

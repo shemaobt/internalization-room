@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show settle;
 
 Directory _home() {
   final home = Directory.systemTemp.createTempSync('sala-lugar');
@@ -35,13 +35,8 @@ Future<void> _placeLands(WorkInProgress ledger, SalaStage stage) => waitFor(
   () async => (await ledger.of('Ruth', 'P01', 'pt'))?.stage == stage,
 );
 
-Future<void> _theRoomSays(SalaHarness harness) => waitFor(
-  'a sala dizer que uma gravação ficou presa',
-  () => harness.voice.assets.contains(strandedTakeAsset(testLanguage)),
-);
-
 void main() {
-  test('a place the disk refuses to write is spoken to the team', () async {
+  test('a place the disk refuses to write leaves the room going', () async {
     final home = _home();
     final ledger = WorkInProgress(
       home: () async => home,
@@ -55,27 +50,17 @@ void main() {
     await notifier.abrirEscolha();
 
     await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-    // The write on entering a passage is fire-and-forget. Blocking the disk while it is
-    // still in flight would make that write the one that fails, and the case would hear
-    // its line and pass for the wrong reason.
     await _placeLands(ledger, SalaStage.conversa);
-    expect(
-      harness.voice.assets,
-      isNot(contains(strandedTakeAsset(testLanguage))),
-      reason:
-          'o disco ainda está bom aqui: a linha só pode vir do que vem depois',
-    );
 
     _blockTheDisk(home);
     notifier.goEnsaio();
+    await settle();
+    notifier.ensaioTap();
 
-    await _theRoomSays(harness);
-    expect(
-      harness.voice.assets,
-      contains(strandedTakeAsset(testLanguage)),
-      reason:
-          'perder o lugar exato da equipe em silêncio é a mesma perda que '
-          'uma gravação presa, e merece a mesma voz',
+    await waitFor(
+      'a sala seguir gravando',
+      () =>
+          container.read(salaSessionProvider).ensaio == EnsaioStatus.recording,
     );
   });
 
@@ -94,23 +79,16 @@ void main() {
     await notifier.abrirEscolha();
 
     await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+    await settle();
 
-    await _theRoomSays(harness);
     expect(
       await ledger.of('Ruth', 'P01', 'pt'),
       isNull,
       reason: 'o arquivo ilegível continua ilegível: nada foi guardado',
     );
-    expect(
-      harness.voice.assets,
-      contains(strandedTakeAsset(testLanguage)),
-      reason:
-          'a escrita voltava com sucesso sem ter escrito nada, e essa é a '
-          'falha que não levanta erro nenhum em camada alguma',
-    );
   });
 
-  test('an ordinary place is written without a word', () async {
+  test('an ordinary place is written at each step', () async {
     final home = _home();
     final ledger = WorkInProgress(
       home: () async => home,
@@ -127,12 +105,6 @@ void main() {
     await _placeLands(ledger, SalaStage.conversa);
     notifier.goEnsaio();
 
-    // Measured after the write has actually landed, so the silence below is the room
-    // having nothing to say rather than the room not having got there yet.
     await _placeLands(ledger, SalaStage.ensaio);
-    expect(
-      harness.voice.assets,
-      isNot(contains(strandedTakeAsset(testLanguage))),
-    );
   });
 }

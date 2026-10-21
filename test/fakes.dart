@@ -3181,12 +3181,6 @@ class FakeTakeQueue implements TakeUploadQueue {
   ];
 
   @override
-  Future<List<PendingTake>> giveUps() async => const [];
-
-  @override
-  Future<bool> lostHistory() async => false;
-
-  @override
   Future<int> unsentOf(String kind, {required String sessionId}) async => [
     for (final entry in rows)
       if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
@@ -3210,16 +3204,6 @@ class FakeTakeQueue implements TakeUploadQueue {
     _holding = null;
   }
 
-  @override
-  Future<Set<String>> unsentScopesOf(
-    String kind, {
-    required String sessionId,
-  }) async => {
-    for (final entry in rows)
-      if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
-        entry.scope,
-  };
-
   /// How many takes were still unsent each time the room counted, in order.
   final List<int> unsentAtEachTally = [];
 
@@ -3230,13 +3214,11 @@ class FakeTakeQueue implements TakeUploadQueue {
     _armed = null;
     if (held != null) _holding = held;
     // Nenhum await antes daqui: os números precisam ser tomados no mesmo turno
-    // síncrono em que a espera é armada, do jeito que unsentScopesOf já fazia —
-    // um await entre as duas coisas muda quando a leitura vê a fila, não só
-    // quando ela responde.
+    // síncrono em que a espera é armada — um await entre as duas coisas muda
+    // quando a leitura vê a fila, não só quando ela responde.
     final result = (
       parts: const <String, PartFact>{},
       due: Duration.zero,
-      stranded: false,
       unsentTakes: [
         for (final entry in rows)
           if (!entry.stored &&
@@ -3251,12 +3233,19 @@ class FakeTakeQueue implements TakeUploadQueue {
               entry.sessionId == sessionId)
             entry,
       ].length,
-      unsentTakeScopes: {
+      unsentParts: {
         for (final entry in rows)
           if (!entry.stored &&
               entry.kind == 'ensaio' &&
               entry.sessionId == sessionId)
-            entry.scope,
+            entry.scope: [
+              for (final row in rows)
+                if (!row.stored &&
+                    row.kind == 'ensaio' &&
+                    row.sessionId == sessionId &&
+                    row.scope == entry.scope)
+                  row,
+            ],
       },
     );
     if (held != null) await held.future;
@@ -3653,8 +3642,8 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
   Future<void> dispose() async => _states.close();
 }
 
-class QueueHeldOnGiveUps extends TakeUploadQueue {
-  QueueHeldOnGiveUps({
+class QueueHeldOnTheTally extends TakeUploadQueue {
+  QueueHeldOnTheTally({
     required super.room,
     super.home,
     required super.recordings,
@@ -3664,10 +3653,10 @@ class QueueHeldOnGiveUps extends TakeUploadQueue {
   final Completer<void> answer = Completer<void>();
 
   @override
-  Future<List<PendingTake>> giveUps() async {
+  Future<OutboxTally> tally({required String? sessionId}) async {
     if (!asking.isCompleted) asking.complete();
     await answer.future;
-    return super.giveUps();
+    return super.tally(sessionId: sessionId);
   }
 }
 

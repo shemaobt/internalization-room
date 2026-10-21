@@ -13,9 +13,6 @@ String offlineNoticeAsset(String language) =>
 String micBlockedAsset(String language) =>
     'assets/audio/$language/microfone.mp3';
 
-String strandedTakeAsset(String language) =>
-    'assets/audio/$language/gravacao_presa.mp3';
-
 const instantAckLines = ['F0', 'F1', 'F2'];
 
 const startLine = 'P0';
@@ -439,32 +436,8 @@ String retroLabelFor(String control, String language, {int? n}) =>
     (retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!)
         .replaceAll('{n}', '$n');
 
-const rehearsalLabels = {
-  'firstPart': {
-    'pt': 'Tocar para gravar o ensaio',
-    'en': 'Tap to record the rehearsal',
-  },
-  'nextPart': {
-    'pt': 'Tocar para gravar a próxima parte',
-    'en': 'Tap to record the next part',
-  },
-  'recording': {'pt': 'Tocar ao terminar', 'en': 'Tap when you finish'},
-  'pending': {
-    'pt': 'Tocar para gravar esta parte de novo',
-    'en': 'Tap to record this part again',
-  },
-  'play': {'pt': 'Ouvir o ensaio até aqui', 'en': 'Hear the rehearsal so far'},
-  'pause': {'pt': 'Pausar o ensaio', 'en': 'Pause the rehearsal'},
-  'check': {'pt': 'Confirmar esta parte', 'en': 'Confirm this part'},
-  'advance': {'pt': 'Ir para a tradução', 'en': 'Go to the translation'},
-};
-
-String rehearsalLabelFor(String state, String language) =>
-    rehearsalLabels[state]![language] ??
-    rehearsalLabels[state]![floorLanguage]!;
-
 /// Her recording home's words, byte for byte from her app (`strings.ts` at 18fa7c4); the
-/// playing and unsent cues VoiceOver reads are the room's own.
+/// playing cue VoiceOver reads is the room's own.
 const recordingHomeLabels = {
   'title': {'pt': 'Gravem o ensaio de vocês', 'en': 'Record your rehearsal'},
   'joinedTitle': {'pt': 'Ensaio Final', 'en': 'Final Rehearsal'},
@@ -482,7 +455,22 @@ const recordingHomeLabels = {
   'recordAgain': {'pt': 'Gravar de novo', 'en': 'Record again'},
   'stop': {'pt': 'Parar', 'en': 'Stop'},
   'playing': {'pt': 'tocando', 'en': 'playing'},
-  'notSent': {'pt': 'ainda não enviada', 'en': 'not sent yet'},
+  'pending': {
+    'pt': 'Uma gravação ainda está neste computador e não foi enviada.',
+    'en': 'A recording is still on this computer and has not been sent.',
+  },
+  'sendNow': {'pt': 'enviar agora', 'en': 'send it now'},
+  'sendAria': {'pt': 'Enviar a gravação', 'en': 'Send the recording'},
+  'failed': {
+    'pt': 'falhou — toque para tentar de novo',
+    'en': 'failed — tap to try again',
+  },
+  'retryAria': {'pt': 'Tentar enviar de novo', 'en': 'Try sending again'},
+  'translate': {'pt': 'Traduzir a gravação', 'en': 'Translate the recording'},
+  'listenAndCheck': {
+    'pt': 'ouvir e conferir o Ensaio Final',
+    'en': 'listen to and check the Final Rehearsal',
+  },
 };
 
 String recordingHomeLabelFor(String key, String language, {int? n}) =>

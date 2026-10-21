@@ -6,9 +6,7 @@ import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
@@ -27,23 +25,6 @@ const _linked = RememberedLink(
 );
 
 const _revoked = Refused(RefusalCode.deviceRevoked);
-
-class _AnOutboxThatGaveUpOnATake extends FakeTakeQueue {
-  _AnOutboxThatGaveUpOnATake({required super.room});
-
-  @override
-  Future<OutboxTally> tally({required String? sessionId}) async {
-    final counted = await super.tally(sessionId: sessionId);
-    return (
-      stranded: true,
-      unsentTakes: counted.unsentTakes,
-      unsentChunks: counted.unsentChunks,
-      unsentTakeScopes: counted.unsentTakeScopes,
-      parts: counted.parts,
-      due: counted.due,
-    );
-  }
-}
 
 SalaSessionState _read(ProviderContainer container) =>
     container.read(salaSessionProvider);
@@ -171,35 +152,6 @@ void main() {
       reason:
           'as recusas contadas eram da sala de antes do desvínculo; a sala '
           'nova recebeu uma só, abaixo da escada',
-    );
-  });
-
-  testWidgets('a relinked room says a recording is stranded again', (
-    tester,
-  ) async {
-    final harness = SalaHarness(
-      linkedAs: _linked,
-      linkPoll: const Duration(milliseconds: 50),
-      takesOverride: (room, _, _) => _AnOutboxThatGaveUpOnATake(room: room),
-    );
-    final container = await pumpSala(tester, harness);
-    await tester.pump(const Duration(milliseconds: 300));
-    final stranded = strandedTakeAsset(testLanguage);
-    await _room(container).refreshUnsent();
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(harness.voice.assets.where((a) => a == stranded), hasLength(1));
-
-    await _theDeskUnlinks(tester, container, harness);
-    await _theDeskLinksAgain(tester, harness);
-    await _room(container).refreshUnsent();
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(
-      harness.voice.assets.where((a) => a == stranded),
-      hasLength(2),
-      reason:
-          'quem ouviu que uma gravação ficou presa foi a sala de antes do '
-          'desvínculo; a sala nova nunca disse, e a equipe dela não sabe',
     );
   });
 

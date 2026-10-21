@@ -16,7 +16,6 @@ const _rotulosDeTraduzir = {
   'Ouvir a tradução',
   'Confirmar a tradução e seguir',
   'traduzida e conferida',
-  'Ir para a tradução',
   'Ouvir o trecho e a tradução',
   'Traduzir este trecho de novo',
   'não entendi — traduzam de novo esse pedaço',

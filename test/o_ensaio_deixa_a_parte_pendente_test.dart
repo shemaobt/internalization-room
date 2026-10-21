@@ -13,14 +13,14 @@ import 'sala_screen_test.dart' show pumpSala;
 import 'session_notifier_test.dart' show inConversa;
 import 'scenario_helpers.dart';
 
-const _gravarOEnsaio = 'Tocar para gravar o ensaio';
-const _gravarAProxima = 'Tocar para gravar a próxima parte';
-const _terminar = 'Tocar ao terminar';
-const _gravarDeNovo = 'Tocar para gravar esta parte de novo';
-const _ouvirOEnsaio = 'Ouvir o ensaio até aqui';
-const _pausarOEnsaio = 'Pausar o ensaio';
-const _confirmar = 'Confirmar esta parte';
-const _irParaATraducao = 'Ir para a tradução';
+const _gravarOEnsaio = 'Gravar';
+const _gravarAProxima = 'Gravar';
+const _terminar = 'Parar';
+const _gravarDeNovo = 'Gravar de novo';
+const _ouvirOEnsaio = 'Ouvir';
+const _pausarOEnsaio = 'Parar';
+const _confirmar = 'Enviar a gravação';
+const _irParaATraducao = 'Traduzir a gravação';
 
 Future<ProviderContainer> _noEnsaio(
   WidgetTester tester, {
@@ -40,8 +40,8 @@ Future<ProviderContainer> _noEnsaio(
 }
 
 Future<void> _tocar(WidgetTester tester, String label) async {
-  await tester.ensureVisible(byLabel(label));
-  await tester.tap(byLabel(label));
+  await tester.ensureVisible(offTheRows(label));
+  await tester.tap(offTheRows(label));
   await tester.pump(const Duration(milliseconds: 200));
 }
 
@@ -64,12 +64,12 @@ FacilitatorCircle _circulo(WidgetTester tester) =>
     );
 
 (bool, double) _estadoDoBotao(WidgetTester tester, String label) => (
-  tester.widget<Semantics>(byLabel(label)).properties.enabled == true,
+  tester.widget<Semantics>(offTheRows(label)).properties.enabled == true,
   tester
       .widget<AnimatedOpacity>(
         find
             .descendant(
-              of: byLabel(label),
+              of: offTheRows(label),
               matching: find.byType(AnimatedOpacity),
             )
             .first,
@@ -153,7 +153,7 @@ void main() {
       ], reason: 'só a última gravação sobe, como a parte 1');
       expect(_apagado(tester, _confirmar), isTrue);
       expect(_aceso(tester, _irParaATraducao), isTrue);
-      expect(byLabel(_gravarAProxima), findsOneWidget);
+      expect(offTheRows(_gravarAProxima), findsOneWidget);
       expect(_circulo(tester).voice, VoiceState.invite);
       expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
     },
@@ -178,7 +178,7 @@ void main() {
       expect(naLinhaDoEnsaio(tester, 'Gravar'), [null, true]);
       expect(_apagado(tester, _irParaATraducao), isTrue);
 
-      await tester.tap(byLabel(_irParaATraducao), warnIfMissed: false);
+      await tester.tap(offTheRows(_irParaATraducao), warnIfMissed: false);
       await tester.pump(const Duration(milliseconds: 200));
       _sala(container).startRetro();
       await tester.pump(const Duration(milliseconds: 200));
@@ -270,7 +270,7 @@ void main() {
       [partes[0]],
       reason: 'pausado, o ensaio não segue sozinho para a parte 2',
     );
-    expect(byLabel(_ouvirOEnsaio), findsOneWidget);
+    expect(offTheRows(_ouvirOEnsaio), findsOneWidget);
 
     await _tocar(tester, _ouvirOEnsaio);
 
@@ -427,7 +427,7 @@ void main() {
     await _confirmarAParte(tester);
 
     expect(harness.playback.sounding, isFalse);
-    expect(byLabel(_ouvirOEnsaio), findsOneWidget);
+    expect(offTheRows(_ouvirOEnsaio), findsOneWidget);
   });
 
   testWidgets('nada aposentado é desenhado no ensaio', (tester) async {
@@ -450,17 +450,17 @@ void main() {
         'Parar de ouvir o ensaio guardado',
       ]) {
         expect(
-          byLabel(aposentado),
+          offTheRows(aposentado),
           findsNothing,
           reason: '$quando: $aposentado',
         );
       }
-      final tocar = byLabel(_ouvirOEnsaio).evaluate().isNotEmpty
+      final tocar = offTheRows(_ouvirOEnsaio).evaluate().isNotEmpty
           ? _ouvirOEnsaio
           : _pausarOEnsaio;
-      expect(byLabel(tocar), findsOneWidget, reason: quando);
-      expect(byLabel(_confirmar), findsOneWidget, reason: quando);
-      expect(byLabel(_irParaATraducao), findsOneWidget, reason: quando);
+      expect(offTheRows(tocar), findsOneWidget, reason: quando);
+      expect(offTheRows(_confirmar), findsOneWidget, reason: quando);
+      expect(offTheRows(_irParaATraducao), findsOneWidget, reason: quando);
     }
 
     nadaAposentado('vazio');
@@ -477,24 +477,24 @@ void main() {
   testWidgets('os rótulos falam a língua da sala', (tester) async {
     await _noEnsaio(tester, lingua: 'en');
 
-    expect(byLabel('Tap to record the rehearsal'), findsOneWidget);
-    expect(byLabel('Hear the rehearsal so far'), findsOneWidget);
-    expect(byLabel('Confirm this part'), findsOneWidget);
-    expect(byLabel('Go to the translation'), findsOneWidget);
+    expect(offTheRows('Record'), findsOneWidget);
+    expect(offTheRows('Listen'), findsOneWidget);
+    expect(offTheRows('Send the recording'), findsOneWidget);
+    expect(offTheRows('Translate the recording'), findsOneWidget);
 
-    await _tocar(tester, 'Tap to record the rehearsal');
-    expect(byLabel('Tap when you finish'), findsOneWidget);
-    expect(byLabel('Scene 1'), findsOneWidget);
-    await _tocar(tester, 'Tap when you finish');
-    expect(byLabel('Tap to record this part again'), findsOneWidget);
+    await _tocar(tester, 'Record');
+    expect(offTheRows('Stop'), findsOneWidget);
+    expect(offTheRows('Scene 1'), findsOneWidget);
+    await _tocar(tester, 'Stop');
+    expect(offTheRows('Record again'), findsOneWidget);
 
-    await _tocar(tester, 'Hear the rehearsal so far');
-    expect(byLabel('Pause the rehearsal'), findsOneWidget);
-    await _tocar(tester, 'Pause the rehearsal');
+    await _tocar(tester, 'Listen');
+    expect(offTheRows('Stop'), findsOneWidget);
+    await _tocar(tester, 'Stop');
 
-    await _tocar(tester, 'Confirm this part');
+    await _tocar(tester, 'Send the recording');
     await letTheRehearsalReachTheRoom(tester);
-    expect(byLabel('Tap to record the next part'), findsOneWidget);
-    expect(byLabel('Scene 1'), findsOneWidget);
+    expect(offTheRows('Record'), findsOneWidget);
+    expect(offTheRows('Scene 1'), findsOneWidget);
   });
 }

@@ -1,14 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
@@ -633,93 +630,6 @@ void main() {
       2,
       reason: 'uma conta por trecho contado — nem a mais, nem a menos',
     );
-  });
-
-  test(
-    'a recording written off for a missing file is spoken about too',
-    () async {
-      final harness = SalaHarness();
-      final container = harness.container();
-      addTearDown(container.dispose);
-
-      final entry = await harness.takes.enqueue(
-        harness.recorder.aFile('sumida'),
-        sessionId: 'sessao-de-ontem',
-        kind: 'ensaio',
-        scope: 'inteira',
-      );
-      File(entry.path).deleteSync();
-      await harness.takes.flush();
-
-      await container.read(salaSessionProvider.notifier).refreshUnsent();
-      await settle();
-
-      expect(
-        harness.voice.assets,
-        contains(strandedTakeAsset(testLanguage)),
-        reason:
-            'dar uma gravação por perdida em silêncio é perdê-la duas vezes',
-      );
-    },
-  );
-
-  test(
-    'a recording written off with its audio still there is not called stranded',
-    () async {
-      final harness = SalaHarness();
-      final container = harness.container();
-      addTearDown(container.dispose);
-
-      final entry = await harness.takes.enqueue(
-        harness.recorder.aFile('condenada'),
-        sessionId: 'sessao-de-ontem',
-        kind: 'ensaio',
-        scope: 'inteira',
-      );
-      final audio = File(entry.path);
-      final gravado = audio.readAsBytesSync();
-      audio.deleteSync();
-      await harness.takes.flush();
-      // O áudio está de volta — é o tablet de campo, onde ele nunca chegou a sair.
-      audio.writeAsBytesSync(gravado);
-
-      // A conta corre ANTES do flush que vai recuperar a linha: é essa ordem, em
-      // session_notifier, que decide se a sala fala.
-      await container.read(salaSessionProvider.notifier).refreshUnsent();
-      await settle();
-
-      expect(
-        harness.voice.assets,
-        isNot(contains(strandedTakeAsset(testLanguage))),
-        reason:
-            'a linha encalhada existe para dizer que uma gravação não vai subir; '
-            'dizê-la de uma que sobe no flush seguinte é dar um susto falso à equipe '
-            'justamente nos aparelhos que este conserto veio resgatar',
-      );
-    },
-  );
-
-  test('a stranded recording is spoken before any session exists', () async {
-    final harness = SalaHarness();
-    final container = harness.container();
-    addTearDown(container.dispose);
-
-    await harness.takes.enqueue(
-      harness.recorder.aFile('perdida'),
-      sessionId: 'sessao-de-ontem',
-      kind: 'ensaio',
-      scope: 'inteira',
-    );
-    harness.room.reachable = false;
-    for (var wait = 0; wait <= takeUploadWaitsBeforeSaying; wait++) {
-      await harness.takes.flush();
-    }
-
-    await container.read(salaSessionProvider.notifier).refreshUnsent();
-    await settle();
-
-    expect(container.read(salaSessionProvider).sessionId, isNull);
-    expect(harness.voice.assets, contains(strandedTakeAsset(testLanguage)));
   });
 
   test('a rehearsal that will not play never opens the terminei', () async {
