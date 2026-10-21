@@ -15,6 +15,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         cabeca,
         conferir,
         entrarNaTraducao,
+        fimDaGravacao,
         gravar,
         ouvir,
         parte,
@@ -72,8 +73,8 @@ Future<String?> ateOTrechoNomeado(
   harness.playback.at = parte;
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 300));
-  await tocarOCirculo(tester);
-  await tocarOCirculo(tester);
+  await tocar(tester, fimDaGravacao);
+  await tocar(tester, fimDaGravacao);
   await tocar(tester, terminar);
   harness.room
     ..verdictChecked = false
@@ -382,8 +383,8 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocarOCirculo(tester);
-    await tocarOCirculo(tester);
+    await tocar(tester, fimDaGravacao);
+    await tocar(tester, fimDaGravacao);
     await fecharSemPalavras(tester, harness);
     expect(byLabel(linha), findsWidgets);
     expect(aceso(tester, conferir), isTrue);

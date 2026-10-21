@@ -13,7 +13,7 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show aceso, entrarNaTraducao, ouvir, parte, passaDoCursor, tocar;
+    show aceso, entrarNaTraducao, ouvir, parte, passaDoCursor, pausado, tocar;
 
 const antes = 'um pouco antes';
 const ouvirAPausa = 'ouvir a pausa';
@@ -293,7 +293,6 @@ void main() {
       harness.playback.at = s(9.95);
       await tester.pump(passaDoCursor);
       expect(container.read(salaSessionProvider).btClipRodando, isTrue);
-      final rotulo = rotuloDoCirculo(tester);
 
       await tocarOCirculo(tester);
 
@@ -303,7 +302,7 @@ void main() {
         reason: 'como no dela, o toque pausa a gravação mesmo sem frase',
       );
       expect(harness.playback.sounding, isFalse);
-      expect(rotuloDoCirculo(tester), rotulo);
+      expect(rotuloDoCirculo(tester), pausado);
 
       await tocarOCirculo(tester);
       await tocarOCirculo(tester);
@@ -411,7 +410,6 @@ void main() {
       ...roomLabels.values,
       warningNoticeLabel,
       ...codigoLabels.values,
-      recordEntryLabel,
       ...momentLabels.values,
       momentAria,
     ];

@@ -27,6 +27,8 @@ const passaDoCursor = Duration(seconds: 1);
 const gravar = 'Tocar para gravar a tradução deste trecho';
 const pausadaNoToque =
     'a pausa ficou no toque — toquem no círculo para traduzir';
+const fimDaGravacao = 'fim da gravação';
+const pausado = 'pausado — toque no círculo para marcar onde a frase acaba';
 const terminar = 'Tocar ao terminar';
 const ouvir = 'Ouvir';
 const pausar = 'Pausar';
@@ -518,9 +520,9 @@ void main() {
 
     harness.playback.at = cabeca;
     await tocar(tester, pausar);
+    await tocar(tester, pausado);
     await tocarNoCirculo(tester);
-    await tocarNoCirculo(tester);
-    await tocarNoCirculo(tester);
+    await tocar(tester, terminar);
 
     expect(harness.room.chunkSpans, ['0-4000']);
     closeTheRoom(container);
@@ -542,8 +544,8 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocarNoCirculo(tester);
-    await tocarNoCirculo(tester);
+    await tocar(tester, fimDaGravacao);
+    await tocar(tester, fimDaGravacao);
 
     expect(aceso(tester, conferir), isFalse);
     await tester.tap(byLabel(conferir));
@@ -1627,7 +1629,10 @@ void main() {
     expect(byLabel('Listen'), findsOneWidget);
 
     harness.playback.at = cabeca;
-    await tocarNoCirculo(tester);
+    await tester.tap(
+      byLabel('paused — tap the circle to mark where the sentence ends'),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
     await tocarNoCirculo(tester);
     expect(byLabel('Tap when you finish'), findsOneWidget);
     closeTheRoom(container);

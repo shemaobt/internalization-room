@@ -17,6 +17,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         conferir,
         contarAteOFimDaParte,
         entrarNaTraducao,
+        fimDaGravacao,
         gravarATraducao,
         parte,
         terminar,
@@ -350,8 +351,8 @@ void main() {
       findsOneWidget,
     );
 
-    await tocarNoCirculo(tester);
-    await tocarNoCirculo(tester);
+    await tocar(tester, fimDaGravacao);
+    await tocar(tester, fimDaGravacao);
     harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
     await tocar(tester, terminar);
     await waitFor(
@@ -469,8 +470,8 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await _passo(tester);
-    await tocarNoCirculo(tester);
-    await tocarNoCirculo(tester);
+    await tocar(tester, retroLabelFor('endOfTheRecording', 'en'));
+    await tocar(tester, retroLabelFor('endOfTheRecording', 'en'));
     await tocar(tester, retroLabelFor('recording', 'en'));
     await waitFor(
       'o terminei acender',

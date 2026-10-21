@@ -111,14 +111,6 @@ String roomLabelFor(String control, String language, {int? n}) =>
     (roomLabels[control]![language] ?? roomLabels[control]![floorLanguage]!)
         .replaceAll('{n}', '$n');
 
-const recordEntryLabel = {
-  'pt': 'Terminar a conversa e ir para o ensaio',
-  'en': 'Finish the conversation and go to the rehearsal',
-};
-
-String recordEntryLabelFor(String language) =>
-    recordEntryLabel[language] ?? recordEntryLabel[floorLanguage]!;
-
 /// Her scene-rehearsal words (strings.ts), read only by VoiceOver.
 const sceneRehearsalLabels = {
   'enter': {'pt': 'ensaio da cena', 'en': 'scene rehearsal'},
@@ -342,6 +334,11 @@ const retroLabels = {
     'en': 'Tap to record the translation again',
   },
   'recording': {'pt': 'Tocar ao terminar', 'en': 'Tap when you finish'},
+  'paused': {
+    'pt': 'pausado — toque no círculo para marcar onde a frase acaba',
+    'en': 'paused — tap the circle to mark where the sentence ends',
+  },
+  'endOfTheRecording': {'pt': 'fim da gravação', 'en': 'end of the recording'},
   'listen': {'pt': 'Ouvir', 'en': 'Listen'},
   'listenToTheTranslation': {
     'pt': 'Ouvir a tradução',

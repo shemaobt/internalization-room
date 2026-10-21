@@ -592,8 +592,8 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await _passo(tester);
-    await tocarNoCirculo(tester);
-    await tocarNoCirculo(tester);
+    await tocar(tester, retroLabelFor('endOfTheRecording', 'en'));
+    await tocar(tester, retroLabelFor('endOfTheRecording', 'en'));
     await tocar(tester, retroLabelFor('recording', 'en'));
     await waitFor(
       'o terminei acender',

@@ -26,6 +26,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         cabeca,
         contarAteOFimDaParte,
         entrarNaTraducao,
+        fimDaGravacao,
         parte,
         tocar,
         tocarNoCirculo;
@@ -615,8 +616,8 @@ void main() {
     harness.playback.finishPlayback();
     await _passo(tester);
 
-    await tocarNoCirculo(tester);
-    await tocarNoCirculo(tester);
+    await tocar(tester, fimDaGravacao);
+    await tocar(tester, fimDaGravacao);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
     expect(

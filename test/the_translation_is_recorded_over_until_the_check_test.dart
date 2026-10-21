@@ -27,6 +27,8 @@ import 'the_back_translation_is_told_by_beads_test.dart'
 const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
 
+const pausado = 'pausado — toque no círculo para marcar onde a frase acaba';
+const fimDaGravacao = 'fim da gravação';
 const gravar = 'Tocar para gravar a tradução deste trecho';
 const gravarDeNovo = 'Tocar para gravar a tradução de novo';
 const terminar = 'Tocar ao terminar';
@@ -218,7 +220,7 @@ void main() {
     await tocar(tester, pausar);
     expect(await olhar(tester), 'telha parado');
 
-    await tocarNoCirculo(tester);
+    await tocar(tester, pausado);
     await tocarNoCirculo(tester);
     expect(await olhar(tester), 'azul ouvindo');
 
@@ -304,7 +306,7 @@ void main() {
     await tocarAConta(tester, 0);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocarNoCirculo(tester);
+    await tocar(tester, pausado);
     await tocarNoCirculo(tester);
     await tocar(tester, terminar);
 

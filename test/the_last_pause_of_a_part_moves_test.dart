@@ -19,7 +19,14 @@ import 'scenario_helpers.dart' show stateReads;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, entrarNaTraducao, parte, tocar;
 import 'the_pause_snaps_to_silence_test.dart'
-    show antes, depois, ouvirAPausa, pausarAos, s, traduzirEConfirmar;
+    show
+        antes,
+        depois,
+        ouvirAPausa,
+        pausarAos,
+        rotuloDoCirculo,
+        s,
+        traduzirEConfirmar;
 
 final _duasLacunas = aSpokenWav(gaps: [(s(3.0), s(3.4)), (s(6.0), s(6.4))]);
 
@@ -92,8 +99,9 @@ Future<ProviderContainer> _duasFrasesEUmAchadoNa(
 
 Future<ProviderContainer> _voltaComAFraseQueAguarda(
   WidgetTester tester,
-  SalaHarness harness,
-) async {
+  SalaHarness harness, {
+  bool aguarda = true,
+}) async {
   final pasta = Directory.systemTemp.createTempSync('sala-1223');
   addTearDown(() => pasta.deleteSync(recursive: true));
   const daSala = [
@@ -135,9 +143,9 @@ Future<ProviderContainer> _voltaComAFraseQueAguarda(
         ordinal: 1,
       ),
     )
-    ..retroSoFar = const BackTranslationProgress(
+    ..retroSoFar = BackTranslationProgress(
       segments: daSala,
-      awaitingSegmentId: 'trecho-2',
+      awaitingSegmentId: aguarda ? 'trecho-2' : null,
     );
   final container = harness.container();
   await tester.pumpWidget(
@@ -150,13 +158,16 @@ Future<ProviderContainer> _voltaComAFraseQueAguarda(
         .goConversa(book: 'Ruth', pericope: 'P01'),
   );
   await waitFor(
-    'a frase 2 voltar esperando a tradução',
-    () =>
-        container
-            .read(salaSessionProvider)
-            .btTrechoTraduzidoDeNovo
-            ?.segmentId ==
-        'trecho-2',
+    aguarda
+        ? 'a frase 2 voltar esperando a tradução'
+        : 'a tradução voltar com as duas frases',
+    () => aguarda
+        ? container
+                  .read(salaSessionProvider)
+                  .btTrechoTraduzidoDeNovo
+                  ?.segmentId ==
+              'trecho-2'
+        : container.read(salaSessionProvider).btTrechos.length == 2,
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await _passo(tester);
@@ -939,6 +950,51 @@ void main() {
         reason: 'a recusa da pausa ficava por cima do resultado da conferência',
       );
       expect(find.text('✓ traduzida e conferida'), findsOneWidget);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a frase told again with no translation on this tablet, held by its moved pause, '
+    'still invites to record, not «pausado»',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _voltaComAFraseQueAguarda(
+        tester,
+        harness,
+        aguarda: false,
+      );
+      harness.playback.at = parte;
+      harness.playback.finishPlayback();
+      await _passo(tester);
+      harness.room
+        ..verdictChecked = false
+        ..verdictHasFinding = true
+        ..verdictFindingSegmentId = 'trecho-1';
+      unawaited(
+        container.read(salaSessionProvider.notifier).finishBackTranslation(),
+      );
+      await waitFor(
+        'o veredito chegar',
+        () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+      await tocar(tester, _barra(2));
+
+      await tocar(tester, antes);
+
+      final state = container.read(salaSessionProvider);
+      expect(state.btTrechoTraduzidoDeNovo?.segmentId, 'trecho-2');
+      expect(state.btTraducaoPendente, isNull);
+      expect(state.btClipPausada, isTrue);
+      expect(
+        rotuloDoCirculo(tester),
+        'Tocar para gravar a tradução deste trecho',
+        reason:
+            'a frase traduzida de novo dizia pausado, que ela nunca mostra '
+            'com uma frase sendo traduzida de novo',
+      );
       closeTheRoom(container);
     },
   );
