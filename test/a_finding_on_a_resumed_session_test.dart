@@ -90,36 +90,4 @@ void main() {
     expect(harness.playback.played, hasLength(tocadas));
     expect(harness.playback.sounding, isFalse);
   });
-
-  test('sem o arquivo da tradução, o check espera o círculo gravar, e o '
-      'replace sai uma vez', () async {
-    final harness = SalaHarness();
-    final container = await _retomadaNoAchado(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    notifier.traduzirDeNovoEmPortugues();
-
-    expect(read().btPhase, BtPhase.playing);
-    expect(read().btTraducaoPendente, isNull);
-    expect(read().canConfirmTranslation, isFalse);
-    await notifier.confirmarTraducao();
-    expect(harness.room.replacesAsked, isEmpty);
-
-    notifier.retroTap();
-    await waitFor(
-      'o microfone abrir no trecho',
-      () => read().btPhase == BtPhase.capturing,
-    );
-    await fecharACaptura(container);
-    expect(read().canConfirmTranslation, isTrue);
-    await notifier.confirmarTraducao();
-    await waitFor(
-      'a sala sair do pensando',
-      () => read().btPhase != BtPhase.thinking,
-    );
-
-    expect(harness.room.replacesAsked, ['$_contado@gravacao-1:0-30000']);
-    expect(harness.room.chunksSent, 0);
-  });
 }

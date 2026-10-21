@@ -158,7 +158,7 @@ void main() {
     sala.startRetro();
     await tester.pump(const Duration(milliseconds: 200));
     harness.playback.at = const Duration(seconds: 10);
-    sala.cortarTrecho();
+    sala.retroTap();
     sala.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
     await confirmarATraducaoNaTela(tester, container);

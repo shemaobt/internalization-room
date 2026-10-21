@@ -17,7 +17,7 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show stateReads;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show aceso, confirmar, entrarNaTraducao, parte, tocar;
+    show aceso, entrarNaTraducao, parte, tocar;
 import 'the_pause_snaps_to_silence_test.dart'
     show antes, depois, ouvirAPausa, pausarAos, s, traduzirEConfirmar;
 
@@ -185,7 +185,6 @@ void main() {
       await tocar(tester, depois);
       await tocar(tester, 'Tocar para gravar a tradução de novo');
       await tocar(tester, 'Tocar ao terminar');
-      await tocar(tester, confirmar);
       await waitFor(
         'a frase voltar da sala',
         () => harness.room.replacesAsked.isNotEmpty,
@@ -238,7 +237,6 @@ void main() {
       await tocar(tester, depois);
       await tocar(tester, 'Tocar para gravar a tradução de novo');
       await tocar(tester, 'Tocar ao terminar');
-      await tocar(tester, confirmar);
       await waitFor(
         'a frase pousar com o fim novo',
         () =>
@@ -286,7 +284,6 @@ void main() {
       );
       await tocar(tester, 'Tocar para gravar a tradução de novo');
       await tocar(tester, 'Tocar ao terminar');
-      await tocar(tester, confirmar);
       await waitFor(
         'a frase voltar da sala',
         () => harness.room.replacesAsked.isNotEmpty,
@@ -329,7 +326,6 @@ void main() {
         ]);
       await tocar(tester, 'Tocar para gravar a tradução de novo');
       await tocar(tester, 'Tocar ao terminar');
-      await tocar(tester, confirmar);
       await waitFor(
         'as frases voltarem na gravação que este aparelho não tem',
         () =>
@@ -610,7 +606,6 @@ void main() {
       await tocar(tester, depois);
       await tocar(tester, 'Tocar para gravar a tradução de novo');
       await tocar(tester, 'Tocar ao terminar');
-      await tocar(tester, confirmar);
       await waitFor(
         'a recusa chegar',
         () => container.read(salaSessionProvider).btAviso != null,
@@ -644,7 +639,6 @@ void main() {
       );
       await tocar(tester, 'Tocar para gravar a tradução de novo');
       await tocar(tester, 'Tocar ao terminar');
-      await tocar(tester, confirmar);
       await waitFor(
         'a frase 1 pousar',
         () =>
@@ -836,7 +830,6 @@ void main() {
         await tocar(tester, depois);
         await tocar(tester, 'Tocar para gravar a tradução de novo');
         await tocar(tester, 'Tocar ao terminar');
-        await tocar(tester, confirmar);
         await waitFor(
           'a mudança cair',
           () =>
@@ -885,7 +878,6 @@ void main() {
       await tocar(tester, depois);
       await tocar(tester, 'Tocar para gravar a tradução de novo');
       await tocar(tester, 'Tocar ao terminar');
-      await tocar(tester, confirmar);
       await waitFor(
         'a mudança cair',
         () =>
@@ -921,7 +913,6 @@ void main() {
       await tocar(tester, depois);
       await tocar(tester, 'Tocar para gravar a tradução de novo');
       await tocar(tester, 'Tocar ao terminar');
-      await tocar(tester, confirmar);
       await waitFor(
         'a mudança cair',
         () => container.read(salaSessionProvider).btAviso != null,

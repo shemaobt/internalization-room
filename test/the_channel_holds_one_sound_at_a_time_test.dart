@@ -200,7 +200,7 @@ void main() {
     harness.playback.holdNextOpening();
     sala.ouvirGravacao();
     await waitFor('a segunda parte ser pedida', () => read().btParte == 1);
-    sala.cortarTrecho();
+    sala.retroTap();
 
     expect(read().btCursor, Duration.zero);
     expect(

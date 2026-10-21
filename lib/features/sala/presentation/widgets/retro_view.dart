@@ -698,34 +698,6 @@ class RetroView extends ConsumerWidget {
               color: ShemaBrand.branco,
             ),
           ),
-          const SizedBox(width: 24),
-          RoundActionButton(
-            size: 60,
-            semanticLabel: retroLabelFor('pauseHere', language),
-            gradient: BeadStyles.wood,
-            mood: session.canCut ? ButtonMood.lit : ButtonMood.dimmed,
-            onTap: notifier.cortarTrecho,
-            child: const Icon(
-              LucideIcons.scissors,
-              size: 24,
-              color: ShemaBrand.branco,
-            ),
-          ),
-          const SizedBox(width: 24),
-          RoundActionButton(
-            size: 60,
-            semanticLabel: retroLabelFor('confirm', language),
-            gradient: BeadStyles.verde,
-            mood: session.canConfirmTranslation
-                ? ButtonMood.lit
-                : ButtonMood.dimmed,
-            onTap: () => unawaited(notifier.confirmarTraducao()),
-            child: const Icon(
-              LucideIcons.check,
-              size: 24,
-              color: ShemaBrand.branco,
-            ),
-          ),
         ],
       ),
     );

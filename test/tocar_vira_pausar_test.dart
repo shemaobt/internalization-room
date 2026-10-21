@@ -20,7 +20,7 @@ Future<ProviderContainer> pumpAoApontado(SalaHarness harness) async {
   await settle();
 
   harness.playback.at = const Duration(milliseconds: 40);
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await settle();
   await confirmarATraducao(container);

@@ -14,7 +14,6 @@ const _rotulosDeTraduzir = {
   'Tocar para gravar a tradução deste trecho',
   'Tocar para gravar a tradução de novo',
   'Ouvir a tradução',
-  'Confirmar a tradução e seguir',
   'traduzida e conferida',
   'Ir para a tradução',
   'Ouvir o trecho e a tradução',

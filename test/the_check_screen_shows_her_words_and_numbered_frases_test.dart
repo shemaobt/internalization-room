@@ -24,14 +24,11 @@ import 'the_back_translation_is_told_by_beads_test.dart'
     show
         aceso,
         cabeca,
-        confirmar,
         contarAteOFimDaParte,
-        gravar,
         entrarNaTraducao,
-        gravarATraducao,
         parte,
-        tesoura,
-        tocar;
+        tocar,
+        tocarNoCirculo;
 
 const _quatroFrases = [
   SegmentView(
@@ -143,9 +140,9 @@ Future<ProviderContainer> _quatroFrasesConferidas(
   final container = await entrarNaTraducao(tester, harness);
   for (var parte = 1; parte <= 2; parte++) {
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await contarAteOFimDaParte(tester, harness);
     await waitFor(
       'a parte $parte ficar contada em duas frases',
@@ -189,7 +186,6 @@ Future<void> _traduzirAFraseApontadaDeNovo(
   await tocar(tester, 'Tocar para gravar a tradução de novo');
   await tocar(tester, 'Tocar ao terminar');
   await _passo(tester);
-  await tocar(tester, confirmar);
   await waitFor(
     'a frase traduzida de novo pousar',
     () => container.read(salaSessionProvider).btTrechoTraduzidoDeNovo == null,
@@ -212,10 +208,10 @@ Future<ProviderContainer> _aFraseTresContada(
   _telaAlta(tester);
   final container = await entrarNaTraducao(tester, harness, partes: 1);
   harness.playback.at = cabeca;
-  await tocar(tester, tesoura);
-  await gravarATraducao(tester);
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
   harness.room.fraseDaProximaFrase = 3;
-  await tocar(tester, confirmar);
+  await tocarNoCirculo(tester);
   await waitFor(
     'a frase contada pousar',
     () => container
@@ -463,10 +459,10 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.fraseDaProximaFrase = 7;
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase contada pousar',
       () => container
@@ -522,10 +518,10 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.fraseDaProximaFrase = 3;
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase contada pousar',
       () => container
@@ -619,7 +615,8 @@ void main() {
     harness.playback.finishPlayback();
     await _passo(tester);
 
-    await tocar(tester, gravar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
     expect(
@@ -769,10 +766,10 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.fraseDaProximaFrase = 7;
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase contada pousar',
       () => container
@@ -829,9 +826,9 @@ void main() {
     );
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await contarAteOFimDaParte(tester, harness);
     harness.room
       ..verdictChecked = false
@@ -1260,10 +1257,10 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.holdNextChunk();
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase seguir para a sala',
       () => container.read(salaSessionProvider).btPhase == BtPhase.thinking,
@@ -1311,9 +1308,9 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await contarAteOFimDaParte(tester, harness);
     harness.room.failFinishWith = const NetworkFailed('HTTP 502');
 
@@ -1348,10 +1345,10 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a sala não entender a frase',
       () => container.read(salaSessionProvider).wordlessTelling,
@@ -1373,9 +1370,9 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await contarAteOFimDaParte(tester, harness);
 
     await tocar(tester, 'terminei');

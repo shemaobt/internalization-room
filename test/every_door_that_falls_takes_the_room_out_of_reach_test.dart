@@ -109,13 +109,11 @@ Future<_Room> _aResumedBackTranslation(
 Future<void> _tellAStretchUpTo(_Room room, Duration where) async {
   await theClipOpens(room.harness);
   room.harness.playback.at = where;
-  room.sala.cortarTrecho();
   room.sala.retroTap();
-  await settle();
   room.sala.retroTap();
   await waitFor(
-    'a tradução ficar pendente',
-    () => room.estado.btTraducaoPendente != null,
+    'o microfone abrir',
+    () => room.estado.btPhase == BtPhase.capturing,
   );
 }
 
@@ -152,7 +150,6 @@ Future<_Room> _aFindingToTellAgain(SalaHarness harness) async {
     'o microfone abrir no trecho',
     () => room.estado.btPhase == BtPhase.capturing,
   );
-  await fecharACaptura(room.container);
   return room;
 }
 
@@ -217,7 +214,7 @@ void main() {
     await _tellAStretchUpTo(room, const Duration(seconds: 12));
     room.theNetworkFalls();
 
-    await room.sala.confirmarTraducao();
+    room.sala.retroTap();
     await waitFor(
       'a frase voltar como não entendida',
       () => room.estado.wordlessTelling,
@@ -243,7 +240,7 @@ void main() {
     final room = await _aFindingToTellAgain(harness);
     room.theNetworkFalls();
 
-    await room.sala.confirmarTraducao();
+    room.sala.retroTap();
     await waitFor(
       'a sala sair do pensando',
       () => room.estado.btPhase != BtPhase.thinking,
@@ -263,7 +260,7 @@ void main() {
     final room = await _aFindingToTellAgain(harness);
     room.theKeyStaysInFlight();
 
-    await room.sala.confirmarTraducao();
+    room.sala.retroTap();
     await waitFor(
       'a sala sair do pensando',
       () => room.estado.btPhase != BtPhase.thinking,
@@ -620,7 +617,7 @@ void main() {
         List.filled(10, _theKeyStillInFlight),
       );
 
-      await room.sala.confirmarTraducao();
+      room.sala.retroTap();
       await waitFor(
         'a chave ainda em voo chegar ao teto',
         () => harness.room.chunkKeys.length == 3,

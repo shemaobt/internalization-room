@@ -48,7 +48,7 @@ Future<ProviderContainer> pumpToFindings(
   await tester.pump(const Duration(milliseconds: 200));
 
   harness.playback.at = const Duration(seconds: 10);
-  notifier.cortarTrecho();
+  notifier.retroTap();
   notifier.retroTap();
   await tester.pump(const Duration(milliseconds: 200));
   await confirmarATraducaoNaTela(tester, container);

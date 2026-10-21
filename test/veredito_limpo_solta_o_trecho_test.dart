@@ -76,7 +76,7 @@ Future<ProviderContainer> _pumpToPergunta(
 
   for (final at in const [Duration(seconds: 10), Duration(seconds: 20)]) {
     harness.playback.at = at;
-    sala.cortarTrecho();
+    sala.retroTap();
     sala.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
     await confirmarATraducaoNaTela(tester, container);
@@ -108,7 +108,6 @@ Future<void> _consertoQueNaoPegou(
   await tester.pump(const Duration(milliseconds: 300));
   _notifier(container).retroTap();
   await tester.pump(const Duration(milliseconds: 300));
-  await _notifier(container).confirmarTraducao();
   await letTheRehearsalReachTheRoom(tester);
   await tester.pump(const Duration(milliseconds: 500));
   _harnessDaVez!.room.failReplaceWith = null;

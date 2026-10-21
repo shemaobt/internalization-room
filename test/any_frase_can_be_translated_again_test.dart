@@ -19,13 +19,11 @@ import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         cabeca,
-        confirmar,
         contarAteOFimDaParte,
         entrarNaTraducao,
-        gravarATraducao,
         parte,
-        tesoura,
-        tocar;
+        tocar,
+        tocarNoCirculo;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
 
@@ -58,9 +56,9 @@ Future<ProviderContainer> _seteFrasesContadas(
   for (final cortes in _cortes) {
     for (final corte in cortes) {
       harness.playback.at = corte;
-      await tocar(tester, tesoura);
-      await gravarATraducao(tester);
-      await tocar(tester, confirmar);
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
     }
     await contarAteOFimDaParte(tester, harness);
     contadas += cortes.length + 1;
@@ -204,7 +202,6 @@ Future<void> _traduzirDeNovo(
   await tocar(tester, circulo);
   await tocar(tester, 'Tocar ao terminar');
   await _passo(tester);
-  await tocar(tester, confirmar);
   await waitFor(
     'a frase traduzida de novo pousar',
     () => container.read(salaSessionProvider).btTrechoTraduzidoDeNovo == null,
@@ -214,6 +211,35 @@ Future<void> _traduzirDeNovo(
 }
 
 void main() {
+  testWidgets('a frase told again goes up on the tap that closes its '
+      'microphone, with no confirm', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAUmaTraducao(
+      tester,
+      harness,
+      conferida: true,
+    );
+
+    await tocar(tester, _barra(2));
+    await tocar(tester, 'Tocar para gravar a tradução deste trecho');
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
+    await tocar(tester, 'Tocar ao terminar');
+    await waitFor(
+      'a frase traduzida de novo subir',
+      () => harness.room.replacesAsked.isNotEmpty,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      harness.room.replacesAsked,
+      ['trecho-2@gravacao-2:0-5000'],
+      reason:
+          'o toque que fechava o microfone deixava a tradução esperando o '
+          'botão verde',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('after a verdict naming frase 3, a tap on frase 7 replays its '
       'piece and asks for the circle', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -339,33 +365,6 @@ void main() {
       findsNothing,
     );
     expect(byLabel('manter a tradução de antes'), findsNothing);
-    closeTheRoom(container);
-  });
-
-  testWidgets('«manter a tradução de antes» after a recording nobody confirmed '
-      'lets that recording go and sends nothing', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _vereditoNaFraseTres(tester, harness);
-    final pedacos = harness.room.chunksSent;
-
-    await tocar(tester, _barra(7));
-    await tocar(tester, 'Tocar para gravar a tradução de novo');
-    await tocar(tester, 'Tocar ao terminar');
-    await _passo(tester);
-    final gravada = harness.recorder.lastPath!;
-    await tocar(tester, 'manter a tradução de antes');
-    for (var passo = 0; passo < 10; passo++) {
-      await _passo(tester);
-    }
-
-    expect(
-      harness.recorder.deleted,
-      contains(gravada),
-      reason: 'a gravação que ninguém confirmou ficava guardada',
-    );
-    expect(container.read(salaSessionProvider).btTraducaoPendente, isNull);
-    expect(harness.room.replacesAsked, isEmpty);
-    expect(harness.room.chunksSent, pedacos);
     closeTheRoom(container);
   });
 
@@ -587,16 +586,15 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, retroLabelFor('pauseHere', 'en'));
+    await tocarNoCirculo(tester);
     await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
     await tocar(tester, retroLabelFor('recording', 'en'));
-    await tocar(tester, retroLabelFor('confirm', 'en'));
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await _passo(tester);
-    await tocar(tester, retroLabelFor('record', 'en'));
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await tocar(tester, retroLabelFor('recording', 'en'));
-    await tocar(tester, retroLabelFor('confirm', 'en'));
     await waitFor(
       'o terminei acender',
       () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
@@ -641,34 +639,6 @@ void main() {
       reason: 'a segunda frase tocada apagava o caminho de volta à conferida',
     );
     expect(byLabel(_aprovar), findsOneWidget);
-    closeTheRoom(container);
-  });
-
-  testWidgets('another frase tapped while a recording waits for its ✓ lets '
-      'that recording go', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _vereditoNaFraseTres(tester, harness);
-
-    await tocar(tester, _barra(7));
-    await tocar(tester, 'Tocar para gravar a tradução de novo');
-    await tocar(tester, 'Tocar ao terminar');
-    await _passo(tester);
-    final gravada = harness.recorder.lastPath!;
-    await tocar(tester, _barra(5));
-    for (var passo = 0; passo < 10; passo++) {
-      await _passo(tester);
-    }
-
-    expect(
-      harness.recorder.deleted,
-      contains(gravada),
-      reason: 'a gravação da frase 7 ficava guardada sem ninguém a confirmar',
-    );
-    expect(
-      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.frase,
-      5,
-    );
-    expect(harness.room.replacesAsked, isEmpty);
     closeTheRoom(container);
   });
 

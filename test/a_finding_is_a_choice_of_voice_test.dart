@@ -22,7 +22,6 @@ const continuarOEnsaio = 'Continuar o ensaio';
 const gravarATraducaoDeNovo = 'Tocar para gravar a tradução de novo';
 const terminar = 'Tocar ao terminar';
 const ouvirATraducao = 'Ouvir a tradução';
-const confirmarATraducao = 'Confirmar a tradução e seguir';
 const tesoura = 'Pausar onde a frase acaba';
 const conferir = 'terminei';
 
@@ -265,11 +264,7 @@ void main() {
       'solid apagada',
       'solid apagada',
     ]);
-    expect(aceso(tester, confirmarATraducao), isFalse);
-    expect(aceso(tester, tesoura), isFalse);
     expect(aceso(tester, conferir), isFalse);
-
-    await tocar(tester, confirmarATraducao);
     expect(harness.room.replacesAsked, isEmpty);
 
     await tocar(tester, ouvirATraducao);
@@ -284,19 +279,10 @@ void main() {
       'solid apagada',
       'solid apagada',
     ]);
+    harness.room.verdictChecked = true;
     await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 300));
     final nova = harness.recorder.lastPath!;
-    expect(contasEm(tester, RetroView), [
-      'translucent com anel',
-      'solid apagada',
-      'solid apagada',
-    ]);
-    expect(aceso(tester, confirmarATraducao), isTrue);
-    expect(aceso(tester, tesoura), isFalse);
-
-    harness.room.verdictChecked = true;
-    await tocar(tester, confirmarATraducao);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked, hasLength(1));
@@ -337,14 +323,12 @@ void main() {
     await tocar(tester, gravarATraducaoDeNovo);
     await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 300));
-    final nova = harness.recorder.lastPath!;
     expect(harness.recorder.deleted, isNot(contains(antiga)));
 
     await tocar(tester, sairDaPassagem);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.recorder.deleted, isNot(contains(antiga)));
-    expect(harness.recorder.deleted, contains(nova));
     expect(await traducoesGuardadas(tester, harness), guardadas);
     closeTheRoom(container);
   });
@@ -424,10 +408,9 @@ void main() {
     await tocar(tester, microfoneAzul);
     await tester.pump(const Duration(milliseconds: 200));
     await tocar(tester, gravarATraducaoDeNovo);
+    harness.room.failFinishWith = const NetworkFailed('timeout');
     await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 300));
-    harness.room.failFinishWith = const NetworkFailed('timeout');
-    await tocar(tester, confirmarATraducao);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked, hasLength(1));

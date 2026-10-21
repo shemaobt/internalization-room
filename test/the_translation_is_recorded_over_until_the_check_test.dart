@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -20,7 +21,8 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
-import 'the_back_translation_is_told_by_beads_test.dart' show pausadaNoToque;
+import 'the_back_translation_is_told_by_beads_test.dart'
+    show pausadaNoToque, tocarNoCirculo;
 
 const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
@@ -179,9 +181,8 @@ Future<String> gravarATraducao(
 class DoisContados {
   final ProviderContainer container;
   final String primeira;
-  final String pendente;
 
-  DoisContados(this.container, this.primeira, this.pendente);
+  DoisContados(this.container, this.primeira);
 }
 
 Future<DoisContados> doisContadosEOTerceiroPendente(
@@ -190,153 +191,23 @@ Future<DoisContados> doisContadosEOTerceiroPendente(
 ) async {
   final container = await entrarNaTraducao(tester, harness);
   harness.playback.at = cabeca;
-  await tocar(tester, tesoura);
+  await tocarNoCirculo(tester);
   final primeira = await gravarATraducao(tester, harness);
-  await tocar(tester, confirmar);
   harness.playback.at = const Duration(seconds: 8);
-  await tocar(tester, tesoura);
+  await tocarNoCirculo(tester);
   await gravarATraducao(tester, harness);
-  await tocar(tester, confirmar);
   harness.playback.at = const Duration(seconds: 9);
-  await tocar(tester, tesoura);
-  final pendente = await gravarATraducao(tester, harness);
+  await tocarNoCirculo(tester);
   expect(contas(tester), [
     'solid',
     'solid',
     'translucent com anel',
     'translucent',
   ]);
-  return DoisContados(container, primeira, pendente);
+  return DoisContados(container, primeira);
 }
 
 void main() {
-  testWidgets('R1 — a tradução pendente é regravada no círculo até o V', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await entrarNaTraducao(tester, harness);
-
-    harness.playback.at = cabeca;
-    await tocar(tester, pausar);
-    await tocar(tester, gravar);
-
-    expect(await olhar(tester), 'azul ouvindo');
-    expect(aceso(tester, ouvir), isFalse);
-    expect(aceso(tester, tesoura), isFalse);
-    expect(aceso(tester, confirmar), isFalse);
-    expect(aceso(tester, conferir), isFalse);
-
-    await tocar(tester, terminar);
-    final primeira = harness.recorder.lastPath;
-    expect(harness.room.chunksSent, 0, reason: 'nada vai antes do V');
-    expect(aceso(tester, confirmar), isTrue);
-    expect(aceso(tester, ouvirATraducao), isTrue);
-    await tocar(tester, ouvirATraducao);
-    expect(harness.playback.played.last, primeira);
-    expect(harness.playback.sounding, isTrue);
-
-    await tocar(tester, pausar);
-    final segunda = await gravarATraducao(
-      tester,
-      harness,
-      circulo: gravarDeNovo,
-    );
-    expect(segunda, isNot(primeira));
-    expect(
-      harness.recorder.deleted,
-      isNot(contains(primeira)),
-      reason: 'ENG-1347: a tradução gravada de novo fica no tablet',
-    );
-    expect(harness.recorder.deleted, isNot(contains(segunda)));
-    expect(harness.room.chunksSent, 0, reason: 'regravar não manda nada');
-    await tocar(tester, ouvirATraducao);
-    expect(harness.playback.played.last, segunda);
-    await tocar(tester, pausar);
-
-    await tocar(tester, confirmar);
-
-    expect(harness.room.chunkFiles, [segunda]);
-    expect(harness.room.chunkSpans, ['0-4000']);
-    closeTheRoom(container);
-  });
-
-  testWidgets('a translation recorded again leaves the earlier recording on '
-      'the tablet, and only the new one is pending', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await entrarNaTraducao(tester, harness);
-
-    harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    final primeira = await gravarATraducao(tester, harness);
-    final segunda = await gravarATraducao(
-      tester,
-      harness,
-      circulo: gravarDeNovo,
-    );
-
-    expect(segunda, isNot(primeira));
-    expect(
-      harness.recorder.deleted,
-      isNot(contains(primeira)),
-      reason: 'nada que a equipe gravou é apagado pelo app sem a palavra dela',
-    );
-    expect(File(primeira).existsSync(), isTrue);
-    expect(
-      container.read(salaSessionProvider).btTraducaoPendente,
-      segunda,
-      reason: 'só a gravação nova vai pelo V',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets('R1b — uma regravação que não abre o microfone guarda a '
-      'tradução de antes', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await entrarNaTraducao(tester, harness);
-
-    harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    final primeira = await gravarATraducao(tester, harness);
-
-    harness.recorder.startThrows = true;
-    await tocar(tester, gravarDeNovo);
-    harness.recorder.startThrows = false;
-
-    expect(byLabel(gravarDeNovo), findsOneWidget);
-    expect(await olhar(tester), 'telha parado');
-    expect(harness.recorder.deleted, isNot(contains(primeira)));
-    expect(aceso(tester, confirmar), isTrue);
-    await tocar(tester, confirmar);
-
-    expect(harness.room.chunkFiles, [primeira]);
-    expect(harness.room.chunkSpans, ['0-4000']);
-    closeTheRoom(container);
-  });
-
-  testWidgets('R1b — uma regravação que fecha sem arquivo guarda a tradução '
-      'de antes', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await entrarNaTraducao(tester, harness);
-
-    harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    final primeira = await gravarATraducao(tester, harness);
-
-    harness.recorder.returnsNothing = true;
-    await tocar(tester, gravarDeNovo);
-    await tocar(tester, terminar);
-    harness.recorder.returnsNothing = false;
-
-    expect(byLabel(gravarDeNovo), findsOneWidget);
-    expect(await olhar(tester), 'telha parado');
-    expect(harness.recorder.deleted, isNot(contains(primeira)));
-    expect(aceso(tester, confirmar), isTrue);
-    await tocar(tester, confirmar);
-
-    expect(harness.room.chunkFiles, [primeira]);
-    closeTheRoom(container);
-  });
-
   testWidgets('R2 — o círculo veste a voz que soa', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
@@ -347,18 +218,12 @@ void main() {
     await tocar(tester, pausar);
     expect(await olhar(tester), 'telha parado');
 
-    await tocar(tester, gravar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     expect(await olhar(tester), 'azul ouvindo');
 
     await tocar(tester, terminar);
-    expect(await olhar(tester), 'telha parado');
-
-    await tocar(tester, ouvirATraducao);
-    expect(
-      await olhar(tester),
-      'azul soando',
-      reason: 'a tradução pendente toca',
-    );
+    expect(await olhar(tester), 'wood soando');
     closeTheRoom(container);
   });
 
@@ -377,8 +242,6 @@ void main() {
       'translucent',
       'translucent',
     ]);
-    expect(aceso(tester, tesoura), isFalse);
-    expect(aceso(tester, confirmar), isFalse);
     expect(aceso(tester, pausar), isTrue);
     expect(await olhar(tester), 'azul soando');
 
@@ -391,8 +254,6 @@ void main() {
       'translucent com anel',
       'translucent',
     ]);
-    expect(aceso(tester, confirmar), isTrue);
-    expect(aceso(tester, tesoura), isFalse);
 
     await tocarAConta(tester, 0);
     expect(harness.playback.sounding, isTrue);
@@ -406,19 +267,14 @@ void main() {
       'translucent com anel',
       'translucent',
     ]);
-    expect(aceso(tester, confirmar), isTrue);
 
-    await tocar(tester, confirmar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
 
     expect(
       harness.room.chunkSpans.last,
       '8000-9000',
       reason: 'o cursor e o corte não andaram',
-    );
-    expect(
-      harness.room.chunkFiles.last,
-      contados.pendente,
-      reason: 'a tradução pendente é a mesma',
     );
     closeTheRoom(contados.container);
   });
@@ -429,21 +285,17 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester, harness);
-    await tocar(tester, confirmar);
     harness.playback.at = const Duration(seconds: 7);
     await tocar(tester, pausar);
 
-    expect(aceso(tester, tesoura), isTrue);
     await tocarAConta(tester, 0);
-    expect(aceso(tester, tesoura), isFalse);
     expect(aceso(tester, pausar), isTrue);
     harness.playback.at = const Duration(seconds: 2);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(aceso(tester, tesoura), isTrue);
     await tocar(tester, ouvir);
     expect(harness.playback.played.last, harness.playback.played.first);
     expect(harness.playback.playedFrom.last, const Duration(seconds: 7));
@@ -452,9 +304,9 @@ void main() {
     await tocarAConta(tester, 0);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, gravar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await tocar(tester, terminar);
-    await tocar(tester, confirmar);
 
     expect(harness.room.chunkSpans, ['0-4000', '4000-7000']);
     closeTheRoom(container);
@@ -527,7 +379,7 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     expect(harness.playback.sounding, isFalse);
     await tocarAConta(tester, 0);
 
@@ -543,9 +395,8 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester, harness);
-    await tocar(tester, confirmar);
     harness.playback.at = const Duration(seconds: 7);
 
     await tocarAConta(tester, 0);
@@ -558,8 +409,9 @@ void main() {
       harness.playback.at = parte;
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 300));
-      await gravarATraducao(tester, harness, circulo: gravar);
-      await tocar(tester, confirmar);
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
     }
     await tocar(tester, conferir);
     await tester.pump(const Duration(milliseconds: 300));
@@ -588,11 +440,11 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester, harness);
+    await tocarNoCirculo(tester);
+    await tocar(tester, pausadaNoToque);
     harness.playback.at = Duration.zero;
     harness.playback.holdNextOpening();
-    await tocar(tester, confirmar);
+    await tocar(tester, terminar);
     await tocar(tester, pausar);
     harness.playback.finishHeldOpening();
     await tester.pump(const Duration(milliseconds: 300));
@@ -611,9 +463,8 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester, harness);
-    await tocar(tester, confirmar);
     harness.playback.at = const Duration(seconds: 7);
     await tocar(tester, pausar);
 
@@ -621,7 +472,7 @@ void main() {
     harness.playback.at = const Duration(seconds: 2);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await tocar(tester, ouvir);
 
     expect(harness.playback.ranges.last, '4000-7000');
@@ -634,15 +485,15 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester, harness);
-    await tocar(tester, confirmar);
     for (var vez = 0; vez < 2; vez++) {
       harness.playback.at = parte;
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 300));
-      await gravarATraducao(tester, harness, circulo: gravar);
-      await tocar(tester, confirmar);
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
     }
     expect(aceso(tester, conferir), isTrue);
 
@@ -770,9 +621,8 @@ void main() {
     final container = await retomarComAviso(tester, harness);
     await tester.runAsync(() => theClipOpens(harness));
     harness.playback.at = const Duration(seconds: 7);
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester, harness);
-    await tocar(tester, confirmar);
     await tocar(tester, pausar);
     await tocarAConta(tester, 1);
     expect(harness.playback.sounding, isTrue);
@@ -803,44 +653,23 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R4 — gravar, regravar e confirmar fica na tradução e conta o '
-      'trecho uma vez', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await entrarNaTraducao(tester, harness, pericope: 'P01');
-    final linha = harness.emAberto.rows.values.single;
-
-    harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester, harness);
-    final regravada = await gravarATraducao(
-      tester,
-      harness,
-      circulo: gravarDeNovo,
-    );
-    expect(harness.room.chunksSent, 0, reason: 'regravar não manda nada');
-    await tocar(tester, confirmar);
-    await tester.pump(const Duration(milliseconds: 600));
-
-    expect(harness.room.sessionIds, [linha.sessionId]);
-    expect(harness.emAberto.rows.values.single.sessionId, linha.sessionId);
-    expect(harness.emAberto.rows.values.single.stage, SalaStage.retro);
-    expect(harness.room.chunkFiles, [regravada]);
-    expect(contas(tester), ['solid', 'translucent com anel']);
-    expect(byLabel(conferir), findsOneWidget);
-    closeTheRoom(container);
-  });
-
   testWidgets('R5 — os rótulos novos falam a língua da sala', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, 'Pause where the sentence ends');
+    await tocarNoCirculo(tester);
     await tocar(
       tester,
       'the pause is at your tap — tap the circle to translate',
     );
+    harness.room.failChunkWith = const Refused('BAD_REQUEST');
     await tocar(tester, 'Tap when you finish');
+    await waitFor(
+      'a sala recusar a frase',
+      () => container.read(salaSessionProvider).btChunkFailures.isNotEmpty,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
 
     expect(byLabel('Tap to record the translation again'), findsOneWidget);
     expect(byLabel('Listen to the translation'), findsOneWidget);
@@ -854,7 +683,7 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, retroLabelFor('pauseHere', 'en'));
+    await tocarNoCirculo(tester);
     await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
     await tocar(tester, retroLabelFor('recording', 'en'));
     container.read(salaSessionProvider.notifier).haltForABrokenBuild();
@@ -875,11 +704,10 @@ void main() {
       final container = await entrarNaTraducao(tester, harness);
 
       harness.playback.at = cabeca;
-      await tocar(tester, retroLabelFor('pauseHere', 'en'));
+      await tocarNoCirculo(tester);
       await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
-      await tocar(tester, retroLabelFor('recording', 'en'));
       harness.room.holdNextChunk();
-      await tocar(tester, retroLabelFor('confirm', 'en'));
+      await tocar(tester, retroLabelFor('recording', 'en'));
 
       expect(
         tester.widget<FacilitatorCircle>(_circulo()).semanticLabel,
@@ -920,7 +748,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     harness.playback.at = const Duration(seconds: 10);
-    notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
     await confirmarATraducaoNaTela(tester, container);

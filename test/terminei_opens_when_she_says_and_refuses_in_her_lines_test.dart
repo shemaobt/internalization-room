@@ -14,15 +14,14 @@ import 'the_back_translation_is_told_by_beads_test.dart'
     show
         aceso,
         cabeca,
-        confirmar,
         conferir,
         contarAteOFimDaParte,
         entrarNaTraducao,
-        gravar,
         gravarATraducao,
         parte,
-        tesoura,
-        tocar;
+        terminar,
+        tocar,
+        tocarNoCirculo;
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
@@ -41,9 +40,8 @@ Future<ProviderContainer> _duasFrasesNoTerminei(
   _telaAlta(tester);
   final container = await entrarNaTraducao(tester, harness, partes: 1);
   harness.playback.at = cabeca;
-  await tocar(tester, tesoura);
+  await tocarNoCirculo(tester);
   await gravarATraducao(tester);
-  await tocar(tester, confirmar);
   await contarAteOFimDaParte(tester, harness);
   await waitFor(
     'o terminei acender',
@@ -336,9 +334,8 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = parte - const Duration(milliseconds: 500);
-    await tocar(tester, tesoura);
+    await tocarNoCirculo(tester);
     await gravarATraducao(tester);
-    await tocar(tester, confirmar);
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await waitFor(
@@ -353,9 +350,10 @@ void main() {
       findsOneWidget,
     );
 
-    await gravarATraducao(tester, circulo: gravar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
-    await tocar(tester, confirmar);
+    await tocar(tester, terminar);
     await waitFor(
       'a sala não entender a frase',
       () => container.read(salaSessionProvider).wordlessTelling,
@@ -381,10 +379,10 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.failChunkWith = const NetworkFailed('sem rede');
-    await tocar(tester, confirmar);
+    await tocar(tester, terminar);
     await waitFor('a frase voltar da rede', () {
       final estado = container.read(salaSessionProvider);
       return estado.wordlessTelling || estado.unreachable;
@@ -412,7 +410,6 @@ void main() {
     await _passo(tester);
     await tester.tap(find.byType(FacilitatorCircle));
     await _passo(tester);
-    await tocar(tester, confirmar);
     expect(
       harness.room.chunkSpans.last,
       '0-4000',
@@ -427,18 +424,19 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.failChunkWith = const NetworkFailed('sem rede');
 
     for (var vez = 1; vez <= 3; vez++) {
-      if (vez > 1) {
+      if (vez == 1) {
+        await tocar(tester, terminar);
+      } else {
         await tester.tap(find.byType(FacilitatorCircle));
         await _passo(tester);
         await tester.tap(find.byType(FacilitatorCircle));
         await _passo(tester);
       }
-      await tocar(tester, confirmar);
       await waitFor('a frase $vez voltar da rede', () {
         final estado = container.read(salaSessionProvider);
         return harness.room.chunkKeys.length >= vez &&
@@ -465,16 +463,15 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, retroLabelFor('pauseHere', 'en'));
+    await tocarNoCirculo(tester);
     await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
     await tocar(tester, retroLabelFor('recording', 'en'));
-    await tocar(tester, retroLabelFor('confirm', 'en'));
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await _passo(tester);
-    await tocar(tester, retroLabelFor('record', 'en'));
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await tocar(tester, retroLabelFor('recording', 'en'));
-    await tocar(tester, retroLabelFor('confirm', 'en'));
     await waitFor(
       'o terminei acender',
       () => container.read(salaSessionProvider).canAdvanceToTheVerdict,

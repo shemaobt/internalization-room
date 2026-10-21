@@ -6321,33 +6321,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _quietTheStretch() => unawaited(_playback.stop());
 
-  /// End a stretch here, at the pausa the tap snaps to. The scissors only place the pausa:
-  /// the translation is the circle's.
-  void cortarTrecho() => _gesture(() => _cortarTrecho());
-
-  void _cortarTrecho() {
-    if (!state.canCut) return;
-    if (_trechoTraduzidoDeNovo != null) return;
-    if (state.btTrechoTocando || state.btTrechoPausada) {
-      final cabeca = state.btTrechoDesde! + _playback.position;
-      _semOTrechoNoAr();
-      if (cabeca > _trechoStart && cabeca < _trechoEnd) {
-        if (_aPausaNo(cabeca) case final pausa?) _trechoEnd = pausa;
-      }
-      return;
-    }
-    // A belt. No way the room starts playback puts the playhead behind the cursor any
-    // more — a part picked back up opens at its cursor, crossing into a part opens at
-    // that part's, and holding the clip and letting it run again never rewinds — but
-    // the position is the player's answer, not the room's, and a player that comes back
-    // from behind it would send a stretch that ends before it begins and then walk the
-    // cursor backwards over every stretch after it. Unconditional: a cut can never end
-    // before it begins, whatever else stands.
-    _silenceTheRoom(holdTheClip: true);
-    if (_cabeca <= _trechoStart) return;
-    if (_aPausaNo(_cabeca) case final pausa?) _trechoEnd = pausa;
-  }
-
   Duration? _aPausaNo(Duration toque) {
     final noFim = state.btParteFronteira || state.btClipEnded;
     final ondeCabe = noFim ? null : _ondeAPausaCabe();
@@ -7174,7 +7147,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // that is still open behind it, and the next listening carries that same part
         // on. Stopped, the room loses the length the end of the part is measured by.
         _silenceTheRoom(holdTheClip: true);
-        _handOff(_finishChunkCapture());
+        _handOff(_closeTheCaptureAndSend());
       case BtPhase.findings:
         _silenceTheRoom();
         _handOff(_repeatTheFinding());
@@ -7186,18 +7159,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _abrirACaptura() {
     if (_trechoTraduzidoDeNovo == null && !state.btCortado) {
-      if (_cabeca <= _trechoStart) return;
       if ((state.btParteFronteira || state.btClipEnded) &&
           isAStub(_trechoStart, _cabeca)) {
         return;
       }
       _silenceTheRoom(holdTheClip: true);
+      if (_cabeca <= _trechoStart) return;
       final pausa = _aPausaNo(_cabeca);
       if (pausa == null) return;
       _trechoEnd = pausa;
-    } else {
-      _silenceTheRoom(holdTheClip: true);
+      return;
     }
+    _silenceTheRoom(holdTheClip: true);
     _startChunkCapture();
   }
 
@@ -7212,25 +7185,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  Future<void> _finishChunkCapture() async {
+  Future<bool> _finishChunkCapture() async {
     final generation = _waitOnTheGeneration;
     state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
     _watchBusyState();
     final path = (await _closeTheMicrophone()).take;
-    if (_abandoned(generation)) return;
+    if (_abandoned(generation)) return false;
     final sessionId = state.sessionId;
 
     if (path != null && !_hasAudio(path)) {
       _trechoStart = _ondeParouNesteArquivo(_parteTocando);
       state = state.copyWith(btPhase: BtPhase.playing, awaitingTheGuide: false);
       unawaited(_recorder.delete(path));
-      return;
+      return false;
     }
 
     if (path == null || sessionId == null) {
       state = state.copyWith(btPhase: BtPhase.playing, awaitingTheGuide: false);
       if (path != null) unawaited(_recorder.delete(path));
-      return;
+      return false;
     }
 
     final substituida = state.btTraducaoPendenteEmprestada
@@ -7244,9 +7217,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (substituida != null) {
       unawaited(_retirarDaFilaSeGuardada(substituida));
     }
+    return true;
   }
 
-  Future<void> confirmarTraducao() => _gestureThen(() => _confirmarTraducao());
+  Future<void> _closeTheCaptureAndSend() async {
+    if (await _finishChunkCapture()) await _confirmarTraducao();
+  }
 
   Future<void> _confirmarTraducao() async {
     if (!state.canConfirmTranslation) return;

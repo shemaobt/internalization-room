@@ -948,24 +948,6 @@ class SalaSessionState {
         (btCorte + folgaDoFimDaParte).inMilliseconds < parte;
   }
 
-  bool get canCut {
-    if (!_btNaVez || btTraducaoPendente != null) return false;
-    if (btTrechoTraduzidoDeNovo != null || btContaEscolhida != null) {
-      return false;
-    }
-    if (btTrechoTocando || btTrechoPausada) {
-      return btCortado && !btClipEnded && !btParteFronteira;
-    }
-    if (btClipRodando) return true;
-    if (btClipEnded || btParteFronteira) return false;
-    final inicio = _btInicioDaParteMs;
-    if (inicio == null) return false;
-    final cabeca = btOuvidoMs - inicio;
-    final limite = btCortado ? btCorte.inMilliseconds : _btParteMs;
-    return cabeca > btCursor.inMilliseconds &&
-        (limite == null || cabeca < limite);
-  }
-
   bool get thePauseStands =>
       _btNaVez &&
       btCortado &&
