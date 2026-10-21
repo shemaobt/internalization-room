@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0049, 0050, 0067, 0068 and 0107
+status: accepted, amended by 0049, 0050, 0067, 0068 and 0107; extended by name by 0106
 date: 2026-09-29
 amends: 0033, 0036, 0044
 ---
@@ -189,3 +189,9 @@ entry after a part recorded again is still playing), `_umaParteFoiRegravada` (a 
 recorded again since the last entry) and `_aTraducaoJaFoiDeixada` (this passage's
 Back-translation was left once in this life). They sit beside the others and move with them
 (ADR 0105).
+
+Extended by name (ENG-1235, 2026-10-20), same end date: `btRascunhoAprovado`, the approval the
+newest Session read says the draft stands under, which writes «✓ aprovado como rascunho final
+(v{n})» where the approve button stands and keeps the Warning mark off the circle (ADR 0106).
+It sits beside the others on `SalaSessionState` and moves with them; only an applied Session
+read sets or clears it, and it is drawn only on the checked telling-back.

@@ -194,6 +194,10 @@ _Avoid_: trecho, segment (the wire name), chunk (the ephemeral position)
 The point where the team says a frase ends while listening back, snapped to the middle of the nearest silence; moved and heard with her three controls «um pouco antes», «ouvir a pausa» and «um pouco depois». A Stretch ends at its pause, and so does a Scene frase.
 _Avoid_: cut, corte, Cortar aqui (ruled out by Marcia on 2026-09-15), split point, boundary
 
+**Restart** («recomeçar a tradução»):
+Two taps on the scene rehearsal: the first arms it and names how many frases it discards, and it disarms by itself after six seconds; the second sets those frases aside in the room and keeps the recording. Nothing is deleted.
+_Avoid_: reset, Zerar (the facilitator's)
+
 **Capture**:
 The back-translation's open microphone, between the scissors and the tap on the circle. A closed capture becomes a stretch; a halt that lands inside one closes it and keeps nothing.
 _Avoid_: recording, gravação, chunk (the wire's name)
@@ -365,6 +369,14 @@ _Avoid_: reason, error code, bloqueio, refusal (the answer that carries them)
 **Approval**:
 The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line, asked of the room by name. The room closes only after it, and a refused one takes the team to the hole its blockers name.
 _Avoid_: aprovação, finalize, release (the server's record of it), approve button
+
+**Draft** (*rascunho*):
+The team's recording of a passage with its frases and telling-back, kept across openings because it is the room's live **Session** of that passage (ADR 0071 of the API). An approval leaves it open under its version; a new take un-approves it.
+_Avoid_: rascunho final (the approved version's words on the screen), session (what holds it)
+
+**Approved draft** (*rascunho final aprovado*):
+A **Draft** whose **Session read** says `approved`: a re-entry lands on its **Back-translation**, checked, with «✓ aprovado como rascunho final (v{n})» where the approve button stands, its frases and their parts — never on the **Conversation** and never under the **Warning mark**. The badge goes as soon as a session read says the draft is no longer approved or the team leaves the checked phase.
+_Avoid_: approved mark (the «●» on the Choice), finished passage, closed passage
 
 **Approved mark**:
 «●» after the passage's reference, read «tem um ensaio salvo», for a passage the server holds a live release of, from any tablet, forced or not. Read from the room on every load of the Wheel; never from what this tablet started or finished. A Zerar takes it away.

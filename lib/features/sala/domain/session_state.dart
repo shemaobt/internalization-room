@@ -23,6 +23,16 @@ enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim, cena }
 /// Where the scene rehearsal's screen is.
 enum SceneStep { record, translate, placesUnknown, sent }
 
+/// Her line beside the scene rehearsal's controls: «recomeçar a tradução» answered or
+/// failed, or a moved pause the room refused, one per refusal code.
+enum SceneLine {
+  restarted,
+  restartFailed,
+  pauseOnlyOnTheLast,
+  pausePastTheEnd,
+  pauseCannotStandThere,
+}
+
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
 /// answered it, its take as a file on this tablet and the take's measured length, and
 /// whether a call this screen made is in the air. On the record step it also holds the
@@ -344,6 +354,9 @@ class SalaSessionState {
   final RegravacaoDaFrase? btRegravacao;
   final String? btFraseQueAguarda;
   final int? btFraseGuardada;
+
+  /// The approval the newest Session read says the draft stands under.
+  final ApprovedDraft? btRascunhoAprovado;
   final int unsentTakes;
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
@@ -387,6 +400,12 @@ class SalaSessionState {
   /// The turn «terminei» last sent for a scene rehearsal and no reply has played for:
   /// the next «terminei» on that rehearsal goes under it again.
   final ({String rehearsalId, String turnId})? sceneTurn;
+
+  /// «recomeçar a tradução» on the scene rehearsal armed by its first tap, kept beside the
+  /// screen so its timers never replace the screen a call waits on.
+  final BtRecomeco? sceneRestart;
+
+  final SceneLine? sceneLine;
 
   /// Whether Scene row [scene] does not apply right now (ADR 0040: dimmed means it does
   /// not apply). True for every row but the one a finding sent the team back to record,
@@ -450,6 +469,7 @@ class SalaSessionState {
     this.btRegravacao,
     this.btFraseQueAguarda,
     this.btFraseGuardada,
+    this.btRascunhoAprovado,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
@@ -463,6 +483,8 @@ class SalaSessionState {
     this.scenes = const ScenesAwaited(),
     this.scenesOfThePassage,
     this.sceneTurn,
+    this.sceneRestart,
+    this.sceneLine,
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -627,6 +649,41 @@ class SalaSessionState {
     _ => null,
   };
 
+  /// The frase being translated again whose pausa the team may move: the last one, on a
+  /// take with loudness to read.
+  SceneFrase? get sceneFraseOnTheMove =>
+      switch ((scene.translatingAgain, scene.rehearsal?.lastFrase)) {
+        (final again?, final last?)
+            when again.fraseId == last.fraseId && sceneEnvelope != null =>
+          again,
+        _ => null,
+      };
+
+  /// Where a pending pausa may go: past the start of the frase on the move, else past
+  /// where the translation stopped, and short of the take's end.
+  ({Duration lo, Duration hi})? get scenePausaBounds => switch (scene.takeEnd) {
+    final end? => pauseBounds(scenePausaFloor, end),
+    null => null,
+  };
+
+  Duration get scenePausaFloor =>
+      scene.rehearsal?.pausaFloor(sceneFraseOnTheMove) ?? Duration.zero;
+
+  /// Whether the pending pausa shows her adjust row: on a take with loudness to read,
+  /// never at the take's own end placed by itself unless the last frase's pausa is on
+  /// the move.
+  bool get scenePausaAdjusts =>
+      scene.pausa != null &&
+      sceneEnvelope != null &&
+      (sceneFraseOnTheMove != null || scene.pausa != scene.takeEnd);
+
+  /// Whether «recomeçar a tradução» applies: a rehearsal being translated, so never a
+  /// sent one, with a translated frase.
+  bool get sceneRestartShown =>
+      (scene.step == SceneStep.translate ||
+          scene.step == SceneStep.placesUnknown) &&
+      (scene.rehearsal?.translatedFrases ?? 0) > 0;
+
   /// Whether the room may hold a new translation the team has not seen in the rehearsal
   /// on the scene screen.
   bool get sceneTranslationUnseen =>
@@ -752,6 +809,11 @@ class SalaSessionState {
 
   bool get btTrechoPausada => switch (_paused) {
     Paused(what: StretchSound(telling: false)) => true,
+    _ => false,
+  };
+
+  bool get btClipPausada => switch (_paused) {
+    Paused(what: PartSound()) => stage == SalaStage.retro,
     _ => false,
   };
 
@@ -1033,6 +1095,17 @@ class SalaSessionState {
       trecho.parte < partes.length &&
       partes[trecho.parte].path.endsWith('.wav');
 
+  /// The approval drawn on the checked telling-back, in place of the approve button and the
+  /// Warning mark: only while nothing of this session waits in the Outbox (ADR 0106).
+  ApprovedDraft? get approvedDraftDrawn =>
+      stage == SalaStage.retro &&
+          btPhase == BtPhase.conferida &&
+          unsentTakes == 0 &&
+          unsentChunks == 0 &&
+          btFraseGuardada == null
+      ? btRascunhoAprovado
+      : null;
+
   /// Whether the last listening the clean verdict invites has anything to play.
   ///
   /// A session picked back up over a room that holds no rehearsal of its own carries the
@@ -1131,6 +1204,8 @@ class SalaSessionState {
     bool clearBtFraseQueAguarda = false,
     int? btFraseGuardada,
     bool clearBtFraseGuardada = false,
+    ApprovedDraft? btRascunhoAprovado,
+    bool clearBtRascunhoAprovado = false,
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
@@ -1147,6 +1222,10 @@ class SalaSessionState {
     List<Scene>? scenesOfThePassage,
     ({String rehearsalId, String turnId})? sceneTurn,
     bool clearSceneTurn = false,
+    BtRecomeco? sceneRestart,
+    bool clearSceneRestart = false,
+    SceneLine? sceneLine,
+    bool clearSceneLine = false,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
@@ -1217,6 +1296,9 @@ class SalaSessionState {
       btFraseGuardada: clearBtFraseGuardada
           ? null
           : (btFraseGuardada ?? this.btFraseGuardada),
+      btRascunhoAprovado: clearBtRascunhoAprovado
+          ? null
+          : (btRascunhoAprovado ?? this.btRascunhoAprovado),
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
@@ -1235,6 +1317,10 @@ class SalaSessionState {
       scenes: scenes ?? this.scenes,
       scenesOfThePassage: scenesOfThePassage ?? this.scenesOfThePassage,
       sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),
+      sceneRestart: clearSceneRestart
+          ? null
+          : (sceneRestart ?? this.sceneRestart),
+      sceneLine: clearSceneLine ? null : (sceneLine ?? this.sceneLine),
     );
   }
 }

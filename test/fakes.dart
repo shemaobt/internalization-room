@@ -1248,6 +1248,10 @@ class FakeRoom implements RoomRepository {
   /// What the room answers about the telling-back, when a test wants to state it rather
   /// than build it up by telling stretches back.
   BackTranslationProgress? retroSoFar;
+
+  /// The approval the room says the session's draft stands under, on the open and on
+  /// every read.
+  ApprovedDraft? approvedDraft;
   String? verdictFindingSegmentId;
 
   /// Which place on the cord the analyst points at, when it points by place instead of by
@@ -2083,6 +2087,8 @@ class FakeRoom implements RoomRepository {
         halt: serverHalt,
         opened: createdOpened,
         moment: nextMoment,
+        backTranslation: retroSoFar ?? const BackTranslationProgress(),
+        approved: approvedDraft,
       ),
     );
   }
@@ -2156,6 +2162,7 @@ class FakeRoom implements RoomRepository {
               segments: _numbered,
               awaitingSegmentId: awaitingSegmentId,
             ),
+        approved: approvedDraft,
       ),
     );
     if (_readsToHold > 0) {
@@ -3480,6 +3487,7 @@ class SalaHarness {
   final Duration clipGrace;
   final CaptureGuard captureGuard;
   final Duration fimLinger;
+  final Duration restartWake;
   final Duration restartLapse;
 
   /// Whether the outbox keeps its rows in memory instead of on disk. Opt-in, for widget
@@ -3516,6 +3524,7 @@ class SalaHarness {
       minBytes: 1,
     ),
     this.fimLinger = const Duration(seconds: 30),
+    this.restartWake = const Duration(milliseconds: 600),
     this.restartLapse = const Duration(seconds: 6),
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
@@ -3596,6 +3605,7 @@ class SalaHarness {
     clipGraceProvider.overrideWithValue(clipGrace),
     captureGuardProvider.overrideWithValue(captureGuard),
     fimLingerProvider.overrideWithValue(fimLinger),
+    restartWakeProvider.overrideWithValue(restartWake),
     restartLapseProvider.overrideWithValue(restartLapse),
     sceneEnvelopeReaderProvider.overrideWithValue(readTheEnvelope),
     if (inboxWatch case final every?)
