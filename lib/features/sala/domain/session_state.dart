@@ -812,6 +812,11 @@ class SalaSessionState {
     _ => false,
   };
 
+  bool get btClipPausada => switch (_paused) {
+    Paused(what: PartSound()) => stage == SalaStage.retro,
+    _ => false,
+  };
+
   Duration? get btTrechoDesde => switch (channel) {
     StretchPlaying(stretch: StretchSound(telling: false, :final from)) => from,
     _ => switch (_paused) {
