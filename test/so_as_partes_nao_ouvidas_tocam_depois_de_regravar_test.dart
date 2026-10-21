@@ -165,10 +165,12 @@ void main() {
     'um sinal no meio da parte que falta guarda onde ela chegou, e ouvir depois do toque segue dali',
     () async {
       final it = await umEnsaioContadoInteiro(_cincoPartes);
+      await _retomadaJuntada(it, _cincoPartes[4]);
       await _regravada(it, 2, _cincoPartes[2], semNome: true);
       final terceira = it.partes[2].path;
       it.harness.room.listeningUnheardTakeIds = const [];
       await _entrar(it);
+      expect(it.harness.playback.played.last, terceira);
       it.harness.playback.at = const Duration(seconds: 4);
 
       it.sala.haltForABrokenBuild();
