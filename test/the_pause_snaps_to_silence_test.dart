@@ -372,6 +372,25 @@ void main() {
     },
   );
 
+  testWidgets('the scissors with less than 0.2 s of the part left place no '
+      'pausa either', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    await pausarAos(tester, harness, s(9.9));
+    await traduzirEConfirmar(tester);
+    expect(harness.room.chunkSpans, ['0-9900']);
+
+    await pausarAos(tester, harness, s(9.95));
+    await traduzirEConfirmar(tester);
+
+    expect(
+      harness.room.chunkSpans,
+      ['0-9900'],
+      reason: 'a tesoura punha a pausa no fim e o círculo mandava 0,1 s',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a tail of 0.3 s left at the end of the part is not offered as a '
       'frase', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
