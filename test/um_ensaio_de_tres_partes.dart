@@ -80,11 +80,33 @@ Future<void> ouvirETraduzirAParteInteira(Sala it, Duration quanto) async {
 Future<Sala> umEnsaioDeTresPartesGravado({
   Duration? tetoDaEspera,
   WorkInProgress? emAbertoNoDisco,
-}) async {
-  final harness = SalaHarness(
+}) => umEnsaioGravado(
+  partesDoEnsaio,
+  numaSala: SalaHarness(
     busyCeiling: tetoDaEspera,
     emAbertoNoDisco: emAbertoNoDisco,
-  );
+  ),
+);
+
+/// The rehearsal recorded in three parts, every one of them told back whole and played to
+/// its end, standing with the advance disc beckoning and nothing pressed yet.
+Future<Sala> umEnsaioDeTresPartesContadoInteiro({
+  Duration? tetoDaEspera,
+  WorkInProgress? emAbertoNoDisco,
+}) => umEnsaioContadoInteiro(
+  partesDoEnsaio,
+  numaSala: SalaHarness(
+    busyCeiling: tetoDaEspera,
+    emAbertoNoDisco: emAbertoNoDisco,
+  ),
+);
+
+/// A rehearsal recorded in [partes], nothing told back yet.
+Future<Sala> umEnsaioGravado(
+  List<Duration> partes, {
+  SalaHarness? numaSala,
+}) async {
+  final harness = numaSala ?? SalaHarness();
   final container = harness.container();
   addTearDown(container.dispose);
   final it = Sala(harness, container);
@@ -92,26 +114,22 @@ Future<Sala> umEnsaioDeTresPartesGravado({
   await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
-  for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
+  for (var onde = 0; onde < partes.length; onde++) {
     await gravarUmaParteDoEnsaio(it);
   }
-  final partes = it.estado.keptTakes;
-  for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-    harness.playback.lengths[partes[onde].path] = partesDoEnsaio[onde];
+  final gravadas = it.estado.keptTakes;
+  for (var onde = 0; onde < partes.length; onde++) {
+    harness.playback.lengths[gravadas[onde].path] = partes[onde];
   }
   return it;
 }
 
-/// The rehearsal recorded in three parts, every one of them told back whole and played to
-/// its end, standing with the advance disc beckoning and nothing pressed yet.
-Future<Sala> umEnsaioDeTresPartesContadoInteiro({
-  Duration? tetoDaEspera,
-  WorkInProgress? emAbertoNoDisco,
+/// A rehearsal recorded in [partes], every one told back whole and played to its end.
+Future<Sala> umEnsaioContadoInteiro(
+  List<Duration> partes, {
+  SalaHarness? numaSala,
 }) async {
-  final it = await umEnsaioDeTresPartesGravado(
-    tetoDaEspera: tetoDaEspera,
-    emAbertoNoDisco: emAbertoNoDisco,
-  );
+  final it = await umEnsaioGravado(partes, numaSala: numaSala);
 
   it.sala.startRetro();
   await waitFor(
@@ -121,9 +139,9 @@ Future<Sala> umEnsaioDeTresPartesContadoInteiro({
         it.estado.btPhase == BtPhase.playing,
   );
 
-  for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-    await ouvirETraduzirAParteInteira(it, partesDoEnsaio[onde]);
-    if (onde < partesDoEnsaio.length - 1) {
+  for (var onde = 0; onde < partes.length; onde++) {
+    await ouvirETraduzirAParteInteira(it, partes[onde]);
+    if (onde < partes.length - 1) {
       it.sala.ouvirGravacao();
       await waitFor(
         'a parte seguinte entrar no ar',
@@ -132,6 +150,19 @@ Future<Sala> umEnsaioDeTresPartesContadoInteiro({
     }
   }
   return it;
+}
+
+/// The part in the air played to its own end, [quanto] long.
+Future<void> ouvirAteOFim(Sala it, Duration quanto) async {
+  await theClipOpens(it.harness);
+  it.harness.playback
+    ..length = quanto
+    ..at = quanto
+    ..finishPlayback();
+  await waitFor(
+    'a parte acabar',
+    () => it.estado.btParteFronteira || it.estado.btClipEnded,
+  );
 }
 
 /// Cut the stretch in the air at [em], wherever in the part that falls, and tell that

@@ -180,3 +180,12 @@ It left `btAviso`, which holds one line at a time, so that a refusal landing in 
 prints beside the note instead of in its place, as her `restartNote` stands apart from her
 `btMsg`. It sits beside the others on the same two classes and moves with them; only its own
 timer clears it.
+
+Extended by name (ENG-1419, 2026-10-20), same end date: the Listening ledger's reports to the
+room (as each part ends, on leaving the Back-translation or the passage, when the app goes to
+the background), the ledger's spans written while a part sounds on the Rehearsal, and three
+private fields of `SalaSessionNotifier`: `_oQueFaltaOuvir` (the unheard parts a refusal or the
+entry after a part recorded again is still playing), `_umaParteFoiRegravada` (a part was
+recorded again since the last entry) and `_aTraducaoJaFoiDeixada` (this passage's
+Back-translation was left once in this life). They sit beside the others and move with them
+(ADR 0105).

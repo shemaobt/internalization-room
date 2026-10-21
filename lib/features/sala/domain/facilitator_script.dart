@@ -22,6 +22,10 @@ const startLine = 'P0';
 
 const tellLine = 'P1';
 
+/// The third of Marcia's process lines, read by position: start, tell, unheard,
+/// approved. Said when a part recorded again leaves some of the rehearsal still heard.
+const unheardLine = 'P2';
+
 /// The fourth of Marcia's process lines, read by position: start, tell, unheard,
 /// approved. The approval's is the fourth, never rotated.
 const approvedLine = 'P3';

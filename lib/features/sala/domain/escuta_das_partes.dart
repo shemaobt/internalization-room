@@ -31,8 +31,9 @@ class _Escutada {
 /// report that travels to Refine said a team had listened to the whole rehearsal however
 /// little of it had played, and the gate that exists to catch exactly that could never
 /// fail. It is a record now: one span per stretch of listening, closed whenever the
-/// rehearsal stops — with one exception, written in on purpose: the parts a telling-back
-/// steps over because they were told back whole in an earlier round.
+/// rehearsal stops — with two exceptions, written in on purpose: the parts a telling-back
+/// steps over because they were told back whole in an earlier round, and a part picked up
+/// at its cursor over ground already told, whose span opens at its own nought.
 ///
 /// Per part, and in each part's own milliseconds, because that is how the team listens and
 /// how the team re-records. Kept over the parts glued together, one retake changed the

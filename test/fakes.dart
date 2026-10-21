@@ -2763,6 +2763,28 @@ class FakeRoom implements RoomRepository {
     );
   }
 
+  /// Every report the listen door was sent, in order, as [playedByTakeSent] keeps the
+  /// check's.
+  final List<List<Map<String, Object?>>> listeningReports = [];
+
+  /// The parts the listen door answers as still unheard. Null is an older room, whose
+  /// answer names none.
+  List<String>? listeningUnheardTakeIds;
+
+  RoomFailure? failListeningWith;
+
+  @override
+  Future<RoomAnswer<List<String>?>> reportTheListening(
+    String sessionId, {
+    required List<PlayedTake> playedByTake,
+  }) async {
+    listeningReports.add([for (final parte in playedByTake) parte.toJson()]);
+    final falha = failListeningWith;
+    if (falha != null) return falha;
+    if (!reachable) return const NetworkFailed('sem rede');
+    return Answered(listeningUnheardTakeIds);
+  }
+
   final List<String> heardStamps = [];
 
   RoomFailure? failHeardWith;
