@@ -28,27 +28,19 @@ class ConversaView extends ConsumerWidget {
     return Stack(
       children: [
         Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 26),
-              FacilitatorCircle(
-                size: 158,
-                halt: session.halt,
-                voice: session.voice,
-                reach: session.reach,
-                noteMode: session.noteMode,
-                peerCue: session.peerCue,
-                warning: session.warning
-                    ? warningNoticeLabelFor(language)
-                    : null,
-                semanticLabel: _circleLabel(session, language),
-                onTap: notifier.conversaTap,
-                onLongPress: session.canResolveWithPerson
-                    ? notifier.resolveWithPerson
-                    : null,
-              ),
-            ],
+          child: FacilitatorCircle(
+            size: 158,
+            halt: session.halt,
+            voice: session.voice,
+            reach: session.reach,
+            noteMode: session.noteMode,
+            peerCue: session.peerCue,
+            warning: session.warning ? warningNoticeLabelFor(language) : null,
+            semanticLabel: _circleLabel(session, language),
+            onTap: notifier.conversaTap,
+            onLongPress: session.canResolveWithPerson
+                ? notifier.resolveWithPerson
+                : null,
           ),
         ),
         if (session.partsToReplay.isNotEmpty)

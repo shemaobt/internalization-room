@@ -144,7 +144,7 @@ void main() {
   );
 
   testWidgets(
-    'the circle stands in the middle of the conversation, with no empty row kept under it',
+    'the circle stands in the middle of the conversation, with no empty space kept above or under it',
     (tester) async {
       await _inConversa(
         tester,
@@ -161,10 +161,11 @@ void main() {
       expect(circle.center.dx, closeTo(canvas.center.dx, 0.5));
       expect(
         circle.center.dy,
-        closeTo(canvas.center.dy, 13),
+        closeTo(canvas.center.dy, 0.5),
         reason:
-            'a fileira do check ficava reservada embaixo do círculo e o '
-            'empurrava para cima do meio, onde o dela fica',
+            'a fileira do check embaixo e o vão de 26 px em cima, deixado '
+            'pelas fichas que saíram, tiravam o círculo do meio, onde o dela '
+            'fica',
       );
     },
   );
