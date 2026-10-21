@@ -150,6 +150,20 @@ class RecordingRepository {
     }
   }
 
+  Future<void> forgetTheKeptRetellings(String sessionId) async {
+    try {
+      final dir = await _recordingsDir();
+      await for (final entry in dir.list()) {
+        if (entry is File &&
+            p.basename(entry.path).startsWith('kept-$sessionId-')) {
+          await entry.delete();
+        }
+      }
+    } on Exception {
+      return;
+    }
+  }
+
   Future<void> _sweepStaleStaging(Directory dir) async {
     try {
       final parts = await dir
