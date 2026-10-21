@@ -260,7 +260,7 @@ class RaisedHand {
   /// as a failure of the reply at the address that was marked; an outage counts nothing.
   /// Both pull; a pull is one GET, and after an outage it changes nothing.
   Future<void> _markHeard(HandReply marked) async {
-    host.waitOnTheGeneration;
+    final life = host.thisLife;
     HandReply? heard;
     host.state = _state.copyWith(
       replies: _replies(
@@ -277,7 +277,7 @@ class RaisedHand {
         failure = refused;
     }
     host.decideAt(failure, door: Door.inbox);
-    if (host.gone) return;
+    if (host.endedSince(life)) return;
     host.state = _state.copyWith(
       replies: failure is Refused
           ? _refused(marked, heard)

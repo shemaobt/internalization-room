@@ -857,6 +857,43 @@ void main() {
     );
   }
 
+  test(
+    'a mark refused after the room was revoked and linked again does not count against the reply on the new life',
+    () async {
+      final desk = _Desk()
+        ..answers = 400
+        ..holdsTheAnswer();
+      final harness = _tabletTalkingTo(desk)..voice.succeeds = false;
+      final container = await _opensTheRoom(desk, harness);
+
+      await _theTeamTapsTheHand(container);
+      harness.voice.succeeds = true;
+      await _theTeamTapsTheHand(container);
+      await waitFor('a marca chegar à mesa', () => desk.marks == 1);
+
+      container.invalidate(salaSessionProvider);
+      await settle();
+      final readsBefore = desk.reads;
+      await container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth');
+      await waitFor('a sala reler a caixa', () => desk.reads > readsBefore);
+      await settle();
+      desk.answersAtLast();
+      await settle();
+
+      final playedBefore = _timesPlayed(harness);
+      await _theTeamTapsTheHand(container);
+      expect(
+        _timesPlayed(harness),
+        playedBefore + 1,
+        reason:
+            'a recusa de uma marca da sala de antes do desvínculo contou contra '
+            'a resposta da sala nova, que nasce sem falhas',
+      );
+    },
+  );
+
   test('a reply the desk agrees was heard is never played again', () async {
     final desk = _Desk();
     final harness = _tabletTalkingTo(desk);
