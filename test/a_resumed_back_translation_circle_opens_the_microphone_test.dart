@@ -89,7 +89,7 @@ void main() {
 
         await _tapAndWait(
           tester,
-          byLabel(retroLabelFor('record', testLanguage)),
+          byLabel(retroLabelFor('listening', testLanguage)),
         );
 
         expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);

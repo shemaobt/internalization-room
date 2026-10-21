@@ -49,6 +49,37 @@ void main() {
     );
   });
 
+  testWidgets('a part running past the cursor reads her «ouvindo a gravação '
+      'de vocês…», not the invitation to record', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+
+    expect(container.read(salaSessionProvider).btClipRodando, isTrue);
+    expect(
+      rotuloDoCirculo(tester),
+      'ouvindo a gravação de vocês…',
+      reason: 'o círculo convidava a gravar com a gravação tocando',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('an english room hears its recording played in english, not in '
+      'portuguese', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+
+    expect(
+      rotuloDoCirculo(tester),
+      'listening to your recording…',
+      reason: 'o rótulo da gravação tocando ficava em português',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a clip held with no pause standing reads her «pausado», not '
       'the invitation to record', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
