@@ -131,8 +131,8 @@ void main() {
     },
   );
 
-  test('a fall on the Panorama after its line was said does not voice the '
-      'Panorama again when the room comes back', () async {
+  test('a hear-again on the Panorama lost on the network keeps the room in '
+      'reach and asks the Panorama nothing again', () async {
     final harness = SalaHarness()..room.passages = _theBook;
     final container = harness.container();
     addTearDown(container.dispose);
@@ -140,15 +140,18 @@ void main() {
     SalaSessionState read() => container.read(salaSessionProvider);
     await enterThePanorama(notifier, read);
     await waitFor('the Panorama to be said', () => read().panoramaSaid);
+    final played = harness.voice.played.length;
     harness.voice.roomFailsWith = const NetworkFailed('sem rede');
 
     await notifier.hearAgain();
-    await waitFor('the room to be out of reach', () => read().offline);
-    harness.voice.roomFailsWith = null;
-    notifier.retryNow();
-    await waitFor('the room to come back', () => !read().offline);
+    await waitFor(
+      'the line to be lost on the network',
+      () => harness.voice.played.length > played,
+    );
     await settle();
 
+    expect(read().offline, isFalse);
+    expect(read().unreachable, isFalse);
     expect(harness.room.sessionsSpokenTo, hasLength(1));
     expect(read().station, isA<Panorama>());
   });

@@ -25,83 +25,32 @@ import 'scenario_helpers.dart'
         withDiskThatAnswersAtOnce;
 
 void main() {
-  test('a book with nothing left to offer reaches a person', () async {
-    final harness = SalaHarness()..room.passages = const [];
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
+  test(
+    'a book with nothing left to offer shows it is done and calls nobody',
+    () async {
+      final harness = SalaHarness()..room.passages = const [];
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.abrirEscolha();
-    await settle();
+      await notifier.abrirEscolha();
+      await settle();
 
-    final state = container.read(salaSessionProvider);
-    expect(state.naRoda, isEmpty);
-    expect(state.needsPerson, isTrue);
-    expect(
-      state.livroInteiroFeito,
-      isTrue,
-      reason: 'o servidor mesmo não devolveu nenhuma passagem',
-    );
-    expect(
-      harness.room.deviceAsksReceived,
-      isNotEmpty,
-      reason: 'a sala de fato chama alguém, não só acende needsPerson',
-    );
-    expect(
-      harness.voice.fixedLines,
-      isNot(contains(('E0', testLanguage))),
-      reason: 'o círculo parado já é o aviso; o app não fala por cima dele',
-    );
-  });
-
-  test('a long press reloads the wheel, and lets the team through once it has '
-      'something', () async {
-    final harness = SalaHarness()..room.passages = const [];
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await notifier.abrirEscolha();
-    await settle();
-    harness.room.passages = const [
-      Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-    ];
-    notifier.resolveWithPerson();
-    await settle();
-
-    final state = container.read(salaSessionProvider);
-    expect(
-      state.needsPerson,
-      isFalse,
-      reason: 'a escolha foi reaberta de fora, e o servidor tinha mudado',
-    );
-    expect(state.entriesOpen, isTrue);
-    expect(
-      state.naRoda?.single.pericope,
-      'P01',
-      reason: 'a roda recarregada de fato oferece a passagem nova',
-    );
-  });
-
-  test('a long press over a book still genuinely empty halts again', () async {
-    final harness = SalaHarness()..room.passages = const [];
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await notifier.abrirEscolha();
-    await settle();
-    notifier.resolveWithPerson();
-    await settle();
-
-    expect(
-      container.read(salaSessionProvider).needsPerson,
-      isTrue,
-      reason:
-          'a visita reaberta perguntou o servidor de novo, e ele continua '
-          'sem nada; fingir que o long press resolveu escondia isso',
-    );
-  });
+      final state = container.read(salaSessionProvider);
+      expect(state.naRoda, isEmpty);
+      expect(state.needsPerson, isFalse);
+      expect(
+        state.livroInteiroFeito,
+        isTrue,
+        reason: 'o servidor mesmo não devolveu nenhuma passagem',
+      );
+      expect(
+        harness.voice.fixedLines,
+        isNot(contains(('E0', testLanguage))),
+        reason: 'o círculo parado já é o aviso; o app não fala por cima dele',
+      );
+    },
+  );
 
   test('leaving a passage goes back to the wheel and keeps it there', () async {
     final harness = SalaHarness();
@@ -180,7 +129,6 @@ void main() {
         reason: 'cada toque na roda tem de bater na porta de novo',
       );
       expect(harness.room.personsAsked, 0);
-      expect(harness.room.deviceAsksReceived, isEmpty);
       expect(harness.voice.fixedLines, isNot(contains(('E0', testLanguage))));
     },
   );
@@ -343,7 +291,7 @@ void main() {
   );
 
   test(
-    'a refusal anywhere else stops for a person, never for a network that is fine',
+    'a refused wheel stops for nothing, neither a person nor a network that is fine',
     () async {
       final harness = SalaHarness()
         ..room.failWith = const Refused('UNAUTHORIZED');
@@ -362,7 +310,7 @@ void main() {
             'a recusa caía no último ramo do funil e a sala dizia, numa rede boa, '
             'que a internet tinha ido embora',
       );
-      expect(state.needsPerson, isTrue);
+      expect(state.needsPerson, isFalse);
     },
   );
 
@@ -855,30 +803,28 @@ void main() {
     );
   });
 
-  test(
-    'a halt read from the server status is not announced by the app',
-    () async {
-      final harness = SalaHarness(
-        settleDelay: const Duration(milliseconds: 30),
-      );
-      harness.room.serverStatus = 'needs_person';
-      final container = await inConversaHarness(harness);
-      addTearDown(container.dispose);
+  test('a session read that says a person is needed raises no sign and the app '
+      'announces nothing', () async {
+    final harness = SalaHarness(settleDelay: const Duration(milliseconds: 30));
+    harness.room.serverStatus = 'needs_person';
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
 
-      await waitFor(
-        'a sala pedir uma pessoa',
-        () => container.read(salaSessionProvider).needsPerson,
-      );
+    await waitFor(
+      'a vigia ler a sessão',
+      () => harness.room.calls.contains('fetchState'),
+    );
+    await settle();
 
-      expect(
-        harness.voice.fixedLines,
-        isNot(contains(('E0', testLanguage))),
-        reason:
-            'a leitura de estado não é um turno; quem fala E0 é o servidor, '
-            'no turno em que ele decidir, não a vigia que só leu a marca',
-      );
-    },
-  );
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    expect(
+      harness.voice.fixedLines,
+      isNot(contains(('E0', testLanguage))),
+      reason:
+          'a leitura de estado não é um turno; quem fala E0 é o servidor, '
+          'no turno em que ele decidir, não a vigia que só leu a marca',
+    );
+  });
 
   test('a session the room forgot does not keep being told about it', () async {
     final harness = SalaHarness();
@@ -911,7 +857,7 @@ void main() {
   });
 
   test(
-    'a wheel that keeps failing to load still climbs its own ladder, retry after retry',
+    'a wheel that keeps failing to load never calls a person, retry after retry',
     () async {
       final harness = SalaHarness()
         ..room.failWith = const Refused('BAD_REQUEST');
@@ -926,14 +872,7 @@ void main() {
       notifier.escolhaTap();
       await settle();
 
-      expect(
-        container.read(salaSessionProvider).needsPerson,
-        isTrue,
-        reason:
-            'o toque que refaz a tentativa de carregar a roda zerava '
-            '_roomFailures a cada vez, e três tentativas seguidas do mesmo '
-            'carregamento quebrado nunca batiam o limiar que chama alguém',
-      );
+      expect(container.read(salaSessionProvider).needsPerson, isFalse);
     },
   );
 
@@ -998,15 +937,15 @@ void main() {
     // No pending reply on purpose: with one, the hand plays it and never reaches the
     // branch that overwrites the offline state.
     final harness = SalaHarness(
-      watchesWithoutAHalt: true,
       retryBackoff: const [Duration(milliseconds: 30)],
     );
-    final container = await inConversaHarness(harness);
+    harness.network.reachable = false;
+    harness.room.reachable = false;
+    final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    harness.network.reachable = false;
-    harness.room.reachable = false;
+    unawaited(notifier.goConversa(book: 'Ruth'));
     await waitFor(
       'a sala se dar por fora do ar',
       () => container.read(salaSessionProvider).offline,

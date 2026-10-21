@@ -11,7 +11,6 @@ import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
@@ -785,15 +784,7 @@ void main() {
     final (harness, container) = await _inArticulation(tester, watching: true);
     _expectSeenAtRest(tester);
 
-    harness.room
-      ..serverStatus = 'needs_person'
-      ..serverHalt = HaltKind.blocking;
-    final reads = stateReads(harness);
-    await _pumpUntil(
-      tester,
-      () => stateReads(harness) != reads,
-      beat: const Duration(seconds: 1),
-    );
+    container.read(salaSessionProvider.notifier).haltForABrokenBuild();
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue);

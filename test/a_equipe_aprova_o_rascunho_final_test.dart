@@ -338,9 +338,8 @@ void main() {
     'comprehension_needs_more_work',
     'no_telling_back',
   ]) {
-    testWidgets('a recusa por $codigo chama uma pessoa na hora', (
-      tester,
-    ) async {
+    testWidgets('a recusa por $codigo devolve a equipe à tradução como '
+        'antes do terminei, sem chamar ninguém', (tester) async {
       final it = await _ateAConferida(tester);
       final falasAntes = it.harness.voice.fixedLines.length;
       it.harness.room.releaseBlockers = [codigo];
@@ -349,42 +348,24 @@ void main() {
 
       expect(
         _circulo(tester).halt,
-        isA<Blocking>(),
+        isNot(isA<Blocking>()),
         reason:
-            'o círculo era a única coisa da tela que ainda podia dizer o '
-            'que houve, e desenhá-lo verde por cima do halt dizia à equipe que '
-            'estava tudo certo: dois botões que as guardas recusam, nenhum '
-            'botão de sair, e a fala E0 como único sinal',
+            'uma recusa de um pedido que não é uma fala da equipe não é um '
+            'dos seis casos do sinal da pessoa',
       );
-      expect(
-        _circulo(tester).semanticLabel,
-        'Um momento para uma pessoa',
-        reason:
-            'e a etiqueta acompanha, que é o que a sala tem no lugar de '
-            'palavras na tela',
-      );
-
-      expect(
-        _estado(it.container).needsPerson,
-        isTrue,
-        reason:
-            'é um buraco que a equipe não tapa desta tela: não há porta '
-            'para ele, e deixar a passagem de pé sem dizer nada é o botão '
-            'morto que a equipe apertava duas vezes antes de alguém vir',
-      );
-      expect(it.harness.room.personsAsked, 1);
+      expect(_estado(it.container).needsPerson, isFalse);
+      expect(it.harness.room.personsAsked, 0);
       expect(
         it.harness.voice.fixedLines.skip(falasAntes),
         isNot(contains(('P3', testLanguage))),
         reason: 'e nada foi aprovado, então a linha da aprovação não é dita',
       );
       expect(_estado(it.container).stage, SalaStage.retro);
+      expect(_estado(it.container).canFinishBackTranslation, isTrue);
       expect(
-        _estado(it.container).btPhase,
-        BtPhase.conferida,
-        reason:
-            'a fase não se move: é o que mantém a tela de pé debaixo da '
-            'falha',
+        byLabel('terminei'),
+        findsOneWidget,
+        reason: 'a equipe volta a ter o terminei para conferir de novo',
       );
 
       closeTheRoom(it.container);
@@ -392,10 +373,8 @@ void main() {
   }
 
   testWidgets(
-    'uma demora na aprovação tira a sala do alcance e deixa o botão de pé',
+    'uma demora na aprovação não muda nada na sala e deixa o botão de pé',
     (tester) async {
-      // A espera entre tentativas é longa de propósito: com a de sempre, a sala já teria
-      // voltado sozinha dentro do pump, e o degrau em que ela desistiu não seria legível.
       final it = await _ateAConferida(
         tester,
         comEsta: SalaHarness(
@@ -404,14 +383,21 @@ void main() {
         ),
       );
       it.harness.room.failReleaseWith = const NetworkFailed('timeout');
+      final checagensAntes = it.harness.network.checks;
 
       await _aprovarEEsperar(tester);
 
       expect(
         _estado(it.container).needsPerson,
         isFalse,
+        reason: 'uma demora é a rede, e a rede sem fala não chama ninguém',
+      );
+      expect(
+        _estado(it.container).offline,
+        isFalse,
         reason:
-            'uma demora é a rede: a sala sai do alcance e não chama ninguém',
+            'fora do caminho de entrada uma falha de rede não tira a sala do '
+            'alcance',
       );
       expect(_estado(it.container).btPhase, BtPhase.conferida);
       expect(
@@ -420,13 +406,18 @@ void main() {
         reason: 'e o gesto continua na tela para a equipe apertar de novo',
       );
 
+      await tester.pump(const Duration(seconds: 40));
+
       expect(
-        _estado(it.container).offline,
-        isTrue,
-        reason:
-            'uma demora é a rede: a sala sai do alcance na primeira, sem escada',
+        it.harness.room.releasesAsked,
+        hasLength(1),
+        reason: 'nada é mandado de novo sozinho',
       );
-      expect(it.harness.room.releasesAsked, hasLength(1));
+      expect(
+        it.harness.network.checks,
+        checagensAntes,
+        reason: 'e nenhuma escada pergunta pela sala',
+      );
 
       closeTheRoom(it.container);
     },
@@ -453,7 +444,7 @@ void main() {
   });
 
   testWidgets(
-    'sem rede a aprovação cai no offline e o botão volta com a sala',
+    'sem rede a aprovação não tira a sala do alcance e o botão fica de pé',
     (tester) async {
       final it = await _ateAConferida(tester);
       it.harness.room.reachable = false;
@@ -463,24 +454,23 @@ void main() {
 
       expect(
         _circulo(tester).voice,
-        VoiceState.offline,
+        isNot(VoiceState.offline),
         reason:
-            'a release é uma escrita da equipe como as outras, e a saída '
-            'daqui é tocar no círculo: sem o desenho de sala sem rede não há '
-            'nada que diga isso numa tela sem palavras',
+            'a aprovação não é um caminho de entrada: sem rede, nada muda na '
+            'sala',
       );
-      expect(_circulo(tester).semanticLabel, 'Tocar para tentar de novo');
+      expect(_estado(it.container).offline, isFalse);
       expect(_estado(it.container).needsPerson, isFalse);
+      expect(byLabel(_aprovar), findsOneWidget);
 
       it.harness.room.reachable = true;
       it.harness.network.reachable = true;
-      _notifier(it.container).retryNow();
-      await tester.pump(const Duration(milliseconds: 300));
+      await _aprovarEEsperar(tester);
 
       expect(
-        byLabel(_aprovar),
-        findsOneWidget,
-        reason: 'e voltando a sala, o gesto está onde estava',
+        it.harness.room.releasesAsked,
+        hasLength(1),
+        reason: 'é o aperto da equipe que pede de novo, e o pedido chega',
       );
 
       closeTheRoom(it.container);
@@ -918,8 +908,8 @@ void main() {
     closeTheRoom(it.container);
   });
 
-  testWidgets('the read after a refused approval applies the halt it '
-      'carries, as one the room only read', (tester) async {
+  testWidgets('the read after a refused approval never raises the sign the '
+      'server says', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room
       ..releaseBlockers = const ['untold_stretch']
@@ -931,14 +921,10 @@ void main() {
 
     expect(
       _estado(it.container).needsPerson,
-      isTrue,
-      reason: 'a leitura de volta trouxe a parada, e ela vale inteira',
+      isFalse,
+      reason: 'uma leitura nunca levanta o sinal da pessoa',
     );
-    expect(
-      it.harness.room.personsAsked,
-      0,
-      reason: 'uma parada lida não é um novo pedido de pessoa',
-    );
+    expect(it.harness.room.personsAsked, 0);
     closeTheRoom(it.container);
   });
 
@@ -1042,9 +1028,8 @@ void main() {
     closeTheRoom(it.container);
   });
 
-  testWidgets('um código que este tablet não conhece é da pessoa', (
-    tester,
-  ) async {
+  testWidgets('um código que este tablet não conhece devolve a equipe à '
+      'tradução como antes do terminei, sem chamar ninguém', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.releaseBlockers = const ['something_new'];
 
@@ -1052,20 +1037,21 @@ void main() {
 
     expect(
       _estado(it.container).needsPerson,
-      isTrue,
+      isFalse,
       reason:
-          'um portão que aprendeu a recusar por um motivo novo não pode '
-          'levar a equipe a uma porta escolhida no escuro',
+          'um portão que aprendeu a recusar por um motivo novo não leva a '
+          'equipe a uma porta escolhida no escuro, e uma recusa da aprovação '
+          'não é um dos seis casos do sinal',
     );
-    expect(it.harness.room.personsAsked, 1);
-    expect(_estado(it.container).btPhase, BtPhase.conferida);
+    expect(it.harness.room.personsAsked, 0);
+    expect(_estado(it.container).canFinishBackTranslation, isTrue);
+    expect(byLabel('terminei'), findsOneWidget);
 
     closeTheRoom(it.container);
   });
 
-  testWidgets('um trecho não contado sem o trecho nomeado é da pessoa', (
-    tester,
-  ) async {
+  testWidgets('um trecho não contado sem o trecho nomeado devolve a equipe à '
+      'tradução como antes do terminei, sem chamar ninguém', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.releaseBlockers = const ['untold_stretch'];
 
@@ -1073,20 +1059,21 @@ void main() {
 
     expect(
       _estado(it.container).needsPerson,
-      isTrue,
+      isFalse,
       reason:
-          'o código diz que há um buraco e o chão dele não veio: não há '
-          'a que levar a equipe, e adivinhar um trecho manda a equipe contar '
-          'de novo o que já estava contado',
+          'o código diz que há um buraco e o chão dele não veio: não há a que '
+          'levar a equipe, e adivinhar um trecho manda a equipe contar de '
+          'novo o que já estava contado',
     );
-    expect(_estado(it.container).btPhase, BtPhase.conferida);
+    expect(it.harness.room.personsAsked, 0);
+    expect(_estado(it.container).canFinishBackTranslation, isTrue);
+    expect(byLabel('terminei'), findsOneWidget);
 
     closeTheRoom(it.container);
   });
 
-  testWidgets('uma parte não contada sem a gravação nomeada é da pessoa', (
-    tester,
-  ) async {
+  testWidgets('uma parte não contada sem a gravação nomeada devolve a equipe à '
+      'tradução como antes do terminei, sem chamar ninguém', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.releaseBlockers = const ['untold_part'];
 
@@ -1094,19 +1081,18 @@ void main() {
 
     expect(
       _estado(it.container).needsPerson,
-      isTrue,
-      reason:
-          'pelo mesmo motivo do trecho: o buraco com chão sem chão não '
-          'tem porta',
+      isFalse,
+      reason: 'pelo mesmo motivo do trecho: o buraco sem chão não tem porta',
     );
-    expect(_estado(it.container).btPhase, BtPhase.conferida);
+    expect(it.harness.room.personsAsked, 0);
+    expect(_estado(it.container).canFinishBackTranslation, isTrue);
+    expect(byLabel('terminei'), findsOneWidget);
 
     closeTheRoom(it.container);
   });
 
-  testWidgets('uma resposta sem versão e sem buracos é da pessoa', (
-    tester,
-  ) async {
+  testWidgets('uma resposta sem versão e sem buracos não fecha a passagem, '
+      'devolve a equipe à tradução e não chama ninguém', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.release = const ApprovalAnswer();
 
@@ -1114,17 +1100,18 @@ void main() {
 
     expect(
       _estado(it.container).needsPerson,
-      isTrue,
-      reason:
-          'nada foi cunhado e nada foi nomeado: é uma resposta que este '
-          'tablet não conhece, e lê-la como aprovação fecharia a passagem '
-          'por cima de nada',
+      isFalse,
+      reason: 'uma resposta que não é uma fala da equipe não traz o sinal',
     );
+    expect(it.harness.room.personsAsked, 0);
     expect(
       _estado(it.container).stage,
       SalaStage.retro,
-      reason: 'o colar não fecha',
+      reason:
+          'nada foi cunhado e nada foi nomeado: lê-la como aprovação fecharia '
+          'a passagem por cima de nada',
     );
+    expect(_estado(it.container).canFinishBackTranslation, isTrue);
 
     closeTheRoom(it.container);
   });
@@ -1373,11 +1360,8 @@ void main() {
     },
   );
 
-  testWidgets('uma sala que não responde a leitura dos nomes desce pela '
-      'escada, e não vira uma parada', (tester) async {
-    // A espera entre tentativas é longa de propósito, como na irmã desta: com a de sempre
-    // a sala já teria voltado sozinha dentro do pump, e o degrau em que ela desistiu não
-    // seria legível.
+  testWidgets('uma sala que não responde a leitura dos nomes não muda nada, '
+      'e não vira uma parada', (tester) async {
     final it = await _ateAConferida(
       tester,
       comEsta: SalaHarness(
@@ -1389,6 +1373,7 @@ void main() {
       ..releaseBlockers = const ['untold_stretch']
       ..releaseUntoldSegmentId = 'trecho-1'
       ..failStateOnceWith = const NetworkFailed('timeout');
+    final checagensAntes = it.harness.network.checks;
 
     await _aprovarEEsperar(tester);
 
@@ -1396,10 +1381,8 @@ void main() {
       _estado(it.container).needsPerson,
       isFalse,
       reason:
-          'uma sala que não respondeu não é um buraco cujo chão não '
-          'veio: o nome existe e a passagem tem para onde ir, e chamar uma '
-          'pessoa põe uma parada que só o balcão levanta sobre uma falha '
-          'que o próximo aperto resolve',
+          'uma sala que não respondeu não é um buraco cujo chão não veio, e '
+          'uma leitura que falha não é um dos seis casos do sinal',
     );
     expect(it.harness.room.personsAsked, 0);
     expect(
@@ -1412,14 +1395,22 @@ void main() {
       findsOneWidget,
       reason: 'e o gesto continua ali para ser repetido',
     );
-
     expect(
       _estado(it.container).offline,
-      isTrue,
+      isFalse,
       reason:
-          'uma demora é a rede: a sala sai do alcance na primeira, sem escada',
+          'fora do caminho de entrada uma falha de rede não tira a sala do '
+          'alcance',
     );
+
+    await tester.pump(const Duration(seconds: 40));
+
     expect(it.harness.room.releasesAsked, hasLength(1));
+    expect(
+      it.harness.network.checks,
+      checagensAntes,
+      reason: 'e nenhuma escada pergunta pela sala',
+    );
 
     closeTheRoom(it.container);
   });
@@ -1444,42 +1435,14 @@ void main() {
   });
 
   testWidgets(
-    'a retro that lost the network asks an english room to try again in '
-    'english',
+    'a retro under the person sign says so in english to an english room',
     (tester) async {
       final it = await _ateAConferida(
         tester,
         comEsta: SalaHarness(filaEmMemoria: true, lingua: 'en'),
       );
-      it.harness.room.reachable = false;
-      it.harness.network.reachable = false;
 
-      await tester.tap(byLabel('Approve as the final draft'));
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(_circulo(tester).voice, VoiceState.offline);
-      expect(
-        _circulo(tester).semanticLabel,
-        'Tap to try again',
-        reason:
-            'sem rede, o retro pedia "Tocar para tentar de novo" a uma sala '
-            'em inglês',
-      );
-
-      closeTheRoom(it.container);
-    },
-  );
-
-  testWidgets(
-    'a retro that calls a person says so in english to an english room',
-    (tester) async {
-      final it = await _ateAConferida(
-        tester,
-        comEsta: SalaHarness(filaEmMemoria: true, lingua: 'en'),
-      );
-      it.harness.room.releaseBlockers = ['no_project'];
-
-      await tester.tap(byLabel('Approve as the final draft'));
+      _notifier(it.container).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(_circulo(tester).halt, isA<Blocking>());
@@ -1487,7 +1450,7 @@ void main() {
         _circulo(tester).semanticLabel,
         'A moment for someone',
         reason:
-            'o retro chamando uma pessoa dizia "Um momento para uma pessoa" '
+            'o retro sob o sinal da pessoa dizia "Um momento para uma pessoa" '
             'a uma sala em inglês',
       );
 

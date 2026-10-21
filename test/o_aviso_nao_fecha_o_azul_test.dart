@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -127,8 +126,8 @@ Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
   return container;
 }
 
-/// A sala parada de vez, dentro da retro: a equipe contou um trecho e o gravador
-/// não trouxe áudio nenhum do seguinte, que é a parada bloqueante desta estação.
+/// A sala parada de vez, dentro da retro: a equipe contou um trecho e o microfone
+/// não abriu, duas vezes seguidas, para o seguinte.
 Future<ProviderContainer> _paradaBloqueante(SalaHarness harness) async {
   final container = await _inRetro(harness);
 
@@ -138,8 +137,14 @@ Future<ProviderContainer> _paradaBloqueante(SalaHarness harness) async {
     () => harness.room.chunksSent == 1,
   );
 
-  harness.recorder.returnsEmpty = true;
-  await _traduzTrecho(harness, container, em: const Duration(seconds: 20));
+  final notifier = container.read(salaSessionProvider.notifier);
+  harness.recorder.startThrows = true;
+  harness.playback.at = const Duration(seconds: 20);
+  notifier.cortarTrecho();
+  notifier.retroTap();
+  await settle();
+  notifier.cortarTrecho();
+  notifier.retroTap();
   await waitFor(
     'a sala parar de vez',
     () => container.read(salaSessionProvider).needsPerson,
@@ -251,7 +256,7 @@ void main() {
   });
 
   test(
-    'uma parada no meio da gravação por cima não solta o trecho armado',
+    'uma parada ao abrir a gravação por cima não solta o trecho armado',
     () async {
       final harness = SalaHarness();
       final container = await achadoComAvisoAtivo(harness);
@@ -262,13 +267,12 @@ void main() {
       final pedacosAntes = harness.room.chunksSent;
 
       notifier.traduzirDeNovoEmPortugues();
+      harness.recorder.startThrows = true;
       notifier.retroTap();
-      await waitFor(
-        'o microfone abrir sobre a tradução emprestada',
-        () => read().btPhase == BtPhase.capturing,
-      );
-      harness.room.serverHalt = HaltKind.blocking;
+      await settle();
+      notifier.retroTap();
       await waitFor('a sala parar', () => read().needsPerson);
+      harness.recorder.startThrows = false;
       harness.room.theDeskAttended();
       await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 

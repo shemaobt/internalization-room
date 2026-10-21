@@ -7,7 +7,6 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -128,14 +127,18 @@ void main() {
 
   test('an older read that says blocking never halts again a room a newer '
       'read lifted', () async {
-    final harness = _beating()
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.blocking;
+    final harness = _beating();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
+    harness.room.failTurnsWith = const Refused('BAD_REQUEST');
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
     await waitFor('a sala parar', () => read().needsPerson);
+    await waitFor('o pedido chegar', () => harness.room.personsAsked == 1);
+    harness.room.failTurnsWith = null;
 
     await _aReadIsHeld(harness);
     harness.room.theDeskAttended();
@@ -148,28 +151,6 @@ void main() {
       halts,
       everyElement(isFalse),
       reason: 'a leitura velha diz o que a mesa já desfez',
-    );
-  });
-
-  test('an older read that says nothing never lifts a halt a newer read '
-      'found', () async {
-    final harness = _beating();
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    await _aReadIsHeld(harness);
-    harness.room
-      ..serverStatus = 'needs_person'
-      ..serverHalt = HaltKind.blocking;
-    await waitFor('a sala parar', () => read().needsPerson);
-
-    final halts = await _haltsAfterTheOldReadLands(harness, container);
-
-    expect(
-      halts,
-      everyElement(isTrue),
-      reason: 'o servidor ainda segura a parada que a leitura nova achou',
     );
   });
 

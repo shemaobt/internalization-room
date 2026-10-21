@@ -309,9 +309,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a conferida tablet that lost the room offers no «regravar»', (
-    tester,
-  ) async {
+  testWidgets('a conferida tablet whose approval falls on the network stays in '
+      'the room and still offers «regravar» on the nuance', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _quatroFrasesComUmaNuance(
       tester,
@@ -323,19 +322,15 @@ void main() {
 
     await tocar(tester, 'Aprovar como rascunho final');
     await waitFor(
-      'a sala cair no offline',
-      () => container.read(salaSessionProvider).offline,
+      'a aprovação cair na rede',
+      () => harness.room.calls.contains('approveRelease'),
       step: () => _passo(tester),
     );
     await _passo(tester);
 
+    expect(container.read(salaSessionProvider).offline, isFalse);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
-    expect(
-      byLabel('regravar a frase 4'),
-      findsNothing,
-      reason:
-          'sem sala a tela seguia oferecendo um gesto da tradução conferida',
-    );
+    expect(byLabel('regravar a frase 4'), findsOneWidget);
     closeTheRoom(container);
   });
 }

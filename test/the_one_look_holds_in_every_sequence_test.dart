@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 import 'machine_generator.dart';
@@ -79,6 +80,15 @@ final _anEmptyLookShowsThePersonSign = Invariant<_Room>(
       }
       if (!effects.contains(const LetTheLineGo())) {
         return 'a look for a line said again did not let it go';
+      }
+      return null;
+    }
+    if (before.machine.station is SceneRehearsal) {
+      if (after.machine.halt is Blocking && before.machine.halt is! Blocking) {
+        return 'an empty look on the scene screen showed the sign there';
+      }
+      if (!after.machine.aHaltWaitsForTheCanvas) {
+        return 'an empty look on the scene screen held no sign for the Canvas';
       }
       return null;
     }

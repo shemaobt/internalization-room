@@ -328,9 +328,6 @@ class RetroView extends ConsumerWidget {
       null => null,
     };
     if (aviso != null) return retroLabelFor(aviso, language);
-    if (session.machine.theVerdictWaitsForTheTap) {
-      return retroLabelFor('checkFailed', language);
-    }
     final recusa = switch (session.btRecusa) {
       CheckRefusal.partUnheard => 'partUnheard',
       CheckRefusal.nothingTranslated => 'nothingTranslated',

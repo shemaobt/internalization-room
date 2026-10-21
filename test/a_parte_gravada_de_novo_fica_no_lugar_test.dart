@@ -913,103 +913,101 @@ void main() {
     },
   );
 
-  test(
-    'um achado sobre gravação que o tablet não tem chama uma pessoa',
-    () async {
-      final harness = SalaHarness();
-      final home = Directory.systemTemp.createTempSync('sala-parte-fantasma');
-      addTearDown(() => home.deleteSync(recursive: true));
-      final gravadas = [
-        for (var parte = 1; parte <= 1; parte++)
-          KeptTake(
-            scopeId: KeptScope.parte(parte),
-            path: (File(
-              '${home.path}/p$parte.m4a',
-            )..writeAsBytesSync([1, 2, 3])).path,
-            takeId: 'antiga-$parte',
-          ),
-      ];
-      await harness.emAberto.remember(
-        'Ruth',
-        'P01',
-        'pt',
-        ResumePoint(
-          sessionId: 'sessao-antiga',
-          stage: SalaStage.retro,
-          takes: gravadas,
+  test('um achado sobre gravação que o tablet não tem deixa a equipe na retro, '
+      'sem chamar ninguém', () async {
+    final harness = SalaHarness();
+    final home = Directory.systemTemp.createTempSync('sala-parte-fantasma');
+    addTearDown(() => home.deleteSync(recursive: true));
+    final gravadas = [
+      for (var parte = 1; parte <= 1; parte++)
+        KeptTake(
+          scopeId: KeptScope.parte(parte),
+          path: (File(
+            '${home.path}/p$parte.m4a',
+          )..writeAsBytesSync([1, 2, 3])).path,
+          takeId: 'antiga-$parte',
         ),
-      );
-      // A stretch on a recording this tablet is not holding: the room keeps it, and the
-      // tablet can say which part it sits in for none of them.
-      harness.room
-        ..retroSoFar = const BackTranslationProgress(
-          segments: [
-            SegmentView(
-              segmentId: 'trecho-fantasma',
-              takeId: 'gravacao-que-nao-esta-aqui',
-              startsMs: 0,
-              endsMs: 9000,
-            ),
-          ],
-        )
-        ..verdictChecked = false
-        ..verdictHasFinding = true
-        ..verdictFindingSegmentId = 'trecho-fantasma';
-      harness.playback.length = umaParteInteira;
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final it = Sala(harness, container);
-      await it.sala.abrirEscolha();
-      await waitFor(
-        'a roda dizer que há trabalho parado',
-        () => it.estado.comecadas.contains('P01'),
-      );
-      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
-      await waitFor(
-        'a tradução ser retomada',
-        () => it.estado.stage == SalaStage.retro,
-      );
-      harness.playback.finishPlayback();
-      await waitFor('o ensaio acabar de tocar', () => it.estado.btClipEnded);
-      await pedirOVeredito(it);
-      expect(
-        it.estado.btFindingTrecho?.parte,
-        -1,
-        reason:
-            'o cenário é justamente o do achado que não cai em parte '
-            'nenhuma deste tablet',
-      );
-      final enviadas = List.of(it.harness.room.takesKept);
+    ];
+    await harness.emAberto.remember(
+      'Ruth',
+      'P01',
+      'pt',
+      ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.retro,
+        takes: gravadas,
+      ),
+    );
+    // A stretch on a recording this tablet is not holding: the room keeps it, and the
+    // tablet can say which part it sits in for none of them.
+    harness.room
+      ..retroSoFar = const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-fantasma',
+            takeId: 'gravacao-que-nao-esta-aqui',
+            startsMs: 0,
+            endsMs: 9000,
+          ),
+        ],
+      )
+      ..verdictChecked = false
+      ..verdictHasFinding = true
+      ..verdictFindingSegmentId = 'trecho-fantasma';
+    harness.playback.length = umaParteInteira;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final it = Sala(harness, container);
+    await it.sala.abrirEscolha();
+    await waitFor(
+      'a roda dizer que há trabalho parado',
+      () => it.estado.comecadas.contains('P01'),
+    );
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor(
+      'a tradução ser retomada',
+      () => it.estado.stage == SalaStage.retro,
+    );
+    harness.playback.finishPlayback();
+    await waitFor('o ensaio acabar de tocar', () => it.estado.btClipEnded);
+    await pedirOVeredito(it);
+    expect(
+      it.estado.btFindingTrecho?.parte,
+      -1,
+      reason:
+          'o cenário é justamente o do achado que não cai em parte '
+          'nenhuma deste tablet',
+    );
+    final enviadas = List.of(it.harness.room.takesKept);
 
-      it.sala.gravarAParteDeNovo();
-      await settle();
+    it.sala.gravarAParteDeNovo();
+    await settle();
 
-      expect(
-        it.estado.needsPerson,
-        isTrue,
-        reason:
-            'não há parte que gravar de novo, e não há como dizer isso sem '
-            'palavras: o microfone que não leva a lado nenhum é um botão morto',
-      );
-      expect(
-        it.estado.stage,
-        SalaStage.retro,
-        reason:
-            'e a equipe fica onde está, e não no ensaio à espera de gravar '
-            'uma parte que a sala não vai saber onde pôr',
-      );
+    expect(
+      it.estado.needsPerson,
+      isFalse,
+      reason:
+          'não há parte que gravar de novo, e isso não é um dos seis casos '
+          'do sinal da pessoa',
+    );
+    expect(
+      it.estado.stage,
+      SalaStage.retro,
+      reason:
+          'e a equipe fica onde está, e não no ensaio à espera de gravar '
+          'uma parte que a sala não vai saber onde pôr',
+    );
 
-      it.sala.ensaioTap();
-      await settle();
-      expect(
-        it.harness.room.takesKept,
-        enviadas,
-        reason:
-            'nada pode subir sob parte-0: a sala guardaria uma gravação '
-            'que não é parte de ensaio nenhum',
-      );
-    },
-  );
+    it.sala.ensaioTap();
+    await settle();
+    expect(
+      it.harness.room.takesKept,
+      enviadas,
+      reason:
+          'nada pode subir sob parte-0: a sala guardaria uma gravação '
+          'que não é parte de ensaio nenhum',
+    );
+  });
 
   testWidgets('o microfone de madeira do achado grava a parte de novo', (
     tester,
@@ -1261,8 +1259,10 @@ void main() {
     tester,
   ) async {
     final it = await _ateAConferida(tester);
-    it.harness.room.releaseBlockers = const ['no_project'];
+    it.harness.voice.refuses.add('P3');
 
+    await tester.tap(byLabel(_aprovar));
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(byLabel(_aprovar));
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -1270,9 +1270,10 @@ void main() {
       _estado(it.container).needsPerson,
       isTrue,
       reason:
-          'uma sessão sem projeto é um buraco sem porta, e a sala para '
-          'para uma pessoa — se não parar, não há parada que medir',
+          'a linha da Guia que falha duas vezes seguidas para a sala para '
+          'uma pessoa — se não parar, não há parada que medir',
     );
+    expect(_estado(it.container).btPhase, BtPhase.conferida);
     expect(byLabel(_sairDaPassagem), findsOneWidget);
     expect(
       tester

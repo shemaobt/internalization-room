@@ -79,8 +79,8 @@ void main() {
     expect(_callsForAPerson(harness), greaterThan(1));
   });
 
-  test('a call that fell on the network takes the room out of reach, and the '
-      'retry makes it again', () async {
+  test('a call that fell on the network keeps the room in reach and is asked '
+      'again', () async {
     final harness = SalaHarness(retryBackoff: const [_oneStepOfTheLadder]);
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -96,7 +96,14 @@ void main() {
       'o pedido de pessoa sair',
       () => _callsForAPerson(harness) == 1,
     );
-    await waitFor('a sala ficar fora de alcance', () => read().unreachable);
+    await settle(_severalStepsOfTheLadder);
+    expect(
+      read().unreachable,
+      isFalse,
+      reason:
+          'o pedido de pessoa não é uma entrada: a rede que cai não muda nada',
+    );
+    expect(read().offline, isFalse);
     harness.room.askForAPersonFailsWith = null;
     harness.network.reachable = true;
 
