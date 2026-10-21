@@ -26,8 +26,9 @@ frase's bar to translate it again, and holds «a tradução do ensaio da cena fo
   timeout included), an answer it cannot read, and every refusal of the frase, named
   (UNKNOWN_REFERENCE, TOO_LARGE, a 413) or not (a 422), are `TheTellingCameBackEmpty` (0068's
   event), never a counted refusal, never the person sign, never the offline fall. A code that
-  stops the room still stops it, a sent, gone or out-of-place rehearsal still reads the list
-  again, and SCENE_REHEARSAL_SENDING says nothing of the frase.
+  once stopped the room (UNAUTHORIZED, FORBIDDEN, DEVICE_REVOKED) is a frase not understood
+  too, since only her six cases raise the person sign (0093). A sent, gone or out-of-place
+  rehearsal still reads the list again, and SCENE_REHEARSAL_SENDING says nothing of the frase.
 - In the Scene rehearsal that event asks the frase again through one effect, and the mark lives
   on the scene screen, not on the machine: a new screen is born without it, and the frase
   microphone opening clears it.
