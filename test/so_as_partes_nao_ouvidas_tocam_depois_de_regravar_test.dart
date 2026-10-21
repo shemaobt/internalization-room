@@ -69,9 +69,6 @@ List<String> _linhas(Sala it, int desde) => [
   for (final (linha, _) in it.harness.voice.fixedLines.skip(desde)) linha,
 ];
 
-/// The passage picked back up as a joined recording: the row kept for it says each part
-/// was laid in from a scene rehearsal, and the tablet comes back on the translation with
-/// the last part, [ultima] long, played to its end.
 Future<void> _retomadaJuntada(Sala it, Duration ultima) async {
   for (final MapEntry(:key, :value)
       in it.harness.emAberto.rows.entries.toList()) {
