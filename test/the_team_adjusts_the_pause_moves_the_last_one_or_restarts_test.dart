@@ -359,6 +359,42 @@ void main() {
       },
     );
 
+    testWidgets(
+      '«um pouco depois» never moves a pause standing at the take\'s end earlier',
+      (tester) async {
+        final screen = await _onScreen(
+          tester,
+          rehearsal: _rehearsal([
+            _frase('f1', 0, 4000),
+            _frase('f2', 4000, 10000),
+          ]),
+        );
+        await screen.listens();
+        await screen.tap(_bar(2));
+
+        await screen.tap(_later);
+        await screen.tellsTheFrase();
+
+        expect(screen.room.frasesKept.single.endsMs, 10000);
+      },
+    );
+
+    testWidgets(
+      'a moved pause the room kept but whose answer was lost goes on from its new end once the list shows it',
+      (tester) async {
+        final screen = await _theLastBarTapped(tester);
+        await screen.tap(_later);
+        screen.room
+          ..frasesLandBeforeTheyFail = true
+          ..sceneAnswersFirst.add(const NetworkFailed('sem rede'));
+
+        await screen.tellsTheFrase();
+        await screen.beat(1000);
+
+        expect(screen.playback.playedFrom.last, _s(10.0));
+      },
+    );
+
     testWidgets('«manter a tradução de antes» drops the move', (tester) async {
       final screen = await _theLastBarTapped(tester);
       await screen.tap(_later);
@@ -559,6 +595,44 @@ void main() {
     });
   });
 
+  group('«terminei» with a moved pause waiting to be sent again', () {
+    for (final (code, line) in [
+      (RefusalCode.pauseOnlyOnTheLastFrase, _onlyOnTheLast),
+      (RefusalCode.pausePastTheEnd, _pastTheEnd),
+      (RefusalCode.pauseCannotStandThere, _cannotStandThere),
+    ]) {
+      testWidgets(
+        '$code: nothing is sent and her line stands; a second «terminei» sends without the move',
+        (tester) async {
+          final screen = await _theLastBarTapped(tester);
+          await screen.tap(_later);
+          screen.room.sceneAnswersFirst.add(
+            const Refused(RefusalCode.sceneRehearsalSending),
+          );
+          await screen.tellsTheFrase();
+          screen.room.sceneAnswersFirst.add(Refused(code));
+
+          await screen.tap(_terminei);
+          await screen.until(() => screen.room.frasesKept.length > 1);
+          await screen.beat(1000);
+
+          expect(screen.room.scenesSent, isEmpty);
+          expect(screen.shows(line), isTrue);
+          screen.room.holdNextTurn();
+          await screen.tap(_terminei);
+          await screen.until(() => screen.room.scenesSent.isNotEmpty);
+          expect(screen.room.frasesKept, hasLength(2));
+          expect(
+            screen.room.sceneRehearsals.single.currentFrases.last.endsMs,
+            9000,
+          );
+          screen.room.finishHeldTurn();
+          await screen.beat(2000);
+        },
+      );
+    }
+  });
+
   group('«recomeçar a tradução»', () {
     testWidgets(
       'the first tap arms «recomeçar a tradução» with the count, and it disarms after 6 s',
@@ -623,6 +697,25 @@ void main() {
 
         expect(screen.shows(_restartFailed), isTrue);
         expect(screen.shows(_bar(1)), isTrue);
+      },
+    );
+
+    testWidgets(
+      'on places unknown, a restart the room refuses says her line to VoiceOver and writes no word',
+      (tester) async {
+        final screen = await _onScreen(
+          tester,
+          rehearsal: _rehearsal([_frase('f1', 0, 12000)]),
+        );
+        await screen.tap(_restart);
+        await screen.beat(700);
+        screen.room.failSceneWith = const NetworkFailed('sem rede');
+
+        await screen.tap(_armed(1));
+        await screen.until(() => screen.shows(_restartFailed));
+
+        expect(screen.shows(_restartFailed), isTrue);
+        expect(find.text(_restartFailed), findsNothing);
       },
     );
 

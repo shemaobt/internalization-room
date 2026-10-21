@@ -135,6 +135,7 @@ class SceneRehearsalView extends ConsumerWidget {
                     if (session.sceneRestartShown || session.sceneLine != null)
                       SceneRestartControl(
                         shown: session.sceneRestartShown,
+                        written: false,
                         armed: session.sceneRestart,
                         n: scene.rehearsal?.translatedFrases ?? 0,
                         line: session.sceneLine,
