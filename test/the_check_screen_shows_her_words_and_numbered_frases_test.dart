@@ -393,6 +393,68 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('starting the translation over clears the stale frases too', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+
+    await tocar(tester, 'recomeçar a tradução');
+    await tester.pump(const Duration(milliseconds: 700));
+    await tocar(tester, 'toque de novo para apagar as 1 frases traduzidas');
+    await waitFor(
+      'a tradução recomeçar',
+      () => container.read(salaSessionProvider).btTrechos.isEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      isEmpty,
+      reason:
+          'recomeçada a tradução, as frases regravadas ficavam na lista de uma '
+          'tradução que já não existia',
+    );
+    await tester.pump(const Duration(seconds: 7));
+    closeTheRoom(container);
+  });
+
   testWidgets('a frase just told shows the number its answer carries, not '
       'a count the tablet keeps, before the session is read again', (
     tester,

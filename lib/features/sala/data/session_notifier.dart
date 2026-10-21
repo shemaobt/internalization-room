@@ -6244,6 +6244,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _esquecerAFrase();
         state = state.copyWith(
           btTrechos: _trechosFrom(segmentos),
+          btTrechosRegravados: const [],
           btFindings: const [],
           clearTrechoTraduzidoDeNovo: true,
           btChunkFailures: const [],
