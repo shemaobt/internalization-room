@@ -26,6 +26,6 @@ class HandReply {
   HandReply asUnheard() =>
       HandReply(id: id, audioUrl: audioUrl, failures: failures);
 
-  HandReply asFailed() =>
-      HandReply(id: id, audioUrl: audioUrl, failures: failures + 1);
+  HandReply withFailures(int count) =>
+      HandReply(id: id, audioUrl: audioUrl, heard: heard, failures: count);
 }

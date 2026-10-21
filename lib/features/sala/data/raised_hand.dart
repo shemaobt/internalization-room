@@ -53,6 +53,8 @@ class RaisedHand {
 
   Future<void>? _inboxRead;
 
+  final _failures = <(String, String), int>{};
+
   SalaSessionState get _state => host.state;
 
   Future<void> pull() {
@@ -82,11 +84,10 @@ class RaisedHand {
     // address seen played a 404 and marked the new reply heard without a sound.
     final merged = [
       for (final reply in fetched)
-        if (known[reply.id] case final kept?
-            when kept.audioUrl == reply.audioUrl)
-          kept
-        else
-          reply,
+        _tallied(switch (known[reply.id]) {
+          final kept? when kept.audioUrl == reply.audioUrl => kept,
+          _ => reply,
+        }),
     ];
     if (_sameReplies(merged, _state.replies)) return;
     host.state = _state.copyWith(replies: merged);
@@ -206,8 +207,22 @@ class RaisedHand {
     _ => false,
   };
 
-  List<HandReply> _unsounded(HandReply reply) =>
-      _replies((kept) => _sameClip(kept, reply), (kept) => kept.asFailed());
+  List<HandReply> _unsounded(HandReply reply) {
+    final count = _fail(reply);
+    return _replies(
+      (kept) => _sameClip(kept, reply),
+      (kept) => kept.withFailures(count),
+    );
+  }
+
+  int _fail(HandReply reply) => _failures.update(
+    (reply.id, reply.audioUrl),
+    (count) => count + 1,
+    ifAbsent: () => 1,
+  );
+
+  HandReply _tallied(HandReply reply) =>
+      reply.withFailures(_failures[(reply.id, reply.audioUrl)] ?? 0);
 
   bool _sameClip(HandReply a, HandReply b) =>
       a.id == b.id && a.audioUrl == b.audioUrl;
@@ -245,6 +260,7 @@ class RaisedHand {
   /// as a failure of the reply at the address that was marked; an outage counts nothing.
   /// Both pull; a pull is one GET, and after an outage it changes nothing.
   Future<void> _markHeard(HandReply marked) async {
+    host.waitOnTheGeneration;
     HandReply? heard;
     host.state = _state.copyWith(
       replies: _replies(
@@ -263,12 +279,24 @@ class RaisedHand {
     host.decideAt(failure, door: Door.inbox);
     if (host.gone) return;
     host.state = _state.copyWith(
-      replies: _replies(
-        (kept) => identical(kept, heard),
-        (kept) => failure is Refused ? kept.asFailed() : kept.asUnheard(),
-      ),
+      replies: failure is Refused
+          ? _refused(marked, heard)
+          : _replies(
+              (kept) => identical(kept, heard),
+              (kept) => kept.asUnheard(),
+            ),
     );
     unawaited(pull());
+  }
+
+  List<HandReply> _refused(HandReply marked, HandReply? heard) {
+    final count = _fail(marked);
+    return _replies(
+      (kept) => _sameClip(kept, marked),
+      (kept) => (identical(kept, heard) ? kept.asUnheard() : kept).withFailures(
+        count,
+      ),
+    );
   }
 
   List<HandReply> _replies(

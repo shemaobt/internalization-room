@@ -756,6 +756,68 @@ void main() {
     },
   );
 
+  test(
+    'a reply set aside stays set aside when the team starts a new conversation',
+    () async {
+      final desk = _Desk();
+      final harness = _tabletTalkingTo(desk)..voice.refuses.add(_replyUrl);
+      final container = await _opensTheRoom(desk, harness);
+      await _theTeamTapsTheHand(container);
+      await _theTeamTapsTheHand(container);
+      expect(_timesPlayed(harness), 2);
+
+      final readsBefore = desk.reads;
+      unawaited(
+        container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
+      );
+      await waitFor('a sala reler a caixa', () => desk.reads > readsBefore);
+      await settle();
+
+      await _theTeamTapsTheHand(container);
+      expect(
+        _timesPlayed(harness),
+        2,
+        reason: 'uma conversa nova devolveu à mão a resposta posta de lado',
+      );
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+    },
+  );
+
+  test(
+    'a mark refused after the team started a new conversation counts against the same reply',
+    () async {
+      final desk = _Desk()
+        ..answers = 400
+        ..holdsTheAnswer();
+      final harness = _tabletTalkingTo(desk)..voice.succeeds = false;
+      final container = await _opensTheRoom(desk, harness);
+
+      await _theTeamTapsTheHand(container);
+      harness.voice.succeeds = true;
+      await _theTeamTapsTheHand(container);
+      await waitFor('a marca chegar à mesa', () => desk.marks == 1);
+      final readsBefore = desk.reads;
+      unawaited(
+        container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
+      );
+      await waitFor('a sala reler a caixa', () => desk.reads > readsBefore);
+      await settle();
+      desk.answersAtLast();
+      await settle();
+      expect(_timesPlayed(harness), 2);
+
+      await _theTeamTapsTheHand(container);
+      expect(
+        _timesPlayed(harness),
+        2,
+        reason:
+            'a recusa que chegou depois da conversa nova não contou contra a '
+            'resposta, que já tinha uma falha de som',
+      );
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+    },
+  );
+
   test('a reply the desk agrees was heard is never played again', () async {
     final desk = _Desk();
     final harness = _tabletTalkingTo(desk);
