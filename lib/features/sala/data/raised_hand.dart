@@ -102,7 +102,9 @@ class RaisedHand {
 
   void tap() {
     if (!_state.atTheTeamsIdleTurn) return;
-    if (_state.playingReplyId != null) host.silenceTheRoom();
+    if (_state.playingReplyId != null || _state.channel is PartPlaying) {
+      host.silenceTheRoom();
+    }
     final unheard = _state.oldestUnheardReply;
     if (unheard != null) {
       host.state = _state.copyWith(playingReplyId: unheard.id);

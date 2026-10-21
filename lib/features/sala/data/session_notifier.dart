@@ -1028,6 +1028,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> hearAgain() async {
     if (!state.canHearAgain) return;
+    if (state.channel is PartPlaying) _silenceTheRoom();
     final line = state.lastSpoken;
     if (line != null) return _repeatLastSpoken(line);
     await _askTheRoomToSayItAgain();
@@ -3618,6 +3619,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _keptRetellingOnTheTablet(
       'kept-$sessionId-${take.scope}-${take.turnNumber}',
       take.audioUrl,
+      generation,
     );
     if (path == null || _abandoned(generation) || state.keptRetellingsAreAway) {
       return;
@@ -3626,14 +3628,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _play(PartSound(0, path));
   }
 
-  Future<String?> _keptRetellingOnTheTablet(String name, String url) async {
+  Future<String?> _keptRetellingOnTheTablet(
+    String name,
+    String url,
+    int generation,
+  ) async {
     final held = await _heldOnTheTablet(name);
     if (held != null) return held;
     return switch (await _room.fetchKeptRetelling(url)) {
-      Answered(:final value) when value.isNotEmpty => await _recorder.keepBytes(
-        value,
-        name,
-      ),
+      Answered(:final value) when value.isNotEmpty && !_abandoned(generation) =>
+        await _recorder.keepBytes(value, name),
       _ => null,
     };
   }
@@ -7662,6 +7666,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// again and let go only by a telling that lands — made the very first stretch of the
   /// next back translation upload as a correction of a stretch that does not exist.
   void _forgetThePassage() {
+    if (state.sessionId case final session?) {
+      unawaited(_recorder.forgetTheKeptRetellings(session).catchError((_) {}));
+    }
     unawaited(_coverageWatch?.cancel());
     _coverageWatch = null;
     _coverageSessionId = null;

@@ -25,6 +25,7 @@ class _AnOutboxHeldAsTheRoomCloses extends TakeUploadQueue {
   final _room = Completer<bool>();
   bool holding = false;
   bool stranded = false;
+  Duration takesToCopy = Duration.zero;
 
   void holdTheNextTake() => _armed = _room;
 
@@ -46,6 +47,7 @@ class _AnOutboxHeldAsTheRoomCloses extends TakeUploadQueue {
       _armed = null;
       holding = true;
       if (!await held.future) throw const FileSystemException('disco cheio');
+      await Future<void>.delayed(takesToCopy);
     }
     return super.enqueue(
       audio,
@@ -236,6 +238,7 @@ void main() {
     room.harness.recorder.rehearsalSpeaks = Uint8List.fromList([
       for (var i = 0; i < 1200; i++) (i * 7) % 251,
     ]);
+    queue.takesToCopy = const Duration(milliseconds: 400);
     queue.holdTheNextTake();
     await theSceneMicrophoneOpens(room);
     room.sala.sceneTap();
@@ -244,7 +247,10 @@ void main() {
     room.container.invalidate(salaSessionProvider);
     room.container.read(salaSessionProvider);
     queue.theDiskTakesIt();
-    await settle();
+    await waitFor(
+      'a sala guardar o take da Fila',
+      () => room.harness.room.scenesKept.isNotEmpty,
+    );
 
     expect(
       room.harness.room.scenesKept,

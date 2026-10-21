@@ -424,6 +424,16 @@ class FakeRecorder implements RecordingRepository {
   int sweeps = 0;
 
   @override
+  Future<void> forgetTheKeptRetellings(String sessionId) async {
+    for (final entry in home.listSync()) {
+      if (entry is File &&
+          entry.uri.pathSegments.last.startsWith('kept-$sessionId-')) {
+        entry.deleteSync();
+      }
+    }
+  }
+
+  @override
   Future<void> sweepTheFrasesLeftBehind() async => sweeps++;
 
   /// Whether keeping fetched audio fails, the way a dead disk does.
