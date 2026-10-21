@@ -138,6 +138,29 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a bead replaying the recording at its end reads her «ouvindo a '
+      'gravação de vocês…», not the end of the recording', (tester) async {
+    final (harness, container) = await reopenedInto(tester, toldUpTo: 5000);
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(container.read(salaSessionProvider).btClipEnded, isTrue);
+    expect(rotuloDoCirculo(tester), fimDaGravacao);
+
+    container.read(salaSessionProvider.notifier).ouvirOTrechoContado(0);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btClipEnded, isTrue);
+    expect(state.btTrechoTocando, isTrue);
+    expect(
+      rotuloDoCirculo(tester),
+      ouvindo,
+      reason: 'a conta tocando a gravação no fim dizia fim da gravação',
+    );
+    harness.playback.stopWalking();
+    closeTheRoom(container);
+  });
+
   testWidgets('a bead playing its translation does not say the recording is '
       'playing', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
