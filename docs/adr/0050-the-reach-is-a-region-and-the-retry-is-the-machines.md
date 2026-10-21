@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0052, 0071, amended by ENG-1197 (2026-10-19: a frase whose first telling fails on the network is a frase not understood, never re-sent)
+status: accepted, amended by 0052, 0071, superseded in part by 0093, amended by ENG-1197 (2026-10-19: a frase whose first telling fails on the network is a frase not understood, never re-sent), amended by ENG-1696 (2026-10-20: a frase told again too)
 date: 2026-10-01
 amends: 0046, 0049
 ---
@@ -13,8 +13,20 @@ return. Marcia's rule names a send failure among the frases nothing was understo
 says «não entendi — traduzam de novo esse pedaço», so the team tells it again. That
 answers the objection to the option rejected below: the team now sees the gesture they
 owe. A key still in flight after three answers (ADR 0052) is not a failed send, and still
-goes out of reach and out again under its key; a stretch told again, the approval, a
-turn and the verdict keep this ADR as written.
+goes out of reach and out again under its key; the approval, a turn and the verdict keep
+this ADR as written. A stretch told again follows the first telling since ENG-1696, below.
+
+Amended by ENG-1696 (2026-10-20): a frase told again, at the correction door, whose send
+fails on the network is a frase not understood too, as her app answers both tellings
+(`Drafting.tsx:1221`): her line, the frase kept armed on the same stretch, nothing re-sent,
+never out of reach, no person. So is the read that follows a telling refused because its
+frase no longer counts, when that read fails on the network. The lost-answer recovery that
+rested on the re-send is replaced: when the server stored a telling whose answer was lost,
+the team's next telling of that frase is refused on the superseded id, the room reads the
+frase standing on that exact slice and the telling goes on to it, so it lands at once as
+that one frase, as hers does. The copy the Outbox kept of the lost telling leaves the queue
+there, since it already is the frase on the server. A key still in flight after three
+answers keeps ADR 0052's path here too.
 
 This amends ADRs 0046 and 0049. It edits one sentence of 0049, in its Consequences: the
 one that said the offline notice had no path under an open microphone until ENG-1174. That

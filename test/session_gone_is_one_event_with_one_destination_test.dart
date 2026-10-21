@@ -6,8 +6,6 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -156,12 +154,6 @@ void main() {
       expect(_estado(container).stage, SalaStage.escolha);
       expect(_estado(container).needsPerson, isFalse);
       expect(harness.room.personsAsked, 0);
-      expect(
-        harness.room.deviceAsksReceived,
-        isEmpty,
-        reason:
-            'nenhuma pessoa é chamada por uma sessão que o servidor esqueceu',
-      );
     },
   );
 
@@ -302,38 +294,10 @@ void main() {
     expect(_estado(container).needsPerson, isFalse);
   });
 
-  test('case (d): gone while the microphone is open out of reach closes the '
-      'microphone, discards the recording and opens the Choice', () async {
-    final harness = SalaHarness(
-      watchesWithoutAHalt: true,
-      retryBackoff: const [Duration(seconds: 5)],
-    );
-    final container = await _semPassagemNaMemoria(harness);
-    _abrirOMicrofoneDaConversa(container);
-    await _oMicrofoneAberto(container);
-    harness.room.reachable = false;
-    await waitFor('a sala cair', () => _estado(container).unreachable);
-
-    final apagadasAntes = harness.recorder.deleted.length;
-    harness.room
-      ..reachable = true
-      ..forgetTheSession(_sessao(container));
-    await _naEscolha(container);
-    await settle();
-
-    expect(_estado(container).voice, isNot(VoiceState.listening));
-    expect(
-      harness.recorder.deleted.skip(apagadasAntes),
-      [harness.recorder.lastPath],
-      reason: 'a gravação aberta é descartada, também fora de alcance',
-    );
-    expect(harness.room.turnsSent, 0);
-    expect(_estado(container).needsPerson, isFalse);
-  });
-
   test('invariant 1: after gone nothing of the session remains, and nothing '
       'asks the room about it again', () async {
     final harness = SalaHarness(
+      watchesWithoutAHalt: true,
       retryBackoff: const [Duration(milliseconds: 40)],
     )..emAberto.forgetsTheSessionAfter = _slowerThanTheLongestWait;
     final container = await _naPassagem(harness);
@@ -346,7 +310,10 @@ void main() {
     );
     harness.network.reachable = false;
     await confirmarATraducao(container);
-    await waitFor('a sala cair', () => _estado(container).unreachable);
+    await waitFor(
+      'a tradução esperar no tablet',
+      () => _estado(container).btTraducaoPendente != null,
+    );
     final traducao = _estado(container).btTraducaoPendente!;
     harness.room.refuseTake = 'ensaio/parte-9';
     await _naFila(harness, sessao, nome: 'recusada', scope: 'parte-9');
@@ -389,10 +356,8 @@ void main() {
       'and no call or stop-call is made', () async {
     final harness = SalaHarness(watchesWithoutAHalt: true);
     final container = await _naPassagem(harness);
-    harness.room
-      ..serverStatus = 'needs_person'
-      ..serverHalt = HaltKind.blocking;
-    await waitFor('a parada chegar', () => _estado(container).needsPerson);
+    container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+    expect(_estado(container).needsPerson, isTrue);
 
     harness.room.forgetTheSession(_sessao(container));
     await _naEscolha(container);
@@ -400,7 +365,6 @@ void main() {
 
     expect(_estado(container).needsPerson, isFalse);
     expect(harness.room.personsAsked, 0);
-    expect(harness.room.deviceAsksReceived, isEmpty);
     expect(harness.room.personArrivedSessions, isEmpty);
   });
 
@@ -427,7 +391,6 @@ void main() {
 
     expect(harness.room.calls, contains('askForAPerson'));
     expect(_estado(container).needsPerson, isFalse);
-    expect(harness.room.deviceAsksReceived, isEmpty);
     expect(harness.room.personArrivedSessions, isEmpty);
   });
 
@@ -451,7 +414,6 @@ void main() {
 
     expect(_estado(container).needsPerson, isFalse);
     expect(harness.room.personsAsked, 0);
-    expect(harness.room.deviceAsksReceived, isEmpty);
     expect(harness.room.personArrivedSessions, isEmpty);
   });
 
@@ -516,42 +478,6 @@ void main() {
 
     expect(await _daSessao(harness, sessao), isEmpty);
     expect(File(linha.path).existsSync(), isFalse);
-  });
-
-  test('Q5: out of reach, gone leaves the room out of reach at the Choice with '
-      'its retry armed, and drops the queued notice', () async {
-    final harness = SalaHarness(
-      watchesWithoutAHalt: true,
-      retryBackoff: const [Duration(milliseconds: 250)],
-    );
-    final container = await _naPassagem(harness);
-    _abrirOMicrofoneDaConversa(container);
-    await _oMicrofoneAberto(container);
-    harness.network.reachable = false;
-    harness.room.reachable = false;
-    await waitFor('a sala cair', () => _estado(container).unreachable);
-
-    harness.room
-      ..reachable = true
-      ..forgetTheSession(_sessao(container));
-    await _naEscolha(container);
-    final sondasNaHora = harness.network.checks;
-
-    expect(
-      _estado(container).unreachable,
-      isTrue,
-      reason: 'a Outbox é da sala inteira; a sessão sumida não diz que voltou',
-    );
-    await waitFor(
-      'a volta da sala ser tentada de novo',
-      () => harness.network.checks > sondasNaHora,
-    );
-    await settle(const Duration(milliseconds: 500));
-    expect(
-      harness.voice.assets,
-      isNot(contains(offlineNoticeAsset(testLanguage))),
-      reason: 'o aviso esperava sob o microfone e sai da fila com a sessão',
-    );
   });
 
   test('the panorama\'s session gone opens the Choice, and the next passage '
@@ -620,7 +546,6 @@ void main() {
 
     expect(_estado(container).needsPerson, isFalse);
     expect(harness.room.personsAsked, 0);
-    expect(harness.room.deviceAsksReceived, isEmpty);
     expect(_estado(container).sessionId, harness.room.sessionIds.last);
     expect(harness.room.metBefore.last, isFalse);
   });
@@ -662,13 +587,14 @@ void main() {
     final harness = SalaHarness(
       retryBackoff: const [Duration(milliseconds: 250)],
     );
-    final container = await _naPassagem(harness);
+    final container = harness.container();
+    addTearDown(container.dispose);
     final sala = container.read(salaSessionProvider.notifier);
+    await sala.abrirEscolha();
+    await settle();
     harness.network.reachable = false;
     harness.room.reachable = false;
-    _abrirOMicrofoneDaConversa(container);
-    await _oMicrofoneAberto(container);
-    sala.conversaTap();
+    sala.openTheEntry(_estado(container).naRoda!.first);
     await waitFor('a sala cair', () => _estado(container).unreachable);
     harness.room.reachable = true;
 

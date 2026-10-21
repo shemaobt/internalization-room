@@ -54,45 +54,31 @@ Future<ProviderContainer> _reopensInto(
   return container;
 }
 
-/// The halt as the team meets it: `needsPerson` on. A halt reopened into is one the
-/// server already holds, so it is entered without a call (ENG-962): the desk was told
-/// by whatever raised it in the first place, not by this reopening — and the app never
-/// speaks a line of its own over the halt (ENG-811).
+/// The halt as the team meets it: `needsPerson` on.
 bool _haltEntered(ProviderContainer container) =>
     container.read(salaSessionProvider).needsPerson;
 
 void main() {
-  test(
-    'reopening into the retro honours the halt the server is holding',
-    () async {
-      final harness = SalaHarness()..room.serverStatus = 'needs_person';
+  test('reopening into the retro while the server says it needs a person '
+      'shows no sign, and the retro plays its part', () async {
+    final harness = SalaHarness()..room.serverStatus = 'needs_person';
 
-      final container = await _reopensInto(
-        harness,
-        SalaStage.retro,
-        contado: _traduzidos,
-      );
+    final container = await _reopensInto(
+      harness,
+      SalaStage.retro,
+      contado: _traduzidos,
+    );
+    await waitFor('a parte tocar', () => harness.playback.played.isNotEmpty);
 
-      await waitFor(
-        'a sala parar como a conversa pararia',
-        () => _haltEntered(container),
-      );
-
-      final notifier = container.read(salaSessionProvider.notifier);
-      final before = harness.playback.played.length;
-      notifier.retroTap();
-      notifier.cortarTrecho();
-      notifier.retroTap();
-      await settle();
-      expect(
-        harness.playback.played.length,
-        before,
-        reason:
-            'a sala está parada esperando uma pessoa: os gestos da retro não '
-            'podem responder como se ela estivesse viva',
-      );
-    },
-  );
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.retro);
+    expect(state.btTrechos, hasLength(1));
+    expect(
+      _haltEntered(container),
+      isFalse,
+      reason: 'uma leitura nunca levanta o sinal da pessoa',
+    );
+  });
 
   test('reopening into the retro with no halt resumes normally', () async {
     final harness = SalaHarness();
@@ -109,30 +95,21 @@ void main() {
     expect(_haltEntered(container), isFalse);
   });
 
-  test(
-    'reopening into the rehearsal, halted, leaves the record circle dead',
-    () async {
-      final harness = SalaHarness()..room.serverStatus = 'needs_person';
+  test('reopening into the rehearsal while the server says it needs a person '
+      'shows no sign, and the record circle records', () async {
+    final harness = SalaHarness()..room.serverStatus = 'needs_person';
 
-      final container = await _reopensInto(harness, SalaStage.ensaio);
+    final container = await _reopensInto(harness, SalaStage.ensaio);
+    expect(
+      _haltEntered(container),
+      isFalse,
+      reason: 'uma leitura nunca levanta o sinal da pessoa',
+    );
 
-      await waitFor('a sala parar', () => _haltEntered(container));
+    container.read(salaSessionProvider.notifier).ensaioTap();
+    await settle();
 
-      container.read(salaSessionProvider.notifier).ensaioTap();
-      await settle();
-
-      expect(
-        harness.recorder.captures,
-        0,
-        reason:
-            'a sala está parada esperando uma pessoa; abrir o microfone aqui '
-            'grava a equipe para dentro de uma sala que o servidor já parou',
-      );
-      expect(
-        container.read(salaSessionProvider).ensaio,
-        EnsaioStatus.idle,
-        reason: 'e a tela não pode dizer que está gravando',
-      );
-    },
-  );
+    expect(harness.recorder.captures, 1);
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recording);
+  });
 }

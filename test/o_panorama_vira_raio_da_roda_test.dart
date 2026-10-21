@@ -89,7 +89,7 @@ void main() {
     expect(state.livroInteiroFeito, isFalse);
   });
 
-  test('a wheel with only the panorama left still calls a person', () async {
+  test('a wheel with only the panorama left calls nobody', () async {
     final harness = SalaHarness()..room.passages = const [_panorama];
     final container = harness.container();
     addTearDown(container.dispose);
@@ -100,10 +100,8 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(
       state.needsPerson,
-      isTrue,
-      reason:
-          'abrirEscolha contava o panorama como passagem ainda por '
-          'fazer, o mesmo defeito que livroInteiroFeito carregava',
+      isFalse,
+      reason: 'a roda que só oferece o panorama não é um dos seis casos',
     );
     expect(
       state.naRoda,

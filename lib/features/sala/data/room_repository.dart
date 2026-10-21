@@ -629,22 +629,6 @@ class RoomRepository {
     asksForTheSession: true,
   );
 
-  /// The device-scoped ask, for a halt that has no session to ask through.
-  Future<RoomAnswer<void>> askForAPersonWithoutASession(String deviceId) =>
-      _room.ask(
-        () => _client.post(
-          _uri('/devices/$deviceId/needs-person'),
-          headers: _headers,
-        ),
-        timeout: _stateTimeout,
-        read: readJson((_) {}),
-        asksForTheSession: false,
-        atThisDoor: const {
-          404: Refused(RefusalCode.nobodyToReach),
-          409: Refused(RefusalCode.nobodyToReach),
-        },
-      );
-
   Future<RoomAnswer<BackTranslationVerdict>> finishBackTranslation(
     String sessionId, {
     required List<PlayedTake> playedByTake,

@@ -32,16 +32,45 @@ final class RoomTimedOut extends RoomResult {
   const RoomTimedOut();
 }
 
+final class RoomAnsweredWithoutAReply extends RoomResult {
+  const RoomAnsweredWithoutAReply();
+}
+
+final class RoomFoundNothing extends RoomResult {
+  const RoomFoundNothing();
+}
+
+sealed class TabletFailure {
+  const TabletFailure();
+}
+
+final class TheSoundFailed extends TabletFailure {
+  final int inARow;
+
+  const TheSoundFailed(this.inARow);
+}
+
+final class TheMicFailedToStart extends TabletFailure {
+  final int inARow;
+
+  const TheMicFailedToStart(this.inARow);
+}
+
+final class TheTabletCannotRecord extends TabletFailure {
+  const TheTabletCannotRecord();
+}
+
+final class TheBuildCannotReachTheRoom extends TabletFailure {
+  const TheBuildCannotReachTheRoom();
+}
+
 /// What a door does with a refusal.
 enum RefusalRule {
-  /// The openSession/sendTurn/loadWheel family: a person is called on the spot.
-  haltsAtOnce,
+  /// A turn the team spoke, on the Canvas or the Panorama: a person is called on the spot.
+  aSpokenTurn,
 
-  /// Three refusals call a person; [FailureContext.refusals] are the ones counted.
-  counts,
-
-  /// A code that stops the room calls a person; any other refusal changes nothing.
-  passesUnlessItStops,
+  /// A refusal of any other request: its Step is let go.
+  letsTheStepGo,
 
   /// Nothing the door is refused changes the room.
   passes,
@@ -49,11 +78,10 @@ enum RefusalRule {
   /// The call for a person is asked again on the ladder.
   asksAgain,
 
-  /// The resume calls a person and keeps the resume, however it was turned down.
+  /// The resume goes back to the Choice, however it was turned down.
   keepsTheResume,
 
-  /// A scene refusal reads the scene rehearsals again; a code that stops the room
-  /// calls a person.
+  /// A scene refusal reads the scene rehearsals again.
   readsTheListAgain,
 }
 
@@ -67,7 +95,6 @@ final class FailureContext {
   final RefusalRule rule;
   final Door door;
   final RoomReach why;
-  final int refusals;
   final Kept sounding;
 
   const FailureContext({
@@ -75,17 +102,19 @@ final class FailureContext {
     this.step,
     required this.generation,
     this.turn,
-    this.rule = RefusalRule.counts,
+    this.rule = RefusalRule.letsTheStepGo,
     this.door = Door.step,
     this.why = RoomReach.noNetwork,
-    this.refusals = 0,
     this.sounding = const NothingKept(),
   });
 }
 
-/// The one place a room result becomes an event (ADR 0053).
+/// The one place a room result or a failure of the tablet's own becomes an event (ADR
+/// 0053); only Marcia's six cases and the build guard raise the person sign (ADR 0093).
 abstract final class FailurePolicy {
-  static const refusalsBeforeAPerson = 3;
+  static const soundFailuresBeforeAPerson = 2;
+
+  static const micFailuresBeforeAPerson = 2;
 
   static const _theHandsDoors = {Door.question, Door.inbox, Door.reply};
 
@@ -93,13 +122,10 @@ abstract final class FailurePolicy {
     final generation = context.generation;
     final sounding = context.sounding;
     final halt = RoomRaisedAHalt(sounding: sounding, generation: generation);
-    final passed = TheRefusalPassed(generation: generation);
-    final keptTheResume = RoomRaisedAHalt(
-      sounding: const TheResume(),
-      generation: generation,
-    );
+    final missed = TheOpeningMissed(generation: generation);
     final rule = context.rule;
     final turn = context.turn;
+    final overAnOpening = sounding is TheOpening;
     return switch (result) {
       RoomAnswered() when turn != null => TurnAnswered(
         turn,
@@ -119,55 +145,81 @@ abstract final class FailurePolicy {
       )
           when context.door == Door.sceneRehearsal =>
         TheSceneDoorFailed(readAgain: true, generation: generation),
-      RoomSessionGone() when rule == RefusalRule.keepsTheResume =>
-        keptTheResume,
+      RoomRefused() when context.door == Door.sceneRehearsal =>
+        TheSceneDoorFailed(
+          readAgain: rule == RefusalRule.readsTheListAgain,
+          generation: generation,
+        ),
+      RoomSessionGone() ||
+      RoomRefused() ||
+      RoomNetworkFailed() ||
+      RoomFoundNothing() when rule == RefusalRule.keepsTheResume =>
+        TheResumeFailed(generation: generation),
       RoomSessionGone() => TheSessionIsGone(generation: generation),
       RoomNetworkFailed() || RoomTimedOut() when turn != null => TurnGivenUp(
         turn,
         sounding: sounding,
         generation: generation,
       ),
+      RoomFoundNothing() ||
+      RoomAnsweredWithoutAReply() when overAnOpening => missed,
+      RoomFoundNothing() when context.station is SceneRehearsal =>
+        TheSceneTurnFoundNothing(generation: generation),
+      RoomFoundNothing() || RoomAnsweredWithoutAReply() => halt,
       RoomNetworkFailed() when context.door == Door.telling =>
         TheTellingCameBackEmpty(generation: generation),
+      RoomNetworkFailed() when rule == RefusalRule.asksAgain =>
+        TheCallWasRefused(generation: generation),
       RoomNetworkFailed() => NetworkFailedAt(
         context.door,
         why: context.why,
         generation: generation,
       ),
-      RoomTimedOut() => halt,
-      RoomRefused() when rule == RefusalRule.passes => passed,
-      RoomRefused() when rule == RefusalRule.keepsTheResume => keptTheResume,
+      RoomTimedOut() => TheStepFailed(generation: generation),
+      RoomRefused() when rule == RefusalRule.passes => TheRefusalPassed(
+        generation: generation,
+      ),
       RoomRefused(code: RefusalCode.nobodyToReach)
           when rule == RefusalRule.asksAgain =>
-        passed,
+        TheRefusalPassed(generation: generation),
       RoomRefused(code: RefusalCode.passageClosed)
           when rule == RefusalRule.asksAgain =>
         TheCallMetAClosedPassage(generation: generation),
       RoomRefused() when rule == RefusalRule.asksAgain => TheCallWasRefused(
         generation: generation,
       ),
-      RoomRefused(:final code) when RefusalCode.stopsTheRoom.contains(code) =>
-        halt,
-      RoomRefused() when context.door == Door.sceneRehearsal =>
-        TheSceneDoorFailed(
-          readAgain: rule == RefusalRule.readsTheListAgain,
-          generation: generation,
-        ),
-      RoomRefused() when rule == RefusalRule.passesUnlessItStops => passed,
       RoomRefused(code: RefusalCode.passageCannotOpen) => ThePassageCannotOpen(
         generation: generation,
       ),
       RoomRefused(code: RefusalCode.wordlessTelling) => TheTellingCameBackEmpty(
         generation: generation,
       ),
-      RoomRefused() when sounding is TheOpening => TheOpeningMissed(
-        generation: generation,
-      ),
-      RoomRefused() when rule == RefusalRule.haltsAtOnce || turn != null =>
+      RoomRefused() when overAnOpening => missed,
+      RoomRefused() when rule == RefusalRule.aSpokenTurn || turn != null =>
         halt,
-      RoomRefused() => TheRoomRefused(
-        third: context.refusals + 1 >= refusalsBeforeAPerson,
-        sounding: sounding,
+      RoomRefused() => TheStepFailed(generation: generation),
+    };
+  }
+
+  static MachineEvent decideOnTheTablet(
+    TabletFailure failure,
+    FailureContext context,
+  ) {
+    final generation = context.generation;
+    final halt = RoomRaisedAHalt(
+      sounding: context.sounding,
+      generation: generation,
+    );
+    final passed = TheRefusalPassed(generation: generation);
+    return switch (failure) {
+      TheSoundFailed(:final inARow) =>
+        inARow >= soundFailuresBeforeAPerson ? halt : passed,
+      TheMicFailedToStart(:final inARow) =>
+        inARow >= micFailuresBeforeAPerson ? halt : passed,
+      TheTabletCannotRecord() => halt,
+      TheBuildCannotReachTheRoom() => RoomRaisedAHalt(
+        sounding: context.sounding,
+        callsForAPerson: false,
         generation: generation,
       ),
     };

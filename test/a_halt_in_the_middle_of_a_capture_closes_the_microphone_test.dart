@@ -60,12 +60,13 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
   return (container, notifier, read);
 }
 
-/// Turn the standing warning blocking, and wait for the watch's next beat to find it.
+/// The person sign lands over the capture: the build guard's, which calls nobody, so a
+/// long press hands the room back.
 Future<void> _haltLandsBlocking(
-  SalaHarness harness,
+  SalaSessionNotifier notifier,
   SalaSessionState Function() read,
 ) async {
-  harness.room.serverHalt = HaltKind.blocking;
+  notifier.haltForABrokenBuild();
   await waitFor('a sala parar', () => read().needsPerson);
 }
 
@@ -100,7 +101,7 @@ Future<ProviderContainer> _inRetro(SalaHarness harness) async {
 }
 
 void main() {
-  test('a blocking halt read while capturing closes the microphone and '
+  test('a blocking halt landing while capturing closes the microphone and '
       'undoes the listening', () async {
     final harness = SalaHarness();
     final (container, notifier, read) = await _capturingWithAWarningArmed(
@@ -108,7 +109,7 @@ void main() {
     );
     final captureIndex = harness.sounds.lastIndexOf('recorder:start');
 
-    await _haltLandsBlocking(harness, read);
+    await _haltLandsBlocking(notifier, read);
 
     expect(read().needsPerson, isTrue);
     expect(read().voice, isNot(VoiceState.listening));
@@ -141,15 +142,15 @@ void main() {
     );
   });
 
-  test('after the attend, the check sends nothing', () async {
+  test('after the lift, the check sends nothing', () async {
     final harness = SalaHarness();
     final (container, notifier, read) = await _capturingWithAWarningArmed(
       harness,
     );
-    await _haltLandsBlocking(harness, read);
+    await _haltLandsBlocking(notifier, read);
     final chunksBefore = harness.room.chunksSent;
 
-    harness.room.theDeskAttended();
+    notifier.resolveWithPerson();
     await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 
     await notifier.confirmarTraducao();
@@ -166,13 +167,13 @@ void main() {
     expect(harness.room.chunksSent, chunksBefore);
   });
 
-  test('after the attend, the circle opens a fresh capture', () async {
+  test('after the lift, the circle opens a fresh capture', () async {
     final harness = SalaHarness();
     final (container, notifier, read) = await _capturingWithAWarningArmed(
       harness,
     );
-    await _haltLandsBlocking(harness, read);
-    harness.room.theDeskAttended();
+    await _haltLandsBlocking(notifier, read);
+    notifier.resolveWithPerson();
     await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 
     harness.playback.at = const Duration(seconds: 2);
@@ -213,7 +214,7 @@ void main() {
     unawaited(fila.flush());
     await harness.room.untilTakeHeld();
 
-    await _haltLandsBlocking(harness, read);
+    await _haltLandsBlocking(notifier, read);
     expect(
       fila.rows.single.stored,
       isFalse,
@@ -258,8 +259,8 @@ void main() {
     expect(read().needsPerson, isFalse);
   });
 
-  test('the halt the room decided on its own inside the capture close is '
-      'unchanged', () async {
+  test('an empty translation take closes the capture with no person sign, and '
+      'nothing discards the recorder twice', () async {
     final harness = SalaHarness();
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -274,14 +275,16 @@ void main() {
     notifier.retroTap();
     await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
     notifier.retroTap();
-    await waitFor('a sala decidir sozinha', () => read().needsPerson);
+    await waitFor('a captura fechar', () => read().btPhase == BtPhase.playing);
+    await settle();
 
+    expect(read().needsPerson, isFalse);
     expect(
       harness.sounds.where((s) => s == 'recorder:discard').length,
       discardsBefore,
       reason:
-          'o gravador já tinha sido parado por _finishChunkCapture; a '
-          'entrada da parada não tem mais nada para descartar',
+          'o gravador já tinha sido parado por _finishChunkCapture; nada '
+          'mais tem o que descartar',
     );
     expect(read().btPhase, BtPhase.playing);
   });
@@ -294,7 +297,7 @@ void main() {
       harness,
     );
 
-    await _haltLandsBlocking(harness, read);
+    await _haltLandsBlocking(notifier, read);
     expect(read().btPhase, BtPhase.playing);
     final discardsBeforeStart = harness.sounds
         .where((s) => s == 'recorder:discard')

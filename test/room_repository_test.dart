@@ -1610,8 +1610,6 @@ void main() {
                 room.collectTheCredential('aparelho-1'),
             'askForACode': (room) => room.askForACode('aparelho-1'),
             'readTheLink': (room) => room.readTheLink('aparelho-1'),
-            'askForAPersonWithoutASession': (room) =>
-                room.askForAPersonWithoutASession('aparelho-1'),
           };
 
       test(
@@ -1805,14 +1803,6 @@ void main() {
           _refusedWith(RefusalCode.credentialTaken),
         );
         expect(_value(await answering(204).readTheLink('aparelho-1')), isNull);
-        expect(
-          await answering(404).askForAPersonWithoutASession('aparelho-1'),
-          _refusedWith(RefusalCode.nobodyToReach),
-        );
-        expect(
-          await answering(409).askForAPersonWithoutASession('aparelho-1'),
-          _refusedWith(RefusalCode.nobodyToReach),
-        );
       });
     },
   );

@@ -7,8 +7,8 @@ import 'scenario_helpers.dart' show enterThePanorama, settle;
 import 'um_ensaio_de_tres_partes.dart' show Sala;
 
 void main() {
-  test('a way back to the Panorama that the room never answers holds no line '
-      'once the person sign goes', () async {
+  test('a way back to the Panorama that the room never answers lets its Step '
+      'go with no person sign, and holds no line', () async {
     final harness =
         SalaHarness(
             lingua: 'pt',
@@ -42,10 +42,9 @@ void main() {
       'the Panorama to ask whether the room is there',
       () => harness.network.checks > checks,
     );
-    await waitFor('the person sign', () => it.estado.needsPerson);
-    harness.room.theDeskAttended();
-    await waitFor('the person sign to go', () => !it.estado.needsPerson);
+    await waitFor('the Step to be let go', () => !it.estado.awaitingTheGuide);
     await settle();
+    expect(it.estado.needsPerson, isFalse);
     harness.voice.assets.clear();
 
     it.sala.sayTheMicIsBlocked();

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
@@ -61,6 +60,9 @@ Future<void> _entrar(Sala it) async {
   );
 }
 
+int _leituras(Sala it) =>
+    it.harness.room.calls.where((call) => call == 'fetchState').length;
+
 List<String> _linhas(Sala it, int desde) => [
   for (final (linha, _) in it.harness.voice.fixedLines.skip(desde)) linha,
 ];
@@ -113,7 +115,7 @@ void main() {
   );
 
   test(
-    'uma parada durante a fala dela, levantada, toca a parte que falta e para nela',
+    'a sala pedindo uma pessoa durante a fala dela não mostra o sinal, e a parte que falta toca e para nela',
     () async {
       final it = await umEnsaioContadoInteiro(
         _cincoPartes,
@@ -130,16 +132,18 @@ void main() {
         'a P2 começar',
         () => it.harness.voice.fixedLines.any((linha) => linha.$1 == 'P2'),
       );
-      it.harness.room
-        ..serverStatus = 'needs_person'
-        ..serverHalt = HaltKind.blocking;
-      await waitFor('a sala parar', () => it.estado.needsPerson);
+      it.harness.room.serverStatus = 'needs_person';
+      final lidas = _leituras(it);
+      await waitFor('a sala ler a sessão', () => _leituras(it) > lidas);
       it.harness.voice.finishHeldLine();
-      it.harness.room.theDeskAttended();
-      await waitFor('a parada sair', () => !it.estado.needsPerson);
       await waitFor(
         'a parte que falta entrar no ar',
         () => it.harness.playback.played.length > tocadas,
+      );
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason: 'uma leitura nunca levanta o sinal da pessoa',
       );
       expect(it.harness.playback.played.skip(tocadas), [terceira]);
 
@@ -148,8 +152,7 @@ void main() {
       expect(
         it.estado.btParteFronteira,
         isFalse,
-        reason:
-            'a quarta parte já foi ouvida: a parada não muda onde o replay para',
+        reason: 'a quarta parte já foi ouvida: o replay para na que faltava',
       );
       expect(it.estado.canFinishBackTranslation, isTrue);
     },
@@ -287,48 +290,8 @@ void main() {
     );
   });
 
-  test(
-    'uma parada levantada no meio de uma parte que faltava ouvir volta de onde a parte parou',
-    () async {
-      final it = await umEnsaioContadoInteiro(
-        _cincoPartes,
-        numaSala: SalaHarness(watchesWithoutAHalt: true),
-      );
-      await _regravada(it, 3, _cincoPartes[3]);
-      final segunda = it.partes[1];
-      it.harness.room.listeningUnheardTakeIds = [
-        segunda.takeId!,
-        it.partes[3].takeId!,
-      ];
-      await _entrar(it);
-      expect(it.harness.playback.played.last, segunda.path);
-      await theClipOpens(it.harness);
-      it.harness.playback.at = const Duration(seconds: 2);
-      final tocadas = it.harness.playback.played.length;
-
-      it.harness.room
-        ..serverStatus = 'needs_person'
-        ..serverHalt = HaltKind.blocking;
-      await waitFor('a sala parar', () => it.estado.needsPerson);
-      it.harness.room.theDeskAttended();
-      await waitFor('a parada sair', () => !it.estado.needsPerson);
-      await waitFor(
-        'a parte voltar ao ar',
-        () => it.harness.playback.played.length > tocadas,
-      );
-
-      expect(it.harness.playback.played.last, segunda.path);
-      expect(
-        it.harness.playback.playedFrom.last,
-        const Duration(seconds: 2),
-        reason:
-            'a parte é ouvida de onde parou, não do fim do chão já contado, que '
-            'a deixava muda e contada como ouvida',
-      );
-    },
-  );
-
-  test('uma parada levantada no replay relata só o que soou', () async {
+  test('a sala pedindo uma pessoa no meio do replay não mostra o sinal, e o '
+      'relato tem só o que soou', () async {
     final it = await umEnsaioContadoInteiro(
       _cincoPartes,
       numaSala: SalaHarness(watchesWithoutAHalt: true),
@@ -340,19 +303,20 @@ void main() {
     await theClipOpens(it.harness);
     it.harness.playback.at = const Duration(seconds: 2);
     final tocadas = it.harness.playback.played.length;
-    it.harness.room
-      ..serverStatus = 'needs_person'
-      ..serverHalt = HaltKind.blocking;
-    await waitFor('a sala parar', () => it.estado.needsPerson);
-    it.harness.room.theDeskAttended();
-    await waitFor('a parada sair', () => !it.estado.needsPerson);
-    await waitFor(
-      'a parte voltar ao ar',
-      () => it.harness.playback.played.length > tocadas,
+    it.harness.room.serverStatus = 'needs_person';
+    final lidas = _leituras(it);
+    await waitFor('a sala ler a sessão', () => _leituras(it) > lidas);
+    expect(
+      it.estado.needsPerson,
+      isFalse,
+      reason: 'uma leitura nunca levanta o sinal da pessoa',
     );
-    await theClipOpens(it.harness);
-    it.harness.playback.at =
-        it.harness.playback.playedFrom.last + const Duration(seconds: 1);
+    expect(
+      it.harness.playback.played.length,
+      tocadas,
+      reason: 'a parte segue no ar, sem ser posta de novo',
+    );
+    it.harness.playback.at = const Duration(seconds: 3);
     it.sala.ouvirGravacao();
     await waitFor('a parte parar', () => !it.estado.btClipRodando);
 
@@ -371,9 +335,7 @@ void main() {
           'clip_duration_ms': 0,
         },
       ],
-      reason:
-          'a parte nova soou de nought a 2 s e, depois da parada, de 2 s a 3 s: '
-          'nada além disso foi ouvido',
+      reason: 'a parte nova soou de nought a 3 s: nada além disso foi ouvido',
     );
   });
 

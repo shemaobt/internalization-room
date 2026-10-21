@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
@@ -24,7 +26,10 @@ class KeptRetellingButtons extends StatelessWidget {
     return Positioned(
       left: 0,
       right: 0,
-      bottom: screen.height * 0.155,
+      bottom: max(
+        screen.height * 0.155,
+        18 + MediaQuery.viewPaddingOf(context).bottom + 76 + 9,
+      ),
       child: IgnorePointer(
         ignoring: away,
         child: AnimatedOpacity(
