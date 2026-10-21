@@ -348,6 +348,30 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets(
+    'a tap with less than 0.2 s of the part left after the last pausa '
+    'tells nothing, not a sliver',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await entrarComAFala(tester, harness, null);
+      await pausarAos(tester, harness, s(9.9));
+      await traduzirEConfirmar(tester);
+      expect(harness.room.chunkSpans, ['0-9900']);
+
+      harness.playback.at = s(9.95);
+      await tester.pump(passaDoCursor);
+      await traduzirEConfirmar(tester);
+
+      expect(
+        harness.room.chunkSpans,
+        ['0-9900'],
+        reason:
+            'o teto do piso levava a pausa ao fim e mandava uma frase de 0,1 s',
+      );
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets('a tail of 0.3 s left at the end of the part is not offered as a '
       'frase', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

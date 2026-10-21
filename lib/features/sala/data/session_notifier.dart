@@ -5644,7 +5644,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final cabeca = state.btTrechoDesde! + _playback.position;
       _semOTrechoNoAr();
       if (cabeca > _trechoStart && cabeca < _trechoEnd) {
-        _trechoEnd = _aPausaNo(cabeca);
+        if (_aPausaNo(cabeca) case final pausa?) _trechoEnd = pausa;
       }
       return;
     }
@@ -5657,10 +5657,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // before it begins, whatever else stands.
     _silenceTheRoom(holdTheClip: true);
     if (_cabeca <= _trechoStart) return;
-    _trechoEnd = _aPausaNo(_cabeca);
+    if (_aPausaNo(_cabeca) case final pausa?) _trechoEnd = pausa;
   }
 
-  Duration _aPausaNo(Duration toque) {
+  Duration? _aPausaNo(Duration toque) {
     final noFim = state.btParteFronteira || state.btClipEnded;
     final ondeCabe = noFim ? null : _ondeAPausaCabe();
     state = state.copyWith(btPausaAjustavel: ondeCabe != null);
@@ -6442,7 +6442,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
       }
       _silenceTheRoom(holdTheClip: true);
-      _trechoEnd = _aPausaNo(_cabeca);
+      final pausa = _aPausaNo(_cabeca);
+      if (pausa == null) return;
+      _trechoEnd = pausa;
     } else {
       _silenceTheRoom(holdTheClip: true);
     }
