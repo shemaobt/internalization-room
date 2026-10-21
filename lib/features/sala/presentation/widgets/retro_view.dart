@@ -731,7 +731,9 @@ class RetroView extends ConsumerWidget {
             session.nothingHeardSinceCursor) {
           return retroLabelFor('listenFirst', language);
         }
-        if (session.btClipPausada && session.btTraducaoPendente == null) {
+        if (session.btClipPausada &&
+            session.btTraducaoPendente == null &&
+            session.btTrechoTraduzidoDeNovo == null) {
           return retroLabelFor('paused', language);
         }
         return retroLabelFor(
