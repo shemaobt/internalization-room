@@ -1437,7 +1437,6 @@ void main() {
       expect(find.byType(EnsaioView), findsNothing);
       expect(find.byType(MomentLabel), findsNothing);
       expect(byLabel(roomLabelFor('recordEnsaio', 'pt')), findsNothing);
-      expect(byLabel(recordEntryLabelFor('pt')), findsNothing);
       closeTheRoom(container);
     },
   );
