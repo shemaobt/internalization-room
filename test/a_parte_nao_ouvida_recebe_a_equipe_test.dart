@@ -96,35 +96,37 @@ void main() {
     },
   );
 
-  test('um id que nenhuma parte tem chama uma pessoa', () async {
-    final it = await umEnsaioDeTresPartesContadoInteiro();
-    final tocadas = it.harness.playback.played.length;
+  test(
+    'um id que nenhuma parte tem não leva a nada nem chama ninguém',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      final tocadas = it.harness.playback.played.length;
 
-    it.harness.room
-      ..verdictChecked = false
-      ..verdictUnheardTakeIds = ['ninguem'];
-    await pedirOVeredito(it);
+      it.harness.room
+        ..verdictChecked = false
+        ..verdictUnheardTakeIds = ['ninguem'];
+      await pedirOVeredito(it);
 
-    expect(
-      it.estado.needsPerson,
-      isTrue,
-      reason:
-          'um nome que este tablet não sabe virar parte nenhuma é uma '
-          'pessoa, e não uma tela a mais para a equipe adivinhar',
-    );
-    expect(
-      it.estado.btPhase,
-      isNot(BtPhase.thinking),
-      reason:
-          'a sala parada não pode ficar por baixo de um giro que não '
-          'aceita toque',
-    );
-    expect(
-      it.harness.playback.played.length,
-      tocadas,
-      reason: 'não há parte em que cair, então nada entra no ar',
-    );
-  });
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason:
+            'um nome que este tablet não sabe virar parte nenhuma não é um dos '
+            'seis casos do sinal da pessoa',
+      );
+      expect(
+        it.estado.btPhase,
+        isNot(BtPhase.thinking),
+        reason:
+            'a sala não pode ficar por baixo de um giro que não aceita toque',
+      );
+      expect(
+        it.harness.playback.played.length,
+        tocadas,
+        reason: 'não há parte em que cair, então nada entra no ar',
+      );
+    },
+  );
 
   test('a parte que a equipe ouviu inteira volta ao relato e terminei abre de '
       'novo', () async {
@@ -341,7 +343,7 @@ void main() {
     expect(nomeadas.unheardTakeIds, ['t3', 't4']);
   });
 
-  test('uma recusa atrasada não muda nada', () async {
+  test('uma recusa atrasada não muda nada nem chama ninguém', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro(
       tetoDaEspera: const Duration(seconds: 2),
     );
@@ -355,8 +357,8 @@ void main() {
 
     final aperto = it.sala.finishBackTranslation();
     await waitFor(
-      'a sala desistir da espera e chamar uma pessoa',
-      () => it.estado.needsPerson,
+      'a sala desistir da espera',
+      () => it.estado.btPhase != BtPhase.thinking,
     );
     it.harness.voice.finishHeldFetch();
     await aperto;
@@ -365,15 +367,13 @@ void main() {
       it.harness.playback.played.length,
       tocadas,
       reason:
-          'a sala já desistiu desta espera e parou para uma pessoa: a '
-          'resposta que chega depois é de uma pergunta que não está mais '
-          'de pé, e pôr uma parte no ar por causa dela tira a equipe de '
-          'uma sala parada sem ninguém ter vindo',
+          'a sala já desistiu desta espera: a resposta que chega depois é de '
+          'uma pergunta que não está mais de pé',
     );
     expect(
       it.estado.needsPerson,
-      isTrue,
-      reason: 'e a sala parada continua parada até o balcão atender',
+      isFalse,
+      reason: 'uma espera sem fala que se esgota não chama ninguém',
     );
   });
 }

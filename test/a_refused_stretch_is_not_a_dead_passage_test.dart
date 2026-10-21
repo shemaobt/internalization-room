@@ -299,32 +299,24 @@ void main() {
   );
 
   test(
-    'the third refused stretch calls a person, and the session is still the same',
+    'a stretch refused three times calls nobody, and the session is still the same',
     () async {
       final harness = SalaHarness();
       final it = await _retomadaNaRetro(harness);
       harness.room.failChunkWith = const Refused('BAD_REQUEST');
 
       await _contarUmTrechoRecusado(it);
-      expect(
-        it.estado.needsPerson,
-        isFalse,
-        reason: 'a recusa 1 ainda está abaixo das três da escada',
-      );
       await _confirmarDeNovoARecusada(it);
-      expect(
-        it.estado.needsPerson,
-        isFalse,
-        reason: 'a recusa 2 ainda está abaixo das três da escada',
-      );
       await _confirmarDeNovoARecusada(it);
 
       expect(
         it.estado.needsPerson,
-        isTrue,
+        isFalse,
         reason:
-            'a terceira recusa seguida chama uma pessoa, como toda chamada recusada',
+            'nenhuma quantidade de recusas de um pedido que não é uma fala da '
+            'equipe chama uma pessoa',
       );
+      expect(harness.room.personsAsked, 0);
       _aSessaoContinuaAMesma(it);
     },
   );
@@ -433,7 +425,11 @@ void main() {
         () => harness.room.chunkSpans.isNotEmpty,
       );
 
-      expect(harness.room.chunkSpans, ['4000-4001']);
+      expect(
+        harness.room.chunkSpans,
+        ['4000-4200'],
+        reason: 'um passo além do início contava uma frase de 1 ms',
+      );
     },
   );
 }

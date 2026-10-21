@@ -419,6 +419,49 @@ void main() {
     );
   });
 
+  test('the session read carries the approved draft, and none when the room '
+      'says none', () async {
+    Map<String, Object?> state(String id) => {
+      'session_id': id,
+      'pericope': 'P01',
+      'status': 'in_progress',
+      'done': false,
+      if (id == 'aprovada')
+        'approved': {
+          'version': 2,
+          'release_id': 'internalize-x-p01-v2',
+          'approved_at': '2026-10-19T14:03:00+00:00',
+          'forced': true,
+        },
+      if (id == 'so-a-versao') 'approved': {'version': 3},
+      if (id == 'nula') 'approved': null,
+    };
+    final repository = RoomRepository(
+      client: MockClient(
+        (request) async => http.Response(
+          jsonEncode(state(request.url.pathSegments.last)),
+          200,
+        ),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    int? version(RoomAnswer<SessionSnapshot> read) =>
+        (read as Answered<SessionSnapshot>).value.approved?.version;
+    expect(version(await repository.fetchState('aprovada')), 2);
+    expect(version(await repository.fetchState('so-a-versao')), 3);
+    for (final none in ['nula', 'ausente']) {
+      expect(
+        await repository.fetchState(none),
+        isA<Answered<SessionSnapshot>>().having(
+          (read) => read.value.approved,
+          'approved',
+          isNull,
+        ),
+      );
+    }
+  });
+
   test(
     'the room\'s books are read from GET /books and answered in its order',
     () async {
@@ -1184,6 +1227,94 @@ void main() {
   );
 
   test(
+    'a escuta vai à sala pela porta da escuta com o mesmo corpo da conferência',
+    () async {
+      http.BaseRequest? seen;
+      late String seenBody;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          seenBody = request.body;
+          return http.Response(
+            jsonEncode({
+              'session_id': 's1',
+              'automatic_check': false,
+              'fixed_line': '',
+              'refusal': null,
+              'untranslated': [],
+              'unheard_take_ids': ['t2'],
+            }),
+            200,
+          );
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      final naoOuvidas = _value(
+        await repository.reportTheListening(
+          's1',
+          playedByTake: const [
+            PlayedTake(
+              takeId: 't1',
+              playedRanges: [
+                [0, 10000],
+              ],
+              clipDurationMs: 10000,
+            ),
+          ],
+        ),
+      );
+
+      expect(seen!.method, 'POST');
+      expect(
+        seen!.url.path,
+        endsWith('/sessions/s1/back-translation/listened-whole'),
+      );
+      expect(jsonDecode(seenBody), {
+        'played_by_take': [
+          {
+            'take_id': 't1',
+            'played_ranges': [
+              [0, 10000],
+            ],
+            'clip_duration_ms': 10000,
+          },
+        ],
+      });
+      expect(naoOuvidas, ['t2']);
+    },
+  );
+
+  test(
+    'uma resposta sem as partes não ouvidas se lê como não sabida, não como nenhuma',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response(jsonEncode({'session_id': 's1'}), 200),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final naoOuvidas = _value(
+        await repository.reportTheListening(
+          's1',
+          playedByTake: const [
+            PlayedTake(
+              takeId: 't1',
+              playedRanges: [
+                [0, 10000],
+              ],
+              clipDurationMs: 10000,
+            ),
+          ],
+        ),
+      );
+
+      expect(naoOuvidas, isNull);
+    },
+  );
+
+  test(
     'a verdict heard to its end is reported with the round\'s stamp exactly as the room gave it',
     () async {
       http.BaseRequest? seen;
@@ -1522,8 +1653,6 @@ void main() {
                 room.collectTheCredential('aparelho-1'),
             'askForACode': (room) => room.askForACode('aparelho-1'),
             'readTheLink': (room) => room.readTheLink('aparelho-1'),
-            'askForAPersonWithoutASession': (room) =>
-                room.askForAPersonWithoutASession('aparelho-1'),
           };
 
       test(
@@ -1717,14 +1846,6 @@ void main() {
           _refusedWith(RefusalCode.credentialTaken),
         );
         expect(_value(await answering(204).readTheLink('aparelho-1')), isNull);
-        expect(
-          await answering(404).askForAPersonWithoutASession('aparelho-1'),
-          _refusedWith(RefusalCode.nobodyToReach),
-        );
-        expect(
-          await answering(409).askForAPersonWithoutASession('aparelho-1'),
-          _refusedWith(RefusalCode.nobodyToReach),
-        );
       });
     },
   );
@@ -2058,6 +2179,38 @@ void main() {
 
       expect(body, isNot(contains('name="after_restart"')));
     });
+
+    for (final (named, replaces) in [
+      ('a frase translated again names the frase it replaces', 'frase-3'),
+      ('a new frase names nothing it replaces', null),
+    ]) {
+      test(named, () async {
+        late String body;
+        final repository = RoomRepository(
+          client: MockClient((request) async {
+            body = request.body;
+            return http.Response(jsonEncode(record()), 200);
+          }),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        await repository.keepTheSceneFrase(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          await _tempRecording(),
+          startsMs: 9000,
+          endsMs: 13000,
+          replaces: replaces,
+        );
+
+        if (replaces == null) {
+          expect(body, isNot(contains('name="replaces"')));
+        } else {
+          expect(body, contains('name="replaces"\r\n\r\n$replaces\r\n'));
+        }
+      });
+    }
 
     test('the two 409 codes come back as refusals naming them', () async {
       for (final code in [

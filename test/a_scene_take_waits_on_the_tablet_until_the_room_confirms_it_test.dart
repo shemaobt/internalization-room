@@ -406,10 +406,8 @@ void main() {
       room.harness.room.failSceneWith = _offline;
       await _recordAScene(room);
       await _notKept(room);
-      await waitFor('a sala cair', () => room.state.unreachable);
 
       room.harness.room.failSceneWith = null;
-      room.sala.retryNow();
       await translateOpens(room);
 
       expect(room.harness.room.scenesKept, hasLength(1));
@@ -434,10 +432,8 @@ void main() {
       room.harness.room.failSceneWith = _offline;
       await _recordAScene(room);
       await _notKept(room);
-      await waitFor('a sala cair', () => room.state.unreachable);
 
       room.harness.room.failSceneWith = null;
-      room.sala.retryNow();
       await waitFor('a contagem depois do take aceito', () => queue.holding);
       room.container.dispose();
       queue.letTheCountGo();
@@ -464,11 +460,9 @@ void main() {
       room.harness.room.failSceneWith = _offline;
       await _recordAScene(room);
       await _notKept(room);
-      await waitFor('a sala cair', () => room.state.unreachable);
 
       room.harness.room.failSceneWith = null;
       queue.holdTheNextConfirmation();
-      room.sala.retryNow();
       await waitFor('a Fila confirmar o take', () => queue.holding);
       room.container.dispose();
       final askedAtTheClose = queue.keptAsked;
@@ -545,12 +539,10 @@ void main() {
     room.harness.room.failSceneWith = _offline;
     await _recordAScene(room);
     await _notKept(room);
-    await waitFor('a sala cair', () => room.state.unreachable);
     room.sala.leaveTheSceneRehearsal();
     await settle();
 
     room.harness.room.failSceneWith = null;
-    room.sala.retryNow();
     await waitFor(
       'a sala confirmar o take',
       () => room.harness.room.scenesKept.isNotEmpty,
@@ -694,10 +686,21 @@ void main() {
   test('a take whose file cannot be measured never sticks the screen on '
       '«guardando…»', () async {
     var unreadable = false;
+    late _AnOutboxSlowToTakeIt queue;
     await IOOverrides.runZoned(
       () async {
-        final room = await atRest();
+        final room = await atRest(
+          SalaHarness(
+            takesOverride: (room, home, recordings) =>
+                queue = _AnOutboxSlowToTakeIt(
+                  room: room,
+                  home: () async => home,
+                  recordings: recordings,
+                ),
+          ),
+        );
         await theScreenOpens(room);
+        queue.takesToCopy = const Duration(milliseconds: 400);
         room.harness.recorder.rehearsalSpeaks = _aTake(7);
         await theSceneMicrophoneOpens(room);
         unreadable = true;
@@ -707,9 +710,13 @@ void main() {
           'o microfone da cena fechar',
           () => room.state.channel is! Microphone,
         );
-        await settle();
+        await _notKept(room);
 
-        expect(room.state.scene.keep, isNot(isA<Keeping>()));
+        expect(
+          room.state.scene.keep,
+          isA<NotKept>(),
+          reason: 'o take sem medida voltava para a equipe tentar de novo',
+        );
       },
       createFile: (path) => unreadable && path.contains('captura-')
           ? _UnmeasurableTake(path)
@@ -753,6 +760,38 @@ class _UnmeasurableTake implements File {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _AnOutboxSlowToTakeIt extends TakeUploadQueue {
+  _AnOutboxSlowToTakeIt({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
+
+  Duration takesToCopy = Duration.zero;
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+    String? scene,
+  }) async {
+    await Future<void>.delayed(takesToCopy);
+    return super.enqueue(
+      audio,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+      scene: scene,
+    );
+  }
 }
 
 class _DiskThatRefusesTheScene extends TakeUploadQueue {

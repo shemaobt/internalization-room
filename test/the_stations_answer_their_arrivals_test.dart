@@ -333,28 +333,94 @@ void main() {
     expect(effects, isEmpty);
   });
 
-  test(
-    'an empty look on the scene rehearsal calls a person and reads the list again',
-    () {
-      final (machine, effects) = reduce(
-        _lookingAt(_at(const SceneRehearsal())),
-        const LookEmpty(_aGivenUpTurn, generation: _generation),
-      );
+  test('the sign held on the scene screen shows when the team is back on the '
+      'Canvas', () {
+    final (held, heldEffects) = reduce(
+      _lookingAt(_at(const SceneRehearsal())),
+      const LookEmpty(_aGivenUpTurn, generation: _generation),
+    );
 
-      expect(machine.halt, isA<Blocking>());
-      expect(effects, contains(isA<ReadTheSceneRehearsals>()));
-    },
-  );
+    expect(held.halt, isNot(isA<Blocking>()));
+    expect(heldEffects, contains(const ReadTheSceneRehearsals()));
+    expect(heldEffects, contains(const LetTheStepGo()));
 
-  test('an empty look on the Canvas reads no scene rehearsals', () {
+    final (back, backEffects) = reduce(held, const TheSceneRehearsalLeft());
+
+    expect(back.station, isA<Canvas>());
+    expect(back.halt, isA<Blocking>());
+    expect(back.channel, isA<Silence>());
+    expect(backEffects, contains(const CallForAPerson()));
+  });
+
+  test('a scene rehearsal sent again forgets the sign held for the Canvas', () {
+    const turn = Turn('sessao-1', 'turno-8');
+    var (machine, _) = reduce(
+      _at(const SceneRehearsal()),
+      const TheSceneTurnFoundNothing(generation: _generation),
+    );
+    for (final event in const <MachineEvent>[
+      TurnSent(turn),
+      TurnAnswered(turn),
+      TheSceneRehearsalLeft(),
+    ]) {
+      (machine, _) = reduce(machine, event);
+    }
+
+    expect(machine.station, isA<Canvas>());
+    expect(machine.halt, isNot(isA<Blocking>()));
+  });
+
+  test('a held sign is forgotten with the passage', () {
+    final (held, _) = reduce(
+      _at(const SceneRehearsal()),
+      const TheSceneTurnFoundNothing(generation: _generation),
+    );
+    for (final away in <List<MachineEvent>>[
+      [const TheSessionIsGone(), const PassageChosen()],
+      [const TheChoiceOpened(), const PassageChosen()],
+      [
+        const TheChoiceOpened(),
+        const PassageChosen(),
+        const TheSceneRehearsalOpened(),
+        const TheSceneRehearsalLeft(),
+      ],
+    ]) {
+      var machine = held;
+      for (final event in away) {
+        (machine, _) = reduce(machine, event);
+        expect(
+          machine.halt,
+          isNot(isA<Blocking>()),
+          reason: away.map((event) => event.runtimeType).join(' → '),
+        );
+      }
+      expect(machine.station, isA<Canvas>());
+    }
+  });
+
+  test('a scene look that finds nothing once the screen closed shows the sign '
+      'at once', () {
     final (machine, effects) = reduce(
       _lookingAt(_at(const Canvas())),
       const LookEmpty(_aGivenUpTurn, generation: _generation),
     );
 
     expect(machine.halt, isA<Blocking>());
-    expect(effects, isNot(contains(isA<ReadTheSceneRehearsals>())));
+    expect(effects, isNot(contains(const ReadTheSceneRehearsals())));
   });
+
+  test(
+    'a resume that failed goes back to the Choice and keeps its session',
+    () {
+      final (_, effects) = reduce(
+        _at(const Canvas()),
+        const TheResumeFailed(generation: _generation),
+      );
+
+      expect(effects, contains(const OpenTheChoice()));
+      expect(effects, isNot(contains(const DiscardTheSession())));
+    },
+  );
 
   test('the machine is born on the Menu', () {
     expect(Machine().station, isA<Menu>());

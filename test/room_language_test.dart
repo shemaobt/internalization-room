@@ -7,12 +7,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_language_ledger.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -302,11 +302,20 @@ void main() {
     'that session',
     () async {
       final it = _aTabletWithNothingChosen();
-      it.harness.room
-        ..serverStatus = 'needs_person'
-        ..serverHalt = HaltKind.blocking;
       await enterThePassage(it.sala, () => it.estado, 'P01');
-      await waitFor('the halt to reach the room', () => it.estado.needsPerson);
+      await waitFor(
+        'the opening to be said',
+        () =>
+            !it.estado.awaitingTheGuide && it.estado.voice == VoiceState.invite,
+      );
+      it.harness.room.failTurnsWith = const Refused('BAD_REQUEST');
+      it.sala.conversaTap();
+      await waitFor(
+        'the microphone to open',
+        () => it.estado.voice == VoiceState.listening,
+      );
+      it.sala.conversaTap();
+      await waitFor('the halt to stand', () => it.estado.needsPerson);
       it.sala.leaveThePassage();
       await waitFor(
         'the Choice to show its Wheel',

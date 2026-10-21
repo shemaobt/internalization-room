@@ -94,7 +94,8 @@ void main() {
       );
 
       test(
-        'a refusal: the Wheel stays unread and the room calls a person',
+        'a refusal: the Wheel stays unread, nobody is called, and the touch is '
+        'the retry',
         () async {
           final tablet = _aTablet()
             ..harness.room.failBooksWith = const Refused('BAD_REQUEST');
@@ -104,7 +105,17 @@ void main() {
 
           expect(tablet.state.rodaPorLer, isTrue);
           expect(tablet.state.livroInteiroFeito, isFalse);
-          expect(tablet.state.needsPerson, isTrue);
+          expect(tablet.state.needsPerson, isFalse);
+
+          tablet.harness.room.failBooksWith = null;
+          tablet.notifier.escolhaTap();
+          await theChoiceOffersAPassage(tablet.container);
+
+          expect(tablet.state.naRoda, [
+            ...estherList,
+            ...jonahList,
+            ...ruthList,
+          ]);
         },
       );
     },
@@ -236,7 +247,9 @@ void main() {
     final tablet = _aTablet()
       ..harness.room.failBooksWith = const Refused('BAD_REQUEST');
     await tablet.notifier.openTheRoom();
-    await waitFor('the halt to stand', () => tablet.state.needsPerson);
+    await settle();
+    tablet.notifier.haltForABrokenBuild();
+    expect(tablet.state.needsPerson, isTrue);
     expect(tablet.state.naRoda, isNull);
     final booksRead = tablet.asked('servedBooks');
     final listsRead = tablet.asked('passagesOf');

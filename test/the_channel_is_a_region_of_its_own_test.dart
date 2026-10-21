@@ -170,15 +170,16 @@ void main() {
       expect(effects, isEmpty);
     });
 
-    test('the second failure in a row on the same part calls a person', () {
+    test('the second failure in a row on the same part still calls nobody', () {
       final (machine, effects) = _run(_part1Playing, [
         PlayerFailed(_part1.source),
         const BeadTapped([_part1]),
         PlayerFailed(_part1.source),
       ]);
 
-      expect(effects, contains(const CallForAPerson()));
-      expect(machine.halt, isA<Blocking>());
+      expect(effects, isNot(contains(const CallForAPerson())));
+      expect(machine.halt, const NoHalt());
+      expect(machine.channel, const Silence());
     });
 
     test('a success on that source in between resets the count', () {
@@ -238,7 +239,8 @@ void main() {
         expect(effects, contains(const SilenceTheRoom()));
       });
 
-      test('a halt a Session read brings silences the Guide', () {
+      test('a Session read that says a person is needed never silences the '
+          'Guide', () {
         final (machine, effects) = reduce(
           const Machine(channel: GuideSpeaking(_guide1)),
           SessionRead(
@@ -253,8 +255,9 @@ void main() {
           ),
         );
 
-        expect(machine.channel, const Silence());
-        expect(effects, contains(const SilenceTheRoom()));
+        expect(machine.channel, const GuideSpeaking(_guide1));
+        expect(machine.halt, isNot(isA<Blocking>()));
+        expect(_silences(effects), isFalse);
       });
 
       test('leaving the passage silences the part and forgets the queue', () {
@@ -457,9 +460,9 @@ void main() {
 
   test('an offline notice waiting under a halt leaves the queue when the Reach '
       'comes back', () {
-    final (machine, effects) = _run(const Machine(), [
+    final (machine, effects) = _run(const Machine(station: Canvas()), [
       const RoomRaisedAHalt(),
-      const NetworkFailedAt(Door.watch),
+      const NetworkFailedAt(Door.step),
       const LineArrived(_notice),
       const NetworkReturned(),
       const LongPress(somebodyToAsk: false),

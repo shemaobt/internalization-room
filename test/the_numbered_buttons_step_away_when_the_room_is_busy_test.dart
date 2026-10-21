@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, stateReads;
+import 'scenario_helpers.dart' show byLabel;
 import 'the_kept_retellings_are_numbered_buttons_on_the_conversation_test.dart'
     show aKept, atRestAfterATurn;
 
@@ -135,17 +134,9 @@ void main() {
     'the buttons go, and take no touch, while the screen calls a person',
     (tester) async {
       final semantics = tester.ensureSemantics();
-      final (harness, container) = await _atRest(tester, watching: true);
+      final (_, container) = await _atRest(tester);
 
-      harness.room
-        ..serverStatus = 'needs_person'
-        ..serverHalt = HaltKind.blocking;
-      final reads = stateReads(harness);
-      await _pumpUntil(
-        tester,
-        () => stateReads(harness) != reads,
-        beat: const Duration(seconds: 1),
-      );
+      container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(container.read(salaSessionProvider).needsPerson, isTrue);

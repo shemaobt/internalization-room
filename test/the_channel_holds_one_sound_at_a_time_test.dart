@@ -148,7 +148,7 @@ void main() {
 
   test(
     'a part that fails to play leaves the Channel silent, keeps the Cursor, '
-    'calls nobody and its bead answers a tap; failing again calls a person',
+    'calls nobody and its bead answers a tap; failing again still calls nobody',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
       it.sala.startRetro();
@@ -178,7 +178,17 @@ void main() {
       );
 
       it.harness.playback.failPlayback();
-      await waitFor('a sala chamar uma pessoa', () => it.estado.needsPerson);
+      await settle();
+
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason:
+            'só a voz do Guia falhando duas vezes chama alguém; uma parte que '
+            'falha deixa silêncio',
+      );
+      expect(it.harness.room.personsAsked, 0);
+      expect(it.estado.channel, const Silence());
     },
   );
 
@@ -382,49 +392,29 @@ void main() {
 
   test(
     'a line waiting under a halt is never started and then cut when the long '
-    'press releases it into the conversation opening again',
+    'press releases it',
     () async {
       final harness = SalaHarness();
-      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-        sessionId: 'sessao-guardada',
-        stage: SalaStage.ensaio,
-        takes: [
-          KeptTake(
-            scopeId: KeptScope.parte(1),
-            path: '${harness.recorder.home.path}/longe.m4a',
-            takeId: 'gravacao-1',
-          ),
-        ],
-      );
-      harness.room
-        ..takes.add(
-          TakeView(
-            takeId: 'gravacao-1',
-            kind: 'ensaio',
-            scope: KeptScope.parte(1),
-            ordinal: 1,
-          ),
-        )
-        ..refuseClipOf.add('gravacao-1')
-        ..askForAPersonFailsWith = const Refused('HTTP_418');
-      final container = harness.container();
+      harness.room.askForAPersonFailsWith = const Refused('HTTP_418');
+      final container = await inConversa(harness);
       addTearDown(container.dispose);
       final sala = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
-      await sala.abrirEscolha();
+      harness.room.failTurnsWith = const Refused('BAD_REQUEST');
+      sala.conversaTap();
       await settle();
-      unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
+      sala.conversaTap();
       await waitFor('a sala parar', () => read().needsPerson);
+      harness.room.failTurnsWith = null;
       sala.sayTheMicIsBlocked();
       await settle();
       expect(read().machine.queue, hasLength(1));
       expect(harness.voice.assets, isNot(contains(_bloqueado)));
 
-      harness.room.refuseClipOf.clear();
       final marca = harness.sounds.length;
       sala.resolveWithPerson();
       await waitFor(
-        'a conversa reabrir',
+        'a parada sair',
         () => !read().needsPerson && read().sessionId != null,
       );
       await settle();

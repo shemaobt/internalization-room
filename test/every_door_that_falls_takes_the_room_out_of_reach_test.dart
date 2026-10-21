@@ -41,6 +41,13 @@ class _Room {
     harness.room.reachable = false;
   }
 
+  void theKeyStaysInFlight() {
+    harness.network.reachable = false;
+    harness.room.replaceAnswersFirst.addAll(
+      List.filled(3, _theKeyStillInFlight),
+    );
+  }
+
   void theNetworkReturns() {
     harness.network.reachable = true;
     harness.room.reachable = true;
@@ -150,16 +157,24 @@ Future<_Room> _aFindingToTellAgain(SalaHarness harness) async {
 }
 
 void main() {
-  test('1 (a): a rehearsal upload that fails on the network takes the room out '
-      'of reach, and the circle says so', () async {
+  test('1 (a): a rehearsal upload that fails on the network leaves the room '
+      'in reach, with no offline face and no health check', () async {
     final harness = SalaHarness(retryBackoff: _aLadderThatWaits)
       ..room.unreachableTake = 'ensaio/$_parte1';
     final room = await _conversa(harness);
+    final checks = harness.network.checks;
 
     await _keepARehearsalPart(room);
+    await waitFor(
+      'a parte cair na rede',
+      () => harness.room.calls.contains('sendTake'),
+    );
+    await settle();
 
-    await room.outOfReach('pela Outbox');
-    expect(room.estado.voice, VoiceState.offline);
+    expect(room.estado.unreachable, isFalse);
+    expect(room.estado.voice, isNot(VoiceState.offline));
+    expect(room.offlineNotices, 0);
+    expect(harness.network.checks, checks);
   });
 
   test('2 (b): reachable with a part pending after a failed try, the part is '
@@ -222,57 +237,73 @@ void main() {
     expect(room.estado.btTraducaoPendente, isNull);
   });
 
-  group('3 (c): a request sent while out of reach goes out once more under '
-      'the same Idempotency-Key when the network returns', () {
-    test('a stretch told again lands on the Step that asked', () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
-      final room = await _aFindingToTellAgain(harness);
-      room.theNetworkFalls();
+  test('3 (c): a stretch told again lost on the network lets its Step go, '
+      'keeps the room in reach and is never sent again', () async {
+    final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
+    final room = await _aFindingToTellAgain(harness);
+    room.theNetworkFalls();
 
-      await room.sala.confirmarTraducao();
-      await room.outOfReach('pela correção');
-      room.theNetworkReturns();
+    await room.sala.confirmarTraducao();
+    await waitFor(
+      'a sala sair do pensando',
+      () => room.estado.btPhase != BtPhase.thinking,
+    );
+    room.theNetworkReturns();
+    await settle(const Duration(milliseconds: 300));
 
-      await waitFor(
-        'a correção pousar',
-        () => harness.room.replacesAsked.isNotEmpty,
-      );
-      await waitFor(
-        'a sala sair do pensando',
-        () => room.estado.btPhase != BtPhase.thinking,
-      );
-      await settle();
-      expect(harness.room.replaceKeys, hasLength(2));
-      expect(harness.room.replaceKeys.first, isNotEmpty);
-      expect(harness.room.replaceKeys.toSet(), hasLength(1));
-      expect(harness.room.replacesAsked, hasLength(1));
-      expect(room.estado.btTraducaoPendente, isNull);
-    });
+    expect(room.estado.unreachable, isFalse);
+    expect(room.offlineNotices, 0);
+    expect(harness.room.replaceKeys, hasLength(1));
+    expect(harness.room.replacesAsked, isEmpty);
   });
 
-  test('4 (d): the Watch read that fails on the network takes the room out of '
-      'reach, and on return the Watch reads at once', () async {
+  test('3 (c): a stretch told again whose key was still in flight after three '
+      'answers keeps the room in reach and is never sent again', () async {
+    final harness = SalaHarness();
+    final room = await _aFindingToTellAgain(harness);
+    room.theKeyStaysInFlight();
+
+    await room.sala.confirmarTraducao();
+    await waitFor(
+      'a sala sair do pensando',
+      () => room.estado.btPhase != BtPhase.thinking,
+    );
+    room.theNetworkReturns();
+    await settle(const Duration(milliseconds: 300));
+
+    expect(room.estado.unreachable, isFalse);
+    expect(room.offlineNotices, 0);
+    expect(harness.room.replaceKeys, hasLength(3));
+    expect(harness.room.replaceKeys.toSet(), hasLength(1));
+    expect(harness.room.replacesAsked, isEmpty);
+  });
+
+  test('4 (d): the Watch read that fails on the network changes nothing: the '
+      'room stays in reach and no health check is made', () async {
     final harness = SalaHarness(
       watchesWithoutAHalt: true,
       settleDelay: const Duration(milliseconds: 400),
       retryBackoff: _aLadderThatWaits,
     );
     final room = await _conversa(harness);
+    final checks = harness.network.checks;
     harness.network.reachable = false;
     harness.room.failStateOnceWith = const NetworkFailed('sem rede');
 
-    await room.outOfReach('pela Watch');
-    final reads = harness.room.calls.where((c) => c == 'fetchState').length;
-    room.theNetworkReturns();
-
     await waitFor(
-      'a Watch ler na volta',
-      () => harness.room.calls.where((c) => c == 'fetchState').length > reads,
-      limit: const Duration(milliseconds: 250),
+      'a Watch cair na rede',
+      () => harness.room.failStateOnceWith == null,
     );
+    await settle();
+
+    expect(room.estado.unreachable, isFalse);
+    expect(room.estado.voice, isNot(VoiceState.offline));
+    expect(room.offlineNotices, 0);
+    expect(harness.network.checks, checks);
   });
 
-  group('5: every door\'s network failure takes the room out of reach', () {
+  group('5: a network failure at a door off the way in leaves the room in '
+      'reach', () {
     test('the person ask', () async {
       final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
       final room = await _conversa(harness);
@@ -285,7 +316,13 @@ void main() {
       room.sala.conversaTap();
 
       await waitFor('a sala chamar uma pessoa', () => room.estado.needsPerson);
-      await room.outOfReach('pelo pedido de uma pessoa');
+      await waitFor(
+        'o pedido de uma pessoa cair na rede',
+        () => harness.room.calls.contains('askForAPerson'),
+      );
+      await settle();
+      expect(room.estado.unreachable, isFalse);
+      expect(room.offlineNotices, 0);
     });
 
     test('person-arrived', () async {
@@ -301,11 +338,18 @@ void main() {
       await settle();
 
       room.sala.resolveWithPerson();
+      await waitFor(
+        'o aviso de que alguém chegou cair na rede',
+        () => harness.room.calls.contains('personArrived'),
+      );
+      await settle();
 
-      await room.outOfReach('pelo aviso de que alguém chegou');
+      expect(room.estado.unreachable, isFalse);
+      expect(room.offlineNotices, 0);
     });
 
-    test('the resume reads', () async {
+    test('the resume reads go calmly back to the Choice, keep the session, and '
+        'the next open asks again', () async {
       final harness = SalaHarness(retryBackoff: _aLadderThatWaits)
         ..room.failTakesWith = const NetworkFailed('sem rede');
       harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
@@ -325,9 +369,24 @@ void main() {
       await room.sala.abrirEscolha();
 
       await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await waitFor(
+        'a Escolha abrir',
+        () =>
+            harness.room.calls.contains('takesOf') &&
+            room.estado.stage == SalaStage.escolha,
+      );
+      await settle();
 
-      await room.outOfReach('pela leitura da retomada');
+      expect(room.estado.unreachable, isFalse);
       expect(room.estado.needsPerson, isFalse);
+      expect(harness.emAberto.rows['Ruth/P01/pt'], isNotNull);
+      final asked = harness.room.calls.where((c) => c == 'takesOf').length;
+
+      await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await waitFor(
+        'a retomada ser pedida de novo',
+        () => harness.room.calls.where((c) => c == 'takesOf').length > asked,
+      );
     });
 
     test('the coverage stream', () async {
@@ -343,11 +402,15 @@ void main() {
         'a sala escutar o canal da cobertura',
         () => harness.room.coverageHasListener,
       );
+      final checks = harness.network.checks;
       harness.network.reachable = false;
 
       harness.room.dropCoverageStream(error: const NetworkFailed('sem rede'));
+      await settle();
 
-      await room.outOfReach('pelo canal da cobertura');
+      expect(room.estado.unreachable, isFalse);
+      expect(room.offlineNotices, 0);
+      expect(harness.network.checks, checks);
     });
 
     test('the reads after a verdict', () async {
@@ -365,13 +428,19 @@ void main() {
       harness.room.failStateOnceWith = const NetworkFailed('sem rede');
 
       await room.sala.finishBackTranslation();
+      await waitFor(
+        'a releitura cair na rede',
+        () => harness.room.failStateOnceWith == null,
+      );
+      await settle();
 
-      await room.outOfReach('pela releitura depois do veredito');
+      expect(room.estado.unreachable, isFalse);
+      expect(room.offlineNotices, 0);
     });
   });
 
-  test('6: a background door\'s fall cancels no foreground wait: a turn in '
-      'flight while the Watch read fails still lands', () async {
+  test('6: a Watch read lost on the network while a turn is in flight leaves '
+      'the room in reach, and the turn still lands', () async {
     final harness = SalaHarness(
       watchesWithoutAHalt: true,
       settleDelay: const Duration(milliseconds: 60),
@@ -387,7 +456,11 @@ void main() {
 
     harness.room.failStateOnceWith = const NetworkFailed('sem rede');
     harness.network.reachable = false;
-    await room.outOfReach('pela Watch, com o turno no ar');
+    await waitFor(
+      'a Watch cair na rede, com o turno no ar',
+      () => harness.room.failStateOnceWith == null,
+    );
+    expect(room.estado.unreachable, isFalse);
     harness.room.finishHeldTurn();
 
     await waitFor(
@@ -396,9 +469,9 @@ void main() {
     );
   });
 
-  test('7: out of reach with the microphone open, a tap closes it, keeps the '
-      'take and sends it once, and the look that finds nothing shows the person '
-      'sign', () async {
+  test('7: with the network gone under an open microphone, a tap closes it, '
+      'keeps the take and sends it once, and the look that finds nothing shows '
+      'the person sign', () async {
     final harness = SalaHarness(
       watchesWithoutAHalt: true,
       settleDelay: const Duration(milliseconds: 60),
@@ -408,7 +481,6 @@ void main() {
     room.sala.conversaTap();
     await waitFor('o microfone abrir', () => room.estado.channel is Microphone);
     room.theNetworkFalls();
-    await room.outOfReach('com o microfone aberto');
     final checks = harness.network.checks;
     int discards() =>
         harness.recorder.sounds.where((s) => s == 'recorder:discard').length;
@@ -439,8 +511,8 @@ void main() {
     expect(room.estado.needsPerson, isTrue);
   });
 
-  test('8: a take closed out of reach is not sent again on return, and the '
-      'Outbox drains', () async {
+  test('8: a take closed while the network is gone is never sent again, not '
+      'when the network returns nor when the sign lifts', () async {
     final harness = SalaHarness(
       watchesWithoutAHalt: true,
       settleDelay: const Duration(milliseconds: 60),
@@ -450,28 +522,19 @@ void main() {
     room.sala.conversaTap();
     await waitFor('o microfone abrir', () => room.estado.channel is Microphone);
     room.theNetworkFalls();
-    await room.outOfReach('com o microfone aberto');
     room.sala.conversaTap();
     await waitFor(
       'o microfone fechar',
       () => room.estado.channel is! Microphone,
     );
-    final rehearsal = harness.recorder.aFile('parte-pendente');
-    await harness.takes.enqueue(
-      rehearsal,
-      sessionId: room.estado.sessionId!,
-      kind: 'ensaio',
-      scope: _parte1,
-    );
+    await waitFor('a sala chamar uma pessoa', () => room.estado.needsPerson);
     final turnsBefore = harness.room.turnsSent;
 
     room.theNetworkReturns();
-
-    await waitFor(
-      'a Outbox esvaziar',
-      () async => (await harness.takes.pending()).isEmpty,
-    );
+    room.sala.resolveWithPerson();
+    await waitFor('a parada sair', () => !room.estado.needsPerson);
     await settle(const Duration(milliseconds: 300));
+
     expect(harness.room.turnsSent, turnsBefore);
   });
 
@@ -492,15 +555,9 @@ void main() {
     await room.sala.abrirEscolha();
     harness.room.finishHeldTurn();
     await settle();
-    harness.room.reachable = false;
-    await harness.takes.enqueue(
-      harness.recorder.aFile('parte-guardada'),
-      sessionId: 'sessao-1',
-      kind: 'ensaio',
-      scope: _parte1,
-    );
-    await harness.takes.flush();
-    await room.outOfReach('pela Outbox');
+    room.theNetworkFalls();
+    await room.sala.goConversa(book: 'Ruth');
+    await room.outOfReach('ao abrir a passagem de novo');
     room.theNetworkReturns();
     await waitFor('a sala voltar', () => !room.estado.unreachable);
     await settle(const Duration(milliseconds: 300));
@@ -508,71 +565,42 @@ void main() {
     expect(harness.room.turnsSent, 1);
   });
 
-  group('8: the approval that fell is asked again once on the return', () {
-    Future<_Room> ready(SalaHarness harness) async {
-      final room = await _aResumedBackTranslation(harness);
-      harness.playback.finishPlayback();
-      await waitFor(
-        'a tradução poder pedir o veredito',
-        () => room.estado.canFinishBackTranslation,
-      );
-      return room;
-    }
+  test('8: the approval lost on the network keeps the room in reach and is '
+      'never asked again', () async {
+    final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
+    final room = await _aResumedBackTranslation(harness);
+    harness.playback.finishPlayback();
+    await waitFor(
+      'a tradução poder pedir o veredito',
+      () => room.estado.canFinishBackTranslation,
+    );
+    await room.sala.finishBackTranslation();
+    await waitFor(
+      'a passagem ser conferida',
+      () => room.estado.btPhase == BtPhase.conferida,
+    );
+    room.theNetworkFalls();
 
-    test('the approval', () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
-      final room = await ready(harness);
-      await room.sala.finishBackTranslation();
-      await waitFor(
-        'a passagem ser conferida',
-        () => room.estado.btPhase == BtPhase.conferida,
-      );
-      room.theNetworkFalls();
+    await room.sala.aprovarRascunhoFinal();
+    await waitFor(
+      'a aprovação cair na rede',
+      () => harness.room.calls.contains('approveRelease'),
+    );
+    room.theNetworkReturns();
+    await settle(const Duration(milliseconds: 300));
 
-      await room.sala.aprovarRascunhoFinal();
-      await room.outOfReach('pela aprovação');
-      room.theNetworkReturns();
-
-      await waitFor(
-        'a aprovação ser pedida de novo',
-        () => harness.room.releasesAsked.isNotEmpty,
-      );
-      await settle(const Duration(milliseconds: 300));
-      expect(harness.room.releasesAsked, hasLength(1));
-    });
+    expect(room.estado.unreachable, isFalse);
+    expect(room.offlineNotices, 0);
+    expect(harness.room.releasesAsked, isEmpty);
+    expect(
+      harness.room.calls.where((call) => call == 'approveRelease'),
+      hasLength(1),
+    );
   });
 
   test(
-    '9: a 409 IDEMPOTENCY_KEY_IN_FLIGHT on a resend waits the backoff and '
-    'sends again under the same key, with no strike and no stranding',
-    () async {
-      final harness = SalaHarness();
-      final room = await _aResumedBackTranslation(harness);
-      await _tellAStretchUpTo(room, const Duration(seconds: 12));
-      harness.network.reachable = false;
-      harness.room.chunkAnswersFirst.addAll(
-        List.filled(3, _theKeyStillInFlight),
-      );
-      await room.sala.confirmarTraducao();
-      await room.outOfReach('pela chave ainda em voo');
-      harness.room.chunkAnswersFirst.add(_theKeyStillInFlight);
-      final marks = room.estado.btChunkFailures;
-
-      room.theNetworkReturns();
-
-      await waitFor('o trecho pousar', () => room.estado.btTrechos.isNotEmpty);
-      expect(harness.room.chunkKeys, hasLength(5));
-      expect(harness.room.chunkKeys.toSet(), hasLength(1));
-      expect(harness.room.segments, hasLength(1));
-      expect(room.estado.btChunkFailures, marks);
-      expect(room.estado.needsPerson, isFalse);
-      expect(room.estado.btTraducaoPendente, isNull);
-    },
-  );
-
-  test(
-    '9: a key still in flight is sent three times and then the room goes out '
-    'of reach with the request kept',
+    '9: a key still in flight is sent three times and then the room stays in '
+    'reach with the request kept',
     () async {
       final harness = SalaHarness();
       final room = await _aResumedBackTranslation(harness);
@@ -593,12 +621,16 @@ void main() {
       );
 
       await room.sala.confirmarTraducao();
-      await room.outOfReach('pela chave ainda em voo');
+      await waitFor(
+        'a chave ainda em voo chegar ao teto',
+        () => harness.room.chunkKeys.length == 3,
+      );
       await settle(const Duration(milliseconds: 300));
 
       expect(harness.room.chunkKeys, hasLength(3));
       expect(harness.room.chunkKeys.toSet(), hasLength(1));
-      expect(room.estado.unreachable, isTrue);
+      expect(room.estado.unreachable, isFalse);
+      expect(room.offlineNotices, 0);
       expect(room.estado.btTraducaoPendente, isNotNull);
       expect(
         (await traducoesNaFila()).length + recebidas() - recebidasAntes,
@@ -607,57 +639,6 @@ void main() {
       );
     },
   );
-
-  test('9: a key that met the ceiling is the key the request is sent again '
-      'under when the room comes back', () async {
-    final harness = SalaHarness();
-    final room = await _aResumedBackTranslation(harness);
-    await _tellAStretchUpTo(room, const Duration(seconds: 12));
-    harness.network.reachable = false;
-    harness.room.chunkAnswersFirst.addAll(List.filled(3, _theKeyStillInFlight));
-
-    await room.sala.confirmarTraducao();
-    await room.outOfReach('pela chave ainda em voo');
-    room.theNetworkReturns();
-    await waitFor('o trecho pousar', () => harness.room.segments.isNotEmpty);
-
-    expect(harness.room.chunkKeys, hasLength(4));
-    expect(harness.room.chunkKeys.toSet(), hasLength(1));
-  });
-
-  test('8: a request that fell waits under a blocking halt, and goes out once '
-      'under its key when the halt lifts', () async {
-    final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
-    final room = await _aFindingToTellAgain(harness);
-    room.theNetworkFalls();
-    await room.sala.confirmarTraducao();
-    await room.outOfReach('pela correção');
-    room.sala.haltForABrokenBuild();
-
-    room.theNetworkReturns();
-    await waitFor('a sala voltar', () => !room.estado.unreachable);
-    await settle(const Duration(milliseconds: 200));
-    expect(
-      harness.room.replaceKeys,
-      hasLength(1),
-      reason: 'nada sai sob a parada',
-    );
-
-    await waitFor(
-      'o pedido de pessoa pousar',
-      () => harness.room.personsAsked > 0,
-    );
-    harness.room.theDeskAttended();
-    await waitFor(
-      'a correção pousar',
-      () => harness.room.replacesAsked.isNotEmpty,
-    );
-    await settle(const Duration(milliseconds: 200));
-
-    expect(harness.room.replaceKeys, hasLength(2));
-    expect(harness.room.replaceKeys.toSet(), hasLength(1));
-    expect(harness.room.replacesAsked, hasLength(1));
-  });
 
   test('5: a pre-flight probe asks the room once with the probe already in '
       'flight', () async {
@@ -699,11 +680,10 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
     final room = _Room(harness, container);
-    harness.room.reachable = false;
     await room.sala.abrirEscolha();
-    await room.outOfReach('pela roda');
-    harness.room.reachable = true;
     harness.network.reachable = false;
+    await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    await room.outOfReach('pela sonda da conversa');
     harness.network.holdNextCheck();
     room.sala.retryNow();
     await settle();
@@ -720,8 +700,9 @@ void main() {
     );
   });
 
-  test('5: the reads after a resumed telling-back name a recording the tablet '
-      'does not hold', () async {
+  test('5: the reads after a resumed telling-back that name a recording the '
+      'tablet does not hold, lost on the network, leave the room in reach and '
+      'the telling-back going on', () async {
     final harness = SalaHarness(retryBackoff: _aLadderThatWaits)
       ..room.failTakesWith = const NetworkFailed('sem rede');
 
@@ -737,7 +718,15 @@ void main() {
       ],
     );
 
-    await room.outOfReach('pela leitura das gravações da sala');
+    await waitFor(
+      'a leitura das gravações cair na rede',
+      () => harness.room.calls.contains('takesOf'),
+    );
+    await settle();
+
+    expect(room.estado.unreachable, isFalse);
+    expect(room.estado.needsPerson, isFalse);
+    expect(room.estado.stage, SalaStage.retro);
   });
 
   group('10: the offline notice plays once per outage, through the queue', () {
@@ -746,9 +735,12 @@ void main() {
         watchesWithoutAHalt: true,
         settleDelay: const Duration(milliseconds: 60),
       );
-      final room = await _conversa(harness);
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final room = _Room(harness, container);
       harness.room.reachable = false;
-      await room.outOfReach('pela Watch');
+      await room.sala.goConversa(book: 'Ruth');
+      await room.outOfReach('ao abrir a passagem');
       final probes = harness.network.checks;
 
       await waitFor(
@@ -768,12 +760,17 @@ void main() {
         retryBackoff: _aLadderThatWaits,
       );
       final room = await _conversa(harness);
-      room.sala.conversaTap();
+      room.theNetworkFalls();
+      harness.network.holdNextCheck();
+      unawaited(room.sala.goConversa(book: 'Ruth'));
+      await settle();
+      room.sala.goEnsaio();
+      room.sala.ensaioTap();
       await waitFor(
         'o microfone abrir',
         () => room.estado.channel is Microphone,
       );
-      room.theNetworkFalls();
+      harness.network.finishHeldCheck();
       await room.outOfReach('com o microfone aberto');
       await settle();
       expect(room.offlineNotices, 0, reason: 'nenhuma fala sobre o microfone');
@@ -788,15 +785,12 @@ void main() {
         room.estado.machine.queue.map((line) => line.kind),
         isNot(contains(LineKind.offlineNotice)),
       );
-      room.sala.conversaTap();
+      room.sala.ensaioTap();
       await waitFor(
         'o microfone fechar',
         () => room.estado.channel is! Microphone,
       );
-      await waitFor(
-        'a resposta do turno tocar',
-        () => harness.voice.played.contains(turnoUrl),
-      );
+      await settle();
 
       expect(room.offlineNotices, 0);
     });
@@ -821,7 +815,8 @@ void main() {
       );
       harness.room.refuseTake = null;
       room.theNetworkFalls();
-      await room.outOfReach('pela Watch');
+      await room.sala.goConversa(book: 'Ruth');
+      await room.outOfReach('ao abrir a passagem de novo');
       await harness.takes.enqueue(
         harness.recorder.aFile('outra-parte'),
         sessionId: room.estado.sessionId!,
@@ -903,30 +898,6 @@ void main() {
       await waitFor(
         'o passo reenviado falar',
         () => room.estado.channel is GuideSpeaking,
-      );
-      expect(room.estado.machine.onTheirWay, contains(retry));
-    });
-
-    test('a read that finds the session gone after a retry opens the Choice '
-        'with the retry still on its way', () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
-      final room = await _aFindingToTellAgain(harness);
-      room.theNetworkFalls();
-      await room.sala.confirmarTraducao();
-      await room.outOfReach('pela correção');
-      harness.network.reachable = true;
-      harness.room
-        ..reachable = true
-        ..failStateOnceWith = const SessionGone()
-        ..holdNextReplace();
-      final before = room.estado.machine.onTheirWay;
-
-      room.sala.retryNow();
-      final retry = room.estado.machine.onTheirWay.difference(before).single;
-
-      await waitFor(
-        'a Escolha abrir',
-        () => room.estado.stage != SalaStage.retro,
       );
       expect(room.estado.machine.onTheirWay, contains(retry));
     });

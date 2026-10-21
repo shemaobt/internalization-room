@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -136,6 +137,15 @@ Future<_Retomada> _reabrirDeNovo(_Retomada antes) async {
   await settle();
   return _Retomada(antes.harness, container, antes.nomeados, antes.linhaAntes);
 }
+
+/// A resume that failed takes the team back to the Choice, once the room was asked for
+/// the rehearsal it holds.
+Future<void> _deVoltaAEscolha(_Retomada it) => waitFor(
+  'a equipe voltar à escolha',
+  () =>
+      it.harness.room.calls.contains('takesOf') &&
+      it.estado.stage == SalaStage.escolha,
+);
 
 List<String?> _nomesDasPartes(_Retomada it) => [
   for (final take in it.estado.partes) take.takeId,
@@ -364,88 +374,318 @@ void main() {
     );
   });
 
-  test(
-    'sem a lista das gravacoes por falta de rede a sala fica fora de alcance '
-    'e guarda o ponto',
-    () async {
-      final harness = SalaHarness()
-        ..room.failTakesWith = const NetworkFailed('sem rede');
+  test('sem a lista das gravacoes por falta de rede a equipe volta a escolha '
+      'e o ponto fica guardado', () async {
+    final harness = SalaHarness()
+      ..room.failTakesWith = const NetworkFailed('sem rede');
 
-      final it = await _reabrir(
-        harness,
-        parouEm: SalaStage.retro,
-        contado: _contado([1]),
-      );
-      await waitFor(
-        'a sala ficar fora de alcance',
-        () => it.estado.unreachable,
-      );
-      expect(it.estado.needsPerson, isFalse);
-
-      expect(
-        it.linhaAgora,
-        it.linhaAntes,
-        reason:
-            'o ponto de retomada é a única coisa que sabe qual sessão é '
-            'desta passagem: reescrevê-lo depois de uma falha da sala tira da '
-            'equipe o caminho de volta para sempre',
-      );
-      expect(
-        it.harness.room.calls,
-        isNot(contains('openSession')),
-        reason:
-            'abrir a conversa põe a equipe a caminho de gravar por cima do '
-            'que a sala guarda',
-      );
-      expect(
-        it.estado.partes,
-        isEmpty,
-        reason: 'e meia fila de partes não é um ensaio: a sala para onde está',
-      );
-    },
-  );
-
-  test('uma parte que nao baixa chama uma pessoa e guarda o ponto', () async {
-    final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
-
-    final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
-    await waitFor('a sala chamar uma pessoa', () => it.estado.needsPerson);
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1]),
+    );
+    await _deVoltaAEscolha(it);
+    expect(it.estado.needsPerson, isFalse);
+    expect(
+      it.estado.unreachable,
+      isFalse,
+      reason: 'uma retomada que falha não é um caminho de entrada que cai',
+    );
 
     expect(
       it.linhaAgora,
       it.linhaAntes,
       reason:
-          'meia retomada não é retomada: a linha continua nomeando as '
-          'três gravações que a equipe fez, para a próxima abertura tentar '
-          'de novo',
+          'o ponto de retomada é a única coisa que sabe qual sessão é '
+          'desta passagem: reescrevê-lo depois de uma falha da sala tira da '
+          'equipe o caminho de volta para sempre',
     );
-    expect(it.harness.room.calls, isNot(contains('openSession')));
+    expect(
+      it.harness.room.calls,
+      isNot(contains('openSession')),
+      reason:
+          'abrir a conversa põe a equipe a caminho de gravar por cima do '
+          'que a sala guarda',
+    );
     expect(
       it.estado.partes,
       isEmpty,
-      reason:
-          'as duas partes que baixaram não fazem um ensaio: tocá-lo com '
-          'um buraco no meio conta à equipe uma história cortada',
+      reason: 'e meia fila de partes não é um ensaio: a sala para onde está',
     );
+  });
+
+  test('uma sessao que o servidor nao guarda mais volta a escolha', () async {
+    final harness = SalaHarness()..room.forgetTheSession(_sessao);
+
+    final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+    await _deVoltaAEscolha(it);
+
+    expect(it.estado.needsPerson, isFalse);
+    await waitFor('a linha da sessão esquecida sair', () => it.linha == null);
+  });
+
+  Future<void> oEnsaioAbre(_Retomada it) => waitFor(
+    'o ensaio abrir',
+    () => it.estado.stage == SalaStage.ensaio && !it.estado.awaitingTheGuide,
+  );
+
+  Future<void> gravarACena(_Retomada it, int cena) async {
+    it.sala.gravarACena(cena);
+    await waitFor(
+      'a cena $cena gravar',
+      () => it.estado.ensaio == EnsaioStatus.recording,
+    );
+    it.sala.gravarACena(cena);
+    await waitFor(
+      'a cena $cena ficar pendente',
+      () => it.estado.ensaio == EnsaioStatus.recorded,
+    );
+    it.sala.takeKeep();
+    await waitFor(
+      'a cena $cena ficar guardada',
+      () => it.estado.ensaio == EnsaioStatus.idle,
+    );
+  }
+
+  Future<int?> aPassadaQueSobe(_Retomada it, int cena) async {
+    final antes = it.harness.room.takePasses.length;
+    await gravarACena(it, cena);
+    await waitFor(
+      'a cena $cena subir',
+      () => it.harness.room.takePasses.length > antes,
+    );
+    return it.harness.room.takePasses.last;
+  }
+
+  List<int?> numerosDasPartes(_Retomada it) => [
+    for (final take in it.estado.partes) KeptScope.numberOf(take.scopeId),
+  ];
+
+  const tresCenas = [
+    Scene(sceneId: 'S1', title: 'Cena um'),
+    Scene(sceneId: 'S2', title: 'Cena dois'),
+    Scene(sceneId: 'S3', title: 'Cena tres'),
+  ];
+
+  List<TakeView> salaComPassadas(List<int> passadas) => [
+    for (final (i, passada) in passadas.indexed)
+      TakeView(
+        takeId: 'gravacao-${i + 1}',
+        kind: 'ensaio',
+        scope: KeptScope.parte(i + 1),
+        ordinal: i + 1,
+        pass: passada,
+      ),
+  ];
+
+  Future<_Retomada> semAParteDois(
+    SalaHarness harness, {
+    SalaStage parouEm = SalaStage.ensaio,
+  }) async {
+    harness.room
+      ..passageScenes = tresCenas
+      ..refuseClipOf.add('gravacao-2');
+    final it = await _reabrir(
+      harness,
+      parouEm: parouEm,
+      naSala: salaComPassadas([1, 2, 1]),
+      contado: parouEm == SalaStage.retro
+          ? _contado([1, 3])
+          : const BackTranslationProgress(),
+    );
+    await oEnsaioAbre(it);
+    return it;
+  }
+
+  group('uma parte que a sala nao tem mais', () {
+    test('deixa a linha dela nao gravada e as outras com as suas', () async {
+      final it = await semAParteDois(SalaHarness());
+
+      expect(it.estado.needsPerson, isFalse);
+      expect(numerosDasPartes(it), [1, 3]);
+      expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-3']);
+    });
+
+    test(
+      'numa retomada da retro abre o ensaio, com as outras linhas',
+      () async {
+        final it = await semAParteDois(SalaHarness(), parouEm: SalaStage.retro);
+
+        expect(numerosDasPartes(it), [1, 3]);
+      },
+    );
+
+    test('guarda a linha uma vez como o que a equipe tem, no ensaio', () async {
+      final it = await semAParteDois(SalaHarness());
+      await settle();
+
+      expect(it.linha?.stage, SalaStage.ensaio);
+      expect(
+        [for (final take in it.linha!.takes) take.takeId],
+        ['gravacao-1', 'gravacao-3'],
+      );
+    });
+
+    test('a cena gravada ali sobe acima da passada da sala', () async {
+      final it = await semAParteDois(SalaHarness());
+
+      expect(await aPassadaQueSobe(it, 2), 3);
+    });
+
+    test('gravar de novo outra linha nao perde a passada da sala', () async {
+      final it = await semAParteDois(SalaHarness());
+      await aPassadaQueSobe(it, 3);
+
+      expect(await aPassadaQueSobe(it, 2), 3);
+    });
+
+    test('gravar uma linha nova nao perde a passada de outra ainda por '
+        'gravar', () async {
+      final harness = SalaHarness();
+      harness.room
+        ..passageScenes = tresCenas
+        ..refuseClipOf.addAll(['gravacao-2', 'gravacao-3']);
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.ensaio,
+        naSala: salaComPassadas([1, 2, 4]),
+        contado: const BackTranslationProgress(),
+      );
+      await oEnsaioAbre(it);
+
+      expect(numerosDasPartes(it), [1]);
+      expect(await aPassadaQueSobe(it, 2), 3);
+      expect(await aPassadaQueSobe(it, 3), 5);
+    });
+
+    test(
+      'reabrir o app antes de gravar a linha nao perde a passada da sala',
+      () async {
+        final it = await semAParteDois(SalaHarness());
+        await settle();
+
+        final volta = await _reabrirDeNovo(it);
+        await oEnsaioAbre(volta);
+
+        expect(numerosDasPartes(volta), [1, 3]);
+        expect(await aPassadaQueSobe(volta, 2), 3);
+      },
+    );
+
+    test('o que a equipe faz depois continua guardado na linha', () async {
+      final it = await semAParteDois(SalaHarness());
+      await aPassadaQueSobe(it, 2);
+      await settle();
+
+      expect(it.linha?.takes, hasLength(3));
+      expect(it.linha?.passesToGoAbove, isEmpty);
+    });
+
+    test('a cena gravada ali, ainda na fila, volta do tablet na proxima '
+        'abertura', () async {
+      final harness = SalaHarness()
+        ..room.unreachableTake = 'ensaio/${KeptScope.parte(2)}';
+      final it = await semAParteDois(harness);
+      await gravarACena(it, 2);
+      await settle();
+
+      final volta = await _reabrirDeNovo(it);
+      await oEnsaioAbre(volta);
+
+      expect(numerosDasPartes(volta), [1, 2, 3]);
+    });
+  });
+
+  test('uma correcao guardada ao lado das partes nao conta como parte: a cena '
+      'por gravar ainda sobe acima da passada da sala', () async {
+    final harness = SalaHarness()..room.passageScenes = tresCenas;
+    final casa = Directory.systemTemp.createTempSync('sala-1355-correcao');
+    addTearDown(() => casa.deleteSync(recursive: true));
+    String arquivo(String nome) {
+      final caminho = '${casa.path}/$nome.m4a';
+      File(caminho).writeAsBytesSync([1, 2, 3]);
+      harness.playback.lengths[caminho] = _parte;
+      return caminho;
+    }
+
+    harness.playback.measured = _parte;
+    harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+      sessionId: _sessao,
+      stage: SalaStage.ensaio,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: arquivo('p1'),
+          takeId: 'gravacao-1',
+        ),
+        KeptTake(
+          scopeId: KeptScope.parte(3),
+          path: arquivo('p3'),
+          takeId: 'gravacao-3',
+        ),
+        KeptTake(
+          scopeId: 'trecho-1',
+          path: arquivo('correcao'),
+          takeId: 'gravacao-4',
+        ),
+      ],
+      passesToGoAbove: const {2: 2},
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final it = _Retomada(harness, container, const [], '');
+    await it.sala.abrirEscolha();
+    await settle();
+    unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
+    await oEnsaioAbre(it);
+
+    expect(await aPassadaQueSobe(it, 2), 3);
+  });
+
+  test(
+    'uma linha do ensaio sem nenhuma parte abre o ensaio, nao a conversa',
+    () async {
+      final harness = SalaHarness()
+        ..room.passageScenes = tresCenas
+        ..room.refuseClipOf.addAll(['gravacao-1', 'gravacao-2', 'gravacao-3']);
+      final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+      await oEnsaioAbre(it);
+      await settle();
+      expect(it.linha?.takes, isEmpty);
+
+      final volta = await _reabrirDeNovo(it);
+      await oEnsaioAbre(volta);
+
+      expect(volta.estado.partes, isEmpty);
+    },
+  );
+
+  test('uma parte que a sala recusa por outro motivo volta a escolha e guarda '
+      'a linha', () async {
+    final harness = SalaHarness()
+      ..room.failClipWith = const Refused(RefusalCode.forbidden);
+
+    final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+    await _deVoltaAEscolha(it);
+
+    expect(it.estado.needsPerson, isFalse);
+    expect(it.linhaAgora, it.linhaAntes);
   });
 
   test(
     'na segunda abertura com a sala de volta a equipe cai onde parou',
     () async {
-      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+      final harness = SalaHarness()
+        ..room.failClipWith = const NetworkFailed('a rede caiu');
 
       final parada = await _reabrir(
         harness,
         parouEm: SalaStage.retro,
         contado: _contado([1, 2]),
       );
-      await waitFor(
-        'a sala chamar uma pessoa',
-        () => parada.estado.needsPerson,
-      );
+      await _deVoltaAEscolha(parada);
 
-      harness.room.refuseClipOf.clear();
-      harness.room.theDeskAttended();
+      harness.room.failClipWith = null;
       final volta = await _reabrirDeNovo(parada);
       await waitFor(
         'a retro voltar',
@@ -471,8 +711,8 @@ void main() {
     },
   );
 
-  /// A passage reopened into a room the server is still holding, with parts 1 and 2 told
-  /// back whole and part 3 never told.
+  /// A passage reopened into a room the server says needs a person, with parts 1 and 2
+  /// told back whole and part 3 never told.
   Future<_Retomada> aRetomadaParada(SalaHarness harness) async {
     final it = await _reabrir(
       harness,
@@ -480,7 +720,6 @@ void main() {
       aindaNoTablet: {1, 2, 3},
       contado: _contado([1, 2]),
     );
-    await waitFor('a sala parar ao reabrir', () => it.estado.needsPerson);
     await waitFor(
       'a entrada medir o ensaio',
       () => it.estado.btFimDasPartesMs.length == 3,
@@ -488,172 +727,68 @@ void main() {
     return it;
   }
 
-  test('uma retomada numa sala parada mede o ensaio e nao toca nada', () async {
+  test('uma retomada numa sala que o servidor diz parada nao mostra o sinal e '
+      'poe no ar a parte por contar', () async {
+    final harness = SalaHarness()
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.blocking;
+    final it = await aRetomadaParada(harness);
+    await waitFor('a parte entrar no ar', () => it.estado.btClipRodando);
+
+    expect(
+      it.estado.needsPerson,
+      isFalse,
+      reason: 'uma leitura da sessão nunca levanta o sinal (ADR 0093)',
+    );
+    expect(
+      it.estado.btFimDasPartesMs,
+      [10000, 20000, 30000],
+      reason: 'a entrada mede o ensaio inteiro antes de pôr uma parte no ar',
+    );
+    expect(harness.playback.played, [it.estado.partes[2].path]);
+    expect(
+      it.estado.partes[2].takeId,
+      'gravacao-3',
+      reason: 'e e a primeira parte com chao por contar, nao a parte 1',
+    );
+  });
+
+  test('uma retomada numa sala que o servidor diz parada conta o que a equipe '
+      'ja ouvira das partes contadas', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
       ..room.serverHalt = HaltKind.blocking;
     final it = await aRetomadaParada(harness);
 
-    expect(
-      it.estado.needsPerson,
-      isTrue,
-      reason: 'a parada e do servidor e so a mesa a levanta (ADR 0009)',
+    await waitFor('a parte entrar no ar', () => it.estado.btClipRodando);
+    harness.playback
+      ..length = _parte
+      ..at = _parte
+      ..finishPlayback();
+    await waitFor('a terceira parte acabar', () => it.estado.btClipEnded);
+    await it.sala.finishBackTranslation();
+    await waitFor(
+      'a sala responder ao terminei',
+      () => harness.room.playedByTakeSent.isNotEmpty,
     );
+
+    final relato = {
+      for (final parte in harness.room.playedByTakeSent.last)
+        parte['take_id']! as String: (parte['played_ranges']! as List)
+            .cast<List<int>>(),
+    };
     expect(
-      harness.playback.played,
-      isEmpty,
-      reason:
-          'uma parada que bloqueia nao toca nada: por o ensaio no ar '
-          'cala a sala pelo caminho, e corta a unica chamada por uma pessoa',
-    );
-    expect(
-      it.estado.btPhase,
-      BtPhase.playing,
-      reason: 'e a sala nao fica presa a pensar: a medicao acabou',
-    );
-    expect(
-      it.estado.btFimDasPartesMs,
-      [10000, 20000, 30000],
-      reason:
-          'a entrada mede o ensaio inteiro mesmo parada, para o colar ja '
-          'estar desenhado quando a mesa soltar a equipe',
-    );
-  });
-
-  test(
-    'a mesa a soltar poe no ar a parte que a entrada tinha escolhido',
-    () async {
-      final harness = SalaHarness()
-        ..room.serverStatus = 'needs_person'
-        ..room.serverHalt = HaltKind.blocking;
-      final it = await aRetomadaParada(harness);
-
-      harness.room.theDeskAttended();
-      await waitFor('a mesa soltar a parada', () => !it.estado.needsPerson);
-      await waitFor('a parte entrar no ar', () => it.estado.btClipRodando);
-
-      expect(
-        harness.playback.played,
-        [it.estado.partes[2].path],
-        reason:
-            'sem gesto nenhum: a entrada so reteve o som, e soltar a parada '
-            'e o que a acaba. A sala parada na tradução sem clipe nenhum '
-            'deixava a tesoura passar por todos os guardas e cortar sobre o '
-            'silencio',
-      );
-      expect(
-        it.estado.partes[2].takeId,
-        'gravacao-3',
-        reason: 'e e a primeira parte com chao por contar, nao a parte 1',
-      );
-    },
-  );
-
-  test(
-    'a parada nao apaga o que a equipe ja ouvira das partes contadas',
-    () async {
-      final harness = SalaHarness()
-        ..room.serverStatus = 'needs_person'
-        ..room.serverHalt = HaltKind.blocking;
-      final it = await aRetomadaParada(harness);
-
-      harness.room.theDeskAttended();
-      await waitFor('a mesa soltar a parada', () => !it.estado.needsPerson);
-      await waitFor('a parte entrar no ar', () => it.estado.btClipRodando);
-      harness.playback
-        ..length = _parte
-        ..at = _parte
-        ..finishPlayback();
-      await waitFor('a terceira parte acabar', () => it.estado.btClipEnded);
-      await it.sala.finishBackTranslation();
-      await waitFor(
-        'a sala responder ao terminei',
-        () => harness.room.playedByTakeSent.isNotEmpty,
-      );
-
-      final relato = {
-        for (final parte in harness.room.playedByTakeSent.last)
-          parte['take_id']! as String: (parte['played_ranges']! as List)
-              .cast<List<int>>(),
-      };
-      expect(
-        relato['gravacao-1'],
-        [
-          [0, 10000],
-        ],
-        reason:
-            'a parada reteve o som e mais nada: o que a equipe ja ouvira '
-            'continua a entrar no registro, ou o terminei era recusado por partes '
-            'que ela ouviu na rodada anterior',
-      );
-      expect(relato['gravacao-2'], [
+      relato['gravacao-1'],
+      [
         [0, 10000],
-      ]);
-    },
-  );
-
-  test(
-    'o toque longo depois de uma busca parada tenta a retomada de novo',
-    () async {
-      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
-
-      final it = await _reabrir(
-        harness,
-        parouEm: SalaStage.retro,
-        contado: _contado([1, 2]),
-      );
-      await waitFor('a sala chamar uma pessoa', () => it.estado.needsPerson);
-
-      // A pessoa chegou, olhou e liberou a sala na mesa; a rede voltou com ela.
-      it.harness.room
-        ..refuseClipOf.clear()
-        ..theDeskAttended();
-      it.sala.resolveWithPerson();
-      await waitFor('a retro voltar', () => it.estado.stage == SalaStage.retro);
-
-      expect(
-        _nomesDasPartes(it),
-        ['gravacao-1', 'gravacao-2', 'gravacao-3'],
-        reason:
-            'soltar a equipe na conversa desta mesma sessão é pô-la a '
-            'gravar um ensaio novo por cima do que a sala guarda — o mal que '
-            'este ticket existe para impedir',
-      );
-      expect(it.estado.btTrechos, hasLength(2));
-    },
-  );
-
-  test('o toque longo com a sala ainda fora chama uma pessoa de novo', () async {
-    // O mesmo link morto que recusa a parte também recusa o pedido de uma
-    // pessoa, então não há vigia de sala nenhum e o toque longo é a solta
-    // local — que é o caminho em que a equipe cairia na conversa desta sessão.
-    final harness = SalaHarness()
-      ..room.refuseClipOf.add('gravacao-2')
-      ..room.askForAPersonFailsWith = const NetworkFailed('sem rede');
-
-    final it = await _reabrir(
-      harness,
-      parouEm: SalaStage.retro,
-      contado: _contado([1, 2]),
-    );
-    await waitFor('a sala chamar uma pessoa', () => it.estado.needsPerson);
-
-    it.sala.resolveWithPerson();
-    await settle(const Duration(milliseconds: 400));
-
-    expect(
-      it.estado.needsPerson,
-      isTrue,
+      ],
       reason:
-          'a sala continua sem entregar a parte, então a saída continua '
-          'sendo a mesma: uma pessoa',
+          'o que a equipe ja ouvira continua a entrar no registro, ou o '
+          'terminei era recusado por partes que ela ouviu na rodada anterior',
     );
-    expect(
-      it.linhaAgora,
-      it.linhaAntes,
-      reason: 'e o ponto de retomada continua intacto para a próxima vez',
-    );
-    expect(it.harness.room.calls, isNot(contains('openSession')));
+    expect(relato['gravacao-2'], [
+      [0, 10000],
+    ]);
   });
 
   test('um link lento mas vivo entrega as partes sem chamar ninguem', () async {
@@ -679,26 +814,29 @@ void main() {
   });
 
   test(
-    'uma parte que nunca chega chama uma pessoa e o pouso nao a apaga',
+    'uma parte que passa do teto solta a espera e nao chama ninguem',
     () async {
       final harness = SalaHarness(
         busyCeiling: const Duration(milliseconds: 200),
       )..room.holdNextClip();
 
       final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
-      await waitFor('o vigia chamar uma pessoa', () => it.estado.needsPerson);
+      await waitFor(
+        'o vigia soltar a espera',
+        () => !it.estado.awaitingTheGuide,
+      );
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason:
+            'uma espera sem turno no ar que passa do teto é solta, e '
+            'ninguém é chamado',
+      );
 
       it.harness.room.finishHeldClip();
       await settle(const Duration(milliseconds: 500));
 
-      expect(
-        it.estado.needsPerson,
-        isTrue,
-        reason:
-            'a espera pela parte estourou o teto e alguém foi chamado; '
-            'pousar por cima disso deixa a equipe a trabalhar dentro de uma '
-            'sala que já parou, com o chamado de pé e ninguém a caminho',
-      );
+      expect(it.estado.needsPerson, isFalse);
       expect(
         it.linhaAgora,
         it.linhaAntes,
@@ -718,7 +856,7 @@ void main() {
         case _Falha.aLista:
           harness.room.failTakesWith = const Refused('UNKNOWN_REFERENCE');
         case _Falha.umaParte:
-          harness.room.refuseClipOf.add('gravacao-2');
+          harness.room.failClipWith = const NetworkFailed('a rede caiu');
       }
 
       final it = await _reabrir(
@@ -730,7 +868,8 @@ void main() {
         'a retomada assentar',
         () => falha == _Falha.nenhuma
             ? it.estado.partes.length == 3
-            : it.estado.needsPerson,
+            : it.harness.room.calls.contains('takesOf') &&
+                  it.estado.stage == SalaStage.escolha,
       );
       await settle();
 

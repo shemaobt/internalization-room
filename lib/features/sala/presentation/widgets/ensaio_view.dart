@@ -10,6 +10,7 @@ import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
+import 'stage_heading.dart';
 
 class EnsaioView extends ConsumerWidget {
   const EnsaioView({super.key});
@@ -26,25 +27,18 @@ class EnsaioView extends ConsumerWidget {
       language,
     );
 
-    return SizedBox.expand(
+    final scrolling = SizedBox.expand(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
           children: [
-            SizedBox(height: 24 + MediaQuery.viewPaddingOf(context).top),
-            Semantics(
-              header: true,
-              label: titulo,
-              child: ExcludeSemantics(
-                child: Text(
-                  titulo,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: colors.ink,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+            StageHeading(
+              stage: SalaStage.ensaio,
+              text: titulo,
+              style: TextStyle(
+                color: colors.ink,
+                fontSize: 26,
+                fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 8),
@@ -166,6 +160,7 @@ class EnsaioView extends ConsumerWidget {
         ),
       ),
     );
+    return SafeArea(bottom: false, child: scrolling);
   }
 
   VoiceState _voice(SalaSessionState session) {

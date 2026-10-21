@@ -121,7 +121,6 @@ Future<void> _chooseP01(_Sala sala, RoomFailure creation) async {
 
 void _restsWithoutAHalt(_Sala sala) {
   expect(_read(sala).needsPerson, isFalse);
-  expect(sala.harness.room.deviceAsksReceived, isEmpty);
   expect(byLabel(_tryAgain), findsOneWidget);
 }
 
@@ -395,9 +394,7 @@ void main() {
     await _until(
       sala,
       'the call for a person',
-      () =>
-          harness.room.personAsksFor.isNotEmpty ||
-          harness.room.deviceAsksReceived.isNotEmpty,
+      () => harness.room.personAsksFor.isNotEmpty,
     );
     return harness.room.sessionIds.single;
   }
@@ -413,7 +410,6 @@ void main() {
       final panorama = await aHaltInThePanoramaCalledFor(sala);
 
       expect(sala.harness.room.personAsksFor, [panorama]);
-      expect(sala.harness.room.deviceAsksReceived, isEmpty);
 
       sala.harness.room.theDeskAttended();
       await _until(
@@ -421,7 +417,6 @@ void main() {
         'the Desk\'s lift to reach the tablet',
         () => !_read(sala).needsPerson,
       );
-      expect(sala.harness.room.deviceAsksReceived, isEmpty);
       closeTheRoom(sala.container);
     },
   );

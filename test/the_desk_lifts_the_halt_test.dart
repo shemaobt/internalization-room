@@ -1,11 +1,6 @@
-import 'dart:io';
-
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -24,56 +19,28 @@ Future<void> _aTurn(SalaSessionNotifier notifier) async {
   await settle();
 }
 
-/// A tablet closed part-way through a passage and opened again on it.
-Future<ProviderContainer> _reopensInto(
+/// A spoken turn the room refuses: the person sign, and the call that tells the server.
+Future<void> _aTurnTheRoomRefuses(
   SalaHarness harness,
-  SalaStage parouEm,
+  SalaSessionNotifier notifier,
+  SalaSessionState Function() read,
 ) async {
-  final gravada = File(
-    '${Directory.systemTemp.createTempSync('sala-609').path}/p1.m4a',
-  )..writeAsBytesSync([1, 2, 3]);
-  addTearDown(() => gravada.parent.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: parouEm,
-    takes: [
-      KeptTake(
-        scopeId: KeptScope.parte(1),
-        path: gravada.path,
-        takeId: 'gravacao-1',
-      ),
-    ],
-  );
-  harness.room.retroSoFar = const BackTranslationProgress(
-    segments: [
-      SegmentView(
-        segmentId: 'trecho-1',
-        takeId: 'gravacao-1',
-        startsMs: 0,
-        endsMs: 12000,
-      ),
-    ],
-  );
-  final container = harness.container();
-  final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-  await settle();
-  return container;
+  harness.room.failTurnsWith = const Refused('BAD_REQUEST');
+  await _aTurn(notifier);
+  await waitFor('a sala parar', () => read().needsPerson);
+  await waitFor('o pedido chegar à mesa', () => harness.room.personsAsked > 0);
+  harness.room.failTurnsWith = null;
 }
 
 void main() {
   test('the desk lifting the halt gives the room back without a touch', () async {
-    final harness = SalaHarness()
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.blocking;
+    final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await waitFor('a sala parar', () => read().needsPerson);
+    await _aTurnTheRoomRefuses(harness, notifier, read);
     final asked = stateReads(harness);
     final turns = harness.room.turnsSent;
 
@@ -111,15 +78,13 @@ void main() {
     () async {
       // A cadence far longer than any answer the fake gives, so that what the touch does
       // is measured by the touch and not by the next beat of the watch arriving under it.
-      final harness = SalaHarness(settleDelay: const Duration(seconds: 5))
-        ..room.serverStatus = 'needs_person'
-        ..room.serverHalt = HaltKind.blocking;
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 5));
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
-      await waitFor('a sala parar', () => read().needsPerson);
+      await _aTurnTheRoomRefuses(harness, notifier, read);
       final asked = stateReads(harness);
 
       notifier.resolveWithPerson();
@@ -251,13 +216,12 @@ void main() {
   });
 
   test('the watch outlives the lift and ends with the room', () async {
-    final harness = SalaHarness(watchesWithoutAHalt: true)
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.blocking;
+    final harness = SalaHarness(watchesWithoutAHalt: true);
     final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await waitFor('a sala parar', () => read().needsPerson);
+    await _aTurnTheRoomRefuses(harness, notifier, read);
     harness.room.theDeskAttended();
     await waitFor('a sala soltar', () => !read().needsPerson);
 
@@ -265,14 +229,6 @@ void main() {
     await waitFor(
       'a vigia seguir lendo a sessão solta',
       () => stateReads(harness) > afterRelease + 1,
-    );
-
-    harness.room
-      ..serverStatus = 'needs_person'
-      ..serverHalt = HaltKind.blocking;
-    await waitFor(
-      'a parada que só o servidor escreveu parar a sala, sem gesto',
-      () => read().needsPerson,
     );
 
     final beforeDispose = stateReads(harness);
@@ -286,32 +242,6 @@ void main() {
           'a sala fechada não vigia nada: o tablet guardado seguiria '
           'perguntando por uma sessão que ninguém está olhando',
     );
-  });
-
-  test('a room reopened into a halt is watched like any other', () async {
-    final harness = SalaHarness()
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.blocking;
-    final container = await _reopensInto(harness, SalaStage.retro);
-    addTearDown(container.dispose);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    await waitFor('a sala parar ao reabrir', () => read().needsPerson);
-    final asked = stateReads(harness);
-
-    harness.room.theDeskAttended();
-
-    await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
-
-    expect(
-      stateReads(harness),
-      greaterThan(asked),
-      reason:
-          'reabrir dentro de uma parada é a situação mais comum de todas: '
-          'a equipe volta na manhã seguinte, a mesa já atendeu, e sem vigia a '
-          'sala só sairia dali por um toque que ninguém sabe dar',
-    );
-    expect(read().needsPerson, isFalse);
   });
 
   test('leaving the passage takes the watch with it', () async {
@@ -360,53 +290,4 @@ void main() {
           'e a resposta que soltar a equipe será sobre o trabalho de outra',
     );
   });
-
-  test(
-    'a watched halt that goes offline is watched again when the room returns',
-    () async {
-      // A cadence wide enough to hold a turn in the air across the settle that stops the
-      // room: every gesture is barred once it is stopped, so a call already in flight is
-      // the only way a stopped room reaches the offline circle at all.
-      final harness = SalaHarness(settleDelay: const Duration(seconds: 2));
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-
-      harness.room.holdNextTurn();
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-      harness.room.serverStatus = 'needs_person';
-      harness.room.serverHalt = HaltKind.blocking;
-
-      await waitFor('a sala parar com o turno no ar', () => read().needsPerson);
-      await waitFor('a vigia reler o estado', () => stateReads(harness) > 1);
-
-      harness.room.failStateOnceWith = const NetworkFailed('sem rede');
-      await waitFor('a sala cair', () => read().unreachable);
-      await waitFor('a sala voltar', () => !read().unreachable);
-      harness.room.finishHeldTurn();
-
-      // The room is up again and the server is still holding the halt, so the next turn
-      // stops the team once more — this time in a room that has been offline under it.
-      await _aTurn(notifier);
-      await waitFor('a sala parar de novo', () => read().needsPerson);
-      final asked = stateReads(harness);
-      harness.room.theDeskAttended();
-
-      await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
-
-      expect(
-        stateReads(harness),
-        greaterThan(asked),
-        reason:
-            'a queda levou o timer da vigia e deixou a marca dela de pé: a '
-            'sala voltava parada e sem vigia nenhuma, e a marca da mesa não '
-            'chegava mais nela — só um toque longo, que é o gesto que esta '
-            'fatia existe para tirar do caminho',
-      );
-    },
-  );
 }

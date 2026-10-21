@@ -84,6 +84,9 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
         lifecycle == AppLifecycleState.paused) {
       _replyWatch?.cancel();
     }
+    if (lifecycle == AppLifecycleState.paused) {
+      ref.read(salaSessionProvider.notifier).theAppWentAway();
+    }
     if (lifecycle == AppLifecycleState.resumed &&
         ref.read(deviceLinkProvider).linked) {
       unawaited(_openRoom());
@@ -154,6 +157,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
             Positioned.fill(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 1400),
+                layoutBuilder: _oneOfEachStage,
                 child: KeyedSubtree(
                   key: ValueKey(session.stage),
                   child: _stageView(session.stage),
@@ -174,6 +178,15 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _oneOfEachStage(Widget? current, List<Widget> fading) {
+    final seen = <Key?>{};
+    final kept = fading.reversed.where((view) => seen.add(view.key)).toList();
+    return Stack(
+      alignment: Alignment.center,
+      children: [...kept.reversed, ?current],
     );
   }
 

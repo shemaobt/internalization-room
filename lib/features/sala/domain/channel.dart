@@ -20,9 +20,8 @@ enum LineKind {
 
 final class Source {
   final String key;
-  final bool counts;
 
-  const Source._(this.key, {this.counts = true});
+  const Source._(this.key);
 
   static const guide = Source._('guide');
 
@@ -30,16 +29,15 @@ final class Source {
 
   const Source.stretch(String key) : this._('stretch:$key');
 
-  const Source.reply(String id) : this._('reply:$id', counts: false);
+  const Source.reply(String id) : this._('reply:$id');
 
-  const Source.aside(String key) : this._('aside:$key', counts: false);
-
-  @override
-  bool operator ==(Object other) =>
-      other is Source && other.key == key && other.counts == counts;
+  const Source.aside(String key) : this._('aside:$key');
 
   @override
-  int get hashCode => Object.hash(key, counts);
+  bool operator ==(Object other) => other is Source && other.key == key;
+
+  @override
+  int get hashCode => key.hashCode;
 }
 
 typedef FixedLine = ({String name, String language});

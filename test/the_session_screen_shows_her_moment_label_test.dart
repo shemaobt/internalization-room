@@ -7,13 +7,11 @@ import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show stateReads;
 
 final _label = find.byWidgetPredicate(
   (widget) =>
@@ -264,23 +262,14 @@ void main() {
   testWidgets('the label goes while the screen calls for a person', (
     tester,
   ) async {
-    final (harness, container) = await _theOpeningSays(
+    final (_, container) = await _theOpeningSays(
       tester,
       const Moment(at: MomentAt.familiarization, parts: 3),
-      watching: true,
     );
     await tester.pump(const Duration(milliseconds: 400));
     expect(_opacity(tester), 1.0);
 
-    harness.room
-      ..serverStatus = 'needs_person'
-      ..serverHalt = HaltKind.blocking;
-    final reads = stateReads(harness);
-    await _pumpUntil(
-      tester,
-      () => stateReads(harness) != reads,
-      beat: const Duration(seconds: 1),
-    );
+    container.read(salaSessionProvider.notifier).haltForABrokenBuild();
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue);

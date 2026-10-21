@@ -324,7 +324,6 @@ void main() {
               generation: 4,
               door: door,
               rule: rule,
-              refusals: 2,
             ),
           );
           expect(
