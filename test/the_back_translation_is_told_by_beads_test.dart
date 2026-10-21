@@ -25,6 +25,7 @@ const cabeca = Duration(seconds: 4);
 const passaDoCursor = Duration(seconds: 1);
 
 const gravar = 'Tocar para gravar a tradução deste trecho';
+const ouvindo = 'ouvindo a gravação de vocês…';
 const pausadaNoToque =
     'a pausa ficou no toque — toquem no círculo para traduzir';
 const fimDaGravacao = 'fim da gravação';
@@ -1586,7 +1587,7 @@ void main() {
           .dy,
       169,
     );
-    expect(tester.getTopLeft(byLabel(gravar)), const Offset(330, 297));
+    expect(tester.getTopLeft(byLabel(ouvindo)), const Offset(330, 297));
     expect(
       tester.getTopLeft(byLabel(pausar)),
       const Offset(380, 473),
@@ -1608,7 +1609,7 @@ void main() {
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
 
-    expect(tester.getRect(byLabel(gravar)).size, const Size(160, 160));
+    expect(tester.getRect(byLabel(ouvindo)).size, const Size(160, 160));
     expect(tester.getRect(byLabel(conferir)).size, const Size(78, 78));
     closeTheRoom(container);
   });
@@ -1619,7 +1620,7 @@ void main() {
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
 
-    expect(byLabel("Tap to record this stretch's translation"), findsOneWidget);
+    expect(byLabel('listening to your recording…'), findsOneWidget);
     expect(byLabel('Pause'), findsOneWidget);
     expect(byLabel('done'), findsOneWidget);
     expect(byLabel('part 1'), findsOneWidget);

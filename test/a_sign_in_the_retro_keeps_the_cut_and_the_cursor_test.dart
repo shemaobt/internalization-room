@@ -183,10 +183,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       expect(byLabel('Ouvir primeiro'), findsNothing);
-      expect(
-        byLabel('Tocar para gravar a tradução deste trecho'),
-        findsOneWidget,
-      );
+      expect(byLabel('ouvindo a gravação de vocês…'), findsOneWidget);
       closeTheRoom(container);
     },
   );

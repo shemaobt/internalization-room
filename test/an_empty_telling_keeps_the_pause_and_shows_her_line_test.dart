@@ -16,7 +16,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         conferir,
         entrarNaTraducao,
         fimDaGravacao,
-        gravar,
+        ouvindo,
         ouvir,
         parte,
         passaDoCursor,
@@ -189,7 +189,7 @@ void main() {
     expect(byLabel(linha), findsNothing);
     harness.playback.at = cabeca + passaDoCursor;
     await tester.pump(passaDoCursor);
-    expect(rotuloDoCirculo(tester), gravar);
+    expect(rotuloDoCirculo(tester), ouvindo);
     closeTheRoom(container);
   });
 
