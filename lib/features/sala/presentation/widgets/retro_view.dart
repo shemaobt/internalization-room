@@ -716,6 +716,7 @@ class RetroView extends ConsumerWidget {
     switch (session.btPhase) {
       case BtPhase.playing:
         if (session.btClipEnded &&
+            !session.btParteFronteira &&
             session.btTraducaoPendente == null &&
             session.btTrechoTraduzidoDeNovo == null) {
           return retroLabelFor('endOfTheRecording', language);

@@ -2,16 +2,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
+        cabeca,
+        conferir,
+        confirmar,
+        contarAteOFimDaParte,
         entrarNaTraducao,
         fimDaGravacao,
         gravar,
         gravarATraducao,
         parte,
+        ouvir,
         passaDoCursor,
         pausado,
         pausar,
+        tesoura,
         tocar;
 import 'the_pause_snaps_to_silence_test.dart'
     show entrarComAFala, rotuloDoCirculo, s;
@@ -137,6 +144,46 @@ void main() {
       rotuloDoCirculo(tester),
       gravar,
       reason: 'o fim de uma parte com outra depois dizia que a gravação acabou',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the end of a part the verdict sent them back to is not the end '
+      'of the recording while the next part is still offered', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+    final primeira = harness.room.takeIds.first;
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tocar(tester, ouvir);
+    await contarAteOFimDaParte(tester, harness);
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.room
+      ..verdictChecked = false
+      ..verdictUnheardTakeIds = [primeira];
+    await tester.tap(byLabel(conferir));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btClipEnded, isTrue);
+    expect(state.btParteFronteira, isTrue);
+    expect(
+      rotuloDoCirculo(tester),
+      'Ouvir primeiro',
+      reason:
+          'a parte que o veredito mandou ouvir dizia fim da gravação com a '
+          'parte seguinte ainda oferecida',
     );
     closeTheRoom(container);
   });
