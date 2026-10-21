@@ -61,4 +61,13 @@ void main() {
           '0,2 s depois, que conta 0,4 s',
     );
   });
+
+  test('a pausa at the tap near the end stays inside the part, even closer '
+      'than 0.2 s to the cursor', () {
+    expect(
+      pauseAtTheTap(s(9.95), s(9.85), s(10)),
+      s(9.9),
+      reason: 'o piso de 0,2 s empurrava a pausa para 10,05 s, além da parte',
+    );
+  });
 }

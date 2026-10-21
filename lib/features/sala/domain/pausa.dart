@@ -164,9 +164,11 @@ Duration nudgeThePause(
   return hi < lo ? null : (lo: lo, hi: hi);
 }
 
-Duration pauseAtTheTap(Duration tap, Duration cursor) {
-  final lo = cursor + _shortestStretch;
-  return tap < lo ? lo : tap;
+Duration pauseAtTheTap(Duration tap, Duration cursor, Duration? length) {
+  final floor = cursor + _shortestStretch;
+  if (length == null) return tap < floor ? floor : tap;
+  final hi = length - _endMargin;
+  return _clamp(tap, floor < hi ? floor : hi, hi);
 }
 
 Duration theMomentBefore(Duration pausa, Duration cursor) {

@@ -5661,7 +5661,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final ondeCabe = noFim ? null : _ondeAPausaCabe();
     state = state.copyWith(btPausaAjustavel: ondeCabe != null);
     if (noFim) return toque;
-    if (ondeCabe == null) return pauseAtTheTap(toque, _trechoStart);
+    if (ondeCabe == null) {
+      final medido = _tamanhoDaParteMs[_parteNoAr?.path];
+      return pauseAtTheTap(
+        toque,
+        _trechoStart,
+        medido == null ? null : Duration(milliseconds: medido),
+      );
+    }
     final (envelope, :lo, :hi) = ondeCabe;
     return placeThePause(envelope, toque, lo: lo, hi: hi);
   }
