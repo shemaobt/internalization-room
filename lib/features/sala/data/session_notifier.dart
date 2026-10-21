@@ -2731,7 +2731,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (await _room.takesOf(sessionId) case Answered(value: final guardadas)) {
       if (_abandoned(generation)) return;
       final partes = await _asPartesDaSala(
-        ResumePoint(sessionId: sessionId, stage: const Retro().stage),
+        sessionId,
         guardadas,
         const [],
         generation,
@@ -2885,7 +2885,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case NetworkFailed():
           if (_abandoned(generation)) return _Resume.abandoned;
           return _theResumeFell();
-        case Refused() when waiting.takes.isEmpty:
+        case final Refused refused when waiting.takes.isEmpty:
+          _decideAt(refused, door: Door.resume, rule: RefusalRule.passes);
           return _Resume.nothingToRestore;
         case final Refused refused:
           return _theResumeHalts(refused, generation);
