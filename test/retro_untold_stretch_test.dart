@@ -250,7 +250,7 @@ void main() {
   });
 
   testWidgets(
-    'um endereço que o tablet não conhece pede uma pessoa e não apaga nada',
+    'um endereço que o tablet não conhece não chama ninguém e não apaga nada',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await upToTwoUntoldHalves(tester, harness);
@@ -265,14 +265,16 @@ void main() {
       final depois = container.read(salaSessionProvider);
       expect(
         depois.needsPerson,
-        isTrue,
+        isFalse,
         reason:
-            'um endereço sem tradução na lista do tablet é uma pessoa, não '
-            'um recomeço',
+            'um endereço sem tradução na lista do tablet não é um dos seis '
+            'casos do sinal da pessoa, nem um recomeço',
       );
       expect([for (final take in depois.keptTakes) take.takeId], gravacoes);
       expect(depois.partes.length, antes.partes.length);
       expect(depois.stage, SalaStage.retro);
+      expect(depois.btPhase, isNot(BtPhase.thinking));
+      expect(depois.awaitingTheGuide, isFalse);
       closeTheRoom(container);
     },
   );

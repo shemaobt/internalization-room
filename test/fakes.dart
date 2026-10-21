@@ -1168,6 +1168,27 @@ class FakeRoom implements RoomRepository {
     segments.removeWhere((one) => one.takeId == takeId);
   }
 
+  final Set<String> _replacedTakes = {};
+
+  Duration? replacedTakeRefusalAfter;
+
+  void replaceThePart(String takeId) {
+    final old = takes.firstWhere((take) => take.takeId == takeId);
+    final id = 'gravacao-${takeIds.length + 1}';
+    takeIds.add(id);
+    takes.add(
+      TakeView(
+        takeId: id,
+        kind: old.kind,
+        scope: old.scope,
+        ordinal: old.ordinal,
+        pass: (old.pass ?? 1) + 1,
+      ),
+    );
+    takeAudio[id] = Uint8List.fromList(utf8.encode('áudio de $id'));
+    _replacedTakes.add(takeId);
+  }
+
   RoomFailure? failChunkWith;
 
   /// What the next stretches told back are answered with, in order, before the room
@@ -1227,6 +1248,10 @@ class FakeRoom implements RoomRepository {
   /// What the room answers about the telling-back, when a test wants to state it rather
   /// than build it up by telling stretches back.
   BackTranslationProgress? retroSoFar;
+
+  /// The approval the room says the session's draft stands under, on the open and on
+  /// every read.
+  ApprovedDraft? approvedDraft;
   String? verdictFindingSegmentId;
 
   /// Which place on the cord the analyst points at, when it points by place instead of by
@@ -1610,6 +1635,9 @@ class FakeRoom implements RoomRepository {
   /// What the next keeps answer, one each, before [failSceneWith] is read.
   final List<RoomFailure> sceneAnswersFirst = [];
 
+  /// What the next reads of the scene rehearsals' list answer, one each.
+  final List<RoomFailure> sceneListsAnswerFirst = [];
+
   /// The code a restart is refused with, when it is set.
   String? refuseRestartWith;
 
@@ -1658,6 +1686,9 @@ class FakeRoom implements RoomRepository {
     String sessionId,
   ) async {
     if (_guard('sceneRehearsalsOf') case final failure?) return failure;
+    if (sceneListsAnswerFirst.isNotEmpty) {
+      return sceneListsAnswerFirst.removeAt(0);
+    }
     final listed = List.of(sceneRehearsals);
     if (_holdTheNextSceneList) {
       _holdTheNextSceneList = false;
@@ -1773,9 +1804,16 @@ class FakeRoom implements RoomRepository {
     return Answered(restarted);
   }
 
-  /// Every frase this room was sent: its span, the attempt it names and its audio.
+  /// Every frase this room was sent: its span, the attempt it names, its audio and the
+  /// frase it replaces.
   final List<
-    ({int startsMs, int endsMs, String? afterRestart, Uint8List audio})
+    ({
+      int startsMs,
+      int endsMs,
+      String? afterRestart,
+      Uint8List audio,
+      String? replaces,
+    })
   >
   frasesKept = [];
 
@@ -1808,6 +1846,7 @@ class FakeRoom implements RoomRepository {
     required int startsMs,
     required int endsMs,
     String? afterRestart,
+    String? replaces,
   }) async {
     if (_guard('keepTheSceneFrase') case final failure?) return failure;
     final bytes = audio.readAsBytesSync();
@@ -1816,11 +1855,18 @@ class FakeRoom implements RoomRepository {
       endsMs: endsMs,
       afterRestart: afterRestart,
       audio: bytes,
+      replaces: replaces,
     ));
     await _holdingFrase?.future;
     if (_oneFraseHolds.isNotEmpty) await _oneFraseHolds.removeAt(0).future;
     for (final late in _frasesLandingLate) {
-      _keepAFrase(late.rehearsalId, late.bytes, late.startsMs, late.endsMs);
+      _keepAFrase(
+        late.rehearsalId,
+        late.bytes,
+        late.startsMs,
+        late.endsMs,
+        late.replaces,
+      );
     }
     _frasesLandingLate.clear();
     if (forgottenSessions.contains(sessionId)) {
@@ -1835,20 +1881,38 @@ class FakeRoom implements RoomRepository {
         bytes: bytes,
         startsMs: startsMs,
         endsMs: endsMs,
+        replaces: replaces,
       ));
       return lost;
     }
     if (lost != null && !frasesLandBeforeTheyFail) return lost;
-    final kept = _keepAFrase(rehearsalId, bytes, startsMs, endsMs);
+    final kept = _keepAFrase(rehearsalId, bytes, startsMs, endsMs, replaces);
     return lost ?? kept;
   }
 
-  /// The room's rule: the same bytes are the same frase, whatever their span.
+  /// The newest frase of the chain [replaces] begins, as the room resolves a frase that
+  /// names one already replaced.
+  static String? _theNewestOf(String? replaces, List<SceneFrase> frases) {
+    var head = replaces;
+    while (true) {
+      final next = frases
+          .where((frase) => frase.fraseId == head)
+          .firstOrNull
+          ?.replacedBy;
+      if (next == null) return head;
+      head = next;
+    }
+  }
+
+  /// The room's rule: the same bytes are the same frase, whatever their span. A frase
+  /// that names the one it replaces may lie over the newest of its chain, and the
+  /// replaced one stays as history.
   RoomAnswer<SceneRehearsalRecord> _keepAFrase(
     String rehearsalId,
     Uint8List bytes,
     int startsMs,
     int endsMs,
+    String? replaces,
   ) {
     final at = sceneRehearsals.indexWhere(
       (rehearsal) => rehearsal.rehearsalId == rehearsalId,
@@ -1859,11 +1923,13 @@ class FakeRoom implements RoomRepository {
       final heard = _fraseBytes[frase.fraseId];
       if (heard != null && _sameBytes(heard, bytes)) return Answered(old);
     }
+    final head = _theNewestOf(replaces, old.frases);
     final measured = old.durationMs;
     final overlaps =
         refusesOverlappingFrases &&
         old.currentFrases.any(
           (frase) =>
+              frase.fraseId != head &&
               frase.placedIn(const Duration(days: 1)) &&
               startsMs < frase.endsMs! &&
               endsMs > frase.startsMs!,
@@ -1886,7 +1952,15 @@ class FakeRoom implements RoomRepository {
       afterRestart: old.afterRestart,
       durationMs: old.durationMs,
       frases: [
-        ...old.frases,
+        for (final frase in old.frases)
+          frase.fraseId == head
+              ? SceneFrase(
+                  fraseId: frase.fraseId,
+                  startsMs: frase.startsMs,
+                  endsMs: frase.endsMs,
+                  replacedBy: fraseId,
+                )
+              : frase,
         SceneFrase(fraseId: fraseId, startsMs: startsMs, endsMs: endsMs),
       ],
     );
@@ -1904,7 +1978,15 @@ class FakeRoom implements RoomRepository {
 
   final Map<String, Uint8List> _fraseBytes = {};
 
-  final List<({String rehearsalId, Uint8List bytes, int startsMs, int endsMs})>
+  final List<
+    ({
+      String rehearsalId,
+      Uint8List bytes,
+      int startsMs,
+      int endsMs,
+      String? replaces,
+    })
+  >
   _frasesLandingLate = [];
 
   /// Whether a frase whose answer fails was kept by the room all the same, the way a
@@ -2005,13 +2087,23 @@ class FakeRoom implements RoomRepository {
         halt: serverHalt,
         opened: createdOpened,
         moment: nextMoment,
+        backTranslation: retroSoFar ?? const BackTranslationProgress(),
+        approved: approvedDraft,
       ),
     );
   }
 
+  Completer<void>? _holdingBooks;
+
+  /// Hold the next ask for the served books, the way a link that never answers holds it.
+  void holdNextBooks() => _holdingBooks = Completer<void>();
+
   @override
   Future<RoomAnswer<List<String>>> servedBooks() async {
     if (_guard('servedBooks') case final failure?) return failure;
+    final held = _holdingBooks;
+    _holdingBooks = null;
+    if (held != null) await held.future;
     return failBooksWith ?? Answered(books);
   }
 
@@ -2070,6 +2162,7 @@ class FakeRoom implements RoomRepository {
               segments: _numbered,
               awaitingSegmentId: awaitingSegmentId,
             ),
+        approved: approvedDraft,
       ),
     );
     if (_readsToHold > 0) {
@@ -2466,20 +2559,6 @@ class FakeRoom implements RoomRepository {
 
   /// Every device id the device-scoped ask was made for, one entry per attempt —
   /// including one that is about to fail, the way `calls` tracks `askForAPerson`.
-  final List<String> deviceAsksReceived = [];
-
-  /// What the next calls to the device-scoped ask throw, consumed in order. Separate
-  /// from `failWith` because a case has to fail this route without touching the
-  /// session-scoped one, and has to fail it a fixed number of times and then stop.
-  final List<RoomFailure> deviceAskFailures = [];
-
-  @override
-  Future<RoomAnswer<void>> askForAPersonWithoutASession(String deviceId) async {
-    deviceAsksReceived.add(deviceId);
-    if (deviceAskFailures.isNotEmpty) return deviceAskFailures.removeAt(0);
-    return const Answered(null);
-  }
-
   /// Which scope's upload to hold, and until when. Lets a test put a real gap between
   /// one take reaching the room and another guard() call finding the outbox already
   /// mid-flush — the overlap a slow network opens and a fast fake never does on its own.
@@ -2580,10 +2659,13 @@ class FakeRoom implements RoomRepository {
     return _theTurnAnswers(sessionId, turnId);
   }
 
+  /// Whether a turn is answered with nothing to play: no url and no fixed line.
+  bool answersTurnsWithoutAReply = false;
+
   TurnResult _turn(String sessionId) => TurnResult(
     sessionId: sessionId,
-    audioUrl: fixedLine.isEmpty ? turnoUrl : '',
-    fixedLine: fixedLine,
+    audioUrl: answersTurnsWithoutAReply || fixedLine.isNotEmpty ? '' : turnoUrl,
+    fixedLine: answersTurnsWithoutAReply ? '' : fixedLine,
     transcript: 'a equipe falou',
     peerCue: peerCue,
     usedFailSafe: turnsAreCanned,
@@ -2628,6 +2710,14 @@ class FakeRoom implements RoomRepository {
   }) async {
     final refusal = failChunkWith;
     if (refusal != null) return refusal;
+    if (_replacedTakes.contains(takeId)) {
+      final wait = replacedTakeRefusalAfter;
+      if (wait != null) await Future<void>.delayed(wait);
+      return const Refused(
+        RefusalCode.stretchNoLongerCounts,
+        'This stretch no longer counts',
+      );
+    }
     chunksSent++;
     chunkSpans.add('${from.inMilliseconds}-${to.inMilliseconds}');
     chunkTakes.add(takeId);
@@ -2735,6 +2825,28 @@ class FakeRoom implements RoomRepository {
         namedNuance: verdictNamedNuance,
       ),
     );
+  }
+
+  /// Every report the listen door was sent, in order, as [playedByTakeSent] keeps the
+  /// check's.
+  final List<List<Map<String, Object?>>> listeningReports = [];
+
+  /// The parts the listen door answers as still unheard. Null is an older room, whose
+  /// answer names none.
+  List<String>? listeningUnheardTakeIds;
+
+  RoomFailure? failListeningWith;
+
+  @override
+  Future<RoomAnswer<List<String>?>> reportTheListening(
+    String sessionId, {
+    required List<PlayedTake> playedByTake,
+  }) async {
+    listeningReports.add([for (final parte in playedByTake) parte.toJson()]);
+    final falha = failListeningWith;
+    if (falha != null) return falha;
+    if (!reachable) return const NetworkFailed('sem rede');
+    return Answered(listeningUnheardTakeIds);
   }
 
   final List<String> heardStamps = [];
@@ -3396,6 +3508,7 @@ class SalaHarness {
   final Duration clipGrace;
   final CaptureGuard captureGuard;
   final Duration fimLinger;
+  final Duration restartWake;
   final Duration restartLapse;
 
   /// Whether the outbox keeps its rows in memory instead of on disk. Opt-in, for widget
@@ -3432,6 +3545,7 @@ class SalaHarness {
       minBytes: 1,
     ),
     this.fimLinger = const Duration(seconds: 30),
+    this.restartWake = const Duration(milliseconds: 600),
     this.restartLapse = const Duration(seconds: 6),
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
@@ -3512,6 +3626,7 @@ class SalaHarness {
     clipGraceProvider.overrideWithValue(clipGrace),
     captureGuardProvider.overrideWithValue(captureGuard),
     fimLingerProvider.overrideWithValue(fimLinger),
+    restartWakeProvider.overrideWithValue(restartWake),
     restartLapseProvider.overrideWithValue(restartLapse),
     sceneEnvelopeReaderProvider.overrideWithValue(readTheEnvelope),
     if (inboxWatch case final every?)

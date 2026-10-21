@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
-import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -716,13 +715,7 @@ void main() {
     return container;
   }
 
-  Future<void> pararPorUmaPessoa(
-    WidgetTester tester,
-    SalaHarness harness,
-  ) async {
-    harness.room
-      ..serverStatus = 'needs_person'
-      ..serverHalt = HaltKind.blocking;
+  Future<void> esperarAParada(WidgetTester tester) async {
     await waitFor(
       'a tela da parada aparecer',
       () => byLabel('Um momento para uma pessoa').evaluate().isNotEmpty,
@@ -734,6 +727,14 @@ void main() {
         );
       },
     );
+  }
+
+  Future<void> pararPorUmaPessoa(
+    WidgetTester tester,
+    ProviderContainer container,
+  ) async {
+    container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+    await esperarAParada(tester);
   }
 
   testWidgets(
@@ -749,7 +750,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       await expectLater(
-        () => pararPorUmaPessoa(tester, harness),
+        () => esperarAParada(tester),
         throwsA(isA<TimeoutException>()),
         reason:
             'a espera devolvia depois de trinta segundos sem a parada ter '
@@ -759,20 +760,20 @@ void main() {
     },
   );
 
-  testWidgets('R2 — uma parada lida com o clipe tocando vence a madeira', (
+  testWidgets('R2 — uma parada com o clipe tocando vence a madeira', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await retomarComAviso(tester, harness);
 
-    await pararPorUmaPessoa(tester, harness);
+    await pararPorUmaPessoa(tester, container);
 
     expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
     expect(await olhar(tester), 'clay parado');
     closeTheRoom(container);
   });
 
-  testWidgets('R2 — uma parada lida com uma tradução tocando vence o azul', (
+  testWidgets('R2 — uma parada com uma tradução tocando vence o azul', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -786,7 +787,7 @@ void main() {
     await tocarAConta(tester, 1);
     expect(harness.playback.sounding, isTrue);
 
-    await pararPorUmaPessoa(tester, harness);
+    await pararPorUmaPessoa(tester, container);
 
     expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
     expect(await olhar(tester), 'clay parado');
@@ -866,8 +867,8 @@ void main() {
     await tocar(tester, retroLabelFor('pauseHere', 'en'));
     await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
     await tocar(tester, retroLabelFor('recording', 'en'));
-    harness.room.failChunkWith = const Refused('UNAUTHORIZED');
-    await tocar(tester, retroLabelFor('confirm', 'en'));
+    container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(
       tester.widget<FacilitatorCircle>(_circulo()).semanticLabel,
@@ -875,35 +876,6 @@ void main() {
     );
     closeTheRoom(container);
   });
-
-  testWidgets(
-    'R7 — going offline in the back-translation speaks the rooms language',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
-      final container = await entrarNaTraducao(tester, harness);
-
-      harness.playback.at = cabeca;
-      await tocar(tester, retroLabelFor('pauseHere', 'en'));
-      await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
-      await tocar(tester, retroLabelFor('recording', 'en'));
-      harness.room.chunkAnswersFirst.addAll(
-        List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
-      );
-      harness.network.reachable = false;
-      await tocar(tester, retroLabelFor('confirm', 'en'));
-      await waitFor(
-        'a sala ficar fora de alcance',
-        () => container.read(salaSessionProvider).unreachable,
-        step: () => tester.pump(const Duration(milliseconds: 100)),
-      );
-
-      expect(
-        tester.widget<FacilitatorCircle>(_circulo()).semanticLabel,
-        circleLabelFor('offline', 'en'),
-      );
-      closeTheRoom(container);
-    },
-  );
 
   testWidgets(
     'R8 — the circle thinking in the back-translation speaks the rooms '

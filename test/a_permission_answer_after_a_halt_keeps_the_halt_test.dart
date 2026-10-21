@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -49,7 +48,7 @@ Future<ProviderContainer> _reopensInto(
 
 /// A room reopened into the retro, with a warning already standing so the watch beats,
 /// and a capture open over the resumed part: the ground for a denied or failed answer
-/// landing over a read halt, or over nothing standing at all.
+/// landing over a halt standing, or over nothing standing at all.
 Future<(ProviderContainer, SalaSessionNotifier, SalaSessionState Function())>
 _capturingWithAWarningArmed(SalaHarness harness) async {
   harness.room.serverStatus = 'needs_person';
@@ -67,12 +66,13 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
   return (container, notifier, read);
 }
 
-/// Turn the standing warning blocking, and wait for the watch's next beat to find it.
+/// The person sign lands while the recorder's answer is still in the air: the build
+/// guard's, which calls nobody.
 Future<void> _haltLandsBlocking(
-  SalaHarness harness,
+  SalaSessionNotifier notifier,
   SalaSessionState Function() read,
 ) async {
-  harness.room.serverHalt = HaltKind.blocking;
+  notifier.haltForABrokenBuild();
   await waitFor('a sala parar', () => read().needsPerson);
 }
 
@@ -99,46 +99,14 @@ _ensaioWithAWarningArmed(SalaHarness harness) async {
   return (container, notifier, read);
 }
 
-/// Record one part and wait for the room to have named it.
-Future<void> _gravaParte(
-  ProviderContainer container,
-  SalaSessionNotifier notifier,
-) async {
-  final partesAntes = container.read(salaSessionProvider).partes.length;
-  notifier.ensaioTap();
-  notifier.ensaioTap();
-  await settle();
-  notifier.takeKeep();
-  await waitFor('a sala nomear a parte', () {
-    final partes = container.read(salaSessionProvider).partes;
-    return partes.length > partesAntes && partes.last.takeId != null;
-  });
-}
-
-/// The ordinary door into the retro, with no halt or warning standing — the ground for a
-/// halt the room decides on its own, whose ask for a person is still in flight when the
-/// answer lands, with no other watch already running.
-Future<ProviderContainer> _inRetro(SalaHarness harness) async {
-  final container = harness.container();
-  addTearDown(container.dispose);
-  final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa(book: 'Ruth');
-  await settle();
-  notifier.goEnsaio();
-  await _gravaParte(container, notifier);
-  notifier.startRetro();
-  await settle();
-  return container;
-}
-
 void main() {
   test('a blocking halt still stands after a denied answer lands late '
       '(criterion 1)', () async {
     final harness = SalaHarness(settleDelay: const Duration(seconds: 3));
     harness.recorder.permitted = false;
     harness.recorder.holdNextStart();
-    final (_, _, read) = await _capturingWithAWarningArmed(harness);
-    await _haltLandsBlocking(harness, read);
+    final (_, notifier, read) = await _capturingWithAWarningArmed(harness);
+    await _haltLandsBlocking(notifier, read);
     final soundsBefore = harness.sounds.length;
 
     harness.recorder.finishStart();
@@ -168,8 +136,8 @@ void main() {
     harness.recorder.permitted = true;
     harness.recorder.startThrows = true;
     harness.recorder.holdNextStart();
-    final (_, _, read) = await _capturingWithAWarningArmed(harness);
-    await _haltLandsBlocking(harness, read);
+    final (_, notifier, read) = await _capturingWithAWarningArmed(harness);
+    await _haltLandsBlocking(notifier, read);
     final personsAskedBefore = harness.room.personsAsked;
 
     harness.recorder.finishStart();
@@ -180,119 +148,12 @@ void main() {
       isTrue,
       reason:
           'a primeira falha do gravador não pode apagar uma parada de '
-          'pé — ela ainda é só a primeira tentativa da escada de três',
+          'pé — ela é só a primeira de duas falhas seguidas',
     );
     expect(
       harness.room.personsAsked,
       personsAskedBefore,
-      reason: 'uma parada que a sala só leu não chama ninguém',
-    );
-  });
-
-  test('a self-decided halt whose ask is still in flight survives a late '
-      'denied answer (criterion 3, no watch yet)', () async {
-    final harness = SalaHarness();
-    harness.room.holdNextAskForAPerson();
-    final container = await _inRetro(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    harness.recorder.returnsEmpty = true;
-    harness.recorder.permitted = false;
-    harness.recorder.holdNextStart();
-    harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
-    notifier.retroTap();
-    await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
-    notifier.retroTap();
-    await waitFor('a sala decidir sozinha', () => read().needsPerson);
-    expect(
-      harness.room.calls.where((call) => call == 'askForAPerson').length,
-      1,
-      reason: 'o pedido já foi disparado e está em voo, sem resposta ainda',
-    );
-
-    harness.recorder.finishStart();
-    await settle();
-
-    expect(
-      read().needsPerson,
-      isTrue,
-      reason:
-          'a resposta atrasada não pode apagar a parada que a própria '
-          'sala decidiu, enquanto o pedido por uma pessoa ainda está em '
-          'voo e nenhuma vigia corre ainda',
-    );
-
-    harness.room.finishHeldAskForAPerson();
-    await settle();
-    harness.room.theDeskAttended();
-    await waitFor(
-      'o círculo voltar ao convite',
-      () => !read().needsPerson && read().voice == VoiceState.invite,
-    );
-
-    expect(
-      harness.room.personsAsked,
-      1,
-      reason: 'nenhum segundo pedido foi disparado',
-    );
-  });
-
-  test('the retry ladder still insists after a late denied answer erases '
-      'the call that was in flight (criterion 3, the retry ladder)', () async {
-    final harness = SalaHarness();
-    harness.room.askForAPersonFailsWith = const NetworkFailed('sem rede');
-    harness.room.holdNextAskForAPerson();
-    final container = await _inRetro(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    harness.recorder.returnsEmpty = true;
-    harness.recorder.permitted = false;
-    harness.recorder.holdNextStart();
-    harness.playback.at = const Duration(seconds: 2);
-    notifier.cortarTrecho();
-    notifier.retroTap();
-    await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
-    notifier.retroTap();
-    await waitFor('a sala decidir sozinha', () => read().needsPerson);
-
-    // A resposta negada pousa enquanto o primeiro pedido ainda está preso no
-    // hold, antes de a falha correr e a escada decidir se insiste.
-    harness.recorder.finishStart();
-    await settle();
-
-    harness.room.finishHeldAskForAPerson();
-    await settle(Duration.zero);
-    harness.room.askForAPersonFailsWith = null;
-
-    await waitFor(
-      'a retentativa ser enviada e confirmada',
-      () =>
-          harness.room.calls.where((call) => call == 'askForAPerson').length ==
-          2,
-    );
-    await settle();
-
-    expect(
-      read().needsPerson,
-      isTrue,
-      reason:
-          'a escada tem de continuar insistindo depois da 1ª falha, '
-          'mesmo com a resposta negada tendo apagado a parada no meio do '
-          'caminho',
-    );
-    expect(
-      harness.room.personsAsked,
-      1,
-      reason: 'só a retentativa foi confirmada pelo servidor; a 1ª falhou',
-    );
-
-    harness.room.theDeskAttended();
-    await waitFor(
-      'o círculo voltar ao convite',
-      () => !read().needsPerson && read().voice == VoiceState.invite,
+      reason: 'uma única falha ao abrir o microfone não chama ninguém',
     );
   });
 
@@ -303,8 +164,8 @@ void main() {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 3));
       harness.recorder.permitted = false;
       harness.recorder.holdNextStart();
-      final (_, _, read) = await _ensaioWithAWarningArmed(harness);
-      await _haltLandsBlocking(harness, read);
+      final (_, notifier, read) = await _ensaioWithAWarningArmed(harness);
+      await _haltLandsBlocking(notifier, read);
 
       harness.recorder.finishStart();
       await settle();

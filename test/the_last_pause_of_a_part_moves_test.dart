@@ -525,53 +525,6 @@ void main() {
   );
 
   testWidgets(
-    'a room out of reach while the last frase is retold dims her controls and takes back «movam a pausa»',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true)
-        ..recorder.rehearsalSpeaks = _duasLacunas;
-      final container = await _duasFrasesNoVeredito(
-        tester,
-        harness,
-        apontada: 'trecho-1',
-      );
-      await tocar(tester, _barra(2));
-
-      harness.room.replaceAnswersFirst.addAll(
-        List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
-      );
-      harness.network.reachable = false;
-      await tocar(tester, 'Tocar para gravar a tradução de novo');
-      await tocar(tester, 'Tocar ao terminar');
-      await tocar(tester, confirmar);
-      await waitFor(
-        'a sala cair offline',
-        () => container.read(salaSessionProvider).offline,
-        step: () => _passo(tester),
-      );
-
-      for (final controle in [antes, ouvirAPausa, depois]) {
-        expect(
-          aceso(tester, controle),
-          isFalse,
-          reason: 'a pausa se movia com a sala fora de alcance: $controle',
-        );
-      }
-      expect(
-        find.text(
-          'traduzindo de novo a frase 2 — se precisar, movam a pausa; depois toquem no círculo',
-        ),
-        findsNothing,
-        reason: 'a tela dizia que a pausa se move com os controles apagados',
-      );
-      expect(
-        find.text('traduzindo de novo a frase 2 — toquem no círculo'),
-        findsOneWidget,
-      );
-      closeTheRoom(container);
-    },
-  );
-
-  testWidgets(
     'the findings retell after the bar of an earlier frase says the plain line again',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
@@ -916,12 +869,10 @@ void main() {
   }
 
   testWidgets(
-    'a refused move whose read-back finds no network takes the room out of reach',
+    'a refused move whose read-back finds no network leaves the room within reach',
     (tester) async {
-      final harness = SalaHarness(
-        filaEmMemoria: true,
-        retryBackoff: const [Duration(minutes: 1)],
-      )..recorder.rehearsalSpeaks = _duasLacunas;
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
       final container = await _duasFrasesEUmAchadoNa(
         tester,
         harness,
@@ -945,9 +896,13 @@ void main() {
 
       expect(
         container.read(salaSessionProvider).unreachable,
-        isTrue,
-        reason: 'a leitura das frases caía calada e a sala se dizia ao alcance',
+        isFalse,
+        reason:
+            'fora do caminho de entrada uma falha de rede não tira a sala do '
+            'alcance',
       );
+      expect(container.read(salaSessionProvider).offline, isFalse);
+      expect(container.read(salaSessionProvider).needsPerson, isFalse);
       closeTheRoom(container);
     },
   );

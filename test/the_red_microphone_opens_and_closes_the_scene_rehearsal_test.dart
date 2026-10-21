@@ -11,7 +11,6 @@ import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
@@ -785,15 +784,7 @@ void main() {
     final (harness, container) = await _inArticulation(tester, watching: true);
     _expectSeenAtRest(tester);
 
-    harness.room
-      ..serverStatus = 'needs_person'
-      ..serverHalt = HaltKind.blocking;
-    final reads = stateReads(harness);
-    await _pumpUntil(
-      tester,
-      () => stateReads(harness) != reads,
-      beat: const Duration(seconds: 1),
-    );
+    container.read(salaSessionProvider.notifier).haltForABrokenBuild();
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
@@ -1016,7 +1007,7 @@ void main() {
     const current = '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b';
 
     Future<SceneRoom> inPlacesUnknown() async {
-      final room = await atRest();
+      final room = await atRest(SalaHarness(restartWake: Duration.zero));
       room.harness.room.sceneRehearsals.add(
         _rehearsal(afterRestart: current, frases: [_frase('f1', 0, 12000)]),
       );
@@ -1033,14 +1024,14 @@ void main() {
       final room = await inPlacesUnknown();
       room.harness.room.failSceneWith = const NetworkFailed('sem rede');
 
-      room.sala.restartTheSceneTranslation();
+      await restartTheTranslationInTwoTaps(room);
       await waitFor(
         'o recomeço subir',
         () => room.harness.room.restartsSent.isNotEmpty,
       );
       await settle();
       room.harness.room.failSceneWith = null;
-      room.sala.restartTheSceneTranslation();
+      await restartTheTranslationInTwoTaps(room);
       await translateOpens(room);
 
       final sent = room.harness.room.restartsSent;
@@ -1060,7 +1051,7 @@ void main() {
           ..holdNextSceneList();
         final read = room.asked('sceneRehearsalsOf');
 
-        room.sala.restartTheSceneTranslation();
+        await restartTheTranslationInTwoTaps(room);
         await waitFor(
           'a primeira releitura ficar no ar',
           () =>
@@ -1073,7 +1064,7 @@ void main() {
             afterRestart: current,
             sentAt: '2026-10-14T10:00:00Z',
           );
-        room.sala.restartTheSceneTranslation();
+        await restartTheTranslationInTwoTaps(room);
         await waitFor(
           'o ensaio aparecer enviado',
           () => room.state.scene.step == SceneStep.sent,
@@ -1095,7 +1086,7 @@ void main() {
           sentAt: '2026-10-14T10:00:00Z',
         );
 
-      room.sala.restartTheSceneTranslation();
+      await restartTheTranslationInTwoTaps(room);
       await waitFor(
         'o ensaio aparecer enviado',
         () => room.state.scene.step == SceneStep.sent,
@@ -1111,7 +1102,7 @@ void main() {
         final room = await inPlacesUnknown();
         room.harness.room.holdNextRestart();
 
-        room.sala.restartTheSceneTranslation();
+        await restartTheTranslationInTwoTaps(room);
         await waitFor(
           'o recomeço subir',
           () => room.harness.room.restartsSent.isNotEmpty,
@@ -1134,7 +1125,7 @@ void main() {
           ..refuseRestartWith = RefusalCode.notFound
           ..sceneRehearsals.clear();
 
-        room.sala.restartTheSceneTranslation();
+        await restartTheTranslationInTwoTaps(room);
         await waitFor(
           'o recomeço subir',
           () => room.harness.room.restartsSent.isNotEmpty,
@@ -1147,12 +1138,12 @@ void main() {
       },
     );
 
-    test('a double tap on recomeçar sends one restart', () async {
+    test('arming twice and firing sends one restart', () async {
       final room = await inPlacesUnknown();
       room.harness.room.holdNextRestart();
 
-      room.sala.restartTheSceneTranslation();
-      room.sala.restartTheSceneTranslation();
+      await restartTheTranslationInTwoTaps(room);
+      await restartTheTranslationInTwoTaps(room);
       await waitFor(
         'o recomeço subir',
         () => room.harness.room.restartsSent.isNotEmpty,
@@ -1167,7 +1158,7 @@ void main() {
       final room = await inPlacesUnknown();
       room.harness.room.forgetTheSession(_session);
 
-      room.sala.restartTheSceneTranslation();
+      await restartTheTranslationInTwoTaps(room);
       await waitFor(
         'a sala voltar à Escolha',
         () => room.state.stage == SalaStage.escolha,
@@ -1180,7 +1171,7 @@ void main() {
       room.harness.room
         ..refuseRestartWith = RefusalCode.restartOutOfOrder
         ..holdNextSceneList();
-      room.sala.restartTheSceneTranslation();
+      await restartTheTranslationInTwoTaps(room);
       await waitFor(
         'a lista ser relida',
         () => room.asked('sceneRehearsalsOf') == 2,
@@ -1208,7 +1199,7 @@ void main() {
           ..refuseRestartWith = RefusalCode.restartOutOfOrder
           ..sceneRehearsals[0] = _rehearsal(afterRestart: landed);
 
-        room.sala.restartTheSceneTranslation();
+        await restartTheTranslationInTwoTaps(room);
         await translateOpens(room);
 
         expect(room.state.scene.rehearsal?.afterRestart, landed);
@@ -1332,7 +1323,7 @@ void main() {
     });
 
     test('a network failure on recomeçar stays on places unknown', () async {
-      final room = await atRest();
+      final room = await atRest(SalaHarness(restartWake: Duration.zero));
       room.harness.room.sceneRehearsals.add(
         _rehearsal(frases: [_frase('f1', 0, 12000)]),
       );
@@ -1344,7 +1335,7 @@ void main() {
       );
       room.harness.room.failSceneWith = const NetworkFailed('sem rede');
 
-      room.sala.restartTheSceneTranslation();
+      await restartTheTranslationInTwoTaps(room);
       await waitFor(
         'o recomeço subir',
         () => room.harness.room.restartsSent.isNotEmpty,

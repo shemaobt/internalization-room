@@ -38,6 +38,10 @@ class ResumePoint {
   /// for a row written before this field existed.
   final int? partBeingRecordedAgain;
 
+  /// For each part number the team has yet to record where the room's part is gone, the
+  /// room's pass for it, so the recording goes up above it. Empty for any other row.
+  final Map<int, int> passesToGoAbove;
+
   const ResumePoint({
     required this.sessionId,
     required this.stage,
@@ -45,6 +49,7 @@ class ResumePoint {
     this.savedAt,
     this.language,
     this.partBeingRecordedAgain,
+    this.passesToGoAbove = const {},
   });
 
   Map<String, Object?> toJson() => {
@@ -53,6 +58,11 @@ class ResumePoint {
     'saved_at': ?savedAt?.millisecondsSinceEpoch,
     'language': ?language,
     'part_being_recorded_again': ?partBeingRecordedAgain,
+    if (passesToGoAbove.isNotEmpty)
+      'passes_to_go_above': {
+        for (final MapEntry(:key, :value) in passesToGoAbove.entries)
+          '$key': value,
+      },
     'takes': [
       for (final take in takes)
         {
@@ -82,6 +92,12 @@ class ResumePoint {
           : null,
       language: json['language'] as String?,
       partBeingRecordedAgain: json['part_being_recorded_again'] as int?,
+      passesToGoAbove: {
+        for (final MapEntry(:key, :value)
+            in (json['passes_to_go_above'] as Map? ?? const {}).entries)
+          if (int.tryParse('$key') case final numero? when value is int)
+            numero: value,
+      },
       takes: [
         for (final raw in (json['takes'] as List? ?? const []))
           if (raw is Map)

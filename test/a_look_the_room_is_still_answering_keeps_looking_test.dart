@@ -6,7 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
@@ -642,15 +645,42 @@ void main() {
     },
   );
 
-  group('the resumed look waits for the reach', () {
-    Future<(SalaHarness, SalaSessionState Function())> liftedOutOfReach({
+  group('a look a halt held back', () {
+    const turn = Turn('sessao-1', 'turno-7');
+    const held = Machine(
+      station: Canvas(),
+      session: 'sessao-1',
+      halt: Blocking(NothingKept()),
+      look: TheLook(turn, asked: false, suspended: true),
+    );
+
+    test('goes out at the lift with the room within reach', () {
+      final (_, effects) = reduce(held, const LongPress(somebodyToAsk: false));
+
+      expect(effects, contains(const LookAtTheSession(turn)));
+    });
+
+    test(
+      'lifted out of reach, waits for the room and goes out on its return',
+      () {
+        final (lifted, effects) = reduce(
+          held.copyWith(reach: Reach.outOfReach),
+          const LongPress(somebodyToAsk: false),
+        );
+        expect(effects, isNot(contains(const LookAtTheSession(turn))));
+
+        final (_, back) = reduce(lifted, const NetworkReturned());
+
+        expect(back, contains(const LookAtTheSession(turn)));
+      },
+    );
+  });
+
+  group('the resumed look', () {
+    Future<(SalaHarness, SalaSessionState Function())> liftedUnderAHalt({
       required bool stored,
-      bool backBeforeTheLift = false,
-      bool theReadIsRefused = false,
     }) async {
-      final harness = SalaHarness(
-        settleDelay: const Duration(milliseconds: 400),
-      );
+      final harness = SalaHarness();
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -663,48 +693,23 @@ void main() {
       await settle();
       notifier.conversaTap();
       await settle();
-      harness.room.serverStatus = 'needs_person';
+      notifier.haltForABrokenBuild();
       await waitFor('a parada chegar', () => read().needsPerson);
-
-      harness.network.reachable = false;
-      harness.room.reachable = false;
       harness.room.failHeldTurnWith = _theNetworkDrops;
       harness.room.finishHeldTurn();
-      await waitFor('a sala ficar sem alcance', () => read().unreachable);
-      harness.room.serverStatus = 'in_progress';
-      if (backBeforeTheLift) {
-        harness.network.reachable = true;
-        harness.room.reachable = true;
-      }
-      if (theReadIsRefused) {
-        harness.room.failStateOnceWith = const Refused(RefusalCode.unreadable);
-      }
+      await settle();
+      expect(harness.room.turnIdsLookedAt, isEmpty);
 
       notifier.resolveWithPerson();
-      await settle();
-
-      expect(read().needsPerson, isFalse);
-      if (!backBeforeTheLift) expect(harness.room.turnIdsLookedAt, isEmpty);
       return (harness, read);
     }
 
-    void networkReturns(SalaHarness harness) {
-      harness.network.reachable = true;
-      harness.room.reachable = true;
-      harness.network.networkComesBack();
-    }
+    test('goes out at the lift and plays the reply it finds', () async {
+      final (harness, read) = await liftedUnderAHalt(stored: true);
 
-    test('and plays the reply it finds once the room is back', () async {
-      final (harness, read) = await liftedOutOfReach(stored: true);
-      final replies = harness.voice.played.where((url) => url == turnoUrl);
-      final before = replies.length;
-
-      networkReturns(harness);
       await waitFor(
         'a resposta tocar',
-        () =>
-            harness.voice.played.where((url) => url == turnoUrl).length ==
-            before + 1,
+        () => harness.voice.played.where((url) => url == turnoUrl).length >= 2,
       );
 
       expect(harness.room.turnIdsLookedAt, hasLength(1));
@@ -712,50 +717,15 @@ void main() {
     });
 
     test(
-      'and goes out when the read the lift asks lands, the room already back',
+      'goes out at the lift and calls a person when it finds nothing',
       () async {
-        final (harness, read) = await liftedOutOfReach(
-          stored: true,
-          backBeforeTheLift: true,
-        );
+        final (harness, read) = await liftedUnderAHalt(stored: false);
 
-        await waitFor(
-          'a sala olhar a tomada',
-          () => harness.room.turnIdsLookedAt.length == 1,
-        );
-        await settle();
-
-        expect(read().needsPerson, isFalse);
-      },
-    );
-
-    test(
-      'and goes out when the read the lift asks is refused, the room already back',
-      () async {
-        final (harness, read) = await liftedOutOfReach(
-          stored: true,
-          backBeforeTheLift: true,
-          theReadIsRefused: true,
-        );
-        await waitFor(
-          'a resposta tocar depois da abertura',
-          () =>
-              harness.voice.played.where((url) => url == turnoUrl).length == 2,
-        );
+        await waitFor('a pessoa ser chamada', () => read().needsPerson);
 
         expect(harness.room.turnIdsLookedAt, hasLength(1));
-        expect(read().needsPerson, isFalse);
       },
     );
-
-    test('and calls a person when it finds nothing', () async {
-      final (harness, read) = await liftedOutOfReach(stored: false);
-
-      networkReturns(harness);
-      await waitFor('a pessoa ser chamada', () => read().needsPerson);
-
-      expect(harness.room.turnIdsLookedAt, hasLength(1));
-    });
   });
 
   group('a look answered after the passage was left changes nothing', () {

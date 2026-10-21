@@ -118,6 +118,12 @@ class SceneRehearsalView extends ConsumerWidget {
                 language: language,
                 sending: sending,
                 sendable: sendable,
+                unseen: session.sceneTranslationUnseen,
+                adjusts: session.scenePausaAdjusts,
+                moving: session.sceneFraseOnTheMove != null,
+                line: session.sceneLine,
+                restartShown: session.sceneRestartShown,
+                restart: session.sceneRestart,
               ),
               SceneStep.placesUnknown => Semantics(
                 label: said('placesUnknown'),
@@ -126,17 +132,16 @@ class SceneRehearsalView extends ConsumerWidget {
                   children: [
                     terminei,
                     const SizedBox(width: 24),
-                    RoundActionButton(
-                      size: 52,
-                      mood: unlessSending,
-                      semanticLabel: said('restart'),
-                      onTap: notifier.restartTheSceneTranslation,
-                      child: Icon(
-                        LucideIcons.rotateCcw,
-                        size: 22,
-                        color: colors.vermelhoMic,
+                    if (session.sceneRestartShown || session.sceneLine != null)
+                      SceneRestartControl(
+                        shown: session.sceneRestartShown,
+                        written: false,
+                        armed: session.sceneRestart,
+                        n: scene.rehearsal?.translatedFrases ?? 0,
+                        line: session.sceneLine,
+                        live: !sending && !scene.waiting,
+                        language: language,
                       ),
-                    ),
                     const SizedBox(width: 24),
                     again,
                   ],

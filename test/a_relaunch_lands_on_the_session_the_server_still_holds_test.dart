@@ -442,13 +442,9 @@ void main() {
         offline.harness.network.reachable = false;
         offline.harness.room.reachable = false;
         await offline.notifier.openTheRoom();
-        await waitFor(
-          'the room to be out of reach',
-          () => offline.state.offline,
-        );
         offline.harness.network.reachable = true;
         offline.harness.room.reachable = true;
-        offline.notifier.retryNow();
+        await offline.notifier.openTheRoom();
         await _theChoiceShowsItsWheel(offline);
         await _intoThePanorama(offline);
 
@@ -552,7 +548,6 @@ void main() {
       again.harness.network.reachable = false;
       again.harness.room.reachable = false;
       await again.notifier.openTheRoom();
-      await waitFor('the room to be out of reach', () => again.state.offline);
       again.harness.network.reachable = true;
       again.harness.room.reachable = true;
       final reads = again.asked('fetchState');
@@ -609,10 +604,10 @@ void main() {
       await waitFor('the room to be out of reach', () => again.state.offline);
       again.harness.room
         ..serverStatus = 'needs_person'
-        ..serverHalt = HaltKind.blocking;
+        ..serverHalt = HaltKind.warning;
       again.harness.network.reachable = true;
       again.notifier.retryNow();
-      await waitFor('the halt to be read', () => again.state.needsPerson);
+      await waitFor('the warning to be read', () => again.state.warning);
 
       expect(again.state.sessionId, session);
       expect(

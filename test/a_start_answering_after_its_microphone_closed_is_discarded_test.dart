@@ -141,8 +141,8 @@ void main() {
         'o ensaio começar a gravar',
         () => read().ensaio == EnsaioStatus.recording,
       );
-      harness.room.serverHalt = HaltKind.blocking;
-      await waitFor('a sala parar', () => read().needsPerson);
+      notifier.haltForABrokenBuild();
+      expect(read().needsPerson, isTrue);
       await theHaltIsLifted(harness, notifier, read);
       final soundsBefore = harness.sounds.length;
       final partsBefore = read().partes.length;

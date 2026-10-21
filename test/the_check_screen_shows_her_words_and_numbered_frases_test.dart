@@ -475,26 +475,35 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('the loudspeaker of a frase is dimmed while the room is out of '
-      'reach', (tester) async {
+  testWidgets('the loudspeaker of a frase stays lit when the check falls on '
+      'the network, since the room never goes out of reach there', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _aFraseTresContada(tester, harness);
     harness.room.fraseDaProximaFrase = 4;
     await contarAteOFimDaParte(tester, harness);
     harness.room.reachable = false;
     harness.network.reachable = false;
-    harness.room.failFinishWith = const NetworkFailed('timeout');
+    var conferiu = false;
+    harness.room
+      ..failFinishWith = const NetworkFailed('timeout')
+      ..duranteOVeredito = () => conferiu = true;
     await tocar(tester, 'terminei');
     await waitFor(
-      'a sala sair do alcance',
-      () => container.read(salaSessionProvider).offline,
+      'a conferência cair na rede',
+      () => conferiu,
       step: () => _passo(tester),
     );
+    for (var passo = 0; passo < 5; passo++) {
+      await _passo(tester);
+    }
 
+    expect(container.read(salaSessionProvider).offline, isFalse);
     expect(
       aceso(tester, 'ouvir a minha tradução da frase 3'),
-      isFalse,
-      reason: 'o alto-falante seguia aceso sem rede, e o toque não fazia nada',
+      isTrue,
+      reason: 'uma rede que cai fora de uma entrada não muda nada',
     );
     closeTheRoom(container);
   });
@@ -506,8 +515,7 @@ void main() {
       final container = await _aFraseTresContada(tester, harness);
       harness.room.fraseDaProximaFrase = 4;
       await contarAteOFimDaParte(tester, harness);
-      harness.room.failFinishWith = const Refused(RefusalCode.deviceRevoked);
-      await tocar(tester, 'terminei');
+      container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await waitFor(
         'a tela chamar uma pessoa',
         () => container.read(salaSessionProvider).needsPerson,
@@ -1064,7 +1072,8 @@ void main() {
     await waitFor(
       'a conferência cair',
       () =>
-          container.read(salaSessionProvider).machine.theVerdictWaitsForTheTap,
+          container.read(salaSessionProvider).btRecusa ==
+          CheckRefusal.checkUnavailable,
       step: () => _passo(tester),
     );
     await _passo(tester);

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -29,8 +30,12 @@ class _Check {
 
   SalaSessionState get estado => container.read(salaSessionProvider);
 
-  Future<void> resting(String why) =>
-      waitFor('a retro descansar no círculo $why', () => estado.offline);
+  Future<void> refused(String why) => waitFor(
+    'a retro dizer que não deu para conferir $why',
+    () =>
+        estado.btRecusa == CheckRefusal.checkUnavailable &&
+        estado.btPhase != BtPhase.thinking,
+  );
 
   Future<void> finishesReach(int count) =>
       waitFor('o veredito ser pedido $count vezes', () => finishes >= count);
@@ -72,41 +77,40 @@ Future<_Check> _readyForTheVerdict(SalaHarness harness) async {
 }
 
 void main() {
+  test('1: a finish answered 502 is sent once, says her line, and the room '
+      'asks no more', () async {
+    final check = await _readyForTheVerdict(
+      SalaHarness(busyCeiling: const Duration(milliseconds: 300)),
+    );
+    check.harness.room.failFinishWith = _a502;
+
+    await check.sala.finishBackTranslation();
+    await check.refused('depois do 502');
+    final probes = check.harness.network.checks;
+    await settle(_aWhile);
+
+    expect(check.finishes, 1);
+    expect(check.harness.network.checks, probes);
+    expect(check.estado.offline, isFalse);
+    expect(check.estado.btRecusa, CheckRefusal.checkUnavailable);
+  });
+
   test(
-    '1: a finish answered 502 is sent once and the room asks no more',
-    () async {
-      final check = await _readyForTheVerdict(
-        SalaHarness(busyCeiling: const Duration(milliseconds: 300)),
-      );
-      check.harness.room.failFinishWith = _a502;
-
-      await check.sala.finishBackTranslation();
-      await check.resting('depois do 502');
-      final probes = check.harness.network.checks;
-      await settle(_aWhile);
-
-      expect(check.finishes, 1);
-      expect(check.harness.network.checks, probes);
-      expect(check.estado.offline, isTrue);
-    },
-  );
-
-  test(
-    '2: after a 502 the team\'s tap sends exactly one more finish',
+    '2: after a 502 the team\'s «terminei» sends exactly one more finish',
     () async {
       final check = await _readyForTheVerdict(SalaHarness());
       check.harness.room.failFinishWith = _a502;
       await check.sala.finishBackTranslation();
-      await check.resting('depois do 502');
+      await check.refused('depois do 502');
       await settle(_aWhile);
 
-      check.sala.retroTap();
+      await check.sala.finishBackTranslation();
       await check.finishesReach(2);
-      await check.resting('depois do segundo 502');
+      await check.refused('depois do segundo 502');
       await settle(_aWhile);
 
       expect(check.finishes, 2);
-      expect(check.estado.offline, isTrue);
+      expect(check.estado.offline, isFalse);
     },
   );
 
@@ -116,7 +120,7 @@ void main() {
     check.harness.room.failFinishWith = const NetworkFailed('sem rede');
     check.harness.network.reachable = false;
     await check.sala.finishBackTranslation();
-    await check.resting('sem rede');
+    await check.refused('sem rede');
     await settle(_aWhile);
 
     check.harness.network.reachable = true;
@@ -126,7 +130,7 @@ void main() {
     expect(check.finishes, 1);
 
     check.harness.room.failFinishWith = null;
-    check.sala.retroTap();
+    await check.sala.finishBackTranslation();
     await waitFor(
       'o veredito pousar',
       () => check.harness.room.playedByTakeSent.isNotEmpty,
@@ -137,9 +141,8 @@ void main() {
     expect(check.harness.room.playedByTakeSent, hasLength(1));
   });
 
-  testWidgets('4: the resting Retro reads «Tocar para tentar de novo»', (
-    tester,
-  ) async {
+  testWidgets('4: a check lost on the network shows her line «não deu para '
+      'conferir agora — tentem de novo»', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     harness.room.takeLandsAfter = const Duration(seconds: 1);
     final container = await pumpSala(tester, harness);
@@ -176,55 +179,21 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    expect(byLabel('Tocar para tentar de novo'), findsOneWidget);
+    expect(
+      find.text('não deu para conferir agora — tentem de novo'),
+      findsOneWidget,
+    );
+    expect(byLabel('Tocar para tentar de novo'), findsNothing);
 
     closeTheRoom(container);
   });
 
-  test('5: a finish that lands after the tap leaves the room reachable and '
-      'speaks the verdict', () async {
+  test('5: a finish «terminei» sends after a lost check lands, leaves the room '
+      'reachable and speaks the verdict', () async {
     final check = await _readyForTheVerdict(SalaHarness());
     check.harness.room.failFinishWith = _a502;
     await check.sala.finishBackTranslation();
-    await check.resting('depois do 502');
-    check.harness.room.failFinishWith = null;
-
-    check.sala.retroTap();
-    await waitFor(
-      'o veredito pousar',
-      () => check.harness.room.playedByTakeSent.isNotEmpty,
-    );
-    await waitFor(
-      'a sala sair do pensamento',
-      () => check.estado.btPhase != BtPhase.thinking,
-    );
-
-    expect(check.harness.room.playedByTakeSent, hasLength(1));
-    expect(check.estado.unreachable, isFalse);
-  });
-
-  test('6: a team that leaves the passage while the check rests gets the '
-      'room\'s own ladder back', () async {
-    final check = await _readyForTheVerdict(SalaHarness());
-    check.harness.room.failFinishWith = _a502;
-    await check.sala.finishBackTranslation();
-    await check.resting('depois do 502');
-    final probes = check.harness.network.checks;
-
-    check.sala.leaveThePassage();
-
-    await waitFor(
-      'a sala voltar a sondar sozinha',
-      () => check.harness.network.checks > probes,
-    );
-  });
-
-  test('7: a finish the advance button sends while the check rests lands, '
-      'leaves the room reachable and speaks the verdict', () async {
-    final check = await _readyForTheVerdict(SalaHarness());
-    check.harness.room.failFinishWith = _a502;
-    await check.sala.finishBackTranslation();
-    await check.resting('depois do 502');
+    await check.refused('depois do 502');
     check.harness.room.failFinishWith = null;
 
     await check.sala.finishBackTranslation();

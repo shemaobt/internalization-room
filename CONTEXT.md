@@ -194,6 +194,10 @@ _Avoid_: trecho, segment (the wire name), chunk (the ephemeral position)
 The point where the team says a frase ends while listening back, snapped to the middle of the nearest silence; moved and heard with her three controls «um pouco antes», «ouvir a pausa» and «um pouco depois». A Stretch ends at its pause, and so does a Scene frase.
 _Avoid_: cut, corte, Cortar aqui (ruled out by Marcia on 2026-09-15), split point, boundary
 
+**Restart** («recomeçar a tradução»):
+Two taps on the scene rehearsal: the first arms it and names how many frases it discards, and it disarms by itself after six seconds; the second sets those frases aside in the room and keeps the recording. Nothing is deleted.
+_Avoid_: reset, Zerar (the facilitator's)
+
 **Capture**:
 The back-translation's open microphone, between the scissors and the tap on the circle. A closed capture becomes a stretch; a halt that lands inside one closes it and keeps nothing.
 _Avoid_: recording, gravação, chunk (the wire's name)
@@ -227,7 +231,7 @@ A recording whose transcription holds no words. On the telling doors the server 
 _Avoid_: empty capture, silence, inaudible take
 
 **Listening ledger** (`escuta das partes`):
-What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. A part recorded again starts its listening over while the others keep theirs, and a part the room has not named yet is left out of the report the tablet sends when the team fires the check.
+What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. It holds only what sounded, on the back-translation and on the rehearsal alike, but for a part stepped over because it was told back whole and a part picked up at its cursor over ground already told, both counted from their start, and entering the back-translation no longer forgets it; leaving the passage does. A part recorded again starts its listening over while the others keep theirs. The tablet reports it to the room as each part ends, when the team leaves the back-translation or the passage, when the app goes to the background, and with the check; a part the room has not named yet is left out of every report. Which parts are unheard is always the room's answer, never counted on the tablet (ADR 0105).
 _Avoid_: `_ouvido`, registro de escuta, played ranges, the concatenated passage, the rehearsal's whole length
 
 **Ruler**:
@@ -309,8 +313,12 @@ The scene the team tapped on the Scene question, read at the tap that starts the
 _Avoid_: scene guess (the classifier's, Observation Room only), sceneId
 
 **Scene frase** (`frase N` on screen):
-One frase of a Scene rehearsal, told in the bridge language: the stretch of the take from the previous pause to this one. It is saved by the room at the stop tap with its place in the take, and numbered on screen by its place in the take.
+One frase of a Scene rehearsal, told in the bridge language: the stretch of the take from the previous pause to this one. It is saved by the room at the stop tap with its place in the take, and numbered on screen by its place in the take. A frase translated again replaces it on screen and for the voice; the replaced one stays with the room as history.
 _Avoid_: piece, trecho, segment (the back-translation's)
+
+**Translating a frase again** (`traduzindo de novo a frase N`):
+The team taps a Scene frase's bar on the translate step: its stretch of the take plays, and the next circle records a new translation of that same stretch, which replaces it. «manter a tradução de antes» gives it up.
+_Avoid_: retell (her code's word), re-record (the retro's «regravar a frase», ENG-1221)
 
 **Scene strip**:
 The scene rehearsal's wordless picture of its take while translating. The loudness of the take is drawn so a silence reads as a valley. Each Scene frase is a band with a tick at its end, the player is a thin line, and the pending pause is a bold line. It carries no words and cannot be tapped.
@@ -362,6 +370,14 @@ _Avoid_: reason, error code, bloqueio, refusal (the answer that carries them)
 The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line, asked of the room by name. The room closes only after it, and a refused one takes the team to the hole its blockers name.
 _Avoid_: aprovação, finalize, release (the server's record of it), approve button
 
+**Draft** (*rascunho*):
+The team's recording of a passage with its frases and telling-back, kept across openings because it is the room's live **Session** of that passage (ADR 0071 of the API). An approval leaves it open under its version; a new take un-approves it.
+_Avoid_: rascunho final (the approved version's words on the screen), session (what holds it)
+
+**Approved draft** (*rascunho final aprovado*):
+A **Draft** whose **Session read** says `approved`: a re-entry lands on its **Back-translation**, checked, with «✓ aprovado como rascunho final (v{n})» where the approve button stands, its frases and their parts — never on the **Conversation** and never under the **Warning mark**. The badge goes as soon as a session read says the draft is no longer approved or the team leaves the checked phase.
+_Avoid_: approved mark (the «●» on the Choice), finished passage, closed passage
+
 **Approved mark**:
 «●» after the passage's reference, read «tem um ensaio salvo», for a passage the server holds a live release of, from any tablet, forced or not. Read from the room on every load of the Wheel; never from what this tablet started or finished. A Zerar takes it away.
 _Avoid_: finished mark, done mark, started mark, ✓
@@ -405,7 +421,7 @@ _Avoid_: retro retomada, resuming from scratch
 ### The room and the people
 
 **Halt**:
-The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the Desk lifts it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel and keeps what was sounding.
+The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the Desk lifts it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel and keeps what was sounding. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing (shown once the team is back on the Conversation), the reply's sound failing twice, a tablet that cannot record, and the microphone failing to start twice in a row. A Session read never raises one (ADR 0093).
 _Avoid_: sala parada, stuck room, pause
 
 **Warning**:
@@ -430,11 +446,11 @@ The room's action of signalling it needs someone, insisted on at intervals until
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
 **Reach**:
-Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure at any door but the Raised hand's, the Outbox's included, takes the room out of reach (ADR 0071); coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
+Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure takes the room out of reach only on a way in, a Station with no session yet (the Choice, a passage or a Panorama not opened); anywhere else it changes nothing (ADR 0093). Coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
 _Avoid_: offline (the voice the circle draws while the reach is down, not the fact), connectivity, online/offline flag, Alcance
 
 **Pending request**:
-The one request a Step was waiting on when its door fell on the network, kept in memory with its key and re-sent once when the room comes back (ADR 0050). The Verdict is re-sent only when a gesture brings the room back, never on the room's own return (ADR 0073).
+The way in a Step was waiting on when it fell, re-sent once when the room comes back; nothing else is pending, and a lift re-sends nothing (ADR 0093).
 _Avoid_: retry queue, outbox (which holds recordings only)
 
 **Watch**:
@@ -466,7 +482,7 @@ The machine's count of how many times its in-flight work was abandoned; an answe
 _Avoid_: epoch
 
 **Failure policy**:
-The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the room out of reach, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071). Nothing decides a failure inside a Station or the notifier (ADR 0053).
+The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the room out of reach, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071), and every failure of the tablet's own that may call a person (the reply's sound, the microphone's start, a tablet that cannot record); a refusal is never counted, and nothing outside the six cases becomes a Halt (ADR 0093). Nothing decides a failure inside a Station or the notifier (ADR 0053).
 _Avoid_: error handler, retry policy
 
 **One look**:

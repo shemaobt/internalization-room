@@ -61,7 +61,9 @@ The session lifecycle is one pure machine: `reduce(Machine, MachineEvent)` retur
 - **Command.** Effects are data. One `EffectRunner` executes them through four ports: `RoomPort`,
   `SoundPort` (voice and parts, one at a time), `RecorderPort` and `StorePort`. Every answer returns as an
   event stamped with the machine's `generation`, and `reduce` drops a stale one.
-- **Strategy.** Every room result goes through one `FailurePolicy` that turns it into an event.
+- **Strategy.** Every room result goes through one `FailurePolicy` that turns it into an event,
+  and so does every failure of the tablet's own that may call a person: the reply's sound
+  failing, the microphone failing to start, the tablet that cannot record.
   The room client gives each door one of four results: answered, network failed,
   refused(code), session gone (ADR 0047).
 
@@ -79,8 +81,10 @@ cross lives (enforced by `test/every_field_of_the_room_is_born_with_its_life_tes
 Lifecycle code still in the notifier moves out to the machine through slices, and new lifecycle
 work is built on the machine. The one written exception: the Retro screen keeps its notifier fields,
 `btFindings`, `btConferindo`, `btRecusa`, `btVeredito`, `btRecomeco`, `btAviso`, `btRecomecada`,
-`btPausaSoNaUltima`, `btRegravacao`, `btFraseQueAguarda` and `btFraseGuardada` included, and its report that the verdict
-was heard, until after the 2 November tablet freeze (ADR 0046).
+`btPausaSoNaUltima`, `btRegravacao`, `btFraseQueAguarda`, `btFraseGuardada` and `btRascunhoAprovado` included, its report
+that the verdict was heard, and the Listening ledger's reports with `_oQueFaltaOuvir`,
+`_umaParteFoiRegravada` and `_aTraducaoJaFoiDeixada`, until after the 2 November tablet freeze
+(ADR 0046).
 
 ## Secrets
 

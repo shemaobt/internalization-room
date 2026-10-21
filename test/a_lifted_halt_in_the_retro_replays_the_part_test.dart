@@ -95,34 +95,45 @@ _playingWithAToldStretchAndAWarningArmed(SalaHarness harness) async {
   return (container, notifier, read, path);
 }
 
-/// A room reopened straight into a blocking halt already standing, before the entry
-/// ever chose a part to play — the narrow case `_entradaParouSemTocar` alone used to
+/// A room reopened into the retro with a blocking halt landing while the entry still
+/// measures its parts, before it ever chose a part to play — the narrow case `_entradaParouSemTocar` alone used to
 /// cover.
-Future<(ProviderContainer, SalaSessionState Function(), String)>
+Future<(SalaSessionNotifier, SalaSessionState Function(), String)>
 _reopensBlockedBeforeAnyPlay(SalaHarness harness) async {
-  harness.room.serverStatus = 'needs_person';
-  harness.room.serverHalt = HaltKind.blocking;
+  harness.playback.holdNextMeasurement();
   final (container, path) = await _reopensIntoRetro(harness);
+  final notifier = container.read(salaSessionProvider.notifier);
   SalaSessionState read() => container.read(salaSessionProvider);
-  await waitFor('a sala parar ao reabrir', () => read().needsPerson);
-  return (container, read, path);
+  await waitFor(
+    'a retro medir as partes',
+    () => harness.playback.measurements.isNotEmpty,
+  );
+  notifier.haltForABrokenBuild();
+  harness.playback.finishHeldMeasurement();
+  await waitFor(
+    'a entrada escolher a parte',
+    () => read().btPhase == BtPhase.playing,
+  );
+  expect(read().needsPerson, isTrue);
+  return (notifier, read, path);
 }
 
-/// Turn the standing warning blocking, and wait for the watch's next beat to find it.
+/// The person sign lands over whatever the retro holds: the build guard's, which calls
+/// nobody, so the server's warning keeps standing beneath it.
 Future<void> _haltLandsBlocking(
-  SalaHarness harness,
+  SalaSessionNotifier notifier,
   SalaSessionState Function() read,
 ) async {
-  harness.room.serverHalt = HaltKind.blocking;
+  notifier.haltForABrokenBuild();
   await waitFor('a sala parar', () => read().needsPerson);
 }
 
-/// The desk attends, and the circle hands the room back.
+/// A long press with nobody to ask hands the room back.
 Future<void> _liftsTheHalt(
-  SalaHarness harness,
+  SalaSessionNotifier notifier,
   SalaSessionState Function() read,
 ) async {
-  harness.room.theDeskAttended();
+  notifier.resolveWithPerson();
   await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 }
 
@@ -175,16 +186,15 @@ void main() {
   test('T1: a blocking halt lifted mid-part plays the current part again from '
       'the cursor, not from wherever the head had reached', () async {
     final harness = SalaHarness();
-    final (_, _, read, path) = await _playingWithAToldStretchAndAWarningArmed(
-      harness,
-    );
+    final (_, notifier, read, path) =
+        await _playingWithAToldStretchAndAWarningArmed(harness);
     // The head is read live, ahead of the told cursor: a lift that replayed from it
     // instead of from the cursor would start the part here.
     harness.playback.at = const Duration(milliseconds: 15000);
     final playsBefore = harness.playback.playedFrom.length;
 
-    await _haltLandsBlocking(harness, read);
-    await _liftsTheHalt(harness, read);
+    await _haltLandsBlocking(notifier, read);
+    await _liftsTheHalt(notifier, read);
     await waitFor(
       'a parte voltar a tocar',
       () => harness.playback.playedFrom.length > playsBefore,
@@ -267,11 +277,11 @@ void main() {
     );
     final playsBefore = harness.playback.playedFrom.length;
 
-    await _haltLandsBlocking(harness, read);
+    await _haltLandsBlocking(notifier, read);
     expect(read().btTrechoTocando, isFalse);
     expect(read().btRetroTocando, isFalse);
 
-    await _liftsTheHalt(harness, read);
+    await _liftsTheHalt(notifier, read);
     await waitFor(
       'a parte voltar a tocar',
       () => harness.playback.playedFrom.length > playsBefore,
@@ -289,9 +299,9 @@ void main() {
 
   test('T4: while the halt stands, nothing sounds', () async {
     final harness = SalaHarness();
-    final (_, _, read, _) = await _playingWithAWarningArmed(harness);
+    final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
 
-    await _haltLandsBlocking(harness, read);
+    await _haltLandsBlocking(notifier, read);
 
     expect(harness.playback.sounding, isFalse);
     expect(read().btClipRodando, isFalse);
@@ -329,14 +339,14 @@ void main() {
   test('T6: a halt already blocking when the entry chose its part plays it '
       'once lifted, the same as any other lift', () async {
     final harness = SalaHarness();
-    final (_, read, path) = await _reopensBlockedBeforeAnyPlay(harness);
+    final (notifier, read, path) = await _reopensBlockedBeforeAnyPlay(harness);
     expect(
       harness.playback.playedFrom,
       isEmpty,
       reason: 'a entrada escolheu a parte e parou antes de tocar',
     );
 
-    await _liftsTheHalt(harness, read);
+    await _liftsTheHalt(notifier, read);
     await waitFor(
       'a parte tocar pela primeira vez',
       () => harness.playback.playedFrom.isNotEmpty,
@@ -360,8 +370,8 @@ void main() {
       final soundingBefore = harness.playback.sounding;
       expect(soundingBefore, isFalse);
 
-      await _haltLandsBlocking(harness, read);
-      await _liftsTheHalt(harness, read);
+      await _haltLandsBlocking(notifier, read);
+      await _liftsTheHalt(notifier, read);
 
       expect(
         read().btClipRodando,
@@ -380,14 +390,14 @@ void main() {
   test('T8: a halt over a part already at its end gives the room back exactly '
       'as it stood — Henok, 25-09', () async {
     final harness = SalaHarness();
-    final (_, _, read, _) = await _playingWithAWarningArmed(harness);
+    final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
 
     harness.playback.finishPlayback();
     await waitFor('a parte terminar', () => read().btClipEnded);
     final playsBefore = harness.playback.playedFrom.length;
 
-    await _haltLandsBlocking(harness, read);
-    await _liftsTheHalt(harness, read);
+    await _haltLandsBlocking(notifier, read);
+    await _liftsTheHalt(notifier, read);
 
     expect(
       read().btClipEnded,
@@ -412,8 +422,8 @@ void main() {
       const Duration(seconds: 4),
     );
 
-    await _haltLandsBlocking(harness, read);
-    await _liftsTheHalt(harness, read);
+    await _haltLandsBlocking(notifier, read);
+    await _liftsTheHalt(notifier, read);
     await notifier.confirmarTraducao();
     await settle();
 
@@ -438,8 +448,8 @@ void main() {
       () => read().btPhase == BtPhase.thinking,
     );
 
-    await _haltLandsBlocking(harness, read);
-    await _liftsTheHalt(harness, read);
+    await _haltLandsBlocking(notifier, read);
+    await _liftsTheHalt(notifier, read);
 
     harness.room.finishHeldChunk();
     await confirming;
@@ -472,7 +482,7 @@ void main() {
         'a sala pensar enquanto o V viaja',
         () => read().btPhase == BtPhase.thinking,
       );
-      await _haltLandsBlocking(harness, read);
+      await _haltLandsBlocking(notifier, read);
       final tocadas = harness.playback.played.length;
 
       harness.room.finishHeldChunk();
@@ -516,8 +526,8 @@ void main() {
       notifier.ouvirGravacao();
       await waitFor('a tradução pendente tocar', () => read().btRetroTocando);
 
-      await _haltLandsBlocking(harness, read);
-      await _liftsTheHalt(harness, read);
+      await _haltLandsBlocking(notifier, read);
+      await _liftsTheHalt(notifier, read);
 
       expect(
         read().btTraducaoPendente,
@@ -544,8 +554,8 @@ void main() {
       notifier.ouvirGravacao();
       await waitFor('o trecho cortado tocar', () => read().btTrechoTocando);
 
-      await _haltLandsBlocking(harness, read);
-      await _liftsTheHalt(harness, read);
+      await _haltLandsBlocking(notifier, read);
+      await _liftsTheHalt(notifier, read);
 
       expect(read().btCorte, const Duration(seconds: 4));
       expect(read().btCortado, isTrue);
@@ -590,8 +600,8 @@ void main() {
       () => read().btTrechoTocando || read().btRetroTocando,
     );
 
-    await _haltLandsBlocking(harness, read);
-    await _liftsTheHalt(harness, read);
+    await _haltLandsBlocking(notifier, read);
+    await _liftsTheHalt(notifier, read);
 
     expect(
       read().btTrechoTraduzidoDeNovo,

@@ -1,12 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
@@ -320,31 +317,21 @@ void main() {
 
   Future<void> aSalaParaDeVez(
     WidgetTester tester,
-    SalaHarness harness,
     ProviderContainer container,
   ) async {
-    harness.room.serverHalt = HaltKind.blocking;
-    await waitFor(
-      'a sala parar de vez',
-      () => container.read(salaSessionProvider).needsPerson,
-      limit: const Duration(seconds: 30),
-      step: () => tester.pump(const Duration(milliseconds: 100)),
-    );
+    container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+    await tester.pump(const Duration(milliseconds: 300));
   }
 
   testWidgets('under a person sign the circle says the sign, not her line', (
     tester,
   ) async {
-    final harness = SalaHarness(filaEmMemoria: true)
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.warning;
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     await ateACapturaVazia(tester, harness);
     expect(byLabel(linha), findsWidgets);
 
-    harness.room.holdNextState();
-    Timer(const Duration(seconds: 25), harness.room.finishHeldState);
-    await aSalaParaDeVez(tester, harness, container);
+    await aSalaParaDeVez(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
     expect(rotuloDoCirculo(tester), circleLabelFor('needsPerson', 'pt'));
@@ -352,14 +339,12 @@ void main() {
   });
 
   testWidgets('a blocking halt hides her mark', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true)
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.warning;
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     await ateACapturaVazia(tester, harness);
     expect(byLabel(linha), findsWidgets);
 
-    await aSalaParaDeVez(tester, harness, container);
+    await aSalaParaDeVez(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
     expect(byLabel(linha), findsNothing);

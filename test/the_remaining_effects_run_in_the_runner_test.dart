@@ -141,10 +141,10 @@ void main() {
     expect(host.answers, isEmpty);
   });
 
-  test('a counted refusal is heard by the Station', () {
-    runner.run(const [CountTheRefusal()]);
+  test('a Step let go is heard by the Station', () {
+    runner.run(const [LetTheStepGo()]);
 
-    expect(host.asked, ['hearTheRefusalCounted']);
+    expect(host.asked, ['hearTheStepLetGo']);
     expect(host.answers, isEmpty);
   });
 

@@ -15,6 +15,7 @@ abstract final class RefusalCode {
   static const sceneRehearsalSent = 'SCENE_REHEARSAL_SENT';
   static const restartOutOfOrder = 'RESTART_OUT_OF_ORDER';
   static const tooLarge = 'TOO_LARGE';
+  static const unknownReference = 'UNKNOWN_REFERENCE';
   static const sceneRehearsalSending = 'SCENE_REHEARSAL_SENDING';
   static const fraseOutOfPlace = 'FRASE_OUT_OF_PLACE';
   static const pauseOnlyOnTheLastFrase = 'PAUSE_ONLY_ON_THE_LAST_FRASE';
