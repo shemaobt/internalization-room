@@ -498,7 +498,6 @@ void main() {
       ...roomLabels.values,
       warningNoticeLabel,
       ...codigoLabels.values,
-      recordEntryLabel,
       ...momentLabels.values,
       momentAria,
     ];

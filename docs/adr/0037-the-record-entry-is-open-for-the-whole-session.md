@@ -1,5 +1,12 @@
 # The record entry is open for the whole session
 
+Superseded by ENG-1441 (2026-10-21): the green check is gone, and with it the entry open
+from the first turn. The team leaves the **Conversation** only through the red microphone,
+which opens the rehearsal of a scene, and the orange dot, which the voice's send-off (or the
+completion floor) lights and which opens the **Rehearsal**, as in Marcia's app. Before
+the dot lights there is no way to the whole-passage recording (the ticket's acceptance 4);
+the always-reachable door ENG-777 was granted on returns as her faint dot, ENG-1382.
+
 ## Context
 
 The **Record entry** — the affordance on the **Conversation** that opens the
