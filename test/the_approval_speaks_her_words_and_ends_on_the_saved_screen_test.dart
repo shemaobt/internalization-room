@@ -357,6 +357,40 @@ void main() {
   );
 
   testWidgets(
+    'an approved sentence nobody heard gives way to the refusal after a new check',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.voice.refuses.add('P3');
+      await _tocar(tester);
+      expect(find.text(_aprovado(1)), findsOneWidget);
+
+      final sala = it.container.read(salaSessionProvider.notifier);
+      sala.traduzirAFraseDeNovo(0);
+      await tester.pump(const Duration(milliseconds: 300));
+      sala.retroTap();
+      await tester.pump(const Duration(milliseconds: 200));
+      await confirmarATraducaoNaTela(tester, it.container);
+      await tester.pump(const Duration(milliseconds: 600));
+      it.harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+      await sala.finishBackTranslation();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        byLabel(_aprovar),
+        findsOneWidget,
+        reason: 'o cenário precisa voltar ao gesto de aprovar',
+      );
+
+      it.harness.room.releaseBlockers = const ['telling_back_not_checked'];
+      await _tocar(tester);
+
+      expect(find.text(_precisaConferida), findsOneWidget);
+      expect(find.text(_aprovado(1)), findsNothing);
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
     'after «$_pronto», an approval pressed again asks the room again',
     (tester) async {
       final it = await _ateAConferida(tester);

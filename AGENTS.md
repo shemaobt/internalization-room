@@ -34,7 +34,7 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
   screen, read by the facilitator and not the team, her moment label, the claquete,
   the «PT»/«EN» codes on the Choice, the scene question, her passage menu on the
   Choice, her check screen with its numbered frase list, the scene rehearsal's translate step,
-  the numerals of her kept-retelling buttons, and her recording home (ADR 0014).
+  the numerals of her kept-retelling buttons, her recording home, and her Saved screen (ADR 0014).
 - Nothing forbidden returns to `lib/`: `tool/check_doctrine.dart` mirrors the backend's
   doctrine guard (`tripod-backend`, `scripts/check_doctrine.py`) against Marcia's six rules,
   spelled in Dart, against a typed allowlist in `tool/doctrine_allowlist.dart`.
@@ -79,7 +79,7 @@ cross lives (enforced by `test/every_field_of_the_room_is_born_with_its_life_tes
 Lifecycle code still in the notifier moves out to the machine through slices, and new lifecycle
 work is built on the machine. The one written exception: the Retro screen keeps its notifier fields,
 `btFindings`, `btConferindo`, `btRecusa`, `btVeredito`, `btRecomeco`, `btAviso`, `btRecomecada`,
-`btPausaSoNaUltima`, `btRegravacao`, `btFraseQueAguarda`, `btFraseGuardada` and `btRascunhoAprovado` included, its report
+`btPausaSoNaUltima`, `btRegravacao`, `btFraseQueAguarda`, `btFraseGuardada`, `btRascunhoAprovado`, `btAprovadoAgora` and `ensaioSalvo` included, its report
 that the verdict was heard, and the Listening ledger's reports with `_oQueFaltaOuvir`,
 `_umaParteFoiRegravada` and `_aTraducaoJaFoiDeixada`, until after the 2 November tablet freeze
 (ADR 0046).

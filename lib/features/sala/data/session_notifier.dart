@@ -7423,6 +7423,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: true,
       btConferindo: true,
       clearBtRecusa: true,
+      clearBtAprovadoAgora: true,
     );
     _watchBusyState();
     final BackTranslationVerdict verdict;
@@ -7596,7 +7597,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           case Answered(value: final answer):
             resposta = answer;
           case final RoomFailure failure:
-            if (failure is! SessionGone && !_abandoned(generation)) {
+            if (!_abandoned(generation)) {
               state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
             }
             return failed(failure);
