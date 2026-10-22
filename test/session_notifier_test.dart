@@ -1034,13 +1034,13 @@ void main() {
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      final checksBeforeTheFinger = harness.network.checks;
+      final pingsBeforeTheFinger = harness.network.pings;
 
       notifier.conversaTap();
 
       expect(
-        harness.network.checks,
-        greaterThan(checksBeforeTheFinger),
+        harness.network.pings,
+        greaterThan(pingsBeforeTheFinger),
         reason:
             'o dedo levanta o microfone e a conexão fica livre até o toque '
             'de fim — esperar o toque de fim para tocar a rede é o '
@@ -1056,13 +1056,13 @@ void main() {
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      final before = harness.network.checks;
+      final before = harness.network.pings;
 
       notifier.conversaTap();
       await settle(const Duration(milliseconds: 150));
 
       expect(
-        harness.network.checks - before,
+        harness.network.pings - before,
         greaterThanOrEqualTo(3),
         reason:
             'o cliente larga a conexão ociosa aos 90 s e só o toque de fim '
@@ -1072,36 +1072,13 @@ void main() {
 
       notifier.conversaTap();
       await settle();
-      final whenItClosed = harness.network.checks;
+      final whenItClosed = harness.network.pings;
       await settle(const Duration(milliseconds: 150));
 
       expect(
-        harness.network.checks,
+        harness.network.pings,
         whenItClosed,
         reason: 'com o microfone fechado, nada mais aquece a conexão',
-      );
-    },
-  );
-
-  test(
-    'a warm-up the room refuses does not take the microphone offline, only its own answer',
-    () async {
-      final harness = SalaHarness();
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      harness.network.reachable = false;
-      notifier.conversaTap();
-      await settle();
-
-      expect(container.read(salaSessionProvider).voice, VoiceState.listening);
-      expect(
-        container.read(salaSessionProvider).offline,
-        isFalse,
-        reason:
-            'o aquecimento só adianta uma conexão; uma recusa dele não é '
-            'motivo para tirar a equipe do que já estava gravando',
       );
     },
   );
@@ -1440,38 +1417,6 @@ void main() {
   });
 
   test(
-    'a room that stays out of reach is asked again at the retry pace, not in a burst',
-    () async {
-      final harness = SalaHarness(
-        settleDelay: const Duration(milliseconds: 40),
-        retryBackoff: const [Duration(milliseconds: 150)],
-      );
-      harness.network.reachable = false;
-      harness.room.reachable = false;
-      final container = harness.container();
-      addTearDown(container.dispose);
-      unawaited(
-        container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
-      );
-      await waitFor(
-        'a entrada na passagem cair',
-        () => container.read(salaSessionProvider).unreachable,
-      );
-      final asked = harness.network.checks;
-
-      await settle(const Duration(milliseconds: 900));
-
-      expect(
-        harness.network.checks - asked,
-        inInclusiveRange(3, 7),
-        reason:
-            'sem pausa entre as tentativas o tablet martelava o servidor '
-            'centenas de vezes por segundo enquanto a rede estava fora',
-      );
-    },
-  );
-
-  test(
     'a take the room broke, refused or forgot is never sent again',
     () async {
       for (final failure in <RoomFailure>[
@@ -1524,7 +1469,6 @@ void main() {
             'é olhada uma vez',
       );
       expect(harness.room.turnIdsLookedAt, harness.room.turnIdsSent);
-      expect(container.read(salaSessionProvider).offline, isFalse);
       expect(container.read(salaSessionProvider).needsPerson, isTrue);
     },
   );
@@ -3045,7 +2989,7 @@ void main() {
       VoiceState.listening,
       reason:
           'o done caía no bloco de no-op do switch de conversaTap, junto '
-          'de thinking/speaking/needsPerson/offline/blocked, e nunca chamava '
+          'de thinking/speaking/needsPerson, e nunca chamava '
           '_actOnConversaTap — o círculo não abria o microfone de novo',
     );
     await settle();
@@ -3088,76 +3032,59 @@ void main() {
     },
   );
 
-  test('no network is caught before the team ever taps', () async {
-    final harness = SalaHarness()..network.reachable = false;
+  test(
+    'a room out of reach on the way in rests at the invite and says nothing',
+    () async {
+      final harness = SalaHarness()..room.reachable = false;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+
+      final state = container.read(salaSessionProvider);
+      expect(state.sessionId, isNull);
+      expect(state.voice, VoiceState.invite);
+      expect(harness.voice.assets, isEmpty);
+    },
+  );
+
+  test('a way in that fell is not asked again on its own', () async {
+    final harness = SalaHarness(
+      retryBackoff: const [Duration(milliseconds: 20)],
+    )..room.reachable = false;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
+    final asked = harness.room.calls.length;
 
-    final state = container.read(salaSessionProvider);
-    expect(state.offline, isTrue);
-    expect(harness.voice.assets, [offlineNoticeAsset(testLanguage)]);
+    await settle(const Duration(milliseconds: 300));
+
     expect(
       harness.room.calls,
-      isEmpty,
-      reason: 'nem tentou falar com o servidor',
+      hasLength(asked),
+      reason: 'só o próximo toque pergunta de novo à sala',
     );
+    expect(harness.voice.assets, isEmpty);
   });
 
-  test(
-    'a network that cannot reach the backend still counts as offline',
-    () async {
-      final harness = SalaHarness()
-        ..room.reachable = false
-        ..network.reachable = false;
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-
-      expect(container.read(salaSessionProvider).offline, isTrue);
-      expect(harness.voice.assets, [offlineNoticeAsset(testLanguage)]);
-    },
-  );
-
-  test('the room comes back on its own when the network returns', () async {
-    final harness = SalaHarness()..network.reachable = false;
+  test('the next tap asks the room again', () async {
+    final harness = SalaHarness()..room.reachable = false;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
-    expect(container.read(salaSessionProvider).offline, isTrue);
+    final created = harness.room.calls
+        .where((call) => call == 'createSession')
+        .length;
 
-    harness.network.reachable = true;
-    harness.network.networkComesBack();
+    harness.room.reachable = true;
+    container.read(salaSessionProvider.notifier).conversaTap();
     await settle();
 
-    expect(container.read(salaSessionProvider).offline, isFalse);
+    expect(
+      harness.room.calls.where((call) => call == 'createSession').length,
+      greaterThan(created),
+    );
+    expect(container.read(salaSessionProvider).sessionId, isNotNull);
   });
 
   test(
-    'a network blip that still cannot reach the room keeps it offline',
-    () async {
-      final harness = SalaHarness()..network.reachable = false;
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-
-      harness.network.networkComesBack();
-      await settle();
-
-      expect(container.read(salaSessionProvider).offline, isTrue);
-    },
-  );
-
-  test('the offline notice is spoken once, not on every failure', () async {
-    final harness = SalaHarness()..network.reachable = false;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-
-    harness.network.networkComesBack();
-    harness.network.networkComesBack();
-    await settle();
-
-    expect(harness.voice.assets, hasLength(1));
-  });
-
-  test(
-    'losing the backend mid-turn shows the person sign, not the offline face or an error',
+    'losing the backend mid-turn shows the person sign, not an error',
     () async {
       final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)]);
       final container = await inConversa(harness);
@@ -3170,84 +3097,9 @@ void main() {
       notifier.conversaTap();
       await settle();
 
-      expect(container.read(salaSessionProvider).offline, isFalse);
       expect(container.read(salaSessionProvider).needsPerson, isTrue);
     },
   );
-
-  test(
-    'a person resolves the offline halt once the room answers again',
-    () async {
-      final harness = SalaHarness()..room.reachable = false;
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-
-      harness.room.reachable = true;
-      container.read(salaSessionProvider.notifier).resolveWithPerson();
-      await waitFor(
-        'o círculo voltar ao convite',
-        () => container.read(salaSessionProvider).voice == VoiceState.invite,
-      );
-
-      expect(
-        container.read(salaSessionProvider).voice,
-        VoiceState.invite,
-        reason:
-            'a sala nunca chegou a ter sessão; o convite só é honesto '
-            'depois que ela vai buscar uma',
-      );
-    },
-  );
-
-  test('the room comes back without the network ever changing', () async {
-    final harness = SalaHarness()..network.reachable = false;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    expect(container.read(salaSessionProvider).offline, isTrue);
-
-    harness.network.reachable = true;
-    await settle();
-
-    expect(
-      container.read(salaSessionProvider).offline,
-      isFalse,
-      reason:
-          'esperar um evento do sistema que nunca vem prende a sala para sempre',
-    );
-  });
-
-  test('a tap asks the room again instead of doing nothing', () async {
-    final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)])
-      ..network.reachable = false;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final checksWhileOffline = harness.network.checks;
-
-    harness.network.reachable = true;
-    container.read(salaSessionProvider.notifier).conversaTap();
-    await settle();
-
-    expect(harness.network.checks, greaterThan(checksWhileOffline));
-    expect(container.read(salaSessionProvider).offline, isFalse);
-  });
-
-  test('the notice is not spoken again each time a retry fails', () async {
-    final harness = SalaHarness()..room.reachable = false;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-
-    await waitFor(
-      'a sala dizer uma fala fixa',
-      () => harness.voice.assets.isNotEmpty,
-    );
-    await settle(const Duration(milliseconds: 200));
-
-    expect(
-      harness.voice.assets,
-      hasLength(1),
-      reason: 'a sala repetindo o aviso a cada 20ms é um alarme, não um recado',
-    );
-  });
 
   test(
     'a question raised during the panorama posts against the panorama session',
@@ -3328,27 +3180,26 @@ void main() {
   );
 
   test(
-    'the Panorama without a room halts spoken, not on a dead screen',
+    'the Panorama without a room rests at the invite and says nothing',
     () async {
       final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)]);
       final container = harness.container();
       addTearDown(container.dispose);
       await _theChoiceOffersThePanorama(harness, container);
-      harness.network.reachable = false;
+      harness.room.reachable = false;
 
       container
           .read(salaSessionProvider.notifier)
           .openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await settle();
 
-      expect(container.read(salaSessionProvider).offline, isTrue);
-      expect(harness.voice.assets, [offlineNoticeAsset(testLanguage)]);
+      expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+      expect(harness.voice.assets, isEmpty);
       expect(container.read(salaSessionProvider).panoramaSaid, isFalse);
     },
   );
 
-  test('a Panorama the room refuses to open does not disguise itself as a dead '
-      'network, and calls nobody', () async {
+  test('a Panorama the room refuses to open calls nobody', () async {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
@@ -3360,19 +3211,7 @@ void main() {
         .openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
 
-    final state = container.read(salaSessionProvider);
-    expect(
-      state.offline,
-      isFalse,
-      reason:
-          'chamar de queda de rede uma sala que respondeu errado devolve '
-          'a equipe ao aceno para sempre, sem nunca pedir ajuda',
-    );
-    expect(state.needsPerson, isFalse);
-    expect(
-      harness.voice.assets,
-      isNot(contains(offlineNoticeAsset(testLanguage))),
-    );
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
   });
 
   test(
@@ -4018,7 +3857,7 @@ void main() {
       1,
       reason:
           'done caía no bloco de no-op de _noteTap, junto de thinking/speaking/'
-          'needsPerson/offline/blocked, e nunca chamava _startListening — a mão '
+          'needsPerson, e nunca chamava _startListening — a mão '
           'armava a nota e o círculo não abria o microfone',
     );
     expect(
@@ -4389,28 +4228,20 @@ void main() {
     expect(harness.voice.fixedLines, isNot(contains(('E0', testLanguage))));
   });
 
-  test('the wheel reloads itself when the network comes back', () async {
-    final harness = SalaHarness()..network.reachable = false;
+  test('the next tap reloads a wheel the room never answered', () async {
+    final harness = SalaHarness()..room.reachable = false;
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    harness.room.reachable = false;
     await notifier.abrirEscolha();
     await settle();
-    expect(container.read(salaSessionProvider).offline, isTrue);
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
 
     harness.room.reachable = true;
-    harness.network.reachable = true;
-    harness.network.networkComesBack();
+    notifier.escolhaTap();
     await settle(const Duration(milliseconds: 300));
 
-    expect(
-      container.read(salaSessionProvider).naRoda,
-      hasLength(3),
-      reason:
-          '_comeBack não conhecia a escolha: a rede voltava e a roda '
-          'continuava vazia para sempre',
-    );
+    expect(container.read(salaSessionProvider).naRoda, hasLength(3));
   });
 
   test('entering carries the chosen passage to the room', () async {
@@ -4887,7 +4718,6 @@ void main() {
       'a cópia de reserva entrar na fila',
       () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
     );
-    expect(container.read(salaSessionProvider).unreachable, isFalse);
     expect(
       (await harness.takes.entries()).where((e) => e.kind == 'retro'),
       hasLength(1),
@@ -5793,12 +5623,6 @@ void main() {
 
     final state = container.read(salaSessionProvider);
     expect(state.needsPerson, isFalse);
-    expect(
-      state.offline,
-      isFalse,
-      reason:
-          'esperar nunca conserta chave errada — não pode virar tela de offline',
-    );
     expect(
       harness.voice.fixedLines,
       isNot(contains(('E0', testLanguage))),

@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -20,11 +19,7 @@ const _theNetworkDrops = NetworkFailed('a rede caiu');
 class _Room {
   final SalaHarness harness;
   final ProviderContainer container;
-  final List<SalaSessionState> seen = [];
-
-  _Room(this.harness, this.container) {
-    container.listen(salaSessionProvider, (_, next) => seen.add(next));
-  }
+  _Room(this.harness, this.container);
 
   SalaSessionNotifier get sala => container.read(salaSessionProvider.notifier);
 
@@ -34,11 +29,6 @@ class _Room {
 
   int get replies =>
       harness.voice.played.where((url) => url == turnoUrl).length;
-
-  bool get everOffline => seen.any((state) => state.offline);
-
-  bool get offlineNoticeSpoken =>
-      harness.voice.assets.contains(offlineNoticeAsset(testLanguage));
 }
 
 /// One take in the conversa whose answer the network loses, on a fake clock that starts
@@ -117,7 +107,6 @@ void main() {
           ]);
           expect(it.replies, 2, reason: 'a resposta da tomada toca uma vez');
           expect(it.state.needsPerson, isFalse);
-          expect(it.everOffline, isFalse);
 
           clock.elapse(const Duration(seconds: 10));
 
@@ -207,7 +196,6 @@ void main() {
               expect(it.room.turnIdsLookedAt, hasLength(3));
               expect(it.replies, 2, reason: 'a resposta da tomada toca');
               expect(it.state.needsPerson, isFalse);
-              expect(it.everOffline, isFalse);
             },
           );
         });
@@ -243,8 +231,6 @@ void main() {
 
       expect(it.room.turnIdsLookedAt, [_theTake(it)]);
       expect(it.state.needsPerson, isTrue);
-      expect(it.everOffline, isFalse);
-      expect(it.offlineNoticeSpoken, isFalse);
     });
   });
 
@@ -262,7 +248,6 @@ void main() {
             clock.elapse(const Duration(seconds: 2));
 
             expect(it.state.needsPerson, isTrue);
-            expect(it.everOffline, isFalse);
             final looks = it.room.turnIdsLookedAt.length;
             expect(looks, greaterThanOrEqualTo(14));
 
@@ -283,7 +268,6 @@ void main() {
             expect(it.state.needsPerson, isFalse);
             expect(it.state.voice, VoiceState.invite);
             expect(it.state.awaitingTheGuide, isFalse);
-            expect(it.everOffline, isFalse);
             final looks = it.room.turnIdsLookedAt.length;
             expect(looks, greaterThanOrEqualTo(14));
 
@@ -652,26 +636,11 @@ void main() {
       look: TheLook(turn, asked: false, suspended: true),
     );
 
-    test('goes out at the tap with the room within reach', () {
+    test('goes out at the tap', () {
       final (_, effects) = reduce(held, const TeamTapped());
 
       expect(effects, contains(const LookAtTheSession(turn)));
     });
-
-    test(
-      'tapped out of reach, waits for the room and goes out on its return',
-      () {
-        final (lifted, effects) = reduce(
-          held.copyWith(reach: Reach.outOfReach),
-          const TeamTapped(),
-        );
-        expect(effects, isNot(contains(const LookAtTheSession(turn))));
-
-        final (_, back) = reduce(lifted, const NetworkReturned());
-
-        expect(back, contains(const LookAtTheSession(turn)));
-      },
-    );
   });
 
   group('the resumed look', () {

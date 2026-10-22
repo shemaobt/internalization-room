@@ -423,7 +423,6 @@ void main() {
       _landsOnTheApprovedDraft(room);
       final state = _state(room);
       expect(state.needsPerson, isFalse);
-      expect(state.unreachable, isFalse);
       expect(harness.room.personsAsked, 0);
       expect(
         tester

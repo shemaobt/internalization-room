@@ -121,8 +121,6 @@ void main() {
 
     for (final (name, voice, halt) in [
       ('needsPerson', VoiceState.invite, const Blocking()),
-      ('offline', VoiceState.offline, const NoHalt()),
-      ('blocked', VoiceState.blocked, const NoHalt()),
     ]) {
       await _pumpCircle(tester, voice, halt: halt, warning: _aviso);
       expect(

@@ -7,7 +7,6 @@ import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
-import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
@@ -21,9 +20,6 @@ class AStationHost implements StationHost {
   bool watchIsWanted = true;
 
   @override
-  bool roomIsReachable = true;
-
-  @override
   Kept sounding = const NothingKept();
 
   @override
@@ -35,7 +31,6 @@ class AStationHost implements StationHost {
   FailureContext failureContext({
     required Door door,
     required RefusalRule rule,
-    required RoomReach why,
   }) => FailureContext(
     station: context.station,
     step: context.step,
@@ -44,7 +39,6 @@ class AStationHost implements StationHost {
     sounding: context.sounding,
     door: door,
     rule: rule,
-    why: why,
   );
 
   final List<SessionSnapshot> readsHeard = [];
@@ -161,10 +155,6 @@ class AStationHost implements StationHost {
       asked.add('hearTheOutboxCounted');
 
   @override
-  void hearTheFall(Door door, RoomReach why) =>
-      asked.add('hearTheFall:${door.name}:${why.name}');
-
-  @override
   void hearTheStepLetGo() => asked.add('hearTheStepLetGo');
 
   @override
@@ -217,7 +207,5 @@ EffectRunner runnerOver(
   partCeiling: () => null,
   clipGrace: () => clipGrace,
   lookAgainAfter: () => Duration.zero,
-  offlineNotice: () =>
-      const Line(LineKind.offlineNotice, 0, asset: 'offline.mp3'),
   generation: generation,
 );

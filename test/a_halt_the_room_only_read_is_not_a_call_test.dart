@@ -44,47 +44,6 @@ void main() {
     },
   );
 
-  test(
-    'the recorder that never started twice in the retro still calls',
-    () async {
-      final harness = SalaHarness();
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-
-      notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
-      await settle();
-      notifier.takeKeep();
-      await waitFor(
-        'a sala nomear a parte',
-        () => container.read(salaSessionProvider).partes.last.takeId != null,
-      );
-      notifier.startRetro();
-      await settle();
-
-      harness.recorder.startThrows = true;
-      harness.playback.at = const Duration(seconds: 2);
-      notifier.retroTap();
-      notifier.retroTap();
-      await settle();
-      notifier.retroTap();
-      notifier.retroTap();
-      await settle();
-
-      expect(read().needsPerson, isTrue);
-      expect(
-        harness.room.personsAsked,
-        1,
-        reason:
-            'pin: o microfone que nunca abre duas vezes seguidas é a '
-            'sala decidindo, e isso continua chamando alguém como sempre',
-      );
-    },
-  );
-
   test('a warning read after a turn stops nothing and calls nobody', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'

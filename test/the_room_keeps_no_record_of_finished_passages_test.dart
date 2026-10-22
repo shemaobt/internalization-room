@@ -7,7 +7,6 @@ import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -120,8 +119,6 @@ void main() {
         partCeiling: () => null,
         clipGrace: () => Duration.zero,
         lookAgainAfter: () => Duration.zero,
-        offlineNotice: () =>
-            const Line(LineKind.offlineNotice, 0, asset: 'offline.mp3'),
         generation: () => 0,
       );
       addTearDown(runner.dispose);

@@ -68,7 +68,6 @@ class _Circle extends ConsumerWidget {
       size: facilitatorCircleSize,
       halt: session.halt,
       voice: session.voice,
-      reach: session.reach,
       semanticLabel: escolhaLabelFor(
         session.livroInteiroFeito || session.wheelOffersNothing
             ? 'allDone'
@@ -76,9 +75,6 @@ class _Circle extends ConsumerWidget {
         language,
       ),
       onTap: notifier.escolhaTap,
-      onLongPress: session.canResolveWithPerson
-          ? notifier.resolveWithPerson
-          : null,
     );
   }
 }

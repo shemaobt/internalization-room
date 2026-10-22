@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -37,6 +39,19 @@ Future<void> _backInTheSession(Sala it, String session) async {
     'the team to be back in the session',
     () => it.estado.sessionId == session,
   );
+  await settle();
+}
+
+Future<void> _aRecordingIsStranded(Sala it) async {
+  final entry = await it.harness.takes.enqueue(
+    it.harness.recorder.aFile('sumida'),
+    sessionId: 'sessao-de-ontem',
+    kind: 'ensaio',
+    scope: 'inteira',
+  );
+  File(entry.path).deleteSync();
+  await it.harness.takes.flush();
+  await it.sala.refreshUnsent();
   await settle();
 }
 
@@ -132,10 +147,9 @@ void main() {
           await _anEnglishSessionReachedAgainAfterPtWasTapped();
       await _backInTheSession(it, english);
 
-      it.sala.sayTheMicIsBlocked();
-      await settle();
+      await _aRecordingIsStranded(it);
 
-      expect(it.harness.voice.assets, [micBlockedAsset('en')]);
+      expect(it.harness.voice.assets, [strandedTakeAsset('en')]);
     },
   );
 
@@ -145,15 +159,14 @@ void main() {
       final (it, english) =
           await _anEnglishSessionReachedAgainAfterPtWasTapped();
 
-      it.sala.sayTheMicIsBlocked();
-      await settle();
+      await _aRecordingIsStranded(it);
 
-      expect(it.harness.voice.assets, [micBlockedAsset('pt')]);
+      expect(it.harness.voice.assets, [strandedTakeAsset('pt')]);
     },
   );
 
   test(
-    'an English Panorama left before it was heard is opened again in English, in its own session, when the network returns',
+    'an English Panorama left before it was heard is opened again in English, in its own session, on the next tap',
     () async {
       final harness = SalaHarness(lingua: null)
         ..room.passages = const [
@@ -181,12 +194,11 @@ void main() {
       it.sala.chooseTheLanguage('pt');
       await settle();
       harness.room.reachable = false;
-      harness.network.reachable = false;
       await it.sala.returnToTheLeftEntry();
       await settle();
 
       harness.room.reachable = true;
-      harness.network.reachable = true;
+      it.sala.panoramaTap();
       await waitFor('the Panorama to be said', () => it.estado.panoramaSaid);
 
       expect(harness.room.languagesSent, ['en']);
@@ -230,10 +242,9 @@ void main() {
       await settle();
       it.harness.voice.assets.clear();
 
-      it.sala.sayTheMicIsBlocked();
-      await settle();
+      await _aRecordingIsStranded(it);
 
-      expect(it.harness.voice.assets, [micBlockedAsset('en')]);
+      expect(it.harness.voice.assets, [strandedTakeAsset('en')]);
     },
   );
 }

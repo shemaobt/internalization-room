@@ -7,11 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/mic_gate_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
 
 import 'a_scene_room.dart';
@@ -83,7 +82,10 @@ final class _Before {
   final int persons;
 
   _Before(SalaHarness harness)
-    : lines = harness.voice.assets.length + harness.voice.played.length,
+    : lines =
+          harness.voice.assets.length +
+          harness.voice.played.length +
+          harness.voice.fixedLines.length,
       persons = harness.room.personsAsked;
 }
 
@@ -97,9 +99,10 @@ void _expectNoGateNoLineNoPerson(
     isNot(MicAccess.denied),
     reason: 'a tela do ensaio da cena não registra o microfone como negado',
   );
-  expect(harness.voice.assets, isNot(contains(micBlockedAsset(testLanguage))));
   expect(
-    harness.voice.assets.length + harness.voice.played.length,
+    harness.voice.assets.length +
+        harness.voice.played.length +
+        harness.voice.fixedLines.length,
     before.lines,
     reason: 'nenhuma fala depois do toque',
   );
@@ -129,7 +132,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1500));
 
       final state = container.read(salaSessionProvider);
-      expect(find.byType(MicGateView), findsNothing);
       expect(find.byType(SceneRehearsalView), findsOneWidget);
       expect(_circleAtRest, findsOneWidget);
       expect(_aMicrophone(state.channel), isFalse);
@@ -288,6 +290,29 @@ void main() {
     });
   });
 
+  for (final (how, fails) in [
+    ('fails twice', (FakeRecorder recorder) => recorder.startThrows = true),
+    ('is refused', (FakeRecorder recorder) => recorder.permitted = false),
+  ]) {
+    test('a microphone that $how on the scene rehearsal shows and says '
+        'nothing', () async {
+      final room = await atRest();
+      await theScreenOpens(room);
+      final before = _Before(room.harness);
+      fails(room.harness.recorder);
+      final starts = room.harness.recorder.captures;
+
+      await _tapsTheSceneCircle(room);
+      await _tapsTheSceneCircle(room);
+
+      expect(room.harness.recorder.captures, starts + 2);
+      expect(room.state.needsPerson, isFalse);
+      expect(room.state.stage, SalaStage.cena);
+      expect(_Before(room.harness).lines, before.lines);
+      expect(room.harness.room.personsAsked, before.persons);
+    });
+  }
+
   group('the session screen keeps its own rule', () {
     test('a failed start on the scene rehearsal does not count towards the '
         "Conversation's two", () async {
@@ -337,63 +362,31 @@ void main() {
         expect(room.state.needsPerson, isTrue);
       },
     );
-
-    testWidgets(
-      'a refusal on the Conversation still shows the gate and says its line',
-      (tester) async {
-        final (harness, container) = await _inArticulation(tester);
-        harness.recorder.permitted = false;
-
-        container.read(salaSessionProvider.notifier).conversaTap();
-        await tester.pump(const Duration(milliseconds: 500));
-
-        expect(find.byType(MicGateView), findsOneWidget);
-        expect(container.read(micPermissionProvider), MicAccess.denied);
-
-        harness.voice.assets.clear();
-        await _backToTheApp(tester);
-
-        expect(harness.voice.assets, contains(micBlockedAsset(testLanguage)));
-      },
-    );
-
-    test('a refusal on the Rehearsal still shows the gate', () async {
-      final room = await atRest();
-      room.harness.recorder.permitted = false;
-
-      room.sala.goEnsaio();
-      room.sala.ensaioTap();
-      await settle();
-
-      expect(room.container.read(micPermissionProvider), MicAccess.denied);
-    });
   });
 
   testWidgets(
     'the permission check on return to the app neither covers nor speaks over the '
-    'scene rehearsal',
+    'scene rehearsal, nor over the Conversation after it',
     (tester) async {
       final (harness, _) = await _onTheSceneRehearsal(tester);
       harness.recorder.permitted = false;
+      final before = _Before(harness);
 
       await _backToTheApp(tester);
 
       expect(find.byType(SceneRehearsalView), findsOneWidget);
-      expect(find.byType(MicGateView), findsNothing);
-      expect(
-        harness.voice.assets,
-        isNot(contains(micBlockedAsset(testLanguage))),
-      );
+      expect(_Before(harness).lines, before.lines);
 
       await tester.tap(_theWayBack);
       await tester.pump(const Duration(milliseconds: 1500));
 
-      expect(find.byType(MicGateView), findsOneWidget);
+      expect(find.byType(ConversaView), findsOneWidget);
+      expect(_Before(harness).lines, before.lines);
     },
   );
 
   test(
-    "a dead disk under the scene take's download keeps the room in reach, says "
+    "a dead disk under the scene take's download keeps the room as it was, says "
     'nothing and calls nobody',
     () async {
       final harness = SalaHarness();
@@ -410,6 +403,7 @@ void main() {
         ..sceneAudio = Uint8List.fromList([1, 2, 3]);
       final room = await atRest(harness);
       final persons = harness.room.personsAsked;
+      final before = _Before(harness);
       harness.recorder.keepBytesFails = true;
 
       room.sala.openTheSceneRehearsal();
@@ -419,12 +413,7 @@ void main() {
       );
       await settle(const Duration(milliseconds: 400));
 
-      expect(room.state.unreachable, isFalse);
-      expect(room.state.offline, isFalse);
-      expect(
-        harness.voice.assets,
-        isNot(contains(offlineNoticeAsset(testLanguage))),
-      );
+      expect(_Before(harness).lines, before.lines);
       expect(room.state.needsPerson, isFalse);
       expect(harness.room.personsAsked, persons);
       expect(room.state.stage, SalaStage.cena);

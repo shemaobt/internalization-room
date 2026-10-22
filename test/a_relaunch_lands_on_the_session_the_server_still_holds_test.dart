@@ -7,7 +7,6 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -352,18 +351,15 @@ void main() {
       salaSessionProvider,
       (_, next) => stations.add(next.station),
     );
-    again.harness.network.reachable = false;
     again.harness.room.reachable = false;
     await again.notifier.openTheRoom();
-    await waitFor('the room to be out of reach', () => again.state.offline);
     await settle();
 
     expect(stations, everyElement(isA<Menu>()));
     expect(again.state.station, isA<Menu>());
 
-    again.harness.network.reachable = true;
     again.harness.room.reachable = true;
-    again.notifier.retryNow();
+    again.notifier.escolhaTap();
     await _theChoiceShowsItsWheel(again);
 
     final later = await _relaunch(again);
@@ -439,10 +435,8 @@ void main() {
       () async {
         final first = await _inP01();
         final offline = await _relaunch(first);
-        offline.harness.network.reachable = false;
         offline.harness.room.reachable = false;
         await offline.notifier.openTheRoom();
-        offline.harness.network.reachable = true;
         offline.harness.room.reachable = true;
         await offline.notifier.openTheRoom();
         await _theChoiceShowsItsWheel(offline);
@@ -545,10 +539,8 @@ void main() {
       final session = first.state.sessionId!;
 
       final again = await _relaunch(first);
-      again.harness.network.reachable = false;
       again.harness.room.reachable = false;
       await again.notifier.openTheRoom();
-      again.harness.network.reachable = true;
       again.harness.room.reachable = true;
       final reads = again.asked('fetchState');
 
@@ -563,57 +555,6 @@ void main() {
       final later = await _relaunch(again);
       await later.notifier.openTheRoom();
       await _landsOn(later, session);
-    },
-  );
-
-  test(
-    'a launch landing that waits for the room enters the same session when it comes back',
-    () async {
-      final first = await _inP01();
-      final session = first.state.sessionId!;
-      await first.harness.emAberto.forget('Ruth', 'P01', 'pt');
-
-      final again = await _relaunch(first);
-      final before = again.harness.room.calls.length;
-      again.harness.network.reachable = false;
-      await again.notifier.openTheRoom();
-      await waitFor('the room to be out of reach', () => again.state.offline);
-      again.harness.network.reachable = true;
-      final saidOutOfReach = again.said.length;
-      again.notifier.retryNow();
-      await _landsOn(again, session);
-
-      final asked = again.harness.room.calls.skip(before);
-      expect(asked, isNot(contains('createSession')));
-      expect(asked, isNot(contains('openSession')));
-      expect(again.said.skip(saidOutOfReach), isEmpty);
-    },
-  );
-
-  test(
-    'a launch landing that waits for the room reads the session again when it comes back',
-    () async {
-      final first = await _inP01();
-      final session = first.state.sessionId!;
-      await first.harness.emAberto.forget('Ruth', 'P01', 'pt');
-
-      final again = await _relaunch(first);
-      final before = again.harness.room.calls.length;
-      again.harness.network.reachable = false;
-      await again.notifier.openTheRoom();
-      await waitFor('the room to be out of reach', () => again.state.offline);
-      again.harness.room
-        ..serverStatus = 'needs_person'
-        ..serverHalt = HaltKind.warning;
-      again.harness.network.reachable = true;
-      again.notifier.retryNow();
-      await waitFor('the warning to be read', () => again.state.warning);
-
-      expect(again.state.sessionId, session);
-      expect(
-        again.harness.room.calls.skip(before),
-        isNot(contains('createSession')),
-      );
     },
   );
 

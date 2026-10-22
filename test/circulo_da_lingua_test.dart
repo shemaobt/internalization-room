@@ -104,23 +104,6 @@ Future<void> _pumpCirculo(
   ),
 );
 
-/// Whether the circle drew one of the glyphs a halted state wears — the cloudOff/
-/// serverOff, or the micOff — the mark a warning must never cover.
-bool _haltedGlyph(WidgetTester tester) => tester
-    .widgetList<Icon>(
-      find.descendant(
-        of: find.byType(FacilitatorCircle),
-        matching: find.byType(Icon),
-      ),
-    )
-    .any(
-      (marca) => const [
-        LucideIcons.cloudOff,
-        LucideIcons.serverOff,
-        LucideIcons.micOff,
-      ].contains(marca.icon),
-    );
-
 void main() {
   testWidgets('gravando a tradução, o círculo é azul', (tester) async {
     final (container, _) = await pumpToPergunta(tester);
@@ -161,12 +144,6 @@ void main() {
           colors,
         ),
         ('done', VoiceState.done, const NoHalt()): BeadStyles.telha(colors),
-        ('offline', VoiceState.offline, const NoHalt()): BeadStyles.clay(
-          colors,
-        ),
-        ('blocked', VoiceState.blocked, const NoHalt()): BeadStyles.clay(
-          colors,
-        ),
       };
 
       for (final entrada in deAntes.entries) {
@@ -273,7 +250,6 @@ void main() {
         ('listening', VoiceState.listening, NoHalt()),
         ('speaking', VoiceState.speaking, NoHalt()),
         ('done', VoiceState.done, NoHalt()),
-        ('offline', VoiceState.offline, NoHalt()),
       ];
 
       for (final (nome, voz, parada) in vozes) {
@@ -294,41 +270,8 @@ void main() {
                 'desenhou um disco verde de pronto, e o aviso deixou de ser '
                 'uma cor do disco (Henok, revertendo o PR #230)',
           );
-
-          if (voz == VoiceState.offline) {
-            expect(
-              _haltedGlyph(tester),
-              isTrue,
-              reason:
-                  '$nome sempre desenha o seu ícone, com aviso ou '
-                  'sem ele',
-            );
-          }
         }
       }
-    },
-  );
-
-  testWidgets(
-    'o microfone bloqueado também vence o aviso — a terceira parada da lista',
-    (tester) async {
-      await _pumpCirculo(
-        tester,
-        VoiceState.blocked,
-        AppTheme.light,
-        warning: true,
-      );
-
-      expect(
-        _disco(tester),
-        isNot(BeadStyles.verde),
-        reason:
-            '_halted lista needsPerson, offline e blocked juntos; a '
-            'matriz acima só cobre os dois primeiros, e um terceiro estado '
-            'parado que a lista promete e o teste não olha é onde uma '
-            'reordenação futura do corpo do círculo passaria despercebida',
-      );
-      expect(_haltedGlyph(tester), isTrue);
     },
   );
 

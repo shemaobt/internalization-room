@@ -317,8 +317,8 @@ void main() {
     expect(harness.room.personAsksFor, [primeira]);
   });
 
-  test('a call for an earlier session that fell on the network keeps the room '
-      'in reach, and the current session is still called for', () async {
+  test('a call for an earlier session that fell on the network leaves the '
+      'current session still called for', () async {
     final harness = SalaHarness();
     final container = await _naPassagem(harness);
     final primeira = _estado(container).sessionId!;
@@ -339,7 +339,6 @@ void main() {
     await settle();
     _sala(container).conversaTap();
     await waitFor('a parada chegar', () => _estado(container).needsPerson);
-    harness.network.reachable = false;
 
     harness.room.finishHeldAskForAPerson();
     await waitFor(
@@ -347,15 +346,8 @@ void main() {
       () => harness.room.personAsksFor.isNotEmpty,
     );
     harness.room.askForAPersonFailsWith = null;
-    harness.network.reachable = true;
     await settle(_severalStepsOfTheLadder);
 
-    expect(
-      _estado(container).unreachable,
-      isFalse,
-      reason:
-          'o pedido de pessoa não é uma entrada: a rede que cai não muda nada',
-    );
     expect(_estado(container).needsPerson, isTrue);
     expect(harness.room.personAsksFor.first, primeira);
     expect(

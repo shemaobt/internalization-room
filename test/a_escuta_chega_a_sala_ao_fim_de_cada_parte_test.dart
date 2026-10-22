@@ -127,7 +127,6 @@ void main() {
 
     expect(it.harness.room.listeningReports, hasLength(partesDoEnsaio.length));
     expect(it.estado.needsPerson, isFalse);
-    expect(it.estado.offline, isFalse);
     expect(it.harness.voice.fixedLines.length, linhas);
     expect(it.harness.voice.played.length, falas);
     expect(it.estado.btClipEnded, isTrue);

@@ -23,7 +23,6 @@ import 'widgets/back_to_passage_button.dart';
 import 'widgets/language_and_look.dart';
 import 'widgets/leave_passage_button.dart';
 import 'widgets/person_sign.dart';
-import 'widgets/mic_gate_view.dart';
 import 'widgets/retro_view.dart';
 import 'widgets/scene_rehearsal_view.dart';
 
@@ -108,19 +107,14 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
 
   Future<void> _openRoom() async {
     _watchForReplies();
-    final access = await ref.read(micPermissionProvider.notifier).check();
+    await ref.read(micPermissionProvider.notifier).check();
     if (!mounted) return;
-    if (access == MicAccess.granted) {
-      unawaited(ref.read(salaSessionProvider.notifier).openTheRoom());
-    } else {
-      ref.read(salaSessionProvider.notifier).sayTheMicIsBlocked();
-    }
+    unawaited(ref.read(salaSessionProvider.notifier).openTheRoom());
   }
 
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(salaSessionProvider);
-    final mic = ref.watch(micPermissionProvider);
     final link = ref.watch(deviceLinkProvider);
     ref.listen(deviceLinkProvider, (was, now) {
       if ((was?.linked ?? false) && !now.linked) _closeTheRoom();
@@ -142,10 +136,6 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => unawaited(_openRoom()),
       );
-    }
-
-    if (mic == MicAccess.denied && session.stage != SalaStage.cena) {
-      return const Scaffold(body: SafeArea(child: MicGateView()));
     }
 
     return Scaffold(

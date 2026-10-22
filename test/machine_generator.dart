@@ -8,32 +8,27 @@ import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/left_entry.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/refusal_code.dart';
-import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 class World {
   final bool watchArmed;
   final bool callOutstanding;
-  final bool reachable;
   final bool serverHoldsAWarning;
   final bool playerBusy;
   final bool micOpen;
   final bool retryArmed;
   final bool draining;
-  final bool probing;
   final bool looking;
 
   const World({
     this.watchArmed = true,
     this.callOutstanding = false,
-    this.reachable = true,
     this.serverHoldsAWarning = false,
     this.playerBusy = false,
     this.micOpen = false,
     this.retryArmed = false,
     this.draining = false,
-    this.probing = false,
     this.looking = false,
   });
 
@@ -55,21 +50,12 @@ class World {
             event.because == null);
     var retry = retryArmed && event is! RetryFired;
     var drains = draining && event is! OutboxChanged;
-    var probes =
-        probing &&
-        event is! NetworkReturned &&
-        !(event is NetworkFailedAt && event.door == Door.probe);
     var looks =
         looking &&
         event is! LookFound &&
         event is! RoomRaisedAHalt &&
         event is! TheOpeningMissed &&
         event is! TheSceneTurnFoundNothing;
-    var reach = switch (event) {
-      NetworkFailedAt() => false,
-      NetworkReturned() => true,
-      _ => reachable,
-    };
     for (final effect in effects) {
       switch (effect) {
         case ArmTheWatch():
@@ -92,8 +78,6 @@ class World {
           retry = false;
         case DrainTheOutbox():
           drains = true;
-        case ProbeTheRoom():
-          probes = true;
         case LookAtTheSession() || LookAgain():
           looks = true;
         default:
@@ -103,12 +87,10 @@ class World {
     return World(
       watchArmed: armed,
       callOutstanding: calling,
-      reachable: reach,
       playerBusy: busy,
       micOpen: mic,
       retryArmed: retry,
       draining: drains,
-      probing: probes,
       looking: looks,
       serverHoldsAWarning: switch (event) {
         TheAnswerWarned() => true,
@@ -241,10 +223,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheAnswerWarned() => 'TheAnswerWarned',
   TeamTapped() => 'TeamTapped',
   WatchFired() => 'WatchFired',
-  NetworkFailedAt(:final door, :final why) =>
-    'NetworkFailedAt(${door.name}, ${why.name})',
-  NetworkReturned(:final released) =>
-    'NetworkReturned${released ? '(released)' : ''}',
+  NetworkFailedAt(:final door) => 'NetworkFailedAt(${door.name})',
   RetryFired() => 'RetryFired',
   TheRoomAnswered() => 'TheRoomAnswered',
   OutboxChanged(:final parts, :final due) =>
@@ -354,7 +333,7 @@ String describeChannel(Channel channel) => switch (channel) {
 String describeMachine(Machine machine) =>
     '${describeHalt(machine.halt)} / ${describeChannel(machine.channel)} / '
     'queue [${machine.queue.map(describeLine).join(', ')}] / '
-    '${machine.reach.name}${machine.somethingPending ? ', a part pending' : ''}'
+    '${machine.somethingPending ? 'a part pending' : 'nothing pending'}'
     '${machine.draining ? ', draining' : ''}';
 
 String describeEffect(Effect effect) => switch (effect) {
@@ -362,8 +341,7 @@ String describeEffect(Effect effect) => switch (effect) {
   PlayPart(:final part) => 'PlayPart(${describeSound(part)})',
   PlayStretch(:final stretch) => 'PlayStretch(${describeSound(stretch)})',
   OpenTheMic(:final owner) => 'OpenTheMic(${owner.name})',
-  ArmTheRetry(:final step, :final due) =>
-    'ArmTheRetry(${due == null ? 'step $step' : 'due ${due.inSeconds}s'})',
+  ArmTheRetry(:final due) => 'ArmTheRetry(due ${due.inSeconds}s)',
   _ => effect.runtimeType.toString(),
 };
 
@@ -392,7 +370,6 @@ enum EventKind {
   teamTapped,
   watchFired,
   networkFailedAt,
-  networkReturned,
   retryFired,
   theRoomAnswered,
   outboxChanged,
@@ -465,7 +442,6 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TeamTapped() => EventKind.teamTapped,
   WatchFired() => EventKind.watchFired,
   NetworkFailedAt() => EventKind.networkFailedAt,
-  NetworkReturned() => EventKind.networkReturned,
   RetryFired() => EventKind.retryFired,
   TheRoomAnswered() => EventKind.theRoomAnswered,
   OutboxChanged() => EventKind.outboxChanged,
@@ -548,7 +524,6 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theAnswerWarned ||
   EventKind.teamTapped ||
   EventKind.networkFailedAt ||
-  EventKind.networkReturned ||
   EventKind.theRoomAnswered ||
   EventKind.outboxChanged ||
   EventKind.lineArrived ||
@@ -656,12 +631,8 @@ MachineEvent _draw(
   EventKind.teamTapped => const TeamTapped(),
   EventKind.watchFired => const WatchFired(),
   EventKind.networkFailedAt => NetworkFailedAt(
-    world.probing && random.nextBool()
-        ? Door.probe
-        : Door.values[random.nextInt(Door.values.length)],
-    why: RoomReach.values[1 + random.nextInt(RoomReach.values.length - 1)],
+    Door.values[random.nextInt(Door.values.length)],
   ),
-  EventKind.networkReturned => NetworkReturned(released: random.nextBool()),
   EventKind.retryFired => const RetryFired(),
   EventKind.theRoomAnswered => const TheRoomAnswered(),
   EventKind.outboxChanged => OutboxChanged({

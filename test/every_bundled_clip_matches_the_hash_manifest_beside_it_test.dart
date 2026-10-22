@@ -90,11 +90,11 @@ void main() {
     },
   );
 
-  test('the bundle holds the three notices and none of her lines', () {
+  test('the bundle holds the stranded notice and none of her lines', () {
     for (final language in _languages()) {
       expect(
         _clipsIn(language),
-        ['gravacao_presa.mp3', 'microfone.mp3', 'sem_conexao.mp3'],
+        ['gravacao_presa.mp3'],
         reason:
             '${language.path}: as falas dela iam gravadas no app, e uma '
             'gravação antiga tocava depois de ela mudar a letra',

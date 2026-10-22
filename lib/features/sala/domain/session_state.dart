@@ -5,7 +5,6 @@ import 'channel.dart';
 import 'halt.dart';
 import 'machine.dart';
 import 'spoken_line.dart';
-import 'room_reach.dart';
 import 'session_snapshot.dart';
 import 'coverage.dart';
 import 'hand_reply.dart';
@@ -167,15 +166,7 @@ final class NotKept extends SceneKeep {
   const NotKept({this.row, this.take, this.tooLarge = false});
 }
 
-enum VoiceState {
-  invite,
-  listening,
-  thinking,
-  speaking,
-  done,
-  offline,
-  blocked,
-}
+enum VoiceState { invite, listening, thinking, speaking, done }
 
 enum EnsaioStatus { idle, recording, recorded }
 
@@ -278,10 +269,6 @@ class SalaSessionState {
   /// The entry the team last left by the way out, for the Choice to offer the way back.
   final LeftEntry? leftEntry;
   final bool endOfThePassage;
-
-  /// Why the room is out of reach, when it is. Two different faces: a tablet with no
-  /// network at all, and a network that is fine with no room answering on it.
-  final RoomReach reach;
 
   /// Whether the Panorama's line was said on this visit to its Station; from then on the
   /// circle records the team's turn.
@@ -423,7 +410,6 @@ class SalaSessionState {
     this.awaitingTheGuide = false,
     this.leftEntry,
     this.endOfThePassage = false,
-    this.reach = RoomReach.fine,
     this.panoramaSaid = false,
     this.pericope,
     this.coverage = Coverage.empty,
@@ -769,7 +755,6 @@ class SalaSessionState {
 
   VoiceState get voice {
     if (halt is Blocking) return VoiceState.invite;
-    if (unreachable && channel is! Microphone) return VoiceState.offline;
     return switch (channel) {
       Microphone(owner: MicOwner.rehearsal) => _resting,
       Microphone() => VoiceState.listening,
@@ -893,20 +878,11 @@ class SalaSessionState {
 
   bool get wheelOffersNothing => naRoda?.isEmpty ?? false;
 
-  bool get canResolveWithPerson => offline;
-
-  bool get offline => voice == VoiceState.offline;
-
-  bool get unreachable => !machine.reachable;
-
   bool get canFinishBackTranslation =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && btClipEnded;
 
   bool get _btNaVez =>
-      stage == SalaStage.retro &&
-      btPhase == BtPhase.playing &&
-      !needsPerson &&
-      !offline;
+      stage == SalaStage.retro && btPhase == BtPhase.playing && !needsPerson;
 
   bool get btCortado => btCorte > btCursor;
 
@@ -1074,7 +1050,6 @@ class SalaSessionState {
       (btFraseGuardada == null || btFraseGuardada == trecho.frase) &&
       (btFraseQueAguarda == null || btFraseQueAguarda == trecho.segmentId) &&
       !needsPerson &&
-      !offline &&
       trecho.parte >= 0 &&
       trecho.parte < partes.length &&
       partes[trecho.parte].path.endsWith('.wav');
@@ -1104,7 +1079,6 @@ class SalaSessionState {
       stage == SalaStage.retro &&
       partes.isNotEmpty &&
       !needsPerson &&
-      !offline &&
       btRegravacao == null &&
       btFraseQueAguarda == null &&
       (btPhase == BtPhase.findings ||
@@ -1116,7 +1090,6 @@ class SalaSessionState {
       stage == SalaStage.retro &&
       partes.isNotEmpty &&
       !needsPerson &&
-      !offline &&
       btRegravacao == null &&
       (btPhase == BtPhase.playing ||
           btPhase == BtPhase.findings ||
@@ -1127,7 +1100,6 @@ class SalaSessionState {
     LeftEntry? leftEntry,
     bool clearLeftEntry = false,
     bool? endOfThePassage,
-    RoomReach? reach,
     bool? panoramaSaid,
     String? pericope,
     Coverage? coverage,
@@ -1216,7 +1188,6 @@ class SalaSessionState {
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
       leftEntry: clearLeftEntry ? null : (leftEntry ?? this.leftEntry),
       endOfThePassage: endOfThePassage ?? this.endOfThePassage,
-      reach: reach ?? this.reach,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
       pericope: pericope ?? this.pericope,
       coverage: coverage ?? this.coverage,

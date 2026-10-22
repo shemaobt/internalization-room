@@ -1004,7 +1004,6 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.goConversa(book: 'Ruth');
       await tester.pump(const Duration(milliseconds: 200));
-      harness.network.reachable = false;
       harness.room.reachable = false;
       notifier.goEnsaio();
       await tester.pump(const Duration(milliseconds: 400));

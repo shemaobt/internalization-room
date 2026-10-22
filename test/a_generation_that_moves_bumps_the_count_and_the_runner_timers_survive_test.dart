@@ -24,11 +24,11 @@ void main() {
       'and the machine takes their answers', () {
     final container = ProviderContainer(overrides: SalaHarness().overrides);
     addTearDown(container.dispose);
-    final host = AStationHost()..roomIsReachable = false;
-    var machine = reduce(
-      const Machine(station: Canvas()),
-      const NetworkFailedAt(Door.step),
-    ).$1;
+    final host = AStationHost();
+    var machine = const Machine(
+      station: Canvas(),
+      parts: {'parte-1': PartFact.pending},
+    );
     final runner = runnerOver(
       portsOf(container),
       host,
@@ -38,7 +38,7 @@ void main() {
     );
 
     fakeAsync((time) {
-      runner.run(const [ArmTheWatch(), ArmTheRetry()]);
+      runner.run(const [ArmTheWatch(), ArmTheRetry(due: _retry)]);
       machine = moveTheGeneration(machine);
 
       time.elapse(_beat);
@@ -46,7 +46,7 @@ void main() {
       final watch = host.answers.whereType<WatchFired>().single;
       final retry = host.answers.whereType<RetryFired>().single;
       expect(reduce(machine, watch).$2, const [ReadTheState(), ArmTheWatch()]);
-      expect(reduce(machine, retry).$2, const [ProbeTheRoom()]);
+      expect(reduce(machine, retry).$2, const [DrainTheOutbox()]);
     });
   });
 }

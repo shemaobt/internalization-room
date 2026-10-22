@@ -60,38 +60,34 @@ void main() {
     );
   });
 
-  test('the long press on a room that is out is unchanged', () async {
-    final harness = SalaHarness()..room.reachable = false;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
+  test(
+    'a tap on a room that never opened asks again and reads no state',
+    () async {
+      final harness = SalaHarness()..room.reachable = false;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
 
-    expect(read().offline, isTrue);
-    final asked = stateReads(harness);
-    final opened = _createdSessions(harness);
+      expect(read().voice, VoiceState.invite);
+      final asked = stateReads(harness);
+      final opened = _createdSessions(harness);
 
-    notifier.resolveWithPerson();
-    await waitFor(
-      'a sala tentar de novo',
-      () => _createdSessions(harness) > opened,
-    );
+      notifier.conversaTap();
+      await waitFor(
+        'a sala tentar de novo',
+        () => _createdSessions(harness) > opened,
+      );
 
-    expect(
-      stateReads(harness),
-      asked,
-      reason:
-          'a queda não é uma parada: perguntar o estado de uma sessão que '
-          'não existe gastaria o toque na rota errada',
-    );
-    expect(
-      read().offline,
-      isTrue,
-      reason:
-          'e o servidor continua fora; um convite aqui seria o mesmo '
-          'círculo respirando sobre nada',
-    );
-  });
+      expect(
+        stateReads(harness),
+        asked,
+        reason:
+            'a queda não é uma parada: perguntar o estado de uma sessão que '
+            'não existe gastaria o toque na rota errada',
+      );
+    },
+  );
 
   test('the watch outlives the tap and ends with the room', () async {
     final harness = SalaHarness(watchesWithoutAHalt: true);

@@ -124,8 +124,7 @@ Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
   return container;
 }
 
-/// A sala parada de vez, dentro da retro: a equipe contou um trecho e o microfone
-/// não abriu, duas vezes seguidas, para o seguinte.
+/// A sala parada de vez, dentro da retro, depois de a equipe contar um trecho.
 Future<ProviderContainer> _paradaBloqueante(SalaHarness harness) async {
   final container = await _inRetro(harness);
 
@@ -135,14 +134,7 @@ Future<ProviderContainer> _paradaBloqueante(SalaHarness harness) async {
     () => harness.room.chunksSent == 1,
   );
 
-  final notifier = container.read(salaSessionProvider.notifier);
-  harness.recorder.startThrows = true;
-  harness.playback.at = const Duration(seconds: 20);
-  notifier.retroTap();
-  notifier.retroTap();
-  await settle();
-  notifier.retroTap();
-  notifier.retroTap();
+  container.read(salaSessionProvider.notifier).haltForABrokenBuild();
   await waitFor(
     'a sala parar de vez',
     () => container.read(salaSessionProvider).needsPerson,
@@ -242,12 +234,13 @@ void main() {
       final pedacosAntes = harness.room.chunksSent;
 
       notifier.traduzirDeNovoEmPortugues();
-      harness.recorder.startThrows = true;
+      harness.recorder.holdNextStart();
       notifier.retroTap();
       await settle();
-      notifier.retroTap();
+      notifier.haltForABrokenBuild();
       await waitFor('a sala parar', () => read().needsPerson);
-      harness.recorder.startThrows = false;
+      harness.recorder.finishStart();
+      await settle();
       notifier.teamTapped();
       await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 

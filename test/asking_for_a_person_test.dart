@@ -116,8 +116,7 @@ void main() {
     expect(_callsForAPerson(harness), greaterThan(1));
   });
 
-  test('a call that fell on the network keeps the room in reach and is asked '
-      'again', () async {
+  test('a call that fell on the network is asked again', () async {
     final harness = SalaHarness(retryBackoff: const [_oneStepOfTheLadder]);
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -127,22 +126,14 @@ void main() {
     harness.room
       ..failTurnsWith = const Refused('PIPELINE_REFUSED')
       ..askForAPersonFailsWith = const NetworkFailed('sem rede');
-    harness.network.reachable = false;
     await _stopForAPerson(notifier, read);
     await waitFor(
       'o pedido de pessoa sair',
       () => _callsForAPerson(harness) == 1,
     );
     await settle(_severalStepsOfTheLadder);
-    expect(
-      read().unreachable,
-      isFalse,
-      reason:
-          'o pedido de pessoa não é uma entrada: a rede que cai não muda nada',
-    );
-    expect(read().offline, isFalse);
+    expect(read().needsPerson, isTrue);
     harness.room.askForAPersonFailsWith = null;
-    harness.network.reachable = true;
 
     await waitFor(
       'o pedido de pessoa pousar na volta',

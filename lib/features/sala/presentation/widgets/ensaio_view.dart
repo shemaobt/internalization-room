@@ -74,9 +74,6 @@ class EnsaioView extends ConsumerWidget {
               warning: session.warning ? warningNoticeLabelFor(language) : null,
               semanticLabel: _circleLabel(session, language),
               onTap: notifier.ensaioTap,
-              onLongPress: session.canResolveWithPerson
-                  ? notifier.resolveWithPerson
-                  : null,
             ),
             const SizedBox(height: 24),
             Row(

@@ -137,8 +137,6 @@ class RaisedHand {
         _sendQuestion();
       case VoiceState.thinking:
       case VoiceState.speaking:
-      case VoiceState.offline:
-      case VoiceState.blocked:
         break;
     }
   }

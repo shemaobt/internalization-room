@@ -308,7 +308,6 @@ void main() {
     harness.room.chunkAnswersFirst.addAll(
       List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
     );
-    harness.network.reachable = false;
     await confirmarATraducao(container);
     await waitFor(
       'a tradução esperar no tablet',
@@ -323,7 +322,6 @@ void main() {
     expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNotNull);
 
     harness.room.forgetTheSession(sessao);
-    harness.network.reachable = true;
     await _naEscolha(container);
     await waitFor(
       'o lugar, a fila e as gravações da sessão saírem do tablet',
@@ -576,36 +574,6 @@ void main() {
       criacoes,
       reason:
           'a equipe já saiu; uma segunda criação deixaria uma sessão fantasma',
-    );
-  });
-
-  test('leaving a passage by the way out keeps the room out of reach, with '
-      'its retry armed', () async {
-    final harness = SalaHarness(
-      retryBackoff: const [Duration(milliseconds: 250)],
-    );
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final sala = container.read(salaSessionProvider.notifier);
-    await sala.abrirEscolha();
-    await settle();
-    harness.network.reachable = false;
-    harness.room.reachable = false;
-    sala.openTheEntry(_estado(container).naRoda!.first);
-    await waitFor('a sala cair', () => _estado(container).unreachable);
-    harness.room.reachable = true;
-
-    sala.leaveThePassage();
-    await waitFor(
-      'a sala abrir a Escolha',
-      () => _estado(container).stage == SalaStage.escolha,
-    );
-    final sondasNaHora = harness.network.checks;
-
-    expect(_estado(container).unreachable, isTrue);
-    await waitFor(
-      'a volta da sala ser tentada de novo',
-      () => harness.network.checks > sondasNaHora,
     );
   });
 

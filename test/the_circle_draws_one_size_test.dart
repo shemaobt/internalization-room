@@ -49,17 +49,4 @@ void main() {
       const Size(160, 160),
     );
   });
-
-  testWidgets('a porta do microfone desenha o círculo em 160 px', (
-    tester,
-  ) async {
-    final harness = SalaHarness()..recorder.permitted = false;
-    await pumpSala(tester, harness);
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(
-      tester.getSize(find.byType(FacilitatorCircle)),
-      const Size(160, 160),
-    );
-  });
 }

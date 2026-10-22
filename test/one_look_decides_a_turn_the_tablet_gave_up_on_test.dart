@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -30,12 +29,7 @@ class _Take {
 
   int get repliesHeard => _replies(harness) - repliesBefore;
 
-  bool get everOffline => seen.any((state) => state.offline);
-
   bool get everNeededAPerson => seen.any((state) => state.needsPerson);
-
-  bool get offlineNoticeSpoken =>
-      harness.voice.assets.contains(offlineNoticeAsset(testLanguage));
 
   String get takeTurnId => harness.room.turnIdsSent.single;
 }
@@ -97,35 +91,28 @@ void main() {
 
         expect(take.repliesHeard, 1);
         expect(take.room.needsPerson, isFalse);
-        expect(take.everOffline, isFalse);
-        expect(take.offlineNoticeSpoken, isFalse);
       });
     },
   );
 
-  test(
-    'A turn the server never received shows the person sign, never the offline face.',
-    () {
-      _aTake(_theServerNeverGotIt, (clock, take) {
-        clock.elapse(const Duration(seconds: 2));
+  test('A turn the server never received shows the person sign.', () {
+    _aTake(_theServerNeverGotIt, (clock, take) {
+      clock.elapse(const Duration(seconds: 2));
 
-        expect(take.room.needsPerson, isTrue);
-        expect(take.everOffline, isFalse);
-        expect(take.offlineNoticeSpoken, isFalse);
-        final recording = take.harness.room.recordingsSent.single;
-        expect(File(recording).existsSync(), isTrue);
-        expect(take.harness.recorder.deleted, isNot(contains(recording)));
+      expect(take.room.needsPerson, isTrue);
+      final recording = take.harness.room.recordingsSent.single;
+      expect(File(recording).existsSync(), isTrue);
+      expect(take.harness.recorder.deleted, isNot(contains(recording)));
 
-        clock.elapse(const Duration(minutes: 1));
+      clock.elapse(const Duration(minutes: 1));
 
-        expect(
-          take.harness.room.turnsSent,
-          1,
-          reason: 'a take guardada não sai de novo sozinha',
-        );
-      });
-    },
-  );
+      expect(
+        take.harness.room.turnsSent,
+        1,
+        reason: 'a take guardada não sai de novo sozinha',
+      );
+    });
+  });
 
   test('A turn that passed 305 seconds plays the reply that landed.', () {
     _aTake(_theTurnTakesLongAndLands, (clock, take) {
@@ -139,7 +126,6 @@ void main() {
       expect(take.harness.room.turnIdsLookedAt, [take.takeTurnId]);
       expect(take.repliesHeard, 1);
       expect(take.room.needsPerson, isFalse);
-      expect(take.everOffline, isFalse);
     });
   });
 
@@ -155,8 +141,6 @@ void main() {
 
         expect(take.harness.room.turnIdsLookedAt, [take.takeTurnId]);
         expect(take.room.needsPerson, isTrue);
-        expect(take.everOffline, isFalse);
-        expect(take.offlineNoticeSpoken, isFalse);
       });
     },
   );
@@ -381,35 +365,24 @@ void main() {
     });
   });
 
-  test(
-    'A door that is not a turn, off a way in, keeps the room reachable with no offline face, no notice and no retry.',
-    () async {
-      final harness = SalaHarness(
-        retryBackoff: const [Duration(milliseconds: 20)],
-      )..room.unreachableTake = 'ensaio/${KeptScope.parte(1)}';
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final sala = container.read(salaSessionProvider.notifier);
+  test('A door that is not a turn calls no person and leaves the circle at the '
+      'invite.', () async {
+    final harness = SalaHarness(
+      retryBackoff: const [Duration(milliseconds: 20)],
+    )..room.unreachableTake = 'ensaio/${KeptScope.parte(1)}';
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
 
-      await _keepARehearsalPart(sala);
+    await _keepARehearsalPart(sala);
 
-      await waitFor(
-        'a Outbox tentar subir a parte',
-        () => harness.room.calls.contains('sendTake'),
-      );
-      final checks = harness.network.checks;
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+    await waitFor(
+      'a Outbox tentar subir a parte',
+      () => harness.room.calls.contains('sendTake'),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 200));
 
-      expect(container.read(salaSessionProvider).unreachable, isFalse);
-      expect(
-        container.read(salaSessionProvider).voice,
-        isNot(VoiceState.offline),
-      );
-      expect(
-        harness.voice.assets,
-        isNot(contains(offlineNoticeAsset(testLanguage))),
-      );
-      expect(harness.network.checks, checks);
-    },
-  );
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+  });
 }

@@ -8,14 +8,12 @@ enum LineKind {
   guide,
   acknowledgement,
   reply,
-  offlineNotice,
   stranded,
-  micBlocked,
   approved;
 
   bool get answersAStep => switch (this) {
     guide || acknowledgement || approved || reply => true,
-    offlineNotice || stranded || micBlocked => false,
+    stranded => false,
   };
 }
 

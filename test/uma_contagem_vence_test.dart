@@ -86,27 +86,4 @@ void main() {
     await notifier.refreshUnsent();
     expect(read().unsentTakes, 0);
   });
-
-  test('the count still updates when the room comes back', () async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final (:container, :fila) = await _inASession(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    await _waiting(fila, read().sessionId!, 2);
-    await notifier.refreshUnsent();
-    expect(read().unsentTakes, 2);
-
-    harness.network.reachable = false;
-    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-    await waitFor('a sala perceber que está sem sala', () => read().offline);
-
-    harness.network.reachable = true;
-    notifier.retryNow();
-
-    await waitFor(
-      'a contagem seguir a fila que esvaziou quando a sala voltou',
-      () => read().unsentTakes == 0,
-    );
-  });
 }

@@ -3,7 +3,6 @@ import 'cut_point.dart';
 import 'failure_policy.dart';
 import 'halt.dart';
 import 'left_entry.dart';
-import 'room_reach.dart';
 import 'scene_rehearsal.dart';
 import 'session_snapshot.dart';
 import 'station.dart';
@@ -47,10 +46,7 @@ final class WatchFired extends AnsweringEvent {
   const WatchFired({super.generation});
 }
 
-enum Reach { reachable, outOfReach }
-
 enum Door {
-  probe,
   outbox,
   watch,
   inbox,
@@ -73,21 +69,8 @@ enum PartFact { sent, pending, stranded }
 
 final class NetworkFailedAt extends AnsweringEvent {
   final Door door;
-  final RoomReach why;
 
-  const NetworkFailedAt(
-    this.door, {
-    this.why = RoomReach.noNetwork,
-    super.generation,
-  });
-}
-
-final class NetworkReturned extends MachineEvent {
-  /// The long press over the offline face let the reach go: nothing showed the room
-  /// answers again.
-  final bool released;
-
-  const NetworkReturned({this.released = false});
+  const NetworkFailedAt(this.door, {super.generation});
 }
 
 final class RetryFired extends AnsweringEvent {
@@ -640,17 +623,15 @@ final class LetTheSoundRun extends Effect {
 }
 
 final class ArmTheRetry extends Effect {
-  final int step;
-  final Duration? due;
+  final Duration due;
 
-  const ArmTheRetry({this.step = 0, this.due});
-
-  @override
-  bool operator ==(Object other) =>
-      other is ArmTheRetry && other.step == step && other.due == due;
+  const ArmTheRetry({required this.due});
 
   @override
-  int get hashCode => Object.hash(step, due);
+  bool operator ==(Object other) => other is ArmTheRetry && other.due == due;
+
+  @override
+  int get hashCode => due.hashCode;
 }
 
 final class CancelTheRetry extends Effect {
@@ -659,18 +640,6 @@ final class CancelTheRetry extends Effect {
 
 final class DrainTheOutbox extends Effect {
   const DrainTheOutbox();
-}
-
-final class ResendPending extends LifecycleHandOff {
-  const ResendPending();
-}
-
-final class ProbeTheRoom extends Effect {
-  const ProbeTheRoom();
-}
-
-final class SayTheOfflineNotice extends Effect {
-  const SayTheOfflineNotice();
 }
 
 final class DiscardTheSession extends LifecycleHandOff {
@@ -787,20 +756,6 @@ final class LetTheTurnGo extends Effect {
   int get hashCode => turn.hashCode;
 }
 
-final class FellAt extends Effect {
-  final Door door;
-  final RoomReach why;
-
-  const FellAt(this.door, {this.why = RoomReach.noNetwork});
-
-  @override
-  bool operator ==(Object other) =>
-      other is FellAt && other.door == door && other.why == why;
-
-  @override
-  int get hashCode => Object.hash(door, why);
-}
-
 final class AskForAPersonAgain extends Effect {
   const AskForAPersonAgain();
 }
@@ -908,7 +863,7 @@ final class TheLook {
   /// The look went out: false for a turn given up under a halt.
   final bool asked;
 
-  /// A halt, or the room out of reach after the tap on it, holds the look back.
+  /// A halt holds the look back.
   final bool suspended;
 
   const TheLook(
@@ -950,11 +905,8 @@ final class Machine {
   final int failures;
   final Set<int> onTheirWay;
   final Map<Line, Set<int>> owners;
-  final Reach reach;
   final Map<String, PartFact> parts;
   final bool draining;
-  final int fallen;
-  final bool noticeSaid;
   final int generation;
 
   /// The turn whose POST is in the air: sent, and neither answered nor given up.
@@ -992,11 +944,8 @@ final class Machine {
     this.failures = 0,
     this.onTheirWay = const {},
     this.owners = const {},
-    this.reach = Reach.reachable,
     this.parts = const {},
     this.draining = false,
-    this.fallen = 0,
-    this.noticeSaid = false,
     this.generation = 0,
     this.inFlight,
     this.keptInFlight = const NothingKept(),
@@ -1010,17 +959,6 @@ final class Machine {
     this.panorama,
   });
 
-  bool get reachable => reach == Reach.reachable;
-
-  /// A Step that opens the room's door: the Choice, or a passage or a Panorama with no
-  /// session yet. Only there does a Step's fall leave the Reach (ADR 0093).
-  bool get onAWayIn => switch (station) {
-    Menu() => true,
-    Canvas() => session == null,
-    Panorama() => panorama?.session == null,
-    _ => false,
-  };
-
   String? get stationSession =>
       station is Panorama ? panorama?.session : session;
 
@@ -1028,11 +966,8 @@ final class Machine {
 
   Machine withNoPassage(Set<int> onTheirWay) => Machine(
     onTheirWay: onTheirWay,
-    reach: reach,
     parts: parts,
     draining: draining,
-    fallen: fallen,
-    noticeSaid: noticeSaid,
     generation: generation,
     station: station,
     panorama: panorama,
@@ -1047,11 +982,8 @@ final class Machine {
     bool forgetTheFailures = false,
     Set<int>? onTheirWay,
     Map<Line, Set<int>>? owners,
-    Reach? reach,
     Map<String, PartFact>? parts,
     bool? draining,
-    int? fallen,
-    bool? noticeSaid,
     int? generation,
     Turn? inFlight,
     bool landTheTurn = false,
@@ -1075,11 +1007,8 @@ final class Machine {
     failures: forgetTheFailures ? 0 : (failures ?? this.failures),
     onTheirWay: onTheirWay ?? this.onTheirWay,
     owners: owners ?? this.owners,
-    reach: reach ?? this.reach,
     parts: parts ?? this.parts,
     draining: draining ?? this.draining,
-    fallen: fallen ?? this.fallen,
-    noticeSaid: noticeSaid ?? this.noticeSaid,
     generation: generation ?? this.generation,
     inFlight: landTheTurn ? null : (inFlight ?? this.inFlight),
     keptInFlight: landTheTurn
@@ -1324,18 +1253,14 @@ const _watch = ArmTheWatch();
     machine.copyWith(wordlessTelling: false),
     const [],
   ),
-  NetworkFailedAt(:final door, :final why)
-      when door == Door.probe || (door == Door.step && machine.onAWayIn) =>
-    _fall(machine, door, why),
   NetworkFailedAt(:final door) => (
     machine,
     [if (door == Door.step || door == Door.verdict) const LetTheStepGo()],
   ),
-  NetworkReturned(:final released) => _return(machine, released: released),
   RetryFired() => _retry(machine),
-  TheRoomAnswered() => (_answered(machine), const []),
+  TheRoomAnswered() => (machine, const []),
   OutboxChanged(:final parts, :final due) => _tally(machine, parts, due),
-  SessionRead() => switch (_theHalt(_answered(machine), event)) {
+  SessionRead() => switch (_theHalt(machine, event)) {
     (final read, final effects) => switch (_resumeTheLook(read)) {
       (final resumed, final looks) => (resumed, [...effects, ...looks]),
     },
@@ -1501,8 +1426,6 @@ Paused? _heldBy(Channel channel) => switch (channel) {
     };
 
 bool _answersItsStep(Line line) => line.kind.answersAStep;
-
-bool _aboutTheFall(Line line) => line.kind == LineKind.offlineNotice;
 
 (Machine, List<Effect>) _leaveTheQueue(
   Machine machine,
@@ -1877,14 +1800,11 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   return (next, effects);
 }
 
-/// A look a halt held back goes on once the room is neither halted nor out of reach,
-/// under the busy watchdog again.
+/// A look a halt held back goes on once the room is no longer halted, under the busy
+/// watchdog again.
 (Machine, List<Effect>) _resumeTheLook(Machine machine) {
   final look = machine.look;
-  if (look == null ||
-      !look.suspended ||
-      machine.halt is Blocking ||
-      !machine.reachable) {
+  if (look == null || !look.suspended || machine.halt is Blocking) {
     return (machine, const []);
   }
   return (
@@ -1954,58 +1874,7 @@ List<Effect> _leavingThePassage(Machine machine) => [
   for (final line in machine.queue) DropTheLine(line),
 ];
 
-(Machine, List<Effect>) _fall(Machine machine, Door door, RoomReach why) {
-  final fell = FellAt(door, why: why);
-  if (machine.reachable) {
-    final fallen = machine.noticeSaid ? machine.fallen + 1 : 0;
-    return (
-      machine.copyWith(
-        reach: Reach.outOfReach,
-        fallen: fallen,
-        noticeSaid: true,
-      ),
-      [
-        fell,
-        ArmTheRetry(step: fallen),
-        if (!machine.noticeSaid) const SayTheOfflineNotice(),
-      ],
-    );
-  }
-  if (door != Door.probe) return (machine, [fell]);
-  final fallen = machine.fallen + 1;
-  return (machine.copyWith(fallen: fallen), [fell, ArmTheRetry(step: fallen)]);
-}
-
-(Machine, List<Effect>) _return(Machine machine, {required bool released}) {
-  if (machine.reachable) return (machine, const []);
-  final (kept, dropped) = _leaveTheQueue(machine, _aboutTheFall);
-  final halt = machine.halt;
-  final returned = kept.copyWith(reach: Reach.reachable, draining: true);
-  final (back, resumed) = released
-      ? (returned, const <Effect>[])
-      : _resumeTheLook(returned);
-  return (
-    back,
-    [
-      ...resumed,
-      ...dropped,
-      const CancelTheRetry(),
-      const DrainTheOutbox(),
-      if (halt is! Blocking) const ResendPending(),
-      const ReadTheState(),
-      if (halt is Blocking) const CallForAPerson(),
-      _watch,
-    ],
-  );
-}
-
-Machine _answered(Machine machine) =>
-    machine.reachable ? machine.copyWith(noticeSaid: false) : machine;
-
 (Machine, List<Effect>) _retry(Machine machine) {
-  if (!machine.reachable) {
-    return (machine, const [ProbeTheRoom()]);
-  }
   if (!machine.somethingPending || machine.draining) {
     return (machine, const []);
   }
@@ -2017,16 +1886,7 @@ Machine _answered(Machine machine) =>
   Map<String, PartFact> parts,
   Duration due,
 ) {
-  final landed = parts.entries.any(
-    (part) =>
-        part.value == PartFact.sent &&
-        machine.parts[part.key] == PartFact.pending,
-  );
-  final told = (landed ? _answered(machine) : machine).copyWith(
-    parts: parts,
-    draining: false,
-  );
-  if (!told.reachable) return (told, const []);
+  final told = machine.copyWith(parts: parts, draining: false);
   if (!told.somethingPending) return (told, const [CancelTheRetry()]);
   return (told, [ArmTheRetry(due: due)]);
 }
@@ -2057,7 +1917,6 @@ Machine _answered(Machine machine) =>
       },
       WatchFired() => (halt, const [ReadTheState(), _watch]),
       NetworkFailedAt() ||
-      NetworkReturned() ||
       RetryFired() ||
       TheRoomAnswered() ||
       OutboxChanged() ||

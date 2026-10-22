@@ -7,10 +7,10 @@ const _doorsOfTheRoom = [
   'lib/features/sala/data/take_upload_queue.dart',
 ];
 
-const _theReach = [
-  '_outOfReach(',
+const _thePolicysSeams = [
+  '_theNetworkFailedAt(',
   '_fellOnTheNetwork(',
-  '_theStepFell(',
+  '_theStepsNetworkFailed(',
   '_theResumeFailed(',
   '_giveUpOnTheTurn(',
 ];
@@ -81,7 +81,9 @@ int _clausesEnd(String source, int tryEnd) {
 }
 
 bool _handsItOn(String body, String? name) {
-  if (_theReach.any(body.contains) || body.contains('rethrow')) return true;
+  if (_thePolicysSeams.any(body.contains) || body.contains('rethrow')) {
+    return true;
+  }
   return name != null &&
       RegExp('(return|throw)\\s+$name\\b|[(,]\\s*$name\\s*[),]').hasMatch(body);
 }
@@ -134,18 +136,21 @@ List<String> _armsThatSwallowTheNetwork(String source) {
 
 void main() {
   for (final path in _doorsOfTheRoom) {
-    test('12 (e): $path catches no NetworkFailed outside the reach or the one '
-        'look', () {
-      expect(
-        _armsThatSwallowTheNetwork(_withoutComments(path)),
-        isEmpty,
-        reason:
-            'a network failure takes the room out of reach, or the one look '
-            'when it is a turn: an arm that names it, or every failure, either '
-            'hands it on, tells the reach or gives the turn up, and no type '
-            'test swallows it',
-      );
-    });
+    test(
+      '12 (e): $path catches no NetworkFailed outside the failure policy or the one '
+      'look',
+      () {
+        expect(
+          _armsThatSwallowTheNetwork(_withoutComments(path)),
+          isEmpty,
+          reason:
+              'a network failure goes to the failure policy, or the one look '
+              'when it is a turn: an arm that names it, or every failure, either '
+              'hands it on, tells the policy or gives the turn up, and no type '
+              'test swallows it',
+        );
+      },
+    );
   }
 
   test(
@@ -159,12 +164,12 @@ void main() {
           break;
       }
     ''';
-      const toldToTheReach = '''
+      const toldToThePolicy = '''
       switch (await _room.fetchState(id)) {
         case Answered(value: final read):
           apply(read);
         case NetworkFailed():
-          _outOfReach(Door.watch);
+          _theNetworkFailedAt(Door.watch);
         case Refused():
           break;
       }
@@ -208,7 +213,7 @@ void main() {
       try {
         said = await _sayTheLine(LineKind.reply, () => _voice.play(url));
       } on NetworkFailed {
-        return _outOfReach(Door.reply);
+        return _theNetworkFailedAt(Door.reply);
       } on Exception {
         said = _Said.failed;
       }
@@ -242,7 +247,7 @@ void main() {
       );
       expect(_armsThatSwallowTheNetwork(aFailureCaughtAndHandedOn), isEmpty);
       expect(_armsThatSwallowTheNetwork(swallowed), hasLength(1));
-      expect(_armsThatSwallowTheNetwork(toldToTheReach), isEmpty);
+      expect(_armsThatSwallowTheNetwork(toldToThePolicy), isEmpty);
       expect(_armsThatSwallowTheNetwork(everyFailureHandedOn), isEmpty);
       expect(_armsThatSwallowTheNetwork(everyFailureLogged), hasLength(1));
       expect(_armsThatSwallowTheNetwork(aTypeTest), hasLength(1));

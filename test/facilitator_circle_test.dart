@@ -305,46 +305,25 @@ void main() {
     },
   );
 
-  testWidgets(
-    'only a stop says itself with a mark; the room\'s own voices draw none',
-    (tester) async {
-      final marks = {
-        ('offline', VoiceState.offline, const NoHalt()): LucideIcons.cloudOff,
-        ('blocked', VoiceState.blocked, const NoHalt()): LucideIcons.micOff,
-      };
-
-      for (final voice in marks.entries) {
-        final (name, state, halt) = voice.key;
-        await _pumpCircle(tester, state, halt: halt);
-        expect(
-          _glyphs(tester),
-          [voice.value],
-          reason:
-              'uma parada pede algo de alguém, e $name só se '
-              'distinguia dos vizinhos pela cor — que é o que uma tela lida de '
-              'longe perde primeiro',
-        );
-      }
-
-      for (final voice in const [
-        VoiceState.invite,
-        VoiceState.listening,
-        VoiceState.speaking,
-        VoiceState.done,
-        VoiceState.thinking,
-      ]) {
-        await _pumpCircle(tester, voice);
-        expect(
-          _glyphs(tester),
-          isEmpty,
-          reason:
-              'a voz da própria sala não é um pedido: ${voice.name} se diz '
-              'pela cor e pela respiração, e o alto-falante que ficou aqui um '
-              'dia lia como um botão que a equipe devia apertar (João, 10/09)',
-        );
-      }
-    },
-  );
+  testWidgets('the room\'s own voices draw no mark', (tester) async {
+    for (final voice in const [
+      VoiceState.invite,
+      VoiceState.listening,
+      VoiceState.speaking,
+      VoiceState.done,
+      VoiceState.thinking,
+    ]) {
+      await _pumpCircle(tester, voice);
+      expect(
+        _glyphs(tester),
+        isEmpty,
+        reason:
+            'a voz da própria sala não é um pedido: ${voice.name} se diz '
+            'pela cor e pela respiração, e o alto-falante que ficou aqui um '
+            'dia lia como um botão que a equipe devia apertar (João, 10/09)',
+      );
+    }
+  });
 
   testWidgets(
     'a question being left to a person shows the hand, never the sound of a voice',

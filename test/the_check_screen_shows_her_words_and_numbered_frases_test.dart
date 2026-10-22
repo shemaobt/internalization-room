@@ -658,15 +658,12 @@ void main() {
   });
 
   testWidgets('the loudspeaker of a frase stays lit when the check falls on '
-      'the network, since the room never goes out of reach there', (
-    tester,
-  ) async {
+      'the network', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _aFraseTresContada(tester, harness);
     harness.room.fraseDaProximaFrase = 4;
     await contarAteOFimDaParte(tester, harness);
     harness.room.reachable = false;
-    harness.network.reachable = false;
     var conferiu = false;
     harness.room
       ..failFinishWith = const NetworkFailed('timeout')
@@ -681,7 +678,6 @@ void main() {
       await _passo(tester);
     }
 
-    expect(container.read(salaSessionProvider).offline, isFalse);
     expect(
       aceso(tester, 'ouvir a minha tradução da frase 3'),
       isTrue,

@@ -156,65 +156,6 @@ void main() {
   });
 
   test(
-    'the long press while the room is still out says so instead of inviting',
-    () async {
-      final harness = SalaHarness()..room.reachable = false;
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-
-      expect(read().offline, isTrue);
-      final turns = harness.room.turnsSent;
-
-      notifier.resolveWithPerson();
-      await settle(const Duration(milliseconds: 300));
-
-      expect(
-        read().offline,
-        isTrue,
-        reason:
-            'resolver não põe o servidor de pé; um convite aqui seria o '
-            'mesmo círculo respirando sobre nada, com outra causa',
-      );
-
-      notifier.conversaTap();
-      await settle();
-
-      expect(
-        read().voice,
-        isNot(VoiceState.listening),
-        reason:
-            'e a sala não leva a equipe a falar contra nada: o toque na '
-            'tela de queda é uma nova tentativa, não uma gravação',
-      );
-
-      harness.room.reachable = true;
-      await waitFor(
-        'o círculo voltar ao convite',
-        () => !read().needsPerson && read().voice == VoiceState.invite,
-      );
-      await settle();
-
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await waitFor(
-        'mais um turno chegar à sala',
-        () => harness.room.turnsSent > turns,
-      );
-
-      expect(
-        harness.room.turnsSent,
-        turns + 1,
-        reason:
-            'e quando o servidor volta, a sala volta com sessão e o '
-            'primeiro turno da equipe chega',
-      );
-    },
-  );
-
-  test(
     'a turn spoken the instant the sign is tapped is not lost to the wait',
     () async {
       final harness = SalaHarness();
@@ -288,9 +229,9 @@ void main() {
   );
 
   test(
-    'the room coming back opens the passage the team was already in',
+    'a tap after the room answers opens the passage the team was already in',
     () async {
-      final harness = SalaHarness()..network.reachable = false;
+      final harness = SalaHarness()..room.reachable = false;
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -298,20 +239,28 @@ void main() {
 
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
-      expect(read().offline, isTrue);
+      expect(read().sessionId, isNull);
+      expect(read().voice, VoiceState.invite);
 
-      harness.network.reachable = true;
-      await waitFor(
-        'o círculo voltar ao convite',
-        () => !read().needsPerson && read().voice == VoiceState.invite,
-      );
+      notifier.conversaTap();
       await settle();
+      expect(
+        read().voice,
+        isNot(VoiceState.listening),
+        reason:
+            'o toque sem sessão é uma nova tentativa, não uma gravação contra '
+            'nada',
+      );
+
+      harness.room.reachable = true;
+      notifier.conversaTap();
+      await waitFor('a sessão abrir', () => read().sessionId != null);
 
       expect(
         harness.room.pericopesAsked.last,
         'P01',
         reason:
-            'a sala voltou sozinha para dentro da mesma passagem; abrir a '
+            'a sala voltou para dentro da mesma passagem; abrir a '
             'sessao sem pericope nenhum e comecar outra passagem no lugar dela',
       );
     },

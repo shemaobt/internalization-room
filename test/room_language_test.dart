@@ -217,17 +217,16 @@ void main() {
         'the Wheel to offer a passage',
         () => it.estado.entriesOpen,
       );
-      it.harness.network.holdNextCheck();
-      final checks = it.harness.network.checks;
+      it.harness.room.holdNextCreate();
       it.sala.openTheEntry(it.estado.naRoda!.first);
       await waitFor(
-        'the reach check to be in the air',
-        () => it.harness.network.checks > checks,
+        'the session to be in the air',
+        () => it.harness.room.createHeld,
       );
 
       it.sala.chooseTheLanguage('en');
       await settle();
-      it.harness.network.finishHeldCheck();
+      it.harness.room.finishHeldCreate();
       await waitFor(
         'the session to be asked for',
         () => it.harness.room.languagesSent.isNotEmpty,
@@ -512,13 +511,13 @@ void main() {
   );
 
   test(
-    'the bundle carries the notices the room says without a server, and none of her lines',
+    'the bundle carries the notice the room says without a server, and none of her lines',
     () async {
       TestWidgetsFlutterBinding.ensureInitialized();
 
       const notices = {
-        'pt': {'sem_conexao', 'gravacao_presa', 'microfone'},
-        'en': {'sem_conexao', 'gravacao_presa', 'microfone'},
+        'pt': {'gravacao_presa'},
+        'en': {'gravacao_presa'},
       };
       for (final language in languages) {
         final manifest = await rootBundle.loadString(
@@ -536,13 +535,7 @@ void main() {
           () => rootBundle.load('assets/audio/$language/fixed/F0.mp3'),
           throwsA(anything),
         );
-        for (final asset in [
-          offlineNoticeAsset,
-          micBlockedAsset,
-          strandedTakeAsset,
-        ]) {
-          await rootBundle.load(asset(language));
-        }
+        await rootBundle.load(strandedTakeAsset(language));
       }
     },
     timeout: const Timeout(Duration(minutes: 2)),

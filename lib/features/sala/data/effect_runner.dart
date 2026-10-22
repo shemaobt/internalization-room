@@ -5,7 +5,6 @@ import '../domain/failure_policy.dart';
 import '../domain/halt.dart';
 import '../domain/machine.dart';
 import '../domain/ports.dart';
-import '../domain/room_reach.dart';
 import '../domain/scene_rehearsal.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/session_state.dart';
@@ -21,8 +20,6 @@ typedef SentRead = ({int order, List<Trecho> row});
 abstract interface class StationHost {
   bool get watchIsWanted;
 
-  bool get roomIsReachable;
-
   /// The room's session, or null.
   String? get session;
 
@@ -30,7 +27,6 @@ abstract interface class StationHost {
   FailureContext failureContext({
     required Door door,
     required RefusalRule rule,
-    required RoomReach why,
   });
 
   /// A conversation, a question or a panorama start is still in the air.
@@ -65,8 +61,8 @@ abstract interface class StationHost {
   /// The room is not gone and a person is needed.
   bool get aPersonIsNeeded;
 
-  /// The Station hears the stop: the call is no longer made, the network health is
-  /// settled and the resume failures start again.
+  /// The Station hears the stop: the call is no longer made and the resume failures start
+  /// again.
   void hearTheCallStopped();
 
   /// The Station hears that the room closed the passage of [session].
@@ -86,7 +82,7 @@ abstract interface class StationHost {
   void answerWhereAsked(MachineEvent event);
 
   /// The one callback for the Station's lifecycle: opening the Choice, discarding the
-  /// session, the silence's own writes and resending the Pending request.
+  /// session and the silence's own writes.
   void handOver(LifecycleHandOff handOff);
 
   /// The gestures still waiting on [turn]'s reply.
@@ -114,9 +110,6 @@ abstract interface class StationHost {
 
   /// The Station counts what the Outbox still holds, after a flush that landed or failed.
   Future<void> hearTheOutboxCounted();
-
-  /// The Station shows the reach's face, and at a Step keeps the Pending request.
-  void hearTheFall(Door door, RoomReach why);
 
   void hearTheStepLetGo();
 
@@ -146,7 +139,6 @@ class EffectRunner {
   final Duration? Function() partCeiling;
   final Duration Function() clipGrace;
   final Duration Function() lookAgainAfter;
-  final Line Function() offlineNotice;
   final int Function()? generation;
 
   EffectRunner({
@@ -160,7 +152,6 @@ class EffectRunner {
     required this.partCeiling,
     required this.clipGrace,
     required this.lookAgainAfter,
-    required this.offlineNotice,
     this.generation,
   });
 
@@ -168,7 +159,6 @@ class EffectRunner {
   Timer? _retry;
   Timer? _ladder;
   int _ladderStep = 0;
-  StreamSubscription<void>? _networkWatch;
   Timer? _ceiling;
   Timer? _lookAgain;
   Sound? _part;
@@ -178,9 +168,6 @@ class EffectRunner {
   int _starts = 0;
   bool? _newestStarted;
   bool _anOlderStartRuns = false;
-  Future<void>? _probing;
-  Future<RoomReach>? _asking;
-  bool _aStepAsks = false;
   bool _calling = false;
   bool _disposed = false;
 
@@ -234,16 +221,12 @@ class EffectRunner {
           unawaited(sound.resume());
           _armTheCeiling();
           host.hearTheRun();
-        case ArmTheRetry(:final step, :final due):
-          _armTheRetry(due ?? retryDelay(step));
+        case ArmTheRetry(:final due):
+          _armTheRetry(due);
         case CancelTheRetry():
           _cancelTheRetry();
         case DrainTheOutbox():
           _drainTheOutbox();
-        case ResendPending():
-          host.handOver(effect);
-        case ProbeTheRoom():
-          unawaited(probeTheRoom());
         case DiscardTheSession():
           host.handOver(effect);
         case OpenTheChoice():
@@ -256,8 +239,6 @@ class EffectRunner {
           host.handOver(effect);
         case EnterThePassageLeft():
           host.handOver(effect);
-        case SayTheOfflineNotice():
-          _sayTheOfflineNotice();
         case LookAtTheSession(:final turn, :final sounding):
           _lookAt(turn, sounding);
         case PlayTheReply(:final turn, :final reply):
@@ -274,8 +255,6 @@ class EffectRunner {
           host.hearTheWaitResumed();
         case LetTheTurnGo(:final turn):
           _letTheTurnGo(turn);
-        case FellAt(:final door, :final why):
-          host.hearTheFall(door, why);
         case AskForAPersonAgain():
           _askForAPersonAgain();
         case CloseThePassage():
@@ -306,7 +285,6 @@ class EffectRunner {
     _ladder?.cancel();
     _ceiling?.cancel();
     _lookAgain?.cancel();
-    unawaited(_networkWatch?.cancel());
     for (final signal in _partSignals ?? const <StreamSubscription<void>>[]) {
       unawaited(signal.cancel());
     }
@@ -342,10 +320,12 @@ class EffectRunner {
     try {
       whole = await said;
     } on RoomFailure catch (failure) {
+      if (_disposed) return;
       return host.answer(
         LineNotSaid(line, because: failure, generation: generation?.call()),
       );
     }
+    if (_disposed) return;
     final stamp = generation?.call();
     host.answer(
       whole
@@ -358,9 +338,6 @@ class EffectRunner {
             ),
     );
   }
-
-  void _sayTheOfflineNotice() =>
-      host.answer(LineArrived(offlineNotice(), generation: generation?.call()));
 
   void _playThePart(Sound part) {
     _part = part;
@@ -487,19 +464,11 @@ class EffectRunner {
       _retry = null;
       host.answer(RetryFired(generation: generation?.call()));
     });
-    if (!host.roomIsReachable) {
-      _networkWatch ??= room.networkReturned.listen(
-        (_) => host.answer(RetryFired(generation: generation?.call())),
-      );
-    }
   }
 
   void _cancelTheRetry() {
     _retry?.cancel();
     _retry = null;
-    if (!host.roomIsReachable) return;
-    unawaited(_networkWatch?.cancel());
-    _networkWatch = null;
   }
 
   void _openTheMic(MicOwner owner, String take) {
@@ -612,7 +581,6 @@ class EffectRunner {
           result,
           door: Door.sceneRehearsal,
           rule: RefusalRule.letsTheStepGo,
-          why: RoomReach.noNetwork,
         );
     }
   }
@@ -629,45 +597,7 @@ class EffectRunner {
       case SessionReadAnswered(:final snapshot):
         host.hearTheSessionRead(snapshot, sent);
       case SessionReadFailed(:final result):
-        _decideAt(
-          result,
-          door: Door.watch,
-          rule: RefusalRule.passes,
-          why: RoomReach.noNetwork,
-        );
-    }
-  }
-
-  /// One ask in the air at a time, shared by a probe and a Step: it falls once, and only
-  /// if a Step asked or the room is out of reach when it lands.
-  Future<RoomReach> askTheRoom({bool forAStep = false}) {
-    _aStepAsks = _aStepAsks || forAStep;
-    return _asking ??= room
-        .reach()
-        .then((reach) {
-          final falls = _aStepAsks || !host.roomIsReachable;
-          _aStepAsks = false;
-          if (!_disposed && falls && reach != RoomReach.fine) {
-            _decideAt(
-              const RoomNetworkFailed(),
-              door: Door.probe,
-              rule: RefusalRule.letsTheStepGo,
-              why: reach,
-            );
-          }
-          return reach;
-        })
-        .whenComplete(() => _asking = null);
-  }
-
-  Future<void> probeTheRoom() =>
-      _probing ??= _probe().whenComplete(() => _probing = null);
-
-  Future<void> _probe() async {
-    final reach = await askTheRoom();
-    if (_disposed || host.roomIsReachable) return;
-    if (reach == RoomReach.fine) {
-      host.answerWhereAsked(const NetworkReturned());
+        _decideAt(result, door: Door.watch, rule: RefusalRule.passes);
     }
   }
 
@@ -696,12 +626,7 @@ class EffectRunner {
       return _anEarlierSessionAnswered(session, result);
     }
     if (result is! RoomAnswered) {
-      return _decideAt(
-        result,
-        door: Door.person,
-        rule: RefusalRule.asksAgain,
-        why: RoomReach.noNetwork,
-      );
+      return _decideAt(result, door: Door.person, rule: RefusalRule.asksAgain);
     }
     if (host.callIsWanted) host.hearTheCallLanded();
   }
@@ -717,9 +642,8 @@ class EffectRunner {
     RoomResult result, {
     required Door door,
     required RefusalRule rule,
-    required RoomReach why,
   }) => host.answerWhereAsked(
-    decided(result, host.failureContext(door: door, rule: rule, why: why)),
+    decided(result, host.failureContext(door: door, rule: rule)),
   );
 
   /// The arm is gated by [StationHost.aPersonIsNeeded] and not by the generation: the

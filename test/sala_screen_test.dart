@@ -12,7 +12,6 @@ import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
-import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -380,27 +379,6 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('the mic gate answers a touch out loud, not in silence', (
-    tester,
-  ) async {
-    final harness = SalaHarness()..recorder.permitted = false;
-    final container = await pumpSala(tester, harness);
-    await container.read(micPermissionProvider.notifier).check();
-    await tester.pump(const Duration(milliseconds: 200));
-    harness.voice.assets.clear();
-
-    await tester.tap(find.byType(FacilitatorCircle));
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(
-      harness.voice.assets,
-      contains(micBlockedAsset(testLanguage)),
-      reason:
-          'a tela do microfone não tem texto: se o toque não fala, ela é '
-          'muda e sem efeito para sempre',
-    );
-  });
-
   testWidgets('conversa offers a tap to speak, the hand and the colar', (
     tester,
   ) async {
@@ -442,8 +420,9 @@ void main() {
   ) async {
     dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
-    final harness = SalaHarness()..network.reachable = false;
+    final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
+    harness.room.holdNextCreate();
     unawaited(
       container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
     );
