@@ -644,6 +644,39 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('after a verdict a bead tapped on frase 5 opens it to be told '
+      'again and plays its piece of the recording, not its translation', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesConferidas(tester, harness);
+    await tocar(tester, _barra(2));
+    await _traduzirDeNovo(tester, container);
+    final aqui = container.read(salaSessionProvider);
+    expect(aqui.btPhase, BtPhase.playing);
+    final parteDois = aqui.partes[1].path;
+    final tocadas = harness.playback.played.length;
+    final trechos = harness.playback.ranges.length;
+
+    container
+        .read(salaSessionProvider.notifier)
+        .ouvirAConta(aqui.btTrechos.indexWhere((trecho) => trecho.frase == 5));
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.frase,
+      5,
+      reason: 'a conta só tocava a frase, e a barra dela abre a frase de novo',
+    );
+    expect(
+      harness.playback.played.skip(tocadas),
+      [parteDois],
+      reason: 'a conta tocava a tradução da frase 5, não a gravação',
+    );
+    expect(harness.playback.ranges.skip(trechos), ['2500-5000']);
+    closeTheRoom(container);
+  });
+
   testWidgets('a second frase tapped before anything is told keeps the way '
       'back to the conferida telling', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

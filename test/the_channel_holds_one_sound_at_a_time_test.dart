@@ -85,7 +85,7 @@ void main() {
     expect(read().btCursor, Duration.zero);
     expect(
       read().btCorte,
-      read().btCursor,
+      const Duration(milliseconds: 200),
       reason:
           'antes da abertura a Cabeça é o Cursor da parte 2; os 6 s eram '
           'da parte 1',

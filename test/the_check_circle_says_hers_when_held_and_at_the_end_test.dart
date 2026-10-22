@@ -26,7 +26,14 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         tocar,
         tocarNoCirculo;
 import 'the_pause_snaps_to_silence_test.dart'
-    show entrarComAFala, rotuloDoCirculo, s, umaLacunaAos3;
+    show
+        entrarComAFala,
+        pausa,
+        rotuloDoCirculo,
+        s,
+        tocarOCirculo,
+        traduzirEConfirmar,
+        umaLacunaAos3;
 
 void main() {
   test('a take held in the Ensaio is not a clip held on the check', () async {
@@ -122,7 +129,7 @@ void main() {
       'de vocês…», not the invitation to record', (tester) async {
     final (harness, container) = await reopenedInto(tester, toldUpTo: 5000);
 
-    container.read(salaSessionProvider.notifier).ouvirOTrechoContado(0);
+    container.read(salaSessionProvider.notifier).ouvirAConta(0);
     await tester.pump(const Duration(milliseconds: 300));
 
     final state = container.read(salaSessionProvider);
@@ -145,7 +152,7 @@ void main() {
     expect(container.read(salaSessionProvider).btClipEnded, isTrue);
     expect(rotuloDoCirculo(tester), fimDaGravacao);
 
-    container.read(salaSessionProvider.notifier).ouvirOTrechoContado(0);
+    container.read(salaSessionProvider.notifier).ouvirAConta(0);
     await tester.pump(const Duration(milliseconds: 300));
 
     final state = container.read(salaSessionProvider);
@@ -160,8 +167,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a bead playing its translation does not say the recording is '
-      'playing', (tester) async {
+  testWidgets('a loudspeaker playing its translation does not say the '
+      'recording is playing', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await umaFraseContada(tester, harness);
 
@@ -173,6 +180,92 @@ void main() {
       rotuloDoCirculo(tester),
       isNot(ouvindo),
       reason: 'a tradução tocando se dizia a gravação deles',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a bead tapped before any verdict reads her «ouvindo a gravação '
+      'de vocês…» while its frase plays, with its translation on the tablet', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await umaFraseContada(tester, harness);
+    expect(
+      container.read(salaSessionProvider).btTrechos.first.retroPath,
+      isNotNull,
+    );
+
+    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
+    expect(
+      rotuloDoCirculo(tester),
+      ouvindo,
+      reason: 'a conta tocava a tradução sob o convite a gravar',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('once a bead\'s frase ends before any verdict, the part it held '
+      'reads her «pausado», not «ouvindo»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await umaFraseContada(tester, harness);
+    harness.playback.at = s(5.0);
+    await tester.pump(passaDoCursor);
+    expect(rotuloDoCirculo(tester), ouvindo);
+
+    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).btClipPausada, isTrue);
+    expect(
+      rotuloDoCirculo(tester),
+      pausado,
+      reason: 'o círculo seguia dizendo ouvindo com nada tocando',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a verdict a bead reads her «ouvindo a gravação de '
+      'vocês…» while its frase plays, and the circle\'s own line once it '
+      'ends', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await umaFraseConferida(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.traduzirAFraseDeNovo(0);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await waitFor(
+      'a frase traduzida de novo pousar',
+      () => container.read(salaSessionProvider).btTrechoTraduzidoDeNovo == null,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+
+    notifier.ouvirAConta(0);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo,
+      isNotNull,
+    );
+    expect(
+      rotuloDoCirculo(tester),
+      ouvindo,
+      reason: 'a conta tocava a tradução sob o convite a gravar',
+    );
+
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      rotuloDoCirculo(tester),
+      'Tocar para gravar a tradução de novo',
+      reason: 'o círculo seguia dizendo ouvindo com nada tocando',
     );
     closeTheRoom(container);
   });
@@ -274,19 +367,90 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a clip held before anything was heard still says to listen '
-      'first, not «pausado»', (tester) async {
+  testWidgets('a clip held before anything was heard reads her «pausado», not '
+      'listen first', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarComAFala(tester, harness, null);
     harness.playback.at = Duration.zero;
 
     await tocar(tester, pausar);
 
-    expect(container.read(salaSessionProvider).btClipPausada, isTrue);
+    final state = container.read(salaSessionProvider);
+    expect(state.btClipPausada, isTrue);
+    expect(state.nothingHeardSinceCursor, isTrue);
     expect(
       rotuloDoCirculo(tester),
-      'Ouvir primeiro',
-      reason: 'a gravação parada no cursor dizia pausado, sem nada ouvido',
+      'pausado — toque no círculo para marcar onde a frase acaba',
+      reason:
+          'a gravação parada no cursor dizia ouvir primeiro, e o toque já '
+          'marca a pausa',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap on a clip held at the cursor places her pausa 0.2 s past '
+      'it, not nothing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = Duration.zero;
+    await tocar(tester, pausar);
+
+    await tocarOCirculo(tester);
+
+    expect(
+      pausa(container),
+      s(0.2),
+      reason: 'o toque no cursor segurava a gravação e não punha pausa',
+    );
+    await traduzirEConfirmar(tester);
+    expect(harness.room.chunkSpans, ['0-200']);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap with the head behind the cursor places her pausa 0.2 s '
+      'past the cursor, never at the head', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = s(4.0);
+    await tester.pump(passaDoCursor);
+    await tocarOCirculo(tester);
+    await traduzirEConfirmar(tester);
+    expect(harness.room.chunkSpans, ['0-4000']);
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+    expect(container.read(salaSessionProvider).btClipRodando, isTrue);
+
+    await tocarOCirculo(tester);
+    await traduzirEConfirmar(tester);
+
+    expect(
+      harness.room.chunkSpans,
+      ['0-4000', '4000-4200'],
+      reason: 'o toque atrás do cursor segurava a gravação e não contava nada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap behind a cursor with less than 0.2 s of the part after it '
+      'places no pausa, not a sliver', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = s(9.9);
+    await tester.pump(passaDoCursor);
+    await tocarOCirculo(tester);
+    await traduzirEConfirmar(tester);
+    expect(harness.room.chunkSpans, ['0-9900']);
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+
+    await tocarOCirculo(tester);
+
+    expect(container.read(salaSessionProvider).btCortado, isFalse);
+    await traduzirEConfirmar(tester);
+    expect(
+      harness.room.chunkSpans,
+      ['0-9900'],
+      reason: 'o piso passava do fim da parte e mandava uma frase de 0,1 s',
     );
     closeTheRoom(container);
   });

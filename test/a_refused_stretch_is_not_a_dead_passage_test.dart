@@ -357,7 +357,7 @@ void main() {
   );
 
   test(
-    'a cut with the playhead still on the stretch start opens no microphone and sends nothing',
+    'a cut with the playhead still on the stretch start places her pausa 0.2 s past it, never a stretch that ends where it begins',
     () async {
       final harness = SalaHarness();
       final it = await _retomadaNaRetro(harness);
@@ -369,39 +369,46 @@ void main() {
       );
 
       it.sala.retroTap();
-      it.sala.retroTap();
       await settle();
       expect(
         harness.playback.sounding,
         isFalse,
-        reason: 'o corte recusado segura o clipe',
+        reason: 'o toque segura o clipe',
       );
       expect(
         it.estado.btPhase,
         isNot(BtPhase.capturing),
-        reason: 'um trecho que termina onde começa não tem nada a contar',
+        reason: 'o primeiro toque só põe a pausa',
       );
-      expect(harness.room.chunksSent, 0);
       expect(
-        harness.room.chunkSpans,
-        isEmpty,
-        reason: 'o trecho vazio ia à sala e voltava recusado com 400',
+        it.estado.btCorte,
+        const Duration(milliseconds: 4200),
+        reason:
+            'o toque no início do trecho segurava o clipe e não punha pausa',
       );
 
-      it.sala.ouvirGravacao();
-      await settle();
+      it.sala.retroTap();
+      await waitFor(
+        'o microfone abrir',
+        () => it.estado.btPhase == BtPhase.capturing,
+      );
+      await confirmarATraducao(it.container);
+      await waitFor(
+        'o trecho chegar à sala',
+        () => harness.room.chunkSpans.isNotEmpty,
+      );
       expect(
-        harness.playback.sounding,
-        isTrue,
+        harness.room.chunkSpans,
+        ['4000-4200'],
         reason:
-            'o corte recusado segura o clipe; um toque em ouvir tem de trazê-lo '
-            'de volta, não pedir dois',
+            'o toque no início do trecho não contava nada, e a frase até o piso '
+            'nunca chegava à sala',
       );
     },
   );
 
   test(
-    'a cut behind the stretch start records nothing, and one step past it tells the stretch',
+    'a cut behind the stretch start tells her frase up to the floor, never one that ends before it begins',
     () async {
       final harness = SalaHarness();
       final it = await _retomadaNaRetro(harness);
@@ -409,12 +416,31 @@ void main() {
       harness.playback.at = _inicioDoTrecho - const Duration(milliseconds: 1);
       it.sala.retroTap();
       it.sala.retroTap();
-      await settle();
-      expect(it.estado.btPhase, isNot(BtPhase.capturing));
-      expect(harness.room.chunkSpans, isEmpty);
-      it.sala.ouvirGravacao();
-      await settle();
-      expect(harness.playback.sounding, isTrue);
+      await waitFor(
+        'o microfone abrir',
+        () => it.estado.btPhase == BtPhase.capturing,
+      );
+      await confirmarATraducao(it.container);
+      await waitFor(
+        'o trecho chegar à sala',
+        () => harness.room.chunkSpans.isNotEmpty,
+      );
+
+      expect(
+        harness.room.chunkSpans,
+        ['4000-4200'],
+        reason:
+            'o corte atrás do início mandava um trecho que acaba antes de '
+            'começar',
+      );
+    },
+  );
+
+  test(
+    'one step past the stretch start tells the stretch up to the floor, not a frase of 1 ms',
+    () async {
+      final harness = SalaHarness();
+      final it = await _retomadaNaRetro(harness);
 
       await _ateAParteTresNoAr(it);
       harness.playback.at = _inicioDoTrecho + const Duration(milliseconds: 1);

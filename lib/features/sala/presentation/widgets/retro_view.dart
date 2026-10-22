@@ -490,9 +490,7 @@ class RetroView extends ConsumerWidget {
             _fillOf(trecho, session),
             escolhida == onde,
             apontado != null,
-            aberta && trecho.contado
-                ? () => notifier.ouvirOTrechoContado(onde)
-                : null,
+            aberta && trecho.contado ? () => notifier.ouvirAConta(onde) : null,
             nome(trecho),
           ),
     ];
@@ -728,7 +726,9 @@ class RetroView extends ConsumerWidget {
             !session.btCortado &&
             session.nothingHeardSinceCursor) {
           return retroLabelFor(
-            session.btClipEnded ? 'paused' : 'listenFirst',
+            session.btClipEnded || session.btClipPausada
+                ? 'paused'
+                : 'listenFirst',
             language,
           );
         }

@@ -6155,12 +6155,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void ouvirOTrechoContado(int indice) =>
       _gesture(() => _ouvirOTrechoContado(indice));
 
-  void _ouvirOTrechoContado(int indice) {
+  void ouvirAConta(int indice) => _gesture(
+    () =>
+        state.canRetellAFrase &&
+            state.btTrechos.elementAtOrNull(indice)?.segmentId != null
+        ? _traduzirAFraseDeNovo(indice)
+        : _ouvirOTrechoContado(indice, naGravacao: true),
+  );
+
+  void _ouvirOTrechoContado(int indice, {bool naGravacao = false}) {
     if (!state.canHearAFrase) return;
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
     if (!trecho.contado) return;
-    final traducao = trecho.retroPath;
+    final traducao = naGravacao ? null : trecho.retroPath;
     final materna = _ondeTocar(trecho);
     if (traducao == null && materna == null) return;
     final segurada = _tirarAParteDoPlayer();
@@ -7143,7 +7151,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
       }
       _silenceTheRoom(holdTheClip: true);
-      if (_cabeca <= _trechoStart) return;
       final pausa = _aPausaNo(_cabeca);
       if (pausa == null) return;
       _trechoEnd = pausa;
