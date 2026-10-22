@@ -27,7 +27,14 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         tocar,
         tocarNoCirculo;
 import 'the_pause_snaps_to_silence_test.dart'
-    show entrarComAFala, rotuloDoCirculo, s, umaLacunaAos3;
+    show
+        entrarComAFala,
+        pausa,
+        rotuloDoCirculo,
+        s,
+        tocarOCirculo,
+        traduzirEConfirmar,
+        umaLacunaAos3;
 
 void main() {
   test('a take held in the Ensaio is not a clip held on the check', () async {
@@ -361,19 +368,90 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a clip held before anything was heard still says to listen '
-      'first, not «pausado»', (tester) async {
+  testWidgets('a clip held before anything was heard reads her «pausado», not '
+      'listen first', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarComAFala(tester, harness, null);
     harness.playback.at = Duration.zero;
 
     await tocar(tester, pausar);
 
-    expect(container.read(salaSessionProvider).btClipPausada, isTrue);
+    final state = container.read(salaSessionProvider);
+    expect(state.btClipPausada, isTrue);
+    expect(state.nothingHeardSinceCursor, isTrue);
     expect(
       rotuloDoCirculo(tester),
-      'Ouvir primeiro',
-      reason: 'a gravação parada no cursor dizia pausado, sem nada ouvido',
+      'pausado — toque no círculo para marcar onde a frase acaba',
+      reason:
+          'a gravação parada no cursor dizia ouvir primeiro, e o toque já '
+          'marca a pausa',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap on a clip held at the cursor places her pausa 0.2 s past '
+      'it, not nothing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = Duration.zero;
+    await tocar(tester, pausar);
+
+    await tocarOCirculo(tester);
+
+    expect(
+      pausa(container),
+      s(0.2),
+      reason: 'o toque no cursor segurava a gravação e não punha pausa',
+    );
+    await traduzirEConfirmar(tester);
+    expect(harness.room.chunkSpans, ['0-200']);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap with the head behind the cursor places her pausa 0.2 s '
+      'past the cursor, never at the head', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = s(4.0);
+    await tester.pump(passaDoCursor);
+    await tocarOCirculo(tester);
+    await traduzirEConfirmar(tester);
+    expect(harness.room.chunkSpans, ['0-4000']);
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+    expect(container.read(salaSessionProvider).btClipRodando, isTrue);
+
+    await tocarOCirculo(tester);
+    await traduzirEConfirmar(tester);
+
+    expect(
+      harness.room.chunkSpans,
+      ['0-4000', '4000-4200'],
+      reason: 'o toque atrás do cursor segurava a gravação e não contava nada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap behind a cursor with less than 0.2 s of the part after it '
+      'places no pausa, not a sliver', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = s(9.9);
+    await tester.pump(passaDoCursor);
+    await tocarOCirculo(tester);
+    await traduzirEConfirmar(tester);
+    expect(harness.room.chunkSpans, ['0-9900']);
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+
+    await tocarOCirculo(tester);
+
+    expect(container.read(salaSessionProvider).btCortado, isFalse);
+    await traduzirEConfirmar(tester);
+    expect(
+      harness.room.chunkSpans,
+      ['0-9900'],
+      reason: 'o piso passava do fim da parte e mandava uma frase de 0,1 s',
     );
     closeTheRoom(container);
   });
