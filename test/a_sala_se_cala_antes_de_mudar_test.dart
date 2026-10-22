@@ -433,19 +433,22 @@ void main() {
               _estado(cena).btPhase == BtPhase.playing &&
               cena.harness.playback.sounding,
         );
-        // O cursor está no último corte; a cabeça volta atrás dele, que é a única
-        // leitura que a sala recusa em vez de mandar um trecho que acaba antes de
-        // começar.
+        // O cursor está no último corte; a cabeça volta atrás dele, e o toque põe
+        // a pausa no piso em vez de mandar um trecho que acaba antes de começar.
         cena.harness.playback.at = const Duration(milliseconds: 5);
         return cena;
       },
       (cena) async {
         cena.sala.retroTap();
-        cena.sala.retroTap();
         expect(
           _estado(cena).btPhase,
           BtPhase.playing,
-          reason: 'o arranjo só vale se o corte for recusado',
+          reason: 'o primeiro toque só põe a pausa',
+        );
+        expect(
+          _estado(cena).btCortado,
+          isTrue,
+          reason: 'o toque atrás do cursor segurava o clipe sem pausa',
         );
       },
       segurando: true,

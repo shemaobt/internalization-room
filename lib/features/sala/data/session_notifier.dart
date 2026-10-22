@@ -7136,7 +7136,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
       }
       _silenceTheRoom(holdTheClip: true);
-      if (_cabeca <= _trechoStart) return;
       final pausa = _aPausaNo(_cabeca);
       if (pausa == null) return;
       _trechoEnd = pausa;
