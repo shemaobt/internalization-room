@@ -340,6 +340,10 @@ _Avoid_: record entry, record button, botão de gravar, green check, green micro
 A session that holds a Guide line, its Opening at least. The room asks a session's Opening only while it is not opened.
 _Avoid_: started, begun
 
+**Store build**:
+The app as the stores hold it: the build installed on every tablet from the App Store or Google Play, which the server never asks about and which changes only by a new version published to both stores (ADR 0082, ADR 0110). A version bump merged to main is the store build's only source.
+_Avoid_: release (the server's record of an approved draft), the build (ambiguous), app version
+
 **Outbox**:
 The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it. Each row keeps its recording's **Recording time**, its length when it is a WAV and its fingerprint (sha256), fixed when the row is written; a row an older app wrote has none and sends none. An unsent take is shown on its Scene row, never spoken.
 _Avoid_: fila, caixa de saída, upload queue, buffer
