@@ -6526,9 +6526,10 @@ void main() {
   test('a frase told on a joined recording whose next part is already told '
       'stops the part at its own end, not on into that part', () async {
     final harness = SalaHarness();
-    final container = await _umaGravacaoJuntadaRetomada(
+    final container = await _umaGravacaoRetomada(
       harness,
       fraseNaGravacao: 'gravacao-2',
+      juntas: const {1, 2},
     );
     final tocadas = await _contarUmaFraseEAcabarAParte(harness, container);
 
@@ -6544,9 +6545,10 @@ void main() {
   test('a frase told on a joined recording whose next part has nothing told '
       'plays on into that part', () async {
     final harness = SalaHarness();
-    final container = await _umaGravacaoJuntadaRetomada(
+    final container = await _umaGravacaoRetomada(
       harness,
       fraseNaGravacao: 'gravacao-1',
+      juntas: const {1, 2},
     );
     final tocadas = await _contarUmaFraseEAcabarAParte(harness, container);
 
@@ -6555,6 +6557,45 @@ void main() {
       [container.read(salaSessionProvider).partes[1].path],
       reason:
           'numa gravação juntada a parte parava mesmo com a próxima por contar',
+    );
+  });
+
+  test('a frase told on a recording that is not joined plays on into the '
+      'next part even when it is already told, as her resume does', () async {
+    final harness = SalaHarness();
+    final container = await _umaGravacaoRetomada(
+      harness,
+      fraseNaGravacao: 'gravacao-2',
+      juntas: const {},
+    );
+    final tocadas = await _contarUmaFraseEAcabarAParte(harness, container);
+
+    expect(
+      harness.playback.played.skip(tocadas),
+      [container.read(salaSessionProvider).partes[1].path],
+      reason:
+          'numa gravação não juntada a parte parava no fim dela, e a dela '
+          'segue pela corrente',
+    );
+  });
+
+  test('a frase told where only a part further on is joined stops at its own '
+      'end, since joined is the whole recording', () async {
+    final harness = SalaHarness();
+    final container = await _umaGravacaoRetomada(
+      harness,
+      fraseNaGravacao: 'gravacao-2',
+      juntas: const {3},
+      partes: 3,
+    );
+    final tocadas = await _contarUmaFraseEAcabarAParte(harness, container);
+
+    expect(
+      harness.playback.played.skip(tocadas),
+      isEmpty,
+      reason:
+          'com uma parte juntada mais adiante a parte seguia para a próxima, '
+          'já traduzida',
     );
   });
 
@@ -7458,9 +7499,11 @@ void main() {
   });
 }
 
-Future<ProviderContainer> _umaGravacaoJuntadaRetomada(
+Future<ProviderContainer> _umaGravacaoRetomada(
   SalaHarness harness, {
   required String fraseNaGravacao,
+  required Set<int> juntas,
+  int partes = 2,
 }) async {
   final pasta = Directory.systemTemp.createTempSync('sala-1747');
   addTearDown(() => pasta.deleteSync(recursive: true));
@@ -7471,14 +7514,14 @@ Future<ProviderContainer> _umaGravacaoJuntadaRetomada(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [
-      for (final n in [1, 2])
+      for (var n = 1; n <= partes; n++)
         KeptTake(
           scopeId: KeptScope.parte(n),
           path: (File(
             '${pasta.path}/p$n.m4a',
           )..writeAsBytesSync([1, 2, 3])).path,
           takeId: 'gravacao-$n',
-          origin: 'ensaio-da-cena-$n',
+          origin: juntas.contains(n) ? 'ensaio-da-cena-$n' : null,
         ),
     ],
   );
@@ -7504,7 +7547,7 @@ Future<ProviderContainer> _umaGravacaoJuntadaRetomada(
     'a primeira parte voltar a tocar',
     () => container.read(salaSessionProvider).btClipRodando,
   );
-  expect(container.read(salaSessionProvider).joined, isTrue);
+  expect(container.read(salaSessionProvider).joined, juntas.isNotEmpty);
   return container;
 }
 
