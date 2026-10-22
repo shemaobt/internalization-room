@@ -3605,6 +3605,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         notUnderstood: herLineStands,
       ),
       sceneRehearsals: _listedWith(rehearsal),
+      clearSceneLine: state.sceneLine == SceneLine.diskFailed,
     );
     if (step == SceneStep.translate) _handOff(_readTheLoudness(here));
   }
@@ -3657,9 +3658,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(:final value) when value.isNotEmpty:
         try {
           return await _recorder.keepBytes(value, name);
-        } on Exception catch (error) {
+        } on Exception {
           if (!_abandoned(generation)) {
-            _decideAt(NetworkFailed('$error'), door: Door.sceneRehearsal);
+            _dispatch(
+              decidedOnTheTablet(
+                const TheDiskFailed(),
+                _failureContext(door: Door.sceneRehearsal),
+              ),
+            );
           }
           return null;
         }
@@ -4384,6 +4390,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// again or the screen moves on.
   void _theFraseNotUnderstood() =>
       state = state.copyWith(scene: state.scene.copyWith(notUnderstood: true));
+
+  /// The disk word stands on the scene screen until the team's next gesture or a take
+  /// lands.
+  void _theDiskFailed() =>
+      state = state.copyWith(sceneLine: SceneLine.diskFailed);
 
   /// The room may have kept the translation again whose answer was lost: that stands with
   /// the rehearsal, and the frase post waits on its list.
@@ -8555,6 +8566,9 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheFrasePerhapsKept() => _notifier._theFrasePerhapsKept();
+
+  @override
+  void hearTheDiskFailed() => _notifier._theDiskFailed();
 }
 
 final salaSessionProvider =
