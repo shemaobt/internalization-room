@@ -1258,6 +1258,7 @@ void main() {
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
+    closeTheRoom(container);
   });
 
   testWidgets(

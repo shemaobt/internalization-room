@@ -268,6 +268,27 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('frase 3 replayed to the end of its part stops there, not on '
+      'into the next part', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+    final parteUm = container.read(salaSessionProvider).partes[0].path;
+    final tocadas = harness.playback.played.length;
+    await tocar(tester, _barra(3));
+    expect(harness.playback.ranges, ['6000-10000']);
+
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    expect(
+      harness.playback.played.skip(tocadas),
+      [parteUm],
+      reason: 'a frase tocada de novo no fim da parte seguia para a próxima',
+    );
+    expect(container.read(salaSessionProvider).btClipRodando, isFalse);
+    closeTheRoom(container);
+  });
+
   testWidgets('the circle after a tap on frase 7 tells exactly its span '
       'again through the replace door, not as a new frase', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

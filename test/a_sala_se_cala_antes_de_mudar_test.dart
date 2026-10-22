@@ -162,6 +162,8 @@ Future<_Cena> _nosAchadosComOTrechoNoAr() async {
 Future<_Cena> _naFronteiraDaParte() async {
   final cena = await _noRetro(partes: 2);
   cena.harness.playback.at = const Duration(milliseconds: 600);
+  cena.sala.ouvirGravacao();
+  await waitFor('a parte ficar segurada', () => _estado(cena).btClipPausada);
   cena.harness.playback.finishPlayback();
   await waitFor(
     'a fronteira da parte abrir',

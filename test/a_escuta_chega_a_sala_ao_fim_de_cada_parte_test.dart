@@ -34,7 +34,6 @@ Future<Sala> _naTraducao() async {
 Future<Sala> _umaParteOuvidaEOutraSegurada() async {
   final it = await _naTraducao();
   await ouvirAteOFim(it, partesDoEnsaio[0]);
-  it.sala.ouvirGravacao();
   await waitFor('a segunda parte entrar no ar', () => it.estado.btClipRodando);
   await theClipOpens(it.harness);
   it.harness.playback.at = const Duration(seconds: 4);
@@ -115,14 +114,6 @@ void main() {
 
     for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
       await ouvirAteOFim(it, partesDoEnsaio[onde]);
-      if (onde < partesDoEnsaio.length - 1) {
-        expect(it.estado.btParteFronteira, isTrue);
-        it.sala.ouvirGravacao();
-        await waitFor(
-          'a parte seguinte entrar no ar',
-          () => !it.estado.btParteFronteira,
-        );
-      }
     }
 
     expect(it.harness.room.listeningReports, hasLength(partesDoEnsaio.length));
@@ -314,10 +305,10 @@ void main() {
     'o app que sai antes de a parte seguinte abrir não perde a escuta dela',
     () async {
       final it = await _naTraducao();
-      await ouvirAteOFim(it, partesDoEnsaio[0]);
       final segunda = it.partes[1].takeId!;
+      await theClipOpens(it.harness);
       it.harness.playback.holdNextOpening();
-      it.sala.ouvirGravacao();
+      await ouvirAteOFim(it, partesDoEnsaio[0]);
       await waitFor(
         'a segunda parte ir para o ar',
         () => !it.estado.btParteFronteira,

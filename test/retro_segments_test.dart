@@ -112,18 +112,15 @@ void main() {
     () async {
       final harness = SalaHarness();
       final container = await _inRetro(harness, partes: 2);
-      final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.playback.at = const Duration(seconds: 10);
-      harness.playback.finishPlayback();
-      await settle();
       await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
       await waitFor(
         'o primeiro trecho chegar à sala',
         () => harness.room.chunksSent == 1,
       );
-
-      notifier.ouvirGravacao();
+      await settle();
+      harness.playback.at = const Duration(seconds: 10);
+      harness.playback.finishPlayback();
       await settle();
       await _traduzTrecho(harness, container, em: const Duration(seconds: 5));
       await waitFor(
@@ -234,8 +231,6 @@ void main() {
     );
 
     harness.playback.finishPlayback();
-    await settle();
-    notifier.ouvirGravacao();
     await settle();
     harness.playback.finishPlayback();
     await settle();

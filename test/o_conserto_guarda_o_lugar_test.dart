@@ -45,12 +45,11 @@ Future<Sala> _aSalaNaPergunta() async {
   );
 
   await traduzirUmTrecho(it, const Duration(seconds: 10));
+  final tocadas = harness.playback.played.length;
   harness.playback.finishPlayback();
-  await waitFor('a primeira parte terminar', () => it.estado.btParteFronteira);
-  it.sala.ouvirGravacao();
   await waitFor(
     'a segunda parte entrar no ar',
-    () => !it.estado.btParteFronteira,
+    () => harness.playback.played.length > tocadas,
   );
   await traduzirUmTrecho(it, const Duration(seconds: 5));
   await traduzirUmTrecho(it, const Duration(seconds: 12));
