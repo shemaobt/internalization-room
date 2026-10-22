@@ -26,22 +26,17 @@ abstract interface class HandHost {
   /// The room as the hand reads it now, holding the very replies the hand last wrote.
   HandView get view;
 
-  /// The room shows [replies] as the hand's replies.
   void showReplies(List<HandReply> replies);
 
-  /// The hand lights on the reply [id] while it plays.
   void markPlaying(String id);
 
-  /// The hand is lit on no reply.
   void clearPlaying();
 
   /// The room shows [replies], one of them now heard, and the hand is lit on no reply.
   void markReplyHeard(List<HandReply> replies);
 
-  /// The hand arms a question.
   void enterNoteMode();
 
-  /// The hand lets the question go.
   void leaveNoteMode();
 
   /// The room leaves note mode and holds [note] as the one on its way, in one write.
