@@ -37,7 +37,8 @@ team, and nothing else.
   sign:** a refused start at once (row 5 of ADR 0093, wired for the first time), a failed
   start the second time in a row (row 6), and a start resets the count. Every other
   microphone failure, on the Scene rehearsal, the Rehearsal, the Back-translation and the
-  Raised hand's note, is silent, is never counted, and is still logged.
+  Raised hand's note, is silent and never counted; the policy still logs every one but the
+  Scene rehearsal's, which only gives the Channel back (ADR 0089).
 - **A tap over the speaking voice on a tablet whose microphone is refused does nothing.**
   A start heard later marks the permission granted again.
 
