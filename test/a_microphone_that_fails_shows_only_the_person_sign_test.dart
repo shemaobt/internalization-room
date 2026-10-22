@@ -131,8 +131,7 @@ void main() {
   );
 
   testWidgets(
-    'a room opened on a tablet whose microphone is refused shows the Choice and '
-    'says nothing',
+    'a room opened on a tablet whose microphone is refused shows the Choice and says nothing',
     (tester) async {
       final harness = _aRoom()..recorder.permitted = false;
       final sala = await _theRoomOpens(tester, harness);
