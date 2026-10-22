@@ -21,13 +21,14 @@ const continuarOEnsaio = 'Continuar o ensaio';
 
 const gravarATraducaoDeNovo = 'Tocar para gravar a tradução de novo';
 const terminar = 'Tocar ao terminar';
+const pararAGravacao = 'Parar';
 const ouvirATraducao = 'Ouvir a tradução';
 const tesoura = 'Pausar onde a frase acaba';
 const conferir = 'terminei';
 
-const gravarEstaParteDeNovo = 'Tocar para gravar esta parte de novo';
-const confirmarAParte = 'Confirmar esta parte';
-const irParaATraducao = 'Ir para a tradução';
+const gravarEstaParteDeNovo = 'Gravar de novo';
+const confirmarAParte = 'Enviar a gravação';
+const irParaATraducao = 'Traduzir a gravação';
 const sairDaPassagem = 'Escolher outra passagem';
 
 const rotulosDaGrade = [
@@ -204,7 +205,7 @@ void main() {
     ]);
 
     await tocar(tester, gravarEstaParteDeNovo);
-    await tocar(tester, terminar);
+    await tocar(tester, pararAGravacao);
     expect(
       naLinhaDoEnsaio(tester, 'Ouvir'),
       [true, true, true, null],
@@ -226,7 +227,9 @@ void main() {
     expect(naLinhaDoEnsaio(tester, 'Gravar de novo'), [true, true, true, null]);
 
     final tocadas = harness.playback.played.length;
-    await tocar(tester, irParaATraducao);
+    await tester.ensureVisible(inTheHome(irParaATraducao));
+    await tester.tap(inTheHome(irParaATraducao));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
     expect(estadoDe(container).stage, SalaStage.retro);
     expect(harness.playback.played.length, greaterThan(tocadas));

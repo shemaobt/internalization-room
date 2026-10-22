@@ -403,7 +403,7 @@ void main() {
     final rotulos = <Map<String, String>>[
       ...circleLabels.values,
       ...retroLabels.values,
-      ...rehearsalLabels.values,
+      ...recordingHomeLabels.values,
       ...findingLabels.values,
       ...escolhaLabels.values,
       ...handLabels.values,

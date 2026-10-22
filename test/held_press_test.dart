@@ -4,10 +4,10 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show onTheCircle;
 
 Future<void> _holdTheCircle(WidgetTester tester) async {
-  final circle = byLabel('Tocar para gravar o ensaio');
+  final circle = onTheCircle('Gravar');
   final finger = await tester.startGesture(tester.getCenter(circle));
   await tester.pump(const Duration(milliseconds: 900));
   await finger.up();

@@ -133,8 +133,8 @@ Future<void> tocarAConta(WidgetTester tester, int lugar) async {
 }
 
 Future<void> tocar(WidgetTester tester, String label) async {
-  await tester.ensureVisible(byLabel(label));
-  await tester.tap(byLabel(label));
+  await tester.ensureVisible(offTheRows(label));
+  await tester.tap(offTheRows(label));
   await tester.pump(const Duration(milliseconds: 300));
 }
 

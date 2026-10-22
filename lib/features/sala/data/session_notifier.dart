@@ -358,7 +358,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// wait on it, until the look the machine asks for comes back (ENG-1444 moves it).
   late Map<Turn, _AwaitedReply> _awaitedReplies;
   late Map<String, String> _stretchKeys;
-  late bool _strandedSpoken;
   late bool _personAsked;
   late int _lastAcknowledgement;
   final _random = Random();
@@ -519,7 +518,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _landingOn = null;
     _awaitedReplies = {};
     _stretchKeys = {};
-    _strandedSpoken = false;
     _personAsked = false;
     _lastAcknowledgement = 0;
     _listeningSince = null;
@@ -578,6 +576,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       recorder: () => _recorder,
     );
     _semNome = {};
+    _rowsOfThisVisit = {};
+    _notQueued = {};
+    _keepsInFlight = {};
+    _lengths = {};
     _newestCount = 0;
     _fraseNaFila = null;
     _regravacoes = 0;
@@ -3580,6 +3582,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// arrival until the room has answered them.
   void _readTheScenesForTheRehearsal() {
     _weighTheRehearsal();
+    unawaited(_countUnsent());
     if (state.scenes is ScenesHad) return;
     _timers.remove('sceneListRetry')?.cancel();
     unawaited(_askForTheScenes(onMiss: () => _theScenesMissed(0)));
@@ -3977,7 +3980,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     } on Object {
       if (_endedSince(life) || _goneSessions.contains(sessionId)) return;
-      _sayARecordingIsStranded();
       _showTheTakeNotKept(
         NotKept(take: path, tooLarge: tooLarge),
         keeping,
@@ -5360,6 +5362,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// its name then. Kept by row and not by scope, for the reason `takeIdOf` gives.
   late Map<String, String> _semNome;
 
+  late Set<String> _rowsOfThisVisit;
+
+  late Map<String?, Map<int, ({String path, int? pass})>> _notQueued;
+
+  late Map<(String?, int), int> _keepsInFlight;
+
+  late Map<String, Duration?> _lengths;
+
   Future<void> _guard(
     String path, {
     required String kind,
@@ -5375,11 +5385,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final audio = File(path);
     if (!await audio.exists()) return;
     if (sessionId == null) {
-      // The room lost the session — a 404 clears it — and a take has nowhere to go
-      // without one. The bead had already been filled by `takeKeep`, so this returned in
-      // silence and the recording read as delivered.
-      if (!_endedSince(life)) _sayARecordingIsStranded();
+      if (!_endedSince(life)) {
+        _notInTheOutbox(path, kind, scope, passNumber, sessionId);
+      }
       return;
+    }
+    final inFlight = switch (KeptScope.numberOf(scope)) {
+      final number? when kind == 'ensaio' => (sessionId, number),
+      _ => null,
+    };
+    if (inFlight != null) {
+      _keepsInFlight.update(inFlight, (keeps) => keeps + 1, ifAbsent: () => 1);
     }
     final PendingTake linha;
     try {
@@ -5392,12 +5408,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: chunkIndex,
       );
     } on Object {
-      // A full disk throws here, on the copy or on the manifest write. It used to be an
-      // unhandled async error behind an `unawaited`: the screen kept its beads and the
-      // room went on as if the recording were queued.
+      _aKeepLeftTheAir(inFlight);
       if (_endedSince(life) || _goneSessions.contains(sessionId)) return;
-      _sayARecordingIsStranded();
+      _notInTheOutbox(path, kind, scope, passNumber, sessionId);
       return;
+    }
+    if (kind == 'ensaio') {
+      _rowsOfThisVisit.add(linha.id);
+      _aKeepLeftTheAir(inFlight);
     }
     if (_endedSince(life)) {
       await queue.flush();
@@ -5406,13 +5424,66 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_goneSessions.contains(sessionId)) {
       return queue.discardTheSession(sessionId);
     }
-    if (kind == 'ensaio') _semNome[linha.id] = path;
+    if (kind == 'ensaio') {
+      _semNome[linha.id] = path;
+      if (KeptScope.numberOf(scope) case final n?) {
+        _notQueued[sessionId]?.remove(n);
+      }
+    }
     if (kind == 'retro') _traducaoNaFila[path] = linha;
     await _countUnsent();
     await queue.flush();
     await _countUnsent();
     await _adoptTheNames(queue);
   });
+
+  void _notInTheOutbox(
+    String path,
+    String kind,
+    String scope,
+    int? pass,
+    String? sessionId,
+  ) {
+    final number = KeptScope.numberOf(scope);
+    if (kind != 'ensaio' || number == null) return;
+    (_notQueued[sessionId] ??= {})[number] = (path: path, pass: pass);
+    unawaited(_countUnsent());
+  }
+
+  void enviarACena(int cena) => _gesture(() => _enviarACena(cena));
+
+  void _enviarACena(int cena) {
+    if (state.station is! Ensaio ||
+        state.ensaio == EnsaioStatus.recording ||
+        !state.unsentParts.containsKey(cena)) {
+      return;
+    }
+    _handOff(_enviarAgora(cena));
+  }
+
+  Future<void> _enviarAgora(int cena) async {
+    final scope = KeptScope.parte(cena);
+    if (_notQueued[state.sessionId]?.remove(cena) case (
+      :final path,
+      :final pass,
+    )) {
+      return _guard(
+        path,
+        kind: 'ensaio',
+        scope: scope,
+        passNumber: pass,
+        chunkIndex: cena,
+      );
+    }
+    final queue = _takes;
+    final tally = await queue.tally(sessionId: state.sessionId);
+    for (final row in _theNewestPass(tally.unsentParts)[cena] ?? const []) {
+      await queue.dueAgain(row.id);
+    }
+    await queue.flush();
+    await _countUnsent();
+    await _adoptTheNames(queue);
+  }
 
   /// Take a guarded translation off the outbox, for a path the room will never send
   /// as a whole-passage take: one recorded over after a refusal, or one told again
@@ -5426,9 +5497,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // Nothing here is stuck: a manifest write that failed leaves the row pending
       // and it still goes up, an upload the team never asked twice for but Henok
       // accepted; a delete that failed after the write leaves only an orphaned copy
-      // behind. Neither is the silence `_sayARecordingIsStranded` speaks for, so this
-      // is logged and dropped the way `_porCadaTrechoNaSuaParte`'s own read failure
-      // already is.
+      // behind. This is logged and dropped the way `_porCadaTrechoNaSuaParte`'s own
+      // read failure already is.
       debugPrint(
         'Uma tradução guardada não pôde ser retirada da fila ($path): $error',
       );
@@ -5577,56 +5647,108 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final counting = ++_newestCount;
     final queue = _takes;
     final sessionId = state.sessionId;
-    // Whether a recording is stuck is not a question about the session in progress, and
-    // asking it only when one existed meant the check at the first frame — the moment a
-    // facilitator is standing there and could act — did nothing at all.
     final tally = await queue.tally(sessionId: sessionId);
     if (_gone) return;
     _dispatch(OutboxChanged(tally.parts, due: tally.due));
-    if (tally.stranded && !_abandoned(generation)) _sayARecordingIsStranded();
-    if (_abandoned(generation)) return;
-    if (sessionId == null) return;
     if (_abandoned(generation) || counting != _newestCount) return;
-    state = state.copyWith(
-      unsentTakes: tally.unsentTakes,
-      unsentChunks: tally.unsentChunks,
-      unsentTakeScopes: tally.unsentTakeScopes,
-    );
+    final speaking = _theNewestPass(tally.unsentParts);
+    state = state.copyWith(unsentParts: _unsentPartsOf(speaking));
+    if (sessionId != null) {
+      state = state.copyWith(
+        unsentTakes: _unsentTakesOf(tally, speaking),
+        unsentChunks: tally.unsentChunks,
+      );
+    }
+    if (await _measured(speaking) &&
+        !_abandoned(generation) &&
+        counting == _newestCount) {
+      state = state.copyWith(unsentParts: _unsentPartsOf(speaking));
+    }
   });
 
-  /// Mind the team's place on disk, and say so when the disk will not take it.
-  ///
-  /// This tablet is the only thing that knows which session belongs to which passage —
-  /// `ir_sessions` carries no device — so a write that fails and is thrown away loses the
-  /// team's place with nothing left to recover it from and no sign anything went wrong.
-  /// It is the same disk, and the same silence, the upload queue used to have when it
-  /// could not store audio, so it borrows that voice instead of inventing a second one.
-  ///
-  /// An erasure that fails is spoken too. It leaves a stale entry, which is a different
-  /// harm from losing the place and not a smaller one: the wheel goes on offering a
-  /// passage the team already closed, and walking back into it resumes a session the
-  /// server has forgotten. Nothing else in the room ever notices that entry, so if this
-  /// does not say it, no one does.
+  Map<int, List<PendingTake>> _theNewestPass(
+    Map<String, List<PendingTake>> outbox,
+  ) {
+    final speaking = <int, List<PendingTake>>{};
+    for (final MapEntry(key: scope, value: rows) in outbox.entries) {
+      final number = KeptScope.numberOf(scope);
+      if (number == null) continue;
+      final held = switch (state.partIndexOf(number)) {
+        final index? => state.partes[index].pass,
+        null => 0,
+      };
+      final newest = rows.map((row) => row.passNumber ?? 1).fold(held, max);
+      final current = [
+        for (final row in rows)
+          if ((row.passNumber ?? 1) == newest) row,
+      ];
+      if (current.isNotEmpty) speaking[number] = current;
+    }
+    return speaking;
+  }
+
+  int _unsentTakesOf(OutboxTally tally, Map<int, List<PendingTake>> speaking) {
+    var behindANewerPass = 0;
+    for (final MapEntry(key: scope, value: rows) in tally.unsentParts.entries) {
+      final number = KeptScope.numberOf(scope);
+      if (number == null) continue;
+      behindANewerPass += rows.length - (speaking[number]?.length ?? 0);
+    }
+    final notQueued = [
+      for (final number in _notQueued[state.sessionId]?.keys ?? const <int>[])
+        if (!speaking.containsKey(number)) number,
+    ];
+    return tally.unsentTakes - behindANewerPass + notQueued.length;
+  }
+
+  void _aKeepLeftTheAir((String?, int)? inFlight) {
+    if (inFlight == null) return;
+    final keeps = (_keepsInFlight[inFlight] ?? 1) - 1;
+    if (keeps > 0) {
+      _keepsInFlight[inFlight] = keeps;
+    } else {
+      _keepsInFlight.remove(inFlight);
+    }
+  }
+
+  bool _ofThisVisit(int number, PendingTake newest) =>
+      _rowsOfThisVisit.contains(newest.id) ||
+      _keepsInFlight.containsKey((state.sessionId, number));
+
+  Map<int, UnsentPart> _unsentPartsOf(Map<int, List<PendingTake>> speaking) => {
+    for (final MapEntry(key: number, value: rows) in speaking.entries)
+      number: UnsentPart(
+        fromAnEarlierVisit: !_ofThisVisit(number, rows.last),
+        failed: rows.any((row) => row.tries > 0 || row.exhausted || row.lost),
+        length: _lengths[rows.last.path],
+      ),
+    for (final number in _notQueued[state.sessionId]?.keys ?? const <int>[])
+      if (!speaking.containsKey(number))
+        number: const UnsentPart(fromAnEarlierVisit: false, failed: true),
+  };
+
+  Future<bool> _measured(Map<int, List<PendingTake>> speaking) async {
+    var measured = false;
+    for (final MapEntry(key: number, value: rows) in speaking.entries) {
+      final newest = rows.last;
+      if (_ofThisVisit(number, newest) || _lengths.containsKey(newest.path)) {
+        continue;
+      }
+      _lengths[newest.path] = await _playback.howLong(newest.path);
+      if (_gone) return false;
+      measured = true;
+    }
+    return measured;
+  }
+
   Future<void> _mindingThePlace(Future<void> Function() write) =>
       _apart(() async {
-        final life = _thisLife;
         try {
           await write();
-        } on Object {
-          if (!_endedSince(life)) _sayARecordingIsStranded();
+        } on Object catch (error) {
+          debugPrint('O lugar da equipe não pôde ser guardado: $error');
         }
       });
-
-  void _sayARecordingIsStranded() {
-    if (_strandedSpoken || _gone) return;
-    _strandedSpoken = true;
-    unawaited(
-      _sayALine(
-        LineKind.stranded,
-        asset: strandedTakeAsset(_inTheSessionsLanguage),
-      ),
-    );
-  }
 
   void theAppWentAway() {
     _cortarAEscutaNoAr();
@@ -8337,7 +8459,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _perdidasNoTrecho.clear();
     _stretchKeys.clear();
     _passadasDaSala = null;
-    _strandedSpoken = false;
     _personAsked = false;
     _runner.endTheWatch();
     _runner.forgetTheLadder();

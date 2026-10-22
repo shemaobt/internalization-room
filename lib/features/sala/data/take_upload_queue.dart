@@ -31,22 +31,12 @@ const largestTakeTheRoomKeeps = 25 * 1024 * 1024;
 const largestSentenceTheRoomTakes = 4 * 1024 * 1024;
 
 typedef OutboxTally = ({
-  bool stranded,
   int unsentTakes,
   int unsentChunks,
-  Set<String> unsentTakeScopes,
+  Map<String, List<PendingTake>> unsentParts,
   Map<String, PartFact> parts,
   Duration due,
 });
-
-/// How many answerless tries pass before the room says a recording is stuck.
-///
-/// Waits deliberately never exhaust the budget — a weak link would spend all five tries
-/// on five slow minutes and abandon audio the room may well have accepted. But the other
-/// half of that decision was never built: a take that only ever times out kept retrying
-/// forever and nobody was ever told. It keeps retrying; it just stops doing it in silence.
-const takeUploadWaitsBeforeSaying = 8;
-const unknownScope = '?';
 
 final takeRetryBackoffProvider = Provider<List<Duration>>(
   (ref) => const [
@@ -86,7 +76,7 @@ class PendingTake {
   /// `stored` is the queue's only word for "the room has it", and a vanished file used to
   /// be written as `stored` — turning a lost recording into a delivered one, after which
   /// nothing could tell the two apart. Lost is its own answer: it still counts as
-  /// outstanding, it is never retried, and it is what the room says out loud.
+  /// outstanding and it is never retried.
   final bool lost;
 
   /// Times the room answered and refused. Only these spend the budget.
@@ -157,8 +147,6 @@ class PendingTake {
 
   bool get refusedWithNoCode =>
       exhausted && RefusalCode.namesNothing(refusal ?? '');
-
-  bool get stalled => waits >= takeUploadWaitsBeforeSaying;
 
   int get tries => attempts + waits;
 
@@ -358,11 +346,6 @@ class TakeUploadQueue {
   /// decided were gone while the files sat untouched beside them. The flag alone is
   /// therefore not the answer to "is this recording gone"; the disk is.
   ///
-  /// Both readings of that question come through here, so there is one definition of
-  /// gone and not two: the rows a flush will try, and the rows the room speaks about. If
-  /// they could disagree, the room would call a recording stranded while the queue was
-  /// busy uploading it.
-  ///
   /// It only ever reads — one stat per written-off row, none at all for a queue with
   /// nothing written off, and no manifest written. Letting the flush loop find out for
   /// itself instead would rewrite the manifest once per condemned row per flush.
@@ -384,13 +367,6 @@ class TakeUploadQueue {
     }
     return trying;
   }
-
-  /// Whether a manifest this queue could not read was set aside.
-  ///
-  /// Its rows named audio that is still on the tablet and the session each one belonged
-  /// to — and the session is the part no scan of the files can recover. The room is not
-  /// allowed to imply everything reached the server after that.
-  Future<bool> lostHistory() async => (await _quarantineFile()).exists();
 
   Future<File> _quarantineFile() async =>
       File(p.join((await _dir()).path, '$_manifest.ilegivel'));
@@ -430,32 +406,27 @@ class TakeUploadQueue {
     return null;
   }
 
-  Future<Set<String>> unsentScopesOf(
-    String kind, {
-    required String sessionId,
-  }) async => _unsentScopesIn(await _written(), kind, sessionId);
-
-  static Set<String> _unsentScopesIn(
+  Future<Map<String, List<PendingTake>>> _unsentPartsIn(
     List<PendingTake>? written,
-    String kind,
     String? sessionId,
-  ) {
-    if (written == null) return {unknownScope};
-    return {
-      for (final entry in written)
-        if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
-          entry.scope,
-    };
+  ) async {
+    final parts = <String, List<PendingTake>>{};
+    for (final entry in written ?? const <PendingTake>[]) {
+      if (!entry.stored &&
+          entry.kind == 'ensaio' &&
+          entry.sessionId == sessionId &&
+          await File(entry.path).exists()) {
+        parts.putIfAbsent(entry.scope, () => []).add(entry);
+      }
+    }
+    return parts;
   }
 
-  /// giveUps() + lostHistory() + unsentOf('ensaio') + unsentOf('retro') +
-  /// unsentScopesOf('ensaio'), from the one read this cache already keeps —
-  /// what `_countUnsent` asked for five times over is asked for once here.
   Future<OutboxTally> tally({required String? sessionId}) async {
     final written = await _written();
-    final stranded = (await giveUps()).isNotEmpty || await lostHistory();
     final waiting = await this.waiting();
     final trying = {for (final entry in waiting) entry.id};
+    final unsentParts = await _unsentPartsIn(written, sessionId);
     return (
       parts: {
         for (final row in _confirmed.keys) row: PartFact.sent,
@@ -467,25 +438,12 @@ class TakeUploadQueue {
               : PartFact.stranded,
       },
       due: _due(waiting),
-      stranded: stranded,
-      unsentTakes: _unsentIn(written, 'ensaio', sessionId),
+      unsentTakes: written == null
+          ? 1
+          : unsentParts.values.fold(0, (count, rows) => count + rows.length),
       unsentChunks: _unsentIn(written, 'retro', sessionId),
-      unsentTakeScopes: _unsentScopesIn(written, 'ensaio', sessionId),
+      unsentParts: unsentParts,
     );
-  }
-
-  /// The rows the room says out loud, because nothing more will happen to them on their
-  /// own. A row written off while its audio is still on the tablet is not one of them —
-  /// the next flush picks it up, and saying it is stranded would be a false alarm on
-  /// exactly the tablets that recovery exists for.
-  Future<List<PendingTake>> giveUps() async {
-    final givenUp = <PendingTake>[];
-    for (final entry in await pending()) {
-      if (entry.exhausted || entry.stalled || await _reallyGone(entry)) {
-        givenUp.add(entry);
-      }
-    }
-    return givenUp;
   }
 
   Duration _due(List<PendingTake> waiting) {

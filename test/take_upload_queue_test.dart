@@ -89,14 +89,10 @@ void main() {
     );
 
     expect(
-      await queue.lostHistory(),
+      File('${home.path}/guardadas/fila.json.ilegivel').existsSync(),
       isTrue,
       reason:
           'as linhas ilegíveis nomeavam áudio e a sessão dele — não podem sumir sem deixar marca',
-    );
-    expect(
-      File('${home.path}/guardadas/fila.json.ilegivel').existsSync(),
-      isTrue,
     );
     expect(
       Directory('${home.path}/guardadas').listSync().whereType<File>().any(
@@ -306,7 +302,8 @@ void main() {
   );
 
   test(
-    'tally counts what unsentOf and unsentScopesOf count, from one read',
+    'tally counts what unsentOf counts and holds the unsent rehearsal takes by '
+    'part, from one read',
     () async {
       final room = FakeRoom()..reachable = false;
       final queue = queueOn(room);
@@ -331,10 +328,10 @@ void main() {
 
       final tally = await queue.tally(sessionId: 'sessao-1');
 
-      expect(tally.stranded, isFalse);
       expect(tally.unsentTakes, 1, reason: 'só a linha ensaio da sessao-1');
       expect(tally.unsentChunks, 1, reason: 'só a linha retro da sessao-1');
-      expect(tally.unsentTakeScopes, {'inteira'});
+      expect(tally.unsentParts.keys, ['inteira']);
+      expect(tally.unsentParts['inteira'], hasLength(1));
     },
   );
 
@@ -360,38 +357,7 @@ void main() {
             'um manifesto ilegível nunca pode dizer que não há nada pendente',
       );
       expect(tally.unsentChunks, 1);
-      expect(tally.unsentTakeScopes, {unknownScope});
-    },
-  );
-
-  test(
-    'tally is stranded once quarantine has happened, from the same read',
-    () async {
-      final room = FakeRoom()..reachable = false;
-      final queue = queueOn(room);
-      await queue.enqueue(
-        aTake('velha-1'),
-        sessionId: 'sessao-1',
-        kind: 'ensaio',
-        scope: 'inteira',
-      );
-
-      manifest().writeAsStringSync('[{"id": "velha-1", tru');
-      await queue.enqueue(
-        aTake('nova'),
-        sessionId: 'sessao-1',
-        kind: 'ensaio',
-        scope: 'inteira',
-      );
-
-      final tally = await queue.tally(sessionId: 'sessao-1');
-
-      expect(
-        tally.stranded,
-        isTrue,
-        reason:
-            'a quarentena aconteceu — a mesma leitura que conta precisa saber disso',
-      );
+      expect(tally.unsentParts, isEmpty);
     },
   );
 
@@ -595,10 +561,9 @@ void main() {
           'insistir para sempre num arquivo que não existe é uma fila que nunca esvazia',
     );
     expect(
-      await queue.giveUps(),
+      await queue.pending(),
       hasLength(1),
-      reason:
-          'um áudio que sumiu não é um áudio entregue, e a sala precisa dizer isso',
+      reason: 'um áudio que sumiu não é um áudio entregue',
     );
     expect(await queue.unsentOf('ensaio', sessionId: 'sessao-1'), 1);
     expect(room.takesKept, isEmpty);
@@ -923,8 +888,8 @@ void main() {
           'saísse ainda seria recusada por isso',
     );
     expect(
-      await queue.giveUps(),
-      isEmpty,
+      await queue.waiting(),
+      hasLength(2),
       reason:
           'a recusa é do tablet, não da parte: revinculado, ela ainda tem para '
           'onde ir',
@@ -948,7 +913,6 @@ void main() {
 
     await queue.flush();
 
-    expect(await queue.giveUps(), isEmpty);
     expect(await queue.waiting(), hasLength(1));
   });
 
@@ -969,7 +933,7 @@ void main() {
 
     expect(await queue.waiting(), isEmpty);
     expect(
-      await queue.giveUps(),
+      await queue.pending(),
       hasLength(1),
       reason: 'passado o teto ela para de ser tentada sozinha',
     );
@@ -1012,13 +976,6 @@ void main() {
       (await queue.pending()).single.attempts,
       0,
       reason: 'nenhuma espera pode gastar o orçamento de recusas',
-    );
-    expect(
-      await queue.giveUps(),
-      hasLength(1),
-      reason:
-          'continua sendo tentada, mas parar de avisar durante horas é a metade '
-          'da decisão que nunca foi construída',
     );
 
     room.reachable = true;
@@ -1139,36 +1096,38 @@ void main() {
     },
   );
 
-  test('a take whose audio really vanished stays lost across a restore', () async {
-    final room = FakeRoom()..reachable = false;
-    final entry = await queueOn(room).enqueue(
-      aTake('tomada'),
-      sessionId: 'sessao-1',
-      kind: 'ensaio',
-      scope: 'inteira',
-    );
-    File(entry.path).deleteSync();
+  test(
+    'a take whose audio really vanished stays lost across a restore',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final entry = await queueOn(room).enqueue(
+        aTake('tomada'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+      File(entry.path).deleteSync();
 
-    theContainerIsRenamed();
-    room.reachable = true;
-    final afterRestore = queueOn(room);
-    await afterRestore.flush();
+      theContainerIsRenamed();
+      room.reachable = true;
+      final afterRestore = queueOn(room);
+      await afterRestore.flush();
 
-    expect(
-      await afterRestore.waiting(),
-      isEmpty,
-      reason:
-          'reconstruir o caminho não pode virar tentar para sempre um áudio que '
-          'não está mais no aparelho',
-    );
-    expect(
-      await afterRestore.giveUps(),
-      hasLength(1),
-      reason:
-          'um áudio que sumiu continua contando como pendente, e a sala diz isso',
-    );
-    expect(room.takesKept, isEmpty);
-  });
+      expect(
+        await afterRestore.waiting(),
+        isEmpty,
+        reason:
+            'reconstruir o caminho não pode virar tentar para sempre um áudio que '
+            'não está mais no aparelho',
+      );
+      expect(
+        await afterRestore.pending(),
+        hasLength(1),
+        reason: 'um áudio que sumiu continua contando como pendente',
+      );
+      expect(room.takesKept, isEmpty);
+    },
+  );
 
   test(
     'a queue written by the older app, with absolute paths, is still sent',
@@ -1214,7 +1173,7 @@ void main() {
     expect(room.takesKept, ['ensaio/inteira']);
   });
 
-  test('a take recovered from the write-off is no longer called given up', () async {
+  test('a take recovered from the write-off is tried again', () async {
     final dir = Directory('${home.path}/guardadas')
       ..createSync(recursive: true);
     File(
@@ -1232,13 +1191,6 @@ void main() {
     // O áudio está lá, então a linha é tentada — e a sala é que não responde.
     await queue.flush();
 
-    expect(
-      await queue.giveUps(),
-      isEmpty,
-      reason:
-          'a sala fala a partir dessa conta: uma gravação que está sendo enviada '
-          'agora não pode seguir contada como abandonada',
-    );
     expect(
       await queue.waiting(),
       hasLength(1),
@@ -1536,7 +1488,8 @@ void main() {
         await flushTwelveTimes(queue);
 
         expect(asked, 1, reason: 'uma recusa não tem segunda tentativa');
-        expect((await queue.tally(sessionId: 'sessao-1')).stranded, isTrue);
+        expect(await queue.waiting(), isEmpty);
+        expect(await queue.pending(), hasLength(1));
         expect(File(entry.path).existsSync(), isTrue);
       },
     );
