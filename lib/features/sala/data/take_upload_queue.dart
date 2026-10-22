@@ -11,7 +11,6 @@ import 'package:path_provider/path_provider.dart';
 
 import '../domain/kept_take.dart';
 
-export '../domain/kept_take.dart' show partTakeKind, retroKind, sceneTakeKind;
 import '../domain/machine.dart';
 import '../domain/scene_rehearsal.dart';
 import '../domain/wav.dart';
@@ -53,6 +52,8 @@ final takeRetryBackoffProvider = Provider<List<Duration>>(
 final takeAttemptSpacingProvider = Provider<List<Duration>>(
   (ref) => const [Duration(seconds: 1), Duration(seconds: 3)],
 );
+
+typedef TakeLeaving = ({PendingTake take, DateTime since});
 
 class PendingTake {
   final String id;
@@ -431,7 +432,7 @@ class TakeUploadQueue {
     final parts = <String, List<PendingTake>>{};
     for (final entry in written ?? const <PendingTake>[]) {
       if (!entry.stored &&
-          entry.kind == 'ensaio' &&
+          entry.kind == partTakeKind &&
           entry.sessionId == sessionId &&
           await File(entry.path).exists()) {
         parts.putIfAbsent(entry.scope, () => []).add(entry);
@@ -477,7 +478,7 @@ class TakeUploadQueue {
   }
 
   String? _partOf(PendingTake entry) => switch (entry.kind) {
-    'ensaio' => '${entry.sessionId}/${entry.scope}',
+    partTakeKind => '${entry.sessionId}/${entry.scope}',
     sceneTakeKind => '${entry.sessionId}/$sceneTakeKind',
     _ => null,
   };
@@ -600,10 +601,10 @@ class TakeUploadQueue {
 
   PendingTake? _inTheAir;
 
-  final StreamController<PendingTake?> _leaving =
-      StreamController<PendingTake?>.broadcast(sync: true);
+  final StreamController<TakeLeaving?> _leaving =
+      StreamController<TakeLeaving?>.broadcast(sync: true);
 
-  Stream<PendingTake?> get leaving => _leaving.stream;
+  Stream<TakeLeaving?> get leaving => _leaving.stream;
 
   Completer<void>? _stop;
 
@@ -674,13 +675,14 @@ class TakeUploadQueue {
             !await _reallyGone(entry))
           ?_partOf(entry),
     };
+    final leftInThisPass = <String, DateTime>{};
     _turnedAway = false;
     _stopped = false;
     for (final entry in await waiting(withTheCodeless: withTheCodeless)) {
       if (_turnedAway || _stopped) break;
       final part = _partOf(entry);
       if (part != null && held.contains(part)) continue;
-      switch (await _landed(entry)) {
+      switch (await _landed(entry, leftInThisPass)) {
         case _Landing.landed:
           sent++;
         case _Landing.held when part != null:
@@ -694,7 +696,10 @@ class TakeUploadQueue {
 
   /// Whether the room took this row. Held is every reason it did not that holds the rest
   /// of this row's part on it; a row refused for good, sent or not, holds nothing.
-  Future<_Landing> _landed(PendingTake entry) async {
+  Future<_Landing> _landed(
+    PendingTake entry,
+    Map<String, DateTime> leftInThisPass,
+  ) async {
     if (!_ready(entry)) return _Landing.held;
     final file = File(entry.path);
     if (!await file.exists()) {
@@ -720,7 +725,13 @@ class TakeUploadQueue {
       }
       _inTheAir = entry;
       final stop = _stop = Completer<void>();
-      _leaving.add(entry);
+      _leaving.add((
+        take: entry,
+        since: switch (_partOf(entry)) {
+          final part? => leftInThisPass.putIfAbsent(part, _now),
+          null => _now(),
+        },
+      ));
       var fell = false;
       for (var attempt = 0; ; attempt++) {
         final answer = await _attempt(entry, file, stop.future);

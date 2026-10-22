@@ -4,7 +4,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../domain/kept_take.dart';
 import '../../domain/machine.dart' show TakeInTheAir;
 import '../../domain/session_state.dart';
-import 'stop_the_send.dart';
+import 'stop_control.dart';
 
 class SceneTakeState extends StatelessWidget {
   final bool recording;

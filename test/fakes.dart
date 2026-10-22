@@ -48,6 +48,7 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
 /// Throwing here instead of returning keeps the failure at the wait: a deadline that
 /// passes in silence surfaces as an unrelated error several lines later.
@@ -3147,7 +3148,7 @@ class FakeTakeQueue implements TakeUploadQueue {
   Stream<void> get fallsOnTheNetwork => const Stream.empty();
 
   @override
-  Stream<PendingTake?> get leaving => const Stream.empty();
+  Stream<TakeLeaving?> get leaving => const Stream.empty();
 
   @override
   void stop(String row) {}

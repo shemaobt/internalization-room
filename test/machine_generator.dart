@@ -228,6 +228,9 @@ String describeEvent(MachineEvent event) => switch (event) {
   ATakeLeft(:final take) =>
     'ATakeLeft(${take.row}, ${take.kind}, ${take.session}, ${take.scope})',
   ATakeSettled(:final row) => 'ATakeSettled($row)',
+  AKeepBegan(:final part) => 'AKeepBegan(${part.session}, ${part.part})',
+  AKeepEnded(:final part, :final row) =>
+    'AKeepEnded(${part.session}, ${part.part}, $row)',
   StopTapped(:final row) => 'StopTapped($row)',
   TheRoomAnswered() => 'TheRoomAnswered',
   OutboxChanged(:final parts, :final due) =>
@@ -377,6 +380,8 @@ enum EventKind {
   retryFired,
   aTakeLeft,
   aTakeSettled,
+  aKeepBegan,
+  aKeepEnded,
   stopTapped,
   theRoomAnswered,
   outboxChanged,
@@ -452,6 +457,8 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   RetryFired() => EventKind.retryFired,
   ATakeLeft() => EventKind.aTakeLeft,
   ATakeSettled() => EventKind.aTakeSettled,
+  AKeepBegan() => EventKind.aKeepBegan,
+  AKeepEnded() => EventKind.aKeepEnded,
   StopTapped() => EventKind.stopTapped,
   TheRoomAnswered() => EventKind.theRoomAnswered,
   OutboxChanged() => EventKind.outboxChanged,
@@ -538,6 +545,8 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.outboxChanged ||
   EventKind.aTakeLeft ||
   EventKind.aTakeSettled ||
+  EventKind.aKeepBegan ||
+  EventKind.aKeepEnded ||
   EventKind.stopTapped ||
   EventKind.lineArrived ||
   EventKind.micOpened ||
@@ -657,6 +666,14 @@ MachineEvent _draw(
     ),
   ),
   EventKind.aTakeSettled => ATakeSettled('linha-${random.nextInt(3)}'),
+  EventKind.aKeepBegan => AKeepBegan((
+    session: _drawASession(random),
+    part: random.nextInt(3) + 1,
+  )),
+  EventKind.aKeepEnded => AKeepEnded((
+    session: _drawASession(random),
+    part: random.nextInt(3) + 1,
+  ), row: random.nextBool() ? 'linha-${random.nextInt(3)}' : null),
   EventKind.stopTapped => StopTapped('linha-${random.nextInt(3)}'),
   EventKind.theRoomAnswered => const TheRoomAnswered(),
   EventKind.outboxChanged => OutboxChanged({

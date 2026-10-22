@@ -349,8 +349,6 @@ class SalaSessionState {
   final int unsentChunks;
   final Map<int, UnsentPart> unsentParts;
 
-  final Set<int> savedParts;
-
   final Machine machine;
 
   /// Which part of the rehearsal the team came back to record again, 0-based, or null when
@@ -463,7 +461,6 @@ class SalaSessionState {
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentParts = const {},
-    this.savedParts = const {},
     this.machine = const Machine(),
     this.parteARegravar,
     this.cenaDaGravacao,
@@ -501,6 +498,19 @@ class SalaSessionState {
   };
 
   TakeInTheAir? get sceneTakeInTheAir => _theTakeInTheAirOf(sceneTakeKind);
+
+  UnsentPart? _keptOrLost(int number) {
+    if (machine.beingKept(sessionId, number)) {
+      return const UnsentPart(fromAnEarlierVisit: false);
+    }
+    if (machine.newestKeptFact(sessionId, number) == PartFact.stranded) {
+      return const UnsentPart(
+        fromAnEarlierVisit: false,
+        failure: SendFailure.failed,
+      );
+    }
+    return null;
+  }
 
   TakeInTheAir? partInTheAir(int number) =>
       switch (_theTakeInTheAirOf(partTakeKind)) {
@@ -618,9 +628,9 @@ class SalaSessionState {
             final index? => partes[index],
             null => null,
           },
-          unsent: unsentParts[number],
+          unsent: unsentParts[number] ?? _keptOrLost(number),
           inTheAir: partInTheAir(number),
-          saved: savedParts.contains(number),
+          saved: machine.savedParts(sessionId).contains(number),
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
           dimmed: sceneRowIsDimmed(number),
           current: _numberAt(playing ?? again) == number,
@@ -1187,7 +1197,6 @@ class SalaSessionState {
     int? unsentTakes,
     int? unsentChunks,
     Map<int, UnsentPart>? unsentParts,
-    Set<int>? savedParts,
     Machine? machine,
     int? parteARegravar,
     bool clearParteARegravar = false,
@@ -1281,7 +1290,6 @@ class SalaSessionState {
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentParts: unsentParts ?? this.unsentParts,
-      savedParts: savedParts ?? this.savedParts,
       machine: machine ?? this.machine,
       parteARegravar: clearParteARegravar
           ? null

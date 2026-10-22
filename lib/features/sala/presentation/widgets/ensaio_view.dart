@@ -11,7 +11,7 @@ import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
 import 'stage_heading.dart';
-import 'stop_the_send.dart';
+import 'stop_control.dart';
 
 class EnsaioView extends ConsumerWidget {
   const EnsaioView({super.key});

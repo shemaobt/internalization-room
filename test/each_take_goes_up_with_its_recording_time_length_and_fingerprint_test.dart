@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
 void main() {
   late Directory home;

@@ -447,7 +447,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late String? _pendingTakePath;
   late StreamSubscription<void> _outboxFalls;
   late StreamSubscription<String> _outboxGone;
-  late StreamSubscription<PendingTake?> _outboxLeaving;
+  late StreamSubscription<TakeLeaving?> _outboxLeaving;
   late EffectRunner _runner;
   late RaisedHand _hand;
 
@@ -575,9 +575,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       recorder: () => _recorder,
     );
     _semNome = {};
-    _rowsOfThisVisit = {};
     _notQueued = {};
-    _keepsInFlight = {};
     _lengths = {};
     _newestCount = 0;
     _fraseNaFila = null;
@@ -2917,7 +2915,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // the last recording made under it.
     final correntes = <int?, TakeView>{};
     for (final guardada in guardadas) {
-      if (guardada.kind != 'ensaio') continue;
+      if (guardada.kind != partTakeKind) continue;
       correntes[guardada.ordinal] = guardada;
     }
     final deLado = correntes.keys.any((ordinal) => ordinal != null);
@@ -5109,7 +5107,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(
       _guard(
         path,
-        kind: 'ensaio',
+        kind: partTakeKind,
         scope: escopo,
         passNumber: nova.pass,
         chunkIndex: numero,
@@ -5178,7 +5176,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(
       _guard(
         path,
-        kind: 'ensaio',
+        kind: partTakeKind,
         scope: escopo,
         passNumber: passada,
         chunkIndex: numero,
@@ -5220,11 +5218,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// its name then. Kept by row and not by scope, for the reason `takeIdOf` gives.
   late Map<String, String> _semNome;
 
-  late Map<String, ({String session, int number})> _rowsOfThisVisit;
-
   late Map<String?, Map<int, ({String path, int? pass})>> _notQueued;
-
-  late Map<(String?, int), int> _keepsInFlight;
 
   late Map<String, Duration?> _lengths;
 
@@ -5248,14 +5242,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
-    final inFlight = switch (KeptScope.numberOf(scope)) {
-      final number? when kind == 'ensaio' => (sessionId, number),
+    final PartOfASession? keeping = switch (KeptScope.numberOf(scope)) {
+      final number? when kind == partTakeKind => (
+        session: sessionId,
+        part: number,
+      ),
       _ => null,
     };
-    if (inFlight != null) {
-      _keepsInFlight.update(inFlight, (keeps) => keeps + 1, ifAbsent: () => 1);
-      unawaited(_countUnsent());
-    }
+    if (keeping != null) _dispatch(AKeepBegan(keeping));
     final PendingTake linha;
     try {
       linha = await queue.enqueue(
@@ -5267,16 +5261,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: chunkIndex,
       );
     } on Object {
-      _aKeepLeftTheAir(inFlight);
+      if (keeping != null && !_gone) _dispatch(AKeepEnded(keeping));
       if (_endedSince(life) || _goneSessions.contains(sessionId)) return;
       _notInTheOutbox(path, kind, scope, passNumber, sessionId);
       return;
     }
-    if (kind == 'ensaio') {
-      if (inFlight case (final String session, final number)) {
-        _rowsOfThisVisit[linha.id] = (session: session, number: number);
-      }
-      _aKeepLeftTheAir(inFlight);
+    if (keeping != null && !_gone) {
+      _dispatch(AKeepEnded(keeping, row: linha.id));
     }
     if (_endedSince(life)) {
       await queue.flush();
@@ -5285,13 +5276,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_goneSessions.contains(sessionId)) {
       return queue.discardTheSession(sessionId);
     }
-    if (kind == 'ensaio') {
+    if (kind == partTakeKind) {
       _semNome[linha.id] = path;
       if (KeptScope.numberOf(scope) case final n?) {
         _notQueued[sessionId]?.remove(n);
       }
     }
-    if (kind == 'retro') _traducaoNaFila[path] = linha;
+    if (kind == retroKind) _traducaoNaFila[path] = linha;
     await _countUnsent();
     await queue.flush();
     await _countUnsent();
@@ -5306,7 +5297,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String? sessionId,
   ) {
     final number = KeptScope.numberOf(scope);
-    if (kind != 'ensaio' || number == null) return;
+    if (kind != partTakeKind || number == null) return;
     (_notQueued[sessionId] ??= {})[number] = (path: path, pass: pass);
     unawaited(_countUnsent());
   }
@@ -5330,7 +5321,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     )) {
       return _guard(
         path,
-        kind: 'ensaio',
+        kind: partTakeKind,
         scope: scope,
         passNumber: pass,
         chunkIndex: cena,
@@ -5528,10 +5519,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(OutboxChanged(tally.parts, due: tally.due));
     if (_abandoned(generation) || counting != _newestCount) return;
     final speaking = _theNewestPass(tally.unsentParts);
-    state = state.copyWith(
-      unsentParts: _unsentPartsOf(tally, speaking),
-      savedParts: _savedPartsOf(speaking),
-    );
+    state = state.copyWith(unsentParts: _unsentPartsOf(tally, speaking));
     if (sessionId != null) {
       state = state.copyWith(
         unsentTakes: _unsentTakesOf(tally, speaking),
@@ -5580,19 +5568,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return tally.unsentTakes - behindANewerPass + notQueued.length;
   }
 
-  void _aKeepLeftTheAir((String?, int)? inFlight) {
-    if (inFlight == null) return;
-    final keeps = (_keepsInFlight[inFlight] ?? 1) - 1;
-    if (keeps > 0) {
-      _keepsInFlight[inFlight] = keeps;
-    } else {
-      _keepsInFlight.remove(inFlight);
-    }
-  }
-
   bool _ofThisVisit(int number, PendingTake newest) =>
-      _rowsOfThisVisit.containsKey(newest.id) ||
-      _keepsInFlight.containsKey((state.sessionId, number));
+      state.machine.keptThisVisit.containsKey(newest.id) ||
+      state.machine.beingKept(state.sessionId, number);
 
   Map<int, UnsentPart> _unsentPartsOf(
     OutboxTally tally,
@@ -5613,11 +5591,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           fromAnEarlierVisit: false,
           failure: SendFailure.failed,
         ),
-    for (final (session, number) in _keepsInFlight.keys)
-      if (session == state.sessionId &&
-          !speaking.containsKey(number) &&
-          !(_notQueued[session]?.containsKey(number) ?? false))
-        number: const UnsentPart(fromAnEarlierVisit: false),
   };
 
   static SendFailure? _failureOf(
@@ -5634,20 +5607,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return null;
   }
 
-  Set<int> _savedPartsOf(Map<int, List<PendingTake>> speaking) => {
-    for (final MapEntry(key: row, value: (:session, :number))
-        in _rowsOfThisVisit.entries)
-      if (session == state.sessionId &&
-          state.machine.parts[row] == PartFact.sent &&
-          !speaking.containsKey(number) &&
-          !_keepsInFlight.containsKey((session, number)) &&
-          !(_notQueued[session]?.containsKey(number) ?? false))
-        number,
-  };
-
-  void _aTakeIsLeaving(PendingTake? take) {
+  void _aTakeIsLeaving(TakeLeaving? leaving) {
     if (_gone) return;
-    if (take != null) {
+    if (leaving case (:final take, :final since)) {
       return _dispatch(
         ATakeLeft(
           TakeInTheAir(
@@ -5655,7 +5617,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             kind: take.kind,
             session: take.sessionId,
             scope: take.scope,
-            since: clock.now(),
+            since: since,
           ),
         ),
       );
@@ -7456,7 +7418,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(
       _guard(
         path,
-        kind: 'retro',
+        kind: retroKind,
         scope: KeptScope.whole,
         passNumber: state.btPass,
       ),

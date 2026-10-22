@@ -121,6 +121,21 @@ final class ATakeSettled extends MachineEvent {
   const ATakeSettled(this.row);
 }
 
+typedef PartOfASession = ({String session, int part});
+
+final class AKeepBegan extends MachineEvent {
+  final PartOfASession part;
+
+  const AKeepBegan(this.part);
+}
+
+final class AKeepEnded extends MachineEvent {
+  final PartOfASession part;
+  final String? row;
+
+  const AKeepEnded(this.part, {this.row});
+}
+
 final class StopTapped extends MachineEvent {
   final String row;
 
@@ -966,6 +981,8 @@ final class Machine {
   final Map<String, PartFact> parts;
   final bool draining;
   final TakeInTheAir? inTheAir;
+  final Map<PartOfASession, int> keeping;
+  final Map<String, PartOfASession> keptThisVisit;
   final int generation;
 
   /// The turn whose POST is in the air: sent, and neither answered nor given up.
@@ -1006,6 +1023,8 @@ final class Machine {
     this.parts = const {},
     this.draining = false,
     this.inTheAir,
+    this.keeping = const {},
+    this.keptThisVisit = const {},
     this.generation = 0,
     this.inFlight,
     this.keptInFlight = const NothingKept(),
@@ -1024,11 +1043,31 @@ final class Machine {
 
   bool get somethingPending => parts.values.contains(PartFact.pending);
 
+  bool beingKept(String? session, int part) =>
+      session != null && (keeping[(session: session, part: part)] ?? 0) > 0;
+
+  PartFact? newestKeptFact(String? session, int part) {
+    String? newest;
+    for (final MapEntry(key: row, value: kept) in keptThisVisit.entries) {
+      if (kept.session == session && kept.part == part) newest = row;
+    }
+    return newest == null ? null : parts[newest];
+  }
+
+  Set<int> savedParts(String? session) => {
+    for (final kept in keptThisVisit.values)
+      if (!beingKept(session, kept.part) &&
+          newestKeptFact(session, kept.part) == PartFact.sent)
+        kept.part,
+  };
+
   Machine withNoPassage(Set<int> onTheirWay) => Machine(
     onTheirWay: onTheirWay,
     parts: parts,
     draining: draining,
     inTheAir: inTheAir,
+    keeping: keeping,
+    keptThisVisit: keptThisVisit,
     generation: generation,
     station: station,
     panorama: panorama,
@@ -1047,6 +1086,8 @@ final class Machine {
     bool? draining,
     TakeInTheAir? inTheAir,
     bool landTheTake = false,
+    Map<PartOfASession, int>? keeping,
+    Map<String, PartOfASession>? keptThisVisit,
     int? generation,
     Turn? inFlight,
     bool landTheTurn = false,
@@ -1073,6 +1114,8 @@ final class Machine {
     parts: parts ?? this.parts,
     draining: draining ?? this.draining,
     inTheAir: landTheTake ? null : (inTheAir ?? this.inTheAir),
+    keeping: keeping ?? this.keeping,
+    keptThisVisit: keptThisVisit ?? this.keptThisVisit,
     generation: generation ?? this.generation,
     inFlight: landTheTurn ? null : (inFlight ?? this.inFlight),
     keptInFlight: landTheTurn
@@ -1325,6 +1368,22 @@ const _watch = ArmTheWatch();
   TheRoomAnswered() => (machine, const []),
   OutboxChanged(:final parts, :final due) => _tally(machine, parts, due),
   ATakeLeft(:final take) => (machine.copyWith(inTheAir: take), const []),
+  AKeepBegan(:final part) => (
+    machine.copyWith(
+      keeping: {...machine.keeping, part: (machine.keeping[part] ?? 0) + 1},
+    ),
+    const [],
+  ),
+  AKeepEnded(:final part, :final row) => (
+    machine.copyWith(
+      keeping: {
+        for (final MapEntry(key: kept, value: keeps) in machine.keeping.entries)
+          if (kept != part || keeps > 1) kept: kept == part ? keeps - 1 : keeps,
+      },
+      keptThisVisit: {...machine.keptThisVisit, ?row: part},
+    ),
+    const [],
+  ),
   ATakeSettled(:final row) => (
     machine.copyWith(landTheTake: machine.inTheAir?.row == row),
     const [],
@@ -1999,6 +2058,8 @@ List<Effect> _leavingThePassage(Machine machine) => [
       OutboxChanged() ||
       ATakeLeft() ||
       ATakeSettled() ||
+      AKeepBegan() ||
+      AKeepEnded() ||
       StopTapped() ||
       LineArrived() ||
       PlayerOpened() ||

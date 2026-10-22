@@ -19,6 +19,7 @@ import 'package:internalization_room/main.dart';
 import 'a_scene_room.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, settle;
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
 const _falhou = 'falhou — toque para tentar de novo';
 const _grandeDemais = 'grande demais para o servidor — grave em partes menores';
@@ -513,6 +514,52 @@ void main() {
     },
   );
 
+  testWidgets(
+    "a part whose newest take is lost never reads salvo for an earlier one",
+    (tester) async {
+      final casa = await _naCasa(tester);
+      await casa.guardar(2);
+      expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+
+      await casa.emTempoReal(() async {
+        for (final copia in casa.copias) {
+          copia.deleteSync();
+        }
+        await casa.sala.refreshUnsent();
+        await settle();
+      });
+
+      expect(find.text(_salvo), findsNothing);
+      expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+    },
+  );
+
+  testWidgets('a tap on a row whose take is being sent sends nothing', (
+    tester,
+  ) async {
+    final casa = await _naCasa(tester);
+    casa.room.holdNextTake('parte-2');
+    await casa.guardarSemEsperar(2);
+    await tester.runAsync(casa.room.untilTakeHeld);
+    final antes = casa.envios;
+
+    expect(casa.naLinha(2, find.text(_enviando)), findsOneWidget);
+    expect(casa.naLinha(2, find.byType(TextButton)), findsNothing);
+    await casa.tocar(casa.naLinha(2, find.text(_enviando)));
+
+    expect(casa.envios, antes);
+
+    await casa.emTempoReal(() async {
+      casa.room.finishHeldTake();
+      await settle(const Duration(milliseconds: 400));
+    });
+    expect(casa.envios, antes);
+    expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
+  });
+
   testWidgets("a take reads salvo only after the room's list holds it", (
     tester,
   ) async {
@@ -656,6 +703,120 @@ void main() {
       expect(find.text(_falhou), findsNothing);
       expect(find.text(_naoDeuParaGuardar), findsNothing);
       expect(room.asked('keepSceneRehearsal'), greaterThan(antes));
+    },
+  );
+
+  testWidgets(
+    'parar on the red microphone stops a spent scene take sent ahead of the '
+    'new one, and a tap sends both in the order recorded',
+    (tester) async {
+      late SceneRoom room;
+      final a = Uint8List.fromList([for (var i = 0; i < 1200; i++) i % 7]);
+      final b = Uint8List.fromList([for (var i = 0; i < 1200; i++) i % 11]);
+      int keeps() => room.asked('keepSceneRehearsal');
+      await tester.runAsync(() async {
+        room = await atRest();
+        await theScreenOpens(room);
+        room.harness.room.failSceneWith = const NetworkFailed('sem rede');
+        await _recordAScene(room, take: a);
+        await waitFor(
+          'a tomada A ficar esperando',
+          () => room.state.scene.keep is NotKept,
+        );
+        room.harness.room
+          ..failSceneWith = null
+          ..holdNextKeepBeforeTheRoomActs();
+        final antes = keeps();
+        await _recordAScene(room, take: b);
+        await waitFor('a tomada A subir na frente', () => keeps() > antes);
+      });
+      await _pumpTheRoom(tester, room);
+      await tester.pump(const Duration(seconds: 8));
+      expect(find.text(_parar), findsOneWidget);
+
+      await tester.runAsync(() async {
+        await tester.tap(find.text(_parar));
+        await waitFor(
+          'a tomada B ficar esperando',
+          () => room.state.scene.keep is NotKept,
+        );
+        room.harness.room.finishHeldKeep();
+        await settle();
+      });
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text(_naoDeuParaGuardar), findsOneWidget);
+      expect(find.text(_falhou), findsOneWidget);
+      expect(room.harness.room.sceneTakesSent, [a], reason: 'B nunca subiu');
+      final copias = await tester.runAsync(room.harness.takes.entries);
+      expect(copias!.where((row) => row.kind == sceneTakeKind), hasLength(2));
+      for (final row in copias) {
+        expect(File(row.path).existsSync(), isTrue);
+      }
+
+      await tester.tap(find.text(_falhou));
+      for (
+        var i = 0;
+        i < 50 && room.state.scene.step != SceneStep.translate;
+        i++
+      ) {
+        await tester.runAsync(settle);
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(room.harness.room.sceneTakesSent.skip(1), [a, b]);
+    },
+  );
+
+  testWidgets(
+    "parar on the red microphone counts eight seconds from when the keep's "
+    'first take left, across the takes ahead of it',
+    (tester) async {
+      late SceneRoom room;
+      int keeps() => room.asked('keepSceneRehearsal');
+      await tester.runAsync(() async {
+        room = await atRest();
+        await theScreenOpens(room);
+        room.harness.room.failSceneWith = const NetworkFailed('sem rede');
+        await _recordAScene(
+          room,
+          take: Uint8List.fromList([for (var i = 0; i < 1200; i++) i % 7]),
+        );
+        await waitFor(
+          'a tomada A ficar esperando',
+          () => room.state.scene.keep is NotKept,
+        );
+        room.harness.room
+          ..failSceneWith = null
+          ..holdNextKeepBeforeTheRoomActs();
+        final antes = keeps();
+        await _recordAScene(
+          room,
+          take: Uint8List.fromList([for (var i = 0; i < 1200; i++) i % 11]),
+        );
+        await waitFor('a tomada A subir na frente', () => keeps() > antes);
+      });
+      await _pumpTheRoom(tester, room);
+      await tester.pump(const Duration(seconds: 5));
+
+      await tester.runAsync(() async {
+        final antes = keeps();
+        room.harness.room
+          ..finishHeldKeep()
+          ..holdNextKeepBeforeTheRoomActs();
+        await waitFor('a tomada B subir', () => keeps() > antes);
+        await settle();
+      });
+      await tester.pump(const Duration(milliseconds: 2800));
+      expect(find.text(_parar), findsNothing);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text(_parar), findsOneWidget);
+
+      await tester.runAsync(() async {
+        room.harness.room.finishHeldKeep();
+        await translateOpens(room);
+      });
     },
   );
 

@@ -25,7 +25,7 @@ const _herWordsTheTeamReads = {
 
 const _herWordsOnASendingTake = {
   'lib/features/sala/presentation/widgets/scene_take_state.dart',
-  'lib/features/sala/presentation/widgets/stop_the_send.dart',
+  'lib/features/sala/presentation/widgets/stop_control.dart',
 };
 
 const _wordsOnlyTheCameraReads = {

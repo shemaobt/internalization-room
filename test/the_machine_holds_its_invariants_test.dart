@@ -191,6 +191,18 @@ final aStopNamesThisSessionsTakeInTheAir = Invariant<Machine>(
   },
 );
 
+final aPartBeingKeptIsNeverSaved = Invariant<Machine>(
+  'a part being kept is never saved',
+  (before, event, after, effects, world) {
+    for (final kept in after.keeping.keys) {
+      if (after.savedParts(kept.session).contains(kept.part)) {
+        return 'part ${kept.part} of ${kept.session} is saved while kept';
+      }
+    }
+    return null;
+  },
+);
+
 final aLineOfTheVoiceStopsAPlayingReply = Invariant<Machine>(
   'a line of the voice that arrives over a playing reply stops it',
   (before, event, after, effects, world) {
@@ -535,6 +547,7 @@ void main() {
           aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas,
           aLineOfTheVoiceStopsAPlayingReply,
           aStopNamesThisSessionsTakeInTheAir,
+          aPartBeingKeptIsNeverSaved,
           theHeadNeverReadsAnotherSound,
           theOutboxNeverIdlesWithAPartPending,
           theScreenNeverShowsASoundTheChannelDoesNotHold,
