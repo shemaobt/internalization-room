@@ -22,6 +22,18 @@ abstract class KeptScope {
   }
 }
 
+class UnsentPart {
+  final bool fromAnEarlierVisit;
+  final bool failed;
+  final Duration? length;
+
+  const UnsentPart({
+    required this.fromAnEarlierVisit,
+    required this.failed,
+    this.length,
+  });
+}
+
 class KeptTake {
   final String scopeId;
   final String path;

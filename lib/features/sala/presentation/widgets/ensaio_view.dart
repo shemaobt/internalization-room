@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
+import '../../domain/kept_take.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
@@ -49,6 +50,20 @@ class EnsaioView extends ConsumerWidget {
                 style: TextStyle(color: colors.mut, fontSize: 15, height: 1.35),
               ),
             ),
+            if (session.aTakeFromAnEarlierVisitWaits) ...[
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    recordingHomeLabelFor('pending', language),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.telha, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 600),
@@ -61,6 +76,7 @@ class EnsaioView extends ConsumerWidget {
                       language: language,
                       onRecord: () => notifier.gravarACena(row.number),
                       onListen: () => notifier.ouvirACena(row.number),
+                      onSend: () => notifier.enviarACena(row.number),
                     ),
                 ],
               ),
@@ -88,8 +104,8 @@ class EnsaioView extends ConsumerWidget {
                       ? ButtonMood.lit
                       : ButtonMood.dimmed,
                   gradient: BeadStyles.wood,
-                  semanticLabel: rehearsalLabelFor(
-                    session.playPing ? 'pause' : 'play',
+                  semanticLabel: recordingHomeLabelFor(
+                    session.playPing ? 'stop' : 'listen',
                     language,
                   ),
                   onTap: notifier.playTheRehearsal,
@@ -104,7 +120,7 @@ class EnsaioView extends ConsumerWidget {
                   size: 60,
                   mood: pending ? ButtonMood.lit : ButtonMood.dimmed,
                   gradient: BeadStyles.verde,
-                  semanticLabel: rehearsalLabelFor('check', language),
+                  semanticLabel: recordingHomeLabelFor('sendAria', language),
                   onTap: notifier.takeKeep,
                   child: const Icon(
                     LucideIcons.check,
@@ -124,7 +140,10 @@ class EnsaioView extends ConsumerWidget {
                 gradient: BeadStyles.wood,
                 shadows: RoundActionButton.dropShadow,
                 halo: ShemaBrand.wood,
-                semanticLabel: rehearsalLabelFor('advance', language),
+                semanticLabel: recordingHomeLabelFor(
+                  session.joined ? 'listenAndCheck' : 'translate',
+                  language,
+                ),
                 onTap: notifier.startRetro,
               ),
             ),
@@ -152,21 +171,13 @@ class EnsaioView extends ConsumerWidget {
     return VoiceState.invite;
   }
 
-  String _circleLabel(SalaSessionState session, String language) {
-    if (session.ensaio == EnsaioStatus.recording) {
-      return rehearsalLabelFor('recording', language);
-    }
-    if (session.ensaio == EnsaioStatus.recorded) {
-      return rehearsalLabelFor('pending', language);
-    }
-    if (session.parteARegravar != null) {
-      return rehearsalLabelFor('pending', language);
-    }
-    if (session.partes.isNotEmpty) {
-      return rehearsalLabelFor('nextPart', language);
-    }
-    return rehearsalLabelFor('firstPart', language);
-  }
+  String _circleLabel(SalaSessionState session, String language) =>
+      recordingHomeLabelFor(switch (session.ensaio) {
+        EnsaioStatus.recording => 'stop',
+        EnsaioStatus.recorded => 'recordAgain',
+        EnsaioStatus.idle when session.parteARegravar != null => 'recordAgain',
+        EnsaioStatus.idle => 'record',
+      }, language);
 }
 
 class _SceneRowView extends StatelessWidget {
@@ -175,6 +186,7 @@ class _SceneRowView extends StatelessWidget {
   final String language;
   final VoidCallback onRecord;
   final VoidCallback onListen;
+  final VoidCallback onSend;
 
   const _SceneRowView({
     required this.row,
@@ -182,6 +194,7 @@ class _SceneRowView extends StatelessWidget {
     required this.language,
     required this.onRecord,
     required this.onListen,
+    required this.onSend,
   });
 
   @override
@@ -209,8 +222,6 @@ class _SceneRowView extends StatelessWidget {
       label: [
         named,
         if (playing) recordingHomeLabelFor('playing', language),
-        if (row.part != null && row.unsent)
-          recordingHomeLabelFor('notSent', language),
       ].join(', '),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
@@ -218,80 +229,127 @@ class _SceneRowView extends StatelessWidget {
           color: row.current ? colors.card : null,
           border: Border(bottom: BorderSide(color: colors.line)),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 32,
-              child: ExcludeSemantics(
-                child: Text(
-                  '${row.number}',
-                  style: TextStyle(color: colors.mut, fontSize: 15),
-                ),
-              ),
-            ),
-            Expanded(
-              child: ExcludeSemantics(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      cena,
-                      style: TextStyle(
-                        color: colors.ink,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w500,
-                      ),
+            Row(
+              children: [
+                SizedBox(
+                  width: 32,
+                  child: ExcludeSemantics(
+                    child: Text(
+                      '${row.number}',
+                      style: TextStyle(color: colors.mut, fontSize: 15),
                     ),
-                    if (title != null)
-                      Text(
-                        title,
-                        style: TextStyle(color: colors.mut, fontSize: 14),
-                      ),
-                  ],
+                  ),
                 ),
-              ),
+                Expanded(
+                  child: ExcludeSemantics(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          cena,
+                          style: TextStyle(
+                            color: colors.ink,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (title != null)
+                          Text(
+                            title,
+                            style: TextStyle(color: colors.mut, fontSize: 14),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (recording)
+                  _control(
+                    'stop',
+                    _glyph(BorderRadius.circular(2)),
+                    onRecord,
+                    ButtonMood.lit,
+                  )
+                else if (row.part == null)
+                  _control(
+                    'record',
+                    _glyph(BorderRadius.circular(7)),
+                    onRecord,
+                    mood,
+                  )
+                else ...[
+                  _control(
+                    'listen',
+                    Icon(
+                      playing ? LucideIcons.pause : LucideIcons.play,
+                      size: 18,
+                      color: ShemaBrand.branco,
+                    ),
+                    onListen,
+                    listens,
+                  ),
+                  const SizedBox(width: 12),
+                  _control(
+                    'recordAgain',
+                    const Icon(
+                      LucideIcons.rotateCcw,
+                      size: 18,
+                      color: ShemaBrand.branco,
+                    ),
+                    onRecord,
+                    mood,
+                  ),
+                ],
+              ],
             ),
-            if (recording)
-              _control(
-                'stop',
-                _glyph(BorderRadius.circular(2)),
-                onRecord,
-                ButtonMood.lit,
-              )
-            else if (row.part == null)
-              _control(
-                'record',
-                _glyph(BorderRadius.circular(7)),
-                onRecord,
-                mood,
-              )
-            else ...[
-              _control(
-                'listen',
-                Icon(
-                  playing ? LucideIcons.pause : LucideIcons.play,
-                  size: 18,
-                  color: ShemaBrand.branco,
-                ),
-                onListen,
-                listens,
-              ),
-              const SizedBox(width: 12),
-              _control(
-                'recordAgain',
-                const Icon(
-                  LucideIcons.rotateCcw,
-                  size: 18,
-                  color: ShemaBrand.branco,
-                ),
-                onRecord,
-                mood,
-              ),
-            ],
+            ?_unsentControl(row.unsent, cena, colors),
           ],
         ),
       ),
     );
+  }
+
+  Widget? _unsentControl(UnsentPart? unsent, String cena, SalaColors colors) {
+    if (unsent == null) return null;
+    final (visible, aria) = switch (unsent) {
+      UnsentPart(fromAnEarlierVisit: true, :final length) => (
+        [
+          cena,
+          if (length != null) ' · ${_mss(length)}',
+          ' — ${recordingHomeLabelFor('sendNow', language)}',
+        ].join(),
+        recordingHomeLabelFor('sendAria', language),
+      ),
+      UnsentPart(failed: true) => (
+        recordingHomeLabelFor('failed', language),
+        recordingHomeLabelFor('retryAria', language),
+      ),
+      _ => (null, null),
+    };
+    if (visible == null || aria == null) return null;
+    return Padding(
+      padding: const EdgeInsets.only(left: 32, top: 4),
+      child: Semantics(
+        button: true,
+        label: aria,
+        onTap: onSend,
+        excludeSemantics: true,
+        child: TextButton(
+          onPressed: onSend,
+          child: Text(
+            visible,
+            style: TextStyle(color: colors.telha, fontSize: 15),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _mss(Duration length) {
+    final seconds = length.inSeconds;
+    return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
   }
 
   Widget _control(

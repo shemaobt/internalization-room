@@ -517,8 +517,8 @@ void main() {
       TestWidgetsFlutterBinding.ensureInitialized();
 
       const notices = {
-        'pt': {'sem_conexao', 'gravacao_presa', 'microfone'},
-        'en': {'sem_conexao', 'gravacao_presa', 'microfone'},
+        'pt': {'sem_conexao', 'microfone'},
+        'en': {'sem_conexao', 'microfone'},
       };
       for (final language in languages) {
         final manifest = await rootBundle.loadString(
@@ -536,11 +536,7 @@ void main() {
           () => rootBundle.load('assets/audio/$language/fixed/F0.mp3'),
           throwsA(anything),
         );
-        for (final asset in [
-          offlineNoticeAsset,
-          micBlockedAsset,
-          strandedTakeAsset,
-        ]) {
+        for (final asset in [offlineNoticeAsset, micBlockedAsset]) {
           await rootBundle.load(asset(language));
         }
       }

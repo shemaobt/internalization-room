@@ -141,7 +141,7 @@ Future<String> _gravarPorCima(Sala it) async {
 
 bool _discoAceso(WidgetTester tester) =>
     tester
-        .widget<Semantics>(byLabel('Ir para a tradução'))
+        .widget<Semantics>(inTheHome('Traduzir a gravação'))
         .properties
         .enabled ==
     true;
@@ -161,19 +161,19 @@ Future<List<String>> _ouvirOEnsaioAteAqui(Sala it) async {
 }
 
 Future<void> _tocar(WidgetTester tester, String label) async {
-  await tester.ensureVisible(byLabel(label));
-  await tester.tap(byLabel(label));
+  await tester.ensureVisible(offTheRows(label));
+  await tester.tap(offTheRows(label));
   await tester.pump(const Duration(milliseconds: 200));
 }
 
 /// The circle records the part, records it over, and the check confirms it: every
 /// gesture a gesture the team has on the rehearsal screen.
 Future<void> _gravarAParteDoisPorCimaEConfirmar(WidgetTester tester) async {
-  await _tocar(tester, 'Tocar para gravar esta parte de novo');
-  await _tocar(tester, 'Tocar ao terminar');
-  await _tocar(tester, 'Tocar para gravar esta parte de novo');
-  await _tocar(tester, 'Tocar ao terminar');
-  await _tocar(tester, 'Confirmar esta parte');
+  await _tocar(tester, 'Gravar de novo');
+  await _tocar(tester, 'Parar');
+  await _tocar(tester, 'Gravar de novo');
+  await _tocar(tester, 'Parar');
+  await _tocar(tester, 'Enviar a gravação');
   await letTheRehearsalReachTheRoom(tester);
 }
 
@@ -1083,28 +1083,28 @@ void main() {
       reason: 'nada foi consertado ainda: o disco não leva de volta à tradução',
     );
     expect(
-      byLabel('Tocar para gravar esta parte de novo'),
+      onTheCircle('Gravar de novo'),
       findsOneWidget,
       reason:
           'e o círculo convida a regravar com o texto da placa; a conta '
           'esvaziada já diz de qual parte se trata',
     );
     expect(
-      byLabel('Tocar para gravar a próxima parte'),
+      onTheCircle('Gravar'),
       findsNothing,
       reason:
           'o rótulo da parte nova mente aqui: esta gravação toma o lugar '
           'de uma parte que já existe',
     );
 
-    await _tocar(tester, 'Tocar para gravar esta parte de novo');
+    await _tocar(tester, 'Gravar de novo');
     expect(naLinhaDoEnsaio(tester, 'Parar'), [
       null,
       true,
       null,
       null,
     ], reason: 'a regravação aberta é a da linha 2');
-    await _tocar(tester, 'Tocar ao terminar');
+    await _tocar(tester, 'Parar');
     expect(
       naLinhaDoEnsaio(tester, 'Ouvir'),
       [true, true, true, null],
@@ -1143,7 +1143,7 @@ void main() {
           'gravação da equipe parecia vir tomar o lugar da parte 2 outra vez',
     );
     expect(
-      byLabel('Tocar para gravar a próxima parte'),
+      onTheCircle('Gravar'),
       findsOneWidget,
       reason: 'e o círculo volta a ser o da parte nova',
     );
@@ -1192,7 +1192,7 @@ void main() {
 
     final partes = container.read(salaSessionProvider).partes;
     final medidasAntes = List.of(harness.playback.measurements);
-    await tester.tap(byLabel('Ir para a tradução'));
+    await tester.tap(inTheHome('Traduzir a gravação'));
     await tester.pump(const Duration(milliseconds: 400));
     expect(
       container.read(salaSessionProvider).stage,

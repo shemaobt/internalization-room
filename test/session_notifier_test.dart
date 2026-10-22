@@ -5248,7 +5248,7 @@ void main() {
     );
   });
 
-  test('a take that ran out of tries is said out loud, once', () async {
+  test('a take the room refused for good shows as failed on its row', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -5264,23 +5264,12 @@ void main() {
     harness.room.refuseTake = 'ensaio/${KeptScope.parte(1)}';
     notifier.takeKeep();
 
-    // Waited on the thing itself — the room saying out loud that something is stuck —
-    // instead of on a slice of clock: the attempts are the road, not the destination,
-    // and a fixed wait flaked on the runner the day the road got longer.
-    await waitFor('a sala dizer que uma tomada ficou presa', () async {
+    await waitFor('a tomada recusada aparecer falha na sua linha', () async {
       await harness.takes.flush();
       await notifier.refreshUnsent();
-      return harness.voice.assets.contains(strandedTakeAsset(testLanguage));
+      return container.read(salaSessionProvider).unsentParts[1]?.failed ??
+          false;
     });
-    await notifier.refreshUnsent();
-
-    expect(
-      harness.voice.assets.where((a) => a == strandedTakeAsset(testLanguage)),
-      hasLength(1),
-      reason:
-          'a equipe precisa saber que algo ficou preso — e ouvir isso uma vez, '
-          'não a cada vez que a sala refaz a conta',
-    );
   });
 
   test('a chunk the room refused is not counted as safe either', () async {
@@ -5677,7 +5666,7 @@ void main() {
   });
 
   test('a withdraw the disk refuses is logged and dropped, no unhandled '
-      'error and no false stranded line', () async {
+      'error', () async {
     final harness = SalaHarness(
       takesOverride: (room, home, recordings) => QueueWithdrawThrows(
         room: room,
@@ -5740,14 +5729,6 @@ void main() {
     });
 
     await settle(const Duration(milliseconds: 300));
-
-    expect(
-      harness.voice.assets,
-      isNot(contains(strandedTakeAsset(testLanguage))),
-      reason:
-          'nada aqui ficou preso: a linha ainda pendente sobe normalmente, ou '
-          'sobrou só uma cópia órfã — nenhum dos dois é o que essa fala diz',
-    );
 
     // A captura seguinte prova que a sala segue funcionando: um erro sem
     // dono no withdraw a teria travado antes de chegar aqui.
@@ -7324,7 +7305,7 @@ void main() {
     'a room that goes while the count is in flight touches no provider',
     () async {
       final harness = SalaHarness();
-      final queue = QueueHeldOnGiveUps(
+      final queue = QueueHeldOnTheTally(
         room: harness.room,
         home: () async => harness.takesHome,
         recordings: () => harness.recorder,

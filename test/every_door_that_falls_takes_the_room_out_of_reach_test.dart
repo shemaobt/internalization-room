@@ -785,7 +785,7 @@ void main() {
       await _keepARehearsalPart(room);
       await waitFor(
         'a sala recusar a parte',
-        () async => (await harness.takes.giveUps()).isNotEmpty,
+        () async => (await harness.takes.pending()).any((row) => row.exhausted),
       );
       harness.room.refuseTake = null;
       room.theNetworkFalls();
@@ -847,7 +847,8 @@ void main() {
 
       expect(rows.single.id, 'linha-1');
       expect(rows.single.refusal, isNull);
-      expect(await queue.giveUps(), hasLength(1));
+      expect(await queue.pending(), hasLength(1));
+      expect(await queue.waiting(), isEmpty);
     });
   });
   group('5: what a retry finds stays with the gesture that asked', () {

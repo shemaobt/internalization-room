@@ -476,9 +476,9 @@ void main() {
     const part = PartSound(0, 'parte-1.m4a', from: Duration(seconds: 5));
     const next = PartSound(1, 'parte-2.m4a');
     const courtesy = Line(
-      LineKind.stranded,
+      LineKind.micBlocked,
       9,
-      source: Source.aside('stranded'),
+      source: Source.aside('microfone'),
     );
     Machine underTheLine() => _run(const Machine(), const [
       BeadTapped([part, next]),
