@@ -351,8 +351,6 @@ class SalaSessionState {
 
   final Set<int> savedParts;
 
-  final String? sceneTakeLeaving;
-
   final Machine machine;
 
   /// Which part of the rehearsal the team came back to record again, 0-based, or null when
@@ -466,7 +464,6 @@ class SalaSessionState {
     this.unsentChunks = 0,
     this.unsentParts = const {},
     this.savedParts = const {},
-    this.sceneTakeLeaving,
     this.machine = const Machine(),
     this.parteARegravar,
     this.cenaDaGravacao,
@@ -497,6 +494,19 @@ class SalaSessionState {
   }
 
   String? get sessionId => machine.session;
+
+  TakeInTheAir? _theTakeInTheAirOf(String kind) => switch (machine.inTheAir) {
+    final take? when take.session == sessionId && take.kind == kind => take,
+    _ => null,
+  };
+
+  TakeInTheAir? get sceneTakeInTheAir => _theTakeInTheAirOf(sceneTakeKind);
+
+  TakeInTheAir? partInTheAir(int number) =>
+      switch (_theTakeInTheAirOf(partTakeKind)) {
+        final take? when KeptScope.numberOf(take.scope) == number => take,
+        _ => null,
+      };
 
   String? get panoramaSessionId => machine.panorama?.session;
 
@@ -609,6 +619,7 @@ class SalaSessionState {
             null => null,
           },
           unsent: unsentParts[number],
+          inTheAir: partInTheAir(number),
           saved: savedParts.contains(number),
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
           dimmed: sceneRowIsDimmed(number),
@@ -1177,8 +1188,6 @@ class SalaSessionState {
     int? unsentChunks,
     Map<int, UnsentPart>? unsentParts,
     Set<int>? savedParts,
-    String? sceneTakeLeaving,
-    bool clearSceneTakeLeaving = false,
     Machine? machine,
     int? parteARegravar,
     bool clearParteARegravar = false,
@@ -1273,9 +1282,6 @@ class SalaSessionState {
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentParts: unsentParts ?? this.unsentParts,
       savedParts: savedParts ?? this.savedParts,
-      sceneTakeLeaving: clearSceneTakeLeaving
-          ? null
-          : sceneTakeLeaving ?? this.sceneTakeLeaving,
       machine: machine ?? this.machine,
       parteARegravar: clearParteARegravar
           ? null
@@ -1307,6 +1313,7 @@ class SceneRow {
   final String? title;
   final KeptTake? part;
   final UnsentPart? unsent;
+  final TakeInTheAir? inTheAir;
   final bool saved;
   final bool recording;
   final bool dimmed;
@@ -1320,6 +1327,7 @@ class SceneRow {
     required this.title,
     required this.part,
     required this.unsent,
+    required this.inTheAir,
     required this.saved,
     required this.recording,
     required this.dimmed,

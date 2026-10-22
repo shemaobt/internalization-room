@@ -1,17 +1,20 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 
 const stopTheSendAfter = Duration(seconds: 8);
 
-class StopTheSend extends StatefulWidget {
+class StopControl extends StatefulWidget {
+  final DateTime since;
   final String label;
   final String aria;
   final Color color;
   final VoidCallback onStop;
 
-  const StopTheSend({
+  const StopControl({
     super.key,
+    required this.since,
     required this.label,
     required this.aria,
     required this.color,
@@ -19,17 +22,19 @@ class StopTheSend extends StatefulWidget {
   });
 
   @override
-  State<StopTheSend> createState() => _StopTheSendState();
+  State<StopControl> createState() => _StopControlState();
 }
 
-class _StopTheSendState extends State<StopTheSend> {
+class _StopControlState extends State<StopControl> {
   late final Timer _timer;
   bool _offered = false;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer(stopTheSendAfter, () => setState(() => _offered = true));
+    final left = stopTheSendAfter - clock.now().difference(widget.since);
+    _offered = left <= Duration.zero;
+    _timer = Timer(left, () => setState(() => _offered = true));
   }
 
   @override

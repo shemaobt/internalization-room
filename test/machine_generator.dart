@@ -225,6 +225,10 @@ String describeEvent(MachineEvent event) => switch (event) {
   WatchFired() => 'WatchFired',
   NetworkFailedAt(:final door) => 'NetworkFailedAt(${door.name})',
   RetryFired() => 'RetryFired',
+  ATakeLeft(:final take) =>
+    'ATakeLeft(${take.row}, ${take.kind}, ${take.session}, ${take.scope})',
+  ATakeSettled(:final row) => 'ATakeSettled($row)',
+  StopTapped(:final row) => 'StopTapped($row)',
   TheRoomAnswered() => 'TheRoomAnswered',
   OutboxChanged(:final parts, :final due) =>
     'OutboxChanged(${parts.entries.map((part) => '${part.key}: ${part.value.name}').join(', ')}, '
@@ -371,6 +375,9 @@ enum EventKind {
   watchFired,
   networkFailedAt,
   retryFired,
+  aTakeLeft,
+  aTakeSettled,
+  stopTapped,
   theRoomAnswered,
   outboxChanged,
   lineArrived,
@@ -443,6 +450,9 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   WatchFired() => EventKind.watchFired,
   NetworkFailedAt() => EventKind.networkFailedAt,
   RetryFired() => EventKind.retryFired,
+  ATakeLeft() => EventKind.aTakeLeft,
+  ATakeSettled() => EventKind.aTakeSettled,
+  StopTapped() => EventKind.stopTapped,
   TheRoomAnswered() => EventKind.theRoomAnswered,
   OutboxChanged() => EventKind.outboxChanged,
   LineArrived() => EventKind.lineArrived,
@@ -526,6 +536,9 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.networkFailedAt ||
   EventKind.theRoomAnswered ||
   EventKind.outboxChanged ||
+  EventKind.aTakeLeft ||
+  EventKind.aTakeSettled ||
+  EventKind.stopTapped ||
   EventKind.lineArrived ||
   EventKind.micOpened ||
   EventKind.micDiscarded ||
@@ -634,6 +647,17 @@ MachineEvent _draw(
     Door.values[random.nextInt(Door.values.length)],
   ),
   EventKind.retryFired => const RetryFired(),
+  EventKind.aTakeLeft => ATakeLeft(
+    TakeInTheAir(
+      row: 'linha-${random.nextInt(3)}',
+      kind: const ['ensaio', 'cena', 'retro'][random.nextInt(3)],
+      session: _drawASession(random),
+      scope: 'parte-${random.nextInt(3) + 1}',
+      since: DateTime.utc(2026, 10, 22, 9, 0, random.nextInt(60)),
+    ),
+  ),
+  EventKind.aTakeSettled => ATakeSettled('linha-${random.nextInt(3)}'),
+  EventKind.stopTapped => StopTapped('linha-${random.nextInt(3)}'),
   EventKind.theRoomAnswered => const TheRoomAnswered(),
   EventKind.outboxChanged => OutboxChanged({
     for (var part = 0, parts = random.nextInt(3); part < parts; part++)

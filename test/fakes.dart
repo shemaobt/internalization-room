@@ -3150,7 +3150,7 @@ class FakeTakeQueue implements TakeUploadQueue {
   Stream<PendingTake?> get leaving => const Stream.empty();
 
   @override
-  void stop() {}
+  void stop(String row) {}
 
   final StreamController<String> _sessionsGone =
       StreamController<String>.broadcast(sync: true);

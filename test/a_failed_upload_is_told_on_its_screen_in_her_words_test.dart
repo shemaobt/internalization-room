@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -79,6 +80,10 @@ class _Casa {
     await tester.pump(const Duration(milliseconds: 100));
   }
 
+  Future<void> deixarATela() => tester.pumpWidget(const SizedBox());
+
+  Future<void> voltarATela() => tester.pumpWidget(_aCasa(container));
+
   Future<void> tocar(Finder alvo) => emTempoReal(() async {
     await tester.ensureVisible(alvo);
     await tester.tap(alvo);
@@ -129,6 +134,14 @@ class _Casa {
   }
 }
 
+Widget _aCasa(ProviderContainer container) => UncontrolledProviderScope(
+  container: container,
+  child: MaterialApp(
+    theme: AppTheme.light,
+    home: const Scaffold(body: EnsaioView()),
+  ),
+);
+
 Future<_Casa> _naCasa(WidgetTester tester, {SalaHarness? harness}) async {
   tester.view
     ..physicalSize = const Size(820, 1180)
@@ -140,15 +153,7 @@ Future<_Casa> _naCasa(WidgetTester tester, {SalaHarness? harness}) async {
     () async => sala.container()..read(salaSessionProvider),
   ))!;
   addTearDown(container.dispose);
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
-        theme: AppTheme.light,
-        home: const Scaffold(body: EnsaioView()),
-      ),
-    ),
-  );
+  await tester.pumpWidget(_aCasa(container));
   final casa = _Casa(tester, sala, container);
   await casa.emTempoReal(() async {
     await container.read(deviceLinkProvider.notifier).findTheTeam();
@@ -318,6 +323,196 @@ void main() {
     },
   );
 
+  testWidgets(
+    "a part saved in one session never reads salvo in the next session's "
+    'rehearsal',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      await casa.guardar(2);
+      expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
+      final primeira = casa.estado.sessionId;
+
+      await casa.emTempoReal(() async {
+        casa.sala.leaveThePassage();
+        await waitFor(
+          'a sala abrir a Escolha',
+          () =>
+              casa.estado.stage == SalaStage.escolha &&
+              casa.estado.naRoda != null,
+        );
+        await casa.sala.goConversa(book: 'Ruth', pericope: 'P02');
+        await waitFor(
+          'a outra passagem abrir',
+          () =>
+              casa.estado.sessionId != null &&
+              casa.estado.sessionId != primeira &&
+              !casa.estado.awaitingTheGuide,
+        );
+        await settle();
+        casa.sala.goEnsaio();
+        await waitFor(
+          'as cenas chegarem',
+          () => casa.estado.sceneRows.length == _cenas.length,
+        );
+        await settle();
+      });
+
+      expect(find.text(_salvo), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a tap on falhou reads enviando at once and offers parar after eight '
+    'seconds of the resend',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+
+      casa.room
+        ..unreachableTake = null
+        ..holdNextTake('parte-2');
+      await casa.tocar(casa.naLinha(2, find.text(_falhou)));
+
+      expect(casa.naLinha(2, find.text(_enviando)), findsOneWidget);
+      expect(find.text(_falhou), findsNothing);
+
+      await tester.runAsync(casa.room.untilTakeHeld);
+      await tester.pump(const Duration(seconds: 8));
+      expect(casa.naLinha(2, find.text(_parar)), findsOneWidget);
+
+      await casa.emTempoReal(() async {
+        casa.room.finishHeldTake();
+        await settle(const Duration(milliseconds: 400));
+      });
+      expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a tap on falhou while another take is in the air reads enviando at once',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+      casa.room
+        ..unreachableTake = null
+        ..holdNextTake('parte-3');
+      await casa.guardarSemEsperar(3);
+      await tester.runAsync(casa.room.untilTakeHeld);
+
+      await casa.tocar(casa.naLinha(2, find.text(_falhou)));
+
+      expect(casa.naLinha(2, find.text(_enviando)), findsOneWidget);
+      expect(find.text(_falhou), findsNothing);
+
+      await casa.emTempoReal(() async {
+        casa.room.finishHeldTake();
+        await waitFor(
+          'as duas cenas subirem',
+          () => casa.room.takesKept.length == 2,
+        );
+        await settle(const Duration(milliseconds: 400));
+      });
+    },
+  );
+
+  testWidgets(
+    'a take stopped while another take waits to go reads falhou at once',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.holdNextTake('parte-2');
+      await casa.guardarSemEsperar(2);
+      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.guardarSemEsperar(3);
+      casa.room.holdNextTakesList();
+      final antes = casa.leiturasDaLista;
+      await tester.pump(const Duration(seconds: 8));
+
+      await casa.emTempoReal(() async {
+        await tester.tap(casa.naLinha(2, find.text(_parar)));
+        await waitFor(
+          'a cena 3 subir e esperar a lista',
+          () => casa.leiturasDaLista > antes,
+        );
+        await settle();
+      });
+
+      expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+      expect(casa.room.takesKept, ['ensaio/parte-3']);
+
+      await casa.emTempoReal(() async {
+        casa.room.finishHeldTakesList();
+        await settle(const Duration(milliseconds: 400));
+      });
+    },
+  );
+
+  testWidgets('a part being kept again reads enviando, never salvo', (
+    tester,
+  ) async {
+    late _AQueueThatHoldsTheKeep fila;
+    final casa = await _naCasa(
+      tester,
+      harness: SalaHarness(
+        takesOverride: (room, home, recordings) =>
+            fila = _AQueueThatHoldsTheKeep(
+              room: room,
+              home: () async => home,
+              recordings: recordings,
+            ),
+      ),
+    );
+    await casa.guardar(2);
+    expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
+
+    await casa.gravar(2);
+    fila.segurar = Completer<void>();
+    await casa.emTempoReal(() async {
+      casa.sala.takeKeep();
+      await settle();
+    });
+
+    expect(casa.naLinha(2, find.text(_salvo)), findsNothing);
+    expect(casa.naLinha(2, find.text(_enviando)), findsOneWidget);
+
+    await casa.emTempoReal(() async {
+      fila.segurar?.complete();
+      await waitFor(
+        'a cena 2 subir de novo',
+        () => casa.room.takesKept.length == 2,
+      );
+      await settle(const Duration(milliseconds: 400));
+    });
+  });
+
+  testWidgets(
+    'parar counts eight seconds from when the take left, across a screen '
+    'left and reopened',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.holdNextTake('parte-2');
+      await casa.guardarSemEsperar(2);
+      await tester.runAsync(casa.room.untilTakeHeld);
+      await tester.pump(const Duration(seconds: 5));
+
+      await casa.deixarATela();
+      await casa.voltarATela();
+      await tester.pump(const Duration(milliseconds: 2800));
+      expect(find.text(_parar), findsNothing);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(casa.naLinha(2, find.text(_parar)), findsOneWidget);
+
+      await casa.emTempoReal(() async {
+        casa.room.finishHeldTake();
+        await settle(const Duration(milliseconds: 400));
+      });
+    },
+  );
+
   testWidgets("a take reads salvo only after the room's list holds it", (
     tester,
   ) async {
@@ -374,7 +569,7 @@ void main() {
           limit: const Duration(seconds: 10),
         ),
       );
-      await casa.emTempoReal(() => settle(const Duration(seconds: 5)));
+      await casa.emTempoReal(() => settle(const Duration(seconds: 1)));
 
       expect(casa.envios, 3);
       final enviadas = casa.room.takesSentAt;
@@ -487,8 +682,8 @@ void main() {
   );
 
   testWidgets(
-    "a scene take reads salvo only after the room's scene rehearsals list "
-    'holds it',
+    "a scene take reads enviando on the red microphone until the room's scene "
+    'rehearsals list holds it, and opens on translate after',
     (tester) async {
       late SceneRoom room;
       late int antes;
@@ -635,4 +830,36 @@ void main() {
     await casa.emTempoReal(() => settle(const Duration(milliseconds: 500)));
     expect(casa.falas.skip(antes), isEmpty);
   });
+}
+
+class _AQueueThatHoldsTheKeep extends TakeUploadQueue {
+  _AQueueThatHoldsTheKeep({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
+
+  Completer<void>? segurar;
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+    String? scene,
+  }) async {
+    await segurar?.future;
+    return super.enqueue(
+      audio,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+      scene: scene,
+    );
+  }
 }

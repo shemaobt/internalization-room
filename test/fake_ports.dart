@@ -184,6 +184,11 @@ class AStorePort implements StorePort {
     return flush.future;
   }
 
+  final List<String> stopped = [];
+
+  @override
+  void stopTheSend(String row) => stopped.add(row);
+
   void answerTheFlush() => _flushes.removeAt(0).complete(0);
 
   void failTheFlush(Exception because) =>

@@ -2,22 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/kept_take.dart';
+import '../../domain/machine.dart' show TakeInTheAir;
 import '../../domain/session_state.dart';
 import 'stop_the_send.dart';
 
 class SceneTakeState extends StatelessWidget {
   final bool recording;
   final SceneKeep? keep;
-  final String? leaving;
+  final TakeInTheAir? inTheAir;
   final String Function(String control) label;
   final VoidCallback onRetry;
-  final VoidCallback onStop;
+  final void Function(String row) onStop;
 
   const SceneTakeState({
     super.key,
     required this.recording,
     required this.keep,
-    required this.leaving,
+    required this.inTheAir,
     required this.label,
     required this.onRetry,
     required this.onStop,
@@ -35,13 +36,14 @@ class SceneTakeState extends StatelessWidget {
         _ when recording => [said('takeRecording')],
         Keeping() => [
           said('takeSending'),
-          if (leaving case final row?)
-            StopTheSend(
-              key: ValueKey(row),
+          if (inTheAir case final take?)
+            StopControl(
+              key: ValueKey(take.row),
+              since: take.since,
               label: label('stopSending'),
               aria: label('stopSendingAria'),
               color: colors.vermelhoMic,
-              onStop: onStop,
+              onStop: () => onStop(take.row),
             ),
         ],
         NotKept(:final why) => [

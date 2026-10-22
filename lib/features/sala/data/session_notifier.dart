@@ -448,7 +448,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late StreamSubscription<void> _outboxFalls;
   late StreamSubscription<String> _outboxGone;
   late StreamSubscription<PendingTake?> _outboxLeaving;
-  late PendingTake? _takeLeaving;
   late EffectRunner _runner;
   late RaisedHand _hand;
 
@@ -552,7 +551,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           .sessionsGone
           .listen(_theSessionIsGone),
     );
-    _takeLeaving = null;
     _outboxLeaving = _apart(
       () => ref.read(takeUploadQueueProvider).leaving.listen(_aTakeIsLeaving),
     );
@@ -5222,7 +5220,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// its name then. Kept by row and not by scope, for the reason `takeIdOf` gives.
   late Map<String, String> _semNome;
 
-  late Map<String, int> _rowsOfThisVisit;
+  late Map<String, ({String session, int number})> _rowsOfThisVisit;
 
   late Map<String?, Map<int, ({String path, int? pass})>> _notQueued;
 
@@ -5256,6 +5254,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     };
     if (inFlight != null) {
       _keepsInFlight.update(inFlight, (keeps) => keeps + 1, ifAbsent: () => 1);
+      unawaited(_countUnsent());
     }
     final PendingTake linha;
     try {
@@ -5274,7 +5273,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (kind == 'ensaio') {
-      if (inFlight case (_, final number)) _rowsOfThisVisit[linha.id] = number;
+      if (inFlight case (final String session, final number)) {
+        _rowsOfThisVisit[linha.id] = (session: session, number: number);
+      }
       _aKeepLeftTheAir(inFlight);
     }
     if (_endedSince(life)) {
@@ -5346,6 +5347,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         await queue.dueAgain(row.id);
       }
     }
+    await _countUnsent();
     await queue.flush();
     await _countUnsent();
     await _adoptTheNames(queue);
@@ -5528,7 +5530,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final speaking = _theNewestPass(tally.unsentParts);
     state = state.copyWith(
       unsentParts: _unsentPartsOf(tally, speaking),
-      savedParts: _savedPartsOf(tally, speaking),
+      savedParts: _savedPartsOf(speaking),
     );
     if (sessionId != null) {
       state = state.copyWith(
@@ -5603,7 +5605,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           rows,
           tally.unsentParts[KeptScope.parte(number)] ?? rows,
         ),
-        leaving: _leavesFor(number, _takeLeaving),
         length: _lengths[rows.last.path],
       ),
     for (final number in _notQueued[state.sessionId]?.keys ?? const <int>[])
@@ -5612,6 +5613,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           fromAnEarlierVisit: false,
           failure: SendFailure.failed,
         ),
+    for (final (session, number) in _keepsInFlight.keys)
+      if (session == state.sessionId &&
+          !speaking.containsKey(number) &&
+          !(_notQueued[session]?.containsKey(number) ?? false))
+        number: const UnsentPart(fromAnEarlierVisit: false),
   };
 
   static SendFailure? _failureOf(
@@ -5628,47 +5634,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return null;
   }
 
-  Set<int> _savedPartsOf(
-    OutboxTally tally,
-    Map<int, List<PendingTake>> speaking,
-  ) => {
-    for (final MapEntry(key: row, value: number) in _rowsOfThisVisit.entries)
-      if (tally.parts[row] == PartFact.sent &&
+  Set<int> _savedPartsOf(Map<int, List<PendingTake>> speaking) => {
+    for (final MapEntry(key: row, value: (:session, :number))
+        in _rowsOfThisVisit.entries)
+      if (session == state.sessionId &&
+          state.machine.parts[row] == PartFact.sent &&
           !speaking.containsKey(number) &&
-          !(_notQueued[state.sessionId]?.containsKey(number) ?? false))
+          !_keepsInFlight.containsKey((session, number)) &&
+          !(_notQueued[session]?.containsKey(number) ?? false))
         number,
   };
 
-  String? _leavesFor(int number, PendingTake? take) =>
-      take != null &&
-          take.kind == 'ensaio' &&
-          take.sessionId == state.sessionId &&
-          KeptScope.numberOf(take.scope) == number
-      ? take.id
-      : null;
-
   void _aTakeIsLeaving(PendingTake? take) {
     if (_gone) return;
-    _takeLeaving = take;
-    state = state.copyWith(
-      sceneTakeLeaving: take?.kind == sceneTakeKind ? take?.id : null,
-      clearSceneTakeLeaving: take?.kind != sceneTakeKind,
-      unsentParts: {
-        for (final MapEntry(key: number, value: part)
-            in state.unsentParts.entries)
-          number: UnsentPart(
-            fromAnEarlierVisit: part.fromAnEarlierVisit,
-            failure: part.failure,
-            leaving: _leavesFor(number, take),
-            length: part.length,
+    if (take != null) {
+      return _dispatch(
+        ATakeLeft(
+          TakeInTheAir(
+            row: take.id,
+            kind: take.kind,
+            session: take.sessionId,
+            scope: take.scope,
+            since: clock.now(),
           ),
-      },
-    );
+        ),
+      );
+    }
+    final settled = state.machine.inTheAir;
+    if (settled == null) return;
+    _dispatch(ATakeSettled(settled.row));
+    unawaited(_countUnsent());
   }
 
-  void stopTheSend() => _gesture(() {
-    if (_takeLeaving != null) _takes.stop();
-  });
+  void stopTheSend(String row) => _gesture(() => _dispatch(StopTapped(row)));
 
   Future<bool> _measured(Map<int, List<PendingTake>> speaking) async {
     var measured = false;

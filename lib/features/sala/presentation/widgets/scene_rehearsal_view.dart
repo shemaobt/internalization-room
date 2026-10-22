@@ -8,6 +8,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
+import '../../domain/machine.dart' show TakeInTheAir;
 import '../../domain/scene_question.dart';
 import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
@@ -79,7 +80,7 @@ class SceneRehearsalView extends ConsumerWidget {
                     _ => false,
                   },
                   keep: scene.keep,
-                  leaving: session.sceneTakeLeaving,
+                  inTheAir: session.sceneTakeInTheAir,
                   label: said,
                   onTap: notifier.sceneTap,
                   onRetry: notifier.sendTheSceneTakeAgain,
@@ -380,10 +381,10 @@ class _TheRecordStep extends StatelessWidget {
   final bool recording;
   final SceneKeep? keep;
   final String Function(String control) label;
-  final String? leaving;
+  final TakeInTheAir? inTheAir;
   final VoidCallback onTap;
   final VoidCallback onRetry;
-  final VoidCallback onStop;
+  final void Function(String row) onStop;
   final Widget? question;
   final Widget? chip;
   final bool focused;
@@ -391,7 +392,7 @@ class _TheRecordStep extends StatelessWidget {
   const _TheRecordStep({
     required this.recording,
     required this.keep,
-    required this.leaving,
+    required this.inTheAir,
     required this.label,
     required this.onTap,
     required this.onRetry,
@@ -430,7 +431,7 @@ class _TheRecordStep extends StatelessWidget {
         SceneTakeState(
           recording: recording,
           keep: keep,
-          leaving: leaving,
+          inTheAir: inTheAir,
           label: label,
           onRetry: onRetry,
           onStop: onStop,

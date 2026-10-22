@@ -81,6 +81,52 @@ final class TheRoomAnswered extends AnsweringEvent {
   const TheRoomAnswered({super.generation});
 }
 
+final class TakeInTheAir {
+  final String row;
+  final String kind;
+  final String session;
+  final String scope;
+  final DateTime since;
+
+  const TakeInTheAir({
+    required this.row,
+    required this.kind,
+    required this.session,
+    required this.scope,
+    required this.since,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is TakeInTheAir &&
+      other.row == row &&
+      other.kind == kind &&
+      other.session == session &&
+      other.scope == scope &&
+      other.since == since;
+
+  @override
+  int get hashCode => Object.hash(row, kind, session, scope, since);
+}
+
+final class ATakeLeft extends MachineEvent {
+  final TakeInTheAir take;
+
+  const ATakeLeft(this.take);
+}
+
+final class ATakeSettled extends MachineEvent {
+  final String row;
+
+  const ATakeSettled(this.row);
+}
+
+final class StopTapped extends MachineEvent {
+  final String row;
+
+  const StopTapped(this.row);
+}
+
 final class OutboxChanged extends MachineEvent {
   final Map<String, PartFact> parts;
   final Duration due;
@@ -642,6 +688,18 @@ final class DrainTheOutbox extends Effect {
   const DrainTheOutbox();
 }
 
+final class StopTheSend extends Effect {
+  final String row;
+
+  const StopTheSend(this.row);
+
+  @override
+  bool operator ==(Object other) => other is StopTheSend && other.row == row;
+
+  @override
+  int get hashCode => row.hashCode;
+}
+
 final class DiscardTheSession extends LifecycleHandOff {
   const DiscardTheSession();
 }
@@ -907,6 +965,7 @@ final class Machine {
   final Map<Line, Set<int>> owners;
   final Map<String, PartFact> parts;
   final bool draining;
+  final TakeInTheAir? inTheAir;
   final int generation;
 
   /// The turn whose POST is in the air: sent, and neither answered nor given up.
@@ -946,6 +1005,7 @@ final class Machine {
     this.owners = const {},
     this.parts = const {},
     this.draining = false,
+    this.inTheAir,
     this.generation = 0,
     this.inFlight,
     this.keptInFlight = const NothingKept(),
@@ -968,6 +1028,7 @@ final class Machine {
     onTheirWay: onTheirWay,
     parts: parts,
     draining: draining,
+    inTheAir: inTheAir,
     generation: generation,
     station: station,
     panorama: panorama,
@@ -984,6 +1045,8 @@ final class Machine {
     Map<Line, Set<int>>? owners,
     Map<String, PartFact>? parts,
     bool? draining,
+    TakeInTheAir? inTheAir,
+    bool landTheTake = false,
     int? generation,
     Turn? inFlight,
     bool landTheTurn = false,
@@ -1009,6 +1072,7 @@ final class Machine {
     owners: owners ?? this.owners,
     parts: parts ?? this.parts,
     draining: draining ?? this.draining,
+    inTheAir: landTheTake ? null : (inTheAir ?? this.inTheAir),
     generation: generation ?? this.generation,
     inFlight: landTheTurn ? null : (inFlight ?? this.inFlight),
     keptInFlight: landTheTurn
@@ -1260,6 +1324,21 @@ const _watch = ArmTheWatch();
   RetryFired() => _retry(machine),
   TheRoomAnswered() => (machine, const []),
   OutboxChanged(:final parts, :final due) => _tally(machine, parts, due),
+  ATakeLeft(:final take) => (machine.copyWith(inTheAir: take), const []),
+  ATakeSettled(:final row) => (
+    machine.copyWith(landTheTake: machine.inTheAir?.row == row),
+    const [],
+  ),
+  StopTapped(:final row) => (
+    machine,
+    [
+      if (machine.inTheAir case TakeInTheAir(
+        row: final inTheAir,
+        :final session,
+      ) when inTheAir == row && session == machine.session)
+        StopTheSend(row),
+    ],
+  ),
   SessionRead() => switch (_theHalt(machine, event)) {
     (final read, final effects) => switch (_resumeTheLook(read)) {
       (final resumed, final looks) => (resumed, [...effects, ...looks]),
@@ -1918,6 +1997,9 @@ List<Effect> _leavingThePassage(Machine machine) => [
       RetryFired() ||
       TheRoomAnswered() ||
       OutboxChanged() ||
+      ATakeLeft() ||
+      ATakeSettled() ||
+      StopTapped() ||
       LineArrived() ||
       PlayerOpened() ||
       PlayerEnded() ||

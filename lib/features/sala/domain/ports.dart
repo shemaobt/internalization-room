@@ -138,6 +138,8 @@ abstract interface class RecorderPort {
 abstract interface class StorePort {
   Future<int> flushTheOutbox();
 
+  void stopTheSend(String row);
+
   Future<CurrentSession?> currentSession();
 
   Future<void> holdTheSession(CurrentSession session);

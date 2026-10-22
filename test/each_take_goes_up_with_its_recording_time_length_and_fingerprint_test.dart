@@ -134,7 +134,7 @@ void main() {
           await queue.dueAgain(row.id);
           await queue.flush();
 
-          expect(requests, hasLength(takeUploadAttempts + 1));
+          expect(requests, hasLength(4));
           expect(_fields(requests.last), _fields(requests.first));
           expect(
             _fields(requests.last),

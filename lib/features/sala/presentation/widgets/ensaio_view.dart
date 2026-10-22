@@ -186,7 +186,7 @@ class _SceneRowView extends StatelessWidget {
   final VoidCallback onRecord;
   final VoidCallback onListen;
   final VoidCallback onSend;
-  final VoidCallback onStop;
+  final void Function(String row) onStop;
 
   const _SceneRowView({
     required this.row,
@@ -314,8 +314,22 @@ class _SceneRowView extends StatelessWidget {
 
   Widget? _takeState(bool recording, String cena, SalaColors colors) {
     String words(String key) => recordingHomeLabelFor(key, language);
+    final inTheAir = row.inTheAir;
     final said = switch (row.unsent) {
       _ when recording => _said(words('recording'), colors),
+      _ when inTheAir != null => Row(
+        children: [
+          _said(words('sending'), colors),
+          StopControl(
+            key: ValueKey(inTheAir.row),
+            since: inTheAir.since,
+            label: words('stopSending'),
+            aria: words('stopSendingAria'),
+            color: colors.telha,
+            onStop: () => onStop(inTheAir.row),
+          ),
+        ],
+      ),
       UnsentPart(fromAnEarlierVisit: true, :final length) => _tap(
         [
           cena,
@@ -340,19 +354,7 @@ class _SceneRowView extends StatelessWidget {
         words('refused'),
         colors,
       ),
-      UnsentPart(:final leaving) => Row(
-        children: [
-          _said(words('sending'), colors),
-          if (leaving != null)
-            StopTheSend(
-              key: ValueKey(leaving),
-              label: words('stopSending'),
-              aria: words('stopSendingAria'),
-              color: colors.telha,
-              onStop: onStop,
-            ),
-        ],
-      ),
+      UnsentPart() => _said(words('sending'), colors),
       null when row.saved => _said('✓ ${words('saved')}', colors),
       null => null,
     };

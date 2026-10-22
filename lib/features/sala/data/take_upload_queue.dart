@@ -10,6 +10,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/kept_take.dart';
+
+export '../domain/kept_take.dart' show partTakeKind, retroKind, sceneTakeKind;
 import '../domain/machine.dart';
 import '../domain/scene_rehearsal.dart';
 import '../domain/wav.dart';
@@ -24,8 +26,6 @@ const _manifest = 'fila.json';
 const takeUploadAttempts = 3;
 
 const retroUploadAttempts = 5;
-
-const sceneTakeKind = 'cena';
 
 const sentenceKind = 'frase';
 
@@ -133,7 +133,8 @@ class PendingTake {
     this.sha256,
   });
 
-  int get budget => kind == 'retro' ? retroUploadAttempts : takeUploadAttempts;
+  int get budget =>
+      kind == retroKind ? retroUploadAttempts : takeUploadAttempts;
 
   bool get exhausted => attempts >= budget;
 
@@ -458,7 +459,7 @@ class TakeUploadQueue {
       unsentTakes: written == null
           ? 1
           : unsentParts.values.fold(0, (count, rows) => count + rows.length),
-      unsentChunks: _unsentIn(written, 'retro', sessionId),
+      unsentChunks: _unsentIn(written, retroKind, sessionId),
       unsentParts: unsentParts,
     );
   }
@@ -612,9 +613,9 @@ class TakeUploadQueue {
 
   bool _stopped = false;
 
-  void stop() {
+  void stop(String row) {
     final stop = _stop;
-    if (stop == null || stop.isCompleted) return;
+    if (stop == null || stop.isCompleted || _inTheAir?.id != row) return;
     _stopped = true;
     stop.complete();
   }
@@ -756,8 +757,8 @@ class TakeUploadQueue {
             await _deleteTheCopy(entry);
             _sessionsGone.add(entry.sessionId);
             return _Landing.held;
-          case NetworkFailed() when entry.kind == 'retro':
-            if (_stopped) return _theTeamStopped(sent);
+          case NetworkFailed() when entry.kind == retroKind:
+            if (_stopped) return await _theTeamStopped(sent);
             _fellOnTheNetwork();
             await _settleWith(
               sent,
@@ -769,7 +770,7 @@ class TakeUploadQueue {
             );
             return _Landing.held;
           case NetworkFailed(:final reason):
-            if (_stopped) return _theTeamStopped(sent);
+            if (_stopped) return await _theTeamStopped(sent);
             fell = fell || reason != _notListed;
             final now = await _settleWith(
               sent,
@@ -785,7 +786,7 @@ class TakeUploadQueue {
             }
             sent = now;
             await Future.any([_pauseAfter(attempt), stop.future]);
-            if (_stopped) return _theTeamStopped(sent);
+            if (_stopped) return await _theTeamStopped(sent);
         }
       }
     } on FileSystemException {

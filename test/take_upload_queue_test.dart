@@ -972,7 +972,7 @@ void main() {
 
     expect(
       room.calls.where((call) => call == 'sendTake'),
-      hasLength(takeUploadAttempts),
+      hasLength(3),
       reason: 'uma falha de rede gasta uma tentativa, e nada sobe sem um toque',
     );
     expect(await queue.waiting(), isEmpty);
@@ -1194,7 +1194,7 @@ void main() {
 
     expect(
       room.calls.where((call) => call == 'sendTake'),
-      hasLength(takeUploadAttempts),
+      hasLength(3),
       reason: 'ela é tentada',
     );
     expect(
@@ -1520,7 +1520,7 @@ void main() {
 
         await flushTwelveTimes(queue);
 
-        expect(asked, takeUploadAttempts);
+        expect(asked, 3);
         expect(await queue.waiting(), isEmpty);
         expect(await queue.pending(), hasLength(1));
       },
@@ -1661,7 +1661,7 @@ void main() {
 
         expect(
           room.calls.where((call) => call == 'keepSceneRehearsal'),
-          hasLength(takeUploadAttempts),
+          hasLength(3),
           reason:
               'só as tentativas do primeiro: o ensaio de depois chegaria antes e '
               'levaria o número do de antes',
