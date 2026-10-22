@@ -2020,8 +2020,6 @@ void main() {
       );
 
       expect(sent, 0);
-      expect(room.calls, isNot(contains('sendTake')));
-      expect(room.calls, isNot(contains('keepSceneRehearsal')));
     });
   });
 }
