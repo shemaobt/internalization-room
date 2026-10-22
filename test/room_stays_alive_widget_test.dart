@@ -178,7 +178,7 @@ void main() {
 
   testWidgets('a halted room is still visibly running', (tester) async {
     for (final (name, voice, halt) in [
-      ('needsPerson', VoiceState.invite, const Blocking(NothingKept())),
+      ('needsPerson', VoiceState.invite, const Blocking()),
       ('offline', VoiceState.offline, const NoHalt()),
       ('blocked', VoiceState.blocked, const NoHalt()),
     ]) {

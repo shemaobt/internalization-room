@@ -322,29 +322,6 @@ void main() {
       expect(room.offlineNotices, 0);
     });
 
-    test('person-arrived', () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
-      final room = await _conversa(harness);
-      harness.room
-        ..failTurnsWith = const Refused('PIPELINE_REFUSED')
-        ..personArrivedFailsWith = const NetworkFailed('sem rede');
-      room.sala.conversaTap();
-      await settle();
-      room.sala.conversaTap();
-      await waitFor('o pedido pousar', () => harness.room.personsAsked == 1);
-      await settle();
-
-      room.sala.resolveWithPerson();
-      await waitFor(
-        'o aviso de que alguém chegou cair na rede',
-        () => harness.room.calls.contains('personArrived'),
-      );
-      await settle();
-
-      expect(room.estado.unreachable, isFalse);
-      expect(room.offlineNotices, 0);
-    });
-
     test('the resume reads go calmly back to the Choice, keep the session, and '
         'the next open asks again', () async {
       final harness = SalaHarness(retryBackoff: _aLadderThatWaits)
@@ -509,7 +486,7 @@ void main() {
   });
 
   test('8: a take closed while the network is gone is never sent again, not '
-      'when the network returns nor when the sign lifts', () async {
+      'when the network returns nor when the sign is tapped away', () async {
     final harness = SalaHarness(
       watchesWithoutAHalt: true,
       settleDelay: const Duration(milliseconds: 60),
@@ -528,7 +505,7 @@ void main() {
     final turnsBefore = harness.room.turnsSent;
 
     room.theNetworkReturns();
-    room.sala.resolveWithPerson();
+    room.sala.teamTapped();
     await waitFor('a parada sair', () => !room.estado.needsPerson);
     await settle(const Duration(milliseconds: 300));
 

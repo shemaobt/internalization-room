@@ -145,7 +145,7 @@ void main() {
         ('done', VoiceState.done, const NoHalt()),
         ('listening', VoiceState.listening, const NoHalt()),
         ('speaking', VoiceState.speaking, const NoHalt()),
-        ('needsPerson', VoiceState.invite, const Blocking(NothingKept())),
+        ('needsPerson', VoiceState.invite, const Blocking()),
       ]) {
         await _pumpStillCircle(tester, voice, halt: halt);
         final drawn = await _overAMinuteOfFrames(tester);
@@ -309,8 +309,6 @@ void main() {
     'only a stop says itself with a mark; the room\'s own voices draw none',
     (tester) async {
       final marks = {
-        ('needsPerson', VoiceState.invite, const Blocking(NothingKept())):
-            LucideIcons.userCheck,
         ('offline', VoiceState.offline, const NoHalt()): LucideIcons.cloudOff,
         ('blocked', VoiceState.blocked, const NoHalt()): LucideIcons.micOff,
       };

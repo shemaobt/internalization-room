@@ -92,12 +92,12 @@ void main() {
     expect(effects, isEmpty);
   });
 
-  test('A halt does not clear her line, raised or lifted.', () {
+  test('A halt does not clear her line, raised or tapped away.', () {
     final (halted, _) = reduce(_afterAnEmptyTelling(), const RoomRaisedAHalt());
     expect(halted.halt, isA<Blocking>());
     expect(halted.wordlessTelling, isTrue);
 
-    final (lifted, _) = reduce(halted, const LongPress(somebodyToAsk: false));
+    final (lifted, _) = reduce(halted, const TeamTapped());
     expect(lifted.halt, isA<NoHalt>());
     expect(lifted.wordlessTelling, isTrue);
   });

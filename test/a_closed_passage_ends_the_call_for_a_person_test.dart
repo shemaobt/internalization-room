@@ -148,7 +148,7 @@ void main() {
     final sessao = _estado(container).sessionId!;
     harness.room.holdNextAskForAPerson();
     await _aPassagemFechaNoPedidoDePessoa(harness, container);
-    _sala(container).resolveWithPerson();
+    _sala(container).teamTapped();
     await waitFor('a parada sair', () => !_estado(container).needsPerson);
     _sala(container).conversaTap();
     await waitFor(
@@ -166,7 +166,6 @@ void main() {
     );
     expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNotNull);
     expect(harness.room.calls, contains('fetchState'));
-    final chegadas = harness.room.personArrivedSessions.length;
 
     final antes = harness.room.calls.length;
     harness.room.finishHeldAskForAPerson();
@@ -199,7 +198,6 @@ void main() {
       isNot(contains('sendTake')),
       reason: 'a linha sai da Outbox descartada, não enviada',
     );
-    expect(harness.room.personArrivedSessions, hasLength(chegadas));
   });
 
   test('a passage closed after the team left it is closed on the tablet, '
@@ -253,7 +251,6 @@ void main() {
     await settle(_severalStepsOfTheLadder);
 
     expect(_estado(container).needsPerson, isFalse);
-    expect(harness.room.personArrivedSessions, isEmpty);
   });
 
   test('a passage closed after the team moved on to another passage still '

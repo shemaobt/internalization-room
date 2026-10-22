@@ -104,8 +104,8 @@ Future<void> _pumpCirculo(
   ),
 );
 
-/// Whether the circle drew one of the glyphs a halted state wears — the userCheck,
-/// the cloudOff/serverOff, or the micOff — the mark a warning must never cover.
+/// Whether the circle drew one of the glyphs a halted state wears — the cloudOff/
+/// serverOff, or the micOff — the mark a warning must never cover.
 bool _haltedGlyph(WidgetTester tester) => tester
     .widgetList<Icon>(
       find.descendant(
@@ -115,7 +115,6 @@ bool _haltedGlyph(WidgetTester tester) => tester
     )
     .any(
       (marca) => const [
-        LucideIcons.userCheck,
         LucideIcons.cloudOff,
         LucideIcons.serverOff,
         LucideIcons.micOff,
@@ -162,8 +161,6 @@ void main() {
           colors,
         ),
         ('done', VoiceState.done, const NoHalt()): BeadStyles.telha(colors),
-        ('needsPerson', VoiceState.invite, const Blocking(NothingKept())):
-            BeadStyles.clay(colors),
         ('offline', VoiceState.offline, const NoHalt()): BeadStyles.clay(
           colors,
         ),
@@ -238,7 +235,7 @@ void main() {
       tester,
       VoiceState.invite,
       AppTheme.light,
-      halt: const Blocking(NothingKept()),
+      halt: const Blocking(),
       warning: true,
     );
 
@@ -251,11 +248,20 @@ void main() {
           'sendo o do corpo parado',
     );
     expect(
-      _haltedGlyph(tester),
-      isTrue,
+      tester
+          .widget<AnimatedOpacity>(
+            find
+                .descendant(
+                  of: find.byType(FacilitatorCircle),
+                  matching: find.byType(AnimatedOpacity),
+                )
+                .first,
+          )
+          .opacity,
+      0,
       reason:
-          'e o corpo parado continua desenhando o seu ícone — o aviso '
-          'nunca chega a competir com uma parada que já está na tela',
+          'o círculo some sob o sinal da pessoa — o aviso nunca chega a '
+          'competir com uma parada que já está na tela',
     );
   });
 
@@ -267,7 +273,6 @@ void main() {
         ('listening', VoiceState.listening, NoHalt()),
         ('speaking', VoiceState.speaking, NoHalt()),
         ('done', VoiceState.done, NoHalt()),
-        ('needsPerson', VoiceState.invite, Blocking(NothingKept())),
         ('offline', VoiceState.offline, NoHalt()),
       ];
 
@@ -290,7 +295,7 @@ void main() {
                 'uma cor do disco (Henok, revertendo o PR #230)',
           );
 
-          if (parada is Blocking || voz == VoiceState.offline) {
+          if (voz == VoiceState.offline) {
             expect(
               _haltedGlyph(tester),
               isTrue,

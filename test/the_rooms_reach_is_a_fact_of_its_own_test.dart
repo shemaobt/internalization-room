@@ -174,7 +174,7 @@ void main() {
   );
 
   test(
-    'T4: a halt raised during the fall stands after the return, until the Desk lifts it',
+    'T4: a halt raised during the fall stands after the return, until the team taps it',
     () async {
       final harness = SalaHarness(
         watchesWithoutAHalt: true,
@@ -194,10 +194,9 @@ void main() {
       await settle();
 
       expect(read().needsPerson, isTrue);
-      expect(read().needsPerson, isTrue);
 
-      harness.room.theDeskAttended();
-      await waitFor('a mesa levantar a parada', () => !read().needsPerson);
+      notifier.teamTapped();
+      expect(read().needsPerson, isFalse);
     },
   );
 
@@ -295,7 +294,7 @@ void main() {
   );
 
   test(
-    'T11: the Desk lifting a halt raised during the fall brings the room back',
+    'T11: after the team\'s tap on a halt raised during the fall, a tap on the offline face brings the room back',
     () async {
       final harness = SalaHarness(
         watchesWithoutAHalt: true,
@@ -311,8 +310,10 @@ void main() {
       _theServerIsBack(harness);
       await _haltOnTheRecorder(harness, notifier, read);
 
-      harness.room.theDeskAttended();
-      await waitFor('a mesa levantar a parada', () => !read().needsPerson);
+      notifier.teamTapped();
+      expect(read().needsPerson, isFalse);
+      expect(read().offline, isTrue);
+      notifier.retryNow();
       await _theOutboxEmpties(harness);
       expect(read().reach, RoomReach.fine);
     },

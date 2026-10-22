@@ -204,53 +204,30 @@ void main() {
     );
   });
 
-  test('a parada bloqueante continua visível; o toque longo só pergunta na '
-      'hora, e é a mesa quem a levanta', () async {
+  test('a parada bloqueante continua visível; a mesa não a levanta, só o '
+      'toque da equipe', () async {
     final harness = SalaHarness();
     final container = await _paradaBloqueante(harness);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
+    int leituras() =>
+        harness.room.calls.where((call) => call == 'fetchState').length;
 
     expect(read().needsPerson, isTrue);
-    expect(read().canResolveWithPerson, isTrue);
-    final antes = harness.room.calls
-        .where((call) => call == 'fetchState')
-        .length;
 
-    // O toque longo, com a sessão viva e a parada confirmada pelo servidor,
-    // só pede uma releitura na hora — não derruba o aviso por si.
-    notifier.resolveWithPerson();
-    await waitFor(
-      'a sala perguntar ao servidor na hora',
-      () =>
-          harness.room.calls.where((call) => call == 'fetchState').length >
-          antes,
-    );
-
-    expect(
-      container.read(salaSessionProvider).needsPerson,
-      isTrue,
-      reason:
-          'o servidor ainda segura a parada; soltar no toque poria a '
-          'equipe de volta a falar dentro de uma sala que a mesa não '
-          'atendeu',
-    );
-
-    // Quando o servidor deixa de dizer needs_person — a mesa atendeu —, a
-    // sala volta sozinha ao convite, sem precisar de um novo toque.
     harness.room.theDeskAttended();
-    await waitFor(
-      'o círculo voltar ao convite sozinho',
-      () => !read().needsPerson,
-    );
+    final antes = leituras();
+    await waitFor('a vigia reler duas vezes', () => leituras() > antes + 1);
 
     expect(
       read().needsPerson,
-      isFalse,
-      reason:
-          'a vigia lê o estado sozinha; quem levanta a parada é a '
-          'mesa, não o toque',
+      isTrue,
+      reason: 'nada que a mesa faz move o tablet (ADR 0107)',
     );
+
+    notifier.teamTapped();
+
+    expect(read().needsPerson, isFalse);
   });
 
   test(
@@ -271,7 +248,7 @@ void main() {
       notifier.retroTap();
       await waitFor('a sala parar', () => read().needsPerson);
       harness.recorder.startThrows = false;
-      harness.room.theDeskAttended();
+      notifier.teamTapped();
       await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 
       expect(

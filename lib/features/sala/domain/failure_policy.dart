@@ -129,7 +129,7 @@ abstract final class FailurePolicy {
   static MachineEvent decide(RoomResult result, FailureContext context) {
     final generation = context.generation;
     final sounding = context.sounding;
-    final halt = RoomRaisedAHalt(sounding: sounding, generation: generation);
+    final halt = RoomRaisedAHalt(generation: generation);
     final missed = TheOpeningMissed(generation: generation);
     final rule = context.rule;
     final turn = context.turn;
@@ -174,6 +174,9 @@ abstract final class FailurePolicy {
       RoomFoundNothing() when rule == RefusalRule.keepsTheResume =>
         TheResumeFailed(generation: generation),
       RoomSessionGone() => TheSessionIsGone(generation: generation),
+      _ when context.door == Door.look && context.station is SceneRehearsal =>
+        TheSceneTurnFoundNothing(generation: generation),
+      _ when context.door == Door.look => halt,
       RoomNetworkFailed() || RoomTimedOut() when turn != null => TurnGivenUp(
         turn,
         sounding: sounding,
@@ -224,10 +227,7 @@ abstract final class FailurePolicy {
     FailureContext context,
   ) {
     final generation = context.generation;
-    final halt = RoomRaisedAHalt(
-      sounding: context.sounding,
-      generation: generation,
-    );
+    final halt = RoomRaisedAHalt(generation: generation);
     final passed = TheRefusalPassed(generation: generation);
     return switch (failure) {
       TheSoundFailed(:final inARow) =>
@@ -236,7 +236,6 @@ abstract final class FailurePolicy {
         inARow >= micFailuresBeforeAPerson ? halt : passed,
       TheTabletCannotRecord() => halt,
       TheBuildCannotReachTheRoom() => RoomRaisedAHalt(
-        sounding: context.sounding,
         callsForAPerson: false,
         generation: generation,
       ),

@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/leave_passage_button.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -1446,13 +1447,37 @@ void main() {
 
       expect(_circulo(tester).halt, isA<Blocking>());
       expect(
-        _circulo(tester).semanticLabel,
-        'A moment for someone',
-        reason:
-            'o retro sob o sinal da pessoa dizia "Um momento para uma pessoa" '
-            'a uma sala em inglês',
+        byLabel('A moment for someone'),
+        findsOneWidget,
+        reason: 'o sinal da pessoa sobre o retro fala a língua da sala',
       );
 
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'under the person sign on the retro\'s checked screen the passage button is gone too',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      double passageButton() => tester
+          .widget<AnimatedOpacity>(
+            find.descendant(
+              of: find.byType(LeavePassageButton),
+              matching: find.byType(AnimatedOpacity),
+            ),
+          )
+          .opacity;
+      expect(
+        passageButton(),
+        1,
+        reason: 'na tela conferida, sem parada, a saída da passagem aparece',
+      );
+
+      _notifier(it.container).haltForABrokenBuild();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(passageButton(), 0);
       closeTheRoom(it.container);
     },
   );

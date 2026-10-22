@@ -412,7 +412,7 @@ void main() {
       expect(harness.voice.assets, isNot(contains(_bloqueado)));
 
       final marca = harness.sounds.length;
-      sala.resolveWithPerson();
+      sala.teamTapped();
       await waitFor(
         'a parada sair',
         () => !read().needsPerson && read().sessionId != null,
@@ -530,7 +530,7 @@ void main() {
   });
 
   test('a turn the room gave up on no longer holds a waiting line once the '
-      'halt is lifted', () async {
+      'sign is tapped away', () async {
     final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 300));
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -545,8 +545,7 @@ void main() {
     sala.sayTheMicIsBlocked();
     await settle();
 
-    harness.room.theDeskAttended();
-    sala.resolveWithPerson();
+    sala.teamTapped();
 
     await waitFor(
       'a linha de fundo tocar com o turno ainda preso',

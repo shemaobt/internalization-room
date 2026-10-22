@@ -66,6 +66,14 @@ class FacilitatorCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final underTheSign = halt is Blocking;
+    return ExcludeSemantics(
+      excluding: underTheSign,
+      child: _circle(context, underTheSign ? 0 : opacity),
+    );
+  }
+
+  Widget _circle(BuildContext context, double opacity) {
     final colors = SalaColors.of(context);
     final still = MediaQuery.disableAnimationsOf(context);
     return AnimatedOpacity(
@@ -178,7 +186,6 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   Widget _body(SalaColors colors, bool still) {
-    if (halt is Blocking) return _haltedBody(colors, LucideIcons.userCheck);
     if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
     if (!answersATouch) return _haltedBody(colors, null);
     if (_teamTalk) return _liveBreath(colors);

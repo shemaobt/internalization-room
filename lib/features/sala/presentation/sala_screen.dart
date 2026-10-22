@@ -22,6 +22,7 @@ import 'widgets/hear_again_button.dart';
 import 'widgets/back_to_passage_button.dart';
 import 'widgets/language_and_look.dart';
 import 'widgets/leave_passage_button.dart';
+import 'widgets/person_sign.dart';
 import 'widgets/mic_gate_view.dart';
 import 'widgets/retro_view.dart';
 import 'widgets/scene_rehearsal_view.dart';
@@ -174,6 +175,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
             const LeavePassageButton(),
             const BackToPassageButton(),
             const LanguageAndLook(),
+            const PersonSign(),
             const DevSkipBar(),
           ],
         ),

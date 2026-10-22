@@ -22,16 +22,10 @@ AnsweringEvent _stampedAnswer(
   AnsweringEvent event,
   int generation,
 ) => switch (event) {
-  SessionRead(:final snapshot, :final sentBeforeTheCallLanded) => SessionRead(
-    snapshot,
-    sentBeforeTheCallLanded: sentBeforeTheCallLanded,
-    generation: generation,
-  ),
-  TheCallLanded() => TheCallLanded(generation: generation),
+  SessionRead(:final snapshot) => SessionRead(snapshot, generation: generation),
   TheRoomAnswered() => TheRoomAnswered(generation: generation),
   TheAnswerWarned() => TheAnswerWarned(generation: generation),
-  RoomRaisedAHalt(:final sounding, :final callsForAPerson) => RoomRaisedAHalt(
-    sounding: sounding,
+  RoomRaisedAHalt(:final callsForAPerson) => RoomRaisedAHalt(
     callsForAPerson: callsForAPerson,
     generation: generation,
   ),
@@ -62,7 +56,6 @@ AnsweringEvent _stampedAnswer(
       owner: owner,
       generation: generation,
     ),
-  NothingReplayed() => NothingReplayed(generation: generation),
   TheSessionIsGone() => TheSessionIsGone(generation: generation),
   ThePassageClosed() => ThePassageClosed(generation: generation),
   WatchFired() => WatchFired(generation: generation),
@@ -103,6 +96,12 @@ AnsweringEvent _stampedAnswer(
     turn,
     sounding: sounding,
     theWaitRanOut: theWaitRanOut,
+    generation: generation,
+  ),
+  LookFailed(:final turn, :final result, :final sounding) => LookFailed(
+    turn,
+    result,
+    sounding: sounding,
     generation: generation,
   ),
   LookPending(:final turn, :final sounding) => LookPending(

@@ -72,14 +72,11 @@ abstract interface class StationHost {
   /// The Station hears that the room closed the passage of [session].
   void hearThePassageClosed(String session);
 
-  /// The Station hears a call that landed and stamps the read order, so a read sent
-  /// before the landing cannot lift the halt.
+  /// The Station hears a call that landed: no other is made while the sign stands.
   void hearTheCallLanded();
 
   /// A call's answer for a session that is no longer the room's acts on that session.
   void hearAnEarlierSessionsCall(String session, RoomResult result);
-
-  void hearAnEarlierSessionGone(String session);
 
   /// An event the runner brings back to the machine, outside any gesture.
   void answer(MachineEvent event);
@@ -104,11 +101,11 @@ abstract interface class StationHost {
 
   void hearTheLineLetGo();
 
-  /// The Station waits again on a look the lift of a halt resumed.
+  /// The Station waits again on a look the team's tap resumed.
   void hearTheWaitResumed();
 
-  /// The Station decides what a lifted halt sounds again (ADR 0055).
-  void hearTheSoundKept(Kept kept);
+  /// The Station takes the hand-offs the sign held back, once the team's tap cleared it.
+  void hearTheSignCleared();
 
   void hearTheOpeningLetGo();
 
@@ -207,12 +204,10 @@ class EffectRunner {
           callForAPerson();
         case StopCallingForAPerson():
           _stopCallingForAPerson();
-        case TellAPersonArrived():
-          _tellAPersonArrived();
         case ReadTheState():
           _readTheState();
-        case ReplayTheSound(:final kept):
-          host.hearTheSoundKept(kept);
+        case GoOnAfterTheSign():
+          host.hearTheSignCleared();
         case LetTheOpeningGo():
           host.hearTheOpeningLetGo();
         case PlayLine(:final line):
@@ -466,6 +461,12 @@ class EffectRunner {
             sounding: sounding,
             generation: stamp,
           ),
+          TheLookFailed(:final result) => LookFailed(
+            turn,
+            result,
+            sounding: sounding,
+            generation: stamp,
+          ),
         });
       }),
     );
@@ -684,12 +685,16 @@ class EffectRunner {
   }
 
   Future<void> _call(String session) async {
-    final result = await room.askForAPerson(session);
+    final RoomResult result;
+    try {
+      result = await room.askForAPerson(session);
+    } finally {
+      _calling = false;
+    }
     if (_disposed) return;
     if (host.session != session) {
       return _anEarlierSessionAnswered(session, result);
     }
-    _calling = false;
     if (result is! RoomAnswered) {
       return _decideAt(
         result,
@@ -698,16 +703,13 @@ class EffectRunner {
         why: RoomReach.noNetwork,
       );
     }
-    if (!host.callIsWanted) return;
-    host.hearTheCallLanded();
-    host.answerWhereAsked(TheCallLanded(generation: generation?.call()));
+    if (host.callIsWanted) host.hearTheCallLanded();
   }
 
   void _anEarlierSessionAnswered(String session, RoomResult result) {
     if (result is! RoomNetworkFailed) {
       host.hearAnEarlierSessionsCall(session, result);
     }
-    _calling = false;
     callForAPerson();
   }
 
@@ -719,40 +721,6 @@ class EffectRunner {
   }) => host.answerWhereAsked(
     decided(result, host.failureContext(door: door, rule: rule, why: why)),
   );
-
-  void _tellAPersonArrived() {
-    final session = host.session;
-    if (session != null) unawaited(_markTheArrival(session));
-  }
-
-  Future<void> _markTheArrival(String session) async {
-    final result = await room.personArrived(session);
-    if (_disposed) return;
-    switch (result) {
-      case RoomNetworkFailed():
-        _decideAt(
-          result,
-          door: Door.person,
-          rule: RefusalRule.letsTheStepGo,
-          why: RoomReach.noNetwork,
-        );
-      case RoomSessionGone() when host.session == session:
-        _decideAt(
-          result,
-          door: Door.step,
-          rule: RefusalRule.letsTheStepGo,
-          why: RoomReach.noNetwork,
-        );
-      case RoomSessionGone():
-        host.hearAnEarlierSessionGone(session);
-      case RoomAnswered() ||
-          RoomRefused() ||
-          RoomTimedOut() ||
-          RoomAnsweredWithoutAReply() ||
-          RoomFoundNothing():
-        break;
-    }
-  }
 
   /// The arm is gated by [StationHost.aPersonIsNeeded] and not by the generation: the
   /// machine moves the generation on the way into other halts, and a ladder that did not

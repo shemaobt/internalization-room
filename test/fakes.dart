@@ -2509,10 +2509,18 @@ class FakeRoom implements RoomRepository {
     _holdingAskForAPerson = null;
   }
 
+  /// What the next session-scoped ask throws instead of answering: an `Error`, which no
+  /// catch of the network layer takes.
+  Error? askForAPersonThrowsOnce;
+
   @override
   Future<RoomAnswer<void>> askForAPerson(String sessionId) async {
     if (_guard('askForAPerson') case final failure?) return failure;
     personAsksFor.add(sessionId);
+    if (askForAPersonThrowsOnce case final error?) {
+      askForAPersonThrowsOnce = null;
+      throw error;
+    }
     if (_forgot('askForAPerson', sessionId) case final gone?) {
       return gone;
     }
@@ -2526,35 +2534,6 @@ class FakeRoom implements RoomRepository {
     serverStatus = 'needs_person';
     serverHalt = HaltKind.blocking;
     return const Answered(null);
-  }
-
-  /// What the next call to `personArrived` throws, independent of `failWith` — a case
-  /// needs the halt to stay reachable and only the arrival ping itself to fail.
-  RoomFailure? personArrivedFailsWith;
-
-  /// Every session id `personArrived` was called for, one entry per attempt.
-  final List<String> personArrivedSessions = [];
-
-  Completer<void>? _holdingPersonArrived;
-
-  /// Holds the next arrival ping in flight, so a test can move the room before it lands.
-  void holdNextPersonArrived() => _holdingPersonArrived = Completer<void>();
-
-  void finishHeldPersonArrived() {
-    _holdingPersonArrived?.complete();
-    _holdingPersonArrived = null;
-  }
-
-  @override
-  Future<RoomAnswer<void>> personArrived(String sessionId) async {
-    if (_guard('personArrived') case final failure?) return failure;
-    if (_forgot('personArrived', sessionId) case final gone?) {
-      return gone;
-    }
-    personArrivedSessions.add(sessionId);
-    final held = _holdingPersonArrived;
-    if (held != null) await held.future;
-    return personArrivedFailsWith ?? const Answered(null);
   }
 
   /// Every device id the device-scoped ask was made for, one entry per attempt —

@@ -32,7 +32,8 @@ class ProviderRoomPort implements RoomPort {
     Answered(:final value) => TheReplyLanded(value),
     Refused(code: final code) when code == RefusalCode.unnamed(202) =>
       const StillAnswering(),
-    RoomFailure() => const NothingLanded(),
+    Refused(code: RefusalCode.notFound) => const NothingLanded(),
+    final RoomFailure failure => TheLookFailed(failure.result),
   };
 
   @override
@@ -58,10 +59,6 @@ class ProviderRoomPort implements RoomPort {
   @override
   Future<RoomResult> askForAPerson(String session) async =>
       _resultOf(await _ref.read(roomRepositoryProvider).askForAPerson(session));
-
-  @override
-  Future<RoomResult> personArrived(String session) async =>
-      _resultOf(await _ref.read(roomRepositoryProvider).personArrived(session));
 
   RoomResult _resultOf(RoomAnswer<void> answer) => switch (answer) {
     Answered() => const RoomAnswered(),

@@ -322,10 +322,7 @@ void main() {
     expect(_faixasVazias(tester, container), [0]);
 
     harness.recorder.startThrows = false;
-    // The halt is the desk's to lift, and the long press only asks: a facilitator
-    // marks the session attended, and the touch brings that answer back at once.
-    harness.room.theDeskAttended();
-    _notifier(container).resolveWithPerson();
+    _notifier(container).teamTapped();
     await tester.pump(const Duration(milliseconds: 300));
     final capturasAntes = harness.recorder.captures;
     await _abrirOMicrofone(tester, container);

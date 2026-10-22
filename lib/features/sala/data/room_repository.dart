@@ -628,16 +628,6 @@ class RoomRepository {
     asksForTheSession: true,
   );
 
-  Future<RoomAnswer<void>> personArrived(String sessionId) => _room.ask(
-    () => _client.post(
-      _uri('/sessions/$sessionId/person-arrived'),
-      headers: _headers,
-    ),
-    timeout: _stateTimeout,
-    read: readJson((_) {}),
-    asksForTheSession: true,
-  );
-
   Future<RoomAnswer<BackTranslationVerdict>> finishBackTranslation(
     String sessionId, {
     required List<PlayedTake> playedByTake,

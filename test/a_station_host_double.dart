@@ -74,19 +74,13 @@ class AStationHost implements StationHost {
 
   int callsLanded = 0;
   final List<(String, RoomResult)> earlierCallsHeard = [];
-  final List<String> earlierSessionsGone = [];
 
   @override
   void hearTheCallLanded() => callsLanded++;
 
   @override
-  @override
   void hearAnEarlierSessionsCall(String session, RoomResult result) =>
       earlierCallsHeard.add((session, result));
-
-  @override
-  void hearAnEarlierSessionGone(String session) =>
-      earlierSessionsGone.add(session);
 
   void Function()? onPartEnd;
 
@@ -143,8 +137,7 @@ class AStationHost implements StationHost {
       asked.add('hearTheReplyFound:${turn.turnId}');
 
   @override
-  void hearTheSoundKept(Kept kept) =>
-      asked.add('hearTheSoundKept:${kept.runtimeType}');
+  void hearTheSignCleared() => asked.add('hearTheSignCleared');
 
   @override
   void hearTheOpeningLetGo() => asked.add('hearTheOpeningLetGo');

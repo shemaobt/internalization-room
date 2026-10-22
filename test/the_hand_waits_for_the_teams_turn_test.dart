@@ -286,7 +286,7 @@ void main() {
     expect(_hand, findsNothing);
 
     await room.aTapOnTheHiddenHandPlaysNothing();
-    room.sala.resolveWithPerson();
+    room.sala.teamTapped();
     await room.until('a parada sair', () => !room.estado.needsPerson);
     await room.atTheInvite();
     await room.theReplyStillWaitsOnTheHand();
@@ -618,7 +618,7 @@ void main() {
 
       room.sala.haltForABrokenBuild();
       await room.until('a sala chamar alguém', () => room.estado.needsPerson);
-      room.sala.resolveWithPerson();
+      room.sala.teamTapped();
       await room.until('a parada sair', () => !room.estado.needsPerson);
       await room.atTheInvite();
 

@@ -3456,8 +3456,7 @@ void main() {
             'uma sessão que o servidor já esqueceu',
       );
 
-      harness.room.theDeskAttended();
-      notifier.resolveWithPerson();
+      notifier.teamTapped();
       await waitFor(
         'o toque devolver a sala',
         () => read().voice == VoiceState.invite,
@@ -3522,7 +3521,7 @@ void main() {
       }
       expect(container.read(salaSessionProvider).needsPerson, isTrue);
 
-      notifier.resolveWithPerson();
+      notifier.teamTapped();
 
       harness.room.failWith = null;
       notifier.conversaTap();

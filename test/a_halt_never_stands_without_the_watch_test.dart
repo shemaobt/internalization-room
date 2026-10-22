@@ -65,7 +65,7 @@ void main() {
       async.elapse(_period * 3);
       expect(stateReads(harness), before, reason: 'não há sessão a ler');
 
-      notifier.resolveWithPerson();
+      notifier.teamTapped();
       async.elapse(Duration.zero);
       expect(_read(container).needsPerson, isFalse);
       container.dispose();

@@ -257,7 +257,7 @@ void main() {
     expect(room.state.offline, isFalse);
 
     harness.room.failTurnsWith = null;
-    harness.room.theDeskAttended();
+    room.sala.teamTapped();
     await waitFor('o sinal sair', () => !room.state.needsPerson);
     await settle(const Duration(milliseconds: 300));
 

@@ -335,7 +335,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late Map<String, Timer> _timers;
   late int _readsSent;
   late int _readsApplied;
-  late int _readsSentBeforeTheCall;
   late Map<String, Set<String>> _perdidasNoTrecho;
   late Map<String, int> _resumeFailures;
 
@@ -507,7 +506,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers = {};
     _readsSent = 0;
     _readsApplied = 0;
-    _readsSentBeforeTheCall = 0;
     _perdidasNoTrecho = {};
     _resumeFailures = {};
     _passadasDaSala = null;
@@ -1296,9 +1294,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         (state.channel is Playing || !_parteJaTocou)) {
       return const ThePart();
     }
-    final opening = _openTurnId;
-    if (theOpening && _openingOwed && opening != null) {
-      return TheOpening(opening);
+    if (theOpening && _openingOwed && _openTurnId != null) {
+      return const TheOpening();
     }
     return const NothingKept();
   }
@@ -1308,6 +1305,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final (machine, effects) = reduce(before, event);
     final leavesTheScene =
         before.station is SceneRehearsal && machine.station is! SceneRehearsal;
+    if (machine.halt is Blocking && before.halt is! Blocking) {
+      _anotarOQueFoiOuvido();
+    }
     state = state.copyWith(
       machine: machine,
       reach: !before.reachable && machine.reachable ? RoomReach.fine : null,
@@ -1349,12 +1349,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   SentRead _theReadSent() => (order: ++_readsSent, row: state.btTrechos);
 
   void _theSessionReadHeard(SessionSnapshot snapshot, SentRead sent) {
-    final wasBlocking = state.needsPerson;
     _applyTheSessionRead(snapshot, sent.order, rowWhenSent: sent.row);
     _applyWhatOnlyGrows(snapshot);
-    if (wasBlocking && !state.needsPerson && state.unreachable) {
-      _theRoomIsBack();
-    }
   }
 
   void _takeTheStretches(BackTranslationProgress told) {
@@ -1393,13 +1389,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (rowWhenSent != null && identical(state.btTrechos, rowWhenSent)) {
       _takeTheStretches(snapshot.backTranslation);
     }
-    _dispatch(
-      SessionRead(
-        snapshot,
-        sentBeforeTheCallLanded: sent <= _readsSentBeforeTheCall,
-        generation: _generation,
-      ),
-    );
+    _dispatch(SessionRead(snapshot, generation: _generation));
   }
 
   void _stopCallingForAPerson() {
@@ -1408,20 +1398,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _resumeFailures.clear();
   }
 
-  void _replay(Kept kept) {
-    switch (kept) {
-      case ThePart():
-        if (state.station is Retro &&
-            state.btPhase == BtPhase.playing &&
-            _parteNoAr != null &&
-            !state.btCortado) {
-          _tocarParteDaRetro(_parteTocando);
-        } else {
-          _dispatch(NothingReplayed(generation: _generation));
-        }
-      case NothingKept() || TheOpening() || TheLineSaidAgain():
-        break;
-    }
+  void _theSignCleared() {
     if (_emCurso case final passage?
         when state.sessionId == null && state.station is Canvas) {
       _handOff(_enterThePassage(passage));
@@ -1434,9 +1411,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool get _callIsWanted => _aPersonIsNeeded && !_personAsked;
 
   void _theCallLanded() => _personAsked = true;
-
-  void _stampTheReadsSentBeforeTheCall() =>
-      _readsSentBeforeTheCall = _readsSent;
 
   void _theCallOfAnEarlierSession(String sessionId, RoomResult result) {
     switch (result) {
@@ -1681,8 +1655,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return ladder[step < ladder.length ? step : ladder.length - 1];
   }
 
-  void _theRoomIsBack() => _dispatch(const NetworkReturned());
-
   void _resendPending() {
     final pending = _pending;
     _pending = null;
@@ -1701,11 +1673,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void resolveWithPerson() => _gesture(() => _resolveWithPerson());
 
   void _resolveWithPerson() {
-    if (!state.needsPerson && !state.offline) return;
-    final wasOut = state.unreachable;
-    _dispatch(LongPress(somebodyToAsk: _sessionId != null && !wasOut));
-    if (!state.needsPerson && wasOut) _releaseTheReach();
+    if (!state.offline) return;
+    _releaseTheReach();
   }
+
+  void teamTapped() => _gesture(() {
+    if (state.needsPerson) _dispatch(const TeamTapped());
+  });
 
   void _releaseTheReach() {
     _dispatch(const NetworkReturned(released: true));
@@ -8595,17 +8569,11 @@ class _NotifierHost implements StationHost {
       _notifier._theSessionIsClosed(session);
 
   @override
-  void hearTheCallLanded() => _notifier
-    .._stampTheReadsSentBeforeTheCall()
-    .._theCallLanded();
+  void hearTheCallLanded() => _notifier._theCallLanded();
 
   @override
   void hearAnEarlierSessionsCall(String session, RoomResult result) =>
       _notifier._theCallOfAnEarlierSession(session, result);
-
-  @override
-  void hearAnEarlierSessionGone(String session) =>
-      _notifier._theSessionIsGone(session);
 
   @override
   bool get recordingStarts => _notifier._recordingStarting;
@@ -8683,7 +8651,7 @@ class _NotifierHost implements StationHost {
   void hearTheWaitResumed() => _notifier._waitOnTheLookAgain();
 
   @override
-  void hearTheSoundKept(Kept kept) => _notifier._replay(kept);
+  void hearTheSignCleared() => _notifier._theSignCleared();
 
   @override
   void hearTheOpeningLetGo() => _notifier._letTheOpeningGo();

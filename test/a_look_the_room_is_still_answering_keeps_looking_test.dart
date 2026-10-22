@@ -348,11 +348,10 @@ void main() {
     },
   );
 
-  group('a halt suspends the look, and its lift resumes it', () {
+  group('a halt suspends the look, and the team\'s tap resumes it', () {
     const ceiling = Duration(seconds: 30);
     void lift(_Room it) {
-      it.room.theDeskAttended();
-      it.sala.resolveWithPerson();
+      it.sala.teamTapped();
     }
 
     test('over a team turn the room is still answering', () {
@@ -417,7 +416,7 @@ void main() {
     });
 
     group(
-      'a turn given up under the halt makes its first look after the lift',
+      'a turn given up under the halt makes its first look after the tap',
       () {
         void halted(
           void Function(FakeRoom) arrange,
@@ -496,7 +495,7 @@ void main() {
     );
 
     test(
-      'a team reply the first look found under the halt plays once after the lift',
+      'a team reply the first look found under the halt plays once after the tap',
       () {
         _aTakeTheNetworkLoses(
           (room) => room
@@ -523,7 +522,7 @@ void main() {
     );
 
     test(
-      'an Opening the first look found under the halt is heard once after the lift',
+      'an Opening the first look found under the halt is heard once after the tap',
       () {
         _anOpeningTheNetworkLoses(
           (room) => room
@@ -552,12 +551,11 @@ void main() {
   });
 
   group(
-    'a halt longer than the busy watchdog owns the wait, and the room rests after the lift',
+    'a halt longer than the busy watchdog owns the wait, and the room rests after the tap',
     () {
       const ceiling = Duration(seconds: 30);
       void lift(_Room it) {
-        it.room.theDeskAttended();
-        it.sala.resolveWithPerson();
+        it.sala.teamTapped();
       }
 
       void restsAndTakesATurn(FakeAsync clock, _Room it) {
@@ -650,22 +648,22 @@ void main() {
     const held = Machine(
       station: Canvas(),
       session: 'sessao-1',
-      halt: Blocking(NothingKept()),
+      halt: Blocking(),
       look: TheLook(turn, asked: false, suspended: true),
     );
 
-    test('goes out at the lift with the room within reach', () {
-      final (_, effects) = reduce(held, const LongPress(somebodyToAsk: false));
+    test('goes out at the tap with the room within reach', () {
+      final (_, effects) = reduce(held, const TeamTapped());
 
       expect(effects, contains(const LookAtTheSession(turn)));
     });
 
     test(
-      'lifted out of reach, waits for the room and goes out on its return',
+      'tapped out of reach, waits for the room and goes out on its return',
       () {
         final (lifted, effects) = reduce(
           held.copyWith(reach: Reach.outOfReach),
-          const LongPress(somebodyToAsk: false),
+          const TeamTapped(),
         );
         expect(effects, isNot(contains(const LookAtTheSession(turn))));
 
@@ -700,11 +698,11 @@ void main() {
       await settle();
       expect(harness.room.turnIdsLookedAt, isEmpty);
 
-      notifier.resolveWithPerson();
+      notifier.teamTapped();
       return (harness, read);
     }
 
-    test('goes out at the lift and plays the reply it finds', () async {
+    test('goes out at the tap and plays the reply it finds', () async {
       final (harness, read) = await liftedUnderAHalt(stored: true);
 
       await waitFor(
@@ -717,7 +715,7 @@ void main() {
     });
 
     test(
-      'goes out at the lift and calls a person when it finds nothing',
+      'goes out at the tap and calls a person when it finds nothing',
       () async {
         final (harness, read) = await liftedUnderAHalt(stored: false);
 

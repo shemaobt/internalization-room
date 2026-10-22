@@ -10,7 +10,7 @@ import 'fake_ports.dart';
 
 Halt _theSignAfter(List<MachineEvent> answers) => answers
     .fold(
-      const Machine(halt: Blocking(NothingKept())),
+      const Machine(halt: Blocking()),
       (machine, event) => reduce(machine, event).$1,
     )
     .halt;
@@ -40,12 +40,8 @@ void main() {
     room.answerTheCall(const RoomAnswered());
     await pumpEventQueue();
 
-    expect(host.answers.single, isA<TheCallLanded>());
+    expect(host.answers, isEmpty);
     expect(host.callsLanded, 1);
-    expect(
-      _theSignAfter(host.answers),
-      isA<Blocking>().having((sign) => sign.serverKnows, 'serverKnows', true),
-    );
   });
 
   test(
@@ -194,71 +190,10 @@ void main() {
     expect(host.answers, isEmpty);
   });
 
-  test(
-    'a person-arrived mark reaches the room port with the room\'s session; with none, it asks nothing',
-    () {
-      runner.run(const [TellAPersonArrived()]);
-      host.session = null;
-      runner.run(const [TellAPersonArrived()]);
-
-      expect(room.heard, ['arrived:sessao-1']);
-    },
-  );
-
-  test(
-    'a person-arrived mark that fails on the network takes the room out of reach at the person\'s door',
-    () async {
-      runner.run(const [TellAPersonArrived()]);
-      room.answerTheArrival(const RoomNetworkFailed());
-      await pumpEventQueue();
-
-      expect(
-        host.answers.single,
-        isA<NetworkFailedAt>().having((fell) => fell.door, 'door', Door.person),
-      );
-    },
-  );
-
-  test(
-    'a person-arrived mark whose session is gone tells the machine so; for a session no longer the room\'s, the Station hears it',
-    () async {
-      runner.run(const [TellAPersonArrived()]);
-      room.answerTheArrival(const RoomSessionGone());
-      await pumpEventQueue();
-
-      expect(host.answers.single, isA<TheSessionIsGone>());
-      expect(host.earlierSessionsGone, isEmpty);
-
-      runner.run(const [TellAPersonArrived()]);
-      host.session = 'sessao-2';
-      room.answerTheArrival(const RoomSessionGone());
-      await pumpEventQueue();
-
-      expect(host.answers, hasLength(1));
-      expect(host.earlierSessionsGone, ['sessao-1']);
-    },
-  );
-
-  test(
-    'a person-arrived mark the room answers or refuses changes nothing',
-    () async {
-      runner.run(const [TellAPersonArrived(), TellAPersonArrived()]);
-      room
-        ..answerTheArrival(const RoomAnswered())
-        ..answerTheArrival(const RoomRefused('some_code'));
-      await pumpEventQueue();
-
-      expect(host.answers, isEmpty);
-      expect(host.earlierSessionsGone, isEmpty);
-    },
-  );
-
   test('nothing comes back after the runner is disposed', () async {
-    runner.run(const [CallForAPerson(), TellAPersonArrived()]);
+    runner.run(const [CallForAPerson()]);
     runner.dispose();
-    room
-      ..answerTheCall(const RoomAnswered())
-      ..answerTheArrival(const RoomNetworkFailed());
+    room.answerTheCall(const RoomAnswered());
     final earlier = runnerOver(fakePorts(ASoundPort(), room: room), host);
     earlier.run(const [CallForAPerson()]);
     earlier.dispose();
@@ -270,6 +205,6 @@ void main() {
     expect(host.callsLanded, 0);
     expect(host.earlierCallsHeard, isEmpty);
     expect(host.asked, isEmpty);
-    expect(room.heard, ['call:sessao-1', 'arrived:sessao-1', 'call:sessao-1']);
+    expect(room.heard, ['call:sessao-1', 'call:sessao-1']);
   });
 }

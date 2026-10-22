@@ -137,7 +137,6 @@ class ConversaView extends ConsumerWidget {
       !session.wayOutIsHidden;
 
   String _circleLabel(SalaSessionState session, String language) {
-    if (session.needsPerson) return circleLabelFor('needsPerson', language);
     if (session.offline) return circleLabelFor('offline', language);
     if (session.voice == VoiceState.listening) {
       return circleLabelFor('listening', language);

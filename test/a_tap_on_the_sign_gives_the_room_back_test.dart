@@ -66,50 +66,46 @@ void main() {
     );
   });
 
-  test(
-    'a turn spoken after a person resolves a stopped room reaches the room',
-    () async {
-      final harness = SalaHarness();
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
+  test('a turn spoken after the team taps the sign reaches the room', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
 
-      await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
-      final turns = harness.room.turnsSent;
+    await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
+    final turns = harness.room.turnsSent;
 
-      notifier.resolveWithPerson();
-      await waitFor(
-        'o círculo voltar ao convite',
-        () => !read().needsPerson && read().voice == VoiceState.invite,
-      );
-      await settle();
+    notifier.teamTapped();
+    await waitFor(
+      'o círculo voltar ao convite',
+      () => !read().needsPerson && read().voice == VoiceState.invite,
+    );
+    await settle();
 
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await waitFor(
-        'mais um turno chegar à sala',
-        () => harness.room.turnsSent > turns,
-      );
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await waitFor(
+      'mais um turno chegar à sala',
+      () => harness.room.turnsSent > turns,
+    );
 
-      expect(
-        harness.room.turnsSent,
-        turns + 1,
-        reason:
-            'a pessoa resolveu a parada e a equipe falou um turno inteiro; '
-            'a sessão continua de pé por baixo da parada e o turno chega a ela',
-      );
-      expect(
-        read().needsPerson,
-        isFalse,
-        reason:
-            'e a sala não volta a parar em cima do turno que acabou de ouvir',
-      );
-    },
-  );
+    expect(
+      harness.room.turnsSent,
+      turns + 1,
+      reason:
+          'a equipe tocou o sinal e falou um turno inteiro; '
+          'a sessão continua de pé por baixo da parada e o turno chega a ela',
+    );
+    expect(
+      read().needsPerson,
+      isFalse,
+      reason: 'e a sala não volta a parar em cima do turno que acabou de ouvir',
+    );
+  });
 
-  test('resolving an ordinary halt does not open a second session', () async {
+  test('a tap on the sign does not open a second session', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -119,7 +115,7 @@ void main() {
     await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
     final opened = _sessionsOpened(harness);
 
-    notifier.resolveWithPerson();
+    notifier.teamTapped();
     await settle(const Duration(milliseconds: 300));
 
     expect(
@@ -131,7 +127,7 @@ void main() {
     );
   });
 
-  test('a resolved halt hands the team the invite to speak', () async {
+  test('a tapped sign hands the team the invite to speak', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -140,7 +136,7 @@ void main() {
 
     await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
 
-    notifier.resolveWithPerson();
+    notifier.teamTapped();
     await waitFor(
       'o círculo voltar ao convite',
       () => !read().needsPerson && read().voice == VoiceState.invite,
@@ -155,12 +151,12 @@ void main() {
       VoiceState.listening,
       reason:
           'o convite não é enfeite: é ele que deixa a equipe começar a '
-          'falar depois que a pessoa resolveu a parada',
+          'falar depois que tocou o sinal',
     );
   });
 
   test(
-    'resolving while the room is still out says so instead of inviting',
+    'the long press while the room is still out says so instead of inviting',
     () async {
       final harness = SalaHarness()..room.reachable = false;
       final container = await inConversa(harness);
@@ -219,7 +215,7 @@ void main() {
   );
 
   test(
-    'a turn spoken the instant a halt is resolved is not lost to the wait',
+    'a turn spoken the instant the sign is tapped is not lost to the wait',
     () async {
       final harness = SalaHarness();
       final container = await inConversa(harness);
@@ -230,7 +226,7 @@ void main() {
       await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
       final turns = harness.room.turnsSent;
 
-      notifier.resolveWithPerson();
+      notifier.teamTapped();
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -243,7 +239,7 @@ void main() {
         harness.room.turnsSent,
         turns + 1,
         reason:
-            'tocar o círculo no instante em que a parada resolve começa a '
+            'tocar o círculo no instante em que o sinal sai começa a '
             'gravar em vez de ser engolido pela espera',
       );
       expect(read().needsPerson, isFalse);
@@ -251,7 +247,7 @@ void main() {
   );
 
   test(
-    'a passage entered again after a resolved halt lands where they stopped',
+    'a passage entered again after a tapped sign lands where they stopped',
     () async {
       final harness = SalaHarness();
       final container = await _naPassagem(harness, 'P01');
@@ -261,7 +257,7 @@ void main() {
 
       await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
 
-      notifier.resolveWithPerson();
+      notifier.teamTapped();
       await waitFor(
         'o círculo voltar ao convite',
         () => !read().needsPerson && read().voice == VoiceState.invite,
@@ -284,7 +280,7 @@ void main() {
         read().stage,
         SalaStage.ensaio,
         reason:
-            'a parada resolvida reabriu a passagem sem nome, entao nada do '
+            'o sinal tocado reabria a passagem sem nome, entao nada do '
             'que a equipe gravou depois dela ficou anotado na passagem: voltar '
             'punha a equipe na conversa de novo, com o ensaio perdido',
       );

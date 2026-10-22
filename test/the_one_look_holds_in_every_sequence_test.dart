@@ -257,18 +257,16 @@ void main() {
 
       test('a look still answered is looked at again', () {
         final (_, effects) = reduce(
-          givenUp(const TheOpening('turno-7')),
-          const LookPending(turn, sounding: TheOpening('turno-7')),
+          givenUp(const TheOpening()),
+          const LookPending(turn, sounding: TheOpening()),
         );
 
-        expect(effects, [
-          const LookAgain(turn, sounding: TheOpening('turno-7')),
-        ]);
+        expect(effects, [const LookAgain(turn, sounding: TheOpening())]);
       });
 
       test('an Opening found after the wait is kept, not played', () {
         final (_, effects) = reduce(
-          stillAnswering(const TheOpening('turno-7')),
+          stillAnswering(const TheOpening()),
           const LookFound(turn, reply),
         );
 
@@ -316,11 +314,11 @@ void main() {
         },
       );
 
-      group('a halt suspends the look, and its lift resumes it', () {
+      group('a halt suspends the look, and the team\'s tap resumes it', () {
         Machine halted(Machine machine) =>
             reduce(machine, const RoomRaisedAHalt()).$1;
         (Machine, List<Effect>) lifted(Machine machine) =>
-            reduce(machine, const LongPress(somebodyToAsk: false));
+            reduce(machine, const TeamTapped());
 
         test('raising it keeps the look and stops looking again', () {
           final (after, effects) = reduce(
@@ -332,7 +330,7 @@ void main() {
           expect(after.look?.turn, turn);
         });
 
-        test('a turn given up under it is looked at only after the lift', () {
+        test('a turn given up under it is looked at only after the tap', () {
           final (sent, _) = reduce(const Machine(), const TurnSent(turn));
           final (givenUp, effects) = reduce(
             halted(sent),
@@ -346,7 +344,7 @@ void main() {
         });
 
         test(
-          'a look still answered under it looks again only after the lift',
+          'a look still answered under it looks again only after the tap',
           () {
             final (waiting, effects) = reduce(
               halted(givenUp(const NothingKept())),
