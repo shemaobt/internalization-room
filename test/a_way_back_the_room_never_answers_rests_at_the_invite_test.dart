@@ -36,7 +36,7 @@ void main() {
     await waitFor('the way back', () => it.estado.theWayBackIsLive);
     await settle();
     final opened = harness.room.calls.length;
-    harness.room.holdNextTurn();
+    harness.room.holdTheLineSaidAgain();
     await it.sala.returnToTheLeftEntry();
     await waitFor(
       'the Panorama to ask the room for its opening',
@@ -45,8 +45,9 @@ void main() {
     await waitFor('the Step to be let go', () => !it.estado.awaitingTheGuide);
     await settle();
 
+    expect(it.estado.panoramaSaid, isFalse);
     expect(it.estado.needsPerson, isFalse);
     expect(it.estado.voice, VoiceState.invite);
-    harness.room.finishHeldTurn();
+    harness.room.finishTheLineSaidAgain();
   });
 }

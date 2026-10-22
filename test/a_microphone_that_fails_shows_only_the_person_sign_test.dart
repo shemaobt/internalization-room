@@ -182,6 +182,30 @@ void main() {
   );
 
   testWidgets(
+    'a permission question the platform never answers is not a refusal: a tap '
+    'over the speaking voice still cuts her',
+    (tester) async {
+      final harness = _aRoom()..recorder.answersPermission = null;
+      final sala = await _theRoomOpens(tester, harness);
+      harness.voice.holdNextLine();
+      unawaited(_notifier(sala).goConversa(book: 'Ruth', pericope: 'P01'));
+      await _until(
+        sala,
+        'the opening to speak',
+        () => _read(sala).voice == VoiceState.speaking,
+      );
+      await _pass(sala, 20);
+      final stops = harness.voice.stops;
+
+      await _tapTheCircle(sala);
+
+      expect(harness.voice.stops, greaterThan(stops));
+      expect(_read(sala).voice, VoiceState.listening);
+      closeTheRoom(sala.container);
+    },
+  );
+
+  testWidgets(
     'an interrupt whose microphone fails once rests the circle with «Ouvir de '
     'novo» lit, and the reply replays in full',
     (tester) async {

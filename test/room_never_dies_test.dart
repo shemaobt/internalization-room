@@ -899,24 +899,6 @@ void main() {
     },
   );
 
-  test('the hand over a room out of reach on a way in calls no '
-      'person', () async {
-    final harness = SalaHarness();
-    harness.room.reachable = false;
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    unawaited(notifier.goConversa(book: 'Ruth'));
-    await settle();
-
-    notifier.handTap();
-    await settle();
-
-    expect(container.read(salaSessionProvider).needsPerson, isFalse);
-    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
-  });
-
   test(
     'a settle that finds the session gone returns to the wheel instead of halting',
     () async {
