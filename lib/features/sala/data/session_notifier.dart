@@ -6148,8 +6148,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void ouvirOTrechoContado(int indice) =>
       _gesture(() => _ouvirOTrechoContado(indice));
 
-  void ouvirAConta(int indice) =>
-      _gesture(() => _ouvirOTrechoContado(indice, naGravacao: true));
+  void ouvirAConta(int indice) => _gesture(
+    () => state.canRetellAFrase
+        ? _traduzirAFraseDeNovo(indice)
+        : _ouvirOTrechoContado(indice, naGravacao: true),
+  );
 
   void _ouvirOTrechoContado(int indice, {bool naGravacao = false}) {
     if (!state.canHearAFrase) return;
