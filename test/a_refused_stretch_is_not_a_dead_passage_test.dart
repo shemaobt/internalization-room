@@ -400,7 +400,9 @@ void main() {
       expect(
         harness.room.chunkSpans,
         ['4000-4200'],
-        reason: 'o trecho vazio ia à sala e voltava recusado com 400',
+        reason:
+            'o toque no início do trecho não contava nada, e a frase até o piso '
+            'nunca chegava à sala',
       );
     },
   );
