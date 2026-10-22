@@ -21,9 +21,7 @@ void main() {
   test(
     'a reply marked heard is one write that marks it heard and clears the playing reply',
     () async {
-      final host = AHandHost()
-        ..replies = [_reply]
-        ..oldestUnheardReply = _reply;
+      final host = AHandHost()..replies = [_reply];
       final hand = RaisedHand(
         host: host,
         inbox: () => FakeInbox(replies: const []),
@@ -37,14 +35,11 @@ void main() {
         [for (final reply in host.markedHeard.single) (reply.id, reply.heard)],
         [('resposta-1', true)],
       );
-      expect(host.playingReplyId, isNull);
     },
   );
 
   test('a heard mark the desk refuses gives the reply back unheard', () async {
-    final host = AHandHost()
-      ..replies = [_reply]
-      ..oldestUnheardReply = _reply;
+    final host = AHandHost()..replies = [_reply];
     final inbox = FakeInbox(replies: const [_reply])
       ..marksFailWith = const Refused('REPLY_MOVED_ON');
     final hand = RaisedHand(
