@@ -6149,7 +6149,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gesture(() => _ouvirOTrechoContado(indice));
 
   void ouvirAConta(int indice) => _gesture(
-    () => state.canRetellAFrase
+    () =>
+        state.canRetellAFrase &&
+            state.btTrechos.elementAtOrNull(indice)?.segmentId != null
         ? _traduzirAFraseDeNovo(indice)
         : _ouvirOTrechoContado(indice, naGravacao: true),
   );
