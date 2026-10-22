@@ -197,7 +197,7 @@ List<String> _naLista(WidgetTester tester) => [
 Future<void> _traduzirDeNovo(
   WidgetTester tester,
   ProviderContainer container, {
-  String circulo = 'Tocar para gravar a tradução de novo',
+  String circulo = 'ouvindo a gravação de vocês…',
 }) async {
   await tocar(tester, circulo);
   await tocar(tester, 'Tocar ao terminar');
@@ -221,7 +221,7 @@ void main() {
     );
 
     await tocar(tester, _barra(2));
-    await tocar(tester, 'Tocar para gravar a tradução deste trecho');
+    await tocar(tester, 'ouvindo a gravação de vocês…');
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
     await tocar(tester, 'Tocar ao terminar');
     await waitFor(
@@ -483,7 +483,7 @@ void main() {
     await _traduzirDeNovo(
       tester,
       container,
-      circulo: 'Tocar para gravar a tradução deste trecho',
+      circulo: 'ouvindo a gravação de vocês…',
     );
 
     expect(
