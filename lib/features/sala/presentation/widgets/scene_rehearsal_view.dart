@@ -14,9 +14,10 @@ import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'scene_question.dart';
 import 'scene_translate_step.dart';
+import 'scene_take_state.dart';
 
 /// The scene rehearsal's screen; her words reach the team only through VoiceOver, but on
-/// the translate step, which writes them (ADR 0014).
+/// the translate step, which writes them (ADR 0014), and in the take's state (ADR 0112).
 class SceneRehearsalView extends ConsumerWidget {
   const SceneRehearsalView({super.key});
 
@@ -78,9 +79,11 @@ class SceneRehearsalView extends ConsumerWidget {
                     _ => false,
                   },
                   keep: scene.keep,
+                  leaving: session.sceneTakeLeaving,
                   label: said,
                   onTap: notifier.sceneTap,
                   onRetry: notifier.sendTheSceneTakeAgain,
+                  onStop: notifier.stopTheSend,
                   question: session.sceneQuestionShown
                       ? SceneQuestion(
                           scenes: scenes.scenes,
@@ -377,8 +380,10 @@ class _TheRecordStep extends StatelessWidget {
   final bool recording;
   final SceneKeep? keep;
   final String Function(String control) label;
+  final String? leaving;
   final VoidCallback onTap;
   final VoidCallback onRetry;
+  final VoidCallback onStop;
   final Widget? question;
   final Widget? chip;
   final bool focused;
@@ -386,9 +391,11 @@ class _TheRecordStep extends StatelessWidget {
   const _TheRecordStep({
     required this.recording,
     required this.keep,
+    required this.leaving,
     required this.label,
     required this.onTap,
     required this.onRetry,
+    required this.onStop,
     required this.question,
     required this.chip,
     required this.focused,
@@ -414,28 +421,21 @@ class _TheRecordStep extends StatelessWidget {
             ),
           ],
         );
-    final waiting = keep;
-    if (recording || waiting is! NotKept) return circle;
-    final colors = SalaColors.of(context);
-    return Semantics(
-      label: label(waiting.tooLarge ? 'tooLarge' : 'saveFailed'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          circle,
-          const SizedBox(height: 32),
-          RoundActionButton(
-            size: 52,
-            semanticLabel: label('retry'),
-            onTap: onRetry,
-            child: Icon(
-              LucideIcons.rotateCw,
-              size: 22,
-              color: colors.vermelhoMic,
-            ),
-          ),
-        ],
-      ),
+    if (!recording && keep == null) return circle;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        circle,
+        const SizedBox(height: 24),
+        SceneTakeState(
+          recording: recording,
+          keep: keep,
+          leaving: leaving,
+          label: label,
+          onRetry: onRetry,
+          onStop: onStop,
+        ),
+      ],
     );
   }
 }

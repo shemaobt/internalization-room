@@ -447,6 +447,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late String? _pendingTakePath;
   late StreamSubscription<void> _outboxFalls;
   late StreamSubscription<String> _outboxGone;
+  late StreamSubscription<PendingTake?> _outboxLeaving;
+  late PendingTake? _takeLeaving;
   late EffectRunner _runner;
   late RaisedHand _hand;
 
@@ -550,6 +552,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           .sessionsGone
           .listen(_theSessionIsGone),
     );
+    _takeLeaving = null;
+    _outboxLeaving = _apart(
+      () => ref.read(takeUploadQueueProvider).leaving.listen(_aTakeIsLeaving),
+    );
     _coverageWatch = null;
     _coverageSessionId = null;
     _awaitingCoverageTurnId = null;
@@ -615,6 +621,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _runner.dispose();
       unawaited(_outboxFalls.cancel());
       unawaited(_outboxGone.cancel());
+      unawaited(_outboxLeaving.cancel());
       unawaited(_coverageWatch?.cancel());
     });
     return SalaSessionState(machine: Machine(generation: _firstGeneration));
@@ -3513,10 +3520,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         scene: SceneScreen(
           label: waiting.scene,
           picked: waiting.scene,
-          keep: NotKept(
-            row: waiting.id,
-            tooLarge: _tooLargeForTheRoom(waiting.path),
-          ),
+          keep: NotKept(row: waiting.id, why: waiting.failure),
         ),
       );
       asked = state.scene;
@@ -3813,7 +3817,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     if (_goneSessions.contains(sessionId)) return;
     final queue = _takes;
-    final tooLarge = _tooLargeForTheRoom(path);
     final life = _thisLife;
     final PendingTake row;
     try {
@@ -3827,7 +3830,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on Object {
       if (_endedSince(life) || _goneSessions.contains(sessionId)) return;
       _showTheTakeNotKept(
-        NotKept(take: path, tooLarge: tooLarge),
+        NotKept(
+          take: path,
+          why: _tooLargeForTheRoom(path)
+              ? SendFailure.tooLarge
+              : SendFailure.failed,
+        ),
         keeping,
         generation,
       );
@@ -3840,11 +3848,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_goneSessions.contains(sessionId)) {
       return queue.discardTheSession(sessionId);
     }
-    await _keepTheRow(
-      NotKept(row: row.id, take: path, tooLarge: tooLarge),
-      keeping,
-      generation,
-    );
+    await _keepTheRow(NotKept(row: row.id, take: path), keeping, generation);
   }
 
   Future<void> _keepTheRow(
@@ -3852,9 +3856,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SceneScreen keeping,
     int generation,
   ) async {
-    final kept = await _takes.keepTheScene(waiting.row!);
+    final row = waiting.row!;
+    final kept = await _takes.keepTheScene(row);
     if (kept == null) {
-      _showTheTakeNotKept(waiting, keeping, generation);
+      _showTheTakeNotKept(
+        NotKept(row: row, take: waiting.take, why: await _whyNotSent(row)),
+        keeping,
+        generation,
+      );
       return _countUnsent();
     }
     await _theRoomKept(kept, waiting, keeping, generation);
@@ -3894,6 +3903,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _stampTheQuestion();
   }
 
+  Future<SendFailure> _whyNotSent(String row) async {
+    for (final entry in await _takes.entries()) {
+      if (entry.id != row) continue;
+      return entry.lost ? SendFailure.failed : entry.failure;
+    }
+    return SendFailure.failed;
+  }
+
   bool _tooLargeForTheRoom(String path) {
     try {
       return File(path).lengthSync() > largestTakeTheRoomKeeps;
@@ -3920,10 +3937,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _sendAgain(NotKept waiting, SceneScreen keeping) async {
     final generation = _waitOnTheGeneration;
     final row = waiting.row;
-    if (row != null) {
-      await _takes.dueAgain(row);
-      return _keepTheRow(waiting, keeping, generation);
-    }
+    if (row != null) return _keepTheRow(waiting, keeping, generation);
     final take = waiting.take;
     final sessionId = state.sessionId;
     if (take == null || sessionId == null) return;
@@ -5208,7 +5222,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// its name then. Kept by row and not by scope, for the reason `takeIdOf` gives.
   late Map<String, String> _semNome;
 
-  late Set<String> _rowsOfThisVisit;
+  late Map<String, int> _rowsOfThisVisit;
 
   late Map<String?, Map<int, ({String path, int? pass})>> _notQueued;
 
@@ -5260,7 +5274,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (kind == 'ensaio') {
-      _rowsOfThisVisit.add(linha.id);
+      if (inFlight case (_, final number)) _rowsOfThisVisit[linha.id] = number;
       _aKeepLeftTheAir(inFlight);
     }
     if (_endedSince(life)) {
@@ -5323,8 +5337,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final queue = _takes;
     final tally = await queue.tally(sessionId: state.sessionId);
-    for (final row in _theNewestPass(tally.unsentParts)[cena] ?? const []) {
-      await queue.dueAgain(row.id);
+    final tapped = {
+      for (final row in _theNewestPass(tally.unsentParts)[cena] ?? const [])
+        row.id,
+    };
+    for (final row in tally.unsentParts[scope] ?? const <PendingTake>[]) {
+      if (tapped.contains(row.id) || row.refusal == null) {
+        await queue.dueAgain(row.id);
+      }
     }
     await queue.flush();
     await _countUnsent();
@@ -5506,7 +5526,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(OutboxChanged(tally.parts, due: tally.due));
     if (_abandoned(generation) || counting != _newestCount) return;
     final speaking = _theNewestPass(tally.unsentParts);
-    state = state.copyWith(unsentParts: _unsentPartsOf(speaking));
+    state = state.copyWith(
+      unsentParts: _unsentPartsOf(tally, speaking),
+      savedParts: _savedPartsOf(tally, speaking),
+    );
     if (sessionId != null) {
       state = state.copyWith(
         unsentTakes: _unsentTakesOf(tally, speaking),
@@ -5516,7 +5539,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (await _measured(speaking) &&
         !_abandoned(generation) &&
         counting == _newestCount) {
-      state = state.copyWith(unsentParts: _unsentPartsOf(speaking));
+      state = state.copyWith(unsentParts: _unsentPartsOf(tally, speaking));
     }
   });
 
@@ -5566,20 +5589,86 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   bool _ofThisVisit(int number, PendingTake newest) =>
-      _rowsOfThisVisit.contains(newest.id) ||
+      _rowsOfThisVisit.containsKey(newest.id) ||
       _keepsInFlight.containsKey((state.sessionId, number));
 
-  Map<int, UnsentPart> _unsentPartsOf(Map<int, List<PendingTake>> speaking) => {
+  Map<int, UnsentPart> _unsentPartsOf(
+    OutboxTally tally,
+    Map<int, List<PendingTake>> speaking,
+  ) => {
     for (final MapEntry(key: number, value: rows) in speaking.entries)
       number: UnsentPart(
         fromAnEarlierVisit: !_ofThisVisit(number, rows.last),
-        failed: rows.any((row) => row.tries > 0 || row.exhausted || row.lost),
+        failure: _failureOf(
+          rows,
+          tally.unsentParts[KeptScope.parte(number)] ?? rows,
+        ),
+        leaving: _leavesFor(number, _takeLeaving),
         length: _lengths[rows.last.path],
       ),
     for (final number in _notQueued[state.sessionId]?.keys ?? const <int>[])
       if (!speaking.containsKey(number))
-        number: const UnsentPart(fromAnEarlierVisit: false, failed: true),
+        number: const UnsentPart(
+          fromAnEarlierVisit: false,
+          failure: SendFailure.failed,
+        ),
   };
+
+  static SendFailure? _failureOf(
+    List<PendingTake> newest,
+    List<PendingTake> ofThePart,
+  ) {
+    for (final row in newest) {
+      if (row.lost) return SendFailure.failed;
+      if (row.exhausted) return row.failure;
+    }
+    for (final row in ofThePart) {
+      if (row.exhausted && row.refusal == null) return SendFailure.failed;
+    }
+    return null;
+  }
+
+  Set<int> _savedPartsOf(
+    OutboxTally tally,
+    Map<int, List<PendingTake>> speaking,
+  ) => {
+    for (final MapEntry(key: row, value: number) in _rowsOfThisVisit.entries)
+      if (tally.parts[row] == PartFact.sent &&
+          !speaking.containsKey(number) &&
+          !(_notQueued[state.sessionId]?.containsKey(number) ?? false))
+        number,
+  };
+
+  String? _leavesFor(int number, PendingTake? take) =>
+      take != null &&
+          take.kind == 'ensaio' &&
+          take.sessionId == state.sessionId &&
+          KeptScope.numberOf(take.scope) == number
+      ? take.id
+      : null;
+
+  void _aTakeIsLeaving(PendingTake? take) {
+    if (_gone) return;
+    _takeLeaving = take;
+    state = state.copyWith(
+      sceneTakeLeaving: take?.kind == sceneTakeKind ? take?.id : null,
+      clearSceneTakeLeaving: take?.kind != sceneTakeKind,
+      unsentParts: {
+        for (final MapEntry(key: number, value: part)
+            in state.unsentParts.entries)
+          number: UnsentPart(
+            fromAnEarlierVisit: part.fromAnEarlierVisit,
+            failure: part.failure,
+            leaving: _leavesFor(number, take),
+            length: part.length,
+          ),
+      },
+    );
+  }
+
+  void stopTheSend() => _gesture(() {
+    if (_takeLeaving != null) _takes.stop();
+  });
 
   Future<bool> _measured(Map<int, List<PendingTake>> speaking) async {
     var measured = false;

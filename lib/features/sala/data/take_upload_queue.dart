@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../domain/kept_take.dart';
 import '../domain/machine.dart';
 import '../domain/scene_rehearsal.dart';
 import '../domain/wav.dart';
@@ -20,7 +21,9 @@ import 'staged_write.dart';
 const _folder = 'guardadas';
 const _manifest = 'fila.json';
 
-const takeUploadAttempts = 5;
+const takeUploadAttempts = 3;
+
+const retroUploadAttempts = 5;
 
 const sceneTakeKind = 'cena';
 
@@ -45,6 +48,10 @@ final takeRetryBackoffProvider = Provider<List<Duration>>(
     Duration(minutes: 2),
     Duration(minutes: 10),
   ],
+);
+
+final takeAttemptSpacingProvider = Provider<List<Duration>>(
+  (ref) => const [Duration(seconds: 1), Duration(seconds: 3)],
 );
 
 class PendingTake {
@@ -79,12 +86,12 @@ class PendingTake {
   /// outstanding and it is never retried.
   final bool lost;
 
-  /// Times the room answered and refused. Only these spend the budget.
+  /// Attempts spent at this take: a refusal, a network failure, a timeout, an answer the
+  /// room's list did not hold, a stop.
   final int attempts;
 
-  /// Times the request never got an answer. These pace the retries but never exhaust
-  /// them: a tablet on a weak link would otherwise spend all five tries on five slow
-  /// minutes and abandon a recording the room may well have accepted.
+  /// Times the room turned the tablet away rather than the take. These pace the retries
+  /// but never spend them.
   final int waits;
 
   /// When this row was last tried, written down as UTC.
@@ -126,7 +133,15 @@ class PendingTake {
     this.sha256,
   });
 
-  bool get exhausted => attempts >= takeUploadAttempts;
+  int get budget => kind == 'retro' ? retroUploadAttempts : takeUploadAttempts;
+
+  bool get exhausted => attempts >= budget;
+
+  SendFailure get failure => switch (refusal) {
+    null => SendFailure.failed,
+    RefusalCode.tooLarge => SendFailure.tooLarge,
+    _ => SendFailure.refused,
+  };
 
   PendingTake dueNow() => PendingTake(
     id: id,
@@ -262,6 +277,7 @@ class TakeUploadQueue {
   final RoomRepository _room;
   final Future<Directory> Function() _home;
   final List<Duration> _backoff;
+  final List<Duration> _spacing;
   final DateTime Function() _now;
   Future<int>? _flushInFlight;
   bool _flushAgainRequested = false;
@@ -277,6 +293,7 @@ class TakeUploadQueue {
     required this._room,
     Future<Directory> Function()? home,
     this._backoff = const [],
+    this._spacing = const [],
     DateTime Function()? now,
     required this._recordings,
   }) : _home = home ?? getApplicationSupportDirectory,
@@ -582,9 +599,25 @@ class TakeUploadQueue {
 
   PendingTake? _inTheAir;
 
+  final StreamController<PendingTake?> _leaving =
+      StreamController<PendingTake?>.broadcast(sync: true);
+
+  Stream<PendingTake?> get leaving => _leaving.stream;
+
+  Completer<void>? _stop;
+
   /// The room turned the tablet away, not the take: nothing more leaves until it is
   /// linked again, and nothing is given up for it.
   bool _turnedAway = false;
+
+  bool _stopped = false;
+
+  void stop() {
+    final stop = _stop;
+    if (stop == null || stop.isCompleted) return;
+    _stopped = true;
+    stop.complete();
+  }
 
   /// Send every row a caller that only asked while this call was already running would
   /// otherwise miss.
@@ -633,10 +666,17 @@ class TakeUploadQueue {
   /// waiting holds nothing, and a telling-back is not a part.
   Future<int> _flushOnce({required bool withTheCodeless}) async {
     var sent = 0;
-    final held = <String>{};
+    final held = {
+      for (final entry in await pending())
+        if (entry.exhausted &&
+            entry.refusal == null &&
+            !await _reallyGone(entry))
+          ?_partOf(entry),
+    };
     _turnedAway = false;
+    _stopped = false;
     for (final entry in await waiting(withTheCodeless: withTheCodeless)) {
-      if (_turnedAway) break;
+      if (_turnedAway || _stopped) break;
       final part = _partOf(entry);
       if (part != null && held.contains(part)) continue;
       switch (await _landed(entry)) {
@@ -663,40 +703,94 @@ class TakeUploadQueue {
       if (!entry.lost) await _replace(entry, entry.copyWith(lost: true));
       return _Landing.held;
     }
-    final RoomAnswer<String> answer;
-    _inTheAir = entry;
+    var sent = entry;
     try {
-      if (entry.kind == sceneTakeKind &&
-          await file.length() > largestTakeTheRoomKeeps) {
-        _inTheAir = null;
+      if (await file.length() > largestTakeTheRoomKeeps) {
         await _settleWith(
           entry,
           (now) => now.copyWith(
             lost: false,
-            attempts: takeUploadAttempts,
+            attempts: now.budget,
             lastTry: _now(),
             refusal: RefusalCode.tooLarge,
           ),
         );
         return _Landing.givenUp;
       }
-      answer = entry.kind == sceneTakeKind
-          ? await _sendTheScene(entry, file)
-          : await _room.sendTake(
-              entry.sessionId,
-              file,
-              kind: entry.kind,
-              scope: entry.scope,
-              passNumber: entry.passNumber,
-              chunkIndex: entry.chunkIndex,
-              recordedAt: entry.recordedAt,
-              durationMs: entry.durationMs,
-              sha256: entry.sha256,
+      _inTheAir = entry;
+      final stop = _stop = Completer<void>();
+      _leaving.add(entry);
+      var fell = false;
+      for (var attempt = 0; ; attempt++) {
+        final answer = await _attempt(entry, file, stop.future);
+        switch (answer) {
+          case Answered(value: final landed):
+            await _confirm(entry, landed);
+            return _Landing.landed;
+          case Refused(
+            code: RefusalCode.deviceRevoked || RefusalCode.unauthorized,
+          ):
+            _turnedAway = true;
+            await _settleWith(
+              sent,
+              (now) => now.copyWith(
+                lost: false,
+                waits: now.waits + 1,
+                lastTry: _now(),
+              ),
             );
+            return _Landing.held;
+          case Refused(:final code):
+            await _settleWith(
+              sent,
+              (now) => now.copyWith(
+                lost: false,
+                attempts: now.budget,
+                lastTry: _now(),
+                refusal: code,
+              ),
+            );
+            return _Landing.givenUp;
+          case SessionGone():
+            await discardTheSession(entry.sessionId);
+            await _deleteTheCopy(entry);
+            _sessionsGone.add(entry.sessionId);
+            return _Landing.held;
+          case NetworkFailed() when entry.kind == 'retro':
+            if (_stopped) return _theTeamStopped(sent);
+            _fellOnTheNetwork();
+            await _settleWith(
+              sent,
+              (now) => now.copyWith(
+                lost: false,
+                waits: now.waits + 1,
+                lastTry: _now(),
+              ),
+            );
+            return _Landing.held;
+          case NetworkFailed(:final reason):
+            if (_stopped) return _theTeamStopped(sent);
+            fell = fell || reason != _notListed;
+            final now = await _settleWith(
+              sent,
+              (now) => now.copyWith(
+                lost: false,
+                attempts: now.attempts + 1,
+                lastTry: _now(),
+              ),
+            );
+            if (now == null || now.exhausted) {
+              if (fell) _fellOnTheNetwork();
+              return _Landing.held;
+            }
+            sent = now;
+            await Future.any([_pauseAfter(attempt), stop.future]);
+            if (_stopped) return _theTeamStopped(sent);
+        }
+      }
     } on FileSystemException {
-      _inTheAir = null;
       await _settleWith(
-        entry,
+        sent,
         (now) => now.copyWith(
           lost: false,
           attempts: now.attempts + 1,
@@ -704,50 +798,117 @@ class TakeUploadQueue {
         ),
       );
       return _Landing.held;
+    } finally {
+      _inTheAir = null;
+      _stop = null;
+      _leaving.add(null);
     }
-    _inTheAir = null;
-    switch (answer) {
-      case Answered(value: final landed):
-        await _confirm(entry, landed);
-        return _Landing.landed;
-      case NetworkFailed():
-        _fellOnTheNetwork();
-        await _settleWith(
-          entry,
-          (now) =>
-              now.copyWith(lost: false, waits: now.waits + 1, lastTry: _now()),
+  }
+
+  static const _notListed = 'not listed';
+
+  Future<void> _pauseAfter(int attempt) => _spacing.isEmpty
+      ? Future<void>.value()
+      : Future<void>.delayed(
+          _spacing[attempt < _spacing.length ? attempt : _spacing.length - 1],
         );
-      case Refused(code: RefusalCode.deviceRevoked || RefusalCode.unauthorized):
-        _turnedAway = true;
-        await _settleWith(
-          entry,
-          (now) =>
-              now.copyWith(lost: false, waits: now.waits + 1, lastTry: _now()),
-        );
-      case Refused(:final code):
-        await _settleWith(
-          entry,
-          (now) => now.copyWith(
-            lost: false,
-            attempts: takeUploadAttempts,
-            lastTry: _now(),
-            refusal: code,
-          ),
-        );
-        return _Landing.givenUp;
-      case SessionGone():
-        await discardTheSession(entry.sessionId);
-        await _deleteTheCopy(entry);
-        _sessionsGone.add(entry.sessionId);
-    }
+
+  Future<_Landing> _theTeamStopped(PendingTake entry) async {
+    await _settleWith(
+      entry,
+      (now) => now.copyWith(lost: false, attempts: now.budget, lastTry: _now()),
+    );
     return _Landing.held;
   }
 
-  Future<void> _settleWith(
+  Future<RoomAnswer<String>> _attempt(
+    PendingTake entry,
+    File file,
+    Future<void> stop,
+  ) async {
+    if (entry.kind == sceneTakeKind) {
+      final kept = await _unlessStopped(
+        _room.keepSceneRehearsal(
+          entry.sessionId,
+          file,
+          scene: entry.scene,
+          recordedAt: entry.recordedAt,
+          durationMs: entry.durationMs,
+          sha256: entry.sha256,
+          abortTrigger: stop,
+        ),
+        stop,
+      );
+      final SceneRehearsalRecord record;
+      switch (kept) {
+        case Answered(:final value):
+          record = value;
+        case final RoomFailure failure:
+          return failure;
+      }
+      final listed = await _unlessStopped(
+        _room.sceneRehearsalsOf(entry.sessionId),
+        stop,
+      );
+      switch (listed) {
+        case Answered(:final value)
+            when value.any((held) => held.rehearsalId == record.rehearsalId):
+          _keptScenes[entry.id] = record;
+          await _nameTheTake(entry.original, 'cena-${record.rehearsalId}');
+          return Answered(record.rehearsalId);
+        case Answered():
+          return const NetworkFailed(_notListed);
+        case final RoomFailure failure:
+          return failure;
+      }
+    }
+    final sent = await _unlessStopped(
+      _room.sendTake(
+        entry.sessionId,
+        file,
+        kind: entry.kind,
+        scope: entry.scope,
+        passNumber: entry.passNumber,
+        chunkIndex: entry.chunkIndex,
+        recordedAt: entry.recordedAt,
+        durationMs: entry.durationMs,
+        sha256: entry.sha256,
+        abortTrigger: stop,
+      ),
+      stop,
+    );
+    final String takeId;
+    switch (sent) {
+      case Answered(:final value):
+        takeId = value;
+      case final RoomFailure failure:
+        return failure;
+    }
+    final listed = await _unlessStopped(_room.takesOf(entry.sessionId), stop);
+    switch (listed) {
+      case Answered(:final value)
+          when value.any((held) => held.takeId == takeId):
+        return Answered(takeId);
+      case Answered():
+        return const NetworkFailed(_notListed);
+      case final RoomFailure failure:
+        return failure;
+    }
+  }
+
+  static Future<RoomAnswer<T>> _unlessStopped<T>(
+    Future<RoomAnswer<T>> call,
+    Future<void> stop,
+  ) => Future.any([
+    call,
+    stop.then<RoomAnswer<T>>((_) => const NetworkFailed('stopped')),
+  ]);
+
+  Future<PendingTake?> _settleWith(
     PendingTake sent,
     PendingTake Function(PendingTake now) outcome,
   ) async {
-    var found = false;
+    PendingTake? settled;
     await _mutate((written) {
       final next = <PendingTake>[];
       for (final now in written) {
@@ -755,39 +916,19 @@ class TakeUploadQueue {
           next.add(now);
           continue;
         }
-        found = true;
-        next.add(
-          _madeDueInTheAir(sent, now)
-              ? now.copyWith(lost: false)
-              : outcome(now),
-        );
+        settled = _madeDueInTheAir(sent, now)
+            ? now.copyWith(lost: false)
+            : outcome(now);
+        next.add(settled!);
       }
       return next;
     });
-    if (!found) await _deleteTheCopy(sent);
+    if (settled == null) await _deleteTheCopy(sent);
+    return settled;
   }
 
   static bool _madeDueInTheAir(PendingTake sent, PendingTake now) =>
       now.tries < sent.tries || (sent.lastTry != null && now.lastTry == null);
-
-  Future<RoomAnswer<String>> _sendTheScene(PendingTake entry, File file) async {
-    final kept = await _room.keepSceneRehearsal(
-      entry.sessionId,
-      file,
-      scene: entry.scene,
-      recordedAt: entry.recordedAt,
-      durationMs: entry.durationMs,
-      sha256: entry.sha256,
-    );
-    switch (kept) {
-      case Answered(:final value):
-        _keptScenes[entry.id] = value;
-        await _nameTheTake(entry.original, 'cena-${value.rehearsalId}');
-        return Answered(value.rehearsalId);
-      case final RoomFailure failure:
-        return failure;
-    }
-  }
 
   Future<void> _nameTheTake(String? original, String name) async {
     if (original == null) return;
@@ -840,10 +981,11 @@ class TakeUploadQueue {
       final at = written.indexWhere((entry) => entry.id == row);
       return [
         for (var i = 0; i < written.length; i++)
-          i < at &&
-                  written[i].kind == sceneTakeKind &&
-                  written[i].sessionId == written[at].sessionId &&
-                  !written[i].exhausted
+          i == at ||
+                  i < at &&
+                      written[i].kind == sceneTakeKind &&
+                      written[i].sessionId == written[at].sessionId &&
+                      written[i].refusal == null
               ? written[i].dueNow()
               : written[i],
       ];
@@ -862,8 +1004,11 @@ class TakeUploadQueue {
 
   Future<PendingTake?> sceneWaitingIn(String sessionId) async {
     PendingTake? newest;
-    for (final entry in await waiting()) {
-      if (entry.kind == sceneTakeKind && entry.sessionId == sessionId) {
+    for (final entry in await pending()) {
+      if (entry.kind == sceneTakeKind &&
+          entry.sessionId == sessionId &&
+          entry.refusal == null &&
+          !await _reallyGone(entry)) {
         newest = entry;
       }
     }
@@ -923,6 +1068,7 @@ final takeUploadQueueProvider = Provider<TakeUploadQueue>(
   (ref) => TakeUploadQueue(
     room: ref.read(roomRepositoryProvider),
     backoff: ref.read(takeRetryBackoffProvider),
+    spacing: ref.read(takeAttemptSpacingProvider),
     recordings: () => ref.read(recordingRepositoryProvider),
   ),
 );

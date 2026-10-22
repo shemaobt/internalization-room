@@ -22,14 +22,20 @@ abstract class KeptScope {
   }
 }
 
+enum SendFailure { failed, tooLarge, refused }
+
 class UnsentPart {
   final bool fromAnEarlierVisit;
-  final bool failed;
+
+  final SendFailure? failure;
+
+  final String? leaving;
   final Duration? length;
 
   const UnsentPart({
     required this.fromAnEarlierVisit,
-    required this.failed,
+    this.failure,
+    this.leaving,
     this.length,
   });
 }

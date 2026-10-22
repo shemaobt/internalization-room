@@ -161,9 +161,9 @@ final class Keeping extends SceneKeep {
 final class NotKept extends SceneKeep {
   final String? row;
   final String? take;
-  final bool tooLarge;
+  final SendFailure why;
 
-  const NotKept({this.row, this.take, this.tooLarge = false});
+  const NotKept({this.row, this.take, this.why = SendFailure.failed});
 }
 
 enum VoiceState { invite, listening, thinking, speaking, done }
@@ -349,6 +349,10 @@ class SalaSessionState {
   final int unsentChunks;
   final Map<int, UnsentPart> unsentParts;
 
+  final Set<int> savedParts;
+
+  final String? sceneTakeLeaving;
+
   final Machine machine;
 
   /// Which part of the rehearsal the team came back to record again, 0-based, or null when
@@ -461,6 +465,8 @@ class SalaSessionState {
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentParts = const {},
+    this.savedParts = const {},
+    this.sceneTakeLeaving,
     this.machine = const Machine(),
     this.parteARegravar,
     this.cenaDaGravacao,
@@ -603,6 +609,7 @@ class SalaSessionState {
             null => null,
           },
           unsent: unsentParts[number],
+          saved: savedParts.contains(number),
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
           dimmed: sceneRowIsDimmed(number),
           current: _numberAt(playing ?? again) == number,
@@ -1169,6 +1176,9 @@ class SalaSessionState {
     int? unsentTakes,
     int? unsentChunks,
     Map<int, UnsentPart>? unsentParts,
+    Set<int>? savedParts,
+    String? sceneTakeLeaving,
+    bool clearSceneTakeLeaving = false,
     Machine? machine,
     int? parteARegravar,
     bool clearParteARegravar = false,
@@ -1262,6 +1272,10 @@ class SalaSessionState {
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentParts: unsentParts ?? this.unsentParts,
+      savedParts: savedParts ?? this.savedParts,
+      sceneTakeLeaving: clearSceneTakeLeaving
+          ? null
+          : sceneTakeLeaving ?? this.sceneTakeLeaving,
       machine: machine ?? this.machine,
       parteARegravar: clearParteARegravar
           ? null
@@ -1293,6 +1307,7 @@ class SceneRow {
   final String? title;
   final KeptTake? part;
   final UnsentPart? unsent;
+  final bool saved;
   final bool recording;
   final bool dimmed;
 
@@ -1305,6 +1320,7 @@ class SceneRow {
     required this.title,
     required this.part,
     required this.unsent,
+    required this.saved,
     required this.recording,
     required this.dimmed,
     required this.current,
