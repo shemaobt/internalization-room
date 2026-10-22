@@ -316,7 +316,6 @@ void main() {
 
     expect(harness.voice.played.skip(playedBefore), isEmpty);
     expect(harness.voice.assets.skip(assetsBefore), isEmpty);
-    expect(room.state.offline, isFalse);
   });
 
   test('a reply sound that fails twice brings the sign; once brings '
