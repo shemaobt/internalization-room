@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/kept_take.dart';
-import '../../domain/machine.dart' show TakeInTheAir;
+import '../../domain/machine.dart' show TakeInTheAir, TheKeep;
 import '../../domain/session_state.dart';
 import 'stop_control.dart';
 
@@ -12,7 +12,7 @@ class SceneTakeState extends StatelessWidget {
   final TakeInTheAir? inTheAir;
   final String Function(String control) label;
   final VoidCallback onRetry;
-  final void Function(String row) onStop;
+  final void Function(TheKeep keep) onStop;
 
   const SceneTakeState({
     super.key,
@@ -43,7 +43,7 @@ class SceneTakeState extends StatelessWidget {
               label: label('stopSending'),
               aria: label('stopSendingAria'),
               color: colors.vermelhoMic,
-              onStop: () => onStop(take.row),
+              onStop: () => onStop(take.keep),
             ),
         ],
         NotKept(:final why) => [

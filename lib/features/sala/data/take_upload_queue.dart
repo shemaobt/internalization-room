@@ -376,9 +376,17 @@ class TakeUploadQueue {
   /// still empties.
   Future<List<PendingTake>> waiting({bool withTheCodeless = false}) async {
     final trying = <PendingTake>[];
+    final heldForATap = <String>{};
     for (final entry in await pending()) {
       if (entry.kind == sentenceKind) continue;
+      final part = _partOf(entry);
+      if (part != null && heldForATap.contains(part)) continue;
       if (entry.exhausted && !(withTheCodeless && entry.refusedWithNoCode)) {
+        if (part != null &&
+            entry.refusal == null &&
+            !await _reallyGone(entry)) {
+          heldForATap.add(part);
+        }
         continue;
       }
       if (await _reallyGone(entry)) continue;
@@ -668,13 +676,7 @@ class TakeUploadQueue {
   /// waiting holds nothing, and a telling-back is not a part.
   Future<int> _flushOnce({required bool withTheCodeless}) async {
     var sent = 0;
-    final held = {
-      for (final entry in await pending())
-        if (entry.exhausted &&
-            entry.refusal == null &&
-            !await _reallyGone(entry))
-          ?_partOf(entry),
-    };
+    final held = <String>{};
     final leftInThisPass = <String, DateTime>{};
     _turnedAway = false;
     _stopped = false;

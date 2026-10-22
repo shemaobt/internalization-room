@@ -81,6 +81,8 @@ final class TheRoomAnswered extends AnsweringEvent {
   const TheRoomAnswered({super.generation});
 }
 
+typedef TheKeep = ({String session, String kind, String scope, DateTime since});
+
 final class TakeInTheAir {
   final String row;
   final String kind;
@@ -107,6 +109,9 @@ final class TakeInTheAir {
 
   @override
   int get hashCode => Object.hash(row, kind, session, scope, since);
+
+  TheKeep get keep =>
+      (session: session, kind: kind, scope: scope, since: since);
 }
 
 final class ATakeLeft extends MachineEvent {
@@ -137,9 +142,9 @@ final class AKeepEnded extends MachineEvent {
 }
 
 final class StopTapped extends MachineEvent {
-  final String row;
+  final TheKeep keep;
 
-  const StopTapped(this.row);
+  const StopTapped(this.keep);
 }
 
 final class OutboxChanged extends MachineEvent {
@@ -1043,6 +1048,14 @@ final class Machine {
 
   bool get somethingPending => parts.values.contains(PartFact.pending);
 
+  Machine withTheOutboxOf(Machine before) => copyWith(
+    parts: before.parts,
+    draining: before.draining,
+    inTheAir: before.inTheAir,
+    keeping: before.keeping,
+    keptThisVisit: before.keptThisVisit,
+  );
+
   bool beingKept(String? session, int part) =>
       session != null && (keeping[(session: session, part: part)] ?? 0) > 0;
 
@@ -1388,14 +1401,12 @@ const _watch = ArmTheWatch();
     machine.copyWith(landTheTake: machine.inTheAir?.row == row),
     const [],
   ),
-  StopTapped(:final row) => (
+  StopTapped(:final keep) => (
     machine,
     [
-      if (machine.inTheAir case TakeInTheAir(
-        row: final inTheAir,
-        :final session,
-      ) when inTheAir == row && session == machine.session)
-        StopTheSend(row),
+      if (machine.inTheAir case final take?
+          when take.keep == keep && keep.session == machine.session)
+        StopTheSend(take.row),
     ],
   ),
   SessionRead() => switch (_theHalt(machine, event)) {

@@ -503,7 +503,8 @@ class SalaSessionState {
     if (machine.beingKept(sessionId, number)) {
       return const UnsentPart(fromAnEarlierVisit: false);
     }
-    if (machine.newestKeptFact(sessionId, number) == PartFact.stranded) {
+    if (machine.newestKeptFact(sessionId, number) case final fact?
+        when fact != PartFact.sent) {
       return const UnsentPart(
         fromAnEarlierVisit: false,
         failure: SendFailure.failed,

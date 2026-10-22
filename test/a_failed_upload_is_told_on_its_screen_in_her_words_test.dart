@@ -81,6 +81,30 @@ class _Casa {
     await tester.pump(const Duration(milliseconds: 100));
   }
 
+  Future<void> abrirAPassagem(String pericope) => emTempoReal(() async {
+    final antes = estado.sessionId;
+    sala.leaveThePassage();
+    await waitFor(
+      'a sala abrir a Escolha',
+      () => estado.stage == SalaStage.escolha && estado.naRoda != null,
+    );
+    await sala.goConversa(book: 'Ruth', pericope: pericope);
+    await waitFor(
+      'a passagem $pericope abrir',
+      () =>
+          estado.sessionId != null &&
+          estado.sessionId != antes &&
+          !estado.awaitingTheGuide,
+    );
+    await settle();
+    sala.goEnsaio();
+    await waitFor(
+      'as cenas chegarem',
+      () => estado.sceneRows.length == _cenas.length,
+    );
+    await settle();
+  });
+
   Future<void> deixarATela() => tester.pumpWidget(const SizedBox());
 
   Future<void> voltarATela() => tester.pumpWidget(_aCasa(container));
@@ -558,6 +582,90 @@ void main() {
     });
     expect(casa.envios, antes);
     expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
+  });
+
+  testWidgets(
+    'a part that failed in a passage still reads falhou when the team comes '
+    'back to it in the same run',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      final primeira = casa.estado.sessionId;
+      casa.room.unreachableTake = 'ensaio/parte-3';
+      await casa.guardar(3);
+      expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
+
+      await casa.abrirAPassagem('P02');
+      await casa.abrirAPassagem('P01');
+
+      expect(casa.estado.sessionId, primeira);
+      expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
+      expect(find.textContaining('enviar agora'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a part saved in a passage still reads salvo when the team comes back to '
+    'it in the same run',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      await casa.guardar(2);
+      expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
+
+      await casa.abrirAPassagem('P02');
+      await casa.abrirAPassagem('P01');
+
+      expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a take still in the air when the team comes back to its passage offers '
+    'parar and reads salvo once it lands',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.holdNextTake('parte-2');
+      await casa.guardarSemEsperar(2);
+      await tester.runAsync(casa.room.untilTakeHeld);
+
+      await casa.abrirAPassagem('P02');
+      await casa.abrirAPassagem('P01');
+      await tester.pump(const Duration(seconds: 8));
+
+      expect(casa.naLinha(2, find.text(_parar)), findsOneWidget);
+
+      await casa.emTempoReal(() async {
+        casa.room.finishHeldTake();
+        await settle(const Duration(milliseconds: 400));
+      });
+
+      expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
+    },
+  );
+
+  testWidgets('a kept take whose copy is gone reads falhou at once', (
+    tester,
+  ) async {
+    final casa = await _naCasa(tester);
+    casa.room.holdNextTake('parte-1');
+    await casa.guardarSemEsperar(1);
+    await tester.runAsync(casa.room.untilTakeHeld);
+    await casa.guardarSemEsperar(2);
+
+    await casa.emTempoReal(() async {
+      final linhas = await casa.harness.takes.entries();
+      File(
+        linhas.singleWhere((row) => row.scope == 'parte-2').path,
+      ).deleteSync();
+      await casa.sala.refreshUnsent();
+      await settle();
+    });
+
+    expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+
+    await casa.emTempoReal(() async {
+      casa.room.finishHeldTake();
+      await settle(const Duration(milliseconds: 400));
+    });
   });
 
   testWidgets("a take reads salvo only after the room's list holds it", (

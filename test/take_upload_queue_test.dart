@@ -1345,6 +1345,43 @@ void main() {
     },
   );
 
+  test(
+    'a spent take holding a newer take of its part leaves nothing pending '
+    'and sends nothing until the team taps; the tap sends both in order',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      final primeira = await queue.enqueue(
+        aTake('primeira'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'parte-3',
+        passNumber: 1,
+      );
+      await queue.flush();
+      room.reachable = true;
+      final segunda = await queue.enqueue(
+        aTake('segunda'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'parte-3',
+        passNumber: 2,
+      );
+
+      await queue.flush();
+
+      final tally = await queue.tally(sessionId: 'sessao-1');
+      expect(tally.parts.values, isNot(contains(PartFact.pending)));
+      expect(room.takesKept, isEmpty);
+
+      await queue.dueAgain(primeira.id);
+      await queue.dueAgain(segunda.id);
+      await queue.flush();
+
+      expect(room.takePasses, [1, 2]);
+    },
+  );
+
   test('withdraw removes a pending row and deletes its queued copy', () async {
     final room = FakeRoom();
     final queue = queueOn(room);

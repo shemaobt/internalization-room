@@ -6,6 +6,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/kept_take.dart';
+import '../../domain/machine.dart' show TheKeep;
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
@@ -186,7 +187,7 @@ class _SceneRowView extends StatelessWidget {
   final VoidCallback onRecord;
   final VoidCallback onListen;
   final VoidCallback onSend;
-  final void Function(String row) onStop;
+  final void Function(TheKeep keep) onStop;
 
   const _SceneRowView({
     required this.row,
@@ -326,7 +327,7 @@ class _SceneRowView extends StatelessWidget {
             label: words('stopSending'),
             aria: words('stopSendingAria'),
             color: colors.telha,
-            onStop: () => onStop(inTheAir.row),
+            onStop: () => onStop(inTheAir.keep),
           ),
         ],
       ),

@@ -8,7 +8,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
-import '../../domain/machine.dart' show TakeInTheAir;
+import '../../domain/machine.dart' show TakeInTheAir, TheKeep;
 import '../../domain/scene_question.dart';
 import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
@@ -384,7 +384,7 @@ class _TheRecordStep extends StatelessWidget {
   final TakeInTheAir? inTheAir;
   final VoidCallback onTap;
   final VoidCallback onRetry;
-  final void Function(String row) onStop;
+  final void Function(TheKeep keep) onStop;
   final Widget? question;
   final Widget? chip;
   final bool focused;

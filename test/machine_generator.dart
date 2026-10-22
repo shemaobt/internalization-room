@@ -231,7 +231,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   AKeepBegan(:final part) => 'AKeepBegan(${part.session}, ${part.part})',
   AKeepEnded(:final part, :final row) =>
     'AKeepEnded(${part.session}, ${part.part}, $row)',
-  StopTapped(:final row) => 'StopTapped($row)',
+  StopTapped(:final keep) =>
+    'StopTapped(${keep.session}, ${keep.kind}, ${keep.scope})',
   TheRoomAnswered() => 'TheRoomAnswered',
   OutboxChanged(:final parts, :final due) =>
     'OutboxChanged(${parts.entries.map((part) => '${part.key}: ${part.value.name}').join(', ')}, '
@@ -674,7 +675,12 @@ MachineEvent _draw(
     session: _drawASession(random),
     part: random.nextInt(3) + 1,
   ), row: random.nextBool() ? 'linha-${random.nextInt(3)}' : null),
-  EventKind.stopTapped => StopTapped('linha-${random.nextInt(3)}'),
+  EventKind.stopTapped => StopTapped((
+    session: _drawASession(random),
+    kind: const ['ensaio', 'cena'][random.nextInt(2)],
+    scope: 'parte-${random.nextInt(3) + 1}',
+    since: DateTime.utc(2026, 10, 22, 9, 0, random.nextInt(60)),
+  )),
   EventKind.theRoomAnswered => const TheRoomAnswered(),
   EventKind.outboxChanged => OutboxChanged({
     for (var part = 0, parts = random.nextInt(3); part < parts; part++)

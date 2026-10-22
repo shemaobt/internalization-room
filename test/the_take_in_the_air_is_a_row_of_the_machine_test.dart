@@ -32,10 +32,27 @@ void main() {
   test("a stop tapped on this session's take in the air stops that take", () {
     final (_, effects) = reduce(
       _inThePassage.copyWith(inTheAir: _partTwo),
-      const StopTapped('linha-2'),
+      StopTapped(_partTwo.keep),
     );
 
     expect(effects, [const StopTheSend('linha-2')]);
+  });
+
+  test('a stop tapped as one take of a keep hands over to the next stops the '
+      'next', () {
+    final next = TakeInTheAir(
+      row: 'linha-3',
+      kind: 'ensaio',
+      session: 's1',
+      scope: 'parte-2',
+      since: _partTwo.since,
+    );
+    final (_, effects) = reduce(
+      _inThePassage.copyWith(inTheAir: next),
+      StopTapped(_partTwo.keep),
+    );
+
+    expect(effects, [const StopTheSend('linha-3')]);
   });
 
   test('a stop tapped on a take no longer in the air stops nothing', () {
@@ -51,7 +68,7 @@ void main() {
         ),
       ),
     ]) {
-      final (_, effects) = reduce(machine, const StopTapped('linha-2'));
+      final (_, effects) = reduce(machine, StopTapped(_partTwo.keep));
 
       expect(effects.whereType<StopTheSend>(), isEmpty);
     }
@@ -60,7 +77,7 @@ void main() {
   test("a stop tapped on another session's take in the air stops nothing", () {
     final (_, effects) = reduce(
       _inThePassage.copyWith(session: 's2', inTheAir: _partTwo),
-      const StopTapped('linha-2'),
+      StopTapped(_partTwo.keep),
     );
 
     expect(effects.whereType<StopTheSend>(), isEmpty);
