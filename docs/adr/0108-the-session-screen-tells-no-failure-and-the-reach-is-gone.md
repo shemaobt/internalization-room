@@ -35,12 +35,15 @@ team, and nothing else.
   retry (ADR 0050, invariant 12).
 - **Only the conversation's microphone on the Conversation or the Panorama raises the
   sign:** a refused start at once (row 5 of ADR 0093, wired for the first time), a failed
-  start the second time in a row (row 6), and a start resets the count. Every other
-  microphone failure, on the Scene rehearsal, the Rehearsal, the Back-translation and the
-  Raised hand's note, is silent and never counted; the policy still logs every one but the
-  Scene rehearsal's, which only gives the Channel back (ADR 0089).
-- **A tap over the speaking voice on a tablet whose microphone is refused does nothing.**
-  A start heard later marks the permission granted again.
+  start the second time in a row (row 6), and a start of the conversation's microphone
+  resets the count. The tablet reports how many times in a row each microphone failed, and
+  the failure policy alone decides which one counts. Every other microphone failure, on
+  the Scene rehearsal, the Rehearsal, the Back-translation and the Raised hand's note, is
+  silent; the policy still logs every one but the Scene rehearsal's, which only gives the
+  Channel back (ADR 0089).
+- **A tap over the speaking voice does nothing until the tablet knows it may record:**
+  a refused permission, or one the platform never answered. A start heard later marks the
+  permission granted.
 
 ## Considered Options
 
