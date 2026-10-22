@@ -68,6 +68,13 @@ primeiro». It is the ninth named exception, under the moment label's reason, he
 the team reads. Her record, listen, record-again and stop controls are icons VoiceOver reads
 by her names; the rest of that screen stays wordless.
 
+Amended by ENG-1774 (2026-10-22, ADR 0112): the scene rehearsal's record step writes the
+take's state in her words (`widgets/scene_take_state.dart`): «gravando», «enviando…», her
+not-kept, too-large and not-accepted lines with «falhou — toque para tentar de novo», and
+«parar» (`widgets/stop_the_send.dart`), which the ensaio row shows too. It is the tenth named
+exception, under the moment label's reason, her words the team reads; VoiceOver reads the
+same words.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a

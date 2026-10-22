@@ -1,14 +1,14 @@
 ---
 status: accepted
 date: 2026-10-22
-amends: 0087
+amends: 0087, 0103, 0014
 ---
 
 # A take is confirmed when the room's list holds it, and a failed send is told in her words
 
-This amends ADR 0087's confirmation line; 0087's status line says so. The Definer settled the
-rule with Jonatas on 22 October (ENG-1774), and the open points were answered by the
-Orchestrator the same day.
+This amends ADRs 0087, 0103 and 0014 without editing their decisions; their status lines
+say so. The Definer settled the rule with Jonatas on 22 October (ENG-1774), and the open
+points were answered by the Orchestrator the same day.
 
 ## Context
 
@@ -32,33 +32,53 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
 - **Three attempts per tap,** in one pass, one upload at a time and in order (ADR 0025),
   1 s then 3 s apart. A network failure, a timeout, an unlisted answer and a failed list
   read each spend one. A final refusal spends all three at once. A revoked or unauthorized
-  tablet spends none and stops the pass, as before. A spent take is never sent again
-  without the team's tap: nothing goes up by itself once its three attempts are gone. It
-  still holds the recordings made after it in its part (ADR 0025), as a take refused for
-  good does not. A tap on a part, or a keep on the red microphone, gives every unsent
-  recording before it three attempts, so they still leave in the order recorded. A row an older app left with three or more attempts reads as
-  spent; a tap gives it three again.
+  tablet spends none and stops the pass, as before. A row an older app left with three or
+  more attempts reads as spent.
+- **Only a tap sends a spent take.** Nothing goes up by itself once a take's three
+  attempts are gone. A spent take still holds the recordings made after it in its part
+  (ADR 0025); a take refused for good does not. A tap on a part sends every unsent pass of
+  it, older ones first, each with three attempts; an older pass refused for good is not
+  sent again, while the pass the tap names is sent once more even if it was refused. A keep
+  on the red microphone does the same for the scene takes of its session before it.
 - **«parar» after 8 s** of one take's send, counted from its first attempt of the pass. A
-  tap lets the request go (the upload is aborted), spends the take's attempts, keeps it on
-  the tablet and ends the pass.
+  tap stops that take only, and only while it is this session's take in the air: the
+  request is let go, the take's attempts are spent, it stays on the tablet and the pass
+  ends.
+- **The take in the air is the machine's.** The Outbox tells the machine when a take
+  leaves and when it settles; the machine holds which take is in the air, of which session,
+  and since when (read through `package:clock`). «parar» is a gesture the machine turns
+  into an effect the runner hands to the Outbox, naming the take. The screens read the take
+  in the air, and the parts saved this visit, from the machine's Outbox facts.
 - **Every take over 25 MB is refused before sending,** of any kind: the room answers an
   oversize upload with a bare `BAD_REQUEST`, so only the tablet can tell it as too large.
-- **The take's state is told on its screen in her words, never by the voice:** «gravando»,
-  «enviando…» until confirmed, spent or refused, «✓ salvo» once listed (for a part of this
-  visit), «falhou — toque para tentar de novo» when spent or stopped, «grande demais para o
-  servidor — grave em partes menores» and «não foi aceita — grave de novo» for final
-  refusals, which offer no tap on the ensaio row. On the red microphone a failed scene take
-  reads «não deu para guardar o ensaio da cena — gravem de novo» (or the too-large or
-  not-accepted line) with «falhou — toque para tentar de novo» as its tap. The red
-  microphone's take state is a named exception to the wordless rule.
+- **The take's state is told on its screen in her words, never by the voice:** «gravando»;
+  «enviando…» while it is being kept or sent, until confirmed, spent or refused; «✓ salvo»
+  once listed, for a part of this session's visit; «falhou — toque para tentar de novo»
+  when spent or stopped; «grande demais para o servidor — grave em partes menores» and
+  «não foi aceita — grave de novo» for final refusals, which offer no tap on the ensaio row.
+  On the red microphone a failed scene take reads «não deu para guardar o ensaio da cena —
+  gravem de novo» (or the too-large or not-accepted line) with «falhou — toque para tentar
+  de novo» as its tap. The red microphone's take state is a named exception to the
+  wordless rule (ADR 0014).
+
+## What this replaces in ADR 0103
+
+- "A take of this visit still on its first try shows nothing new": it reads «enviando…».
+- "A take refused for good is sent once more": only by the tap on its own row, which
+  reads «enviar agora» for a take of an earlier visit; this visit's refused take reads her
+  refusal words with no tap.
+- "The automatic retry stays, untouched": only a tap sends a spent take; the ladder now
+  only paces a tablet the room turned away, and ENG-1777 removes it.
+- "A part beyond the last scene … the Outbox still retries it": it is no longer retried.
+  Such a take has no row and no tap, so once spent it stays on the tablet unsent; where it
+  should be offered is open.
 
 ## Consequences
 
 One more read per confirmed take. A take the room stored but never listed stays on the
 tablet and reads as failed; its next tap re-sends bytes the room already holds and is
 confirmed by the list. A take recorded while the server is away reads «falhou — toque para
-tentar de novo» once its attempts are spent and goes up when the team taps it. The ladder
-between passes now only paces a tablet the room turned away; ENG-1777 removes it. A spent
+tentar de novo» once its attempts are spent and goes up when the team taps it. A spent
 scene take still shows when the red microphone reopens, and a later keep makes it due, as
 ADR 0087 says of a take still waiting. A retro take gets the same confirmation and no words:
 nothing on the retro screen shows it. Kind `retro` is outside the per-tap rule until
