@@ -1403,25 +1403,21 @@ void main() {
     closeTheRoom(it.container);
   });
 
-  testWidgets('com a fala de volta, a aprovação fecha o colar', (tester) async {
-    final it = await _ateAConferida(
-      tester,
-      fimLinger: const Duration(milliseconds: 40),
-    );
+  testWidgets('com a fala de volta, a aprovação termina no ensaio salvo', (
+    tester,
+  ) async {
+    final it = await _ateAConferida(tester);
 
     await tester.tap(byLabel(_aprovar));
     await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump(const Duration(milliseconds: 800));
 
     expect(it.harness.room.releasesAsked, hasLength(1));
     expect(
-      _estado(it.container).stage,
-      SalaStage.fim,
-      reason: 'ouvida a fala, o colar fecha',
+      find.text('Ensaio salvo'),
+      findsOneWidget,
+      reason: 'ouvida a fala, a tela do ensaio salvo vem',
     );
 
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump(const Duration(milliseconds: 200));
     closeTheRoom(it.container);
   });
 }
@@ -1437,12 +1433,8 @@ class _Conferida {
 }
 
 /// A team standing on a passage the room has just called checked, with nothing pressed.
-Future<_Conferida> _ateAConferida(
-  WidgetTester tester, {
-  Duration fimLinger = const Duration(seconds: 30),
-}) async {
-  final harness = SalaHarness(filaEmMemoria: true, fimLinger: fimLinger)
-    ..room.verdictChecked = true;
+Future<_Conferida> _ateAConferida(WidgetTester tester) async {
+  final harness = SalaHarness(filaEmMemoria: true)..room.verdictChecked = true;
   harness.playback.length = umaParteInteira;
   final container = harness.container();
   addTearDown(container.dispose);

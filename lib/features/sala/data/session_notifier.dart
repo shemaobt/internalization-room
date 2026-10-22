@@ -7409,6 +7409,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishBackTranslation() async {
     if (!state.canFinishBackTranslation) return;
+    _aprovada = false;
     _dispatch(const TheVerdictAsked());
     state = state.copyWith(clearAviso: true);
     _silenceTheRoom();
@@ -7562,8 +7563,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The team makes what it recorded its final draft.
   ///
-  /// The close of the necklace hangs off this and no longer off the verdict: a passage the
-  /// room called checked stays on screen until somebody presses. The phase never leaves
+  /// A passage the room called checked stays on screen until somebody presses, and an
+  /// approval ends on the Saved screen over it, never on the Choice. The phase never leaves
   /// [BtPhase.conferida] while the request is out, which is what keeps the affordance
   /// alive under a transport failure — [_leaveThinking] has nothing to undo there.
   Future<void> aprovarRascunhoFinal() =>
@@ -7573,11 +7574,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is! Retro) return;
     if (state.btPhase != BtPhase.conferida) return;
     if (state.needsPerson) return;
-    if (_aprovando) return;
+    if (_aprovando || state.ensaioSalvo != null) return;
     _silenceTheRoom();
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     _aprovando = true;
+    state = state.copyWith(clearBtRecusa: true);
     final generation = _waitOnTheGeneration;
     void failed(RoomFailure failure) {
       if (_abandoned(generation)) return;
@@ -7594,6 +7596,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           case Answered(value: final answer):
             resposta = answer;
           case final RoomFailure failure:
+            if (failure is! SessionGone && !_abandoned(generation)) {
+              state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
+            }
             return failed(failure);
         }
         if (_abandoned(generation)) return;
@@ -7607,6 +7612,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return;
         }
         _aprovada = true;
+        state = state.copyWith(btAprovadoAgora: resposta.version);
+        unawaited(_readTheApprovedDraft(sessionId, generation));
       }
       final bool disse;
       try {
@@ -7618,11 +7625,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return failed(failure);
       }
       if (_abandoned(generation)) return;
-      // As all five of its siblings do. Closing over a line the team never heard ends the
-      // passage on a gesture nobody was answered for, and the press is the whole of what
-      // the approval is.
+      // As all five of its siblings do. The Saved screen over a line the team never heard
+      // answers a gesture nobody was answered for, and the press is the whole of what the
+      // approval is.
       if (!disse) return _registerUnplayableTurn();
-      _closeTheNecklace();
+      _aprovada = false;
+      state = state.copyWith(
+        ensaioSalvo: state.btAprovadoAgora,
+        clearBtAprovadoAgora: true,
+      );
     } finally {
       _aprovando = false;
     }
@@ -7648,6 +7659,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (porta == null) continue;
       if (aberta == null || porta.index < aberta.index) aberta = porta;
     }
+    state = state.copyWith(
+      btRecusa: switch (aberta) {
+        _PortaDaRecusa.parteNaoOuvida => CheckRefusal.partUnheard,
+        _PortaDaRecusa.trecho ||
+        _PortaDaRecusa.parteNaoContada ||
+        _PortaDaRecusa.conferir => CheckRefusal.notConferida,
+        null => CheckRefusal.checkUnavailable,
+      },
+    );
 
     switch (aberta) {
       case _PortaDaRecusa.trecho:
@@ -7690,6 +7710,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     return null;
   }
+
+  Future<void> _readTheApprovedDraft(String sessionId, int generation) async {
+    final sent = ++_readsSent;
+    if (await _room.fetchState(sessionId) case Answered(value: final read)) {
+      if (!_abandoned(generation)) _applyTheSessionRead(read, sent);
+    }
+  }
+
+  void pronto() => _gesture(() {
+    if (state.ensaioSalvo == null) return;
+    state = state.copyWith(clearEnsaioSalvo: true);
+  });
 
   /// The room is already silent — the press silenced it — and the last listening of a
   /// checked passage is what took the end of the clip away, which the advance disc waits
@@ -8253,27 +8285,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // the next telling-back upload as a correction of one that does not exist.
     _trechoTraduzidoDeNovo = null;
     _rememberWhereTheyAre(const Ensaio());
-  }
-
-  void _closeTheNecklace() {
-    final feita = _emCurso;
-    final pericope = feita?.pericope;
-    final language = _sessionLanguage;
-    if (feita != null && pericope != null && language != null) {
-      unawaited(
-        _mindingThePlace(
-          () => _emAberto.forget(feita.book, pericope, language),
-        ),
-      );
-    }
-    _letGoOfTheCurrentSession();
-    _after('fim', const Duration(milliseconds: 700), () {
-      _leaveTheStepFor(const Fim());
-      _arriveAt(const TheNecklaceClosed());
-      _after('close', const Duration(milliseconds: 1000), () {
-        _after('recomecar', ref.read(fimLingerProvider), _startOver);
-      });
-    });
   }
 
   Future<void> _startOver() {

@@ -345,6 +345,8 @@ class SalaSessionState {
 
   /// The approval the newest Session read says the draft stands under.
   final ApprovedDraft? btRascunhoAprovado;
+  final int? btAprovadoAgora;
+  final int? ensaioSalvo;
   final int unsentTakes;
   final int unsentChunks;
   final Map<int, UnsentPart> unsentParts;
@@ -458,6 +460,8 @@ class SalaSessionState {
     this.btFraseQueAguarda,
     this.btFraseGuardada,
     this.btRascunhoAprovado,
+    this.btAprovadoAgora,
+    this.ensaioSalvo,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentParts = const {},
@@ -1166,6 +1170,10 @@ class SalaSessionState {
     bool clearBtFraseGuardada = false,
     ApprovedDraft? btRascunhoAprovado,
     bool clearBtRascunhoAprovado = false,
+    int? btAprovadoAgora,
+    bool clearBtAprovadoAgora = false,
+    int? ensaioSalvo,
+    bool clearEnsaioSalvo = false,
     int? unsentTakes,
     int? unsentChunks,
     Map<int, UnsentPart>? unsentParts,
@@ -1259,6 +1267,10 @@ class SalaSessionState {
       btRascunhoAprovado: clearBtRascunhoAprovado
           ? null
           : (btRascunhoAprovado ?? this.btRascunhoAprovado),
+      btAprovadoAgora: clearBtAprovadoAgora
+          ? null
+          : (btAprovadoAgora ?? this.btAprovadoAgora),
+      ensaioSalvo: clearEnsaioSalvo ? null : (ensaioSalvo ?? this.ensaioSalvo),
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentParts: unsentParts ?? this.unsentParts,

@@ -16,6 +16,7 @@ import 'facilitator_circle.dart';
 import 'frase_list.dart';
 import 'motion.dart';
 import 'pause_adjust_row.dart';
+import 'saved_screen.dart';
 import 'stage_heading.dart';
 import 'status_lines.dart';
 
@@ -27,6 +28,9 @@ class RetroView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
+    if (session.ensaioSalvo case final versao?) {
+      return SavedScreen(version: versao);
+    }
     // A halted voice is never painted over. The checked circle is drawn done because the
     // passage is right, and that read over a room stopped for a person or with no
     // network: the team got a green circle, two buttons the guards refuse, no way out of
@@ -345,6 +349,9 @@ class RetroView extends ConsumerWidget {
   }
 
   String? _estado(SalaSessionState session, String language) {
+    if (session.btAprovadoAgora case final versao?) {
+      return retroLabelFor('approved', language, n: versao);
+    }
     final aviso = switch (session.btAviso) {
       BtAviso.recomecoFalhou => 'restartFailed',
       BtAviso.pausaSoNaUltima => 'pauseOnlyOnTheLast',
@@ -356,6 +363,7 @@ class RetroView extends ConsumerWidget {
     final recusa = switch (session.btRecusa) {
       CheckRefusal.partUnheard => 'partUnheard',
       CheckRefusal.nothingTranslated => 'nothingTranslated',
+      CheckRefusal.notConferida => 'notConferida',
       CheckRefusal.checkUnavailable => 'checkFailed',
       _ => null,
     };
