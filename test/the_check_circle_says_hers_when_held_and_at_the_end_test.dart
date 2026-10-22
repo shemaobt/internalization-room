@@ -17,7 +17,6 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         contarAteOFimDaParte,
         entrarNaTraducao,
         fimDaGravacao,
-        gravar,
         ouvindo,
         parte,
         passaDoCursor,
@@ -456,20 +455,46 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('the end of a part that another follows is not the end of the '
-      'recording', (tester) async {
+  testWidgets('the end of a part that another follows plays on under her '
+      '«ouvindo a gravação de vocês…», not the invitation to record', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).btParteFronteira, isTrue);
     expect(
       rotuloDoCirculo(tester),
-      gravar,
-      reason: 'o fim de uma parte com outra depois dizia que a gravação acabou',
+      ouvindo,
+      reason:
+          'o fim de uma parte com outra depois parava calado e convidava a gravar',
     );
+    final state = container.read(salaSessionProvider);
+    expect(state.btClipRodando, isTrue);
+    expect(state.btClipEnded, isFalse);
+    closeTheRoom(container);
+  });
+
+  testWidgets('the last part, reached by playing on, still ends at her «fim '
+      'da gravação»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      rotuloDoCirculo(tester),
+      fimDaGravacao,
+      reason:
+          'a última parte, alcançada sem toque, não dizia o fim da gravação',
+    );
+    expect(container.read(salaSessionProvider).btClipRodando, isFalse);
     closeTheRoom(container);
   });
 
@@ -479,11 +504,17 @@ void main() {
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await deVoltaAParteContadaAteOFim(tester, harness);
+    final tocadas = harness.playback.played.length;
 
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 
+    expect(
+      harness.playback.played,
+      hasLength(tocadas),
+      reason: 'a parte que o veredito mandou ouvir seguia para a próxima',
+    );
     final state = container.read(salaSessionProvider);
     expect(state.btClipEnded, isTrue);
     expect(state.btParteFronteira, isTrue);

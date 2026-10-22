@@ -66,8 +66,6 @@ Future<ProviderContainer> quatroFrasesEmWav(
     harness.playback.at = cabeca;
     await _traduzir(tester);
     harness.playback.at = parte;
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
     await _traduzir(tester);
     await waitFor(
       'a parte $contada ficar contada em duas frases',
@@ -80,6 +78,9 @@ Future<ProviderContainer> quatroFrasesEmWav(
           contada * 2,
       step: () => _passo(tester),
     );
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
   }
   await _passo(tester);
   return container;
@@ -339,7 +340,7 @@ void main() {
       isEmpty,
       reason: 'as duas falas voltavam em cada regravação da mesma visita',
     );
-    expect(harness.playback.ranges.skip(tocadas), ['4000-10000']);
+    expect(harness.playback.ranges.skip(tocadas), ['4000-9900']);
     expect(
       find.descendant(
         of: find.byType(RetroView),

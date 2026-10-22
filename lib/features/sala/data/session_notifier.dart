@@ -5987,6 +5987,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool doComeco = false,
     bool semChaoTraduzido = false,
     bool noCursor = false,
+    bool seguir = true,
     Duration? desde,
   }) {
     // Every way a part goes in the air passes here — the crossing at a boundary, the
@@ -6029,11 +6030,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // one, and a deadline read from it counts against a cursor that is not its own.
     _play(
       PartSound(parte, state.partes[parte].path, from: de),
-      onComplete: _fimDeParte,
+      onComplete: () => _fimDeParte(seguir: seguir),
     );
   }
 
-  void _fimDeParte() {
+  void _fimDeParte({required bool seguir}) {
     // The part's own length, not where the player says it stopped. A position read at the
     // moment a clip finishes can come back as nought, and every offset after it — every
     // stretch the team tells back, and the length this part is measured against — was
@@ -6070,6 +6071,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btParteNoArMs: 0,
     );
     _relatarAEscuta();
+    if (seguir &&
+        state.btParteFronteira &&
+        !state.btClipEnded &&
+        state.btClipRodando) {
+      _atravessar(doComeco: state.btPhase == BtPhase.conferida);
+    }
   }
 
   /// Listen to the rehearsal, hold it, or cross into the next part; once a stretch is
@@ -7393,7 +7400,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.btClipEnded) return;
-    _tocarParteDaRetro(_parteTocando, noCursor: true);
+    final proxima = _parteTocando + 1;
+    _tocarParteDaRetro(
+      _parteTocando,
+      noCursor: true,
+      seguir:
+          !state.joined ||
+          !state.btTrechos.any((trecho) => trecho.parte == proxima),
+    );
   }
 
   /// The part in the air, or null while no part is.

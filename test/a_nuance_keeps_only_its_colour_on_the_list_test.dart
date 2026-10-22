@@ -48,8 +48,6 @@ Future<ProviderContainer> _quatroFrasesComUmaNuance(
     await tocarNoCirculo(tester);
     await _traduzir(tester);
     harness.playback.at = parte;
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
     await tocarNoCirculo(tester);
     await _traduzir(tester);
     await waitFor(
@@ -63,6 +61,9 @@ Future<ProviderContainer> _quatroFrasesComUmaNuance(
           contada * 2,
       step: () => _passo(tester),
     );
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
   }
   harness.room
     ..verdictChecked = true
