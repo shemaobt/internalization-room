@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -33,6 +36,20 @@ Future<void> _theRoomRests(_Room room) async {
         room.read().voice == VoiceState.invite && !room.read().awaitingTheGuide,
   );
   await settle();
+}
+
+Future<void> _theTeamSpeaks(_Room room) async {
+  final sent = room.harness.room.turnsSent;
+  room.notifier.conversaTap();
+  await waitFor(
+    'the team to be heard',
+    () => room.read().voice == VoiceState.listening,
+  );
+  room.notifier.conversaTap();
+  await waitFor(
+    'the team turn to be sent',
+    () => room.harness.room.turnsSent == sent + 1,
+  );
 }
 
 void main() {
@@ -113,16 +130,7 @@ void main() {
     expect(room.read().needsPerson, isFalse);
     harness.voice.refuses.clear();
 
-    room.notifier.conversaTap();
-    await waitFor(
-      'the team to be heard',
-      () => room.read().voice == VoiceState.listening,
-    );
-    room.notifier.conversaTap();
-    await waitFor(
-      'the team turn to be sent',
-      () => harness.room.turnsSent == 1,
-    );
+    await _theTeamSpeaks(room);
 
     expect(harness.room.turnIdsAsked, hasLength(1));
   });
@@ -203,17 +211,119 @@ void main() {
     harness.voice.refuses.clear();
     harness.room.failHeldTurnWith = const Refused('BAD_REQUEST');
 
-    room.notifier.conversaTap();
-    await waitFor(
-      'the team to be heard',
-      () => room.read().voice == VoiceState.listening,
-    );
-    room.notifier.conversaTap();
-    await waitFor(
-      'the team turn to be sent',
-      () => harness.room.turnsSent == 1,
-    );
+    await _theTeamSpeaks(room);
 
     await waitFor('a person to be called', () => room.read().needsPerson);
+  });
+
+  test('after an opening the room refused, the next tap records a team turn '
+      'whose reply plays, and the opening is not asked again', () async {
+    final room = await _enterP01(
+      SalaHarness()..room.failHeldTurnWith = const Refused('BAD_REQUEST'),
+    );
+    await _theOpeningIsAsked(room);
+    await _theRoomRests(room);
+
+    await _theTeamSpeaks(room);
+    await waitFor(
+      'the reply to play',
+      () => room.harness.voice.played.contains(turnoUrl),
+    );
+
+    expect(room.harness.voice.played, [turnoUrl]);
+    expect(room.harness.room.turnsSent, 1);
+    expect(room.harness.room.turnIdsAsked, hasLength(1));
+  });
+
+  test('after an opening the network lost and the look did not find, the next '
+      'tap records a team turn whose reply plays, and the opening is not asked '
+      'again', () async {
+    final room = await _enterP01(
+      SalaHarness()..room.failHeldTurnWith = const NetworkFailed('timeout'),
+    );
+    await waitFor(
+      'the opening to be looked at',
+      () => room.harness.room.turnIdsLookedAt.isNotEmpty,
+    );
+    await _theRoomRests(room);
+
+    await _theTeamSpeaks(room);
+    await waitFor(
+      'the reply to play',
+      () => room.harness.voice.played.contains(turnoUrl),
+    );
+
+    expect(room.harness.voice.played, [turnoUrl]);
+    expect(room.harness.room.turnsSent, 1);
+    expect(room.harness.room.turnIdsAsked, hasLength(1));
+  });
+
+  test('an opening whose sound fails, then a reply whose sound fails, brings '
+      'the person sign, and the team\'s tap clears it', () async {
+    final harness = SalaHarness();
+    harness.voice.refuses.add(turnoUrl);
+    final room = await _enterP01(harness);
+    await waitFor(
+      'the opening to be tried',
+      () => harness.voice.played.contains(turnoUrl),
+    );
+    await _theRoomRests(room);
+    expect(room.read().needsPerson, isFalse);
+
+    await _theTeamSpeaks(room);
+    await waitFor('a person to be called', () => room.read().needsPerson);
+
+    room.notifier.teamTapped();
+    await waitFor('the sign to clear', () => !room.read().needsPerson);
+    expect(room.read().voice, VoiceState.invite);
+  });
+
+  test('an opening the busy watchdog gave up on while its sound was being '
+      'readied leaves the next team turn an ordinary one: refused, it calls a '
+      'person', () async {
+    final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 300));
+    harness.voice.holdNextFetch();
+    final room = await _enterP01(harness);
+    await _theRoomRests(room);
+    expect(room.read().needsPerson, isFalse);
+    harness.room.failHeldTurnWith = const Refused('BAD_REQUEST');
+
+    await _theTeamSpeaks(room);
+
+    await waitFor('a person to be called', () => room.read().needsPerson);
+  });
+
+  test('an opening whose sound arrives after the busy watchdog gave up on it '
+      'stays silent over the team turn, and only the turn\'s reply plays', () {
+    fakeAsync((clock) {
+      final harness = SalaHarness(busyCeiling: const Duration(seconds: 30));
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      harness.voice.holdNextFetch();
+      unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
+      clock.elapse(const Duration(seconds: 31));
+      expect(read().voice, VoiceState.invite);
+
+      harness.room.holdNextTurn();
+      notifier.conversaTap();
+      clock.elapse(const Duration(milliseconds: 100));
+      notifier.conversaTap();
+      clock.elapse(const Duration(seconds: 1));
+      expect(harness.room.turnsSent, 1);
+
+      harness.voice.finishHeldFetch();
+      clock.elapse(const Duration(seconds: 1));
+
+      expect(harness.voice.played, isEmpty);
+      expect(read().voice, VoiceState.thinking);
+
+      harness.room.finishHeldTurn();
+      clock.elapse(const Duration(seconds: 1));
+
+      expect(harness.voice.played, [turnoUrl]);
+      expect(read().needsPerson, isFalse);
+    });
   });
 }

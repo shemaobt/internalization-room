@@ -121,6 +121,27 @@ void main() {
   );
 
   testWidgets(
+    'a passage whose session could not be created is not asked for again by '
+    'itself, however long the team waits',
+    (tester) async {
+      final sala = await _theRoom(tester);
+      final said = _said(sala);
+      sala.harness.room.reachable = false;
+
+      unawaited(_notifier(sala).goConversa(book: 'Ruth', pericope: 'P01'));
+      await _pass(sala);
+      sala.harness.room.reachable = true;
+      for (var minute = 0; minute < 10; minute++) {
+        await tester.pump(const Duration(minutes: 1));
+      }
+
+      expect(_creates(sala), 1);
+      _restsSilentAtTheInvite(sala, said);
+      closeTheRoom(sala.container);
+    },
+  );
+
+  testWidgets(
     'the Choice whose wheel could not be read rests silent, and a tap reads it '
     'again',
     (tester) async {

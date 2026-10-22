@@ -184,7 +184,8 @@ abstract final class FailurePolicy {
         generation: generation,
       ),
       RoomFoundNothing() ||
-      RoomAnsweredWithoutAReply() when overAnOpening => missed,
+      RoomAnsweredWithoutAReply() ||
+      RoomTimedOut() when overAnOpening => missed,
       RoomFoundNothing() when context.station is SceneRehearsal =>
         TheSceneTurnFoundNothing(generation: generation),
       RoomFoundNothing() || RoomAnsweredWithoutAReply() => halt,
