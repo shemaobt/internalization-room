@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -288,5 +291,39 @@ void main() {
     await _theTeamSpeaks(room);
 
     await waitFor('a person to be called', () => room.read().needsPerson);
+  });
+
+  test('an opening whose sound arrives after the busy watchdog gave up on it '
+      'stays silent over the team turn, and only the turn\'s reply plays', () {
+    fakeAsync((clock) {
+      final harness = SalaHarness(busyCeiling: const Duration(seconds: 30));
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      harness.voice.holdNextFetch();
+      unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
+      clock.elapse(const Duration(seconds: 31));
+      expect(read().voice, VoiceState.invite);
+
+      harness.room.holdNextTurn();
+      notifier.conversaTap();
+      clock.elapse(const Duration(milliseconds: 100));
+      notifier.conversaTap();
+      clock.elapse(const Duration(seconds: 1));
+      expect(harness.room.turnsSent, 1);
+
+      harness.voice.finishHeldFetch();
+      clock.elapse(const Duration(seconds: 1));
+
+      expect(harness.voice.played, isEmpty);
+      expect(read().voice, VoiceState.thinking);
+
+      harness.room.finishHeldTurn();
+      clock.elapse(const Duration(seconds: 1));
+
+      expect(harness.voice.played, [turnoUrl]);
+      expect(read().needsPerson, isFalse);
+    });
   });
 }
