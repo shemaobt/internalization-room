@@ -9,6 +9,7 @@ const _doorsOfTheRoom = [
 
 const _thePolicysSeams = [
   '_theNetworkFailedAt(',
+  '_theNetworkFailedIn(',
   '_fellOnTheNetwork(',
   '_theStepsNetworkFailed(',
   '_theResumeFailed(',
