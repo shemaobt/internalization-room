@@ -349,7 +349,7 @@ The queue of takes, scene takes and stretches waiting to reach the server, with 
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Take in the air**:
-The one take the Outbox is sending now, from the first attempt of a tap or keep to the moment it is confirmed, spent or refused, with the session it belongs to and when that tap or keep began sending. «parar» is offered 8 s after that and stops it; the screen of another session never stops it.
+The one take the Outbox is sending now, from its first attempt to the moment it is confirmed, spent or refused, with the session it belongs to and when its tap or keep began sending. «parar» is offered 8 s after that and stops whichever take of that tap or keep is in the air; the screen of another session never stops it.
 _Avoid_: leaving take, upload in progress, current upload
 
 **Unsent take**:
