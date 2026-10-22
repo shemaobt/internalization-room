@@ -707,6 +707,7 @@ class RetroView extends ConsumerWidget {
     switch (session.btPhase) {
       case BtPhase.playing:
         if (session.btClipEnded &&
+            !session.btTrechoTocando &&
             !session.btParteFronteira &&
             session.btTraducaoPendente == null &&
             session.btTrechoTraduzidoDeNovo == null) {
@@ -718,6 +719,9 @@ class RetroView extends ConsumerWidget {
             language,
           );
         }
+        if (session.btClipRodando || session.btTrechoTocando) {
+          return retroLabelFor('listening', language);
+        }
         if (session.btTrechoTraduzidoDeNovo == null &&
             !session.btCortado &&
             session.nothingHeardSinceCursor) {
@@ -725,9 +729,6 @@ class RetroView extends ConsumerWidget {
             session.btClipEnded ? 'paused' : 'listenFirst',
             language,
           );
-        }
-        if (session.btClipRodando) {
-          return retroLabelFor('listening', language);
         }
         if (session.btClipPausada &&
             session.btTraducaoPendente == null &&
