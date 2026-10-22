@@ -34,21 +34,34 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   read each spend one. A final refusal spends all three at once. A revoked or unauthorized
   tablet spends none and stops the pass, as before. A row an older app left with three or
   more attempts reads as spent.
-- **Only a tap sends a spent take.** Nothing goes up by itself once a take's three
-  attempts are gone. A spent take still holds the recordings made after it in its part
+- **Only a tap sends a spent take.** A take whose three attempts are gone does not go up
+  by itself. One older exception stands: a part take refused with a bare `HTTP_*` code
+  gets one more try on the Outbox's retry drain, which asks for the codeless; ENG-1777
+  closes that gap. A spent take still holds the recordings made after it in its part
   (ADR 0025); a take refused for good does not. A tap on a part sends every unsent pass of
   it, older ones first, each with three attempts; an older pass refused for good is not
   sent again, while the pass the tap names is sent once more even if it was refused. A keep
-  on the red microphone does the same for the scene takes of its session before it.
-- **«parar» after 8 s** of one take's send, counted from its first attempt of the pass. A
-  tap stops that take only, and only while it is this session's take in the air: the
-  request is let go, the take's attempts are spent, it stays on the tablet and the pass
-  ends.
-- **The take in the air is the machine's.** The Outbox tells the machine when a take
-  leaves and when it settles; the machine holds which take is in the air, of which session,
-  and since when (read through `package:clock`). «parar» is a gesture the machine turns
-  into an effect the runner hands to the Outbox, naming the take. The screens read the take
-  in the air, and the parts saved this visit, from the machine's Outbox facts.
+  on the red microphone does the same for the scene takes of its session before it: the
+  room numbers a session's scene rehearsals by arrival (`n` is the session's highest plus
+  one when it is stored; the recording time does not number it), so a newer take that
+  arrived first would take an older one's number.
+- **«parar» after 8 s** of sending, counted from when the first take of the tap or keep
+  left in this pass: a part's older passes and a scene take sent ahead of the one the red
+  microphone keeps count toward the same 8 s. A tap stops whichever take of that tap or
+  keep is in the air, and only while it is this session's take in the air; it never stops a
+  take outside it. The request is let go, the take's attempts are spent, every take stays
+  on the tablet and the pass ends. On the red microphone a keep stopped before its own take
+  left reads «não deu para guardar o ensaio da cena — gravem de novo» with «falhou — toque
+  para tentar de novo», and the tap sends the earlier take, then its own.
+- **The take in the air, and the parts kept this visit, are the machine's.** The Outbox
+  tells the machine when a take leaves (with the time its tap or keep began leaving, read
+  through `package:clock`) and when it settles; the notifier tells it when a part's keep
+  begins and which row it wrote. The machine holds which take is in the air, of which
+  session, which parts are being kept, and which rows this visit kept. «parar» is a gesture
+  the machine turns into an effect the runner hands to the Outbox, naming the take. The
+  screens read the take in the air, the parts being kept, and the parts saved, from the
+  machine's Outbox facts: a part reads «✓ salvo» only when the newest take this visit kept
+  of it is one the room holds, and a newest take whose copy is gone reads «falhou».
 - **Every take over 25 MB is refused before sending,** of any kind: the room answers an
   oversize upload with a bare `BAD_REQUEST`, so only the tablet can tell it as too large.
 - **The take's state is told on its screen in her words, never by the voice:** «gravando»;
@@ -68,7 +81,8 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   reads «enviar agora» for a take of an earlier visit; this visit's refused take reads her
   refusal words with no tap.
 - "The automatic retry stays, untouched": only a tap sends a spent take; the ladder now
-  only paces a tablet the room turned away, and ENG-1777 removes it.
+  only paces a tablet the room turned away and the retro copy (until ENG-1411), and
+  ENG-1777 removes it.
 - "A part beyond the last scene … the Outbox still retries it": it is no longer retried.
   Such a take has no row and no tap, so once spent it stays on the tablet unsent; where it
   should be offered is open.
