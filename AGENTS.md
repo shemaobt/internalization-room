@@ -34,7 +34,8 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
   screen, read by the facilitator and not the team, her moment label, the claquete,
   the «PT»/«EN» codes on the Choice, the scene question, her passage menu on the
   Choice, her check screen with its numbered frase list, the scene rehearsal's translate step,
-  the numerals of her kept-retelling buttons, and her recording home (ADR 0014).
+  the numerals of her kept-retelling buttons, her recording home, and the Ensaio Final
+  plan (ADR 0014).
 - Nothing forbidden returns to `lib/`: `tool/check_doctrine.dart` mirrors the backend's
   doctrine guard (`tripod-backend`, `scripts/check_doctrine.py`) against Marcia's six rules,
   spelled in Dart, against a typed allowlist in `tool/doctrine_allowlist.dart`.
