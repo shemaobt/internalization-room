@@ -1,3 +1,7 @@
+---
+status: accepted, amended by 0107
+---
+
 # No station of the room is a dead end
 
 ## Context

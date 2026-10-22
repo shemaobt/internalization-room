@@ -873,7 +873,7 @@ void main() {
   }
 
   testWidgets(
-    'a refused move whose read-back finds no network leaves the room within reach',
+    'a refused move whose read-back finds no network calls no person',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..recorder.rehearsalSpeaks = _duasLacunas;
@@ -897,14 +897,6 @@ void main() {
       );
       await _passo(tester);
 
-      expect(
-        container.read(salaSessionProvider).unreachable,
-        isFalse,
-        reason:
-            'fora do caminho de entrada uma falha de rede não tira a sala do '
-            'alcance',
-      );
-      expect(container.read(salaSessionProvider).offline, isFalse);
       expect(container.read(salaSessionProvider).needsPerson, isFalse);
       closeTheRoom(container);
     },

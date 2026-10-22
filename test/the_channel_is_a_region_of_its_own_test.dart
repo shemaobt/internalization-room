@@ -10,7 +10,7 @@ const _part1 = PartSound(0, 'parte-1.m4a', from: Duration(seconds: 12));
 const _part2 = PartSound(1, 'parte-2.m4a');
 const _guide1 = Line(LineKind.guide, 1);
 const _guide2 = Line(LineKind.guide, 2);
-const _notice = Line(LineKind.offlineNotice, 3);
+const _aside = Line(LineKind.guide, 3, source: Source.aside('aviso'));
 const _reply = Line(LineKind.reply, 4, source: Source.reply('resposta-1'));
 
 const _part1Playing = Machine(channel: PartPlaying(_part1, opened: true));
@@ -61,13 +61,13 @@ void main() {
 
     test('two kinds play in the order they arrived', () {
       final (queued, _) = _run(_part1Playing, const [
-        LineArrived(_notice),
+        LineArrived(_aside),
         LineArrived(_reply),
       ]);
       final (first, firstEffects) = reduce(queued, const PlayerEnded());
       final (_, secondEffects) = reduce(first, const PlayerEnded());
 
-      expect(firstEffects, [const PlayLine(_notice)]);
+      expect(firstEffects, [const PlayLine(_aside)]);
       expect(secondEffects, [const PlayLine(_reply)]);
     });
   });
@@ -137,7 +137,7 @@ void main() {
       final (machine, _) = _run(const Machine(), const [
         BeadTapped([_part2]),
         PauseTapped(),
-        LineArrived(_notice),
+        LineArrived(_aside),
         PlayerOpened(),
         PlayerEnded(),
       ]);
@@ -232,7 +232,7 @@ void main() {
       test('a halt the room raises silences the part in the air', () {
         final (machine, effects) = reduce(
           _part1Playing,
-          const RoomRaisedAHalt(sounding: ThePart()),
+          const RoomRaisedAHalt(),
         );
 
         expect(machine.channel, const Silence());
@@ -279,8 +279,7 @@ void main() {
         ('a pause', const PauseTapped()),
         ('a warning', const TheAnswerWarned()),
         ('a beat of the Watch', const WatchFired()),
-        ('the reach falling', const NetworkFailedAt(Door.watch)),
-        ('the reach coming back', const NetworkReturned()),
+        ('a network failure', const NetworkFailedAt(Door.watch)),
       ]) {
         test('$name does not silence what is sounding', () {
           final (_, effects) = reduce(_part1Playing, event);
@@ -296,13 +295,13 @@ void main() {
         'gesture ends', () {
       final (machine, effects) = _run(_part1Playing, const [
         GestureStarted(1),
-        LineArrived(_notice),
+        LineArrived(_aside),
         GestureSilenced(),
         GestureEnded(1),
       ]);
 
-      expect(effects, [const PlayLine(_notice)]);
-      expect(machine.channel, const GuideSpeaking(_notice));
+      expect(effects, [const PlayLine(_aside)]);
+      expect(machine.channel, const GuideSpeaking(_aside));
     });
 
     test(
@@ -310,11 +309,11 @@ void main() {
       () {
         final (machine, effects) = _run(const Machine(), const [
           GestureStarted(1),
-          LineArrived(_notice),
+          LineArrived(_aside),
         ]);
 
         expect(effects, isEmpty);
-        expect(machine.queue, [_notice]);
+        expect(machine.queue, [_aside]);
       },
     );
 
@@ -332,7 +331,7 @@ void main() {
         'gesture ends', () {
       final (playing, effects) = _run(const Machine(), const [
         GestureStarted(1),
-        LineArrived(_notice),
+        LineArrived(_aside),
         BeadTapped([_part2]),
       ]);
       final (ended, afterThePart) = reduce(playing, const PlayerEnded());
@@ -340,7 +339,7 @@ void main() {
 
       expect(effects, [const PlayPart(_part2)]);
       expect(afterThePart, isEmpty);
-      expect(afterTheGesture, [const PlayLine(_notice)]);
+      expect(afterTheGesture, [const PlayLine(_aside)]);
     });
 
     test("every sound of a gesture on its way passes, and the background line "
@@ -349,7 +348,7 @@ void main() {
         GestureStarted(1),
         LineArrived(_guide1, by: [1]),
       ]);
-      final (waiting, _) = reduce(speaking, const LineArrived(_notice));
+      final (waiting, _) = reduce(speaking, const LineArrived(_aside));
       final (between, ended) = reduce(waiting, const PlayerEnded());
       final (_, second) = reduce(between, const LineArrived(_guide2, by: [1]));
 
@@ -365,7 +364,7 @@ void main() {
         final (speaking, _) = _run(const Machine(), const [
           GestureStarted(1),
           LineArrived(_guide1, by: [1]),
-          LineArrived(_notice),
+          LineArrived(_aside),
           LineArrived(_reply, by: [1]),
         ]);
         final (_, ended) = reduce(speaking, const PlayerEnded());
@@ -392,7 +391,7 @@ void main() {
       () {
         final (machine, effects) = _run(_part1Playing, const [
           GestureStarted(1),
-          LineArrived(_notice),
+          LineArrived(_aside),
           GestureSilenced(),
           MicOpened(MicOwner.conversation),
           GestureEnded(1),
@@ -400,7 +399,7 @@ void main() {
 
         expect(effects, isEmpty);
         expect(machine.channel, const Microphone(MicOwner.conversation));
-        expect(machine.queue, [_notice]);
+        expect(machine.queue, [_aside]);
       },
     );
 
@@ -409,12 +408,12 @@ void main() {
       () {
         final (machine, effects) = _run(const Machine(), const [
           GestureStarted(1),
-          LineArrived(_notice),
+          LineArrived(_aside),
           LineArrived(_guide1, by: [1]),
         ]);
 
         expect(effects, [const PlayLine(_guide1)]);
-        expect(machine.queue, [_notice]);
+        expect(machine.queue, [_aside]);
       },
     );
 
@@ -424,24 +423,24 @@ void main() {
         GestureStarted(1),
         GestureEnded(1),
         GestureStarted(2),
-        LineArrived(_notice, by: [1]),
+        LineArrived(_aside, by: [1]),
       ]);
 
       expect(effects, isEmpty);
-      expect(machine.queue, [_notice]);
+      expect(machine.queue, [_aside]);
     });
 
     test('a waiting line plays only after every gesture on its way ended', () {
       final (stillWaiting, first) = _run(const Machine(), const [
         GestureStarted(1),
         GestureStarted(2),
-        LineArrived(_notice),
+        LineArrived(_aside),
         GestureEnded(2),
       ]);
       final (_, last) = reduce(stillWaiting, const GestureEnded(1));
 
       expect(first, isEmpty);
-      expect(last, [const PlayLine(_notice)]);
+      expect(last, [const PlayLine(_aside)]);
     });
   });
 
@@ -458,28 +457,10 @@ void main() {
     expect(machine.halt, const NoHalt());
   });
 
-  test('an offline notice waiting under a halt leaves the queue when the Reach '
-      'comes back', () {
-    final (machine, effects) = _run(const Machine(station: Canvas()), [
-      const RoomRaisedAHalt(),
-      const NetworkFailedAt(Door.step),
-      const LineArrived(_notice),
-      const NetworkReturned(),
-      const LongPress(somebodyToAsk: false),
-    ]);
-
-    expect(effects, isNot(contains(const PlayLine(_notice))));
-    expect(machine.queue, isEmpty);
-  });
-
   group('a paused sound held beneath a line stays paused and resumable', () {
     const part = PartSound(0, 'parte-1.m4a', from: Duration(seconds: 5));
     const next = PartSound(1, 'parte-2.m4a');
-    const courtesy = Line(
-      LineKind.stranded,
-      9,
-      source: Source.aside('stranded'),
-    );
+    const courtesy = Line(LineKind.guide, 9, source: Source.aside('aviso'));
     Machine underTheLine() => _run(const Machine(), const [
       BeadTapped([part, next]),
       PlayerOpened(),
@@ -514,17 +495,14 @@ void main() {
     });
   });
 
-  test('a line that arrives under a blocking halt waits for the lift', () {
+  test('a line that arrives under a blocking halt waits for the tap', () {
     final (halted, _) = reduce(const Machine(), const RoomRaisedAHalt());
-    final (waiting, arriving) = reduce(halted, const LineArrived(_notice));
-    final (lifted, lifting) = reduce(
-      waiting,
-      const LongPress(somebodyToAsk: false),
-    );
+    final (waiting, arriving) = reduce(halted, const LineArrived(_aside));
+    final (lifted, lifting) = reduce(waiting, const TeamTapped());
 
     expect(arriving, isEmpty);
-    expect(waiting.queue, [_notice]);
-    expect(lifting, contains(const PlayLine(_notice)));
-    expect(lifted.channel, const GuideSpeaking(_notice));
+    expect(waiting.queue, [_aside]);
+    expect(lifting, contains(const PlayLine(_aside)));
+    expect(lifted.channel, const GuideSpeaking(_aside));
   });
 }

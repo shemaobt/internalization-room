@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -217,17 +216,16 @@ void main() {
         'the Wheel to offer a passage',
         () => it.estado.entriesOpen,
       );
-      it.harness.network.holdNextCheck();
-      final checks = it.harness.network.checks;
+      it.harness.room.holdNextCreate();
       it.sala.openTheEntry(it.estado.naRoda!.first);
       await waitFor(
-        'the reach check to be in the air',
-        () => it.harness.network.checks > checks,
+        'the session to be in the air',
+        () => it.harness.room.createHeld,
       );
 
       it.sala.chooseTheLanguage('en');
       await settle();
-      it.harness.network.finishHeldCheck();
+      it.harness.room.finishHeldCreate();
       await waitFor(
         'the session to be asked for',
         () => it.harness.room.languagesSent.isNotEmpty,
@@ -509,43 +507,6 @@ void main() {
       );
       expect(harness.room.languagesAsked, everyElement('en'));
     },
-  );
-
-  test(
-    'the bundle carries the notices the room says without a server, and none of her lines',
-    () async {
-      TestWidgetsFlutterBinding.ensureInitialized();
-
-      const notices = {
-        'pt': {'sem_conexao', 'gravacao_presa', 'microfone'},
-        'en': {'sem_conexao', 'gravacao_presa', 'microfone'},
-      };
-      for (final language in languages) {
-        final manifest = await rootBundle.loadString(
-          'assets/audio/$language/manifest.json',
-        );
-
-        expect(
-          (jsonDecode(manifest) as Map<String, dynamic>).keys.toSet(),
-          notices[language],
-          reason:
-              'as falas dela iam gravadas no app, e uma gravação antiga podia '
-              'tocar depois de ela mudar a letra',
-        );
-        await expectLater(
-          () => rootBundle.load('assets/audio/$language/fixed/F0.mp3'),
-          throwsA(anything),
-        );
-        for (final asset in [
-          offlineNoticeAsset,
-          micBlockedAsset,
-          strandedTakeAsset,
-        ]) {
-          await rootBundle.load(asset(language));
-        }
-      }
-    },
-    timeout: const Timeout(Duration(minutes: 2)),
   );
 
   test('the language nobody approved is neither claimed nor bundled', () async {

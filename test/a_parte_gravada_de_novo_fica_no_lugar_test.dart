@@ -141,7 +141,7 @@ Future<String> _gravarPorCima(Sala it) async {
 
 bool _discoAceso(WidgetTester tester) =>
     tester
-        .widget<Semantics>(byLabel('Ir para a tradução'))
+        .widget<Semantics>(inTheHome('Traduzir a gravação'))
         .properties
         .enabled ==
     true;
@@ -161,19 +161,19 @@ Future<List<String>> _ouvirOEnsaioAteAqui(Sala it) async {
 }
 
 Future<void> _tocar(WidgetTester tester, String label) async {
-  await tester.ensureVisible(byLabel(label));
-  await tester.tap(byLabel(label));
+  await tester.ensureVisible(offTheRows(label));
+  await tester.tap(offTheRows(label));
   await tester.pump(const Duration(milliseconds: 200));
 }
 
 /// The circle records the part, records it over, and the check confirms it: every
 /// gesture a gesture the team has on the rehearsal screen.
 Future<void> _gravarAParteDoisPorCimaEConfirmar(WidgetTester tester) async {
-  await _tocar(tester, 'Tocar para gravar esta parte de novo');
-  await _tocar(tester, 'Tocar ao terminar');
-  await _tocar(tester, 'Tocar para gravar esta parte de novo');
-  await _tocar(tester, 'Tocar ao terminar');
-  await _tocar(tester, 'Confirmar esta parte');
+  await _tocar(tester, 'Gravar de novo');
+  await _tocar(tester, 'Parar');
+  await _tocar(tester, 'Gravar de novo');
+  await _tocar(tester, 'Parar');
+  await _tocar(tester, 'Enviar a gravação');
   await letTheRehearsalReachTheRoom(tester);
 }
 
@@ -1083,28 +1083,28 @@ void main() {
       reason: 'nada foi consertado ainda: o disco não leva de volta à tradução',
     );
     expect(
-      byLabel('Tocar para gravar esta parte de novo'),
+      onTheCircle('Gravar de novo'),
       findsOneWidget,
       reason:
           'e o círculo convida a regravar com o texto da placa; a conta '
           'esvaziada já diz de qual parte se trata',
     );
     expect(
-      byLabel('Tocar para gravar a próxima parte'),
+      onTheCircle('Gravar'),
       findsNothing,
       reason:
           'o rótulo da parte nova mente aqui: esta gravação toma o lugar '
           'de uma parte que já existe',
     );
 
-    await _tocar(tester, 'Tocar para gravar esta parte de novo');
+    await _tocar(tester, 'Gravar de novo');
     expect(naLinhaDoEnsaio(tester, 'Parar'), [
       null,
       true,
       null,
       null,
     ], reason: 'a regravação aberta é a da linha 2');
-    await _tocar(tester, 'Tocar ao terminar');
+    await _tocar(tester, 'Parar');
     expect(
       naLinhaDoEnsaio(tester, 'Ouvir'),
       [true, true, true, null],
@@ -1143,7 +1143,7 @@ void main() {
           'gravação da equipe parecia vir tomar o lugar da parte 2 outra vez',
     );
     expect(
-      byLabel('Tocar para gravar a próxima parte'),
+      onTheCircle('Gravar'),
       findsOneWidget,
       reason: 'e o círculo volta a ser o da parte nova',
     );
@@ -1192,7 +1192,7 @@ void main() {
 
     final partes = container.read(salaSessionProvider).partes;
     final medidasAntes = List.of(harness.playback.measurements);
-    await tester.tap(byLabel('Ir para a tradução'));
+    await tester.tap(inTheHome('Traduzir a gravação'));
     await tester.pump(const Duration(milliseconds: 400));
     expect(
       container.read(salaSessionProvider).stage,
@@ -1260,52 +1260,53 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
   });
 
-  testWidgets('a saída da passagem não fica ocupada em conferida sob parada', (
-    tester,
-  ) async {
-    final it = await _ateAConferida(tester);
-    it.harness.voice.refuses.add('P3');
+  testWidgets(
+    'em conferida sob parada a saída some, e volta com o toque no sinal',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.voice.refuses.add('P3');
 
-    await tester.tap(byLabel(_aprovar));
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(byLabel(_aprovar));
-    await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(byLabel(_aprovar));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(byLabel(_aprovar));
+      await tester.pump(const Duration(milliseconds: 400));
 
-    expect(
-      _estado(it.container).needsPerson,
-      isTrue,
-      reason:
-          'a linha da Guia que falha duas vezes seguidas para a sala para '
-          'uma pessoa — se não parar, não há parada que medir',
-    );
-    expect(_estado(it.container).btPhase, BtPhase.conferida);
-    expect(byLabel(_sairDaPassagem), findsOneWidget);
-    expect(
-      tester
-          .widget<IgnorePointer>(
-            find
-                .ancestor(
-                  of: byLabel(_sairDaPassagem),
-                  matching: find.byType(IgnorePointer),
-                )
-                .first,
-          )
-          .ignoring,
-      isFalse,
-      reason:
-          'nenhuma estação é beco sem saída: estar na árvore não é estar '
-          'viva — apagada e surda, a saída é a mesma que não existir',
-    );
+      expect(
+        _estado(it.container).needsPerson,
+        isTrue,
+        reason:
+            'a linha da Guia que falha duas vezes seguidas para a sala para '
+            'uma pessoa — se não parar, não há parada que medir',
+      );
+      expect(_estado(it.container).btPhase, BtPhase.conferida);
+      expect(byLabel(_sairDaPassagem), findsOneWidget);
+      expect(
+        tester
+            .widget<IgnorePointer>(
+              find
+                  .ancestor(
+                    of: byLabel(_sairDaPassagem),
+                    matching: find.byType(IgnorePointer),
+                  )
+                  .first,
+            )
+            .ignoring,
+        isTrue,
+        reason: 'sob o sinal da pessoa a saída se apaga, como tudo (ADR 0107)',
+      );
 
-    await tester.tap(byLabel(_sairDaPassagem));
-    await tester.pump(const Duration(milliseconds: 400));
+      it.container.read(salaSessionProvider.notifier).teamTapped();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.tap(byLabel(_sairDaPassagem));
+      await tester.pump(const Duration(milliseconds: 400));
 
-    expect(
-      _estado(it.container).stage,
-      SalaStage.escolha,
-      reason: 'e o toque tem de valer, não ser engolido por um botão inerte',
-    );
-  });
+      expect(
+        _estado(it.container).stage,
+        SalaStage.escolha,
+        reason: 'e o toque tem de valer, não ser engolido por um botão inerte',
+      );
+    },
+  );
 
   testWidgets('sem gravação no tablet a conferida não oferece o ouvir', (
     tester,

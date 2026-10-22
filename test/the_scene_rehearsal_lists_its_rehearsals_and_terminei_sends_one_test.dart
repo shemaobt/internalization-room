@@ -1033,6 +1033,36 @@ void main() {
         expect(room.asked('sceneRehearsalsOf') - listedBefore, 1);
       });
     }
+
+    test(
+      'a TURN_COLLISION leaves the circle at rest, the rehearsal unsent, and '
+      '«terminei» sends it again',
+      () async {
+        final room = await _atRest([_unsentWithFrases()]);
+        await _theScreenOpens(room, on: _showing(1, SceneStep.translate));
+        room.harness.room.sendRefusalsFirst.add('TURN_COLLISION');
+
+        room.sala.sendTheSceneRehearsal();
+        await waitFor(
+          'o ensaio ir',
+          () => room.harness.room.scenesSent.isNotEmpty,
+        );
+        await _theRoomRests(room);
+        await settle(const Duration(milliseconds: 400));
+
+        _expectNoHaltAndNoPerson(room);
+        expect(room.repliedOnTheCanvas, isFalse);
+        expect(room.state.stage, SalaStage.cena);
+        expect(room.state.scene.step, SceneStep.translate);
+        expect(_rows(room), [(1, true, 2)]);
+
+        room.sala.sendTheSceneRehearsal();
+        await waitFor('a resposta tocar', () => room.repliedOnTheCanvas);
+
+        expect(room.harness.room.scenesSent, hasLength(2));
+        expect(room.state.stage, SalaStage.conversa);
+      },
+    );
   });
 
   testWidgets(
@@ -1268,7 +1298,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(_enabled(tester, _terminei), isFalse);
-      sala.resolveWithPerson();
+      sala.teamTapped();
       await _pumpUntil(
         tester,
         () => !container.read(salaSessionProvider).needsPerson,

@@ -86,12 +86,9 @@ void main() {
 
     await check.sala.finishBackTranslation();
     await check.refused('depois do 502');
-    final probes = check.harness.network.checks;
     await settle(_aWhile);
 
     expect(check.finishes, 1);
-    expect(check.harness.network.checks, probes);
-    expect(check.estado.offline, isFalse);
     expect(check.estado.btRecusa, CheckRefusal.checkUnavailable);
   });
 
@@ -110,21 +107,15 @@ void main() {
       await settle(_aWhile);
 
       expect(check.finishes, 2);
-      expect(check.estado.offline, isFalse);
     },
   );
 
-  test('3: a finish lost on the network is sent once, and the radio\'s return '
-      'does not send it', () async {
+  test('3: a finish lost on the network is sent once, and only the team\'s '
+      '«terminei» sends it again', () async {
     final check = await _readyForTheVerdict(SalaHarness());
     check.harness.room.failFinishWith = const NetworkFailed('sem rede');
-    check.harness.network.reachable = false;
     await check.sala.finishBackTranslation();
     await check.refused('sem rede');
-    await settle(_aWhile);
-
-    check.harness.network.reachable = true;
-    check.harness.network.networkComesBack();
     await settle(_aWhile);
 
     expect(check.finishes, 1);
@@ -188,8 +179,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  test('5: a finish «terminei» sends after a lost check lands, leaves the room '
-      'reachable and speaks the verdict', () async {
+  test('5: a finish «terminei» sends after a lost check lands and speaks the '
+      'verdict', () async {
     final check = await _readyForTheVerdict(SalaHarness());
     check.harness.room.failFinishWith = _a502;
     await check.sala.finishBackTranslation();
@@ -208,8 +199,6 @@ void main() {
     await settle(_aWhile);
 
     expect(check.harness.room.playedByTakeSent, hasLength(1));
-    expect(check.estado.unreachable, isFalse);
-    expect(check.estado.offline, isFalse);
   });
 
   test('a check answered after the team left the passage writes nothing to '

@@ -255,7 +255,6 @@ void main() {
       reason:
           'a sala não pode parar por uma pessoa por um nome que só está atrasado',
     );
-    expect(depoisDoCorte.offline, isFalse);
     expect(
       depoisDoCorte.btPhase,
       BtPhase.playing,

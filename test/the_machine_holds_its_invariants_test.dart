@@ -33,7 +33,7 @@ String _kind(Halt halt) => switch (halt) {
 };
 
 Halt _whatTheSessionReadTells(SessionSnapshot snapshot) => snapshot.needsPerson
-    ? const Blocking(NothingKept())
+    ? const Blocking()
     : snapshot.halt == HaltKind.warning
     ? const Warning()
     : const NoHalt();
@@ -81,37 +81,47 @@ Invariant<S> aSessionReadIsAppliedWholeOrNotAtAll<S>(Halt Function(S) haltOf) =>
           return 'the Session read over ${_kind(was)} told '
               '${_kind(warns)}, the halt became ${describeHalt(now)}';
         }
-        final told = _whatTheSessionReadTells(event.snapshot);
-        final applied =
-            _kind(now) == _kind(told) && (now is! Blocking || now.serverKnows);
-        final refusedWhole =
-            now is Blocking &&
-            now.kept == was.kept &&
-            now.serverKnows == was.serverKnows &&
-            (!was.serverKnows || event.sentBeforeTheCallLanded);
-        if (applied || refusedWhole) return null;
-        return 'the Session read told ${_kind(told)} over ${_kind(was)}, '
+        if (now is! Blocking) return null;
+        final beneath = event.snapshot.needsPerson
+            ? was.warningBeneath
+            : event.snapshot.halt == HaltKind.warning;
+        if (now.warningBeneath == beneath) return null;
+        return 'the Session read told a warning beneath: $beneath, '
             'the halt became ${describeHalt(now)}';
       },
     );
 
-bool _tellsThePersonOrBringsTheSoundBack(Effect effect) => switch (effect) {
-  TellAPersonArrived() || ReplayTheSound() => true,
+Invariant<S> aSessionReadNeverClearsTheSign<S>(Halt Function(S) haltOf) =>
+    Invariant('ADR 0107, a Session read never clears the sign', (
+      before,
+      event,
+      after,
+      effects,
+      world,
+    ) {
+      if (event is! SessionRead || haltOf(before) is! Blocking) return null;
+      if (haltOf(after) is Blocking) return null;
+      return 'the Session read '
+          '${describeEvent(event)} cleared the sign into '
+          '${describeHalt(haltOf(after))}';
+    });
+
+bool _bringsSomethingBack(Effect effect) => switch (effect) {
+  PlayPart() || PlayStretch() || DrainTheOutbox() => true,
   _ => false,
 };
 
-Invariant<S> aLongPressOnABlockingHaltNeverVanishesInSilence<S>(
+Invariant<S> aTapOnTheSignClearsItPlaysNothingAndResendsNothing<S>(
   Halt Function(S) haltOf,
 ) => Invariant(
-  'ADR invariant 11, a long press on a blocking halt is answered',
+  'ADR 0107, a tap on the sign clears it, plays nothing and resends nothing',
   (before, event, after, effects, world) {
-    if (event is! LongPress || haltOf(before) is! Blocking) return null;
-    if (_kind(haltOf(after)) != _kind(haltOf(before)) ||
-        effects.any(_tellsThePersonOrBringsTheSoundBack)) {
+    if (event is! TeamTapped || haltOf(before) is! Blocking) return null;
+    if (haltOf(after) is! Blocking && !effects.any(_bringsSomethingBack)) {
       return null;
     }
-    return 'a long press under ${describeHalt(haltOf(before))} answered '
-        'with neither a lift nor a person told nor the sound back: '
+    return 'a tap under ${describeHalt(haltOf(before))} left '
+        '${describeHalt(haltOf(after))} with '
         '${effects.map(describeEffect).join(', ')}';
   },
 );
@@ -137,7 +147,8 @@ List<Invariant<S>> theAdrInvariants<S>(Halt Function(S) haltOf) => [
   enteringABlockingHaltClosesTheMicrophone(haltOf),
   aHaltNeverStandsWithoutTheWatch(haltOf),
   aSessionReadIsAppliedWholeOrNotAtAll(haltOf),
-  aLongPressOnABlockingHaltNeverVanishesInSilence(haltOf),
+  aSessionReadNeverClearsTheSign(haltOf),
+  aTapOnTheSignClearsItPlaysNothingAndResendsNothing(haltOf),
   theWarningIsTheOneTheServerTold(haltOf),
 ];
 
@@ -244,12 +255,12 @@ final theScreenNeverShowsASoundTheChannelDoesNotHold = Invariant<Machine>(
   },
 );
 
-final theOutboxNeverIdlesReachableWithAPartPending = Invariant<Machine>(
-  'ADR invariant 12, the Outbox never idles reachable with a part pending',
+final theOutboxNeverIdlesWithAPartPending = Invariant<Machine>(
+  'ADR invariant 12, the Outbox never idles with a part pending',
   (before, event, after, effects, world) {
-    if (!after.reachable || !after.somethingPending) return null;
+    if (!after.somethingPending) return null;
     if (world.retryArmed || world.draining) return null;
-    return 'reachable with a part pending, no retry armed and no drain in '
+    return 'a part pending, no retry armed and no drain in '
         'flight';
   },
 );
@@ -271,7 +282,7 @@ final aLanguageChosenReadsTheWheelOnlyOnTheChoice = Invariant<Machine>(
 );
 
 bool _callsOrStopsCallingAPerson(Effect effect) => switch (effect) {
-  CallForAPerson() || TellAPersonArrived() => true,
+  CallForAPerson() => true,
   _ => false,
 };
 
@@ -320,10 +331,6 @@ Invariant<Machine> _nothingOfTheSessionSurvives(
     return 'lines of the session outlived it: '
         '${[...after.queue, ...undropped].map(describeLine).join(', ')}';
   }
-  if (after.reach != before.reach) {
-    return 'the session gone moved the Reach from ${before.reach.name} to '
-        '${after.reach.name}';
-  }
   return null;
 });
 
@@ -332,7 +339,10 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
   (before, event, after, effects, world) {
     if (before.halt is Blocking || after.halt is! Blocking) return null;
     final herCase = switch (event) {
-      RoomRaisedAHalt() || TheSceneTurnFoundNothing() || LookEmpty() => true,
+      RoomRaisedAHalt() ||
+      TheSceneTurnFoundNothing() ||
+      LookEmpty() ||
+      LookFailed() => true,
       PlayerFailed(source: Source.guide) =>
         before.failing == Source.guide && before.failures >= 1,
       StationEvent() =>
@@ -359,6 +369,40 @@ final aStationsSessionNeverOpensWithoutTheWatch = Invariant<Machine>(
   },
 );
 
+final noEventMakesTheMachineSpeakAFailure = Invariant<Machine>(
+  'ENG-1356, no event ever makes the machine emit a spoken failure line',
+  (before, event, after, effects, world) {
+    final handed = {
+      ...before.queue,
+      if (event is LineArrived) event.line,
+      if (before.channel case GuideSpeaking(:final line)) line,
+    };
+    for (final effect in effects) {
+      if (effect case PlayLine(:final line) when !handed.contains(line)) {
+        return '${describeEvent(event)} played ${describeLine(line)}, which '
+            'nobody handed the room';
+      }
+    }
+    return null;
+  },
+);
+
+final aNetworkFailureOnlyLetsItsStepGo = Invariant<Machine>(
+  'ENG-1356, a network failure that is no turn\'s never halts and never '
+  'schedules anything but the Step\'s release',
+  (before, event, after, effects, world) {
+    if (event is! NetworkFailedAt) return null;
+    if (after.halt != before.halt) {
+      return '${describeEvent(event)} moved ${describeHalt(before.halt)} to '
+          '${describeHalt(after.halt)}';
+    }
+    final others = effects.where((effect) => effect != const LetTheStepGo());
+    if (others.isEmpty) return null;
+    return '${describeEvent(event)} scheduled '
+        '${others.map(describeEffect).join(', ')}';
+  },
+);
+
 void _holds(Invariant<Machine> invariant) =>
     expectEverySeedHolds(_machine, [invariant], seeds: _seeds);
 
@@ -376,9 +420,13 @@ void main() {
       _holds(aSessionReadIsAppliedWholeOrNotAtAll(_haltOf));
     });
 
-    test('ADR invariant 11: a long press on a blocking halt never '
-        'vanishes in silence', () {
-      _holds(aLongPressOnABlockingHaltNeverVanishesInSilence(_haltOf));
+    test('invariant: a tap on the sign clears it, plays nothing and resends '
+        'nothing', () {
+      _holds(aTapOnTheSignClearsItPlaysNothingAndResendsNothing(_haltOf));
+    });
+
+    test('invariant: a Session read never clears the sign', () {
+      _holds(aSessionReadNeverClearsTheSign(_haltOf));
     });
 
     test('ADR invariant 15: the warning the tablet holds is the one the '
@@ -445,9 +493,9 @@ void main() {
       _holds(theScreenNeverShowsASoundTheChannelDoesNotHold);
     });
 
-    test('ADR invariant 12: the Outbox never idles reachable with a part '
+    test('ADR invariant 12: the Outbox never idles with a part '
         'pending', () {
-      _holds(theOutboxNeverIdlesReachableWithAPartPending);
+      _holds(theOutboxNeverIdlesWithAPartPending);
     });
 
     test('ADR invariant 6: nothing of a gone session survives', () {
@@ -459,24 +507,37 @@ void main() {
       _holds(nothingOfAClosedPassageSurvives);
     });
 
-    test('ADR invariants 1, 2, 3, 5, 6, 8, 11, 12, 13 and 15, a microphone '
-        'answer with no microphone open, and a line of the voice over a playing '
-        'reply, hold over the default run', () {
-      expectEverySeedHolds(_machine, [
-        nothingOfAGoneSessionSurvives,
-        nothingOfAClosedPassageSurvives,
-        ...theAdrInvariants<Machine>(_haltOf),
-        theMicrophoneOpensOverASoundOnlyAfterAStop,
-        aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas,
-        aLineOfTheVoiceStopsAPlayingReply,
-        theHeadNeverReadsAnotherSound,
-        theOutboxNeverIdlesReachableWithAPartPending,
-        theScreenNeverShowsASoundTheChannelDoesNotHold,
-        aLanguageChosenReadsTheWheelOnlyOnTheChoice,
-        aStationsSessionNeverOpensWithoutTheWatch,
-        nothingButHerSixCasesEntersThePersonSign,
-      ], seeds: _seeds);
-    });
+    test(
+      'ADR invariants 1, 2, 3, 5, 6, 8, 12, 13 and 15, the tap and the read on the sign, a microphone '
+      'answer with no microphone open, and a line of the voice over a playing '
+      'reply, hold over the default run',
+      () {
+        expectEverySeedHolds(_machine, [
+          nothingOfAGoneSessionSurvives,
+          nothingOfAClosedPassageSurvives,
+          ...theAdrInvariants<Machine>(_haltOf),
+          theMicrophoneOpensOverASoundOnlyAfterAStop,
+          aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas,
+          aLineOfTheVoiceStopsAPlayingReply,
+          theHeadNeverReadsAnotherSound,
+          theOutboxNeverIdlesWithAPartPending,
+          theScreenNeverShowsASoundTheChannelDoesNotHold,
+          aLanguageChosenReadsTheWheelOnlyOnTheChoice,
+          aStationsSessionNeverOpensWithoutTheWatch,
+          nothingButHerSixCasesEntersThePersonSign,
+        ], seeds: _seeds);
+      },
+    );
+  });
+
+  test('invariant: no event ever makes the machine emit a spoken failure '
+      'line', () {
+    _holds(noEventMakesTheMachineSpeakAFailure);
+  });
+
+  test('invariant: a network failure that is no turn\'s never halts and never '
+      'schedules anything but the Step\'s release', () {
+    _holds(aNetworkFailureOnlyLetsItsStepGo);
   });
 
   test('generator invariant: nothing but her six cases enters the person '
@@ -505,28 +566,11 @@ void main() {
               reason: 'seed $seed drew WatchFired with the Watch unarmed',
             );
           }
-          final event = entry.event;
-          if (event is SessionRead && event.sentBeforeTheCallLanded) {
-            expect(
-              entry.worldBefore.callOutstanding,
-              isTrue,
-              reason:
-                  'seed $seed drew a Session read sent before the call '
-                  'landed with no call outstanding',
-            );
-          }
-          if (entry.event is TheCallLanded) {
-            expect(
-              entry.worldBefore.callOutstanding,
-              isTrue,
-              reason: 'seed $seed drew TheCallLanded with no call outstanding',
-            );
-          }
         }
       }
     });
 
-    test('generator invariant 4: the run reaches the room reachable with a '
+    test('generator invariant 4: the run reaches the room with a '
         'part pending', () {
       final reached = [
         for (final seed in _seeds)
@@ -535,7 +579,7 @@ void main() {
             const <Invariant<Machine>>[],
             seed,
           ).entries)
-            if (entry.after.reachable && entry.after.somethingPending) seed,
+            if (entry.after.somethingPending) seed,
       ];
 
       expect(reached, isNotEmpty);

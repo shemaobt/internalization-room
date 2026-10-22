@@ -126,34 +126,7 @@ void main() {
   );
 
   test(
-    'a recorded line said inside an English session is recorded in English',
-    () async {
-      final (it, english) =
-          await _anEnglishSessionReachedAgainAfterPtWasTapped();
-      await _backInTheSession(it, english);
-
-      it.sala.sayTheMicIsBlocked();
-      await settle();
-
-      expect(it.harness.voice.assets, [micBlockedAsset('en')]);
-    },
-  );
-
-  test(
-    'a recorded line said on the Choice is recorded in the room language, though a session was left in English',
-    () async {
-      final (it, english) =
-          await _anEnglishSessionReachedAgainAfterPtWasTapped();
-
-      it.sala.sayTheMicIsBlocked();
-      await settle();
-
-      expect(it.harness.voice.assets, [micBlockedAsset('pt')]);
-    },
-  );
-
-  test(
-    'an English Panorama left before it was heard is opened again in English, in its own session, when the network returns',
+    'an English Panorama left before it was heard is opened again in English, in its own session, on the next tap',
     () async {
       final harness = SalaHarness(lingua: null)
         ..room.passages = const [
@@ -181,12 +154,11 @@ void main() {
       it.sala.chooseTheLanguage('pt');
       await settle();
       harness.room.reachable = false;
-      harness.network.reachable = false;
       await it.sala.returnToTheLeftEntry();
       await settle();
 
       harness.room.reachable = true;
-      harness.network.reachable = true;
+      it.sala.panoramaTap();
       await waitFor('the Panorama to be said', () => it.estado.panoramaSaid);
 
       expect(harness.room.languagesSent, ['en']);
@@ -225,15 +197,23 @@ void main() {
       await it.sala.returnToTheLeftEntry();
       await waitFor(
         'the Panorama to be back',
-        () => it.estado.stage == SalaStage.panorama && it.estado.panoramaSaid,
+        () =>
+            it.estado.stage == SalaStage.panorama &&
+            it.estado.panoramaSaid &&
+            it.estado.voice == VoiceState.invite,
       );
       await settle();
-      it.harness.voice.assets.clear();
+      it.harness.voice.fixedLines.clear();
 
-      it.sala.sayTheMicIsBlocked();
+      it.sala.panoramaTap();
       await settle();
+      it.sala.panoramaTap();
+      await waitFor(
+        'the acknowledgement to be said',
+        () => it.harness.voice.fixedLines.isNotEmpty,
+      );
 
-      expect(it.harness.voice.assets, [micBlockedAsset('en')]);
+      expect(it.harness.voice.fixedLines.first.$2, 'en');
     },
   );
 }

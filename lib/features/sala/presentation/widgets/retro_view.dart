@@ -107,9 +107,6 @@ class RetroView extends ConsumerWidget {
                   : null,
               semanticLabel: _circleLabel(session, language),
               onTap: notifier.retroTap,
-              onLongPress: session.canResolveWithPerson
-                  ? notifier.resolveWithPerson
-                  : null,
             ),
             if (_traduzindoDeNovo(session) case final n?) ...[
               const SizedBox(height: 12),
@@ -384,9 +381,7 @@ class RetroView extends ConsumerWidget {
       session.btFraseTraduzidaDeNovo?.frase;
 
   bool _conferida(SalaSessionState session) =>
-      session.btPhase == BtPhase.conferida &&
-      !session.needsPerson &&
-      !session.offline;
+      session.btPhase == BtPhase.conferida && !session.needsPerson;
 
   BtFindingKind? _markOn(int? frase, SalaSessionState session) {
     if (frase == null) return null;
@@ -704,8 +699,6 @@ class RetroView extends ConsumerWidget {
   }
 
   String _circleLabel(SalaSessionState session, String language) {
-    if (session.needsPerson) return circleLabelFor('needsPerson', language);
-    if (session.offline) return circleLabelFor('offline', language);
     if (session.wordlessTelling) {
       return retroLabelFor('notUnderstood', language);
     }

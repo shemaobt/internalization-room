@@ -30,26 +30,11 @@ final Iterable<int> _seeds = switch (_oneSeed) {
   null => List.generate(500, (seed) => seed),
 };
 
-bool _theOfflineFace(Effect effect) =>
-    effect is SayTheOfflineNotice || effect is ArmTheRetry;
-
 final _oneTakeIsNeverLookedAtTwice = Invariant<_Room>(
   'one take is never looked at twice',
   (before, event, after, effects, world) {
     for (final MapEntry(key: turn, value: looks) in after.looked.entries) {
       if (looks > 1) return '${turn.turnId} looked at $looks times';
-    }
-    return null;
-  },
-);
-
-final _aGivenUpTurnNeverFallsOutOfReach = Invariant<_Room>(
-  'a turn given up never falls out of reach',
-  (before, event, after, effects, world) {
-    if (event is! TurnGivenUp) return null;
-    if (effects.any(_theOfflineFace) ||
-        after.machine.reach != before.machine.reach) {
-      return 'a given-up turn showed the offline face';
     }
     return null;
   },
@@ -96,7 +81,6 @@ final _anEmptyLookShowsThePersonSign = Invariant<_Room>(
       return 'no person sign after an empty look';
     }
     if (!effects.contains(const CallForAPerson())) return 'no person called';
-    if (effects.any(_theOfflineFace)) return 'an empty look went offline';
     return null;
   },
 );
@@ -143,7 +127,9 @@ final _aHaltNeverForgetsALook = Invariant<_Room>('a halt never forgets a look', 
 ) {
   if (before.machine.look == null || after.machine.look != null) return null;
   if (before.machine.generation != after.machine.generation) return null;
-  if (event is LookFound || event is LookEmpty) return null;
+  if (event is LookFound || event is LookEmpty || event is LookFailed) {
+    return null;
+  }
   return 'the look at ${before.machine.look!.turn.turnId} was dropped by ${describeEvent(event)}';
 });
 
@@ -208,7 +194,6 @@ void main() {
   test('The generator\'s invariants hold with the one look.', () {
     expectEverySeedHolds(_machine, [
       _oneTakeIsNeverLookedAtTwice,
-      _aGivenUpTurnNeverFallsOutOfReach,
       _anEmptyLookShowsThePersonSign,
       _aFoundReplyPlaysAsIfOnTime,
       _aLookAnswersOnlyTheTurnItReads,
@@ -257,18 +242,16 @@ void main() {
 
       test('a look still answered is looked at again', () {
         final (_, effects) = reduce(
-          givenUp(const TheOpening('turno-7')),
-          const LookPending(turn, sounding: TheOpening('turno-7')),
+          givenUp(const TheOpening()),
+          const LookPending(turn, sounding: TheOpening()),
         );
 
-        expect(effects, [
-          const LookAgain(turn, sounding: TheOpening('turno-7')),
-        ]);
+        expect(effects, [const LookAgain(turn, sounding: TheOpening())]);
       });
 
       test('an Opening found after the wait is kept, not played', () {
         final (_, effects) = reduce(
-          stillAnswering(const TheOpening('turno-7')),
+          stillAnswering(const TheOpening()),
           const LookFound(turn, reply),
         );
 
@@ -316,11 +299,11 @@ void main() {
         },
       );
 
-      group('a halt suspends the look, and its lift resumes it', () {
+      group('a halt suspends the look, and the team\'s tap resumes it', () {
         Machine halted(Machine machine) =>
             reduce(machine, const RoomRaisedAHalt()).$1;
         (Machine, List<Effect>) lifted(Machine machine) =>
-            reduce(machine, const LongPress(somebodyToAsk: false));
+            reduce(machine, const TeamTapped());
 
         test('raising it keeps the look and stops looking again', () {
           final (after, effects) = reduce(
@@ -332,7 +315,7 @@ void main() {
           expect(after.look?.turn, turn);
         });
 
-        test('a turn given up under it is looked at only after the lift', () {
+        test('a turn given up under it is looked at only after the tap', () {
           final (sent, _) = reduce(const Machine(), const TurnSent(turn));
           final (givenUp, effects) = reduce(
             halted(sent),
@@ -346,7 +329,7 @@ void main() {
         });
 
         test(
-          'a look still answered under it looks again only after the lift',
+          'a look still answered under it looks again only after the tap',
           () {
             final (waiting, effects) = reduce(
               halted(givenUp(const NothingKept())),

@@ -388,13 +388,11 @@ void main() {
       await room.theReplyIsPlaying();
       final stops = harness.voice.stops;
 
-      harness.network.holdNextCheck();
       room.sala.panoramaTap();
       await room.beat(300);
 
       expect(harness.voice.stops, greaterThan(stops), reason: 'parou');
       expect(harness.inbox.heard, isEmpty);
-      harness.network.finishHeldCheck();
     },
   );
 

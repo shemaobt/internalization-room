@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -18,11 +17,7 @@ const _lookAgain = Duration(milliseconds: 50);
 class _Tablet {
   final SalaHarness harness;
   final ProviderContainer container;
-  final List<SalaSessionState> seen = [];
-
-  _Tablet(this.harness, this.container) {
-    container.listen(salaSessionProvider, (_, next) => seen.add(next));
-  }
+  _Tablet(this.harness, this.container);
 
   SalaSessionNotifier get notifier =>
       container.read(salaSessionProvider.notifier);
@@ -30,11 +25,6 @@ class _Tablet {
   SalaSessionState get state => container.read(salaSessionProvider);
 
   FakeRoom get room => harness.room;
-
-  bool get everOffline => seen.any((state) => state.offline);
-
-  bool get offlineNoticeSpoken =>
-      harness.voice.assets.contains(offlineNoticeAsset(testLanguage));
 
   String? get saidAgainUnder => room.turnIdsAsked.last;
 }
@@ -111,7 +101,6 @@ void main() {
       expect(again.saidAgainUnder, isNotNull);
       expect(again.room.turnIdsLookedAt, [again.saidAgainUnder]);
       expect(again.state.needsPerson, isFalse);
-      expect(again.everOffline, isFalse);
       expect(again.state.voice, VoiceState.invite);
       expect(again.state.awaitingTheGuide, isFalse);
       expect(again.state.canHearAgain, isTrue);
@@ -124,26 +113,21 @@ void main() {
     },
   );
 
-  test(
-    '«Ouvir de novo» whose answer the network loses is looked at, never the fall',
-    () async {
-      final again = await _relaunchedAfterAReply();
-      again.room.failTheLineSaidAgainWith = _theNetworkDrops;
+  test('«Ouvir de novo» whose answer the network loses is looked at', () async {
+    final again = await _relaunchedAfterAReply();
+    again.room.failTheLineSaidAgainWith = _theNetworkDrops;
 
-      unawaited(again.notifier.hearAgain());
-      await Future<void>.delayed(_lookAgain * 4);
-      await settle();
+    unawaited(again.notifier.hearAgain());
+    await Future<void>.delayed(_lookAgain * 4);
+    await settle();
 
-      expect(again.saidAgainUnder, isNotNull);
-      expect(again.room.turnIdsLookedAt, [again.saidAgainUnder]);
-      expect(again.everOffline, isFalse);
-      expect(again.offlineNoticeSpoken, isFalse);
-      expect(again.state.needsPerson, isFalse);
-      expect(again.state.voice, VoiceState.invite);
-      expect(again.state.awaitingTheGuide, isFalse);
-      expect(again.state.canHearAgain, isTrue);
-    },
-  );
+    expect(again.saidAgainUnder, isNotNull);
+    expect(again.room.turnIdsLookedAt, [again.saidAgainUnder]);
+    expect(again.state.needsPerson, isFalse);
+    expect(again.state.voice, VoiceState.invite);
+    expect(again.state.awaitingTheGuide, isFalse);
+    expect(again.state.canHearAgain, isTrue);
+  });
 
   test(
     '«Ouvir de novo» the room refuses is decided as a refusal of a request, not as a turn',
@@ -158,7 +142,6 @@ void main() {
 
       expect(again.room.turnIdsAsked, hasLength(asked + 1));
       expect(again.state.needsPerson, isFalse);
-      expect(again.everOffline, isFalse);
       expect(again.room.turnIdsLookedAt, isEmpty);
     },
   );
@@ -200,7 +183,6 @@ void main() {
         hasLength(1),
       );
       expect(again.state.needsPerson, isFalse);
-      expect(again.everOffline, isFalse);
     },
   );
 }

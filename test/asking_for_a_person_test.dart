@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -39,6 +41,41 @@ Future<void> _haltWithTheNetworkUp(
 }
 
 void main() {
+  test('the call flag is released when the call throws', () async {
+    final harness = SalaHarness(retryBackoff: const [_oneStepOfTheLadder]);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    final surfaced = <Object>[];
+    final done = Completer<void>();
+
+    runZonedGuarded(() async {
+      try {
+        harness.room
+          ..failTurnsWith = const Refused('PIPELINE_REFUSED')
+          ..askForAPersonThrowsOnce = StateError('o Env sem endereço');
+        await _stopForAPerson(notifier, read);
+        await settle();
+
+        notifier.teamTapped();
+        await waitFor('a sala descansar', () => !read().needsPerson);
+        await _stopForAPerson(notifier, read);
+        await waitFor(
+          'o segundo pedido chegar',
+          () => harness.room.personsAsked > 0,
+        );
+        done.complete();
+      } catch (error, stack) {
+        done.completeError(error, stack);
+      }
+    }, (error, _) => surfaced.add(error));
+    await done.future;
+
+    expect(surfaced, [isA<StateError>()]);
+    expect(harness.room.personsAsked, 1);
+  });
+
   test('a call the server refused is made again', () async {
     final harness = SalaHarness(retryBackoff: const [_oneStepOfTheLadder]);
     final container = await inConversa(harness);
@@ -79,8 +116,7 @@ void main() {
     expect(_callsForAPerson(harness), greaterThan(1));
   });
 
-  test('a call that fell on the network keeps the room in reach and is asked '
-      'again', () async {
+  test('a call that fell on the network is asked again', () async {
     final harness = SalaHarness(retryBackoff: const [_oneStepOfTheLadder]);
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -90,22 +126,14 @@ void main() {
     harness.room
       ..failTurnsWith = const Refused('PIPELINE_REFUSED')
       ..askForAPersonFailsWith = const NetworkFailed('sem rede');
-    harness.network.reachable = false;
     await _stopForAPerson(notifier, read);
     await waitFor(
       'o pedido de pessoa sair',
       () => _callsForAPerson(harness) == 1,
     );
     await settle(_severalStepsOfTheLadder);
-    expect(
-      read().unreachable,
-      isFalse,
-      reason:
-          'o pedido de pessoa não é uma entrada: a rede que cai não muda nada',
-    );
-    expect(read().offline, isFalse);
+    expect(read().needsPerson, isTrue);
     harness.room.askForAPersonFailsWith = null;
-    harness.network.reachable = true;
 
     await waitFor(
       'o pedido de pessoa pousar na volta',
@@ -152,7 +180,7 @@ void main() {
     );
 
     final pedidos = _callsForAPerson(harness);
-    notifier.resolveWithPerson();
+    notifier.teamTapped();
     await settle(_severalStepsOfTheLadder);
 
     expect(

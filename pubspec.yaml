@@ -19,8 +19,8 @@ dependencies:
   audio_session: ^0.1.21
   http: ^1.6.0
   flutter_dotenv: ^5.2.1
-  # Outside ADR 0018's stack list, and deliberately: the room must be able to say it
-  # has no connection before the team taps, not only after a request has already failed.
+  # Outside ADR 0018's stack list. Nothing reads it since ADR 0108; it leaves after the
+  # tablet freeze, so the lock files stay as they are until then.
   connectivity_plus: ^6.1.0
   path: ^1.9.0
   # Outside ADR 0018's stack list, like connectivity_plus above it: nothing else can
@@ -65,5 +65,3 @@ flutter:
   uses-material-design: true
   assets:
     - .env
-    - assets/audio/pt/
-    - assets/audio/en/

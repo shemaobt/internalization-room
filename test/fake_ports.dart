@@ -4,7 +4,6 @@ import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
-import 'package:internalization_room/features/sala/domain/room_reach.dart';
 
 import 'a_station_host_double.dart';
 
@@ -86,16 +85,11 @@ class ASoundPort implements SoundPort {
   Future<void> stop() async => heard.add('stop');
 }
 
-/// A room port that reaches nothing: it writes down what it was asked, and a Session read,
-/// a reach, a call for a person or a person-arrived mark answers only when the test says
-/// so.
+/// A room port that reaches nothing: it writes down what it was asked, and a Session read
+/// or a call for a person answers only when the test says so.
 class ARoomPort implements RoomPort {
   final List<String> heard = [];
   final List<Completer<SessionReadAnswer>> _reads = [];
-  final List<Completer<RoomReach>> _reaches = [];
-
-  @override
-  Stream<void> get networkReturned => const Stream.empty();
 
   @override
   Future<LookAnswer> lookAt(Turn turn) async => const NothingLanded();
@@ -124,18 +118,7 @@ class ARoomPort implements RoomPort {
   void answerTheSceneRehearsals(SceneRehearsalsAnswer answer) =>
       _sceneReads.removeAt(0).complete(answer);
 
-  @override
-  Future<RoomReach> reach() {
-    heard.add('reach');
-    final reach = Completer<RoomReach>();
-    _reaches.add(reach);
-    return reach.future;
-  }
-
-  void answerTheReach(RoomReach reach) => _reaches.removeAt(0).complete(reach);
-
   final List<Completer<RoomResult>> _calls = [];
-  final List<Completer<RoomResult>> _arrivals = [];
 
   @override
   Future<RoomResult> askForAPerson(String session) {
@@ -146,17 +129,6 @@ class ARoomPort implements RoomPort {
   }
 
   void answerTheCall(RoomResult result) => _calls.removeAt(0).complete(result);
-
-  @override
-  Future<RoomResult> personArrived(String session) {
-    heard.add('arrived:$session');
-    final arrival = Completer<RoomResult>();
-    _arrivals.add(arrival);
-    return arrival.future;
-  }
-
-  void answerTheArrival(RoomResult result) =>
-      _arrivals.removeAt(0).complete(result);
 }
 
 /// A recorder port that records nothing: it writes down what it was asked, and a start or

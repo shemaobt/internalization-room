@@ -65,7 +65,7 @@ void main() {
       async.elapse(_period * 3);
       expect(stateReads(harness), before, reason: 'não há sessão a ler');
 
-      notifier.resolveWithPerson();
+      notifier.teamTapped();
       async.elapse(Duration.zero);
       expect(_read(container).needsPerson, isFalse);
       container.dispose();
@@ -73,7 +73,7 @@ void main() {
   });
 
   test('a halt whose Watch read falls on the network stays standing and '
-      'watched, and the room stays in reach', () {
+      'watched', () {
     fakeAsync((async) {
       final harness = SalaHarness(settleDelay: _period, filaEmMemoria: true);
       final container = _inConversa(async, harness);
@@ -90,16 +90,8 @@ void main() {
       notifier.haltForABrokenBuild();
       async.elapse(Duration.zero);
 
-      harness.network.reachable = false;
       harness.room.failStateOnceWith = const NetworkFailed('sem rede');
       async.elapse(_period + const Duration(milliseconds: 100));
-      expect(
-        _read(container).unreachable,
-        isFalse,
-        reason: 'longe de uma entrada, a rede que cai não muda nada',
-      );
-
-      harness.network.reachable = true;
       async.elapse(const Duration(milliseconds: 200));
       harness.room.finishHeldTurn();
 

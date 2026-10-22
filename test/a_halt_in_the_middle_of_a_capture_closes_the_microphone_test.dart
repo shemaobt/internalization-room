@@ -142,13 +142,13 @@ void main() {
     );
   });
 
-  test('after the lift, the circle opens a fresh capture', () async {
+  test('after the tap, the circle opens a fresh capture', () async {
     final harness = SalaHarness();
     final (container, notifier, read) = await _capturingWithAWarningArmed(
       harness,
     );
     await _haltLandsBlocking(notifier, read);
-    notifier.resolveWithPerson();
+    notifier.teamTapped();
     await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 
     harness.playback.at = const Duration(seconds: 2);

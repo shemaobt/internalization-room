@@ -213,7 +213,7 @@ void main() {
   );
 
   test(
-    'a parada bloqueante que a leitura troca por um aviso deixa o aviso vigiado',
+    'o aviso que a leitura diz sob o sinal fica vigiado depois do toque',
     () async {
       final harness = SalaHarness();
       final container = await inConversa(harness);
@@ -228,20 +228,25 @@ void main() {
       await waitFor('a sala parar de vez', () => read().needsPerson);
       harness.room.failTurnsWith = null;
 
-      // O pedido do tablet não chegou, então a sala continua marcada com o
-      // aviso que o orçamento levantou: a leitura seguinte devolve a equipe,
-      // mas a sessão continua pedindo alguém.
       harness.room.serverHalt = HaltKind.warning;
+      final leituras = stateReads(harness);
+      await waitFor('a vigia reler', () => stateReads(harness) > leituras);
 
-      await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
+      expect(
+        read().needsPerson,
+        isTrue,
+        reason: 'uma leitura nunca tira o sinal',
+      );
+
+      notifier.teamTapped();
 
       expect(
         read().warning,
         isTrue,
         reason:
-            'a leitura que devolveu a equipe ainda diz o aviso, e o aviso é '
-            'o que sobra da parada: apagá-lo aqui esconderia da equipe que a '
-            'sala continua pedindo alguém',
+            'a leitura disse o aviso por baixo do sinal, e o aviso é o que '
+            'sobra dele: apagá-lo no toque esconderia da equipe que a sala '
+            'continua pedindo alguém',
       );
 
       harness.room.theDeskAttended();
@@ -261,16 +266,14 @@ void main() {
 
     await waitFor('o aviso chegar', () => read().warning);
 
-    harness.network.reachable = false;
     harness.room.reachable = false;
     await _someBeats(harness);
     expect(
-      read().offline,
-      isFalse,
+      read().warning,
+      isTrue,
       reason:
           'a leitura da vigia não é uma entrada: a rede que cai não muda nada',
     );
-    harness.network.reachable = true;
     harness.room.reachable = true;
 
     // A equipe não toca em nada depois da volta: sem a vigia, nada mais nesta

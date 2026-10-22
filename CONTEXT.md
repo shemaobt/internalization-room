@@ -110,11 +110,11 @@ Whose open microphone the Channel holds: the conversation's, the rehearsal's, th
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
 **Microphone answer**:
-How the recorder answered the microphone the room asked for: an opening started, refused or failed; a close with the take, or with none; a discard; or a late start abandoned. Every answer but a start, and but a close the recorder failed, gives the Channel back (ADR 0057). On the scene rehearsal's Station a refused or failed opening only gives the Channel back: no gate, no line, no count towards a person (ADR 0089).
+How the recorder answered the microphone the room asked for: an opening started, refused or failed; a close with the take, or with none; a discard; or a late start abandoned. Every answer but a start, and but a close the recorder failed, gives the Channel back (ADR 0057). On the Scene rehearsal, the Rehearsal and the Back-translation, a refused or failed opening only gives the Channel back: no sign, no line, no count. Only the conversation's microphone on the Conversation or the Panorama counts: a refused opening there shows the person sign at once, a failed one the second time in a row (ADR 0089, 0108).
 _Avoid_: capture result (a Capture is the back-translation's microphone), recorder state
 
 **Gesture on its way**:
-A gesture of the team from the moment it starts until everything it started has ended, the gesture it hands off to included, or until the room gives up on what that gesture was waiting for. Its own sounds pass, the instant acknowledgement of a turn among them; every other line, the courtesy lines (offline, stranded recording, microphone blocked) included, waits until it ends (ADR 0049).
+A gesture of the team from the moment it starts until everything it started has ended, the gesture it hands off to included, or until the room gives up on what that gesture was waiting for. Its own sounds pass, the instant acknowledgement of a turn among them; every other line waits until it ends (ADR 0049).
 _Avoid_: busy, pending gesture
 
 **Queued line**:
@@ -340,9 +340,17 @@ _Avoid_: record entry, record button, botão de gravar, green check, green micro
 A session that holds a Guide line, its Opening at least. The room asks a session's Opening only while it is not opened.
 _Avoid_: started, begun
 
+**Store build**:
+The app as the stores hold it: the build installed on every tablet from the App Store or Google Play, which the server never asks about and which changes only by a new version published to both stores (ADR 0082, ADR 0110). A version bump merged to main is the store build's only source.
+_Avoid_: release (the server's record of an approved draft), the build (ambiguous), app version
+
 **Outbox**:
-The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it. Each row keeps its recording's **Recording time**, its length when it is a WAV and its fingerprint (sha256), fixed when the row is written; a row an older app wrote has none and sends none.
+The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it. Each row keeps its recording's **Recording time**, its length when it is a WAV and its fingerprint (sha256), fixed when the row is written; a row an older app wrote has none and sends none. An unsent take is shown on its Scene row, never spoken.
 _Avoid_: fila, caixa de saída, upload queue, buffer
+
+**Unsent take**:
+A take of a Part of this session still on this tablet, the newest pass of its Part, that is still in the Outbox (waiting, failed or refused for good), or that this visit kept and could not put in the Outbox. Its Scene row shows it: a take left by an earlier visit with her notice «Uma gravação ainda está neste computador e não foi enviada.» and «Cena N · m:ss — enviar agora»; a take whose send failed in this visit with «falhou — toque para tentar de novo». Either tap sends it now, with its tries given back. A visit is this app run of the session: a relaunch makes every take still waiting one of an earlier visit. The Outbox still retries it by itself.
+_Avoid_: stranded take, stuck recording, gravação presa, pending take (the Outbox's row)
 
 **Resume point**:
 The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). One per passage and **Session language** (ADR 0077). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage — never the clock.
@@ -421,8 +429,12 @@ _Avoid_: retro retomada, resuming from scratch
 ### The room and the people
 
 **Halt**:
-The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the Desk lifts it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel and keeps what was sounding. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing (shown once the team is back on the Conversation), the reply's sound failing twice, a tablet that cannot record, and the microphone failing to start twice in a row. A Session read never raises one (ADR 0093).
+The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the team's tap on the person sign clears it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing (shown once the team is back on the Conversation), the reply's sound failing twice, a tablet that cannot record (a refused start on the Conversation or the Panorama), and the microphone failing to start twice in a row. A Session read never raises one (ADR 0093).
 _Avoid_: sala parada, stuck room, pause
+
+**Person sign**:
+How a blocking Halt is drawn: a soft wash over the whole screen with the Shema mark and two outlined figures, with no words and no sound. The circle, the moment label, the orange dot, the red microphone and the passage button fade under it. While any of it is on screen it takes every tap, and a tap anywhere on it once fully shown clears it and the room rests; nothing is replayed or resent, and nothing the Desk does clears it or holds it (ADR 0107).
+_Avoid_: handoff (her CSS name), halt screen, sinal de pessoa, the userCheck glyph (retired)
 
 **Warning**:
 The kind of halt that asks for someone to come and watch while refusing the team nothing. It is a warning, not a cap: the room takes turns as before, and it is what the retells budget raises — on every route a telling can take, whether the tablet hears it on a state read or in the answer to a stretch told again. The room raises it by marking the session itself, so the tablet never calls for a person over one, and it ends when the Desk attends the session, in whatever station the team is in.
@@ -442,19 +454,11 @@ VoiceOver label; the Circle's own colour stays the voice, in every state.
 _Avoid_: aviso, warning badge, the green disc (retired 2026-09-25)
 
 **Call for a person**:
-The room's action of signalling it needs someone, insisted on at intervals until it is answered. A long press on the circle asks the room to read its state again rather than lifting a blocking halt, which only the Desk lifts.
+The room's action of telling the Desk it needs someone, insisted on at intervals until the call lands or the team's tap clears the sign. It never holds the team: the Desk's visit is a record and changes nothing on the tablet.
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
-**Reach**:
-Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure takes the room out of reach only on a way in, a Station with no session yet (the Choice, a passage or a Panorama not opened); anywhere else it changes nothing (ADR 0093). Coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
-_Avoid_: offline (the voice the circle draws while the reach is down, not the fact), connectivity, online/offline flag, Alcance
-
-**Pending request**:
-The way in a Step was waiting on when it fell, re-sent once when the room comes back; nothing else is pending, and a lift re-sends nothing (ADR 0093).
-_Avoid_: retry queue, outbox (which holds recordings only)
-
 **Watch**:
-The room's periodic Session read, beating for as long as a session is open, with or without a halt, so a halt only the server wrote still stops the room within one beat (ADR 0048). A halt never stands without it (ADR 0046). A halt with no session has nothing to read, and the long press releases it locally. It ends with the session.
+The room's periodic Session read, beating for as long as a session is open, with or without a halt (ADR 0048). A Session read never raises the person sign nor clears it (ADR 0093, 0107). A halt never stands without it (ADR 0046). A halt with no session, the build guard, has nothing to read, and the team's tap clears it. It ends with the session.
 _Avoid_: poll, timer, vigia (the code's name is not the term)
 
 **Effect**:
@@ -466,11 +470,11 @@ The one place that executes every Effect, through the four Ports, reading the St
 _Avoid_: dispatcher, interpreter, handler
 
 **StationHost**:
-The one interface the EffectRunner reads from the room: the Station's questions (what is wanted, reachable or in course), its hearings (what the runner heard back) and the lifecycle hand-off. It executes no effect.
+The one interface the EffectRunner reads from the room: the Station's questions (what is wanted or in course), its hearings (what the runner heard back) and the lifecycle hand-off. It executes no effect.
 _Avoid_: EffectHost, callback, delegate
 
 **Port**:
-One of the four doors the Effect runner reaches the world through: Room (the server, network health and the person-call inbox), Sound, Recorder and Store (the disk and the Outbox). Each is an interface in the domain with one production adapter (ADR 0053).
+One of the four doors the Effect runner reaches the world through: Room (the server and the person-call inbox), Sound, Recorder and Store (the disk and the Outbox). Each is an interface in the domain with one production adapter (ADR 0053).
 _Avoid_: repository (what an adapter wraps), service, gateway
 
 **Sound port**:
@@ -481,12 +485,16 @@ _Avoid_: player, voice (what its two halves are called in the code)
 The machine's count of how many times its in-flight work was abandoned; an answering event from an older generation is ignored (ADR 0053).
 _Avoid_: epoch
 
+**Way in**:
+A Station with no session yet: the Choice, a passage or a Panorama not opened. A way in whose request fails lets its Step go and rests at the invite, and the team's next tap asks again (ADR 0108).
+_Avoid_: reach, offline, out of reach
+
 **Failure policy**:
-The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the room out of reach, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071), and every failure of the tablet's own that may call a person (the reply's sound, the microphone's start, a tablet that cannot record); a refusal is never counted, and nothing outside the six cases becomes a Halt (ADR 0093). Nothing decides a failure inside a Station or the notifier (ADR 0053).
+The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071), and every failure of the tablet's own that may call a person (the reply's sound, the microphone's start, a tablet that cannot record); a refusal is never counted, and nothing outside the six cases becomes a Halt (ADR 0093). A network failure that is no turn's lets its Step go and changes nothing else (ADR 0108). Nothing decides a failure inside a Station or the notifier (ADR 0053).
 _Avoid_: error handler, retry policy
 
 **One look**:
-What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server without sending it again. Once the room answers that it is still answering the turn, it reads it again every two seconds, under the busy watchdog, and only a reply that landed or the watchdog running out decides it; the watchdog decides it as nothing found (ADR 0097). A halt holds the look back and its lift resumes it once the room is within reach. A reply that landed plays as if it had arrived on time, except an Opening found after the room said it was still answering, which rests silent with «Ouvir de novo» armed. Anything else raises a blocking Halt that calls for a person and keeps the take, never the offline face, except over an Opening, which rests at the quiet invite, and over a line said again, which rests with «Ouvir de novo» still armed.
+What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server without sending it again. Once the room answers that it is still answering the turn, it reads it again every two seconds, under the busy watchdog, and only a reply that landed or the watchdog running out decides it; the watchdog decides it as nothing found (ADR 0097). A halt holds the look back and the team's tap resumes it. A look that failed (no network, a refused device) is decided as a failure: over an Opening it rests at the quiet invite, over a spoken turn it shows the person sign, and while the room is still answering it looks again. A reply that landed plays as if it had arrived on time, except an Opening found after the room said it was still answering, which rests silent with «Ouvir de novo» armed. Anything else raises a blocking Halt that calls for a person and keeps the take, except over an Opening, which rests at the quiet invite, and over a line said again, which rests with «Ouvir de novo» still armed.
 _Avoid_: retry, resend, poll
 
 **Session read**:

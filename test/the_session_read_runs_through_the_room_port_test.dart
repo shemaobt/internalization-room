@@ -3,7 +3,6 @@ import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
-import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 
 import 'a_station_host_double.dart';
@@ -55,7 +54,7 @@ void main() {
   );
 
   test(
-    'a Session read that fails on the network takes the room out of reach at the Watch\'s door',
+    'a Session read that fails on the network is told at the Watch\'s door',
     () async {
       runner.run(const [ReadTheState()]);
       room.answerTheRead(const SessionReadFailed(RoomNetworkFailed()));
@@ -63,9 +62,7 @@ void main() {
 
       expect(
         host.answers.single,
-        isA<NetworkFailedAt>()
-            .having((fell) => fell.door, 'door', Door.watch)
-            .having((fell) => fell.why, 'why', RoomReach.noNetwork),
+        isA<NetworkFailedAt>().having((fell) => fell.door, 'door', Door.watch),
       );
       expect(host.readsHeard, isEmpty);
     },

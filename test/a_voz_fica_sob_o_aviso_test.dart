@@ -120,9 +120,7 @@ void main() {
     final handle = tester.ensureSemantics();
 
     for (final (name, voice, halt) in [
-      ('needsPerson', VoiceState.invite, const Blocking(NothingKept())),
-      ('offline', VoiceState.offline, const NoHalt()),
-      ('blocked', VoiceState.blocked, const NoHalt()),
+      ('needsPerson', VoiceState.invite, const Blocking()),
     ]) {
       await _pumpCircle(tester, voice, halt: halt, warning: _aviso);
       expect(

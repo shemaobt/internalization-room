@@ -4,10 +4,8 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
-import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
-import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
@@ -134,13 +132,6 @@ void main() {
     },
   );
 
-  test('a fall is heard by the Station with its door and its reason', () {
-    runner.run(const [FellAt(Door.step, why: RoomReach.roomSilent)]);
-
-    expect(host.asked, ['hearTheFall:step:roomSilent']);
-    expect(host.answers, isEmpty);
-  });
-
   test('a Step let go is heard by the Station', () {
     runner.run(const [LetTheStepGo()]);
 
@@ -227,10 +218,10 @@ void main() {
     expect(host.answers, isEmpty);
   });
 
-  test('a kept sound is heard by the Station', () {
-    runner.run(const [ReplayTheSound(ThePart())]);
+  test('the sign cleared is heard by the Station', () {
+    runner.run(const [GoOnAfterTheSign()]);
 
-    expect(host.asked, ['hearTheSoundKept:ThePart']);
+    expect(host.asked, ['hearTheSignCleared']);
     expect(host.answers, isEmpty);
   });
 
@@ -257,16 +248,6 @@ void main() {
       runner.run(const [DiscardTheSession()]);
 
       expect(host.handedOver, [const DiscardTheSession()]);
-      expect(host.answers, isEmpty);
-    },
-  );
-
-  test(
-    'resending the Pending request is handed to the Station, and the machine hears nothing',
-    () {
-      runner.run(const [ResendPending()]);
-
-      expect(host.handedOver, [const ResendPending()]);
       expect(host.answers, isEmpty);
     },
   );

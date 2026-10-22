@@ -324,20 +324,26 @@ void main() {
     await aSalaParaDeVez(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
-    expect(rotuloDoCirculo(tester), circleLabelFor('needsPerson', 'pt'));
+    expect(byLabel(circleLabelFor('needsPerson', 'pt')), findsOneWidget);
     closeTheRoom(container);
   });
 
   testWidgets('a blocking halt hides her mark', (tester) async {
+    final herMark = find.byWidgetPredicate(
+      (widget) =>
+          widget is Semantics &&
+          widget.container &&
+          widget.properties.label == linha,
+    );
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     await ateACapturaVazia(tester, harness);
-    expect(byLabel(linha), findsWidgets);
+    expect(herMark, findsOneWidget);
 
     await aSalaParaDeVez(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
-    expect(byLabel(linha), findsNothing);
+    expect(herMark, findsNothing);
     closeTheRoom(container);
   });
 

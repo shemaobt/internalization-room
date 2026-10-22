@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'fakes.dart';
@@ -20,6 +21,33 @@ import 'fakes.dart';
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
 );
+
+Finder onTheCircle(String label) => find.descendant(
+  of: find.byType(FacilitatorCircle),
+  matching: byLabel(label),
+);
+
+Finder inTheHome(String label) =>
+    find.descendant(of: find.byType(EnsaioView), matching: byLabel(label));
+
+bool _isASceneRow(Widget widget) =>
+    widget.runtimeType.toString() == '_SceneRowView';
+
+Finder onTheRows(String label) => find.descendant(
+  of: find.byWidgetPredicate(_isASceneRow),
+  matching: byLabel(label),
+);
+
+Finder offTheRows(String label) => find.byElementPredicate((element) {
+  final widget = element.widget;
+  if (widget is! Semantics || widget.properties.label != label) return false;
+  var inside = false;
+  element.visitAncestorElements((above) {
+    inside = _isASceneRow(above.widget);
+    return !inside;
+  });
+  return !inside;
+});
 
 /// How many times the room has been asked to read the session's state back —
 /// the only witness that a watch actually re-polled, since the watch itself
@@ -152,8 +180,7 @@ Future<void> theHaltIsLifted(
   SalaSessionState Function() read,
 ) async {
   harness.voice.roomFailsWith = null;
-  harness.room.theDeskAttended();
-  notifier.resolveWithPerson();
+  notifier.teamTapped();
   await waitFor('a sala soltar', () => !read().needsPerson);
   await settle();
 }

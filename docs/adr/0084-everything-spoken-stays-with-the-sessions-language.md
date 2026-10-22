@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0103
 date: 2026-10-15
 supersedes: 0077 (in part: the last bullet of its Decision, «Fixed and process lines stay on the Room language»)
 ---

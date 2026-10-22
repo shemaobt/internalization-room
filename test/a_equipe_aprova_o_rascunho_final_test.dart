@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/leave_passage_button.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -383,7 +384,6 @@ void main() {
         ),
       );
       it.harness.room.failReleaseWith = const NetworkFailed('timeout');
-      final checagensAntes = it.harness.network.checks;
 
       await _aprovarEEsperar(tester);
 
@@ -391,13 +391,6 @@ void main() {
         _estado(it.container).needsPerson,
         isFalse,
         reason: 'uma demora é a rede, e a rede sem fala não chama ninguém',
-      );
-      expect(
-        _estado(it.container).offline,
-        isFalse,
-        reason:
-            'fora do caminho de entrada uma falha de rede não tira a sala do '
-            'alcance',
       );
       expect(_estado(it.container).btPhase, BtPhase.conferida);
       expect(
@@ -412,11 +405,6 @@ void main() {
         it.harness.room.releasesAsked,
         hasLength(1),
         reason: 'nada é mandado de novo sozinho',
-      );
-      expect(
-        it.harness.network.checks,
-        checagensAntes,
-        reason: 'e nenhuma escada pergunta pela sala',
       );
 
       closeTheRoom(it.container);
@@ -444,27 +432,17 @@ void main() {
   });
 
   testWidgets(
-    'sem rede a aprovação não tira a sala do alcance e o botão fica de pé',
+    'sem rede a aprovação não muda nada na sala e o botão fica de pé',
     (tester) async {
       final it = await _ateAConferida(tester);
       it.harness.room.reachable = false;
-      it.harness.network.reachable = false;
 
       await _aprovarEEsperar(tester);
 
-      expect(
-        _circulo(tester).voice,
-        isNot(VoiceState.offline),
-        reason:
-            'a aprovação não é um caminho de entrada: sem rede, nada muda na '
-            'sala',
-      );
-      expect(_estado(it.container).offline, isFalse);
       expect(_estado(it.container).needsPerson, isFalse);
       expect(byLabel(_aprovar), findsOneWidget);
 
       it.harness.room.reachable = true;
-      it.harness.network.reachable = true;
       await _aprovarEEsperar(tester);
 
       expect(
@@ -1372,7 +1350,6 @@ void main() {
       ..releaseBlockers = const ['untold_stretch']
       ..releaseUntoldSegmentId = 'trecho-1'
       ..failStateOnceWith = const NetworkFailed('timeout');
-    final checagensAntes = it.harness.network.checks;
 
     await _aprovarEEsperar(tester);
 
@@ -1394,22 +1371,10 @@ void main() {
       findsOneWidget,
       reason: 'e o gesto continua ali para ser repetido',
     );
-    expect(
-      _estado(it.container).offline,
-      isFalse,
-      reason:
-          'fora do caminho de entrada uma falha de rede não tira a sala do '
-          'alcance',
-    );
 
     await tester.pump(const Duration(seconds: 40));
 
     expect(it.harness.room.releasesAsked, hasLength(1));
-    expect(
-      it.harness.network.checks,
-      checagensAntes,
-      reason: 'e nenhuma escada pergunta pela sala',
-    );
 
     closeTheRoom(it.container);
   });
@@ -1446,13 +1411,37 @@ void main() {
 
       expect(_circulo(tester).halt, isA<Blocking>());
       expect(
-        _circulo(tester).semanticLabel,
-        'A moment for someone',
-        reason:
-            'o retro sob o sinal da pessoa dizia "Um momento para uma pessoa" '
-            'a uma sala em inglês',
+        byLabel('A moment for someone'),
+        findsOneWidget,
+        reason: 'o sinal da pessoa sobre o retro fala a língua da sala',
       );
 
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'under the person sign on the retro\'s checked screen the passage button is gone too',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      double passageButton() => tester
+          .widget<AnimatedOpacity>(
+            find.descendant(
+              of: find.byType(LeavePassageButton),
+              matching: find.byType(AnimatedOpacity),
+            ),
+          )
+          .opacity;
+      expect(
+        passageButton(),
+        1,
+        reason: 'na tela conferida, sem parada, a saída da passagem aparece',
+      );
+
+      _notifier(it.container).haltForABrokenBuild();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(passageButton(), 0);
       closeTheRoom(it.container);
     },
   );

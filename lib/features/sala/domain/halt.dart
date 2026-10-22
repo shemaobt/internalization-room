@@ -11,16 +11,7 @@ final class ThePart extends Kept {
 }
 
 final class TheOpening extends Kept {
-  final String failedTurnId;
-
-  const TheOpening(this.failedTurnId);
-
-  @override
-  bool operator ==(Object other) =>
-      other is TheOpening && other.failedTurnId == failedTurnId;
-
-  @override
-  int get hashCode => failedTurnId.hashCode;
+  const TheOpening();
 }
 
 /// The room's last line, said again on the team's tap.
@@ -41,23 +32,14 @@ final class Warning extends Halt {
 }
 
 final class Blocking extends Halt {
-  final Kept kept;
   final bool warningBeneath;
-  final bool serverKnows;
 
-  const Blocking(
-    this.kept, {
-    this.warningBeneath = false,
-    this.serverKnows = false,
-  });
+  const Blocking({this.warningBeneath = false});
 
   @override
   bool operator ==(Object other) =>
-      other is Blocking &&
-      other.kept == kept &&
-      other.warningBeneath == warningBeneath &&
-      other.serverKnows == serverKnows;
+      other is Blocking && other.warningBeneath == warningBeneath;
 
   @override
-  int get hashCode => Object.hash(kept, warningBeneath, serverKnows);
+  int get hashCode => warningBeneath.hashCode;
 }

@@ -1,7 +1,6 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
-import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/refusal_code.dart';
@@ -34,8 +33,6 @@ void main() {
       partCeiling: () => null,
       clipGrace: () => Duration.zero,
       lookAgainAfter: () => Duration.zero,
-      offlineNotice: () =>
-          const Line(LineKind.offlineNotice, 0, asset: 'offline.mp3'),
       generation: () => machine.generation,
     );
   });

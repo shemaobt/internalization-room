@@ -33,7 +33,6 @@ import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/capture_guard.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
-import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/cut_point.dart';
@@ -2509,10 +2508,18 @@ class FakeRoom implements RoomRepository {
     _holdingAskForAPerson = null;
   }
 
+  /// What the next session-scoped ask throws instead of answering: an `Error`, which no
+  /// catch of the network layer takes.
+  Error? askForAPersonThrowsOnce;
+
   @override
   Future<RoomAnswer<void>> askForAPerson(String sessionId) async {
     if (_guard('askForAPerson') case final failure?) return failure;
     personAsksFor.add(sessionId);
+    if (askForAPersonThrowsOnce case final error?) {
+      askForAPersonThrowsOnce = null;
+      throw error;
+    }
     if (_forgot('askForAPerson', sessionId) case final gone?) {
       return gone;
     }
@@ -2526,35 +2533,6 @@ class FakeRoom implements RoomRepository {
     serverStatus = 'needs_person';
     serverHalt = HaltKind.blocking;
     return const Answered(null);
-  }
-
-  /// What the next call to `personArrived` throws, independent of `failWith` — a case
-  /// needs the halt to stay reachable and only the arrival ping itself to fail.
-  RoomFailure? personArrivedFailsWith;
-
-  /// Every session id `personArrived` was called for, one entry per attempt.
-  final List<String> personArrivedSessions = [];
-
-  Completer<void>? _holdingPersonArrived;
-
-  /// Holds the next arrival ping in flight, so a test can move the room before it lands.
-  void holdNextPersonArrived() => _holdingPersonArrived = Completer<void>();
-
-  void finishHeldPersonArrived() {
-    _holdingPersonArrived?.complete();
-    _holdingPersonArrived = null;
-  }
-
-  @override
-  Future<RoomAnswer<void>> personArrived(String sessionId) async {
-    if (_guard('personArrived') case final failure?) return failure;
-    if (_forgot('personArrived', sessionId) case final gone?) {
-      return gone;
-    }
-    personArrivedSessions.add(sessionId);
-    final held = _holdingPersonArrived;
-    if (held != null) await held.future;
-    return personArrivedFailsWith ?? const Answered(null);
   }
 
   /// Every device id the device-scoped ask was made for, one entry per attempt —
@@ -2975,42 +2953,17 @@ class FakeNetwork implements ConnectivityService {
   @override
   http.Client get client => throw UnimplementedError();
 
-  final StreamController<void> _returned = StreamController<void>.broadcast();
-  bool reachable = true;
-  bool radioSeesNothing = false;
-  int checks = 0;
-  int answeredChecks = 0;
-  Completer<void>? _holdingCheck;
-  Completer<void>? _heldCheck;
+  /// How many times the open microphone warmed the connection.
+  int pings = 0;
 
-  void holdNextCheck() => _holdingCheck = Completer<void>();
-
-  void finishHeldCheck() {
-    _heldCheck?.complete();
-    _heldCheck = null;
+  @override
+  Future<bool> ping() async {
+    pings++;
+    return true;
   }
 
   @override
-  Future<RoomReach> reachRoom() async {
-    checks++;
-    final held = _holdingCheck;
-    if (held != null) {
-      _holdingCheck = null;
-      _heldCheck = held;
-      await held.future;
-    }
-    answeredChecks++;
-    if (reachable) return RoomReach.fine;
-    return radioSeesNothing ? RoomReach.noNetwork : RoomReach.roomSilent;
-  }
-
-  @override
-  Stream<void> get onNetworkReturned => _returned.stream;
-
-  void networkComesBack() => _returned.add(null);
-
-  @override
-  void dispose() => _returned.close();
+  void dispose() {}
 }
 
 class FakeScreenAwake implements ScreenAwake {
@@ -3305,12 +3258,6 @@ class FakeTakeQueue implements TakeUploadQueue {
   ];
 
   @override
-  Future<List<PendingTake>> giveUps() async => const [];
-
-  @override
-  Future<bool> lostHistory() async => false;
-
-  @override
   Future<int> unsentOf(String kind, {required String sessionId}) async => [
     for (final entry in rows)
       if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
@@ -3334,16 +3281,6 @@ class FakeTakeQueue implements TakeUploadQueue {
     _holding = null;
   }
 
-  @override
-  Future<Set<String>> unsentScopesOf(
-    String kind, {
-    required String sessionId,
-  }) async => {
-    for (final entry in rows)
-      if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
-        entry.scope,
-  };
-
   /// How many takes were still unsent each time the room counted, in order.
   final List<int> unsentAtEachTally = [];
 
@@ -3354,13 +3291,11 @@ class FakeTakeQueue implements TakeUploadQueue {
     _armed = null;
     if (held != null) _holding = held;
     // Nenhum await antes daqui: os números precisam ser tomados no mesmo turno
-    // síncrono em que a espera é armada, do jeito que unsentScopesOf já fazia —
-    // um await entre as duas coisas muda quando a leitura vê a fila, não só
-    // quando ela responde.
+    // síncrono em que a espera é armada — um await entre as duas coisas muda
+    // quando a leitura vê a fila, não só quando ela responde.
     final result = (
       parts: const <String, PartFact>{},
       due: Duration.zero,
-      stranded: false,
       unsentTakes: [
         for (final entry in rows)
           if (!entry.stored &&
@@ -3375,12 +3310,19 @@ class FakeTakeQueue implements TakeUploadQueue {
               entry.sessionId == sessionId)
             entry,
       ].length,
-      unsentTakeScopes: {
+      unsentParts: {
         for (final entry in rows)
           if (!entry.stored &&
               entry.kind == 'ensaio' &&
               entry.sessionId == sessionId)
-            entry.scope,
+            entry.scope: [
+              for (final row in rows)
+                if (!row.stored &&
+                    row.kind == 'ensaio' &&
+                    row.sessionId == sessionId &&
+                    row.scope == entry.scope)
+                  row,
+            ],
       },
     );
     if (held != null) await held.future;
@@ -3770,8 +3712,8 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
   Future<void> dispose() async => _states.close();
 }
 
-class QueueHeldOnGiveUps extends TakeUploadQueue {
-  QueueHeldOnGiveUps({
+class QueueHeldOnTheTally extends TakeUploadQueue {
+  QueueHeldOnTheTally({
     required super.room,
     super.home,
     required super.recordings,
@@ -3781,10 +3723,10 @@ class QueueHeldOnGiveUps extends TakeUploadQueue {
   final Completer<void> answer = Completer<void>();
 
   @override
-  Future<List<PendingTake>> giveUps() async {
+  Future<OutboxTally> tally({required String? sessionId}) async {
     if (!asking.isCompleted) asking.complete();
     await answer.future;
-    return super.giveUps();
+    return super.tally(sessionId: sessionId);
   }
 }
 

@@ -15,8 +15,7 @@ Future<void> main() async {
   // failure has to reach the room rather than the console. `Env`'s own throw is an
   // `Error`, which every catch between the network layer and the screen misses, so a
   // missing key used to loop the invite between offline and touch-me forever against a
-  // healthy server. The room asks for a person instead, which is the one halted state
-  // with a glyph, a spoken line and a way out.
+  // healthy server. The room shows the person sign instead, which the team's tap clears.
   var built = true;
   try {
     await Env.load();

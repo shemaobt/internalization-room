@@ -3,7 +3,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/halt.dart';
-import '../../domain/room_reach.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'motion.dart';
@@ -19,7 +18,6 @@ class FacilitatorCircle extends StatelessWidget {
   final double size;
   final VoiceState voice;
   final Tongue? tongue;
-  final RoomReach reach;
   final bool noteMode;
   final bool peerCue;
   final bool answersATouch;
@@ -40,14 +38,12 @@ class FacilitatorCircle extends StatelessWidget {
   final double opacity;
   final String semanticLabel;
   final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
 
   const FacilitatorCircle({
     super.key,
     required this.size,
     required this.voice,
     this.tongue,
-    this.reach = RoomReach.fine,
     required this.semanticLabel,
     this.noteMode = false,
     this.peerCue = false,
@@ -57,7 +53,6 @@ class FacilitatorCircle extends StatelessWidget {
     this.halt = const NoHalt(),
     this.opacity = 1,
     this.onTap,
-    this.onLongPress,
   });
 
   bool get _teamTalk => isTeamTalk(peerCue: peerCue, voice: voice);
@@ -66,6 +61,14 @@ class FacilitatorCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final underTheSign = halt is Blocking;
+    return ExcludeSemantics(
+      excluding: underTheSign,
+      child: _circle(context, underTheSign ? 0 : opacity),
+    );
+  }
+
+  Widget _circle(BuildContext context, double opacity) {
     final colors = SalaColors.of(context);
     final still = MediaQuery.disableAnimationsOf(context);
     return AnimatedOpacity(
@@ -76,7 +79,6 @@ class FacilitatorCircle extends StatelessWidget {
         label: semanticLabel,
         child: GestureDetector(
           onTap: onTap,
-          onLongPress: onLongPress,
           behavior: HitTestBehavior.opaque,
           child: SizedBox(
             width: size,
@@ -149,23 +151,12 @@ class FacilitatorCircle extends StatelessWidget {
     return [ring(0), ring(0.65)];
   }
 
-  /// A tablet with no network at all, or a network with no room answering on it.
-  ///
-  /// The check has always known which; it collapsed both into one face, and a wrong
-  /// address on a working wi-fi told the team the internet had gone.
-  IconData get _offlineGlyph => reach == RoomReach.roomSilent
-      ? LucideIcons.serverOff
-      : LucideIcons.cloudOff;
-
   /// Whether the room is already showing a stop for this voice.
   ///
   /// A warning is a lesser thing than any of these — it asks somebody to come and
   /// look, and refuses nothing — so it never draws over a state that has already
   /// told the team to stop.
-  bool get _halted =>
-      halt is Blocking ||
-      voice == VoiceState.offline ||
-      voice == VoiceState.blocked;
+  bool get _halted => halt is Blocking;
 
   IconData? get _modeGlyph {
     if (_halted) return null;
@@ -178,9 +169,7 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   Widget _body(SalaColors colors, bool still) {
-    if (halt is Blocking) return _haltedBody(colors, LucideIcons.userCheck);
-    if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
-    if (!answersATouch) return _haltedBody(colors, null);
+    if (!answersATouch) return _haltedBody(colors);
     if (_teamTalk) return _liveBreath(colors);
 
     switch (voice) {
@@ -212,10 +201,6 @@ class FacilitatorCircle extends StatelessWidget {
           builder: (context, t) =>
               Transform.scale(scale: 1 + 0.02 * t, child: _liveDisc(colors)),
         );
-      case VoiceState.offline:
-        return _haltedBody(colors, _offlineGlyph);
-      case VoiceState.blocked:
-        return _haltedBody(colors, LucideIcons.micOff);
     }
   }
 
@@ -338,18 +323,10 @@ class FacilitatorCircle extends StatelessWidget {
         Transform.scale(scale: 1 + 0.045 * t, child: _liveDisc(colors)),
   );
 
-  /// A room that has stopped, and is still running.
-  ///
-  /// This served a blocking halt, `offline` and `blocked` as a bare `Container` — the three
-  /// states that outlast every other, each of which speaks its line once and then never
-  /// again. Offline ends when the network returns, a blocking halt when somebody who is not
-  /// the team walks over, and `blocked` is the first screen the app ever shows on that
-  /// path. A team glancing up at any of them had nothing to tell a room that is waiting
-  /// from one that has died.
-  ///
-  /// Slower and shallower than an invite on purpose: the colour and the glyph already say
-  /// this is not a turn to take. The breath only says the app is still there.
-  Widget _haltedBody(SalaColors colors, IconData? glyph) {
+  /// A circle that answers no touch, and is still running: slower and shallower than an
+  /// invite on purpose, so the colour says this is not a turn to take and the breath only
+  /// says the app is still there.
+  Widget _haltedBody(SalaColors colors) {
     return Loop(
       period: const Duration(milliseconds: 6200),
       builder: (context, t) => Transform.scale(
@@ -362,9 +339,6 @@ class FacilitatorCircle extends StatelessWidget {
             gradient: BeadStyles.clay(colors),
             border: Border.all(color: colors.cord, width: 2),
           ),
-          child: glyph == null
-              ? null
-              : Icon(glyph, size: size * 0.28, color: colors.mut),
         ),
       ),
     );

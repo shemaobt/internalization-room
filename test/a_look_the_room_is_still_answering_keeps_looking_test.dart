@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -20,11 +19,7 @@ const _theNetworkDrops = NetworkFailed('a rede caiu');
 class _Room {
   final SalaHarness harness;
   final ProviderContainer container;
-  final List<SalaSessionState> seen = [];
-
-  _Room(this.harness, this.container) {
-    container.listen(salaSessionProvider, (_, next) => seen.add(next));
-  }
+  _Room(this.harness, this.container);
 
   SalaSessionNotifier get sala => container.read(salaSessionProvider.notifier);
 
@@ -34,11 +29,6 @@ class _Room {
 
   int get replies =>
       harness.voice.played.where((url) => url == turnoUrl).length;
-
-  bool get everOffline => seen.any((state) => state.offline);
-
-  bool get offlineNoticeSpoken =>
-      harness.voice.assets.contains(offlineNoticeAsset(testLanguage));
 }
 
 /// One take in the conversa whose answer the network loses, on a fake clock that starts
@@ -117,7 +107,6 @@ void main() {
           ]);
           expect(it.replies, 2, reason: 'a resposta da tomada toca uma vez');
           expect(it.state.needsPerson, isFalse);
-          expect(it.everOffline, isFalse);
 
           clock.elapse(const Duration(seconds: 10));
 
@@ -207,7 +196,6 @@ void main() {
               expect(it.room.turnIdsLookedAt, hasLength(3));
               expect(it.replies, 2, reason: 'a resposta da tomada toca');
               expect(it.state.needsPerson, isFalse);
-              expect(it.everOffline, isFalse);
             },
           );
         });
@@ -243,8 +231,6 @@ void main() {
 
       expect(it.room.turnIdsLookedAt, [_theTake(it)]);
       expect(it.state.needsPerson, isTrue);
-      expect(it.everOffline, isFalse);
-      expect(it.offlineNoticeSpoken, isFalse);
     });
   });
 
@@ -262,7 +248,6 @@ void main() {
             clock.elapse(const Duration(seconds: 2));
 
             expect(it.state.needsPerson, isTrue);
-            expect(it.everOffline, isFalse);
             final looks = it.room.turnIdsLookedAt.length;
             expect(looks, greaterThanOrEqualTo(14));
 
@@ -283,7 +268,6 @@ void main() {
             expect(it.state.needsPerson, isFalse);
             expect(it.state.voice, VoiceState.invite);
             expect(it.state.awaitingTheGuide, isFalse);
-            expect(it.everOffline, isFalse);
             final looks = it.room.turnIdsLookedAt.length;
             expect(looks, greaterThanOrEqualTo(14));
 
@@ -296,6 +280,60 @@ void main() {
       });
     },
   );
+
+  group('an Opening the busy watchdog gave up on while the room still drafts '
+      'it', () {
+    void theTeamSpeaks(FakeAsync clock, _Room it) {
+      it.sala.conversaTap();
+      clock.elapse(const Duration(milliseconds: 100));
+      it.sala.conversaTap();
+      clock.flushMicrotasks();
+    }
+
+    test('lets the team\'s next tap record a turn whose reply plays', () {
+      _anOpeningTheNetworkLoses(
+        (room) => room.looksStillAnswering = 1000,
+        (clock, it) {
+          clock.elapse(const Duration(seconds: 31));
+          expect(it.state.voice, VoiceState.invite);
+          it.room.failTurnsWith = null;
+
+          theTeamSpeaks(clock, it);
+          clock.elapse(const Duration(seconds: 1));
+
+          expect(it.room.turnsSent, 1);
+          expect(it.room.turnIdsAsked, hasLength(1));
+          expect(it.harness.voice.played, [turnoUrl]);
+        },
+        harness: SalaHarness(busyCeiling: const Duration(seconds: 30)),
+      );
+    });
+
+    test('answers a team turn sent meanwhile with its own reply, and nothing '
+        'plays before it', () {
+      _anOpeningTheNetworkLoses(
+        (room) => room.looksStillAnswering = 1000,
+        (clock, it) {
+          clock.elapse(const Duration(seconds: 31));
+          it.room
+            ..failTurnsWith = null
+            ..holdNextTurn();
+
+          theTeamSpeaks(clock, it);
+          clock.elapse(const Duration(seconds: 20));
+
+          expect(it.harness.voice.played, isEmpty);
+
+          it.room.finishHeldTurn();
+          clock.elapse(const Duration(seconds: 1));
+
+          expect(it.harness.voice.played, [turnoUrl]);
+          expect(it.state.needsPerson, isFalse);
+        },
+        harness: SalaHarness(busyCeiling: const Duration(seconds: 30)),
+      );
+    });
+  });
 
   test(
     'the busy watchdog running out between two looks makes no further look',
@@ -348,11 +386,10 @@ void main() {
     },
   );
 
-  group('a halt suspends the look, and its lift resumes it', () {
+  group('a halt suspends the look, and the team\'s tap resumes it', () {
     const ceiling = Duration(seconds: 30);
     void lift(_Room it) {
-      it.room.theDeskAttended();
-      it.sala.resolveWithPerson();
+      it.sala.teamTapped();
     }
 
     test('over a team turn the room is still answering', () {
@@ -417,7 +454,7 @@ void main() {
     });
 
     group(
-      'a turn given up under the halt makes its first look after the lift',
+      'a turn given up under the halt makes its first look after the tap',
       () {
         void halted(
           void Function(FakeRoom) arrange,
@@ -496,7 +533,7 @@ void main() {
     );
 
     test(
-      'a team reply the first look found under the halt plays once after the lift',
+      'a team reply the first look found under the halt plays once after the tap',
       () {
         _aTakeTheNetworkLoses(
           (room) => room
@@ -523,7 +560,7 @@ void main() {
     );
 
     test(
-      'an Opening the first look found under the halt is heard once after the lift',
+      'an Opening the first look found under the halt is heard once after the tap',
       () {
         _anOpeningTheNetworkLoses(
           (room) => room
@@ -552,12 +589,11 @@ void main() {
   });
 
   group(
-    'a halt longer than the busy watchdog owns the wait, and the room rests after the lift',
+    'a halt longer than the busy watchdog owns the wait, and the room rests after the tap',
     () {
       const ceiling = Duration(seconds: 30);
       void lift(_Room it) {
-        it.room.theDeskAttended();
-        it.sala.resolveWithPerson();
+        it.sala.teamTapped();
       }
 
       void restsAndTakesATurn(FakeAsync clock, _Room it) {
@@ -650,30 +686,15 @@ void main() {
     const held = Machine(
       station: Canvas(),
       session: 'sessao-1',
-      halt: Blocking(NothingKept()),
+      halt: Blocking(),
       look: TheLook(turn, asked: false, suspended: true),
     );
 
-    test('goes out at the lift with the room within reach', () {
-      final (_, effects) = reduce(held, const LongPress(somebodyToAsk: false));
+    test('goes out at the tap', () {
+      final (_, effects) = reduce(held, const TeamTapped());
 
       expect(effects, contains(const LookAtTheSession(turn)));
     });
-
-    test(
-      'lifted out of reach, waits for the room and goes out on its return',
-      () {
-        final (lifted, effects) = reduce(
-          held.copyWith(reach: Reach.outOfReach),
-          const LongPress(somebodyToAsk: false),
-        );
-        expect(effects, isNot(contains(const LookAtTheSession(turn))));
-
-        final (_, back) = reduce(lifted, const NetworkReturned());
-
-        expect(back, contains(const LookAtTheSession(turn)));
-      },
-    );
   });
 
   group('the resumed look', () {
@@ -700,11 +721,11 @@ void main() {
       await settle();
       expect(harness.room.turnIdsLookedAt, isEmpty);
 
-      notifier.resolveWithPerson();
+      notifier.teamTapped();
       return (harness, read);
     }
 
-    test('goes out at the lift and plays the reply it finds', () async {
+    test('goes out at the tap and plays the reply it finds', () async {
       final (harness, read) = await liftedUnderAHalt(stored: true);
 
       await waitFor(
@@ -717,7 +738,7 @@ void main() {
     });
 
     test(
-      'goes out at the lift and calls a person when it finds nothing',
+      'goes out at the tap and calls a person when it finds nothing',
       () async {
         final (harness, read) = await liftedUnderAHalt(stored: false);
 

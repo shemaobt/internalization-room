@@ -12,7 +12,6 @@ import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
-import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -34,7 +33,8 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'retro_findings_exits_test.dart' as achados;
-import 'scenario_helpers.dart' show byLabel, stateReads;
+import 'scenario_helpers.dart'
+    show byLabel, offTheRows, onTheCircle, stateReads, inTheHome;
 
 Set<Color> paintedBy(WidgetTester tester, Finder corner) {
   final colours = <Color>{};
@@ -380,27 +380,6 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('the mic gate answers a touch out loud, not in silence', (
-    tester,
-  ) async {
-    final harness = SalaHarness()..recorder.permitted = false;
-    final container = await pumpSala(tester, harness);
-    await container.read(micPermissionProvider.notifier).check();
-    await tester.pump(const Duration(milliseconds: 200));
-    harness.voice.assets.clear();
-
-    await tester.tap(find.byType(FacilitatorCircle));
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(
-      harness.voice.assets,
-      contains(micBlockedAsset(testLanguage)),
-      reason:
-          'a tela do microfone não tem texto: se o toque não fala, ela é '
-          'muda e sem efeito para sempre',
-    );
-  });
-
   testWidgets('conversa offers a tap to speak, the hand and the colar', (
     tester,
   ) async {
@@ -442,8 +421,9 @@ void main() {
   ) async {
     dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
-    final harness = SalaHarness()..network.reachable = false;
+    final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
+    harness.room.holdNextCreate();
     unawaited(
       container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
     );
@@ -487,7 +467,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
-    expect(byLabel('Tocar para gravar o ensaio'), findsOneWidget);
+    expect(onTheCircle('Gravar'), findsOneWidget);
     expect(
       find.text('DEV'),
       findsOneWidget,
@@ -791,7 +771,7 @@ void main() {
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(byLabel('Tocar para gravar o ensaio'), findsOneWidget);
+    expect(onTheCircle('Gravar'), findsOneWidget);
     expect(
       find.byType(ColarOverlay),
       findsNothing,
@@ -913,10 +893,8 @@ void main() {
   ) async {
     final container = await pumpSala(tester, SalaHarness());
     final notifier = container.read(salaSessionProvider.notifier);
-    bool? tocavel() => tester
-        .widget<Semantics>(byLabel('Ouvir o ensaio até aqui'))
-        .properties
-        .enabled;
+    bool? tocavel() =>
+        tester.widget<Semantics>(offTheRows('Ouvir')).properties.enabled;
 
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 100));
@@ -1023,7 +1001,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     notifier.takeKeep();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(byLabel('Ir para a tradução'), findsOneWidget);
+    expect(inTheHome('Traduzir a gravação'), findsOneWidget);
 
     notifier.playTheRehearsal();
     await tester.pump(const Duration(milliseconds: 200));
@@ -1031,7 +1009,7 @@ void main() {
     expect(container.read(salaSessionProvider).playPing, isTrue);
     expect(
       tester
-          .widget<Semantics>(byLabel('Ir para a tradução'))
+          .widget<Semantics>(inTheHome('Traduzir a gravação'))
           .properties
           .enabled,
       isTrue,
@@ -1042,7 +1020,7 @@ void main() {
           .widget<AnimatedOpacity>(
             find
                 .descendant(
-                  of: byLabel('Ir para a tradução'),
+                  of: inTheHome('Traduzir a gravação'),
                   matching: find.byType(AnimatedOpacity),
                 )
                 .first,

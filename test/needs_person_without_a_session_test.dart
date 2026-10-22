@@ -125,7 +125,7 @@ void main() {
     final playedBeforeResolve = harness.voice.assets.length;
     final fixedBeforeResolve = harness.voice.fixedLines.length;
 
-    notifier.resolveWithPerson();
+    notifier.teamTapped();
     await settle();
     expect(
       container.read(salaSessionProvider).needsPerson,

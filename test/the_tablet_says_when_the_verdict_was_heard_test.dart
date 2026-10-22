@@ -182,7 +182,6 @@ void main() {
             'nuance outra vez',
       );
       expect(state.btPhase, BtPhase.conferida);
-      expect(state.offline, isFalse);
       expect(state.needsPerson, isFalse);
     },
   );

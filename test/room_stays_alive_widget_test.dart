@@ -178,9 +178,7 @@ void main() {
 
   testWidgets('a halted room is still visibly running', (tester) async {
     for (final (name, voice, halt) in [
-      ('needsPerson', VoiceState.invite, const Blocking(NothingKept())),
-      ('offline', VoiceState.offline, const NoHalt()),
-      ('blocked', VoiceState.blocked, const NoHalt()),
+      ('needsPerson', VoiceState.invite, const Blocking()),
     ]) {
       final seen = await _scalesOver(tester, _circleIn(voice, halt: halt));
       final swing =

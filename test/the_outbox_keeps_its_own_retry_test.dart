@@ -4,10 +4,56 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 
+const _onTheCanvas = Machine(station: Canvas());
+const _onePartPending = {'linha-1': PartFact.pending};
+
+(Machine, List<Effect>) _run(Machine from, List<MachineEvent> events) {
+  var machine = from;
+  final effects = <Effect>[];
+  for (final event in events) {
+    final (next, said) = reduce(machine, event);
+    machine = next;
+    effects.addAll(said);
+  }
+  return (machine, effects);
+}
+
 void main() {
+  group('2 (b): with a part pending, the retry is armed by the Outbox\'s own '
+      'backoff', () {
+    test('a tally with a part pending arms the retry when it is due', () {
+      final (_, effects) = reduce(
+        _onTheCanvas,
+        const OutboxChanged(_onePartPending, due: Duration(seconds: 30)),
+      );
+
+      expect(effects, contains(const ArmTheRetry(due: Duration(seconds: 30))));
+    });
+
+    test('the retry firing drains the Outbox', () {
+      final (machine, effects) = _run(_onTheCanvas, const [
+        OutboxChanged(_onePartPending, due: Duration(seconds: 30)),
+        RetryFired(),
+      ]);
+
+      expect(effects.last, const DrainTheOutbox());
+      expect(machine.draining, isTrue);
+    });
+
+    test('a tally with nothing pending cancels the retry', () {
+      final (_, effects) = _run(_onTheCanvas, const [
+        OutboxChanged(_onePartPending, due: Duration(seconds: 30)),
+        OutboxChanged({'linha-1': PartFact.sent}),
+      ]);
+
+      expect(effects.last, const CancelTheRetry());
+    });
+  });
+
   late Directory home;
   late DateTime now;
 
@@ -36,7 +82,7 @@ void main() {
     );
   }
 
-  test('1 (a): a flush that falls on the network tells the reach', () async {
+  test('1 (a): a flush that falls on the network says so', () async {
     final room = FakeRoom()..reachable = false;
     final queue = queueOn(room);
     await enqueue(queue, 'parte-1');
@@ -121,7 +167,7 @@ void main() {
       final queue = await refusedWith('HTTP_400');
 
       await queue.flush();
-      expect(await queue.giveUps(), hasLength(1), reason: 'only when asked');
+      expect(await queue.pending(), hasLength(1), reason: 'only when asked');
       await queue.flush(withTheCodeless: true);
 
       expect(await queue.pending(), isEmpty);
@@ -132,7 +178,8 @@ void main() {
 
       await queue.flush(withTheCodeless: true);
 
-      expect(await queue.giveUps(), hasLength(1));
+      expect(await queue.pending(), hasLength(1));
+      expect(await queue.waiting(withTheCodeless: true), isEmpty);
     });
   });
 }
