@@ -274,4 +274,19 @@ void main() {
     await waitFor('the sign to clear', () => !room.read().needsPerson);
     expect(room.read().voice, VoiceState.invite);
   });
+
+  test('an opening the busy watchdog gave up on while its sound was being '
+      'readied leaves the next team turn an ordinary one: refused, it calls a '
+      'person', () async {
+    final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 300));
+    harness.voice.holdNextFetch();
+    final room = await _enterP01(harness);
+    await _theRoomRests(room);
+    expect(room.read().needsPerson, isFalse);
+    harness.room.failHeldTurnWith = const Refused('BAD_REQUEST');
+
+    await _theTeamSpeaks(room);
+
+    await waitFor('a person to be called', () => room.read().needsPerson);
+  });
 }

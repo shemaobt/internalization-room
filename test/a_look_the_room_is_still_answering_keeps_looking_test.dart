@@ -284,7 +284,6 @@ void main() {
   group('an Opening the busy watchdog gave up on while the room still drafts '
       'it', () {
     void theTeamSpeaks(FakeAsync clock, _Room it) {
-      it.room.failTurnsWith = null;
       it.sala.conversaTap();
       clock.elapse(const Duration(milliseconds: 100));
       it.sala.conversaTap();
@@ -297,6 +296,7 @@ void main() {
         (clock, it) {
           clock.elapse(const Duration(seconds: 31));
           expect(it.state.voice, VoiceState.invite);
+          it.room.failTurnsWith = null;
 
           theTeamSpeaks(clock, it);
           clock.elapse(const Duration(seconds: 1));
@@ -315,7 +315,9 @@ void main() {
         (room) => room.looksStillAnswering = 1000,
         (clock, it) {
           clock.elapse(const Duration(seconds: 31));
-          it.room.holdNextTurn();
+          it.room
+            ..failTurnsWith = null
+            ..holdNextTurn();
 
           theTeamSpeaks(clock, it);
           clock.elapse(const Duration(seconds: 20));

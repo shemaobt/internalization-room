@@ -266,6 +266,14 @@ void main() {
       }
     });
 
+    test('a wait over an opening that timed out lets the opening go', () {
+      _decides(
+        const RoomTimedOut(),
+        _theOpening,
+        const TheOpeningMissed(generation: 4),
+      );
+    });
+
     test('a wait with no turn that timed out lets its Step go', () {
       _decides(
         const RoomTimedOut(),

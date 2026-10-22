@@ -121,8 +121,8 @@ void main() {
   );
 
   testWidgets(
-    'a passage whose session could not be created asks for it again only when '
-    'the team taps, however long it waits',
+    'a passage whose session could not be created is not asked for again by '
+    'itself, however long the team waits',
     (tester) async {
       final sala = await _theRoom(tester);
       final said = _said(sala);
