@@ -281,6 +281,58 @@ void main() {
     },
   );
 
+  group('an Opening the busy watchdog gave up on while the room still drafts '
+      'it', () {
+    void theTeamSpeaks(FakeAsync clock, _Room it) {
+      it.room.failTurnsWith = null;
+      it.sala.conversaTap();
+      clock.elapse(const Duration(milliseconds: 100));
+      it.sala.conversaTap();
+      clock.flushMicrotasks();
+    }
+
+    test('lets the team\'s next tap record a turn whose reply plays', () {
+      _anOpeningTheNetworkLoses(
+        (room) => room.looksStillAnswering = 1000,
+        (clock, it) {
+          clock.elapse(const Duration(seconds: 31));
+          expect(it.state.voice, VoiceState.invite);
+
+          theTeamSpeaks(clock, it);
+          clock.elapse(const Duration(seconds: 1));
+
+          expect(it.room.turnsSent, 1);
+          expect(it.room.turnIdsAsked, hasLength(1));
+          expect(it.harness.voice.played, [turnoUrl]);
+        },
+        harness: SalaHarness(busyCeiling: const Duration(seconds: 30)),
+      );
+    });
+
+    test('answers a team turn sent meanwhile with its own reply, and nothing '
+        'plays before it', () {
+      _anOpeningTheNetworkLoses(
+        (room) => room.looksStillAnswering = 1000,
+        (clock, it) {
+          clock.elapse(const Duration(seconds: 31));
+          it.room.holdNextTurn();
+
+          theTeamSpeaks(clock, it);
+          clock.elapse(const Duration(seconds: 20));
+
+          expect(it.harness.voice.played, isEmpty);
+
+          it.room.finishHeldTurn();
+          clock.elapse(const Duration(seconds: 1));
+
+          expect(it.harness.voice.played, [turnoUrl]);
+          expect(it.state.needsPerson, isFalse);
+        },
+        harness: SalaHarness(busyCeiling: const Duration(seconds: 30)),
+      );
+    });
+  });
+
   test(
     'the busy watchdog running out between two looks makes no further look',
     () {
