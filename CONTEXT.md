@@ -114,7 +114,7 @@ How the recorder answered the microphone the room asked for: an opening started,
 _Avoid_: capture result (a Capture is the back-translation's microphone), recorder state
 
 **Gesture on its way**:
-A gesture of the team from the moment it starts until everything it started has ended, the gesture it hands off to included, or until the room gives up on what that gesture was waiting for. Its own sounds pass, the instant acknowledgement of a turn among them; every other line, the stranded recording's included, waits until it ends (ADR 0049).
+A gesture of the team from the moment it starts until everything it started has ended, the gesture it hands off to included, or until the room gives up on what that gesture was waiting for. Its own sounds pass, the instant acknowledgement of a turn among them; every other line waits until it ends (ADR 0049).
 _Avoid_: busy, pending gesture
 
 **Queued line**:
@@ -341,8 +341,12 @@ A session that holds a Guide line, its Opening at least. The room asks a session
 _Avoid_: started, begun
 
 **Outbox**:
-The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it. Each row keeps its recording's **Recording time**, its length when it is a WAV and its fingerprint (sha256), fixed when the row is written; a row an older app wrote has none and sends none.
+The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it. Each row keeps its recording's **Recording time**, its length when it is a WAV and its fingerprint (sha256), fixed when the row is written; a row an older app wrote has none and sends none. An unsent take is shown on its Scene row, never spoken.
 _Avoid_: fila, caixa de saída, upload queue, buffer
+
+**Unsent take**:
+A take of a Part of this session still on this tablet, the newest pass of its Part, that is still in the Outbox (waiting, failed or refused for good), or that this visit kept and could not put in the Outbox. Its Scene row shows it: a take left by an earlier visit with her notice «Uma gravação ainda está neste computador e não foi enviada.» and «Cena N · m:ss — enviar agora»; a take whose send failed in this visit with «falhou — toque para tentar de novo». Either tap sends it now, with its tries given back. A visit is this app run of the session: a relaunch makes every take still waiting one of an earlier visit. The Outbox still retries it by itself.
+_Avoid_: stranded take, stuck recording, gravação presa, pending take (the Outbox's row)
 
 **Resume point**:
 The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). One per passage and **Session language** (ADR 0077). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage — never the clock.

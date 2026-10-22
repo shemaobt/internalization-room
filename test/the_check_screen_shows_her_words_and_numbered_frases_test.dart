@@ -1043,11 +1043,7 @@ void main() {
       () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
       step: () => _passo(tester),
     );
-    for (final gesto in [
-      'Tocar para gravar esta parte de novo',
-      'Tocar ao terminar',
-      'Confirmar esta parte',
-    ]) {
+    for (final gesto in ['Gravar de novo', 'Parar', 'Enviar a gravação']) {
       await tocar(tester, gesto);
     }
     await waitFor(
@@ -1086,11 +1082,7 @@ void main() {
       () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
       step: () => _passo(tester),
     );
-    for (final gesto in [
-      'Tocar para gravar esta parte de novo',
-      'Tocar ao terminar',
-      'Confirmar esta parte',
-    ]) {
+    for (final gesto in ['Gravar de novo', 'Parar', 'Enviar a gravação']) {
       await tocar(tester, gesto);
     }
     await waitFor(

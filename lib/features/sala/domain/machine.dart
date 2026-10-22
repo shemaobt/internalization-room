@@ -1114,7 +1114,7 @@ const _watch = ArmTheWatch();
     heard: () => _notSaid(machine, line),
     unheard: () => _notSaid(machine, line),
   ),
-  StepLeft() => _leaveTheQueue(machine, _answersItsStep),
+  StepLeft() => _leaveTheQueue(machine, (_) => true),
   LeftThePassage() => (
     machine.copyWith(
       channel: const Silence(),
@@ -1424,8 +1424,6 @@ Paused? _heldBy(Channel channel) => switch (channel) {
         ),
       _ => (machine, const []),
     };
-
-bool _answersItsStep(Line line) => line.kind.answersAStep;
 
 (Machine, List<Effect>) _leaveTheQueue(
   Machine machine,

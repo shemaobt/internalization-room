@@ -58,9 +58,7 @@ holds no Rehearsal at all is neither: nothing is fetched, the passage opens at t
 Conversation, and the row is left alone. ADR 0023 has the whole of it. The row is never
 dropped either, because the session identifier lives only there, and dropping it would
 abandon that session on the server the moment the team closed the app before reaching the
-Rehearsal. That is also why a resume point that cannot be written speaks. It shares a
-disk with the outbox, so it borrows the outbox's stranded-recording line rather than adding
-a second one, and that line is guarded to play once per session so a failing disk never
-becomes a chant. A resume file that exists but cannot be parsed is never used as the base of
-a write — the rows of every other passage are in it — so the write refuses and speaks
-instead of reporting a place it never saved.
+Rehearsal. A resume point that cannot be written is logged and not spoken (ADR 0103). A
+resume file that exists but cannot be parsed is never used as the base of a write — the rows
+of every other passage are in it — so the write refuses instead of reporting a place it
+never saved.

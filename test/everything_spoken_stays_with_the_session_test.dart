@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -39,19 +37,6 @@ Future<void> _backInTheSession(Sala it, String session) async {
     'the team to be back in the session',
     () => it.estado.sessionId == session,
   );
-  await settle();
-}
-
-Future<void> _aRecordingIsStranded(Sala it) async {
-  final entry = await it.harness.takes.enqueue(
-    it.harness.recorder.aFile('sumida'),
-    sessionId: 'sessao-de-ontem',
-    kind: 'ensaio',
-    scope: 'inteira',
-  );
-  File(entry.path).deleteSync();
-  await it.harness.takes.flush();
-  await it.sala.refreshUnsent();
   await settle();
 }
 
@@ -141,31 +126,6 @@ void main() {
   );
 
   test(
-    'a recorded line said inside an English session is recorded in English',
-    () async {
-      final (it, english) =
-          await _anEnglishSessionReachedAgainAfterPtWasTapped();
-      await _backInTheSession(it, english);
-
-      await _aRecordingIsStranded(it);
-
-      expect(it.harness.voice.assets, [strandedTakeAsset('en')]);
-    },
-  );
-
-  test(
-    'a recorded line said on the Choice is recorded in the room language, though a session was left in English',
-    () async {
-      final (it, english) =
-          await _anEnglishSessionReachedAgainAfterPtWasTapped();
-
-      await _aRecordingIsStranded(it);
-
-      expect(it.harness.voice.assets, [strandedTakeAsset('pt')]);
-    },
-  );
-
-  test(
     'an English Panorama left before it was heard is opened again in English, in its own session, on the next tap',
     () async {
       final harness = SalaHarness(lingua: null)
@@ -207,44 +167,6 @@ void main() {
         harness.room.sessionsSpokenTo,
         everyElement(harness.room.sessionIds.first),
       );
-    },
-  );
-
-  test(
-    'The Panorama\'s language is the one the room speaks at the Panorama',
-    () async {
-      final harness = SalaHarness(lingua: null)
-        ..room.passages = const [
-          Passagem(
-            pericope: 'panorama',
-            audioUrl: '/voice/panorama',
-            kind: PassagemKind.panorama,
-          ),
-          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-        ];
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final it = Sala(harness, container);
-      it.sala.chooseTheLanguage('en');
-      await settle();
-      await enterThePanorama(it.sala, () => it.estado);
-      await waitFor('the Panorama to be said', () => it.estado.panoramaSaid);
-      await settle();
-      it.sala.leaveThePassage();
-      await waitFor('the way back', () => it.estado.theWayBackIsLive);
-      it.sala.chooseTheLanguage('pt');
-      await settle();
-      await it.sala.returnToTheLeftEntry();
-      await waitFor(
-        'the Panorama to be back',
-        () => it.estado.stage == SalaStage.panorama && it.estado.panoramaSaid,
-      );
-      await settle();
-      it.harness.voice.assets.clear();
-
-      await _aRecordingIsStranded(it);
-
-      expect(it.harness.voice.assets, [strandedTakeAsset('en')]);
     },
   );
 }

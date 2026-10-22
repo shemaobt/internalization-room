@@ -6,7 +6,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/facilita
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, settle;
+import 'scenario_helpers.dart' show onTheCircle, settle;
 
 Future<void> _openTheMicrophone(
   WidgetTester tester,
@@ -118,14 +118,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
-      byLabel('Tocar ao terminar'),
+      onTheCircle('Parar'),
       findsOneWidget,
       reason:
           'a tomada continua aberta durante a ligação — o toque ainda é o '
           'que a encerra',
     );
     expect(
-      byLabel('Tocar para gravar o ensaio'),
+      onTheCircle('Gravar'),
       findsNothing,
       reason:
           'apagar o halo pelo mesmo sinalizador que escolhe o rótulo '

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -508,37 +507,6 @@ void main() {
       );
       expect(harness.room.languagesAsked, everyElement('en'));
     },
-  );
-
-  test(
-    'the bundle carries the notice the room says without a server, and none of her lines',
-    () async {
-      TestWidgetsFlutterBinding.ensureInitialized();
-
-      const notices = {
-        'pt': {'gravacao_presa'},
-        'en': {'gravacao_presa'},
-      };
-      for (final language in languages) {
-        final manifest = await rootBundle.loadString(
-          'assets/audio/$language/manifest.json',
-        );
-
-        expect(
-          (jsonDecode(manifest) as Map<String, dynamic>).keys.toSet(),
-          notices[language],
-          reason:
-              'as falas dela iam gravadas no app, e uma gravação antiga podia '
-              'tocar depois de ela mudar a letra',
-        );
-        await expectLater(
-          () => rootBundle.load('assets/audio/$language/fixed/F0.mp3'),
-          throwsA(anything),
-        );
-        await rootBundle.load(strandedTakeAsset(language));
-      }
-    },
-    timeout: const Timeout(Duration(minutes: 2)),
   );
 
   test('the language nobody approved is neither claimed nor bundled', () async {

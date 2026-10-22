@@ -33,7 +33,8 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'retro_findings_exits_test.dart' as achados;
-import 'scenario_helpers.dart' show byLabel, stateReads;
+import 'scenario_helpers.dart'
+    show byLabel, offTheRows, onTheCircle, stateReads, inTheHome;
 
 Set<Color> paintedBy(WidgetTester tester, Finder corner) {
   final colours = <Color>{};
@@ -466,7 +467,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
-    expect(byLabel('Tocar para gravar o ensaio'), findsOneWidget);
+    expect(onTheCircle('Gravar'), findsOneWidget);
     expect(
       find.text('DEV'),
       findsOneWidget,
@@ -770,7 +771,7 @@ void main() {
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(byLabel('Tocar para gravar o ensaio'), findsOneWidget);
+    expect(onTheCircle('Gravar'), findsOneWidget);
     expect(
       find.byType(ColarOverlay),
       findsNothing,
@@ -892,10 +893,8 @@ void main() {
   ) async {
     final container = await pumpSala(tester, SalaHarness());
     final notifier = container.read(salaSessionProvider.notifier);
-    bool? tocavel() => tester
-        .widget<Semantics>(byLabel('Ouvir o ensaio até aqui'))
-        .properties
-        .enabled;
+    bool? tocavel() =>
+        tester.widget<Semantics>(offTheRows('Ouvir')).properties.enabled;
 
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 100));
@@ -1002,7 +1001,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     notifier.takeKeep();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(byLabel('Ir para a tradução'), findsOneWidget);
+    expect(inTheHome('Traduzir a gravação'), findsOneWidget);
 
     notifier.playTheRehearsal();
     await tester.pump(const Duration(milliseconds: 200));
@@ -1010,7 +1009,7 @@ void main() {
     expect(container.read(salaSessionProvider).playPing, isTrue);
     expect(
       tester
-          .widget<Semantics>(byLabel('Ir para a tradução'))
+          .widget<Semantics>(inTheHome('Traduzir a gravação'))
           .properties
           .enabled,
       isTrue,
@@ -1021,7 +1020,7 @@ void main() {
           .widget<AnimatedOpacity>(
             find
                 .descendant(
-                  of: byLabel('Ir para a tradução'),
+                  of: inTheHome('Traduzir a gravação'),
                   matching: find.byType(AnimatedOpacity),
                 )
                 .first,

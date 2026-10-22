@@ -167,7 +167,7 @@ void main() {
       final queue = await refusedWith('HTTP_400');
 
       await queue.flush();
-      expect(await queue.giveUps(), hasLength(1), reason: 'only when asked');
+      expect(await queue.pending(), hasLength(1), reason: 'only when asked');
       await queue.flush(withTheCodeless: true);
 
       expect(await queue.pending(), isEmpty);
@@ -178,7 +178,8 @@ void main() {
 
       await queue.flush(withTheCodeless: true);
 
-      expect(await queue.giveUps(), hasLength(1));
+      expect(await queue.pending(), hasLength(1));
+      expect(await queue.waiting(withTheCodeless: true), isEmpty);
     });
   });
 }

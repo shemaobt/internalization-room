@@ -170,30 +170,30 @@ void main() {
 
       IconData playIcon(String label) => tester
           .widget<Icon>(
-            find.descendant(of: byLabel(label), matching: find.byType(Icon)),
+            find.descendant(of: offTheRows(label), matching: find.byType(Icon)),
           )
           .icon!;
 
       expect(
-        playIcon('Ouvir o ensaio até aqui'),
+        playIcon('Ouvir'),
         LucideIcons.play,
         reason: 'parado mostra tocar',
       );
 
-      await tester.tap(byLabel('Ouvir o ensaio até aqui'));
+      await tester.tap(offTheRows('Ouvir'));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
-        playIcon('Pausar o ensaio'),
+        playIcon('Parar'),
         LucideIcons.pause,
         reason: 'tocando mostra pausar',
       );
 
-      await tester.tap(byLabel('Pausar o ensaio'));
+      await tester.tap(offTheRows('Parar'));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
-        playIcon('Ouvir o ensaio até aqui'),
+        playIcon('Ouvir'),
         LucideIcons.play,
         reason: 'pausado mostra tocar de novo',
       );

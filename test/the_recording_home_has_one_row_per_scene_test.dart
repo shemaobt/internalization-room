@@ -50,8 +50,8 @@ const _gravar = 'Gravar';
 const _ouvir = 'Ouvir';
 const _gravarDeNovo = 'Gravar de novo';
 const _parar = 'Parar';
-const _confirmar = 'Confirmar esta parte';
-const _irParaATraducao = 'Ir para a tradução';
+const _enviarAGravacao = 'Enviar a gravação';
+const _irParaATraducao = 'Traduzir a gravação';
 
 const _sessao = 'sessao-antiga';
 
@@ -96,7 +96,7 @@ Future<void> _tocar(WidgetTester tester, Finder alvo) async {
 }
 
 Future<void> _confirmarAParte(WidgetTester tester) async {
-  await _tocar(tester, byLabel(_confirmar));
+  await _tocar(tester, offTheRows(_enviarAGravacao));
   await letTheRehearsalReachTheRoom(tester);
 }
 
@@ -111,13 +111,13 @@ Future<void> _gravarNaLinha(
 }
 
 bool _discoAceso(WidgetTester tester) =>
-    tester.widget<Semantics>(byLabel(_irParaATraducao)).properties.enabled ==
+    tester.widget<Semantics>(inTheHome(_irParaATraducao)).properties.enabled ==
         true &&
     tester
             .widget<AnimatedOpacity>(
               find
                   .descendant(
-                    of: byLabel(_irParaATraducao),
+                    of: inTheHome(_irParaATraducao),
                     matching: find.byType(AnimatedOpacity),
                   )
                   .first,
@@ -375,7 +375,7 @@ void main() {
 
       expect(_discoAceso(tester), isFalse);
       expect(find.text(_todasAsPartes), findsOneWidget);
-      await _tocar(tester, byLabel(_irParaATraducao));
+      await _tocar(tester, inTheHome(_irParaATraducao));
       expect(_estado(container).stage, SalaStage.ensaio);
       container.read(salaSessionProvider.notifier).startRetro();
       await tester.pump(const Duration(milliseconds: 200));
@@ -398,7 +398,7 @@ void main() {
 
     expect(_discoAceso(tester), isTrue);
     expect(find.text(_todasAsPartes), findsNothing);
-    await _tocar(tester, byLabel(_irParaATraducao));
+    await _tocar(tester, inTheHome(_irParaATraducao));
     expect(_estado(container).stage, SalaStage.retro);
     closeTheRoom(container);
   });
@@ -689,7 +689,7 @@ void main() {
     );
 
     await theRoomNamesTheParts(tester, container, parts: 2);
-    await _tocar(tester, byLabel(_irParaATraducao));
+    await _tocar(tester, inTheHome(_irParaATraducao));
     await tester.pump(const Duration(milliseconds: 300));
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
@@ -720,7 +720,7 @@ void main() {
       await _gravarNaLinha(tester, 1);
       final antes = harness.playback.played.length;
 
-      await _tocar(tester, byLabel('Ouvir o ensaio até aqui'));
+      await _tocar(tester, offTheRows(_ouvir));
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 200));
 
@@ -747,7 +747,7 @@ void main() {
       final pendente = harness.recorder.lastPath!;
       final antes = harness.playback.played.length;
 
-      await _tocar(tester, byLabel('Ouvir o ensaio até aqui'));
+      await _tocar(tester, offTheRows(_ouvir));
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 200));
 
@@ -906,7 +906,7 @@ void main() {
         expect(_linha(n), findsOneWidget);
       }
       expect(_discoAceso(tester), isTrue);
-      await _tocar(tester, byLabel(_irParaATraducao));
+      await _tocar(tester, inTheHome(_irParaATraducao));
       expect(_estado(container).stage, SalaStage.retro);
       closeTheRoom(container);
     },
@@ -943,7 +943,7 @@ void main() {
         expect(_naLinha(n, _ouvir), findsOneWidget);
       }
       final quinta = _aParte(container, 5).path;
-      await _tocar(tester, byLabel('Ouvir o ensaio até aqui'));
+      await _tocar(tester, offTheRows(_ouvir));
       for (var parte = 0; parte < 4; parte++) {
         harness.playback.finishPlayback();
         await tester.pump(const Duration(milliseconds: 200));
@@ -953,7 +953,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(_discoAceso(tester), isTrue);
-      await _tocar(tester, byLabel(_irParaATraducao));
+      await _tocar(tester, inTheHome(_irParaATraducao));
       expect(_estado(container).stage, SalaStage.retro);
       closeTheRoom(container);
     },
@@ -1013,10 +1013,10 @@ void main() {
       }
       await _tocar(tester, _naLinha(1, _gravar));
       await _tocar(tester, _naLinha(1, _parar));
-      await _tocar(tester, byLabel(_confirmar));
+      await _tocar(tester, offTheRows(_enviarAGravacao));
       await _tocar(tester, _naLinha(2, _gravar));
       await _tocar(tester, _naLinha(2, _parar));
-      await _tocar(tester, byLabel(_confirmar));
+      await _tocar(tester, offTheRows(_enviarAGravacao));
 
       expect(
         [for (final take in _estado(container).partes) take.scopeId],

@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
@@ -592,7 +591,8 @@ void main() {
     },
   );
 
-  test('a scene take the room refused raises the stranded line', () async {
+  test('a scene take the room refused stays on the tablet, not kept on the '
+      'scene screen', () async {
     final room = await atRest();
     await theScreenOpens(room);
     room.harness.room.failSceneWith = const Refused('BAD_REQUEST');
@@ -600,15 +600,14 @@ void main() {
     await _recordAScene(room);
     await _notKept(room);
 
-    await waitFor(
-      'a fala de gravação presa',
-      () => room.harness.voice.assets.contains(strandedTakeAsset(testLanguage)),
-    );
+    expect([
+      for (final row in await room.harness.takes.entries())
+        if (row.kind == sceneTakeKind) row,
+    ], hasLength(1));
   });
 
   test(
-    'a full disk shows her save-failed words, holds the take for the retry and '
-    'says the recording is stranded',
+    'a full disk shows her save-failed words and holds the take for the retry',
     () async {
       late _DiskThatRefusesTheScene disk;
       final room = await atRest(
@@ -628,11 +627,6 @@ void main() {
 
       expect(waiting.tooLarge, isFalse);
       expect(waiting.take, room.harness.recorder.lastPath);
-      await waitFor(
-        'a fala de gravação presa',
-        () =>
-            room.harness.voice.assets.contains(strandedTakeAsset(testLanguage)),
-      );
 
       disk.full = false;
       await _theRetry(room);
@@ -673,45 +667,6 @@ void main() {
       );
     },
   );
-
-  test('a full disk under a session the room forgot never says a recording is '
-      'stranded', () async {
-    late _DiskThatRefusesTheScene disk;
-    final room = await atRest(
-      SalaHarness(
-        takesOverride: (room, home, recordings) =>
-            disk = _DiskThatRefusesTheScene(
-              room: room,
-              home: () async => home,
-              recordings: recordings,
-            )..holdsTheRefusal = true,
-      ),
-    );
-    final session = room.state.sessionId!;
-    await theScreenOpens(room);
-    await room.harness.takes.enqueue(
-      room.harness.recorder.aFile('parte-esquecida'),
-      sessionId: session,
-      kind: 'ensaio',
-      scope: 'parte-1',
-    );
-    room.harness.room.forgetTheSession(session);
-    await _recordAScene(room);
-    await waitFor('o disco ser pedido', () => disk.asked);
-
-    await room.harness.takes.flush();
-    await waitFor(
-      'a sala voltar à Escolha',
-      () => room.state.stage == SalaStage.escolha,
-    );
-    disk.letTheRefusalGo();
-    await settle();
-
-    expect(
-      room.harness.voice.assets,
-      isNot(contains(strandedTakeAsset(testLanguage))),
-    );
-  });
 
   test('a confirmed scene take counts the Outbox again', () async {
     final room = await atRest(SalaHarness(filaEmMemoria: true));
@@ -847,11 +802,6 @@ class _DiskThatRefusesTheScene extends TakeUploadQueue {
   });
 
   bool full = true;
-  bool asked = false;
-  bool holdsTheRefusal = false;
-  final _refusal = Completer<void>();
-
-  void letTheRefusalGo() => _refusal.complete();
 
   @override
   Future<PendingTake> enqueue(
@@ -864,8 +814,6 @@ class _DiskThatRefusesTheScene extends TakeUploadQueue {
     String? scene,
   }) async {
     if (kind == 'cena' && full) {
-      asked = true;
-      if (holdsTheRefusal) await _refusal.future;
       throw const FileSystemException('disco cheio');
     }
     return super.enqueue(
