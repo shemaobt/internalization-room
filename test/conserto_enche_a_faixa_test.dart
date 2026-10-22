@@ -294,10 +294,10 @@ void main() {
 
     expect(
       container.read(salaSessionProvider).needsPerson,
-      isTrue,
+      isFalse,
       reason:
-          'gravador que não abriu duas vezes seguidas é o caminho que para '
-          'para uma pessoa — se isso mudar, este cenário deixou de medir o que diz',
+          'na retro o microfone que não abre é calado: nem sinal, nem fala, '
+          'nem contagem (ADR 0108)',
     );
     expect(
       _faixasVazias(tester, container),

@@ -10,7 +10,6 @@ typedef _Room = ({
   SalaHarness harness,
   SalaSessionNotifier notifier,
   SalaSessionState Function() read,
-  List<VoiceState> voices,
 });
 
 Future<_Room> _enterP01(SalaHarness harness) async {
@@ -18,14 +17,8 @@ Future<_Room> _enterP01(SalaHarness harness) async {
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
   SalaSessionState read() => container.read(salaSessionProvider);
-  final voices = <VoiceState>[];
-  container.listen<SalaSessionState>(
-    salaSessionProvider,
-    (_, next) => voices.add(next.voice),
-    fireImmediately: true,
-  );
   await enterThePassage(notifier, read, 'P01');
-  return (harness: harness, notifier: notifier, read: read, voices: voices);
+  return (harness: harness, notifier: notifier, read: read);
 }
 
 Future<void> _theOpeningIsAsked(_Room room) => waitFor(
@@ -77,7 +70,6 @@ void main() {
     expect(room.read().voice, VoiceState.invite);
     expect(room.read().needsPerson, isFalse);
     expect(room.harness.voice.played, isNot(contains(turnoUrl)));
-    expect(room.voices, isNot(contains(VoiceState.offline)));
   });
 
   test(

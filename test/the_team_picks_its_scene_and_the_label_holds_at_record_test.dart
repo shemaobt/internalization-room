@@ -1736,13 +1736,11 @@ void main() {
           },
           rests: false,
         );
-        final reach = room.state.reach;
         await room.pump(const Duration(milliseconds: 100));
 
         expect(room.state.stage, SalaStage.cena);
         expect(room.state.needsPerson, isFalse);
         expect(room.room.personsAsked, personsAsked);
-        expect(room.state.reach, reach);
         expect(byLabel(_record), findsOneWidget);
         closeTheRoom(room.container);
       },

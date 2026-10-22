@@ -33,7 +33,6 @@ import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/capture_guard.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
-import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/cut_point.dart';
@@ -2954,42 +2953,17 @@ class FakeNetwork implements ConnectivityService {
   @override
   http.Client get client => throw UnimplementedError();
 
-  final StreamController<void> _returned = StreamController<void>.broadcast();
-  bool reachable = true;
-  bool radioSeesNothing = false;
-  int checks = 0;
-  int answeredChecks = 0;
-  Completer<void>? _holdingCheck;
-  Completer<void>? _heldCheck;
+  /// How many times the open microphone warmed the connection.
+  int pings = 0;
 
-  void holdNextCheck() => _holdingCheck = Completer<void>();
-
-  void finishHeldCheck() {
-    _heldCheck?.complete();
-    _heldCheck = null;
+  @override
+  Future<bool> ping() async {
+    pings++;
+    return true;
   }
 
   @override
-  Future<RoomReach> reachRoom() async {
-    checks++;
-    final held = _holdingCheck;
-    if (held != null) {
-      _holdingCheck = null;
-      _heldCheck = held;
-      await held.future;
-    }
-    answeredChecks++;
-    if (reachable) return RoomReach.fine;
-    return radioSeesNothing ? RoomReach.noNetwork : RoomReach.roomSilent;
-  }
-
-  @override
-  Stream<void> get onNetworkReturned => _returned.stream;
-
-  void networkComesBack() => _returned.add(null);
-
-  @override
-  void dispose() => _returned.close();
+  void dispose() {}
 }
 
 class FakeScreenAwake implements ScreenAwake {

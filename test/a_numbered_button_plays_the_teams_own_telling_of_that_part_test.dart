@@ -163,7 +163,6 @@ void main() {
       reason: 'o link vencido chamava uma pessoa para a sala',
     );
     expect(session.needsPerson, isFalse);
-    expect(session.unreachable, isFalse);
     expect(session.voice, VoiceState.invite);
     expect(
       harness.sounds,

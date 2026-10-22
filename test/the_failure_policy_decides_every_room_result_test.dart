@@ -1,11 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/refusal_code.dart';
-import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
@@ -13,6 +13,8 @@ import 'machine_generator.dart';
 
 const _turn = Turn('sessao-1', 'turno-7');
 const _kept = TheOpening();
+
+const _theSessionScreen = [Canvas(), Panorama('panorama')];
 
 final _aTurn = FailureContext(
   station: Station.stored(SalaStage.conversa),
@@ -31,13 +33,11 @@ final _theOpening = FailureContext(
 FailureContext _notATurn({
   RefusalRule rule = RefusalRule.letsTheStepGo,
   Door door = Door.outbox,
-  RoomReach why = RoomReach.noNetwork,
 }) => FailureContext(
   station: Station.stored(SalaStage.retro),
   step: BtPhase.thinking,
   generation: 4,
   door: door,
-  why: why,
   rule: rule,
   sounding: const ThePart(),
 );
@@ -165,26 +165,72 @@ void main() {
       );
     });
 
-    test('a tablet that cannot record brings the person sign', () {
-      _decidesOnTheTablet(
-        const TheTabletCannotRecord(),
-        _at(const Canvas()),
-        const RoomRaisedAHalt(generation: 4),
-      );
+    test(
+      'a refused start of the conversation\'s microphone on the Conversation '
+      'or the Panorama shows the sign at once',
+      () {
+        for (final station in _theSessionScreen) {
+          _decidesOnTheTablet(
+            const TheTabletCannotRecord(owner: MicOwner.conversation),
+            _at(station),
+            const RoomRaisedAHalt(generation: 4),
+          );
+        }
+      },
+    );
+
+    test('a failed start of the conversation\'s microphone shows the sign only '
+        'the second time in a row', () {
+      for (final station in _theSessionScreen) {
+        _decidesOnTheTablet(
+          const TheMicFailedToStart(1, owner: MicOwner.conversation),
+          _at(station),
+          const TheRefusalPassed(generation: 4),
+        );
+        _decidesOnTheTablet(
+          const TheMicFailedToStart(2, owner: MicOwner.conversation),
+          _at(station),
+          const RoomRaisedAHalt(generation: 4),
+        );
+      }
+    });
+  });
+
+  group('a microphone off the session screen is silent', () {
+    test('a microphone failure on the scene rehearsal, the Rehearsal or the '
+        'Back-translation never shows the sign', () {
+      for (final station in const [SceneRehearsal(), Ensaio(), Retro()]) {
+        for (final owner in const [
+          MicOwner.scene,
+          MicOwner.frase,
+          MicOwner.rehearsal,
+          MicOwner.capture,
+        ]) {
+          for (final failure in [
+            TheTabletCannotRecord(owner: owner),
+            TheMicFailedToStart(2, owner: owner),
+          ]) {
+            _decidesOnTheTablet(
+              failure,
+              _at(station),
+              const TheRefusalPassed(generation: 4),
+            );
+          }
+        }
+      }
     });
 
-    test('a microphone that fails to start once brings nothing; twice in a row '
-        'brings the person sign', () {
-      _decidesOnTheTablet(
-        const TheMicFailedToStart(1),
-        _at(const Canvas()),
-        const TheRefusalPassed(generation: 4),
-      );
-      _decidesOnTheTablet(
-        const TheMicFailedToStart(2),
-        _at(const Canvas()),
-        const RoomRaisedAHalt(generation: 4),
-      );
+    test('the raised hand\'s note microphone failing never shows the sign', () {
+      for (final failure in const [
+        TheTabletCannotRecord(owner: MicOwner.question),
+        TheMicFailedToStart(2, owner: MicOwner.question),
+      ]) {
+        _decidesOnTheTablet(
+          failure,
+          _at(const Canvas()),
+          const TheRefusalPassed(generation: 4),
+        );
+      }
     });
   });
 
@@ -369,16 +415,6 @@ void main() {
       const RoomNetworkFailed(),
       _notATurn(door: Door.telling),
       const TheTellingCameBackEmpty(generation: 4),
-    ),
-    (
-      'a call that is not a turn whose room is silent falls at its door saying so',
-      const RoomNetworkFailed(),
-      _notATurn(why: RoomReach.roomSilent),
-      const NetworkFailedAt(
-        Door.outbox,
-        why: RoomReach.roomSilent,
-        generation: 4,
-      ),
     ),
     (
       'the Watch refused changes nothing, whatever the code',

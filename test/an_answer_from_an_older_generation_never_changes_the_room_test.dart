@@ -60,11 +60,7 @@ AnsweringEvent _stampedAnswer(
   ThePassageClosed() => ThePassageClosed(generation: generation),
   WatchFired() => WatchFired(generation: generation),
   RetryFired() => RetryFired(generation: generation),
-  NetworkFailedAt(:final door, :final why) => NetworkFailedAt(
-    door,
-    why: why,
-    generation: generation,
-  ),
+  NetworkFailedAt(:final door) => NetworkFailedAt(door, generation: generation),
   TurnGivenUp(:final turn, :final sounding) => TurnGivenUp(
     turn,
     sounding: sounding,

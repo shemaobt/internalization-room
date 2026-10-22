@@ -7,12 +7,6 @@ const languages = ['pt', 'en'];
 
 const floorLanguage = 'pt';
 
-String offlineNoticeAsset(String language) =>
-    'assets/audio/$language/sem_conexao.mp3';
-
-String micBlockedAsset(String language) =>
-    'assets/audio/$language/microfone.mp3';
-
 const instantAckLines = ['F0', 'F1', 'F2'];
 
 const startLine = 'P0';
@@ -50,7 +44,6 @@ const circleLabels = {
     'en': 'Talk among yourselves — tap when you want to tell me',
   },
   'listening': {'pt': 'Tocar ao terminar', 'en': 'Tap when you are done'},
-  'offline': {'pt': 'Tocar para tentar de novo', 'en': 'Tap to try again'},
   'default': {'pt': 'Tocar para falar', 'en': 'Tap to speak'},
 };
 
@@ -88,10 +81,6 @@ const roomLabels = {
   'backToPassage': {
     'pt': 'Voltar para a passagem atual',
     'en': 'Back to the current passage',
-  },
-  'micBlocked': {
-    'pt': 'A sala precisa do microfone para funcionar',
-    'en': 'The room needs the microphone to work',
   },
   'beginAgain': {'pt': 'Começar de novo', 'en': 'Begin again'},
   'recordEnsaio': {

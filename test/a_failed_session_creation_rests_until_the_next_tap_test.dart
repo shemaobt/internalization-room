@@ -1,15 +1,12 @@
 import 'dart:async';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:internalization_room/features/sala/data/connectivity_service.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_client.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -17,7 +14,7 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
 
-const _tryAgain = 'Tocar para tentar de novo';
+final _atRest = byLabel(circleLabelFor('default', testLanguage));
 
 const _aBookWithItsPanorama = [
   Passagem(
@@ -54,35 +51,6 @@ Future<void> _pass(_Sala sala, Duration time) async {
 
 const _aBeat = Duration(milliseconds: 100);
 
-class _ARadioThatForgetsWhenNobodyListens implements Connectivity {
-  late final StreamController<List<ConnectivityResult>> _changes =
-      StreamController<List<ConnectivityResult>>.broadcast(
-        onCancel: () => _forgot = true,
-      );
-  bool _forgot = false;
-
-  @override
-  Future<List<ConnectivityResult>> checkConnectivity() async {
-    if (!_forgot) return [ConnectivityResult.wifi];
-    _forgot = false;
-    return [ConnectivityResult.none];
-  }
-
-  @override
-  Stream<List<ConnectivityResult>> get onConnectivityChanged => _changes.stream;
-
-  void close() => _changes.close();
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-List<Duration> get _theProductionLadder {
-  final container = ProviderContainer();
-  addTearDown(container.dispose);
-  return container.read(roomRetryBackoffProvider);
-}
-
 SalaHarness _aRoomThatWaitsForTheTap() =>
     SalaHarness(retryBackoff: const [Duration(minutes: 1)]);
 
@@ -112,16 +80,19 @@ Future<void> _chooseP01(_Sala sala, RoomFailure creation) async {
   );
   sala.harness.room.failCreateOnceWith = creation;
   sala.notifier.openTheEntry(chosen);
-  await _until(
-    sala,
-    'the retry line',
-    () => byLabel(_tryAgain).evaluate().isNotEmpty,
-  );
+  await _restsAtTheInvite(sala);
 }
+
+Future<void> _restsAtTheInvite(_Sala sala) => _until(
+  sala,
+  'the room to rest at the invite',
+  () => !_read(sala).awaitingTheGuide && _atRest.evaluate().isNotEmpty,
+);
 
 void _restsWithoutAHalt(_Sala sala) {
   expect(_read(sala).needsPerson, isFalse);
-  expect(byLabel(_tryAgain), findsOneWidget);
+  expect(_read(sala).voice, VoiceState.invite);
+  expect(_atRest, findsOneWidget);
 }
 
 Future<void> _theNextTapOpens(_Sala sala, void Function() tap) async {
@@ -141,31 +112,8 @@ void main() {
   setUpAll(() => dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local'));
 
   testWidgets(
-    'a session refused by a network failure at the Choice rests on «Tocar '
-    'para tentar de novo» and raises no halt',
-    (tester) async {
-      final sala = await _theSala(tester, _aRoomThatWaitsForTheTap());
-      await _chooseP01(sala, const NetworkFailed('sem rede'));
-
-      expect(_read(sala).sessionId, isNull);
-      _restsWithoutAHalt(sala);
-      closeTheRoom(sala.container);
-    },
-  );
-
-  testWidgets(
-    'the next tap after the room is back asks for the session again',
-    (tester) async {
-      final sala = await _theSala(tester, _aRoomThatWaitsForTheTap());
-      await _chooseP01(sala, const NetworkFailed('sem rede'));
-
-      await _theNextTapOpens(sala, sala.notifier.conversaTap);
-      closeTheRoom(sala.container);
-    },
-  );
-
-  testWidgets(
-    'a 500 on the session\'s creation rests and recovers the same way',
+    'a 500 on the session\'s creation rests at the invite and the next tap '
+    'asks again',
     (tester) async {
       final sala = await _theSala(tester, _aRoomThatWaitsForTheTap());
       await _chooseP01(
@@ -196,43 +144,11 @@ void main() {
       );
       sala.harness.room.failCreateOnceWith = const NetworkFailed('sem rede');
       unawaited(sala.notifier.returnToTheLeftEntry());
-      await _until(
-        sala,
-        'the retry line',
-        () => byLabel(_tryAgain).evaluate().isNotEmpty,
-      );
+      await _restsAtTheInvite(sala);
 
       expect(_read(sala).stage, SalaStage.conversa);
       _restsWithoutAHalt(sala);
       await _theNextTapOpens(sala, sala.notifier.conversaTap);
-      closeTheRoom(sala.container);
-    },
-  );
-
-  testWidgets(
-    'the Panorama opened with the room out of reach rests and a tap asks for '
-    'the session',
-    (tester) async {
-      final sala = await _theSala(
-        tester,
-        _aRoomThatWaitsForTheTap()..room.passages = _aBookWithItsPanorama,
-      );
-      unawaited(sala.notifier.abrirEscolha());
-      final chosen = await _theChoiceOffers(sala, (entry) => entry.isPanorama);
-      sala.harness.room.reachable = false;
-      sala.harness.network.reachable = false;
-      sala.notifier.openTheEntry(chosen);
-      await _until(
-        sala,
-        'the retry line',
-        () => byLabel(_tryAgain).evaluate().isNotEmpty,
-      );
-
-      expect(_read(sala).stage, SalaStage.panorama);
-      _restsWithoutAHalt(sala);
-      sala.harness.room.reachable = true;
-      sala.harness.network.reachable = true;
-      await _theNextTapOpens(sala, sala.notifier.panoramaTap);
       closeTheRoom(sala.container);
     },
   );
@@ -250,16 +166,12 @@ void main() {
     );
     sala.harness.room.holdNextCreate();
     sala.notifier.openTheEntry(chosen);
-    await _until(
-      sala,
-      'the retry line',
-      () => byLabel(_tryAgain).evaluate().isNotEmpty,
-    );
+    await _restsAtTheInvite(sala);
   }
 
   testWidgets(
-    'a session\'s creation the tablet gives up waiting for rests on «Tocar '
-    'para tentar de novo», raises no halt, and its late answer opens nothing',
+    'a session\'s creation the tablet gives up waiting for rests at the '
+    'invite, raises no halt, and its late answer opens nothing',
     (tester) async {
       final sala = await _theSala(tester, aRoomThatGivesUp());
       await theCreationIsGivenUp(sala);
@@ -302,77 +214,6 @@ void main() {
     },
   );
 
-  Future<_Sala> aPassageThatFellWhileTheRoomWasSilent(
-    WidgetTester tester,
-  ) async {
-    var roomIsSilent = false;
-    final radio = _ARadioThatForgetsWhenNobodyListens();
-    addTearDown(radio.close);
-    final harness = SalaHarness(
-      retryBackoff: _theProductionLadder,
-      connectivity: ConnectivityService(
-        connectivity: radio,
-        client: MockClient((_) async {
-          if (roomIsSilent) throw http.ClientException('Connection refused');
-          return http.Response('{"status":"ok"}', 200);
-        }),
-      ),
-    );
-    final sala = await _theSala(tester, harness);
-    unawaited(sala.notifier.abrirEscolha());
-    final chosen = await _theChoiceOffers(
-      sala,
-      (entry) => entry.pericope == 'P01',
-    );
-    void set(bool silent) {
-      roomIsSilent = silent;
-      harness.room.reachable = !silent;
-    }
-
-    set(true);
-    sala.notifier.openTheEntry(chosen);
-    await _until(
-      sala,
-      'the retry line',
-      () => byLabel(_tryAgain).evaluate().isNotEmpty,
-    );
-    expect(byLabel(_tryAgain), findsOneWidget);
-    await _pass(sala, _theProductionLadder[0] + _theProductionLadder[1]);
-    set(false);
-    return sala;
-  }
-
-  testWidgets(
-    'a passage that fell while the room was silent asks for its session once '
-    'when the tap finds the room back',
-    (tester) async {
-      final sala = await aPassageThatFellWhileTheRoomWasSilent(tester);
-      final before = _creates(sala);
-
-      sala.notifier.conversaTap();
-      await _pass(sala, const Duration(seconds: 3));
-
-      expect(_creates(sala), before + 1);
-      expect(byLabel(_tryAgain), findsNothing);
-      closeTheRoom(sala.container);
-    },
-  );
-
-  testWidgets(
-    'a passage that fell while the room was silent asks for its session once '
-    'when the ladder finds the room back',
-    (tester) async {
-      final sala = await aPassageThatFellWhileTheRoomWasSilent(tester);
-      final before = _creates(sala);
-
-      await _pass(sala, _theProductionLadder[2]);
-
-      expect(_creates(sala), before + 1);
-      expect(byLabel(_tryAgain), findsNothing);
-      closeTheRoom(sala.container);
-    },
-  );
-
   Future<String> aHaltInThePanoramaCalledFor(_Sala sala) async {
     final harness = sala.harness;
     unawaited(sala.notifier.abrirEscolha());
@@ -384,13 +225,11 @@ void main() {
       () => _read(sala).panoramaSaid && _read(sala).voice == VoiceState.invite,
     );
     harness.room.reachable = false;
-    harness.network.reachable = false;
     sala.notifier.panoramaTap();
     await sala.tester.pump(const Duration(milliseconds: 100));
     sala.notifier.panoramaTap();
     await _until(sala, 'the person sign', () => _read(sala).needsPerson);
     harness.room.reachable = true;
-    harness.network.reachable = true;
     await _until(
       sala,
       'the call for a person',
@@ -413,36 +252,6 @@ void main() {
 
       sala.notifier.teamTapped();
       await _until(sala, 'the sign to clear', () => !_read(sala).needsPerson);
-      closeTheRoom(sala.container);
-    },
-  );
-
-  testWidgets(
-    'a turn without network on a live session still shows the person sign',
-    (tester) async {
-      final sala = await _theSala(tester, _aRoomThatWaitsForTheTap());
-      unawaited(sala.notifier.abrirEscolha());
-      final chosen = await _theChoiceOffers(
-        sala,
-        (entry) => entry.pericope == 'P01',
-      );
-      sala.notifier.openTheEntry(chosen);
-      await _until(
-        sala,
-        'the session to rest at the invite',
-        () =>
-            _read(sala).sessionId != null &&
-            _read(sala).voice == VoiceState.invite,
-      );
-
-      sala.harness.room.reachable = false;
-      sala.harness.network.reachable = false;
-      sala.notifier.conversaTap();
-      await tester.pump(const Duration(milliseconds: 100));
-      sala.notifier.conversaTap();
-      await _until(sala, 'the person sign', () => _read(sala).needsPerson);
-
-      expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
       closeTheRoom(sala.container);
     },
   );

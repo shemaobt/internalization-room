@@ -7,8 +7,8 @@ const _theNotifier = 'lib/features/sala/data/session_notifier.dart';
 const _intoTheMapper = [
   '_decideTheFailure(',
   '_decideAt(',
-  '_outOfReach(',
-  '_theStepFell(',
+  '_theNetworkFailedAt(',
+  '_theStepsNetworkFailed(',
   '_theResumeFailed(',
   '_theSessionIsGone(',
   '_giveUpOnTheTurn(',

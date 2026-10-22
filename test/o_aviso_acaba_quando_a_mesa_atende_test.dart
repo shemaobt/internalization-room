@@ -266,16 +266,14 @@ void main() {
 
     await waitFor('o aviso chegar', () => read().warning);
 
-    harness.network.reachable = false;
     harness.room.reachable = false;
     await _someBeats(harness);
     expect(
-      read().offline,
-      isFalse,
+      read().warning,
+      isTrue,
       reason:
           'a leitura da vigia não é uma entrada: a rede que cai não muda nada',
     );
-    harness.network.reachable = true;
     harness.room.reachable = true;
 
     // A equipe não toca em nada depois da volta: sem a vigia, nada mais nesta

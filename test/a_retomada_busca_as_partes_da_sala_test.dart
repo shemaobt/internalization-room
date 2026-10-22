@@ -386,11 +386,6 @@ void main() {
     );
     await _deVoltaAEscolha(it);
     expect(it.estado.needsPerson, isFalse);
-    expect(
-      it.estado.unreachable,
-      isFalse,
-      reason: 'uma retomada que falha não é um caminho de entrada que cai',
-    );
 
     expect(
       it.linhaAgora,

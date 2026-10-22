@@ -29,31 +29,7 @@ const _entering = [SilenceTheRoom(), CloseAndDiscardTheMic()];
 
 (Halt, List<Effect>) _reduce(Halt halt, MachineEvent event) {
   final (machine, effects) = reduce(Machine(halt: halt), event);
-  return (
-    machine.halt,
-    effects.where((effect) => effect is! ResendPending).toList(),
-  );
-}
-
-bool _ofTheHalt(Effect effect) => switch (effect) {
-  SilenceTheRoom() ||
-  CloseAndDiscardTheMic() ||
-  ArmTheWatch() ||
-  CallForAPerson() ||
-  StopCallingForAPerson() ||
-  GoOnAfterTheSign() => true,
-  _ => false,
-};
-
-(Halt, List<Effect>) _acrossTheReach(Halt halt, MachineEvent event) {
-  final (machine, effects) = reduce(
-    Machine(
-      halt: halt,
-      reach: event is NetworkReturned ? Reach.outOfReach : Reach.reachable,
-    ),
-    event,
-  );
-  return (machine.halt, effects.where(_ofTheHalt).toList());
+  return (machine.halt, effects);
 }
 
 Matcher _to(Halt next, List<Effect> effects) => isA<(Halt, List<Effect>)>()
@@ -168,20 +144,13 @@ void main() {
       );
     });
 
-    test('coming back within reach arms the Watch again', () {
-      expect(
-        _acrossTheReach(none, const NetworkReturned()),
-        _to(none, const [ArmTheWatch()]),
-      );
-    });
-
     test('a tap and going offline change nothing', () {
       for (final event in [
         const TeamTapped(),
         const NetworkFailedAt(Door.watch),
       ]) {
         expect(
-          _acrossTheReach(none, event),
+          _reduce(none, event),
           _to(none, const <Effect>[]),
           reason: '$event',
         );
@@ -278,14 +247,10 @@ void main() {
       );
     });
 
-    test('going offline keeps it; coming back arms the Watch again', () {
+    test('going offline keeps it', () {
       expect(
-        _acrossTheReach(warning, const NetworkFailedAt(Door.watch)),
+        _reduce(warning, const NetworkFailedAt(Door.watch)),
         _to(warning, const <Effect>[]),
-      );
-      expect(
-        _acrossTheReach(warning, const NetworkReturned()),
-        _to(warning, const [ArmTheWatch()]),
       );
     });
   });
@@ -360,18 +325,11 @@ void main() {
       );
     });
 
-    test(
-      'going offline keeps it; coming back calls again and arms the Watch',
-      () {
-        expect(
-          _acrossTheReach(sign, const NetworkFailedAt(Door.watch)),
-          _to(sign, const <Effect>[]),
-        );
-        expect(
-          _acrossTheReach(sign, const NetworkReturned()),
-          _to(sign, const [CallForAPerson(), ArmTheWatch()]),
-        );
-      },
-    );
+    test('going offline keeps it', () {
+      expect(
+        _reduce(sign, const NetworkFailedAt(Door.watch)),
+        _to(sign, const <Effect>[]),
+      );
+    });
   });
 }

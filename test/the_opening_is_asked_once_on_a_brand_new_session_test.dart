@@ -189,56 +189,6 @@ void main() {
     expect(_opensAsked(harness), 0);
   });
 
-  group('a resumed passage entered while out of reach', () {
-    Future<(SalaHarness, SalaSessionState Function(), int)> enterOutOfReach({
-      required bool opened,
-    }) async {
-      final harness = SalaHarness();
-      _aCanvasRow(harness, opened: opened);
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-      await notifier.abrirEscolha();
-      await waitFor('the Wheel to offer P01', () => read().entriesOpen);
-      harness.network.reachable = false;
-      harness.room.reachable = false;
-      notifier.openTheEntry(
-        read().naRoda!.firstWhere((entry) => entry.pericope == 'P01'),
-      );
-      await waitFor('the room to be out of reach', () => read().offline);
-      final played = harness.voice.played.length;
-
-      harness.network.reachable = true;
-      harness.room.reachable = true;
-      notifier.retryNow();
-      return (harness, read, played);
-    }
-
-    test('stays silent when the room comes back', () async {
-      final (harness, read, played) = await enterOutOfReach(opened: true);
-      await waitFor(
-        'the session to be read',
-        () => stateReads(harness) > 0 && read().voice == VoiceState.invite,
-      );
-      await settle();
-
-      expect(_opensAsked(harness), 0);
-      expect(harness.voice.played.skip(played), isEmpty);
-    });
-
-    test('asks its opening when the room comes back if the session was never '
-        'opened', () async {
-      final (harness, _, _) = await enterOutOfReach(opened: false);
-      await waitFor(
-        'the opening to be said',
-        () => harness.voice.played.contains(turnoUrl),
-      );
-
-      expect(harness.room.sessionsSpokenTo, [_rememberedSession]);
-    });
-  });
-
   group('a resumed passage whose session read fell with the network', () {
     Future<(SalaHarness, SalaSessionNotifier, SalaSessionState Function())>
     theReadFalls({required bool opened}) async {
@@ -259,7 +209,6 @@ void main() {
       final (harness, _, read) = await theReadFalls(opened: true);
 
       expect(read().stage, SalaStage.escolha);
-      expect(read().offline, isFalse);
       expect(read().needsPerson, isFalse);
       expect(
         harness.emAberto.rows['Ruth/P01/pt']?.sessionId,
@@ -364,7 +313,6 @@ void main() {
       await waitFor('the session to be read', () => stateReads(harness) == 1);
       await settle();
       expect(read().stage, SalaStage.escolha);
-      expect(read().offline, isFalse);
 
       await enterThePassage(notifier, read, 'P01');
       await waitFor(

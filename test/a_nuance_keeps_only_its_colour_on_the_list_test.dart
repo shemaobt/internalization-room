@@ -318,7 +318,6 @@ void main() {
       naFrase: 4,
     );
     harness.room.reachable = false;
-    harness.network.reachable = false;
 
     await tocar(tester, 'Aprovar como rascunho final');
     await waitFor(
@@ -328,7 +327,6 @@ void main() {
     );
     await _passo(tester);
 
-    expect(container.read(salaSessionProvider).offline, isFalse);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
     expect(byLabel('regravar a frase 4'), findsOneWidget);
     closeTheRoom(container);

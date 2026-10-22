@@ -459,14 +459,12 @@ void main() {
               ),
             )
             ..room.passages = _ruth
-            ..network.reachable = false
             ..room.reachable = false;
       await _theChoice(tester, harness);
 
       expect(find.text('Rute 1:1–5'), findsNothing);
       expect(byLabel('Tocar para procurar as passagens'), findsOneWidget);
 
-      harness.network.reachable = true;
       harness.room.reachable = true;
       await tester.tap(byLabel('Tocar para procurar as passagens'));
       await _catchUp(tester);

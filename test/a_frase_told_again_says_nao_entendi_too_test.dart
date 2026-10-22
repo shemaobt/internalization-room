@@ -88,7 +88,7 @@ Future<void> _caiNaRede(
 ) async {
   await waitFor('a frase voltar da rede', () {
     final estado = container.read(salaSessionProvider);
-    return estado.wordlessTelling || estado.unreachable;
+    return estado.wordlessTelling;
   }, step: () => _passo(tester));
 }
 
@@ -111,7 +111,6 @@ void main() {
       await letTheRehearsalReachTheRoom(tester);
     }
 
-    final estado = container.read(salaSessionProvider);
     expect(
       find.text(_naoEntendi),
       findsOneWidget,
@@ -119,8 +118,6 @@ void main() {
           'a frase traduzida de novo que a rede perdia virava sem conexão, '
           'sem a fala dela',
     );
-    expect(estado.offline, isFalse);
-    expect(estado.unreachable, isFalse);
     expect(
       harness.room.replaceKeys,
       hasLength(1),
@@ -140,7 +137,7 @@ void main() {
   });
 
   testWidgets('three frases told again in a row whose send fails on the '
-      'network call no person and never show the room as gone', (tester) async {
+      'network call no person', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _vereditoNaFraseUm(tester, harness);
     await tocar(tester, _barra(1));
@@ -155,21 +152,12 @@ void main() {
       }
       await waitFor('a frase $vez voltar da rede', () {
         final estado = container.read(salaSessionProvider);
-        return harness.room.replaceKeys.length >= vez &&
-            (estado.wordlessTelling || estado.unreachable);
+        return harness.room.replaceKeys.length >= vez && estado.wordlessTelling;
       }, step: () => _passo(tester));
     }
     await _passo(tester);
 
-    final estado = container.read(salaSessionProvider);
-    expect(
-      estado.offline,
-      isFalse,
-      reason:
-          'cada frase traduzida de novo que a rede perdia punha a sala em '
-          'sem conexão',
-    );
-    expect(estado.needsPerson, isFalse);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
     expect(harness.room.replaceKeys, hasLength(3));
     closeTheRoom(container);
   });
@@ -210,7 +198,6 @@ void main() {
       reason: 'uma frase no pedaço, a que o servidor tem',
     );
     expect(estado.needsPerson, isFalse);
-    expect(estado.offline, isFalse);
     closeTheRoom(container);
   });
 
@@ -273,21 +260,17 @@ void main() {
     await waitFor('a leitura voltar da rede', () {
       final estado = container.read(salaSessionProvider);
       return estado.wordlessTelling ||
-          estado.unreachable ||
           harness.room.replaceKeys.length > pedidos + 1;
     }, step: () => _passo(tester));
     for (var passo = 0; passo < 5; passo++) {
       await letTheRehearsalReachTheRoom(tester);
     }
 
-    final estado = container.read(salaSessionProvider);
     expect(
       find.text(_naoEntendi),
       findsOneWidget,
       reason: 'a leitura que caía punha a sala em sem conexão, sem a fala dela',
     );
-    expect(estado.offline, isFalse);
-    expect(estado.unreachable, isFalse);
     expect(
       harness.room.replaceKeys,
       hasLength(pedidos + 1),
@@ -297,7 +280,7 @@ void main() {
   });
 
   testWidgets('a frase told again whose key is still in flight after three '
-      'answers keeps the room in reach, is never sent again on its own, and '
+      'answers is never sent again on its own, and '
       'goes again when the team tells it once more', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _vereditoNaFraseUm(tester, harness);
@@ -306,7 +289,6 @@ void main() {
     await tocar(tester, _deNovo);
     final pedidos = harness.room.replaceKeys.length;
 
-    harness.network.reachable = false;
     harness.room.replaceAnswersFirst.addAll(
       List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
     );
@@ -316,17 +298,9 @@ void main() {
       () => harness.room.replaceKeys.length == pedidos + 3,
       step: () => _passo(tester),
     );
-    harness.network
-      ..reachable = true
-      ..networkComesBack();
     for (var passo = 0; passo < 5; passo++) {
       await _passo(tester);
     }
-    expect(
-      container.read(salaSessionProvider).unreachable,
-      isFalse,
-      reason: 'uma rede que falha fora de uma entrada não muda nada',
-    );
     expect(
       find.text(_naoEntendi),
       findsNothing,
@@ -335,7 +309,7 @@ void main() {
     expect(
       harness.room.replaceKeys.skip(pedidos),
       hasLength(3),
-      reason: 'nada sai de novo sozinho quando a rede volta',
+      reason: 'nada sai de novo sozinho',
     );
 
     await _deNovoNoCirculo(tester);

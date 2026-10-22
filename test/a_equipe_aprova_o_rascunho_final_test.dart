@@ -384,7 +384,6 @@ void main() {
         ),
       );
       it.harness.room.failReleaseWith = const NetworkFailed('timeout');
-      final checagensAntes = it.harness.network.checks;
 
       await _aprovarEEsperar(tester);
 
@@ -392,13 +391,6 @@ void main() {
         _estado(it.container).needsPerson,
         isFalse,
         reason: 'uma demora é a rede, e a rede sem fala não chama ninguém',
-      );
-      expect(
-        _estado(it.container).offline,
-        isFalse,
-        reason:
-            'fora do caminho de entrada uma falha de rede não tira a sala do '
-            'alcance',
       );
       expect(_estado(it.container).btPhase, BtPhase.conferida);
       expect(
@@ -413,11 +405,6 @@ void main() {
         it.harness.room.releasesAsked,
         hasLength(1),
         reason: 'nada é mandado de novo sozinho',
-      );
-      expect(
-        it.harness.network.checks,
-        checagensAntes,
-        reason: 'e nenhuma escada pergunta pela sala',
       );
 
       closeTheRoom(it.container);
@@ -445,27 +432,17 @@ void main() {
   });
 
   testWidgets(
-    'sem rede a aprovação não tira a sala do alcance e o botão fica de pé',
+    'sem rede a aprovação não muda nada na sala e o botão fica de pé',
     (tester) async {
       final it = await _ateAConferida(tester);
       it.harness.room.reachable = false;
-      it.harness.network.reachable = false;
 
       await _aprovarEEsperar(tester);
 
-      expect(
-        _circulo(tester).voice,
-        isNot(VoiceState.offline),
-        reason:
-            'a aprovação não é um caminho de entrada: sem rede, nada muda na '
-            'sala',
-      );
-      expect(_estado(it.container).offline, isFalse);
       expect(_estado(it.container).needsPerson, isFalse);
       expect(byLabel(_aprovar), findsOneWidget);
 
       it.harness.room.reachable = true;
-      it.harness.network.reachable = true;
       await _aprovarEEsperar(tester);
 
       expect(
@@ -1373,7 +1350,6 @@ void main() {
       ..releaseBlockers = const ['untold_stretch']
       ..releaseUntoldSegmentId = 'trecho-1'
       ..failStateOnceWith = const NetworkFailed('timeout');
-    final checagensAntes = it.harness.network.checks;
 
     await _aprovarEEsperar(tester);
 
@@ -1395,22 +1371,10 @@ void main() {
       findsOneWidget,
       reason: 'e o gesto continua ali para ser repetido',
     );
-    expect(
-      _estado(it.container).offline,
-      isFalse,
-      reason:
-          'fora do caminho de entrada uma falha de rede não tira a sala do '
-          'alcance',
-    );
 
     await tester.pump(const Duration(seconds: 40));
 
     expect(it.harness.room.releasesAsked, hasLength(1));
-    expect(
-      it.harness.network.checks,
-      checagensAntes,
-      reason: 'e nenhuma escada pergunta pela sala',
-    );
 
     closeTheRoom(it.container);
   });

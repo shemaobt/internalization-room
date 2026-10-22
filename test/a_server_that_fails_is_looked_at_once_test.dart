@@ -64,7 +64,7 @@ void main() {
   });
 
   test('a turn the server fails with a 5xx is looked at once and shows the '
-      'person sign, never the offline face or a strike', () async {
+      'person sign, never a strike', () async {
     final room = _TurnsOverTheWire();
     final harness = SalaHarness(room: room);
     final container = harness.container();
@@ -73,12 +73,7 @@ void main() {
     await notifier.goConversa(book: 'Ruth');
     await settle();
 
-    var outOfReach = false;
-    container.listen(salaSessionProvider, (_, next) {
-      if (next.offline) outOfReach = true;
-    });
     room.turnStatus = 503;
-    harness.network.reachable = false;
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
@@ -86,7 +81,6 @@ void main() {
 
     expect(room.turnsOverTheWire, 1);
     expect(room.turnIdsLookedAt, hasLength(1));
-    expect(outOfReach, isFalse);
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
   });
 
@@ -97,15 +91,12 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    final voices = <VoiceState>[];
-    container.listen(salaSessionProvider, (_, next) => voices.add(next.voice));
 
     await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
     expect(harness.room.turnIdsAsked, hasLength(1));
     expect(harness.room.turnIdsLookedAt, harness.room.turnIdsAsked);
-    expect(voices, isNot(contains(VoiceState.offline)));
     expect(container.read(salaSessionProvider).needsPerson, isFalse);
     expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });

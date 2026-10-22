@@ -1,17 +1,14 @@
 import 'channel.dart';
 import 'failure_policy.dart';
 import 'machine.dart';
-import 'room_reach.dart';
 import 'scene_rehearsal.dart';
 import 'session_snapshot.dart';
 import 'turn_result.dart';
 
-/// The room client's doors, network health and the person-call inbox. Today it carries
-/// network health, the one look, the Session read, the reach and the call for a person,
-/// and grows when the effects empty into the ports.
+/// The room client's doors and the person-call inbox. Today it carries the one look, the
+/// Session read and the call for a person, and grows when the effects empty into the
+/// ports.
 abstract interface class RoomPort {
-  Stream<void> get networkReturned;
-
   /// What the room holds of [turn]: the reply it stored, the turn it is still answering,
   /// nothing that landed, or the result of a look that failed itself.
   Future<LookAnswer> lookAt(Turn turn);
@@ -20,9 +17,6 @@ abstract interface class RoomPort {
 
   /// The passage's scene rehearsals, as the room lists them for [session].
   Future<SceneRehearsalsAnswer> sceneRehearsalsOf(String session);
-
-  /// How far a request would get right now.
-  Future<RoomReach> reach();
 
   /// Calls a person for [session]: the room needs someone, and the Desk lists it as halted.
   Future<RoomResult> askForAPerson(String session);

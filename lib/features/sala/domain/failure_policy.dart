@@ -1,7 +1,7 @@
+import 'channel.dart';
 import 'halt.dart';
 import 'machine.dart';
 import 'refusal_code.dart';
-import 'room_reach.dart';
 import 'station.dart';
 
 /// What a room call came back with, as the failure policy reads it (ADR 0047). Timed out
@@ -52,12 +52,15 @@ final class TheSoundFailed extends TabletFailure {
 
 final class TheMicFailedToStart extends TabletFailure {
   final int inARow;
+  final MicOwner owner;
 
-  const TheMicFailedToStart(this.inARow);
+  const TheMicFailedToStart(this.inARow, {required this.owner});
 }
 
 final class TheTabletCannotRecord extends TabletFailure {
-  const TheTabletCannotRecord();
+  final MicOwner owner;
+
+  const TheTabletCannotRecord({required this.owner});
 }
 
 final class TheBuildCannotReachTheRoom extends TabletFailure {
@@ -86,7 +89,7 @@ enum RefusalRule {
 }
 
 /// Where the room stood when the result came back. [turn] is set only for a call that
-/// carries a `turn_id`, and [why] says how far a request gets when the network failed.
+/// carries a `turn_id`.
 final class FailureContext {
   final Station station;
   final Enum? step;
@@ -94,7 +97,6 @@ final class FailureContext {
   final Turn? turn;
   final RefusalRule rule;
   final Door door;
-  final RoomReach why;
   final Kept sounding;
 
   const FailureContext({
@@ -104,7 +106,6 @@ final class FailureContext {
     this.turn,
     this.rule = RefusalRule.letsTheStepGo,
     this.door = Door.step,
-    this.why = RoomReach.noNetwork,
     this.sounding = const NothingKept(),
   });
 }
@@ -193,7 +194,6 @@ abstract final class FailurePolicy {
         TheCallWasRefused(generation: generation),
       RoomNetworkFailed() => NetworkFailedAt(
         context.door,
-        why: context.why,
         generation: generation,
       ),
       RoomTimedOut() => TheStepFailed(generation: generation),
@@ -222,6 +222,10 @@ abstract final class FailurePolicy {
     };
   }
 
+  static bool _onTheSessionScreen(MicOwner owner, Station station) =>
+      owner == MicOwner.conversation &&
+      (station is Canvas || station is Panorama);
+
   static MachineEvent decideOnTheTablet(
     TabletFailure failure,
     FailureContext context,
@@ -232,6 +236,9 @@ abstract final class FailurePolicy {
     return switch (failure) {
       TheSoundFailed(:final inARow) =>
         inARow >= soundFailuresBeforeAPerson ? halt : passed,
+      TheMicFailedToStart(:final owner) || TheTabletCannotRecord(:final owner)
+          when !_onTheSessionScreen(owner, context.station) =>
+        passed,
       TheMicFailedToStart(:final inARow) =>
         inARow >= micFailuresBeforeAPerson ? halt : passed,
       TheTabletCannotRecord() => halt,

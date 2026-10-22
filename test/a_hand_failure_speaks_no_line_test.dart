@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
@@ -37,16 +36,11 @@ class _Room {
 
   SalaSessionState get estado => container.read(salaSessionProvider);
 
-  bool get everOutOfReach => seen.any((state) => state.unreachable);
-
   bool get everCalledForAPerson => seen.any((state) => state.needsPerson);
 
   int get voiceSounds => harness.voice.sounds
       .where((sound) => sound == 'voice:line' || sound == 'voice:asset')
       .length;
-
-  bool get offlineNoticeSaid =>
-      harness.voice.assets.contains(offlineNoticeAsset(testLanguage));
 
   int get turnsAnswered =>
       harness.voice.played.where((url) => url == turnoUrl).length;
@@ -95,29 +89,25 @@ Future<_Room> _conversa({List<HandReply> replies = const []}) async {
 }
 
 void _theRoomIsAsItWas(_Room room) {
-  expect(room.everOutOfReach, isFalse, reason: 'a mão não tira a sala do ar');
   expect(room.everCalledForAPerson, isFalse);
   expect(room.estado.stage, SalaStage.conversa);
 }
 
 void main() {
-  test(
-    'A Knot whose upload fails on the network leaves the room within reach and '
-    'speaks no line.',
-    () async {
-      final room = await _conversa();
-      room.harness.inbox.knotFailsWith = const NetworkFailed('sem rede');
-      final sounds = room.voiceSounds;
+  test('A Knot whose upload fails on the network leaves the room as it was and '
+      'speaks no line.', () async {
+    final room = await _conversa();
+    room.harness.inbox.knotFailsWith = const NetworkFailed('sem rede');
+    final sounds = room.voiceSounds;
 
-      await room.raisesAKnot();
+    await room.raisesAKnot();
 
-      _theRoomIsAsItWas(room);
-      expect(room.voiceSounds, sounds, reason: 'nenhuma linha foi dita');
-      expect(room.estado.awaitingTheGuide, isFalse);
-      expect(room.estado.noteMode, isFalse);
-      expect(room.estado.voice, VoiceState.invite);
-    },
-  );
+    _theRoomIsAsItWas(room);
+    expect(room.voiceSounds, sounds, reason: 'nenhuma linha foi dita');
+    expect(room.estado.awaitingTheGuide, isFalse);
+    expect(room.estado.noteMode, isFalse);
+    expect(room.estado.voice, VoiceState.invite);
+  });
 
   test(
     'After a Knot lost to the network, the next tap on the circle reaches the '
@@ -189,7 +179,7 @@ void main() {
   });
 
   test(
-    'A reply clip that fails to load keeps the dot and the room within reach.',
+    'A reply clip that fails to load keeps the dot and the room as it was.',
     () async {
       final room = await _conversa(replies: const [_reply]);
       await waitFor('a resposta chegar', () => room.estado.hasUnheardReply);
@@ -243,7 +233,6 @@ void main() {
       expect(room.estado.hasUnheardReply, isTrue);
       _theRoomIsAsItWas(room);
       expect(room.voiceSounds, sounds + 1, reason: 'só a resposta soou');
-      expect(room.offlineNoticeSaid, isFalse);
     },
   );
 
@@ -263,10 +252,8 @@ void main() {
     await settle();
 
     _theRoomIsAsItWas(room);
-    expect(room.estado.reach, before.reach);
     expect(room.estado.hasUnheardReply, isTrue);
     expect(room.estado.voice, before.voice);
-    expect(room.offlineNoticeSaid, isFalse);
   });
 
   test(
@@ -297,7 +284,6 @@ void main() {
       expect(room.harness.voice.stops, stops, reason: 'a voz não foi cortada');
       expect(room.estado.awaitingTheGuide, isFalse, reason: 'o turno terminou');
       expect(room.estado.voice, VoiceState.invite);
-      expect(room.offlineNoticeSaid, isFalse);
       _theRoomIsAsItWas(room);
     },
   );

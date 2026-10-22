@@ -101,38 +101,40 @@ void main() {
     },
   );
 
-  test(
-    'a Panorama whose opening fell with the network opens again when the room '
-    'comes back',
-    () async {
-      final harness = SalaHarness()..room.passages = _theBook;
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-      await notifier.abrirEscolha();
-      await theChoiceOffersAPassage(container);
-      harness.network.reachable = false;
-      harness.room.reachable = false;
+  test('a Panorama whose opening fell with the network rests at the invite and '
+      'opens on the next tap', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await notifier.abrirEscolha();
+    await theChoiceOffersAPassage(container);
+    harness.room.reachable = false;
 
-      notifier.openTheEntry(read().naRoda!.first);
-      await waitFor('the room to be out of reach', () => read().offline);
-      harness.network.reachable = true;
-      harness.room.reachable = true;
-      notifier.retryNow();
-      await waitFor(
-        'the opening to be asked',
-        () => harness.room.sessionsSpokenTo.isNotEmpty,
-      );
+    notifier.openTheEntry(read().naRoda!.first);
+    await waitFor(
+      'the opening to be asked',
+      () => harness.room.calls.contains('createSession'),
+    );
+    await waitFor('the opening to be let go', () => !read().awaitingTheGuide);
+    await settle();
+    expect(read().station, isA<Panorama>());
+    expect(read().voice, VoiceState.invite);
+    harness.room.reachable = true;
+    notifier.panoramaTap();
+    await waitFor(
+      'the opening to be asked',
+      () => harness.room.sessionsSpokenTo.isNotEmpty,
+    );
 
-      expect(harness.room.sessionIds, hasLength(1));
-      expect(harness.room.sessionsSpokenTo, harness.room.sessionIds);
-      expect(read().station, isA<Panorama>());
-    },
-  );
+    expect(harness.room.sessionIds, hasLength(1));
+    expect(harness.room.sessionsSpokenTo, harness.room.sessionIds);
+    expect(read().station, isA<Panorama>());
+  });
 
-  test('a hear-again on the Panorama lost on the network keeps the room in '
-      'reach and asks the Panorama nothing again', () async {
+  test('a hear-again on the Panorama lost on the network asks the Panorama '
+      'nothing again', () async {
     final harness = SalaHarness()..room.passages = _theBook;
     final container = harness.container();
     addTearDown(container.dispose);
@@ -150,8 +152,7 @@ void main() {
     );
     await settle();
 
-    expect(read().offline, isFalse);
-    expect(read().unreachable, isFalse);
+    expect(read().needsPerson, isFalse);
     expect(harness.room.sessionsSpokenTo, hasLength(1));
     expect(read().station, isA<Panorama>());
   });

@@ -107,7 +107,7 @@ Invariant<S> aSessionReadNeverClearsTheSign<S>(Halt Function(S) haltOf) =>
     });
 
 bool _bringsSomethingBack(Effect effect) => switch (effect) {
-  PlayPart() || PlayStretch() || ResendPending() || DrainTheOutbox() => true,
+  PlayPart() || PlayStretch() || DrainTheOutbox() => true,
   _ => false,
 };
 
@@ -255,12 +255,12 @@ final theScreenNeverShowsASoundTheChannelDoesNotHold = Invariant<Machine>(
   },
 );
 
-final theOutboxNeverIdlesReachableWithAPartPending = Invariant<Machine>(
-  'ADR invariant 12, the Outbox never idles reachable with a part pending',
+final theOutboxNeverIdlesWithAPartPending = Invariant<Machine>(
+  'ADR invariant 12, the Outbox never idles with a part pending',
   (before, event, after, effects, world) {
-    if (!after.reachable || !after.somethingPending) return null;
+    if (!after.somethingPending) return null;
     if (world.retryArmed || world.draining) return null;
-    return 'reachable with a part pending, no retry armed and no drain in '
+    return 'a part pending, no retry armed and no drain in '
         'flight';
   },
 );
@@ -331,10 +331,6 @@ Invariant<Machine> _nothingOfTheSessionSurvives(
     return 'lines of the session outlived it: '
         '${[...after.queue, ...undropped].map(describeLine).join(', ')}';
   }
-  if (after.reach != before.reach) {
-    return 'the session gone moved the Reach from ${before.reach.name} to '
-        '${after.reach.name}';
-  }
   return null;
 });
 
@@ -370,6 +366,40 @@ final aStationsSessionNeverOpensWithoutTheWatch = Invariant<Machine>(
     }
     if (effects.contains(const ArmTheWatch())) return null;
     return '${describeEvent(event)} opened $opened without arming the Watch';
+  },
+);
+
+final noEventMakesTheMachineSpeakAFailure = Invariant<Machine>(
+  'ENG-1356, no event ever makes the machine emit a spoken failure line',
+  (before, event, after, effects, world) {
+    final handed = {
+      ...before.queue,
+      if (event is LineArrived) event.line,
+      if (before.channel case GuideSpeaking(:final line)) line,
+    };
+    for (final effect in effects) {
+      if (effect case PlayLine(:final line) when !handed.contains(line)) {
+        return '${describeEvent(event)} played ${describeLine(line)}, which '
+            'nobody handed the room';
+      }
+    }
+    return null;
+  },
+);
+
+final aNetworkFailureOnlyLetsItsStepGo = Invariant<Machine>(
+  'ENG-1356, a network failure that is no turn\'s never halts and never '
+  'schedules anything but the Step\'s release',
+  (before, event, after, effects, world) {
+    if (event is! NetworkFailedAt) return null;
+    if (after.halt != before.halt) {
+      return '${describeEvent(event)} moved ${describeHalt(before.halt)} to '
+          '${describeHalt(after.halt)}';
+    }
+    final others = effects.where((effect) => effect != const LetTheStepGo());
+    if (others.isEmpty) return null;
+    return '${describeEvent(event)} scheduled '
+        '${others.map(describeEffect).join(', ')}';
   },
 );
 
@@ -463,9 +493,9 @@ void main() {
       _holds(theScreenNeverShowsASoundTheChannelDoesNotHold);
     });
 
-    test('ADR invariant 12: the Outbox never idles reachable with a part '
+    test('ADR invariant 12: the Outbox never idles with a part '
         'pending', () {
-      _holds(theOutboxNeverIdlesReachableWithAPartPending);
+      _holds(theOutboxNeverIdlesWithAPartPending);
     });
 
     test('ADR invariant 6: nothing of a gone session survives', () {
@@ -490,7 +520,7 @@ void main() {
           aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas,
           aLineOfTheVoiceStopsAPlayingReply,
           theHeadNeverReadsAnotherSound,
-          theOutboxNeverIdlesReachableWithAPartPending,
+          theOutboxNeverIdlesWithAPartPending,
           theScreenNeverShowsASoundTheChannelDoesNotHold,
           aLanguageChosenReadsTheWheelOnlyOnTheChoice,
           aStationsSessionNeverOpensWithoutTheWatch,
@@ -498,6 +528,16 @@ void main() {
         ], seeds: _seeds);
       },
     );
+  });
+
+  test('invariant: no event ever makes the machine emit a spoken failure '
+      'line', () {
+    _holds(noEventMakesTheMachineSpeakAFailure);
+  });
+
+  test('invariant: a network failure that is no turn\'s never halts and never '
+      'schedules anything but the Step\'s release', () {
+    _holds(aNetworkFailureOnlyLetsItsStepGo);
   });
 
   test('generator invariant: nothing but her six cases enters the person '
@@ -530,7 +570,7 @@ void main() {
       }
     });
 
-    test('generator invariant 4: the run reaches the room reachable with a '
+    test('generator invariant 4: the run reaches the room with a '
         'part pending', () {
       final reached = [
         for (final seed in _seeds)
@@ -539,7 +579,7 @@ void main() {
             const <Invariant<Machine>>[],
             seed,
           ).entries)
-            if (entry.after.reachable && entry.after.somethingPending) seed,
+            if (entry.after.somethingPending) seed,
       ];
 
       expect(reached, isNotEmpty);

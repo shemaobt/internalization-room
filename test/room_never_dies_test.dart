@@ -8,7 +8,6 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
-import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
@@ -288,7 +287,7 @@ void main() {
   );
 
   test(
-    'a refused wheel stops for nothing, neither a person nor a network that is fine',
+    'a refused wheel stops for nothing: no person, the invite at rest',
     () async {
       final harness = SalaHarness()
         ..room.failWith = const Refused('UNAUTHORIZED');
@@ -300,13 +299,7 @@ void main() {
       await settle();
 
       final state = container.read(salaSessionProvider);
-      expect(
-        state.offline,
-        isFalse,
-        reason:
-            'a recusa caía no último ramo do funil e a sala dizia, numa rede boa, '
-            'que a internet tinha ido embora',
-      );
+      expect(state.voice, VoiceState.invite);
       expect(state.needsPerson, isFalse);
     },
   );
@@ -786,33 +779,6 @@ void main() {
     },
   );
 
-  test('no network and no room wear different faces', () async {
-    final harness = SalaHarness()
-      ..network.reachable = false
-      ..network.radioSeesNothing = true;
-    final container = harness.container();
-    addTearDown(container.dispose);
-
-    await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
-    await settle();
-
-    expect(container.read(salaSessionProvider).reach, RoomReach.noNetwork);
-
-    final semSala = SalaHarness()..network.reachable = false;
-    final outro = semSala.container();
-    addTearDown(outro.dispose);
-    await outro.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
-    await settle();
-
-    expect(
-      outro.read(salaSessionProvider).reach,
-      RoomReach.roomSilent,
-      reason:
-          'endereço errado numa rede perfeita foi o que travou o aparelho hoje, e '
-          'a sala disse que a internet tinha caído',
-    );
-  });
-
   test(
     'a kept take still reaches the queue when the room is disposed',
     () async {
@@ -842,49 +808,6 @@ void main() {
       );
     },
   );
-
-  test('the hand does not bury the way back from an outage', () async {
-    // No pending reply on purpose: with one, the hand plays it and never reaches the
-    // branch that overwrites the offline state.
-    final harness = SalaHarness(
-      retryBackoff: const [Duration(milliseconds: 30)],
-    );
-    harness.network.reachable = false;
-    harness.room.reachable = false;
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    unawaited(notifier.goConversa(book: 'Ruth'));
-    await waitFor(
-      'a sala se dar por fora do ar',
-      () => container.read(salaSessionProvider).offline,
-    );
-
-    notifier.handTap();
-    await settle();
-
-    expect(
-      container.read(salaSessionProvider).offline,
-      isTrue,
-      reason:
-          'a mão escrevia needsPerson por cima de offline, e uma queda de rede '
-          'virava uma parada à espera de uma pessoa',
-    );
-
-    harness.network.reachable = true;
-    harness.room.reachable = true;
-    await waitFor(
-      'a sala voltar ao ar',
-      () => !container.read(salaSessionProvider).offline,
-      limit: const Duration(seconds: 3),
-    );
-    expect(
-      container.read(salaSessionProvider).offline,
-      isFalse,
-      reason: 'e a queda voltava a se curar sozinha',
-    );
-  });
 
   test(
     'a settle that finds the session gone returns to the wheel instead of halting',

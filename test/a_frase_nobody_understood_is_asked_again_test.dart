@@ -104,9 +104,6 @@ final class _Screen {
       byLabel(words).evaluate().isNotEmpty &&
       find.text(words).evaluate().isNotEmpty;
 
-  bool get offlineNoticeSaid =>
-      harness.voice.assets.contains(offlineNoticeAsset(testLanguage));
-
   int get replies =>
       harness.voice.played.where((url) => url == turnoUrl).length;
 
@@ -265,8 +262,6 @@ void main() {
         expect(screen.room.frasesKept, hasLength(3));
         expect(screen.state.needsPerson, isFalse);
         expect(screen.state.halt, isA<NoHalt>());
-        expect(screen.state.unreachable, isFalse);
-        expect(screen.offlineNoticeSaid, isFalse);
         expect(screen.shows(_notUnderstood), isTrue);
       },
     );
@@ -276,7 +271,7 @@ void main() {
       const NetworkFailed('timeout'),
     ]) {
       testWidgets(
-        'a frase the room answers 502 or never answers says her line and the room does not fall: $lost',
+        'a frase the room answers 502 or never answers says her line: $lost',
         (tester) async {
           final screen = await _aPausaAfterFrase1(tester);
           screen.room.sceneAnswersFirst.add(lost);
@@ -284,8 +279,6 @@ void main() {
           await screen.tellsTheFrase();
 
           expect(screen.shows(_notUnderstood), isTrue);
-          expect(screen.state.unreachable, isFalse);
-          expect(screen.offlineNoticeSaid, isFalse);
           expect(byLabel(_pausaHint), findsOneWidget);
         },
       );

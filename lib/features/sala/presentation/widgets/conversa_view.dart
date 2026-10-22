@@ -32,15 +32,11 @@ class ConversaView extends ConsumerWidget {
             size: 158,
             halt: session.halt,
             voice: session.voice,
-            reach: session.reach,
             noteMode: session.noteMode,
             peerCue: session.peerCue,
             warning: session.warning ? warningNoticeLabelFor(language) : null,
             semanticLabel: _circleLabel(session, language),
             onTap: notifier.conversaTap,
-            onLongPress: session.canResolveWithPerson
-                ? notifier.resolveWithPerson
-                : null,
           ),
         ),
         if (session.partsToReplay.isNotEmpty)
@@ -137,7 +133,6 @@ class ConversaView extends ConsumerWidget {
       !session.wayOutIsHidden;
 
   String _circleLabel(SalaSessionState session, String language) {
-    if (session.offline) return circleLabelFor('offline', language);
     if (session.voice == VoiceState.listening) {
       return circleLabelFor('listening', language);
     }

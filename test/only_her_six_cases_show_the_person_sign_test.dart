@@ -34,16 +34,9 @@ class _Room {
   int asked(String call) =>
       harness.room.calls.where((asked) => asked == call).length;
 
-  void theNetworkFalls() {
-    harness.network.reachable = false;
-    harness.room.reachable = false;
-  }
+  void theNetworkFalls() => harness.room.reachable = false;
 
-  void theNetworkReturns() {
-    harness.network.reachable = true;
-    harness.room.reachable = true;
-    harness.network.networkComesBack();
-  }
+  void theNetworkReturns() => harness.room.reachable = true;
 }
 
 Future<_Room> _onTheCanvas(SalaHarness harness) async {
@@ -254,7 +247,6 @@ void main() {
     );
     expect(harness.voice.played.skip(playedBefore), isEmpty);
     expect(harness.voice.assets.skip(assetsBefore), isEmpty);
-    expect(room.state.offline, isFalse);
 
     harness.room.failTurnsWith = null;
     room.sala.teamTapped();
@@ -275,7 +267,6 @@ void main() {
 
         clock.elapse(const Duration(seconds: 2));
         expect(read().needsPerson, isTrue);
-        expect(read().offline, isFalse);
       },
     );
   });
@@ -468,14 +459,12 @@ void main() {
     expect(room.state.awaitingTheGuide, isFalse);
   });
 
-  group('a network failure with no turn, off a way in: nothing changes and no '
-      'retry', () {
+  group('a network failure with no turn, off a way in: no sign', () {
     const ladder = [Duration(milliseconds: 20)];
     const tenLadders = Duration(milliseconds: 200);
 
     void expectNothingChanged(_Room room) {
-      expect(room.state.offline, isFalse);
-      expect(room.state.unreachable, isFalse);
+      expect(room.state.needsPerson, isFalse);
     }
 
     test('the Watch\'s read', () async {
@@ -485,8 +474,6 @@ void main() {
       );
       final room = await _onTheCanvas(harness);
       final reads = stateReads(harness);
-      final checks = harness.network.checks;
-      harness.network.reachable = false;
       harness.room.failStateOnceWith = const NetworkFailed('sem rede');
       await waitFor('a Watch ler', () => stateReads(harness) > reads);
       await settle();
@@ -495,14 +482,12 @@ void main() {
       await settle(tenLadders);
 
       expectNothingChanged(room);
-      expect(harness.network.checks, checks);
     });
 
     test('the Outbox\'s upload', () async {
       final harness = SalaHarness(retryBackoff: ladder)
         ..room.unreachableTake = 'ensaio/${KeptScope.parte(1)}';
       final room = await _onTheCanvas(harness);
-      final checks = harness.network.checks;
       room.sala.goEnsaio();
       room.sala.ensaioTap();
       room.sala.ensaioTap();
@@ -515,13 +500,11 @@ void main() {
       await settle(tenLadders);
 
       expectNothingChanged(room);
-      expect(harness.network.checks, checks);
     });
 
     test('the Approval', () async {
       final harness = SalaHarness(retryBackoff: ladder);
       final room = await _aCheckedPassage(harness);
-      final checks = harness.network.checks;
       room.theNetworkFalls();
       await room.sala.aprovarRascunhoFinal();
       await settle();
@@ -531,7 +514,6 @@ void main() {
       await settle(tenLadders);
 
       expectNothingChanged(room);
-      expect(harness.network.checks, checks);
       expect(harness.room.releasesAsked, isEmpty);
     });
   });
@@ -829,7 +811,7 @@ void main() {
     expect(logged, isNot(contains(contains('(2 seguidas)'))));
   });
 
-  test('a wheel whose read never answers falls out of reach at the busy '
+  test('a wheel whose read never answers rests at the invite at the busy '
       'ceiling, the Choice being a way in', () async {
     final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 300))
       ..room.holdNextBooks();
@@ -838,8 +820,13 @@ void main() {
     final room = _Room(harness, container);
 
     unawaited(room.sala.abrirEscolha());
+    await waitFor('a roda ser pedida', () => room.state.awaitingTheGuide);
 
-    await waitFor('a sala cair', () => room.state.unreachable);
+    await waitFor(
+      'a sala descansar no convite',
+      () =>
+          !room.state.awaitingTheGuide && room.state.voice == VoiceState.invite,
+    );
     expect(room.state.needsPerson, isFalse);
   });
 
@@ -875,24 +862,26 @@ void main() {
     expect(room.state.needsPerson, isFalse);
   });
 
-  test(
-    'a launch with the room out of reach fills the Choice by itself once the '
-    'room is back',
-    () async {
-      final harness = SalaHarness();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final room = _Room(harness, container);
-      room.theNetworkFalls();
+  test('a launch with the room out of reach rests at the invite with no sign, '
+      'and the next tap fills the Choice', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final room = _Room(harness, container);
+    room.theNetworkFalls();
 
-      await room.sala.abrirEscolha();
-      await waitFor('a sala cair', () => room.state.unreachable);
-      room.theNetworkReturns();
+    await room.sala.abrirEscolha();
+    await settle();
+    expect(room.state.voice, VoiceState.invite);
+    expect(room.state.naRoda, isNull);
+    expect(room.state.needsPerson, isFalse);
+    room.theNetworkReturns();
 
-      await waitFor('a roda aparecer sozinha', () => room.state.naRoda != null);
-      expect(room.state.needsPerson, isFalse);
-    },
-  );
+    room.sala.escolhaTap();
+
+    await waitFor('a roda aparecer', () => room.state.naRoda != null);
+    expect(room.state.needsPerson, isFalse);
+  });
 
   test('a decided failure is logged with its door and its reason', () async {
     final logged = <String>[];
@@ -1007,7 +996,6 @@ void main() {
     await waitFor('a Watch ler de novo', () => stateReads(harness) > reads + 1);
 
     expect(room.state.needsPerson, isFalse);
-    expect(room.state.unreachable, isFalse);
     expect(room.state.voice, VoiceState.invite);
   });
 

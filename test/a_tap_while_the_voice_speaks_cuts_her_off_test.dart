@@ -442,6 +442,8 @@ void main() {
       room.harness.recorder.permitted = false;
       await room.tap();
       room.harness.recorder.permitted = true;
+      room.notifier.teamTapped();
+      await settle();
       final cuts = room.harness.room.cutsSent.length;
 
       await room.aRealTake();

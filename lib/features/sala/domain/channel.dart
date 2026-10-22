@@ -4,19 +4,7 @@ import 'cut_point.dart';
 
 enum MicOwner { conversation, rehearsal, capture, question, scene, frase }
 
-enum LineKind {
-  guide,
-  acknowledgement,
-  reply,
-  offlineNotice,
-  micBlocked,
-  approved;
-
-  bool get answersAStep => switch (this) {
-    guide || acknowledgement || approved || reply => true,
-    offlineNotice || micBlocked => false,
-  };
-}
+enum LineKind { guide, acknowledgement, reply, approved }
 
 final class Source {
   final String key;

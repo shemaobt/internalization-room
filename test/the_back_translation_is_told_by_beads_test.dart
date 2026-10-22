@@ -376,7 +376,6 @@ void main() {
       isTrue,
       reason: 'a releitura que cai é a frase que ela não entendeu',
     );
-    expect(depois.offline, isFalse);
     expect(depois.btChunkFailures, hasLength(1));
     expect(
       harness.room.takesReceived.where((take) => take.kind == 'retro'),
@@ -698,7 +697,6 @@ void main() {
     await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
     expect(contas(tester), ['solid com anel', 'solid']);
-    expect(container.read(salaSessionProvider).unreachable, isFalse);
 
     harness.room.failReplaceWith = null;
     await tester.pump(const Duration(seconds: 5));
@@ -1134,7 +1132,6 @@ void main() {
       isTrue,
       reason: 'a releitura que cai é a frase que ela não entendeu',
     );
-    expect(container.read(salaSessionProvider).offline, isFalse);
     expect(
       harness.room.replaceKeys,
       hasLength(pedidos),

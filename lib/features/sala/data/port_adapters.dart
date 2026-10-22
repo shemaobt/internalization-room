@@ -6,8 +6,6 @@ import '../domain/channel.dart';
 import '../domain/failure_policy.dart';
 import '../domain/machine.dart';
 import '../domain/ports.dart';
-import '../domain/room_reach.dart';
-import 'connectivity_service.dart';
 import 'current_session_ledger.dart';
 import 'facilitator_voice_service.dart';
 import 'playback_repository.dart';
@@ -20,10 +18,6 @@ class ProviderRoomPort implements RoomPort {
   final Ref _ref;
 
   ProviderRoomPort(this._ref);
-
-  @override
-  Stream<void> get networkReturned =>
-      _ref.read(connectivityServiceProvider).onNetworkReturned;
 
   @override
   Future<LookAnswer> lookAt(Turn turn) async => switch (await _ref
@@ -51,10 +45,6 @@ class ProviderRoomPort implements RoomPort {
         Answered(:final value) => SceneRehearsalsListed(value),
         final RoomFailure failure => SceneRehearsalsFailed(failure.result),
       };
-
-  @override
-  Future<RoomReach> reach() =>
-      _ref.read(connectivityServiceProvider).reachRoom();
 
   @override
   Future<RoomResult> askForAPerson(String session) async =>

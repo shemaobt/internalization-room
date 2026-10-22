@@ -547,11 +547,10 @@ void main() {
   });
 
   testWidgets(
-    'A Watch read that falls on the network leaves the room in reach and the '
-    'reply waiting on the hand',
+    'A Watch read that falls on the network leaves the reply waiting on the '
+    'hand',
     (tester) async {
       final room = await _inConversaWithAReply(tester, watching: true);
-      room.harness.network.reachable = false;
       room.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
       await room.until(
         'a leitura da vigia cair',
@@ -559,10 +558,8 @@ void main() {
       );
       await room.beat(300);
 
-      expect(room.estado.offline, isFalse);
       expect(_hand, findsOneWidget);
 
-      room.harness.network.reachable = true;
       await room.atTheInvite();
       await room.theReplyStillWaitsOnTheHand();
       closeTheRoom(room.container);
@@ -574,7 +571,7 @@ void main() {
     (tester) async {
       final room = await _inConversaWithAReply(tester);
       room.harness.voice.holdNextLine();
-      room.sala.sayTheMicIsBlocked();
+      unawaited(room.sala.hearAgain());
       await room.until(
         'a linha tocar',
         () => room.estado.channel is GuideSpeaking,
