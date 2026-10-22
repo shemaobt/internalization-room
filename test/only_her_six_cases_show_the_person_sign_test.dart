@@ -302,6 +302,23 @@ void main() {
     expect(harness.room.turnIdsLookedAt, isEmpty);
   });
 
+  test('a spoken turn refused TURN_COLLISION brings the person sign and no '
+      'line', () async {
+    final harness = SalaHarness();
+    final room = await _onTheCanvas(harness);
+    harness.room.failTurnsWith = const Refused('TURN_COLLISION');
+    final playedBefore = harness.voice.played.length;
+    final assetsBefore = harness.voice.assets.length;
+
+    await _theTeamSpeaks(room);
+    await waitFor('o sinal da pessoa', () => room.state.needsPerson);
+    await settle();
+
+    expect(harness.voice.played.skip(playedBefore), isEmpty);
+    expect(harness.voice.assets.skip(assetsBefore), isEmpty);
+    expect(room.state.offline, isFalse);
+  });
+
   test('a reply sound that fails twice brings the sign; once brings '
       'nothing', () async {
     final harness = SalaHarness();
