@@ -389,7 +389,7 @@ How a passage is recorded: the whole passage in one take, or scene by scene. A s
 _Avoid_: mode, recording form (the form is one take's shape)
 
 **Ensaio Final plan**:
-The screen the orange dot opens on a passage with scenes and no joined part: one row per scene with its Default rehearsal and its facts, and «juntar as cenas e ouvir». Facts only, never a word anyone said.
+The screen the orange dot opens on a passage with scenes while a scene is still left to join and every part so far came from a join: one row per scene with its Default rehearsal and its facts, and «juntar as cenas e ouvir». Once every scene is joined the dot opens the recording home. Facts only, never a word anyone said.
 _Avoid_: join screen, summary
 
 **Default rehearsal**:
