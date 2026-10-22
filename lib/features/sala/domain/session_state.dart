@@ -7,6 +7,7 @@ import 'machine.dart';
 import 'spoken_line.dart';
 import 'session_snapshot.dart';
 import 'coverage.dart';
+import 'ensaio_final_plan.dart';
 import 'hand_reply.dart';
 import 'kept_take.dart';
 import 'left_entry.dart';
@@ -18,6 +19,8 @@ import 'scene_rehearsal.dart';
 import 'station.dart';
 
 enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim, cena }
+
+enum OrangeDotLook { gone, faint, bright }
 
 /// Where the scene rehearsal's screen is.
 enum SceneStep { record, translate, placesUnknown, sent }
@@ -395,6 +398,17 @@ class SalaSessionState {
 
   final SceneLine? sceneLine;
 
+  /// What the Ensaio Final plan is drawn from, while the plan stands.
+  final EnsaioFinalPlan? ensaioFinalPlan;
+
+  /// Whether the room's listing named a current part of this session laid in from a Scene
+  /// rehearsal.
+  final bool theRoomJoinedAPart;
+
+  /// The takes of a whole rehearsal set aside behind the scenes' parts that only the room
+  /// holds.
+  final Set<String> wholeHeldByTheRoom;
+
   /// Whether Scene row [scene] does not apply right now (ADR 0040: dimmed means it does
   /// not apply). True for every row but the one a finding sent the team back to record,
   /// while that record-again stands open and nothing has been recorded for it yet. Once
@@ -473,6 +487,9 @@ class SalaSessionState {
     this.sceneTurn,
     this.sceneRestart,
     this.sceneLine,
+    this.ensaioFinalPlan,
+    this.theRoomJoinedAPart = false,
+    this.wholeHeldByTheRoom = const {},
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -542,6 +559,19 @@ class SalaSessionState {
 
   /// Whether a current Part was laid in from a Scene rehearsal.
   bool get joined => partes.any((take) => take.origin != null);
+
+  /// Whether a current Part came from a join, as the tablet holds it or the room lists it.
+  bool get aPartWasJoined => joined || theRoomJoinedAPart;
+
+  /// How the orange dot stands on the Conversation: gone while the way out is hidden,
+  /// bright from the send-off, faint otherwise.
+  OrangeDotLook get orangeDotLook {
+    if (wayOutIsHidden) return OrangeDotLook.gone;
+    if (endOfThePassage || moment?.at == MomentAt.ensaioFinal) {
+      return OrangeDotLook.bright;
+    }
+    return OrangeDotLook.faint;
+  }
 
   Set<int> get partNumbers => {
     for (final take in partes) ?KeptScope.numberOf(take.scopeId),
@@ -1026,6 +1056,7 @@ class SalaSessionState {
 
   /// The recordings of a whole rehearsal set aside behind the scenes' own parts.
   Set<String> get wholeSetAside => {
+    ...wholeHeldByTheRoom,
     if (keptTakes.any((take) => KeptScope.isParte(take.scopeId)))
       for (final take in keptTakes)
         if (take.scopeId == KeptScope.whole) ?take.takeId,
@@ -1186,6 +1217,10 @@ class SalaSessionState {
     bool clearSceneRestart = false,
     SceneLine? sceneLine,
     bool clearSceneLine = false,
+    EnsaioFinalPlan? ensaioFinalPlan,
+    bool clearEnsaioFinalPlan = false,
+    bool? theRoomJoinedAPart,
+    Set<String>? wholeHeldByTheRoom,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
@@ -1281,6 +1316,11 @@ class SalaSessionState {
           ? null
           : (sceneRestart ?? this.sceneRestart),
       sceneLine: clearSceneLine ? null : (sceneLine ?? this.sceneLine),
+      ensaioFinalPlan: clearEnsaioFinalPlan
+          ? null
+          : (ensaioFinalPlan ?? this.ensaioFinalPlan),
+      theRoomJoinedAPart: theRoomJoinedAPart ?? this.theRoomJoinedAPart,
+      wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
     );
   }
 }

@@ -87,6 +87,10 @@ const roomLabels = {
     'pt': 'Gravar o ensaio de vocês',
     'en': 'Record your rehearsal',
   },
+  'openEnsaioFinal': {
+    'pt': 'Abrir o Ensaio Final',
+    'en': 'Open the Final Rehearsal',
+  },
   'hearHowYouToldPart': {
     'pt': 'Ouvir como vocês contaram a parte {n}',
     'en': 'Hear how you told part {n}',
@@ -96,6 +100,24 @@ const roomLabels = {
 String roomLabelFor(String control, String language, {int? n}) =>
     (roomLabels[control]![language] ?? roomLabels[control]![floorLanguage]!)
         .replaceAll('{n}', '$n');
+
+/// Her Ensaio Final plan's words (strings.ts), the ones the team reads.
+const ensaioFinalPlanLabels = {
+  'title': {'pt': 'Ensaio Final', 'en': 'Final Rehearsal'},
+  'sub': {
+    'pt': 'Estes são os ensaios das cenas que vocês me enviaram.',
+    'en': 'These are the scene rehearsals you sent me.',
+  },
+  'thinking': {'pt': 'pensando…', 'en': 'thinking…'},
+  'sceneByScene': {
+    'pt': 'Gravar cena por cena',
+    'en': 'Record scene by scene instead',
+  },
+};
+
+String ensaioFinalPlanLabelFor(String control, String language) =>
+    ensaioFinalPlanLabels[control]![language] ??
+    ensaioFinalPlanLabels[control]![floorLanguage]!;
 
 /// Her scene-rehearsal words (strings.ts), read only by VoiceOver.
 const sceneRehearsalLabels = {

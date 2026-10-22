@@ -190,6 +190,25 @@ void main() {
     expect(volta.partBeingRecordedAgain, 1);
   });
 
+  test('a resume point keeps the wholes the room holds set aside through '
+      'toJson/fromJson, and a row without them reads none', () {
+    const linha = ResumePoint(
+      sessionId: 'sessao-1',
+      stage: SalaStage.ensaio,
+      wholeSetAside: ['gravacao-inteira'],
+    );
+    const semEles = '{"session_id":"sessao-1","stage":"ensaio","takes":[]}';
+
+    final volta = ResumePoint.fromJson(linha.toJson(), folder: '/gravacoes')!;
+    final antiga = ResumePoint.fromJson(
+      jsonDecode(semEles) as Map<String, Object?>,
+      folder: '/gravacoes',
+    )!;
+
+    expect(volta.wholeSetAside, ['gravacao-inteira']);
+    expect(antiga.wholeSetAside, isEmpty);
+  });
+
   test('a row written before the part being recorded again existed reopens '
       'with no part marked', () {
     const semAMarca =

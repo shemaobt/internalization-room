@@ -1000,7 +1000,7 @@ void main() {
         reason: 'e fica guardado na sala: o tablet não o busca',
       );
       expect(
-        [for (final take in it.estado.keptTakes) take.takeId],
+        it.estado.wholeSetAside,
         contains('gravacao-2'),
         reason: 'mas o conhece pelo nome: nunca se apaga',
       );

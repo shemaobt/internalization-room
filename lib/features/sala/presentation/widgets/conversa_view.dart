@@ -7,7 +7,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
-import '../../domain/moment.dart';
 import '../../domain/session_state.dart';
 import 'facilitator_circle.dart';
 import 'kept_retelling_buttons.dart';
@@ -73,26 +72,36 @@ class ConversaView extends ConsumerWidget {
           right: 14,
           top: 118 + MediaQuery.viewPaddingOf(context).top,
           child: IgnorePointer(
-            ignoring: !_dotIsLit(session),
+            ignoring: session.orangeDotLook == OrangeDotLook.gone,
             child: AnimatedOpacity(
-              opacity: _dotIsLit(session) ? 0.85 : 0,
+              opacity: switch (session.orangeDotLook) {
+                OrangeDotLook.gone => 0,
+                OrangeDotLook.faint => 0.22,
+                OrangeDotLook.bright => 0.85,
+              },
               duration: const Duration(milliseconds: 400),
-              child: Semantics(
-                button: true,
-                label: roomLabelFor('recordEnsaio', language),
-                child: GestureDetector(
-                  onTap: notifier.goEnsaio,
-                  behavior: HitTestBehavior.opaque,
-                  child: SizedBox(
-                    width: 34,
-                    height: 34,
-                    child: Center(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: SalaColors.of(context).momentoEf,
-                          shape: BoxShape.circle,
+              child: ExcludeSemantics(
+                excluding: session.orangeDotLook == OrangeDotLook.gone,
+                child: Semantics(
+                  button: true,
+                  label: roomLabelFor(
+                    session.aPartWasJoined ? 'openEnsaioFinal' : 'recordEnsaio',
+                    language,
+                  ),
+                  child: GestureDetector(
+                    onTap: notifier.openTheEnsaioFinal,
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(
+                      width: 34,
+                      height: 34,
+                      child: Center(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: SalaColors.of(context).momentoEf,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const SizedBox(width: 15, height: 15),
                         ),
-                        child: const SizedBox(width: 15, height: 15),
                       ),
                     ),
                   ),
@@ -127,10 +136,6 @@ class ConversaView extends ConsumerWidget {
       _ => 1,
     };
   }
-
-  bool _dotIsLit(SalaSessionState session) =>
-      (session.endOfThePassage || session.moment?.at == MomentAt.ensaioFinal) &&
-      !session.wayOutIsHidden;
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.voice == VoiceState.listening) {
