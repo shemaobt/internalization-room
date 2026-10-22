@@ -376,7 +376,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// already lives with for the rehearsal's own rows.
   late Map<String, PendingTake> _traducaoNaFila;
 
-  late int _captureFails;
+  late Map<MicOwner, int> _captureFails;
 
   /// Whether the part currently chosen has ever actually gone in the air.
   ///
@@ -521,7 +521,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _faseAntesDeTraduzirDeNovo = null;
     _traducoesGuardadas = {};
     _traducaoNaFila = {};
-    _captureFails = 0;
+    _captureFails = {};
     _parteJaTocou = false;
     _oQueFaltaOuvir = null;
     _umaParteFoiRegravada = false;
@@ -1570,8 +1570,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// This is the seam rather than `_decideTheFailure`, because the watchdog that gives up
   /// on a busy state is not a room failure — it is this tablet deciding the wait is over —
   /// and it is the one give-up that fires while a correction's own call is in the air, with
-  /// no refusal to show for it. Both stations do all their waiting in
-  /// this phase.
+  /// no refusal to show for it. Both stations do all their waiting in this phase.
   void _leaveThinking() {
     if (state.station is Retro && state.btPhase == BtPhase.thinking) {
       state = state.copyWith(btPhase: BtPhase.playing);
@@ -3123,7 +3122,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Where the Guide is is read before she stops.
   void _cutTheVoice() {
-    if (ref.read(micPermissionProvider) == MicAccess.denied) return;
+    if (ref.read(micPermissionProvider) != MicAccess.granted) return;
     final cut = CutPoint(_sound.linePosition, of: _sound.lineLength);
     _quietTheRoom();
     state = state.copyWith(clearContaEscolhida: true);
@@ -5408,7 +5407,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     switch (heard.answer) {
       case MicAnswer.started:
-        if (heard.owner == MicOwner.conversation) _captureFails = 0;
+        _captureFails.remove(heard.owner);
         ref.read(micPermissionProvider.notifier).heard();
       case MicAnswer.refused:
         _undoTheListening();
@@ -5464,10 +5463,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// whole passage into it and loses it.
   void _theRecorderNeverStarted(MicOwner owner) {
     _undoTheListening();
-    if (owner == MicOwner.conversation) _captureFails++;
+    final inARow = _captureFails[owner] = (_captureFails[owner] ?? 0) + 1;
     _dispatch(
       decidedOnTheTablet(
-        TheMicFailedToStart(_captureFails, owner: owner),
+        TheMicFailedToStart(inARow, owner: owner),
         _failureContext(),
       ),
     );
@@ -8333,7 +8332,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _pendingTakePath = null;
     _emCurso = null;
     _semNome.clear();
-    _captureFails = 0;
+    _captureFails = {};
     _recordingStarting = false;
   }
 }

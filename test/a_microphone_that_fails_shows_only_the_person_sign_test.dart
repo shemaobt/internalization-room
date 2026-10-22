@@ -113,7 +113,7 @@ Future<void> _anInterruptWhoseMicrophoneFails(_Sala sala) async {
 
 void main() {
   testWidgets(
-    'a refused microphone on the Conversation shows the person sign, with no line and no gate',
+    'a refused microphone on the Conversation shows the person sign over the Conversation and says nothing',
     (tester) async {
       final sala = await _atRestInTheConversation(tester);
       sala.harness.recorder.permitted = false;
@@ -182,8 +182,8 @@ void main() {
   );
 
   testWidgets(
-    'a permission question the platform never answers is not a refusal: a tap '
-    'over the speaking voice still cuts her',
+    'on a tablet whose microphone permission is unknown, a tap over the '
+    'speaking voice changes nothing',
     (tester) async {
       final harness = _aRoom()..recorder.answersPermission = null;
       final sala = await _theRoomOpens(tester, harness);
@@ -196,11 +196,15 @@ void main() {
       );
       await _pass(sala, 20);
       final stops = harness.voice.stops;
+      final starts = harness.sounds.where((s) => s == 'recorder:start').length;
 
       await _tapTheCircle(sala);
 
-      expect(harness.voice.stops, greaterThan(stops));
-      expect(_read(sala).voice, VoiceState.listening);
+      expect(_read(sala).voice, VoiceState.speaking);
+      expect(harness.voice.stops, stops);
+      expect(harness.sounds.where((s) => s == 'recorder:start').length, starts);
+      harness.voice.finishHeldLine();
+      await _pass(sala);
       closeTheRoom(sala.container);
     },
   );

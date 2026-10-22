@@ -112,31 +112,8 @@ void main() {
   setUpAll(() => dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local'));
 
   testWidgets(
-    'a session refused by a network failure at the Choice rests at the invite '
-    'and raises no halt',
-    (tester) async {
-      final sala = await _theSala(tester, _aRoomThatWaitsForTheTap());
-      await _chooseP01(sala, const NetworkFailed('sem rede'));
-
-      expect(_read(sala).sessionId, isNull);
-      _restsWithoutAHalt(sala);
-      closeTheRoom(sala.container);
-    },
-  );
-
-  testWidgets(
-    'the next tap after the room is back asks for the session again',
-    (tester) async {
-      final sala = await _theSala(tester, _aRoomThatWaitsForTheTap());
-      await _chooseP01(sala, const NetworkFailed('sem rede'));
-
-      await _theNextTapOpens(sala, sala.notifier.conversaTap);
-      closeTheRoom(sala.container);
-    },
-  );
-
-  testWidgets(
-    'a 500 on the session\'s creation rests and recovers the same way',
+    'a 500 on the session\'s creation rests at the invite and the next tap '
+    'asks again',
     (tester) async {
       final sala = await _theSala(tester, _aRoomThatWaitsForTheTap());
       await _chooseP01(

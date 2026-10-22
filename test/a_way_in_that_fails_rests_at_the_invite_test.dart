@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
@@ -175,4 +176,42 @@ void main() {
       closeTheRoom(sala.container);
     },
   );
+
+  group('a resume the network loses goes calmly back to the Choice, and the '
+      'entry opened again resumes where the row says', () {
+    for (final stage in const [SalaStage.conversa, SalaStage.ensaio]) {
+      test('on a ${stage.name} row', () async {
+        final harness = SalaHarness();
+        harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+          sessionId: 'sessao-antiga',
+          stage: stage,
+        );
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        SalaSessionState read() => container.read(salaSessionProvider);
+        await notifier.abrirEscolha();
+        await settle();
+        final entry = read().naRoda!.firstWhere((e) => e.pericope == 'P01');
+        harness.room.reachable = false;
+
+        unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
+        await waitFor(
+          'the room to rest on the Choice',
+          () => read().stage == SalaStage.escolha && !read().awaitingTheGuide,
+          limit: const Duration(seconds: 3),
+        );
+        expect(read().needsPerson, isFalse);
+
+        harness.room.reachable = true;
+        await notifier.abrirEscolha();
+        await settle();
+        notifier.openTheEntry(entry);
+        await waitFor('the resume to land', () => read().stage == stage);
+
+        expect(read().sessionId, 'sessao-antiga');
+        expect(harness.room.calls, isNot(contains('createSession')));
+      });
+    }
+  });
 }
