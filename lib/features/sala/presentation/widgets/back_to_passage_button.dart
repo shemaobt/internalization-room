@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
+import 'corner_disc.dart';
 
 class BackToPassageButton extends ConsumerWidget {
   const BackToPassageButton({super.key});
@@ -32,11 +32,9 @@ class BackToPassageButton extends ConsumerWidget {
               width: 46,
               height: 46,
               child: Opacity(
-                opacity: session.theWayBackIsLive ? 0.5 : 0.2,
-                child: Icon(
-                  LucideIcons.chevronLeft,
-                  size: 24,
-                  color: SalaColors.of(context).mut,
+                opacity: session.theWayBackIsLive ? 1 : 0.2,
+                child: const Center(
+                  child: CornerDisc(glyph: LucideIcons.chevronLeft),
                 ),
               ),
             ),
