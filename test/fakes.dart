@@ -42,6 +42,7 @@ import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/pausa.dart';
+import 'package:internalization_room/features/sala/domain/minimum_build.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
@@ -137,6 +138,9 @@ class FakeVoice implements FacilitatorVoiceService {
   /// does not sound. Distinct from [refuses]: that is the player failing with the file
   /// already in hand.
   RoomFailure? roomFailsWith;
+
+  /// What the next readying of a line throws, the way a defect in getting it ready does.
+  Object? readyThrows;
   Completer<bool>? _holding;
   Completer<bool>? _saying;
 
@@ -205,6 +209,10 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<bool> fetch(String url) async {
     fetched.add(url);
     await _fetching?.future;
+    if (readyThrows case final thrown?) {
+      readyThrows = null;
+      throw thrown;
+    }
     return succeeds;
   }
 
@@ -1056,6 +1064,7 @@ class FakeRoom implements RoomRepository {
   int _turnCount = 0;
 
   final List<String> calls = [];
+  final Map<String, Object> throwOn = {};
   final List<String?> pericopesAsked = [];
   final List<String> languagesSent = [];
   final List<String?> clientTimingsSent = [];
@@ -1532,6 +1541,7 @@ class FakeRoom implements RoomRepository {
   RoomFailure? _guard(String call) {
     calls.add(call);
     presentedOnEachCall.add(presented);
+    if (throwOn[call] case final thrown?) throw thrown;
     final failure = failWith;
     if (failure is SessionGone && _sessionless.contains(call)) {
       return const Refused(RefusalCode.notFound);
@@ -2163,6 +2173,25 @@ class FakeRoom implements RoomRepository {
     _holdingBooks = null;
     if (held != null) await held.future;
     return failBooksWith ?? Answered(books);
+  }
+
+  RoomAnswer<MinimumBuilds> minimumBuildsAnswer = Answered(
+    const MinimumBuilds(ios: 0, android: 0),
+  );
+
+  int minimumBuildsAsked = 0;
+  Completer<void>? _holdingMinimumBuilds;
+
+  /// Hold the next read of the minimum build, the way a link that never answers holds it.
+  void holdNextMinimumBuilds() => _holdingMinimumBuilds = Completer<void>();
+
+  void releaseMinimumBuilds() => _holdingMinimumBuilds?.complete();
+
+  @override
+  Future<RoomAnswer<MinimumBuilds>> minimumBuilds() async {
+    minimumBuildsAsked++;
+    await _holdingMinimumBuilds?.future;
+    return minimumBuildsAnswer;
   }
 
   @override

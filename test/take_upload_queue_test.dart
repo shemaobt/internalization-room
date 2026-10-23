@@ -2142,12 +2142,51 @@ void main() {
       expect(room.takesReceivedWhole.single.overTake, 'gravacao-a-mao');
     });
   });
+
+  group('a flush over an Outbox folder that is gone', () {
+    test('sends nothing and throws nothing', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+
+      final sent = await IOOverrides.runZoned(
+        queue.flush,
+        createDirectory: (path) => path.endsWith('${p.separator}guardadas')
+            ? _GoneUnderneath(path)
+            : _realDirectory(path),
+      );
+
+      expect(sent, 0);
+    });
+  });
 }
 
 final class _Plain extends IOOverrides {}
 
 File _realFile(String path) =>
     IOOverrides.runWithIOOverrides(() => File(path), _Plain());
+
+Directory _realDirectory(String path) =>
+    IOOverrides.runWithIOOverrides(() => Directory(path), _Plain());
+
+class _GoneUnderneath implements Directory {
+  final Directory _real;
+
+  _GoneUnderneath(String path) : _real = _realDirectory(path);
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<Directory> create({bool recursive = false}) async =>
+      throw PathNotFoundException(
+        _real.path,
+        const OSError('No such file or directory', 2),
+        'Creation failed',
+      );
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 class _GoneAfterItWasFound implements File {
   final File _real;

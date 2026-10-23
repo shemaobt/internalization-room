@@ -734,7 +734,13 @@ class TakeUploadQueue {
     var sent = 0;
     final held = <String>{};
     _turnedAway = false;
-    for (final entry in await waiting(withTheCodeless: withTheCodeless)) {
+    final List<PendingTake> rows;
+    try {
+      rows = await waiting(withTheCodeless: withTheCodeless);
+    } on PathNotFoundException {
+      return 0;
+    }
+    for (final entry in rows) {
       if (_turnedAway) break;
       final part = _partOf(entry);
       if (part != null && held.contains(part)) continue;
