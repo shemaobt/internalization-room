@@ -131,6 +131,8 @@ abstract interface class RecorderPort {
 
   Future<void> discard();
 
+  Future<void> delete(String path);
+
   Stream<bool> get taken;
 }
 

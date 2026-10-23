@@ -7,7 +7,9 @@ import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/kept_take.dart';
 import '../../domain/session_state.dart';
+import '../../domain/station.dart';
 import 'bead_styles.dart';
+import 'ensaio_final_plan_view.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
 import 'stage_heading.dart';
@@ -18,6 +20,9 @@ class EnsaioView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
+    if (session.station case Ensaio(step: EnsaioStep.plan)) {
+      return const EnsaioFinalPlanView();
+    }
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
     final colors = SalaColors.of(context);
@@ -27,6 +32,7 @@ class EnsaioView extends ConsumerWidget {
       language,
     );
 
+    final frozen = session.bringingBack != null;
     final scrolling = SizedBox.expand(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -50,6 +56,20 @@ class EnsaioView extends ConsumerWidget {
                 style: TextStyle(color: colors.mut, fontSize: 15, height: 1.35),
               ),
             ),
+            if (session.rehearsalsElsewhere && session.partes.isEmpty) ...[
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    recordingHomeLabelFor('elsewhere', language),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.telha, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
             if (session.aTakeFromAnEarlierVisitWaits) ...[
               const SizedBox(height: 12),
               ConstrainedBox(
@@ -65,83 +85,102 @@ class EnsaioView extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 20),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
+            IgnorePointer(
+              ignoring: frozen,
               child: Column(
                 children: [
-                  for (final row in session.sceneRows)
-                    _SceneRowView(
-                      row: row,
-                      session: session,
-                      language: language,
-                      onRecord: () => notifier.gravarACena(row.number),
-                      onListen: () => notifier.ouvirACena(row.number),
-                      onSend: () => notifier.enviarACena(row.number),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: Column(
+                      children: [
+                        for (final row in session.sceneRows)
+                          _SceneRowView(
+                            row: row,
+                            session: session,
+                            language: language,
+                            onRecord: () => notifier.gravarACena(row.number),
+                            onListen: () => notifier.ouvirACena(row.number),
+                            onSend: () => notifier.enviarACena(row.number),
+                            onBringBack: () =>
+                                notifier.trazerDeVoltaAsTraducoes(row.number),
+                          ),
+                      ],
                     ),
+                  ),
+                  const SizedBox(height: 24),
+                  FacilitatorCircle(
+                    size: facilitatorCircleSize,
+                    halt: session.halt,
+                    voice: _voice(session),
+                    tongue: Tongue.motherTongue,
+                    warning: session.warning
+                        ? warningNoticeLabelFor(language)
+                        : null,
+                    semanticLabel: _circleLabel(session, language),
+                    enabled: !frozen,
+                    onTap: notifier.ensaioTap,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      RoundActionButton(
+                        size: 60,
+                        mood: session.canPlayTheRehearsal && !frozen
+                            ? ButtonMood.lit
+                            : ButtonMood.dimmed,
+                        gradient: BeadStyles.wood,
+                        semanticLabel: recordingHomeLabelFor(
+                          session.playPing ? 'stop' : 'listen',
+                          language,
+                        ),
+                        onTap: notifier.playTheRehearsal,
+                        child: Icon(
+                          session.playPing
+                              ? LucideIcons.pause
+                              : LucideIcons.play,
+                          size: 24,
+                          color: ShemaBrand.branco,
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      RoundActionButton(
+                        size: 60,
+                        mood: pending && !frozen
+                            ? ButtonMood.lit
+                            : ButtonMood.dimmed,
+                        gradient: BeadStyles.verde,
+                        semanticLabel: recordingHomeLabelFor(
+                          'sendAria',
+                          language,
+                        ),
+                        onTap: notifier.takeKeep,
+                        child: const Icon(
+                          LucideIcons.check,
+                          size: 24,
+                          color: ShemaBrand.branco,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  FadeUp(
+                    child: RoundActionButton(
+                      size: 78,
+                      mood: session.ensaioDone && !frozen
+                          ? ButtonMood.beckoning
+                          : ButtonMood.dimmed,
+                      gradient: BeadStyles.wood,
+                      shadows: RoundActionButton.dropShadow,
+                      halo: ShemaBrand.wood,
+                      semanticLabel: recordingHomeLabelFor(
+                        session.joined ? 'listenAndCheck' : 'translate',
+                        language,
+                      ),
+                      onTap: notifier.startRetro,
+                    ),
+                  ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            FacilitatorCircle(
-              size: facilitatorCircleSize,
-              halt: session.halt,
-              voice: _voice(session),
-              tongue: Tongue.motherTongue,
-              warning: session.warning ? warningNoticeLabelFor(language) : null,
-              semanticLabel: _circleLabel(session, language),
-              onTap: notifier.ensaioTap,
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RoundActionButton(
-                  size: 60,
-                  mood: session.canPlayTheRehearsal
-                      ? ButtonMood.lit
-                      : ButtonMood.dimmed,
-                  gradient: BeadStyles.wood,
-                  semanticLabel: recordingHomeLabelFor(
-                    session.playPing ? 'stop' : 'listen',
-                    language,
-                  ),
-                  onTap: notifier.playTheRehearsal,
-                  child: Icon(
-                    session.playPing ? LucideIcons.pause : LucideIcons.play,
-                    size: 24,
-                    color: ShemaBrand.branco,
-                  ),
-                ),
-                const SizedBox(width: 24),
-                RoundActionButton(
-                  size: 60,
-                  mood: pending ? ButtonMood.lit : ButtonMood.dimmed,
-                  gradient: BeadStyles.verde,
-                  semanticLabel: recordingHomeLabelFor('sendAria', language),
-                  onTap: notifier.takeKeep,
-                  child: const Icon(
-                    LucideIcons.check,
-                    size: 24,
-                    color: ShemaBrand.branco,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            FadeUp(
-              child: RoundActionButton(
-                size: 78,
-                mood: session.ensaioDone
-                    ? ButtonMood.beckoning
-                    : ButtonMood.dimmed,
-                gradient: BeadStyles.wood,
-                shadows: RoundActionButton.dropShadow,
-                halo: ShemaBrand.wood,
-                semanticLabel: recordingHomeLabelFor(
-                  session.joined ? 'listenAndCheck' : 'translate',
-                  language,
-                ),
-                onTap: notifier.startRetro,
               ),
             ),
             if (session.someScenesWaitForTheirPart) ...[
@@ -184,6 +223,7 @@ class _SceneRowView extends StatelessWidget {
   final VoidCallback onRecord;
   final VoidCallback onListen;
   final VoidCallback onSend;
+  final VoidCallback onBringBack;
 
   const _SceneRowView({
     required this.row,
@@ -192,6 +232,7 @@ class _SceneRowView extends StatelessWidget {
     required this.onRecord,
     required this.onListen,
     required this.onSend,
+    required this.onBringBack,
   });
 
   @override
@@ -202,14 +243,19 @@ class _SceneRowView extends StatelessWidget {
     final named = title == null ? cena : '$cena — $title';
     final playing = row.current && session.playPing;
     final recording = row.recording && session.ensaio == EnsaioStatus.recording;
+    final frozen = session.bringingBack != null;
     final another =
         session.ensaio != EnsaioStatus.idle && !row.recording ||
-        session.needsPerson;
+        session.needsPerson ||
+        frozen;
     final mood = row.dimmed || another ? ButtonMood.dimmed : ButtonMood.lit;
     final listens =
         row.dimmed ||
+            row.away == PartAway.coming ||
+            row.away == PartAway.lost ||
             session.needsPerson ||
-            session.ensaio == EnsaioStatus.recording
+            session.ensaio == EnsaioStatus.recording ||
+            frozen
         ? ButtonMood.dimmed
         : ButtonMood.lit;
 
@@ -302,6 +348,8 @@ class _SceneRowView extends StatelessWidget {
               ],
             ),
             ?_unsentControl(row.unsent, cena, colors),
+            ?_bringBackControl(cena, colors),
+            ?_bringBackFailed(colors),
           ],
         ),
       ),
@@ -314,7 +362,7 @@ class _SceneRowView extends StatelessWidget {
       UnsentPart(fromAnEarlierVisit: true, :final length) => (
         [
           cena,
-          if (length != null) ' · ${_mss(length)}',
+          if (length != null) ' · ${minutesAndSecondsOf(length)}',
           ' — ${recordingHomeLabelFor('sendNow', language)}',
         ].join(),
         recordingHomeLabelFor('sendAria', language),
@@ -330,6 +378,7 @@ class _SceneRowView extends StatelessWidget {
       padding: const EdgeInsets.only(left: 32, top: 4),
       child: Semantics(
         button: true,
+        enabled: session.bringingBack == null ? null : false,
         label: aria,
         onTap: onSend,
         excludeSemantics: true,
@@ -344,9 +393,50 @@ class _SceneRowView extends StatelessWidget {
     );
   }
 
-  static String _mss(Duration length) {
-    final seconds = length.inSeconds;
-    return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
+  Widget? _bringBackControl(String cena, SalaColors colors) {
+    if (!session.toBringBack.contains(row.number)) return null;
+    final control = 'bringBack:${row.number}';
+    final armedTap = session.armedTap;
+    final label = recordingHomeLabelFor(
+      armedTap?.control == control ? 'bringBackArmed' : 'bringBack',
+      language,
+    );
+    final asleep =
+        armedTap?.control == control && armedTap?.phase == BtRecomeco.armado;
+    return Padding(
+      padding: const EdgeInsets.only(left: 32, top: 4),
+      child: Semantics(
+        button: true,
+        enabled: !asleep && session.bringingBack == null,
+        label: '$label — $cena',
+        onTap: onBringBack,
+        excludeSemantics: true,
+        child: Opacity(
+          opacity: asleep ? 0.4 : 1,
+          child: TextButton(
+            onPressed: onBringBack,
+            child: Text(
+              label,
+              style: TextStyle(color: colors.mut, fontSize: 15),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget? _bringBackFailed(SalaColors colors) {
+    if (session.bringBackFailed != row.number) return null;
+    return Padding(
+      padding: const EdgeInsets.only(left: 32, top: 4),
+      child: Semantics(
+        liveRegion: true,
+        child: Text(
+          recordingHomeLabelFor('bringBackFailed', language),
+          style: TextStyle(color: colors.telha, fontSize: 15),
+        ),
+      ),
+    );
   }
 
   Widget _control(

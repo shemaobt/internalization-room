@@ -290,58 +290,133 @@ void main() {
   );
 
   testWidgets(
-    'the cord stays the arc the beads hang on when the passage closes',
+    'the cord is a thin line the beads hang on, at the Closing and in the conversation',
     (tester) async {
-      await pumpColar(
-        tester,
-        SalaSessionState(
-          machine: Machine(station: Station.stored(SalaStage.fim)),
-          coverage: const Coverage(engaged: 0, surfaced: 0, total: 1),
-        ),
+      final closing = SalaSessionState(
+        machine: Machine(station: Station.stored(SalaStage.fim)),
+        coverage: const Coverage(engaged: 0, surfaced: 0, total: 1),
       );
-      await tester.pump(const Duration(seconds: 2));
-
-      expect(
-        find.byType(ColarOverlay),
-        paints..path(
-          color: SalaColors.light.cord,
-          includes: const [Offset(400, 30)],
-          excludes: const [Offset(400, 296)],
-        ),
-        reason:
-            'no fecho o cordão virava um círculo em volta do facilitador e as '
-            'contas ficavam penduradas num arco que não existia mais',
-      );
-    },
-  );
-
-  testWidgets(
-    'the beads keep the size they had on the cord when the passage closes',
-    (tester) async {
       const conversing = SalaSessionState(
         coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
       );
-      await pumpColar(tester, conversing);
 
-      await pumpColar(
-        tester,
-        conversing.copyWith(
-          machine: Machine(station: Station.stored(SalaStage.fim)),
-        ),
-      );
-      await tester.pump(const Duration(seconds: 2));
+      for (final session in [closing, conversing]) {
+        await pumpColar(tester, session);
+        await tester.pump(const Duration(seconds: 2));
 
-      for (var i = 0; i < 12; i++) {
         expect(
-          tester.getSize(find.byType(ThreadIn).at(i)),
-          const Size(18, 18),
+          find.byType(ColarOverlay),
+          paints..path(
+            color: SalaColors.light.line,
+            strokeWidth: 1.5,
+            includes: const [Offset(400, 30)],
+            excludes: const [Offset(400, 296)],
+          ),
           reason:
-              'no fecho a conta $i crescia de 18 para 26px — o colar mudava de '
-              'forma diante do time sem que nada tivesse mudado',
+              'o cordão é um fio de 1,5px na cor da linha, no fecho e na conversa',
         );
       }
     },
   );
+
+  testWidgets('the beads are 16 px, on the cord and at the Closing', (
+    tester,
+  ) async {
+    const conversing = SalaSessionState(
+      coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
+    );
+    await pumpColar(tester, conversing);
+    for (var i = 0; i < 12; i++) {
+      expect(tester.getSize(find.byType(ThreadIn).at(i)), const Size(16, 16));
+    }
+
+    await pumpColar(
+      tester,
+      conversing.copyWith(
+        machine: Machine(station: Station.stored(SalaStage.fim)),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 2));
+
+    for (var i = 0; i < 12; i++) {
+      expect(tester.getSize(find.byType(ThreadIn).at(i)), const Size(16, 16));
+    }
+  });
+
+  SalaSessionState fiveOfTwelve({bool closing = false}) {
+    final coverage = answer({
+      'engaged': 5,
+      'surfaced': 5,
+      'total': 29,
+      'beads_total': 12,
+      'beads_filled': 5,
+    });
+    return closing
+        ? SalaSessionState(
+            machine: Machine(station: Station.stored(SalaStage.fim)),
+            coverage: coverage,
+          )
+        : SalaSessionState(coverage: coverage);
+  }
+
+  BoxShadow? woodGlow(BoxDecoration decoration) => decoration.boxShadow
+      ?.where((shadow) => shadow.spreadRadius > 0)
+      .firstOrNull;
+
+  void expectFiveLitBeadsGlowAndSevenDoNot(
+    WidgetTester tester, {
+    SalaColors colors = SalaColors.light,
+  }) {
+    for (var i = 0; i < 12; i++) {
+      final decoration = decorationAt(tester, i);
+      final glow = woodGlow(decoration);
+      if (i < 5) {
+        expect(glow, isNotNull, reason: 'a conta $i está acesa e brilha');
+        expect(glow!.spreadRadius, 3);
+        expect(glow.blurRadius, 0);
+        expect(glow.offset, Offset.zero);
+        expect(glow.color.toARGB32() & 0x00FFFFFF, 0xC9A26B);
+        expect(glow.color.a, closeTo(0.25, 0.005));
+        expect(decoration.boxShadow, containsAll(BeadStyles.matte));
+      } else {
+        expect(glow, isNull, reason: 'a conta $i está apagada e não brilha');
+        expect(decoration.gradient, BeadStyles.oat(colors));
+        expect(decoration.border!.top.color, colors.line);
+      }
+    }
+  }
+
+  testWidgets('a lit bead glows and an unlit one does not', (tester) async {
+    await pumpReducedColar(tester, fiveOfTwelve());
+
+    expectFiveLitBeadsGlowAndSevenDoNot(tester);
+  });
+
+  testWidgets('the lit beads keep their glow at the Closing', (tester) async {
+    await pumpReducedColar(tester, fiveOfTwelve(closing: true));
+
+    expectFiveLitBeadsGlowAndSevenDoNot(tester);
+  });
+
+  testWidgets('the dark necklace reads: thin cord, glow, dark oat', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: Scaffold(body: ColarOverlay(session: fiveOfTwelve())),
+        ),
+      ),
+    );
+
+    expect(
+      find.byType(ColarOverlay),
+      paints..path(color: SalaColors.dark.line, strokeWidth: 1.5),
+    );
+    expectFiveLitBeadsGlowAndSevenDoNot(tester, colors: SalaColors.dark);
+  });
 
   testWidgets(
     'a bead just spoken into lands filled on the first frame, reduced',
