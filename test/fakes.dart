@@ -136,6 +136,9 @@ class FakeVoice implements FacilitatorVoiceService {
   /// does not sound. Distinct from [refuses]: that is the player failing with the file
   /// already in hand.
   RoomFailure? roomFailsWith;
+
+  /// What the next readying of a line throws, the way a defect in getting it ready does.
+  Object? readyThrows;
   Completer<bool>? _holding;
   Completer<bool>? _saying;
 
@@ -203,6 +206,10 @@ class FakeVoice implements FacilitatorVoiceService {
   @override
   Future<bool> fetch(String url) async {
     fetched.add(url);
+    if (readyThrows case final thrown?) {
+      readyThrows = null;
+      throw thrown;
+    }
     await _fetching?.future;
     return succeeds;
   }
