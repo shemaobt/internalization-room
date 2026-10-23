@@ -51,9 +51,12 @@ whole path and are still read.
 
 A resume point whose recordings are not on this tablet any more fetches the room's own
 parts and lands the team where they stopped, and the row is then rewritten naming the files
-that arrived. A fetch that cannot be finished calls for a person and leaves the row exactly
-as it was, so the next opening tries again; it is never rewritten without its takes, which
-would leave the Rehearsal the room is holding out of the team's reach for good. A room that
+that arrived. On the Rehearsal the team lands as soon as the room's takes list answers, and
+the parts come down behind their rows one at a time; a part whose fetch fails keeps its row
+and its next tap fetches it again, and the row names it until it is here (ADR 0128). On the
+Back-translation a fetch that cannot be finished leaves the row exactly as it was, so the
+next opening tries again; it is never rewritten without its takes, which would leave the
+Rehearsal the room is holding out of the team's reach for good. A room that
 holds no Rehearsal at all is neither: nothing is fetched, the passage opens at the
 Conversation, and the row is left alone. ADR 0023 has the whole of it. The row is never
 dropped either, because the session identifier lives only there, and dropping it would

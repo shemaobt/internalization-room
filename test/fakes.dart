@@ -1108,6 +1108,9 @@ class FakeRoom implements RoomRepository {
   /// The recordings whose audio this room will not hand over, by take id.
   final Set<String> refuseClipOf = {};
 
+  /// What fetching one recording's audio fails with, by take id.
+  final Map<String, RoomFailure> failClipOf = {};
+
   /// How long this room takes to hand over one recording's audio. A link that answers
   /// every part in time is not a link that has stopped, however long the whole fetch adds
   /// up to.
@@ -1629,6 +1632,9 @@ class FakeRoom implements RoomRepository {
     final sceneBytes = sceneAudio;
     if (sceneBytes != null && url.contains('/scene-rehearsals/')) {
       return Answered(sceneBytes);
+    }
+    for (final MapEntry(key: take, value: failure) in failClipOf.entries) {
+      if (url.endsWith('/takes/$take/audio')) return failure;
     }
     for (final take in refuseClipOf) {
       if (url.endsWith('/takes/$take/audio')) {
@@ -2985,10 +2991,19 @@ class FakeRoom implements RoomRepository {
   /// answer names none.
   List<String>? listeningUnheardTakeIds;
 
+  /// What the listen door says follows, on every answer: the tablet reads it only once
+  /// the room counts nothing unheard.
+  bool listeningAutomaticCheck = false;
+  String? listeningFixedLine;
+  List<UntranslatedPart> listeningUntranslated = const [];
+
+  /// The refusal `STRETCH_UNTRANSLATED` also when [listeningUntranslated] names no part.
+  bool listeningStretchUntranslated = false;
+
   RoomFailure? failListeningWith;
 
   @override
-  Future<RoomAnswer<List<String>?>> reportTheListening(
+  Future<RoomAnswer<ListenedWhole>> reportTheListening(
     String sessionId, {
     required List<PlayedTake> playedByTake,
   }) async {
@@ -2996,7 +3011,16 @@ class FakeRoom implements RoomRepository {
     final falha = failListeningWith;
     if (falha != null) return falha;
     if (!reachable) return const NetworkFailed('sem rede');
-    return Answered(listeningUnheardTakeIds);
+    return Answered(
+      ListenedWhole(
+        unheardTakeIds: listeningUnheardTakeIds,
+        automaticCheck: listeningAutomaticCheck,
+        fixedLine: listeningFixedLine,
+        stretchUntranslated:
+            listeningStretchUntranslated || listeningUntranslated.isNotEmpty,
+        untranslated: listeningUntranslated,
+      ),
+    );
   }
 
   final List<String> heardStamps = [];

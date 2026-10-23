@@ -3,6 +3,8 @@ status: accepted
 date: 2026-10-20
 ---
 
+Extended by 0123 (a joined recording asks the room on every entry; every part unheard is N0 and the First listen).
+
 # The tablet reports its listening as each part ends and asks the room which parts are unheard
 
 The Listening ledger lived only in memory and reached the room only with «terminei», so an
