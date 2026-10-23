@@ -39,8 +39,10 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   gets one more try on the Outbox's retry drain, which asks for the codeless; ENG-1777
   closes that gap. A spent take still holds the recordings made after it in its part
   (ADR 0025); a take refused for good does not. A take held behind a spent one is not due
-  either: it arms no retry and waits for the tap that sends the spent one, then it. A tap on a part sends every unsent pass of
-  it, older ones first, each with three attempts; an older pass refused for good is not
+  either: it arms no retry, reads «falhou — toque para tentar de novo» like the spent one,
+  and waits for the tap that sends the spent one, then it. A tap on a part sends every
+  unsent pass of it, older ones first, each with three attempts, whichever way its newest
+  take took, even one that never reached the Outbox; an older pass refused for good is not
   sent again, while the pass the tap names is sent once more even if it was refused. A keep
   on the red microphone does the same for the scene takes of its session before it: the
   room numbers a session's scene rehearsals by arrival (`n` is the session's highest plus
@@ -73,7 +75,8 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
 - **The take's state is told on its screen in her words, never by the voice:** «gravando»;
   «enviando…» while it is being kept or sent, until confirmed, spent or refused; «✓ salvo»
   once listed, for a part of this session's visit; «falhou — toque para tentar de novo»
-  when spent or stopped; «grande demais para o servidor — grave em partes menores» and
+  when spent or stopped, and on a take held behind a spent one, or a kept take whose copy
+  is gone; «grande demais para o servidor — grave em partes menores» and
   «não foi aceita — grave de novo» for final refusals, which offer no tap on the ensaio row.
   On the red microphone a failed scene take reads «não deu para guardar o ensaio da cena —
   gravem de novo» (or the too-large or not-accepted line) with «falhou — toque para tentar

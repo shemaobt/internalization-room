@@ -69,10 +69,10 @@ the team reads. Her record, listen, record-again and stop controls are icons Voi
 by her names; the rest of that screen stays wordless.
 
 Amended by ENG-1774 (2026-10-22, ADR 0112): the scene rehearsal's record step writes the
-take's state in her words (`widgets/scene_take_state.dart`): «gravando», «enviando…», her
-not-kept, too-large and not-accepted lines with «falhou — toque para tentar de novo», and
-«parar» (`widgets/stop_control.dart`), which the ensaio row shows too. It is the tenth named
-exception, under the moment label's reason, her words the team reads. VoiceOver reads the
+take's state in her words: «gravando», «enviando…», her not-kept, too-large and
+not-accepted lines with «falhou — toque para tentar de novo», and «parar», which the
+recording home's Scene rows show too. It is the tenth named exception, under the moment
+label's reason, her words the team reads. VoiceOver reads the
 same words, but for «parar», which it reads as her «Parar o envio (a gravação fica neste
 computador)».
 
