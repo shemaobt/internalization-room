@@ -271,7 +271,7 @@ The room's one control, the same size in every station: its colour is the voice 
 _Avoid_: círculo, facilitator circle, record circle, button, esfera
 
 **Advance disc**:
-The wood disc with no glyph that leads from one station to the next: to the Back-translation from the Rehearsal, to the verdict from the Back-translation; it lights only when nothing is pending and pulses while the room beckons; on the Rehearsal it lights only once every scene has its part.
+The wood disc with no glyph that leads from one station to the next: to the Back-translation from the Rehearsal, to the verdict from the Back-translation; it lights only when nothing is pending and pulses while the room beckons; on the Rehearsal it lights only once every scene has its part and every part is on the tablet.
 _Avoid_: next button, continue, seguir, microphone (it never wears one)
 
 **Knot**:
@@ -336,6 +336,10 @@ _Avoid_: waveform, timeline, ruler (the Ensaio's)
 One row of the Rehearsal per Scene of the passage, in passage order, reading «Cena N» and the scene's title, holding that scene's Part with its record, listen and record-again controls. Part N is Scene N: a recording made from row N is kept as part N, and a part the room holds under number N shows on row N.
 _Avoid_: bead (the Back-translation's), clip row, part row, linha
 
+**Part on its way**:
+A current Part the room holds that this tablet does not, on a Rehearsal reopened without its recordings. Its Scene row shows it from the moment the room's takes list answers, with its listen dark until its recording is here; the parts on their way come down one at a time, in part order. A fetch that fails leaves the row as it is, and the next tap on its listen fetches it again. Its own listen stays dark until it is here, and the wood play and the advance disc wait until every part is here; recording the scene again is never held back by it.
+_Avoid_: placeholder, missing part (a part the room no longer has), pending part, unsent take (the other direction)
+
 **Joined recording** (`origin`):
 A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final», and the Back-translation's into «Ensaio Final»; entering it starts the First listen while the room counts every part unheard. The tablet makes one with «juntar as cenas e ouvir» on the Ensaio Final plan. Each scene's chosen rehearsal goes up through the Outbox as that scene's Part: the rehearsal's own bytes under its fingerprint, with `origin`. The same bytes joined again, from any tablet, are the same take (ADR 0120).
 _Avoid_: assembled recording, merged, Junção (in prose)
@@ -373,7 +377,7 @@ A take of a Part of this session still on this tablet, the newest pass of its Pa
 _Avoid_: stranded take, stuck recording, gravação presa, pending take (the Outbox's row)
 
 **Resume point**:
-The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). One per passage and **Session language** (ADR 0077). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage — never the clock.
+The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). One per passage and **Session language** (ADR 0077). On the Rehearsal, the parts it names that are not here come down behind their rows (ADR 0128). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session — never the clock. An approval keeps it, on the Back-translation (ADR 0112).
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
 **Current session**:
@@ -431,7 +435,7 @@ One of the codes a refused approval names, one string each: the gate's ten plus 
 _Avoid_: reason, error code, bloqueio, refusal (the answer that carries them)
 
 **Approval**:
-The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line, asked of the room by name. The room closes only after it, and a refused one takes the team to the hole its blockers name.
+The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line, asked of the room by name, then the **Saved screen** over the Back-translation; the passage is not closed (ADR 0112). A refused one shows one of her three texts and takes the team to the hole its blockers name.
 _Avoid_: aprovação, finalize, release (the server's record of it), approve button
 
 **Draft** (*rascunho*):

@@ -400,17 +400,6 @@ void main() {
       await relaunchedOnTheChoice(tablet);
     });
 
-    test('after the Closing, inside its linger', () async {
-      final it = await umEnsaioDeTresPartesContadoInteiro();
-      it.harness.room.verdictChecked = true;
-      await pedirOVeredito(it);
-      await it.sala.aprovarRascunhoFinal();
-      await waitFor('the Closing', () => it.estado.station is Fim);
-      await settle();
-
-      await relaunchedOnTheChoice(_Tablet(it.harness, it.container));
-    });
-
     test('after the session went away mid-passage', () async {
       final tablet = await _inP01(watching: true);
       tablet.harness.room.forgetTheSession(tablet.state.sessionId!);

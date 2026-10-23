@@ -424,8 +424,12 @@ void main() {
         ['sessao-antiga'],
         reason: 'a aprovação vale para a sessão que a equipe retomou',
       );
-      expect(container.read(salaSessionProvider).stage, SalaStage.fim);
-      expect(harness.emAberto.rows, isNot(contains('Ruth/P01/pt')));
+      expect(
+        container.read(salaSessionProvider).stage,
+        SalaStage.retro,
+        reason: 'aprovada, a passagem fica na tradução conferida, sem fecho',
+      );
+      expect(harness.emAberto.rows, contains('Ruth/P01/pt'));
     },
   );
 
