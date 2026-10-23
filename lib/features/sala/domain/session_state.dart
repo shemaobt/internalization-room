@@ -46,7 +46,7 @@ enum SceneLine {
 }
 
 /// Her listener's steps on the Checagem externa.
-enum ListenerStep { idle, playing, retell }
+enum ListenerStep { idle, playing, retell, done }
 
 /// Her failure words the Checagem externa shows under its controls.
 enum ListenerLine { openFailed, clipFailed }
@@ -54,8 +54,8 @@ enum ListenerLine { openFailed, clipFailed }
 /// What the Checagem externa's screen holds: the takes of the approved version's parts,
 /// the listener's number and Step, whether the passage stalled, whether a call this
 /// screen made is in the air, the failure words shown, when the retelling began, whether
-/// X-open was said, which lets the passage play, and whether X-retell was said, which opens
-/// the circle.
+/// X-open was said, which lets the passage play, whether X-retell was said, which opens
+/// the circle, and how the listener ended and whether the room acknowledged it.
 final class ExternalCheckScreen {
   final List<String> takes;
   final int? listener;
@@ -66,6 +66,8 @@ final class ExternalCheckScreen {
   final DateTime? recordingSince;
   final bool openSaid;
   final bool retellSaid;
+  final bool? completed;
+  final bool finishAcknowledged;
 
   const ExternalCheckScreen({
     this.takes = const [],
@@ -77,6 +79,8 @@ final class ExternalCheckScreen {
     this.recordingSince,
     this.openSaid = false,
     this.retellSaid = false,
+    this.completed,
+    this.finishAcknowledged = false,
   });
 
   ExternalCheckScreen copyWith({
@@ -90,6 +94,8 @@ final class ExternalCheckScreen {
     bool clearRecordingSince = false,
     bool? openSaid,
     bool? retellSaid,
+    bool? completed,
+    bool? finishAcknowledged,
   }) => ExternalCheckScreen(
     takes: takes,
     listener: listener ?? this.listener,
@@ -102,6 +108,8 @@ final class ExternalCheckScreen {
         : (recordingSince ?? this.recordingSince),
     openSaid: openSaid ?? this.openSaid,
     retellSaid: retellSaid ?? this.retellSaid,
+    completed: completed ?? this.completed,
+    finishAcknowledged: finishAcknowledged ?? this.finishAcknowledged,
   );
 }
 

@@ -33,6 +33,9 @@ const listenerOpenLine = 'X0';
 /// frases, thanks. Said once the whole passage ended, before the circle opens.
 const listenerRetellLine = 'X1';
 
+/// The last of Marcia's external-check lines, her thanks as a listener ends.
+const listenerThanksLine = 'X4';
+
 const sentenceInPlaceLine = 'N4';
 
 const sentenceAwaitingLine = 'N5';
@@ -760,6 +763,9 @@ const externalCheckLabels = {
     'pt': 'não deu para guardar essa gravação — gravem de novo',
     'en': "couldn't keep that recording — record it again",
   },
+  'done': {'pt': 'Agradecemos sua ajuda.', 'en': 'Thank you for your help.'},
+  'anotherListener': {'pt': 'Outro ouvinte', 'en': 'Another listener'},
+  'finishTheCheck': {'pt': 'Terminar a checagem', 'en': 'Finish the check'},
 };
 
 String externalCheckLabelFor(String control, String language, {int? n}) =>

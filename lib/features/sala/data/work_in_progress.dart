@@ -42,6 +42,14 @@ class ResumePoint {
   /// room's pass for it, so the recording goes up above it. Empty for any other row.
   final Map<int, int> passesToGoAbove;
 
+  /// The outside listener this tablet has in progress on the Checagem externa, by version
+  /// and number; what they have done is the room's to say (ADR 0116). Kept on the
+  /// Back-translation the back control returns to; null when no listener is in progress.
+  final ({int version, int number})? listener;
+
+  /// Whether the row stood on the Checagem externa, with the listener it names there.
+  bool get onTheExternalCheck => stage == SalaStage.checagem;
+
   /// The takes of a whole rehearsal set aside behind the parts that only the room holds.
   /// Empty for any other row.
   final List<String> wholeHeldByTheRoom;
@@ -54,6 +62,7 @@ class ResumePoint {
     this.language,
     this.partBeingRecordedAgain,
     this.passesToGoAbove = const {},
+    this.listener,
     this.wholeHeldByTheRoom = const [],
   });
 
@@ -68,6 +77,8 @@ class ResumePoint {
         for (final MapEntry(:key, :value) in passesToGoAbove.entries)
           '$key': value,
       },
+    if (listener case (:final version, :final number))
+      'listener': {'version': version, 'number': number},
     if (wholeHeldByTheRoom.isNotEmpty) 'whole_set_aside': wholeHeldByTheRoom,
     'takes': [
       for (final take in takes)
@@ -103,6 +114,13 @@ class ResumePoint {
             in (json['passes_to_go_above'] as Map? ?? const {}).entries)
           if (int.tryParse('$key') case final numero? when value is int)
             numero: value,
+      },
+      listener: switch (json['listener']) {
+        {'version': final int version, 'number': final int number} => (
+          version: version,
+          number: number,
+        ),
+        _ => null,
       },
       wholeHeldByTheRoom: [
         for (final id in (json['whole_set_aside'] as List? ?? const []))

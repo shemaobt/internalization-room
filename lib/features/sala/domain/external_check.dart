@@ -17,3 +17,17 @@ class ExternalCheck {
     ],
   );
 }
+
+/// What the room holds of one **Outside listener**: whether they were finished and
+/// whether their retelling is stored. Nothing of their recordings is read.
+class ListenerRecord {
+  final bool finished;
+  final bool hasRetelling;
+
+  const ListenerRecord({this.finished = false, this.hasRetelling = false});
+
+  factory ListenerRecord.fromJson(Map<String, dynamic> json) => ListenerRecord(
+    finished: json['finished_at'] != null,
+    hasRetelling: json['retold'] == true,
+  );
+}

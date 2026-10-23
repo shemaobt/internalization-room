@@ -240,7 +240,7 @@ void main() {
     expect(kept.bytes, _reconto);
     expect(harness.recorder.deleted, contains(harness.recorder.lastPath));
     expect(find.textContaining(_gravando), findsNothing);
-    expect(find.text(_toque), findsOneWidget);
+    expect(find.text('Agradecemos sua ajuda.'), findsOneWidget);
     closeTheRoom(container);
   });
 
@@ -607,7 +607,7 @@ void main() {
     expect(harness.room.listenerRecordings, hasLength(1));
     final desde = harness.playback.played.length;
 
-    await _tocar(tester, _ouvirDeNovo);
+    await _tocar(tester, 'Outro ouvinte');
 
     expect(_ouvidoDesde(harness, desde), ['t1']);
     expect(
@@ -627,7 +627,7 @@ void main() {
       ))
         control.properties.label,
     };
-    expect(controles, {_voltar, _circulo, _ouvirDeNovo});
+    expect(controles, {_voltar, _circulo});
     closeTheRoom(container);
   });
 
@@ -770,12 +770,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     harness.recorder.finishStop();
     await _passar(tester);
-    expect(harness.room.listenerRecordings, hasLength(1));
-    await _tocar(tester, _circulo);
-    await _tocar(tester, _circulo);
+    await _passar(tester);
 
-    expect(harness.room.listenerRecordings, hasLength(2));
-    expect(find.text(_toque), findsOneWidget);
+    expect(harness.room.listenerRecordings, hasLength(1));
+    expect(find.text('Agradecemos sua ajuda.'), findsOneWidget);
     closeTheRoom(container);
   });
 

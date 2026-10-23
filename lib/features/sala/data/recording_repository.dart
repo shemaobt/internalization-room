@@ -150,13 +150,15 @@ class RecordingRepository {
     }
   }
 
-  /// Deletes every scene frase a killed app left in the recordings: at launch no frase is
-  /// held, so none of them will be sent again.
-  Future<void> sweepTheFrasesLeftBehind() async {
+  /// Deletes every scene frase and every listener retelling a killed app left in the
+  /// recordings: at launch none of them is held, so none will be sent again.
+  Future<void> sweepTheRecordingsLeftBehind() async {
     try {
       final dir = await _recordingsDir();
       await for (final entry in dir.list()) {
-        if (entry is File && p.basename(entry.path).startsWith('frase_')) {
+        if (entry is! File) continue;
+        final name = p.basename(entry.path);
+        if (name.startsWith('frase_') || name.startsWith('ouvinte_')) {
           await entry.delete();
         }
       }
