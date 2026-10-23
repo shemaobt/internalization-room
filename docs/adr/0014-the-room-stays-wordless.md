@@ -90,3 +90,9 @@ moved outside it.
 The rule is mechanical and cannot be argued with in review, which is the point. The
 exception is honest: a **Facilitator** reads that one screen once, at installation, and the
 **Team** never sees it again.
+
+Amended by ENG-1377 (2026-10-22, ADR 0124): the Update screen writes its line and its button
+(`widgets/update_view.dart`): «Há uma versão nova do aplicativo. Toquem para atualizar.» and
+«Atualizar». It is a named exception under its own reason, the words that send the team to the
+store: a build kept out of the room has no stage to speak through. VoiceOver reads the line and
+the button.
