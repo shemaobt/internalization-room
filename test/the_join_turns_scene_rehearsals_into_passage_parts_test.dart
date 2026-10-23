@@ -590,12 +590,18 @@ void main() {
         () => it.partsReceived.contains('parte-2'),
       );
 
-      final part2 = it.room.takesReceivedWhole.singleWhere(
+      for (final part2 in it.room.takesReceivedWhole.where(
         (take) => take.scope == 'parte-2',
+      )) {
+        expect(part2.origin, it.idOf(2));
+        expect(part2.sha256, _fingerprintOf(_bytesOf(2)));
+        expect(part2.bytes, _bytesOf(2));
+      }
+      expect(
+        it.room.takes.where((take) => take.ordinal == 2),
+        hasLength(1),
+        reason: 'a mesma junta enviada duas vezes é uma take só',
       );
-      expect(part2.origin, it.idOf(2));
-      expect(part2.sha256, _fingerprintOf(_bytesOf(2)));
-      expect(part2.bytes, _bytesOf(2));
       semantics.dispose();
     },
   );
