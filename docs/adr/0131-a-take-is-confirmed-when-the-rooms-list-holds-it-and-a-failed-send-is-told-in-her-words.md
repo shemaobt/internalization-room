@@ -72,13 +72,17 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   being kept, and the parts saved, from the machine's Outbox facts. The newest take of a
   part decides its row: while it is being kept the row reads «enviando…» and offers no
   tap, whatever it read before; it reads «✓ salvo» only when that take is one the room
-  holds; and it reads «falhou», with no tap, when its recording is gone, whether it reached
-  the Outbox or not, never an older pass's «✓ salvo».
+  holds; and it reads «falhou — grave de novo», with no tap, when its recording is gone,
+  whether it reached the Outbox or not, never an older pass's «✓ salvo».
 - **A gone recording is final.** A take whose recording is gone can never go up, so it
   offers no tap and the room refuses a re-send of it, as for a final refusal; this holds
   for a part on its row and for a scene take on the red microphone. Recording again
   recovers it: a new part take waits behind any spent older pass, and its tap sends both,
   older first. The Orchestrator decided this on 23 October; Jonatas may overrule it.
+- **A part beyond the last scene has its own row.** Each part beyond the passage's last
+  scene that has a take still to send, in the air, being kept or kept this visit shows a
+  numbered row after the scenes, with the same words, the same tap and the same rules as
+  any part's row. Jonatas decided this on 23 October.
 - **A tap acts on the session and app run it was made in.** It names its session and part
   when it lands, and nothing it does after waiting on the Outbox touches another session's
   takes. Once its run has ended it makes no spent take due again; a take it had already
@@ -89,9 +93,9 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   «enviando…» while it is being kept or sent, until confirmed, spent or refused; «✓ salvo»
   once listed, for a part of this session's visit; «falhou — toque para tentar de novo»
   when spent or stopped, on a take held behind a spent one, and on a newest take that
-  never reached the Outbox; «falhou», with no tap, on a part's newest take whose recording
-  is gone; «grande demais para o servidor — grave em partes menores» and «não foi aceita —
-  grave de novo» for final refusals, which offer no tap on the ensaio row.
+  never reached the Outbox; «falhou — grave de novo», with no tap, on a part's newest take
+  whose recording is gone; «grande demais para o servidor — grave em partes menores» and
+  «não foi aceita — grave de novo» for final refusals, which offer no tap on the ensaio row.
   On the red microphone a failed scene take reads «não deu para guardar o ensaio da cena —
   gravem de novo» (or the too-large or not-accepted line) with «falhou — toque para tentar
   de novo» as its tap, or with «falhou» and no tap once its recording is gone. The red
@@ -106,9 +110,9 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
 - "The automatic retry stays, untouched": only a tap sends a spent take; the ladder now
   only paces a tablet the room turned away and the retro copy (until ENG-1411), and
   ENG-1777 removes it.
-- "A part beyond the last scene … the Outbox still retries it": it is no longer retried.
-  Such a take has no row and no tap, so once spent it stays on the tablet unsent; where it
-  should be offered is open.
+- "A part beyond the last scene … the Outbox still retries it": it is no longer retried by
+  itself. Each unsent part beyond the last scene shows its own numbered row on the Ensaio
+  screen, with the same words and the same tap as any part's row (Jonatas, 23 October).
 
 ## Consequences
 

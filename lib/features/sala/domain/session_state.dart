@@ -692,6 +692,7 @@ class SalaSessionState {
     final List<(int, String?)> numbered = switch (scenes) {
       ScenesHad(scenes: final had) when had.isNotEmpty => [
         for (final (index, scene) in had.indexed) (index + 1, scene.title),
+        for (final number in _partsWithASendBeyond(had.length)) (number, null),
       ],
       ScenesHad() => [
         for (final n in [
@@ -724,6 +725,21 @@ class SalaSessionState {
         ),
     ];
   }
+
+  List<int> _partsWithASendBeyond(int lastScene) => [
+    for (final number in {
+      ...unsentParts.keys,
+      for (final kept in machine.keptThisVisit.values)
+        if (kept.session == sessionId) kept.part,
+      for (final keep in machine.keeping.keys)
+        if (keep.session == sessionId) keep.part,
+      ?switch (_theTakeInTheAirOf(partTakeKind)) {
+        final take? => KeptScope.numberOf(take.keep.scope),
+        null => null,
+      },
+    })
+      if (number > lastScene) number,
+  ]..sort();
 
   /// The number of the part at [index] in [partes]; just past them, the scene of a
   /// recording waiting for the check.

@@ -22,7 +22,8 @@ import 'scenario_helpers.dart' show byLabel, settle;
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
 const _falhou = 'falhou — toque para tentar de novo';
-const _perdida = 'falhou';
+const _perdida = 'falhou — grave de novo';
+const _perdidaNoMicrofone = 'falhou';
 const _grandeDemais = 'grande demais para o servidor — grave em partes menores';
 const _naoFoiAceita = 'não foi aceita — grave de novo';
 const _naoDeuParaGuardar =
@@ -643,32 +644,33 @@ void main() {
     },
   );
 
-  testWidgets('a kept take whose copy is gone reads falhou at once', (
-    tester,
-  ) async {
-    final casa = await _naCasa(tester);
-    casa.room.holdNextTake('parte-1');
-    await casa.guardarSemEsperar(1);
-    await tester.runAsync(casa.room.untilTakeHeld);
-    await casa.guardarSemEsperar(2);
+  testWidgets(
+    'a kept take whose copy is gone reads falhou, grave de novo at once',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.holdNextTake('parte-1');
+      await casa.guardarSemEsperar(1);
+      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.guardarSemEsperar(2);
 
-    await casa.emTempoReal(() async {
-      final linhas = await casa.harness.takes.entries();
-      File(
-        linhas.singleWhere((row) => row.scope == 'parte-2').path,
-      ).deleteSync();
-      await casa.sala.refreshUnsent();
-      await settle();
-    });
+      await casa.emTempoReal(() async {
+        final linhas = await casa.harness.takes.entries();
+        File(
+          linhas.singleWhere((row) => row.scope == 'parte-2').path,
+        ).deleteSync();
+        await casa.sala.refreshUnsent();
+        await settle();
+      });
 
-    expect(casa.naLinha(2, find.text(_perdida)), findsOneWidget);
-    expect(casa.naLinha(2, find.byType(TextButton)), findsNothing);
+      expect(casa.naLinha(2, find.text(_perdida)), findsOneWidget);
+      expect(casa.naLinha(2, find.byType(TextButton)), findsNothing);
 
-    await casa.emTempoReal(() async {
-      casa.room.finishHeldTake();
-      await settle(const Duration(milliseconds: 400));
-    });
-  });
+      await casa.emTempoReal(() async {
+        casa.room.finishHeldTake();
+        await settle(const Duration(milliseconds: 400));
+      });
+    },
+  );
 
   testWidgets(
     'a tap on a part whose newest take never reached the Outbox sends the '
@@ -751,7 +753,7 @@ void main() {
 
   testWidgets(
     'a part whose newest take never reached the Outbox and is gone reads '
-    'falhou with no tap once the team taps it',
+    'falhou, grave de novo with no tap once the team taps it',
     (tester) async {
       late _AQueueThatHoldsTheKeep fila;
       final casa = await _naCasa(
@@ -883,6 +885,94 @@ void main() {
       });
 
       expect(casa.envios, antes);
+    },
+  );
+
+  testWidgets(
+    'an unsent part beyond the last scene reads on its own numbered row, and '
+    'its tap sends it',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-4';
+      await casa.emTempoReal(() async {
+        await casa.harness.takes.enqueue(
+          casa.harness.recorder.aFile('de-outra-visita'),
+          sessionId: casa.estado.sessionId!,
+          kind: partTakeKind,
+          scope: KeptScope.parte(4),
+          passNumber: 1,
+        );
+        await casa.harness.takes.flush();
+        await casa.sala.refreshUnsent();
+        await settle();
+      });
+      final quarta = byLabel('Cena 4');
+
+      expect(quarta, findsOneWidget);
+      expect(
+        find.descendant(
+          of: quarta,
+          matching: find.textContaining('enviar agora'),
+        ),
+        findsOneWidget,
+      );
+
+      casa.room.unreachableTake = null;
+      await casa.tocar(
+        find.descendant(
+          of: quarta,
+          matching: find.textContaining('enviar agora'),
+        ),
+      );
+      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+
+      expect(casa.room.takesKept, contains('ensaio/parte-4'));
+    },
+  );
+
+  testWidgets(
+    'a part beyond the last scene recorded this visit reads falhou with its '
+    'tap, and salvo once the tap sends it',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-4';
+      await casa.emTempoReal(() async {
+        await casa.harness.takes.enqueue(
+          casa.harness.recorder.aFile('de-outra-visita'),
+          sessionId: casa.estado.sessionId!,
+          kind: partTakeKind,
+          scope: KeptScope.parte(4),
+          passNumber: 1,
+        );
+        await casa.harness.takes.flush();
+        await casa.sala.refreshUnsent();
+        await settle();
+      });
+      await casa.guardarSemEsperar(4);
+      for (var i = 0; i < 50 && find.text(_falhou).evaluate().isEmpty; i++) {
+        await casa.emTempoReal(() => settle(const Duration(milliseconds: 100)));
+      }
+      final quarta = byLabel('Cena 4');
+
+      expect(
+        find.descendant(of: quarta, matching: find.text(_falhou)),
+        findsOneWidget,
+      );
+
+      casa.room.unreachableTake = null;
+      await casa.tocar(
+        find.descendant(of: quarta, matching: find.text(_falhou)),
+      );
+      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+
+      expect(
+        casa.room.takesKept.where((take) => take == 'ensaio/parte-4'),
+        hasLength(2),
+      );
+      expect(
+        find.descendant(of: quarta, matching: find.text(_salvo)),
+        findsOneWidget,
+      );
     },
   );
 
@@ -1188,8 +1278,11 @@ void main() {
       }
 
       expect(find.text(_naoDeuParaGuardar), findsOneWidget);
-      expect(find.text(_perdida), findsOneWidget);
-      expect(find.widgetWithText(TextButton, _perdida), findsNothing);
+      expect(find.text(_perdidaNoMicrofone), findsOneWidget);
+      expect(
+        find.widgetWithText(TextButton, _perdidaNoMicrofone),
+        findsNothing,
+      );
       expect(find.text(_falhou), findsNothing);
 
       room.sala.sendTheSceneTakeAgain();
@@ -1232,8 +1325,11 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
-      expect(find.text(_perdida), findsOneWidget);
-      expect(find.widgetWithText(TextButton, _perdida), findsNothing);
+      expect(find.text(_perdidaNoMicrofone), findsOneWidget);
+      expect(
+        find.widgetWithText(TextButton, _perdidaNoMicrofone),
+        findsNothing,
+      );
       expect(find.text(_falhou), findsNothing);
     },
   );
