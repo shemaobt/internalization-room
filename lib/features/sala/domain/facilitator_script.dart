@@ -170,6 +170,14 @@ const ensaioFinalPlanLabels = {
     'pt': 'não deu para guardar a resposta — toquem de novo',
     'en': 'couldn\'t keep that answer — tap again',
   },
+  'useScene': {
+    'pt': 'usar o ensaio desta cena',
+    'en': 'use this scene\'s rehearsal',
+  },
+  'hearNewScene': {
+    'pt': 'ouçam a cena nova antes de conferir',
+    'en': 'listen to the new scene before the check',
+  },
 };
 
 String ensaioFinalPlanLabelFor(

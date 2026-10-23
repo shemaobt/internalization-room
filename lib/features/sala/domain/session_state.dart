@@ -556,6 +556,12 @@ class SalaSessionState {
   /// Whether the card says her line for a label the room could not keep.
   final bool labelLine;
 
+  /// The scene whose Rehearsal sheet is open over the recording home.
+  final String? homeSheet;
+  final String? swapping;
+  final ({String rehearsalId, bool cannotEnter})? swapLine;
+  final bool hearNewScene;
+
   /// Whether the last plan read found the passage's rehearsals only in the other
   /// language's session.
   final bool rehearsalsElsewhere;
@@ -675,6 +681,10 @@ class SalaSessionState {
     this.planSheet,
     this.labelling = false,
     this.labelLine = false,
+    this.homeSheet,
+    this.swapping,
+    this.swapLine,
+    this.hearNewScene = false,
     this.rehearsalsElsewhere = false,
     this.theRoomJoinedParts = const {},
     this.toBringBack = const [],
@@ -901,6 +911,34 @@ class SalaSessionState {
 
   /// Whether the plan holds its gestures: a label is in the air, or a join runs.
   bool get planBusy => labelling || joining != null;
+
+  bool get homeBusy => swapping != null;
+
+  /// Each Scene row's plan row and what it offers on the recording home, by number, from
+  /// the scene-rehearsal listing the home last read.
+  Map<int, ({PlanRow plan, HomeRow home})> get homeRows {
+    final (read, sessionId) = (ensaioFinalPlan, this.sessionId);
+    if (read is! PlanRead || sessionId == null || recordsTheWhole) {
+      return const {};
+    }
+    final plans = {
+      for (final plan in planRowsOf(read, sessionId, const {}))
+        plan.number: plan,
+    };
+    return {
+      for (final row in sceneRows)
+        if (plans[row.number] case final plan?)
+          row.number: (
+            plan: plan,
+            home: homeRowOf(
+              read,
+              plan,
+              origin: row.part?.origin,
+              held: row.unsent != null,
+            ),
+          ),
+    };
+  }
 
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
   /// The loudness of the take on the scene screen, until it is read or for a take with
@@ -1558,6 +1596,13 @@ class SalaSessionState {
     bool clearPlanSheet = false,
     bool? labelling,
     bool? labelLine,
+    String? homeSheet,
+    bool clearHomeSheet = false,
+    String? swapping,
+    bool clearSwapping = false,
+    ({String rehearsalId, bool cannotEnter})? swapLine,
+    bool clearSwapLine = false,
+    bool? hearNewScene,
     bool? rehearsalsElsewhere,
     Set<int>? theRoomJoinedParts,
     Grain? grainInForce,
@@ -1688,6 +1733,10 @@ class SalaSessionState {
       planSheet: clearPlanSheet ? null : (planSheet ?? this.planSheet),
       labelling: labelling ?? this.labelling,
       labelLine: labelLine ?? this.labelLine,
+      homeSheet: clearHomeSheet ? null : (homeSheet ?? this.homeSheet),
+      swapping: clearSwapping ? null : (swapping ?? this.swapping),
+      swapLine: clearSwapLine ? null : (swapLine ?? this.swapLine),
+      hearNewScene: hearNewScene ?? this.hearNewScene,
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
       grainInForce: grainInForce ?? this.grainInForce,

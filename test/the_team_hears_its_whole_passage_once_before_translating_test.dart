@@ -369,71 +369,74 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a join that stops on a row does not start the first listen', (
-    tester,
-  ) async {
-    final semantics = tester.ensureSemantics();
-    final (harness, container) = await _naConversaComTresCenas(tester);
-    SalaSessionState estado() => container.read(salaSessionProvider);
-    final sessionId = estado().sessionId!;
-    for (final n in [1, 2, 3]) {
-      harness.room.sceneRehearsals.add(_rehearsal(sessionId, n));
-      harness.room.sceneAudioOf['$sessionId-ensaio-$n'] = _bytesOf(n);
-    }
-    harness.room.listeningUnheardTakeIds = const [
-      'gravacao-1',
-      'gravacao-2',
-      'gravacao-a-mao',
-    ];
-    await tester.tap(_dot);
-    await _until(
-      tester,
-      'o plano abrir',
-      () => find.text(_planLine).evaluate().isNotEmpty,
-    );
-    await _settle(tester);
-    harness.room.takes.addAll([
-      TakeView(
-        takeId: 'gravacao-junta-antiga',
-        kind: 'ensaio',
-        scope: KeptScope.parte(3),
-        ordinal: 3,
-        pass: 1,
-        origin: '$sessionId-ensaio-3',
-      ),
-      TakeView(
-        takeId: 'gravacao-a-mao',
-        kind: 'ensaio',
-        scope: KeptScope.parte(3),
-        ordinal: 3,
-        pass: 2,
-      ),
-    ]);
-    harness.room.takeAudio['gravacao-junta-antiga'] = _bytesOf(3);
-    harness.room.takeAudio['gravacao-a-mao'] = _bytesOf(7);
-    final linhas = harness.voice.fixedLines.length;
-    final tocadas = harness.playback.played.length;
+  testWidgets(
+    'a join that stops on a row does not start the first listen, in a room that '
+    'answers any take holding those bytes',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, container) = await _naConversaComTresCenas(tester);
+      harness.room.joinsTheLiveTake = false;
+      SalaSessionState estado() => container.read(salaSessionProvider);
+      final sessionId = estado().sessionId!;
+      for (final n in [1, 2, 3]) {
+        harness.room.sceneRehearsals.add(_rehearsal(sessionId, n));
+        harness.room.sceneAudioOf['$sessionId-ensaio-$n'] = _bytesOf(n);
+      }
+      harness.room.listeningUnheardTakeIds = const [
+        'gravacao-1',
+        'gravacao-2',
+        'gravacao-a-mao',
+      ];
+      await tester.tap(_dot);
+      await _until(
+        tester,
+        'o plano abrir',
+        () => find.text(_planLine).evaluate().isNotEmpty,
+      );
+      await _settle(tester);
+      harness.room.takes.addAll([
+        TakeView(
+          takeId: 'gravacao-junta-antiga',
+          kind: 'ensaio',
+          scope: KeptScope.parte(3),
+          ordinal: 3,
+          pass: 1,
+          origin: '$sessionId-ensaio-3',
+        ),
+        TakeView(
+          takeId: 'gravacao-a-mao',
+          kind: 'ensaio',
+          scope: KeptScope.parte(3),
+          ordinal: 3,
+          pass: 2,
+        ),
+      ]);
+      harness.room.takeAudio['gravacao-junta-antiga'] = _bytesOf(3);
+      harness.room.takeAudio['gravacao-a-mao'] = _bytesOf(7);
+      final linhas = harness.voice.fixedLines.length;
+      final tocadas = harness.playback.played.length;
 
-    await tester.ensureVisible(byLabel(_joinLabel));
-    await tester.pump();
-    await tester.tap(byLabel(_joinLabel));
-    await _until(
-      tester,
-      'a junta parar na casa com as três partes',
-      () =>
-          estado().joining == null &&
-          estado().everySceneHasItsPart &&
-          find.text(_homeLine).evaluate().isNotEmpty,
-    );
-    await _settle(tester);
+      await tester.ensureVisible(byLabel(_joinLabel));
+      await tester.pump();
+      await tester.tap(byLabel(_joinLabel));
+      await _until(
+        tester,
+        'a junta parar na casa com as três partes',
+        () =>
+            estado().joining == null &&
+            estado().everySceneHasItsPart &&
+            find.text(_homeLine).evaluate().isNotEmpty,
+      );
+      await _settle(tester);
 
-    expect(find.text(_homeLine), findsOneWidget);
-    expect(find.text(_soOuvir), findsNothing);
-    expect(harness.voice.fixedLines.skip(linhas), isEmpty);
-    expect(harness.playback.played.length, tocadas);
-    semantics.dispose();
-    closeTheRoom(container);
-  });
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_soOuvir), findsNothing);
+      expect(harness.voice.fixedLines.skip(linhas), isEmpty);
+      expect(harness.playback.played.length, tocadas);
+      semantics.dispose();
+      closeTheRoom(container);
+    },
+  );
 
   test(
     'the disc on a joined recording nobody heard plays N0 and the whole passage with no microphone',

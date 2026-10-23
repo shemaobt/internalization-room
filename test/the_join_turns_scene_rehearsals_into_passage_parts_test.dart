@@ -711,10 +711,12 @@ void main() {
 
   testWidgets(
     'a join the room answers with a take that is not the part claims nothing '
-    'and opens the recording home',
+    'and opens the recording home, in a room that answers any take holding '
+    'those bytes',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _atRest(tester);
+      it.room.joinsTheLiveTake = false;
       it.seed();
       await it.openThePlan();
       it.room.takes.addAll([
@@ -744,9 +746,14 @@ void main() {
         () => it.room.holdTakeScope == 'parte-2',
       );
       it.room.finishHeldTake();
+      var ticked = false;
+      for (var vez = 0; vez < 200 && !it.showsTheHome(); vez++) {
+        ticked = ticked || it.ticked(2);
+        await it.beat(const Duration(milliseconds: 20));
+      }
       await _theJoinEnds(it);
 
-      expect(it.ticked(2), isFalse);
+      expect(ticked, isFalse);
       expect(it.partsReceived, ['parte-1', 'parte-2']);
       expect(
         it.room.takes.where((take) => take.ordinal == 2).map((t) => t.takeId),
@@ -820,11 +827,16 @@ void main() {
       );
       it.room.takeAudio['gravacao-a-mao'] = _bytesOf(7);
       it.room.unreachableTake = null;
+      var ticked = false;
+      for (var vez = 0; vez < 200 && !it.showsTheHome(); vez++) {
+        ticked = ticked || it.ticked(2);
+        await it.beat(const Duration(milliseconds: 20));
+      }
       await _theJoinEnds(it);
       final tries = triesOf2();
       await it.wait(const Duration(seconds: 30));
 
-      expect(it.ticked(2), isFalse);
+      expect(ticked, isFalse);
       expect(find.text(_retry), findsNothing);
       expect(
         it.room.takes.where((take) => take.ordinal == 2).map((t) => t.takeId),
@@ -932,10 +944,12 @@ void main() {
     );
 
     testWidgets(
-      'that lands on its own as a take that is not the part claims nothing',
+      'that lands on its own as a take that is not the part claims nothing, in '
+      'a room that answers any take holding those bytes',
       (tester) async {
         final semantics = tester.ensureSemantics();
         final it = await givenUpOnPart2(tester);
+        it.room.joinsTheLiveTake = false;
         it.room.takes.addAll([
           TakeView(
             takeId: 'gravacao-junta-antiga',
@@ -962,8 +976,8 @@ void main() {
         await tester.tap(it.onRow(2, find.text(_retry)));
         var ticked = false;
         for (var vez = 0; vez < 100 && !it.showsTheHome(); vez++) {
-          await it.beat(const Duration(milliseconds: 20));
           ticked = ticked || it.ticked(2);
+          await it.beat(const Duration(milliseconds: 20));
         }
 
         expect(it.showsTheHome(), isTrue);

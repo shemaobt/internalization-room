@@ -1200,6 +1200,12 @@ class FakeRoom implements RoomRepository {
   >
   takesReceivedWhole = [];
   final List<int?> takePasses = [];
+
+  /// A join answers the Part's live take, the last one the room accepted, only when it
+  /// already is this rehearsal's, same origin and bytes; one that names another take
+  /// than the live one is turned away as moved, and any other is a new take. Off, the
+  /// older room, which answers any take holding the bytes.
+  bool joinsTheLiveTake = true;
   String? refuseTake;
 
   /// The code the refusal of [refuseTake] names: a bare `HTTP_<status>` is a server that
@@ -2872,7 +2878,7 @@ class FakeRoom implements RoomRepository {
       recordedAt: recordedAt,
       overTake: overTake,
     ));
-    if (origin != null) {
+    if (origin != null && !joinsTheLiveTake) {
       for (final take in takes) {
         final audio = takeAudio[take.takeId];
         if (audio != null && crypto.sha256.convert(audio).toString() == held) {
@@ -2882,6 +2888,19 @@ class FakeRoom implements RoomRepository {
       final live = takes
           .where((take) => take.kind == kind && take.scope == scope)
           .lastOrNull;
+      if (live?.takeId != overTake) return const Refused(RefusalCode.takeMoved);
+    }
+    if (origin != null && joinsTheLiveTake) {
+      final live = takes
+          .where((take) => take.kind == kind && take.ordinal == chunkIndex)
+          .lastOrNull;
+      final audio = live == null ? null : takeAudio[live.takeId];
+      if (live != null &&
+          live.origin == origin &&
+          audio != null &&
+          crypto.sha256.convert(audio).toString() == held) {
+        return Answered(live.takeId);
+      }
       if (live?.takeId != overTake) return const Refused(RefusalCode.takeMoved);
     }
     takesKept.add('$kind/$scope');

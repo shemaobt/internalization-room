@@ -254,3 +254,34 @@ bool stillToJoin(
 ) => joinQueue(
   planRowsOf(read, sessionId, choices),
 ).any((step) => !step.waiting);
+
+/// What a Scene row of the recording home offers after a join: «trocar o ensaio desta
+/// cena» over a joined part, «usar o ensaio desta cena» where no joined part stands, and
+/// the rehearsal in use; neither while the row's take is unsent.
+typedef HomeRow = ({bool swap, bool useScene, String? inUse});
+
+/// Her `homeRow`, from the row's plan candidates, its part's origin, and whether its take
+/// is still unsent.
+HomeRow homeRowOf(
+  PlanRead read,
+  PlanRow? plan, {
+  required String? origin,
+  required bool held,
+}) {
+  final joinable = (plan?.candidates ?? const []).where((c) => c.joinable);
+  final inUse = read.rehearsals.any((r) => r.rehearsalId == origin)
+      ? origin
+      : null;
+  return (
+    swap:
+        !held && origin != null && joinable.any((c) => c.rehearsalId != origin),
+    useScene: !held && origin == null && joinable.isNotEmpty,
+    inUse: inUse,
+  );
+}
+
+bool offersToSwapIn(HomeRow home, SceneRehearsalRecord rehearsal) =>
+    rehearsal.joinable && rehearsal.rehearsalId != home.inUse;
+
+String swapControl(String sceneId, SceneRehearsalRecord rehearsal) =>
+    'swap:$sceneId:${rehearsal.n}';

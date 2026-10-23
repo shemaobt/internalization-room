@@ -4,6 +4,8 @@ date: 2026-10-20
 amends: 0014, 0040
 ---
 
+Extended by 0122 (after a join a Scene row marks its part and swaps it).
+
 # The Rehearsal is her recording home: one row per scene, part N is scene N, and translation opens when every scene has its part
 
 This amends ADRs 0014 and 0040 without editing their decisions; it adds a paragraph to the
