@@ -49,8 +49,8 @@ enum ListenerLine { openFailed, clipFailed }
 
 /// What the Checagem externa's screen holds: the takes of the approved version's parts,
 /// the listener's number and Step, whether the passage stalled, whether a call this
-/// screen made is in the air, the failure words shown, when the retelling began, and the
-/// attempt of a «Novo ouvinte» no answer has landed for.
+/// screen made is in the air, the failure words shown, when the retelling began, and
+/// whether X-retell was said, which opens the circle.
 final class ExternalCheckScreen {
   final List<String> takes;
   final int? listener;
@@ -59,7 +59,7 @@ final class ExternalCheckScreen {
   final bool sending;
   final ListenerLine? line;
   final DateTime? recordingSince;
-  final String? attempt;
+  final bool retellSaid;
 
   const ExternalCheckScreen({
     this.takes = const [],
@@ -69,7 +69,7 @@ final class ExternalCheckScreen {
     this.sending = false,
     this.line,
     this.recordingSince,
-    this.attempt,
+    this.retellSaid = false,
   });
 
   ExternalCheckScreen copyWith({
@@ -81,8 +81,7 @@ final class ExternalCheckScreen {
     bool clearLine = false,
     DateTime? recordingSince,
     bool clearRecordingSince = false,
-    String? attempt,
-    bool clearAttempt = false,
+    bool? retellSaid,
   }) => ExternalCheckScreen(
     takes: takes,
     listener: listener ?? this.listener,
@@ -93,7 +92,7 @@ final class ExternalCheckScreen {
     recordingSince: clearRecordingSince
         ? null
         : (recordingSince ?? this.recordingSince),
-    attempt: clearAttempt ? null : (attempt ?? this.attempt),
+    retellSaid: retellSaid ?? this.retellSaid,
   );
 }
 
@@ -863,11 +862,13 @@ class SalaSessionState {
   bool get sceneChipLive =>
       scene.keep == null && !sceneTakeUnderWay && !scene.waiting;
 
-  /// Whether the listener's circle answers a tap: at the retelling, once no line speaks
-  /// and while nothing is being sent. Its own open microphone counts, as the tap stops it.
+  /// Whether the listener's circle answers a tap: at the retelling, once X-retell was
+  /// said, no line speaks and nothing is being sent. Its own open microphone counts, as
+  /// the tap stops it.
   bool get listenerCircleOpen =>
       station is ChecagemExterna &&
       externalCheck.step == ListenerStep.retell &&
+      externalCheck.retellSaid &&
       !externalCheck.sending &&
       channel is! GuideSpeaking;
 

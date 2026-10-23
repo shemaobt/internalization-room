@@ -3014,6 +3014,17 @@ class FakeRoom implements RoomRepository {
   /// answer lost on the way back does.
   RoomFailure? failNextListenerWith;
 
+  Completer<void>? _holdingListener;
+
+  /// Holds the next ask for a listener after the room minted it, its answer still on the
+  /// way back.
+  void holdNextListener() => _holdingListener = Completer<void>();
+
+  void finishHeldListener() {
+    _holdingListener?.complete();
+    _holdingListener = null;
+  }
+
   /// Mints the next number of the version, and the same one for an attempt it already
   /// answered, as the room does.
   @override
@@ -3033,6 +3044,8 @@ class FakeRoom implements RoomRepository {
       attempt,
       () => _listenerOfAttempt.length + 1,
     );
+    final held = _holdingListener;
+    if (held != null) await held.future;
     final failure = failNextListenerWith;
     if (failure != null) {
       failNextListenerWith = null;

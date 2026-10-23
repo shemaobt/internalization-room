@@ -58,9 +58,13 @@ bool? _habilitado(WidgetTester tester, String label) =>
 int _gravacoes(SalaHarness harness) =>
     harness.sounds.where((sound) => sound == 'recorder:start').length;
 
-List<String> _ouvidoDesde(SalaHarness harness, int desde) => [
+List<String> _ouvidoDesde(
+  SalaHarness harness,
+  int desde, [
+  List<String> takes = const [..._partes, 't9'],
+]) => [
   for (final path in harness.playback.played.skip(desde))
-    for (final take in [..._partes, 't9'])
+    for (final take in takes)
       if (File(path).existsSync() &&
           _iguais(File(path).readAsBytesSync(), _audioDe(take)))
         take,
@@ -91,8 +95,30 @@ Future<ProviderContainer> _naChecagem(
   return container;
 }
 
-Future<void> _terminarAsPartes(WidgetTester tester, SalaHarness harness) async {
-  for (var i = 0; i < _partes.length; i++) {
+SalaSessionNotifier _notifier(ProviderContainer container) =>
+    container.read(salaSessionProvider.notifier);
+
+Future<void> _umaPessoaVem(
+  WidgetTester tester,
+  ProviderContainer container, {
+  void Function()? then,
+}) async {
+  _notifier(container).haltForABrokenBuild();
+  await _passar(tester);
+  expect(_sala(container).needsPerson, isTrue);
+  then?.call();
+  _notifier(container).teamTapped();
+  await _passar(tester);
+  await _passar(tester);
+  expect(_sala(container).needsPerson, isFalse);
+}
+
+Future<void> _terminarAsPartes(
+  WidgetTester tester,
+  SalaHarness harness, {
+  int partes = 3,
+}) async {
+  for (var i = 0; i < partes; i++) {
     harness.playback.finishPlayback();
     await _passar(tester);
   }
@@ -592,8 +618,118 @@ void main() {
       ),
       isEmpty,
     );
-    expect(byLabel('ouvir a gravação'), findsNothing);
-    expect(byLabel('gravar de novo'), findsNothing);
+    final controles = {
+      for (final control in tester.widgetList<Semantics>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics && (widget.properties.button ?? false),
+        ),
+      ))
+        control.properties.label,
+    };
+    expect(controles, {_voltar, _circulo, _ouvirDeNovo});
+    closeTheRoom(container);
+  });
+
+  testWidgets('«Novo ouvinte» after a lost answer, a way back and a way in '
+      'again sends the same attempt', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naChecagem(tester, harness);
+    harness.room.failNextListenerWith = const NetworkFailed('sem rede');
+    await _tocar(tester, _novoOuvinte);
+
+    await _tocar(tester, _voltar);
+    await _tocar(tester, _checagem);
+    await _tocar(tester, _novoOuvinte);
+
+    final attempts = harness.room.listenersAsked.map((a) => a.attempt);
+    expect(attempts, hasLength(2));
+    expect(attempts.toSet(), hasLength(1));
+    expect(find.text(_ouvinte1), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('«Novo ouvinte» left while its answer is on the way, then tapped '
+      'again, sends the same attempt', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naChecagem(tester, harness);
+    harness.room.holdNextListener();
+    await _tocar(tester, _novoOuvinte);
+
+    await _tocar(tester, _voltar);
+    harness.room.finishHeldListener();
+    await _passar(tester);
+    await _tocar(tester, _checagem);
+    await _tocar(tester, _novoOuvinte);
+
+    final attempts = harness.room.listenersAsked.map((a) => a.attempt);
+    expect(attempts, hasLength(2));
+    expect(attempts.toSet(), hasLength(1));
+    expect(find.text(_ouvinte1), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a person called while the passage plays leaves «ouvir de novo», '
+      'which plays it again from the start', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naChecagem(tester, harness);
+    await _tocar(tester, _novoOuvinte);
+    harness.playback.finishPlayback();
+    await _passar(tester);
+
+    await _umaPessoaVem(tester, container);
+
+    expect(find.text(_ouvirDeNovo), findsOneWidget);
+    final desde = harness.playback.played.length;
+    await _tocar(tester, _ouvirDeNovo);
+    await _terminarAsPartes(tester, harness);
+    expect(_ouvidoDesde(harness, desde), _partes);
+    expect(_falasX(harness).last, ('X1', 'pt'));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a person called while X-open speaks leaves «ouvir de novo», '
+      'which plays the passage', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naChecagem(tester, harness);
+    harness.voice.holdNextLine();
+    await _tocar(tester, _novoOuvinte);
+
+    await _umaPessoaVem(tester, container, then: harness.voice.finishHeldLine);
+
+    expect(find.text(_ouvirDeNovo), findsOneWidget);
+    final desde = harness.playback.played.length;
+    await _tocar(tester, _ouvirDeNovo);
+    await _terminarAsPartes(tester, harness);
+    expect(_ouvidoDesde(harness, desde), _partes);
+    closeTheRoom(container);
+  });
+
+  testWidgets('X-retell cut by a person called is said again once the room is '
+      'back, and only then does the circle open', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naChecagem(tester, harness);
+    await _tocar(tester, _novoOuvinte);
+    harness.playback.finishPlayback();
+    await _passar(tester);
+    harness.playback.finishPlayback();
+    await _passar(tester);
+    harness.voice.holdNextLine();
+    harness.playback.finishPlayback();
+    await _passar(tester);
+    final gravacoes = _gravacoes(harness);
+
+    await _umaPessoaVem(tester, container, then: harness.voice.holdNextLine);
+
+    expect(_falasX(harness), [('X0', 'pt'), ('X1', 'pt'), ('X1', 'pt')]);
+    expect(find.text(_toque), findsNothing);
+    await _tocar(tester, _circulo);
+    expect(_gravacoes(harness), gravacoes);
+    harness.voice.finishHeldLine();
+    await _passar(tester);
+    expect(find.text(_toque), findsOneWidget);
+    await _tocar(tester, _circulo);
+    expect(_gravacoes(harness), gravacoes + 1);
     closeTheRoom(container);
   });
 }
