@@ -349,7 +349,7 @@ The oldest **Store build** the room accepts, per platform: the iOS build number 
 _Avoid_: minimum version (the `x.y.z` is not compared), app version, forced update
 
 **Update screen**:
-The one screen a **Store build** below the **Minimum build** shows, in place of everything else: her-style line «Há uma versão nova do aplicativo. Toquem para atualizar.» and one button that opens the app's own listing in its own store. It stands until the store installs a newer build. Nothing else reaches the team while it shows.
+The one screen a **Store build** below the **Minimum build** shows, in place of everything else: her-style line «Há uma versão nova do aplicativo. Toquem para atualizar.» and one button that opens the app's own listing in its own store. It stands until the store installs a newer build. Nothing else reaches the team while it shows. It shows only while the **Choice** is on screen: a read that finds the build below the minimum while a passage is open is held until the next arrival at the Choice, and the room never waits for that read to open.
 _Avoid_: force update, upgrade wall
 
 **Outbox**:

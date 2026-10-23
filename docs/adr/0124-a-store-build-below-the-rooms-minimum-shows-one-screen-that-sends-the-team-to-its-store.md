@@ -20,10 +20,12 @@ tablet acts on it.
   each resume while on the Choice. Never while a passage is open, so a raised minimum never cuts
   a **Session**: the team meets the screen when it next stands on the Choice. A read in flight
   is joined, not repeated.
-- At launch the room waits for the read before opening, so a held session is never landed, and
-  spoken, under the screen.
+- The room never waits for the read: it opens at once and the read runs beside it, so a failed
+  or stalled read never blocks the team.
 - Below the minimum, the **Update screen** replaces everything, the claim code included, and
-  one button opens the app's own store listing through `url_launcher`.
+  one button opens the app's own store listing through `url_launcher`. It shows only while the
+  **Choice** is on screen: an answer below the minimum that lands while a passage is open is
+  held, and shows at the next arrival at the Choice. It never covers an open **Session**.
 - The fact is one-way within a run: a later failure or a lowered minimum does not lift it. Only
   a new process of a newer build starts clean.
 - An answer without `minimum_app`, or a failed read, changes nothing.
@@ -32,8 +34,9 @@ tablet acts on it.
 
 - `package_info_plus` and a native channel to read the build: the define is enough.
 - A check on every resume: it could cut a **Session**.
-- Reading before the first frame behind a spinner: the claim screen and the Choice already wait
-  on the network.
+- Waiting for the read before opening the room, or before the first frame: a stalled network
+  would hold the team back by up to 20 s, and holding the screen back to the Choice makes the
+  wait unnecessary.
 - Comparing `x.y.z`: the stores order builds by number.
 
 ## Consequences

@@ -1,5 +1,13 @@
 import 'package:flutter/foundation.dart';
 
+enum Store { appStore, googlePlay }
+
+Store? storeOf(TargetPlatform platform) => switch (platform) {
+  TargetPlatform.iOS => Store.appStore,
+  TargetPlatform.android => Store.googlePlay,
+  _ => null,
+};
+
 class MinimumBuilds {
   final int ios;
   final int android;
@@ -15,10 +23,10 @@ class MinimumBuilds {
   }
 
   bool keepsOut(int build, TargetPlatform platform) {
-    final minimum = switch (platform) {
-      TargetPlatform.iOS => ios,
-      TargetPlatform.android => android,
-      _ => 0,
+    final minimum = switch (storeOf(platform)) {
+      Store.appStore => ios,
+      Store.googlePlay => android,
+      null => 0,
     };
     return build > 0 && build < minimum;
   }

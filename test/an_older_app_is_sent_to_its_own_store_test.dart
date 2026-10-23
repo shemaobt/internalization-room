@@ -8,7 +8,6 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/store_build_gate.dart';
 import 'package:internalization_room/features/sala/domain/minimum_build.dart';
-import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/main.dart';
@@ -132,29 +131,6 @@ void main() {
       });
     });
 
-    testWidgets('below the minimum at launch, the room never opens a held '
-        'session and nothing is spoken', (tester) async {
-      final currentSession = FakeCurrentSessionLedger()
-        ..held = const CurrentSession(
-          sessionId: 'sessao-7',
-          book: 'Ruth',
-          pericope: 'P02',
-          language: testLanguage,
-        );
-      final harness = SalaHarness(currentSession: currentSession);
-      harness.room.minimumBuildsAnswer = Answered(_minimum(android: 7));
-      harness.room.holdNextMinimumBuilds();
-
-      await _pumpWithBuild(tester, harness, build: 6, opened: []);
-      harness.room.releaseMinimumBuilds();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(find.text(_line), findsOneWidget);
-      expect(harness.sounds, isNot(contains('voice:line')));
-      expect(harness.sounds, isNot(contains('playback:play')));
-      expect(harness.room.calls, isNot(contains('fetchState')));
-    });
-
     testWidgets('an unlinked tablet below the minimum shows the update screen '
         'instead of the claim code', (tester) async {
       final harness = SalaHarness(linkedAs: const RememberedLink());
@@ -230,6 +206,46 @@ void main() {
   });
 
   group('when the tablet reads, and that the screen stands', () {
+    testWidgets('a version read that stalls does not hold the room back', (
+      tester,
+    ) async {
+      final harness = _roomWhoseMinimumIs(_minimum(android: 7));
+      harness.room.holdNextMinimumBuilds();
+
+      await _pumpWithBuild(tester, harness, build: 6, opened: []);
+
+      expect(harness.room.calls, contains('servedBooks'));
+      expect(find.text(_theChoice), findsOneWidget);
+      harness.room.releaseMinimumBuilds();
+    });
+
+    testWidgets('a minimum read that answers after the team opened a passage '
+        'leaves the passage until the next Choice', (tester) async {
+      final harness = _roomWhoseMinimumIs(_minimum(android: 7));
+      harness.room.holdNextMinimumBuilds();
+      final container = await _pumpWithBuild(
+        tester,
+        harness,
+        build: 6,
+        opened: [],
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa(book: 'Ruth');
+      await tester.pump(const Duration(milliseconds: 300));
+      harness.room.releaseMinimumBuilds();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text(_line), findsNothing);
+      expect(find.byType(ConversaView), findsOneWidget);
+
+      await notifier.abrirEscolha();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text(_line), findsOneWidget);
+    });
+
     testWidgets('a minimum raised during a passage meets the team on its '
         'return to the Choice', (tester) async {
       final harness = _roomWhoseMinimumIs(_minimum());

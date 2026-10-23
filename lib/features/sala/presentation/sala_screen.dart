@@ -43,7 +43,6 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
   late final ScreenAwake _awake = ref.read(screenAwakeProvider);
   bool _roomOpened = false;
   Timer? _replyWatch;
-  Future<void>? _launchLook;
 
   @override
   void initState() {
@@ -55,7 +54,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
         ref.read(salaSessionProvider.notifier).haltForABrokenBuild();
         return;
       }
-      _launchLook = ref.read(storeBuildGateProvider.notifier).look();
+      unawaited(ref.read(storeBuildGateProvider.notifier).look());
       unawaited(_findTheTeam());
     });
   }
@@ -115,8 +114,6 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
 
   Future<void> _openRoom() async {
     _watchForReplies();
-    await _launchLook;
-    if (!mounted || ref.read(storeBuildGateProvider)) return;
     await ref.read(micPermissionProvider.notifier).check();
     if (!mounted) return;
     unawaited(ref.read(salaSessionProvider.notifier).openTheRoom());
