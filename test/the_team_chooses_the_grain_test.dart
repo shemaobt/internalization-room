@@ -774,6 +774,33 @@ void main() {
   );
 
   testWidgets(
+    'a whole the disk refused is set aside by the switch: back on the whole it '
+    'never shows «falhou» again and never goes up',
+    (tester) async {
+      final (harness, container) = await _onTheEmptyWholeHome(tester);
+      (harness.takes as FakeTakeQueue).refusesTheNextKeep = true;
+      await _recordAndKeep(tester, container);
+      expect(find.text(_failed), findsOneWidget);
+
+      await _tap(tester, _sceneInstead);
+      await _settles(tester);
+      await _tap(tester, _wholeInstead);
+      await _settles(tester);
+
+      expect(find.text(_whole), findsOneWidget);
+      expect(find.text(_failed), findsNothing);
+      container.read(salaSessionProvider.notifier).enviarACena(1);
+      await letTheRehearsalReachTheRoom(tester);
+      expect(
+        harness.room.takesReceivedWhole.where(
+          (take) => take.scope == KeptScope.whole,
+        ),
+        isEmpty,
+      );
+    },
+  );
+
+  testWidgets(
     'a scene part the disk refused stays the scene\'s: after «Gravar a passagem '
     'inteira» the whole row neither shows it nor sends it',
     (tester) async {

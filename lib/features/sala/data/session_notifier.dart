@@ -3739,22 +3739,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
 
   /// Whichever read tells it, the room's grain is the tablet's: on a new grain every take
-  /// of the earlier one leaves the parts and the telling-back starts over in silence. The
-  /// Outbox keeps every row; the room sets a late one aside on arrival (ADR 0134).
+  /// of the earlier one leaves the parts, a keep of it the Outbox could not take is set
+  /// aside for good, and the telling-back starts over in silence. The Outbox keeps every
+  /// row; the room sets a late one aside on arrival (ADR 0134).
   void _theRoomsGrainHeard(TakesListing listing) {
     final grain = listing.grain;
     if (grain == null) return;
     final newGrain = state.grain != grain;
     state = state.copyWith(grainInForce: grain);
     if (!newGrain) return;
-    bool leftBehind(KeptTake take) => switch (grain) {
-      Grain.whole => KeptScope.isParte(take.scopeId),
-      Grain.scene => take.scopeId == KeptScope.whole,
+    bool leftBehind(String scope) => switch (grain) {
+      Grain.whole => KeptScope.isParte(scope),
+      Grain.scene => scope == KeptScope.whole,
     };
+    _notQueued[state.sessionId]?.removeWhere((scope, _) => leftBehind(scope));
     state = state.copyWith(
       keptTakes: [
         for (final take in state.keptTakes)
-          if (!leftBehind(take)) take,
+          if (!leftBehind(take.scopeId)) take,
       ],
       theRoomJoinedParts: _partesJuntadas(listing.takes),
       wholeHeldByTheRoom: grain == Grain.whole ? const {} : null,

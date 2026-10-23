@@ -1607,4 +1607,57 @@ void main() {
       expect(find.text('A passagem inteira'), findsNothing);
     },
   );
+
+  test(
+    'a switch the room does not answer leaves the told stretches as they were',
+    () async {
+      final it = await _reabrirNaTraducao(
+        naSala: const [
+          TakeView(
+            takeId: 'gravacao-1',
+            kind: 'ensaio',
+            scope: 'parte-1',
+            ordinal: 1,
+          ),
+          TakeView(
+            takeId: 'gravacao-2',
+            kind: 'ensaio',
+            scope: 'parte-2',
+            ordinal: 2,
+          ),
+        ],
+        contados: const [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 10000,
+          ),
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 10000,
+          ),
+        ],
+      );
+      await _umAchadoEm(it, 'trecho-1');
+      it.sala.gravarAParteDeNovo();
+      await waitFor(
+        'o ensaio abrir',
+        () => it.estado.stage == SalaStage.ensaio,
+      );
+      await settle();
+      final contados = [for (final t in it.estado.btTrechos) t.segmentId];
+      expect(contados, isNotEmpty);
+      it.harness.room.grainAnswersFirst.add(const NetworkFailed('sem rede'));
+
+      it.sala.recordTheWholePassageInstead();
+      await settle(const Duration(milliseconds: 600));
+
+      expect(it.harness.room.grainSwitches, hasLength(1));
+      expect(it.estado.sceneRows, hasLength(2));
+      expect([for (final t in it.estado.btTrechos) t.segmentId], contados);
+    },
+  );
 }

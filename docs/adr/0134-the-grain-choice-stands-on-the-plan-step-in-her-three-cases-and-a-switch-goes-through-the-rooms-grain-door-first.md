@@ -68,7 +68,8 @@ aside from a current one.
   whole is never a part. Reading the plan again after «Cena por cena» starts a new generation,
   so a read still in the air from before never decides over the grain chosen.
 - **A keep the disk refused belongs to its grain:** its «falhou» stands on that grain's row
-  only, and a switch never lets another grain's row show or send it.
+  only, and a switch sets it aside with the rest of the earlier grain: it never comes back on
+  a later switch and is never sent. A listing in the grain already in force changes nothing.
 - **The voice never speaks of the grain.**
 - **A whole rehearsal an app before 19 August sent is a whole-passage recording** while no
   scene has its part, as the room reads it: its home has the one row, and a finding over it
