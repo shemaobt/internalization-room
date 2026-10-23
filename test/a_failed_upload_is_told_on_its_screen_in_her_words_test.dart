@@ -850,6 +850,42 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a tap on a part whose newest take is gone sends nothing, even with a '
+    'spent pass ahead of it',
+    (tester) async {
+      late _AQueueThatHoldsTheKeep fila;
+      final casa = await _naCasa(
+        tester,
+        harness: SalaHarness(
+          takesOverride: (room, home, recordings) =>
+              fila = _AQueueThatHoldsTheKeep(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
+        ),
+      );
+      casa.room.unreachableTake = 'ensaio/parte-3';
+      await casa.guardar(3);
+      fila.falhar = true;
+      await casa.guardarSemEsperar(3);
+      fila.falhar = false;
+      File(casa.harness.recorder.lastPath!).deleteSync();
+      await casa.tocar(casa.naLinha(3, find.text(_falhou)));
+      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+      expect(casa.naLinha(3, find.text(_perdida)), findsOneWidget);
+      final antes = casa.envios;
+
+      await casa.emTempoReal(() async {
+        casa.sala.enviarACena(3);
+        await settle(const Duration(milliseconds: 400));
+      });
+
+      expect(casa.envios, antes);
+    },
+  );
+
   testWidgets('a part reads enviando from the moment its keep starts', (
     tester,
   ) async {

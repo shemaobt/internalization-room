@@ -5340,7 +5340,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       :final pass,
       gone: false,
     )) {
-      _notQueued[sessionId]?.remove(cena);
       await _guard(
         path,
         kind: partTakeKind,
@@ -5622,7 +5621,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     List<PendingTake> ofThePart,
   ) {
     for (final row in newest) {
-      if (row.lost) return SendFailure.gone;
+      if (row.lost) return SendFailure.failed;
       if (row.exhausted) return row.failure;
     }
     for (final row in ofThePart) {
