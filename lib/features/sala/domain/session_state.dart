@@ -30,6 +30,7 @@ enum SceneLine {
   pauseOnlyOnTheLast,
   pausePastTheEnd,
   pauseCannotStandThere,
+  diskFailed,
 }
 
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last

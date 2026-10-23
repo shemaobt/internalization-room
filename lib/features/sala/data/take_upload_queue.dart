@@ -683,7 +683,13 @@ class TakeUploadQueue {
     final leftInThisPass = <String, DateTime>{};
     _turnedAway = false;
     _stopped = false;
-    for (final entry in await waiting(withTheCodeless: withTheCodeless)) {
+    final List<PendingTake> rows;
+    try {
+      rows = await waiting(withTheCodeless: withTheCodeless);
+    } on PathNotFoundException {
+      return 0;
+    }
+    for (final entry in rows) {
       if (_turnedAway || _stopped) break;
       final part = _partOf(entry);
       if (part != null && held.contains(part)) continue;

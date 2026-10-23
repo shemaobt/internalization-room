@@ -76,6 +76,8 @@ Every field of `SalaSessionNotifier` is declared `late`, never `late final`, wit
 initializer, and is assigned in `_aNewLife()` or `build()`, so a relink begins a whole new
 Life; only `_highestGeneration`, `_firstGeneration`, `_gestures`, `_lines` and `_random`
 cross lives (enforced by `test/every_field_of_the_room_is_born_with_its_life_test.dart`).
+A continuation captures `_thisLife` before its await and checks `_endedSince(life)` after it;
+`_gone` alone guards only synchronous code, because a new Life sets it back to false.
 
 Lifecycle code still in the notifier moves out to the machine through slices, and new lifecycle
 work is built on the machine. The one written exception: the Retro screen keeps its notifier fields,

@@ -502,6 +502,11 @@ final class TheSceneDoorFailed extends AnsweringEvent {
   const TheSceneDoorFailed({this.readAgain = false, super.generation});
 }
 
+/// The tablet's disk could not keep audio a scene door brought in.
+final class TheSceneDiskFailed extends AnsweringEvent {
+  const TheSceneDiskFailed({super.generation});
+}
+
 final class TheCallWasRefused extends AnsweringEvent {
   const TheCallWasRefused({super.generation});
 }
@@ -843,6 +848,10 @@ final class ReadTheSceneRehearsals extends Effect {
 
 final class AskTheFraseAgain extends Effect {
   const AskTheFraseAgain();
+}
+
+final class TellTheDiskFailed extends Effect {
+  const TellTheDiskFailed();
 }
 
 /// The room may have kept the frase whose answer was lost: its list decides.
@@ -1259,6 +1268,11 @@ const _watch = ArmTheWatch();
   TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
     (machine, const [ReadTheSceneRehearsals()]),
   TheSceneDoorFailed() => (machine, const []),
+  TheSceneDiskFailed() when machine.station is SceneRehearsal => (
+    machine,
+    const [TellTheDiskFailed()],
+  ),
+  TheSceneDiskFailed() => (machine, const []),
   TheSceneRehearsalsListed(:final listed)
       when machine.station is SceneRehearsal =>
     (machine, [ShowTheSceneRehearsals(listed)]),
@@ -2091,6 +2105,7 @@ List<Effect> _leavingThePassage(Machine machine) => [
       TheHandFailed() ||
       TheScenesMissed() ||
       TheSceneDoorFailed() ||
+      TheSceneDiskFailed() ||
       TheSceneRehearsalsListed() ||
       TheCallWasRefused() ||
       TheCallMetAClosedPassage() ||
