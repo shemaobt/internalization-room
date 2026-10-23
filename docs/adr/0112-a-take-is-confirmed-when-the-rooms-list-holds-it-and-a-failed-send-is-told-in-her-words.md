@@ -74,10 +74,11 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   tap, whatever it read before; it reads «✓ salvo» only when that take is one the room
   holds; and it reads «falhou», with no tap, when its recording is gone, whether it reached
   the Outbox or not, never an older pass's «✓ salvo».
-- **A gone recording is final.** A take whose recording is gone can never go up, so its row
-  offers no tap, as a final refusal does. Recording the part again recovers it: the new
-  take waits behind any spent older pass, and its tap sends both, older first. The
-  Orchestrator decided this on 23 October; Jonatas may overrule it.
+- **A gone recording is final.** A take whose recording is gone can never go up, so it
+  offers no tap and the room refuses a re-send of it, as for a final refusal; this holds
+  for a part on its row and for a scene take on the red microphone. Recording again
+  recovers it: a new part take waits behind any spent older pass, and its tap sends both,
+  older first. The Orchestrator decided this on 23 October; Jonatas may overrule it.
 - **A tap acts on the session and app run it was made in.** It names its session and part
   when it lands, and nothing it does after waiting on the Outbox touches another session's
   takes. Once its run has ended it makes no spent take due again; a take it had already
@@ -93,7 +94,7 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   grave de novo» for final refusals, which offer no tap on the ensaio row.
   On the red microphone a failed scene take reads «não deu para guardar o ensaio da cena —
   gravem de novo» (or the too-large or not-accepted line) with «falhou — toque para tentar
-  de novo» as its tap. The red microphone's take state is a named exception to the
+  de novo» as its tap, or with «falhou» and no tap once its recording is gone. The red microphone's take state is a named exception to the
   wordless rule (ADR 0014).
 
 ## What this replaces in ADR 0103
