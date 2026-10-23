@@ -273,6 +273,38 @@ void main() {
     },
   );
 
+  test(
+    'a discard leaves the last take alone when no recording is open',
+    () async {
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+      await recording.start('ensaio_parte1', owner: MicOwner.rehearsal);
+      final kept = File(microphone.openedPath!)..createSync(recursive: true);
+
+      await recording.discard();
+
+      expect(
+        kept.existsSync(),
+        isTrue,
+        reason:
+            'o stop de um gravador parado responde o caminho da última gravação; '
+            'descartar apagava a tomada que a equipe acabava de guardar',
+      );
+    },
+  );
+
+  test('a discard stops and deletes the recording that is open', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+    await recording.start('ensaio_parte1', owner: MicOwner.rehearsal);
+    microphone.recordingAgain = true;
+    final open = File(microphone.openedPath!)..createSync(recursive: true);
+
+    await recording.discard();
+
+    expect(open.existsSync(), isFalse);
+  });
+
   test('a rehearsal take opens the microphone as 16 kHz mono WAV', () async {
     final recording = RecordingRepository();
     addTearDown(recording.dispose);

@@ -477,6 +477,8 @@ class EffectRunner {
     _retry = null;
   }
 
+  String? _startedTake;
+
   void _openTheMic(MicOwner owner, String take) {
     _micTaken ??= recorder.taken.listen(host.hearTheMicrophoneTaken);
     _newestStarted = null;
@@ -486,20 +488,28 @@ class EffectRunner {
         ++_starts,
         generation?.call(),
         recorder.start(take, owner),
+        take,
       ),
     );
   }
 
   /// A start's answer is stamped with the generation it was opened under; a late start
   /// that is still the newest closes the Channel and leaves no recorder running (ADR 0057).
+  /// An answer that arrives after the runner is disposed has no Channel left to close, so a
+  /// start that opened the recorder is discarded and the rest is dropped.
   Future<void> _answerTheStart(
     MicOwner owner,
     int start,
     int? stamp,
     Future<MicAnswer> starting,
+    String take,
   ) async {
     final answer = await starting;
-    if (_disposed) return;
+    if (answer == MicAnswer.started) _startedTake = take;
+    if (_disposed) {
+      if (answer == MicAnswer.started) unawaited(recorder.discard());
+      return;
+    }
     final started = answer == MicAnswer.started;
     final now = generation?.call();
     if (start != _starts) {
@@ -543,10 +553,23 @@ class EffectRunner {
         ),
       );
     }
-    if (_disposed) return;
+    if (_disposed) {
+      if (take != null && _isTheFileOf(_startedTake, take)) {
+        unawaited(recorder.delete(take));
+      }
+      return;
+    }
+    _startedTake = null;
     host.answer(
       MicAnswered(MicAnswer.closed, take: take, generation: generation?.call()),
     );
+  }
+
+  bool _isTheFileOf(String? startedTake, String path) {
+    if (startedTake == null) return false;
+    final name = path.split('/').last;
+    final dot = name.lastIndexOf('.');
+    return (dot < 0 ? name : name.substring(0, dot)) == startedTake;
   }
 
   void _closeAndDiscardTheMic({required bool wasOpen}) {

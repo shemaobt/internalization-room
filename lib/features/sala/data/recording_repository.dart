@@ -105,7 +105,13 @@ class RecordingRepository {
     await restoreTheSampleRate();
   }
 
+  /// Stops and deletes only a recording that is open. An idle recorder is left alone: the
+  /// platform's stop answers the last recording's path (record_android), and that file may
+  /// be a take the team just kept.
   Future<void> discard() async {
+    if (!await _recorder.isRecording().catchError((Object _) => false)) {
+      return restoreTheSampleRate();
+    }
     final path = await stop();
     if (path != null) {
       final file = File(path);

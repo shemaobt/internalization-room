@@ -612,6 +612,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gone = true;
       frases.letGoOfAll();
       _cancelTimers();
+      _runner.run(const [DiscardTheMic()]);
       _runner.dispose();
       unawaited(_outboxFalls.cancel());
       unawaited(_outboxGone.cancel());
