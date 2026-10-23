@@ -141,9 +141,9 @@ class RecordingRepository {
     try {
       final dir = await _recordingsDir();
       await for (final entry in dir.list()) {
-        if (entry is File &&
-            (p.basename(entry.path).startsWith('frase_') ||
-                p.basename(entry.path).startsWith('ouvinte_'))) {
+        if (entry is! File) continue;
+        final name = p.basename(entry.path);
+        if (name.startsWith('frase_') || name.startsWith('ouvinte_')) {
           await entry.delete();
         }
       }

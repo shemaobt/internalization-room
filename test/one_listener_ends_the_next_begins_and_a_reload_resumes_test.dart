@@ -316,6 +316,31 @@ void main() {
     expect(_sala(tablet).stage, SalaStage.retro);
   });
 
+  testWidgets('taps on the end screen while the finish is in the air send '
+      'one finish and ask one number', (tester) async {
+    final harness = _aprovadaNaSala();
+    harness.room.holdNextFinish();
+    final tablet = await _noAgradecimento(tester, harness);
+
+    for (final label in [_outroOuvinte, _outroOuvinte, _terminarAChecagem]) {
+      if (byLabel(label).evaluate().isEmpty) continue;
+      await tester.tap(byLabel(label), warnIfMissed: false);
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    harness.room.finishHeldFinish();
+    await _passar(tester);
+    if (byLabel(_outroOuvinte).evaluate().isNotEmpty) {
+      await _tocar(tester, _outroOuvinte);
+    }
+
+    expect(harness.room.listenersFinished, [
+      (version: 1, number: 1, completed: true),
+    ]);
+    expect(harness.room.listenersAsked, hasLength(2));
+    expect(find.text('ouvinte 2'), findsOneWidget);
+    await _fechar(tester, tablet);
+  });
+
   testWidgets('a finish that fails twice does not hold the team', (
     tester,
   ) async {

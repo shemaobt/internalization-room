@@ -3141,6 +3141,13 @@ class FakeRoom implements RoomRepository {
   final List<({int version, int number, bool completed})> listenersFinished =
       [];
 
+  Completer<void>? _holdingFinish;
+
+  /// Holds the next finish in flight, after the room has been sent it.
+  void holdNextFinish() => _holdingFinish = Completer<void>();
+
+  void finishHeldFinish() => _holdingFinish?.complete();
+
   /// What the next finishes answer, in order, the room keeping none of them.
   final List<RoomFailure> failTheNextFinishesWith = [];
 
@@ -3158,6 +3165,11 @@ class FakeRoom implements RoomRepository {
       number: listener,
       completed: completed,
     ));
+    final held = _holdingFinish;
+    if (held != null) {
+      await held.future;
+      _holdingFinish = null;
+    }
     if (failTheNextFinishesWith.isNotEmpty) {
       return failTheNextFinishesWith.removeAt(0);
     }

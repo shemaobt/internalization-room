@@ -6581,8 +6581,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// Tells the room the listener finished, unless it already acknowledged it. A send
-  /// that fails holds no one: the next button sends it again.
+  /// Tells the room the listener finished, unless it already acknowledged it. The end
+  /// screen's buttons wait while it is in the air; a send that fails holds no one, and the
+  /// next button sends it again.
   Future<void> _sendTheFinish(int generation) async {
     final sessionId = state.sessionId;
     final station = state.station;
@@ -6596,6 +6597,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         shown.finishAcknowledged) {
       return;
     }
+    _showTheListener(shown.copyWith(sending: true));
     final answer = await _room.finishTheListener(
       sessionId,
       station.version,
@@ -6603,17 +6605,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       completed: completed,
     );
     if (_abandoned(generation)) return;
-    switch (answer) {
-      case Answered():
-        if (state.externalCheck.listener == listener) {
-          _showTheListener(
-            state.externalCheck.copyWith(finishAcknowledged: true),
-          );
-        }
-      case SessionGone() && final failure:
-        _decideTheFailure(failure);
-      case NetworkFailed() || Refused():
-        break;
+    _showTheListener(
+      state.externalCheck.copyWith(
+        sending: false,
+        finishAcknowledged: answer is Answered,
+      ),
+    );
+    if (answer case SessionGone() && final failure) {
+      _decideTheFailure(failure);
     }
   }
 
