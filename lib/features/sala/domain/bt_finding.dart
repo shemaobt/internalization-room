@@ -58,6 +58,53 @@ enum CheckRefusal {
   };
 }
 
+class UntranslatedPart {
+  final String takeId;
+  final int? scene;
+  final Duration from;
+
+  const UntranslatedPart({
+    required this.takeId,
+    this.scene,
+    this.from = Duration.zero,
+  });
+}
+
+/// The listen door's answer to a report: what the room still counts unheard and, once
+/// nothing is, what the room says follows (shema-api ADR 0070).
+class ListenedWhole {
+  /// Null when the room names nothing at all: an older room.
+  final List<String>? unheardTakeIds;
+  final bool automaticCheck;
+  final String fixedLine;
+  final bool stretchUntranslated;
+  final List<UntranslatedPart> untranslated;
+
+  const ListenedWhole({
+    this.unheardTakeIds,
+    this.automaticCheck = false,
+    this.fixedLine = '',
+    this.stretchUntranslated = false,
+    this.untranslated = const [],
+  });
+
+  factory ListenedWhole.fromJson(Map<String, dynamic> json) => ListenedWhole(
+    unheardTakeIds: (json['unheard_take_ids'] as List?)?.cast<String>(),
+    automaticCheck: json['automatic_check'] as bool? ?? false,
+    fixedLine: json['fixed_line'] as String? ?? '',
+    stretchUntranslated: json['refusal'] == 'STRETCH_UNTRANSLATED',
+    untranslated: [
+      for (final parte in json['untranslated'] as List? ?? const [])
+        if (parte is Map)
+          UntranslatedPart(
+            takeId: parte['take_id'] as String,
+            scene: parte['scene'] as int?,
+            from: Duration(milliseconds: parte['from_ms'] as int? ?? 0),
+          ),
+    ],
+  );
+}
+
 class BackTranslationVerdict {
   final String audioUrl;
   final String fixedLine;

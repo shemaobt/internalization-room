@@ -325,6 +325,7 @@ void main() {
       for (final n in [1, 2, 3]) {
         expect(it.onRow(n, byLabel('Ouvir')), findsOneWidget);
       }
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
@@ -351,6 +352,7 @@ void main() {
         [endsWith('/scene-rehearsals/${it.idOf(2)}/audio')],
       );
       expect(it.room.takesReceivedWhole[1].bytes, _bytesOf(2));
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
@@ -380,6 +382,7 @@ void main() {
         it.room.takesReceivedWhole.map((take) => take.bytes),
         isNot(contains(_bytesOf(9))),
       );
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
@@ -479,6 +482,7 @@ void main() {
       it.room.finishHeldTake();
       await _theJoinEnds(it);
       expect(it.partsReceived, ['parte-1', 'parte-2', 'parte-3']);
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
@@ -520,6 +524,7 @@ void main() {
         hasLength(1),
       );
       expect(it.partsReceived, contains('parte-3'));
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
@@ -559,6 +564,7 @@ void main() {
       expect(it.partsReceived.skip(before), ['parte-3']);
       expect(it.partsReceived.where((s) => s == 'parte-1'), hasLength(1));
       expect(it.partsReceived.where((s) => s == 'parte-2'), hasLength(1));
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
@@ -690,6 +696,7 @@ void main() {
       it.room.takes.where((take) => take.ordinal == 2).map((t) => t.takeId),
       ['gravacao-outro-tablet'],
     );
+    closeTheRoom(it.container);
     semantics.dispose();
   });
 
@@ -785,6 +792,7 @@ void main() {
         await _theJoinEnds(it);
 
         expect(it.partsReceived, ['parte-1', 'parte-2', 'parte-3']);
+        closeTheRoom(it.container);
         semantics.dispose();
       },
     );
@@ -926,6 +934,7 @@ void main() {
       expect(it.ticked(1), isTrue);
       it.room.finishHeldTake();
       await _theJoinEnds(it);
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
@@ -962,6 +971,7 @@ void main() {
       expect(find.text('juntando a cena 1 de 3…'), findsOneWidget);
       it.room.finishHeldTake();
       await _theJoinEnds(it);
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
@@ -1068,6 +1078,7 @@ void main() {
 
       final at = it.room.takesReceived.indexWhere((t) => t.scope == 'parte-2');
       expect(it.room.takePasses[at], 4);
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
@@ -1218,6 +1229,7 @@ void main() {
 
       final sent = it.room.takesReceivedWhole.first.recordedAt!;
       expect(sent.difference(tapped).inSeconds.abs(), lessThan(30));
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );

@@ -352,6 +352,10 @@ class SalaSessionState {
 
   /// The approval the newest Session read says the draft stands under.
   final ApprovedDraft? btRascunhoAprovado;
+
+  /// The First listen: on a Joined recording, every part heard through before anything
+  /// can be told back.
+  final bool btSoOuvir;
   final int unsentTakes;
   final int unsentChunks;
   final Map<int, UnsentPart> unsentParts;
@@ -493,6 +497,7 @@ class SalaSessionState {
     this.btFraseQueAguarda,
     this.btFraseGuardada,
     this.btRascunhoAprovado,
+    this.btSoOuvir = false,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentParts = const {},
@@ -943,7 +948,10 @@ class SalaSessionState {
   bool get wheelOffersNothing => naRoda?.isEmpty ?? false;
 
   bool get canFinishBackTranslation =>
-      stage == SalaStage.retro && btPhase == BtPhase.playing && btClipEnded;
+      stage == SalaStage.retro &&
+      btPhase == BtPhase.playing &&
+      btClipEnded &&
+      !btSoOuvir;
 
   bool get _btNaVez =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && !needsPerson;
@@ -1109,6 +1117,7 @@ class SalaSessionState {
   };
 
   bool fraseRegravavel(Trecho trecho) =>
+      !btSoOuvir &&
       trecho.frase != null &&
       btFraseTraduzidaDeNovo == null &&
       btRegravacao?.passo != PassoDaRegravacao.enviando &&
@@ -1142,6 +1151,7 @@ class SalaSessionState {
 
   bool get canRetellAFrase =>
       stage == SalaStage.retro &&
+      !btSoOuvir &&
       partes.isNotEmpty &&
       !needsPerson &&
       btRegravacao == null &&
@@ -1153,6 +1163,7 @@ class SalaSessionState {
 
   bool get canHearAFrase =>
       stage == SalaStage.retro &&
+      !btSoOuvir &&
       partes.isNotEmpty &&
       !needsPerson &&
       btRegravacao == null &&
@@ -1230,6 +1241,7 @@ class SalaSessionState {
     bool clearBtFraseGuardada = false,
     ApprovedDraft? btRascunhoAprovado,
     bool clearBtRascunhoAprovado = false,
+    bool? btSoOuvir,
     int? unsentTakes,
     int? unsentChunks,
     Map<int, UnsentPart>? unsentParts,
@@ -1336,6 +1348,7 @@ class SalaSessionState {
       btRascunhoAprovado: clearBtRascunhoAprovado
           ? null
           : (btRascunhoAprovado ?? this.btRascunhoAprovado),
+      btSoOuvir: btSoOuvir ?? this.btSoOuvir,
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentParts: unsentParts ?? this.unsentParts,

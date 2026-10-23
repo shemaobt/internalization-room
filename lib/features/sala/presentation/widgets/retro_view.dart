@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
+import '../../data/playback_repository.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/bt_finding.dart';
+import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'bead_row.dart';
@@ -36,11 +38,14 @@ class RetroView extends ConsumerWidget {
 
     final avanca =
         session.btPhase != BtPhase.findings &&
-        session.btPhase != BtPhase.conferida;
+        session.btPhase != BtPhase.conferida &&
+        !session.btSoOuvir;
     final contas = _contas(session, notifier, language);
     final (voz, lingua) = _voz(session, conferida);
     final colors = SalaColors.of(context);
-    final titulo = retroLabelFor('title', language);
+    final titulo = session.joined
+        ? recordingHomeLabelFor('joinedTitle', language)
+        : retroLabelFor('title', language);
     final estado = _estado(session, language);
     final nota = session.btRecomecada
         ? retroLabelFor('restarted', language)
@@ -66,7 +71,14 @@ class RetroView extends ConsumerWidget {
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 600),
               child: Text(
-                retroLabelFor(veredito ? 'subVerdict' : 'subTell', language),
+                retroLabelFor(
+                  session.btSoOuvir
+                      ? 'listenOnly'
+                      : veredito
+                      ? 'subVerdict'
+                      : 'subTell',
+                  language,
+                ),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colors.mut, fontSize: 15, height: 1.35),
               ),
@@ -135,6 +147,10 @@ class RetroView extends ConsumerWidget {
               ),
             ],
             StatusLines(line: estado, note: nota),
+            if (session.btSoOuvir) ...[
+              const SizedBox(height: 12),
+              _APosicaoDaEscuta(session: session, language: language),
+            ],
             if (linha != null) ...[
               const SizedBox(height: 12),
               ConstrainedBox(
@@ -156,7 +172,8 @@ class RetroView extends ConsumerWidget {
               rows: _frases(session, notifier, language),
               language: language,
             ),
-            if (session.btTrechos.any((trecho) => trecho.contado)) ...[
+            if (!session.btSoOuvir &&
+                session.btTrechos.any((trecho) => trecho.contado)) ...[
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -508,7 +525,7 @@ class RetroView extends ConsumerWidget {
           BeadFill.translucent,
           escolhida == null,
           false,
-          notifier.ouvirOTrechoPendente,
+          session.btSoOuvir ? null : notifier.ouvirOTrechoPendente,
           parte(session.btParte),
         ),
         if (session.btRestoDepoisDoCorte)
@@ -671,17 +688,19 @@ class RetroView extends ConsumerWidget {
         children: [
           RoundActionButton(
             size: 60,
-            semanticLabel: retroLabelFor(
-              soando
-                  ? 'pause'
-                  : session.btTraducaoPendente != null &&
-                        session.btContaEscolhida == null
-                  ? 'listenToTheTranslation'
-                  : 'listen',
-              language,
-            ),
+            semanticLabel: session.btSoOuvir
+                ? sceneRehearsalLabelFor('playPause', language)
+                : retroLabelFor(
+                    soando
+                        ? 'pause'
+                        : session.btTraducaoPendente != null &&
+                              session.btContaEscolhida == null
+                        ? 'listenToTheTranslation'
+                        : 'listen',
+                    language,
+                  ),
             gradient: BeadStyles.wood,
-            mood: session.canListenToThePendingStretch
+            mood: session.btSoOuvir || session.canListenToThePendingStretch
                 ? ButtonMood.lit
                 : ButtonMood.dimmed,
             onTap: notifier.ouvirGravacao,
@@ -697,6 +716,12 @@ class RetroView extends ConsumerWidget {
   }
 
   String _circleLabel(SalaSessionState session, String language) {
+    if (session.btSoOuvir) {
+      return retroLabelFor(
+        session.btClipRodando ? 'listening' : 'listenOnly',
+        language,
+      );
+    }
     if (session.wordlessTelling) {
       return retroLabelFor('notUnderstood', language);
     }
@@ -750,6 +775,45 @@ class RetroView extends ConsumerWidget {
       case BtPhase.conferida:
         return retroLabelFor('translated', language);
     }
+  }
+}
+
+/// «ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10» while a part sounds, the place
+/// alone while it is held.
+class _APosicaoDaEscuta extends ConsumerWidget {
+  final SalaSessionState session;
+  final String language;
+
+  const _APosicaoDaEscuta({required this.session, required this.language});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (parte, soando) = switch (session.channel) {
+      PartPlaying(:final part) => (part.part, true),
+      Paused(what: final PartSound part) => (part.part, false),
+      _ => (null, false),
+    };
+    if (parte == null) return const SizedBox.shrink();
+    final playback = ref.read(playbackRepositoryProvider);
+    final colors = SalaColors.of(context);
+    return Loop(
+      period: const Duration(seconds: 1),
+      animate: soando,
+      reducible: false,
+      builder: (context, _) {
+        final lugar = firstListenPositionFor(
+          parte + 1,
+          playback.position,
+          playback.playingLength,
+          language,
+        );
+        return Text(
+          soando ? '${retroLabelFor('listening', language)} — $lugar' : lugar,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: colors.telha, fontSize: 15),
+        );
+      },
+    );
   }
 }
 
