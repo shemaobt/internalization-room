@@ -20,6 +20,7 @@ import 'um_ensaio_de_tres_partes.dart';
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
 const _sairDaPassagem = 'Escolher outra passagem';
+const _pronto = 'Pronto';
 const micParteLabel = 'voltar e regravar uma parte';
 
 /// A team standing on a finding the analyst addressed to the stretch of part 2, with the
@@ -1261,12 +1262,15 @@ void main() {
   });
 
   testWidgets(
-    'em conferida sob parada a saída some, e volta com o toque no sinal',
+    'em conferida sob parada o pronto e a saída somem, e voltam com o toque no '
+    'sinal',
     (tester) async {
       final it = await _ateAConferida(tester);
       it.harness.voice.refuses.add('P3');
 
       await tester.tap(byLabel(_aprovar));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(byLabel(_pronto));
       await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(byLabel(_aprovar));
       await tester.pump(const Duration(milliseconds: 400));
@@ -1279,24 +1283,26 @@ void main() {
             'uma pessoa — se não parar, não há parada que medir',
       );
       expect(_estado(it.container).btPhase, BtPhase.conferida);
-      expect(byLabel(_sairDaPassagem), findsOneWidget);
+      expect(byLabel(_pronto), findsOneWidget);
       expect(
         tester
             .widget<IgnorePointer>(
               find
                   .ancestor(
-                    of: byLabel(_sairDaPassagem),
+                    of: byLabel(_pronto),
                     matching: find.byType(IgnorePointer),
                   )
                   .first,
             )
             .ignoring,
         isTrue,
-        reason: 'sob o sinal da pessoa a saída se apaga, como tudo (ADR 0107)',
+        reason: 'sob o sinal da pessoa o pronto se apaga, como tudo (ADR 0107)',
       );
 
       it.container.read(salaSessionProvider.notifier).teamTapped();
       await tester.pump(const Duration(milliseconds: 600));
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(byLabel(_sairDaPassagem));
       await tester.pump(const Duration(milliseconds: 400));
 
@@ -1386,18 +1392,12 @@ void main() {
       reason: 'uma é silêncio, não parada',
     );
 
-    await tester.tap(byLabel(_aprovar));
-    await tester.pump(const Duration(milliseconds: 400));
     expect(
-      it.harness.room.releasesAsked,
-      hasLength(1),
+      find.text('Ensaio salvo'),
+      findsOneWidget,
       reason:
-          'a soltura já é da sala; apertar de novo repete a fala, não o pedido',
-    );
-    expect(
-      _estado(it.container).needsPerson,
-      isTrue,
-      reason: 'na segunda a sala para por uma pessoa, como em toda outra fala',
+          'a fala que não sai não segura a tela do ensaio salvo: a aprovação '
+          'já é da sala',
     );
 
     closeTheRoom(it.container);

@@ -17,6 +17,7 @@ class SavedScreen extends ConsumerWidget {
     final colors = SalaColors.of(context);
     final titulo = savedScreenLabelFor('title', language);
     final pronto = savedScreenLabelFor('done', language);
+    final live = !ref.watch(salaSessionProvider).needsPerson;
     return SafeArea(
       bottom: false,
       child: Center(
@@ -62,29 +63,33 @@ class SavedScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 28),
-              Semantics(
-                button: true,
-                label: pronto,
-                child: ExcludeSemantics(
-                  child: GestureDetector(
-                    onTap: ref.read(salaSessionProvider.notifier).pronto,
-                    behavior: HitTestBehavior.opaque,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: ShemaBrand.verdeClaro,
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 36,
-                          vertical: 14,
+              IgnorePointer(
+                ignoring: !live,
+                child: Semantics(
+                  button: true,
+                  enabled: live,
+                  label: pronto,
+                  child: ExcludeSemantics(
+                    child: GestureDetector(
+                      onTap: ref.read(salaSessionProvider.notifier).pronto,
+                      behavior: HitTestBehavior.opaque,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: ShemaBrand.verdeClaro,
+                          borderRadius: BorderRadius.circular(28),
                         ),
-                        child: Text(
-                          pronto,
-                          style: const TextStyle(
-                            color: ShemaBrand.branco,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w500,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 36,
+                            vertical: 14,
+                          ),
+                          child: Text(
+                            pronto,
+                            style: const TextStyle(
+                              color: ShemaBrand.branco,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ),

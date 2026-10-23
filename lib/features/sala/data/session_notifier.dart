@@ -422,7 +422,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// first is still out, and the second stops one after the answer is in, when the room is
   /// already speaking the line and closing the necklace.
   late bool _aprovando;
-  late bool _aprovada;
 
   /// How long each part of the rehearsal turned out to be, by the file the part is kept
   /// as and never by where the part sits in the row.
@@ -527,7 +526,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _umaParteFoiRegravada = false;
     _aTraducaoJaFoiDeixada = false;
     _aprovando = false;
-    _aprovada = false;
     _tamanhoDaParteMs = {};
     _envelopes = {};
     _frases = _FraseKeep(_recorder.delete);
@@ -7409,7 +7407,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishBackTranslation() async {
     if (!state.canFinishBackTranslation) return;
-    _aprovada = false;
     _dispatch(const TheVerdictAsked());
     state = state.copyWith(clearAviso: true);
     _silenceTheRoom();
@@ -7423,7 +7420,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: true,
       btConferindo: true,
       clearBtRecusa: true,
-      clearBtAprovadoAgora: true,
     );
     _watchBusyState();
     final BackTranslationVerdict verdict;
@@ -7589,48 +7585,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     try {
-      // The release is the room's already once it has been given: a press that follows a
-      // line nobody heard is asking for the line again, not for a second release.
-      if (!_aprovada) {
-        final ApprovalAnswer resposta;
-        switch (await _room.approveRelease(sessionId)) {
-          case Answered(value: final answer):
-            resposta = answer;
-          case final RoomFailure failure:
-            if (!_abandoned(generation)) {
-              state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
-            }
-            return failed(failure);
-        }
-        if (_abandoned(generation)) return;
-        if (!resposta.minted) {
-          final failure = await _levarAoBuracoQueARecusaNomeia(
-            resposta,
-            sessionId,
-            generation,
-          );
-          if (failure != null) failed(failure);
-          return;
-        }
-        _aprovada = true;
-        state = state.copyWith(btAprovadoAgora: resposta.version);
-        unawaited(_readTheApprovedDraft(sessionId, generation));
-      }
-      final bool disse;
-      try {
-        disse = await _sayALine(
-          LineKind.approved,
-          fixedLine: (name: approvedLine, language: _inTheSessionsLanguage),
-        );
-      } on RoomFailure catch (failure) {
-        return failed(failure);
+      final ApprovalAnswer resposta;
+      switch (await _room.approveRelease(sessionId)) {
+        case Answered(value: final answer):
+          resposta = answer;
+        case final RoomFailure failure:
+          if (!_abandoned(generation)) {
+            state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
+          }
+          return failed(failure);
       }
       if (_abandoned(generation)) return;
-      // As all five of its siblings do. The Saved screen over a line the team never heard
-      // answers a gesture nobody was answered for, and the press is the whole of what the
-      // approval is.
-      if (!disse) return _registerUnplayableTurn();
-      _aprovada = false;
+      if (!resposta.minted) {
+        final failure = await _levarAoBuracoQueARecusaNomeia(
+          resposta,
+          sessionId,
+          generation,
+        );
+        if (failure != null) failed(failure);
+        return;
+      }
+      state = state.copyWith(btAprovadoAgora: resposta.version);
+      unawaited(_readTheApprovedDraft(sessionId, generation));
+      try {
+        if (!await _sayALine(
+          LineKind.approved,
+          fixedLine: (name: approvedLine, language: _inTheSessionsLanguage),
+        )) {
+          _registerUnplayableTurn();
+        }
+      } on RoomFailure catch (failure) {
+        if (!_abandoned(generation)) _decideTheFailure(failure);
+      }
+      if (_abandoned(generation)) return;
       state = state.copyWith(
         ensaioSalvo: state.btAprovadoAgora,
         clearBtAprovadoAgora: true,
@@ -8338,7 +8325,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _umaParteFoiRegravada = false;
     _aTraducaoJaFoiDeixada = false;
     _aprovando = false;
-    _aprovada = false;
     _escuta.esquecerTudo();
     _desdeMs = 0;
     _pendingTakePath = null;

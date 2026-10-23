@@ -331,61 +331,53 @@ void main() {
   });
 
   testWidgets(
-    'an approval line nobody heard is asked again by the next press, and the '
-    'room is not asked twice',
+    'an approval line cut short still ends on «$_ensaioSalvo», and the line is '
+    'not asked again',
     (tester) async {
       final it = await _ateAConferida(tester);
-      it.harness.voice.refuses.add('P3');
-
-      await _tocar(tester);
-
-      expect(find.text(_aprovado(1)), findsOneWidget);
-      expect(find.text(_ensaioSalvo), findsNothing);
-
-      it.harness.voice.refuses.clear();
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
       final falasAntes = it.harness.voice.fixedLines.length;
-      await _tocar(tester);
 
-      expect(it.harness.room.releasesAsked, hasLength(1));
-      expect(
-        it.harness.voice.fixedLines.skip(falasAntes),
-        contains(('P3', testLanguage)),
-      );
+      it.harness.voice.holdNextLine();
+      await _tocar(tester);
+      it.harness.voice.succeeds = false;
+      it.harness.voice.finishHeldLine();
+      await tester.pump(const Duration(milliseconds: 300));
+
       expect(find.text(_ensaioSalvo), findsOneWidget);
+      expect(find.text(_aprovado(1)), findsOneWidget);
+
+      it.harness.voice.succeeds = true;
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(find.text('✓ aprovado como rascunho final (v1)'), findsOneWidget);
+      expect(
+        it.harness.voice.fixedLines
+            .skip(falasAntes)
+            .where((line) => line.$1 == 'P3'),
+        hasLength(1),
+      );
+      expect(it.harness.room.releasesAsked, hasLength(1));
       closeTheRoom(it.container);
     },
   );
 
   testWidgets(
-    'an approved sentence nobody heard gives way to the refusal after a new check',
+    'an approval line the room could not give still ends on «$_ensaioSalvo»',
     (tester) async {
       final it = await _ateAConferida(tester);
-      it.harness.voice.refuses.add('P3');
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+
+      it.harness.voice.holdNextLine();
       await _tocar(tester);
+      it.harness.voice.failHeldLine(const NetworkFailed('sem rede'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text(_ensaioSalvo), findsOneWidget);
       expect(find.text(_aprovado(1)), findsOneWidget);
-
-      final sala = it.container.read(salaSessionProvider.notifier);
-      sala.traduzirAFraseDeNovo(0);
-      await tester.pump(const Duration(milliseconds: 300));
-      sala.retroTap();
-      await tester.pump(const Duration(milliseconds: 200));
-      await confirmarATraducaoNaTela(tester, it.container);
-      await tester.pump(const Duration(milliseconds: 600));
-      it.harness.playback.finishPlayback();
-      await tester.pump(const Duration(milliseconds: 200));
-      await sala.finishBackTranslation();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(
-        byLabel(_aprovar),
-        findsOneWidget,
-        reason: 'o cenário precisa voltar ao gesto de aprovar',
-      );
-
-      it.harness.room.releaseBlockers = const ['telling_back_not_checked'];
-      await _tocar(tester);
-
-      expect(find.text(_precisaConferida), findsOneWidget);
-      expect(find.text(_aprovado(1)), findsNothing);
+      expect(find.text(_naoDeu), findsNothing);
       closeTheRoom(it.container);
     },
   );

@@ -33,10 +33,11 @@ approved sentence with its **Version**, and ends on «Ensaio salvo» with one bu
   The landings of ADR 0030 and 0093 are unchanged. Nothing is resent: the next ask is the
   team's tap. A session gone keeps its own road, with no text.
 - **A minted approval shows her approved sentence**, «Aprovado como rascunho final da equipe
-  (v{n}). Próximo passo: a checagem externa — o botão aqui embaixo.», says P3, and when the line
-  was said whole the **Saved screen** stands over the Back-translation: a check mark, «Ensaio
-  salvo», the same sentence, «Pronto». A line nobody heard leaves the sentence; the next press
-  asks the line again, not the room.
+  (v{n}). Próximo passo: a checagem externa — o botão aqui embaixo.», says P3, and once the line
+  is over the **Saved screen** stands over the Back-translation: a check mark, «Ensaio salvo»,
+  the same sentence, «Pronto». It comes whatever happened to the line, whole, cut or never
+  given, as her approve does (it awaits the line, then shows the screen); nothing asks the line
+  again. Under the person sign «Pronto» goes dark like everything else (ADR 0107).
 - **«Pronto» drops the Saved screen and nothing else.** The Station, the Step (checked) and the
   Resume point stay; the passage is not closed. One Session read is asked after the mint, so the
   badge «✓ aprovado como rascunho final (v{n})» comes from a read (ADR 0106).
