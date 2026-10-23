@@ -3560,9 +3560,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// A play button of the sheet or the card, on one of this session's rehearsals.
   void playARehearsal(String rehearsalId) => _gesture(() {
-    if (state.planBusy) return;
-    final (read, sessionId) = _thePlan ?? (null, null);
-    final record = read?.rehearsals
+    final plan = _thePlan;
+    if (plan == null || state.planBusy) return;
+    final (read, sessionId) = plan;
+    final record = read.rehearsals
         .where((r) => r.rehearsalId == rehearsalId && r.sessionId == sessionId)
         .firstOrNull;
     if (record == null) return;
@@ -3619,8 +3620,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           ensaioFinalPlan: read.withRehearsal(value),
           labelling: false,
         );
-      case (final SessionGone gone, _):
-        _decideTheFailure(gone);
       case _:
         state = state.copyWith(labelling: false, labelLine: true);
     }
@@ -3766,13 +3765,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearSceneLine: true,
       clearPlanSheet: true,
     );
-    _handOff(_openTheScreen(sessionId));
+    _handOff(_openTheScreen(sessionId, reopensTheUnsent: again == null));
   }
 
   /// The record step shows nothing until this session's rehearsals and the scene list
   /// have answered, or [sceneListWait] has passed since the open. A list that answers
   /// later is still taken.
-  Future<void> _openTheScreen(String sessionId) async {
+  Future<void> _openTheScreen(
+    String sessionId, {
+    required bool reopensTheUnsent,
+  }) async {
     final generation = _waitOnTheGeneration;
     final first = _room.scenesOf(sessionId);
     RoomAnswer<List<Scene>>? answered;
@@ -3780,7 +3782,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _after('sceneList', sceneListWait, gate.complete);
     await Future.any([
       Future.wait([
-        _reopenTheUnsent(sessionId),
+        _reopenTheUnsent(sessionId, reopensTheListed: reopensTheUnsent),
         first.then((answer) => answered = answer),
       ]),
       gate.future,
@@ -3897,7 +3899,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       !identical(state.scene, asked) ||
       state.channel is Microphone;
 
-  Future<void> _reopenTheUnsent(String sessionId) async {
+  /// A take waiting in the Outbox always comes back to the screen; the room's newest
+  /// unsent rehearsal only when [reopensTheListed], never for a scene asked again.
+  Future<void> _reopenTheUnsent(
+    String sessionId, {
+    required bool reopensTheListed,
+  }) async {
     final generation = _waitOnTheGeneration;
     var asked = state.scene;
     final waiting = await _takes.sceneWaitingIn(sessionId);
@@ -3932,6 +3939,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         if (waiting != null ||
             unsent == null ||
+            !reopensTheListed ||
             _theSceneMovedOn(asked, generation)) {
           return;
         }

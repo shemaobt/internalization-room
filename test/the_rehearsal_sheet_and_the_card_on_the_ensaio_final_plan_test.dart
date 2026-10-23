@@ -387,7 +387,8 @@ void main() {
       await _seeded(
         tester,
         (s) => [
-          _rehearsal(s, n: 4, scene: 'S2'),
+          _rehearsal(s, n: 3, scene: 'S2', sentAt: _sentAt('10:00')),
+          _rehearsal(s, n: 4, scene: 'S2', sentAt: _sentAt('10:05')),
           _rehearsal(s, n: 5, scene: 'S2', sentAt: null),
         ],
       );
@@ -423,7 +424,11 @@ void main() {
         final semantics = tester.ensureSemantics();
         await _seeded(
           tester,
-          (s) => [_rehearsal(s, n: 4, scene: 'S2'), rehearsal(s)],
+          (s) => [
+            _rehearsal(s, n: 3, scene: 'S2', sentAt: _sentAt('10:00')),
+            _rehearsal(s, n: 4, scene: 'S2', sentAt: _sentAt('10:05')),
+            rehearsal(s),
+          ],
         );
         await _openThePlan(tester);
 
@@ -513,6 +518,36 @@ void main() {
 
       expect(find.text(_planLine), findsOneWidget);
       expect(byLabel(_back), findsNothing);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    '7. «gravar esta cena de novo» asks the question even when the session\'s '
+    'newest rehearsal is unsent',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _seeded(
+        tester,
+        (s) => [
+          _rehearsal(s, n: 2, scene: 'S2', sentAt: _sentAt('10:00')),
+          _rehearsal(s, n: 3, scene: 'S2', sentAt: _sentAt('10:05')),
+          _rehearsal(s, n: 4, scene: 'S1', sentAt: null),
+        ],
+      );
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 2);
+
+      await tester.ensureVisible(find.text(_recordAgain));
+      await tester.tap(find.text(_recordAgain));
+      await _pumpUntil(tester, () => byLabel(_question).evaluate().isNotEmpty);
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(byLabel(_question), findsOneWidget);
+      expect(_highlighted(tester), [_sceneButton(2)]);
+      for (final circle in _circle) {
+        expect(byLabel(circle), findsNothing, reason: 'nada foi escolhido');
+      }
       semantics.dispose();
     },
   );

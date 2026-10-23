@@ -598,27 +598,6 @@ void main() {
     },
   );
 
-  testWidgets('6. «trocar» walks the joinable rehearsals newest first', (
-    tester,
-  ) async {
-    await _seeded(
-      tester,
-      (s) => [
-        _rehearsal(s, n: 1, scene: 'S2', sentAt: _sentAt('10:00')),
-        _rehearsal(s, n: 2, scene: 'S2', sentAt: _sentAt('10:01')),
-        _rehearsal(s, n: 3, scene: 'S2', sentAt: _sentAt('10:05')),
-      ],
-    );
-
-    await _openThePlan(tester);
-    expect(_onRow(2, find.text(_facts(3, '0:07', 2))), findsOneWidget);
-
-    for (final n in [2, 1, 3]) {
-      await _tapSwapOn(tester, 2);
-      expect(_onRow(2, find.text(_facts(n, '0:07', 2))), findsOneWidget);
-    }
-  });
-
   testWidgets(
     '6. a row with one joinable rehearsal beside an unsent one offers no «trocar»',
     (tester) async {

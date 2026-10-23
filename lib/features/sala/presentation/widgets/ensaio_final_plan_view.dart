@@ -398,6 +398,7 @@ class _SheetLine extends StatelessWidget {
             RoundActionButton(
               size: 44,
               gradient: BeadStyles.wood,
+              mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
               semanticLabel: '${said('listen')} — $line',
               onTap: onPlay,
               child: const Icon(
@@ -506,6 +507,7 @@ class _UnlabelledCard extends ConsumerWidget {
                 RoundActionButton(
                   size: 44,
                   gradient: BeadStyles.wood,
+                  mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
                   semanticLabel: '${said('listen')} — $facts',
                   onTap: () => notifier.playARehearsal(rehearsal.rehearsalId),
                   child: const Icon(
