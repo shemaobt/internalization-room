@@ -14,6 +14,7 @@ import '../domain/coverage_event.dart';
 import '../domain/cut_point.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
+import '../domain/minimum_build.dart';
 import '../domain/passagem.dart';
 import '../domain/scene_rehearsal.dart';
 import '../domain/scene_question.dart';
@@ -164,6 +165,13 @@ class RoomRepository {
         for (final book in json['books'] as List<Object?>) book as String,
       ],
     ),
+    asksForTheSession: false,
+  );
+
+  Future<RoomAnswer<MinimumBuilds>> minimumBuilds() => _room.ask(
+    () => _client.get(Uri.parse('${Env.backendUrl}/api/version')),
+    timeout: _stateTimeout,
+    read: readJson(MinimumBuilds.fromJson),
     asksForTheSession: false,
   );
 

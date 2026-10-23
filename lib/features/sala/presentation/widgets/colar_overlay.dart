@@ -42,7 +42,7 @@ class ColarOverlay extends StatelessWidget {
               Positioned.fill(
                 child: CustomPaint(
                   size: Size.infinite,
-                  painter: _CordPainter(color: colors.cord, sx: sx, sy: sy),
+                  painter: _CordPainter(color: colors.line, sx: sx, sy: sy),
                 ),
               ),
               for (var i = 0; i < session.coverage.beadsTotal; i++)
@@ -61,16 +61,22 @@ class ColarOverlay extends StatelessWidget {
     Offset Function(Offset) map,
   ) {
     final total = session.coverage.beadsTotal;
-    const size = 18.0;
+    const size = 16.0;
     final p = map(arcPoint(i, total));
     final lit = i < session.coverage.beadsFilled;
 
     BoxDecoration decoration;
     if (lit) {
-      decoration = const BoxDecoration(
+      decoration = BoxDecoration(
         shape: BoxShape.circle,
         gradient: BeadStyles.wood,
-        boxShadow: BeadStyles.matte,
+        boxShadow: [
+          ...BeadStyles.matte,
+          BoxShadow(
+            color: ShemaBrand.wood.withValues(alpha: 0.25),
+            spreadRadius: 3,
+          ),
+        ],
       );
     } else {
       decoration = BoxDecoration(
@@ -122,7 +128,7 @@ class _CordPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = 1.5;
     canvas.drawPath(cordArc(sx, sy), paint);
   }
 
