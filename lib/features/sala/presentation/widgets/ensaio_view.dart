@@ -7,7 +7,9 @@ import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/kept_take.dart';
 import '../../domain/session_state.dart';
+import '../../domain/station.dart';
 import 'bead_styles.dart';
+import 'ensaio_final_plan_view.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
 import 'stage_heading.dart';
@@ -18,6 +20,9 @@ class EnsaioView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
+    if (session.station case Ensaio(step: EnsaioStep.plan)) {
+      return const EnsaioFinalPlanView();
+    }
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
     final colors = SalaColors.of(context);
