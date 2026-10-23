@@ -15,6 +15,7 @@ import '../domain/bt_finding.dart';
 import '../domain/capture_guard.dart';
 import '../domain/channel.dart';
 import '../domain/escuta_das_partes.dart';
+import '../domain/external_check.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/failure_policy.dart';
 import '../domain/kept_take.dart';
@@ -6228,8 +6229,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _abrirAChecagemExterna(String sessionId) async {
     _silenceTheRoom();
     final generation = _waitOnTheGeneration;
-    state = state.copyWith(clearAviso: true);
-    final answer = await _room.openTheExternalCheck(sessionId);
+    state = state.copyWith(clearAviso: true, btAbrindoAChecagem: generation);
+    final RoomAnswer<ExternalCheck> answer;
+    try {
+      answer = await _room.openTheExternalCheck(sessionId);
+    } finally {
+      if (!_gone && state.btAbrindoAChecagem == generation) {
+        state = state.copyWith(clearBtAbrindoAChecagem: true);
+      }
+    }
     if (_abandoned(generation)) return;
     switch (answer) {
       case Answered(value: final check):

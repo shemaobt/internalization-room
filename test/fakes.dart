@@ -2956,8 +2956,15 @@ class FakeRoom implements RoomRepository {
 
   final List<String> externalChecksOpened = [];
 
-  /// What the next open of the external check throws, independent of `failWith`.
+  /// What the next open of the external check answers, independent of `failWith`.
   RoomFailure? failExternalCheckOnceWith;
+
+  Completer<void>? _holdingExternalCheck;
+
+  /// Holds the next open of the external check in flight, after the room has been sent it.
+  void holdNextExternalCheck() => _holdingExternalCheck = Completer<void>();
+
+  void finishHeldExternalCheck() => _holdingExternalCheck?.complete();
 
   /// Opens the check of the draft the room holds as approved, the same [approvedDraft]
   /// every read answers.
@@ -2970,6 +2977,11 @@ class FakeRoom implements RoomRepository {
       return gone;
     }
     externalChecksOpened.add(sessionId);
+    final held = _holdingExternalCheck;
+    if (held != null) {
+      await held.future;
+      _holdingExternalCheck = null;
+    }
     final failure = failExternalCheckOnceWith;
     if (failure != null) {
       failExternalCheckOnceWith = null;
