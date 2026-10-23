@@ -152,8 +152,6 @@ class SceneRehearsalView extends ConsumerWidget {
                 label: switch (session.sceneLine) {
                   SceneLine.diskFailed =>
                     '${said('listen')} — ${said('diskFailed')}',
-                  SceneLine.alreadySent =>
-                    '${said('listen')} — ${said('alreadySent')}',
                   _ => said('listen'),
                 },
                 child: _ListenMode(

@@ -5126,9 +5126,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         .firstOrNull;
     if (held == null || asked.waiting) return;
     _handOff(_showTheRehearsal(held, asked, _generation));
-    if (!held.unsent && state.sceneLine == SceneLine.notSent) {
-      state = state.copyWith(sceneLine: SceneLine.alreadySent);
-    }
   }
 
   void openTheListedSceneRehearsal(String rehearsalId) =>
@@ -5259,7 +5256,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _decideAt(
           failure,
           door: Door.sceneRehearsal,
-          rule: RefusalRule.readsTheListAgain,
+          rule: RefusalRule.sendsTheScene,
         );
       },
     );

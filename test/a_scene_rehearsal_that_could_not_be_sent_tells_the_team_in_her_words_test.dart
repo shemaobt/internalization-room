@@ -25,6 +25,7 @@ const _listen =
     'vocês.';
 
 final _redMicrophone = byLabel('ensaio da cena');
+final _wentToTheVoice = byLabel(_listen);
 final _terminei = byLabel('terminei');
 final _theWayBack = byLabel('Voltar para a passagem atual');
 
@@ -144,6 +145,105 @@ void main() {
     },
   );
 
+  for (final (what, code) in [
+    ('a 422', RefusalCode.unnamed(422)),
+    ('a 404', RefusalCode.notFound),
+  ]) {
+    testWidgets(
+      'a «terminei» again refused with $what keeps «não deu para enviar agora — '
+      'tentem de novo» and leaves the sign waiting',
+      (tester) async {
+        final (harness, container) = await _theRehearsalOnScreen(tester);
+        harness.room.failHeldTurnWith = const NetworkFailed('a rede caiu');
+        await _termineiAndTheLook(tester, harness, container);
+        harness.room.sendRefusalsFirst.add(code);
+
+        await tester.tap(_terminei);
+        await pumpUntil(tester, () => harness.room.scenesSent.length == 2);
+        await pumpUntil(tester, () => _says(_notSent).evaluate().isNotEmpty);
+        await tester.pump(const Duration(seconds: 1));
+
+        expect(_says(_notSent), findsWidgets);
+        expect(_enabled(tester, _terminei), isTrue);
+
+        await _backToTheSession(tester, container);
+
+        expect(_state(container).needsPerson, isTrue);
+        closeTheRoom(container);
+      },
+    );
+  }
+
+  testWidgets(
+    'a «terminei» that lands after «não deu para enviar agora» forgets the '
+    'waiting sign',
+    (tester) async {
+      final (harness, container) = await _theRehearsalOnScreen(tester);
+      harness.room.failHeldTurnWith = const NetworkFailed('a rede caiu');
+      final repliesBefore = _repliesPlayed(harness);
+      await _termineiAndTheLook(tester, harness, container);
+
+      await tester.tap(_terminei);
+      await pumpUntil(tester, () => _repliesPlayed(harness) > repliesBefore);
+      await pumpUntil(
+        tester,
+        () =>
+            _state(container).stage == SalaStage.conversa &&
+            _state(container).voice == VoiceState.invite,
+      );
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(_state(container).stage, SalaStage.conversa);
+      expect(_state(container).needsPerson, isFalse);
+    },
+  );
+
+  testWidgets(
+    'a «terminei» again whose answer is lost but found by the look forgets the '
+    'waiting sign',
+    (tester) async {
+      final (harness, container) = await _theRehearsalOnScreen(tester);
+      harness.room.failHeldTurnWith = const NetworkFailed('a rede caiu');
+      final repliesBefore = _repliesPlayed(harness);
+      await _termineiAndTheLook(tester, harness, container);
+      harness.room
+        ..turnsLandBeforeTheyFail = true
+        ..failHeldTurnWith = const NetworkFailed('a rede caiu');
+
+      await tester.tap(_terminei);
+      await pumpUntil(tester, () => _repliesPlayed(harness) > repliesBefore);
+      await pumpUntil(
+        tester,
+        () =>
+            _state(container).stage == SalaStage.conversa &&
+            _state(container).voice == VoiceState.invite,
+      );
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(_state(container).stage, SalaStage.conversa);
+      expect(_state(container).needsPerson, isFalse);
+    },
+  );
+
+  testWidgets(
+    'a scene rehearsal listed as sent while the sign waits is never sent again',
+    (tester) async {
+      final (harness, container) = await _theRehearsalOnScreen(tester);
+      harness.room
+        ..failHeldTurnWith = const NetworkFailed('a rede caiu')
+        ..sceneRehearsals[0] = _listedSent;
+      await _termineiAndTheLook(tester, harness, container);
+
+      await _backToTheSession(tester, container);
+      container.read(salaSessionProvider.notifier).teamTapped();
+      await pumpUntil(tester, () => !_state(container).needsPerson);
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(harness.room.scenesSent, hasLength(1));
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets(
     'a scene rehearsal whose send drops but arrived says «a tradução deste ensaio '
     'da cena já foi para a voz» and is not sent again',
@@ -157,7 +257,8 @@ void main() {
       await _termineiAndTheLook(tester, harness, container);
 
       expect(_state(container).stage, SalaStage.cena);
-      expect(byLabel('$_listen — $_alreadySent'), findsOneWidget);
+      expect(_wentToTheVoice, findsOneWidget);
+      expect(_says(_alreadySent), findsNothing);
       expect(_terminei, findsNothing);
       expect(harness.room.scenesSent, hasLength(1));
       expect(_repliesPlayed(harness), repliesBefore);
@@ -214,13 +315,11 @@ void main() {
         harness.room.answersTurnsWithoutAReply = true;
 
         await tester.tap(_terminei);
-        await pumpUntil(
-          tester,
-          () => byLabel('$_listen — $_alreadySent').evaluate().isNotEmpty,
-        );
+        await pumpUntil(tester, () => _wentToTheVoice.evaluate().isNotEmpty);
 
         expect(_state(container).stage, SalaStage.cena);
-        expect(byLabel('$_listen — $_alreadySent'), findsOneWidget);
+        expect(_wentToTheVoice, findsOneWidget);
+        expect(_says(_alreadySent), findsNothing);
         expect(_state(container).needsPerson, isFalse);
 
         await _backToTheSession(tester, container);
@@ -289,12 +388,10 @@ void main() {
         ..sceneRehearsals[0] = _listedSent;
 
       await tester.tap(_terminei);
-      await pumpUntil(
-        tester,
-        () => byLabel('$_listen — $_alreadySent').evaluate().isNotEmpty,
-      );
+      await pumpUntil(tester, () => _wentToTheVoice.evaluate().isNotEmpty);
 
-      expect(byLabel('$_listen — $_alreadySent'), findsOneWidget);
+      expect(_wentToTheVoice, findsOneWidget);
+      expect(_says(_alreadySent), findsNothing);
       expect(harness.room.scenesSent, hasLength(1));
     });
 
@@ -308,12 +405,10 @@ void main() {
         ..sceneRehearsals[0] = _listedSent;
 
       await tester.tap(_terminei);
-      await pumpUntil(
-        tester,
-        () => byLabel('$_listen — $_alreadySent').evaluate().isNotEmpty,
-      );
+      await pumpUntil(tester, () => _wentToTheVoice.evaluate().isNotEmpty);
 
-      expect(byLabel('$_listen — $_alreadySent'), findsOneWidget);
+      expect(_wentToTheVoice, findsOneWidget);
+      expect(_says(_alreadySent), findsNothing);
       expect(harness.room.scenesSent, hasLength(2));
     });
 
@@ -339,6 +434,7 @@ void main() {
       busyCeiling: const Duration(milliseconds: 300),
     );
     harness.room.holdNextTurn();
+    final repliesBefore = _repliesPlayed(harness);
 
     await _termineiAndTheLook(tester, harness, container);
 
@@ -347,6 +443,9 @@ void main() {
     expect(_enabled(tester, _terminei), isTrue);
 
     harness.room.finishHeldTurn();
-    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(_repliesPlayed(harness), repliesBefore);
+    expect(_says(_notSent), findsWidgets);
   });
 }

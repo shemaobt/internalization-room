@@ -2100,6 +2100,9 @@ class FakeRoom implements RoomRepository {
   }) async {
     if (_guard('sendTheSceneRehearsal') case final failure?) return failure;
     scenesSent.add((rehearsalId: rehearsalId, turnId: turnId, closes: closes));
+    if (_stored[(sessionId, turnId)] case final answered?) {
+      return Answered(answered);
+    }
     if (sendRefusalsFirst.isNotEmpty) {
       return Refused(sendRefusalsFirst.removeAt(0));
     }

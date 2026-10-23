@@ -166,7 +166,7 @@ void main() {
         _at(
           const SceneRehearsal(),
           door: Door.sceneRehearsal,
-          rule: RefusalRule.readsTheListAgain,
+          rule: RefusalRule.sendsTheScene,
         ),
       );
       final (machine, effects) = reduce(
@@ -178,6 +178,32 @@ void main() {
       expect(effects, contains(const ReadTheSceneRehearsals()));
       expect(machine.halt, const NoHalt());
     });
+
+    test(
+      'a «terminei» again refused for another reason while the sign waits '
+      'tells the scene screen the send failed and keeps the sign waiting',
+      () {
+        final event = FailurePolicy.decide(
+          const RoomRefused(RefusalCode.notFound),
+          _at(
+            const SceneRehearsal(),
+            door: Door.sceneRehearsal,
+            rule: RefusalRule.sendsTheScene,
+          ),
+        );
+        final (machine, effects) = reduce(
+          const Machine(
+            station: SceneRehearsal(),
+            aHaltWaitsForTheCanvas: true,
+          ),
+          event,
+        );
+
+        expect(effects, contains(const TellTheSendFailed()));
+        expect(effects, contains(const ReadTheSceneRehearsals()));
+        expect(machine.aHaltWaitsForTheCanvas, isTrue);
+      },
+    );
 
     test('on the scene rehearsal the machine tells the screen the send failed, '
         'reads the list again and raises no halt', () {

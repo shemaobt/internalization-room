@@ -87,5 +87,7 @@ rehearsal again under the same turn id; when the list reads it as sent, the scre
 tradução deste ensaio da cena já foi para a voz» and nothing is sent again; so does a
 «terminei», first or again, the room refuses as already sent. A reply the look
 finds plays as one that arrived on time, and the screen closes as after any «terminei». A
-«terminei» that lands forgets the waiting sign. Nothing is resent by itself: a row read as
-sent while a person is called is no longer sent again.
+«terminei» again that fails in any other way, dropped or refused, leaves the screen with its
+sentence and the sign waiting, as the first failure did; only a «terminei» that lands, or
+whose reply the look finds, forgets the waiting sign. Nothing is resent by itself: a row
+read as sent while a person is called is no longer sent again.
