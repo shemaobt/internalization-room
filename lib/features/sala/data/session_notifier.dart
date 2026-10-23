@@ -6221,7 +6221,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void abrirAChecagemExterna() => _gesture(() {
     final sessionId = state.sessionId;
     if (sessionId == null || state.approvedDraftDrawn == null) return;
-    if (state.microphoneOpen) return;
+    if (state.microphoneOpen || !state.aBackTranslationGestureActs) return;
     _handOff(_abrirAChecagemExterna(sessionId));
   });
 

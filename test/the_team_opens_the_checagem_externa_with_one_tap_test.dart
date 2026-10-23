@@ -12,6 +12,9 @@ import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
     show aprovadaNaConferida;
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
+import 'the_back_translation_is_told_by_beads_test.dart' show tocar;
+import 'the_team_re_records_one_whole_sentence_test.dart'
+    show quatroFrasesEmWav;
 
 const _checagem = 'Checagem externa';
 const _subIdle =
@@ -111,6 +114,7 @@ void main() {
 
     await _tocar(tester, _checagem);
 
+    expect(harness.room.askedOfTheForgotten.first, 'openTheExternalCheck');
     expect(_sala(container).stage, SalaStage.escolha);
     closeTheRoom(container);
   });
@@ -133,6 +137,46 @@ void main() {
 
     expect(find.text(_subIdle), findsOneWidget);
     expect(harness.room.externalChecksOpened, [sessionId, sessionId]);
+    closeTheRoom(container);
+  });
+
+  testWidgets('on the station, «Ouvir de novo» is not offered', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaConferida(tester, harness);
+
+    await _tocar(tester, _checagem);
+
+    expect(find.text(_subIdle), findsOneWidget);
+    expect(byLabel('Ouvir de novo'), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while an approval is in the air, «Checagem externa» opens '
+      'nothing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    harness.room.verdictChecked = true;
+    await tocar(tester, 'terminei');
+    await waitFor(
+      'a sala conferir',
+      () => byLabel('Aprovar como rascunho final').evaluate().isNotEmpty,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    harness.room.approvedDraft = const ApprovedDraft(version: 1);
+    harness.voice.holdNextLine();
+    await tocar(tester, 'Aprovar como rascunho final');
+    await waitFor(
+      'a aprovação ser lida',
+      () => _sala(container).approvedDraftDrawn != null,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+
+    container.read(salaSessionProvider.notifier).abrirAChecagemExterna();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(harness.room.externalChecksOpened, isEmpty);
+    harness.voice.finishHeldLine();
+    await tester.pump(const Duration(milliseconds: 300));
     closeTheRoom(container);
   });
 

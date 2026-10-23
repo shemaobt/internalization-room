@@ -24,7 +24,8 @@ final class ChecagemExterna extends Station {
     TheChoiceOpened() => const Menu(),
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),
-    TheBackTranslationOpened() || TheBackTranslationResumed() => const Retro(),
+    TheBackTranslationOpened() ||
+    TheBackTranslationResumed() ||
     TheExternalCheckLeft() => const Retro(),
     TheExternalCheckOpened() ||
     TheSceneRehearsalOpened() ||
