@@ -137,6 +137,9 @@ class FakeVoice implements FacilitatorVoiceService {
   /// does not sound. Distinct from [refuses]: that is the player failing with the file
   /// already in hand.
   RoomFailure? roomFailsWith;
+
+  /// What the next readying of a line throws, the way a defect in getting it ready does.
+  Object? readyThrows;
   Completer<bool>? _holding;
   Completer<bool>? _saying;
 
@@ -205,6 +208,10 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<bool> fetch(String url) async {
     fetched.add(url);
     await _fetching?.future;
+    if (readyThrows case final thrown?) {
+      readyThrows = null;
+      throw thrown;
+    }
     return succeeds;
   }
 
@@ -956,19 +963,31 @@ class FakeInbox implements HandInboxRepository {
   @override
   Stream<String?> get revoked => _revocations.stream;
 
-  Completer<void>? _holdingQuestion;
+  /// Each held question waits on its own hold, in the order the holds were asked for.
+  final List<Completer<void>> _holdingQuestions = [];
+  final List<Completer<void>> _holdsNotYetTaken = [];
 
-  void holdNextQuestion() => _holdingQuestion = Completer<void>();
+  /// What sending a question throws that is neither the room's answer nor the file.
+  Object? knotThrows;
+
+  void holdNextQuestion() {
+    final hold = Completer<void>();
+    _holdingQuestions.add(hold);
+    _holdsNotYetTaken.add(hold);
+  }
 
   void finishHeldQuestion() {
-    _holdingQuestion?.complete();
-    _holdingQuestion = null;
+    for (final held in _holdingQuestions) {
+      if (!held.isCompleted) return held.complete();
+    }
   }
 
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
-    final held = _holdingQuestion;
-    if (held != null) await held.future;
+    if (_holdsNotYetTaken.isNotEmpty) {
+      await _holdsNotYetTaken.removeAt(0).future;
+    }
+    if (knotThrows case final thrown?) throw thrown;
     if (cannotReadTheKnot) {
       throw FileSystemException('sem arquivo', audio.path);
     }
@@ -1030,6 +1049,7 @@ class FakeRoom implements RoomRepository {
   int _turnCount = 0;
 
   final List<String> calls = [];
+  final Map<String, Object> throwOn = {};
   final List<String?> pericopesAsked = [];
   final List<String> languagesSent = [];
   final List<String?> clientTimingsSent = [];
@@ -1490,6 +1510,7 @@ class FakeRoom implements RoomRepository {
   RoomFailure? _guard(String call) {
     calls.add(call);
     presentedOnEachCall.add(presented);
+    if (throwOn[call] case final thrown?) throw thrown;
     final failure = failWith;
     if (failure is SessionGone && _sessionless.contains(call)) {
       return const Refused(RefusalCode.notFound);

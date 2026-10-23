@@ -33,6 +33,8 @@ Future<ProviderContainer> _inConversa(
 
 const _redMicrophone = 'ensaio da cena';
 
+const _orangeDot = 'Gravar o ensaio de vocês';
+
 double _opacityOf(WidgetTester tester, Finder control) => tester
     .widgetList<AnimatedOpacity>(
       find.ancestor(of: control, matching: find.byType(AnimatedOpacity)),
@@ -50,6 +52,24 @@ Finder get _controlsOffered => find
       of: find.byType(ConversaView),
       matching: find.byWidgetPredicate(
         (widget) => widget is GestureDetector && widget.onTap != null,
+      ),
+    )
+    .hitTestable();
+
+Finder get _controlsBesideTheDot => find
+    .descendant(
+      of: find.byType(ConversaView),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is GestureDetector &&
+            widget.onTap != null &&
+            find
+                .ancestor(
+                  of: find.byWidget(widget),
+                  matching: byLabel(_orangeDot),
+                )
+                .evaluate()
+                .isEmpty,
       ),
     )
     .hitTestable();
@@ -114,22 +134,31 @@ void main() {
   );
 
   testWidgets(
-    'before the send-off no touch on the conversation reaches the recording of the whole passage',
+    'before the send-off only the faint orange dot leaves the conversation for the Ensaio Final',
     (tester) async {
-      await _inConversa(tester, _lastSceneBeforeTheSendOff);
-      final offered = _controlsOffered.evaluate().length;
+      final container = await _inConversa(tester, _lastSceneBeforeTheSendOff);
+      final others = _controlsOffered.evaluate().length - 1;
       expect(
-        offered,
-        greaterThan(1),
+        others,
+        greaterThan(0),
         reason: 'sem os controles da conversa este caso não toca em nada',
       );
 
-      for (var control = 0; control < offered; control++) {
+      await tester.tap(byLabel(_orangeDot));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        container.read(salaSessionProvider).stage,
+        SalaStage.ensaio,
+        reason: 'o ponto laranja apagado não abria o Ensaio Final',
+      );
+
+      for (var control = 0; control < others; control++) {
         await tester.pumpWidget(const SizedBox.shrink());
         final container = await _inConversa(tester, _lastSceneBeforeTheSendOff);
         expect(container.read(salaSessionProvider).endOfThePassage, isFalse);
 
-        await tester.tap(_controlsOffered.at(control));
+        await tester.tap(_controlsBesideTheDot.at(control));
         await tester.pump(const Duration(milliseconds: 300));
 
         expect(

@@ -54,6 +54,7 @@ class RaisedHand {
   Future<void>? _inboxRead;
 
   final _failures = <(String, String), int>{};
+  var _notesSent = 0;
 
   SalaSessionState get _state => host.state;
 
@@ -312,11 +313,26 @@ class RaisedHand {
 
   void _sendQuestion() {
     if (!_state.noteMode) return;
-    host.state = _state.copyWith(noteMode: false);
-    host.handOff(_deliverQuestion(host.listenedFor));
+    final note = ++_notesSent;
+    host.state = _state.copyWith(noteMode: false, noteOnItsWay: note);
+    host.handOff(_deliverQuestion(note, host.thisLife, host.listenedFor));
   }
 
-  Future<void> _deliverQuestion(Duration listenedFor) async {
+  Future<void> _deliverQuestion(
+    int note,
+    int? life,
+    Duration listenedFor,
+  ) async {
+    try {
+      await _deliver(listenedFor);
+    } finally {
+      if (!host.endedSince(life) && _state.noteOnItsWay == note) {
+        host.state = _state.copyWith(clearNoteOnItsWay: true);
+      }
+    }
+  }
+
+  Future<void> _deliver(Duration listenedFor) async {
     final generation = host.waitOnTheGeneration;
     final path = (await host.closeTheMicrophone()).take;
     if (host.abandoned(generation)) return;
