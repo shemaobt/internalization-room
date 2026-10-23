@@ -34,6 +34,8 @@ const _cannotEnter = 'este ensaio não pode entrar — ensaiem esta cena de novo
 const _partial = 'tradução incompleta';
 const _swap = 'trocar o ensaio desta cena';
 const _join = 'juntar as cenas e ouvir';
+const _how = 'Como vocês querem gravar?';
+const _sceneByScenePick = 'Cena por cena';
 const _elsewhere =
     'Os ensaios desta passagem foram gravados com o aplicativo na outra '
     'língua. Voltem para aquela língua para abrir o Ensaio Final.';
@@ -387,6 +389,35 @@ void main() {
       },
     );
 
+    testWidgets(
+      'a play whose clip the disk cannot keep hears nothing, calls nobody, and '
+      'leaves the next tap to play it',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final (harness, container) = await _seeded(tester, _oneEach);
+        await _openThePlan(tester);
+        final sessionId = harness.room.sceneRehearsals.first.sessionId;
+        final before = harness.playback.played.length;
+        final persons = harness.room.personsAsked;
+        harness.recorder.keepBytesFails = true;
+
+        await tester.tap(_playOn(1));
+        await _theAnswerSettles(tester);
+
+        expect(harness.playback.played.length, before);
+        expect(container.read(salaSessionProvider).needsPerson, isFalse);
+        expect(harness.room.personsAsked, persons);
+        expect(find.text(_planLine), findsOneWidget);
+
+        harness.recorder.keepBytesFails = false;
+        await tester.tap(_playOn(1));
+        await _theAnswerSettles(tester);
+
+        expect(harness.playback.played.last, contains('$sessionId-ensaio-1'));
+        semantics.dispose();
+      },
+    );
+
     testWidgets('one row, another, then the first again, all slow, plays the '
         'first once', (tester) async {
       final semantics = tester.ensureSemantics();
@@ -726,7 +757,8 @@ void main() {
   });
 
   group('9. rehearsals recorded in the other language', () {
-    testWidgets('open the recording home under her line', (tester) async {
+    testWidgets('open the grain choice under her line, and «Cena por cena» the '
+        'recording home under it', (tester) async {
       final (_, container) = await _seeded(
         tester,
         (_) => [_rehearsal('outra-sessao', n: 1, scene: 'S1')],
@@ -734,9 +766,16 @@ void main() {
 
       await _openThePlan(tester);
 
-      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_how), findsOneWidget);
       expect(find.text(_elsewhere), findsOneWidget);
       expect(find.text(_planLine), findsNothing);
+      expect(find.text(_homeLine), findsNothing);
+
+      await tester.tap(find.text(_sceneByScenePick));
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_elsewhere), findsOneWidget);
 
       final notifier = container.read(salaSessionProvider.notifier);
       notifier.gravarACena(1);
@@ -783,7 +822,7 @@ void main() {
   });
 
   group('11. a rehearsals read over a plan with rows', () {
-    testWidgets('that runs out at 6 s opens the recording home, with no sign', (
+    testWidgets('that runs out at 6 s opens the grain choice, with no sign', (
       tester,
     ) async {
       final (harness, _) = await _seeded(tester, _oneEach);
@@ -794,22 +833,22 @@ void main() {
       await tester.pump(const Duration(milliseconds: 5800));
 
       expect(find.text(_thinking), findsOneWidget);
-      expect(find.text(_homeLine), findsNothing);
+      expect(find.text(_how), findsNothing);
 
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_how), findsOneWidget);
 
       harness.room.finishHeldSceneList();
       await _theAnswerSettles(tester);
 
-      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_how), findsOneWidget);
       expect(find.text(_facts(1, '0:07', 2)), findsNothing);
       expect(byLabel(_personSign), findsNothing);
     });
 
-    testWidgets('that fails opens the recording home, with no sign', (
+    testWidgets('that fails opens the grain choice, with no sign', (
       tester,
     ) async {
       final (harness, _) = await _seeded(tester, _oneEach);
@@ -817,7 +856,7 @@ void main() {
 
       await _openThePlan(tester);
 
-      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_how), findsOneWidget);
       expect(find.text(_facts(1, '0:07', 2)), findsNothing);
       expect(byLabel(_personSign), findsNothing);
     });
@@ -859,6 +898,7 @@ void main() {
       'Escolher outra passagem',
       _planLine,
       _sceneByScene,
+      'gravar a passagem inteira de uma vez',
       _missing,
       _cannotEnter,
       _partial,

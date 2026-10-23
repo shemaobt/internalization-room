@@ -24,6 +24,7 @@ const _rotulosDeTraduzir = {
   'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase acaba, e de novo para traduzir só aquela frase.',
   'Toque para traduzir esta frase do ensaio da cena',
   'recomeçar a tradução',
+  'Quem não ajudou a traduzir ouve a passagem e diz o que entendeu.',
   'toque de novo para apagar as {n} frases traduzidas',
   'tradução recomeçada — o ensaio da passagem ficou',
   'tradução recomeçada — o ensaio da cena ficou',
@@ -43,7 +44,10 @@ const _rotulosDeTraduzir = {
   'enviando a tradução do ensaio da cena para a voz…',
   'a tradução do ensaio da cena foi para a voz',
   'Traduzir a gravação',
+  'trazer de volta as traduções do ensaio desta cena',
+  'toquem de novo: as traduções do ensaio voltam; as que vocês fizeram aqui para esta cena ficam guardadas',
   'tradução incompleta',
+  'toquem de novo: as cenas e as traduções ficam guardadas',
   'Toquem no círculo para pausar onde a frase acaba; toquem de novo para traduzir só o que aquela frase diz, e de novo para a gravação seguir.',
   'Toquem numa frase para ouvir e traduzir de novo; voltem para regravar uma parte; ou toquem em terminei para conferir de novo.',
 };

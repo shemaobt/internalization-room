@@ -274,10 +274,29 @@ void main() {
     );
   });
 
+  test('the Rehearsal weighed with a part still on its way does not open the '
+      'Back-translation', () {
+    final (weighed, _) = reduce(
+      _at(const Ensaio()),
+      const TheRehearsalWeighed(
+        everySceneHasItsPart: true,
+        everyPartIsHere: false,
+      ),
+    );
+
+    expect(
+      reduce(weighed, const TheBackTranslationOpened()).$1.station,
+      isA<Ensaio>(),
+    );
+  });
+
   test('the Rehearsal weighed keeps its Station and its generation', () {
     final (weighed, effects) = reduce(
       _at(const Ensaio()),
-      const TheRehearsalWeighed(everySceneHasItsPart: true),
+      const TheRehearsalWeighed(
+        everySceneHasItsPart: true,
+        everyPartIsHere: true,
+      ),
     );
 
     expect(weighed.generation, _generation);
@@ -308,10 +327,64 @@ void main() {
       Ensaio(),
       Retro(),
       Fim(),
+      ChecagemExterna(1),
     ]) {
       _expectItStays(station, const TheSceneRehearsalOpened(), equals(station));
     }
   });
+
+  test(
+    'the Back-translation answers the external check opened with the Checagem '
+    'externa of that version',
+    () {
+      _expectTheArrival(
+        const Retro(),
+        const TheExternalCheckOpened(3),
+        equals(const ChecagemExterna(3)),
+      );
+    },
+  );
+
+  test(
+    'the Checagem externa answers the way back with the Back-translation',
+    () {
+      _expectTheArrival(
+        const ChecagemExterna(3),
+        const TheExternalCheckLeft(),
+        isA<Retro>(),
+      );
+    },
+  );
+
+  test('every other Station ignores the external check opened', () {
+    for (final station in const <Station>[
+      Menu(),
+      Panorama('OV-Ruth'),
+      Canvas(),
+      Ensaio(),
+      Fim(),
+      SceneRehearsal(),
+    ]) {
+      _expectItStays(station, const TheExternalCheckOpened(3), equals(station));
+    }
+  });
+
+  test(
+    'every Station but the Checagem externa ignores the external check left',
+    () {
+      for (final station in const <Station>[
+        Menu(),
+        Panorama('OV-Ruth'),
+        Canvas(),
+        Ensaio(),
+        Retro(),
+        Fim(),
+        SceneRehearsal(),
+      ]) {
+        _expectItStays(station, const TheExternalCheckLeft(), equals(station));
+      }
+    },
+  );
 
   test(
     'the Scene rehearsal shows a list of its rehearsals the room answered',
@@ -447,6 +520,7 @@ void main() {
       Ensaio(),
       Retro(),
       Fim(),
+      ChecagemExterna(1),
     ];
     for (final station in everyStation) {
       expect(

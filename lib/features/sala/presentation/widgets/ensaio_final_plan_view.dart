@@ -10,6 +10,7 @@ import '../../domain/scene_question.dart';
 import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
+import 'grain_choice_view.dart';
 import 'rehearsal_sheet.dart';
 import 'scene_question.dart';
 import 'stage_heading.dart';
@@ -28,6 +29,9 @@ class EnsaioFinalPlanView extends ConsumerWidget {
     final colors = SalaColors.of(context);
 
     final (read, sessionId) = (session.ensaioFinalPlan, session.sessionId);
+    if (read case GrainAsked(:final elsewhere)) {
+      return GrainChoiceView(elsewhere: elsewhere);
+    }
     if (read is! PlanRead || sessionId == null) {
       return Center(
         child: Semantics(
@@ -41,7 +45,7 @@ class EnsaioFinalPlanView extends ConsumerWidget {
     }
     final rows = planRowsOf(read, sessionId, session.planChoices);
     final joining = session.joining;
-    final idle = joining == null;
+    final idle = !session.planBusy;
     final sheet = rows
         .where((row) => row.scene.sceneId == session.planSheet)
         .firstOrNull;
@@ -135,7 +139,7 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                 const SizedBox(height: 24),
                 RoundActionButton(
                   size: 78,
-                  mood: idle && canJoin(rows) && !session.planBusy
+                  mood: idle && canJoin(rows)
                       ? ButtonMood.beckoning
                       : ButtonMood.dimmed,
                   gradient: BeadStyles.wood,
@@ -153,8 +157,9 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: 24),
+              wholeAtOnce(session, language, notifier.recordTheWholePassage),
               TextButton(
-                onPressed: idle && !session.planBusy
+                onPressed: idle && !session.grainSwitching
                     ? notifier.recordSceneByScene
                     : null,
                 child: Text(

@@ -221,8 +221,8 @@ class _Room {
   bool showsTheSheet() =>
       byLabel(english ? 'Back to recording' : _back).evaluate().isNotEmpty;
 
-  /// Rehearsals S1a, S2a, S2b and S3a listed and held, and the plan's join landed on the
-  /// recording home.
+  /// Rehearsals S1a, S2a, S2b and S3a listed and held, the plan's join ended, and the
+  /// team back on the recording home from the Back-translation it opens.
   Future<void> joined({
     Iterable<int> listed = const [s1a, s2a, s3a, s2b],
     Iterable<int>? onTheTablet,
@@ -235,7 +235,21 @@ class _Room {
     await tester.pump();
     await tester.tap(join);
     await beat();
-    await until('a junta terminar na casa', showsTheHome);
+    await joinEnds();
+  }
+
+  /// The join's end, and the team back on the recording home from the Back-translation
+  /// it opens when every scene has its part.
+  Future<void> joinEnds() async {
+    await until('a junta terminar', () {
+      final estado = container.read(salaSessionProvider);
+      return estado.joining == null &&
+          (estado.stage == SalaStage.retro || showsTheHome());
+    });
+    if (container.read(salaSessionProvider).stage == SalaStage.retro) {
+      container.read(salaSessionProvider.notifier).goEnsaio();
+    }
+    await until('a casa voltar', showsTheHome);
     await settle();
   }
 
@@ -821,6 +835,24 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('the whole passage\'s home offers no scene\'s rehearsal', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    it.list(const [s1a, s2a, s3a]);
+    await it.held(const [s1a, s2a, s3a]);
+    await it.openThePlan();
+    await it.tapThe(find.text('gravar a passagem inteira de uma vez'));
+    await it.until('a casa da passagem inteira abrir', it.showsTheHome);
+    await it.settle();
+
+    expect(find.text('A passagem inteira'), findsOneWidget);
+    expect(find.text(_useScene), findsNothing);
+    expect(find.text(_swap), findsNothing);
+    semantics.dispose();
+  });
+
   testWidgets(
     'a swap whose rehearsal cannot enter says so and changes nothing',
     (tester) async {
@@ -832,8 +864,7 @@ void main() {
       it.room.rehearsalsGone.add(it.idOf(s2b));
       await it.openThePlan();
       await it.tapThe(byLabel(_join));
-      await it.until('a junta terminar na casa', it.showsTheHome);
-      await it.settle();
+      await it.joinEnds();
       final before = it.received(2).length;
 
       await it.openTheSheet(2, _swap);

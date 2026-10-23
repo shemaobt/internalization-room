@@ -15,6 +15,7 @@ import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
@@ -1366,7 +1367,7 @@ void main() {
           },
         ],
       });
-      expect(naoOuvidas, ['t2']);
+      expect(naoOuvidas.unheardTakeIds, ['t2']);
     },
   );
 
@@ -1395,9 +1396,46 @@ void main() {
         ),
       );
 
-      expect(naoOuvidas, isNull);
+      expect(naoOuvidas.unheardTakeIds, isNull);
     },
   );
+
+  test('the listen door\'s whole answer is read', () async {
+    final repository = RoomRepository(
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'session_id': 's1',
+            'unheard_take_ids': <String>[],
+            'automatic_check': true,
+            'fixed_line': 'N2',
+            'refusal': 'STRETCH_UNTRANSLATED',
+            'untranslated': [
+              {'take_id': 't2', 'scene': 2, 'from_ms': 4000},
+            ],
+          }),
+          200,
+        ),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    final ouvida = _value(
+      await repository.reportTheListening('s1', playedByTake: const []),
+    );
+
+    expect(ouvida.unheardTakeIds, isEmpty);
+    expect(ouvida.automaticCheck, isTrue);
+    expect(ouvida.fixedLine, 'N2');
+    expect(ouvida.stretchUntranslated, isTrue);
+    expect(
+      [
+        for (final parte in ouvida.untranslated)
+          (parte.takeId, parte.scene, parte.from),
+      ],
+      [('t2', 2, const Duration(milliseconds: 4000))],
+    );
+  });
 
   test(
     'a verdict heard to its end is reported with the round\'s stamp exactly as the room gave it',
@@ -1682,6 +1720,7 @@ void main() {
           turnId: 'turno-1',
         ),
         'takesOf': (room) => room.takesOf('sessao-1'),
+        'takesListingOf': (room) => room.takesListingOf('sessao-1'),
         'sceneRehearsalsOf': (room) => room.sceneRehearsalsOf('sessao-1'),
         'keepSceneRehearsal': (room) async =>
             room.keepSceneRehearsal('sessao-1', await _tempRecording()),
@@ -2993,6 +3032,144 @@ void main() {
       expect(body, isNot(contains('name="interrupted')));
     });
   });
+
+  group('the grain door', () {
+    late List<http.Request> seen;
+    late RoomRepository repository;
+
+    setUp(() {
+      seen = [];
+      repository = RoomRepository(
+        client: MockClient((request) async {
+          seen.add(request);
+          return http.Response(
+            jsonEncode({
+              'grain': 'whole',
+              'takes': [
+                {
+                  'take_id': 'gravacao-1',
+                  'kind': 'ensaio',
+                  'scope': 'parte-1',
+                  'ordinal': 1,
+                  'set_aside_at': '2026-10-23T10:00:00+00:00',
+                },
+                {
+                  'take_id': 'gravacao-2',
+                  'kind': 'ensaio',
+                  'scope': 'passagem-inteira',
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+      addTearDown(repository.dispose);
+    });
+
+    test(
+      'a switch posts the grain as JSON to the session\'s grain door',
+      () async {
+        await repository.switchTheGrain('S', Grain.whole);
+
+        expect(seen.single.method, 'POST');
+        expect(
+          seen.single.url.path,
+          '/api/internalization-room/sessions/S/grain',
+        );
+        expect(
+          seen.single.headers['content-type'],
+          contains('application/json'),
+        );
+        expect(jsonDecode(seen.single.body), {'grain': 'whole'});
+      },
+    );
+
+    test('a switch that re-opens the approved draft says so', () async {
+      await repository.switchTheGrain(
+        'S',
+        Grain.scene,
+        reopensTheApprovedDraft: true,
+      );
+
+      expect(jsonDecode(seen.single.body), {
+        'grain': 'scene',
+        'reopens_the_approved_draft': true,
+      });
+    });
+
+    test(
+      'the door answers the listing with the grain in force and what was set '
+      'aside',
+      () async {
+        final listing = _value(
+          await repository.switchTheGrain('S', Grain.whole),
+        );
+
+        expect(listing.grain, Grain.whole);
+        expect(
+          [for (final take in listing.takes) take.setAside],
+          [true, false],
+        );
+      },
+    );
+
+    test(
+      'the takes listing reads the grain in force and what was set aside',
+      () async {
+        final listing = _value(await repository.takesListingOf('S'));
+
+        expect(
+          seen.single.url.path,
+          '/api/internalization-room/sessions/S/takes',
+        );
+        expect(listing.grain, Grain.whole);
+        expect(
+          [for (final take in listing.takes) take.setAside],
+          [true, false],
+        );
+      },
+    );
+  });
+
+  test('a room without the grain door answers its 404 as a refusal, never as a '
+      'session gone', () async {
+    final repository = RoomRepository(
+      client: MockClient(
+        (_) async => http.Response('{"detail": "Not Found"}', 404),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    final answer = await repository.switchTheGrain('S', Grain.whole);
+
+    expect(answer, _refusedWith('NOT_FOUND'));
+  });
+
+  test(
+    'a listing from a room that never sets aside reads no grain and nothing set '
+    'aside',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'takes': [
+                {'take_id': 'gravacao-1', 'kind': 'ensaio', 'scope': 'parte-1'},
+              ],
+            }),
+            200,
+          ),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final listing = _value(await repository.takesListingOf('S'));
+
+      expect(listing.grain, isNull);
+      expect(listing.takes.single.setAside, isFalse);
+    },
+  );
 }
 
 Future<File> _tempRecording({

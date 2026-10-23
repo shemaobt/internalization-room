@@ -33,6 +33,14 @@ final class PlanAwaited extends EnsaioFinalPlan {
   const PlanAwaited();
 }
 
+/// The plan cannot stand and no grain is in force: «Como vocês querem gravar?», under her
+/// line when the rehearsals sit in the other language's session.
+final class GrainAsked extends EnsaioFinalPlan {
+  final bool elsewhere;
+
+  const GrainAsked({required this.elsewhere});
+}
+
 /// Every session's scene rehearsals of the passage, each naming its own, and its scenes.
 final class PlanRead extends EnsaioFinalPlan {
   final List<SceneRehearsalRecord> rehearsals;
