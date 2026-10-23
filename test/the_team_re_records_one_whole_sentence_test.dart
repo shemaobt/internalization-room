@@ -15,6 +15,7 @@ import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
@@ -1492,4 +1493,142 @@ void main() {
     await tester.pump();
     expect(recontadas, 1);
   });
+
+  Future<ProviderContainer> conferidaComANuanceNaFrase3(
+    WidgetTester tester,
+    SalaHarness harness,
+  ) async {
+    final container = await quatroFrasesEmWav(tester, harness);
+    harness.room
+      ..verdictChecked = true
+      ..verdictNamedNuance = const BtFinding(
+        kind: BtFindingKind.nuance,
+        frase: 3,
+        segmentId: 'trecho-3',
+      );
+    await tocar(tester, 'terminei');
+    await waitFor(
+      'a conferência chegar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    return container;
+  }
+
+  const aprovar = 'Aprovar como rascunho final';
+
+  testWidgets('while an approval is in the air, «regravar a frase 3» is not '
+      'offered and does nothing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await conferidaComANuanceNaFrase3(tester, harness);
+    expect(_naLista('regravar a frase 3'), findsOneWidget);
+    harness.room.approvedDraft = const ApprovedDraft(version: 1);
+    harness.voice.holdNextLine();
+    await tocar(tester, aprovar);
+
+    expect(_naLista('regravar a frase 3'), findsNothing);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.regravarAFrase(
+      container
+          .read(salaSessionProvider)
+          .btTrechos
+          .firstWhere((trecho) => trecho.frase == 3),
+    );
+    await _passo(tester);
+    expect(container.read(salaSessionProvider).btRegravacao, isNull);
+
+    harness.voice.finishHeldLine();
+    await _passo(tester);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while an approval is in the air, a sentence held on the tablet '
+      'is not sent again', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await conferidaComANuanceNaFrase3(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room.sentenceAnswersFirst.add(const NetworkFailed('sem rede'));
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    expect(_naLista(falhou), findsOneWidget);
+
+    harness.room.approvedDraft = const ApprovedDraft(version: 1);
+    harness.voice.holdNextLine();
+    await tocar(tester, aprovar);
+    expect(_naLista(falhou), findsNothing);
+    container.read(salaSessionProvider.notifier).tentarAFraseDeNovo();
+    await _passo(tester);
+
+    expect(harness.room.sentencesSent, hasLength(1));
+    harness.voice.finishHeldLine();
+    await _passo(tester);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence whose review is open leaves the approval off', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await conferidaComANuanceNaFrase3(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    expect(naLinha('usar esta'), findsOneWidget);
+
+    expect(
+      tester
+          .widget<RoundActionButton>(
+            find.ancestor(
+              of: byLabel(aprovar),
+              matching: find.byType(RoundActionButton),
+            ),
+          )
+          .mood,
+      ButtonMood.dimmed,
+    );
+    await container.read(salaSessionProvider.notifier).aprovarRascunhoFinal();
+    await _passo(tester);
+    expect(harness.room.releasesAsked, isEmpty);
+    closeTheRoom(container);
+  });
+
+  for (final (fala, comArquivo) in [
+    ('a recording', true),
+    ('no recording', false),
+  ]) {
+    testWidgets('a re-record closed while its microphone still closes, then '
+        'an approval: the late close with $fala lands nothing and queues '
+        'nothing', (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await conferidaComANuanceNaFrase3(tester, harness);
+      await regravarAte(tester, harness, 3);
+      await _tocarOCirculo(tester);
+      if (comArquivo) {
+        harness.recorder.rehearsalSpeaks = aSpokenWav(
+          length: const Duration(seconds: 2),
+        );
+      }
+      harness.recorder.holdNextStop();
+      await _tocarOCirculo(tester);
+      await tocar(tester, 'regravar a frase 3');
+
+      harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      harness.voice.holdNextLine();
+      await tocar(tester, aprovar);
+      harness.recorder.finishStop();
+      await _passo(tester);
+      await _passo(tester);
+
+      expect(
+        container.read(salaSessionProvider).btRegravacao,
+        isNull,
+        reason: 'o fecho atrasado reabria uma regravação já largada',
+      );
+      expect(guardada(harness), isFalse);
+      harness.voice.finishHeldLine();
+      await _passo(tester);
+      closeTheRoom(container);
+    });
+  }
 }

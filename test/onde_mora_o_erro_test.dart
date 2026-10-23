@@ -685,7 +685,7 @@ void main() {
   });
 
   testWidgets(
-    'a passage that came back clean closes instead of calling anybody',
+    'a passage that came back clean is approved instead of calling anybody',
     (tester) async {
       final container = await pumpToPergunta(tester);
       final harness = harnessDaVez!;
@@ -711,28 +711,27 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       expect(
-        container.read(salaSessionProvider).stage,
-        SalaStage.fim,
+        find.text('Ensaio salvo'),
+        findsOneWidget,
         reason:
-            'e a passagem termina como qualquer outra que ficou limpa — '
-            'parar a sala aqui prenderia a equipe num fecho que já aconteceu',
+            'e a aprovação termina como qualquer outra que ficou limpa — '
+            'parar a sala aqui prenderia a equipe numa aprovação que já '
+            'aconteceu',
       );
       expect(
         container.read(salaSessionProvider).warning,
         isTrue,
         reason:
-            'o aviso é escrito antes do veredito, e um fecho limpo não o '
-            'apaga: quem foi chamado a vir olhar continua a ser esperado',
+            'o aviso é escrito antes do veredito, e uma aprovação limpa não '
+            'o apaga: quem foi chamado a vir olhar continua a ser esperado',
       );
 
-      // The closing runs on its own timers; let them out so the test does not end holding
-      // the room's clock.
       notifier(container).leaveThePassage();
       await tester.pump(const Duration(milliseconds: 200));
     },
   );
 
-  testWidgets('a clean verdict on an ordinary budget closes as it always did', (
+  testWidgets('a clean verdict on an ordinary budget is approved as always', (
     tester,
   ) async {
     final container = await pumpToPergunta(tester);
@@ -750,11 +749,11 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(
-      container.read(salaSessionProvider).stage,
-      SalaStage.fim,
+      find.text('Ensaio salvo'),
+      findsOneWidget,
       reason:
-          'o controle: sem o campo em jogo o fecho é o de sempre, senão '
-          'o caso acima passaria por um fecho que nunca acontece',
+          'o controle: sem o campo em jogo a aprovação é a de sempre, senão '
+          'o caso acima passaria por uma aprovação que nunca acontece',
     );
 
     notifier(container).leaveThePassage();

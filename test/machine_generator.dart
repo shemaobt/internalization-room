@@ -310,8 +310,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheWayBackTaken(:final left) =>
     'TheWayBackTaken(${left.panorama ? 'Panorama' : 'passage'} ${left.pericope}, '
         'session: ${left.session}, said: ${left.said})',
-  TheRehearsalWeighed(:final everySceneHasItsPart) =>
-    'TheRehearsalWeighed($everySceneHasItsPart)',
+  TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsHere) =>
+    'TheRehearsalWeighed($everySceneHasItsPart, $everyPartIsHere)',
 };
 
 String describeLine(Line line) => '${line.kind.name}#${line.id}';
@@ -794,6 +794,7 @@ MachineEvent _draw(
   EventKind.theWayBackTaken => TheWayBackTaken(_drawAnEntryLeft(random)),
   EventKind.theRehearsalWeighed => TheRehearsalWeighed(
     everySceneHasItsPart: random.nextBool(),
+    everyPartIsHere: random.nextBool(),
   ),
 };
 

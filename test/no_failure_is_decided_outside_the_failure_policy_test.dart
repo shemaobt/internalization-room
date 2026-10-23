@@ -36,6 +36,7 @@ const _notYetMoved = <String, String>{
 /// Doors that act on a room result themselves by decision, each with the ADR that keeps it
 /// out of the failure policy.
 const _keptByDecision = <String, String>{
+  '_asPartesDescem': 'ADR 0128',
   '_theCallOfAnEarlierSession': 'ADR 0060',
   '_theSceneGoes': 'ADR 0085',
 };
