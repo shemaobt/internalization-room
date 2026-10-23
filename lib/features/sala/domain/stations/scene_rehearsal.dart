@@ -17,5 +17,6 @@ final class SceneRehearsal extends Station {
     TheBackTranslationOpened() || TheBackTranslationResumed() => const Retro(),
     TheSceneRehearsalLeft() => const Canvas(),
     TheSceneRehearsalOpened() || TheNecklaceClosed() => this,
+    TheExternalCheckOpened() || TheExternalCheckLeft() => this,
   };
 }

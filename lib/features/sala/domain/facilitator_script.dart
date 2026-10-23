@@ -560,6 +560,22 @@ String escolhaLabelFor(String control, String language) =>
     escolhaLabels[control]![language] ??
     escolhaLabels[control]![floorLanguage]!;
 
+const externalCheckLabels = {
+  'title': {'pt': 'Checagem externa', 'en': 'External check'},
+  'subIdle': {
+    'pt': 'Quem não ajudou a traduzir ouve a passagem e diz o que entendeu.',
+    'en':
+        "Those who didn't help translate hear the passage and say what they "
+        'understood.',
+  },
+  'newListener': {'pt': 'Novo ouvinte', 'en': 'New listener'},
+  'back': {'pt': 'Voltar para a gravação', 'en': 'Back to recording'},
+};
+
+String externalCheckLabelFor(String control, String language) =>
+    externalCheckLabels[control]![language] ??
+    externalCheckLabels[control]![floorLanguage]!;
+
 const codigoLabels = {
   'preparing': {
     'pt': 'A sala está preparando o código deste aparelho',

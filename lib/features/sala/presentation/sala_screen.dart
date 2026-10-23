@@ -10,6 +10,7 @@ import '../data/session_notifier.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/session_state.dart';
 import '../dev/dev_skip_bar.dart';
+import 'widgets/checagem_externa_view.dart';
 import 'widgets/codigo_view.dart';
 import 'widgets/colar_overlay.dart';
 import 'widgets/conversa_view.dart';
@@ -198,6 +199,8 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
         return const _FimView();
       case SalaStage.cena:
         return const SceneRehearsalView();
+      case SalaStage.checagem:
+        return const ChecagemExternaView();
     }
   }
 }

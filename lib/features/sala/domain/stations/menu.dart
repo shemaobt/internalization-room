@@ -17,5 +17,6 @@ final class Menu extends Station {
     TheBackTranslationOpened() || TheBackTranslationResumed() => const Retro(),
     TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
+    TheExternalCheckOpened() || TheExternalCheckLeft() => this,
   };
 }

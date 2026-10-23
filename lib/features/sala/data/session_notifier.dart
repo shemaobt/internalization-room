@@ -6226,16 +6226,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   });
 
   Future<void> _abrirAChecagemExterna(String sessionId) async {
+    _silenceTheRoom();
     final generation = _waitOnTheGeneration;
     state = state.copyWith(clearAviso: true);
-    final failure = await _readTheStretchesBack(sessionId, generation);
+    final answer = await _room.openTheExternalCheck(sessionId);
     if (_abandoned(generation)) return;
-    if (failure != null) {
-      state = state.copyWith(btAviso: BtAviso.checagemFalhou);
-    } else if (!state.overAnApprovedDraft) {
-      state = state.copyWith(btAviso: BtAviso.checagemNaoAbre);
+    switch (answer) {
+      case Answered(value: final check):
+        _arriveAt(TheExternalCheckOpened(check.version));
+      case Refused(code: RefusalCode.draftNotApproved):
+        state = state.copyWith(btAviso: BtAviso.checagemNaoAbre);
+        await _readTheStretchesBack(sessionId, generation);
+      case SessionGone() && final failure:
+        _decideTheFailure(failure);
+      case RoomFailure():
+        state = state.copyWith(btAviso: BtAviso.checagemFalhou);
     }
   }
+
+  void leaveTheExternalCheck() => _gesture(() {
+    if (state.station is! ChecagemExterna) return;
+    _silenceTheRoom();
+    _arriveAt(const TheExternalCheckLeft());
+  });
 
   void recomecarATraducao() => _gesture(() => _recomecarATraducao());
 

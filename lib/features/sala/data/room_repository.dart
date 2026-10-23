@@ -14,6 +14,7 @@ import '../domain/coverage_event.dart';
 import '../domain/cut_point.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
+import '../domain/external_check.dart';
 import '../domain/passagem.dart';
 import '../domain/scene_rehearsal.dart';
 import '../domain/scene_question.dart';
@@ -623,6 +624,17 @@ class RoomRepository {
         ),
         timeout: _stateTimeout,
         read: readJson(ApprovalAnswer.fromJson),
+        asksForTheSession: true,
+      );
+
+  Future<RoomAnswer<ExternalCheck>> openTheExternalCheck(String sessionId) =>
+      _room.ask(
+        () async => _client.post(
+          _uri('/sessions/$sessionId/external-check/open'),
+          headers: {..._headers, 'X-Room-Device': await _deviceId()},
+        ),
+        timeout: _stateTimeout,
+        read: readJson(ExternalCheck.fromJson),
         asksForTheSession: true,
       );
 

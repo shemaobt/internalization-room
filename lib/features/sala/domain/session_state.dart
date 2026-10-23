@@ -17,7 +17,16 @@ import 'scene_question.dart';
 import 'scene_rehearsal.dart';
 import 'station.dart';
 
-enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim, cena }
+enum SalaStage {
+  panorama,
+  escolha,
+  conversa,
+  ensaio,
+  retro,
+  fim,
+  cena,
+  checagem,
+}
 
 /// Where the scene rehearsal's screen is.
 enum SceneStep { record, translate, placesUnknown, sent }
