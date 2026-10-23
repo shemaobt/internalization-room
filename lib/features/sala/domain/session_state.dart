@@ -1130,7 +1130,13 @@ class SalaSessionState {
   /// the screen so the affordance and the verb it opens read the same fact; the verb keeps
   /// its own guard as well, because it is reachable from more than this one press.
   bool get canListenAtConferida =>
-      btPhase == BtPhase.conferida && partes.isNotEmpty;
+      btPhase == BtPhase.conferida && partes.isNotEmpty && everyPartIsHere;
+
+  /// Whether the part the stretch [trecho] sits on is on the tablet.
+  bool aParteDoTrechoEstaAqui(Trecho trecho) =>
+      !(trecho.parte >= 0 &&
+          trecho.parte < partes.length &&
+          partsAway.containsKey(partes[trecho.parte].takeId));
 
   bool get canRetellAFrase =>
       stage == SalaStage.retro &&

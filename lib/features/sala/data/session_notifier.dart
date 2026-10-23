@@ -354,10 +354,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late Map<int, int>? _passadasDaSala;
   late Set<String> _goneSessions;
 
-  /// The fetch of the parts on their way while it runs, and the station the Resume point
-  /// names once it has tried every part.
-  late Completer<bool>? _partesDescendo;
-  late Station _ondeFicam;
+  /// The fetch of the parts on their way, which belongs to the passage it started in.
+  late Completer<void>? _partesDescendo;
 
   /// When and in what language the session now open was created, so a row rewritten by
   /// a later stage advance carries them instead of going blank the moment the team leaves
@@ -525,7 +523,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _passadasDaSala = null;
     _goneSessions = {};
     _partesDescendo = null;
-    _ondeFicam = const Ensaio();
     _sessionSavedAt = null;
     _sessionLanguage = null;
     _landingOn = null;
@@ -2328,6 +2325,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _openTheChoice() {
+    _partesDescendo = null;
     state = SalaSessionState(
       machine: state.machine.withNoPassage(_gesturesOnTheirWay.onTheirWay),
     );
@@ -2645,11 +2643,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await _theRoomsRehearsalUnder(read.sessionId, generation);
       if (_abandoned(generation)) return true;
     }
-    if (_partesDescendo case final descendo?) {
-      final inteiro = await descendo.future;
-      if (_abandoned(generation)) return true;
-      if (!inteiro || !state.everyPartIsHere) return false;
-    }
     final told = read.backTranslation;
     state = state.copyWith(clearBtFraseGuardada: true);
     _pickTheTellingBackUp(
@@ -2942,9 +2935,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (takes.isEmpty && inteiro && !anEmptyEnsaio) {
       return _Resume.nothingToRestore;
     }
-    // Before the landing, while the room still says it is thinking. Measuring waits on the
-    // player, and landed first the team is invited to tap over a rehearsal whose parts
-    // have no end yet.
     if (faltavam) {
       await _medirAsPartes([
         for (final take in takes)
@@ -2966,16 +2956,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _readTheScenesForTheRehearsal();
     if (faltavam) {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
-      // The row named files that are not here any more. Rewritten only now, with the
-      // recordings the room gave, and on the Ensaio when a part the room no longer has is
-      // missing among them: from here on it is written as on any other passage.
       if (aBuscar.isEmpty) {
         _rememberWhereTheyAre(
           inteiro ? Station.stored(waiting.stage) : const Ensaio(),
         );
       } else {
-        _ondeFicam = Station.stored(waiting.stage);
-        unawaited(_bringThePartsDown());
+        _bringThePartsDown(Station.stored(waiting.stage));
       }
     }
     unawaited(_countUnsent());
@@ -3108,7 +3094,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return Answered(
             await _recorder.keepBytes(
               value,
-              '${parte.scopeId}-${parte.takeId}',
+              '${parte.scopeId}-${parte.takeId}-${_stamp()}-${_random.nextInt(1 << 30)}',
             ),
           );
         } on Exception {
@@ -3122,19 +3108,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The parts on their way come down behind their rows, one at a time and in part order.
-  /// The parts on their way come down behind their rows, one at a time and in part order;
-  /// true once they all came down or stayed missed, false when the room had lost one.
-  Future<bool> _bringThePartsDown() {
-    if (_partesDescendo case final descendo? when !descendo.isCompleted) {
-      return descendo.future;
-    }
-    final descem = Completer<bool>();
+  /// The Resume point then names [ondeFicam] while the team is still on the Rehearsal with
+  /// every part the room holds.
+  void _bringThePartsDown(Station ondeFicam) {
+    if (_partesDescendo case final descendo? when !descendo.isCompleted) return;
+    final descem = Completer<void>();
     _partesDescendo = descem;
-    unawaited(_asPartesDescem(descem, _thisLife));
-    return descem.future;
+    unawaited(_asPartesDescem(descem, ondeFicam, _thisLife));
   }
 
-  Future<void> _asPartesDescem(Completer<bool> descem, int? life) async {
+  Future<void> _asPartesDescem(
+    Completer<void> descem,
+    Station ondeFicam,
+    int? life,
+  ) async {
     bool minha() => !_endedSince(life) && identical(_partesDescendo, descem);
     var tentou = false;
     var faltou = false;
@@ -3188,11 +3175,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
       _weighTheRehearsal();
     }
-    if (minha()) {
-      if (tentou) _rememberWhereTheyAre(faltou ? const Ensaio() : _ondeFicam);
-      _ondeFicam = const Ensaio();
+    if (minha() && tentou) {
+      _rememberWhereTheyAre(switch (state.station) {
+        Ensaio() => faltou ? const Ensaio() : ondeFicam,
+        final onde => onde,
+      });
     }
-    descem.complete(!faltou);
+    descem.complete();
   }
 
   bool _aindaACaminho(String sessionId, KeptTake parte) =>
@@ -3825,11 +3814,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The Rehearsal opens the Back-translation only as the machine last weighed it, so it
   /// is weighed again whenever its parts or its scene list change.
   void _weighTheRehearsal() {
-    final pronto = state.everySceneHasItsPart && state.everyPartIsHere;
-    if (state.station case Ensaio(
-      :final everySceneHasItsPart,
-    ) when everySceneHasItsPart != pronto) {
-      _dispatch(TheRehearsalWeighed(everySceneHasItsPart: pronto));
+    if (state.station
+        case Ensaio(:final everySceneHasItsPart, :final everyPartIsHere)
+        when everySceneHasItsPart != state.everySceneHasItsPart ||
+            everyPartIsHere != state.everyPartIsHere) {
+      _dispatch(
+        TheRehearsalWeighed(
+          everySceneHasItsPart: state.everySceneHasItsPart,
+          everyPartIsHere: state.everyPartIsHere,
+        ),
+      );
     }
   }
 
@@ -5386,7 +5380,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(
         partsAway: {...state.partsAway, takeId!: PartAway.coming},
       );
-      return unawaited(_bringThePartsDown());
+      return _bringThePartsDown(const Ensaio());
     }
     _tocarAParte(indice);
   }
@@ -6577,7 +6571,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.canHearAFrase) return;
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
-    if (!trecho.contado) return;
+    if (!trecho.contado || !state.aParteDoTrechoEstaAqui(trecho)) return;
     final traducao = naGravacao ? null : trecho.retroPath;
     final materna = _ondeTocar(trecho);
     if (traducao == null && materna == null) return;
@@ -8776,7 +8770,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _emCurso = null;
     state = state.copyWith(partsAway: const {});
     _partesDescendo = null;
-    _ondeFicam = const Ensaio();
     _semNome.clear();
     _captureFails = {};
     _recordingStarting = false;

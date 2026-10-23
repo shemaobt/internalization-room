@@ -22,7 +22,6 @@ const _intoTheMapper = [
 const _notYetMoved = <String, String>{
   '_aprovarRascunhoFinal': 'ENG-1444',
   '_asPartesDaSala': 'ENG-1444',
-  '_asPartesDescem': 'ENG-1444',
   '_confirmarTraducao': 'ENG-1444',
   '_createThePassage': 'ENG-1444',
   '_enviarAFrase': 'ENG-1444',
@@ -37,6 +36,7 @@ const _notYetMoved = <String, String>{
 /// Doors that act on a room result themselves by decision, each with the ADR that keeps it
 /// out of the failure policy.
 const _keptByDecision = <String, String>{
+  '_asPartesDescem': 'ADR 0128',
   '_theCallOfAnEarlierSession': 'ADR 0060',
   '_theSceneGoes': 'ADR 0085',
 };

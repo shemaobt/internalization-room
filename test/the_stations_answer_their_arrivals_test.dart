@@ -274,6 +274,22 @@ void main() {
     );
   });
 
+  test('the Rehearsal weighed with a part still on its way does not open the '
+      'Back-translation', () {
+    final (weighed, _) = reduce(
+      _at(const Ensaio()),
+      const TheRehearsalWeighed(
+        everySceneHasItsPart: true,
+        everyPartIsHere: false,
+      ),
+    );
+
+    expect(
+      reduce(weighed, const TheBackTranslationOpened()).$1.station,
+      isA<Ensaio>(),
+    );
+  });
+
   test('the Rehearsal weighed keeps its Station and its generation', () {
     final (weighed, effects) = reduce(
       _at(const Ensaio()),
