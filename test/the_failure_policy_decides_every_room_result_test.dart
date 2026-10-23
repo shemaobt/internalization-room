@@ -197,14 +197,20 @@ void main() {
   });
 
   group('a microphone off the session screen is silent', () {
-    test('a microphone failure on the scene rehearsal, the Rehearsal or the '
-        'Back-translation never shows the sign', () {
-      for (final station in const [SceneRehearsal(), Ensaio(), Retro()]) {
+    test('a microphone failure on the scene rehearsal, the Rehearsal, the '
+        'Back-translation or the Checagem externa never shows the sign', () {
+      for (final station in const [
+        SceneRehearsal(),
+        Ensaio(),
+        Retro(),
+        ChecagemExterna(1),
+      ]) {
         for (final owner in const [
           MicOwner.scene,
           MicOwner.frase,
           MicOwner.rehearsal,
           MicOwner.capture,
+          MicOwner.listener,
         ]) {
           for (final failure in [
             TheTabletCannotRecord(owner: owner),
@@ -233,6 +239,48 @@ void main() {
       }
     });
   });
+
+  group(
+    'a disk failure on the scene screen tells the screen and calls nobody',
+    () {
+      test('the policy hands it to the scene screen as its own failure', () {
+        _decidesOnTheTablet(
+          const TheDiskFailed(),
+          _at(const SceneRehearsal(), door: Door.sceneRehearsal),
+          const TheSceneDiskFailed(generation: 4),
+        );
+      });
+
+      test(
+        'on the scene rehearsal the machine tells the screen, and raises no halt',
+        () {
+          final (machine, effects) = reduce(
+            const Machine(station: SceneRehearsal()),
+            const TheSceneDiskFailed(),
+          );
+
+          expect(effects, const [TellTheDiskFailed()]);
+          expect(machine.halt, const NoHalt());
+        },
+      );
+
+      test('on every other Station the machine does nothing', () {
+        for (final station in const [
+          Menu(),
+          Canvas(),
+          Panorama('panorama'),
+          Ensaio(),
+          Retro(),
+        ]) {
+          final before = Machine(station: station);
+          final (machine, effects) = reduce(before, const TheSceneDiskFailed());
+
+          expect(effects, isEmpty, reason: '$station');
+          expect(identical(machine, before), isTrue, reason: '$station');
+        }
+      });
+    },
+  );
 
   test('the build guard shows the sign without calling anyone', () {
     _decidesOnTheTablet(

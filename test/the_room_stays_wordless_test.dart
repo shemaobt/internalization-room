@@ -12,6 +12,7 @@ const _screensTheTeamNeverReads = {
 };
 
 const _herWordsTheTeamReads = {
+  'lib/features/sala/presentation/widgets/checagem_externa_view.dart',
   'lib/features/sala/presentation/widgets/ensaio_view.dart',
   'lib/features/sala/presentation/widgets/ensaio_final_plan_view.dart',
   'lib/features/sala/presentation/widgets/escolha_view.dart',
@@ -38,12 +39,17 @@ const _numeralsThePartsAreCalledBy = {
   'lib/features/sala/presentation/widgets/kept_retelling_buttons.dart',
 };
 
+const _wordsThatSendTheTeamToTheStore = {
+  'lib/features/sala/presentation/widgets/update_view.dart',
+};
+
 const _wordyExceptions = {
   ..._screensTheTeamNeverReads,
   ..._herWordsTheTeamReads,
   ..._wordsOnlyTheCameraReads,
   ..._wordsTheTeamPicksItsLanguageBy,
   ..._numeralsThePartsAreCalledBy,
+  ..._wordsThatSendTheTeamToTheStore,
 };
 
 final _textWidgetPattern = RegExp(r'\bText\(');

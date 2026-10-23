@@ -13,6 +13,10 @@ const startLine = 'P0';
 
 const tellLine = 'P1';
 
+/// The first of her Ensaio Final lines, read by position from her N block: said as the
+/// First listen opens on a Joined recording.
+const firstListenLine = 'N0';
+
 /// The third of Marcia's process lines, read by position: start, tell, unheard,
 /// approved. Said when a part recorded again leaves some of the rehearsal still heard.
 const unheardLine = 'P2';
@@ -20,6 +24,17 @@ const unheardLine = 'P2';
 /// The fourth of Marcia's process lines, read by position: start, tell, unheard,
 /// approved. The approval's is the fourth, never rotated.
 const approvedLine = 'P3';
+
+/// The first of Marcia's external-check lines, read by position: open, retell, whole,
+/// frases, thanks. Its second sentence is the consent.
+const listenerOpenLine = 'X0';
+
+/// The second of Marcia's external-check lines, read by position: open, retell, whole,
+/// frases, thanks. Said once the whole passage ended, before the circle opens.
+const listenerRetellLine = 'X1';
+
+/// The last of Marcia's external-check lines, her thanks as a listener ends.
+const listenerThanksLine = 'X4';
 
 const sentenceInPlaceLine = 'N4';
 
@@ -140,6 +155,21 @@ const ensaioFinalPlanLabels = {
     'pt': 'não deu para juntar esta cena — toquem para tentar de novo',
     'en': 'this scene could not be joined — tap to try again',
   },
+  'back': {'pt': 'Voltar para a gravação', 'en': 'Back to recording'},
+  'useThis': {'pt': 'usar este', 'en': 'use this one'},
+  'inUse': {'pt': 'em uso', 'en': 'in use'},
+  'recordSceneAgain': {
+    'pt': 'gravar esta cena de novo',
+    'en': 'record this scene again',
+  },
+  'whichScene': {
+    'pt': 'De que cena é este ensaio?',
+    'en': 'Which scene is this rehearsal?',
+  },
+  'labelFailed': {
+    'pt': 'não deu para guardar a resposta — toquem de novo',
+    'en': 'couldn\'t keep that answer — tap again',
+  },
 };
 
 String ensaioFinalPlanLabelFor(
@@ -167,6 +197,20 @@ String clockOf(DateTime at) {
 String minutesAndSecondsOf(Duration length) =>
     '${length.inMinutes}:${'${length.inSeconds % 60}'.padLeft(2, '0')}';
 
+/// The First listen's place: «parte 2 · 0:41 / 1:10», the part's own clock.
+String firstListenPositionFor(
+  int part,
+  Duration at,
+  Duration? length,
+  String language,
+) {
+  final ofThePart = length != null && length > Duration.zero
+      ? ' / ${minutesAndSecondsOf(length)}'
+      : '';
+  return '${retroLabelFor('part', language)} $part · '
+      '${minutesAndSecondsOf(at)}$ofThePart';
+}
+
 /// A plan row's facts, her `rowText`: its number, its local clock, its length `m:ss`
 /// rounded to the nearest second as her `fmtDur` does, and its current frases.
 String planRowFactsFor(SceneRehearsalRecord rehearsal, String language) {
@@ -178,6 +222,18 @@ String planRowFactsFor(SceneRehearsalRecord rehearsal, String language) {
       .replaceAll('{dur}', minutesAndSecondsOf(Duration(seconds: seconds)))
       .replaceAll('{k}', '${rehearsal.translatedFrases}');
 }
+
+/// A line of the Rehearsal sheet, her `candidateLine`: the row's facts, whether the voice
+/// received it, and «tradução incompleta» when a stretch is left untranslated.
+String sheetLineFor(SceneRehearsalRecord rehearsal, String language) => [
+  planRowFactsFor(rehearsal, language),
+  sceneRehearsalLabelFor(
+    rehearsal.unsent ? 'listUnsent' : 'listSent',
+    language,
+  ),
+  if (rehearsal.untranslatedStretch)
+    ensaioFinalPlanLabelFor('partial', language),
+].join(' · ');
 
 /// Her scene-rehearsal words (strings.ts), read only by VoiceOver.
 const sceneRehearsalLabels = {
@@ -223,6 +279,10 @@ const sceneRehearsalLabels = {
   'saveFailed': {
     'pt': 'não deu para guardar o ensaio da cena — gravem de novo',
     'en': 'couldn\'t keep the scene rehearsal — record it again',
+  },
+  'diskFailed': {
+    'pt': 'não deu para guardar o ensaio da cena neste computador',
+    'en': 'couldn\'t keep the scene rehearsal on this computer',
   },
   'tooLarge': {
     'pt': 'grande demais para o servidor — grave em partes menores',
@@ -428,6 +488,10 @@ const retroLabels = {
     'pt': 'a pausa ficou no toque — toquem no círculo para traduzir',
     'en': 'the pause is at your tap — tap the circle to translate',
   },
+  'listenOnly': {
+    'pt': 'Primeiro, só ouvir: a passagem inteira, do começo ao fim.',
+    'en': 'First, just listen: the whole passage, from beginning to end.',
+  },
   'advance': {'pt': 'terminei', 'en': 'done'},
   'checking': {'pt': 'conferindo…', 'en': 'checking…'},
   'checkFailed': {
@@ -615,6 +679,21 @@ const recordingHomeLabels = {
     'en': 'failed — tap to try again',
   },
   'retryAria': {'pt': 'Tentar enviar de novo', 'en': 'Try sending again'},
+  'bringBack': {
+    'pt': 'trazer de volta as traduções do ensaio desta cena',
+    'en': 'bring back this scene rehearsal\'s translations',
+  },
+  'bringBackArmed': {
+    'pt':
+        'toquem de novo: as traduções do ensaio voltam; as que vocês fizeram aqui para esta cena ficam guardadas',
+    'en':
+        'tap again: the rehearsal\'s translations come back; the ones you made '
+        'here for this scene are kept',
+  },
+  'bringBackFailed': {
+    'pt': 'não deu para juntar esta cena — toquem para tentar de novo',
+    'en': 'this scene could not be joined — tap to try again',
+  },
   'translate': {'pt': 'Traduzir a gravação', 'en': 'Translate the recording'},
   'listenAndCheck': {
     'pt': 'ouvir e conferir o Ensaio Final',
@@ -675,6 +754,53 @@ String escolhaLabelFor(String control, String language) =>
     escolhaLabels[control]![language] ??
     escolhaLabels[control]![floorLanguage]!;
 
+const externalCheckLabels = {
+  'title': {'pt': 'Checagem externa', 'en': 'External check'},
+  'subIdle': {
+    'pt': 'Quem não ajudou a traduzir ouve a passagem e diz o que entendeu.',
+    'en':
+        "Those who didn't help translate hear the passage and say what they "
+        'understood.',
+  },
+  'newListener': {'pt': 'Novo ouvinte', 'en': 'New listener'},
+  'back': {'pt': 'Voltar para a gravação', 'en': 'Back to recording'},
+  'listener': {'pt': 'ouvinte {n}', 'en': 'listener {n}'},
+  'subPlaying': {
+    'pt': 'ouvindo a passagem inteira…',
+    'en': 'listening to the whole passage…',
+  },
+  'subRetell': {
+    'pt': 'Contem, do jeito de vocês, o que ouviram.',
+    'en': 'Tell, in your own way, what you heard.',
+  },
+  'recordHint': {
+    'pt': 'toque no círculo para falar; toque de novo para parar',
+    'en': 'tap the circle to speak; tap again to stop',
+  },
+  'recording': {'pt': 'gravando', 'en': 'recording'},
+  'hearAgain': {'pt': 'ouvir de novo', 'en': 'hear it again'},
+  'retellAria': {
+    'pt': 'Toque para contar o que ouviu',
+    'en': 'Tap to tell what you heard',
+  },
+  'openFail': {
+    'pt': 'não deu para abrir a checagem externa — tentem de novo',
+    'en': "couldn't open the external check — try again",
+  },
+  'clipFail': {
+    'pt': 'não deu para guardar essa gravação — gravem de novo',
+    'en': "couldn't keep that recording — record it again",
+  },
+  'done': {'pt': 'Agradecemos sua ajuda.', 'en': 'Thank you for your help.'},
+  'anotherListener': {'pt': 'Outro ouvinte', 'en': 'Another listener'},
+  'finishTheCheck': {'pt': 'Terminar a checagem', 'en': 'Finish the check'},
+};
+
+String externalCheckLabelFor(String control, String language, {int? n}) =>
+    (externalCheckLabels[control]![language] ??
+            externalCheckLabels[control]![floorLanguage]!)
+        .replaceAll('{n}', '$n');
+
 const codigoLabels = {
   'preparing': {
     'pt': 'A sala está preparando o código deste aparelho',
@@ -724,3 +850,14 @@ String? momentLabelFor(Moment moment, String language) {
 
 String momentAriaFor(String language) =>
     momentAria[language] ?? momentAria[floorLanguage]!;
+
+const updateLabels = {
+  'line': {
+    'pt': 'Há uma versão nova do aplicativo. Toquem para atualizar.',
+    'en': 'There is a new version of the app. Tap to update.',
+  },
+  'button': {'pt': 'Atualizar', 'en': 'Update'},
+};
+
+String updateLabelFor(String key, String language) =>
+    updateLabels[key]![language] ?? updateLabels[key]![floorLanguage]!;

@@ -57,7 +57,7 @@ void main() {
       final recording = RecordingRepository();
       addTearDown(recording.dispose);
 
-      await recording.sweepTheFrasesLeftBehind();
+      await recording.sweepTheRecordingsLeftBehind();
 
       expect(
         recordings
@@ -69,6 +69,33 @@ void main() {
           'cena_1760900000002.wav',
           'conversa_1760900000003.m4a',
         },
+      );
+    },
+  );
+
+  test(
+    'the sweep at launch deletes every listener retelling a killed app left',
+    () async {
+      final recordings = Directory('${documents.path}/recordings')
+        ..createSync(recursive: true);
+      for (final name in [
+        'ouvinte_1760900000000.m4a',
+        'checagem-t1.m4a',
+        'conversa_1760900000003.m4a',
+      ]) {
+        File('${recordings.path}/$name').writeAsStringSync('áudio');
+      }
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+
+      await recording.sweepTheRecordingsLeftBehind();
+
+      expect(
+        recordings
+            .listSync()
+            .map((entry) => entry.path.split('/').last)
+            .toSet(),
+        {'checagem-t1.m4a', 'conversa_1760900000003.m4a'},
       );
     },
   );

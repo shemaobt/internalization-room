@@ -8,9 +8,11 @@ const _intoTheMapper = [
   '_decideTheFailure(',
   '_decideAt(',
   '_theNetworkFailedAt(',
+  '_theNetworkFailedIn(',
   '_theStepsNetworkFailed(',
   '_theResumeFailed(',
   '_theSessionIsGone(',
+  '_theSessionIsGoneIn(',
   '_giveUpOnTheTurn(',
   'rethrow',
 ];
@@ -34,8 +36,16 @@ const _notYetMoved = <String, String>{
 /// Doors that act on a room result themselves by decision, each with the ADR that keeps it
 /// out of the failure policy.
 const _keptByDecision = <String, String>{
+  '_asPartesDescem': 'ADR 0128',
   '_theCallOfAnEarlierSession': 'ADR 0060',
   '_theSceneGoes': 'ADR 0085',
+  '_abrirAChecagemExterna': 'ADR 0114',
+  '_newListener': 'ADR 0115',
+  '_keepTheRetelling': 'ADR 0115',
+  '_backToTheCheck': 'ADR 0116',
+  '_backToTheListener': 'ADR 0116',
+  '_sendTheFinish': 'ADR 0116',
+  '_theCheckDidNotOpen': 'ADR 0116',
 };
 
 final _namesAFailure = RegExp(

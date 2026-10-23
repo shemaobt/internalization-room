@@ -74,7 +74,10 @@ void main() {
   test('weighing the rehearsal keeps the plan', () {
     final (machine, _) = reduce(
       _at(_thePlan),
-      const TheRehearsalWeighed(everySceneHasItsPart: true),
+      const TheRehearsalWeighed(
+        everySceneHasItsPart: true,
+        everyPartIsHere: true,
+      ),
     );
 
     expect(machine.station, _thePlan);

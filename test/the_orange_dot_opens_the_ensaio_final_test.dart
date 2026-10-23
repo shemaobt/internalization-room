@@ -868,7 +868,7 @@ void main() {
     tester,
   ) async {
     final (harness, container) = await _atRest(tester);
-    harness.inbox.knotThrows = StateError('a ligação caiu no meio');
+    harness.inbox.knotThrows = Exception('a ligação caiu no meio');
 
     await sendANote(tester, container);
     await _theAnswerSettles(tester);

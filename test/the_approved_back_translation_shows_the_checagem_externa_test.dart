@@ -21,9 +21,6 @@ const _sinal = 'Um momento para uma pessoa';
 bool _aberto(WidgetTester tester) =>
     tester.widget<Semantics>(byLabel(_checagem)).properties.enabled ?? true;
 
-int _leituras(SalaHarness harness) =>
-    harness.room.calls.where((call) => call == 'fetchState').length;
-
 Future<void> _tocarNaChecagem(WidgetTester tester) async {
   await tester.ensureVisible(byLabel(_checagem));
   await tester.tap(byLabel(_checagem));
@@ -93,11 +90,10 @@ void main() {
     await tocarOCirculo(tester);
 
     expect(_aberto(tester), isFalse);
-    final antes = _leituras(harness);
     await _tocarNaChecagem(tester);
     expect(
-      _leituras(harness),
-      antes,
+      harness.room.externalChecksOpened,
+      isEmpty,
       reason: 'a checagem abria com o microfone aberto',
     );
 
@@ -131,7 +127,7 @@ void main() {
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aprovadaNaConferida(tester, harness);
-    harness.room.failStateOnceWith = const NetworkFailed('sem rede');
+    harness.room.failExternalCheckOnceWith = const NetworkFailed('sem rede');
 
     await _tocarNaChecagem(tester);
 
@@ -144,7 +140,7 @@ void main() {
   testWidgets('a tap the room answers takes «$_naoDeu» away', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aprovadaNaConferida(tester, harness);
-    harness.room.failStateOnceWith = const NetworkFailed('sem rede');
+    harness.room.failExternalCheckOnceWith = const NetworkFailed('sem rede');
     await _tocarNaChecagem(tester);
 
     await _tocarNaChecagem(tester);

@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -62,7 +65,25 @@ final _wayOut =
         name: 'leaveTheSceneRehearsal',
         take: (n, _) async => n.leaveTheSceneRehearsal(),
       ),
+      SalaStage.checagem: (
+        name: 'leaveTheExternalCheck',
+        take: (n, _) async => n.leaveTheExternalCheck(),
+      ),
     };
+
+const _gravacao = 'gravacao-1';
+
+const _conferida = BackTranslationProgress(
+  segments: [
+    SegmentView(
+      segmentId: 'trecho-1',
+      takeId: _gravacao,
+      startsMs: 0,
+      endsMs: 12000,
+    ),
+  ],
+  checked: true,
+);
 
 /// Put the room in [stage], through the gestures that really reach it.
 Future<void> _standIn(
@@ -90,6 +111,35 @@ Future<void> _standIn(
   await waitFor('a roda abrir', () => read().naRoda != null);
   if (stage == SalaStage.escolha) {
     await waitFor('a Escolha abrir as entradas', () => read().entriesOpen);
+    return;
+  }
+
+  if (stage == SalaStage.checagem) {
+    harness.playback
+      ..length = const Duration(seconds: 12)
+      ..measured = const Duration(seconds: 12);
+    harness.room
+      ..approvedDraft = const ApprovedDraft(version: 1)
+      ..retroSoFar = _conferida
+      ..takes.add(
+        const TakeView(
+          takeId: _gravacao,
+          kind: 'ensaio',
+          scope: 'parte-1',
+          ordinal: 1,
+        ),
+      )
+      ..takeAudio[_gravacao] = Uint8List.fromList([7, 7, 7, 7]);
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor(
+      'o rascunho aprovado aparecer na retrotradução',
+      () => read().approvedDraftDrawn != null,
+    );
+    notifier.abrirAChecagemExterna();
+    await waitFor(
+      'a checagem externa abrir',
+      () => read().stage == SalaStage.checagem,
+    );
     return;
   }
 

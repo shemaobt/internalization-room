@@ -18,5 +18,7 @@ final class Retro extends Station {
     TheBackTranslationOpened() || TheBackTranslationResumed() => const Retro(),
     TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => const Fim(),
+    TheExternalCheckOpened(:final version) => ChecagemExterna(version),
+    TheExternalCheckLeft() => this,
   };
 }

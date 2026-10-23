@@ -46,6 +46,7 @@ final Map<String, _Request> _everyClaimDoor = {
   'fetchKeptRetelling': (room, _) => room.fetchKeptRetelling(
     'https://storage.example/kept/aa/conto.m4a?sig=1',
   ),
+  'minimumBuilds': (room, _) => room.minimumBuilds(),
 };
 
 /// Every other way the room touches the network, named as the app names it.
@@ -91,6 +92,8 @@ final Map<String, _Request> _everyRequest = {
     'ensaio-da-cena-1',
     attempt: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
   ),
+  'labelTheSceneRehearsal': (room, _) =>
+      room.labelTheSceneRehearsal('sessao-1', 'ensaio-da-cena-1', scene: 'S2'),
   'sendTheSceneRehearsal': (room, _) => room.sendTheSceneRehearsal(
     'sessao-1',
     'ensaio-da-cena-1',
@@ -120,10 +123,20 @@ final Map<String, _Request> _everyRequest = {
       room.reportTheVerdictHeard('sessao-1', '2026-10-19T19:58:13.123456Z'),
   'startTheTranslationOver': (room, _) =>
       room.startTheTranslationOver('sessao-1'),
+  'bringBackTheTranslations': (room, _) =>
+      room.bringBackTheTranslations('sessao-1', 2),
   'fixedLineAddress': (room, _) => room.fixedLineAddress('F0', language: 'pt'),
   'fetchClip': (room, _) => room.fetchClip('/voice/p01'),
   'openClip': (room, _) => room.openClip('/voice/p01', from: 3, ifRange: 'e1'),
   'approveRelease': (room, _) => room.approveRelease('sessao-1'),
+  'openTheExternalCheck': (room, _) => room.openTheExternalCheck('sessao-1'),
+  'aNewListener': (room, _) =>
+      room.aNewListener('sessao-1', 1, attempt: 'tentativa-1'),
+  'sendTheListenerRecording': (room, audio) =>
+      room.sendTheListenerRecording('sessao-1', 1, 1, audio, kind: 'retell'),
+  'theListener': (room, _) => room.theListener('sessao-1', 1, 1),
+  'finishTheListener': (room, _) =>
+      room.finishTheListener('sessao-1', 1, 1, completed: true),
 };
 
 typedef _InboxRequest =
