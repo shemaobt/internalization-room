@@ -159,6 +159,26 @@ void main() {
       );
     });
 
+    test('a «terminei» refused as already sent tells the scene screen it went '
+        'and reads the list again, with no sign', () {
+      final event = FailurePolicy.decide(
+        const RoomRefused(RefusalCode.sceneRehearsalSent),
+        _at(
+          const SceneRehearsal(),
+          door: Door.sceneRehearsal,
+          rule: RefusalRule.readsTheListAgain,
+        ),
+      );
+      final (machine, effects) = reduce(
+        const Machine(station: SceneRehearsal()),
+        event,
+      );
+
+      expect(effects, contains(const TellItWentAlready()));
+      expect(effects, contains(const ReadTheSceneRehearsals()));
+      expect(machine.halt, const NoHalt());
+    });
+
     test('on the scene rehearsal the machine tells the screen the send failed, '
         'reads the list again and raises no halt', () {
       final (machine, effects) = reduce(

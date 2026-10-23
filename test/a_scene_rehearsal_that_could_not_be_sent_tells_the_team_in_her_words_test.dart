@@ -280,6 +280,57 @@ void main() {
     },
   );
 
+  group('a «terminei» the room refuses as already sent says «a tradução deste '
+      'ensaio da cena já foi para a voz»', () {
+    testWidgets('on the first tap', (tester) async {
+      final (harness, container) = await _theRehearsalOnScreen(tester);
+      harness.room
+        ..sendRefusalsFirst.add(RefusalCode.sceneRehearsalSent)
+        ..sceneRehearsals[0] = _listedSent;
+
+      await tester.tap(_terminei);
+      await pumpUntil(
+        tester,
+        () => byLabel('$_listen — $_alreadySent').evaluate().isNotEmpty,
+      );
+
+      expect(byLabel('$_listen — $_alreadySent'), findsOneWidget);
+      expect(harness.room.scenesSent, hasLength(1));
+    });
+
+    testWidgets('on the tap after a failed send', (tester) async {
+      final (harness, container) = await _theRehearsalOnScreen(tester);
+      harness.room.failHeldTurnWith = const NetworkFailed('a rede caiu');
+      await _termineiAndTheLook(tester, harness, container);
+      expect(_says(_notSent), findsWidgets);
+      harness.room
+        ..sendRefusalsFirst.add(RefusalCode.sceneRehearsalSent)
+        ..sceneRehearsals[0] = _listedSent;
+
+      await tester.tap(_terminei);
+      await pumpUntil(
+        tester,
+        () => byLabel('$_listen — $_alreadySent').evaluate().isNotEmpty,
+      );
+
+      expect(byLabel('$_listen — $_alreadySent'), findsOneWidget);
+      expect(harness.room.scenesSent, hasLength(2));
+    });
+
+    testWidgets('even when the list cannot be read', (tester) async {
+      final (harness, container) = await _theRehearsalOnScreen(tester);
+      harness.room
+        ..sendRefusalsFirst.add(RefusalCode.sceneRehearsalSent)
+        ..sceneListsAnswerFirst.add(const NetworkFailed('a rede caiu'));
+
+      await tester.tap(_terminei);
+      await pumpUntil(tester, () => _says(_alreadySent).evaluate().isNotEmpty);
+
+      expect(_says(_alreadySent), findsWidgets);
+      expect(harness.room.scenesSent, hasLength(1));
+    });
+  });
+
   testWidgets('a scene send that times out says the same as one that dropped', (
     tester,
   ) async {

@@ -4417,6 +4417,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theDiskFailed() =>
       state = state.copyWith(sceneLine: SceneLine.diskFailed);
 
+  void _itWentAlready() =>
+      state = state.copyWith(sceneLine: SceneLine.alreadySent);
+
   void _theSendFailed() => state = state.copyWith(sceneLine: SceneLine.notSent);
 
   void _theDiskWordGoes() {
@@ -8640,6 +8643,9 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheSendFailed() => _notifier._theSendFailed();
+
+  @override
+  void hearItWentAlready() => _notifier._itWentAlready();
 }
 
 final salaSessionProvider =

@@ -157,6 +157,14 @@ abstract final class FailurePolicy {
         TheTellingCameBackEmpty(readAgain: true, generation: generation),
       RoomNetworkFailed() when context.door == Door.sceneFrase =>
         TheTellingCameBackEmpty(generation: generation),
+      RoomRefused(code: RefusalCode.sceneRehearsalSent)
+          when context.door == Door.sceneRehearsal &&
+              rule == RefusalRule.readsTheListAgain =>
+        TheSceneDoorFailed(
+          readAgain: true,
+          wentAlready: true,
+          generation: generation,
+        ),
       RoomRefused(
         code: RefusalCode.sceneRehearsalSent ||
             RefusalCode.restartOutOfOrder ||

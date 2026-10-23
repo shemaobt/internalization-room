@@ -446,11 +446,17 @@ final class TheSceneRehearsalsListed extends AnsweringEvent {
 }
 
 /// A scene door failed; [readAgain] when the room's refusal says the rehearsal moved on
-/// without this tablet: sent to the voice, or restarted by an answer it never heard.
+/// without this tablet: sent to the voice, or restarted by an answer it never heard;
+/// [wentAlready] when the refused call was «terminei» and the rehearsal was already sent.
 final class TheSceneDoorFailed extends AnsweringEvent {
   final bool readAgain;
+  final bool wentAlready;
 
-  const TheSceneDoorFailed({this.readAgain = false, super.generation});
+  const TheSceneDoorFailed({
+    this.readAgain = false,
+    this.wentAlready = false,
+    super.generation,
+  });
 }
 
 /// The tablet's disk could not keep audio a scene door brought in.
@@ -795,6 +801,10 @@ final class TellTheDiskFailed extends Effect {
 
 final class TellTheSendFailed extends Effect {
   const TellTheSendFailed();
+}
+
+final class TellItWentAlready extends Effect {
+  const TellItWentAlready();
 }
 
 /// The room may have kept the frase whose answer was lost: its list decides.
@@ -1171,6 +1181,9 @@ const _watch = ArmTheWatch();
   TheRefusalPassed() => _resumeTheLook(machine),
   TheHandFailed() => (machine, const []),
   TheScenesMissed() => (machine, const []),
+  TheSceneDoorFailed(wentAlready: true)
+      when machine.station is SceneRehearsal =>
+    (machine, const [TellItWentAlready(), ReadTheSceneRehearsals()]),
   TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
     (machine, const [ReadTheSceneRehearsals()]),
   TheSceneDoorFailed() => (machine, const []),
