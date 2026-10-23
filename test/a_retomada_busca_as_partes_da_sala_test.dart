@@ -1710,4 +1710,78 @@ void main() {
       );
     },
   );
+
+  for (final (achado, cena) in [
+    ('trecho-2', 2),
+    ('trecho-3', 3),
+    ('trecho-1', 1),
+  ]) {
+    test(
+      'sob um rascunho aprovado sem a parte 1, regravar pelo achado em $achado '
+      'leva o circulo a cena $cena',
+      () async {
+        final harness = SalaHarness()
+          ..room.approvedDraft = const ApprovedDraft(version: 1)
+          ..room.refuseClipOf.add('gravacao-1');
+
+        final it = await _reabrir(
+          harness,
+          parouEm: SalaStage.retro,
+          contado: _contado([1, 2, 3], checked: true),
+        );
+        await waitFor(
+          'o rascunho aprovado pousar com as tres partes tentadas',
+          () =>
+              it.estado.stage == SalaStage.retro &&
+              harness.room.clipsFetched.length == 3,
+        );
+        await settle(const Duration(milliseconds: 300));
+        // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+        it.sala.state = it.estado.copyWith(
+          btPhase: BtPhase.findings,
+          btFindingSegmentId: achado,
+        );
+
+        it.sala.gravarAParteDeNovo();
+        await settle(const Duration(milliseconds: 300));
+
+        expect(it.estado.stage, SalaStage.ensaio);
+        expect(_nomesDasPartes(it), ['gravacao-2', 'gravacao-3']);
+        expect(it.estado.sceneForTheCircle, cena);
+      },
+    );
+  }
+
+  test(
+    'uma parte que a sala nao tem mais saindo do ensaio nao cala a parte que '
+    'a equipe ouve',
+    () async {
+      final harness = SalaHarness()
+        ..room.refuseClipOf.add('gravacao-1')
+        ..room.holdNextState();
+
+      final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+      await waitFor(
+        'as tres partes serem tentadas com a leitura no ar',
+        () => harness.room.clipsFetched.length == 3,
+      );
+      await settle();
+      it.sala.ouvirACena(3);
+      await waitFor(
+        'a parte 3 tocar',
+        () => it.estado.parteDoEnsaioTocando == 2,
+      );
+      final tocadas = harness.playback.played.length;
+
+      harness.room.finishHeldState();
+      await waitFor('a parte 1 sair', () => it.estado.partes.length == 2);
+      await settle();
+
+      expect(harness.playback.played, hasLength(tocadas));
+      expect(
+        it.estado.partes[it.estado.parteDoEnsaioTocando!].takeId,
+        'gravacao-3',
+      );
+    },
+  );
 }

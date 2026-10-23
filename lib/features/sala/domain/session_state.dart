@@ -879,13 +879,21 @@ class SalaSessionState {
     _ => false,
   };
 
+  /// The part in the air on the Rehearsal, found by its file, so a part leaving before it
+  /// does not move it.
   int? get parteDoEnsaioTocando {
     if (stage != SalaStage.ensaio) return null;
-    return switch (_paused) {
-      PartPlaying(:final part) => part.part,
-      Paused(what: final PartSound part) => part.part,
-      _ => null,
-    };
+    final PartSound som;
+    switch (_paused) {
+      case PartPlaying(:final part):
+        som = part;
+      case Paused(what: final PartSound part):
+        som = part;
+      default:
+        return null;
+    }
+    final aqui = partes.indexWhere((parte) => parte.path == som.path);
+    return aqui < 0 ? som.part : aqui;
   }
 
   bool get needsPerson => halt is Blocking;

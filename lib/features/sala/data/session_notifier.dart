@@ -3241,9 +3241,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       for (final parte in state.partes)
         if (state.partsAway[parte.takeId] == PartAway.lost) parte,
     ];
-    if (perdidas.isNotEmpty && state.parteDoEnsaioTocando != null) {
-      _silenceTheRoom();
-    }
     for (final parte in perdidas) {
       if (KeptScope.numberOf(parte.scopeId) case final ordinal?) {
         _passadasDaSala = {...?_passadasDaSala, ordinal: parte.pass};
