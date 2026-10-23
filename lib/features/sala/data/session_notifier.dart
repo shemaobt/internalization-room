@@ -3493,7 +3493,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void recordSceneByScene() => _gesture(() {
     final sessionId = state.sessionId;
-    if (sessionId == null) return;
+    if (sessionId == null || state.planBusy) return;
     if (state.station case Ensaio(step: EnsaioStep.plan)) {
       _openTheRecordingHome(sessionId);
     }
@@ -3670,7 +3670,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void joinTheScenes() => _gesture(() {
     final rows = _planRows;
-    if (rows == null || !canJoin(rows)) return;
+    if (rows == null || state.planBusy || !canJoin(rows)) return;
   });
 
   /// The recording home the orange dot leads to, opened at once, with the room's listing

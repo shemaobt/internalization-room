@@ -108,7 +108,7 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                 const SizedBox(height: 24),
                 RoundActionButton(
                   size: 78,
-                  mood: canJoin(rows)
+                  mood: canJoin(rows) && !session.planBusy
                       ? ButtonMood.beckoning
                       : ButtonMood.dimmed,
                   gradient: BeadStyles.wood,
@@ -127,7 +127,9 @@ class EnsaioFinalPlanView extends ConsumerWidget {
               ],
               const SizedBox(height: 24),
               TextButton(
-                onPressed: notifier.recordSceneByScene,
+                onPressed: session.planBusy
+                    ? null
+                    : notifier.recordSceneByScene,
                 child: Text(
                   ensaioFinalPlanLabelFor('sceneByScene', language),
                   style: TextStyle(color: colors.telha, fontSize: 15),

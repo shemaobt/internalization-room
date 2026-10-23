@@ -32,6 +32,8 @@ const _whichScene = 'De que cena é este ensaio?';
 const _labelFailed = 'não deu para guardar a resposta — toquem de novo';
 const _cannotEnter = 'este ensaio não pode entrar — ensaiem esta cena de novo';
 const _question = 'Qual cena vocês vão ensaiar?';
+const _join = 'juntar as cenas e ouvir';
+const _sceneByScene = 'Gravar cena por cena';
 const _houseBack = 'Voltar para a passagem atual';
 const _circle = [
   'Gravar o ensaio da cena',
@@ -248,12 +250,12 @@ void _expectOnlyFacts(WidgetTester tester) {
     'Ensaio Final',
     'Escolher outra passagem',
     _planLine,
-    'Gravar cena por cena',
+    _sceneByScene,
     'falta o ensaio desta cena',
     _cannotEnter,
     'tradução incompleta',
     _swap,
-    'juntar as cenas e ouvir',
+    _join,
     'Ouvir',
     _back,
     _useThis,
@@ -811,6 +813,42 @@ void main() {
         (rehearsalId: '$sessionId-ensaio-4', scene: 'S2'),
         (rehearsalId: '$sessionId-ensaio-6', scene: 'S1'),
       ]);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    '13. a double tap on the last unlabelled rehearsal\'s scene moves '
+    'neither «juntar» nor «Gravar cena por cena»',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(
+        tester,
+        (s) => [
+          _rehearsal(s, n: 1, scene: 'S1'),
+          _rehearsal(s, n: 4, scene: null),
+        ],
+      );
+      await _openThePlan(tester);
+      await tester.ensureVisible(byLabel(_sceneButton(2)));
+      await tester.pump();
+      final where = tester.getCenter(byLabel(_sceneButton(2)));
+
+      await tester.tapAt(where);
+      await tester.pump(const Duration(milliseconds: 120));
+      await tester.tapAt(where);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(byLabel(_whichScene), findsNothing);
+      expect(_enabledAt(tester, _join), Tristate.isFalse);
+      await tester.ensureVisible(find.text(_sceneByScene));
+      await tester.tap(find.text(_sceneByScene));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text(_planLine), findsOneWidget);
+      expect(harness.room.labelsSent, hasLength(1));
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(_enabledAt(tester, _join), Tristate.isTrue);
       semantics.dispose();
     },
   );
