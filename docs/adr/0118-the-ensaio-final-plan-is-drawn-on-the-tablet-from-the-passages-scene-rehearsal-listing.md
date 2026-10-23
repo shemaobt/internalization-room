@@ -32,9 +32,12 @@ frases, the time the voice received it, whether the room confirmed it, and its c
   take, inside it or at its tail, that no current frase covers. Such a rehearsal stays the
   default and stays joinable.
 - **«juntar» opens by her `canJoin`:** when at least one scene has a joinable rehearsal
-  chosen. A scene without one is not joined and its row says why.
+  chosen. A scene without one is not joined and its row says why. Her other half, "or a
+  scene is already joined", is not built here: any take sends the dot to the recording
+  home, so no joined part reaches the plan yet.
 - **«trocar o ensaio desta cena» moves the row to the next joinable candidate**, newest
-  first, round and round, until ENG-1384 turns the tap into the sheet.
+  first, round and round, and is offered only where there is another joinable one, until
+  ENG-1384 turns the tap into the sheet.
 - **The other language is read from the same listing.** A team holds one live session per
   passage and language, so "nothing of this session, a sent rehearsal of another session" is
   "the rehearsals sit in the other language". The dot then opens the recording home under her

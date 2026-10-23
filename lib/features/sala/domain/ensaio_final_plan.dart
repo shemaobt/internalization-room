@@ -10,6 +10,13 @@ sealed class EnsaioFinalPlan {
   const EnsaioFinalPlan();
 }
 
+/// One tap of a plan row's play: only the newest one is ever heard.
+final class PlanListen {
+  final String rehearsalId;
+
+  PlanListen(this.rehearsalId);
+}
+
 /// «pensando…»: the room has not answered yet.
 final class PlanAwaited extends EnsaioFinalPlan {
   const PlanAwaited();
@@ -49,12 +56,17 @@ final class PlanRow {
 
   bool get partial => chosen?.untranslatedStretch ?? false;
 
-  bool get canSwap => candidates.length > 1;
+  Iterable<SceneRehearsalRecord> get _joinable =>
+      candidates.where((c) => c.joinable);
+
+  /// «trocar» moves the row only among the joinable, so it is offered only where there
+  /// is another one to move to.
+  bool get canSwap => _joinable.length > 1;
 
   /// Her `nextChoice`, kept to the joinable: the next joinable candidate after the chosen
   /// one, newest first, round and round.
-  SceneRehearsalRecord? get next {
-    final joinable = candidates.where((c) => c.joinable).toList();
+  SceneRehearsalRecord? get nextJoinable {
+    final joinable = _joinable.toList();
     if (joinable.isEmpty) return null;
     final at = joinable.indexWhere((c) => c.rehearsalId == chosen?.rehearsalId);
     return joinable[(at + 1) % joinable.length];
@@ -77,8 +89,7 @@ List<PlanRow> planRowsOf(
         ours
             .where((r) => r.scene == scene.sceneId && r.translatedFrases > 0)
             .toList()
-            .reversed
-            .toList(),
+          ..sort((a, b) => b.n.compareTo(a.n)),
         choices[scene.sceneId],
       ),
   ];

@@ -3472,7 +3472,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         _openTheRecordingHome(sessionId, listed: guardadas);
       case (Answered(value: final guardadas), Answered(value: final listed), _)
-          when !waiting && rehearsalsElsewhere(listed, sessionId):
+          when rehearsalsElsewhere(listed, sessionId):
         state = state.copyWith(rehearsalsElsewhere: true);
         _openTheRecordingHome(sessionId, listed: guardadas);
       case (
@@ -3513,8 +3513,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _planRows?.where((row) => row.scene.sceneId == sceneId).firstOrNull;
 
   void swapTheRehearsal(String sceneId) => _gesture(() {
-    final next = _planRowOf(sceneId)?.next;
-    if (next == null) return;
+    final row = _planRowOf(sceneId);
+    final next = row?.nextJoinable;
+    if (row == null ||
+        next == null ||
+        next.rehearsalId == row.chosen?.rehearsalId) {
+      return;
+    }
     _silenceThePlan();
     _chooseTheRehearsal(sceneId, next.rehearsalId);
   });
@@ -3528,23 +3533,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void playThePlanRow(String sceneId) =>
       _gesture(() => _handOff(_playThePlanRow(sceneId)));
 
-  /// A play button of the plan: a second tap on the row being heard stops it, and a clip
-  /// sounds only while it is still the one last asked for.
+  /// A play button of the plan: a second tap on the row being heard stops it, and only
+  /// the newest tap is ever heard. A tap whose clip never sounds lets the next one play.
   Future<void> _playThePlanRow(String sceneId) async {
     final chosen = _planRowOf(sceneId)?.chosen;
     if (chosen == null) return;
     final heard = state.planListening;
     _silenceThePlan();
-    if (heard == chosen.rehearsalId) return;
-    state = state.copyWith(planListening: chosen.rehearsalId);
+    if (heard?.rehearsalId == chosen.rehearsalId) return;
+    final asked = PlanListen(chosen.rehearsalId);
+    state = state.copyWith(planListening: asked);
     final generation = _waitOnTheGeneration;
     final path = await _fetchTheSceneTake(chosen, generation);
-    if (path == null ||
-        _abandoned(generation) ||
-        state.planListening != chosen.rehearsalId) {
-      return;
+    bool stillAsked() => !_gone && identical(state.planListening, asked);
+    void heardOut() {
+      if (stillAsked()) state = state.copyWith(clearPlanListening: true);
     }
-    void heardOut() => state = state.copyWith(clearPlanListening: true);
+
+    if (path == null || _abandoned(generation) || !stillAsked()) {
+      return heardOut();
+    }
     _play(PartSound(0, path), onComplete: heardOut, onFailed: heardOut);
   }
 

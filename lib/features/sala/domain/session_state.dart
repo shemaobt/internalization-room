@@ -408,8 +408,8 @@ class SalaSessionState {
   /// plan.
   final Map<String, String> planChoices;
 
-  /// The rehearsal a play button of the plan asked to hear, while it is fetched or sounds.
-  final String? planListening;
+  /// The play a button of the plan last asked for, while it is fetched or sounds.
+  final PlanListen? planListening;
 
   /// Whether the last plan read found the passage's rehearsals only in the other
   /// language's session.
@@ -1241,7 +1241,7 @@ class SalaSessionState {
     bool clearSceneLine = false,
     EnsaioFinalPlan? ensaioFinalPlan,
     Map<String, String>? planChoices,
-    String? planListening,
+    PlanListen? planListening,
     bool clearPlanListening = false,
     bool? rehearsalsElsewhere,
     bool? theRoomJoinedAPart,

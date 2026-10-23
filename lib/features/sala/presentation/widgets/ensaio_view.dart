@@ -333,7 +333,7 @@ class _SceneRowView extends StatelessWidget {
       UnsentPart(fromAnEarlierVisit: true, :final length) => (
         [
           cena,
-          if (length != null) ' · ${_mss(length)}',
+          if (length != null) ' · ${minutesAndSecondsOf(length)}',
           ' — ${recordingHomeLabelFor('sendNow', language)}',
         ].join(),
         recordingHomeLabelFor('sendAria', language),
@@ -361,11 +361,6 @@ class _SceneRowView extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static String _mss(Duration length) {
-    final seconds = length.inSeconds;
-    return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
   }
 
   Widget _control(
