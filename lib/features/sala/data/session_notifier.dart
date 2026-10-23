@@ -3460,6 +3460,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaioFinalPlan: const PlanAwaited(),
       planChoices: const {},
       clearPlanListening: true,
+      clearPlanSheet: true,
+      labelling: false,
+      labelLine: false,
       rehearsalsElsewhere: false,
       peerCue: false,
     );
@@ -3526,32 +3529,141 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void recordSceneByScene() => _gesture(() {
     final sessionId = state.sessionId;
-    if (sessionId == null) return;
+    if (sessionId == null || state.planBusy) return;
     if (state.station case Ensaio(step: EnsaioStep.plan)) {
       _openTheRecordingHome(sessionId);
     }
   });
 
-  /// The plan's rows as they stand, or null off the plan.
-  List<PlanRow>? get _planRows => switch ((
+  /// The plan's read and this session, or null off the plan.
+  (PlanRead, String)? get _thePlan => switch ((
     state.station,
     state.ensaioFinalPlan,
     state.sessionId,
   )) {
-    (Ensaio(step: EnsaioStep.plan), final PlanRead read, final sessionId?) =>
-      planRowsOf(read, sessionId, state.planChoices),
+    (Ensaio(step: EnsaioStep.plan), final PlanRead read, final sessionId?) => (
+      read,
+      sessionId,
+    ),
     _ => null,
+  };
+
+  /// The plan's rows as they stand, or null off the plan.
+  List<PlanRow>? get _planRows => switch (_thePlan) {
+    (final read, final sessionId) => planRowsOf(
+      read,
+      sessionId,
+      state.planChoices,
+    ),
+    null => null,
   };
 
   PlanRow? _planRowOf(String sceneId) =>
       _planRows?.where((row) => row.scene.sceneId == sceneId).firstOrNull;
 
+  /// «trocar o ensaio desta cena» opens the scene's Rehearsal sheet.
   void swapTheRehearsal(String sceneId) => _gesture(() {
-    final next = _planRowOf(sceneId)?.nextJoinable;
-    if (next == null) return;
+    if (state.planBusy || !(_planRowOf(sceneId)?.canSwap ?? false)) return;
     _silenceThePlan();
-    _chooseTheRehearsal(sceneId, next.rehearsalId);
+    state = state.copyWith(planSheet: sceneId);
   });
+
+  void closeTheRehearsalSheet() => _gesture(() {
+    if (state.planBusy || _thePlan == null) return;
+    _silenceThePlan();
+    state = state.copyWith(clearPlanSheet: true);
+  });
+
+  /// «usar este»: the team's choice for the open sheet's scene, held for the visit, with
+  /// no request.
+  void useThisRehearsal(String rehearsalId) => _gesture(() {
+    final sceneId = state.planSheet;
+    final row = sceneId == null ? null : _planRowOf(sceneId);
+    if (sceneId == null ||
+        row == null ||
+        state.planBusy ||
+        !row.candidates.any(
+          (candidate) =>
+              candidate.rehearsalId == rehearsalId &&
+              row.offersToUse(candidate),
+        )) {
+      return;
+    }
+    _chooseTheRehearsal(sceneId, rehearsalId);
+    _silenceThePlan();
+    state = state.copyWith(clearPlanSheet: true);
+  });
+
+  /// A play button of the sheet or the card, on one of this session's rehearsals.
+  void playARehearsal(String rehearsalId) => _gesture(() {
+    final plan = _thePlan;
+    if (plan == null || state.planBusy) return;
+    final (read, sessionId) = plan;
+    final record = read.rehearsals
+        .where((r) => r.rehearsalId == rehearsalId && r.sessionId == sessionId)
+        .firstOrNull;
+    if (record == null) return;
+    _handOff(_hearTheSceneRehearsal(record));
+  });
+
+  /// «gravar esta cena de novo»: the Scene rehearsal screen with the sheet's scene
+  /// highlighted and the question still asked.
+  void rehearseThisSceneAgain() => _gesture(() {
+    final (sceneId, sessionId) = (state.planSheet, state.sessionId);
+    if (sceneId == null ||
+        sessionId == null ||
+        _thePlan == null ||
+        state.planBusy ||
+        state.machine.inFlight != null ||
+        state.awaitingTheGuide) {
+      return;
+    }
+    _silenceThePlan();
+    _hand.cancelQuestion();
+    _openTheSceneScreen(sessionId, again: sceneId);
+  });
+
+  /// A tap on the card's «cena N»: the Scene label of the Unlabelled rehearsal it shows,
+  /// one at a time.
+  void labelTheRehearsal(String rehearsalId, String sceneId) => _gesture(() {
+    final plan = _thePlan;
+    if (plan == null || state.planBusy) return;
+    final (read, sessionId) = plan;
+    if (unlabelledRehearsalsOf(read, sessionId).firstOrNull?.rehearsalId !=
+            rehearsalId ||
+        !read.scenes.any((scene) => scene.sceneId == sceneId)) {
+      return;
+    }
+    state = state.copyWith(labelling: true, labelLine: false);
+    _handOff(_labelTheRehearsal(sessionId, rehearsalId, sceneId));
+  });
+
+  Future<void> _labelTheRehearsal(
+    String sessionId,
+    String rehearsalId,
+    String sceneId,
+  ) async {
+    final generation = _waitOnTheGeneration;
+    final answer = await _room.labelTheSceneRehearsal(
+      sessionId,
+      rehearsalId,
+      scene: sceneId,
+    );
+    if (_abandoned(generation)) return;
+    switch ((answer, state.ensaioFinalPlan)) {
+      case (Answered(:final value), final PlanRead read):
+        state = state.copyWith(ensaioFinalPlan: read.withRehearsal(value));
+        _after(
+          'labelWakes',
+          ref.read(restartWakeProvider),
+          () => state = state.copyWith(labelling: false),
+        );
+      case (Answered(), _):
+        state = state.copyWith(labelling: false);
+      case _:
+        state = state.copyWith(labelling: false, labelLine: true);
+    }
+  }
 
   void _chooseTheRehearsal(String sceneId, String rehearsalId) {
     state = state.copyWith(
@@ -3559,23 +3671,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void playThePlanRow(String sceneId) =>
-      _gesture(() => _handOff(_playThePlanRow(sceneId)));
-
-  /// A play button of the plan: a second tap on the row being heard stops it, and only
-  /// the newest tap is ever heard. A tap whose clip never sounds lets the next one play.
-  Future<void> _playThePlanRow(String sceneId) async {
+  void playThePlanRow(String sceneId) => _gesture(() {
+    if (state.planBusy) return;
     final chosen = _planRowOf(sceneId)?.chosen;
-    if (chosen == null) return;
+    if (chosen != null) _handOff(_hearTheSceneRehearsal(chosen));
+  });
+
+  /// A play button of the plan: a second tap on the rehearsal being heard stops it, and
+  /// only the newest tap is ever heard. A tap whose clip never sounds lets the next one
+  /// play.
+  Future<void> _hearTheSceneRehearsal(SceneRehearsalRecord rehearsal) async {
     final heard = state.planListening;
     _silenceThePlan();
-    if (heard?.rehearsalId == chosen.rehearsalId) return;
-    final asked = PlanListen(chosen.rehearsalId);
+    if (heard?.rehearsalId == rehearsal.rehearsalId) return;
+    final asked = PlanListen(rehearsal.rehearsalId);
     state = state.copyWith(planListening: asked);
     final generation = _waitOnTheGeneration;
     bool stillAsked() => !_gone && identical(state.planListening, asked);
     final path = await _fetchTheSceneTake(
-      chosen,
+      rehearsal,
       () => _abandoned(generation) || !stillAsked(),
       generation,
     );
@@ -3596,7 +3710,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void joinTheScenes() => _gesture(() {
     final rows = _planRows;
-    if (rows == null || !canJoin(rows)) return;
+    if (rows == null || state.planBusy || !canJoin(rows)) return;
   });
 
   /// The recording home the orange dot leads to, opened at once, with the room's listing
@@ -3683,21 +3797,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _silenceTheRoom();
     _hand.cancelQuestion();
+    _openTheSceneScreen(sessionId);
+  }
+
+  void _openTheSceneScreen(String sessionId, {String? again}) {
     _arriveAt(const TheSceneRehearsalOpened());
     _timers.remove('sceneListRetry')?.cancel();
     state = state.copyWith(
-      scene: const SceneScreen(),
+      scene: SceneScreen(again: again),
       scenes: const ScenesAwaited(),
       clearSceneRestart: true,
       clearSceneLine: true,
     );
-    _handOff(_openTheScreen(sessionId));
+    _handOff(_openTheScreen(sessionId, reopensTheUnsent: again == null));
   }
 
   /// The record step shows nothing until this session's rehearsals and the scene list
   /// have answered, or [sceneListWait] has passed since the open. A list that answers
   /// later is still taken.
-  Future<void> _openTheScreen(String sessionId) async {
+  Future<void> _openTheScreen(
+    String sessionId, {
+    required bool reopensTheUnsent,
+  }) async {
     final generation = _waitOnTheGeneration;
     final first = _room.scenesOf(sessionId);
     RoomAnswer<List<Scene>>? answered;
@@ -3705,7 +3826,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _after('sceneList', sceneListWait, gate.complete);
     await Future.any([
       Future.wait([
-        _reopenTheUnsent(sessionId),
+        _reopenTheUnsent(sessionId, reopensTheUnsent: reopensTheUnsent),
         first.then((answer) => answered = answer),
       ]),
       gate.future,
@@ -3822,7 +3943,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       !identical(state.scene, asked) ||
       state.channel is Microphone;
 
-  Future<void> _reopenTheUnsent(String sessionId) async {
+  /// A take waiting in the Outbox always comes back to the screen; the room's newest
+  /// unsent rehearsal only when [reopensTheUnsent], never for a scene asked again.
+  Future<void> _reopenTheUnsent(
+    String sessionId, {
+    required bool reopensTheUnsent,
+  }) async {
     final generation = _waitOnTheGeneration;
     var asked = state.scene;
     final waiting = await _takes.sceneWaitingIn(sessionId);
@@ -3857,6 +3983,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         if (waiting != null ||
             unsent == null ||
+            !reopensTheUnsent ||
             _theSceneMovedOn(asked, generation)) {
           return;
         }
