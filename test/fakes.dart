@@ -2686,7 +2686,7 @@ class FakeRoom implements RoomRepository {
       final live = takes
           .where((take) => take.kind == kind && take.scope == scope)
           .lastOrNull;
-      if (live?.takeId != overTake) return const Refused('TAKE_MOVED');
+      if (live?.takeId != overTake) return const Refused(RefusalCode.takeMoved);
     }
     takesKept.add('$kind/$scope');
     takesReceived.add((kind: kind, scope: scope, chunkIndex: chunkIndex));

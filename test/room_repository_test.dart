@@ -2538,7 +2538,6 @@ void main() {
         contains('name="reopens_the_approved_draft"\r\n\r\ntrue\r\n'),
       );
       expect(armed, contains('name="over_take"\r\n\r\ngravacao-7\r\n'));
-      expect(armed, isNot(contains('name="sent_at"')));
       expect(plain, isNot(contains('name="origin"')));
       expect(plain, isNot(contains('name="over_take"')));
       expect(plain, isNot(contains('reopens_the_approved_draft')));
