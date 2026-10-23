@@ -337,7 +337,7 @@ A current Part the room holds that this tablet does not, on a Rehearsal reopened
 _Avoid_: placeholder, missing part (a part the room no longer has), pending part, unsent take (the other direction)
 
 **Joined recording** (`origin`):
-A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final».
+A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final». The tablet makes one with «juntar as cenas e ouvir» on the Ensaio Final plan. Each scene's chosen rehearsal goes up through the Outbox as that scene's Part: the rehearsal's own bytes under its fingerprint, with `origin`. The same bytes joined again, from any tablet, are the same take (ADR 0120).
 _Avoid_: assembled recording, merged, Junção (in prose)
 
 **Red microphone**:
@@ -365,7 +365,7 @@ The one screen a **Store build** below the **Minimum build** shows, in place of 
 _Avoid_: force update, upgrade wall
 
 **Outbox**:
-The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it. Each row keeps its recording's **Recording time**, its length when it is a WAV and its fingerprint (sha256), fixed when the row is written; a row an older app wrote has none and sends none. An unsent take is shown on its Scene row, never spoken.
+The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it. Each row keeps its recording's **Recording time**, its length when it is a WAV and its fingerprint (sha256), fixed when the row is written; a row an older app wrote has none and sends none; a row of a join also keeps the rehearsal it came from (`origin`), the part's take it replaces, and whether the team armed the reopening of an approved draft, and its Recording time is the moment of each try, which the room reads only as the clock offset. An unsent take is shown on its Scene row, never spoken.
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Unsent take**:

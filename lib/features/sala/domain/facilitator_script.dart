@@ -132,6 +132,14 @@ const ensaioFinalPlanLabels = {
   },
   'join': {'pt': 'juntar as cenas e ouvir', 'en': 'join the scenes and listen'},
   'listen': {'pt': 'Ouvir', 'en': 'Listen'},
+  'joining': {
+    'pt': 'juntando a cena {i} de {k}…',
+    'en': 'joining scene {i} of {k}…',
+  },
+  'joinRetry': {
+    'pt': 'não deu para juntar esta cena — toquem para tentar de novo',
+    'en': 'this scene could not be joined — tap to try again',
+  },
   'back': {'pt': 'Voltar para a gravação', 'en': 'Back to recording'},
   'useThis': {'pt': 'usar este', 'en': 'use this one'},
   'inUse': {'pt': 'em uso', 'en': 'in use'},
@@ -149,9 +157,19 @@ const ensaioFinalPlanLabels = {
   },
 };
 
-String ensaioFinalPlanLabelFor(String control, String language) =>
-    ensaioFinalPlanLabels[control]![language] ??
-    ensaioFinalPlanLabels[control]![floorLanguage]!;
+String ensaioFinalPlanLabelFor(
+  String control,
+  String language, {
+  int? i,
+  int? k,
+}) {
+  final label =
+      ensaioFinalPlanLabels[control]![language] ??
+      ensaioFinalPlanLabels[control]![floorLanguage]!;
+  return i == null || k == null
+      ? label
+      : label.replaceAll('{i}', '$i').replaceAll('{k}', '$k');
+}
 
 /// A local time as the room writes it, `HH:MM`.
 String clockOf(DateTime at) {

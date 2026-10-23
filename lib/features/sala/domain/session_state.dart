@@ -428,6 +428,11 @@ class SalaSessionState {
   /// The play a button of the plan last asked for, while it is fetched or sounds.
   final PlanListen? planListening;
 
+  /// How each scene's join ended on this visit of the plan, by part number, and the
+  /// scene being joined.
+  final Map<int, JoinRow> joinRows;
+  final int? joining;
+
   /// The scene whose Rehearsal sheet is open over the plan, for one visit of the plan.
   final String? planSheet;
 
@@ -539,6 +544,8 @@ class SalaSessionState {
     this.ensaioFinalPlan,
     this.planChoices = const {},
     this.planListening,
+    this.joinRows = const {},
+    this.joining,
     this.planSheet,
     this.labelling = false,
     this.labelLine = false,
@@ -731,8 +738,8 @@ class SalaSessionState {
   /// Whether the scene rehearsal's screen stands over the Canvas.
   bool get sceneRehearsalIsOpen => station is SceneRehearsal;
 
-  /// Whether the plan holds its gestures: a label is in the air.
-  bool get planBusy => labelling;
+  /// Whether the plan holds its gestures: a label is in the air, or a join runs.
+  bool get planBusy => labelling || joining != null;
 
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
   /// The loudness of the take on the scene screen, until it is read or for a take with
@@ -1335,6 +1342,9 @@ class SalaSessionState {
     Map<String, String>? planChoices,
     PlanListen? planListening,
     bool clearPlanListening = false,
+    Map<int, JoinRow>? joinRows,
+    int? joining,
+    bool clearJoining = false,
     String? planSheet,
     bool clearPlanSheet = false,
     bool? labelling,
@@ -1452,6 +1462,8 @@ class SalaSessionState {
       planListening: clearPlanListening
           ? null
           : (planListening ?? this.planListening),
+      joinRows: joinRows ?? this.joinRows,
+      joining: clearJoining ? null : (joining ?? this.joining),
       planSheet: clearPlanSheet ? null : (planSheet ?? this.planSheet),
       labelling: labelling ?? this.labelling,
       labelLine: labelLine ?? this.labelLine,
