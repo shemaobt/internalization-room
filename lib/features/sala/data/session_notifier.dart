@@ -369,7 +369,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The Generation whose approval has not answered yet: a second press in it sends
   /// nothing, and an answer acts only on the press that sent it.
-  int? _aprovacaoNoAr;
+  late int? _aprovacaoNoAr;
 
   late Set<String> _traducoesGuardadas;
 
@@ -498,6 +498,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _aNewLife() {
     _timers = {};
+    _aprovacaoNoAr = null;
     _readsSent = 0;
     _readsApplied = 0;
     _perdidasNoTrecho = {};
