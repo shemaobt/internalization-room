@@ -217,6 +217,13 @@ Future<void> _tapSwapOn(WidgetTester tester, int n) async {
   await _theAnswerSettles(tester);
 }
 
+Future<void> _useTheRehearsal(WidgetTester tester, int n) async {
+  final useThis = byLabel('usar este — ${_facts(n, '0:07', 2)} · enviado');
+  await tester.ensureVisible(useThis);
+  await tester.tap(useThis);
+  await _theAnswerSettles(tester);
+}
+
 Future<ProviderContainer> _relaunchOnTheConversation(
   WidgetTester tester,
   SalaHarness harness,
@@ -406,8 +413,7 @@ void main() {
     });
 
     testWidgets(
-      '«trocar» while a clip is fetched never plays the rehearsal the '
-      'row left',
+      '«trocar» while a clip is fetched opens the sheet and plays nothing',
       (tester) async {
         final semantics = tester.ensureSemantics();
         final (harness, _) = await _seeded(
@@ -594,8 +600,10 @@ void main() {
   });
 
   testWidgets(
-    '6. «trocar o ensaio desta cena» moves scene 2 to rehearsal 1 and back',
+    '6. «trocar o ensaio desta cena» opens the sheet, and its «usar este» '
+    'moves scene 2 to rehearsal 1',
     (tester) async {
+      final semantics = tester.ensureSemantics();
       await _seeded(
         tester,
         (s) => [
@@ -613,35 +621,15 @@ void main() {
       expect(_onRow(3, find.text(_swap)), findsNothing);
 
       await _tapSwapOn(tester, 2);
-      expect(_onRow(2, find.text(_facts(1, '0:07', 2))), findsOneWidget);
-      expect(_onRow(2, find.text(_facts(2, '0:07', 2))), findsNothing);
+      expect(find.text(_planLine), findsNothing);
+      await _useTheRehearsal(tester, 1);
 
-      await _tapSwapOn(tester, 2);
-      expect(_onRow(2, find.text(_facts(3, '0:07', 2))), findsOneWidget);
-      expect(_onRow(2, find.text(_facts(2, '0:07', 2))), findsNothing);
+      expect(find.text(_planLine), findsOneWidget);
+      expect(_onRow(2, find.text(_facts(1, '0:07', 2))), findsOneWidget);
+      expect(_onRow(2, find.text(_facts(3, '0:07', 2))), findsNothing);
+      semantics.dispose();
     },
   );
-
-  testWidgets('6. «trocar» walks the joinable rehearsals newest first', (
-    tester,
-  ) async {
-    await _seeded(
-      tester,
-      (s) => [
-        _rehearsal(s, n: 1, scene: 'S2', sentAt: _sentAt('10:00')),
-        _rehearsal(s, n: 2, scene: 'S2', sentAt: _sentAt('10:01')),
-        _rehearsal(s, n: 3, scene: 'S2', sentAt: _sentAt('10:05')),
-      ],
-    );
-
-    await _openThePlan(tester);
-    expect(_onRow(2, find.text(_facts(3, '0:07', 2))), findsOneWidget);
-
-    for (final n in [2, 1, 3]) {
-      await _tapSwapOn(tester, 2);
-      expect(_onRow(2, find.text(_facts(n, '0:07', 2))), findsOneWidget);
-    }
-  });
 
   testWidgets(
     '6. a row with one joinable rehearsal beside an unsent one offers no «trocar»',
@@ -920,6 +908,7 @@ void main() {
     testWidgets('and a new tap of the dot opens the plan on the default', (
       tester,
     ) async {
+      final semantics = tester.ensureSemantics();
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.passages = const [_thePassage]
         ..room.nextMoment = _midConversation
@@ -950,6 +939,7 @@ void main() {
       await backOnTheConversation();
       await _openThePlan(tester);
       await _tapSwapOn(tester, 2);
+      await _useTheRehearsal(tester, 1);
       expect(_onRow(2, find.text(_facts(1, '0:07', 2))), findsOneWidget);
 
       await tester.ensureVisible(find.text(_sceneByScene));
@@ -961,14 +951,17 @@ void main() {
       await _openThePlan(tester);
 
       expect(_onRow(2, find.text(_facts(2, '0:07', 2))), findsOneWidget);
+      semantics.dispose();
     });
 
     testWidgets('and a relaunch opens the plan on the default again', (
       tester,
     ) async {
+      final semantics = tester.ensureSemantics();
       final (harness, container) = await _seeded(tester, twoOnSceneTwo);
       await _openThePlan(tester);
       await _tapSwapOn(tester, 2);
+      await _useTheRehearsal(tester, 1);
       expect(_onRow(2, find.text(_facts(1, '0:07', 2))), findsOneWidget);
 
       final next = await _relaunchOnTheConversation(tester, harness, container);
@@ -978,6 +971,7 @@ void main() {
       await _openThePlan(tester);
 
       expect(_onRow(2, find.text(_facts(2, '0:07', 2))), findsOneWidget);
+      semantics.dispose();
     });
   });
 
