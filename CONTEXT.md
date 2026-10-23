@@ -47,6 +47,10 @@ _Avoid_: fecho, ending, fim in prose (`SalaStage.fim` is the enum, not the term)
 The point the team's work has reached inside a Station, such as telling, awaiting the verdict or checked; it belongs to its Station and ends with it (ADR 0046).
 _Avoid_: phase, `BtPhase`, status, stage
 
+**Checagem externa** (`checagem_externa`):
+The station a team opens from the Back-translation of an approved draft, where outside listeners hear the passage and retell it. One external check per approved version; the version does the work of a gate (ADR 0111).
+_Avoid_: external review, listener screen, Phase 4 (the plan's name)
+
 ### Who speaks and who listens
 
 **Team**:
@@ -124,6 +128,10 @@ _Avoid_: pending line, interrupted line
 **Interruption**:
 The team's tap on the circle while the Guide speaks in the Conversation. It stops her and opens the microphone, and the next turn sent tells the room where she was cut: how far into the line (`at`) and how long the line was (`of`, when the tablet knows it). A take too short to keep, or none, tells nothing. The cut line counts as heard, and «Ouvir de novo» says it whole (ADR 0067).
 _Avoid_: barge-in, interrupted line (a **Queued line** is not cut)
+
+**Outside listener** (*ouvinte*):
+A person who did not help translate and is given the next number of that version, never a name: «ouvinte {n}». Numbers only go up and are never reused; a new version starts again at 1.
+_Avoid_: tester, reviewer, participant
 
 ### What is recorded and told
 
@@ -363,6 +371,34 @@ _Avoid_: pointer, last session, sessão atual
 **Station's session**:
 The session the team is in where it stands: the Panorama's at the Panorama Station, the passage's anywhere else, none on the Choice. Any other session the room still holds is an earlier one (ADR 0092).
 _Avoid_: current session (that is the relaunch record), active session
+
+**Listener's retelling**:
+The outside listener's own telling of the passage after hearing it whole, recorded on the Checagem externa and stored the moment it stops; never transcribed, never sent to a model.
+_Avoid_: feedback, comment (a comment is on the whole or on a frase)
+
+**Armed tap**:
+The two-tap gesture that guards a change over an approved draft: the first tap arms with «toquem de novo: isto abre de novo o rascunho aprovado», the second counts only from 0.6 to 6 seconds after it, then the control disarms by itself. The Restart's arming, lifted to one gesture (ADR 0013, 0100).
+_Avoid_: double tap, confirm, long press
+
+**Saved screen**:
+The screen after an approval: a check mark, «Ensaio salvo», the approved sentence with its version, and «Pronto», which lands the team on the Back-translation of the approved draft.
+_Avoid_: success screen, confirmation dialog
+
+**Grain**:
+How a passage is recorded: the whole passage in one take, or scene by scene. A switch sets the earlier work aside, never deletes it (ADR 0102).
+_Avoid_: mode, recording form (the form is one take's shape)
+
+**Ensaio Final plan**:
+The screen the orange dot opens on a passage with scenes while a scene is still left to join and every part so far came from a join: one row per scene with its Default rehearsal and its facts, and «juntar as cenas e ouvir». Once every scene is joined the dot opens the recording home. Facts only, never a word anyone said.
+_Avoid_: join screen, summary
+
+**Default rehearsal**:
+The rehearsal a scene's plan row holds before the team chooses another: the last one the voice received that is joinable; an unsent one is never the default, and one with an untranslated frase stays the default, marked «tradução incompleta».
+_Avoid_: selected rehearsal, latest take
+
+**Joinable**:
+A Scene rehearsal that can become a Part: sent, confirmed by the room, and a 16 kHz mono WAV.
+_Avoid_: valid, ready
 
 ### Findings and mends
 
