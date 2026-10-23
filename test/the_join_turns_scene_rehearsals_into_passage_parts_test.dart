@@ -977,7 +977,43 @@ void main() {
   );
 
   testWidgets(
-    'a scene the room refused for good offers its other rehearsal again',
+    'a join left behind by a new link of the tablet changes nothing of the '
+    'new join',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      await it.openThePlan();
+      it.room.holdNextClip();
+      await it.tapJoin();
+      await it.until(
+        'a primeira junta buscar a cena 1',
+        () => it.room.clipsFetched.any(
+          (url) => url.endsWith('/scene-rehearsals/${it.idOf(1)}/audio'),
+        ),
+      );
+
+      it.container.invalidate(salaSessionProvider);
+      await it.settle();
+      await _toTheConversation(it);
+      await it.openThePlan();
+      await it.tapJoin();
+      await it.settle();
+      it.holdTheTake('parte-1');
+      it.room.finishHeldClip();
+      await it.until('a parte 1 chegar à porta', () => it.theHeldTakeArrived);
+      await it.settle();
+
+      expect(find.text('juntando a cena 1 de 3…'), findsOneWidget);
+      it.room.finishHeldTake();
+      await _theJoinEnds(it);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a scene whose waiting join the room then refused for good offers its '
+    'other rehearsal again',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _atRest(tester);
@@ -999,19 +1035,86 @@ void main() {
       it.room.sceneRehearsals.add(other);
       it.room.sceneAudioOf[other.rehearsalId] = _bytesOf(4);
       await it.openThePlan();
-      it.room.refuseTake = 'ensaio/parte-2';
-      it.room.refuseTakeCode = 'HTTP_500';
-
+      it.holdTheTake('parte-2');
       await it.tapJoin();
+      await it.until(
+        'a parte 2 chegar à porta',
+        () => it.theHeldTakeArrived && it.ticked(1),
+      );
+      await it.wait(joinAnswerWait);
       await it.until(
         'a linha 2 pedir outra tentativa',
         () => it.onRow(2, find.text(_retry)).evaluate().isNotEmpty,
+      );
+      expect(
+        it.onRow(2, find.text('trocar o ensaio desta cena')),
+        findsNothing,
+        reason: 'a junta da cena 2 ainda espera no Outbox',
+      );
+      it.room.refuseTake = 'ensaio/parte-2';
+      it.room.refuseTakeCode = 'HTTP_500';
+      it.room.finishHeldTake();
+      await it.settle();
+
+      await tester.tap(it.onRow(2, find.text(_retry)));
+      await it.until(
+        'a junta parar de novo',
+        () => it.container.read(salaSessionProvider).joining == null,
       );
       await it.settle();
 
       expect(
         it.onRow(2, find.text('trocar o ensaio desta cena')),
         findsOneWidget,
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a join row\'s quiet resends last 90 s from its first wait, however long '
+    'it queued behind a slow upload',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      await it.heldOnTheTablet(1);
+      await it.openThePlan();
+      await tester.runAsync(() async {
+        final slow = File('${it.harness.takesHome.path}/lenta.m4a')
+          ..writeAsBytesSync([1, 2, 3, 4]);
+        await it.harness.takes.enqueue(
+          slow,
+          sessionId: it.sessionId,
+          kind: 'ensaio',
+          scope: 'parte-9',
+          chunkIndex: 9,
+        );
+      });
+      it.holdTheTake('parte-9');
+      it.room.unreachableTake = 'ensaio/parte-1';
+
+      await it.tapJoin();
+      await it.until(
+        'a gravação lenta chegar à porta',
+        () => it.theHeldTakeArrived,
+      );
+      await it.wait(const Duration(seconds: 100));
+      int tries() => it.room.calls.where((call) => call == 'sendTake').length;
+      final before = tries();
+      it.room.finishHeldTake();
+      await it.until(
+        'a parte 1 esperar a primeira vez',
+        () => tries() > before,
+      );
+      await it.wait(const Duration(seconds: 80));
+
+      expect(it.onRow(1, find.text(_retry)), findsNothing);
+      expect(tries() - before, greaterThan(10));
+      await it.wait(const Duration(seconds: 20));
+      await it.until(
+        'a linha 1 pedir outra tentativa',
+        () => it.onRow(1, find.text(_retry)).evaluate().isNotEmpty,
       );
       semantics.dispose();
     },
@@ -1208,8 +1311,8 @@ void main() {
   );
 
   testWidgets(
-    'the Recording time a join row sends is the moment it goes up, not the '
-    'rehearsal\'s',
+    'the Recording time a join row sends is the moment the row was written, '
+    'not the rehearsal\'s and not the try\'s',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _atRest(tester);
@@ -1222,13 +1325,29 @@ void main() {
         );
       });
       await it.openThePlan();
+      it.room.unreachableTake = 'ensaio/parte-1';
       final tapped = clock.now();
 
       await it.tapJoin();
-      await _theJoinEnds(it);
+      await it.wait(const Duration(seconds: 2));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 1500)),
+      );
+      it.room.unreachableTake = null;
+      await it.wait(const Duration(seconds: 8));
+      await it.until('a linha 1 ganhar o visto', () => it.ticked(1));
 
-      final sent = it.room.takesReceivedWhole.first.recordedAt!;
-      expect(sent.difference(tapped).inSeconds.abs(), lessThan(30));
+      final part1 = it.room.takesReceivedWhole.first;
+      expect(
+        part1.recordedAt!.difference(tapped).inSeconds.abs(),
+        lessThan(30),
+      );
+      expect(
+        part1.sentAt!.difference(part1.recordedAt!),
+        greaterThanOrEqualTo(const Duration(seconds: 1)),
+        reason: 'a tentativa que chegou foi depois da escrita da linha',
+      );
+      await _theJoinEnds(it);
       closeTheRoom(it.container);
       semantics.dispose();
     },
