@@ -57,6 +57,11 @@ aside from a current one.
   draft. The door's 404 is a refusal like any other, never a session the room forgot: a room
   without the door must leave the team where it was, not retire its session.
 - **The voice never speaks of the grain.**
+- **A whole rehearsal an app before 19 August sent is a whole-passage recording** while no
+  scene has its part, as the room reads it: its home has the one row, and a finding over it
+  leads there. The team reaches the scene rows with «Gravar cena por cena», which sets the
+  whole aside in the room. This replaces ADR 0102's fold of the lone whole into the scene
+  rows; the Orchestrator chose it provisionally on 23 October, pending the Definer (Q73).
 
 ## Considered options
 

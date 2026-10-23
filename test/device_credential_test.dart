@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/data/room_client.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
@@ -72,6 +73,8 @@ final Map<String, _Request> _everyRequest = {
   'sendTake': (room, audio) =>
       room.sendTake('sessao-1', audio, kind: 'ensaio', scope: 'passagem'),
   'takesOf': (room, _) => room.takesOf('sessao-1'),
+  'takesListingOf': (room, _) => room.takesListingOf('sessao-1'),
+  'switchTheGrain': (room, _) => room.switchTheGrain('sessao-1', Grain.whole),
   'sceneRehearsalsOf': (room, _) => room.sceneRehearsalsOf('sessao-1'),
   'scenesOf': (room, _) => room.scenesOf('sessao-1'),
   'keepSceneRehearsal': (room, audio) =>

@@ -3483,25 +3483,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final known = state.scenesOfThePassage;
     final reads = (
       _takes.pending(),
-      _room.takesListingOf(sessionId).then<RoomAnswer<List<TakeView>>>((
-        listing,
-      ) {
+      _room.takesListingOf(sessionId).then((listing) {
         if (listing case Answered(
           value: TakesListing(grain: final grain?),
         ) when !_abandoned(generation)) {
           state = state.copyWith(grainInForce: grain);
         }
-        return switch (listing) {
-          Answered(:final value) => Answered(value.takes),
-          final RoomFailure failure => failure,
-        };
+        return listing;
       }),
       _room.sceneRehearsalsOf(sessionId),
       known == null ? _room.scenesOf(sessionId) : Future.value(Answered(known)),
     ).wait;
     (
       List<PendingTake>,
-      RoomAnswer<List<TakeView>>,
+      RoomAnswer<TakesListing>,
       RoomAnswer<List<SceneRehearsalRecord>>,
       RoomAnswer<List<Scene>>,
     )?
@@ -3522,7 +3517,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (entry.sessionId == sessionId && entry.kind == 'ensaio') entry,
     ];
     switch ((takes, rehearsals, scenes)) {
-      case (Answered(value: final guardadas), _, _)
+      case (Answered(value: TakesListing(takes: final guardadas)), _, _)
           when rows.any((row) => row.origin == null) ||
               _correntes(guardadas).entries.any(
                 (corrente) =>
@@ -3530,7 +3525,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               ):
         state = state.copyWith(theRoomJoinedParts: _partesJuntadas(guardadas));
         _openTheRecordingHome(sessionId, listed: guardadas);
-      case (Answered(value: final guardadas), Answered(value: final listed), _)
+      case (
+            Answered(value: TakesListing(takes: final guardadas)),
+            Answered(value: final listed),
+            _,
+          )
           when _correntes(guardadas).isEmpty &&
               rows.isEmpty &&
               state.partes.isEmpty &&
@@ -3538,7 +3537,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(rehearsalsElsewhere: true);
         _theGrainOrItsHome(sessionId, listed: guardadas, elsewhere: true);
       case (
-            Answered(value: final guardadas),
+            Answered(value: TakesListing(takes: final guardadas)),
             Answered(value: final listed),
             Answered(value: final passage),
           )
@@ -3693,15 +3692,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(value: final listing):
         _theGrainSwitched(listing, grain);
         then();
-      case Refused(code: RefusalCode.draftApproved):
+      case final Refused refused when refused.code == RefusalCode.draftApproved:
+        _decideAt(refused, rule: RefusalRule.passes);
         final sent = ++_readsSent;
         if (await _room.fetchState(sessionId) case Answered(
           value: final read,
         ) when !_abandoned(generation)) {
           _applyTheSessionRead(read, sent);
         }
-      case RoomFailure():
-        return;
+      case final RoomFailure failure:
+        _decideAt(failure, rule: RefusalRule.passes);
     }
   }
 

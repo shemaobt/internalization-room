@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -1204,8 +1205,9 @@ void main() {
   );
 
   test(
-    'a finding on the whole rehearsal leads to the scene rows with nothing marked, '
-    'and the circle records scene 1',
+    'a finding on the whole rehearsal leads to its one row with nothing marked, '
+    'and «Gravar cena por cena» to the scene rows, where the circle records '
+    'scene 1 and the room holds the whole set aside',
     () async {
       final it = await _reabrirNaTraducao(
         naSala: const [_oInteiro],
@@ -1227,10 +1229,7 @@ void main() {
       );
       await settle();
       expect(it.estado.needsPerson, isFalse);
-      expect(
-        [for (final row in it.estado.sceneRows) row.dimmed],
-        [false, false],
-      );
+      expect([for (final row in it.estado.sceneRows) row.dimmed], [false]);
       await waitFor(
         'a linha guardar o ensaio',
         () =>
@@ -1241,6 +1240,9 @@ void main() {
         isNull,
         reason: 'reaberto, o ensaio não pode voltar com uma marca no inteiro',
       );
+      it.sala.recordSceneByScene();
+      await waitFor('as cenas', () => it.estado.sceneRows.length == 2);
+      expect(it.harness.room.grainSwitches.single.grain, Grain.scene);
       it.sala.ensaioTap();
       await waitFor(
         'o círculo gravar',
@@ -1259,9 +1261,11 @@ void main() {
         [KeptScope.parte(1)],
       );
       expect(
-        [for (final take in it.estado.keptTakes) take.takeId],
-        contains('gravacao-inteira'),
-        reason: 'posto de lado, o inteiro fica guardado',
+        it.harness.room.takes
+            .singleWhere((take) => take.takeId == 'gravacao-inteira')
+            .setAside,
+        isTrue,
+        reason: 'posto de lado, o inteiro fica guardado na sala',
       );
     },
   );
@@ -1287,11 +1291,13 @@ void main() {
         () => it.estado.stage == SalaStage.ensaio,
       );
       await settle();
-      await _gravarACenaEGuardar(it, 1);
-      await _gravarACenaEGuardar(it, 2);
       final inteiro = it.estado.keptTakes
           .singleWhere((take) => take.scopeId == KeptScope.whole)
           .path;
+      it.sala.recordSceneByScene();
+      await waitFor('as cenas', () => it.estado.sceneRows.length == 2);
+      await _gravarACenaEGuardar(it, 1);
+      await _gravarACenaEGuardar(it, 2);
       final antes = it.harness.playback.played.length;
 
       it.sala.startRetro();
@@ -1491,8 +1497,8 @@ void main() {
   );
 
   test(
-    'a finding with no address on the whole rehearsal leaves with it when scene 1 '
-    'lands',
+    'a finding with no address on the whole rehearsal leaves with it when the team '
+    'records scene by scene',
     () async {
       final it = await _reabrirComOInteiro(
         parouEm: SalaStage.ensaio,
@@ -1503,6 +1509,8 @@ void main() {
       );
       expect(it.estado.btFindings, hasLength(1));
 
+      it.sala.recordSceneByScene();
+      await waitFor('as cenas', () => it.estado.sceneRows.length == 2);
       await _gravarACenaEGuardar(it, 1);
 
       expect(it.estado.btFindings, isEmpty);
