@@ -3487,6 +3487,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (answer) {
       case Answered(value: final segmentos):
         _readsApplied = max(_readsApplied, sent);
+        final segurada = state.btFraseGuardada ?? state.btRegravacao?.frase;
+        if (segurada != null && _numeroDaParteDe(segurada) == cena) {
+          _esquecerAFrase();
+        }
         state = state.copyWith(
           btTrechos: _trechosFrom(segmentos),
           toBringBack: [...state.toBringBack]..remove(cena),
@@ -7849,6 +7853,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _fraseNaFila = null;
     unawaited(_takes.withdraw(guardada));
     state = state.copyWith(btRegravacao: state.btRegravacao?.em(passo));
+  }
+
+  int? _numeroDaParteDe(int frase) {
+    final parte = _aFrase(frase)?.parte;
+    if (parte == null || parte >= state.partes.length) return null;
+    return KeptScope.numberOf(state.partes[parte].scopeId) ?? parte + 1;
   }
 
   Trecho? _aFrase(int frase) =>
