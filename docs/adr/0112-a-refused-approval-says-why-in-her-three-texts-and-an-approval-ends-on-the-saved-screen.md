@@ -40,14 +40,13 @@ approved sentence with its **Version**, and ends on «Ensaio salvo» with one bu
   again. Under the person sign «Pronto» fades and leaves the semantics tree, as the way out
   does (ADR 0107).
 - **While an approval is in the air, no other Back-translation gesture acts**, from the press
-  until the Saved screen comes or the refusal's words show: a restart, a retelling, a frase or
-  the recording asked during P3 does nothing, and none of them is drawn live, so nothing moves
-  what was approved. The press also disarms any armed control (the Restart) and clears the
+  until the Saved screen comes or the refusal's handling ends (the read and the move to the
+  stretch it names): a restart, a retelling, a frase, the recording or a second approval asked
+  in between does nothing, and none of them is drawn live, so nothing moves what was approved. The press also disarms any armed control (the Restart) and clears the
   Back-translation's notice with the refusal text, so a press reads only its own answer, and
   her approved sentence never outlives its approval. The hold belongs to the press and its
   Generation: once the team leaves the passage it holds nothing, and a late answer never
-  touches a newer press. A second press while the answer is still out sends nothing, even
-  after her words show.
+  touches a newer press.
 - **«Pronto» drops the Saved screen and nothing else.** The Station, the Step (checked) and the
   Resume point stay; the passage is not closed. One Session read is asked after the mint, so the
   badge «✓ aprovado como rascunho final (v{n})» comes from a read (ADR 0106).

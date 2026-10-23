@@ -729,6 +729,9 @@ class RetroView extends ConsumerWidget {
                 size: 60,
                 semanticLabel: retroLabelFor('approve', language),
                 gradient: BeadStyles.verde,
+                mood: session.aBackTranslationGestureActs
+                    ? ButtonMood.lit
+                    : ButtonMood.dimmed,
                 onTap: notifier.aprovarRascunhoFinal,
                 child: const Icon(
                   LucideIcons.check,
