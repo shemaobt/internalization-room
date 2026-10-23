@@ -534,6 +534,27 @@ void main() {
     );
 
     test(
+      'a reply the look found whose line fails to get ready with an Error shows the sign that calls nobody',
+      () {
+        final harness = SalaHarness();
+        _aTakeTheNetworkLoses(
+          (room) {
+            room.turnsLandBeforeTheyFail = true;
+            harness.voice.readyThrows = StateError('x');
+          },
+          (clock, it) {
+            clock.elapse(const Duration(seconds: 10));
+
+            expect(it.room.turnIdsLookedAt, hasLength(1));
+            expect(it.state.needsPerson, isTrue);
+            expect(it.room.personsAsked, 0);
+          },
+          harness: harness,
+        );
+      },
+    );
+
+    test(
       'a team reply the first look found under the halt plays once after the tap',
       () {
         _aTakeTheNetworkLoses(

@@ -140,7 +140,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
       );
     }
 
-    if (!link.linked) {
+    if (!link.linked && widget.built) {
       return Scaffold(
         body: SafeArea(
           child: CodigoView(

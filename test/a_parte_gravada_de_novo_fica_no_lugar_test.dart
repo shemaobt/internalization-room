@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -20,6 +21,7 @@ import 'um_ensaio_de_tres_partes.dart';
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
 const _sairDaPassagem = 'Escolher outra passagem';
+const _pronto = 'Pronto';
 const micParteLabel = 'voltar e regravar uma parte';
 
 /// A team standing on a finding the analyst addressed to the stretch of part 2, with the
@@ -1305,33 +1307,43 @@ void main() {
   });
 
   testWidgets(
-    'em conferida sob parada a saída some, e volta com o toque no sinal',
+    'com a leitura depois da aprovação perdida, sob parada nem o pronto nem a '
+    'saída estão na tela, e voltam com o toque no sinal',
     (tester) async {
+      final semantics = tester.ensureSemantics();
       final it = await _ateAConferida(tester);
+      it.harness.voice.refuses.add('P3');
+      it.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
 
+      await tester.tap(byLabel(_aprovar));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        byLabel(_aprovar),
+        findsOneWidget,
+        reason:
+            'sem a leitura depois da aprovação o selo não vem, e aprovar '
+            'segue oferecido',
+      );
       it.container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(_estado(it.container).needsPerson, isTrue);
-      expect(_estado(it.container).btPhase, BtPhase.conferida);
-      expect(byLabel(_sairDaPassagem), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 500));
       expect(
-        tester
-            .widget<IgnorePointer>(
-              find
-                  .ancestor(
-                    of: byLabel(_sairDaPassagem),
-                    matching: find.byType(IgnorePointer),
-                  )
-                  .first,
-            )
-            .ignoring,
-        isTrue,
-        reason: 'sob o sinal da pessoa a saída se apaga, como tudo (ADR 0107)',
+        find.bySemanticsLabel(_pronto),
+        findsNothing,
+        reason: 'sob o sinal só a lavagem fala (ADR 0107)',
       );
+      expect(find.bySemanticsLabel(_sairDaPassagem), findsNothing);
 
       it.container.read(salaSessionProvider.notifier).teamTapped();
       await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.bySemanticsLabel(_pronto), findsOneWidget);
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(byLabel(_sairDaPassagem));
       await tester.pump(const Duration(milliseconds: 400));
 
@@ -1340,6 +1352,7 @@ void main() {
         SalaStage.escolha,
         reason: 'e o toque tem de valer, não ser engolido por um botão inerte',
       );
+      semantics.dispose();
     },
   );
 
@@ -1394,9 +1407,7 @@ void main() {
     );
   });
 
-  testWidgets('a aprovação que não toca deixa silêncio, e nunca chama ninguém', (
-    tester,
-  ) async {
+  testWidgets('a aprovação que não toca deixa silêncio', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.voice.refuses.add('P3');
 
@@ -1413,7 +1424,7 @@ void main() {
     expect(
       _estado(it.container).btPhase,
       BtPhase.conferida,
-      reason: 'e o colar não fecha sobre uma aprovação que a equipe não ouviu',
+      reason: 'a aprovação não tira a equipe da conferida',
     );
     expect(it.harness.room.releasesAsked, hasLength(1));
 
@@ -1423,42 +1434,32 @@ void main() {
       reason: 'uma é silêncio, não parada',
     );
 
-    await tester.tap(byLabel(_aprovar));
-    await tester.pump(const Duration(milliseconds: 400));
     expect(
-      it.harness.room.releasesAsked,
-      hasLength(1),
+      find.text('Ensaio salvo'),
+      findsOneWidget,
       reason:
-          'a soltura já é da sala; apertar de novo repete a fala, não o pedido',
-    );
-    expect(
-      _estado(it.container).needsPerson,
-      isFalse,
-      reason: 'só a fala da Guia que responde conta para o sinal (ADR 0135)',
+          'a fala que não sai não segura a tela do ensaio salvo: a aprovação '
+          'já é da sala',
     );
 
     closeTheRoom(it.container);
   });
 
-  testWidgets('com a fala de volta, a aprovação fecha o colar', (tester) async {
-    final it = await _ateAConferida(
-      tester,
-      fimLinger: const Duration(milliseconds: 40),
-    );
+  testWidgets('com a fala de volta, a aprovação termina no ensaio salvo', (
+    tester,
+  ) async {
+    final it = await _ateAConferida(tester);
 
     await tester.tap(byLabel(_aprovar));
     await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump(const Duration(milliseconds: 800));
 
     expect(it.harness.room.releasesAsked, hasLength(1));
     expect(
-      _estado(it.container).stage,
-      SalaStage.fim,
-      reason: 'ouvida a fala, o colar fecha',
+      find.text('Ensaio salvo'),
+      findsOneWidget,
+      reason: 'ouvida a fala, a tela do ensaio salvo vem',
     );
 
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump(const Duration(milliseconds: 200));
     closeTheRoom(it.container);
   });
 }
@@ -1474,12 +1475,8 @@ class _Conferida {
 }
 
 /// A team standing on a passage the room has just called checked, with nothing pressed.
-Future<_Conferida> _ateAConferida(
-  WidgetTester tester, {
-  Duration fimLinger = const Duration(seconds: 30),
-}) async {
-  final harness = SalaHarness(filaEmMemoria: true, fimLinger: fimLinger)
-    ..room.verdictChecked = true;
+Future<_Conferida> _ateAConferida(WidgetTester tester) async {
+  final harness = SalaHarness(filaEmMemoria: true)..room.verdictChecked = true;
   harness.playback.length = umaParteInteira;
   final container = harness.container();
   addTearDown(container.dispose);

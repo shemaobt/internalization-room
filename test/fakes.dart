@@ -137,6 +137,9 @@ class FakeVoice implements FacilitatorVoiceService {
   /// does not sound. Distinct from [refuses]: that is the player failing with the file
   /// already in hand.
   RoomFailure? roomFailsWith;
+
+  /// What the next readying of a line throws, the way a defect in getting it ready does.
+  Object? readyThrows;
   Completer<bool>? _holding;
   Completer<bool>? _saying;
 
@@ -205,6 +208,10 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<bool> fetch(String url) async {
     fetched.add(url);
     await _fetching?.future;
+    if (readyThrows case final thrown?) {
+      readyThrows = null;
+      throw thrown;
+    }
     return succeeds;
   }
 
@@ -468,8 +475,22 @@ class FakeRecorder implements RecordingRepository {
   /// Whether looking for audio already on the tablet fails, the way a disk does.
   bool heldAsFails = false;
 
+  bool _holdTheNextLookup = false;
+  final List<Completer<void>> _heldLookups = [];
+
+  /// Holds the next look for audio on the tablet until [finishHeldLookup].
+  void holdNextLookup() => _holdTheNextLookup = true;
+
+  void finishHeldLookup() => _heldLookups.removeAt(0).complete();
+
   @override
   Future<String?> heldAs(String fileName) async {
+    if (_holdTheNextLookup) {
+      _holdTheNextLookup = false;
+      final held = Completer<void>();
+      _heldLookups.add(held);
+      await held.future;
+    }
     if (heldAsFails) throw const FileSystemException('o disco falhou');
     for (final extension in ['wav', 'm4a']) {
       final file = File('${home.path}/$fileName.$extension');
@@ -974,19 +995,31 @@ class FakeInbox implements HandInboxRepository {
   @override
   Stream<String?> get revoked => _revocations.stream;
 
-  Completer<void>? _holdingQuestion;
+  /// Each held question waits on its own hold, in the order the holds were asked for.
+  final List<Completer<void>> _holdingQuestions = [];
+  final List<Completer<void>> _holdsNotYetTaken = [];
 
-  void holdNextQuestion() => _holdingQuestion = Completer<void>();
+  /// What sending a question throws that is neither the room's answer nor the file.
+  Object? knotThrows;
+
+  void holdNextQuestion() {
+    final hold = Completer<void>();
+    _holdingQuestions.add(hold);
+    _holdsNotYetTaken.add(hold);
+  }
 
   void finishHeldQuestion() {
-    _holdingQuestion?.complete();
-    _holdingQuestion = null;
+    for (final held in _holdingQuestions) {
+      if (!held.isCompleted) return held.complete();
+    }
   }
 
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
-    final held = _holdingQuestion;
-    if (held != null) await held.future;
+    if (_holdsNotYetTaken.isNotEmpty) {
+      await _holdsNotYetTaken.removeAt(0).future;
+    }
+    if (knotThrows case final thrown?) throw thrown;
     if (cannotReadTheKnot) {
       throw FileSystemException('sem arquivo', audio.path);
     }
@@ -1048,6 +1081,7 @@ class FakeRoom implements RoomRepository {
   int _turnCount = 0;
 
   final List<String> calls = [];
+  final Map<String, Object> throwOn = {};
   final List<String?> pericopesAsked = [];
   final List<String> languagesSent = [];
   final List<String?> clientTimingsSent = [];
@@ -1511,6 +1545,7 @@ class FakeRoom implements RoomRepository {
   RoomFailure? _guard(String call) {
     calls.add(call);
     presentedOnEachCall.add(presented);
+    if (throwOn[call] case final thrown?) throw thrown;
     final failure = failWith;
     if (failure is SessionGone && _sessionless.contains(call)) {
       return const Refused(RefusalCode.notFound);
@@ -1823,6 +1858,53 @@ class FakeRoom implements RoomRepository {
     );
     sceneRehearsals[at] = restarted;
     return Answered(restarted);
+  }
+
+  /// Every Scene label this room was sent for an Unlabelled rehearsal.
+  final List<({String rehearsalId, String scene})> labelsSent = [];
+
+  /// What the next labels answer, one each, before the room takes them.
+  final List<RoomFailure> labelAnswersFirst = [];
+
+  Completer<void>? _holdingTheLabel;
+
+  /// Hold the next label's answer, after the room has been sent it.
+  void holdTheLabel() => _holdingTheLabel = Completer<void>();
+
+  void releaseTheLabel() {
+    _holdingTheLabel?.complete();
+    _holdingTheLabel = null;
+  }
+
+  @override
+  Future<RoomAnswer<SceneRehearsalRecord>> labelTheSceneRehearsal(
+    String sessionId,
+    String rehearsalId, {
+    required String scene,
+  }) async {
+    if (_guard('labelTheSceneRehearsal') case final failure?) return failure;
+    labelsSent.add((rehearsalId: rehearsalId, scene: scene));
+    await _holdingTheLabel?.future;
+    if (labelAnswersFirst.isNotEmpty) return labelAnswersFirst.removeAt(0);
+    final at = sceneRehearsals.indexWhere(
+      (rehearsal) => rehearsal.rehearsalId == rehearsalId,
+    );
+    final old = sceneRehearsals[at];
+    final labelled = SceneRehearsalRecord(
+      rehearsalId: old.rehearsalId,
+      sessionId: old.sessionId,
+      n: old.n,
+      scene: scene,
+      recordedAt: old.recordedAt,
+      sentAt: old.sentAt,
+      afterRestart: old.afterRestart,
+      durationMs: old.durationMs,
+      frases: old.frases,
+      contentType: old.contentType,
+      verified: old.verified,
+    );
+    sceneRehearsals[at] = labelled;
+    return Answered(labelled);
   }
 
   /// Every frase this room was sent: its span, the attempt it names, its audio and the
@@ -2948,12 +3030,15 @@ class FakeRoom implements RoomRepository {
   }
 
   Completer<void>? _holdingRelease;
+  Completer<void>? _heldRelease;
 
-  /// Holds the approval in flight, so a test can press again before the answer lands.
+  /// Holds the next approval in flight, so a test can press again before the answer
+  /// lands; the approvals after it go through.
   void holdNextRelease() => _holdingRelease = Completer<void>();
 
   void finishHeldRelease() {
-    _holdingRelease?.complete();
+    (_heldRelease ?? _holdingRelease)?.complete();
+    _heldRelease = null;
     _holdingRelease = null;
   }
 
@@ -2972,7 +3057,11 @@ class FakeRoom implements RoomRepository {
     final refusal = failReleaseWith;
     if (refusal != null) return refusal;
     final held = _holdingRelease;
-    if (held != null) await held.future;
+    if (held != null) {
+      _holdingRelease = null;
+      _heldRelease = held;
+      await held.future;
+    }
     if (releaseBlockers.isEmpty) return Answered(release);
     return Answered(
       ApprovalAnswer(

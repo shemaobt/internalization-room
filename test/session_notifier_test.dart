@@ -1758,9 +1758,9 @@ void main() {
   );
 
   test(
-    'the closed necklace stays still on the fim screen, not touched again for a flag nothing draws',
+    'the Saved screen stays still, not touched again for a flag nothing draws',
     () async {
-      final harness = SalaHarness(fimLinger: const Duration(seconds: 30));
+      final harness = SalaHarness();
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -1784,9 +1784,10 @@ void main() {
       await settle();
       await notifier.aprovarRascunhoFinal();
       await waitFor(
-        'o colar fechar',
-        () => container.read(salaSessionProvider).stage == SalaStage.fim,
+        'o ensaio salvo',
+        () => container.read(salaSessionProvider).ensaioSalvo != null,
       );
+      await settle();
 
       var emits = 0;
       container.listen(salaSessionProvider, (_, _) => emits++);
@@ -1795,11 +1796,9 @@ void main() {
       expect(
         emits,
         0,
-        reason:
-            'um segundo depois do fim a sala ligava um fimClosed que nenhum '
-            'widget lê — a tela inteira se refazia para nada',
+        reason: 'parada sobre o ensaio salvo, a sala não se refaz para nada',
       );
-      expect(container.read(salaSessionProvider).stage, SalaStage.fim);
+      expect(container.read(salaSessionProvider).ensaioSalvo, 1);
     },
   );
 
@@ -4230,44 +4229,6 @@ void main() {
     );
   });
 
-  test('the closed necklace opens the room again on its own', () async {
-    final harness = SalaHarness(fimLinger: const Duration(milliseconds: 40));
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    notifier.startRetro();
-    await settle();
-    harness.playback.at = const Duration(seconds: 2);
-    notifier.retroTap();
-    notifier.retroTap();
-    await settle();
-    await confirmarATraducao(container);
-    await settle();
-    harness.playback.finishPlayback();
-    await settle();
-    await notifier.finishBackTranslation();
-    await settle();
-    await notifier.aprovarRascunhoFinal();
-    await settle(const Duration(seconds: 2));
-
-    final after = container.read(salaSessionProvider);
-    expect(
-      after.stage,
-      SalaStage.escolha,
-      reason:
-          'a sala reabre na escolha, não no convite: voltar ao convite '
-          'refazia a mesma perícope para sempre num tablet esquecido ligado',
-    );
-    expect(after.sessionId, isNull);
-    expect(after.partes.length, 0);
-  });
-
   test('the ensaio does not freeze on a play that never ends', () async {
     final harness = SalaHarness(
       playbackCeiling: const Duration(milliseconds: 40),
@@ -4325,45 +4286,6 @@ void main() {
       reason:
           'se a conclusão do clipe se perde, a equipe capturava pedaços '
           'para sempre sem nunca poder concluir',
-    );
-  });
-
-  test('the closed room opens again on a touch, not only on its own', () async {
-    final harness = SalaHarness(fimLinger: const Duration(seconds: 30));
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    notifier.startRetro();
-    await settle();
-    harness.playback.at = const Duration(seconds: 2);
-    notifier.retroTap();
-    notifier.retroTap();
-    await settle();
-    await confirmarATraducao(container);
-    await settle();
-    harness.playback.finishPlayback();
-    await settle();
-    await notifier.finishBackTranslation();
-    await settle();
-    await notifier.aprovarRascunhoFinal();
-    await settle(const Duration(seconds: 2));
-
-    expect(container.read(salaSessionProvider).stage, SalaStage.fim);
-
-    notifier.beginAgain();
-
-    expect(
-      container.read(salaSessionProvider).stage,
-      SalaStage.escolha,
-      reason:
-          'a tela do fim não tinha alvo de toque nenhum; se a corrente de '
-          'temporizadores morresse, a sala ficava branca até matarem o app',
     );
   });
 
@@ -5950,7 +5872,7 @@ void main() {
   );
 
   test(
-    'the back-translation reaches conferida and closes the necklace',
+    'the back-translation reaches conferida and the approval ends on the Saved screen over it',
     () async {
       final harness = SalaHarness();
       final container = await inConversa(harness);
@@ -5984,7 +5906,8 @@ void main() {
       await notifier.aprovarRascunhoFinal();
       await settle(const Duration(seconds: 2));
 
-      expect(container.read(salaSessionProvider).stage, SalaStage.fim);
+      expect(container.read(salaSessionProvider).stage, SalaStage.retro);
+      expect(container.read(salaSessionProvider).ensaioSalvo, 1);
     },
   );
 

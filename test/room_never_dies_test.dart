@@ -1236,45 +1236,47 @@ void main() {
     );
   });
 
-  test('a passage carried to the end stops being work in progress', () async {
-    final harness = SalaHarness();
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
+  test(
+    'an approved passage stays work in progress, on its approved draft',
+    () async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
 
-    // Entered through the wheel, because a resume point is a passage: `goConversa(book: 'Ruth')` with
-    // no pericope has nothing to remember.
-    await notifier.abrirEscolha();
-    await settle();
-    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
-    await settle();
+      // Entered through the wheel, because a resume point is a passage: `goConversa(book: 'Ruth')` with
+      // no pericope has nothing to remember.
+      await notifier.abrirEscolha();
+      await settle();
+      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
+      await settle();
 
-    notifier.goEnsaio();
-    await settle();
-    expect(await harness.emAberto.startedIn('Ruth', 'pt'), contains('P01'));
+      notifier.goEnsaio();
+      await settle();
+      expect(await harness.emAberto.startedIn('Ruth', 'pt'), contains('P01'));
 
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    notifier.startRetro();
-    await settle();
-    harness.playback.finishPlayback();
-    await settle();
-    await notifier.finishBackTranslation();
-    await settle();
-    await notifier.aprovarRascunhoFinal();
-    await settle(const Duration(milliseconds: 900));
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
+      notifier.takeKeep();
+      notifier.startRetro();
+      await settle();
+      harness.playback.finishPlayback();
+      await settle();
+      await notifier.finishBackTranslation();
+      await settle();
+      await notifier.aprovarRascunhoFinal();
+      await settle(const Duration(milliseconds: 900));
 
-    expect(
-      await harness.emAberto.startedIn('Ruth', 'pt'),
-      isEmpty,
-      reason:
-          'uma passagem aprovada não é trabalho em aberto — conferida '
-          'ainda é: a equipe pode fechar o app antes de aprovar, e tem de '
-          'voltar ao gesto que falta',
-    );
-  });
+      expect(
+        await harness.emAberto.startedIn('Ruth', 'pt'),
+        contains('P01'),
+        reason:
+            'aprovada, a passagem segue para a checagem externa a partir da '
+            'tradução conferida: o ponto de retomada fica nela',
+      );
+    },
+  );
 
   test(
     'a session the server forgot twice sends the team back to the wheel',

@@ -42,7 +42,6 @@ void main() {
       final harness = SalaHarness(
         currentSession: currentSession,
         emAbertoNoDisco: WorkInProgress(),
-        fimLinger: const Duration(milliseconds: 10),
       );
       final container = harness.container();
       addTearDown(container.dispose);
@@ -63,8 +62,11 @@ void main() {
       await sala.finishBackTranslation();
       await settle();
       await sala.aprovarRascunhoFinal();
+      await waitFor('o ensaio salvo', () => read().ensaioSalvo != null);
+      sala.pronto();
+      sala.leaveThePassage();
       await waitFor(
-        'a sala recomeçar na Escolha depois do fecho',
+        'a equipe sair da passagem aprovada para a Escolha',
         () => read().stage == SalaStage.escolha && read().naRoda != null,
       );
 
@@ -98,7 +100,7 @@ void main() {
       expect(
         await currentSession.read(),
         isNull,
-        reason: 'as duas sessões fecharam, e a Sessão atual foi largada',
+        reason: 'a equipe deixou as duas sessões, e a Sessão atual foi largada',
       );
     });
   });

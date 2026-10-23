@@ -1,5 +1,9 @@
 part of '../station.dart';
 
+/// The recording home, or the Ensaio Final plan the orange dot opens over a passage with no
+/// take yet.
+enum EnsaioStep { home, plan }
+
 /// The Rehearsal; the Closing is not reached from it, and the Back-translation is opened
 /// from it only once every scene has its part. A reopened passage that had already
 /// reached its telling-back resumes it whatever the Rehearsal weighed.
@@ -7,10 +11,21 @@ final class Ensaio extends Station {
   /// Whether every scene of the passage has its part, as the Rehearsal was last weighed.
   final bool everySceneHasItsPart;
 
-  const Ensaio({this.everySceneHasItsPart = false});
+  final EnsaioStep step;
+
+  const Ensaio({
+    this.everySceneHasItsPart = false,
+    this.step = EnsaioStep.home,
+  });
 
   @override
   SalaStage get stage => SalaStage.ensaio;
+
+  @override
+  bool operator ==(Object other) => other is Ensaio && other.step == step;
+
+  @override
+  int get hashCode => step.hashCode;
 
   @override
   Station answer(StationEvent event) => switch (event) {
@@ -19,9 +34,13 @@ final class Ensaio extends Station {
     TheChoiceOpened() => const Menu(),
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),
-    TheBackTranslationOpened() => everySceneHasItsPart ? const Retro() : this,
+    ThePlanOpened() => this,
+    TheBackTranslationOpened() =>
+      everySceneHasItsPart && step == EnsaioStep.home ? const Retro() : this,
     TheBackTranslationResumed() => const Retro(),
-    TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
+    TheSceneRehearsalOpened() =>
+      step == EnsaioStep.plan ? const SceneRehearsal() : this,
+    TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
   };
 }

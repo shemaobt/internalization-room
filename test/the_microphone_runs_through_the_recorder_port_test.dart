@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -323,7 +324,9 @@ void main() {
       notifier.ensaioTap();
       await settle();
 
-      harness.recorder.failsTheNextStop = StateError('the platform broke');
+      harness.recorder.failsTheNextStop = PlatformException(
+        code: 'the platform broke',
+      );
       notifier.ensaioTap();
       await settle();
 

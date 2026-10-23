@@ -51,14 +51,14 @@ double _seenOpacity(WidgetTester tester) => tester
     )
     .fold(1.0, (opacity, fade) => opacity * fade.opacity.value);
 
-void _expectTheDotOut(WidgetTester tester, {String? reason}) {
+void _expectTheDotFaint(WidgetTester tester, {String? reason}) {
   expect(
     _dot,
     findsOneWidget,
     reason: 'o ponto não estava montado na conversa',
   );
-  expect(_dotOpacity(tester), 0.0, reason: reason);
-  expect(_dotIsDeaf(tester), isTrue);
+  expect(_dotOpacity(tester), closeTo(0.22, 0.001), reason: reason);
+  expect(_dotIsDeaf(tester), isFalse);
 }
 
 Color? _dotColour(WidgetTester tester) => tester
@@ -168,7 +168,7 @@ void main() {
     'the send-off lights the dot as it starts, and the team first sees it when the voice ends',
     (tester) async {
       final (harness, container) = await _inTheLastScene(tester);
-      _expectTheDotOut(tester);
+      _expectTheDotFaint(tester);
 
       await _theNextReplyPlays(tester, harness, container, _sendOff);
 
@@ -234,9 +234,9 @@ void main() {
 
       expect(container.read(salaSessionProvider).voice, VoiceState.invite);
       expect(_shown(tester), 'Articulação · cena 3 de 3');
-      _expectTheDotOut(
+      _expectTheDotFaint(
         tester,
-        reason: 'o ponto acendeu numa resposta que a sala deixou na cena',
+        reason: 'o ponto mudou numa resposta que a sala deixou na cena',
       );
     },
   );
@@ -270,7 +270,7 @@ void main() {
         tester,
         watching: true,
       );
-      _expectTheDotOut(tester);
+      _expectTheDotFaint(tester);
 
       harness.room.readsDone = true;
       final reads = stateReads(harness);
@@ -312,8 +312,8 @@ void main() {
       );
       expect(_dotIsDeaf(tester), isTrue);
       expect(
-        tester.getSemantics(_dot),
-        isSemantics(hasTapAction: false),
+        find.semantics.byLabel('Gravar o ensaio de vocês'),
+        findsNothing,
         reason: 'o leitor de tela ainda abria o ensaio com o microfone aberto',
       );
       semantics.dispose();
@@ -375,7 +375,7 @@ void main() {
   testWidgets('a touch on the lit dot takes the team to the rehearsal', (
     tester,
   ) async {
-    final (_, container) = await _afterTheSendOff(tester);
+    final (_, container) = await _afterTheSendOff(tester, queueInMemory: true);
 
     await tester.tap(_dot);
     await tester.pump(const Duration(milliseconds: 500));
@@ -420,16 +420,16 @@ void main() {
   );
 
   testWidgets(
-    'before the send-off the dot waits unseen, out of a screen reader\'s reach',
+    'before the send-off the dot is faint, and a screen reader announces it',
     (tester) async {
       final semantics = tester.ensureSemantics();
       await _inTheLastScene(tester);
 
-      _expectTheDotOut(tester);
+      _expectTheDotFaint(tester);
       expect(
-        find.bySemanticsLabel('Gravar o ensaio de vocês'),
-        findsNothing,
-        reason: 'o leitor de tela anunciava um ponto que a equipe não via',
+        tester.getSemantics(_dot),
+        isSemantics(label: 'Gravar o ensaio de vocês', hasTapAction: true),
+        reason: 'o leitor de tela não anunciava o ponto que a equipe via',
       );
       semantics.dispose();
     },
@@ -454,7 +454,7 @@ void main() {
 
     expect(
       _seenOpacity(tester),
-      allOf(greaterThan(0.0), lessThan(0.85)),
+      allOf(greaterThan(0.22), lessThan(0.85)),
       reason: 'o ponto saltava aceso num quadro só, sem os 400 ms dela',
     );
     await tester.pump(const Duration(milliseconds: 500));

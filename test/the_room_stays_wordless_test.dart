@@ -13,11 +13,13 @@ const _screensTheTeamNeverReads = {
 
 const _herWordsTheTeamReads = {
   'lib/features/sala/presentation/widgets/ensaio_view.dart',
+  'lib/features/sala/presentation/widgets/ensaio_final_plan_view.dart',
   'lib/features/sala/presentation/widgets/escolha_view.dart',
   'lib/features/sala/presentation/widgets/moment_label.dart',
   'lib/features/sala/presentation/widgets/scene_question.dart',
   'lib/features/sala/presentation/widgets/frase_list.dart',
   'lib/features/sala/presentation/widgets/retro_view.dart',
+  'lib/features/sala/presentation/widgets/saved_screen.dart',
   'lib/features/sala/presentation/widgets/stage_heading.dart',
   'lib/features/sala/presentation/widgets/status_lines.dart',
   'lib/features/sala/presentation/widgets/scene_translate_step.dart',
