@@ -6783,8 +6783,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _fecharAFrase(int frase) async {
     final generation = _waitOnTheGeneration;
+    final vez = _regravacoes;
+    bool largada() => _abandoned(generation) || vez != _regravacoes;
     final path = (await _closeTheMicrophone()).take;
-    if (_abandoned(generation)) return;
+    if (largada()) return;
     if (path == null || _anAccidentalTap(path)) {
       if (path != null) unawaited(_recorder.delete(path));
       state = state.copyWith(
@@ -6801,7 +6803,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       kind: sentenceKind,
       scope: '$frase',
     );
-    if (_abandoned(generation)) return;
+    if (largada()) return;
     _fraseNaFila = guardada;
     state = state.copyWith(
       btRegravacao: RegravacaoDaFrase(
@@ -7097,7 +7099,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _retroTap() {
     if (state.station is! Retro) return;
-    if (state.needsPerson) return;
+    if (state.needsPerson || !state.aBackTranslationGestureActs) return;
     if (state.btRegravacao case final regravacao?) {
       switch (regravacao.passo) {
         case PassoDaRegravacao.pronta:

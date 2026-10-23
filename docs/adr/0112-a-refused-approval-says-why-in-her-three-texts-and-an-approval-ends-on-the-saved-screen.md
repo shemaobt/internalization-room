@@ -41,8 +41,8 @@ approved sentence with its **Version**, and ends on «Ensaio salvo» with one bu
   does (ADR 0107).
 - **While an approval is in the air, no other Back-translation gesture acts**, from the press
   until the Saved screen comes or the refusal's handling ends (the read and the move to the
-  stretch it names): a restart, a retelling, a frase, the recording, a sentence re-recorded or
-  sent again, or a second approval asked in between does nothing, and none of them is drawn live, so nothing moves what was approved. The press also disarms any armed control (the Restart) and clears the
+  stretch it names): a restart, a retelling, a frase, the recording, the circle, a sentence
+  re-recorded or sent again, or a second approval asked in between does nothing, and none of them is drawn live, so nothing moves what was approved. The press also disarms any armed control (the Restart) and clears the
   Back-translation's notice with the refusal text, so a press reads only its own answer, and
   her approved sentence never outlives its approval. The hold belongs to the press and its
   Generation: once the team leaves the passage it holds nothing, and a late answer never
