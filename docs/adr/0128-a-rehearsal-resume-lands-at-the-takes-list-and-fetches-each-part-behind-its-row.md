@@ -41,7 +41,8 @@ Choice. Her app shows the rows at once and streams a row's audio when it is play
   parts on their way, so an app closed meanwhile fetches them again on its next opening.
 - Every resume onto an approved draft lands first the same way, whichever row it comes from: a
   row on the Back-translation with files missing reads the Session read first, and when it says
-  approved the draft lands at once over the room's parts. A Back-translation resume that is not
+  approved the draft lands at once over the room's parts; a listing that fails there goes back
+  to the Choice with the row untouched, as before. A Back-translation resume that is not
   an approved draft, and the refusal re-read, still fetch every part before they land.
 - An approved draft the room reads after a Rehearsal landing lands at once (ADR 0106); the parts
   on their way keep coming down behind it in the same order, and a frase over a part not yet
