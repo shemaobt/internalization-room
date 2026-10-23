@@ -1007,6 +1007,7 @@ void main() {
       expect(find.text('juntando a cena 1 de 3…'), findsOneWidget);
       it.room.finishHeldTake();
       await _theJoinEnds(it);
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
