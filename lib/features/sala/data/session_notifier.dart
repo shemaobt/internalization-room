@@ -3467,10 +3467,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final rows = [
       for (final entry in outbox)
-        if (entry.sessionId == sessionId &&
-            entry.kind == 'ensaio' &&
-            !entry.exhausted)
-          entry,
+        if (entry.sessionId == sessionId && entry.kind == 'ensaio') entry,
     ];
     switch ((takes, rehearsals, scenes)) {
       case (Answered(value: final guardadas), _, _)
@@ -3497,7 +3494,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           )
           when passage.isNotEmpty:
         final waiting = {
-          for (final row in rows) ?KeptScope.numberOf(row.scope): row.origin!,
+          for (final row in rows)
+            if (!row.exhausted) ?KeptScope.numberOf(row.scope): row.origin!,
         };
         final read = PlanRead(
           rehearsals: listed,
@@ -3690,10 +3688,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       _rowsOfThisVisit.add(row.id);
       _semNome[row.id] = partPath;
-      final passadas = _passadasDaSala;
-      if (passadas != null) {
-        _passadasDaSala = _aindaPorGravar(passadas, {number});
-      }
       state = state.copyWith(
         keptTakes: [
           ...state.keptTakes,
@@ -3729,7 +3723,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         .lastOrNull;
     if (_left(generation, life)) return (JoinRow.retry, null);
     if (row == null) return (JoinRow.joined, true);
-    await _takes.dueAgain(row.id);
+    if (!row.exhausted) await _takes.dueAgain(row.id);
     final part = state.partes.where((take) => take.scopeId == scope);
     return _watchTheRow(row.id, part.firstOrNull?.path, generation, life);
   }
@@ -3793,6 +3787,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_left(generation, life)) return (JoinRow.retry, null);
       if (row == null) return (JoinRow.retry, null);
       if (row.exhausted) {
+        await _takes.withdraw(row);
         _semNome.remove(rowId);
         state = state.copyWith(
           keptTakes: [
@@ -3814,6 +3809,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _after('joinPause', joinQuietPause, pause.complete);
       await pause.future;
       await _takes.dueAgain(rowId);
+      if (_left(generation, life)) return (JoinRow.retry, null);
     }
   }
 
@@ -3825,8 +3821,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     T? answered;
     final gate = Completer<void>();
     _after('joinAnswer', joinAnswerWait, gate.complete);
+    final mine = _timers['joinAnswer'];
     await Future.any([work.then((value) => answered = value), gate.future]);
-    _timers.remove('joinAnswer')?.cancel();
+    if (identical(_timers['joinAnswer'], mine)) {
+      _timers.remove('joinAnswer')?.cancel();
+    }
     return answered;
   }
 

@@ -3189,7 +3189,24 @@ class FakeTakeQueue implements TakeUploadQueue {
     required String origin,
     String? fingerprint,
     bool reopensTheApprovedDraft = false,
-  }) => throw UnimplementedError();
+  }) async {
+    final held = crypto.sha256.convert(audio.readAsBytesSync()).toString();
+    if (fingerprint != null && held != fingerprint) return null;
+    final entry = PendingTake(
+      id: '${_minted++}',
+      path: audio.path,
+      sessionId: sessionId,
+      kind: 'ensaio',
+      scope: 'parte-$number',
+      passNumber: passNumber,
+      chunkIndex: number,
+      sha256: held,
+      origin: origin,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
+    );
+    rows.add(entry);
+    return entry;
+  }
 
   @override
   Stream<void> get fallsOnTheNetwork => const Stream.empty();

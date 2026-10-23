@@ -740,6 +740,12 @@ void main() {
 
       expect(it.partsReceived, ['parte-1']);
       expect(find.text(_planLine), findsOneWidget);
+      final left = await tester.runAsync(it.harness.takes.pending);
+      expect(
+        left!.where((row) => row.scope == 'parte-2'),
+        isEmpty,
+        reason: 'uma linha recusada de vez não volta a subir sozinha',
+      );
       semantics.dispose();
     },
   );
