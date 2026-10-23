@@ -263,33 +263,30 @@ void main() {
     expect(read().needsPerson, isFalse);
   });
 
-  test(
-    'a fail-safe the room said again is not kept as the last line, and the next '
-    '«Ouvir de novo» asks the room again',
-    () async {
-      final harness = SalaHarness()..room.turnsAreCanned = true;
-      _aCanvasRow(harness, opened: true);
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-      await enterThePassage(notifier, read, 'P01');
-      await waitFor('the passage to land at rest', () => read().canHearAgain);
+  test('a fail-safe the room said again is kept as the last line, and the next '
+      '«Ouvir de novo» says it without asking the room', () async {
+    final harness = SalaHarness()..room.turnsAreCanned = true;
+    _aCanvasRow(harness, opened: true);
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePassage(notifier, read, 'P01');
+    await waitFor('the passage to land at rest', () => read().canHearAgain);
 
-      await notifier.hearAgain();
-      await waitFor(
-        'the room to rest again',
-        () => read().voice == VoiceState.invite && read().canHearAgain,
-      );
-      await notifier.hearAgain();
-      await waitFor(
-        'the room to be asked again',
-        () => harness.room.sessionsSaidAgain.length == 2,
-      );
+    await notifier.hearAgain();
+    await waitFor(
+      'the room to rest again',
+      () => read().voice == VoiceState.invite && read().canHearAgain,
+    );
+    await notifier.hearAgain();
+    await waitFor(
+      'the line to be said again',
+      () => harness.voice.played.where((url) => url == deNovoUrl).length == 2,
+    );
 
-      expect(read().lastSpoken, isNull);
-    },
-  );
+    expect(harness.room.sessionsSaidAgain, hasLength(1));
+  });
 
   test(
     'a stored Rehearsal whose session read fell with the network goes back to '

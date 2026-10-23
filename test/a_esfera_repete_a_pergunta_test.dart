@@ -58,33 +58,29 @@ void main() {
       );
     });
 
-    test('sem fala guardada, a esfera não toca o trecho', () async {
-      final harness = harnessApontando()
-        ..room.turnsAreCanned = true
-        ..room.verdictUsedFailSafe = true;
-      final container = await pumpAoApontado(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
+    test(
+      'repete o veredito de fail-safe como qualquer fala, não o trecho',
+      () async {
+        final harness = harnessApontando()
+          ..room.turnsAreCanned = true
+          ..room.verdictUsedFailSafe = true;
+        final container = await pumpAoApontado(harness);
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        final ditoAntes = harness.voice.played.last;
+        final tocadosAntes = harness.voice.played.length;
 
-      expect(
-        container.read(salaSessionProvider).lastSpoken,
-        isNull,
-        reason:
-            'nem o turno de abertura nem o veredito de fail-safe são lembrados',
-      );
+        notifier.retroTap();
+        await waitFor(
+          'a esfera tocar a fala de novo',
+          () => harness.voice.played.length > tocadosAntes,
+        );
+        await settle();
 
-      final tocadosAntes = harness.voice.played.length;
-      final assetsAntes = harness.voice.assets.length;
-      final fixasAntes = harness.voice.fixedLines.length;
-
-      notifier.retroTap();
-      await settle();
-
-      expect(harness.voice.played.length, tocadosAntes);
-      expect(harness.voice.assets.length, assetsAntes);
-      expect(harness.voice.fixedLines.length, fixasAntes);
-      expect(harness.playback.ranges, isEmpty);
-    });
+        expect(harness.voice.played.last, ditoAntes);
+        expect(harness.playback.ranges, isEmpty);
+      },
+    );
 
     test('o play do achado continua tocando o trecho diretamente', () async {
       final harness = harnessApontando();

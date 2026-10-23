@@ -232,8 +232,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   LineArrived(:final line) => 'LineArrived(${describeLine(line)})',
   PlayerOpened() => 'PlayerOpened',
   PlayerEnded() => 'PlayerEnded',
-  PlayerFailed(:final source, :final sounding) =>
-    'PlayerFailed(${source.key}, ${describeKept(sounding)})',
+  PlayerFailed(:final source) => 'PlayerFailed(${source.key})',
   MicOpened(:final owner) => 'MicOpened(${owner.name})',
   MicClosed() => 'MicClosed',
   MicAnswered(:final answer) => 'MicAnswered(${answer.name})',
@@ -656,10 +655,7 @@ MachineEvent _draw(
   ),
   EventKind.playerOpened => const PlayerOpened(),
   EventKind.playerEnded => const PlayerEnded(),
-  EventKind.playerFailed => PlayerFailed(
-    _drawASource(random),
-    sounding: _drawKept(random),
-  ),
+  EventKind.playerFailed => PlayerFailed(_drawASource(random)),
   EventKind.micOpened => MicOpened(
     MicOwner.values[random.nextInt(MicOwner.values.length)],
   ),

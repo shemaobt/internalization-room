@@ -343,8 +343,6 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
       TheSceneTurnFoundNothing() ||
       LookEmpty() ||
       LookFailed() => true,
-      PlayerFailed(source: Source.guide) =>
-        before.failing == Source.guide && before.failures >= 1,
       StationEvent() =>
         before.aHaltWaitsForTheCanvas && after.station is Canvas,
       _ => false,

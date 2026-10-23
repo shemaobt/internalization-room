@@ -150,7 +150,7 @@ void main() {
   );
 
   test(
-    'a fail-safe Opening the room was still answering rests with «Ouvir de novo» asking the room',
+    'a fail-safe Opening the room was still answering rests with «Ouvir de novo» saying that line',
     () {
       _anOpeningTheNetworkLoses(
         (room) => room
@@ -169,7 +169,8 @@ void main() {
           unawaited(it.sala.hearAgain());
           clock.elapse(const Duration(seconds: 1));
 
-          expect(it.room.turnIdsAsked, hasLength(asked + 1));
+          expect(it.harness.voice.played, contains(turnoUrl));
+          expect(it.room.turnIdsAsked, hasLength(asked));
         },
       );
     },

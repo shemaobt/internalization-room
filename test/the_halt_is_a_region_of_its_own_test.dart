@@ -111,12 +111,6 @@ void main() {
         );
       }
       expect(machine.halt, isNot(isA<Blocking>()));
-
-      var guide = const Machine();
-      for (var failure = 0; failure < 2; failure++) {
-        (guide, _) = reduce(guide, const PlayerFailed(Source.guide));
-      }
-      expect(guide.halt, isA<Blocking>());
     });
 
     test('a raised halt calls for a person and arms the Watch', () {
