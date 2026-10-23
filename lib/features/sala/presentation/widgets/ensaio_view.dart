@@ -29,9 +29,11 @@ class EnsaioView extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
     final colors = SalaColors.of(context);
-    if (_theSheet(session) case (final plan?, final home?)) {
-      return _homeSheet(session, plan, home, language);
-    }
+    final homeRows = session.homeRows;
+    final sheet = homeRows.values
+        .where((row) => row.plan.scene.sceneId == session.homeSheet)
+        .firstOrNull;
+    if (sheet != null) return _homeSheet(session, sheet, language);
     final pending = session.ensaio == EnsaioStatus.recorded;
     final titulo = recordingHomeLabelFor(
       session.joined ? 'joinedTitle' : 'title',
@@ -97,7 +99,7 @@ class EnsaioView extends ConsumerWidget {
                   for (final row in session.sceneRows)
                     _SceneRowView(
                       row: row,
-                      home: session.homeRowAt(row.number),
+                      home: homeRows[row.number]?.home,
                       session: session,
                       language: language,
                       onSheet: () => notifier.openTheHomeSheet(row.number),
@@ -198,31 +200,12 @@ class EnsaioView extends ConsumerWidget {
     return SafeArea(bottom: false, child: scrolling);
   }
 
-  (PlanRow?, HomeRow?) _theSheet(SalaSessionState session) {
-    final (number, read, sessionId) = (
-      session.homeSheet,
-      session.ensaioFinalPlan,
-      session.sessionId,
-    );
-    if (number == null || read is! PlanRead || sessionId == null) {
-      return (null, null);
-    }
-    return (
-      planRowsOf(
-        read,
-        sessionId,
-        const {},
-      ).where((plan) => plan.number == number).firstOrNull,
-      session.homeRowAt(number),
-    );
-  }
-
   Widget _homeSheet(
     SalaSessionState session,
-    PlanRow plan,
-    HomeRow home,
+    ({PlanRow plan, HomeRow home}) row,
     String language,
   ) {
+    final (:plan, :home) = row;
     String said(String control) => ensaioFinalPlanLabelFor(control, language);
     bool armed(SceneRehearsalRecord rehearsal) =>
         session.armedTap?.control == swapControl(plan.scene.sceneId, rehearsal);
@@ -313,6 +296,7 @@ class _SceneRowView extends StatelessWidget {
         named,
         if (playing) recordingHomeLabelFor('playing', language),
       ].join(', '),
+      value: row.part == null ? null : '✓',
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         decoration: BoxDecoration(

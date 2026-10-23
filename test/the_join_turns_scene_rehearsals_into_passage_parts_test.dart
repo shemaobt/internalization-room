@@ -695,10 +695,12 @@ void main() {
 
   testWidgets(
     'a join the room answers with a take that is not the part claims nothing '
-    'and opens the recording home',
+    'and opens the recording home, in a room that answers any take holding '
+    'those bytes',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _atRest(tester);
+      it.room.joinsTheLiveTake = false;
       it.seed();
       await it.openThePlan();
       it.room.takes.addAll([
@@ -795,10 +797,12 @@ void main() {
     );
 
     testWidgets(
-      'that lands on its own as a take that is not the part claims nothing',
+      'that lands on its own as a take that is not the part claims nothing, in '
+      'a room that answers any take holding those bytes',
       (tester) async {
         final semantics = tester.ensureSemantics();
         final it = await givenUpOnPart2(tester);
+        it.room.joinsTheLiveTake = false;
         it.room.takes.addAll([
           TakeView(
             takeId: 'gravacao-junta-antiga',

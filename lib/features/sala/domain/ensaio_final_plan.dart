@@ -247,23 +247,20 @@ bool stillToJoin(
   planRowsOf(read, sessionId, choices),
 ).any((step) => !step.waiting);
 
+/// What a Scene row of the recording home offers after a join: «trocar o ensaio desta
+/// cena» over a joined part, «usar o ensaio desta cena» where no joined part stands, and
+/// the rehearsal in use; neither while the row's take is unsent.
 typedef HomeRow = ({bool swap, bool useScene, String? inUse});
 
+/// Her `homeRow`, from the row's plan candidates, its part's origin, and whether its take
+/// is still unsent.
 HomeRow homeRowOf(
   PlanRead read,
-  String sessionId, {
-  required int number,
+  PlanRow? plan, {
   required String? origin,
   required bool held,
 }) {
-  final candidates =
-      planRowsOf(
-        read,
-        sessionId,
-        const {},
-      ).where((row) => row.number == number).firstOrNull?.candidates ??
-      const [];
-  final joinable = candidates.where((c) => c.joinable);
+  final joinable = (plan?.candidates ?? const []).where((c) => c.joinable);
   final inUse = read.rehearsals.any((r) => r.rehearsalId == origin)
       ? origin
       : null;

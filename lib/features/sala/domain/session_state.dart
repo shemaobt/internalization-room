@@ -462,7 +462,8 @@ class SalaSessionState {
   /// Whether the card says her line for a label the room could not keep.
   final bool labelLine;
 
-  final int? homeSheet;
+  /// The scene whose Rehearsal sheet is open over the recording home.
+  final String? homeSheet;
   final String? swapping;
   final ({String rehearsalId, bool cannotEnter})? swapLine;
   final bool hearNewScene;
@@ -758,17 +759,28 @@ class SalaSessionState {
 
   bool get homeBusy => swapping != null;
 
-  HomeRow? homeRowAt(int number) {
+  /// Each Scene row's plan row and what it offers on the recording home, by number, from
+  /// the scene-rehearsal listing the home last read.
+  Map<int, ({PlanRow plan, HomeRow home})> get homeRows {
     final (read, sessionId) = (ensaioFinalPlan, this.sessionId);
-    final row = sceneRows.where((row) => row.number == number).firstOrNull;
-    if (read is! PlanRead || sessionId == null || row == null) return null;
-    return homeRowOf(
-      read,
-      sessionId,
-      number: number,
-      origin: row.part?.origin,
-      held: row.unsent != null,
-    );
+    if (read is! PlanRead || sessionId == null) return const {};
+    final plans = {
+      for (final plan in planRowsOf(read, sessionId, const {}))
+        plan.number: plan,
+    };
+    return {
+      for (final row in sceneRows)
+        if (plans[row.number] case final plan?)
+          row.number: (
+            plan: plan,
+            home: homeRowOf(
+              read,
+              plan,
+              origin: row.part?.origin,
+              held: row.unsent != null,
+            ),
+          ),
+    };
   }
 
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
@@ -1361,7 +1373,7 @@ class SalaSessionState {
     bool clearPlanSheet = false,
     bool? labelling,
     bool? labelLine,
-    int? homeSheet,
+    String? homeSheet,
     bool clearHomeSheet = false,
     String? swapping,
     bool clearSwapping = false,

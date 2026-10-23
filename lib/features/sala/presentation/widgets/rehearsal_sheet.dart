@@ -8,6 +8,9 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/scene_rehearsal.dart';
 import 'bead_styles.dart';
 
+/// Her `EnsaioFinalSheet`: one scene's rehearsals, newest first, the one the row holds
+/// «✓ em uso» and «usar este» on the other Joinable ones; over the plan or over the
+/// recording home, where «usar este» is the Rehearsal swap.
 class RehearsalSheet extends ConsumerWidget {
   final int number;
   final String title;

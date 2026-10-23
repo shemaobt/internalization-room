@@ -16,8 +16,9 @@ The Definer settled the rules on ENG-1407 (Definition of 22 October; answers Q38
 - A swap that cannot land changes nothing but its sheet line: «este ensaio não pode entrar — ensaiem esta cena de novo» when the room or the door says the rehearsal cannot be the part, else «não deu para juntar esta cena — toquem para tentar de novo» within the join's windows. Its row leaves the Outbox and its file is deleted; a refusal also re-reads the session, so a draft approved meanwhile arms the next tap.
 - «ouçam a cena nova antes de conferir» stands under the rows from a landed swap until the team taps the advance disc, and is not kept across a relaunch.
 - While a swap runs nothing else on the home starts.
-- A swap row the room takes after the sheet said to try again (its request was still in the air) becomes the part as the room holds it, with the same «ouçam a cena nova antes de conferir»: the tablet follows the room rather than show a part the room no longer counts.
-- The swap lives in the notifier, beside the join it reuses (0120): the same exception to AGENTS.md «The room's core» until the plan's steps move to the machine.
+- A swap decides only once the request in the air has answered. Given up after 70 s, its row leaves the Outbox at that answer, before anything sends it again; a row the room took then becomes the part as the room holds it, with the same «ouçam a cena nova antes de conferir»: the tablet follows the room rather than show a part the room no longer counts.
+- Each arrival at the recording home settles the swaps left behind (a relaunch or a leave between the row's writing and its landing): it sends what the Outbox still holds above a part, then a part whose current take in the room came from a scene rehearsal at a higher pass becomes that take, with «ouçam a cena nova antes de conferir».
+- The swap lives in the notifier, not in the machine, as the join it reuses does (0120): an exception to AGENTS.md «The room's core» until the plan's steps move to the machine.
 - Nothing is deleted: the replaced take stays on the tablet and in the room as an earlier take under that number. A → B → A is three takes (api ADR 0095).
 
 ## Considered and rejected
@@ -30,5 +31,4 @@ The Definer settled the rules on ENG-1407 (Definition of 22 October; answers Q38
 
 ## Consequences
 
-- A swap row left in the Outbox by a relaunch between its writing and its landing lands on the next flush; the tablet shows the room's part only from its next resume of the parts.
 - Two tablets swapping one scene to two rehearsals both land, at their own passes; the room's order picks the part, and each tablet sees it at its next resume.

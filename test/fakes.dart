@@ -1182,9 +1182,10 @@ class FakeRoom implements RoomRepository {
   takesReceivedWhole = [];
   final List<int?> takePasses = [];
 
-  /// On, a join answers the Part's live take only when it already is this rehearsal's,
-  /// same origin and bytes, and is a new take otherwise; off, any take holding the bytes.
-  bool joinsTheLiveTake = false;
+  /// A join answers the Part's live take only when it already is this rehearsal's, same
+  /// origin and bytes, and is a new take otherwise; off, the older room, which answers
+  /// any take holding the bytes.
+  bool joinsTheLiveTake = true;
   String? refuseTake;
 
   /// The code the refusal of [refuseTake] names: a bare `HTTP_<status>` is a server that

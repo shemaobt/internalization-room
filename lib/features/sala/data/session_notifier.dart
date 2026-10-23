@@ -778,10 +778,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(const MicDiscarded());
   }
 
-  void _homeGesture(void Function() act) => _gesture(() {
-    if (!state.homeBusy) act();
-  });
-
   void _gesture(void Function() act) {
     final gesture = _startAGesture();
     try {
@@ -3616,8 +3612,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// «usar este»: the team's choice for the open sheet's scene, held for the visit, with
   /// no request.
   void useThisRehearsal(String rehearsalId) => _gesture(() {
-    if (state.homeSheet case final number?) {
-      return _useAtHome(number, rehearsalId);
+    if (state.homeSheet case final sceneId?) {
+      return _useAtHome(sceneId, rehearsalId);
     }
     final sceneId = state.planSheet;
     final row = sceneId == null ? null : _planRowOf(sceneId);
@@ -3654,38 +3650,40 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state.ensaio == EnsaioStatus.idle &&
       !state.needsPerson;
 
+  /// «trocar o ensaio desta cena» or «usar o ensaio desta cena» on Scene row [number]:
+  /// its Rehearsal sheet over the recording home.
   void openTheHomeSheet(int number) => _gesture(() {
-    final row = state.homeRowAt(number);
-    if (!_theHomeIsFree || row == null || !(row.swap || row.useScene)) return;
-    _silenceTheRoom();
-    state = state.copyWith(homeSheet: number, clearSwapLine: true);
-  });
-
-  void _useAtHome(int number, String rehearsalId) {
-    final (read, sessionId) = _theHomeRead ?? (null, null);
-    final home = state.homeRowAt(number);
-    final scene = read?.scenes.elementAtOrNull(number - 1);
+    final row = state.homeRows[number];
     if (!_theHomeIsFree ||
-        read == null ||
-        sessionId == null ||
-        home == null ||
-        !(home.swap || home.useScene) ||
-        scene == null) {
+        row == null ||
+        !(row.home.swap || row.home.useScene)) {
       return;
     }
-    final rehearsal =
-        SceneRehearsalRecord.ofTheSession(read.rehearsals, sessionId)
-            .where(
-              (r) =>
-                  r.rehearsalId == rehearsalId &&
-                  r.scene == scene.sceneId &&
-                  offersToSwapIn(home, r),
-            )
-            .firstOrNull;
+    _silenceTheRoom();
+    state = state.copyWith(
+      homeSheet: row.plan.scene.sceneId,
+      clearSwapLine: true,
+    );
+  });
+
+  void _useAtHome(String sceneId, String rehearsalId) {
+    final row = state.homeRows.values
+        .where((row) => row.plan.scene.sceneId == sceneId)
+        .firstOrNull;
+    if (!_theHomeIsFree ||
+        row == null ||
+        !(row.home.swap || row.home.useScene)) {
+      return;
+    }
+    final (:plan, :home) = row;
+    final number = plan.number;
+    final rehearsal = plan.candidates
+        .where((r) => r.rehearsalId == rehearsalId && offersToSwapIn(home, r))
+        .firstOrNull;
     if (rehearsal == null) return;
     final reopens = state.overAnApprovedDraft;
     _armedTap(
-      swapControl(scene.sceneId, rehearsal),
+      swapControl(sceneId, rehearsal),
       needs: reopens || state.partIndexOf(number) != null,
       then: () => _handOff(_swapTheScene(number, rehearsal, reopens: reopens)),
     );
@@ -3725,11 +3723,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         generation,
         life,
       );
-      if (_left(generation, life)) {
-        return unawaited(
-          _letGoOfTheSwap(written, number, id, generation, life),
-        );
-      }
+      if (_left(generation, life)) return;
       if (fate.row == JoinRow.joined) {
         _semNome[row.id] = path;
         _thePartIsTheSwapped(number, path, pass, id);
@@ -3755,10 +3749,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
     int? life,
   ) async {
+    if (_gone) return;
     final (:row, :path, :pass) = written;
+    final queue = _takes;
     _semNome.remove(row.id);
-    await _takes.withdraw(row);
-    final landed = await _takes.takeIdOf(row.id);
+    await _theRequestInTheAirAnswers(queue, row);
+    if (_gone) return;
+    final landed = await queue.takeIdOf(row.id);
+    if (_gone) return;
     if (landed == null) {
       if (!state.keptTakes.any((take) => take.path == path)) {
         await _recorder.delete(path);
@@ -3770,6 +3768,103 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _thePartIsTheSwapped(number, path, pass, origin);
     await _adoptTheNames(_takes);
     if (!_left(generation, life)) _theSwapLanded(path);
+  }
+
+  Future<void> _theRequestInTheAirAnswers(
+    TakeUploadQueue queue,
+    PendingTake row,
+  ) async {
+    final withdrawn = Completer<void>();
+    void withdraw() {
+      if (!withdrawn.isCompleted) withdrawn.complete(queue.withdraw(row));
+    }
+
+    final watch = queue.rowsBack.where((id) => id == row.id).listen((_) {
+      withdraw();
+    });
+    if (!queue.inTheAir(row.id)) withdraw();
+    try {
+      await withdrawn.future;
+    } finally {
+      await watch.cancel();
+    }
+  }
+
+  Future<void> _theSwapsLeftBehind(
+    String sessionId,
+    PlanRead read,
+    int generation,
+    int? life,
+  ) async {
+    final left = [
+      for (final row in await _takes.pending())
+        if (row.sessionId == sessionId &&
+            row.kind == 'ensaio' &&
+            row.origin != null &&
+            _aboveThePart(row))
+          row,
+    ];
+    if (_left(generation, life) || state.homeBusy) return;
+    if (left.isNotEmpty) {
+      await _withinTheJoinWait(_takes.flush());
+      await _countUnsent();
+      if (_left(generation, life)) return;
+    }
+    final listing = await _room.takesOf(sessionId);
+    if (_left(generation, life) || state.homeBusy) return;
+    if (listing is! Answered<List<TakeView>>) return;
+    var adopted = false;
+    for (final MapEntry(key: number, value: current) in _correntes(
+      listing.value,
+    ).entries) {
+      final index = number == null ? null : state.partIndexOf(number);
+      final origin = current.origin;
+      final rehearsal = read.rehearsals
+          .where((r) => r.rehearsalId == origin)
+          .firstOrNull;
+      if (number == null ||
+          index == null ||
+          origin == null ||
+          rehearsal == null ||
+          state.unsentParts.containsKey(number)) {
+        continue;
+      }
+      final part = state.partes[index];
+      final pass = current.pass ?? 1;
+      if (part.takeId == current.takeId || part.pass >= pass) continue;
+      final (bytes, _) = await _theRehearsalsBytes(
+        rehearsal,
+        fromTheTablet: true,
+      );
+      if (_left(generation, life) || state.homeBusy) return;
+      if (bytes == null) continue;
+      final path = await _recorder.keepBytes(
+        bytes,
+        'parte-$number-junta-$origin-$pass',
+      );
+      if (_left(generation, life) || state.homeBusy) return;
+      _thePartIsTheSwapped(number, path, pass, origin);
+      state = state.copyWith(
+        keptTakes: [
+          for (final take in state.keptTakes)
+            take.path == path ? take.withTakeId(current.takeId) : take,
+        ],
+      );
+      unawaited(_medirAParteRegravada(path, _generation));
+      adopted = true;
+    }
+    if (adopted) {
+      _weighTheRehearsal();
+      _rememberWhereTheyAre(const Ensaio());
+      state = state.copyWith(hearNewScene: true);
+      unawaited(_countUnsent());
+    }
+  }
+
+  bool _aboveThePart(PendingTake row) {
+    final number = KeptScope.numberOf(row.scope);
+    final index = number == null ? null : state.partIndexOf(number);
+    return index != null && (row.passNumber ?? 0) > state.partes[index].pass;
   }
 
   void _theSwapFailed(String rehearsalId, JoinRow failed) {
@@ -3830,9 +3925,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_left(generation, life) || state.station != const Ensaio()) return;
     switch ((answer, state.scenes)) {
       case (Answered(:final value), ScenesHad(:final scenes)):
-        state = state.copyWith(
-          ensaioFinalPlan: PlanRead(rehearsals: value, scenes: scenes),
-        );
+        final read = PlanRead(rehearsals: value, scenes: scenes);
+        state = state.copyWith(ensaioFinalPlan: read);
+        await _theSwapsLeftBehind(sessionId, read, generation, life);
       case (final SessionGone gone, _):
         _decideAt(gone, door: Door.sceneRehearsal);
       case _:
@@ -4217,13 +4312,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }),
       ];
       if (_takes.inTheAir(rowId)) leaving.complete();
+      var watched = true;
       final flushed = await _withinTheJoinWait(
         Future.any([
-          _takes.flush().then((_) => back.isCompleted ? 0 : _takes.flush()),
+          _takes.flush().then(
+            (_) => back.isCompleted || !watched ? 0 : _takes.flush(),
+          ),
           back.future,
         ]),
         from: leaving.future,
       );
+      watched = false;
       for (final watch in watching) {
         await watch.cancel();
       }
@@ -4475,6 +4574,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           );
           _stampTheQuestion();
           _weighTheRehearsal();
+          _readTheRehearsalsAtHome();
         }
         return true;
       case final RoomFailure failure:
@@ -4515,6 +4615,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(scenes: ScenesHad(known));
       _stampTheQuestion();
       _weighTheRehearsal();
+      _readTheRehearsalsAtHome();
       return;
     }
     state = state.copyWith(scenes: const ScenesMissing());
@@ -5931,7 +6032,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _arriveAt(const TheSceneRehearsalLeft());
   }
 
-  void playTheRehearsal() => _homeGesture(() => _playTheRehearsal());
+  void playTheRehearsal() => _gesture(() => _playTheRehearsal());
 
   void _playTheRehearsal() {
     if (state.playPing) {
@@ -6033,7 +6134,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Record on Scene row [cena], record it again, or close its open recording. While a
   /// recording waits for the check, only its own row records over it.
-  void gravarACena(int cena) => _homeGesture(() => _gravarACena(cena));
+  void gravarACena(int cena) => _gesture(() => _gravarACena(cena));
 
   void _gravarACena(int cena) {
     if (state.station is! Ensaio || state.needsPerson || state.playPing) {
@@ -6055,7 +6156,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Scene row [cena]'s part alone.
-  void ouvirACena(int cena) => _homeGesture(() => _ouvirACena(cena));
+  void ouvirACena(int cena) => _gesture(() => _ouvirACena(cena));
 
   void _ouvirACena(int cena) {
     final indice = state.partIndexOf(cena);
@@ -6065,7 +6166,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The circle records the part a finding sent the team back for, else the first Scene
   /// with no part; with every Scene recorded it records nothing.
-  void ensaioTap() => _homeGesture(() => _ensaioTap());
+  void ensaioTap() => _gesture(() => _ensaioTap());
 
   void _ensaioTap() {
     if (state.needsPerson || state.playPing) return;
@@ -6121,7 +6222,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(ensaio: EnsaioStatus.recorded);
   }
 
-  void takeKeep() => _homeGesture(() => _takeKeep());
+  void takeKeep() => _gesture(() => _takeKeep());
 
   void _takeKeep() {
     _silenceTheRoom();
@@ -6380,7 +6481,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_countUnsent());
   }
 
-  void enviarACena(int cena) => _homeGesture(() => _enviarACena(cena));
+  void enviarACena(int cena) => _gesture(() => _enviarACena(cena));
 
   void _enviarACena(int cena) {
     if (state.station is! Ensaio ||
@@ -6693,7 +6794,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _relatarAEscuta();
   }
 
-  void startRetro() => _homeGesture(() => _startRetro());
+  void startRetro() => _gesture(() => _startRetro());
 
   void _startRetro() {
     if (state.station is Ensaio && state.ensaio != EnsaioStatus.idle) {
