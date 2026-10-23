@@ -564,8 +564,9 @@ class SalaSessionState {
   /// Whether a current Part was laid in from a Scene rehearsal.
   bool get joined => partes.any((take) => take.origin != null);
 
-  /// Whether a current Part came from a join, as the tablet holds it or the room lists it.
-  bool get aPartWasJoined => joined || theRoomJoinedAPart;
+  /// Whether a current Part came from a join: as the tablet holds its parts, or as the room
+  /// lists them while the tablet holds none.
+  bool get aPartWasJoined => partes.isEmpty ? theRoomJoinedAPart : joined;
 
   /// How the orange dot stands on the Conversation: gone while the way out is hidden, any
   /// voice sounds or a sent note is on its way; bright from the send-off; faint otherwise.
