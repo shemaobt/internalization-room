@@ -365,7 +365,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The attempt of a «Novo ouvinte» no answer has landed for, with the version it asks
   /// of: kept across a way back and a way in, so a lost answer never mints a second
   /// listener.
-  ({String sessionId, int version, String attempt})? _listenerAttempt;
+  late ({String sessionId, int version, String attempt})? _listenerAttempt;
   late _Passage? _emCurso;
   Trecho? get _trechoTraduzidoDeNovo => state.btTrechoTraduzidoDeNovo;
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
@@ -516,6 +516,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _lastAcknowledgement = 0;
     _listeningSince = null;
     _recordingStarting = false;
+    _listenerAttempt = null;
     _emCurso = null;
     _faseAntesDeTraduzirDeNovo = null;
     _traducoesGuardadas = {};
