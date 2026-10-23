@@ -1711,6 +1711,11 @@ void main() {
           'ensaio-da-cena-1',
           attempt: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
         ),
+        'labelTheSceneRehearsal': (room) => room.labelTheSceneRehearsal(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          scene: 'S2',
+        ),
         'keepTheSceneFrase': (room) async => room.keepTheSceneFrase(
           'sessao-1',
           'ensaio-da-cena-1',
@@ -2152,6 +2157,35 @@ void main() {
         );
       },
     );
+
+    test('the label posts the scene to the rehearsal\'s scene door with the '
+        'tablet\'s headers and reads the record back', () async {
+      late http.Request seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response(jsonEncode({...record(), 'scene': 'S2'}), 200);
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+      repository.presents('credencial-1');
+
+      final answer = await repository.labelTheSceneRehearsal(
+        'sessao-1',
+        'r',
+        scene: 'S2',
+      );
+
+      expect(seen.method, 'POST');
+      expect(
+        seen.url.path,
+        '/api/internalization-room/sessions/sessao-1/scene-rehearsals/r/scene',
+      );
+      expect(seen.bodyFields, {'scene': 'S2'});
+      expect(seen.headers['X-Device-Credential'], 'credencial-1');
+      expect((answer as Answered<SceneRehearsalRecord>).value.scene, 'S2');
+    });
 
     test('the restart posts attempt and closes as form fields', () async {
       late http.Request seen;
