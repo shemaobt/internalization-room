@@ -42,6 +42,9 @@ its own.
 - The door answers its refusals itself, kept out of the failure policy by this decision, as
   ADR 0060 and 0085 keep theirs. A network failure is still told to the policy at the
   stretches' door, as the Session read it replaces did, and the session gone goes through it.
+- While the open is in the air no other Back-translation gesture acts, as while an approval
+  is: what the team taps meanwhile would otherwise sound on the station or be answered after
+  the team left.
 - The Station shows her title, her idle sub-line and «Novo ouvinte», not yet enabled, with no
   listener count at zero. Its back control, «Voltar para a gravação», returns to the
   Back-translation as it was. Nothing is spoken on arrival.
