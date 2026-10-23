@@ -688,17 +688,92 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a person called while X-open speaks leaves «ouvir de novo», '
-      'which plays the passage', (tester) async {
+  testWidgets('X-open cut by a person called is said again once the room is '
+      'back, before the passage, X-retell and the circle', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _naChecagem(tester, harness);
+    final desde = harness.playback.played.length;
+    final gravacoes = _gravacoes(harness);
     harness.voice.holdNextLine();
     await _tocar(tester, _novoOuvinte);
 
-    await _umaPessoaVem(tester, container, then: harness.voice.finishHeldLine);
+    await _umaPessoaVem(tester, container, then: harness.voice.holdNextLine);
 
-    expect(find.text(_ouvirDeNovo), findsOneWidget);
+    expect(_falasX(harness), [('X0', 'pt'), ('X0', 'pt')]);
+    expect(harness.playback.played.length, desde);
+    await _tocar(tester, _circulo);
+    expect(_gravacoes(harness), gravacoes);
+    harness.voice.finishHeldLine();
+    await _passar(tester);
+    await _terminarAsPartes(tester, harness);
+
+    expect(_ouvidoDesde(harness, desde), _partes);
+    expect(_falasX(harness).last, ('X1', 'pt'));
+    await _tocar(tester, _circulo);
+    expect(_gravacoes(harness), gravacoes + 1);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a second tap while the microphone is still opening does not '
+      'close it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _noReconto(tester, harness);
+    harness.recorder.holdNextStart();
+    await tester.tap(byLabel(_circulo));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(byLabel(_circulo));
+    await tester.pump(const Duration(milliseconds: 100));
+    harness.recorder.finishStart();
+    await _passar(tester);
+
+    expect(find.textContaining(_gravando), findsOneWidget);
+    expect(harness.room.listenerRecordings, isEmpty);
+    await _tocar(tester, _circulo);
+    expect(harness.room.listenerRecordings, hasLength(1));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a second tap while the retelling closes sends it once', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _noReconto(tester, harness);
+    await _tocar(tester, _circulo);
+    harness.recorder.holdNextStop();
+    await tester.tap(byLabel(_circulo));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(byLabel(_circulo));
+    await tester.pump(const Duration(milliseconds: 100));
+    harness.recorder.finishStop();
+    await _passar(tester);
+    expect(harness.room.listenerRecordings, hasLength(1));
+    await _tocar(tester, _circulo);
+    await _tocar(tester, _circulo);
+
+    expect(harness.room.listenerRecordings, hasLength(2));
+    expect(find.text(_toque), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a person called after X-open and before the first part leaves '
+      '«ouvir de novo», which plays the passage', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naChecagem(tester, harness);
     final desde = harness.playback.played.length;
+    harness.room.holdNextClip();
+    await _tocar(tester, _novoOuvinte);
+    _notifier(container).haltForABrokenBuild();
+    await _passar(tester);
+    harness.room.finishHeldClip();
+    await _passar(tester);
+    _notifier(container).teamTapped();
+    await _passar(tester);
+    await _passar(tester);
+
+    expect(harness.playback.played.length, desde);
+    expect(find.text(_ouvirDeNovo), findsOneWidget);
     await _tocar(tester, _ouvirDeNovo);
     await _terminarAsPartes(tester, harness);
     expect(_ouvidoDesde(harness, desde), _partes);

@@ -6313,23 +6313,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _showTheListener(
           asked.copyWith(listener: number, step: ListenerStep.playing),
         );
-        final parts = _partsOfTheCheck(sessionId, asked.takes, generation);
-        try {
-          await _sayALine(
-            LineKind.guide,
-            fixedLine: (
-              name: listenerOpenLine,
-              language: _inTheSessionsLanguage,
-            ),
-          );
-        } on RoomFailure catch (failure) {
-          if (!_abandoned(generation)) {
-            _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
-          }
-        }
-        final paths = await parts;
-        if (_abandoned(generation)) return;
-        _hearTheWholePassage(paths);
+        await _sayTheOpenLineThenThePassage(sessionId);
       case SessionGone() && final failure:
         _listenerAttempt = null;
         _decideTheFailure(failure);
@@ -6403,22 +6387,51 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// X-retell opens the circle once said, or once it cannot sound (her rule: the screen
   /// says it). A line a person's call cut is said again when the room is back.
   Future<void> _sayTheRetellLine() async {
+    final heard = await _theListenerHeard(listenerRetellLine);
+    if (!heard ||
+        state.station is! ChecagemExterna ||
+        state.externalCheck.step != ListenerStep.retell) {
+      return;
+    }
+    _showTheListener(state.externalCheck.copyWith(retellSaid: true));
+  }
+
+  /// X-open, the consent, before the passage; a person's call that cuts it has it said
+  /// again when the room is back, and only then does the passage play.
+  Future<void> _sayTheOpenLineThenThePassage(String sessionId) async {
+    final generation = _waitOnTheGeneration;
+    final parts = _partsOfTheCheck(
+      sessionId,
+      state.externalCheck.takes,
+      generation,
+    );
+    final heard = await _theListenerHeard(listenerOpenLine);
+    if (!heard ||
+        _abandoned(generation) ||
+        state.station is! ChecagemExterna ||
+        state.externalCheck.step != ListenerStep.playing) {
+      return;
+    }
+    _showTheListener(state.externalCheck.copyWith(openSaid: true));
+    final paths = await parts;
+    if (_abandoned(generation)) return;
+    _hearTheWholePassage(paths);
+  }
+
+  /// Whether one of her lines for the listener counts as heard: said, or unable to sound
+  /// (her rule: the screen says it). Not when a person's call cut it.
+  Future<bool> _theListenerHeard(String line) async {
     Said said;
     try {
       said = await _sayTheLine(
         LineKind.guide,
-        fixedLine: (name: listenerRetellLine, language: _inTheSessionsLanguage),
+        fixedLine: (name: line, language: _inTheSessionsLanguage),
       );
     } on RoomFailure catch (failure) {
       _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
       said = Said.failed;
     }
-    if (state.station is! ChecagemExterna ||
-        state.externalCheck.step != ListenerStep.retell ||
-        (said == Said.unsaid && state.halt is Blocking)) {
-      return;
-    }
-    _showTheListener(state.externalCheck.copyWith(retellSaid: true));
+    return said != Said.unsaid || state.halt is! Blocking;
   }
 
   void _followTheListener(Machine before, Machine after) {
@@ -6426,8 +6439,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final shown = state.externalCheck;
     final halted = after.halt is Blocking && before.halt is! Blocking;
     final back = before.halt is Blocking && after.halt is! Blocking;
-    if (halted && shown.step == ListenerStep.playing) {
+    final playing = shown.step == ListenerStep.playing;
+    if (halted && playing && shown.openSaid) {
       _showTheListener(shown.copyWith(stalled: true));
+    }
+    final sessionId = state.sessionId;
+    if (back && playing && !shown.openSaid && sessionId != null) {
+      _handOff(_sayTheOpenLineThenThePassage(sessionId));
     }
     if (back && shown.step == ListenerStep.retell && !shown.retellSaid) {
       _handOff(_sayTheRetellLine());
@@ -6449,10 +6467,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void listenerTap() => _gesture(() {
     if (_recordingStarting) return;
-    if (state.listenerRecording) {
-      if (!state.externalCheck.sending) _handOff(_keepTheRetelling());
-      return;
-    }
+    if (state.listenerRecording) return _handOff(_keepTheRetelling());
     if (!state.listenerCircleOpen) return;
     _showTheListener(
       state.externalCheck.copyWith(

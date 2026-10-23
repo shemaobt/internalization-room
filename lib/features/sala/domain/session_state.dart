@@ -49,8 +49,9 @@ enum ListenerLine { openFailed, clipFailed }
 
 /// What the Checagem externa's screen holds: the takes of the approved version's parts,
 /// the listener's number and Step, whether the passage stalled, whether a call this
-/// screen made is in the air, the failure words shown, when the retelling began, and
-/// whether X-retell was said, which opens the circle.
+/// screen made is in the air, the failure words shown, when the retelling began, whether
+/// X-open was said, which lets the passage play, and whether X-retell was said, which opens
+/// the circle.
 final class ExternalCheckScreen {
   final List<String> takes;
   final int? listener;
@@ -59,6 +60,7 @@ final class ExternalCheckScreen {
   final bool sending;
   final ListenerLine? line;
   final DateTime? recordingSince;
+  final bool openSaid;
   final bool retellSaid;
 
   const ExternalCheckScreen({
@@ -69,6 +71,7 @@ final class ExternalCheckScreen {
     this.sending = false,
     this.line,
     this.recordingSince,
+    this.openSaid = false,
     this.retellSaid = false,
   });
 
@@ -81,6 +84,7 @@ final class ExternalCheckScreen {
     bool clearLine = false,
     DateTime? recordingSince,
     bool clearRecordingSince = false,
+    bool? openSaid,
     bool? retellSaid,
   }) => ExternalCheckScreen(
     takes: takes,
@@ -92,6 +96,7 @@ final class ExternalCheckScreen {
     recordingSince: clearRecordingSince
         ? null
         : (recordingSince ?? this.recordingSince),
+    openSaid: openSaid ?? this.openSaid,
     retellSaid: retellSaid ?? this.retellSaid,
   );
 }
