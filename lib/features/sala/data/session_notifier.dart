@@ -3805,6 +3805,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           row,
     ];
     if (_left(generation, life) || state.homeBusy) return;
+    if (left.isEmpty && !state.partes.any((part) => part.origin != null)) {
+      return;
+    }
     if (left.isNotEmpty) {
       await _withinTheJoinWait(_takes.flush());
       await _countUnsent();
@@ -3812,10 +3815,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final listing = await _room.takesOf(sessionId);
     if (_left(generation, life) || state.homeBusy) return;
-    if (listing is! Answered<List<TakeView>>) return;
+    final List<TakeView> guardadas;
+    switch (listing) {
+      case Answered(:final value):
+        guardadas = value;
+      case final SessionGone gone:
+        return _decideAt(gone, door: Door.sceneRehearsal);
+      case _:
+        return;
+    }
     var adopted = false;
     for (final MapEntry(key: number, value: current) in _correntes(
-      listing.value,
+      guardadas,
     ).entries) {
       final index = number == null ? null : state.partIndexOf(number);
       final origin = current.origin;
