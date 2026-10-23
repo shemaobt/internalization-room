@@ -3508,16 +3508,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     var guardadas = listed;
     if (guardadas == null) {
-      switch (await _room.takesOf(sessionId)) {
-        case Answered(:final value):
-          guardadas = value;
-        case final SessionGone gone:
-          if (_abandoned(generation)) return;
-          return _decideTheFailure(gone);
-        case NetworkFailed() || Refused():
-          return;
+      final listing = await _room.takesOf(sessionId);
+      if (listing case final SessionGone gone when !_abandoned(generation)) {
+        return _decideTheFailure(gone);
       }
+      if (listing case Answered(:final value)) guardadas = value;
     }
+    if (guardadas == null) return;
     if (_abandoned(generation)) return;
     final held = state.partNumbers;
     final altas = _passadasMaisAltas(guardadas);
