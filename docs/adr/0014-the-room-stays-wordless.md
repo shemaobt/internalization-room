@@ -85,6 +85,14 @@ Amended by ENG-1382 (2026-10-22, ADR 0117): the orange dot opens her Ensaio Fina
 Final», «Estes são os ensaios das cenas que vocês me enviaram.» and «Gravar cena por cena».
 It is the eleventh named exception, under the moment label's reason, her words the team reads.
 
+Amended by ENG-1766 (2026-10-23, ADR 0134): her grain choice
+(`widgets/grain_choice_view.dart`): «Gravem o ensaio de vocês», «Como vocês querem gravar?»,
+«A passagem inteira» «uma gravação» and «Cena por cena» «{N} partes», and the recording
+home's and the plan's grain controls, «gravar a passagem inteira de uma vez», «Gravar a
+passagem inteira», «Gravar cena por cena» and «Ensaio Final: juntar os ensaios das cenas», with
+their armed texts. It is the twelfth named exception, under the moment label's reason, her
+words the team reads.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a

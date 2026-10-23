@@ -8,6 +8,7 @@ import '../../domain/ensaio_final_plan.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
+import 'grain_choice_view.dart';
 import 'stage_heading.dart';
 
 /// Her Ensaio Final plan: «pensando…» while the room is read, then her heading and line,
@@ -23,6 +24,9 @@ class EnsaioFinalPlanView extends ConsumerWidget {
     final colors = SalaColors.of(context);
 
     final (read, sessionId) = (session.ensaioFinalPlan, session.sessionId);
+    if (read case GrainAsked(:final elsewhere)) {
+      return GrainChoiceView(elsewhere: elsewhere);
+    }
     if (read is! PlanRead || sessionId == null) {
       return Center(
         child: Semantics(
@@ -123,8 +127,11 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: 24),
+              wholeAtOnce(session, language, notifier.recordTheWholePassage),
               TextButton(
-                onPressed: idle ? notifier.recordSceneByScene : null,
+                onPressed: idle && !session.grainSwitching
+                    ? notifier.recordSceneByScene
+                    : null,
                 child: Text(
                   ensaioFinalPlanLabelFor('sceneByScene', language),
                   style: TextStyle(color: colors.telha, fontSize: 15),

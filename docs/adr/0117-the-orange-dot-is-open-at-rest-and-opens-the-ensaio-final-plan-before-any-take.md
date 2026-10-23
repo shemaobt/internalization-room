@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force)
 date: 2026-10-22
 amends: 0014
 ---

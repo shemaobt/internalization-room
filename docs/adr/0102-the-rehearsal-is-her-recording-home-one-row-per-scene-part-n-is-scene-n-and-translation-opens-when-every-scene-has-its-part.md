@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0134 (a whole-passage recording is the home with one row)
 date: 2026-10-20
 amends: 0014, 0040
 ---

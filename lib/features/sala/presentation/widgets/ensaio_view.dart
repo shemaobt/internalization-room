@@ -11,6 +11,7 @@ import '../../domain/station.dart';
 import 'bead_styles.dart';
 import 'ensaio_final_plan_view.dart';
 import 'facilitator_circle.dart';
+import 'grain_choice_view.dart';
 import 'motion.dart';
 import 'stage_heading.dart';
 
@@ -171,6 +172,8 @@ class EnsaioView extends ConsumerWidget {
                 style: TextStyle(color: colors.telha, fontSize: 15),
               ),
             ],
+            const SizedBox(height: 16),
+            const GrainControls(),
             const SizedBox(height: 32),
           ],
         ),
@@ -216,7 +219,10 @@ class _SceneRowView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
-    final cena = recordingHomeLabelFor('scene', language, n: row.number);
+    final whole = session.recordsTheWhole;
+    final cena = whole
+        ? recordingHomeLabelFor('wholePassage', language)
+        : recordingHomeLabelFor('scene', language, n: row.number);
     final title = row.title;
     final named = title == null ? cena : '$cena — $title';
     final playing = row.current && session.playPing;
@@ -254,7 +260,7 @@ class _SceneRowView extends StatelessWidget {
                   width: 32,
                   child: ExcludeSemantics(
                     child: Text(
-                      '${row.number}',
+                      whole ? '' : '${row.number}',
                       style: TextStyle(color: colors.mut, fontSize: 15),
                     ),
                   ),
