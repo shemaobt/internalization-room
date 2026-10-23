@@ -462,6 +462,11 @@ class SalaSessionState {
   /// Whether the card says her line for a label the room could not keep.
   final bool labelLine;
 
+  final int? homeSheet;
+  final String? swapping;
+  final ({String rehearsalId, bool cannotEnter})? swapLine;
+  final bool hearNewScene;
+
   /// Whether the last plan read found the passage's rehearsals only in the other
   /// language's session.
   final bool rehearsalsElsewhere;
@@ -564,6 +569,10 @@ class SalaSessionState {
     this.planSheet,
     this.labelling = false,
     this.labelLine = false,
+    this.homeSheet,
+    this.swapping,
+    this.swapLine,
+    this.hearNewScene = false,
     this.rehearsalsElsewhere = false,
     this.theRoomJoinedParts = const {},
     this.wholeHeldByTheRoom = const {},
@@ -746,6 +755,8 @@ class SalaSessionState {
 
   /// Whether the plan holds its gestures: a label is in the air.
   bool get planBusy => labelling;
+
+  bool get homeBusy => swapping != null;
 
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
   /// The loudness of the take on the scene screen, until it is read or for a take with
@@ -1337,6 +1348,13 @@ class SalaSessionState {
     bool clearPlanSheet = false,
     bool? labelling,
     bool? labelLine,
+    int? homeSheet,
+    bool clearHomeSheet = false,
+    String? swapping,
+    bool clearSwapping = false,
+    ({String rehearsalId, bool cannotEnter})? swapLine,
+    bool clearSwapLine = false,
+    bool? hearNewScene,
     bool? rehearsalsElsewhere,
     Set<int>? theRoomJoinedParts,
     Set<String>? wholeHeldByTheRoom,
@@ -1453,6 +1471,10 @@ class SalaSessionState {
       planSheet: clearPlanSheet ? null : (planSheet ?? this.planSheet),
       labelling: labelling ?? this.labelling,
       labelLine: labelLine ?? this.labelLine,
+      homeSheet: clearHomeSheet ? null : (homeSheet ?? this.homeSheet),
+      swapping: clearSwapping ? null : (swapping ?? this.swapping),
+      swapLine: clearSwapLine ? null : (swapLine ?? this.swapLine),
+      hearNewScene: hearNewScene ?? this.hearNewScene,
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,

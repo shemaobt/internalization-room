@@ -4,14 +4,17 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/ensaio_final_plan.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/kept_take.dart';
+import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import '../../domain/station.dart';
 import 'bead_styles.dart';
 import 'ensaio_final_plan_view.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
+import 'rehearsal_sheet.dart';
 import 'stage_heading.dart';
 
 class EnsaioView extends ConsumerWidget {
@@ -26,6 +29,19 @@ class EnsaioView extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
     final colors = SalaColors.of(context);
+    final (read, sessionId) = (session.ensaioFinalPlan, session.sessionId);
+    HomeRow? homeRowOfThe(SceneRow row) => read is PlanRead && sessionId != null
+        ? homeRowOf(
+            read,
+            sessionId,
+            number: row.number,
+            origin: row.part?.origin,
+            held: row.unsent != null,
+          )
+        : null;
+    if (_theSheet(session) case (final plan?, final home?)) {
+      return _homeSheet(session, plan, home, language);
+    }
     final pending = session.ensaio == EnsaioStatus.recorded;
     final titulo = recordingHomeLabelFor(
       session.joined ? 'joinedTitle' : 'title',
@@ -91,8 +107,10 @@ class EnsaioView extends ConsumerWidget {
                   for (final row in session.sceneRows)
                     _SceneRowView(
                       row: row,
+                      home: homeRowOfThe(row),
                       session: session,
                       language: language,
+                      onSheet: () => notifier.openTheHomeSheet(row.number),
                       onRecord: () => notifier.gravarACena(row.number),
                       onListen: () => notifier.ouvirACena(row.number),
                       onSend: () => notifier.enviarACena(row.number),
@@ -100,6 +118,17 @@ class EnsaioView extends ConsumerWidget {
                 ],
               ),
             ),
+            if (session.hearNewScene) ...[
+              const SizedBox(height: 12),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  ensaioFinalPlanLabelFor('hearNewScene', language),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.telha, fontSize: 15),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             FacilitatorCircle(
               size: facilitatorCircleSize,
@@ -179,6 +208,76 @@ class EnsaioView extends ConsumerWidget {
     return SafeArea(bottom: false, child: scrolling);
   }
 
+  (PlanRow?, HomeRow?) _theSheet(SalaSessionState session) {
+    final (number, read, sessionId) = (
+      session.homeSheet,
+      session.ensaioFinalPlan,
+      session.sessionId,
+    );
+    if (number == null || read is! PlanRead || sessionId == null) {
+      return (null, null);
+    }
+    final row = session.sceneRows
+        .where((row) => row.number == number)
+        .firstOrNull;
+    return (
+      planRowsOf(
+        read,
+        sessionId,
+        const {},
+      ).where((plan) => plan.number == number).firstOrNull,
+      row == null
+          ? null
+          : homeRowOf(
+              read,
+              sessionId,
+              number: number,
+              origin: row.part?.origin,
+              held: row.unsent != null,
+            ),
+    );
+  }
+
+  Widget _homeSheet(
+    SalaSessionState session,
+    PlanRow plan,
+    HomeRow home,
+    String language,
+  ) {
+    String said(String control) => ensaioFinalPlanLabelFor(control, language);
+    String control(SceneRehearsalRecord rehearsal) =>
+        'swap:${plan.scene.sceneId}:${rehearsal.n}';
+    bool armed(SceneRehearsalRecord rehearsal) =>
+        session.armedTap?.control == control(rehearsal);
+    return RehearsalSheet(
+      number: plan.number,
+      title: plan.scene.title,
+      sub: said(home.useScene ? 'useScene' : 'swap'),
+      candidates: plan.candidates,
+      inUseId: home.inUse,
+      language: language,
+      busy: session.homeBusy,
+      offersToUse: (rehearsal) =>
+          rehearsal.joinable && rehearsal.rehearsalId != home.inUse,
+      noteOf: (rehearsal) => switch (session.swapLine) {
+        (:final rehearsalId, :final cannotEnter)
+            when rehearsalId == rehearsal.rehearsalId =>
+          said(cannotEnter ? 'cannotEnter' : 'joinRetry'),
+        _ =>
+          rehearsal.rehearsalId != home.inUse &&
+                  !rehearsal.joinable &&
+                  !rehearsal.unsent
+              ? said('cannotEnter')
+              : null,
+      },
+      useLabelOf: (rehearsal) => armed(rehearsal) && session.overAnApprovedDraft
+          ? retroLabelFor('reopenArmed', language)
+          : said('useThis'),
+      wakingOf: (rehearsal) =>
+          armed(rehearsal) && session.armedTap?.phase == BtRecomeco.armado,
+    );
+  }
+
   VoiceState _voice(SalaSessionState session) {
     if (session.ensaio == EnsaioStatus.recording && !session.micTaken) {
       return VoiceState.listening;
@@ -198,16 +297,20 @@ class EnsaioView extends ConsumerWidget {
 
 class _SceneRowView extends StatelessWidget {
   final SceneRow row;
+  final HomeRow? home;
   final SalaSessionState session;
   final String language;
+  final VoidCallback onSheet;
   final VoidCallback onRecord;
   final VoidCallback onListen;
   final VoidCallback onSend;
 
   const _SceneRowView({
     required this.row,
+    required this.home,
     required this.session,
     required this.language,
+    required this.onSheet,
     required this.onRecord,
     required this.onListen,
     required this.onSend,
@@ -264,13 +367,27 @@ class _SceneRowView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          cena,
-                          style: TextStyle(
-                            color: colors.ink,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              cena,
+                              style: TextStyle(
+                                color: colors.ink,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (row.part != null) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                '✓',
+                                style: TextStyle(
+                                  color: colors.mut,
+                                  fontSize: 17,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         if (title != null)
                           Text(
@@ -321,7 +438,39 @@ class _SceneRowView extends StatelessWidget {
               ],
             ),
             ?_unsentControl(row.unsent, cena, colors),
+            ?_sheetDoor(cena, colors),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget? _sheetDoor(String cena, SalaColors colors) {
+    final home = this.home;
+    if (home == null ||
+        !(home.swap || home.useScene) ||
+        session.ensaio != EnsaioStatus.idle) {
+      return null;
+    }
+    final label = ensaioFinalPlanLabelFor(
+      home.swap ? 'swap' : 'useScene',
+      language,
+    );
+    final open = session.homeBusy || session.needsPerson ? null : onSheet;
+    return Padding(
+      padding: const EdgeInsets.only(left: 32, top: 4),
+      child: Semantics(
+        button: true,
+        enabled: open != null,
+        label: '$label — $cena',
+        onTap: open,
+        excludeSemantics: true,
+        child: TextButton(
+          onPressed: open,
+          child: Text(
+            label,
+            style: TextStyle(color: colors.telha, fontSize: 15),
+          ),
         ),
       ),
     );

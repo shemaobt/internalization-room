@@ -1,0 +1,245 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import '../../../../core/theme/sala_colors.dart';
+import '../../data/session_notifier.dart';
+import '../../domain/facilitator_script.dart';
+import '../../domain/scene_rehearsal.dart';
+import 'bead_styles.dart';
+
+class RehearsalSheet extends ConsumerWidget {
+  final int number;
+  final String title;
+  final String sub;
+  final List<SceneRehearsalRecord> candidates;
+  final String? inUseId;
+  final String language;
+  final bool busy;
+  final bool Function(SceneRehearsalRecord) offersToUse;
+  final String? Function(SceneRehearsalRecord)? noteOf;
+  final String Function(SceneRehearsalRecord)? useLabelOf;
+  final bool Function(SceneRehearsalRecord)? wakingOf;
+  final VoidCallback? onRecordAgain;
+
+  const RehearsalSheet({
+    super.key,
+    required this.number,
+    required this.title,
+    required this.sub,
+    required this.candidates,
+    required this.inUseId,
+    required this.language,
+    required this.busy,
+    required this.offersToUse,
+    this.noteOf,
+    this.useLabelOf,
+    this.wakingOf,
+    this.onRecordAgain,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(salaSessionProvider.notifier);
+    final colors = SalaColors.of(context);
+    String said(String control) => ensaioFinalPlanLabelFor(control, language);
+    final onRecordAgain = this.onRecordAgain;
+
+    return SafeArea(
+      bottom: false,
+      child: SizedBox.expand(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Semantics(
+                    button: true,
+                    enabled: !busy,
+                    label: said('back'),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: busy ? null : notifier.closeTheRehearsalSheet,
+                      child: SizedBox(
+                        width: 46,
+                        height: 46,
+                        child: Icon(
+                          LucideIcons.chevronLeft,
+                          size: 24,
+                          color: colors.mut,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    recordingHomeLabelFor('scene', language, n: number),
+                    style: TextStyle(
+                      color: colors.ink,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    title,
+                    style: TextStyle(color: colors.mut, fontSize: 15),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(sub, style: TextStyle(color: colors.mut, fontSize: 14)),
+                  const SizedBox(height: 16),
+                  for (final candidate in candidates)
+                    _SheetLine(
+                      rehearsal: candidate,
+                      inUse: candidate.rehearsalId == inUseId,
+                      offersToUse: offersToUse(candidate),
+                      note: noteOf == null
+                          ? _cannotEnter(candidate)
+                          : noteOf!(candidate),
+                      useLabel: useLabelOf?.call(candidate) ?? said('useThis'),
+                      waking: wakingOf?.call(candidate) ?? false,
+                      language: language,
+                      busy: busy,
+                      onPlay: () =>
+                          notifier.playARehearsal(candidate.rehearsalId),
+                      onUse: () =>
+                          notifier.useThisRehearsal(candidate.rehearsalId),
+                    ),
+                  if (onRecordAgain != null) ...[
+                    const SizedBox(height: 24),
+                    TextButton(
+                      onPressed: busy ? null : onRecordAgain,
+                      child: Text(
+                        said('recordSceneAgain'),
+                        style: TextStyle(color: colors.telha, fontSize: 15),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String? _cannotEnter(SceneRehearsalRecord rehearsal) =>
+      rehearsal.rehearsalId != inUseId &&
+          !rehearsal.joinable &&
+          !rehearsal.unsent
+      ? ensaioFinalPlanLabelFor('cannotEnter', language)
+      : null;
+}
+
+class _SheetLine extends StatelessWidget {
+  final SceneRehearsalRecord rehearsal;
+  final bool inUse;
+  final bool offersToUse;
+  final String? note;
+  final String useLabel;
+  final bool waking;
+  final String language;
+  final bool busy;
+  final VoidCallback onPlay;
+  final VoidCallback onUse;
+
+  const _SheetLine({
+    required this.rehearsal,
+    required this.inUse,
+    required this.offersToUse,
+    required this.note,
+    required this.useLabel,
+    required this.waking,
+    required this.language,
+    required this.busy,
+    required this.onPlay,
+    required this.onUse,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    String said(String control) => ensaioFinalPlanLabelFor(control, language);
+    final line = sheetLineFor(rehearsal, language);
+    final note = this.note;
+    final usable = !busy && !waking;
+
+    return Semantics(
+      container: true,
+      label: line,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: colors.line)),
+        ),
+        child: Row(
+          children: [
+            RoundActionButton(
+              size: 44,
+              gradient: BeadStyles.wood,
+              mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
+              semanticLabel: '${said('listen')} — $line',
+              onTap: onPlay,
+              child: const Icon(
+                LucideIcons.play,
+                size: 18,
+                color: ShemaBrand.branco,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ExcludeSemantics(
+                    child: Text(
+                      line,
+                      style: TextStyle(color: colors.ink, fontSize: 15),
+                    ),
+                  ),
+                  if (note != null)
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        note,
+                        style: TextStyle(color: colors.telha, fontSize: 14),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (inUse)
+              Text(
+                '✓ ${said('inUse')}',
+                style: TextStyle(color: colors.mut, fontSize: 15),
+              )
+            else if (offersToUse)
+              Flexible(
+                child: Semantics(
+                  button: true,
+                  enabled: usable,
+                  label: '$useLabel — $line',
+                  onTap: usable ? onUse : null,
+                  excludeSemantics: true,
+                  child: Opacity(
+                    opacity: waking ? 0.5 : 1,
+                    child: TextButton(
+                      onPressed: usable ? onUse : null,
+                      child: Text(
+                        useLabel,
+                        textAlign: TextAlign.end,
+                        style: TextStyle(color: colors.telha, fontSize: 15),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

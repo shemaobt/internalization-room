@@ -728,9 +728,14 @@ void main() {
         () => it.room.holdTakeScope == 'parte-2',
       );
       it.room.finishHeldTake();
+      var ticked = false;
+      for (var vez = 0; vez < 200 && !it.showsTheHome(); vez++) {
+        ticked = ticked || it.ticked(2);
+        await it.beat(const Duration(milliseconds: 20));
+      }
       await _theJoinEnds(it);
 
-      expect(it.ticked(2), isFalse);
+      expect(ticked, isFalse);
       expect(it.partsReceived, ['parte-1', 'parte-2']);
       expect(
         it.room.takes.where((take) => take.ordinal == 2).map((t) => t.takeId),
@@ -820,8 +825,8 @@ void main() {
         await tester.tap(it.onRow(2, find.text(_retry)));
         var ticked = false;
         for (var vez = 0; vez < 100 && !it.showsTheHome(); vez++) {
-          await it.beat(const Duration(milliseconds: 20));
           ticked = ticked || it.ticked(2);
+          await it.beat(const Duration(milliseconds: 20));
         }
 
         expect(it.showsTheHome(), isTrue);

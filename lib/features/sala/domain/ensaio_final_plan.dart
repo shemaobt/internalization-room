@@ -246,3 +246,31 @@ bool stillToJoin(
 ) => joinQueue(
   planRowsOf(read, sessionId, choices),
 ).any((step) => !step.waiting);
+
+typedef HomeRow = ({bool swap, bool useScene, String? inUse});
+
+HomeRow homeRowOf(
+  PlanRead read,
+  String sessionId, {
+  required int number,
+  required String? origin,
+  required bool held,
+}) {
+  final candidates =
+      planRowsOf(
+        read,
+        sessionId,
+        const {},
+      ).where((row) => row.number == number).firstOrNull?.candidates ??
+      const [];
+  final joinable = candidates.where((c) => c.joinable);
+  final inUse = read.rehearsals.any((r) => r.rehearsalId == origin)
+      ? origin
+      : null;
+  return (
+    swap:
+        !held && origin != null && joinable.any((c) => c.rehearsalId != origin),
+    useScene: !held && origin == null && joinable.isNotEmpty,
+    inUse: inUse,
+  );
+}

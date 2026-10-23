@@ -1181,6 +1181,11 @@ class FakeRoom implements RoomRepository {
   >
   takesReceivedWhole = [];
   final List<int?> takePasses = [];
+
+  /// A join answers the Part's live take only when that take is already this rehearsal's,
+  /// same origin and bytes, and is a new take otherwise, as the room after ENG-1407's api;
+  /// off, the room of today, which answers any take holding those bytes.
+  bool joinsTheLiveTake = false;
   String? refuseTake;
 
   /// The code the refusal of [refuseTake] names: a bare `HTTP_<status>` is a server that
@@ -2726,12 +2731,29 @@ class FakeRoom implements RoomRepository {
       recordedAt: recordedAt,
       sentAt: sentAt,
     ));
-    if (origin != null) {
+    if (origin != null && !joinsTheLiveTake) {
       for (final take in takes) {
         final audio = takeAudio[take.takeId];
         if (audio != null && crypto.sha256.convert(audio).toString() == held) {
           return Answered(take.takeId);
         }
+      }
+    }
+    if (origin != null && joinsTheLiveTake) {
+      final live = takes
+          .where((take) => take.kind == kind && take.ordinal == chunkIndex)
+          .fold<TakeView?>(
+            null,
+            (best, take) => best == null || (take.pass ?? 0) >= (best.pass ?? 0)
+                ? take
+                : best,
+          );
+      final audio = live == null ? null : takeAudio[live.takeId];
+      if (live != null &&
+          live.origin == origin &&
+          audio != null &&
+          crypto.sha256.convert(audio).toString() == held) {
+        return Answered(live.takeId);
       }
     }
     takesKept.add('$kind/$scope');
