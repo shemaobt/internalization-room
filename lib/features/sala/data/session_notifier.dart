@@ -6314,8 +6314,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
+  /// A listener left before their retelling is stored is let go; the next entry asks a
+  /// new number (ADR 0116).
   void leaveTheExternalCheck() => _gesture(() {
     if (state.station is! ChecagemExterna) return;
+    if (state.externalCheck.step != ListenerStep.done) {
+      _listenerInProgress = null;
+    }
     _leaveTheExternalCheck();
   });
 

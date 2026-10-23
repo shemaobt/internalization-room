@@ -43,8 +43,11 @@ stranger halfway through was asked to begin again under a new number.
   goes back to the Back-translation and reads the session again, so its count of listeners is
   the room's. Nothing closes the check.
 - The tablet remembers the listener in progress in the Resume point as version and number, from
-  the number the room gives until «Outro ouvinte» or «Terminar a checagem»; the back control
-  keeps it. A remembered listener of another version is forgotten.
+  the number the room gives until «Outro ouvinte» or «Terminar a checagem». The back control
+  keeps a listener whose retelling landed and lets go of one whose retelling did not (the
+  Definer's Q74): the next entry asks a new number, and the empty listener stays on the room
+  started and not finished. A relaunch, which is no deliberate leave, still resumes. A
+  remembered listener of another version is forgotten.
 - A relaunch whose row stood on the check, and a tap on «Checagem externa», ask the room for
   that listener and land silent: finished → the thanks, nothing resent; a retelling stored →
   the thanks, and the finish goes up; else → the retelling, circle open. A read that fails

@@ -450,19 +450,24 @@ void main() {
     await _fechar(tester, again);
   });
 
-  testWidgets('leaving by the back control and tapping «Checagem externa» '
-      'again returns to the same listener, silent', (tester) async {
+  testWidgets('leaving by the back control before any retelling forgets the '
+      'listener: the next entry offers «Novo ouvinte» with the next number', (
+    tester,
+  ) async {
     final harness = _aprovadaNaSala();
-    await _noReconto(tester, harness);
+    final tablet = await _aberta(tester, harness);
+    await _tocar(tester, _checagem);
+    await _tocar(tester, _novoOuvinte);
     await _tocar(tester, _voltar);
-    final falas = _falasX(harness).length;
 
     await _tocar(tester, _checagem);
 
-    expect(find.text('ouvinte 1'), findsOneWidget);
-    expect(find.text(_contem), findsOneWidget);
-    expect(_falasX(harness), hasLength(falas));
-    expect(harness.room.listenersAsked, hasLength(1));
+    expect(byLabel(_novoOuvinte), findsOneWidget);
+    expect(harness.room.listenersRead, isEmpty);
+    await _tocar(tester, _novoOuvinte);
+    expect(find.text('ouvinte 2'), findsOneWidget);
+    expect(harness.room.listenersFinished, isEmpty);
+    await _fechar(tester, tablet);
   });
 
   testWidgets('a remembered listener of an older version is forgotten and the '
