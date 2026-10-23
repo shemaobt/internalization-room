@@ -39,6 +39,9 @@ const _keptByDecision = <String, String>{
   '_abrirAChecagemExterna': 'ADR 0114',
   '_newListener': 'ADR 0115',
   '_keepTheRetelling': 'ADR 0115',
+  '_backToTheCheck': 'ADR 0116',
+  '_backToTheListener': 'ADR 0116',
+  '_sendTheFinish': 'ADR 0116',
 };
 
 final _namesAFailure = RegExp(

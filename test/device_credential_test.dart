@@ -126,6 +126,9 @@ final Map<String, _Request> _everyRequest = {
       room.aNewListener('sessao-1', 1, attempt: 'tentativa-1'),
   'sendTheListenerRecording': (room, audio) =>
       room.sendTheListenerRecording('sessao-1', 1, 1, audio, kind: 'retell'),
+  'theListener': (room, _) => room.theListener('sessao-1', 1, 1),
+  'finishTheListener': (room, _) =>
+      room.finishTheListener('sessao-1', 1, 1, completed: true),
 };
 
 typedef _InboxRequest =

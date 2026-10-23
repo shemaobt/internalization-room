@@ -494,7 +494,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _firstGeneration = 0;
 
   /// The outside listener this tablet has in progress, as its Resume point names them.
-  ({int version, int number})? _listenerInProgress;
+  late ({int version, int number})? _listenerInProgress;
 
   void _aNewLife() {
     _timers = {};
@@ -2675,7 +2675,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _applyTheSessionRead(read, sent);
     _rememberWhereTheyAre(const Retro());
     await _countUnsent();
-    if (resumed?.stage == SalaStage.checagem && _listenerInProgress != null) {
+    if ((resumed?.onTheExternalCheck ?? false) && _listenerInProgress != null) {
       await _backToTheCheck(read.sessionId, _waitOnTheGeneration);
     }
     return true;
@@ -6605,14 +6605,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       completed: completed,
     );
     if (_abandoned(generation)) return;
-    _showTheListener(
-      state.externalCheck.copyWith(
-        sending: false,
-        finishAcknowledged: answer is Answered,
-      ),
-    );
-    if (answer case SessionGone() && final failure) {
-      _decideTheFailure(failure);
+    final sent = state.externalCheck.copyWith(sending: false);
+    switch (answer) {
+      case Answered():
+        _showTheListener(sent.copyWith(finishAcknowledged: true));
+      case SessionGone() && final failure:
+        _decideTheFailure(failure);
+      case NetworkFailed():
+        _showTheListener(sent);
+        _theNetworkFailedAt(Door.stretches);
+      case Refused():
+        _showTheListener(sent);
     }
   }
 

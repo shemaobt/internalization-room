@@ -43,9 +43,12 @@ class ResumePoint {
   final Map<int, int> passesToGoAbove;
 
   /// The outside listener this tablet has in progress on the Checagem externa, by version
-  /// and number; what they have done is the room's to say (ADR 0116). Null for any other
-  /// row.
+  /// and number; what they have done is the room's to say (ADR 0116). Kept on the
+  /// Back-translation the back control returns to; null when no listener is in progress.
   final ({int version, int number})? listener;
+
+  /// Whether the row stood on the Checagem externa, with the listener it names there.
+  bool get onTheExternalCheck => stage == SalaStage.checagem;
 
   const ResumePoint({
     required this.sessionId,
