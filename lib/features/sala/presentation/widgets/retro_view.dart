@@ -203,6 +203,7 @@ class RetroView extends ConsumerWidget {
     SalaSessionNotifier notifier,
     String language,
   ) {
+    final atua = session.aBackTranslationGestureActs;
     final contadas = [
       for (final (onde, trecho) in session.btTrechos.indexed)
         if (trecho.contado) (onde, trecho),
@@ -278,7 +279,8 @@ class RetroView extends ConsumerWidget {
               ? () => notifier.regravarAFrase(trecho)
               : null,
           revisao:
-              session.btRegravacao?.frase == trecho.frase &&
+              atua &&
+                  session.btRegravacao?.frase == trecho.frase &&
                   session.btRegravacao?.passo == PassoDaRegravacao.revendo
               ? FraseRevisao(
                   ouvir: sceneRehearsalLabelFor(
@@ -313,7 +315,8 @@ class RetroView extends ConsumerWidget {
           },
           estadoDormindo: _dormindo('resend:${trecho.frase}', session),
           onEstado:
-              session.btRegravacao == null &&
+              atua &&
+                  session.btRegravacao == null &&
                   trecho.frase != null &&
                   session.btFraseGuardada == trecho.frase
               ? notifier.tentarAFraseDeNovo
@@ -729,9 +732,7 @@ class RetroView extends ConsumerWidget {
                 size: 60,
                 semanticLabel: retroLabelFor('approve', language),
                 gradient: BeadStyles.verde,
-                mood: session.aBackTranslationGestureActs
-                    ? ButtonMood.lit
-                    : ButtonMood.dimmed,
+                mood: session.canApprove ? ButtonMood.lit : ButtonMood.dimmed,
                 onTap: notifier.aprovarRascunhoFinal,
                 child: const Icon(
                   LucideIcons.check,

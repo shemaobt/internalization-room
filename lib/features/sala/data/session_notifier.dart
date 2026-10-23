@@ -6881,7 +6881,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _usarEstaFrase() async {
     final guardada = _fraseNaFila;
-    if (state.btRegravacao?.passo != PassoDaRegravacao.revendo ||
+    if (!state.aBackTranslationGestureActs ||
+        state.btRegravacao?.passo != PassoDaRegravacao.revendo ||
         guardada == null) {
       return;
     }
@@ -7101,7 +7102,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _tentarAFraseDeNovo({required bool reabre}) async {
     final guardada = _fraseNaFila;
-    if (state.btRegravacao != null ||
+    if (!state.aBackTranslationGestureActs ||
+        state.btRegravacao != null ||
         state.btFraseGuardada == null ||
         guardada == null) {
       return;
@@ -7127,7 +7129,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void ouvirAFraseGravada() => _gesture(() {
     final path = state.btRegravacao?.path;
-    if (path == null) return;
+    if (path == null || !state.aBackTranslationGestureActs) return;
     _silenceTheRoom();
     void quiet() => unawaited(_playback.stop());
     _play(StretchSound(path), onComplete: quiet, onFailed: quiet);
@@ -7135,7 +7137,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void gravarAFraseDeNovo() => _gesture(() {
     final regravacao = state.btRegravacao;
-    if (regravacao == null || regravacao.passo != PassoDaRegravacao.revendo) {
+    if (!state.aBackTranslationGestureActs ||
+        regravacao == null ||
+        regravacao.passo != PassoDaRegravacao.revendo) {
       return;
     }
     _silenceTheRoom();
@@ -7675,7 +7679,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is! Retro) return;
     if (state.btPhase != BtPhase.conferida) return;
     if (state.needsPerson) return;
-    if (!state.aBackTranslationGestureActs || state.ensaioSalvo != null) return;
+    if (!state.canApprove || state.ensaioSalvo != null) return;
     _silenceTheRoom();
     final sessionId = state.sessionId;
     if (sessionId == null) return;

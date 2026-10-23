@@ -761,4 +761,22 @@ void main() {
       closeTheRoom(it.container);
     },
   );
+
+  testWidgets('a refusal whose read fails gives the gestures back', (
+    tester,
+  ) async {
+    final it = await _ateAConferida(tester);
+    it.harness.room
+      ..releaseBlockers = const ['untold_stretch']
+      ..releaseUntoldSegmentId = 'trecho-1'
+      ..failStateOnceWith = const NetworkFailed('sem rede');
+    await _tocar(tester);
+
+    it.container.read(salaSessionProvider.notifier).recomecarATraducao();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(it.container.read(salaSessionProvider).btRecomeco, isNotNull);
+    await tester.pump(const Duration(seconds: 7));
+    closeTheRoom(it.container);
+  });
 }
