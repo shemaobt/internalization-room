@@ -1,9 +1,13 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -61,7 +65,23 @@ Future<_Sala> _ateAConferida(
   await theRoomNamesTheParts(tester, container, parts: 1);
   sala.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
+  await _conferir(tester, harness, container);
 
+  expect(
+    byLabel(aprovar),
+    findsOneWidget,
+    reason:
+        'o cenário só mede alguma coisa se a sala chegar ao gesto de aprovar',
+  );
+  return (harness: harness, container: container);
+}
+
+Future<void> _conferir(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  final sala = container.read(salaSessionProvider.notifier);
   harness.playback.at = const Duration(seconds: 10);
   sala.retroTap();
   sala.retroTap();
@@ -72,14 +92,6 @@ Future<_Sala> _ateAConferida(
   await tester.pump(const Duration(milliseconds: 200));
   await sala.finishBackTranslation();
   await tester.pump(const Duration(milliseconds: 300));
-
-  expect(
-    byLabel(aprovar),
-    findsOneWidget,
-    reason:
-        'o cenário só mede alguma coisa se a sala chegar ao gesto de aprovar',
-  );
-  return (harness: harness, container: container);
 }
 
 Future<void> _tocar(WidgetTester tester, [String rotulo = _aprovar]) async {
@@ -469,8 +481,15 @@ void main() {
       it.harness.voice.holdNextLine();
       await _tocar(tester);
 
+      final tocadas = it.harness.playback.playedFrom.length;
       it.container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
       await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        it.container.read(salaSessionProvider).btPhase,
+        BtPhase.conferida,
+        reason: 'a frase contada de novo abria uma regravação sob a aprovação',
+      );
+      expect(it.harness.playback.playedFrom, hasLength(tocadas));
       expect(find.text(_ensaioSalvo), findsNothing);
 
       it.harness.voice.finishHeldLine();
@@ -579,6 +598,106 @@ void main() {
 
       expect(find.text(_naoDeu), findsOneWidget);
       expect(find.text(_naoDeuRecomecar), findsNothing);
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'while the approval line plays, the recording circle is not offered and '
+    'the restart reads disabled',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _ateAConferida(tester);
+      it.harness.voice.holdNextLine();
+      await _tocar(tester);
+
+      expect(
+        tester
+            .widget<RoundActionButton>(
+              find.ancestor(
+                of: byLabel(_ouvir),
+                matching: find.byType(RoundActionButton),
+              ),
+            )
+            .mood,
+        ButtonMood.dimmed,
+      );
+      expect(
+        tester
+            .getSemantics(byLabel(_recomecar))
+            .getSemanticsData()
+            .flagsCollection
+            .isEnabled,
+        Tristate.isFalse,
+      );
+
+      it.harness.voice.finishHeldLine();
+      await tester.pump(const Duration(milliseconds: 300));
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('an approval left in the air answers only its own press: a newer '
+      'approval\'s line still holds the room and ends on «$_ensaioSalvo»', (
+    tester,
+  ) async {
+    final it = await _ateAConferida(tester);
+    it.harness.room.holdNextRelease();
+    await _tocar(tester);
+
+    final sala = it.container.read(salaSessionProvider.notifier);
+    sala.goEnsaio();
+    await tester.pump(const Duration(milliseconds: 300));
+    sala.startRetro();
+    await tester.pump(const Duration(milliseconds: 200));
+    await _conferir(tester, it.harness, it.container);
+    it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+    it.harness.voice.holdNextLine();
+    await _tocar(tester);
+    expect(find.text(_aprovado(1)), findsOneWidget);
+
+    it.harness.room.finishHeldRelease();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text(_aprovado(1)), findsOneWidget);
+    sala.recomecarATraducao();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      it.container.read(salaSessionProvider).armedTap,
+      isNull,
+      reason: 'a resposta da primeira aprovação abria os gestos da segunda',
+    );
+
+    it.harness.voice.finishHeldLine();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text(_ensaioSalvo), findsOneWidget);
+    closeTheRoom(it.container);
+  });
+
+  testWidgets(
+    'a refusal\'s words give the gestures back while the room still reads the '
+    'stretches it names',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.room
+        ..releaseBlockers = const ['untold_stretch']
+        ..releaseUntoldSegmentId = 'trecho-1'
+        ..holdNextState();
+      await _tocar(tester);
+      expect(find.text(_precisaConferida), findsOneWidget);
+
+      it.container.read(salaSessionProvider.notifier).recomecarATraducao();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        it.container.read(salaSessionProvider).armedTap,
+        isNotNull,
+        reason: 'os gestos ficavam presos até a sala acabar de ler os trechos',
+      );
+      it.harness.room.finishHeldState();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(seconds: 7));
       closeTheRoom(it.container);
     },
   );

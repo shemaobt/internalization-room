@@ -631,6 +631,11 @@ void main() {
       );
       expect(harness.room.restartsAsked, isEmpty);
       await tester.pump(const Duration(seconds: 7));
+      expect(
+        container.read(salaSessionProvider).armedTap,
+        isNull,
+        reason: 'o recomeço armado de novo não caducava nos seus seis segundos',
+      );
       closeTheRoom(container);
     },
   );
