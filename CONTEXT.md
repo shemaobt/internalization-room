@@ -336,6 +336,10 @@ _Avoid_: bead (the Back-translation's), clip row, part row, linha
 A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final». The tablet makes one with «juntar as cenas e ouvir» on the Ensaio Final plan. Each scene's chosen rehearsal goes up through the Outbox as that scene's Part: the rehearsal's own bytes under its fingerprint, with `origin`. The same bytes joined again, from any tablet, are the same take (ADR 0120).
 _Avoid_: assembled recording, merged, Junção (in prose)
 
+**Bring-back** («trazer de volta as traduções do ensaio desta cena»):
+The armed tap on a joined Scene row that lays its Scene rehearsal's frases over the Part again, when none of them stands there: after the translation was restarted, or when they never came. The stretches told here for that scene are kept as history, never deleted. The room says which parts can take it: never a part a sentence was re-recorded in, nor one joined from the other language's session.
+_Avoid_: reimport, restore, undo
+
 **Red microphone**:
 The round red control beside the orange dot that opens the Scene rehearsal's screen, shown only while the Conversation rests and no raised-hand note or person call stands. With the orange dot it is one of the two ways from the Conversation to a recording.
 _Avoid_: orange dot (the other way, into the Rehearsal)
