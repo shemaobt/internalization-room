@@ -3058,6 +3058,42 @@ class FakeRoom implements RoomRepository {
     return Answered(_numbered);
   }
 
+  final List<(String, int)> bringBacksAsked = [];
+
+  RoomFailure? failBringBackWith;
+
+  Completer<void>? _holdingBringBack;
+  Completer<void>? _heldBringBack;
+
+  void holdBringBack() => _holdingBringBack = Completer<void>();
+
+  void finishHeldBringBack() => _heldBringBack?.complete();
+
+  @override
+  Future<RoomAnswer<List<SegmentView>>> bringBackTheTranslations(
+    String sessionId,
+    int number,
+  ) async {
+    bringBacksAsked.add((sessionId, number));
+    final held = _heldBringBack = _holdingBringBack;
+    _holdingBringBack = null;
+    await held?.future;
+    final refusal = failBringBackWith;
+    if (refusal != null) return refusal;
+    if (retroSoFar case final told?) {
+      retroSoFar = BackTranslationProgress(
+        segments: told.segments,
+        checked: told.checked,
+        findingSegmentId: told.findingSegmentId,
+        findings: told.findings,
+        awaitingSegmentId: told.awaitingSegmentId,
+        stale: told.stale,
+        bringBack: [...told.bringBack]..remove(number),
+      );
+    }
+    return Answered(_numbered);
+  }
+
   /// Every session the team's approval was sent for, in order.
   final List<String> releasesAsked = [];
 

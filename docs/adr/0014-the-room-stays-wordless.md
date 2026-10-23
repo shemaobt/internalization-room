@@ -77,6 +77,7 @@ Amended by ENG-1408 (2026-10-22, ADR 0123): the Back-translation of a joined rec
 «Ensaio Final», and during the First listen «Primeiro, só ouvir: a passagem inteira, do
 começo ao fim.» and the position line «ouvindo a gravação de vocês… — parte 2 · 0:41 /
 1:10». `widgets/retro_view.dart` is already a named exception, so there is no new one.
+
 Amended by ENG-1259 (2026-10-22, ADR 0112): an approval ends on her Saved screen
 (`widgets/saved_screen.dart`): «Ensaio salvo», her approved sentence with its version, and
 «Pronto». It is the eleventh named exception, under the moment label's reason, her words the team
