@@ -110,7 +110,7 @@ What the room hears or sounds at one moment: silence, an open microphone and who
 _Avoid_: audio state, voice (the Circle's colour), player
 
 **Microphone owner**:
-Whose open microphone the Channel holds: the conversation's, the rehearsal's, the capture's, the question's, the scene rehearsal's or a scene frase's. The circle's words follow it.
+Whose open microphone the Channel holds: the conversation's, the rehearsal's, the capture's, the question's, the scene rehearsal's, a scene frase's or an outside listener's. The circle's words follow it.
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
 **Microphone answer**:

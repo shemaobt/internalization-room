@@ -140,6 +140,9 @@ class FakeVoice implements FacilitatorVoiceService {
   /// already in hand.
   RoomFailure? roomFailsWith;
 
+  /// What the room answers for a fixed line, by name, instead of its audio.
+  final Map<String, RoomFailure> roomFailsFor = {};
+
   /// What the next readying of a line throws, the way a defect in getting it ready does.
   Object? readyThrows;
   Completer<bool>? _holding;
@@ -248,6 +251,7 @@ class FakeVoice implements FacilitatorVoiceService {
     aoFalar?.call();
     onSoundStart?.call();
     if (refuses.contains(line)) return Future.value(false);
+    if (roomFailsFor[line] case final failure?) return Future.error(failure);
     return _answer();
   }
 
@@ -391,7 +395,8 @@ class FakeRecorder implements RecordingRepository {
     final deliverable =
         lastOwner == MicOwner.rehearsal ||
         lastOwner == MicOwner.scene ||
-        lastOwner == MicOwner.frase;
+        lastOwner == MicOwner.frase ||
+        lastOwner == MicOwner.listener;
     final fala = rehearsalSpeaks;
     if (fala != null && deliverable) {
       final take = File(
@@ -3220,7 +3225,108 @@ class FakeRoom implements RoomRepository {
     if (approved == null) {
       return const Refused(RefusalCode.draftNotApproved);
     }
-    return Answered(ExternalCheck(version: approved.version));
+    return Answered(
+      ExternalCheck(version: approved.version, takes: checkTakes),
+    );
+  }
+
+  /// The takes of the approved version's parts, as the check's open answers them.
+  List<String> checkTakes = const [];
+
+  /// Every «Novo ouvinte» that reached the room, with the attempt it carried.
+  final List<({String sessionId, int version, String attempt})> listenersAsked =
+      [];
+
+  final Map<String, int> _listenerOfAttempt = {};
+
+  /// What the next ask for a listener answers after the room minted it, the way an
+  /// answer lost on the way back does.
+  RoomFailure? failNextListenerWith;
+
+  Completer<void>? _holdingListener;
+
+  /// Holds the next ask for a listener after the room minted it, its answer still on the
+  /// way back.
+  void holdNextListener() => _holdingListener = Completer<void>();
+
+  void finishHeldListener() {
+    _holdingListener?.complete();
+    _holdingListener = null;
+  }
+
+  /// Mints the next number of the version, and the same one for an attempt it already
+  /// answered, as the room does.
+  @override
+  Future<RoomAnswer<int>> aNewListener(
+    String sessionId,
+    int version, {
+    required String attempt,
+  }) async {
+    if (_guard('aNewListener') case final failure?) return failure;
+    if (_forgot('aNewListener', sessionId) case final gone?) return gone;
+    listenersAsked.add((
+      sessionId: sessionId,
+      version: version,
+      attempt: attempt,
+    ));
+    final number = _listenerOfAttempt.putIfAbsent(
+      attempt,
+      () => _listenerOfAttempt.length + 1,
+    );
+    final held = _holdingListener;
+    if (held != null) await held.future;
+    final failure = failNextListenerWith;
+    if (failure != null) {
+      failNextListenerWith = null;
+      return failure;
+    }
+    return Answered(number);
+  }
+
+  /// Every listener recording the room kept, with the bytes it was sent.
+  final List<({int version, int listener, String kind, Uint8List bytes})>
+  listenerRecordings = [];
+
+  /// What the next listener recording answers, the room keeping nothing.
+  RoomFailure? failNextListenerRecordingWith;
+
+  Completer<void>? _holdingListenerRecording;
+
+  void holdNextListenerRecording() =>
+      _holdingListenerRecording = Completer<void>();
+
+  void finishHeldListenerRecording() {
+    _holdingListenerRecording?.complete();
+    _holdingListenerRecording = null;
+  }
+
+  @override
+  Future<RoomAnswer<void>> sendTheListenerRecording(
+    String sessionId,
+    int version,
+    int listener,
+    File audio, {
+    required String kind,
+  }) async {
+    if (_guard('sendTheListenerRecording') case final failure?) return failure;
+    if (_forgot('sendTheListenerRecording', sessionId) case final gone?) {
+      return gone;
+    }
+    final bytes = audio.readAsBytesSync();
+    final held = _holdingListenerRecording;
+    if (held != null) await held.future;
+    final failure = failNextListenerRecordingWith;
+    if (failure != null) {
+      failNextListenerRecordingWith = null;
+      return failure;
+    }
+    listenerRecordings.add((
+      version: version,
+      listener: listener,
+      kind: kind,
+      bytes: bytes,
+    ));
+    return const Answered(null);
   }
 
   bool get coverageHasListener => _coverage.hasListener;

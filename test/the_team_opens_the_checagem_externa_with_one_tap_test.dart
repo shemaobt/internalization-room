@@ -74,7 +74,7 @@ void main() {
     expect(find.text(_checagem), findsOneWidget);
     expect(find.text(_subIdle), findsOneWidget);
     expect(byLabel(_novoOuvinte), findsOneWidget);
-    expect(_habilitado(tester, _novoOuvinte), isFalse);
+    expect(_habilitado(tester, _novoOuvinte), isTrue);
     expect(find.byType(CodigoView), findsNothing);
     expect(harness.voice.fixedLines, falas);
     closeTheRoom(container);
