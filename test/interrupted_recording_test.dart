@@ -451,6 +451,63 @@ void main() {
     },
   );
 
+  group('one take is kept by one write at a time', () {
+    late RecordingRepository recording;
+    late Directory recordings;
+
+    setUp(() {
+      recording = RecordingRepository();
+      addTearDown(recording.dispose);
+      recordings = Directory(p.join(documents.path, 'recordings'))
+        ..createSync(recursive: true);
+    });
+
+    test(
+      'two keeps of one scene take at once leave one whole file, and neither fails',
+      () async {
+        final kept = await Future.wait([
+          for (var i = 0; i < 4; i++) recording.keepBytes(aWavTake(), 'cena-x'),
+        ]);
+
+        final whole = p.join(recordings.path, 'cena-x.wav');
+        expect(kept, everyElement(whole));
+        expect(File(whole).readAsBytesSync(), aWavTake());
+        expect(
+          recordings.listSync().where((entry) => entry.path.endsWith('.part')),
+          isEmpty,
+        );
+      },
+    );
+
+    test(
+      'a keep after a finished keep of the same name writes again',
+      () async {
+        final first = aWavTake(samples: const [0, 100, -100, 0]);
+        final second = aWavTake(samples: const [0, 900, -900, 0]);
+
+        await recording.keepBytes(first, 'cena-x');
+        final kept = await recording.keepBytes(second, 'cena-x');
+
+        expect(File(kept).readAsBytesSync(), second);
+      },
+    );
+
+    test('a failed keep does not stick to its name', () async {
+      Process.runSync('chmod', ['a-w', recordings.path]);
+      addTearDown(() => Process.runSync('chmod', ['u+w', recordings.path]));
+
+      await expectLater(
+        recording.keepBytes(aWavTake(), 'cena-y'),
+        throwsA(isA<FileSystemException>()),
+      );
+
+      Process.runSync('chmod', ['u+w', recordings.path]);
+      final kept = await recording.keepBytes(aWavTake(), 'cena-y');
+
+      expect(File(kept).readAsBytesSync(), aWavTake());
+    });
+  });
+
   test('a recording that starts hands back a usable file', () async {
     final recording = RecordingRepository();
     addTearDown(recording.dispose);

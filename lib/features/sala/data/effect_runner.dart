@@ -126,6 +126,10 @@ abstract interface class StationHost {
   /// The room may have kept the frase on the Station's screen whose answer was lost: its
   /// list decides.
   void hearTheFrasePerhapsKept();
+
+  /// The Station tells its screen the tablet's disk could not keep audio the room handed
+  /// over.
+  void hearTheDiskFailed();
 }
 
 class EffectRunner {
@@ -271,6 +275,8 @@ class EffectRunner {
           host.hearTheSceneRehearsals(listed);
         case AskTheFraseAgain():
           host.hearTheFraseNotUnderstood();
+        case TellTheDiskFailed():
+          host.hearTheDiskFailed();
         case AskTheFraseAgainAfterTheList():
           host.hearTheFrasePerhapsKept();
       }
