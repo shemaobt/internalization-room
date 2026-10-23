@@ -2644,34 +2644,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     if (await _room.takesOf(sessionId) case Answered(value: final guardadas)) {
       if (_abandoned(generation)) return;
-      await _layTheRoomsParts(sessionId, guardadas, generation);
-    }
-  }
-
-  /// The parts the room [guardadas] lists, put under a rehearsal the tablet holds none of;
-  /// null when none could be laid.
-  Future<_PartesDaSala?> _layTheRoomsParts(
-    String sessionId,
-    List<TakeView> guardadas,
-    int generation,
-  ) async {
-    final partes = await _asPartesDaSala(
-      sessionId,
-      guardadas,
-      const [],
-      generation,
-    );
-    if (partes case Answered(value: final laid?) when laid.partes.isNotEmpty) {
-      await _medirAsPartes(laid.partes, generation);
-      if (_abandoned(generation)) return null;
-      state = state.copyWith(
-        keptTakes: laid.partes,
-        wholeHeldByTheRoom: laid.deLado,
+      final partes = await _asPartesDaSala(
+        sessionId,
+        guardadas,
+        const [],
+        generation,
       );
-      state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
-      return laid;
+      if (partes case Answered(
+        value: _PartesDaSala(partes: final takes, :final deLado),
+      ) when takes.isNotEmpty) {
+        await _medirAsPartes(takes, generation);
+        if (_abandoned(generation)) return;
+        state = state.copyWith(keptTakes: takes, wholeHeldByTheRoom: deLado);
+        state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+      }
     }
-    return null;
   }
 
   Future<void> _learnWhetherAPartWasJoined(
@@ -2686,13 +2673,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  static bool _aPartCameFromAJoin(List<TakeView> guardadas) {
-    final correntes = {
-      for (final guardada in guardadas)
-        if (guardada.ordinal case final ordinal? when guardada.kind == 'ensaio')
-          ordinal: guardada,
-    };
-    return correntes.values.any((corrente) => corrente.origin != null);
+  static bool _aPartCameFromAJoin(List<TakeView> guardadas) =>
+      _correntes(guardadas).entries.any(
+        (corrente) => corrente.key != null && corrente.value.origin != null,
+      );
+
+  /// The rehearsal takes the room [guardadas] lists, keyed by the room's number, which
+  /// keeps the first place each number appears in and the last recording made under it.
+  static Map<int?, TakeView> _correntes(List<TakeView> guardadas) => {
+    for (final guardada in guardadas)
+      if (guardada.kind == 'ensaio') guardada.ordinal: guardada,
+  };
+
+  /// The highest pass the room [guardadas] holds for each part number.
+  static Map<int, int> _passadasMaisAltas(List<TakeView> guardadas) {
+    final altas = <int, int>{};
+    for (final guardada in guardadas) {
+      if (guardada.ordinal case final ordinal? when guardada.kind == 'ensaio') {
+        altas[ordinal] = max(altas[ordinal] ?? 0, guardada.pass ?? 1);
+      }
+    }
+    return altas;
   }
 
   /// A session the room already opened is not opened again: the team lands at rest, and
@@ -2762,7 +2763,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             language: _sessionLanguage,
             partBeingRecordedAgain: state.parteARegravar,
             passesToGoAbove: _passadasDaSala ?? const {},
-            wholeSetAside: [...state.wholeHeldByTheRoom],
+            wholeHeldByTheRoom: [...state.wholeHeldByTheRoom],
           ),
         ),
       ),
@@ -2823,12 +2824,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       if (_abandoned(generation)) return _Resume.abandoned;
     }
-    // A whole set aside behind a part is the room's to hold, and is not missing when the
-    // tablet has no file of it.
     final aSceneHasItsPart = waiting.takes.any(
       (take) => KeptScope.isParte(take.scopeId),
     );
-    var heldByTheRoom = {...waiting.wholeSetAside};
+    var heldByTheRoom = {...waiting.wholeHeldByTheRoom};
     final here = <KeptTake>[];
     var missing = false;
     for (final take in waiting.takes) {
@@ -2965,13 +2964,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     List<KeptTake> aqui,
     int generation,
   ) async {
-    // Keyed by the room's number, which keeps the first place each number appears in and
-    // the last recording made under it.
-    final correntes = <int?, TakeView>{};
-    for (final guardada in guardadas) {
-      if (guardada.kind != 'ensaio') continue;
-      correntes[guardada.ordinal] = guardada;
-    }
+    final correntes = _correntes(guardadas);
     final numeradas = correntes.keys.any((ordinal) => ordinal != null);
     final deLado = <String>{};
     final semParte = <int, int>{};
@@ -3422,7 +3415,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.orangeDotLook == OrangeDotLook.gone) {
       return;
     }
-    if (state.partes.isNotEmpty) return _goEnsaio();
+    if (state.partes.isNotEmpty) return _openTheRecordingHome(sessionId);
     const plan = Ensaio(step: EnsaioStep.plan);
     _leaveTheStepFor(plan);
     _clearAll();
@@ -3435,9 +3428,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The plan stands only over a passage the room says has scenes and no take, with none
-  /// waiting in the Outbox. A take the room holds is fetched before the recording home
-  /// opens over it; a read that fails, or that has not answered within [planReadWait],
-  /// opens the recording home.
+  /// waiting in the Outbox; a read that fails, or that has not answered within
+  /// [planReadWait], opens the recording home.
   Future<void> _readThePlan(String sessionId) async {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
@@ -3460,7 +3452,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     _timers.remove('planRead')?.cancel();
     final read = answered;
-    if (read == null) return _goEnsaio();
+    if (read == null) return _openTheRecordingHome(sessionId);
     final (outbox, takes, rehearsals, scenes) = read;
     for (final answer in [takes, rehearsals, scenes]) {
       if (answer case final SessionGone gone) return _decideTheFailure(gone);
@@ -3470,17 +3462,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     switch ((takes, rehearsals, scenes)) {
       case (Answered(value: final guardadas), _, _)
-          when !waiting &&
+          when waiting ||
               guardadas.any((guardada) => guardada.kind == 'ensaio'):
         state = state.copyWith(
           theRoomJoinedAPart: _aPartCameFromAJoin(guardadas),
         );
-        if (await _layTheRoomsParts(sessionId, guardadas, generation)
-            case final laid? when !laid.inteiro) {
-          _passadasDaSala = _aindaPorGravar(laid.passadas, const {});
-        }
-        if (_abandoned(generation)) return;
-        _goEnsaio();
+        _openTheRecordingHome(sessionId, listed: guardadas);
       case (
             Answered(),
             Answered(value: final listed),
@@ -3492,13 +3479,92 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           scenesOfThePassage: passage,
         );
       default:
-        _goEnsaio();
+        _openTheRecordingHome(sessionId);
     }
   }
 
   void recordSceneByScene() => _gesture(() {
-    if (state.station case Ensaio(step: EnsaioStep.plan)) _goEnsaio();
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    if (state.station case Ensaio(step: EnsaioStep.plan)) {
+      _openTheRecordingHome(sessionId);
+    }
   });
+
+  /// The recording home the orange dot leads to, opened at once, with the room's listing
+  /// laid in behind its rows.
+  void _openTheRecordingHome(String sessionId, {List<TakeView>? listed}) {
+    _goEnsaio();
+    _handOff(_layInTheRoomsListing(sessionId, listed, _waitOnTheGeneration));
+  }
+
+  /// The parts the room holds for numbers the tablet has none of go under their rows as
+  /// they arrive, and a part recorded again goes up above every pass the room holds for
+  /// it, whether or not its audio could be fetched.
+  Future<void> _layInTheRoomsListing(
+    String sessionId,
+    List<TakeView>? listed,
+    int generation,
+  ) async {
+    var guardadas = listed;
+    if (guardadas == null) {
+      switch (await _room.takesOf(sessionId)) {
+        case Answered(:final value):
+          guardadas = value;
+        case final SessionGone gone:
+          if (_abandoned(generation)) return;
+          return _decideTheFailure(gone);
+        case NetworkFailed() || Refused():
+          return;
+      }
+    }
+    if (_abandoned(generation)) return;
+    final held = state.partNumbers;
+    final altas = _passadasMaisAltas(guardadas);
+    _passadasDaSala = _aindaPorGravar({
+      ...?_passadasDaSala,
+      for (final MapEntry(:key, :value) in altas.entries)
+        key: max(value, _passadasDaSala?[key] ?? 0),
+    }, held);
+    if (held.isNotEmpty) {
+      if (_correntes(guardadas)[null] case final inteiro?) {
+        state = state.copyWith(
+          wholeHeldByTheRoom: {...state.wholeHeldByTheRoom, inteiro.takeId},
+        );
+      }
+    }
+    final faltam = [
+      for (final guardada in guardadas)
+        if (switch (guardada.ordinal) {
+          final ordinal? => !held.contains(ordinal),
+          null => held.isEmpty,
+        })
+          guardada,
+    ];
+    if (await _asPartesDaSala(sessionId, faltam, const [], generation)
+        case Answered(value: final laid?)) {
+      if (_abandoned(generation)) return;
+      final agora = state.partNumbers;
+      final novas = [
+        for (final parte in laid.partes)
+          if (!agora.contains(KeptScope.numberOf(parte.scopeId))) parte,
+      ];
+      if (novas.isEmpty && laid.deLado.isEmpty) return;
+      await _medirAsPartes(novas, generation);
+      if (_abandoned(generation)) return;
+      state = state.copyWith(
+        keptTakes: [...state.keptTakes, ...novas],
+        wholeHeldByTheRoom: {...state.wholeHeldByTheRoom, ...laid.deLado},
+      );
+      state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+      _passadasDaSala = _aindaPorGravar(
+        _passadasDaSala ?? const {},
+        state.partNumbers,
+      );
+      _weighTheRehearsal();
+      _rememberWhereTheyAre(const Ensaio());
+    }
+  }
 
   void openTheSceneRehearsal() => _gesture(() => _openTheSceneRehearsal());
 

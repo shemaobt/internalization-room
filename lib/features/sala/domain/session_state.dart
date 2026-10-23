@@ -283,6 +283,9 @@ class SalaSessionState {
 
   final bool peerCue;
   final bool noteMode;
+
+  /// Whether a note the team sent is still on its way to the facilitator.
+  final bool aNoteGoesOut;
   final List<HandReply> replies;
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
@@ -398,7 +401,7 @@ class SalaSessionState {
 
   final SceneLine? sceneLine;
 
-  /// What the Ensaio Final plan is drawn from, while the plan stands.
+  /// What the Ensaio Final plan was last drawn from.
   final EnsaioFinalPlan? ensaioFinalPlan;
 
   /// Whether the room's listing named a current part of this session laid in from a Scene
@@ -431,6 +434,7 @@ class SalaSessionState {
     this.keptRetellings = const [],
     this.peerCue = false,
     this.noteMode = false,
+    this.aNoteGoesOut = false,
     this.replies = const [],
     this.playingReplyId,
     this.keptTakes = const [],
@@ -560,14 +564,15 @@ class SalaSessionState {
   /// Whether a current Part was laid in from a Scene rehearsal.
   bool get joined => partes.any((take) => take.origin != null);
 
-  /// Whether a current Part came from a join: as the tablet holds its parts, or as the room
-  /// lists them while the tablet holds none.
-  bool get aPartWasJoined => partes.isEmpty ? theRoomJoinedAPart : joined;
+  /// Whether a current Part came from a join, as the tablet holds it or the room lists it.
+  bool get aPartWasJoined => joined || theRoomJoinedAPart;
 
-  /// How the orange dot stands on the Conversation: gone while the way out is hidden,
-  /// bright from the send-off, faint otherwise.
+  /// How the orange dot stands on the Conversation: gone while the way out is hidden, any
+  /// voice sounds or a sent note is on its way; bright from the send-off; faint otherwise.
   OrangeDotLook get orangeDotLook {
-    if (wayOutIsHidden) return OrangeDotLook.gone;
+    if (wayOutIsHidden || channel is GuideSpeaking || aNoteGoesOut) {
+      return OrangeDotLook.gone;
+    }
     if (endOfThePassage || moment?.at == MomentAt.ensaioFinal) {
       return OrangeDotLook.bright;
     }
@@ -1143,6 +1148,7 @@ class SalaSessionState {
     List<KeptRetelling>? keptRetellings,
     bool? peerCue,
     bool? noteMode,
+    bool? aNoteGoesOut,
     List<HandReply>? replies,
     String? playingReplyId,
     bool clearPlayingReply = false,
@@ -1219,7 +1225,6 @@ class SalaSessionState {
     SceneLine? sceneLine,
     bool clearSceneLine = false,
     EnsaioFinalPlan? ensaioFinalPlan,
-    bool clearEnsaioFinalPlan = false,
     bool? theRoomJoinedAPart,
     Set<String>? wholeHeldByTheRoom,
   }) {
@@ -1234,6 +1239,7 @@ class SalaSessionState {
       keptRetellings: keptRetellings ?? this.keptRetellings,
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
+      aNoteGoesOut: aNoteGoesOut ?? this.aNoteGoesOut,
       replies: replies ?? this.replies,
       playingReplyId: clearPlayingReply
           ? null
@@ -1317,9 +1323,7 @@ class SalaSessionState {
           ? null
           : (sceneRestart ?? this.sceneRestart),
       sceneLine: clearSceneLine ? null : (sceneLine ?? this.sceneLine),
-      ensaioFinalPlan: clearEnsaioFinalPlan
-          ? null
-          : (ensaioFinalPlan ?? this.ensaioFinalPlan),
+      ensaioFinalPlan: ensaioFinalPlan ?? this.ensaioFinalPlan,
       theRoomJoinedAPart: theRoomJoinedAPart ?? this.theRoomJoinedAPart,
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
     );

@@ -312,11 +312,19 @@ class RaisedHand {
 
   void _sendQuestion() {
     if (!_state.noteMode) return;
-    host.state = _state.copyWith(noteMode: false);
+    host.state = _state.copyWith(noteMode: false, aNoteGoesOut: true);
     host.handOff(_deliverQuestion(host.listenedFor));
   }
 
   Future<void> _deliverQuestion(Duration listenedFor) async {
+    try {
+      await _deliver(listenedFor);
+    } finally {
+      host.state = _state.copyWith(aNoteGoesOut: false);
+    }
+  }
+
+  Future<void> _deliver(Duration listenedFor) async {
     final generation = host.waitOnTheGeneration;
     final path = (await host.closeTheMicrophone()).take;
     if (host.abandoned(generation)) return;

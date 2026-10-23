@@ -44,9 +44,10 @@ void main() {
     expect(machine.generation, _generation + 1);
   });
 
-  test('the back-translation asked from the plan stays on the plan', () {
+  test('the back-translation asked from the plan stays on the plan, every '
+      'scene with its part', () {
     final (machine, _) = reduce(
-      _at(_thePlan),
+      _at(const Ensaio(step: EnsaioStep.plan, everySceneHasItsPart: true)),
       const TheBackTranslationOpened(),
     );
 
