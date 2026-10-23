@@ -18,6 +18,8 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
    awaiting), and the end of a join that left every scene with its part, with no tap.
    - every part unheard: her line N0, then every part from its beginning in passage order;
    - some part heard: her P2, then only the unheard parts, each from its beginning;
+   - a part the room names that this tablet does not hold: her P2, then every part, as rule 7.1
+     keeps the listen for it;
    - none unheard, no answer, or an older room: today's path.
 2. **A recording no join touched keeps today's path**, ADR 0105's P0/P2 replay included.
 3. **The First listen is listen-only**, from the line to the room's answer after the last

@@ -1002,6 +1002,37 @@ void main() {
   );
 
   test(
+    'on entry, a take the room names that this tablet does not hold starts the listen with P2 and the whole passage',
+    () async {
+      final it = await _juntadaNaCasa();
+      it.harness.room.listeningUnheardTakeIds = const ['de-outro-tablet'];
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+      final desde = it.harness.playback.playedFrom.length;
+      final microfones = _microfones(it);
+
+      await _oDisco(it);
+      expect(it.harness.voice.fixedLines.skip(linhas), [('P2', testLanguage)]);
+      await _ouvirAte(it);
+
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        _caminhos(it, [0, 1, 2]),
+      );
+      expect(it.harness.playback.playedFrom.skip(desde), [
+        Duration.zero,
+        Duration.zero,
+        Duration.zero,
+      ]);
+      expect(
+        _microfones(it),
+        microfones,
+        reason: 'só ouvir: microfone fechado',
+      );
+    },
+  );
+
+  test(
     'heard whole with a frase awaiting its translation goes back to that frase',
     () async {
       final it = await _juntadaNaCasa();

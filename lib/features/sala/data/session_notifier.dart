@@ -6382,15 +6382,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await _readTheStretchesBack(state.sessionId!, generation);
       if (_abandoned(generation) || _endedSince(life)) return;
     }
-    final naoOuvidas = await _asPartesNaoOuvidas(generation);
+    final nomes = await _osNomesNaoOuvidos(generation);
     if (_abandoned(generation) || _endedSince(life)) return;
-    if (naoOuvidas == null || naoOuvidas.isEmpty) {
+    final naoOuvidas = nomes == null ? null : _asPartesNomeadas(nomes);
+    final deFora = juntada && naoOuvidas != null && nomes!.isNotEmpty;
+    if (naoOuvidas == null || naoOuvidas.isEmpty && !deFora) {
       _sairDaEspera();
       _tocarDoChaoNaoContado();
       return;
     }
     final doComeco = !juntada || naoOuvidas.length == state.partes.length;
-    final partes = doComeco
+    final partes = doComeco || naoOuvidas.isEmpty
         ? [for (var onde = 0; onde < state.partes.length; onde++) onde]
         : naoOuvidas;
     state = state.copyWith(
@@ -6418,7 +6420,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  Future<List<int>?> _asPartesNaoOuvidas(int generation) async {
+  Future<List<String>?> _osNomesNaoOuvidos(int generation) async {
     final sessionId = state.sessionId;
     if (sessionId == null) return null;
     final resposta = await _room.reportTheListening(
@@ -6428,7 +6430,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (resposta case Answered(
       value: ListenedWhole(unheardTakeIds: final nomes?),
     )) {
-      return _asPartesNomeadas(nomes);
+      return nomes;
     }
     return null;
   }
