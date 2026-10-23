@@ -1176,7 +1176,7 @@ class FakeRoom implements RoomRepository {
       String? sha256,
       Uint8List bytes,
       DateTime? recordedAt,
-      DateTime? sentAt,
+      String? overTake,
     })
   >
   takesReceivedWhole = [];
@@ -2637,7 +2637,7 @@ class FakeRoom implements RoomRepository {
     String? sha256,
     String? origin,
     bool reopensTheApprovedDraft = false,
-    DateTime? sentAt,
+    String? overTake,
   }) async {
     if (_guard('sendTake') case final failure?) return failure;
     if (_forgot('sendTake', sessionId) case final gone?) {
@@ -2674,7 +2674,7 @@ class FakeRoom implements RoomRepository {
       sha256: sha256,
       bytes: bytes,
       recordedAt: recordedAt,
-      sentAt: sentAt,
+      overTake: overTake,
     ));
     if (origin != null) {
       for (final take in takes) {
@@ -2683,6 +2683,10 @@ class FakeRoom implements RoomRepository {
           return Answered(take.takeId);
         }
       }
+      final live = takes
+          .where((take) => take.kind == kind && take.scope == scope)
+          .lastOrNull;
+      if (live?.takeId != overTake) return const Refused('TAKE_MOVED');
     }
     takesKept.add('$kind/$scope');
     takesReceived.add((kind: kind, scope: scope, chunkIndex: chunkIndex));
@@ -3217,6 +3221,7 @@ class FakeTakeQueue implements TakeUploadQueue {
     required int passNumber,
     required String origin,
     String? fingerprint,
+    String? overTake,
     bool reopensTheApprovedDraft = false,
   }) async {
     final held = crypto.sha256.convert(audio.readAsBytesSync()).toString();

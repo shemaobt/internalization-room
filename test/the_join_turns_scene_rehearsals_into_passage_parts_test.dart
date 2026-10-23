@@ -740,6 +740,85 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a join row names the take the room lists as its part when the row is '
+    'written, and none over an empty scene',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      await it.openThePlan();
+      it.room.takes.add(
+        TakeView(
+          takeId: 'gravacao-de-outro-tablet',
+          kind: 'ensaio',
+          scope: KeptScope.parte(2),
+          ordinal: 2,
+          pass: 1,
+          origin: 'ensaio-de-outro-tablet',
+        ),
+      );
+      it.room.takeAudio['gravacao-de-outro-tablet'] = _bytesOf(8);
+
+      await it.tapJoin();
+      await _theJoinEnds(it);
+
+      expect(
+        {
+          for (final take in it.room.takesReceivedWhole)
+            take.scope: take.overTake,
+        },
+        {
+          'parte-1': null,
+          'parte-2': 'gravacao-de-outro-tablet',
+          'parte-3': null,
+        },
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a join the room turns away because another take landed on the part '
+    'claims nothing, opens the recording home and is never sent again',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      await it.openThePlan();
+      it.room.unreachableTake = 'ensaio/parte-2';
+      int triesOf2() => it.room.calls.where((c) => c == 'sendTake').length;
+
+      await it.tapJoin();
+      await it.until('a linha 1 ganhar o visto', () => it.ticked(1));
+      await it.wait(const Duration(seconds: 6));
+      it.room.takes.add(
+        TakeView(
+          takeId: 'gravacao-a-mao',
+          kind: 'ensaio',
+          scope: KeptScope.parte(2),
+          ordinal: 2,
+          pass: 2,
+        ),
+      );
+      it.room.takeAudio['gravacao-a-mao'] = _bytesOf(7);
+      it.room.unreachableTake = null;
+      await _theJoinEnds(it);
+      final tries = triesOf2();
+      await it.wait(const Duration(seconds: 30));
+
+      expect(it.ticked(2), isFalse);
+      expect(find.text(_retry), findsNothing);
+      expect(
+        it.room.takes.where((take) => take.ordinal == 2).map((t) => t.takeId),
+        ['gravacao-a-mao'],
+      );
+      expect(it.partsReceived, isNot(contains('parte-3')));
+      expect(triesOf2(), tries, reason: 'nada é tentado de novo');
+      semantics.dispose();
+    },
+  );
+
   group('a join row the Outbox still held', () {
     Future<_Room> givenUpOnPart2(WidgetTester tester) async {
       final it = await _atRest(tester);
@@ -1300,8 +1379,8 @@ void main() {
   );
 
   testWidgets(
-    'the Recording time a join row sends is the moment the row was written, '
-    'not the rehearsal\'s and not the try\'s',
+    'the Recording time a join row sends is the moment of the try that lands, '
+    'not the rehearsal\'s and not the row\'s writing',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _atRest(tester);
@@ -1326,13 +1405,10 @@ void main() {
       await it.wait(const Duration(seconds: 8));
       await it.until('a linha 1 ganhar o visto', () => it.ticked(1));
 
-      final part1 = it.room.takesReceivedWhole.first;
+      final sent = it.room.takesReceivedWhole.first.recordedAt!;
+      expect(sent.difference(tapped).inSeconds, lessThan(30));
       expect(
-        part1.recordedAt!.difference(tapped).inSeconds.abs(),
-        lessThan(30),
-      );
-      expect(
-        part1.sentAt!.difference(part1.recordedAt!),
+        sent.difference(tapped),
         greaterThanOrEqualTo(const Duration(seconds: 1)),
         reason: 'a tentativa que chegou foi depois da escrita da linha',
       );

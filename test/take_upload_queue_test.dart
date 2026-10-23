@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
@@ -2091,8 +2092,7 @@ void main() {
       expect(sent.bytes, bytes);
     });
 
-    test('written before a hand take and sent after it, keeps the moment it '
-        'was written as its Recording time and names each try\'s', () async {
+    test('sends the moment of each try as its Recording time', () async {
       final room = FakeRoom()..unreachableTake = 'ensaio/parte-2';
       final queue = queueOn(room);
       final rehearsal = aRehearsal(aWavTake())
@@ -2111,11 +2111,35 @@ void main() {
 
       await queue.flush();
 
-      expect(
-        room.takesReceivedWhole.single.recordedAt,
-        DateTime(2026, 8, 12, 9),
+      expect(room.takesReceivedWhole.single.recordedAt, clock);
+    });
+
+    test('names the part\'s take it replaces on every try, across a manifest '
+        'read', () async {
+      final room = FakeRoom()
+        ..takes.add(
+          const TakeView(
+            takeId: 'gravacao-a-mao',
+            kind: 'ensaio',
+            scope: 'parte-2',
+            ordinal: 2,
+          ),
+        )
+        ..unreachableTake = 'ensaio/parte-2';
+      await queueOn(room).enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 2,
+        origin: 'ensaio-2',
+        overTake: 'gravacao-a-mao',
       );
-      expect(room.takesReceivedWhole.single.sentAt, clock);
+      await queueOn(room).flush();
+      room.unreachableTake = null;
+
+      await queueOn(room).flush();
+
+      expect(room.takesReceivedWhole.single.overTake, 'gravacao-a-mao');
     });
   });
 }

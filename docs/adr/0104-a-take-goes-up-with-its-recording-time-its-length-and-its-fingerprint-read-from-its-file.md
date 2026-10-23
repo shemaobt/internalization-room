@@ -55,4 +55,4 @@ value the tablet estimates is a take lost on the server.
   setting the manifest aside would strand every pending recording for a field that is optional.
 - The queued copy is read and hashed off the UI isolate: the keep tap waits for it, and 25 MB
   took 135 to 155 ms on a Mac.
-- The room, not the tablet, says how far off the tablet's clock was. A join row (0120) keeps its own Recording time, the tablet's raw clock as the row is written, and also sends `sent_at`, the tablet's clock as each request is built, from which the room measures the offset (amended 2026-10-23, Definer Q67).
+- The room, not the tablet, says how far off the tablet's clock was.

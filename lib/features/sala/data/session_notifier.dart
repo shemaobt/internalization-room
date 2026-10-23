@@ -3667,7 +3667,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       if (_left(generation, life)) return _joinLeftBehind;
       if (bytes == null) return (row: refused!, part: JoinedPart.nowhere);
-      final pass = await _theNextPassOf(sessionId, number);
+      final (:pass, :live) = await _wherePartStands(sessionId, number);
       if (_left(generation, life)) return _joinLeftBehind;
       final String partPath;
       final PendingTake? row;
@@ -3680,6 +3680,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           passNumber: pass,
           origin: id,
           fingerprint: rehearsal.sha256,
+          overTake: live,
         );
       } on Exception {
         return (row: JoinRow.retry, part: JoinedPart.nowhere);
@@ -3710,16 +3711,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// One pass above the highest the room lists for the part as the row is written, and
-  /// above every pass this tablet already knew of.
-  Future<int> _theNextPassOf(String sessionId, int number) async {
+  /// above every pass this tablet already knew of; and the take the room lists as the
+  /// part then, the one the row replaces.
+  Future<({int pass, String? live})> _wherePartStands(
+    String sessionId,
+    int number,
+  ) async {
     final known = _passadasDaSala?[number] ?? 0;
     final listing = await _withinTheJoinWait(_room.takesOf(sessionId));
-    final listed = switch (listing) {
-      Answered(value: final guardadas) =>
-        _passadasMaisAltas(guardadas)[number] ?? 0,
-      _ => 0,
+    final guardadas = switch (listing) {
+      Answered(:final value) => value,
+      _ => const <TakeView>[],
     };
-    return max(known, listed) + 1;
+    return (
+      pass: max(known, _passadasMaisAltas(guardadas)[number] ?? 0) + 1,
+      live: _correntes(guardadas)[number]?.takeId,
+    );
   }
 
   /// A joined part an earlier try left in the Outbox: sent again now, and watched. Gone
@@ -3851,6 +3858,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (row.exhausted) {
         await _takes.withdraw(row);
         _semNome.remove(rowId);
+        if (row.refusal == RefusalCode.takeMoved) return _notThePart(partPath);
         _letGoOfTheJoinedPart(partPath);
         return (
           row: switch (row.refusal) {

@@ -2510,8 +2510,8 @@ void main() {
       return repository;
     }
 
-    test('a joined part goes up naming its rehearsal, and the reopening only '
-        'when the team armed it', () async {
+    test('a joined part goes up naming its rehearsal, the take it replaces, '
+        'and the reopening only when the team armed it', () async {
       final file = await _tempRecording(extension: 'wav', bytes: aWavTake());
 
       await listening().sendTake(
@@ -2521,7 +2521,7 @@ void main() {
         scope: 'parte-2',
         origin: 'ensaio-2',
         reopensTheApprovedDraft: true,
-        sentAt: DateTime.utc(2026, 10, 23, 9, 4),
+        overTake: 'gravacao-7',
       );
       final armed = latin1.decode(sent.bodyBytes);
       await listening().sendTake(
@@ -2537,12 +2537,10 @@ void main() {
         armed,
         contains('name="reopens_the_approved_draft"\r\n\r\ntrue\r\n'),
       );
-      expect(
-        armed,
-        contains('name="sent_at"\r\n\r\n2026-10-23T09:04:00.000Z\r\n'),
-      );
+      expect(armed, contains('name="over_take"\r\n\r\ngravacao-7\r\n'));
+      expect(armed, isNot(contains('name="sent_at"')));
       expect(plain, isNot(contains('name="origin"')));
-      expect(plain, isNot(contains('name="sent_at"')));
+      expect(plain, isNot(contains('name="over_take"')));
       expect(plain, isNot(contains('reopens_the_approved_draft')));
     });
 
