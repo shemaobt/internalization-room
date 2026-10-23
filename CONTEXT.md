@@ -341,7 +341,7 @@ The round red control beside the orange dot that opens the Scene rehearsal's scr
 _Avoid_: orange dot (the other way, into the Rehearsal)
 
 **Orange dot**:
-The small orange control at the Conversation's top right that opens the Ensaio Final: the Ensaio Final plan over a passage with no take yet, the recording home once one exists. Faint and open whenever the Conversation rests, also before the send-off; bright from the voice's send-off, the completion floor or the Ensaio Final moment on; gone while the voice thinks or speaks, a microphone other than the raised-hand note's is open, or a person is called; never on a Panorama. Its name is «Gravar o ensaio de vocês», and «Abrir o Ensaio Final» once a part came from a join (ADR 0117).
+The small orange control at the Conversation's top right that opens the Ensaio Final: the Ensaio Final plan as its entry reads (today, over a passage with no take) and the recording home when there is a take; the join case arrives with ENG-1385. Faint and open whenever the Conversation rests, also before the send-off; bright from the voice's send-off, the completion floor or the Ensaio Final moment on; gone while any voice sounds or thinks, a microphone other than the raised-hand note's is open, a sent note is on its way, or a person is called; never on a Panorama. Its name is «Gravar o ensaio de vocês», and «Abrir o Ensaio Final» once a part came from a join (ADR 0117).
 _Avoid_: record entry, record button, botão de gravar, green check, green microphone (the glyphs the way into the Rehearsal wore until 2026-10-21), handoff, rehearsal gate (it gates nothing)
 
 **Opened**:
