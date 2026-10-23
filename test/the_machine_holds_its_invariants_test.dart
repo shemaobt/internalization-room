@@ -176,6 +176,21 @@ final theMicrophoneOpensOverASoundOnlyAfterAStop = Invariant<Machine>(
   },
 );
 
+final aStopNamesThisSessionsTakeInTheAir = Invariant<Machine>(
+  "a stop names this session's take in the air",
+  (before, event, after, effects, world) {
+    for (final StopTheSend(:row) in effects.whereType<StopTheSend>()) {
+      final inTheAir = before.inTheAir;
+      if (inTheAir == null ||
+          inTheAir.row != row ||
+          inTheAir.keep.session != before.session) {
+        return 'stopped $row with ${inTheAir?.row} in the air';
+      }
+    }
+    return null;
+  },
+);
+
 final aLineOfTheVoiceStopsAPlayingReply = Invariant<Machine>(
   'a line of the voice that arrives over a playing reply stops it',
   (before, event, after, effects, world) {
@@ -519,6 +534,7 @@ void main() {
           theMicrophoneOpensOverASoundOnlyAfterAStop,
           aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas,
           aLineOfTheVoiceStopsAPlayingReply,
+          aStopNamesThisSessionsTakeInTheAir,
           theHeadNeverReadsAnotherSound,
           theOutboxNeverIdlesWithAPartPending,
           theScreenNeverShowsASoundTheChannelDoesNotHold,

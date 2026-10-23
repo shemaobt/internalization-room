@@ -49,6 +49,7 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
 /// Throwing here instead of returning keeps the failure at the wait: a deadline that
 /// passes in silence surfaces as an unrelated error several lines later.
@@ -1642,15 +1643,33 @@ class FakeRoom implements RoomRepository {
     );
   }
 
+  String? unlistedTake;
+
+  bool _holdTheNextTakesList = false;
+  final List<Completer<void>> _heldTakesLists = [];
+
+  void holdNextTakesList() => _holdTheNextTakesList = true;
+
+  void finishHeldTakesList() => _heldTakesLists.removeAt(0).complete();
+
   @override
   Future<RoomAnswer<List<TakeView>>> takesOf(String sessionId) async {
     if (_guard('takesOf') case final failure?) return failure;
+    if (_holdTheNextTakesList) {
+      _holdTheNextTakesList = false;
+      final held = Completer<void>();
+      _heldTakesLists.add(held);
+      await held.future;
+    }
     if (_forgot('takesOf', sessionId) case final gone?) {
       return gone;
     }
     final refusal = failTakesWith;
     if (refusal != null) return refusal;
-    return Answered(List.of(takes));
+    return Answered([
+      for (final take in takes)
+        if ('${take.kind}/${take.scope}' != unlistedTake) take,
+    ]);
   }
 
   /// Every live scene rehearsal of the passage, from every session, as the list answers.
@@ -1778,6 +1797,7 @@ class FakeRoom implements RoomRepository {
     DateTime? recordedAt,
     int? durationMs,
     String? sha256,
+    Future<void>? abortTrigger,
   }) async {
     if (_guard('keepSceneRehearsal') case final failure?) return failure;
     await _holdingKeepBefore?.future;
@@ -2667,6 +2687,8 @@ class FakeRoom implements RoomRepository {
 
   Duration? aHeldTakeAnswersAfter;
 
+  final List<DateTime> takesSentAt = [];
+
   @override
   Future<RoomAnswer<String>> sendTake(
     String sessionId,
@@ -2678,7 +2700,9 @@ class FakeRoom implements RoomRepository {
     DateTime? recordedAt,
     int? durationMs,
     String? sha256,
+    Future<void>? abortTrigger,
   }) async {
+    takesSentAt.add(DateTime.now());
     if (_guard('sendTake') case final failure?) return failure;
     if (_forgot('sendTake', sessionId) case final gone?) {
       return gone;
@@ -3232,6 +3256,12 @@ class FakeTakeQueue implements TakeUploadQueue {
   @override
   Stream<void> get fallsOnTheNetwork => const Stream.empty();
 
+  @override
+  Stream<TakeLeaving?> get leaving => const Stream.empty();
+
+  @override
+  void stop(String row) {}
+
   final StreamController<String> _sessionsGone =
       StreamController<String>.broadcast(sync: true);
 
@@ -3274,7 +3304,7 @@ class FakeTakeQueue implements TakeUploadQueue {
         (entry) =>
             entry.kind == sceneTakeKind &&
             !entry.stored &&
-            !entry.exhausted &&
+            entry.refusal == null &&
             entry.sessionId == sessionId,
       )
       .lastOrNull;
@@ -3636,7 +3666,10 @@ class SalaHarness {
               room: room,
               home: () async => takesHome,
               recordings: () => recorder,
+              spacing: takeSpacing,
             ));
+
+  List<Duration> takeSpacing = const [];
 
   List<Override> get overrides => [
     facilitatorVoiceProvider.overrideWithValue(voiceService ?? voice),

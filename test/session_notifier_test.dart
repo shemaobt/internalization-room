@@ -4118,7 +4118,18 @@ void main() {
       reason: 'sem rede a tomada fica na fila, e a fila é um arquivo em disco',
     );
 
+    await waitFor(
+      'a tomada dizer que falhou',
+      () => container
+          .read(salaSessionProvider)
+          .unsentParts
+          .values
+          .any((part) => part.failure != null),
+    );
     harness.room.reachable = true;
+    notifier.enviarACena(
+      container.read(salaSessionProvider).unsentParts.keys.single,
+    );
     final deadline = DateTime.now().add(const Duration(seconds: 10));
     while (harness.room.takesKept.isEmpty &&
         DateTime.now().isBefore(deadline)) {
@@ -4153,7 +4164,18 @@ void main() {
           'a conta aparece quando a equipe guarda, mas ainda está só no tablet',
     );
 
+    await waitFor(
+      'a tomada dizer que falhou',
+      () => container
+          .read(salaSessionProvider)
+          .unsentParts
+          .values
+          .any((part) => part.failure != null),
+    );
     harness.room.reachable = true;
+    notifier.enviarACena(
+      container.read(salaSessionProvider).unsentParts.keys.single,
+    );
     final deadline = DateTime.now().add(const Duration(seconds: 10));
     while (container.read(salaSessionProvider).unsentTakes != 0 &&
         DateTime.now().isBefore(deadline)) {
@@ -5019,8 +5041,8 @@ void main() {
     await waitFor('a tomada recusada aparecer falha na sua linha', () async {
       await harness.takes.flush();
       await notifier.refreshUnsent();
-      return container.read(salaSessionProvider).unsentParts[1]?.failed ??
-          false;
+      return container.read(salaSessionProvider).unsentParts[1]?.failure !=
+          null;
     });
   });
 

@@ -713,6 +713,7 @@ class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
     DateTime? recordedAt,
     int? durationMs,
     String? sha256,
+    Future<void>? abortTrigger,
   }) {
     if (!stumbled) {
       stumbled = true;
@@ -728,6 +729,7 @@ class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
       recordedAt: recordedAt,
       durationMs: durationMs,
       sha256: sha256,
+      abortTrigger: abortTrigger,
     );
   }
 }

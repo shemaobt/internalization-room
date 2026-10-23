@@ -6,6 +6,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/kept_take.dart';
+import '../../domain/machine.dart' show TheKeep;
 import '../../domain/session_state.dart';
 import '../../domain/station.dart';
 import 'bead_styles.dart';
@@ -13,6 +14,7 @@ import 'ensaio_final_plan_view.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
 import 'stage_heading.dart';
+import 'stop_control.dart';
 
 class EnsaioView extends ConsumerWidget {
   const EnsaioView({super.key});
@@ -96,6 +98,7 @@ class EnsaioView extends ConsumerWidget {
                       onRecord: () => notifier.gravarACena(row.number),
                       onListen: () => notifier.ouvirACena(row.number),
                       onSend: () => notifier.enviarACena(row.number),
+                      onStop: notifier.stopTheSend,
                     ),
                 ],
               ),
@@ -203,6 +206,7 @@ class _SceneRowView extends StatelessWidget {
   final VoidCallback onRecord;
   final VoidCallback onListen;
   final VoidCallback onSend;
+  final void Function(TheKeep keep) onStop;
 
   const _SceneRowView({
     required this.row,
@@ -211,6 +215,7 @@ class _SceneRowView extends StatelessWidget {
     required this.onRecord,
     required this.onListen,
     required this.onSend,
+    required this.onStop,
   });
 
   @override
@@ -320,48 +325,87 @@ class _SceneRowView extends StatelessWidget {
                 ],
               ],
             ),
-            ?_unsentControl(row.unsent, cena, colors),
+            ?_takeState(recording, cena, colors),
           ],
         ),
       ),
     );
   }
 
-  Widget? _unsentControl(UnsentPart? unsent, String cena, SalaColors colors) {
-    if (unsent == null) return null;
-    final (visible, aria) = switch (unsent) {
-      UnsentPart(fromAnEarlierVisit: true, :final length) => (
+  Widget? _takeState(bool recording, String cena, SalaColors colors) {
+    String words(String key) => recordingHomeLabelFor(key, language);
+    final inTheAir = row.inTheAir;
+    final said = switch (row.unsent) {
+      _ when recording => _said(words('recording'), colors),
+      _ when inTheAir != null => Row(
+        children: [
+          _said(words('sending'), colors),
+          StopControl(
+            key: ValueKey(inTheAir.row),
+            since: inTheAir.keep.since,
+            label: words('stopSending'),
+            aria: words('stopSendingAria'),
+            color: colors.telha,
+            onStop: () => onStop(inTheAir.keep),
+          ),
+        ],
+      ),
+      UnsentPart(fromAnEarlierVisit: true, :final length) => _tap(
         [
           cena,
           if (length != null) ' · ${minutesAndSecondsOf(length)}',
-          ' — ${recordingHomeLabelFor('sendNow', language)}',
+          ' — ${words('sendNow')}',
         ].join(),
-        recordingHomeLabelFor('sendAria', language),
+        words('sendAria'),
+        onSend,
+        colors,
       ),
-      UnsentPart(failed: true) => (
-        recordingHomeLabelFor('failed', language),
-        recordingHomeLabelFor('retryAria', language),
+      UnsentPart(failure: SendFailure.failed) => _tap(
+        words('failed'),
+        words('retryAria'),
+        onSend,
+        colors,
       ),
-      _ => (null, null),
+      UnsentPart(failure: SendFailure.gone) => _said(words('lost'), colors),
+      UnsentPart(failure: SendFailure.tooLarge) => _said(
+        words('tooLarge'),
+        colors,
+      ),
+      UnsentPart(failure: SendFailure.refused) => _said(
+        words('refused'),
+        colors,
+      ),
+      UnsentPart() => _said(words('sending'), colors),
+      null when row.saved => _said('✓ ${words('saved')}', colors),
+      null => null,
     };
-    if (visible == null || aria == null) return null;
+    if (said == null) return null;
     return Padding(
       padding: const EdgeInsets.only(left: 32, top: 4),
-      child: Semantics(
-        button: true,
-        label: aria,
-        onTap: onSend,
-        excludeSemantics: true,
-        child: TextButton(
-          onPressed: onSend,
-          child: Text(
-            visible,
-            style: TextStyle(color: colors.telha, fontSize: 15),
-          ),
-        ),
-      ),
+      child: said,
     );
   }
+
+  static Widget _said(String words, SalaColors colors) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    child: Text(words, style: TextStyle(color: colors.telha, fontSize: 15)),
+  );
+
+  static Widget _tap(
+    String visible,
+    String aria,
+    VoidCallback onTap,
+    SalaColors colors,
+  ) => Semantics(
+    button: true,
+    label: aria,
+    onTap: onTap,
+    excludeSemantics: true,
+    child: TextButton(
+      onPressed: onTap,
+      child: Text(visible, style: TextStyle(color: colors.telha, fontSize: 15)),
+    ),
+  );
 
   Widget _control(
     String key,

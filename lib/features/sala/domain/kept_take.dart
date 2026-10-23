@@ -22,14 +22,23 @@ abstract class KeptScope {
   }
 }
 
+const partTakeKind = 'ensaio';
+
+const sceneTakeKind = 'cena';
+
+const retroKind = 'retro';
+
+enum SendFailure { failed, tooLarge, refused, gone }
+
 class UnsentPart {
   final bool fromAnEarlierVisit;
-  final bool failed;
+
+  final SendFailure? failure;
   final Duration? length;
 
   const UnsentPart({
     required this.fromAnEarlierVisit,
-    required this.failed,
+    this.failure,
     this.length,
   });
 }

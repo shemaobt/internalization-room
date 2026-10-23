@@ -1125,7 +1125,7 @@ void main() {
 
     testWidgets(
       'leaves a row waiting in the Outbox unsent after a relaunch, and '
-      'recording it again goes up at the next pass',
+      'recording it again goes up after it on the team\'s tap',
       (tester) async {
         final it = await _reopenOverTheWholeSetAside(
           tester,
@@ -1143,7 +1143,29 @@ void main() {
         expect(it.onRow(2, byLabel('Gravar')), findsNothing);
 
         it.room.unreachableTake = null;
-        await it.recordAndKeep(2);
+        await it.inRealTime(() async {
+          it.sala.gravarACena(2);
+          await waitFor(
+            'a cena 2 gravar',
+            () => it.read.ensaio == EnsaioStatus.recording,
+          );
+          it.sala.gravarACena(2);
+          await waitFor(
+            'a gravação da cena 2 esperar o visto',
+            () => it.read.ensaio == EnsaioStatus.recorded,
+          );
+          it.sala.takeKeep();
+          await settle(const Duration(milliseconds: 300));
+        });
+        expect(
+          it.onRow(2, find.text('falhou — toque para tentar de novo')),
+          findsOneWidget,
+        );
+        await it.inRealTime(() async {
+          it.sala.enviarACena(2);
+          await waitFor('a cena 2 subir', () => it.passesOfPart(2).contains(3));
+          await settle(const Duration(milliseconds: 300));
+        });
 
         final passes = it.passesOfPart(2);
         expect(passes, contains(3));

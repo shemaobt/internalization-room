@@ -165,9 +165,9 @@ final class Keeping extends SceneKeep {
 final class NotKept extends SceneKeep {
   final String? row;
   final String? take;
-  final bool tooLarge;
+  final SendFailure why;
 
-  const NotKept({this.row, this.take, this.tooLarge = false});
+  const NotKept({this.row, this.take, this.why = SendFailure.failed});
 }
 
 enum VoiceState { invite, listening, thinking, speaking, done }
@@ -561,6 +561,30 @@ class SalaSessionState {
 
   String? get sessionId => machine.session;
 
+  TakeInTheAir? _theTakeInTheAirOf(String kind) => switch (machine.inTheAir) {
+    final take? when take.keep.session == sessionId && take.keep.kind == kind =>
+      take,
+    _ => null,
+  };
+
+  TakeInTheAir? get sceneTakeInTheAir => _theTakeInTheAirOf(sceneTakeKind);
+
+  UnsentPart? _unsentByTheNewestKeptTake(int number) =>
+      switch (machine.newestKeptFact(sessionId, number)) {
+        PartFact.pending => const UnsentPart(fromAnEarlierVisit: false),
+        PartFact.stranded => const UnsentPart(
+          fromAnEarlierVisit: false,
+          failure: SendFailure.gone,
+        ),
+        PartFact.sent || null => null,
+      };
+
+  TakeInTheAir? partInTheAir(int number) =>
+      switch (_theTakeInTheAirOf(partTakeKind)) {
+        final take? when KeptScope.numberOf(take.keep.scope) == number => take,
+        _ => null,
+      };
+
   String? get panoramaSessionId => machine.panorama?.session;
 
   String? thePanoramaSessionOf(String book) {
@@ -668,6 +692,7 @@ class SalaSessionState {
     final List<(int, String?)> numbered = switch (scenes) {
       ScenesHad(scenes: final had) when had.isNotEmpty => [
         for (final (index, scene) in had.indexed) (index + 1, scene.title),
+        for (final number in _partsWithASendBeyond(had.length)) (number, null),
       ],
       ScenesHad() => [
         for (final n in [
@@ -689,13 +714,32 @@ class SalaSessionState {
             final index? => partes[index],
             null => null,
           },
-          unsent: unsentParts[number],
+          unsent: machine.beingKept(sessionId, number)
+              ? const UnsentPart(fromAnEarlierVisit: false)
+              : unsentParts[number] ?? _unsentByTheNewestKeptTake(number),
+          inTheAir: partInTheAir(number),
+          saved: machine.savedParts(sessionId).contains(number),
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
           dimmed: sceneRowIsDimmed(number),
           current: _numberAt(playing ?? again) == number,
         ),
     ];
   }
+
+  List<int> _partsWithASendBeyond(int lastScene) => [
+    for (final number in {
+      ...unsentParts.keys,
+      for (final kept in machine.keptThisVisit.values)
+        if (kept.session == sessionId) kept.part,
+      for (final keep in machine.keeping.keys)
+        if (keep.session == sessionId) keep.part,
+      ?switch (_theTakeInTheAirOf(partTakeKind)) {
+        final take? => KeptScope.numberOf(take.keep.scope),
+        null => null,
+      },
+    })
+      if (number > lastScene) number,
+  ]..sort();
 
   /// The number of the part at [index] in [partes]; just past them, the scene of a
   /// recording waiting for the check.
@@ -1436,6 +1480,8 @@ class SceneRow {
   final String? title;
   final KeptTake? part;
   final UnsentPart? unsent;
+  final TakeInTheAir? inTheAir;
+  final bool saved;
   final bool recording;
   final bool dimmed;
 
@@ -1448,6 +1494,8 @@ class SceneRow {
     required this.title,
     required this.part,
     required this.unsent,
+    required this.inTheAir,
+    required this.saved,
     required this.recording,
     required this.dimmed,
     required this.current,
