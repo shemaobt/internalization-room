@@ -206,9 +206,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('while the line names the button, the button is there', (
-    tester,
-  ) async {
+  testWidgets('while her line plays the button stands dimmed, and it is lit '
+      'after «Pronto»', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _ateAConferida(tester, harness);
     final w = _pt(1);
@@ -216,9 +215,15 @@ void main() {
     await _approveWithP3Held(tester, harness, w);
 
     expect(find.text(w.approvedSentence), findsOneWidget);
-    _expectTheButtonStands(tester, w);
+    expect(find.text(w.badge), findsOneWidget);
+    expect(byLabel(w.checagem), findsOneWidget);
+    expect(_habilitado(tester, w.checagem), isFalse);
 
     await _finishP3(tester, harness);
+    await tester.tap(byLabel(w.pronto));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(_habilitado(tester, w.checagem), isTrue);
     closeTheRoom(container);
   });
 
