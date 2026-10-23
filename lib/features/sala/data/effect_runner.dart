@@ -130,6 +130,9 @@ abstract interface class StationHost {
   /// The Station tells its screen the tablet's disk could not keep audio the room handed
   /// over.
   void hearTheDiskFailed();
+
+  /// The scene's «terminei» could not be sent.
+  void hearTheSendFailed();
 }
 
 class EffectRunner {
@@ -277,6 +280,8 @@ class EffectRunner {
           host.hearTheFraseNotUnderstood();
         case TellTheDiskFailed():
           host.hearTheDiskFailed();
+        case TellTheSendFailed():
+          host.hearTheSendFailed();
         case AskTheFraseAgainAfterTheList():
           host.hearTheFrasePerhapsKept();
       }

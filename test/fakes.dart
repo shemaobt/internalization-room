@@ -1636,7 +1636,7 @@ class FakeRoom implements RoomRepository {
   final List<RoomFailure> sceneAnswersFirst = [];
 
   /// What the next reads of the scene rehearsals' list answer, one each.
-  final List<RoomFailure> sceneListsAnswerFirst = [];
+  final List<RoomAnswer<List<SceneRehearsalRecord>>> sceneListsAnswerFirst = [];
 
   /// The code a restart is refused with, when it is set.
   String? refuseRestartWith;

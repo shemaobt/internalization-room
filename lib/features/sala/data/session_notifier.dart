@@ -4417,6 +4417,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theDiskFailed() =>
       state = state.copyWith(sceneLine: SceneLine.diskFailed);
 
+  /// Her «não deu para enviar agora» stands until the list read after it says the room
+  /// holds the rehearsal as sent.
+  void _theSendFailed() => state = state.copyWith(sceneLine: SceneLine.notSent);
+
   void _theDiskWordGoes() {
     if (state.sceneLine != SceneLine.diskFailed) return;
     state = state.copyWith(clearSceneLine: true);
@@ -4695,13 +4699,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         .firstOrNull;
     if (held == null || asked.waiting) return;
     _handOff(_showTheRehearsal(held, asked, _generation));
-    final turn = state.sceneTurn;
-    if (!held.unsent &&
-        state.needsPerson &&
-        turn != null &&
-        turn.rehearsalId == held.rehearsalId) {
-      state = state.copyWith(clearSceneTurn: true);
-      _handOff(_sendTheScene(sessionId, held, turn.turnId));
+    if (!held.unsent && state.sceneLine == SceneLine.notSent) {
+      state = state.copyWith(sceneLine: SceneLine.alreadySent);
     }
   }
 
@@ -4817,6 +4816,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       generation,
       () => _theSceneGoes(sessionId, rehearsal, turnId, generation),
       play: (reply) async {
+        if (_answeredWithNothingToPlay(reply)) return;
         _frases.letGoOf(rehearsal.rehearsalId);
         state = state.copyWith(
           scene: state.scene.copyWith(wentToTheVoice: true),
@@ -8639,6 +8639,9 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheDiskFailed() => _notifier._theDiskFailed();
+
+  @override
+  void hearTheSendFailed() => _notifier._theSendFailed();
 }
 
 final salaSessionProvider =

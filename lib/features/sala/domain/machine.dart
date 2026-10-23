@@ -793,6 +793,10 @@ final class TellTheDiskFailed extends Effect {
   const TellTheDiskFailed();
 }
 
+final class TellTheSendFailed extends Effect {
+  const TellTheSendFailed();
+}
+
 /// The room may have kept the frase whose answer was lost: its list decides.
 final class AskTheFraseAgainAfterTheList extends Effect {
   const AskTheFraseAgainAfterTheList();
@@ -1247,7 +1251,7 @@ const _watch = ArmTheWatch();
   TheResumeFailed() => _theResumeFailed(machine),
   TheSceneTurnFoundNothing() when machine.station is SceneRehearsal => (
     machine.copyWith(aHaltWaitsForTheCanvas: true),
-    const [LetTheStepGo(), ReadTheSceneRehearsals()],
+    const [LetTheStepGo(), TellTheSendFailed(), ReadTheSceneRehearsals()],
   ),
   TheSceneTurnFoundNothing() => _theHalt(machine, const RoomRaisedAHalt()),
   TheTellingCameBackEmpty() when machine.station is Retro => (

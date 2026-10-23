@@ -190,7 +190,8 @@ abstract final class FailurePolicy {
       RoomFoundNothing() ||
       RoomAnsweredWithoutAReply() ||
       RoomTimedOut() when overAnOpening => missed,
-      RoomFoundNothing() when context.station is SceneRehearsal =>
+      RoomFoundNothing() || RoomAnsweredWithoutAReply()
+          when context.station is SceneRehearsal =>
         TheSceneTurnFoundNothing(generation: generation),
       RoomFoundNothing() || RoomAnsweredWithoutAReply() => halt,
       RoomNetworkFailed() when context.door == Door.telling =>
