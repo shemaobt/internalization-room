@@ -156,21 +156,26 @@ String ensaioFinalPlanLabelFor(
       : label.replaceAll('{i}', '$i').replaceAll('{k}', '$k');
 }
 
-/// A plan row's facts, her `rowText`: its number, its local clock, its length `m:ss` and
-/// its current frases.
+/// A local time as the room writes it, `HH:MM`.
+String clockOf(DateTime at) {
+  final local = at.toLocal();
+  return '${'${local.hour}'.padLeft(2, '0')}:'
+      '${'${local.minute}'.padLeft(2, '0')}';
+}
+
+/// A length as the room writes it, `m:ss`, in whole seconds cut down.
+String minutesAndSecondsOf(Duration length) =>
+    '${length.inMinutes}:${'${length.inSeconds % 60}'.padLeft(2, '0')}';
+
+/// A plan row's facts, her `rowText`: its number, its local clock, its length `m:ss`
+/// rounded to the nearest second as her `fmtDur` does, and its current frases.
 String planRowFactsFor(SceneRehearsalRecord rehearsal, String language) {
-  final at = rehearsal.recordedAt?.toLocal();
-  final clock = at == null
-      ? ''
-      : '${'${at.hour}'.padLeft(2, '0')}:${'${at.minute}'.padLeft(2, '0')}';
+  final at = rehearsal.recordedAt;
   final seconds = ((rehearsal.durationMs ?? 0) / 1000).round();
   return ensaioFinalPlanLabelFor('row', language)
       .replaceAll('{n}', '${rehearsal.n}')
-      .replaceAll('{clock}', clock)
-      .replaceAll(
-        '{dur}',
-        '${seconds ~/ 60}:${'${seconds % 60}'.padLeft(2, '0')}',
-      )
+      .replaceAll('{clock}', at == null ? '' : clockOf(at))
+      .replaceAll('{dur}', minutesAndSecondsOf(Duration(seconds: seconds)))
       .replaceAll('{k}', '${rehearsal.translatedFrases}');
 }
 
@@ -341,13 +346,11 @@ String sceneRehearsalLabelFor(String control, String language, {int? n}) =>
 
 /// «ouvindo o ensaio da cena…» with her clock, «0:03 / 0:20».
 String sceneListeningLineFor(Duration at, Duration? length, String language) {
-  String clock(Duration time) =>
-      '${time.inMinutes}:${'${time.inSeconds % 60}'.padLeft(2, '0')}';
   final ofTheTake = length != null && length > Duration.zero
-      ? ' / ${clock(length)}'
+      ? ' / ${minutesAndSecondsOf(length)}'
       : '';
   return '${sceneRehearsalLabelFor('listening', language)} — '
-      '${clock(at)}$ofTheTake';
+      '${minutesAndSecondsOf(at)}$ofTheTake';
 }
 
 /// A scene button's name: «cena N» and the scene's title.
@@ -376,12 +379,11 @@ String sceneRehearsalRowLabelFor(
       ? '${said('title')} ${row.n}'
       : said(row.unsent ? 'resume' : 'listenTo', row.n);
   final scene = row.sceneNumber;
-  final at = row.recordedAt?.toLocal();
+  final at = row.recordedAt;
   return [
     name,
     if (scene != null) ' — ${said('sceneN', scene)}',
-    if (at != null)
-      ', ${'${at.hour}'.padLeft(2, '0')}:${'${at.minute}'.padLeft(2, '0')}',
+    if (at != null) ', ${clockOf(at)}',
     ', ${row.translatedFrases} · ${said('frases')}',
     ', ${said(row.unsent ? 'listUnsent' : 'listSent')}',
   ].join();

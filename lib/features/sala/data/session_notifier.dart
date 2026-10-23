@@ -2667,16 +2667,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     if (await _room.takesOf(sessionId) case Answered(value: final guardadas)) {
       if (_abandoned(generation)) return;
-      state = state.copyWith(
-        theRoomJoinedAPart: _aPartCameFromAJoin(guardadas),
-      );
+      state = state.copyWith(theRoomJoinedParts: _partesJuntadas(guardadas));
     }
   }
 
-  static bool _aPartCameFromAJoin(List<TakeView> guardadas) =>
-      _correntes(guardadas).entries.any(
-        (corrente) => corrente.key != null && corrente.value.origin != null,
-      );
+  /// The part numbers whose current take in the room's [guardadas] was laid in from a Scene
+  /// rehearsal.
+  static Set<int> _partesJuntadas(List<TakeView> guardadas) => {
+    for (final MapEntry(:key, :value) in _correntes(guardadas).entries)
+      if (key != null && value.origin != null) key,
+  };
 
   /// The rehearsal takes the room [guardadas] lists, keyed by the room's number, which
   /// keeps the first place each number appears in and the last recording made under it.
@@ -3476,9 +3476,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                 (corrente) =>
                     corrente.key == null || corrente.value.origin == null,
               ):
-        state = state.copyWith(
-          theRoomJoinedAPart: _aPartCameFromAJoin(guardadas),
-        );
+        state = state.copyWith(theRoomJoinedParts: _partesJuntadas(guardadas));
         _openTheRecordingHome(sessionId, listed: guardadas);
       case (Answered(value: final guardadas), Answered(value: final listed), _)
           when _correntes(guardadas).isEmpty &&
@@ -3515,7 +3513,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if ((read.joined.isNotEmpty || read.waiting.isNotEmpty) &&
             !stillToJoin(read, sessionId, state.planChoices)) {
           state = state.copyWith(
-            theRoomJoinedAPart: _aPartCameFromAJoin(guardadas),
+            theRoomJoinedParts: _partesJuntadas(guardadas),
           );
           return _openTheRecordingHome(sessionId, listed: guardadas);
         }
@@ -3551,7 +3549,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _planRows?.where((row) => row.scene.sceneId == sceneId).firstOrNull;
 
   void swapTheRehearsal(String sceneId) => _gesture(() {
-    final next = _planRowOf(sceneId)?.next;
+    final next = _planRowOf(sceneId)?.nextJoinable;
     if (next == null) return;
     _silenceThePlan();
     _chooseTheRehearsal(sceneId, next.rehearsalId);
@@ -3566,23 +3564,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void playThePlanRow(String sceneId) =>
       _gesture(() => _handOff(_playThePlanRow(sceneId)));
 
-  /// A play button of the plan: a second tap on the row being heard stops it, and a clip
-  /// sounds only while it is still the one last asked for.
+  /// A play button of the plan: a second tap on the row being heard stops it, and only
+  /// the newest tap is ever heard. A tap whose clip never sounds lets the next one play.
   Future<void> _playThePlanRow(String sceneId) async {
     final chosen = _planRowOf(sceneId)?.chosen;
     if (chosen == null) return;
     final heard = state.planListening;
     _silenceThePlan();
-    if (heard == chosen.rehearsalId) return;
-    state = state.copyWith(planListening: chosen.rehearsalId);
+    if (heard?.rehearsalId == chosen.rehearsalId) return;
+    final asked = PlanListen(chosen.rehearsalId);
+    state = state.copyWith(planListening: asked);
     final generation = _waitOnTheGeneration;
     final path = await _fetchTheSceneTake(chosen, generation);
-    if (path == null ||
-        _abandoned(generation) ||
-        state.planListening != chosen.rehearsalId) {
-      return;
+    bool stillAsked() => !_gone && identical(state.planListening, asked);
+    void heardOut() {
+      if (stillAsked()) state = state.copyWith(clearPlanListening: true);
     }
-    void heardOut() => state = state.copyWith(clearPlanListening: true);
+
+    if (path == null || _abandoned(generation) || !stillAsked()) {
+      return heardOut();
+    }
     _play(PartSound(0, path), onComplete: heardOut, onFailed: heardOut);
   }
 

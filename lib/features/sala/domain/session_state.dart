@@ -284,8 +284,9 @@ class SalaSessionState {
   final bool peerCue;
   final bool noteMode;
 
-  /// Whether a note the team sent is still on its way to the facilitator.
-  final bool aNoteGoesOut;
+  /// The note the team sent that is still on its way to the facilitator, by the number
+  /// the raised hand gave it.
+  final int? noteOnItsWay;
   final List<HandReply> replies;
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
@@ -408,8 +409,8 @@ class SalaSessionState {
   /// plan.
   final Map<String, String> planChoices;
 
-  /// The rehearsal a play button of the plan asked to hear, while it is fetched or sounds.
-  final String? planListening;
+  /// The play a button of the plan last asked for, while it is fetched or sounds.
+  final PlanListen? planListening;
 
   /// How each scene's join ended on this visit of the plan, by part number, and the
   /// scene being joined.
@@ -420,9 +421,9 @@ class SalaSessionState {
   /// language's session.
   final bool rehearsalsElsewhere;
 
-  /// Whether the room's listing named a current part of this session laid in from a Scene
+  /// The part numbers whose current part in the room's listing was laid in from a Scene
   /// rehearsal.
-  final bool theRoomJoinedAPart;
+  final Set<int> theRoomJoinedParts;
 
   /// The takes of a whole rehearsal set aside behind the scenes' parts that only the room
   /// holds.
@@ -450,7 +451,7 @@ class SalaSessionState {
     this.keptRetellings = const [],
     this.peerCue = false,
     this.noteMode = false,
-    this.aNoteGoesOut = false,
+    this.noteOnItsWay,
     this.replies = const [],
     this.playingReplyId,
     this.keptTakes = const [],
@@ -513,7 +514,7 @@ class SalaSessionState {
     this.joinRows = const {},
     this.joining,
     this.rehearsalsElsewhere = false,
-    this.theRoomJoinedAPart = false,
+    this.theRoomJoinedParts = const {},
     this.wholeHeldByTheRoom = const {},
   });
 
@@ -585,13 +586,16 @@ class SalaSessionState {
   /// Whether a current Part was laid in from a Scene rehearsal.
   bool get joined => partes.any((take) => take.origin != null);
 
-  /// Whether a current Part came from a join, as the tablet holds it or the room lists it.
-  bool get aPartWasJoined => joined || theRoomJoinedAPart;
+  /// Whether a current Part came from a join, part by part: the tablet's take where it
+  /// holds one, the room's listing otherwise.
+  bool get aPartWasJoined =>
+      joined ||
+      theRoomJoinedParts.any((number) => !partNumbers.contains(number));
 
   /// How the orange dot stands on the Conversation: gone while the way out is hidden, any
   /// voice sounds or a sent note is on its way; bright from the send-off; faint otherwise.
   OrangeDotLook get orangeDotLook {
-    if (wayOutIsHidden || channel is GuideSpeaking || aNoteGoesOut) {
+    if (wayOutIsHidden || channel is GuideSpeaking || noteOnItsWay != null) {
       return OrangeDotLook.gone;
     }
     if (endOfThePassage || moment?.at == MomentAt.ensaioFinal) {
@@ -1169,7 +1173,8 @@ class SalaSessionState {
     List<KeptRetelling>? keptRetellings,
     bool? peerCue,
     bool? noteMode,
-    bool? aNoteGoesOut,
+    int? noteOnItsWay,
+    bool clearNoteOnItsWay = false,
     List<HandReply>? replies,
     String? playingReplyId,
     bool clearPlayingReply = false,
@@ -1247,13 +1252,13 @@ class SalaSessionState {
     bool clearSceneLine = false,
     EnsaioFinalPlan? ensaioFinalPlan,
     Map<String, String>? planChoices,
-    String? planListening,
+    PlanListen? planListening,
     bool clearPlanListening = false,
     Map<int, JoinRow>? joinRows,
     int? joining,
     bool clearJoining = false,
     bool? rehearsalsElsewhere,
-    bool? theRoomJoinedAPart,
+    Set<int>? theRoomJoinedParts,
     Set<String>? wholeHeldByTheRoom,
   }) {
     return SalaSessionState(
@@ -1267,7 +1272,9 @@ class SalaSessionState {
       keptRetellings: keptRetellings ?? this.keptRetellings,
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
-      aNoteGoesOut: aNoteGoesOut ?? this.aNoteGoesOut,
+      noteOnItsWay: clearNoteOnItsWay
+          ? null
+          : (noteOnItsWay ?? this.noteOnItsWay),
       replies: replies ?? this.replies,
       playingReplyId: clearPlayingReply
           ? null
@@ -1359,7 +1366,7 @@ class SalaSessionState {
       joinRows: joinRows ?? this.joinRows,
       joining: clearJoining ? null : (joining ?? this.joining),
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
-      theRoomJoinedAPart: theRoomJoinedAPart ?? this.theRoomJoinedAPart,
+      theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
     );
   }

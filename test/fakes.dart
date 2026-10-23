@@ -450,8 +450,22 @@ class FakeRecorder implements RecordingRepository {
   /// Whether looking for audio already on the tablet fails, the way a disk does.
   bool heldAsFails = false;
 
+  bool _holdTheNextLookup = false;
+  final List<Completer<void>> _heldLookups = [];
+
+  /// Holds the next look for audio on the tablet until [finishHeldLookup].
+  void holdNextLookup() => _holdTheNextLookup = true;
+
+  void finishHeldLookup() => _heldLookups.removeAt(0).complete();
+
   @override
   Future<String?> heldAs(String fileName) async {
+    if (_holdTheNextLookup) {
+      _holdTheNextLookup = false;
+      final held = Completer<void>();
+      _heldLookups.add(held);
+      await held.future;
+    }
     if (heldAsFails) throw const FileSystemException('o disco falhou');
     for (final extension in ['wav', 'm4a']) {
       final file = File('${home.path}/$fileName.$extension');
@@ -956,19 +970,31 @@ class FakeInbox implements HandInboxRepository {
   @override
   Stream<String?> get revoked => _revocations.stream;
 
-  Completer<void>? _holdingQuestion;
+  /// Each held question waits on its own hold, in the order the holds were asked for.
+  final List<Completer<void>> _holdingQuestions = [];
+  final List<Completer<void>> _holdsNotYetTaken = [];
 
-  void holdNextQuestion() => _holdingQuestion = Completer<void>();
+  /// What sending a question throws that is neither the room's answer nor the file.
+  Object? knotThrows;
+
+  void holdNextQuestion() {
+    final hold = Completer<void>();
+    _holdingQuestions.add(hold);
+    _holdsNotYetTaken.add(hold);
+  }
 
   void finishHeldQuestion() {
-    _holdingQuestion?.complete();
-    _holdingQuestion = null;
+    for (final held in _holdingQuestions) {
+      if (!held.isCompleted) return held.complete();
+    }
   }
 
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
-    final held = _holdingQuestion;
-    if (held != null) await held.future;
+    if (_holdsNotYetTaken.isNotEmpty) {
+      await _holdsNotYetTaken.removeAt(0).future;
+    }
+    if (knotThrows case final thrown?) throw thrown;
     if (cannotReadTheKnot) {
       throw FileSystemException('sem arquivo', audio.path);
     }

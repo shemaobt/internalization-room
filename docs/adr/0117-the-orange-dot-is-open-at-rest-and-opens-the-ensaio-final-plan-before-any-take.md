@@ -32,7 +32,7 @@ and a new recording of it went up at a pass already used.
   reply included) and while a sent note is on its way; bright from the send-off, the completion floor
   or the Ensaio Final moment; faint otherwise. It is never drawn on a Panorama. Its name is
   «Gravar o ensaio de vocês», and «Abrir o Ensaio Final» once a current part came from a
-  join, as the tablet holds it or the room lists it.
+  join, part by part: the tablet's take where it holds one, the room's listing otherwise.
 - **The tap refuses whenever the dot is gone**, and with a turn in flight, as the red
   microphone does. A tap on the dot still discards a raised-hand note, as hers does.
 - **Where the tap goes:** a passage with a take the tablet holds opens the recording home at
