@@ -416,7 +416,10 @@ class RetroView extends ConsumerWidget {
     SalaSessionNotifier notifier,
     String language,
   ) {
-    final abre = !session.microphoneOpen;
+    final abre =
+        !session.microphoneOpen &&
+        session.voice != VoiceState.speaking &&
+        session.voice != VoiceState.thinking;
     final rotulo = retroLabelFor('externalCheck', language);
     return Semantics(
       button: true,
