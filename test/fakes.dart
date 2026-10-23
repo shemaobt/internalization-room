@@ -137,6 +137,9 @@ class FakeVoice implements FacilitatorVoiceService {
   /// does not sound. Distinct from [refuses]: that is the player failing with the file
   /// already in hand.
   RoomFailure? roomFailsWith;
+
+  /// What the next readying of a line throws, the way a defect in getting it ready does.
+  Object? readyThrows;
   Completer<bool>? _holding;
   Completer<bool>? _saying;
 
@@ -205,6 +208,10 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<bool> fetch(String url) async {
     fetched.add(url);
     await _fetching?.future;
+    if (readyThrows case final thrown?) {
+      readyThrows = null;
+      throw thrown;
+    }
     return succeeds;
   }
 
@@ -1030,6 +1037,7 @@ class FakeRoom implements RoomRepository {
   int _turnCount = 0;
 
   final List<String> calls = [];
+  final Map<String, Object> throwOn = {};
   final List<String?> pericopesAsked = [];
   final List<String> languagesSent = [];
   final List<String?> clientTimingsSent = [];
@@ -1490,6 +1498,7 @@ class FakeRoom implements RoomRepository {
   RoomFailure? _guard(String call) {
     calls.add(call);
     presentedOnEachCall.add(presented);
+    if (throwOn[call] case final thrown?) throw thrown;
     final failure = failWith;
     if (failure is SessionGone && _sessionless.contains(call)) {
       return const Refused(RefusalCode.notFound);

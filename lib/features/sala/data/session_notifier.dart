@@ -797,12 +797,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _handOff(Future<void> next) {
+    final reported = _reportingAnError(next);
     final gesture = _chain.lastOrNull;
-    if (gesture == null) return unawaited(next);
+    if (gesture == null) return unawaited(reported);
     _handedOff.update(gesture, (pending) => pending + 1, ifAbsent: () => 1);
     final life = _thisLife;
     unawaited(
-      next.then<void>((_) {}, onError: (Object _) {}).whenComplete(() {
+      reported.then<void>((_) {}, onError: (Object _) {}).whenComplete(() {
         final pending = (_handedOff[gesture] ?? 1) - 1;
         if (pending > 0) {
           _handedOff[gesture] = pending;
@@ -817,11 +818,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _gestureThen(Future<void> Function() act) {
     final gesture = _startAGesture();
     final life = _thisLife;
-    final next = runZoned(
-      act,
-      zoneValues: {
-        _gestureChain: [..._chain, gesture],
-      },
+    final next = _reportingAnError(
+      runZoned(
+        act,
+        zoneValues: {
+          _gestureChain: [..._chain, gesture],
+        },
+      ),
     );
     unawaited(
       next
@@ -829,6 +832,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           .whenComplete(() => _endTheGesture(gesture, life)),
     );
     return next;
+  }
+
+  Future<void> _reportingAnError(Future<void> next) {
+    final life = _thisLife;
+    return next.catchError(
+      (Object error, StackTrace stack) =>
+          _theBuildCannotReachTheRoom(error, stack, life),
+      test: (error) => error is Error,
+    );
   }
 
   int _startAGesture() {
@@ -1256,6 +1268,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void haltForABrokenBuild() => _dispatch(
     decidedOnTheTablet(const TheBuildCannotReachTheRoom(), _failureContext()),
   );
+
+  void _theBuildCannotReachTheRoom(Object error, StackTrace stack, int? life) {
+    if (_endedSince(life)) return;
+    debugPrint('$error\n$stack');
+    haltForABrokenBuild();
+  }
 
   void _logTheGuidesSound(MachineEvent event, Machine before, Machine after) {
     if (event is! PlayerFailed ||
