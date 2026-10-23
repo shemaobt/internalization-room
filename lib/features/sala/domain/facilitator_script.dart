@@ -147,11 +147,14 @@ String ensaioFinalPlanLabelFor(
   String language, {
   int? i,
   int? k,
-}) =>
-    (ensaioFinalPlanLabels[control]![language] ??
-            ensaioFinalPlanLabels[control]![floorLanguage]!)
-        .replaceAll('{i}', '$i')
-        .replaceAll('{k}', '$k');
+}) {
+  final label =
+      ensaioFinalPlanLabels[control]![language] ??
+      ensaioFinalPlanLabels[control]![floorLanguage]!;
+  return i == null || k == null
+      ? label
+      : label.replaceAll('{i}', '$i').replaceAll('{k}', '$k');
+}
 
 /// A plan row's facts, her `rowText`: its number, its local clock, its length `m:ss` and
 /// its current frases.
