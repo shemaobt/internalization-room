@@ -45,6 +45,7 @@ final Map<String, _Request> _everyClaimDoor = {
   'fetchKeptRetelling': (room, _) => room.fetchKeptRetelling(
     'https://storage.example/kept/aa/conto.m4a?sig=1',
   ),
+  'minimumBuilds': (room, _) => room.minimumBuilds(),
 };
 
 /// Every other way the room touches the network, named as the app names it.

@@ -637,6 +637,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gone = true;
       frases.letGoOfAll();
       _cancelTimers();
+      _runner.run(const [DiscardTheMic()]);
       _runner.dispose();
       unawaited(_outboxFalls.cancel());
       unawaited(_outboxGone.cancel());
@@ -723,7 +724,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _cancelTimers() {
     if (!_gone) {
-      state = state.copyWith(machine: moveTheGeneration(state.machine));
+      state = state.copyWith(
+        machine: moveTheGeneration(state.machine),
+        clearRecomeco: true,
+      );
     }
     for (final timer in _timers.values) {
       timer.cancel();
@@ -797,7 +801,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearLastSpoken: true,
       roomSaysItAgain: false,
       clearParteARegravar: true,
-      clearRecomeco: true,
     );
     _silenceTheRoom();
     _dispatch(const MicDiscarded());
@@ -805,6 +808,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _gesture(void Function() act) {
     final gesture = _startAGesture();
+    _theDiskWordGoes();
     try {
       runZoned(
         act,
@@ -818,12 +822,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _handOff(Future<void> next) {
+    final reported = _reportingAnError(next);
     final gesture = _chain.lastOrNull;
-    if (gesture == null) return unawaited(next);
+    if (gesture == null) return unawaited(reported);
     _handedOff.update(gesture, (pending) => pending + 1, ifAbsent: () => 1);
     final life = _thisLife;
     unawaited(
-      next.then<void>((_) {}, onError: (Object _) {}).whenComplete(() {
+      reported.then<void>((_) {}, onError: (Object _) {}).whenComplete(() {
         final pending = (_handedOff[gesture] ?? 1) - 1;
         if (pending > 0) {
           _handedOff[gesture] = pending;
@@ -838,11 +843,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _gestureThen(Future<void> Function() act) {
     final gesture = _startAGesture();
     final life = _thisLife;
-    final next = runZoned(
-      act,
-      zoneValues: {
-        _gestureChain: [..._chain, gesture],
-      },
+    final next = _reportingAnError(
+      runZoned(
+        act,
+        zoneValues: {
+          _gestureChain: [..._chain, gesture],
+        },
+      ),
     );
     unawaited(
       next
@@ -850,6 +857,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           .whenComplete(() => _endTheGesture(gesture, life)),
     );
     return next;
+  }
+
+  Future<void> _reportingAnError(Future<void> next) {
+    final life = _thisLife;
+    return next.catchError(
+      (Object error, StackTrace stack) =>
+          _theBuildCannotReachTheRoom(error, stack, life),
+      test: (error) => error is Error,
+    );
   }
 
   int _startAGesture() {
@@ -1278,6 +1294,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     decidedOnTheTablet(const TheBuildCannotReachTheRoom(), _failureContext()),
   );
 
+  void _theBuildCannotReachTheRoom(Object error, StackTrace stack, int? life) {
+    if (_endedSince(life)) return;
+    debugPrint('$error\n$stack');
+    haltForABrokenBuild();
+  }
+
   void _logTheGuidesSound(MachineEvent event, Machine before, Machine after) {
     if (event is! PlayerFailed ||
         event.source != Source.guide ||
@@ -1312,9 +1334,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     state = state.copyWith(
       machine: machine,
+      arrivedAtTheChoice: machine.station is Menu ? null : false,
       scene: leavesTheScene ? const SceneScreen() : null,
       sceneRehearsals: leavesTheScene ? const [] : null,
       clearSceneTurn: leavesTheScene,
+      clearRecomeco: machine.generation != before.generation,
     );
     _escutarNoEnsaio(before, machine);
     _runner.run(effects, micWasOpen: before.channel is Microphone);
@@ -2016,6 +2040,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _arriveAt(const TheChoiceOpened());
     final generation = _waitOnTheGeneration;
     state = state.copyWith(
+      arrivedAtTheChoice: true,
       awaitingTheGuide: true,
       peerCue: false,
       clearRoda: true,
@@ -4009,7 +4034,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             _theSceneMovedOn(asked, generation)) {
           return;
         }
-        final take = await _fetchTheSceneTake(unsent, generation);
+        final take = await _fetchTheSceneTake(unsent, asked, generation);
         if (take == null || state.scenes is! ScenesAwaited) return;
         await _showTheRehearsal(
           unsent,
@@ -4037,7 +4062,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         (asked.rehearsal?.rehearsalId == rehearsal.rehearsalId
             ? asked.take
             : null) ??
-        await _fetchTheSceneTake(rehearsal, generation);
+        await _fetchTheSceneTake(rehearsal, asked, generation);
     if (here == null || _theSceneMovedOn(asked, generation)) return;
     final length = await _playback.howLong(here);
     if (_theSceneMovedOn(asked, generation) ||
@@ -4102,6 +4127,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<String?> _fetchTheSceneTake(
     SceneRehearsalRecord rehearsal,
+    SceneScreen asked,
     int generation,
   ) => _fetchASceneClip(
     'cena-${rehearsal.rehearsalId}',
@@ -4109,12 +4135,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       rehearsal.sessionId,
       rehearsal.rehearsalId,
     ),
+    asked,
     generation,
   );
 
   Future<String?> _fetchASceneClip(
     String name,
     String url,
+    SceneScreen asked,
     int generation,
   ) async {
     final held = await _heldOnTheTablet(name);
@@ -4125,9 +4153,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(:final value) when value.isNotEmpty:
         try {
           return await _recorder.keepBytes(value, name);
-        } on Exception catch (error) {
-          if (!_abandoned(generation)) {
-            _decideAt(NetworkFailed('$error'), door: Door.sceneRehearsal);
+        } on Exception {
+          if (!_theSceneMovedOn(asked, generation)) {
+            _dispatch(
+              decidedOnTheTablet(
+                const TheDiskFailed(),
+                _failureContext(door: Door.sceneRehearsal),
+              ),
+            );
           }
           return null;
         }
@@ -4855,6 +4888,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theFraseNotUnderstood() =>
       state = state.copyWith(scene: state.scene.copyWith(notUnderstood: true));
 
+  /// The disk word stands on the scene screen until the team's next gesture.
+  void _theDiskFailed() =>
+      state = state.copyWith(sceneLine: SceneLine.diskFailed);
+
+  void _theDiskWordGoes() {
+    if (state.sceneLine != SceneLine.diskFailed) return;
+    state = state.copyWith(clearSceneLine: true);
+  }
+
   /// The room may have kept the translation again whose answer was lost: that stands with
   /// the rehearsal, and the frase post waits on its list.
   void _theFrasePerhapsKept() {
@@ -5001,6 +5043,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal.rehearsalId,
         frase.fraseId,
       ),
+      waiting,
       generation,
     );
     if (_theSceneMovedOn(waiting, generation)) return;
@@ -6717,6 +6760,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.btRecomeco != BtRecomeco.pronto) return;
+    _timers.remove('recomecoArmado')?.cancel();
     state = state.copyWith(clearRecomeco: true);
     _handOff(_recomecarNaSala(sessionId));
   }
@@ -9097,6 +9141,9 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheFrasePerhapsKept() => _notifier._theFrasePerhapsKept();
+
+  @override
+  void hearTheDiskFailed() => _notifier._theDiskFailed();
 }
 
 final salaSessionProvider =

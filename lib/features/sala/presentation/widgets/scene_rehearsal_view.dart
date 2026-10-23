@@ -78,6 +78,7 @@ class SceneRehearsalView extends ConsumerWidget {
                     _ => false,
                   },
                   keep: scene.keep,
+                  diskFailed: session.sceneLine == SceneLine.diskFailed,
                   label: said,
                   onTap: notifier.sceneTap,
                   onRetry: notifier.sendTheSceneTakeAgain,
@@ -148,7 +149,11 @@ class SceneRehearsalView extends ConsumerWidget {
                 ),
               ),
               SceneStep.sent => Semantics(
-                label: said('listen'),
+                label: switch (session.sceneLine) {
+                  SceneLine.diskFailed =>
+                    '${said('listen')} — ${said('diskFailed')}',
+                  _ => said('listen'),
+                },
                 child: _ListenMode(
                   scene: scene,
                   said: said,
@@ -376,6 +381,7 @@ class _Strip extends StatelessWidget {
 class _TheRecordStep extends StatelessWidget {
   final bool recording;
   final SceneKeep? keep;
+  final bool diskFailed;
   final String Function(String control) label;
   final VoidCallback onTap;
   final VoidCallback onRetry;
@@ -386,6 +392,7 @@ class _TheRecordStep extends StatelessWidget {
   const _TheRecordStep({
     required this.recording,
     required this.keep,
+    required this.diskFailed,
     required this.label,
     required this.onTap,
     required this.onRetry,
@@ -415,7 +422,15 @@ class _TheRecordStep extends StatelessWidget {
           ],
         );
     final waiting = keep;
-    if (recording || waiting is! NotKept) return circle;
+    if (recording) return circle;
+    if (waiting is! NotKept) {
+      if (!diskFailed || waiting is Keeping) return circle;
+      return Semantics(
+        label: label('diskFailed'),
+        liveRegion: true,
+        child: circle,
+      );
+    }
     final colors = SalaColors.of(context);
     return Semantics(
       label: label(waiting.tooLarge ? 'tooLarge' : 'saveFailed'),
