@@ -26,6 +26,9 @@ const _naoAbre =
     'a checagem externa abre depois que o rascunho final é aprovado';
 const _naoDeu = 'não deu para abrir a checagem externa — tentem de novo';
 const _sinal = 'Um momento para uma pessoa';
+const _ouvirAFrase1 = 'ouvir a minha tradução da frase 1';
+const _recomecar = 'recomeçar a tradução';
+const _recomecoArmado = 'toque de novo para apagar as 4 frases traduzidas';
 
 SalaSessionState _sala(ProviderContainer container) =>
     container.read(salaSessionProvider);
@@ -36,6 +39,23 @@ Future<void> _tocar(WidgetTester tester, String label) async {
   for (var i = 0; i < 6; i++) {
     await tester.pump(const Duration(milliseconds: 300));
   }
+}
+
+Future<void> _passar(WidgetTester tester) async {
+  for (var i = 0; i < 6; i++) {
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+}
+
+Future<void> _tocarNoRecomeco(WidgetTester tester) async {
+  final recomeco = find.byWidgetPredicate(
+    (widget) =>
+        widget is Text &&
+        (widget.data == _recomecar || widget.data == _recomecoArmado),
+  );
+  await tester.ensureVisible(recomeco);
+  await tester.tap(recomeco);
+  await tester.pump(const Duration(milliseconds: 300));
 }
 
 bool? _habilitado(WidgetTester tester, String label) =>
@@ -166,17 +186,54 @@ void main() {
     harness.voice.holdNextLine();
     await tocar(tester, 'Aprovar como rascunho final');
     await waitFor(
-      'a aprovação ser lida',
-      () => _sala(container).approvedDraftDrawn != null,
+      'o botão da checagem aparecer',
+      () => byLabel(_checagem).evaluate().isNotEmpty,
       step: () => tester.pump(const Duration(milliseconds: 100)),
     );
 
-    container.read(salaSessionProvider.notifier).abrirAChecagemExterna();
+    await tester.ensureVisible(byLabel(_checagem));
+    await tester.tap(byLabel(_checagem));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.room.externalChecksOpened, isEmpty);
     harness.voice.finishHeldLine();
     await tester.pump(const Duration(milliseconds: 300));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a stretch tapped while the open is out plays nothing on the '
+      'station', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaConferida(tester, harness);
+    harness.room.holdNextExternalCheck();
+    await _tocar(tester, _checagem);
+
+    await _tocar(tester, _ouvirAFrase1);
+    harness.room.finishHeldExternalCheck();
+    await _passar(tester);
+
+    expect(find.text(_subIdle), findsOneWidget);
+    expect(harness.playback.sounding, isFalse);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a restart tapped while the open is out sends nothing, and the '
+      'Back-translation is as it was', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaConferida(tester, harness);
+    harness.room.holdNextExternalCheck();
+    await _tocar(tester, _checagem);
+
+    await _tocarNoRecomeco(tester);
+    await tester.pump(const Duration(seconds: 1));
+    await _tocarNoRecomeco(tester);
+    harness.room.finishHeldExternalCheck();
+    await _passar(tester);
+
+    expect(harness.room.restartsAsked, isEmpty);
+    await _tocar(tester, _voltar);
+    expect(find.text(_badge), findsOneWidget);
+    expect(byLabel(_checagem), findsOneWidget);
     closeTheRoom(container);
   });
 
