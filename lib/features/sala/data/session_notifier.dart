@@ -6310,8 +6310,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               language: _inTheSessionsLanguage,
             ),
           );
-        } on RoomFailure {
-          // Her rule: a line that cannot be fetched is voiced by the screen alone.
+        } on RoomFailure catch (failure) {
+          if (!_abandoned(generation)) _decideAt(failure, door: Door.stretches);
         }
         final paths = await parts;
         if (_abandoned(generation)) return;
@@ -6319,6 +6319,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case SessionGone() && final failure:
         _decideTheFailure(failure);
       case NetworkFailed():
+        _theNetworkFailedAt(Door.stretches);
         _showTheListener(asked.copyWith(line: ListenerLine.openFailed));
       case Refused():
         _showTheListener(
@@ -6344,11 +6345,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         RoomRepository.takeAudioUrl(sessionId, take),
       );
       if (_abandoned(generation)) return null;
-      if (clip is! Answered<Uint8List> || clip.value.isEmpty) return null;
-      try {
-        paths.add(await _recorder.keepBytes(clip.value, name));
-      } on FileSystemException {
-        return null;
+      switch (clip) {
+        case Answered(:final value) when value.isNotEmpty:
+          try {
+            paths.add(await _recorder.keepBytes(value, name));
+          } on FileSystemException {
+            return null;
+          }
+        case Answered():
+          return null;
+        case final RoomFailure failure:
+          _decideAt(failure, door: Door.stretches);
+          return null;
       }
     }
     return paths;
@@ -6437,7 +6445,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _showTheListener(answered);
       case SessionGone() && final failure:
         _decideTheFailure(failure);
-      case RoomFailure():
+      case NetworkFailed():
+        _theNetworkFailedAt(Door.stretches);
+        _showTheListener(answered.copyWith(line: ListenerLine.clipFailed));
+      case Refused():
         _showTheListener(answered.copyWith(line: ListenerLine.clipFailed));
     }
   }

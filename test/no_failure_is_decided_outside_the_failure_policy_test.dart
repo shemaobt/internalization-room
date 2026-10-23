@@ -37,6 +37,8 @@ const _keptByDecision = <String, String>{
   '_theCallOfAnEarlierSession': 'ADR 0060',
   '_theSceneGoes': 'ADR 0085',
   '_abrirAChecagemExterna': 'ADR 0114',
+  '_newListener': 'ADR 0115',
+  '_keepTheRetelling': 'ADR 0115',
 };
 
 final _namesAFailure = RegExp(

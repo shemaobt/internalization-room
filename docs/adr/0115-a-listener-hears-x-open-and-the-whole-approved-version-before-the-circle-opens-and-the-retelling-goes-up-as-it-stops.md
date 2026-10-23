@@ -48,6 +48,9 @@ recorded, and nothing of theirs may stay on the tablet.
   silence; the file is deleted after the send whatever the answer; a failed send shows «não deu
   para guardar essa gravação — gravem de novo» and opens the circle again. Leaving the Station
   discards an open microphone.
+- The two listener doors keep their refusals by decision, as the open does (ADR 0114): a lost
+  network is told to the failure policy and the screen shows her words; a session gone goes
+  where every session-naming door goes.
 - Once the retelling lands the circle opens again; the end of a listener is ENG-1435's, the
   whole-passage comment and the frases ENG-1431's.
 

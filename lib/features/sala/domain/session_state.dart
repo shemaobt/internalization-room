@@ -880,9 +880,11 @@ class SalaSessionState {
       channel is! Microphone &&
       channel is! GuideSpeaking;
 
-  bool get listenerRecording =>
-      channel is Microphone &&
-      (channel as Microphone).owner == MicOwner.listener;
+  /// Whether the listener's microphone is the one open.
+  bool get listenerRecording => switch (channel) {
+    Microphone(owner: MicOwner.listener) => true,
+    _ => false,
+  };
 
   /// The scene the question highlights.
   String? get sceneHighlighted =>
