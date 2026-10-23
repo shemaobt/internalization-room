@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0131 (2026-10-23: a part beyond the last scene with a take still to send, in the air, being kept or kept this visit has a row after the scenes, which tells the send and records nothing)
 date: 2026-10-20
 amends: 0014, 0040
 ---

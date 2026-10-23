@@ -686,30 +686,35 @@ class SalaSessionState {
   bool get aTakeFromAnEarlierVisitWaits =>
       sceneRows.any((row) => row.unsent?.fromAnEarlierVisit ?? false);
 
-  /// One row per Scene, in passage order; with a passage the room answered with no
-  /// scenes, one per Part plus one more. None while the list is awaited or missing.
+  /// One row per Scene, in passage order, then one per part beyond the last scene with a
+  /// take still to send, in the air, being kept or kept this visit; with a passage the
+  /// room answered with no scenes, one per Part plus one more. None while the list is
+  /// awaited or missing.
   List<SceneRow> get sceneRows {
-    final List<(int, String?)> numbered = switch (scenes) {
+    final List<(int, String?, bool)> numbered = switch (scenes) {
       ScenesHad(scenes: final had) when had.isNotEmpty => [
-        for (final (index, scene) in had.indexed) (index + 1, scene.title),
-        for (final number in _partsWithASendBeyond(had.length)) (number, null),
+        for (final (index, scene) in had.indexed)
+          (index + 1, scene.title, false),
+        for (final number in _partsWithASendBeyond(had.length))
+          (number, null, true),
       ],
       ScenesHad() => [
         for (final n in [
           ...partNumbers,
           KeptScope.firstFree(partNumbers),
         ]..sort())
-          (n, null),
+          (n, null, false),
       ],
       _ => const [],
     };
     final playing = parteDoEnsaioTocando;
     final again = parteARegravar;
     return [
-      for (final (number, title) in numbered)
+      for (final (number, title, beyondTheScenes) in numbered)
         SceneRow(
           number: number,
           title: title,
+          beyondTheScenes: beyondTheScenes,
           part: switch (partIndexOf(number)) {
             final index? => partes[index],
             null => null,
@@ -1478,6 +1483,9 @@ class SceneRow {
 
   /// The Scene's title as the scenes door answered it; null for a passage with no scenes.
   final String? title;
+
+  /// A part beyond the passage's last scene: its row tells the send and records nothing.
+  final bool beyondTheScenes;
   final KeptTake? part;
   final UnsentPart? unsent;
   final TakeInTheAir? inTheAir;
@@ -1492,6 +1500,7 @@ class SceneRow {
   const SceneRow({
     required this.number,
     required this.title,
+    required this.beyondTheScenes,
     required this.part,
     required this.unsent,
     required this.inTheAir,

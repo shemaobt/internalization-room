@@ -286,7 +286,9 @@ class _SceneRowView extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (recording)
+                if (row.beyondTheScenes)
+                  const SizedBox.shrink()
+                else if (recording)
                   _control(
                     'stop',
                     _glyph(BorderRadius.circular(2)),

@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/data/device_link_notifier.dar
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -32,12 +33,19 @@ const _gravando = 'gravando';
 const _enviando = 'enviando…';
 const _salvo = '✓ salvo';
 const _parar = 'parar';
+const _gravarNaLinha = 'Gravar';
+const _ouvirNaLinha = 'Ouvir';
+const _gravarDeNovoNaLinha = 'Gravar de novo';
 
 const _cenas = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
   Scene(sceneId: 'S2', title: 'Noemi decide voltar'),
   Scene(sceneId: 'S3', title: 'Rute fica com Noemi'),
 ];
+
+final _aQuarta = byLabel('Cena 4');
+
+Finder _naQuarta(Finder alvo) => find.descendant(of: _aQuarta, matching: alvo);
 
 final _grandeDemaisParaASala = Uint8List(largestTakeTheRoomKeeps + 1);
 
@@ -159,6 +167,54 @@ class _Casa {
       await settle(const Duration(milliseconds: 300));
     });
   }
+
+  Future<void> gravarPeloCirculo() => emTempoReal(() async {
+    sala.ensaioTap();
+    await waitFor(
+      'o círculo gravar',
+      () => estado.ensaio == EnsaioStatus.recording,
+    );
+    sala.ensaioTap();
+    await waitFor(
+      'a gravação do círculo esperar o visto',
+      () => estado.ensaio == EnsaioStatus.recorded,
+    );
+  });
+
+  Future<void> umaTomadaDeOutraVisita(int n, {required int pass}) =>
+      emTempoReal(() async {
+        await harness.takes.enqueue(
+          harness.recorder.aFile('de-outra-visita-$n-$pass'),
+          sessionId: estado.sessionId!,
+          kind: partTakeKind,
+          scope: KeptScope.parte(n),
+          passNumber: pass,
+        );
+        await harness.takes.flush();
+        await sala.refreshUnsent();
+        await settle();
+      });
+}
+
+Future<_Casa> _deVoltaParaRegravarAParteQuatro(
+  WidgetTester tester, {
+  SalaHarness? harness,
+}) {
+  final sala = harness ?? SalaHarness();
+  sala.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+    sessionId: 'sessao-antiga',
+    stage: SalaStage.ensaio,
+    takes: [
+      for (final n in [1, 2, 3, 4])
+        KeptTake(
+          scopeId: KeptScope.parte(n),
+          path: sala.recorder.aFile('parte-$n').path,
+          takeId: 'gravacao-$n',
+        ),
+    ],
+    partBeingRecordedAgain: 3,
+  );
+  return _naCasa(tester, harness: sala);
 }
 
 Widget _aCasa(ProviderContainer container) => UncontrolledProviderScope(
@@ -192,7 +248,7 @@ Future<_Casa> _naCasa(WidgetTester tester, {SalaHarness? harness}) async {
       () => casa.estado.sessionId != null && !casa.estado.awaitingTheGuide,
     );
     await settle();
-    casa.sala.goEnsaio();
+    if (casa.estado.stage != SalaStage.ensaio) casa.sala.goEnsaio();
     await waitFor(
       'as cenas chegarem',
       () => casa.estado.sceneRows.length == _cenas.length,
@@ -894,85 +950,209 @@ void main() {
     (tester) async {
       final casa = await _naCasa(tester);
       casa.room.unreachableTake = 'ensaio/parte-4';
-      await casa.emTempoReal(() async {
-        await casa.harness.takes.enqueue(
-          casa.harness.recorder.aFile('de-outra-visita'),
-          sessionId: casa.estado.sessionId!,
-          kind: partTakeKind,
-          scope: KeptScope.parte(4),
-          passNumber: 1,
-        );
-        await casa.harness.takes.flush();
-        await casa.sala.refreshUnsent();
-        await settle();
-      });
-      final quarta = byLabel('Cena 4');
+      await casa.umaTomadaDeOutraVisita(4, pass: 1);
 
-      expect(quarta, findsOneWidget);
-      expect(
-        find.descendant(
-          of: quarta,
-          matching: find.textContaining('enviar agora'),
-        ),
-        findsOneWidget,
-      );
+      expect(_aQuarta, findsOneWidget);
+      expect(_naQuarta(find.textContaining('enviar agora')), findsOneWidget);
 
       casa.room.unreachableTake = null;
-      await casa.tocar(
-        find.descendant(
-          of: quarta,
-          matching: find.textContaining('enviar agora'),
-        ),
-      );
+      await casa.tocar(_naQuarta(find.textContaining('enviar agora')));
       await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
 
       expect(casa.room.takesKept, contains('ensaio/parte-4'));
     },
   );
 
+  testWidgets('a row beyond the last scene offers no Gravar', (tester) async {
+    final casa = await _naCasa(tester);
+    casa.room.unreachableTake = 'ensaio/parte-4';
+    await casa.umaTomadaDeOutraVisita(4, pass: 1);
+
+    expect(_naQuarta(find.textContaining('enviar agora')), findsOneWidget);
+    expect(_naQuarta(byLabel(_gravarNaLinha)), findsNothing);
+  });
+
   testWidgets(
-    'a part beyond the last scene recorded this visit reads falhou with its '
-    'tap, and salvo once the tap sends it',
+    'a row beyond the last scene offers neither Ouvir nor Gravar de novo, '
+    'even over a part the room holds',
+    (tester) async {
+      final casa = await _deVoltaParaRegravarAParteQuatro(tester);
+      casa.room.unreachableTake = 'ensaio/parte-4';
+      await casa.gravarPeloCirculo();
+      await casa.emTempoReal(() async {
+        casa.sala.takeKeep();
+        await waitFor(
+          'a parte 4 falhar',
+          () => casa.estado.unsentParts[4]?.failure == SendFailure.failed,
+        );
+      });
+
+      expect(_naQuarta(find.text(_falhou)), findsOneWidget);
+      expect(_naQuarta(byLabel(_ouvirNaLinha)), findsNothing);
+      expect(_naQuarta(byLabel(_gravarDeNovoNaLinha)), findsNothing);
+    },
+  );
+
+  testWidgets('recording on a row beyond the last scene records nothing', (
+    tester,
+  ) async {
+    final casa = await _naCasa(tester);
+    casa.room.unreachableTake = 'ensaio/parte-4';
+    await casa.umaTomadaDeOutraVisita(4, pass: 1);
+    final antes = casa.harness.recorder.captures;
+
+    await casa.emTempoReal(() async {
+      casa.sala.gravarACena(4);
+      await settle(const Duration(milliseconds: 300));
+    });
+
+    expect(casa.harness.recorder.captures, antes);
+    expect(casa.estado.ensaio, EnsaioStatus.idle);
+  });
+
+  testWidgets(
+    'a tap on a part beyond the last scene sends its older pass first',
     (tester) async {
       final casa = await _naCasa(tester);
       casa.room.unreachableTake = 'ensaio/parte-4';
-      await casa.emTempoReal(() async {
-        await casa.harness.takes.enqueue(
-          casa.harness.recorder.aFile('de-outra-visita'),
-          sessionId: casa.estado.sessionId!,
-          kind: partTakeKind,
-          scope: KeptScope.parte(4),
-          passNumber: 1,
-        );
-        await casa.harness.takes.flush();
-        await casa.sala.refreshUnsent();
-        await settle();
-      });
-      await casa.guardarSemEsperar(4);
-      for (var i = 0; i < 50 && find.text(_falhou).evaluate().isEmpty; i++) {
-        await casa.emTempoReal(() => settle(const Duration(milliseconds: 100)));
-      }
-      final quarta = byLabel('Cena 4');
-
-      expect(
-        find.descendant(of: quarta, matching: find.text(_falhou)),
-        findsOneWidget,
-      );
+      await casa.umaTomadaDeOutraVisita(4, pass: 1);
+      await casa.umaTomadaDeOutraVisita(4, pass: 2);
 
       casa.room.unreachableTake = null;
-      await casa.tocar(
-        find.descendant(of: quarta, matching: find.text(_falhou)),
-      );
+      await casa.tocar(_naQuarta(find.textContaining('enviar agora')));
       await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
 
+      expect(casa.room.takePasses, [1, 2]);
+    },
+  );
+
+  testWidgets(
+    'a tap on a part beyond the last scene while it is being kept sends '
+    'nothing',
+    (tester) async {
+      late _AQueueThatHoldsTheKeep fila;
+      final casa = await _deVoltaParaRegravarAParteQuatro(
+        tester,
+        harness: SalaHarness(
+          takesOverride: (room, home, recordings) =>
+              fila = _AQueueThatHoldsTheKeep(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
+        ),
+      );
+      casa.room.unreachableTake = 'ensaio/parte-4';
+      await casa.umaTomadaDeOutraVisita(4, pass: 2);
+      casa.room.unreachableTake = null;
+      await casa.gravarPeloCirculo();
+      final antes = casa.envios;
+
+      await casa.emTempoReal(() async {
+        fila.segurar = Completer<void>();
+        casa.sala.takeKeep();
+        casa.sala.enviarACena(4);
+        fila.segurar?.complete();
+        await settle(const Duration(milliseconds: 400));
+      });
+
+      expect(casa.envios, antes);
+    },
+  );
+
+  testWidgets(
+    'a part beyond the last scene whose newest take is gone reads falhou, '
+    'grave de novo, and its row offers nothing to tap or record',
+    (tester) async {
+      late _AQueueThatHoldsTheKeep fila;
+      final casa = await _deVoltaParaRegravarAParteQuatro(
+        tester,
+        harness: SalaHarness(
+          takesOverride: (room, home, recordings) =>
+              fila = _AQueueThatHoldsTheKeep(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
+        ),
+      );
+      casa.room.unreachableTake = 'ensaio/parte-4';
+      await casa.umaTomadaDeOutraVisita(4, pass: 1);
+      await casa.gravarPeloCirculo();
+      fila.falhar = true;
+      await casa.emTempoReal(() async {
+        casa.sala.takeKeep();
+        await settle(const Duration(milliseconds: 300));
+      });
+      fila.falhar = false;
+      File(casa.harness.recorder.lastPath!).deleteSync();
+      await casa.tocar(_naQuarta(find.text(_falhou)));
+      final antes = casa.envios;
+
+      expect(_naQuarta(find.text(_perdida)), findsOneWidget);
       expect(
-        casa.room.takesKept.where((take) => take == 'ensaio/parte-4'),
-        hasLength(2),
+        _naQuarta(find.byType(TextButton)),
+        findsNothing,
+        reason: 'nada a enviar: a gravação não está mais no tablet',
       );
       expect(
-        find.descendant(of: quarta, matching: find.text(_salvo)),
-        findsOneWidget,
+        _naQuarta(byLabel(_gravarDeNovoNaLinha)),
+        findsNothing,
+        reason:
+            'a linha fica fora das cenas: a equipe só lê o que aconteceu, e '
+            'a sala segue com a parte 4 que já tinha',
       );
+
+      await casa.emTempoReal(() async {
+        casa.sala.enviarACena(4);
+        await settle(const Duration(milliseconds: 400));
+      });
+
+      expect(casa.envios, antes);
+    },
+  );
+
+  testWidgets(
+    'a part beyond the last scene recorded again by the circle reads falhou '
+    'with its tap, and salvo once the tap sends it',
+    (tester) async {
+      final casa = await _deVoltaParaRegravarAParteQuatro(tester);
+      casa.room.unreachableTake = 'ensaio/parte-4';
+      await casa.gravarPeloCirculo();
+      await casa.emTempoReal(() async {
+        casa.sala.takeKeep();
+        await waitFor(
+          'a parte 4 falhar',
+          () => casa.estado.unsentParts[4]?.failure == SendFailure.failed,
+        );
+      });
+
+      expect(_naQuarta(find.text(_falhou)), findsOneWidget);
+
+      casa.room.unreachableTake = null;
+      await casa.tocar(_naQuarta(find.text(_falhou)));
+      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+
+      expect(casa.room.takesKept, ['ensaio/parte-4']);
+      expect(_naQuarta(find.text(_salvo)), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'an earlier-visit take of a part beyond the last scene leaves no row once '
+    'its tap sends it',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-4';
+      await casa.umaTomadaDeOutraVisita(4, pass: 1);
+      expect(_aQuarta, findsOneWidget);
+
+      casa.room.unreachableTake = null;
+      await casa.tocar(_naQuarta(find.textContaining('enviar agora')));
+      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+
+      expect(casa.room.takesKept, contains('ensaio/parte-4'));
+      expect(_aQuarta, findsNothing);
     },
   );
 

@@ -1,12 +1,12 @@
 ---
 status: accepted
 date: 2026-10-22
-amends: 0087, 0103, 0014
+amends: 0087, 0103, 0014, 0102
 ---
 
 # A take is confirmed when the room's list holds it, and a failed send is told in her words
 
-This amends ADRs 0087, 0103 and 0014 without editing their decisions; their status lines
+This amends ADRs 0087, 0103, 0014 and 0102 without editing their decisions; their status lines
 say so. The Definer settled the rule with Jonatas on 22 October (ENG-1774), and the open
 points were answered by the Orchestrator the same day.
 
@@ -82,7 +82,11 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
 - **A part beyond the last scene has its own row.** Each part beyond the passage's last
   scene that has a take still to send, in the air, being kept or kept this visit shows a
   numbered row after the scenes, with the same words, the same tap and the same rules as
-  any part's row. Jonatas decided this on 23 October.
+  any part's row. Jonatas decided this on 23 October. The row tells the send and nothing
+  else: no «Gravar», «Ouvir» or «Gravar de novo», and recording on it records nothing, so
+  a part past the scenes is recorded again only by the circle, after a finding sent the
+  team back to it. Once an earlier visit's take of it is sent the row leaves; a take kept
+  this visit keeps it with «✓ salvo». The Orchestrator decided this on 23 October.
 - **A tap acts on the session and app run it was made in.** It names its session and part
   when it lands, and nothing it does after waiting on the Outbox touches another session's
   takes. Once its run has ended it makes no spent take due again; a take it had already
@@ -113,6 +117,11 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
 - "A part beyond the last scene … the Outbox still retries it": it is no longer retried by
   itself. Each unsent part beyond the last scene shows its own numbered row on the Ensaio
   screen, with the same words and the same tap as any part's row (Jonatas, 23 October).
+
+## What this replaces in ADR 0102
+
+- "Parts beyond the last scene … get no row": a part beyond the last scene with a take to
+  tell has a row after the scenes that tells the send and records nothing.
 
 ## Consequences
 
