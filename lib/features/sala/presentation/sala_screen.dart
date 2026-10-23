@@ -7,6 +7,7 @@ import '../data/device_link_notifier.dart';
 import '../data/mic_permission.dart';
 import '../data/screen_awake.dart';
 import '../data/session_notifier.dart';
+import '../data/store_build_gate.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/session_state.dart';
 import '../dev/dev_skip_bar.dart';
@@ -25,6 +26,7 @@ import 'widgets/leave_passage_button.dart';
 import 'widgets/person_sign.dart';
 import 'widgets/retro_view.dart';
 import 'widgets/scene_rehearsal_view.dart';
+import 'widgets/update_view.dart';
 
 class SalaScreen extends ConsumerStatefulWidget {
   /// Whether the build carries an address at all.
@@ -52,6 +54,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
         ref.read(salaSessionProvider.notifier).haltForABrokenBuild();
         return;
       }
+      unawaited(ref.read(storeBuildGateProvider.notifier).look());
       unawaited(_findTheTeam());
     });
   }
@@ -88,6 +91,10 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
       ref.read(salaSessionProvider.notifier).theAppWentAway();
     }
     if (lifecycle == AppLifecycleState.resumed &&
+        ref.read(salaSessionProvider).stage == SalaStage.escolha) {
+      unawaited(ref.read(storeBuildGateProvider.notifier).look());
+    }
+    if (lifecycle == AppLifecycleState.resumed &&
         ref.read(deviceLinkProvider).linked) {
       unawaited(_openRoom());
     }
@@ -119,6 +126,19 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
     ref.listen(deviceLinkProvider, (was, now) {
       if ((was?.linked ?? false) && !now.linked) _closeTheRoom();
     });
+    ref.listen(salaSessionProvider.select((s) => s.stage), (was, now) {
+      if (now == SalaStage.escolha && was != SalaStage.escolha) {
+        unawaited(ref.read(storeBuildGateProvider.notifier).look());
+      }
+    });
+
+    if (ref.watch(storeBuildGateProvider)) {
+      return Scaffold(
+        body: SafeArea(
+          child: UpdateView(language: ref.watch(roomLanguageProvider)),
+        ),
+      );
+    }
 
     if (!link.linked) {
       return Scaffold(

@@ -41,6 +41,7 @@ import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/pausa.dart';
+import 'package:internalization_room/features/sala/domain/minimum_build.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
@@ -2124,6 +2125,25 @@ class FakeRoom implements RoomRepository {
     _holdingBooks = null;
     if (held != null) await held.future;
     return failBooksWith ?? Answered(books);
+  }
+
+  RoomAnswer<MinimumBuilds> minimumBuildsAnswer = Answered(
+    const MinimumBuilds(ios: 0, android: 0),
+  );
+
+  int minimumBuildsAsked = 0;
+  Completer<void>? _holdingMinimumBuilds;
+
+  /// Hold the next read of the minimum build, the way a link that never answers holds it.
+  void holdNextMinimumBuilds() => _holdingMinimumBuilds = Completer<void>();
+
+  void releaseMinimumBuilds() => _holdingMinimumBuilds?.complete();
+
+  @override
+  Future<RoomAnswer<MinimumBuilds>> minimumBuilds() async {
+    minimumBuildsAsked++;
+    await _holdingMinimumBuilds?.future;
+    return minimumBuildsAnswer;
   }
 
   @override

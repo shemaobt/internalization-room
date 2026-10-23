@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0124
 date: 2026-10-13
 ---
 
@@ -52,3 +52,5 @@ after the hold clears and before the migration and the deploy finish.
 
 Whoever deploys a server change that older tablets cannot speak must wait for the store
 build; nothing automatic enforces it.
+
+ENG-1377 (ADR 0124) builds the minimum-build check this ADR deferred; it is the one exception, raised by hand at a release.
