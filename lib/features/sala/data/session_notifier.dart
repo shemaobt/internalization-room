@@ -3622,7 +3622,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           ? await _watchTheWaitingPart(sessionId, step, generation, life)
           : await _joinTheScene(sessionId, step, generation, life);
       if (_left(generation, life)) {
-        if (!_gone && plan == _plansOpened) {
+        if (!_endedSince(life) && plan == _plansOpened) {
           state = state.copyWith(clearJoining: true);
         }
         return;
@@ -3804,8 +3804,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// A join row flushed until it lands. A request of the row's own that has no answer
   /// within [joinAnswerWait] says to try again; a room that asks it to wait is asked
-  /// again every [joinQuietPause] for [joinQuietWait]; a refusal that names the
-  /// rehearsal as not this part's says it cannot enter.
+  /// again every [joinQuietPause] until [joinQuietWait] after its first wait; a refusal
+  /// that names the rehearsal as not this part's says it cannot enter.
   Future<JoinOutcome> _watchTheRow(
     String sessionId,
     JoinStep step,
@@ -3814,7 +3814,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
     int? life,
   ) async {
-    final began = clock.now();
+    DateTime? firstWait;
     while (true) {
       final leaving = Completer<void>();
       final back = Completer<int>();
@@ -3861,7 +3861,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           part: JoinedPart.nowhere,
         );
       }
-      if (!back.isCompleted || clock.now().difference(began) >= joinQuietWait) {
+      if (!back.isCompleted) return _givenUpWaiting;
+      final waited = firstWait ??= clock.now();
+      if (clock.now().difference(waited) >= joinQuietWait) {
         return _givenUpWaiting;
       }
       final pause = Completer<void>();
