@@ -3702,6 +3702,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(swapping: id, clearSwapLine: true);
     try {
       final index = state.partIndexOf(number);
+      final over = index == null ? null : state.partes[index].path;
       final (:written, :failed) = await _writeTheJoinRow(
         sessionId,
         number,
@@ -3733,7 +3734,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       _theSwapFailed(id, fate.row);
       state = state.copyWith(clearSwapping: true);
-      unawaited(_letGoOfTheSwap(written, number, id, generation, life));
+      unawaited(_letGoOfTheSwap(written, number, id, over, generation, life));
       if (fate.row != JoinRow.cannotEnter) {
         await _readTheApprovedDraft(sessionId, generation);
       }
@@ -3746,6 +3747,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _JoinRowWritten written,
     int number,
     String origin,
+    String? over,
     int generation,
     int? life,
   ) async {
@@ -3757,17 +3759,44 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_gone) return;
     final landed = await queue.takeIdOf(row.id);
     if (_gone) return;
-    if (landed == null) {
-      if (!state.keptTakes.any((take) => take.path == path)) {
+    if (landed == null ||
+        _thePartAt(number)?.path != over ||
+        !await _theRoomsPartIs(number, landed)) {
+      if (!_gone && !state.keptTakes.any((take) => take.path == path)) {
         await _recorder.delete(path);
       }
       return;
     }
-    if (_left(generation, life) || state.homeBusy) return;
+    if (_left(generation, life) ||
+        state.homeBusy ||
+        _thePartAt(number)?.path != over) {
+      return;
+    }
     _semNome[row.id] = path;
     _thePartIsTheSwapped(number, path, pass, origin);
     await _adoptTheNames(_takes);
     if (!_left(generation, life)) _theSwapLanded(path);
+  }
+
+  KeptTake? _thePartAt(int number) => switch (state.partIndexOf(number)) {
+    final index? => state.partes[index],
+    null => null,
+  };
+
+  Future<bool> _theRoomsPartIs(int number, String takeId) async {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return false;
+    final listing = await _room.takesOf(sessionId);
+    if (_gone) return false;
+    switch (listing) {
+      case Answered(:final value):
+        return _correntes(value)[number]?.takeId == takeId;
+      case final SessionGone gone:
+        _decideAt(gone, door: Door.sceneRehearsal);
+        return false;
+      case _:
+        return false;
+    }
   }
 
   Future<void> _theRequestInTheAirAnswers(
@@ -3805,7 +3834,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           row,
     ];
     if (_left(generation, life) || state.homeBusy) return;
-    if (left.isEmpty && !state.partes.any((part) => part.origin != null)) {
+    if (left.isEmpty &&
+        !read.rehearsals.any((rehearsal) => rehearsal.sessionId == sessionId)) {
       return;
     }
     if (left.isNotEmpty) {

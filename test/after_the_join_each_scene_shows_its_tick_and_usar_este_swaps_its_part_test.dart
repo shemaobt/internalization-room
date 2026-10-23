@@ -897,9 +897,10 @@ void main() {
       await it.theHeldTakeArrives();
       await it.wait(const Duration(seconds: 71));
       expect(it.onLine(s2b, find.text(_retry)), findsOneWidget);
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 500)),
-      );
+      await tester.runAsync(() async {
+        await it.harness.takes.pending();
+        await it.harness.takes.pending();
+      });
       await it.settle();
 
       it.room.finishHeldTake();
@@ -912,6 +913,41 @@ void main() {
       );
       await it.openTheSheet(2, _swap);
       expect(it.onLine(s2b, find.text(_inUse)), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a swap answered after the team recorded the scene by hand leaves the hand '
+    'take the part',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+      it.holdTheTake('parte-2');
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+      await it.wait(const Duration(seconds: 71));
+      expect(it.onLine(s2b, find.text(_retry)), findsOneWidget);
+      await it.tapThe(byLabel(_back));
+      await it.until('a casa voltar', it.showsTheHome);
+
+      final before = it.received(2).length;
+      await it.recordAgainAndKeep(2);
+      final hand = it.partPath(2);
+      it.room.finishHeldTake();
+      await it.within(
+        const Duration(seconds: 20),
+        'a gravação à mão chegar à sala',
+        () => it.received(2).skip(before).any((take) => take.origin == null),
+      );
+      await it.settle();
+
+      expect(it.partPath(2), hand, reason: 'a gravação à mão segue a parte');
+      expect(it.takesOf(2).last.origin, isNull, reason: 'e é a última na sala');
+      expect(find.text(_hearNew), findsNothing);
       semantics.dispose();
     },
   );
@@ -930,6 +966,7 @@ void main() {
       it.room
         ..takeAnswersFirst.add(const NetworkFailed('sem rede'))
         ..finishHeldTake();
+      await it.settle();
       await it.relaunchOnTheHome();
       await it.within(
         const Duration(seconds: 30),
@@ -944,6 +981,55 @@ void main() {
 
       await it.openTheSheet(2, _swap);
       expect(it.onLine(s2b, find.text(_inUse)), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a swap another tablet made becomes the part on the next arrival at the '
+    'home, over a part recorded by hand',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s1a]);
+      await it.held(const [s1a]);
+      await it.openThePlan();
+      await it.tapThe(find.text(_sceneByScene));
+      await it.until('a casa abrir', it.showsTheHome);
+      await it.tapThe(it.onRow(1, byLabel('Gravar')));
+      await it.wait(const Duration(seconds: 2));
+      await it.tapThe(it.onRow(1, byLabel('Parar')));
+      await it.until(
+        'a gravação ficar à espera do check',
+        () =>
+            it.container.read(salaSessionProvider).ensaio ==
+            EnsaioStatus.recorded,
+      );
+      await it.tapThe(byLabel('Enviar a gravação'));
+      await it.until('a parte 1 chegar à sala', () => it.takesOf(1).isNotEmpty);
+      await it.settle();
+      it.room.takes.add(
+        TakeView(
+          takeId: 'gravacao-outro-tablet',
+          kind: 'ensaio',
+          scope: 'parte-1',
+          ordinal: 1,
+          pass: 2,
+          origin: it.idOf(s1a),
+        ),
+      );
+      it.room.takeAudio['gravacao-outro-tablet'] = _bytesOf(s1a);
+
+      await it.relaunchOnTheHome();
+      await it.within(
+        const Duration(seconds: 10),
+        'a casa pedir a escuta da cena nova',
+        () => find.text(_hearNew).evaluate().isNotEmpty,
+      );
+
+      expect(it.door(1, _swap), findsNothing);
+      expect(it.door(1, _useScene), findsNothing);
+      expect(it.partPath(1), contains('junta'));
       semantics.dispose();
     },
   );
