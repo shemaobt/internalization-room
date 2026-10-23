@@ -173,6 +173,9 @@ class AStationHost implements StationHost {
 
   @override
   void hearTheFrasePerhapsKept() => asked.add('hearTheFrasePerhapsKept');
+
+  @override
+  void hearTheDiskFailed() => asked.add('hearTheDiskFailed');
 }
 
 typedef Ports = ({

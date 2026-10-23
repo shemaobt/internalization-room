@@ -478,4 +478,92 @@ void main() {
           'as falas da equipe nova para a equipe antiga',
     );
   });
+
+  Future<void> openTheMicrophone(
+    WidgetTester tester,
+    ProviderContainer container,
+  ) async {
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.goEnsaio();
+    await tester.pump(const Duration(milliseconds: 120));
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 200));
+  }
+
+  Future<void> theDeskRevokes(
+    WidgetTester tester,
+    SalaHarness harness,
+    ProviderContainer container,
+  ) async {
+    harness.room.failWith = _revoked;
+    await container.read(roomRepositoryProvider).fetchState('sessao-1');
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(CodigoView), findsOneWidget);
+  }
+
+  Future<void> theDeskLinksAgain(
+    WidgetTester tester,
+    SalaHarness harness,
+  ) async {
+    harness.room
+      ..failWith = null
+      ..linkedTo = const TeamLink(projectId: 'equipe-2');
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  testWidgets('a revocation while the Rehearsal records stops the microphone '
+      'and discards its take by the time the claim code shows', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+      filaEmMemoria: true,
+    );
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    await openTheMicrophone(tester, container);
+    expect(harness.recorder.sounds, contains('recorder:start'));
+    expect(harness.recorder.deleted, isEmpty);
+
+    await theDeskRevokes(tester, harness, container);
+
+    expect(
+      harness.recorder.deleted,
+      hasLength(1),
+      reason:
+          'a revogação encerra a Vida; o microfone aberto fica ligado atrás '
+          'da tela do código e o arquivo dele fica no aparelho',
+    );
+    expect(
+      harness.recorder.sounds.lastIndexOf('recorder:discard'),
+      greaterThan(harness.recorder.sounds.lastIndexOf('recorder:start')),
+    );
+    await theDeskLinksAgain(tester, harness);
+  });
+
+  testWidgets('a microphone still opening when the revocation lands is '
+      'discarded the moment it opens', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+      filaEmMemoria: true,
+    );
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.recorder.holdNextStart();
+    await openTheMicrophone(tester, container);
+
+    await theDeskRevokes(tester, harness, container);
+    harness.recorder.finishStart();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      harness.recorder.deleted,
+      hasLength(1),
+      reason:
+          'o início que a plataforma respondeu depois da revogação não tem '
+          'mais ninguém para fechá-lo; gravaria atrás da tela do código',
+    );
+    await theDeskLinksAgain(tester, harness);
+  });
 }

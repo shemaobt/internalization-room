@@ -64,6 +64,33 @@ void main() {
     },
   );
 
+  test('a take handed back after the runner is disposed is deleted '
+      'and reaches nobody', () async {
+    runner.run(const [OpenTheMic(MicOwner.rehearsal, take: _take)]);
+    recorder.answerTheStart(MicAnswer.started);
+    await pumpEventQueue();
+    runner.run(const [CloseTheMic()]);
+    runner.dispose();
+    recorder.answerTheStop(_file);
+    await pumpEventQueue();
+
+    expect(recorder.heard, ['start:$_take:rehearsal', 'stop', 'delete:$_file']);
+    expect(answered().where((answer) => answer.take != null), isEmpty);
+  });
+
+  test('a stop answering another take\'s path after the runner is disposed '
+      'leaves that file alone', () async {
+    runner.run(const [OpenTheMic(MicOwner.rehearsal, take: _take)]);
+    recorder.answerTheStart(MicAnswer.refused);
+    await pumpEventQueue();
+    runner.run(const [CloseTheMic()]);
+    runner.dispose();
+    recorder.answerTheStop('/recordings/ensaio_1.wav');
+    await pumpEventQueue();
+
+    expect(recorder.heard, ['start:$_take:rehearsal', 'stop']);
+  });
+
   test('open, speak, close: one take is handed to the machine', () async {
     var machine = Machine(generation: generation);
     void reduceAndRun(MachineEvent event) {
