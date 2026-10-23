@@ -24,7 +24,6 @@ typedef _Words = ({
   String conferida,
   String badge,
   String checagem,
-  String voltar,
 });
 
 String _sentencePt(int v) =>
@@ -44,7 +43,6 @@ _Words _pt(int v) => (
   conferida: '✓ traduzida e conferida',
   badge: '✓ aprovado como rascunho final (v$v)',
   checagem: 'Checagem externa',
-  voltar: 'Voltar para a gravação',
 );
 
 _Words _en(int v) => (
@@ -56,7 +54,6 @@ _Words _en(int v) => (
   conferida: '✓ translated and checked',
   badge: '✓ approved as the final draft (v$v)',
   checagem: 'External check',
-  voltar: 'Back to recording',
 );
 
 const _p3Pt = ('P3', 'pt');
@@ -163,12 +160,14 @@ void main() {
       expect(byLabel(w.pronto), findsOneWidget);
       expect(byLabel(w.checagem), findsNothing);
 
+      final sonsAntesDoPronto = List.of(harness.sounds);
       await tester.tap(byLabel(w.pronto));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text(w.salvo), findsNothing);
       expect(find.text(w.conferida), findsOneWidget);
       _expectTheButtonStands(tester, w);
+      expect(harness.sounds, sonsAntesDoPronto);
       expect(harness.room.releasesAsked, hasLength(1));
       expect(harness.voice.fixedLines.skip(antes), [_p3Pt]);
 
@@ -282,6 +281,7 @@ void main() {
     harness.playback.finishPlayback();
     await _passo(tester);
 
+    expect(harness.room.sentencesSentReopening, hasLength(1));
     expect(byLabel(w1.checagem), findsNothing);
     expect(find.text(w1.badge), findsNothing);
     expect(find.textContaining('Aprovado como rascunho final'), findsNothing);
