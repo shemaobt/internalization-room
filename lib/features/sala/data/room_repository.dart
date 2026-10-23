@@ -613,21 +613,29 @@ class RoomRepository {
     String segmentId,
     File audio, {
     required String sentenceId,
-  }) async => _room.askStreamed(
-    http.MultipartRequest(
-        'POST',
-        _uri(
-          '/sessions/$sessionId/segments/$segmentId/sentence?include_stale=true',
-        ),
-      )
-      ..headers.addAll(_whoWeAre)
-      ..headers['X-Room-Device'] = await _deviceId()
-      ..fields['sentence_id'] = sentenceId
-      ..files.add(await _audioPart(audio)),
-    timeout: _longCallTimeout,
-    read: readJson(TellingAgain.fromJson),
-    asksForTheSession: false,
-  );
+    bool reopensTheApprovedDraft = false,
+  }) async {
+    final request =
+        http.MultipartRequest(
+            'POST',
+            _uri(
+              '/sessions/$sessionId/segments/$segmentId/sentence?include_stale=true',
+            ),
+          )
+          ..headers.addAll(_whoWeAre)
+          ..headers['X-Room-Device'] = await _deviceId()
+          ..fields['sentence_id'] = sentenceId
+          ..files.add(await _audioPart(audio));
+    if (reopensTheApprovedDraft) {
+      request.fields['reopens_the_approved_draft'] = 'true';
+    }
+    return _room.askStreamed(
+      request,
+      timeout: _longCallTimeout,
+      read: readJson(TellingAgain.fromJson),
+      asksForTheSession: false,
+    );
+  }
 
   /// The team's approval of its own final draft.
   ///

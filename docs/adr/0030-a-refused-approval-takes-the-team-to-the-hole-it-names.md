@@ -1,5 +1,8 @@
 # A refused approval takes the team to the hole it names
 
+Amended by ADR 0112: the landing now shows one of her three texts on the status line, so "the
+approval's landing says nothing" below holds for the voice only, not for the screen.
+
 ## Context
 
 The **Approval** had one outcome the room knew how to draw. The server answered a refusal

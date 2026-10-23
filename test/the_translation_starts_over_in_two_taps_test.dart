@@ -19,6 +19,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, settle;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
+        aprovar,
         cabeca,
         conferir,
         contarAteOFimDaParte,
@@ -35,6 +36,8 @@ const _armado = 'toque de novo para apagar as 4 frases traduzidas';
 const _naoDeu = 'não deu para recomeçar agora — tentem de novo';
 const _semFrase = 'ainda não tem frase traduzida';
 const _naoEntendi = 'não entendi — traduzam de novo esse pedaço';
+const _ensaioSalvo = 'Ensaio salvo';
+const _pronto = 'Pronto';
 const _recomecada = 'tradução recomeçada — o ensaio da passagem ficou';
 
 const _quatroFrases = [
@@ -166,6 +169,17 @@ Future<void> _recomecarNaTela(
   );
   await tester.pump(const Duration(seconds: 7));
 }
+
+Finder _recomecoArmado() => find.byWidgetPredicate(
+  (widget) =>
+      widget is Semantics &&
+      (widget.properties.label ?? '').startsWith(
+        'toque de novo para apagar as',
+      ),
+);
+
+bool _recomecoPronto(WidgetTester tester) =>
+    tester.widget<Semantics>(_recomecoArmado()).properties.enabled ?? false;
 
 void main() {
   testWidgets(
@@ -466,8 +480,8 @@ void main() {
     await tocar(tester, _recomecar);
 
     expect(
-      container.read(salaSessionProvider).btRecomeco,
-      isNull,
+      _recomecoArmado(),
+      findsNothing,
       reason: 'o recomeço armava por cima de uma frase sendo gravada',
     );
     expect(find.text(_recomecar), findsOneWidget);
@@ -493,8 +507,8 @@ void main() {
       await tocar(tester, _recomecar);
 
       expect(
-        container.read(salaSessionProvider).btRecomeco,
-        isNull,
+        _recomecoArmado(),
+        findsNothing,
         reason: 'o recomeço armava com uma frase ainda a caminho da sala',
       );
       harness.room.finishHeldChunk();
@@ -571,11 +585,84 @@ void main() {
       await tester.pump(const Duration(seconds: 7));
 
       expect(
-        container.read(salaSessionProvider).btRecomeco,
-        isNull,
+        _recomecoArmado(),
+        findsNothing,
         reason: 'o recomeço ficava armado para sempre depois de sair e voltar',
       );
       expect(find.text(_recomecar), findsOneWidget);
+
+      await tester.tap(byLabel(_recomecar));
+      await _passo(tester);
+      expect(find.text(_armado), findsOneWidget);
+      await tester.pump(const Duration(seconds: 7));
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'an armed restart is idle once «Pronto» leaves the Saved screen, and one tap arms it again',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      harness.room.verdictChecked = true;
+      final container = await _contadaAoVivo(tester, harness);
+      await contarAteOFimDaParte(tester, harness);
+      await tocar(tester, conferir);
+      await waitFor(
+        'a sala conferir',
+        () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+        step: () => _passo(tester),
+      );
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(_recomecoPronto(tester), isTrue);
+
+      harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await tocar(tester, aprovar);
+      await waitFor(
+        'o ensaio salvo',
+        () => find.text(_ensaioSalvo).evaluate().isNotEmpty,
+        step: () => _passo(tester),
+      );
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 800));
+
+      expect(
+        find.text(_recomecar),
+        findsOneWidget,
+        reason: 'o recomeço armado antes da aprovação voltava armado',
+      );
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(_recomecoPronto(tester), isTrue);
+      expect(harness.room.restartsAsked, isEmpty);
+      await tester.pump(const Duration(seconds: 7));
+      expect(
+        _recomecoArmado(),
+        findsNothing,
+        reason: 'o recomeço armado de novo não caducava nos seus seis segundos',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a second tap in time starts the translation over once and leaves nothing armed',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.tap(byLabel(_armado));
+      await waitFor(
+        'a sala receber o recomeço',
+        () => harness.room.restartsAsked.isNotEmpty,
+        step: () => _passo(tester),
+      );
+      await tester.pump(const Duration(seconds: 7));
+
+      expect(harness.room.restartsAsked, hasLength(1));
+      expect(_recomecoArmado(), findsNothing);
       closeTheRoom(container);
     },
   );

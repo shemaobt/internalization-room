@@ -1,8 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/main.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -17,6 +14,8 @@ import 'scenario_helpers.dart' show enterThePanorama, settle;
 /// that is terminal because nobody noticed — without it the property cannot say which it
 /// is looking at.
 const _terminal = <SalaStage>{};
+
+const _noGestureReaches = {SalaStage.fim};
 
 /// What the team can do to leave each stage, named rather than read off the code: a table
 /// derived from the implementation proves only that the code equals itself.
@@ -59,7 +58,6 @@ final _wayOut =
         name: 'leaveThePassage',
         take: (n, _) async => n.leaveThePassage(),
       ),
-      SalaStage.fim: (name: 'beginAgain', take: (n, _) async => n.beginAgain()),
       SalaStage.cena: (
         name: 'leaveTheSceneRehearsal',
         take: (n, _) async => n.leaveTheSceneRehearsal(),
@@ -122,27 +120,12 @@ Future<void> _standIn(
   notifier.takeKeep();
   notifier.startRetro();
   await settle();
-  if (stage == SalaStage.retro) return;
-
-  harness.playback.finishPlayback();
-  await settle();
-  await notifier.finishBackTranslation();
-  await waitFor(
-    'a sala conferir a passagem',
-    () => read().btPhase == BtPhase.conferida,
-  );
-  await notifier.aprovarRascunhoFinal();
-  await waitFor(
-    'a passagem fechar',
-    () => read().stage == SalaStage.fim,
-    limit: const Duration(seconds: 5),
-  );
 }
 
 void main() {
   test('every stage of the room has a way out the team can take', () async {
     expect(
-      _wayOut.keys.toSet().union(_terminal),
+      _wayOut.keys.toSet().union(_terminal).union(_noGestureReaches),
       SalaStage.values.toSet(),
       reason:
           'a tabela é sobre o enum inteiro: uma etapa nova entra aqui sem '
@@ -150,10 +133,10 @@ void main() {
     );
 
     for (final stage in SalaStage.values) {
-      if (_terminal.contains(stage)) continue;
-      // A long linger, so no timer can be what moves the room: what is measured here is
-      // the gesture the table names, and nothing else.
-      final harness = SalaHarness(fimLinger: const Duration(minutes: 5));
+      if (_terminal.contains(stage) || _noGestureReaches.contains(stage)) {
+        continue;
+      }
+      final harness = SalaHarness();
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -177,161 +160,5 @@ void main() {
       );
       expect(container.read(salaSessionProvider).stage, isNot(stage));
     }
-  });
-
-  test('the fecho leaves the team somewhere they can act', () async {
-    final harness = SalaHarness(fimLinger: const Duration(minutes: 5));
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await _standIn(SalaStage.fim, harness, container);
-
-    notifier.beginAgain();
-    await waitFor(
-      'a roda voltar',
-      () => container.read(salaSessionProvider).stage == SalaStage.escolha,
-    );
-
-    // E o gesto que a roda oferece responde: a saída leva a um lugar vivo, não a
-    // outra parede.
-    await waitFor(
-      'a roda ficar pronta para o toque',
-      () => container.read(salaSessionProvider).entriesOpen,
-    );
-    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
-    await waitFor(
-      'a passagem abrir a partir da roda',
-      () => container.read(salaSessionProvider).stage == SalaStage.conversa,
-    );
-  });
-
-  test('the fecho also comes back on its own, without a touch', () async {
-    final harness = SalaHarness(fimLinger: const Duration(milliseconds: 150));
-    final container = harness.container();
-    addTearDown(container.dispose);
-
-    await _standIn(SalaStage.fim, harness, container);
-
-    await waitFor(
-      'a sala voltar sozinha para a roda dentro do tempo do fecho',
-      () => container.read(salaSessionProvider).stage == SalaStage.escolha,
-      limit: const Duration(seconds: 5),
-    );
-  });
-
-  testWidgets('the fecho screen answers the touch it offers', (tester) async {
-    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
-    final harness = SalaHarness(
-      filaEmMemoria: true,
-      fimLinger: const Duration(minutes: 5),
-    );
-    final container = harness.container();
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SalaApp()),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await notifier.abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 300));
-    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-    await tester.pump(const Duration(milliseconds: 300));
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await tester.pump(const Duration(milliseconds: 300));
-    notifier.takeKeep();
-    notifier.startRetro();
-    await tester.pump(const Duration(milliseconds: 300));
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-    await notifier.finishBackTranslation();
-    await tester.pump(const Duration(milliseconds: 300));
-    await notifier.aprovarRascunhoFinal();
-    await tester.pump(const Duration(seconds: 3));
-
-    expect(
-      container.read(salaSessionProvider).stage,
-      SalaStage.fim,
-      reason: 'o caso precisa chegar ao fecho para medir o toque dele',
-    );
-
-    // O que os outros casos não provam: que o gesto existe na árvore desenhada,
-    // e não só no notifier.
-    await tester.tap(
-      find.byWidgetPredicate(
-        (w) => w is Semantics && w.properties.label == 'Começar de novo',
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(
-      container.read(salaSessionProvider).stage,
-      SalaStage.escolha,
-      reason:
-          'a saída do fecho tem de responder ao dedo na tela, não só à '
-          'chamada do método',
-    );
-  });
-
-  testWidgets('the fecho offers to begin again in english to an english room', (
-    tester,
-  ) async {
-    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
-    final harness = SalaHarness(
-      filaEmMemoria: true,
-      fimLinger: const Duration(minutes: 5),
-      lingua: 'en',
-    );
-    final container = harness.container();
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SalaApp()),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await notifier.abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 300));
-    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-    await tester.pump(const Duration(milliseconds: 300));
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await tester.pump(const Duration(milliseconds: 300));
-    notifier.takeKeep();
-    notifier.startRetro();
-    await tester.pump(const Duration(milliseconds: 300));
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-    await notifier.finishBackTranslation();
-    await tester.pump(const Duration(milliseconds: 300));
-    await notifier.aprovarRascunhoFinal();
-    await tester.pump(const Duration(seconds: 3));
-
-    expect(container.read(salaSessionProvider).stage, SalaStage.fim);
-    expect(
-      find.byWidgetPredicate(
-        (w) => w is Semantics && w.properties.label == 'Begin again',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byWidgetPredicate(
-        (w) => w is Semantics && w.properties.label == 'Começar de novo',
-      ),
-      findsNothing,
-      reason: 'o fecho oferecia "Começar de novo" a um aparelho em inglês',
-    );
-
-    await tester.tap(
-      find.byWidgetPredicate(
-        (w) => w is Semantics && w.properties.label == 'Begin again',
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(container.read(salaSessionProvider).stage, SalaStage.escolha);
   });
 }
