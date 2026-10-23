@@ -341,7 +341,7 @@ The round red control beside the orange dot that opens the Scene rehearsal's scr
 _Avoid_: orange dot (the other way, into the Rehearsal)
 
 **Orange dot**:
-The small orange control at the Conversation's right edge that opens the Rehearsal, the recording of the whole passage. It lights when the voice has said its send-off, when the completion floor is met, or at the Ensaio Final moment, and goes dark while the voice is busy, a microphone other than the raised-hand note's is open or a person is called; before it lights, nothing on the Conversation reaches the Rehearsal (ADR 0037, superseded).
+The small orange control at the Conversation's top right that opens the Ensaio Final: the Ensaio Final plan as its entry reads (today, over a passage with no take) and the recording home when there is a take; the join case arrives with ENG-1385. Faint and open whenever the Conversation rests, also before the send-off; bright from the voice's send-off, the completion floor or the Ensaio Final moment on; gone while any voice sounds or thinks, a microphone other than the raised-hand note's is open, a sent note is on its way, or a person is called; never on a Panorama. Its name is «Gravar o ensaio de vocês», and «Abrir o Ensaio Final» once a part came from a join (ADR 0117).
 _Avoid_: record entry, record button, botão de gravar, green check, green microphone (the glyphs the way into the Rehearsal wore until 2026-10-21), handoff, rehearsal gate (it gates nothing)
 
 **Opened**:
@@ -477,7 +477,7 @@ _Avoid_: retro retomada, resuming from scratch
 ### The room and the people
 
 **Halt**:
-The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the team's tap on the person sign clears it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing (shown once the team is back on the Conversation), the reply's sound failing twice, a tablet that cannot record (a refused start on the Conversation or the Panorama), and the microphone failing to start twice in a row. A Session read never raises one (ADR 0093).
+The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the team's tap on the person sign clears it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing (shown once the team is back on the Conversation), the reply's sound failing twice, a tablet that cannot record (a refused start on the Conversation or the Panorama), and the microphone failing to start twice in a row. Outside them, a halt that calls nobody is raised only by the build guard on a broken build (no room address), or by an `Error` in anything the room hands off; the team's tap clears it without reading anything (ADR 0125). A Session read never raises one (ADR 0093).
 _Avoid_: sala parada, stuck room, pause
 
 **Person sign**:
@@ -506,7 +506,7 @@ The room's action of telling the Desk it needs someone, insisted on at intervals
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
 **Watch**:
-The room's periodic Session read, beating for as long as a session is open, with or without a halt (ADR 0048). A Session read never raises the person sign nor clears it (ADR 0093, 0107). A halt never stands without it (ADR 0046). A halt with no session, the build guard, has nothing to read, and the team's tap clears it. It ends with the session.
+The room's periodic Session read, beating for as long as a session is open, with or without a halt (ADR 0048). A Session read never raises the person sign nor clears it (ADR 0093, 0107). A halt never stands without it (ADR 0046). A halt that calls nobody, raised by the build guard or by an `Error` in a hand-off, is cleared by the team's tap alone and reads nothing; with no session it has nothing to read either (ADR 0125). It ends with the session.
 _Avoid_: poll, timer, vigia (the code's name is not the term)
 
 **Effect**:
@@ -538,7 +538,7 @@ A Station with no session yet: the Choice, a passage or a Panorama not opened. A
 _Avoid_: reach, offline, out of reach
 
 **Failure policy**:
-The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071), and every failure of the tablet's own that may call a person (the reply's sound, the microphone's start, a tablet that cannot record), and the Disk failure at the scene door, which never does; a refusal is never counted, and nothing outside the six cases becomes a Halt (ADR 0093). A network failure that is no turn's lets its Step go and changes nothing else (ADR 0108). Nothing decides a failure inside a Station or the notifier (ADR 0053).
+The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071), and every failure of the tablet's own that may call a person (the reply's sound, the microphone's start, a tablet that cannot record), and the Disk failure at the scene door, which never does; a refusal is never counted, and nothing outside the six cases becomes a Halt, except a broken build (no room address) or an `Error` in a hand-off, whose halt calls nobody (ADR 0093, 0125). A network failure that is no turn's lets its Step go and changes nothing else (ADR 0108). Nothing decides a failure inside a Station or the notifier (ADR 0053).
 _Avoid_: error handler, retry policy
 
 **Disk failure**:

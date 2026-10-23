@@ -8,7 +8,9 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/kept_take.dart';
 import '../../domain/machine.dart' show TheKeep;
 import '../../domain/session_state.dart';
+import '../../domain/station.dart';
 import 'bead_styles.dart';
+import 'ensaio_final_plan_view.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
 import 'stage_heading.dart';
@@ -20,6 +22,9 @@ class EnsaioView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
+    if (session.station case Ensaio(step: EnsaioStep.plan)) {
+      return const EnsaioFinalPlanView();
+    }
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
     final colors = SalaColors.of(context);
@@ -52,6 +57,20 @@ class EnsaioView extends ConsumerWidget {
                 style: TextStyle(color: colors.mut, fontSize: 15, height: 1.35),
               ),
             ),
+            if (session.rehearsalsElsewhere && session.partes.isEmpty) ...[
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    recordingHomeLabelFor('elsewhere', language),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.telha, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
             if (session.aTakeFromAnEarlierVisitWaits) ...[
               const SizedBox(height: 12),
               ConstrainedBox(
@@ -334,7 +353,7 @@ class _SceneRowView extends StatelessWidget {
       UnsentPart(fromAnEarlierVisit: true, :final length) => _tap(
         [
           cena,
-          if (length != null) ' · ${_mss(length)}',
+          if (length != null) ' · ${minutesAndSecondsOf(length)}',
           ' — ${words('sendNow')}',
         ].join(),
         words('sendAria'),
@@ -387,11 +406,6 @@ class _SceneRowView extends StatelessWidget {
       child: Text(visible, style: TextStyle(color: colors.telha, fontSize: 15)),
     ),
   );
-
-  static String _mss(Duration length) {
-    final seconds = length.inSeconds;
-    return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
-  }
 
   Widget _control(
     String key,

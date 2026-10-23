@@ -294,6 +294,11 @@ final class TheRehearsalOpened extends StationEvent {
   const TheRehearsalOpened();
 }
 
+/// The orange dot opens the Ensaio Final plan over a passage that has no take yet.
+final class ThePlanOpened extends StationEvent {
+  const ThePlanOpened();
+}
+
 final class TheBackTranslationOpened extends StationEvent {
   const TheBackTranslationOpened();
 }
@@ -1439,9 +1444,9 @@ const _watch = ArmTheWatch();
     _ => (machine, const []),
   },
   TheRehearsalWeighed(:final everySceneHasItsPart) => switch (machine.station) {
-    Ensaio() => (
+    Ensaio(:final step) => (
       machine.copyWith(
-        station: Ensaio(everySceneHasItsPart: everySceneHasItsPart),
+        station: Ensaio(everySceneHasItsPart: everySceneHasItsPart, step: step),
       ),
       const [],
     ),
@@ -2030,93 +2035,103 @@ List<Effect> _leavingThePassage(Machine machine) => [
   return (told, [ArmTheRetry(due: due)]);
 }
 
-(Halt, List<Effect>) _reduceTheHalt(Halt halt, MachineEvent event) =>
-    switch (event) {
-      SessionRead() => _read(halt, event),
-      RoomRaisedAHalt(:final callsForAPerson) => switch (halt) {
-        Blocking() => (
-          halt,
-          [if (callsForAPerson) const CallForAPerson(), _watch],
-        ),
-        _ => (
-          Blocking(warningBeneath: halt is Warning),
-          [..._enter, if (callsForAPerson) const CallForAPerson(), _watch],
-        ),
-      },
-      TheAnswerWarned() => switch (halt) {
-        Blocking() => (const Blocking(warningBeneath: true), const [_watch]),
-        _ => (const Warning(), const [_watch]),
-      },
-      TeamTapped() => switch (halt) {
-        Blocking(:final warningBeneath) => (
-          warningBeneath ? const Warning() : const NoHalt(),
-          const [StopCallingForAPerson(), GoOnAfterTheSign(), _watch],
-        ),
-        _ => (halt, const []),
-      },
-      WatchFired() => (halt, const [ReadTheState(), _watch]),
-      NetworkFailedAt() ||
-      RetryFired() ||
-      TheRoomAnswered() ||
-      OutboxChanged() ||
-      ATakeLeft() ||
-      ATakeSettled() ||
-      AKeepBegan() ||
-      AKeepEnded() ||
-      StopTapped() ||
-      LineArrived() ||
-      PlayerOpened() ||
-      PlayerEnded() ||
-      PlayerFailed() ||
-      MicOpened() ||
-      MicClosed() ||
-      MicAnswered() ||
-      MicClosing() ||
-      MicDiscarded() ||
-      BeadTapped() ||
-      PauseTapped() ||
-      TheHeldPartReturns() ||
-      GestureSilenced() ||
-      Interrupted() ||
-      GestureStarted() ||
-      GestureEnded() ||
-      LineNotSaid() ||
-      StepLeft() ||
-      LeftThePassage() ||
-      TheSessionIsGone() ||
-      ThePassageClosed() ||
-      TurnGivenUp() ||
-      LookFound() ||
-      LookEmpty() ||
-      LookFailed() ||
-      LookPending() ||
-      TheOpeningMissed() ||
-      ThePassageCannotOpen() ||
-      TheTellingCameBackEmpty() ||
-      TheStepFailed() ||
-      TheResumeFailed() ||
-      TheSceneTurnFoundNothing() ||
-      TheVerdictAsked() ||
-      TheTranslationStartedOver() ||
-      TurnSent() ||
-      TurnAnswered() ||
-      TurnFailed() ||
-      TheRefusalPassed() ||
-      TheHandFailed() ||
-      TheScenesMissed() ||
-      TheSceneDoorFailed() ||
-      TheSceneDiskFailed() ||
-      TheSceneRehearsalsListed() ||
-      TheCallWasRefused() ||
-      TheCallMetAClosedPassage() ||
-      StationEvent() ||
-      TheLanguageChosen() ||
-      TheRehearsalWeighed() ||
-      ThePanoramaAsked() ||
-      TheSessionOpened() ||
-      TheSessionLetGo() ||
-      TheWayBackTaken() => (halt, const []),
-    };
+(Halt, List<Effect>) _reduceTheHalt(
+  Halt halt,
+  MachineEvent event,
+) => switch (event) {
+  SessionRead() => _read(halt, event),
+  RoomRaisedAHalt(:final callsForAPerson) => switch (halt) {
+    Blocking(:final warningBeneath, callsNobody: true) when callsForAPerson => (
+      Blocking(warningBeneath: warningBeneath),
+      const [CallForAPerson(), _watch],
+    ),
+    Blocking() => (halt, [if (callsForAPerson) const CallForAPerson(), _watch]),
+    _ => (
+      Blocking(warningBeneath: halt is Warning, callsNobody: !callsForAPerson),
+      [..._enter, if (callsForAPerson) const CallForAPerson(), _watch],
+    ),
+  },
+  TheAnswerWarned() => switch (halt) {
+    Blocking(:final callsNobody) => (
+      Blocking(warningBeneath: true, callsNobody: callsNobody),
+      const [_watch],
+    ),
+    _ => (const Warning(), const [_watch]),
+  },
+  TeamTapped() => switch (halt) {
+    Blocking(:final warningBeneath, callsNobody: true) => (
+      warningBeneath ? const Warning() : const NoHalt(),
+      const [StopCallingForAPerson(), _watch],
+    ),
+    Blocking(:final warningBeneath) => (
+      warningBeneath ? const Warning() : const NoHalt(),
+      const [StopCallingForAPerson(), GoOnAfterTheSign(), _watch],
+    ),
+    _ => (halt, const []),
+  },
+  WatchFired() => (halt, const [ReadTheState(), _watch]),
+  NetworkFailedAt() ||
+  RetryFired() ||
+  TheRoomAnswered() ||
+  OutboxChanged() ||
+  ATakeLeft() ||
+  ATakeSettled() ||
+  AKeepBegan() ||
+  AKeepEnded() ||
+  StopTapped() ||
+  LineArrived() ||
+  PlayerOpened() ||
+  PlayerEnded() ||
+  PlayerFailed() ||
+  MicOpened() ||
+  MicClosed() ||
+  MicAnswered() ||
+  MicClosing() ||
+  MicDiscarded() ||
+  BeadTapped() ||
+  PauseTapped() ||
+  TheHeldPartReturns() ||
+  GestureSilenced() ||
+  Interrupted() ||
+  GestureStarted() ||
+  GestureEnded() ||
+  LineNotSaid() ||
+  StepLeft() ||
+  LeftThePassage() ||
+  TheSessionIsGone() ||
+  ThePassageClosed() ||
+  TurnGivenUp() ||
+  LookFound() ||
+  LookEmpty() ||
+  LookFailed() ||
+  LookPending() ||
+  TheOpeningMissed() ||
+  ThePassageCannotOpen() ||
+  TheTellingCameBackEmpty() ||
+  TheStepFailed() ||
+  TheResumeFailed() ||
+  TheSceneTurnFoundNothing() ||
+  TheVerdictAsked() ||
+  TheTranslationStartedOver() ||
+  TurnSent() ||
+  TurnAnswered() ||
+  TurnFailed() ||
+  TheRefusalPassed() ||
+  TheHandFailed() ||
+  TheScenesMissed() ||
+  TheSceneDoorFailed() ||
+  TheSceneDiskFailed() ||
+  TheSceneRehearsalsListed() ||
+  TheCallWasRefused() ||
+  TheCallMetAClosedPassage() ||
+  StationEvent() ||
+  TheLanguageChosen() ||
+  TheRehearsalWeighed() ||
+  ThePanoramaAsked() ||
+  TheSessionOpened() ||
+  TheSessionLetGo() ||
+  TheWayBackTaken() => (halt, const []),
+};
 
 /// A read never raises the person sign nor clears it: over none it applies its warning
 /// only, and under the sign the warning beneath (ADR 0093, 0107).
@@ -2125,7 +2140,9 @@ List<Effect> _leavingThePassage(Machine machine) => [
   final warns = snapshot.halt == HaltKind.warning;
   if (halt is Blocking) {
     return (
-      snapshot.needsPerson ? halt : Blocking(warningBeneath: warns),
+      snapshot.needsPerson
+          ? Blocking(warningBeneath: halt.warningBeneath)
+          : Blocking(warningBeneath: warns, callsNobody: halt.callsNobody),
       const [_watch],
     );
   }

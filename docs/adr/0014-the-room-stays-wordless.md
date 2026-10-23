@@ -68,11 +68,16 @@ primeiro». It is the ninth named exception, under the moment label's reason, he
 the team reads. Her record, listen, record-again and stop controls are icons VoiceOver reads
 by her names; the rest of that screen stays wordless.
 
+Amended by ENG-1382 (2026-10-22, ADR 0117): the orange dot opens her Ensaio Final plan
+(`widgets/ensaio_final_plan_view.dart`): «pensando…» while the room is read, then «Ensaio
+Final», «Estes são os ensaios das cenas que vocês me enviaram.» and «Gravar cena por cena».
+It is the tenth named exception, under the moment label's reason, her words the team reads.
+
 Amended by ENG-1774 (2026-10-22, ADR 0112): the scene rehearsal's record step writes the
 take's state in her words: «gravando», «enviando…», her not-kept, too-large and
 not-accepted lines with «falhou — toque para tentar de novo», «falhou» alone for a take
 whose recording is gone, and «parar». The recording home's Scene rows show the same words
-and «✓ salvo». It is the tenth named exception, under the moment label's reason, her
+and «✓ salvo». It is the eleventh named exception, under the moment label's reason, her
 words the team reads. VoiceOver reads the same words, but for «parar», which it reads as
 her «Parar o envio (a gravação fica neste computador)».
 

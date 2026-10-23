@@ -211,8 +211,8 @@ String describeKept(Kept kept) => switch (kept) {
 String describeHalt(Halt halt) => switch (halt) {
   NoHalt() => 'NoHalt',
   Warning() => 'Warning',
-  Blocking(:final warningBeneath) =>
-    'Blocking(warningBeneath: $warningBeneath)',
+  Blocking(:final warningBeneath, :final callsNobody) =>
+    'Blocking(warningBeneath: $warningBeneath, callsNobody: $callsNobody)',
 };
 
 String describeEvent(MachineEvent event) => switch (event) {
@@ -302,6 +302,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheChoiceOpened() => 'TheChoiceOpened',
   PassageChosen() => 'PassageChosen',
   TheRehearsalOpened() => 'TheRehearsalOpened',
+  ThePlanOpened() => 'ThePlanOpened',
   TheBackTranslationOpened() => 'TheBackTranslationOpened',
   TheBackTranslationResumed() => 'TheBackTranslationResumed',
   TheNecklaceClosed() => 'TheNecklaceClosed',
@@ -436,6 +437,7 @@ enum EventKind {
   theChoiceOpened,
   passageChosen,
   theRehearsalOpened,
+  thePlanOpened,
   theBackTranslationOpened,
   theBackTranslationResumed,
   theNecklaceClosed,
@@ -514,6 +516,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheChoiceOpened() => EventKind.theChoiceOpened,
   PassageChosen() => EventKind.passageChosen,
   TheRehearsalOpened() => EventKind.theRehearsalOpened,
+  ThePlanOpened() => EventKind.thePlanOpened,
   TheBackTranslationOpened() => EventKind.theBackTranslationOpened,
   TheBackTranslationResumed() => EventKind.theBackTranslationResumed,
   TheNecklaceClosed() => EventKind.theNecklaceClosed,
@@ -591,6 +594,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theChoiceOpened ||
   EventKind.passageChosen ||
   EventKind.theRehearsalOpened ||
+  EventKind.thePlanOpened ||
   EventKind.theBackTranslationOpened ||
   EventKind.theBackTranslationResumed ||
   EventKind.theNecklaceClosed ||
@@ -817,6 +821,7 @@ MachineEvent _draw(
   EventKind.theChoiceOpened => const TheChoiceOpened(),
   EventKind.passageChosen => const PassageChosen(),
   EventKind.theRehearsalOpened => const TheRehearsalOpened(),
+  EventKind.thePlanOpened => const ThePlanOpened(),
   EventKind.theBackTranslationOpened => const TheBackTranslationOpened(),
   EventKind.theBackTranslationResumed => const TheBackTranslationResumed(),
   EventKind.theNecklaceClosed => const TheNecklaceClosed(),
