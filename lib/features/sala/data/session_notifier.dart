@@ -3704,16 +3704,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  static const JoinOutcome _givenUpWaiting = (
-    row: JoinRow.retry,
-    part: JoinedPart.waiting,
-  );
-
-  static const JoinOutcome _joinLeftBehind = (
-    row: JoinRow.retry,
-    part: JoinedPart.nowhere,
-  );
-
   /// One pass above the highest the room lists for the part as the row is written, and
   /// above every pass this tablet already knew of.
   Future<int> _theNextPassOf(String sessionId, int number) async {
@@ -3756,10 +3746,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final listing = await _withinTheJoinWait(_room.takesOf(sessionId));
     if (_left(generation, life)) return _joinLeftBehind;
-    if (listing is! Answered<List<TakeView>>) {
-      return (row: JoinRow.retry, part: JoinedPart.waiting);
-    }
-    return switch (_correntes(listing.value)[step.number]) {
+    final guardadas = switch (listing) {
+      Answered(:final value) => value,
+      _ => null,
+    };
+    if (guardadas == null) return _givenUpWaiting;
+    return switch (_correntes(guardadas)[step.number]) {
       null => _joinTheScene(sessionId, step, generation, life),
       final current when current.origin == step.rehearsal.rehearsalId => (
         row: JoinRow.joined,
@@ -9250,3 +9242,13 @@ final class _OQueFaltaOuvir {
 
   const _OQueFaltaOuvir(this.aFrente, {required this.paraNaUltima});
 }
+
+const JoinOutcome _givenUpWaiting = (
+  row: JoinRow.retry,
+  part: JoinedPart.waiting,
+);
+
+const JoinOutcome _joinLeftBehind = (
+  row: JoinRow.retry,
+  part: JoinedPart.nowhere,
+);
