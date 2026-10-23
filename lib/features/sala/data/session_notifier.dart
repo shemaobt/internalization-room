@@ -5237,7 +5237,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (_goneSessions.contains(sessionId)) return;
     final audio = File(path);
-    if (!await audio.exists()) return;
+    if (!await audio.exists()) {
+      if (!_endedSince(life)) {
+        _notInTheOutbox(path, kind, scope, passNumber, sessionId);
+      }
+      return;
+    }
     if (sessionId == null) {
       if (!_endedSince(life)) {
         _notInTheOutbox(path, kind, scope, passNumber, sessionId);
@@ -5316,11 +5321,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _enviarAgora(int cena) async {
+    final sessionId = state.sessionId;
+    final life = _thisLife;
     final scope = KeptScope.parte(cena);
-    if (_notQueued[state.sessionId]?.remove(cena) case (
-      :final path,
-      :final pass,
-    )) {
+    if (_notQueued[sessionId]?.remove(cena) case (:final path, :final pass)) {
       await _guard(
         path,
         kind: partTakeKind,
@@ -5328,9 +5332,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         passNumber: pass,
         chunkIndex: cena,
       );
+      if (_notQueued[sessionId]?.containsKey(cena) ?? false) return;
     }
+    if (_endedSince(life)) return;
     final queue = _takes;
-    final tally = await queue.tally(sessionId: state.sessionId);
+    final tally = await queue.tally(sessionId: sessionId);
+    if (_endedSince(life)) return;
     final tapped = {
       for (final row in _theNewestPass(tally.unsentParts)[cena] ?? const [])
         row.id,

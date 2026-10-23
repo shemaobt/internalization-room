@@ -33,4 +33,20 @@ void main() {
 
     expect(row.unsent?.failure, SendFailure.failed);
   });
+
+  test('a part being kept reads enviando over a failure it showed before', () {
+    final row = SalaSessionState(
+      machine: const Machine(
+        session: 's1',
+        keeping: {(session: 's1', part: 3): 1},
+      ),
+      scenes: const ScenesHad(_cenas),
+      unsentParts: const {
+        3: UnsentPart(fromAnEarlierVisit: false, failure: SendFailure.failed),
+      },
+    ).sceneRows[2];
+
+    expect(row.unsent, isNotNull);
+    expect(row.unsent?.failure, isNull);
+  });
 }

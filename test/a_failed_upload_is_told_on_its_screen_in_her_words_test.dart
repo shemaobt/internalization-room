@@ -702,6 +702,119 @@ void main() {
     },
   );
 
+  testWidgets(
+    "a tap on a part never sends another session's spent take when the team "
+    'moves to it during the send',
+    (tester) async {
+      late _AQueueThatHoldsTheKeep fila;
+      final casa = await _naCasa(
+        tester,
+        harness: SalaHarness(
+          takesOverride: (room, home, recordings) =>
+              fila = _AQueueThatHoldsTheKeep(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
+        ),
+      );
+      await casa.abrirAPassagem('P02');
+      casa.room.unreachableTake = 'ensaio/parte-3';
+      await casa.guardar(3);
+      expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
+      await casa.abrirAPassagem('P01');
+
+      fila.falhar = true;
+      await casa.guardarSemEsperar(3);
+      fila.falhar = false;
+      casa.room
+        ..unreachableTake = null
+        ..holdNextTake('parte-3');
+      await casa.tocar(casa.naLinha(3, find.text(_falhou)));
+      await tester.runAsync(casa.room.untilTakeHeld);
+
+      await casa.abrirAPassagem('P02');
+      await casa.emTempoReal(() async {
+        casa.room.finishHeldTake();
+        await settle(const Duration(milliseconds: 600));
+      });
+
+      expect(
+        casa.room.takesKept.where((take) => take == 'ensaio/parte-3'),
+        hasLength(1),
+        reason: 'só a tomada de P01 que a equipe tocou subiu',
+      );
+    },
+  );
+
+  testWidgets(
+    'a tap on a part whose newest take never reached the Outbox and is gone '
+    'keeps reading falhou',
+    (tester) async {
+      late _AQueueThatHoldsTheKeep fila;
+      final casa = await _naCasa(
+        tester,
+        harness: SalaHarness(
+          takesOverride: (room, home, recordings) =>
+              fila = _AQueueThatHoldsTheKeep(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
+        ),
+      );
+      await casa.guardar(3);
+      expect(casa.naLinha(3, find.text(_salvo)), findsOneWidget);
+      fila.falhar = true;
+      await casa.guardarSemEsperar(3);
+      fila.falhar = false;
+      expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
+      File(casa.harness.recorder.lastPath!).deleteSync();
+
+      await casa.tocar(casa.naLinha(3, find.text(_falhou)));
+
+      expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
+      expect(find.text(_salvo), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a part being kept again reads enviando and offers no tap, even over a '
+    'failed take',
+    (tester) async {
+      late _AQueueThatHoldsTheKeep fila;
+      final casa = await _naCasa(
+        tester,
+        harness: SalaHarness(
+          takesOverride: (room, home, recordings) =>
+              fila = _AQueueThatHoldsTheKeep(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
+        ),
+      );
+      casa.room.unreachableTake = 'ensaio/parte-3';
+      await casa.guardar(3);
+      expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
+
+      await casa.gravar(3);
+      fila.segurar = Completer<void>();
+      await casa.emTempoReal(() async {
+        casa.sala.takeKeep();
+        await settle();
+      });
+
+      expect(casa.naLinha(3, find.text(_enviando)), findsOneWidget);
+      expect(casa.naLinha(3, find.byType(TextButton)), findsNothing);
+
+      await casa.emTempoReal(() async {
+        fila.segurar?.complete();
+        await settle(const Duration(milliseconds: 400));
+      });
+    },
+  );
+
   testWidgets("a take reads salvo only after the room's list holds it", (
     tester,
   ) async {
