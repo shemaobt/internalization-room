@@ -5494,6 +5494,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theDiskFailed() =>
       state = state.copyWith(sceneLine: SceneLine.diskFailed);
 
+  void _itWentAlready() =>
+      state = state.copyWith(sceneLine: SceneLine.alreadySent);
+
+  void _theSendFailed() => state = state.copyWith(sceneLine: SceneLine.notSent);
+
   void _theDiskWordGoes() {
     if (state.sceneLine != SceneLine.diskFailed) return;
     state = state.copyWith(clearSceneLine: true);
@@ -5772,14 +5777,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         .firstOrNull;
     if (held == null || asked.waiting) return;
     _handOff(_showTheRehearsal(held, asked, _generation));
-    final turn = state.sceneTurn;
-    if (!held.unsent &&
-        state.needsPerson &&
-        turn != null &&
-        turn.rehearsalId == held.rehearsalId) {
-      state = state.copyWith(clearSceneTurn: true);
-      _handOff(_sendTheScene(sessionId, held, turn.turnId));
-    }
   }
 
   void openTheListedSceneRehearsal(String rehearsalId) =>
@@ -5894,6 +5891,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       generation,
       () => _theSceneGoes(sessionId, rehearsal, turnId, generation),
       play: (reply) async {
+        if (_answeredWithNothingToPlay(reply)) return;
         _frases.letGoOf(rehearsal.rehearsalId);
         state = state.copyWith(
           scene: state.scene.copyWith(wentToTheVoice: true),
@@ -5909,7 +5907,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _decideAt(
           failure,
           door: Door.sceneRehearsal,
-          rule: RefusalRule.readsTheListAgain,
+          rule: RefusalRule.sendsTheScene,
         );
       },
     );
@@ -9808,6 +9806,12 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheDiskFailed() => _notifier._theDiskFailed();
+
+  @override
+  void hearTheSendFailed() => _notifier._theSendFailed();
+
+  @override
+  void hearItWentAlready() => _notifier._itWentAlready();
 }
 
 final salaSessionProvider =

@@ -90,6 +90,9 @@ enum RefusalRule {
 
   /// A scene refusal reads the scene rehearsals again.
   readsTheListAgain,
+
+  /// «terminei» refused: the scene screen says so and reads the scene rehearsals again.
+  sendsTheScene,
 }
 
 /// Where the room stood when the result came back. [turn] is set only for a call that
@@ -157,6 +160,19 @@ abstract final class FailurePolicy {
         TheTellingCameBackEmpty(readAgain: true, generation: generation),
       RoomNetworkFailed() when context.door == Door.sceneFrase =>
         TheTellingCameBackEmpty(generation: generation),
+      RoomRefused(code: RefusalCode.sceneRehearsalSent)
+          when rule == RefusalRule.sendsTheScene =>
+        TheSceneDoorFailed(
+          readAgain: true,
+          wentAlready: true,
+          generation: generation,
+        ),
+      RoomRefused() when rule == RefusalRule.sendsTheScene =>
+        TheSceneDoorFailed(
+          readAgain: true,
+          sendFailed: true,
+          generation: generation,
+        ),
       RoomRefused(
         code: RefusalCode.sceneRehearsalSent ||
             RefusalCode.restartOutOfOrder ||
@@ -190,7 +206,8 @@ abstract final class FailurePolicy {
       RoomFoundNothing() ||
       RoomAnsweredWithoutAReply() ||
       RoomTimedOut() when overAnOpening => missed,
-      RoomFoundNothing() when context.station is SceneRehearsal =>
+      RoomFoundNothing() || RoomAnsweredWithoutAReply()
+          when context.station is SceneRehearsal =>
         TheSceneTurnFoundNothing(generation: generation),
       RoomFoundNothing() || RoomAnsweredWithoutAReply() => halt,
       RoomNetworkFailed() when context.door == Door.telling =>

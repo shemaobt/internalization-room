@@ -76,3 +76,18 @@ opened while the server is away would have no way back but a relaunch.
   again.
 - The Desk's «precisa de uma pessoa» mark follows the same six cases, because the tablet's
   call goes out exactly when the sign shows.
+
+## Amendment · 2026-10-23 (ENG-1424)
+
+Her third case, as her app draws it. A scene rehearsal given up whose look finds nothing,
+and a scene rehearsal the room answers with nothing to play, are one case: the scene screen
+stays open, the sign waits for the team's return to the Conversation, and the list is read
+again. The screen says «não deu para enviar agora — tentem de novo» and «terminei» sends the
+rehearsal again under the same turn id; when the list reads it as sent, the screen says «a
+tradução deste ensaio da cena já foi para a voz» and nothing is sent again; so does a
+«terminei», first or again, the room refuses as already sent. A reply the look
+finds plays as one that arrived on time, and the screen closes as after any «terminei». A
+«terminei» again that fails in any other way, dropped or refused, leaves the screen with its
+sentence and the sign waiting, as the first failure did; only a «terminei» that lands, or
+whose reply the look finds, forgets the waiting sign. Nothing is resent by itself: a row
+read as sent while a person is called is no longer sent again.

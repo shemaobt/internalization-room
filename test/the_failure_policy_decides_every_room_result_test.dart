@@ -150,6 +150,73 @@ void main() {
       );
     });
 
+    test('a scene rehearsal answered without a reply to play is decided as one '
+        'whose look found nothing', () {
+      _decides(
+        const RoomAnsweredWithoutAReply(),
+        _at(const SceneRehearsal(), turn: _turn),
+        const TheSceneTurnFoundNothing(generation: 4),
+      );
+    });
+
+    test('a «terminei» refused as already sent tells the scene screen it went '
+        'and reads the list again, with no sign', () {
+      final event = FailurePolicy.decide(
+        const RoomRefused(RefusalCode.sceneRehearsalSent),
+        _at(
+          const SceneRehearsal(),
+          door: Door.sceneRehearsal,
+          rule: RefusalRule.sendsTheScene,
+        ),
+      );
+      final (machine, effects) = reduce(
+        const Machine(station: SceneRehearsal()),
+        event,
+      );
+
+      expect(effects, contains(const TellItWentAlready()));
+      expect(effects, contains(const ReadTheSceneRehearsals()));
+      expect(machine.halt, const NoHalt());
+    });
+
+    test(
+      'a «terminei» again refused for another reason while the sign waits '
+      'tells the scene screen the send failed and keeps the sign waiting',
+      () {
+        final event = FailurePolicy.decide(
+          const RoomRefused(RefusalCode.notFound),
+          _at(
+            const SceneRehearsal(),
+            door: Door.sceneRehearsal,
+            rule: RefusalRule.sendsTheScene,
+          ),
+        );
+        final (machine, effects) = reduce(
+          const Machine(
+            station: SceneRehearsal(),
+            aHaltWaitsForTheCanvas: true,
+          ),
+          event,
+        );
+
+        expect(effects, contains(const TellTheSendFailed()));
+        expect(effects, contains(const ReadTheSceneRehearsals()));
+        expect(machine.aHaltWaitsForTheCanvas, isTrue);
+      },
+    );
+
+    test('on the scene rehearsal the machine tells the screen the send failed, '
+        'reads the list again and raises no halt', () {
+      final (machine, effects) = reduce(
+        const Machine(station: SceneRehearsal()),
+        const TheSceneTurnFoundNothing(),
+      );
+
+      expect(effects, contains(const TellTheSendFailed()));
+      expect(effects, contains(const ReadTheSceneRehearsals()));
+      expect(machine.halt, const NoHalt());
+    });
+
     test('the reply\'s sound failing once brings nothing; twice brings the '
         'person sign', () {
       final context = _at(const Canvas(), sounding: const ThePart());

@@ -456,11 +456,20 @@ final class TheSceneRehearsalsListed extends AnsweringEvent {
 }
 
 /// A scene door failed; [readAgain] when the room's refusal says the rehearsal moved on
-/// without this tablet: sent to the voice, or restarted by an answer it never heard.
+/// without this tablet: sent to the voice, or restarted by an answer it never heard;
+/// [wentAlready] when the refused call was «terminei» and the rehearsal was already sent;
+/// [sendFailed] when it was «terminei» refused for any other reason.
 final class TheSceneDoorFailed extends AnsweringEvent {
   final bool readAgain;
+  final bool wentAlready;
+  final bool sendFailed;
 
-  const TheSceneDoorFailed({this.readAgain = false, super.generation});
+  const TheSceneDoorFailed({
+    this.readAgain = false,
+    this.wentAlready = false,
+    this.sendFailed = false,
+    super.generation,
+  });
 }
 
 /// The tablet's disk could not keep audio a scene door brought in.
@@ -801,6 +810,14 @@ final class AskTheFraseAgain extends Effect {
 
 final class TellTheDiskFailed extends Effect {
   const TellTheDiskFailed();
+}
+
+final class TellTheSendFailed extends Effect {
+  const TellTheSendFailed();
+}
+
+final class TellItWentAlready extends Effect {
+  const TellItWentAlready();
 }
 
 /// The room may have kept the frase whose answer was lost: its list decides.
@@ -1146,14 +1163,13 @@ const _watch = ArmTheWatch();
   TheSessionIsGone() || ThePassageClosed() => _theSessionGone(machine),
   TheCallMetAClosedPassage() => (machine, const [CloseThePassage()]),
   TurnSent(:final turn, :final keeps) => (
-    machine.copyWith(
-      inFlight: turn,
-      keptInFlight: keeps,
-      aHaltWaitsForTheCanvas: false,
-    ),
+    machine.copyWith(inFlight: turn, keptInFlight: keeps),
     const [],
   ),
-  TurnAnswered(:final turn) => (_land(machine, turn), const []),
+  TurnAnswered(:final turn) => (
+    _land(machine, turn).copyWith(aHaltWaitsForTheCanvas: false),
+    const [],
+  ),
   TurnFailed(:final turn) => (_land(machine, turn), const []),
   TurnGivenUp(:final turn, :final sounding) => _giveUp(machine, turn, sounding),
   LookFound(:final turn) ||
@@ -1163,7 +1179,7 @@ const _watch = ArmTheWatch();
     :final turn,
   ) when machine.look?.turn != turn => (machine, const []),
   LookFound(:final turn, :final reply) => (
-    machine.copyWith(forgetTheLook: true),
+    machine.copyWith(forgetTheLook: true, aHaltWaitsForTheCanvas: false),
     [
       if (machine.look case TheLook(
         sounding: TheOpening(),
@@ -1177,6 +1193,13 @@ const _watch = ArmTheWatch();
   TheRefusalPassed() => _resumeTheLook(machine),
   TheHandFailed() => (machine, const []),
   TheScenesMissed() => (machine, const []),
+  TheSceneDoorFailed(wentAlready: true)
+      when machine.station is SceneRehearsal =>
+    (machine, const [TellItWentAlready(), ReadTheSceneRehearsals()]),
+  TheSceneDoorFailed(sendFailed: true)
+      when machine.station is SceneRehearsal &&
+          machine.aHaltWaitsForTheCanvas =>
+    (machine, const [TellTheSendFailed(), ReadTheSceneRehearsals()]),
   TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
     (machine, const [ReadTheSceneRehearsals()]),
   TheSceneDoorFailed() => (machine, const []),
@@ -1257,7 +1280,7 @@ const _watch = ArmTheWatch();
   TheResumeFailed() => _theResumeFailed(machine),
   TheSceneTurnFoundNothing() when machine.station is SceneRehearsal => (
     machine.copyWith(aHaltWaitsForTheCanvas: true),
-    const [LetTheStepGo(), ReadTheSceneRehearsals()],
+    const [LetTheStepGo(), TellTheSendFailed(), ReadTheSceneRehearsals()],
   ),
   TheSceneTurnFoundNothing() => _theHalt(machine, const RoomRaisedAHalt()),
   TheTellingCameBackEmpty() when machine.station is Retro => (

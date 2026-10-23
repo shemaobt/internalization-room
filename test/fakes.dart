@@ -1704,7 +1704,7 @@ class FakeRoom implements RoomRepository {
   final List<RoomFailure> sceneAnswersFirst = [];
 
   /// What the next reads of the scene rehearsals' list answer, one each.
-  final List<RoomFailure> sceneListsAnswerFirst = [];
+  final List<RoomAnswer<List<SceneRehearsalRecord>>> sceneListsAnswerFirst = [];
 
   /// The code a restart is refused with, when it is set.
   String? refuseRestartWith;
@@ -2139,6 +2139,9 @@ class FakeRoom implements RoomRepository {
   }) async {
     if (_guard('sendTheSceneRehearsal') case final failure?) return failure;
     scenesSent.add((rehearsalId: rehearsalId, turnId: turnId, closes: closes));
+    if (_stored[(sessionId, turnId)] case final answered?) {
+      return Answered(answered);
+    }
     if (sendRefusalsFirst.isNotEmpty) {
       return Refused(sendRefusalsFirst.removeAt(0));
     }
