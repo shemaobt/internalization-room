@@ -211,8 +211,8 @@ String describeKept(Kept kept) => switch (kept) {
 String describeHalt(Halt halt) => switch (halt) {
   NoHalt() => 'NoHalt',
   Warning() => 'Warning',
-  Blocking(:final warningBeneath, :final reachesNoRoom) =>
-    'Blocking(warningBeneath: $warningBeneath, reachesNoRoom: $reachesNoRoom)',
+  Blocking(:final warningBeneath, :final callsNobody) =>
+    'Blocking(warningBeneath: $warningBeneath, callsNobody: $callsNobody)',
 };
 
 String describeEvent(MachineEvent event) => switch (event) {

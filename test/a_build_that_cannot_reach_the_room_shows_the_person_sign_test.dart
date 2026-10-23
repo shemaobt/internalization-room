@@ -200,24 +200,27 @@ void main() {
       },
     );
 
-    test('a hand-off outside any gesture reports its StateError too', () async {
-      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
-      final container = harness.container();
-      addTearDown(container.dispose);
-      await container
-          .read(salaSessionProvider.notifier)
-          .goConversa(book: 'Ruth');
-      await settle();
-      harness.room.throwOn['servedBooks'] = StateError('x');
+    test(
+      'an Error handed off inside a gesture of its own is reported once',
+      () async {
+        final logged = <String>[];
+        final print = debugPrint;
+        debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+        addTearDown(() => debugPrint = print);
+        final harness = SalaHarness();
+        harness.room.throwOn['servedBooks'] = StateError('one defect');
+        final container = harness.container();
+        addTearDown(container.dispose);
 
-      harness.room.dropCoverageStream(error: const SessionGone());
+        container.read(salaSessionProvider.notifier).escolhaTap();
+        await settle();
 
-      await waitFor(
-        'o sinal da pessoa',
-        () => container.read(salaSessionProvider).needsPerson,
-        limit: const Duration(seconds: 2),
-      );
-    });
+        expect(
+          logged.where((line) => line.contains('one defect')),
+          hasLength(1),
+        );
+      },
+    );
 
     test(
       'a hand-off whose body throws an Exception keeps today\'s path',

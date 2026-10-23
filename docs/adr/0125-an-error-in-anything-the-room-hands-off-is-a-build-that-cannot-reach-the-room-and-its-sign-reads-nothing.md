@@ -30,11 +30,10 @@ sign and calls nobody.
 - **An `Error` from a hand-off the team has moved past still raises the sign.** It is a
   defect, not a room answer, so the generation guard, which is for answers, does not drop
   it. A container already disposed raises nothing.
-- **A sign raised without a call reaches no room, and its tap reads nothing.** The team's
+- **A sign raised without a call calls nobody, and its tap reads nothing.** The team's
   tap clears it to the Choice as it stands; it neither reads the Wheel nor enters a
   passage. A raise that calls for a person over it, or a read that says a person is
-  needed, is a real case beneath, and its tap
-  goes on as for any halt.
+  needed, is a real case beneath, and its tap goes on as for any halt.
 
 ## Considered Options
 
@@ -54,7 +53,7 @@ the build guard has nothing to read.
 
 - 0093: a build that can reach no room is now any `Error` in a hand-off, not only the
   guard at launch.
-- 0107: the tap on a sign that reaches no room takes no held hand-off. Its consequence
+- 0107: the tap on a sign that calls nobody takes no held hand-off. Its consequence
   «the build guard's tap reads the Wheel» no longer holds, and a broken build shows the room.
 
 ## Consequences
@@ -63,3 +62,5 @@ the build guard has nothing to read.
   silent stall.
 - A broken build never shows the claim code.
 - The Desk sees nothing of a broken build.
+- On a working build, a tap on a sign an `Error` raised mid-passage does not re-enter the
+  passage; the team goes on from the station as it stands.

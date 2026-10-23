@@ -130,10 +130,10 @@ void main() {
       );
     });
 
-    test('a raised halt that cannot call reaches no room', () {
+    test('a raised halt that cannot call is a halt that calls nobody', () {
       expect(
         _reduce(none, const RoomRaisedAHalt(callsForAPerson: false)),
-        _to(const Blocking(reachesNoRoom: true), const [
+        _to(const Blocking(callsNobody: true), const [
           ..._entering,
           ArmTheWatch(),
         ]),
@@ -226,15 +226,18 @@ void main() {
       );
     });
 
-    test('a raised halt that cannot call wins over it and reaches no room', () {
-      expect(
-        _reduce(warning, const RoomRaisedAHalt(callsForAPerson: false)),
-        _to(const Blocking(warningBeneath: true, reachesNoRoom: true), const [
-          ..._entering,
-          ArmTheWatch(),
-        ]),
-      );
-    });
+    test(
+      'a raised halt that cannot call wins over it as a halt that calls nobody',
+      () {
+        expect(
+          _reduce(warning, const RoomRaisedAHalt(callsForAPerson: false)),
+          _to(const Blocking(warningBeneath: true, callsNobody: true), const [
+            ..._entering,
+            ArmTheWatch(),
+          ]),
+        );
+      },
+    );
 
     test('the Watch firing reads the state and beats again', () {
       expect(
@@ -336,26 +339,26 @@ void main() {
     });
   });
 
-  group('from a halt that reaches no room', () {
-    const noRoom = Blocking(reachesNoRoom: true);
-    const noRoomOverAWarning = Blocking(
+  group('from a halt that calls nobody', () {
+    const callingNobody = Blocking(callsNobody: true);
+    const nobodyOverAWarning = Blocking(
       warningBeneath: true,
-      reachesNoRoom: true,
+      callsNobody: true,
     );
 
     test('the team\'s tap clears it and goes on to nothing', () {
       expect(
-        _reduce(noRoom, const TeamTapped()),
+        _reduce(callingNobody, const TeamTapped()),
         _to(const NoHalt(), const [StopCallingForAPerson(), ArmTheWatch()]),
       );
       expect(
-        _reduce(noRoomOverAWarning, const TeamTapped()),
+        _reduce(nobodyOverAWarning, const TeamTapped()),
         _to(const Warning(), const [StopCallingForAPerson(), ArmTheWatch()]),
       );
     });
 
     test('a halt that calls for a person over it goes on after the tap', () {
-      final (called, effects) = _reduce(noRoom, const RoomRaisedAHalt());
+      final (called, effects) = _reduce(callingNobody, const RoomRaisedAHalt());
       expect((
         called,
         effects,
@@ -368,21 +371,21 @@ void main() {
 
     test('a warning or a read under it keeps it', () {
       expect(
-        _reduce(noRoom, const TheAnswerWarned()),
-        _to(noRoomOverAWarning, const [ArmTheWatch()]),
+        _reduce(callingNobody, const TheAnswerWarned()),
+        _to(nobodyOverAWarning, const [ArmTheWatch()]),
       );
       expect(
-        _reduce(noRoom, _aWarningStands),
-        _to(noRoomOverAWarning, const [ArmTheWatch()]),
+        _reduce(callingNobody, _aWarningStands),
+        _to(nobodyOverAWarning, const [ArmTheWatch()]),
       );
       expect(
-        _reduce(noRoomOverAWarning, _nothingStands),
-        _to(noRoom, const [ArmTheWatch()]),
+        _reduce(nobodyOverAWarning, _nothingStands),
+        _to(callingNobody, const [ArmTheWatch()]),
       );
     });
 
     test('a read that needs a person under it goes on after the tap', () {
-      final (read, effects) = _reduce(noRoomOverAWarning, _aBlockingHalt());
+      final (read, effects) = _reduce(nobodyOverAWarning, _aBlockingHalt());
       expect((
         read,
         effects,
