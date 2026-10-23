@@ -132,11 +132,26 @@ const ensaioFinalPlanLabels = {
   },
   'join': {'pt': 'juntar as cenas e ouvir', 'en': 'join the scenes and listen'},
   'listen': {'pt': 'Ouvir', 'en': 'Listen'},
+  'joining': {
+    'pt': 'juntando a cena {i} de {k}…',
+    'en': 'joining scene {i} of {k}…',
+  },
+  'joinRetry': {
+    'pt': 'não deu para juntar esta cena — toquem para tentar de novo',
+    'en': 'this scene could not be joined — tap to try again',
+  },
 };
 
-String ensaioFinalPlanLabelFor(String control, String language) =>
-    ensaioFinalPlanLabels[control]![language] ??
-    ensaioFinalPlanLabels[control]![floorLanguage]!;
+String ensaioFinalPlanLabelFor(
+  String control,
+  String language, {
+  int? i,
+  int? k,
+}) =>
+    (ensaioFinalPlanLabels[control]![language] ??
+            ensaioFinalPlanLabels[control]![floorLanguage]!)
+        .replaceAll('{i}', '$i')
+        .replaceAll('{k}', '$k');
 
 /// A plan row's facts, her `rowText`: its number, its local clock, its length `m:ss` and
 /// its current frases.

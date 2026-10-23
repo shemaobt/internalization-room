@@ -35,6 +35,8 @@ class EnsaioFinalPlanView extends ConsumerWidget {
       );
     }
     final rows = planRowsOf(read, sessionId, session.planChoices);
+    final joining = session.joining;
+    final idle = joining == null;
     return SafeArea(
       bottom: false,
       child: SizedBox.expand(
@@ -64,6 +66,21 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                   ),
                 ),
               ),
+              if (joining != null) ...[
+                const SizedBox(height: 8),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    ensaioFinalPlanLabelFor(
+                      'joining',
+                      language,
+                      i: joining,
+                      k: read.scenes.length,
+                    ),
+                    style: TextStyle(color: colors.ink, fontSize: 15),
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 600),
@@ -73,10 +90,16 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                       _PlanRowView(
                         row: row,
                         language: language,
+                        joined:
+                            row.joined ||
+                            session.joinRows[row.number] == JoinRow.joined,
+                        outcome: session.joinRows[row.number],
+                        idle: idle,
                         onPlay: () =>
                             notifier.playThePlanRow(row.scene.sceneId),
                         onSwap: () =>
                             notifier.swapTheRehearsal(row.scene.sceneId),
+                        onRetry: () => notifier.retryTheJoin(row.number),
                       ),
                   ],
                 ),
@@ -85,7 +108,7 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                 const SizedBox(height: 24),
                 RoundActionButton(
                   size: 78,
-                  mood: canJoin(rows)
+                  mood: idle && canJoin(rows)
                       ? ButtonMood.beckoning
                       : ButtonMood.dimmed,
                   gradient: BeadStyles.wood,
@@ -104,7 +127,7 @@ class EnsaioFinalPlanView extends ConsumerWidget {
               ],
               const SizedBox(height: 24),
               TextButton(
-                onPressed: notifier.recordSceneByScene,
+                onPressed: idle ? notifier.recordSceneByScene : null,
                 child: Text(
                   ensaioFinalPlanLabelFor('sceneByScene', language),
                   style: TextStyle(color: colors.telha, fontSize: 15),
@@ -122,14 +145,22 @@ class EnsaioFinalPlanView extends ConsumerWidget {
 class _PlanRowView extends StatelessWidget {
   final PlanRow row;
   final String language;
+  final bool joined;
+  final JoinRow? outcome;
+  final bool idle;
   final VoidCallback onPlay;
   final VoidCallback onSwap;
+  final VoidCallback onRetry;
 
   const _PlanRowView({
     required this.row,
     required this.language,
+    required this.joined,
+    required this.outcome,
+    required this.idle,
     required this.onPlay,
     required this.onSwap,
+    required this.onRetry,
   });
 
   @override
@@ -138,11 +169,13 @@ class _PlanRowView extends StatelessWidget {
     final cena = recordingHomeLabelFor('scene', language, n: row.number);
     final chosen = row.chosen;
     final facts = chosen == null ? null : planRowFactsFor(chosen, language);
-    final note = switch (row.note) {
-      PlanNote.missing => ensaioFinalPlanLabelFor('missing', language),
-      PlanNote.cannotEnter => ensaioFinalPlanLabelFor('cannotEnter', language),
-      null => null,
+    final note = switch ((outcome, row.note)) {
+      (JoinRow.cannotEnter, _) || (_, PlanNote.cannotEnter) =>
+        ensaioFinalPlanLabelFor('cannotEnter', language),
+      (_, PlanNote.missing) => ensaioFinalPlanLabelFor('missing', language),
+      _ => null,
     };
+    final retry = ensaioFinalPlanLabelFor('joinRetry', language);
 
     return Semantics(
       container: true,
@@ -186,6 +219,11 @@ class _PlanRowView extends StatelessWidget {
                           style: TextStyle(color: colors.mut, fontSize: 14),
                         ),
                       ),
+                      if (joined)
+                        Text(
+                          '✓',
+                          style: TextStyle(color: colors.ink, fontSize: 15),
+                        ),
                       if (facts != null)
                         Text(
                           facts,
@@ -210,7 +248,8 @@ class _PlanRowView extends StatelessWidget {
                     gradient: BeadStyles.wood,
                     semanticLabel:
                         '${ensaioFinalPlanLabelFor('listen', language)} — $facts',
-                    onTap: onPlay,
+                    mood: idle ? ButtonMood.lit : ButtonMood.dimmed,
+                    onTap: idle ? onPlay : () {},
                     child: const Icon(
                       LucideIcons.play,
                       size: 18,
@@ -219,16 +258,33 @@ class _PlanRowView extends StatelessWidget {
                   ),
               ],
             ),
+            if (outcome == JoinRow.retry)
+              Padding(
+                padding: const EdgeInsets.only(left: 32, top: 4),
+                child: Semantics(
+                  button: true,
+                  label: '$retry — $cena',
+                  onTap: idle ? onRetry : null,
+                  excludeSemantics: true,
+                  child: TextButton(
+                    onPressed: idle ? onRetry : null,
+                    child: Text(
+                      retry,
+                      style: TextStyle(color: colors.telha, fontSize: 15),
+                    ),
+                  ),
+                ),
+              ),
             if (row.canSwap)
               Padding(
                 padding: const EdgeInsets.only(left: 32, top: 4),
                 child: Semantics(
                   button: true,
                   label: '${ensaioFinalPlanLabelFor('swap', language)} — $cena',
-                  onTap: onSwap,
+                  onTap: idle ? onSwap : null,
                   excludeSemantics: true,
                   child: TextButton(
-                    onPressed: onSwap,
+                    onPressed: idle ? onSwap : null,
                     child: Text(
                       ensaioFinalPlanLabelFor('swap', language),
                       style: TextStyle(color: colors.telha, fontSize: 15),

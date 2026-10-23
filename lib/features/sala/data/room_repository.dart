@@ -360,6 +360,8 @@ class RoomRepository {
     DateTime? recordedAt,
     int? durationMs,
     String? sha256,
+    String? origin,
+    bool reopensTheApprovedDraft = false,
   }) async {
     final request =
         http.MultipartRequest('POST', _uri('/sessions/$sessionId/takes'))
@@ -370,6 +372,10 @@ class RoomRepository {
           ..files.add(await _audioPart(audio));
     if (passNumber != null) request.fields['pass_number'] = '$passNumber';
     if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
+    if (origin != null) request.fields['origin'] = origin;
+    if (reopensTheApprovedDraft) {
+      request.fields['reopens_the_approved_draft'] = 'true';
+    }
     _announce(request, recordedAt, durationMs, sha256);
     return _room.askStreamed(
       request,

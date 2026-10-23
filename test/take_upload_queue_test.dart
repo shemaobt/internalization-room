@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -2005,6 +2006,112 @@ void main() {
         ]);
       },
     );
+  });
+
+  group('a join row', () {
+    File aRehearsal(List<int> bytes) =>
+        File('${home.path}/parte-2-junta-ensaio-2.wav')
+          ..writeAsBytesSync(bytes);
+
+    String fingerprintOf(List<int> bytes) =>
+        crypto.sha256.convert(bytes).toString();
+
+    test('whose copy is not the rehearsal\'s bytes writes nothing and leaves '
+        'no copy', () async {
+      final queue = queueOn(FakeRoom());
+
+      final row = await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+        fingerprint: fingerprintOf([1, 2, 3]),
+      );
+
+      expect(row, isNull);
+      expect(await queue.entries(), isEmpty);
+      expect(
+        Directory(
+          '${home.path}/guardadas',
+        ).listSync().where((file) => !file.path.endsWith('fila.json')),
+        isEmpty,
+      );
+    });
+
+    test('keeps its origin and reopening across a manifest read', () async {
+      final room = FakeRoom()..reachable = false;
+      aQueueWrittenByTheOlderApp('velha.m4a');
+      final older = (await queueOn(room).entries()).single;
+      expect(older.origin, isNull);
+      expect(older.reopensTheApprovedDraft, isFalse);
+
+      final row = await queueOn(room).enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+        reopensTheApprovedDraft: true,
+      );
+      await queueOn(room).flush();
+      await queueOn(room).dueAgain(row!.id);
+
+      final read = (await queueOn(room).entries()).last;
+      expect(read.tries, 0, reason: 'a linha não passou pelo dueNow');
+      expect(read.origin, 'ensaio-2');
+      expect(read.reopensTheApprovedDraft, isTrue);
+    });
+
+    test('goes up with its origin, the reopening and the rehearsal\'s '
+        'fingerprint', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final bytes = aWavTake();
+      await queue.enqueueTheJoin(
+        aRehearsal(bytes),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 3,
+        origin: 'ensaio-2',
+        fingerprint: fingerprintOf(bytes),
+        reopensTheApprovedDraft: true,
+      );
+
+      await queue.flush();
+
+      final sent = room.takesReceivedWhole.single;
+      expect(sent.kind, 'ensaio');
+      expect(sent.scope, 'parte-2');
+      expect(sent.chunkIndex, 2);
+      expect(room.takePasses.single, 3);
+      expect(sent.origin, 'ensaio-2');
+      expect(sent.reopens, isTrue);
+      expect(sent.sha256, fingerprintOf(bytes));
+      expect(sent.bytes, bytes);
+    });
+
+    test('sends the moment of each try as its Recording time', () async {
+      final room = FakeRoom()..unreachableTake = 'ensaio/parte-2';
+      final queue = queueOn(room);
+      final rehearsal = aRehearsal(aWavTake())
+        ..setLastModifiedSync(DateTime(2026, 8, 12, 6));
+      clock = DateTime(2026, 8, 12, 9);
+      await queue.enqueueTheJoin(
+        rehearsal,
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      );
+      await queue.flush();
+      room.unreachableTake = null;
+      clock = DateTime(2026, 8, 12, 9, 4);
+
+      await queue.flush();
+
+      expect(room.takesReceivedWhole.single.recordedAt, clock);
+    });
   });
 }
 

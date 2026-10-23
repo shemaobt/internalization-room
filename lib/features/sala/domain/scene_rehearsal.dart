@@ -44,6 +44,10 @@ final class SceneRehearsalRecord {
   final String contentType;
   final bool verified;
 
+  /// The fingerprint of the rehearsal's bytes, as the room lists it: what a join sends as
+  /// its part's. Absent from a listing an older room wrote.
+  final String? sha256;
+
   const SceneRehearsalRecord({
     required this.rehearsalId,
     required this.sessionId,
@@ -56,6 +60,7 @@ final class SceneRehearsalRecord {
     this.frases = const [],
     this.contentType = 'audio/wav',
     this.verified = false,
+    this.sha256,
   });
 
   factory SceneRehearsalRecord.fromJson(Map<String, dynamic> json) =>
@@ -79,6 +84,7 @@ final class SceneRehearsalRecord {
         ],
         contentType: json['content_type'] as String? ?? 'audio/wav',
         verified: json['verified'] as bool? ?? false,
+        sha256: json['sha256'] as String?,
       );
 
   static List<SceneRehearsalRecord> listFrom(Map<String, dynamic> json) => [

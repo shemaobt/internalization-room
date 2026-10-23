@@ -713,6 +713,8 @@ class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
     DateTime? recordedAt,
     int? durationMs,
     String? sha256,
+    String? origin,
+    bool reopensTheApprovedDraft = false,
   }) {
     if (!stumbled) {
       stumbled = true;
@@ -728,6 +730,8 @@ class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
       recordedAt: recordedAt,
       durationMs: durationMs,
       sha256: sha256,
+      origin: origin,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
   }
 }

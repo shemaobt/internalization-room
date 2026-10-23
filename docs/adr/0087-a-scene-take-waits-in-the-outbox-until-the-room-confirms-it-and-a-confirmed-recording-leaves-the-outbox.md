@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint) and 0103 (2026-10-20: a take refused for good is told by its row, not the voice)
+status: accepted, extended by 0120 (a join row carries `origin` and the rehearsal's fingerprint), amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint) and 0103 (2026-10-20: a take refused for good is told by its row, not the voice)
 date: 2026-10-16
 amends: 0083, 0025
 ---

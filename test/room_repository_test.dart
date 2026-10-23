@@ -2389,6 +2389,36 @@ void main() {
       },
     );
 
+    test('the list reads each rehearsal\'s fingerprint, and none from an '
+        'older room', () async {
+      final sent = record(sentAt: '2026-10-14T09:05:00+00:00');
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'pericope': 'P01',
+              'scene_rehearsals': [
+                {...sent, 'sha256': 'ab12'},
+                {...sent}..remove('sha256'),
+              ],
+            }),
+            200,
+          ),
+        ),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.sceneRehearsalsOf('sessao-1');
+
+      expect(
+        (answer as Answered<List<SceneRehearsalRecord>>).value.map(
+          (rehearsal) => rehearsal.sha256,
+        ),
+        ['ab12', null],
+      );
+    });
+
     test(
       'the scene send posts its turn id and the attempt it closes',
       () async {
@@ -2479,6 +2509,36 @@ void main() {
       addTearDown(repository.dispose);
       return repository;
     }
+
+    test('a joined part goes up naming its rehearsal, and the reopening only '
+        'when the team armed it', () async {
+      final file = await _tempRecording(extension: 'wav', bytes: aWavTake());
+
+      await listening().sendTake(
+        'sessao-1',
+        file,
+        kind: 'ensaio',
+        scope: 'parte-2',
+        origin: 'ensaio-2',
+        reopensTheApprovedDraft: true,
+      );
+      final armed = latin1.decode(sent.bodyBytes);
+      await listening().sendTake(
+        'sessao-1',
+        file,
+        kind: 'ensaio',
+        scope: 'parte-2',
+      );
+      final plain = latin1.decode(sent.bodyBytes);
+
+      expect(armed, contains('name="origin"\r\n\r\nensaio-2\r\n'));
+      expect(
+        armed,
+        contains('name="reopens_the_approved_draft"\r\n\r\ntrue\r\n'),
+      );
+      expect(plain, isNot(contains('name="origin"')));
+      expect(plain, isNot(contains('reopens_the_approved_draft')));
+    });
 
     test(
       'a rehearsal take recorded as WAV goes up as audio/wav under a .wav name',
