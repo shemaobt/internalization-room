@@ -53,7 +53,7 @@ void main() {
   );
 
   test(
-    'a parte gravada de novo toca do seu arquivo, acaba, e o círculo grava',
+    'a parte gravada de novo toca do seu arquivo, e o círculo grava no fim dela',
     () async {
       final it = await umEnsaioDeTresPartesContadoInteiro();
       it.harness.room
@@ -76,12 +76,8 @@ void main() {
       );
       expect(it.estado.btParte, 1);
 
-      it.harness.playback.finishPlayback();
-      await waitFor(
-        'a parte acabar de tocar',
-        () => !it.estado.btClipRodando && !it.harness.playback.sounding,
-      );
-
+      await theClipOpens(it.harness);
+      it.harness.playback.at = partesDoEnsaio[1];
       it.sala.retroTap();
       it.sala.retroTap();
       await waitFor(

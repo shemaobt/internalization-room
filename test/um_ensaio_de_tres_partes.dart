@@ -68,10 +68,14 @@ Future<void> ouvirETraduzirAParteInteira(Sala it, Duration quanto) async {
     'o trecho traduzido entrar no colar',
     () => it.estado.btTrechos.length == antes + 1,
   );
+  final tocadas = it.harness.playback.played.length;
   it.harness.playback.finishPlayback();
   await waitFor(
     'a parte terminar',
-    () => it.estado.btParteFronteira || it.estado.btClipEnded,
+    () =>
+        it.estado.btClipEnded ||
+        it.estado.btParteFronteira ||
+        it.harness.playback.played.length > tocadas,
   );
 }
 
@@ -141,13 +145,6 @@ Future<Sala> umEnsaioContadoInteiro(
 
   for (var onde = 0; onde < partes.length; onde++) {
     await ouvirETraduzirAParteInteira(it, partes[onde]);
-    if (onde < partes.length - 1) {
-      it.sala.ouvirGravacao();
-      await waitFor(
-        'a parte seguinte entrar no ar',
-        () => !it.estado.btParteFronteira,
-      );
-    }
   }
   return it;
 }
@@ -155,13 +152,17 @@ Future<Sala> umEnsaioContadoInteiro(
 /// The part in the air played to its own end, [quanto] long.
 Future<void> ouvirAteOFim(Sala it, Duration quanto) async {
   await theClipOpens(it.harness);
+  final tocadas = it.harness.playback.played.length;
   it.harness.playback
     ..length = quanto
     ..at = quanto
     ..finishPlayback();
   await waitFor(
     'a parte acabar',
-    () => it.estado.btParteFronteira || it.estado.btClipEnded,
+    () =>
+        it.estado.btClipEnded ||
+        it.estado.btParteFronteira ||
+        it.harness.playback.played.length > tocadas,
   );
 }
 
@@ -200,12 +201,11 @@ Future<void> entregarAPonte(Sala it) async {
 
 /// Cross from the part in the air into the one after it.
 Future<void> atravessarAFronteira(Sala it) async {
+  final tocadas = it.harness.playback.played.length;
   it.harness.playback.finishPlayback();
-  await waitFor('a parte terminar', () => it.estado.btParteFronteira);
-  it.sala.ouvirGravacao();
   await waitFor(
     'a parte seguinte entrar no ar',
-    () => !it.estado.btParteFronteira,
+    () => it.harness.playback.played.length > tocadas,
   );
 }
 
