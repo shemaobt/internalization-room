@@ -2667,16 +2667,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     if (await _room.takesOf(sessionId) case Answered(value: final guardadas)) {
       if (_abandoned(generation)) return;
-      state = state.copyWith(
-        theRoomJoinedAPart: _aPartCameFromAJoin(guardadas),
-      );
+      state = state.copyWith(theRoomJoinedParts: _partesJuntadas(guardadas));
     }
   }
 
-  static bool _aPartCameFromAJoin(List<TakeView> guardadas) =>
-      _correntes(guardadas).entries.any(
-        (corrente) => corrente.key != null && corrente.value.origin != null,
-      );
+  /// The part numbers whose current take in the room's [guardadas] was laid in from a Scene
+  /// rehearsal.
+  static Set<int> _partesJuntadas(List<TakeView> guardadas) => {
+    for (final MapEntry(:key, :value) in _correntes(guardadas).entries)
+      if (key != null && value.origin != null) key,
+  };
 
   /// The rehearsal takes the room [guardadas] lists, keyed by the room's number, which
   /// keeps the first place each number appears in and the last recording made under it.
@@ -3467,9 +3467,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case (Answered(value: final guardadas), _, _)
           when waiting ||
               guardadas.any((guardada) => guardada.kind == 'ensaio'):
-        state = state.copyWith(
-          theRoomJoinedAPart: _aPartCameFromAJoin(guardadas),
-        );
+        state = state.copyWith(theRoomJoinedParts: _partesJuntadas(guardadas));
         _openTheRecordingHome(sessionId, listed: guardadas);
       case (Answered(value: final guardadas), Answered(value: final listed), _)
           when rehearsalsElsewhere(listed, sessionId):
@@ -3513,13 +3511,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _planRows?.where((row) => row.scene.sceneId == sceneId).firstOrNull;
 
   void swapTheRehearsal(String sceneId) => _gesture(() {
-    final row = _planRowOf(sceneId);
-    final next = row?.nextJoinable;
-    if (row == null ||
-        next == null ||
-        next.rehearsalId == row.chosen?.rehearsalId) {
-      return;
-    }
+    final next = _planRowOf(sceneId)?.nextJoinable;
+    if (next == null) return;
     _silenceThePlan();
     _chooseTheRehearsal(sceneId, next.rehearsalId);
   });

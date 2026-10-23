@@ -328,6 +328,39 @@ void main() {
     });
 
     testWidgets(
+      'a clip still looked for on the tablet when the plan closes never '
+      'plays',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final (harness, _) = await _seeded(tester, _oneEach);
+        await _openThePlan(tester);
+        final sessionId = harness.room.sceneRehearsals.first.sessionId;
+        File(
+          '${harness.recorder.home.path}/cena-$sessionId-ensaio-1.wav',
+        ).writeAsBytesSync([1, 2, 3, 4]);
+        final before = harness.playback.played.length;
+        harness.recorder.holdNextLookup();
+
+        await tester.tap(_playOn(1));
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.ensureVisible(find.text(_sceneByScene));
+        await tester.tap(find.text(_sceneByScene));
+        await tester.pump(const Duration(milliseconds: 100));
+        harness.recorder.finishHeldLookup();
+        await _theAnswerSettles(tester);
+
+        expect(find.text(_homeLine), findsOneWidget);
+        expect(
+          harness.playback.played
+              .skip(before)
+              .where((p) => p.contains('$sessionId-ensaio-1')),
+          isEmpty,
+        );
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
       'a play whose clip did not come leaves the next tap to play it',
       (tester) async {
         final semantics = tester.ensureSemantics();
