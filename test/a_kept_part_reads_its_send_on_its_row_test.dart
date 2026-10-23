@@ -28,10 +28,10 @@ void main() {
     expect(row.unsent?.failure, isNull);
   });
 
-  test('a part whose newest kept take lost its copy reads falhou', () {
+  test('a part whose newest kept take lost its copy reads it gone', () {
     final row = _partThreeWhenItsNewestTakeIs(PartFact.stranded);
 
-    expect(row.unsent?.failure, SendFailure.failed);
+    expect(row.unsent?.failure, SendFailure.gone);
   });
 
   test('a part being kept reads enviando over a failure it showed before', () {

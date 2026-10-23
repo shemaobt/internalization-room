@@ -48,7 +48,7 @@ class SceneTakeState extends StatelessWidget {
         ],
         NotKept(:final why) => [
           said(switch (why) {
-            SendFailure.failed => 'saveFailed',
+            SendFailure.failed || SendFailure.gone => 'saveFailed',
             SendFailure.tooLarge => 'tooLarge',
             SendFailure.refused => 'refused',
           }),

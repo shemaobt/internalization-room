@@ -5220,7 +5220,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// its name then. Kept by row and not by scope, for the reason `takeIdOf` gives.
   late Map<String, String> _semNome;
 
-  late Map<String?, Map<int, ({String path, int? pass})>> _notQueued;
+  late Map<String?, Map<int, ({String path, int? pass, bool gone})>> _notQueued;
 
   late Map<String, Duration?> _lengths;
 
@@ -5236,10 +5236,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final queue = _takes;
     final sessionId = state.sessionId;
     if (_goneSessions.contains(sessionId)) return;
+    final PartOfASession? keeping = switch ((
+      sessionId,
+      KeptScope.numberOf(scope),
+    )) {
+      (final session?, final number?) when kind == partTakeKind => (
+        session: session,
+        part: number,
+      ),
+      _ => null,
+    };
+    if (keeping != null) _dispatch(AKeepBegan(keeping));
     final audio = File(path);
     if (!await audio.exists()) {
+      if (keeping != null && !_gone) _dispatch(AKeepEnded(keeping));
       if (!_endedSince(life)) {
-        _notInTheOutbox(path, kind, scope, passNumber, sessionId);
+        _notInTheOutbox(path, kind, scope, passNumber, sessionId, gone: true);
       }
       return;
     }
@@ -5249,14 +5261,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
-    final PartOfASession? keeping = switch (KeptScope.numberOf(scope)) {
-      final number? when kind == partTakeKind => (
-        session: sessionId,
-        part: number,
-      ),
-      _ => null,
-    };
-    if (keeping != null) _dispatch(AKeepBegan(keeping));
     final PendingTake linha;
     try {
       linha = await queue.enqueue(
@@ -5301,11 +5305,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String kind,
     String scope,
     int? pass,
-    String? sessionId,
-  ) {
+    String? sessionId, {
+    bool gone = false,
+  }) {
     final number = KeptScope.numberOf(scope);
     if (kind != partTakeKind || number == null) return;
-    (_notQueued[sessionId] ??= {})[number] = (path: path, pass: pass);
+    (_notQueued[sessionId] ??= {})[number] = (
+      path: path,
+      pass: pass,
+      gone: gone,
+    );
     unawaited(_countUnsent());
   }
 
@@ -5314,6 +5323,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _enviarACena(int cena) {
     if (state.station is! Ensaio ||
         state.ensaio == EnsaioStatus.recording ||
+        state.machine.beingKept(state.sessionId, cena) ||
+        state.unsentParts[cena]?.failure == SendFailure.gone ||
         !state.unsentParts.containsKey(cena)) {
       return;
     }
@@ -5324,7 +5335,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     final life = _thisLife;
     final scope = KeptScope.parte(cena);
-    if (_notQueued[sessionId]?.remove(cena) case (:final path, :final pass)) {
+    if (_notQueued[sessionId]?[cena] case (
+      :final path,
+      :final pass,
+      gone: false,
+    )) {
+      _notQueued[sessionId]?.remove(cena);
       await _guard(
         path,
         kind: partTakeKind,
@@ -5332,9 +5348,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         passNumber: pass,
         chunkIndex: cena,
       );
-      if (_notQueued[sessionId]?.containsKey(cena) ?? false) return;
     }
-    if (_endedSince(life)) return;
     final queue = _takes;
     final tally = await queue.tally(sessionId: sessionId);
     if (_endedSince(life)) return;
@@ -5594,11 +5608,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ),
         length: _lengths[rows.last.path],
       ),
-    for (final number in _notQueued[state.sessionId]?.keys ?? const <int>[])
+    for (final MapEntry(key: number, :value)
+        in _notQueued[state.sessionId]?.entries ?? const [])
       if (!speaking.containsKey(number))
-        number: const UnsentPart(
+        number: UnsentPart(
           fromAnEarlierVisit: false,
-          failure: SendFailure.failed,
+          failure: value.gone ? SendFailure.gone : SendFailure.failed,
         ),
   };
 
@@ -5607,7 +5622,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     List<PendingTake> ofThePart,
   ) {
     for (final row in newest) {
-      if (row.lost) return SendFailure.failed;
+      if (row.lost) return SendFailure.gone;
       if (row.exhausted) return row.failure;
     }
     for (final row in ofThePart) {

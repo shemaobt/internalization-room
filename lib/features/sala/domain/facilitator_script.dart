@@ -478,6 +478,7 @@ const recordingHomeLabels = {
     'en': 'failed — tap to try again',
   },
   'retryAria': {'pt': 'Tentar enviar de novo', 'en': 'Try sending again'},
+  'lost': {'pt': 'falhou', 'en': 'failed'},
   'recording': {'pt': 'gravando', 'en': 'recording'},
   'sending': {'pt': 'enviando…', 'en': 'sending…'},
   'saved': {'pt': 'salvo', 'en': 'saved'},

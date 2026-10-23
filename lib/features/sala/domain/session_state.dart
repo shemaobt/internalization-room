@@ -500,12 +500,12 @@ class SalaSessionState {
 
   TakeInTheAir? get sceneTakeInTheAir => _theTakeInTheAirOf(sceneTakeKind);
 
-  UnsentPart? _theNewestKeptTakeOf(int number) =>
+  UnsentPart? _unsentByTheNewestKeptTake(int number) =>
       switch (machine.newestKeptFact(sessionId, number)) {
         PartFact.pending => const UnsentPart(fromAnEarlierVisit: false),
         PartFact.stranded => const UnsentPart(
           fromAnEarlierVisit: false,
-          failure: SendFailure.failed,
+          failure: SendFailure.gone,
         ),
         PartFact.sent || null => null,
       };
@@ -628,7 +628,7 @@ class SalaSessionState {
           },
           unsent: machine.beingKept(sessionId, number)
               ? const UnsentPart(fromAnEarlierVisit: false)
-              : unsentParts[number] ?? _theNewestKeptTakeOf(number),
+              : unsentParts[number] ?? _unsentByTheNewestKeptTake(number),
           inTheAir: partInTheAir(number),
           saved: machine.savedParts(sessionId).contains(number),
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,

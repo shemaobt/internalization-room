@@ -28,7 +28,7 @@ const sceneTakeKind = 'cena';
 
 const retroKind = 'retro';
 
-enum SendFailure { failed, tooLarge, refused }
+enum SendFailure { failed, tooLarge, refused, gone }
 
 class UnsentPart {
   final bool fromAnEarlierVisit;

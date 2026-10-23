@@ -347,6 +347,7 @@ class _SceneRowView extends StatelessWidget {
         onSend,
         colors,
       ),
+      UnsentPart(failure: SendFailure.gone) => _said(words('lost'), colors),
       UnsentPart(failure: SendFailure.tooLarge) => _said(
         words('tooLarge'),
         colors,
