@@ -36,6 +36,7 @@ const _backToJoin = 'Ensaio Final: juntar os ensaios das cenas';
 const _recordAgain = 'Gravar de novo';
 const _missing = 'falta o ensaio desta cena';
 const _failed = 'falhou — toque para tentar de novo';
+const _wholeInstead = 'Gravar a passagem inteira';
 const _theArmLapses = Duration(seconds: 8);
 const _record = 'Gravar';
 
@@ -744,6 +745,92 @@ void main() {
 
       expect(find.text(_planLine), findsOneWidget);
       expect(find.text(_missing), findsNWidgets(3));
+    },
+  );
+
+  testWidgets(
+    'a whole the disk refused stays the whole\'s: after «Gravar cena por cena» no '
+    'scene row shows it or sends it',
+    (tester) async {
+      final (harness, container) = await _onTheEmptyWholeHome(tester);
+      (harness.takes as FakeTakeQueue).refusesTheNextKeep = true;
+      await _recordAndKeep(tester, container);
+      expect(find.text(_failed), findsOneWidget);
+
+      await _tap(tester, _sceneInstead);
+      await _settles(tester);
+
+      expect(find.text('Cena 1'), findsOneWidget);
+      expect(find.text(_failed), findsNothing);
+      container.read(salaSessionProvider.notifier).enviarACena(1);
+      await letTheRehearsalReachTheRoom(tester);
+      expect(
+        harness.room.takesReceivedWhole.where(
+          (take) => take.scope == KeptScope.parte(1),
+        ),
+        isEmpty,
+      );
+    },
+  );
+
+  testWidgets(
+    'a scene part the disk refused stays the scene\'s: after «Gravar a passagem '
+    'inteira» the whole row neither shows it nor sends it',
+    (tester) async {
+      final (harness, container) = await _onTheChoice(tester);
+      await _tap(tester, _sceneByScene);
+      await _settles(tester);
+      await _tap(tester, _sceneInstead);
+      await _settles(tester);
+      (harness.takes as FakeTakeQueue).refusesTheNextKeep = true;
+      await _recordAndKeep(tester, container);
+      expect(find.text(_failed), findsOneWidget);
+
+      await _tap(tester, _wholeInstead);
+      await _settles(tester);
+
+      expect(find.text(_whole), findsOneWidget);
+      expect(find.text(_failed), findsNothing);
+      container.read(salaSessionProvider.notifier).enviarACena(1);
+      await letTheRehearsalReachTheRoom(tester);
+      expect(
+        harness.room.takesReceivedWhole.where(
+          (take) => take.scope == KeptScope.whole,
+        ),
+        isEmpty,
+      );
+    },
+  );
+
+  testWidgets(
+    'another tablet\'s switch to scene by scene, learned from the room\'s listing, '
+    'opens the scene rows at the 6 s cut, with the whole it set aside nowhere',
+    (tester) async {
+      final (harness, _) = await _atRest(tester);
+      harness.room
+        ..takes.add(
+          const TakeView(
+            takeId: 'gravacao-inteira',
+            kind: 'ensaio',
+            scope: KeptScope.whole,
+            pass: 1,
+            setAsideAt: FakeRoom.grainSwitchedAt,
+          ),
+        )
+        ..grain = Grain.scene
+        ..holdNextSceneList();
+
+      await _tapTheDot(tester);
+      await tester.pump(const Duration(milliseconds: 6000));
+      harness.room.finishHeldSceneList();
+      await _settles(tester);
+
+      expect(find.text(_how), findsNothing);
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text('Cena 1'), findsOneWidget);
+      expect(find.text(_whole), findsNothing);
+      expect(byLabel(_recordAgain), findsNothing);
+      expect(harness.room.clipsFetched, isEmpty);
     },
   );
 

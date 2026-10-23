@@ -3706,14 +3706,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (_gone) return;
     state = state.copyWith(grainSwitching: false);
-    if (_abandoned(generation)) {
-      if (answer case Answered(
-        value: final listing,
-      ) when state.sessionId == sessionId) {
-        _theGrainSwitched(listing, grain);
-      }
-      return;
-    }
+    if (_abandoned(generation)) return;
     switch (answer) {
       case Answered(value: final listing):
         _theGrainSwitched(listing, grain);
@@ -3745,45 +3738,32 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         TakesListing(takes: listing.takes, grain: listing.grain ?? asked),
       );
 
-  /// Whichever read tells it, the room's grain is the tablet's: a take the room set
-  /// aside, and on a new grain every take of the earlier one, leaves the parts, and when
-  /// one left the telling-back starts over in silence. The Outbox keeps every row; the
-  /// room sets a late one aside on arrival (ADR 0134).
+  /// Whichever read tells it, the room's grain is the tablet's: on a new grain every take
+  /// of the earlier one leaves the parts and the telling-back starts over in silence. The
+  /// Outbox keeps every row; the room sets a late one aside on arrival (ADR 0134).
   void _theRoomsGrainHeard(TakesListing listing) {
     final grain = listing.grain;
     if (grain == null) return;
     final newGrain = state.grain != grain;
-    final setAside = {
-      for (final take in listing.takes)
-        if (take.setAside) take.takeId,
-    };
-    bool leaves(KeptTake take) =>
-        setAside.contains(take.takeId) ||
-        newGrain &&
-            switch (grain) {
-              Grain.whole => KeptScope.isParte(take.scopeId),
-              Grain.scene => take.scopeId == KeptScope.whole,
-            };
-    final kept = [
-      for (final take in state.keptTakes)
-        if (!leaves(take)) take,
-    ];
-    final aTakeLeft = kept.length != state.keptTakes.length;
     state = state.copyWith(grainInForce: grain);
-    if (!aTakeLeft && !newGrain) return;
+    if (!newGrain) return;
+    bool leftBehind(KeptTake take) => switch (grain) {
+      Grain.whole => KeptScope.isParte(take.scopeId),
+      Grain.scene => take.scopeId == KeptScope.whole,
+    };
     state = state.copyWith(
-      keptTakes: kept,
+      keptTakes: [
+        for (final take in state.keptTakes)
+          if (!leftBehind(take)) take,
+      ],
       theRoomJoinedParts: _partesJuntadas(listing.takes),
       wholeHeldByTheRoom: grain == Grain.whole ? const {} : null,
+      clearParteARegravar: true,
     );
-    if (aTakeLeft) {
-      state = state.copyWith(clearParteARegravar: true);
-      _theTellingStartsOver(const []);
-      _weighTheRehearsal();
-    }
-    if (aTakeLeft || state.station is Ensaio) {
-      _rememberWhereTheyAre(state.station);
-    }
+    _theTellingStartsOver(const []);
+    _weighTheRehearsal();
+    unawaited(_countUnsent());
+    if (state.station is Ensaio) _rememberWhereTheyAre(state.station);
   }
 
   /// The plan's rows as they stand, or null off the plan.
@@ -6162,7 +6142,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// touches nothing of the plan open now.
   late int _plansOpened;
 
-  late Map<String?, Map<int, ({String path, int? pass})>> _notQueued;
+  late Map<String?, Map<String, ({String path, int? pass})>> _notQueued;
+
+  /// This session's keeps the Outbox could not take, by the row of the grain in force; a
+  /// keep of another grain stands on no row (ADR 0134).
+  Map<int, ({String scope, String path, int? pass})> get _notQueuedRows => {
+    for (final MapEntry(key: scope, value: (:path, :pass))
+        in (_notQueued[state.sessionId] ?? const {}).entries)
+      ?state.rowOf(scope): (scope: scope, path: path, pass: pass),
+  };
 
   late Map<(String?, int), int> _keepsInFlight;
 
@@ -6224,9 +6212,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (kind == 'ensaio') {
       _semNome[linha.id] = path;
-      if (state.rowOf(scope) case final n?) {
-        _notQueued[sessionId]?.remove(n);
-      }
+      _notQueued[sessionId]?.remove(scope);
     }
     if (kind == 'retro') _traducaoNaFila[path] = linha;
     await _countUnsent();
@@ -6242,9 +6228,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int? pass,
     String? sessionId,
   ) {
-    final number = state.rowOf(scope);
-    if (kind != 'ensaio' || number == null) return;
-    (_notQueued[sessionId] ??= {})[number] = (path: path, pass: pass);
+    if (kind != 'ensaio' || state.rowOf(scope) == null) return;
+    (_notQueued[sessionId] ??= {})[scope] = (path: path, pass: pass);
     unawaited(_countUnsent());
   }
 
@@ -6260,17 +6245,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _enviarAgora(int cena) async {
-    final whole = state.recordsTheWhole;
-    if (_notQueued[state.sessionId]?.remove(cena) case (
-      :final path,
-      :final pass,
-    )) {
+    if (_notQueuedRows[cena] case (:final scope, :final path, :final pass)) {
+      _notQueued[state.sessionId]?.remove(scope);
       return _guard(
         path,
         kind: 'ensaio',
-        scope: whole ? KeptScope.whole : KeptScope.parte(cena),
+        scope: scope,
         passNumber: pass,
-        chunkIndex: whole ? null : cena,
+        chunkIndex: KeptScope.numberOf(scope),
       );
     }
     final queue = _takes;
@@ -6501,7 +6483,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       behindANewerPass += rows.length - (speaking[number]?.length ?? 0);
     }
     final notQueued = [
-      for (final number in _notQueued[state.sessionId]?.keys ?? const <int>[])
+      for (final number in _notQueuedRows.keys)
         if (!speaking.containsKey(number)) number,
     ];
     return tally.unsentTakes - behindANewerPass + notQueued.length;
@@ -6528,7 +6510,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         failed: rows.any((row) => row.tries > 0 || row.exhausted || row.lost),
         length: _lengths[rows.last.path],
       ),
-    for (final number in _notQueued[state.sessionId]?.keys ?? const <int>[])
+    for (final number in _notQueuedRows.keys)
       if (!speaking.containsKey(number))
         number: const UnsentPart(fromAnEarlierVisit: false, failed: true),
   };

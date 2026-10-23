@@ -62,11 +62,13 @@ aside from a current one.
   that ask for the session): a room without the door must leave the team where it was, not
   retire its session.
 - **Whichever read tells it, the room's grain is the tablet's:** a listing that answers after
-  the choice stood and names a grain takes the team to that grain's home; a take the room set
-  aside leaves the tablet's parts, and so does every take of the earlier grain when the grain
-  changed. Under the whole grain the whole is never set aside; under the scene grain a whole
-  is never a part. Reading the plan again after «Cena por cena» starts a new generation, so a
-  read still in the air from before never decides over the grain chosen.
+  the choice stood and names a grain takes the team to that grain's home; when the grain
+  changed, every take of the earlier one leaves the tablet's parts and the telling-back starts
+  over in silence. Under the whole grain the whole is never set aside; under the scene grain a
+  whole is never a part. Reading the plan again after «Cena por cena» starts a new generation,
+  so a read still in the air from before never decides over the grain chosen.
+- **A keep the disk refused belongs to its grain:** its «falhou» stands on that grain's row
+  only, and a switch never lets another grain's row show or send it.
 - **The voice never speaks of the grain.**
 - **A whole rehearsal an app before 19 August sent is a whole-passage recording** while no
   scene has its part, as the room reads it: its home has the one row, and a finding over it
