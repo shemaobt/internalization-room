@@ -459,6 +459,9 @@ class SalaSessionState {
   /// The part numbers whose current part in the room's listing was laid in from a Scene
   /// rehearsal.
   final Set<int> theRoomJoinedParts;
+  final List<int> toBringBack;
+  final int? bringingBack;
+  final int? bringBackFailed;
 
   /// The takes of a whole rehearsal set aside behind the scenes' parts that only the room
   /// holds.
@@ -553,6 +556,9 @@ class SalaSessionState {
     this.joining,
     this.rehearsalsElsewhere = false,
     this.theRoomJoinedParts = const {},
+    this.toBringBack = const [],
+    this.bringingBack,
+    this.bringBackFailed,
     this.wholeHeldByTheRoom = const {},
   });
 
@@ -1319,6 +1325,11 @@ class SalaSessionState {
     bool clearJoining = false,
     bool? rehearsalsElsewhere,
     Set<int>? theRoomJoinedParts,
+    List<int>? toBringBack,
+    int? bringingBack,
+    bool clearBringingBack = false,
+    int? bringBackFailed,
+    bool clearBringBackFailed = false,
     Set<String>? wholeHeldByTheRoom,
   }) {
     return SalaSessionState(
@@ -1432,6 +1443,13 @@ class SalaSessionState {
       joining: clearJoining ? null : (joining ?? this.joining),
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
+      toBringBack: toBringBack ?? this.toBringBack,
+      bringingBack: clearBringingBack
+          ? null
+          : (bringingBack ?? this.bringingBack),
+      bringBackFailed: clearBringBackFailed
+          ? null
+          : (bringBackFailed ?? this.bringBackFailed),
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
     );
   }

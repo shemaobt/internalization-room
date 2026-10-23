@@ -587,6 +587,22 @@ const recordingHomeLabels = {
     'en': 'failed — tap to try again',
   },
   'retryAria': {'pt': 'Tentar enviar de novo', 'en': 'Try sending again'},
+  'bringBack': {
+    'pt': 'trazer de volta as traduções do ensaio desta cena',
+    'en': 'bring back this scene rehearsal\'s translations',
+  },
+  'bringBackArmed': {
+    'pt':
+        'toquem de novo: as traduções do ensaio voltam; as que vocês fizeram '
+        'aqui para esta cena ficam guardadas',
+    'en':
+        'tap again: the rehearsal\'s translations come back; the ones you made '
+        'here for this scene are kept',
+  },
+  'bringBackFailed': {
+    'pt': 'não deu para juntar esta cena — toquem para tentar de novo',
+    'en': 'this scene could not be joined — tap to try again',
+  },
   'translate': {'pt': 'Traduzir a gravação', 'en': 'Translate the recording'},
   'listenAndCheck': {
     'pt': 'ouvir e conferir o Ensaio Final',

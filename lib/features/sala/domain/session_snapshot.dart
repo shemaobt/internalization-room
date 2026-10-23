@@ -157,6 +157,7 @@ class BackTranslationProgress {
   final List<BtFinding> findings;
   final String? awaitingSegmentId;
   final List<SegmentView> stale;
+  final List<int> bringBack;
 
   const BackTranslationProgress({
     this.segments = const [],
@@ -165,6 +166,7 @@ class BackTranslationProgress {
     this.findings = const [],
     this.awaitingSegmentId,
     this.stale = const [],
+    this.bringBack = const [],
   });
 
   factory BackTranslationProgress.fromJson(Map<String, dynamic> json) =>
@@ -175,6 +177,10 @@ class BackTranslationProgress {
         findings: BtFinding.listFrom(json),
         awaitingSegmentId: json['awaiting_segment_id'] as String?,
         stale: SegmentView.staleFrom(json),
+        bringBack: [
+          for (final n in json['bring_back'] as List<dynamic>? ?? const [])
+            n as int,
+        ],
       );
 
   bool get nothingTold => segments.isEmpty;

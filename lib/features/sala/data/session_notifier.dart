@@ -1387,6 +1387,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _readsApplied = sent;
     state = state.copyWith(
       keptRetellings: snapshot.keptRetellings,
+      toBringBack: snapshot.backTranslation.bringBack,
       btRascunhoAprovado: snapshot.approved,
       clearBtRascunhoAprovado: snapshot.approved == null,
     );
@@ -3427,8 +3428,65 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       ensaio: EnsaioStatus.idle,
       peerCue: false,
+      clearBringBackFailed: true,
     );
     _readTheScenesForTheRehearsal();
+    unawaited(_readWhatComesBack());
+  }
+
+  Future<void> _readWhatComesBack() async {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    final generation = _generation;
+    final sent = ++_readsSent;
+    final read = await _room.fetchState(sessionId);
+    if (_abandoned(generation)) return;
+    if (read case Answered(value: final snapshot)) {
+      _applyTheSessionRead(snapshot, sent);
+    }
+  }
+
+  void trazerDeVoltaAsTraducoes(int cena) =>
+      _gesture(() => _trazerDeVolta(cena));
+
+  void _trazerDeVolta(int cena) {
+    final sessionId = state.sessionId;
+    if (state.station is! Ensaio || sessionId == null) return;
+    if (!state.toBringBack.contains(cena) ||
+        state.bringingBack != null ||
+        state.ensaio != EnsaioStatus.idle ||
+        state.needsPerson) {
+      return;
+    }
+    state = state.copyWith(clearBringBackFailed: true);
+    _armedTap(
+      'bringBack:$cena',
+      needs: true,
+      then: () => _handOff(_trazerDeVoltaNaSala(sessionId, cena)),
+    );
+  }
+
+  Future<void> _trazerDeVoltaNaSala(String sessionId, int cena) async {
+    final generation = _waitOnTheGeneration;
+    final life = _thisLife;
+    _silenceTheRoom();
+    state = state.copyWith(bringingBack: cena);
+    final answer = await _room.bringBackTheTranslations(sessionId, cena);
+    if (_endedSince(life)) return;
+    state = state.copyWith(clearBringingBack: true);
+    if (_abandoned(generation)) return;
+    switch (answer) {
+      case Answered(value: final segmentos):
+        state = state.copyWith(
+          btTrechos: _trechosFrom(segmentos),
+          toBringBack: [...state.toBringBack]..remove(cena),
+        );
+      case final SessionGone gone:
+        _decideAt(gone, door: Door.stretches);
+      case RoomFailure():
+        state = state.copyWith(bringBackFailed: cena);
+        unawaited(_readWhatComesBack());
+    }
   }
 
   void openTheEnsaioFinal() => _gesture(() => _openTheEnsaioFinal());
