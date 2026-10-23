@@ -361,6 +361,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final _random = Random();
   late DateTime? _listeningSince;
   late bool _recordingStarting;
+
+  /// The attempt of a «Novo ouvinte» no answer has landed for, with the version it asks
+  /// of: kept across a way back and a way in, so a lost answer never mints a second
+  /// listener.
+  late ({String sessionId, int version, String attempt})? _listenerAttempt;
   late _Passage? _emCurso;
   Trecho? get _trechoTraduzidoDeNovo => state.btTrechoTraduzidoDeNovo;
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
@@ -514,6 +519,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _lastAcknowledgement = 0;
     _listeningSince = null;
     _recordingStarting = false;
+    _listenerAttempt = null;
     _emCurso = null;
     _listenerInProgress = null;
     _faseAntesDeTraduzirDeNovo = null;
@@ -1327,6 +1333,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _logTheGuidesSound(event, before, machine);
     _followTheSound(before, machine);
     _followTheMicrophone(before, machine);
+    _followTheListener(before, machine);
     _stampTheQuestion();
   }
 
@@ -6349,6 +6356,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             takes: check.takes,
             listener: remembered.number,
             step: ends ? ListenerStep.done : ListenerStep.retell,
+            retellSaid: !ends,
             completed: ends ? true : null,
             finishAcknowledged: record.finished,
           ),
@@ -6382,10 +6390,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     final generation = _waitOnTheGeneration;
-    final attempt = shown.attempt ?? mintAUuid();
-    _showTheListener(
-      shown.copyWith(sending: true, clearLine: true, attempt: attempt),
+    final attempt = switch (_listenerAttempt) {
+      (:final attempt, sessionId: final kept, version: final asked)
+          when kept == sessionId && asked == station.version =>
+        attempt,
+      _ => mintAUuid(),
+    };
+    _listenerAttempt = (
+      sessionId: sessionId,
+      version: station.version,
+      attempt: attempt,
     );
+    _showTheListener(shown.copyWith(sending: true, clearLine: true));
     final answer = await _room.aNewListener(
       sessionId,
       station.version,
@@ -6395,12 +6411,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final asked = state.externalCheck.copyWith(sending: false);
     switch (answer) {
       case Answered(value: final number):
+        _listenerAttempt = null;
         _showTheListener(
-          asked.copyWith(
-            listener: number,
-            step: ListenerStep.playing,
-            clearAttempt: true,
-          ),
+          asked.copyWith(listener: number, step: ListenerStep.playing),
         );
         _listenerInProgress = (version: station.version, number: number);
         _rememberWhereTheyAre(station);
@@ -6414,20 +6427,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             ),
           );
         } on RoomFailure catch (failure) {
-          if (!_abandoned(generation)) _decideAt(failure, door: Door.stretches);
+          if (!_abandoned(generation)) {
+            _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
+          }
         }
         final paths = await parts;
         if (_abandoned(generation)) return;
         _hearTheWholePassage(paths);
       case SessionGone() && final failure:
+        _listenerAttempt = null;
         _decideTheFailure(failure);
       case NetworkFailed():
         _theNetworkFailedAt(Door.stretches);
         _showTheListener(asked.copyWith(line: ListenerLine.openFailed));
       case Refused():
-        _showTheListener(
-          asked.copyWith(line: ListenerLine.openFailed, clearAttempt: true),
-        );
+        _listenerAttempt = null;
+        _showTheListener(asked.copyWith(line: ListenerLine.openFailed));
     }
   }
 
@@ -6474,6 +6489,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       onComplete: _theListenerHeardItAll,
       onFailed: _thePassageStalled,
     );
+    if (state.channel is! Playing) _thePassageStalled();
   }
 
   void _thePassageStalled() =>
@@ -6485,12 +6501,41 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _showTheListener(state.externalCheck.copyWith(step: ListenerStep.retell));
-    _handOff(
-      _sayALine(
+    _handOff(_sayTheRetellLine());
+  }
+
+  /// X-retell opens the circle once said, or once it cannot sound (her rule: the screen
+  /// says it). A line a person's call cut is said again when the room is back.
+  Future<void> _sayTheRetellLine() async {
+    Said said;
+    try {
+      said = await _sayTheLine(
         LineKind.guide,
         fixedLine: (name: listenerRetellLine, language: _inTheSessionsLanguage),
-      ),
-    );
+      );
+    } on RoomFailure catch (failure) {
+      _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
+      said = Said.failed;
+    }
+    if (state.station is! ChecagemExterna ||
+        state.externalCheck.step != ListenerStep.retell ||
+        (said == Said.unsaid && state.halt is Blocking)) {
+      return;
+    }
+    _showTheListener(state.externalCheck.copyWith(retellSaid: true));
+  }
+
+  void _followTheListener(Machine before, Machine after) {
+    if (after.station is! ChecagemExterna) return;
+    final shown = state.externalCheck;
+    final halted = after.halt is Blocking && before.halt is! Blocking;
+    final back = before.halt is Blocking && after.halt is! Blocking;
+    if (halted && shown.step == ListenerStep.playing) {
+      _showTheListener(shown.copyWith(stalled: true));
+    }
+    if (back && shown.step == ListenerStep.retell && !shown.retellSaid) {
+      _handOff(_sayTheRetellLine());
+    }
   }
 
   void hearTheWholePassageAgain() =>
@@ -6507,7 +6552,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void listenerTap() => _gesture(() {
-    if (state.listenerRecording) return _handOff(_keepTheRetelling());
+    if (_recordingStarting) return;
+    if (state.listenerRecording) {
+      if (!state.externalCheck.sending) _handOff(_keepTheRetelling());
+      return;
+    }
     if (!state.listenerCircleOpen) return;
     _showTheListener(
       state.externalCheck.copyWith(
@@ -6523,16 +6572,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     final station = state.station;
     final listener = state.externalCheck.listener;
-    final path = (await _closeTheMicrophone()).take;
-    _showTheListener(state.externalCheck.copyWith(clearRecordingSince: true));
-    if (path == null) return;
-    if (station is! ChecagemExterna ||
+    _showTheListener(state.externalCheck.copyWith(sending: true));
+    final String? path;
+    try {
+      path = (await _closeTheMicrophone()).take;
+    } on Exception {
+      _showTheListener(
+        state.externalCheck.copyWith(sending: false, clearRecordingSince: true),
+      );
+      return;
+    }
+    final closed = state.externalCheck.copyWith(clearRecordingSince: true);
+    if (path == null ||
+        station is! ChecagemExterna ||
         sessionId == null ||
         listener == null ||
         _anAccidentalTap(path)) {
-      return _recorder.delete(path);
+      _showTheListener(closed.copyWith(sending: false));
+      if (path != null) unawaited(_recorder.delete(path));
+      return;
     }
-    _showTheListener(state.externalCheck.copyWith(sending: true));
+    _showTheListener(closed);
     final sent = await _room.sendTheListenerRecording(
       sessionId,
       station.version,
