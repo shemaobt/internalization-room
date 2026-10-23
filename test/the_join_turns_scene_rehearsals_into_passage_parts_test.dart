@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/ensaio_final_plan.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -183,6 +184,16 @@ class _Room {
 
   Finder onRow(int n, Finder target, [List<Scene> scenes = _threeScenes]) =>
       find.descendant(of: row(n, scenes), matching: target);
+
+  /// The held scope's own request reached the room, not only asked to be held.
+  bool get theHeldTakeArrived => _arrived;
+  bool _arrived = false;
+
+  void holdTheTake(String scope) {
+    _arrived = false;
+    room.holdNextTake(scope);
+    unawaited(room.untilTakeHeld().then((_) => _arrived = true));
+  }
 
   bool ticked(int n) => onRow(n, find.text(_tick)).evaluate().isNotEmpty;
 
@@ -483,12 +494,12 @@ void main() {
         await it.heldOnTheTablet(n);
       }
       await it.openThePlan();
-      it.room.holdNextTake('parte-2');
+      it.holdTheTake('parte-2');
 
       await it.tapJoin();
       await it.until(
         'a parte 2 chegar à porta',
-        () => it.room.holdTakeScope == 'parte-2' && it.ticked(1),
+        () => it.theHeldTakeArrived && it.ticked(1),
       );
       await it.wait(const Duration(seconds: 69));
       expect(find.text(_retry), findsNothing, reason: 'aos 69 s');
@@ -723,6 +734,216 @@ void main() {
     },
   );
 
+  group('a join row the Outbox still held', () {
+    Future<_Room> givenUpOnPart2(WidgetTester tester) async {
+      final it = await _atRest(tester);
+      it.seed();
+      for (final n in [1, 2, 3]) {
+        await it.heldOnTheTablet(n);
+      }
+      await it.openThePlan();
+      it.holdTheTake('parte-2');
+      await it.tapJoin();
+      await it.until(
+        'a parte 2 chegar à porta',
+        () => it.theHeldTakeArrived && it.ticked(1),
+      );
+      await it.wait(joinAnswerWait);
+      await it.until(
+        'a linha 2 pedir outra tentativa',
+        () => it.onRow(2, find.text(_retry)).evaluate().isNotEmpty,
+      );
+      return it;
+    }
+
+    testWidgets(
+      'and the room then refused for good is joined again from the start '
+      'at the next tap',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await givenUpOnPart2(tester);
+        it.room.refuseTake = 'ensaio/parte-2';
+        it.room.refuseTakeCode = 'HTTP_500';
+        it.room.finishHeldTake();
+        await it.settle();
+        await tester.tap(it.onRow(2, find.text(_retry)));
+        await it.until(
+          'a linha 2 pedir outra tentativa de novo',
+          () =>
+              it.container.read(salaSessionProvider).joining == null &&
+              it.onRow(2, find.text(_retry)).evaluate().isNotEmpty,
+        );
+        it.room.refuseTake = null;
+
+        await tester.tap(it.onRow(2, find.text(_retry)));
+        await _theJoinEnds(it);
+
+        expect(it.partsReceived, ['parte-1', 'parte-2', 'parte-3']);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'that lands on its own as a take that is not the part claims nothing',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await givenUpOnPart2(tester);
+        it.room.takes.addAll([
+          TakeView(
+            takeId: 'gravacao-junta-antiga',
+            kind: 'ensaio',
+            scope: KeptScope.parte(2),
+            ordinal: 2,
+            pass: 1,
+            origin: it.idOf(2),
+          ),
+          TakeView(
+            takeId: 'gravacao-a-mao',
+            kind: 'ensaio',
+            scope: KeptScope.parte(2),
+            ordinal: 2,
+            pass: 2,
+          ),
+        ]);
+        it.room.takeAudio['gravacao-junta-antiga'] = _bytesOf(2);
+        it.room.takeAudio['gravacao-a-mao'] = _bytesOf(7);
+        it.room.finishHeldTake();
+        await it.settle();
+        expect(it.ticked(2), isFalse);
+
+        await tester.tap(it.onRow(2, find.text(_retry)));
+        var ticked = false;
+        for (var vez = 0; vez < 100 && !it.showsTheHome(); vez++) {
+          await it.beat(const Duration(milliseconds: 20));
+          ticked = ticked || it.ticked(2);
+        }
+
+        expect(it.showsTheHome(), isTrue);
+        expect(ticked, isFalse);
+        expect(it.partsReceived, isNot(contains('parte-3')));
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'gives way to the scene recorded again by hand, and only the hand take '
+      'goes up',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        it.seed();
+        await it.openThePlan();
+        it.room.unreachableTake = 'ensaio/parte-2';
+        await it.tapJoin();
+        await it.wait(const Duration(seconds: 100));
+        await it.until(
+          'a linha 2 pedir outra tentativa',
+          () => it.onRow(2, find.text(_retry)).evaluate().isNotEmpty,
+        );
+        final sala = it.container.read(salaSessionProvider.notifier);
+        sala.recordSceneByScene();
+        await it.settle();
+
+        SalaSessionState read() => it.container.read(salaSessionProvider);
+        await it.until('as cenas chegarem', () => read().sceneRows.length == 3);
+        sala.gravarACena(2);
+        await it.until(
+          'a cena 2 gravar',
+          () => read().ensaio == EnsaioStatus.recording,
+        );
+        sala.gravarACena(2);
+        await it.until(
+          'a gravação esperar o visto',
+          () => read().ensaio == EnsaioStatus.recorded,
+        );
+        sala.takeKeep();
+        await it.settle();
+        it.room.unreachableTake = null;
+        sala.enviarACena(2);
+        await it.until(
+          'a parte 2 subir',
+          () => it.partsReceived.contains('parte-2'),
+        );
+        await it.settle();
+
+        final part2 = [
+          for (final take in it.room.takesReceivedWhole)
+            if (take.scope == 'parte-2') take,
+        ];
+        expect(part2, hasLength(1));
+        expect(part2.single.origin, isNull);
+        final left = await tester.runAsync(it.harness.takes.pending);
+        expect(left!.where((row) => row.origin != null), isEmpty);
+        semantics.dispose();
+      },
+    );
+  });
+
+  testWidgets(
+    'a join row behind a slow upload is not given up before its own request '
+    'goes out',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      await it.heldOnTheTablet(1);
+      await it.openThePlan();
+      await tester.runAsync(() async {
+        final slow = File('${it.harness.takesHome.path}/lenta.m4a')
+          ..writeAsBytesSync([1, 2, 3, 4]);
+        await it.harness.takes.enqueue(
+          slow,
+          sessionId: it.sessionId,
+          kind: 'ensaio',
+          scope: 'parte-9',
+          chunkIndex: 9,
+        );
+      });
+      it.room.holdNextTake('parte-9');
+
+      await it.tapJoin();
+      await it.until(
+        'a gravação lenta chegar à porta',
+        () => it.room.holdTakeScope == 'parte-9',
+      );
+      await it.wait(const Duration(seconds: 100));
+
+      expect(it.onRow(1, find.text(_retry)), findsNothing);
+      it.room.finishHeldTake();
+      await it.until('a linha 1 ganhar o visto', () => it.ticked(1));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a joined part goes up above the highest pass the room holds for it when '
+    'its row is written',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      await it.openThePlan();
+      it.room.takes.add(
+        TakeView(
+          takeId: 'gravacao-de-outro-tablet',
+          kind: 'ensaio',
+          scope: KeptScope.parte(2),
+          ordinal: 2,
+          pass: 3,
+          origin: 'ensaio-de-outro-tablet',
+        ),
+      );
+      it.room.takeAudio['gravacao-de-outro-tablet'] = _bytesOf(8);
+
+      await it.tapJoin();
+      await _theJoinEnds(it);
+
+      final at = it.room.takesReceived.indexWhere((t) => t.scope == 'parte-2');
+      expect(it.room.takePasses[at], 4);
+      semantics.dispose();
+    },
+  );
+
   testWidgets(
     'a scene with an unsent hand-recorded take keeps the dot on the recording '
     'home and the take is not sent by it',
@@ -832,6 +1053,17 @@ void main() {
         expect(take.path, isNot(contains('cena-')));
         expect(take.origin, isNotNull);
       }
+      it.container.read(salaSessionProvider.notifier).theAppWentAway();
+      await it.settle();
+      expect(
+        [
+          for (final report in it.room.listeningReports)
+            for (final part in report)
+              if ((part['played_ranges'] as List).isNotEmpty) part,
+        ],
+        isEmpty,
+        reason: 'a escuta do ensaio no plano não conta para a parte',
+      );
       semantics.dispose();
     },
   );
@@ -867,13 +1099,10 @@ void main() {
     final it = await _atRest(tester, lingua: 'en', scenes: _threeScenesEn);
     it.seed();
     await it.openThePlan();
-    it.room.holdNextTake('parte-1');
+    it.holdTheTake('parte-1');
 
     await it.tapJoin(_joinEn);
-    await it.until(
-      'a parte 1 chegar à porta',
-      () => it.room.holdTakeScope == 'parte-1',
-    );
+    await it.until('a parte 1 chegar à porta', () => it.theHeldTakeArrived);
     expect(find.text('joining scene 1 of 3…'), findsOneWidget);
     await it.wait(const Duration(seconds: 70));
     await it.settle();

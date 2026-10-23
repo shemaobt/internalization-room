@@ -90,9 +90,6 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                       _PlanRowView(
                         row: row,
                         language: language,
-                        joined:
-                            row.joined ||
-                            session.joinRows[row.number] == JoinRow.joined,
                         outcome: session.joinRows[row.number],
                         idle: idle,
                         onPlay: () =>
@@ -145,7 +142,6 @@ class EnsaioFinalPlanView extends ConsumerWidget {
 class _PlanRowView extends StatelessWidget {
   final PlanRow row;
   final String language;
-  final bool joined;
   final JoinRow? outcome;
   final bool idle;
   final VoidCallback onPlay;
@@ -155,7 +151,6 @@ class _PlanRowView extends StatelessWidget {
   const _PlanRowView({
     required this.row,
     required this.language,
-    required this.joined,
     required this.outcome,
     required this.idle,
     required this.onPlay,
@@ -219,7 +214,7 @@ class _PlanRowView extends StatelessWidget {
                           style: TextStyle(color: colors.mut, fontSize: 14),
                         ),
                       ),
-                      if (joined)
+                      if (row.joined)
                         Text(
                           '✓',
                           style: TextStyle(color: colors.ink, fontSize: 15),
@@ -249,7 +244,7 @@ class _PlanRowView extends StatelessWidget {
                     semanticLabel:
                         '${ensaioFinalPlanLabelFor('listen', language)} — $facts',
                     mood: idle ? ButtonMood.lit : ButtonMood.dimmed,
-                    onTap: idle ? onPlay : () {},
+                    onTap: onPlay,
                     child: const Icon(
                       LucideIcons.play,
                       size: 18,

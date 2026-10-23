@@ -3235,6 +3235,21 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
+  Stream<String> get rowsLeaving => const Stream.empty();
+
+  @override
+  bool inTheAir(String row) => false;
+
+  @override
+  Future<void> withdrawTheJoinsOf(String sessionId, String scope) async =>
+      rows.removeWhere(
+        (entry) =>
+            entry.origin != null &&
+            entry.sessionId == sessionId &&
+            entry.scope == scope,
+      );
+
+  @override
   Stream<void> get fallsOnTheNetwork => const Stream.empty();
 
   final StreamController<String> _sessionsGone =

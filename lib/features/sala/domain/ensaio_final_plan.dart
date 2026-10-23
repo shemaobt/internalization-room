@@ -50,19 +50,31 @@ final class PlanRead extends EnsaioFinalPlan {
     this.waiting = const {},
   });
 
-  PlanRead withThePart(int number, String origin, {required bool landed}) =>
-      PlanRead(
-        rehearsals: rehearsals,
-        scenes: scenes,
-        joined: landed ? {...joined, number: origin} : joined,
-        waiting: landed
-            ? {
-                for (final entry in waiting.entries)
-                  if (entry.key != number) entry.key: entry.value,
-              }
-            : {...waiting, number: origin},
-      );
+  PlanRead withThePart(int number, String origin, JoinedPart where) {
+    bool other(int n) => n != number;
+    return PlanRead(
+      rehearsals: rehearsals,
+      scenes: scenes,
+      joined: {
+        for (final MapEntry(:key, :value) in joined.entries)
+          if (other(key)) key: value,
+        if (where == JoinedPart.landed) number: origin,
+      },
+      waiting: {
+        for (final MapEntry(:key, :value) in waiting.entries)
+          if (other(key)) key: value,
+        if (where == JoinedPart.waiting) number: origin,
+      },
+    );
+  }
 }
+
+/// Where a scene's join left its part: landed as the part, still in the Outbox, or
+/// nowhere.
+enum JoinedPart { landed, waiting, nowhere }
+
+/// How one scene's join ended, and where it left the part.
+typedef JoinOutcome = ({JoinRow row, JoinedPart part});
 
 /// How one scene's join ended on this visit of the plan.
 enum JoinRow { joining, joined, cannotEnter, retry, notThePart }

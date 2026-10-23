@@ -568,7 +568,7 @@ class TakeUploadQueue {
   ))!;
 
   /// A row of a join: the rehearsal's own bytes as the part, written only when the copy
-  /// is [fingerprint]'s, and stamped with the moment it was written.
+  /// is [fingerprint]'s. Each try sends the moment it is made as its Recording time.
   Future<PendingTake?> enqueueTheJoin(
     File audio, {
     required String sessionId,
@@ -649,6 +649,15 @@ class TakeUploadQueue {
   Stream<String> get sessionsGone => _sessionsGone.stream;
 
   PendingTake? _inTheAir;
+
+  final StreamController<String> _leaving = StreamController<String>.broadcast(
+    sync: true,
+  );
+
+  /// Each row's id as its own request goes out to the room.
+  Stream<String> get rowsLeaving => _leaving.stream;
+
+  bool inTheAir(String row) => _inTheAir?.id == row;
 
   /// The room turned the tablet away, not the take: nothing more leaves until it is
   /// linked again, and nothing is given up for it.
@@ -748,6 +757,7 @@ class TakeUploadQueue {
         );
         return _Landing.givenUp;
       }
+      _leaving.add(entry.id);
       answer = entry.kind == sceneTakeKind
           ? await _sendTheScene(entry, file)
           : await _room.sendTake(
@@ -961,6 +971,30 @@ class TakeUploadQueue {
     });
     for (final entry in discarded) {
       if (!_isInTheAir(entry)) await _deleteTheCopy(entry);
+    }
+  }
+
+  /// Take every join row of [scope] still waiting off the manifest, with its copy: the
+  /// team recorded the part again by hand.
+  Future<void> withdrawTheJoinsOf(String sessionId, String scope) async {
+    final removed = <PendingTake>[];
+    await _mutate((written) {
+      final kept = <PendingTake>[];
+      for (final entry in written) {
+        if (!entry.stored &&
+            entry.origin != null &&
+            entry.sessionId == sessionId &&
+            entry.scope == scope &&
+            !_isInTheAir(entry)) {
+          removed.add(entry);
+          continue;
+        }
+        kept.add(entry);
+      }
+      return kept;
+    });
+    for (final entry in removed) {
+      await _deleteTheCopy(entry);
     }
   }
 

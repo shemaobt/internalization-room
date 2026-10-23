@@ -3499,12 +3499,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           rehearsals: listed,
           scenes: passage,
           joined: {
-            for (final part in state.partes)
-              if ((KeptScope.numberOf(part.scopeId), part.origin) case (
-                final n?,
-                final origin?,
-              ))
-                n: origin,
             for (final MapEntry(:key, :value) in _correntes(guardadas).entries)
               if ((key, value.origin) case (final n?, final origin?)) n: origin,
           }..removeWhere((n, _) => waiting.containsKey(n)),
@@ -3621,36 +3615,38 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         joining: step.number,
         joinRows: {...state.joinRows, step.number: JoinRow.joining},
       );
-      final (outcome, landed) = step.waiting
+      final joined = step.waiting
           ? await _watchTheWaitingPart(sessionId, step, generation, life)
           : await _joinTheScene(sessionId, step, generation, life);
-      if (_left(generation, life)) return;
+      if (_left(generation, life)) {
+        if (!_gone) state = state.copyWith(clearJoining: true);
+        return;
+      }
       final read = state.ensaioFinalPlan;
       state = state.copyWith(
-        joinRows: {...state.joinRows, step.number: outcome},
-        ensaioFinalPlan: switch ((read, landed)) {
-          (final PlanRead read, final landed?) => read.withThePart(
-            step.number,
-            step.rehearsal.rehearsalId,
-            landed: landed,
-          ),
-          _ => read,
-        },
+        joinRows: {...state.joinRows, step.number: joined.row},
+        ensaioFinalPlan: read is PlanRead
+            ? read.withThePart(
+                step.number,
+                step.rehearsal.rehearsalId,
+                joined.part,
+              )
+            : read,
       );
-      if (outcome == JoinRow.retry) {
+      if (joined.row == JoinRow.retry) {
         state = state.copyWith(clearJoining: true);
         return;
       }
-      if (outcome == JoinRow.notThePart) break;
+      if (joined.row == JoinRow.notThePart) break;
     }
     state = state.copyWith(clearJoining: true);
     _openTheRecordingHome(sessionId);
   }
 
   /// One scene's join: the rehearsal's bytes, kept as the part's own file, written as an
-  /// Outbox row under the rehearsal's fingerprint and watched to its landing. The second
-  /// value says where the part now is: landed, still in the Outbox, or nowhere.
-  Future<(JoinRow, bool?)> _joinTheScene(
+  /// Outbox row under the rehearsal's fingerprint above every pass the room holds for the
+  /// part, and watched to its landing.
+  Future<JoinOutcome> _joinTheScene(
     String sessionId,
     JoinStep step,
     int generation,
@@ -3664,8 +3660,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal,
         fromTheTablet: fromTheTablet,
       );
-      if (_left(generation, life)) return (JoinRow.retry, null);
-      if (bytes == null) return (refused!, null);
+      if (_left(generation, life)) return _joinLeftBehind;
+      if (bytes == null) return (row: refused!, part: JoinedPart.nowhere);
+      final pass = await _theNextPassOf(sessionId, number);
+      if (_left(generation, life)) return _joinLeftBehind;
       final String partPath;
       final PendingTake? row;
       try {
@@ -3674,48 +3672,65 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           File(partPath),
           sessionId: sessionId,
           number: number,
-          passNumber: (_passadasDaSala?[number] ?? 0) + 1,
+          passNumber: pass,
           origin: id,
           fingerprint: rehearsal.sha256,
         );
       } on Exception {
-        return (JoinRow.retry, null);
+        return (row: JoinRow.retry, part: JoinedPart.nowhere);
       }
-      if (_left(generation, life)) return (JoinRow.retry, null);
+      if (_left(generation, life)) return _joinLeftBehind;
       if (row == null) {
         await _recorder.delete(partPath);
-        if (!fromTheTablet) return (JoinRow.cannotEnter, null);
+        if (!fromTheTablet) {
+          return (row: JoinRow.cannotEnter, part: JoinedPart.nowhere);
+        }
         fromTheTablet = false;
         continue;
       }
       _rowsOfThisVisit.add(row.id);
       _semNome[row.id] = partPath;
+      final scope = KeptScope.parte(number);
       state = state.copyWith(
         keptTakes: [
-          ...state.keptTakes,
-          KeptTake(
-            scopeId: KeptScope.parte(number),
-            path: partPath,
-            pass: row.passNumber!,
-            origin: id,
-          ),
+          for (final take in state.keptTakes)
+            if (take.scopeId != scope || take.origin == null) take,
+          KeptTake(scopeId: scope, path: partPath, pass: pass, origin: id),
         ],
       );
       _rememberWhereTheyAre(const Canvas());
       unawaited(_countUnsent());
-      return _watchTheRow(
-        sessionId,
-        number,
-        row.id,
-        partPath,
-        generation,
-        life,
-      );
+      return _watchTheRow(sessionId, step, row.id, partPath, generation, life);
     }
   }
 
-  /// A joined part an earlier try left in the Outbox: sent again now, and watched.
-  Future<(JoinRow, bool?)> _watchTheWaitingPart(
+  static const JoinOutcome _givenUpWaiting = (
+    row: JoinRow.retry,
+    part: JoinedPart.waiting,
+  );
+
+  static const JoinOutcome _joinLeftBehind = (
+    row: JoinRow.retry,
+    part: JoinedPart.nowhere,
+  );
+
+  /// One pass above the highest the room lists for the part as the row is written, and
+  /// above every pass this tablet already knew of.
+  Future<int> _theNextPassOf(String sessionId, int number) async {
+    final known = _passadasDaSala?[number] ?? 0;
+    final listing = await _withinTheJoinWait(_room.takesOf(sessionId));
+    final listed = switch (listing) {
+      Answered(value: final guardadas) =>
+        _passadasMaisAltas(guardadas)[number] ?? 0,
+      _ => 0,
+    };
+    return max(known, listed) + 1;
+  }
+
+  /// A joined part an earlier try left in the Outbox: sent again now, and watched. Gone
+  /// from the Outbox, it landed only if the room says the part is that rehearsal's;
+  /// with no part in the room at all, the scene is joined again from the start.
+  Future<JoinOutcome> _watchTheWaitingPart(
     String sessionId,
     JoinStep step,
     int generation,
@@ -3730,18 +3745,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               entry.origin != null,
         )
         .lastOrNull;
-    if (_left(generation, life)) return (JoinRow.retry, null);
-    if (row == null) return (JoinRow.joined, true);
-    if (!row.exhausted) await _takes.dueAgain(row.id);
-    final part = state.partes.where((take) => take.scopeId == scope);
-    return _watchTheRow(
-      sessionId,
-      step.number,
-      row.id,
-      part.firstOrNull?.path,
-      generation,
-      life,
-    );
+    if (_left(generation, life)) return _joinLeftBehind;
+    final partPath = state.partes
+        .where((take) => take.scopeId == scope)
+        .firstOrNull
+        ?.path;
+    if (row != null) {
+      if (!row.exhausted) await _takes.dueAgain(row.id);
+      return _watchTheRow(sessionId, step, row.id, partPath, generation, life);
+    }
+    final listing = await _withinTheJoinWait(_room.takesOf(sessionId));
+    if (_left(generation, life)) return _joinLeftBehind;
+    if (listing is! Answered<List<TakeView>>) {
+      return (row: JoinRow.retry, part: JoinedPart.waiting);
+    }
+    return switch (_correntes(listing.value)[step.number]) {
+      null => _joinTheScene(sessionId, step, generation, life),
+      final current when current.origin == step.rehearsal.rehearsalId => (
+        row: JoinRow.joined,
+        part: JoinedPart.landed,
+      ),
+      _ => _notThePart(partPath),
+    };
   }
 
   /// The rehearsal's bytes: this tablet's file when [fromTheTablet] and it holds one,
@@ -3780,13 +3805,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     };
   }
 
-  /// A join row flushed until it lands. A room that does not answer within
-  /// [joinAnswerWait] says to try again; one that asks it to wait is asked again every
-  /// [joinQuietPause] for [joinQuietWait]; a refusal that names the rehearsal as not
-  /// this part's says it cannot enter.
-  Future<(JoinRow, bool?)> _watchTheRow(
+  /// A join row flushed until it lands. A request of the row's own that has no answer
+  /// within [joinAnswerWait] says to try again; a room that asks it to wait is asked
+  /// again every [joinQuietPause] for [joinQuietWait]; a refusal that names the
+  /// rehearsal as not this part's says it cannot enter.
+  Future<JoinOutcome> _watchTheRow(
     String sessionId,
-    int number,
+    JoinStep step,
     String rowId,
     String? partPath,
     int generation,
@@ -3794,43 +3819,57 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     final began = clock.now();
     while (true) {
-      final flushed = await _withinTheJoinWait(_takes.flush());
-      if (_left(generation, life)) return (JoinRow.retry, null);
-      if (flushed == null) return (JoinRow.retry, false);
+      final leaving = Completer<void>();
+      final watching = _takes.rowsLeaving.where((id) => id == rowId).listen((
+        _,
+      ) {
+        if (!leaving.isCompleted) leaving.complete();
+      });
+      if (_takes.inTheAir(rowId)) leaving.complete();
+      final flushed = await _withinTheJoinWait(
+        _takes.flush(),
+        from: leaving.future,
+      );
+      await watching.cancel();
+      if (_left(generation, life)) return _joinLeftBehind;
+      if (flushed == null) return _givenUpWaiting;
       await _adoptTheNames(_takes);
       if (await _takes.takeIdOf(rowId) case final landed?) {
-        return _thePartItLandedAs(sessionId, number, landed, partPath);
+        return _thePartItLandedAs(sessionId, step.number, landed, partPath);
       }
       final row = (await _takes.pending())
           .where((entry) => entry.id == rowId)
           .firstOrNull;
-      if (_left(generation, life)) return (JoinRow.retry, null);
-      if (row == null) return (JoinRow.retry, null);
+      if (_left(generation, life)) return _joinLeftBehind;
+      if (row == null) return (row: JoinRow.retry, part: JoinedPart.nowhere);
       if (row.exhausted) {
         await _takes.withdraw(row);
         _semNome.remove(rowId);
         _letGoOfTheJoinedPart(partPath);
-        return switch (row.refusal) {
-          RefusalCode.unknownReference ||
-          RefusalCode.takeFingerprintDiffers => (JoinRow.cannotEnter, null),
-          _ => (JoinRow.retry, null),
-        };
+        return (
+          row: switch (row.refusal) {
+            RefusalCode.unknownReference ||
+            RefusalCode.takeFingerprintDiffers => JoinRow.cannotEnter,
+            _ => JoinRow.retry,
+          },
+          part: JoinedPart.nowhere,
+        );
       }
       if (row.waits == 0 || clock.now().difference(began) >= joinQuietWait) {
-        return (JoinRow.retry, false);
+        return _givenUpWaiting;
       }
       final pause = Completer<void>();
       _after('joinPause', joinQuietPause, pause.complete);
       await pause.future;
       await _takes.dueAgain(rowId);
-      if (_left(generation, life)) return (JoinRow.retry, null);
+      if (_left(generation, life)) return _joinLeftBehind;
     }
   }
 
   /// The room answers the take it already holds for the same bytes, whatever part it is
   /// now: a part recorded again by hand since keeps its place, and the join lands
   /// nothing.
-  Future<(JoinRow, bool?)> _thePartItLandedAs(
+  Future<JoinOutcome> _thePartItLandedAs(
     String sessionId,
     int number,
     String landed,
@@ -3840,13 +3879,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (listing case Answered(
       value: final guardadas,
     ) when _correntes(guardadas)[number]?.takeId != landed) {
-      _letGoOfTheJoinedPart(partPath);
-      return (JoinRow.notThePart, null);
+      return _notThePart(partPath);
     }
-    return (JoinRow.joined, true);
+    return (row: JoinRow.joined, part: JoinedPart.landed);
+  }
+
+  JoinOutcome _notThePart(String? partPath) {
+    _letGoOfTheJoinedPart(partPath);
+    return (row: JoinRow.notThePart, part: JoinedPart.nowhere);
   }
 
   void _letGoOfTheJoinedPart(String? partPath) {
+    if (partPath == null) return;
     state = state.copyWith(
       keptTakes: [
         for (final take in state.keptTakes)
@@ -3854,19 +3898,40 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ],
     );
     _rememberWhereTheyAre(const Canvas());
+    unawaited(_recorder.delete(partPath));
+  }
+
+  /// The team recorded the part again by hand: a join of it still in the Outbox would
+  /// land later and take the part's place.
+  Future<void> _withdrawTheJoinsOf(int number) async {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    await _takes.withdrawTheJoinsOf(sessionId, KeptScope.parte(number));
   }
 
   bool _left(int generation, int? life) =>
       _abandoned(generation) || _endedSince(life);
 
-  /// [work]'s answer, or null when it has not come within [joinAnswerWait].
-  Future<T?> _withinTheJoinWait<T>(Future<T> work) async {
+  /// [work]'s answer, or null when it has not come within [joinAnswerWait] of [from].
+  Future<T?> _withinTheJoinWait<T>(Future<T> work, {Future<void>? from}) async {
     T? answered;
+    var done = false;
+    Timer? mine;
     final gate = Completer<void>();
-    _after('joinAnswer', joinAnswerWait, gate.complete);
-    final mine = _timers['joinAnswer'];
+    void arm() {
+      if (done) return;
+      _after('joinAnswer', joinAnswerWait, gate.complete);
+      mine = _timers['joinAnswer'];
+    }
+
+    if (from == null) {
+      arm();
+    } else {
+      unawaited(from.then((_) => arm()));
+    }
     await Future.any([work.then((value) => answered = value), gate.future]);
-    if (identical(_timers['joinAnswer'], mine)) {
+    done = true;
+    if (mine != null && identical(_timers['joinAnswer'], mine)) {
       _timers.remove('joinAnswer')?.cancel();
     }
     return answered;
@@ -5665,6 +5730,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearParteARegravar: true,
       clearCenaDaGravacao: true,
     );
+    unawaited(_withdrawTheJoinsOf(numero));
     // A scene list not answered yet is asked again at each keep, the moment the team
     // next needs it to move on.
     _readTheScenesForTheRehearsal();
