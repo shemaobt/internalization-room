@@ -8,9 +8,11 @@ const _intoTheMapper = [
   '_decideTheFailure(',
   '_decideAt(',
   '_theNetworkFailedAt(',
+  '_theNetworkFailedIn(',
   '_theStepsNetworkFailed(',
   '_theResumeFailed(',
   '_theSessionIsGone(',
+  '_theSessionIsGoneIn(',
   '_giveUpOnTheTurn(',
   'rethrow',
 ];
