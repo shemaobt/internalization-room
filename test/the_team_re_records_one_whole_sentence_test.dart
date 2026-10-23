@@ -1600,4 +1600,43 @@ void main() {
     expect(harness.room.releasesAsked, isEmpty);
     closeTheRoom(container);
   });
+
+  for (final (fala, comArquivo) in [
+    ('a recording', true),
+    ('no recording', false),
+  ]) {
+    testWidgets('a re-record closed while its microphone still closes, then '
+        'an approval: the late close with $fala lands nothing and queues '
+        'nothing', (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await conferidaComANuanceNaFrase3(tester, harness);
+      await regravarAte(tester, harness, 3);
+      await _tocarOCirculo(tester);
+      if (comArquivo) {
+        harness.recorder.rehearsalSpeaks = aSpokenWav(
+          length: const Duration(seconds: 2),
+        );
+      }
+      harness.recorder.holdNextStop();
+      await _tocarOCirculo(tester);
+      await tocar(tester, 'regravar a frase 3');
+
+      harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      harness.voice.holdNextLine();
+      await tocar(tester, aprovar);
+      harness.recorder.finishStop();
+      await _passo(tester);
+      await _passo(tester);
+
+      expect(
+        container.read(salaSessionProvider).btRegravacao,
+        isNull,
+        reason: 'o fecho atrasado reabria uma regravação já largada',
+      );
+      expect(guardada(harness), isFalse);
+      harness.voice.finishHeldLine();
+      await _passo(tester);
+      closeTheRoom(container);
+    });
+  }
 }

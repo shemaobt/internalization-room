@@ -102,7 +102,9 @@ class RetroView extends ConsumerWidget {
               halt: session.halt,
               voice: voz,
               tongue: lingua,
-              answersATouch: !conferida || session.btRegravacao != null,
+              answersATouch:
+                  session.aBackTranslationGestureActs &&
+                  (!conferida || session.btRegravacao != null),
               warning: session.warning && session.approvedDraftDrawn == null
                   ? warningNoticeLabelFor(language)
                   : null,
