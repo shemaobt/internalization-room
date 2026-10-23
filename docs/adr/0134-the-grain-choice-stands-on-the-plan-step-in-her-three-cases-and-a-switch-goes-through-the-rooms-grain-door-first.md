@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-10-23
-amends: 0014, 0102
+amends: 0014, 0039, 0102, 0117, 0118
 ---
 
 # The grain choice stands on the plan Step in her three cases, and a switch goes through the room's grain door first
@@ -54,8 +54,19 @@ aside from a current one.
   a row's recording, named joined, or fetched as a part.
 - **A door that fails changes nothing:** the team stays where it was, with no sign and no
   line. `DRAFT_APPROVED` reads the session again, so the next tap arms over the approved
-  draft. The door's 404 is a refusal like any other, never a session the room forgot: a room
-  without the door must leave the team where it was, not retire its session.
+  draft, both on the choice and on the controls, so the next tap arms with «toquem de novo:
+  isto abre de novo o rascunho aprovado» and its second tap re-opens it. A door that did not
+  answer is followed by one read of the listing: if the room did switch, the tablet takes its
+  grain and goes on to that grain's home only when it is the one asked. The door's 404 is a
+  refusal like any other, never a session the room forgot (an exception to ADR 0039's doors
+  that ask for the session): a room without the door must leave the team where it was, not
+  retire its session.
+- **Whichever read tells it, the room's grain is the tablet's:** a listing that answers after
+  the choice stood and names a grain takes the team to that grain's home; a take the room set
+  aside leaves the tablet's parts, and so does every take of the earlier grain when the grain
+  changed. Under the whole grain the whole is never set aside; under the scene grain a whole
+  is never a part. Reading the plan again after «Cena por cena» starts a new generation, so a
+  read still in the air from before never decides over the grain chosen.
 - **The voice never speaks of the grain.**
 - **A whole rehearsal an app before 19 August sent is a whole-passage recording** while no
   scene has its part, as the room reads it: its home has the one row, and a finding over it
@@ -64,6 +75,11 @@ aside from a current one.
   rows; the Definer settled it on 23 October (Q73).
 
 ## Considered options
+
+- **The switch on the machine, as AGENTS.md's «The room's core» asks of new lifecycle work.**
+  Not now: like the join (ADR 0120) and the Armed tap (ADR 0113), the switch is a door and
+  its answer applied to the parts; its moves between Steps are the machine's own events
+  (`ThePlanOpened`, `TheRehearsalOpened`). It moves out with them.
 
 - **The choice as its own Station or Step.** Rejected: it is reached only from the plan's read
   and leads to the plan or a home; as a value of the plan the machine stays untouched and it is

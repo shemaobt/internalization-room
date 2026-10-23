@@ -1549,4 +1549,62 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'a finding on a lone whole rehearsal leaves «Gravar cena por cena» on its '
+    'home, and its tap leads to the scene rows',
+    (tester) async {
+      _umIpadEmPe(tester);
+      final casa = Directory.systemTemp.createTempSync('sala-1766-achado');
+      addTearDown(() => casa.deleteSync(recursive: true));
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..playback.measured = const Duration(seconds: 10);
+      final inteiro = File('${casa.path}/inteiro.m4a')
+        ..writeAsBytesSync([1, 2, 3]);
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+        sessionId: _sessao,
+        stage: SalaStage.ensaio,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.whole,
+            path: inteiro.path,
+            takeId: 'gravacao-inteira',
+          ),
+        ],
+      );
+      harness.room
+        ..passageScenes = _duasCenas
+        ..retroSoFar = const BackTranslationProgress(
+          segments: [_contadoNoInteiro],
+          findings: [_achadoNoInteiro],
+        )
+        ..takes.add(_oInteiro);
+      final container = harness.container();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const SalaApp()),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      final notifier = container.read(salaSessionProvider.notifier);
+      await tester.runAsync(notifier.abrirEscolha);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.runAsync(
+        () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+      );
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+      expect(_estado(container).stage, SalaStage.ensaio);
+      expect(_estado(container).btFindings, hasLength(1));
+      expect(find.text('A passagem inteira'), findsOneWidget);
+
+      await _tocar(tester, find.text('Gravar cena por cena'));
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(harness.room.grainSwitches.single.grain, Grain.scene);
+      expect(_linha(1, cenas: _duasCenas), findsOneWidget);
+      expect(_linha(2, cenas: _duasCenas), findsOneWidget);
+      expect(find.text('A passagem inteira'), findsNothing);
+    },
+  );
 }

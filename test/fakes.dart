@@ -1704,6 +1704,19 @@ class FakeRoom implements RoomRepository {
   TakesListing get _listing =>
       TakesListing(takes: List.of(takes), grain: _grainInForce);
 
+  Completer<void>? _holdingTheListing;
+
+  /// Hold the next takes listing after the room read it, so it answers what the room held
+  /// when it was asked.
+  void holdTheTakesListing() => _holdingTheListing = Completer<void>();
+
+  void finishTheTakesListing() => _heldListing?.complete();
+
+  Completer<void>? _heldListing;
+
+  /// The next switch acts in the room and its answer is lost on the way back.
+  bool loseTheNextGrainAnswer = false;
+
   @override
   Future<RoomAnswer<TakesListing>> takesListingOf(String sessionId) async {
     if (_guard('takesOf') case final failure?) return failure;
@@ -1712,7 +1725,13 @@ class FakeRoom implements RoomRepository {
     }
     final refusal = failTakesWith;
     if (refusal != null) return refusal;
-    return Answered(_listing);
+    final listing = _listing;
+    if (_holdingTheListing case final hold?) {
+      _holdingTheListing = null;
+      _heldListing = hold;
+      await hold.future;
+    }
+    return Answered(listing);
   }
 
   @override
@@ -1738,6 +1757,10 @@ class FakeRoom implements RoomRepository {
       if (take.kind == 'ensaio' && !take.setAside) {
         takes[i] = _setAside(take);
       }
+    }
+    if (loseTheNextGrainAnswer) {
+      loseTheNextGrainAnswer = false;
+      return const NetworkFailed('timeout');
     }
     return Answered(_listing);
   }
@@ -3282,6 +3305,9 @@ class FakeTakeQueue implements TakeUploadQueue {
 
   FakeTakeQueue({required this.room, this.recordings});
 
+  /// The disk refuses the next keep, before any row is written.
+  bool refusesTheNextKeep = false;
+
   @override
   Future<PendingTake> enqueue(
     File audio, {
@@ -3292,6 +3318,10 @@ class FakeTakeQueue implements TakeUploadQueue {
     int? chunkIndex,
     String? scene,
   }) async {
+    if (refusesTheNextKeep) {
+      refusesTheNextKeep = false;
+      throw const FileSystemException('o disco está cheio');
+    }
     final entry = PendingTake(
       id: '${_minted++}',
       path: audio.path,

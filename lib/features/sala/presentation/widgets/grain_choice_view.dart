@@ -22,6 +22,16 @@ class GrainChoiceView extends ConsumerWidget {
     final language = ref.watch(roomLanguageProvider);
     final colors = SalaColors.of(context);
     final open = !session.grainSwitching;
+    _GrainButton choice(Grain grain, (String, String) lines) {
+      final arm = session.armedTap;
+      final armed = arm?.control == 'choose:${grain.wire}';
+      return _GrainButton(
+        lines: armed ? (retroLabelFor('reopenArmed', language), '') : lines,
+        open: open && !(armed && arm?.phase == BtRecomeco.armado),
+        onTap: () => notifier.chooseTheGrain(grain),
+      );
+    }
+
     return SafeArea(
       bottom: false,
       child: SizedBox.expand(
@@ -59,27 +69,19 @@ class GrainChoiceView extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: 24),
-              _GrainButton(
-                lines: (
-                  recordingHomeLabelFor('wholePassage', language),
-                  recordingHomeLabelFor('oneRecording', language),
-                ),
-                open: open,
-                onTap: () => notifier.chooseTheGrain(Grain.whole),
-              ),
+              choice(Grain.whole, (
+                recordingHomeLabelFor('wholePassage', language),
+                recordingHomeLabelFor('oneRecording', language),
+              )),
               const SizedBox(height: 12),
-              _GrainButton(
-                lines: (
-                  recordingHomeLabelFor('sceneByScene', language),
-                  recordingHomeLabelFor(
-                    'parts',
-                    language,
-                    n: session.scenesOfThePassage?.length ?? 0,
-                  ),
+              choice(Grain.scene, (
+                recordingHomeLabelFor('sceneByScene', language),
+                recordingHomeLabelFor(
+                  'parts',
+                  language,
+                  n: session.scenesOfThePassage?.length ?? 0,
                 ),
-                open: open,
-                onTap: () => notifier.chooseTheGrain(Grain.scene),
-              ),
+              )),
               const SizedBox(height: 32),
             ],
           ),
@@ -107,7 +109,7 @@ class _GrainButton extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: open,
-      label: '$name, $size',
+      label: size.isEmpty ? name : '$name, $size',
       excludeSemantics: true,
       child: Opacity(
         opacity: open ? 1 : 0.4,
@@ -131,8 +133,10 @@ class _GrainButton extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(size, style: TextStyle(color: colors.mut, fontSize: 14)),
+                if (size.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(size, style: TextStyle(color: colors.mut, fontSize: 14)),
+                ],
               ],
             ),
           ),

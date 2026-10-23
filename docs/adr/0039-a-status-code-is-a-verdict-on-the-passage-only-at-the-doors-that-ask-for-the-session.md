@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0051
+status: accepted, amended by 0051, amended by 0134 (the grain door's 404 is a refusal, never a session gone)
 date: 2026-09-24
 ---
 

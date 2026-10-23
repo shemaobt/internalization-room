@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/grain.dart';
@@ -33,6 +34,8 @@ const _reopenArmed = 'toquem de novo: isto abre de novo o rascunho aprovado';
 const _sceneInstead = 'Gravar cena por cena';
 const _backToJoin = 'Ensaio Final: juntar os ensaios das cenas';
 const _recordAgain = 'Gravar de novo';
+const _missing = 'falta o ensaio desta cena';
+const _failed = 'falhou — toque para tentar de novo';
 const _theArmLapses = Duration(seconds: 8);
 const _record = 'Gravar';
 
@@ -537,7 +540,7 @@ void main() {
   );
 
   testWidgets(
-    '9. an empty whole recording opens the plan, and «gravar a passagem inteira '
+    'Q4. an empty whole recording opens the plan, and «gravar a passagem inteira '
     'de uma vez» there returns to the whole home with no switch',
     (tester) async {
       final (harness, _) = await _atRest(
@@ -605,6 +608,163 @@ void main() {
 
       expect(find.text(_reopenArmed), findsOneWidget);
       await tester.pump(_theArmLapses);
+    },
+  );
+
+  testWidgets(
+    '11. on the choice over an approved draft, a refused switch arms the next '
+    'tap with her text and the armed tap re-opens the draft',
+    (tester) async {
+      final (harness, _) = await _onTheChoice(tester);
+      harness.room.approvedDraft = const ApprovedDraft(version: 1);
+
+      await _tap(tester, _whole);
+      await _settles(tester);
+
+      expect(harness.room.grainSwitches, [
+        (grain: Grain.whole, reopens: false),
+      ]);
+      expect(find.text(_how), findsOneWidget);
+
+      await _tap(tester, _whole);
+
+      expect(find.text(_reopenArmed), findsOneWidget);
+      expect(harness.room.grainSwitches, hasLength(1));
+
+      await tester.pump(const Duration(seconds: 2));
+      await _tap(tester, _reopenArmed);
+      await _settles(tester);
+
+      expect(harness.room.grainSwitches.last, (
+        grain: Grain.whole,
+        reopens: true,
+      ));
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_whole), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    '12. a switch whose answer is lost after the room acted opens the grain the '
+    'room holds',
+    (tester) async {
+      final (harness, _) = await _onTheChoice(tester);
+      harness.room.loseTheNextGrainAnswer = true;
+
+      await _tap(tester, _whole);
+      await _settles(tester);
+
+      expect(harness.room.grainSwitches, hasLength(1));
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_whole), findsOneWidget);
+      expect(byLabel(_personSign), findsNothing);
+    },
+  );
+
+  group('1. a listing that answers after the 6 s cut', () {
+    testWidgets('with a grain in force takes the team off the choice', (
+      tester,
+    ) async {
+      final (harness, _) = await _atRest(
+        tester,
+        seed: (session) => [_rehearsal(session)],
+      );
+      harness.room
+        ..grain = Grain.scene
+        ..holdTheTakesListing();
+
+      await _tapTheDot(tester);
+      await tester.pump(const Duration(milliseconds: 6000));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text(_how), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 400));
+      harness.room.finishTheTakesListing();
+      await _settles(tester);
+
+      expect(find.text(_how), findsNothing);
+      expect(find.text(_planLine), findsOneWidget);
+    });
+
+    testWidgets('never overwrites the grain the team chose after it', (
+      tester,
+    ) async {
+      final (harness, _) = await _atRest(
+        tester,
+        seed: (session) => [_rehearsal(session)],
+      );
+      harness.room
+        ..grain = Grain.whole
+        ..holdTheTakesListing();
+
+      await _tapTheDot(tester);
+      await tester.pump(const Duration(milliseconds: 6100));
+      expect(find.text(_how), findsOneWidget);
+
+      await _tap(tester, _sceneByScene);
+      await _settles(tester);
+      expect(find.text(_planLine), findsOneWidget);
+
+      harness.room.finishTheTakesListing();
+      await _settles(tester);
+      expect(find.text(_planLine), findsOneWidget);
+
+      await _tap(tester, _sceneInstead);
+      await _settles(tester);
+
+      expect(harness.room.grainSwitches, [
+        (grain: Grain.scene, reopens: false),
+      ]);
+      expect(find.text(_homeLine), findsOneWidget);
+    });
+  });
+
+  testWidgets(
+    'a join row of the earlier grain still in the Outbox is no scene\'s join on '
+    'the plan over an empty whole recording',
+    (tester) async {
+      final (harness, container) = await _atRest(tester);
+      harness.room
+        ..grain = Grain.whole
+        ..unreachableTake = 'ensaio/${KeptScope.parte(1)}';
+      (harness.takes as FakeTakeQueue).rows.add(
+        PendingTake(
+          id: 'juntada-1',
+          path: '/nao/existe/parte-1.m4a',
+          sessionId: container.read(salaSessionProvider).sessionId!,
+          kind: 'ensaio',
+          scope: KeptScope.parte(1),
+          passNumber: 1,
+          origin: 'cena-1',
+        ),
+      );
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(find.text(_planLine), findsOneWidget);
+      expect(find.text(_missing), findsNWidgets(3));
+    },
+  );
+
+  testWidgets(
+    'a whole the disk refused shows «falhou» on the whole row and goes up whole',
+    (tester) async {
+      final (harness, container) = await _onTheEmptyWholeHome(tester);
+      (harness.takes as FakeTakeQueue).refusesTheNextKeep = true;
+
+      await _recordAndKeep(tester, container);
+
+      expect(find.text(_failed), findsOneWidget);
+
+      await _tap(tester, _failed);
+      await letTheRehearsalReachTheRoom(tester);
+      await _settles(tester);
+
+      final kept = harness.room.takesReceivedWhole.last;
+      expect(kept.scope, KeptScope.whole);
+      expect(kept.chunkIndex, isNull);
+      expect(find.text(_failed), findsNothing);
     },
   );
 
@@ -781,6 +941,45 @@ void main() {
     expect(state.partes, isEmpty);
     expect(state.everySceneHasItsPart, isFalse);
     expect(state.sceneRows.single.part, isNull);
+  });
+
+  test('16. a whole the room set aside is no part while it records scene by '
+      'scene', () {
+    const state = SalaSessionState(
+      grainInForce: Grain.scene,
+      keptTakes: [
+        KeptTake(
+          scopeId: KeptScope.whole,
+          path: '/gravacoes/inteiro.m4a',
+          takeId: 'gravacao-inteira',
+        ),
+      ],
+    );
+
+    expect(state.partes, isEmpty);
+  });
+
+  test('16. while the room records the passage whole, the whole is never set '
+      'aside', () {
+    const state = SalaSessionState(
+      grainInForce: Grain.whole,
+      keptTakes: [
+        KeptTake(
+          scopeId: KeptScope.whole,
+          path: '/gravacoes/inteiro.m4a',
+          takeId: 'gravacao-inteira',
+        ),
+        KeptTake(
+          scopeId: 'parte-1',
+          path: '/gravacoes/parte-1.m4a',
+          takeId: 'gravacao-1',
+        ),
+      ],
+      wholeHeldByTheRoom: {'gravacao-inteira'},
+    );
+
+    expect(state.wholeSetAside, isEmpty);
+    expect(state.partes.single.takeId, 'gravacao-inteira');
   });
 
   group('17. the choice and a switch say nothing', () {

@@ -1161,17 +1161,20 @@ class SalaSessionState {
       for (final take in keptTakes)
         if (KeptScope.isParte(take.scopeId)) take,
     ]..sort((a, b) => _byNumber(a).compareTo(_byNumber(b)));
-    if (numbered.isNotEmpty) return numbered;
+    if (numbered.isNotEmpty || grainInForce == Grain.scene) return numbered;
     return wholes;
   }
 
-  /// The recordings of a whole rehearsal set aside behind the scenes' own parts.
-  Set<String> get wholeSetAside => {
-    ...wholeHeldByTheRoom,
-    if (keptTakes.any((take) => KeptScope.isParte(take.scopeId)))
-      for (final take in keptTakes)
-        if (take.scopeId == KeptScope.whole) ?take.takeId,
-  };
+  /// The recordings of a whole rehearsal set aside behind the scenes' own parts; none
+  /// while the room records the passage whole.
+  Set<String> get wholeSetAside => grainInForce == Grain.whole
+      ? const {}
+      : {
+          ...wholeHeldByTheRoom,
+          if (keptTakes.any((take) => KeptScope.isParte(take.scopeId)))
+            for (final take in keptTakes)
+              if (take.scopeId == KeptScope.whole) ?take.takeId,
+        };
 
   static int _byNumber(KeptTake take) => KeptScope.numberOf(take.scopeId) ?? 0;
 
