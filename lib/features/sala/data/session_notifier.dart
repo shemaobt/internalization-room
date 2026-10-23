@@ -3828,7 +3828,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ];
       if (_takes.inTheAir(rowId)) leaving.complete();
       final flushed = await _withinTheJoinWait(
-        Future.any([_takes.flush(), back.future]),
+        Future.any([
+          _takes.flush().then((_) => back.isCompleted ? 0 : _takes.flush()),
+          back.future,
+        ]),
         from: leaving.future,
       );
       for (final watch in watching) {
@@ -3858,7 +3861,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           part: JoinedPart.nowhere,
         );
       }
-      if (row.waits == 0 || clock.now().difference(began) >= joinQuietWait) {
+      if (!back.isCompleted || clock.now().difference(began) >= joinQuietWait) {
         return _givenUpWaiting;
       }
       final pause = Completer<void>();
