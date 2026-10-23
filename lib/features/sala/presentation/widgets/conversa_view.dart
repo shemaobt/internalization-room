@@ -21,6 +21,7 @@ class ConversaView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
+    final dotIsGone = session.orangeDotLook == OrangeDotLook.gone;
     final screen = MediaQuery.sizeOf(context);
     final phone = screen.width <= 520;
 
@@ -72,7 +73,7 @@ class ConversaView extends ConsumerWidget {
           right: 14,
           top: 118 + MediaQuery.viewPaddingOf(context).top,
           child: IgnorePointer(
-            ignoring: session.orangeDotLook == OrangeDotLook.gone,
+            ignoring: dotIsGone,
             child: AnimatedOpacity(
               opacity: switch (session.orangeDotLook) {
                 OrangeDotLook.gone => 0,
@@ -81,7 +82,7 @@ class ConversaView extends ConsumerWidget {
               },
               duration: const Duration(milliseconds: 400),
               child: ExcludeSemantics(
-                excluding: session.orangeDotLook == OrangeDotLook.gone,
+                excluding: dotIsGone,
                 child: Semantics(
                   button: true,
                   label: roomLabelFor(

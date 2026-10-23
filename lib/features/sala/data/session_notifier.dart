@@ -2648,8 +2648,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// The parts the room [guardadas] lists, put under a rehearsal the tablet holds none of.
-  Future<bool> _layTheRoomsParts(
+  /// The parts the room [guardadas] lists, put under a rehearsal the tablet holds none of;
+  /// null when none could be laid.
+  Future<_PartesDaSala?> _layTheRoomsParts(
     String sessionId,
     List<TakeView> guardadas,
     int generation,
@@ -2660,16 +2661,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       const [],
       generation,
     );
-    if (partes case Answered(
-      value: _PartesDaSala(partes: final takes, :final deLado),
-    ) when takes.isNotEmpty) {
-      await _medirAsPartes(takes, generation);
-      if (_abandoned(generation)) return false;
-      state = state.copyWith(keptTakes: takes, wholeHeldByTheRoom: deLado);
+    if (partes case Answered(value: final laid?) when laid.partes.isNotEmpty) {
+      await _medirAsPartes(laid.partes, generation);
+      if (_abandoned(generation)) return null;
+      state = state.copyWith(
+        keptTakes: laid.partes,
+        wholeHeldByTheRoom: laid.deLado,
+      );
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
-      return true;
+      return laid;
     }
-    return false;
+    return null;
   }
 
   Future<void> _learnWhetherAPartWasJoined(
@@ -3420,7 +3422,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.orangeDotLook == OrangeDotLook.gone) {
       return;
     }
-    if (state.partes.isNotEmpty || state.unsentTakes > 0) return _goEnsaio();
+    if (state.partes.isNotEmpty) return _goEnsaio();
     const plan = Ensaio(step: EnsaioStep.plan);
     _leaveTheStepFor(plan);
     _clearAll();
@@ -3432,17 +3434,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _handOff(_readThePlan(sessionId));
   }
 
-  /// The plan stands only over a passage the room says has scenes and no take; a read
-  /// that fails, or that has not answered within [planReadWait], opens the recording home.
+  /// The plan stands only over a passage the room says has scenes and no take, with none
+  /// waiting in the Outbox. A take the room holds is fetched before the recording home
+  /// opens over it; a read that fails, or that has not answered within [planReadWait],
+  /// opens the recording home.
   Future<void> _readThePlan(String sessionId) async {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
     final reads = (
+      _takes.pending(),
       _room.takesOf(sessionId),
       _room.sceneRehearsalsOf(sessionId),
       known == null ? _room.scenesOf(sessionId) : Future.value(Answered(known)),
     ).wait;
     (
+      List<PendingTake>,
       RoomAnswer<List<TakeView>>,
       RoomAnswer<List<SceneRehearsalRecord>>,
       RoomAnswer<List<Scene>>,
@@ -3455,28 +3461,32 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers.remove('planRead')?.cancel();
     final read = answered;
     if (read == null) return _goEnsaio();
-    final (takes, rehearsals, scenes) = read;
+    final (outbox, takes, rehearsals, scenes) = read;
     for (final answer in [takes, rehearsals, scenes]) {
       if (answer case final SessionGone gone) return _decideTheFailure(gone);
     }
-    switch (read) {
+    final waiting = outbox.any(
+      (entry) => entry.sessionId == sessionId && entry.kind == 'ensaio',
+    );
+    switch ((takes, rehearsals, scenes)) {
       case (Answered(value: final guardadas), _, _)
-          when guardadas.any((guardada) => guardada.kind == 'ensaio'):
+          when !waiting &&
+              guardadas.any((guardada) => guardada.kind == 'ensaio'):
         state = state.copyWith(
           theRoomJoinedAPart: _aPartCameFromAJoin(guardadas),
         );
-        _goEnsaio();
-        final home = _waitOnTheGeneration;
-        if (await _layTheRoomsParts(sessionId, guardadas, home)) {
-          _weighTheRehearsal();
-          _rememberWhereTheyAre(const Ensaio());
+        if (await _layTheRoomsParts(sessionId, guardadas, generation)
+            case final laid? when !laid.inteiro) {
+          _passadasDaSala = _aindaPorGravar(laid.passadas, const {});
         }
+        if (_abandoned(generation)) return;
+        _goEnsaio();
       case (
             Answered(),
             Answered(value: final listed),
             Answered(value: final passage),
           )
-          when passage.isNotEmpty:
+          when !waiting && passage.isNotEmpty:
         state = state.copyWith(
           ensaioFinalPlan: PlanRead(rehearsals: listed, scenes: passage),
           scenesOfThePassage: passage,

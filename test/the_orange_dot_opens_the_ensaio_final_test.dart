@@ -8,6 +8,7 @@ import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -161,22 +162,37 @@ Future<(SalaHarness, ProviderContainer)> _reopenedOverPartOne(
   required String? origin,
   String lingua = 'pt',
   List<Scene> scenes = _threeScenes,
+}) => _reopenedOnTheConversation(
+  tester,
+  lingua: lingua,
+  scenes: scenes,
+  roomTakes: [
+    TakeView(
+      takeId: 'gravacao-1',
+      kind: 'ensaio',
+      scope: KeptScope.parte(1),
+      ordinal: 1,
+      pass: 1,
+      origin: origin,
+    ),
+  ],
+);
+
+/// A passage left on the Conversation whose room holds [roomTakes].
+Future<(SalaHarness, ProviderContainer)> _reopenedOnTheConversation(
+  WidgetTester tester, {
+  required List<TakeView> roomTakes,
+  String lingua = 'pt',
+  List<Scene> scenes = _threeScenes,
+  void Function(SalaHarness harness)? before,
 }) async {
   final harness = SalaHarness(lingua: lingua, filaEmMemoria: true)
     ..room.passages = const [_thePassage]
     ..room.nextMoment = _midConversation
     ..room.passageScenes = scenes
     ..room.openedSessions.add('sessao-antiga')
-    ..room.takes.add(
-      TakeView(
-        takeId: 'gravacao-1',
-        kind: 'ensaio',
-        scope: KeptScope.parte(1),
-        ordinal: 1,
-        pass: 1,
-        origin: origin,
-      ),
-    );
+    ..room.takes.addAll(roomTakes);
+  before?.call(harness);
   harness.emAberto.rows['Ruth/P01/$lingua'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.conversa,
@@ -247,7 +263,7 @@ Future<ProviderContainer> _relaunchOnTheApp(
   SalaHarness harness,
   ProviderContainer container,
 ) async {
-  final (_, next) = await relaunch(harness, container);
+  final (_, next) = await relaunch(harness, container, filaEmMemoria: true);
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pumpWidget(
     UncontrolledProviderScope(container: next, child: const SalaApp()),
@@ -444,6 +460,16 @@ List<KeptTake> _partThreeGone(Directory guardadas) => [
 ];
 
 void main() {
+  test('a joined part the team recorded again by hand names the dot «Gravar o '
+      'ensaio de vocês» again, whatever the room listed before', () {
+    final state = SalaSessionState(
+      theRoomJoinedAPart: true,
+      keptTakes: [KeptTake(scopeId: KeptScope.parte(1), path: 'parte-1.m4a')],
+    );
+
+    expect(state.aPartWasJoined, isFalse);
+  });
+
   testWidgets(
     'mid-conversation the dot is faint and opens the Ensaio Final plan',
     (tester) async {
@@ -595,6 +621,100 @@ void main() {
         reason: 'a linha 1 não trazia a parte da sala',
       );
       semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'the room\'s parts are fetched while «pensando…» stands, and the recording '
+    'home opens with them under their rows',
+    (tester) async {
+      final (harness, _) = await _reopenedOverPartOne(tester, origin: 'cena-1');
+      harness.room.holdNextClip();
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_thinking), findsOneWidget);
+      expect(find.text(_homeLine), findsNothing);
+
+      harness.room.finishHeldClip();
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(
+        find.descendant(of: _row(1, _threeScenes), matching: byLabel('Ouvir')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'a part the room no longer has, recorded again from the dot\'s home, goes '
+    'up above the room\'s pass',
+    (tester) async {
+      final (harness, container) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: [
+          for (final (n, pass) in [(1, 1), (2, 3)])
+            TakeView(
+              takeId: 'gravacao-$n',
+              kind: 'ensaio',
+              scope: KeptScope.parte(n),
+              ordinal: n,
+              pass: pass,
+            ),
+        ],
+        before: (harness) => harness.room.refuseClipOf.add('gravacao-2'),
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      expect(find.text(_homeLine), findsOneWidget);
+
+      notifier.gravarACena(2);
+      await _theAnswerSettles(tester);
+      notifier.gravarACena(2);
+      await _theAnswerSettles(tester);
+      notifier.takeKeep();
+      await _theAnswerSettles(tester);
+      await letTheRehearsalReachTheRoom(tester);
+
+      expect(harness.room.takePasses, [4]);
+    },
+  );
+
+  testWidgets(
+    'a take of the passage waiting in the Outbox opens the recording home, '
+    'never the plan',
+    (tester) async {
+      final waiting = Directory.systemTemp.createTempSync('sala-1382-fila');
+      addTearDown(() => waiting.deleteSync(recursive: true));
+      final audio = File('${waiting.path}/ensaio-parte-1.m4a')
+        ..writeAsBytesSync([1, 2, 3, 4]);
+      await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        before: (harness) =>
+            (harness.takes as FakeTakeQueue
+                  ..room.unreachableTake = 'ensaio/${KeptScope.parte(1)}')
+                .rows
+                .add(
+                  PendingTake(
+                    id: 'na-fila-1',
+                    path: audio.path,
+                    sessionId: 'sessao-antiga',
+                    kind: 'ensaio',
+                    scope: KeptScope.parte(1),
+                    passNumber: 1,
+                  ),
+                ),
+      );
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_planLine), findsNothing);
     },
   );
 

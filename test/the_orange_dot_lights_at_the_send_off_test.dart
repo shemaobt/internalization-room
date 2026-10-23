@@ -375,7 +375,7 @@ void main() {
   testWidgets('a touch on the lit dot takes the team to the rehearsal', (
     tester,
   ) async {
-    final (_, container) = await _afterTheSendOff(tester);
+    final (_, container) = await _afterTheSendOff(tester, queueInMemory: true);
 
     await tester.tap(_dot);
     await tester.pump(const Duration(milliseconds: 500));
