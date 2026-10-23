@@ -349,8 +349,16 @@ A session that holds a Guide line, its Opening at least. The room asks a session
 _Avoid_: started, begun
 
 **Store build**:
-The app as the stores hold it: the build installed on every tablet from the App Store or Google Play, which the server never asks about and which changes only by a new version published to both stores (ADR 0082, ADR 0110). A version bump merged to main is the store build's only source.
+The app as the stores hold it: the build installed on every tablet from the App Store or Google Play, which reads the room's **Minimum build** at launch and on every return to the **Choice** (ADR 0124), and which changes only by a new version published to both stores (ADR 0082, ADR 0110, ADR 0124). A version bump merged to main is the store build's only source.
 _Avoid_: release (the server's record of an approved draft), the build (ambiguous), app version
+
+**Minimum build** (`minimum_app`):
+The oldest **Store build** the room accepts, per platform: the iOS build number and the Android version code, the `+N` of `pubspec.yaml` (one number on both platforms, ADR 0110), served on `/api/version` as `minimum_app: {ios, android}`. 0 means no minimum. It is raised by hand, in the production deploy file, at a release. A tablet whose own build number is below it shows the **Update screen**. A build that carries no number (0, a laptop build) is never below it.
+_Avoid_: minimum version (the `x.y.z` is not compared), app version, forced update
+
+**Update screen**:
+The one screen a **Store build** below the **Minimum build** shows, in place of everything else: her-style line «Há uma versão nova do aplicativo. Toquem para atualizar.» and one button that opens the app's own listing in its own store. It stands until the store installs a newer build. Nothing else reaches the team while it shows. It shows only once the room has recorded an arrival at the **Choice** (never for the station it stands on before the launch settles), or once the link read has found the tablet unlinked, and then it stands for the run: a read that finds the build below the minimum while a passage is open is held until the next arrival at the Choice, and the room never waits for that read to open.
+_Avoid_: force update, upgrade wall
 
 **Outbox**:
 The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it. Each row keeps its recording's **Recording time**, its length when it is a WAV and its fingerprint (sha256), fixed when the row is written; a row an older app wrote has none and sends none. An unsent take is shown on its Scene row, never spoken.

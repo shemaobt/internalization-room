@@ -573,3 +573,14 @@ String? momentLabelFor(Moment moment, String language) {
 
 String momentAriaFor(String language) =>
     momentAria[language] ?? momentAria[floorLanguage]!;
+
+const updateLabels = {
+  'line': {
+    'pt': 'Há uma versão nova do aplicativo. Toquem para atualizar.',
+    'en': 'There is a new version of the app. Tap to update.',
+  },
+  'button': {'pt': 'Atualizar', 'en': 'Update'},
+};
+
+String updateLabelFor(String key, String language) =>
+    updateLabels[key]![language] ?? updateLabels[key]![floorLanguage]!;

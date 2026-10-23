@@ -21,6 +21,7 @@ flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true   # the skip
 flutter analyze
 flutter test                                     # 3 workers by default (dart_test.yaml); --concurrency overrides, CI uses 2
 flutter build appbundle --release                # reads android/key.properties
+flutter build … --dart-define=BUILD_NUMBER=<the +N of pubspec.yaml>   # how a store build learns its own number; without it a build is a laptop build and never shows the update screen
 dart run tool/check_doctrine.dart                # the doctrine guard, on demand
 ```
 
@@ -34,7 +35,7 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
   screen, read by the facilitator and not the team, her moment label, the claquete,
   the «PT»/«EN» codes on the Choice, the scene question, her passage menu on the
   Choice, her check screen with its numbered frase list, the scene rehearsal's translate step,
-  the numerals of her kept-retelling buttons, and her recording home (ADR 0014).
+  the numerals of her kept-retelling buttons, her recording home, and the update screen (ADR 0014).
 - Nothing forbidden returns to `lib/`: `tool/check_doctrine.dart` mirrors the backend's
   doctrine guard (`tripod-backend`, `scripts/check_doctrine.py`) against Marcia's six rules,
   spelled in Dart, against a typed allowlist in `tool/doctrine_allowlist.dart`.

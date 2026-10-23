@@ -267,6 +267,10 @@ class Trecho {
 class SalaSessionState {
   final bool awaitingTheGuide;
 
+  /// Set when the room enters the Choice, cleared when it leaves it. The station the room
+  /// stands on before the launch settles is a Menu too, and it is not an arrival.
+  final bool arrivedAtTheChoice;
+
   /// The entry the team last left by the way out, for the Choice to offer the way back.
   final LeftEntry? leftEntry;
   final bool endOfThePassage;
@@ -409,6 +413,7 @@ class SalaSessionState {
 
   const SalaSessionState({
     this.awaitingTheGuide = false,
+    this.arrivedAtTheChoice = false,
     this.leftEntry,
     this.endOfThePassage = false,
     this.panoramaSaid = false,
@@ -1101,6 +1106,7 @@ class SalaSessionState {
 
   SalaSessionState copyWith({
     bool? awaitingTheGuide,
+    bool? arrivedAtTheChoice,
     LeftEntry? leftEntry,
     bool clearLeftEntry = false,
     bool? endOfThePassage,
@@ -1190,6 +1196,7 @@ class SalaSessionState {
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
+      arrivedAtTheChoice: arrivedAtTheChoice ?? this.arrivedAtTheChoice,
       leftEntry: clearLeftEntry ? null : (leftEntry ?? this.leftEntry),
       endOfThePassage: endOfThePassage ?? this.endOfThePassage,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
