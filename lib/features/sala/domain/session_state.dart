@@ -223,6 +223,9 @@ class RegravacaoDaFrase {
     this.path,
     this.reabre = false,
   });
+
+  RegravacaoDaFrase em(PassoDaRegravacao passo, {String? path}) =>
+      RegravacaoDaFrase(frase, passo, path: path, reabre: reabre);
 }
 
 /// One stretch the team told back: a slice of one rehearsal recording.
@@ -1095,7 +1098,7 @@ class SalaSessionState {
 
   bool get overAnApprovedDraft => btRascunhoAprovado != null;
 
-  bool get externalCheckOpens => channel is! Microphone;
+  bool get microphoneOpen => channel is Microphone;
 
   /// The approval drawn on the checked telling-back, in place of the approve button and the
   /// Warning mark: only while nothing of this session waits in the Outbox (ADR 0106).

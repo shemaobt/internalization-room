@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'dart:ui' show Tristate;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -129,6 +130,14 @@ Future<void> _approvedThroughPronto(
   await tester.tap(byLabel(_pronto));
   await tester.pump(const Duration(milliseconds: 300));
 }
+
+Finder _recomecoArmado() => find.byWidgetPredicate(
+  (widget) =>
+      widget is Semantics &&
+      (widget.properties.label ?? '').startsWith(
+        'toque de novo para apagar as',
+      ),
+);
 
 void main() {
   testWidgets(
@@ -668,8 +677,8 @@ void main() {
     sala.recomecarATraducao();
     await tester.pump(const Duration(milliseconds: 300));
     expect(
-      it.container.read(salaSessionProvider).armedTap,
-      isNull,
+      _recomecoArmado(),
+      findsNothing,
       reason: 'a resposta da primeira aprovação abria os gestos da segunda',
     );
 
@@ -755,7 +764,7 @@ void main() {
 
       it.container.read(salaSessionProvider.notifier).recomecarATraducao();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(it.container.read(salaSessionProvider).armedTap, isNotNull);
+      expect(_recomecoArmado(), findsOneWidget);
       it.harness.room.finishHeldRelease();
       await tester.pump(const Duration(seconds: 7));
       closeTheRoom(it.container);
@@ -775,7 +784,7 @@ void main() {
     it.container.read(salaSessionProvider.notifier).recomecarATraducao();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(it.container.read(salaSessionProvider).btRecomeco, isNotNull);
+    expect(_recomecoArmado(), findsOneWidget);
     await tester.pump(const Duration(seconds: 7));
     closeTheRoom(it.container);
   });

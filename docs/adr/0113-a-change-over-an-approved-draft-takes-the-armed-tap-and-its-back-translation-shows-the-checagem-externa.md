@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-10-23
-extends: 0100 (the Restart's arm is now the Armed tap's), 0106 (only a read sets or clears the approval)
+amends: 0100 (the Restart's arm is now the Armed tap's)
 ---
 
 # A change over an approved draft takes the Armed tap, and its Back-translation shows the Checagem externa

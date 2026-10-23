@@ -186,6 +186,14 @@ Finder _naLista(String label) =>
 bool _acesa(WidgetTester tester, String label) =>
     tester.widget<Semantics>(_naLista(label)).properties.enabled ?? false;
 
+Finder _recomecoArmado() => find.byWidgetPredicate(
+  (widget) =>
+      widget is Semantics &&
+      (widget.properties.label ?? '').startsWith(
+        'toque de novo para apagar as',
+      ),
+);
+
 void main() {
   testWidgets('every frase of a wav recording offers its whole sentence to '
       'be recorded again, lit', (tester) async {
@@ -1317,8 +1325,8 @@ void main() {
     await recomecar(tester);
 
     expect(
-      container.read(salaSessionProvider).armedTap,
-      isNull,
+      _recomecoArmado(),
+      findsNothing,
       reason: 'o recomeço se armava com a frase sendo gravada',
     );
     expect(harness.room.restartsAsked, isEmpty);
@@ -1341,8 +1349,8 @@ void main() {
     await recomecar(tester);
 
     expect(
-      container.read(salaSessionProvider).armedTap,
-      isNull,
+      _recomecoArmado(),
+      findsNothing,
       reason: 'o recomeço se armava com a frase a caminho da sala',
     );
     segura.complete();

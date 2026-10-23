@@ -6221,7 +6221,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void abrirAChecagemExterna() => _gesture(() {
     final sessionId = state.sessionId;
     if (sessionId == null || state.approvedDraftDrawn == null) return;
-    if (!state.externalCheckOpens) return;
+    if (state.microphoneOpen) return;
     _handOff(_abrirAChecagemExterna(sessionId));
   });
 
@@ -6770,6 +6770,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void regravarAFrase(Trecho trecho) => _gesture(() {
+    if (!state.aBackTranslationGestureActs) return;
     final reabre = state.overAnApprovedDraft;
     _armedTap(
       'rerecord:${trecho.frase}',
@@ -6829,27 +6830,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (largada()) return;
     _regravouNestaVisita = true;
     state = state.copyWith(
-      btRegravacao: RegravacaoDaFrase(
-        frase,
-        PassoDaRegravacao.pronta,
-        reabre: reabre,
-      ),
+      btRegravacao: state.btRegravacao?.em(PassoDaRegravacao.pronta),
     );
   }
 
   Future<void> _fecharAFrase(int frase) async {
-    final reabre = state.btRegravacao?.reabre ?? false;
+    final aberta = state.btRegravacao;
     final generation = _waitOnTheGeneration;
     final path = (await _closeTheMicrophone()).take;
     if (_abandoned(generation)) return;
     if (path == null || _anAccidentalTap(path)) {
       if (path != null) unawaited(_recorder.delete(path));
       state = state.copyWith(
-        btRegravacao: RegravacaoDaFrase(
-          frase,
-          PassoDaRegravacao.pronta,
-          reabre: reabre,
-        ),
+        btRegravacao: aberta?.em(PassoDaRegravacao.pronta),
       );
       return;
     }
@@ -6865,12 +6858,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     _fraseNaFila = guardada;
     state = state.copyWith(
-      btRegravacao: RegravacaoDaFrase(
-        frase,
-        PassoDaRegravacao.revendo,
-        path: path,
-        reabre: reabre,
-      ),
+      btRegravacao: aberta?.em(PassoDaRegravacao.revendo, path: path),
       clearBtFraseGuardada: true,
     );
   }
@@ -7092,6 +7080,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void tentarAFraseDeNovo() => _gesture(() {
+    if (!state.aBackTranslationGestureActs) return;
     final reabre = state.overAnApprovedDraft;
     _armedTap(
       'resend:${state.btFraseGuardada}',
@@ -7115,13 +7104,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _largarAFrase(PendingTake guardada, PassoDaRegravacao passo) {
     _fraseNaFila = null;
     unawaited(_takes.withdraw(guardada));
-    state = state.copyWith(
-      btRegravacao: RegravacaoDaFrase(
-        int.parse(guardada.scope),
-        passo,
-        reabre: state.btRegravacao?.reabre ?? false,
-      ),
-    );
+    state = state.copyWith(btRegravacao: state.btRegravacao?.em(passo));
   }
 
   Trecho? _aFrase(int frase) =>
@@ -7149,11 +7132,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_takes.withdraw(antiga));
     }
     state = state.copyWith(
-      btRegravacao: RegravacaoDaFrase(
-        regravacao.frase,
-        PassoDaRegravacao.pronta,
-        reabre: regravacao.reabre,
-      ),
+      btRegravacao: regravacao.em(PassoDaRegravacao.pronta),
     );
   });
 
@@ -7188,11 +7167,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case PassoDaRegravacao.pronta:
           _silenceTheRoom();
           state = state.copyWith(
-            btRegravacao: RegravacaoDaFrase(
-              regravacao.frase,
-              PassoDaRegravacao.gravando,
-              reabre: regravacao.reabre,
-            ),
+            btRegravacao: regravacao.em(PassoDaRegravacao.gravando),
           );
           _dispatch(
             MicOpened(

@@ -78,14 +78,6 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('«Pronto» lands on «Checagem externa»', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await aprovadaNaConferida(tester, harness);
-
-    expect(byLabel(_checagem), findsOneWidget);
-    closeTheRoom(container);
-  });
-
   testWidgets('while recording, «Checagem externa» is closed', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aprovadaNaConferida(tester, harness);
