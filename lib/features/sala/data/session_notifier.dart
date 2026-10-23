@@ -6319,15 +6319,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// A listener left before their retelling is stored is let go; the next entry asks a
-  /// new number (ADR 0116).
+  /// A listener left before their retelling is stored is let go, and the next entry asks
+  /// a new number; one whose retelling is in the air waits on its answer (ADR 0116).
   void leaveTheExternalCheck() => _gesture(() {
     if (state.station is! ChecagemExterna) return;
-    if (state.externalCheck.step != ListenerStep.done) {
+    final shown = state.externalCheck;
+    if (shown.step != ListenerStep.done && !shown.sending) {
       _listenerInProgress = null;
     }
     _leaveTheExternalCheck();
   });
+
+  /// A retelling still in the air when the team left decides the listener: one the room
+  /// kept stays in progress, one it did not is let go.
+  void _aRetellingLeftBehind(int version, int listener, RoomAnswer<void> sent) {
+    if (sent case Answered()) return;
+    if (_gone || _listenerInProgress != (version: version, number: listener)) {
+      return;
+    }
+    _listenerInProgress = null;
+    _rememberWhereTheyAre(state.station);
+  }
 
   void _leaveTheExternalCheck() {
     final sessionId = state.sessionId;
@@ -6631,7 +6643,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       kind: listenerRetelling,
     );
     unawaited(_recorder.delete(path));
-    if (_abandoned(generation)) return;
+    if (_abandoned(generation)) {
+      return _aRetellingLeftBehind(station.version, listener, sent);
+    }
     final answered = state.externalCheck.copyWith(sending: false);
     switch (sent) {
       case Answered():

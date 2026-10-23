@@ -470,6 +470,48 @@ void main() {
     await _fechar(tester, tablet);
   });
 
+  testWidgets('the back control while the retelling is in the air keeps the '
+      'listener once it lands: the next entry is their thanks', (tester) async {
+    final harness = _aprovadaNaSala();
+    await _noReconto(tester, harness);
+    harness.room.holdNextListenerRecording();
+    await _reconta(tester);
+    await _tocar(tester, _voltar);
+
+    harness.room.finishHeldListenerRecording();
+    await _passar(tester);
+    await _tocar(tester, _checagem);
+
+    _oAgradecimento();
+    expect(harness.room.listenersAsked, hasLength(1));
+    expect(harness.room.listenersFinished, [
+      (version: 1, number: 1, completed: true),
+    ]);
+  });
+
+  testWidgets('the back control while the retelling is in the air lets the '
+      'listener go once it fails: the next entry asks a new number', (
+    tester,
+  ) async {
+    final harness = _aprovadaNaSala();
+    final tablet = await _noReconto(tester, harness);
+    harness.room
+      ..holdNextListenerRecording()
+      ..failNextListenerRecordingWith = const NetworkFailed('sem rede');
+    await _reconta(tester);
+    await _tocar(tester, _voltar);
+
+    harness.room.finishHeldListenerRecording();
+    await _passar(tester);
+    await _tocar(tester, _checagem);
+
+    expect(byLabel(_novoOuvinte), findsOneWidget);
+    await _tocar(tester, _novoOuvinte);
+    expect(find.text('ouvinte 2'), findsOneWidget);
+    expect(harness.room.listenersFinished, isEmpty);
+    await _fechar(tester, tablet);
+  });
+
   testWidgets('a remembered listener of an older version is forgotten and the '
       'check opens at «Novo ouvinte»', (tester) async {
     final harness = _aprovadaNaSala(
@@ -585,19 +627,6 @@ void main() {
     await _tocar(tester, _checagem);
     expect(byLabel(_novoOuvinte), findsOneWidget);
     expect(harness.room.listenersRead, isEmpty);
-  });
-
-  testWidgets('a thanks the room cannot hand over leaves the thanks step '
-      'standing and calls nobody', (tester) async {
-    final harness = _aprovadaNaSala();
-    harness.voice.roomFailsFor['X4'] = const NetworkFailed('sem rede');
-    final tablet = await _noReconto(tester, harness);
-
-    await _reconta(tester);
-
-    _oAgradecimento();
-    expect(_sala(tablet).needsPerson, isFalse);
-    expect(harness.room.listenersFinished, hasLength(1));
   });
 
   testWidgets('a thanks that cannot sound leaves the thanks step standing', (

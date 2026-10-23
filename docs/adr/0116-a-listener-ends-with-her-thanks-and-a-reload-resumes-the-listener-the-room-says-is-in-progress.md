@@ -46,7 +46,9 @@ stranger halfway through was asked to begin again under a new number.
   the number the room gives until «Outro ouvinte» or «Terminar a checagem». The back control
   keeps a listener whose retelling landed and lets go of one whose retelling did not (the
   Definer's Q74): the next entry asks a new number, and the empty listener stays on the room
-  started and not finished. A relaunch, which is no deliberate leave, still resumes. A
+  started and not finished. A retelling still in the air when the team leaves decides when
+  it answers: kept by the room, the listener stays in progress and the next entry is their
+  thanks; not kept, they are let go. A relaunch, which is no deliberate leave, still resumes. A
   remembered listener of another version is forgotten.
 - A relaunch whose row stood on the check, and a tap on «Checagem externa», ask the room for
   that listener and land silent: finished → the thanks, nothing resent; a retelling stored →
