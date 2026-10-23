@@ -238,6 +238,43 @@ Future<_Caso> _naTraducaoRetomada({required List<SegmentView> told}) async {
   return caso;
 }
 
+Future<_Caso> _abrindoOMicrofoneParaUmTrecho() async {
+  final caso = _umaSala();
+  await caso.sala.abrirEscolha();
+  await settle();
+  caso.sala.openTheEntry(caso.estado.naRoda!.first);
+  await waitFor('a passagem abrir', () => caso.estado.sessionId != null);
+  await settle();
+  await _gravarUmaParte(caso);
+  caso.sala.takeKeep();
+  await waitFor(
+    'a parte ganhar nome',
+    () => caso.estado.keptTakes.every((take) => take.takeId != null),
+  );
+  caso.sala.startRetro();
+  await waitFor('o clipe rodar', () => caso.estado.btClipRodando);
+  caso.harness.playback.at = const Duration(seconds: 2);
+  caso.sala
+    ..retroTap()
+    ..retroTap();
+  await waitFor(
+    'o microfone abrir para o trecho',
+    () => caso.estado.btPhase == BtPhase.capturing,
+  );
+  return caso;
+}
+
+Future<_Caso> _criandoUmaPassagem() async {
+  final caso = _umaSala();
+  caso.room.passages = _livroComPanorama;
+  await caso.sala.abrirEscolha();
+  await settle();
+  caso.room.holdNextCreate();
+  await enterThePassage(caso.sala, () => caso.estado, 'P01');
+  await waitFor('a criação sair', () => caso.room.createHeld);
+  return caso;
+}
+
 class _Linha {
   const _Linha(
     this.name, {
@@ -309,9 +346,7 @@ final _linhas = [
         () => caso.room.takesKept.contains('ensaio/parte-1'),
       );
       await waitFor('a Fila terminar', () => caso.fila.flushing == 0);
-      return () {
-        expect(caso.room.takesKept, contains('ensaio/parte-1'));
-      };
+      return () {};
     },
   ),
   _Linha(
@@ -423,54 +458,109 @@ final _linhas = [
     '10: a Back-translation recording whose send fails after the rebuild is '
     'not queued under the next room\'s session',
     arrange: () async {
-      final caso = _umaSala();
-      await caso.sala.abrirEscolha();
-      await settle();
-      caso.sala.openTheEntry(caso.estado.naRoda!.first);
-      await waitFor('a passagem abrir', () => caso.estado.sessionId != null);
-      await settle();
-      await _gravarUmaParte(caso);
-      caso.sala.takeKeep();
-      await waitFor(
-        'a parte ganhar nome',
-        () => caso.estado.keptTakes.every((take) => take.takeId != null),
-      );
-      caso.sala.startRetro();
-      await waitFor('o clipe rodar', () => caso.estado.btClipRodando);
-      caso.harness.playback.at = const Duration(seconds: 2);
-      caso.sala
-        ..retroTap()
-        ..retroTap();
-      await waitFor(
-        'o microfone abrir para o trecho',
-        () => caso.estado.btPhase == BtPhase.capturing,
-      );
+      final caso = await _abrindoOMicrofoneParaUmTrecho();
       caso.room.holdTheStretch();
       caso.sala.retroTap();
       await waitFor('o trecho sair', () => caso.room.chunkHeld);
       return caso;
     },
     inTheNextLife: (caso) async {
+      final daOutraSala = caso.room.sessionIds.first;
       await enterThePassage(caso.sala, () => caso.estado, 'P02');
       await waitFor(
         'a próxima sala abrir outra passagem',
-        () => caso.estado.sessionId == 'sessao-2',
+        () => ![null, daOutraSala].contains(caso.estado.sessionId),
       );
       await settle();
     },
     release: (caso) async {
+      final daProximaSala = caso.estado.sessionId!;
       caso.room.answerTheChunk(const NetworkFailed('sem rede'));
       return () async {
         final naFila = await caso.harness.takes.pending();
         expect([
           for (final row in naFila)
-            if (row.kind == 'retro' && row.sessionId == 'sessao-2') row,
+            if (row.kind == 'retro' && row.sessionId == daProximaSala) row,
         ], isEmpty);
         expect(
           caso.room.takesSent,
-          isNot(contains((session: 'sessao-2', kind: 'retro'))),
+          isNot(contains((session: daProximaSala, kind: 'retro'))),
         );
       };
+    },
+  ),
+  _Linha(
+    '9b: the Back-translation\'s read of the recordings that answers gone '
+    'after the rebuild forgets nothing',
+    arrange: () async {
+      final caso = await _naTraducaoRetomada(
+        told: const [
+          SegmentView(
+            segmentId: 'trecho-de-fora',
+            takeId: 'gravacao-de-fora',
+            startsMs: 0,
+            endsMs: 6000,
+          ),
+        ],
+      );
+      await waitFor('a leitura das gravações sair', () => caso.room.takesHeld);
+      return caso;
+    },
+    release: (caso) async {
+      caso.room.answerTheTakes(const SessionGone());
+      return () {
+        expect(caso.fila.discarded, isNot(contains('sessao-antiga')));
+      };
+    },
+  ),
+  _Linha(
+    '9c: the Back-translation\'s read of the stretches after a verdict that '
+    'fails after the rebuild raises nothing',
+    arrange: () async {
+      final caso = await _abrindoOMicrofoneParaUmTrecho();
+      caso.sala.retroTap();
+      await waitFor('o trecho chegar à sala', () => caso.room.chunksSent == 1);
+      await waitFor(
+        'a sala voltar a tocar',
+        () => caso.estado.btPhase == BtPhase.playing,
+      );
+      caso.harness.playback.finishPlayback();
+      await settle();
+      caso.room.holdTheSessionRead();
+      unawaited(caso.sala.finishBackTranslation());
+      await waitFor('a releitura dos trechos sair', () => caso.room.readHeld);
+      return caso;
+    },
+    release: (caso) async {
+      caso.room.answerTheRead(const NetworkFailed('sem rede'));
+      return () {
+        expect(caso.estado.needsPerson, isFalse);
+      };
+    },
+  ),
+  _Linha(
+    '10b: a stretch whose capture closes after the rebuild is not sent',
+    arrange: () async {
+      final caso = await _abrindoOMicrofoneParaUmTrecho();
+      caso.harness.recorder.holdNextStop();
+      caso.sala.retroTap();
+      await settle();
+      return caso;
+    },
+    release: (caso) async {
+      final enviados = caso.room.chunksSent;
+      caso.harness.recorder.finishStop();
+      return () {
+        expect(caso.room.chunksSent, enviados);
+      };
+    },
+  ),
+  _Linha(
+    '12: the end of a gesture of an ended Life does nothing in the next one',
+    arrange: _criandoUmaPassagem,
+    release: (caso) async {
+      caso.room.finishHeldCreate();
+      return () {};
     },
   ),
   _Linha(
@@ -526,6 +616,26 @@ void main() {
       await check();
     });
   }
+
+  test('a count the next room made while a keep was in the air is right once '
+      'the keep lands', () async {
+    final caso = await _naConversa();
+    await _gravarUmaParte(caso);
+    caso.fila.flushesAfter = _maisDoQueUmaEspera;
+    caso.sala.takeKeep();
+    await waitFor('a Fila enviar a tomada', () => caso.fila.flushing > 0);
+
+    caso.container.invalidate(salaSessionProvider);
+    caso.container.read(salaSessionProvider);
+    await caso.sala.refreshUnsent();
+    expect(caso.estado.machine.somethingPending, isTrue);
+
+    await waitFor('a Fila terminar', () => caso.fila.flushing == 0);
+    await waitFor(
+      'a próxima sala contar a tomada como enviada',
+      () => !caso.estado.machine.somethingPending,
+    );
+  });
 
   test('2: a team that leaves while the creation after a gone Panorama is in '
       'the air still lets that session go', () async {

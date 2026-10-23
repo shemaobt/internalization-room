@@ -1579,9 +1579,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  void _theNetworkFailedAt(Door door) => _theNetworkFailedIn(_thisLife, door);
+  void _theNetworkFailedAt(Door door) => _theNetworkFailedIn(door, _thisLife);
 
-  void _theNetworkFailedIn(int? life, Door door) {
+  void _theNetworkFailedIn(Door door, int? life) {
     if (_endedSince(life)) return;
     _dispatch(decided(const RoomNetworkFailed(), _failureContext(door: door)));
   }
@@ -1801,10 +1801,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _applyTheSessionRead(snapshot, sent, rowWhenSent: row);
         return _applyWhatOnlyGrows(snapshot, clock: clock);
       case SessionGone():
-        _theSessionIsGoneIn(life, sessionId);
+        _theSessionIsGoneIn(sessionId, life);
         return false;
       case NetworkFailed():
-        _theNetworkFailedIn(life, Door.coverage);
+        _theNetworkFailedIn(Door.coverage, life);
         return false;
       case final Refused refused:
         if (_abandoned(generation)) return false;
@@ -2229,9 +2229,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _theSessionIsGone([String? sessionId]) =>
-      _theSessionIsGoneIn(_thisLife, sessionId);
+      _theSessionIsGoneIn(sessionId, _thisLife);
 
-  void _theSessionIsGoneIn(int? life, String? sessionId) {
+  void _theSessionIsGoneIn(String? sessionId, int? life) {
     if (_endedSince(life)) return;
     if (sessionId != null && sessionId != _sessionId) {
       return _letGoOf(sessionId);
@@ -2252,7 +2252,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(
       _mindingThePlace(
         () => _forgetTheSessionOnDisk(sessionId, kept),
-      ).whenComplete(() => _countUnsentOf(life)),
+      ).whenComplete(() => _countUnsentIn(life)),
     );
   }
 
@@ -3867,7 +3867,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final kept = await _takes.keepTheScene(waiting.row!);
     if (kept == null) {
       _showTheTakeNotKept(waiting, keeping, generation);
-      return _countUnsentOf(life);
+      return _countUnsentIn(life);
     }
     await _theRoomKept(kept, waiting, keeping, generation, life);
   }
@@ -3890,7 +3890,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
     int? life,
   ) async {
-    await _countUnsentOf(life);
+    await _countUnsentIn(life);
     if (_abandoned(generation)) return;
     final named = await _heldOnTheTablet('cena-${kept.rehearsalId}');
     if (_abandoned(generation)) return;
@@ -5110,11 +5110,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(
       _guard(
         path,
+        _thisLife,
         kind: 'ensaio',
         scope: escopo,
         passNumber: nova.pass,
         chunkIndex: numero,
-        life: _thisLife,
       ),
     );
     _rememberWhereTheyAre(const Ensaio());
@@ -5180,11 +5180,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(
       _guard(
         path,
+        _thisLife,
         kind: 'ensaio',
         scope: escopo,
         passNumber: passada,
         chunkIndex: numero,
-        life: _thisLife,
       ),
     );
     _rememberWhereTheyAre(const Ensaio());
@@ -5232,12 +5232,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late Map<String, Duration?> _lengths;
 
   Future<void> _guard(
-    String path, {
+    String path,
+    int? life, {
     required String kind,
     required String scope,
     int? passNumber,
     int? chunkIndex,
-    required int? life,
   }) => _apart(() async {
     if (_endedSince(life)) return;
     final queue = _takes;
@@ -5292,9 +5292,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
     }
     if (kind == 'retro') _traducaoNaFila[path] = linha;
-    await _countUnsentOf(life);
+    await _countUnsentIn(life);
     await queue.flush();
-    await _countUnsentOf(life);
+    await _countUnsentIn(life);
     await _adoptTheNames(queue, life);
   });
 
@@ -5331,11 +5331,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     )) {
       return _guard(
         path,
+        life,
         kind: 'ensaio',
         scope: scope,
         passNumber: pass,
         chunkIndex: cena,
-        life: life,
       );
     }
     final queue = _takes;
@@ -5344,7 +5344,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await queue.dueAgain(row.id);
     }
     await queue.flush();
-    await _countUnsentOf(life);
+    await _countUnsentIn(life);
     await _adoptTheNames(queue, life);
   }
 
@@ -5368,7 +5368,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       return;
     }
-    await _countUnsentOf(life);
+    await _countUnsentIn(life);
   }
 
   /// Take back the names the room gave the rehearsal recordings this tablet made.
@@ -5513,9 +5513,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// question, and still asked.
   late int _newestCount;
 
-  Future<void> _countUnsent() => _countUnsentOf(_thisLife);
+  Future<void> _countUnsent() => _countUnsentIn(_thisLife);
 
-  Future<void> _countUnsentOf(int? life) => _apart(() async {
+  Future<void> _countUnsentIn(int? life) => _apart(() async {
     if (_endedSince(life)) return;
     final generation = _waitOnTheGeneration;
     final counting = ++_newestCount;
@@ -7399,10 +7399,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(
       _guard(
         path,
+        life,
         kind: 'retro',
         scope: KeptScope.whole,
         passNumber: state.btPass,
-        life: life,
       ),
     );
   }
@@ -7893,7 +7893,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _applyTheSessionRead(snapshot, sent);
         return null;
       case NetworkFailed() && final failure:
-        _theNetworkFailedIn(life, Door.stretches);
+        _theNetworkFailedIn(Door.stretches, life);
         return failure;
       case final RoomFailure failure:
         return failure;
@@ -8033,9 +8033,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(value: final listadas):
         guardadas = listadas;
       case NetworkFailed():
-        return _theNetworkFailedIn(life, Door.stretches);
+        return _theNetworkFailedIn(Door.stretches, life);
       case SessionGone():
-        return _theSessionIsGoneIn(life, sessionId);
+        return _theSessionIsGoneIn(sessionId, life);
       case Refused():
         debugPrint(
           'A sessão $sessionId tem trechos numa gravação que este tablet não '
