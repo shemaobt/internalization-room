@@ -65,18 +65,23 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   session, which parts are being kept, and which rows this visit kept. These are facts of
   the app run, so they are carried when the team leaves a passage and opens one again,
   as the held Panorama is; the rows are keyed by session, so nothing of one session reads
-  on another's rows. «parar» is a gesture
-  the machine turns into an effect the runner hands to the Outbox, naming the take. The
-  screens read the take in the air, the parts being kept, and the parts saved, from the
-  machine's Outbox facts: a part reads «✓ salvo» only when the newest take this visit kept
-  of it is one the room holds, and a kept take whose copy is gone reads «falhou» at once.
+  on another's rows. «parar» is a gesture the machine turns into an effect the runner
+  hands to the Outbox, naming the take. The screens read the take in the air, the parts
+  being kept, and the parts saved, from the machine's Outbox facts. The newest take of a
+  part decides its row: while it is being kept the row reads «enviando…» and offers no
+  tap, whatever it read before; it reads «✓ salvo» only when that take is one the room
+  holds; and it reads «falhou» when its recording is gone, whether it reached the Outbox or
+  not, never an older pass's «✓ salvo».
+- **A tap acts on the session and app run it was made in.** It names its session and part
+  when it lands; nothing it does after waiting on the Outbox touches another session's
+  takes, and nothing at all once the run has ended.
 - **Every take over 25 MB is refused before sending,** of any kind: the room answers an
   oversize upload with a bare `BAD_REQUEST`, so only the tablet can tell it as too large.
 - **The take's state is told on its screen in her words, never by the voice:** «gravando»;
   «enviando…» while it is being kept or sent, until confirmed, spent or refused; «✓ salvo»
   once listed, for a part of this session's visit; «falhou — toque para tentar de novo»
-  when spent or stopped, and on a take held behind a spent one, or a kept take whose copy
-  is gone; «grande demais para o servidor — grave em partes menores» and
+  when spent or stopped, on a take held behind a spent one, and on a newest take whose
+  recording is gone or never reached the Outbox; «grande demais para o servidor — grave em partes menores» and
   «não foi aceita — grave de novo» for final refusals, which offer no tap on the ensaio row.
   On the red microphone a failed scene take reads «não deu para guardar o ensaio da cena —
   gravem de novo» (or the too-large or not-accepted line) with «falhou — toque para tentar
