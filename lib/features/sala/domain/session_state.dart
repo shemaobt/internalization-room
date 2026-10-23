@@ -346,8 +346,9 @@ class SalaSessionState {
   /// The approval the newest Session read says the draft stands under.
   final ApprovedDraft? btRascunhoAprovado;
 
-  /// An approval is in the air: from the press until the Saved screen or the refusal landed.
-  final bool btAprovando;
+  /// The Generation an approval is in the air in: from the press until the Saved screen or
+  /// the refusal's words. A newer Generation is not held by it.
+  final int? btAprovando;
 
   /// The version this press minted, while her approved sentence and P3 stand on the
   /// Back-translation.
@@ -468,7 +469,7 @@ class SalaSessionState {
     this.btFraseQueAguarda,
     this.btFraseGuardada,
     this.btRascunhoAprovado,
-    this.btAprovando = false,
+    this.btAprovando,
     this.btAprovadoAgora,
     this.ensaioSalvo,
     this.unsentTakes = 0,
@@ -1089,11 +1090,13 @@ class SalaSessionState {
   /// the screen so the affordance and the verb it opens read the same fact; the verb keeps
   /// its own guard as well, because it is reachable from more than this one press.
   bool get canListenAtConferida =>
-      btPhase == BtPhase.conferida && partes.isNotEmpty;
+      btPhase == BtPhase.conferida &&
+      partes.isNotEmpty &&
+      aBackTranslationGestureActs;
 
   /// Whether a gesture on the Back-translation acts: never while an approval is in the
   /// air, so nothing the team presses during her approved line moves what was approved.
-  bool get aBackTranslationGestureActs => !btAprovando;
+  bool get aBackTranslationGestureActs => btAprovando != machine.generation;
 
   bool get canRetellAFrase =>
       stage == SalaStage.retro &&
@@ -1185,7 +1188,8 @@ class SalaSessionState {
     bool clearBtFraseGuardada = false,
     ApprovedDraft? btRascunhoAprovado,
     bool clearBtRascunhoAprovado = false,
-    bool? btAprovando,
+    int? btAprovando,
+    bool clearBtAprovando = false,
     int? btAprovadoAgora,
     bool clearBtAprovadoAgora = false,
     int? ensaioSalvo,
@@ -1283,7 +1287,7 @@ class SalaSessionState {
       btRascunhoAprovado: clearBtRascunhoAprovado
           ? null
           : (btRascunhoAprovado ?? this.btRascunhoAprovado),
-      btAprovando: btAprovando ?? this.btAprovando,
+      btAprovando: clearBtAprovando ? null : (btAprovando ?? this.btAprovando),
       btAprovadoAgora: clearBtAprovadoAgora
           ? null
           : (btAprovadoAgora ?? this.btAprovadoAgora),

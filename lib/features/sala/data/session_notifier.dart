@@ -367,6 +367,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       : state.copyWith(btTrechoTraduzidoDeNovo: trecho);
   late BtPhase? _faseAntesDeTraduzirDeNovo;
 
+  /// The Generation whose approval has not answered yet: a second press in it sends
+  /// nothing, and an answer acts only on the press that sent it.
+  int? _aprovacaoNoAr;
+
   late Set<String> _traducoesGuardadas;
 
   /// The outbox row a guarded translation landed on, by the path it was guarded for.
@@ -7589,17 +7593,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is! Retro) return;
     if (state.btPhase != BtPhase.conferida) return;
     if (state.needsPerson) return;
-    if (state.btAprovando || state.ensaioSalvo != null) return;
+    if (_aprovacaoNoAr == _generation || state.ensaioSalvo != null) return;
     _silenceTheRoom();
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     state = state.copyWith(
-      btAprovando: true,
+      btAprovando: _generation,
       clearBtRecusa: true,
       clearAviso: true,
       clearRecomeco: true,
     );
     final generation = _waitOnTheGeneration;
+    _aprovacaoNoAr = generation;
     void failed(RoomFailure failure) {
       if (_abandoned(generation)) return;
       if (failure case Refused()) _backToBeforeTerminei();
@@ -7640,14 +7645,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_abandoned(generation)) return;
       state = state.copyWith(ensaioSalvo: state.btAprovadoAgora);
     } finally {
-      if (!_gone) {
-        state = state.copyWith(btAprovando: false, clearBtAprovadoAgora: true);
+      if (_aprovacaoNoAr == generation) _aprovacaoNoAr = null;
+      if (!_gone && state.btAprovando == generation) {
+        state = state.copyWith(
+          clearBtAprovando: true,
+          clearBtAprovadoAgora: true,
+        );
       }
     }
   }
 
   void _saysWhy(CheckRefusal recusa) =>
-      state = state.copyWith(btRecusa: recusa);
+      state = state.copyWith(btRecusa: recusa, clearBtAprovando: true);
 
   /// Take the team to the first hole the refusal names that this room has a door for.
   ///

@@ -320,7 +320,9 @@ class RetroView extends ConsumerWidget {
             language,
             n: session.btTrechos.where((trecho) => trecho.contado).length,
           );
-    final dormindo = session.btRecomeco == BtRecomeco.armado;
+    final dormindo =
+        session.btRecomeco == BtRecomeco.armado ||
+        !session.aBackTranslationGestureActs;
     return Semantics(
       button: true,
       enabled: !dormindo,

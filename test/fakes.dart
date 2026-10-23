@@ -2907,12 +2907,15 @@ class FakeRoom implements RoomRepository {
   }
 
   Completer<void>? _holdingRelease;
+  Completer<void>? _heldRelease;
 
-  /// Holds the approval in flight, so a test can press again before the answer lands.
+  /// Holds the next approval in flight, so a test can press again before the answer
+  /// lands; the approvals after it go through.
   void holdNextRelease() => _holdingRelease = Completer<void>();
 
   void finishHeldRelease() {
-    _holdingRelease?.complete();
+    (_heldRelease ?? _holdingRelease)?.complete();
+    _heldRelease = null;
     _holdingRelease = null;
   }
 
@@ -2931,7 +2934,11 @@ class FakeRoom implements RoomRepository {
     final refusal = failReleaseWith;
     if (refusal != null) return refusal;
     final held = _holdingRelease;
-    if (held != null) await held.future;
+    if (held != null) {
+      _holdingRelease = null;
+      _heldRelease = held;
+      await held.future;
+    }
     if (releaseBlockers.isEmpty) return Answered(release);
     return Answered(
       ApprovalAnswer(
