@@ -24,6 +24,7 @@ const _rotulosDeTraduzir = {
   'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase acaba, e de novo para traduzir só aquela frase.',
   'Toque para traduzir esta frase do ensaio da cena',
   'recomeçar a tradução',
+  'Quem não ajudou a traduzir ouve a passagem e diz o que entendeu.',
   'toque de novo para apagar as {n} frases traduzidas',
   'tradução recomeçada — o ensaio da passagem ficou',
   'tradução recomeçada — o ensaio da cena ficou',

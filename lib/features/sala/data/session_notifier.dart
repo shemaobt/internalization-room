@@ -6239,7 +6239,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         await _readTheStretchesBack(sessionId, generation);
       case SessionGone() && final failure:
         _decideTheFailure(failure);
-      case RoomFailure():
+      case NetworkFailed():
+        _theNetworkFailedAt(Door.stretches);
+        state = state.copyWith(btAviso: BtAviso.checagemFalhou);
+      case Refused():
         state = state.copyWith(btAviso: BtAviso.checagemFalhou);
     }
   }

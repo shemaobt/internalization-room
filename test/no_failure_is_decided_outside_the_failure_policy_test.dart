@@ -36,6 +36,7 @@ const _notYetMoved = <String, String>{
 const _keptByDecision = <String, String>{
   '_theCallOfAnEarlierSession': 'ADR 0060',
   '_theSceneGoes': 'ADR 0085',
+  '_abrirAChecagemExterna': 'ADR 0114',
 };
 
 final _namesAFailure = RegExp(

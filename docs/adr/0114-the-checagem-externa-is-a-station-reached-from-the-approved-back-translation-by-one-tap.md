@@ -39,6 +39,9 @@ its own.
   and reads the session, so the approval and the button leave with that read (ADR 0106). Any
   other failure reads «não deu para abrir a checagem externa — tentem de novo», with no person
   sign. The session gone takes the team to the Choice, as on every door that names it.
+- The door answers its refusals itself, kept out of the failure policy by this decision, as
+  ADR 0060 and 0085 keep theirs. A network failure is still told to the policy at the
+  stretches' door, as the Session read it replaces did, and the session gone goes through it.
 - The Station shows her title, her idle sub-line and «Novo ouvinte», not yet enabled, with no
   listener count at zero. Its back control, «Voltar para a gravação», returns to the
   Back-translation as it was. Nothing is spoken on arrival.
