@@ -37,7 +37,14 @@ approved sentence with its **Version**, and ends on «Ensaio salvo» with one bu
   is over the **Saved screen** stands over the Back-translation: a check mark, «Ensaio salvo»,
   the same sentence, «Pronto». It comes whatever happened to the line, whole, cut or never
   given, as her approve does (it awaits the line, then shows the screen); nothing asks the line
-  again. Under the person sign «Pronto» goes dark like everything else (ADR 0107).
+  again. Under the person sign «Pronto» fades and leaves the semantics tree, as the way out
+  does (ADR 0107).
+- **While an approval is in the air, no other Back-translation gesture acts**, from the press
+  until the Saved screen comes or the refusal has landed: a restart, a retelling, a frase or
+  the recording asked during P3 does nothing, so nothing moves what was approved. The press
+  also disarms any armed control (the Restart) and clears the Back-translation's notice with
+  the refusal text, so a press reads only its own answer, and her approved sentence never
+  outlives its approval.
 - **«Pronto» drops the Saved screen and nothing else.** The Station, the Step (checked) and the
   Resume point stay; the passage is not closed. One Session read is asked after the mint, so the
   badge «✓ aprovado como rascunho final (v{n})» comes from a read (ADR 0106).

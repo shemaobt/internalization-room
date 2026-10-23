@@ -20,6 +20,9 @@ const _precisaConferida = 'para aprovar, a tradução precisa estar conferida';
 const _naoDeu = 'não deu para conferir agora — tentem de novo';
 const _ensaioSalvo = 'Ensaio salvo';
 const _pronto = 'Pronto';
+const _recomecar = 'recomeçar a tradução';
+const _naoDeuRecomecar = 'não deu para recomeçar agora — tentem de novo';
+const _badge = '✓ aprovado como rascunho final (v1)';
 
 String _aprovado(int v) =>
     'Aprovado como rascunho final da equipe (v$v). Próximo passo: a checagem '
@@ -411,4 +414,172 @@ void main() {
     expect(find.textContaining('Refine'), findsNothing);
     closeTheRoom(it.container);
   });
+
+  testWidgets(
+    'a refusal text from an earlier press never stands under the badge',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.room.failReleaseWith = const NetworkFailed('sem rede');
+      await _tocar(tester);
+      expect(find.text(_naoDeu), findsOneWidget);
+
+      it.harness.room.failReleaseWith = null;
+      await _approvedThroughPronto(tester, it);
+
+      expect(find.text(_badge), findsOneWidget);
+      expect(find.text(_naoDeu), findsNothing);
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'the restart pressed twice while the approval line plays does nothing, and '
+    '«$_ensaioSalvo» still comes',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      it.harness.voice.holdNextLine();
+      await _tocar(tester);
+
+      it.container.read(salaSessionProvider.notifier).recomecarATraducao();
+      await tester.pump(const Duration(milliseconds: 700));
+      it.container.read(salaSessionProvider.notifier).recomecarATraducao();
+      await tester.pump(const Duration(milliseconds: 300));
+      it.harness.voice.finishHeldLine();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(it.harness.room.restartsAsked, isEmpty);
+      expect(find.text(_ensaioSalvo), findsOneWidget);
+
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text(_badge), findsOneWidget);
+      expect(find.text(_aprovado(1)), findsNothing);
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'a frase told again while the approval line plays starts nothing, and '
+    '«$_ensaioSalvo» comes after the line',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      it.harness.voice.holdNextLine();
+      await _tocar(tester);
+
+      it.container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text(_ensaioSalvo), findsNothing);
+
+      it.harness.voice.finishHeldLine();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text(_ensaioSalvo), findsOneWidget);
+
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text(_badge), findsOneWidget);
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'the recording asked while the approval line plays does not play',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.voice.holdNextLine();
+      await _tocar(tester);
+      final tocadas = it.harness.playback.playedFrom.length;
+
+      await tester.tap(byLabel(_ouvir));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(it.harness.playback.playedFrom, hasLength(tocadas));
+      it.harness.voice.finishHeldLine();
+      await tester.pump(const Duration(milliseconds: 300));
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets('a frase asked while the approval line plays does not play', (
+    tester,
+  ) async {
+    final it = await _ateAConferida(tester);
+    it.harness.voice.holdNextLine();
+    await _tocar(tester);
+    final tocadas = it.harness.playback.playedFrom.length;
+
+    it.container.read(salaSessionProvider.notifier).ouvirOTrechoContado(0);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(it.harness.playback.playedFrom, hasLength(tocadas));
+    it.harness.voice.finishHeldLine();
+    await tester.pump(const Duration(milliseconds: 300));
+    closeTheRoom(it.container);
+  });
+
+  testWidgets(
+    'an approval left before its line ended leaves no approved sentence behind',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.voice.holdNextLine();
+      await _tocar(tester);
+      expect(find.text(_aprovado(1)), findsOneWidget);
+
+      final sala = it.container.read(salaSessionProvider.notifier);
+      sala.goEnsaio();
+      await tester.pump(const Duration(milliseconds: 300));
+      it.harness.voice.finishHeldLine();
+      await tester.pump(const Duration(milliseconds: 300));
+      sala.startRetro();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text(_traduzir), findsOneWidget);
+      expect(find.text(_aprovado(1)), findsNothing);
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets('a restart armed before the approval is idle after «$_pronto»', (
+    tester,
+  ) async {
+    final it = await _ateAConferida(tester);
+    it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+    it.container.read(salaSessionProvider.notifier).recomecarATraducao();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await _tocar(tester);
+    await tester.tap(byLabel(_pronto));
+    await tester.pump(const Duration(milliseconds: 800));
+
+    expect(byLabel(_recomecar), findsOneWidget);
+    it.container.read(salaSessionProvider.notifier).recomecarATraducao();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(it.harness.room.restartsAsked, isEmpty);
+    closeTheRoom(it.container);
+  });
+
+  testWidgets(
+    'after a failed restart, an approval the room cannot answer shows her third '
+    'text, not the restart\'s',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.room.failRestartWith = const NetworkFailed('sem rede');
+      it.container.read(salaSessionProvider.notifier).recomecarATraducao();
+      await tester.pump(const Duration(milliseconds: 700));
+      it.container.read(salaSessionProvider.notifier).recomecarATraducao();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text(_naoDeuRecomecar), findsOneWidget);
+
+      it.harness.room.failReleaseWith = const NetworkFailed('sem rede');
+      await _tocar(tester);
+
+      expect(find.text(_naoDeu), findsOneWidget);
+      expect(find.text(_naoDeuRecomecar), findsNothing);
+      closeTheRoom(it.container);
+    },
+  );
 }

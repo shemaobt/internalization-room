@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -1306,16 +1307,25 @@ void main() {
   });
 
   testWidgets(
-    'em conferida sob parada o pronto e a saída somem, e voltam com o toque no '
-    'sinal',
+    'com a leitura depois da aprovação perdida, sob parada nem o pronto nem a '
+    'saída estão na tela, e voltam com o toque no sinal',
     (tester) async {
+      final semantics = tester.ensureSemantics();
       final it = await _ateAConferida(tester);
       it.harness.voice.refuses.add('P3');
+      it.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
 
       await tester.tap(byLabel(_aprovar));
       await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(byLabel(_pronto));
       await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        byLabel(_aprovar),
+        findsOneWidget,
+        reason:
+            'sem a leitura depois da aprovação o selo não vem, e aprovar '
+            'segue oferecido',
+      );
       await tester.tap(byLabel(_aprovar));
       await tester.pump(const Duration(milliseconds: 400));
 
@@ -1326,25 +1336,18 @@ void main() {
             'a linha da Guia que falha duas vezes seguidas para a sala para '
             'uma pessoa — se não parar, não há parada que medir',
       );
-      expect(_estado(it.container).btPhase, BtPhase.conferida);
-      expect(byLabel(_pronto), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 500));
       expect(
-        tester
-            .widget<IgnorePointer>(
-              find
-                  .ancestor(
-                    of: byLabel(_pronto),
-                    matching: find.byType(IgnorePointer),
-                  )
-                  .first,
-            )
-            .ignoring,
-        isTrue,
-        reason: 'sob o sinal da pessoa o pronto se apaga, como tudo (ADR 0107)',
+        find.bySemanticsLabel(_pronto),
+        findsNothing,
+        reason: 'sob o sinal só a lavagem fala (ADR 0107)',
       );
+      expect(find.bySemanticsLabel(_sairDaPassagem), findsNothing);
 
       it.container.read(salaSessionProvider.notifier).teamTapped();
       await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.bySemanticsLabel(_pronto), findsOneWidget);
       await tester.tap(byLabel(_pronto));
       await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(byLabel(_sairDaPassagem));
@@ -1355,6 +1358,7 @@ void main() {
         SalaStage.escolha,
         reason: 'e o toque tem de valer, não ser engolido por um botão inerte',
       );
+      semantics.dispose();
     },
   );
 
@@ -1426,7 +1430,7 @@ void main() {
     expect(
       _estado(it.container).btPhase,
       BtPhase.conferida,
-      reason: 'e o colar não fecha sobre uma aprovação que a equipe não ouviu',
+      reason: 'a aprovação não tira a equipe da conferida',
     );
     expect(it.harness.room.releasesAsked, hasLength(1));
 

@@ -65,30 +65,33 @@ class SavedScreen extends ConsumerWidget {
               const SizedBox(height: 28),
               IgnorePointer(
                 ignoring: !live,
-                child: Semantics(
-                  button: true,
-                  enabled: live,
-                  label: pronto,
-                  child: ExcludeSemantics(
-                    child: GestureDetector(
-                      onTap: ref.read(salaSessionProvider.notifier).pronto,
-                      behavior: HitTestBehavior.opaque,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: ShemaBrand.verdeClaro,
-                          borderRadius: BorderRadius.circular(28),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 36,
-                            vertical: 14,
+                child: AnimatedOpacity(
+                  opacity: live ? 1 : 0,
+                  duration: const Duration(milliseconds: 400),
+                  child: Semantics(
+                    button: true,
+                    label: pronto,
+                    child: ExcludeSemantics(
+                      child: GestureDetector(
+                        onTap: ref.read(salaSessionProvider.notifier).pronto,
+                        behavior: HitTestBehavior.opaque,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: ShemaBrand.verdeClaro,
+                            borderRadius: BorderRadius.circular(28),
                           ),
-                          child: Text(
-                            pronto,
-                            style: const TextStyle(
-                              color: ShemaBrand.branco,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w500,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 36,
+                              vertical: 14,
+                            ),
+                            child: Text(
+                              pronto,
+                              style: const TextStyle(
+                                color: ShemaBrand.branco,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ),

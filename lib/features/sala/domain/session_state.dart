@@ -345,7 +345,15 @@ class SalaSessionState {
 
   /// The approval the newest Session read says the draft stands under.
   final ApprovedDraft? btRascunhoAprovado;
+
+  /// An approval is in the air: from the press until the Saved screen or the refusal landed.
+  final bool btAprovando;
+
+  /// The version this press minted, while her approved sentence and P3 stand on the
+  /// Back-translation.
   final int? btAprovadoAgora;
+
+  /// The version the Saved screen shows; the Saved screen stands while it is set.
   final int? ensaioSalvo;
   final int unsentTakes;
   final int unsentChunks;
@@ -460,6 +468,7 @@ class SalaSessionState {
     this.btFraseQueAguarda,
     this.btFraseGuardada,
     this.btRascunhoAprovado,
+    this.btAprovando = false,
     this.btAprovadoAgora,
     this.ensaioSalvo,
     this.unsentTakes = 0,
@@ -1082,10 +1091,15 @@ class SalaSessionState {
   bool get canListenAtConferida =>
       btPhase == BtPhase.conferida && partes.isNotEmpty;
 
+  /// Whether a gesture on the Back-translation acts: never while an approval is in the
+  /// air, so nothing the team presses during her approved line moves what was approved.
+  bool get aBackTranslationGestureActs => !btAprovando;
+
   bool get canRetellAFrase =>
       stage == SalaStage.retro &&
       partes.isNotEmpty &&
       !needsPerson &&
+      aBackTranslationGestureActs &&
       btRegravacao == null &&
       btFraseQueAguarda == null &&
       (btPhase == BtPhase.findings ||
@@ -1097,6 +1111,7 @@ class SalaSessionState {
       stage == SalaStage.retro &&
       partes.isNotEmpty &&
       !needsPerson &&
+      aBackTranslationGestureActs &&
       btRegravacao == null &&
       (btPhase == BtPhase.playing ||
           btPhase == BtPhase.findings ||
@@ -1170,6 +1185,7 @@ class SalaSessionState {
     bool clearBtFraseGuardada = false,
     ApprovedDraft? btRascunhoAprovado,
     bool clearBtRascunhoAprovado = false,
+    bool? btAprovando,
     int? btAprovadoAgora,
     bool clearBtAprovadoAgora = false,
     int? ensaioSalvo,
@@ -1267,6 +1283,7 @@ class SalaSessionState {
       btRascunhoAprovado: clearBtRascunhoAprovado
           ? null
           : (btRascunhoAprovado ?? this.btRascunhoAprovado),
+      btAprovando: btAprovando ?? this.btAprovando,
       btAprovadoAgora: clearBtAprovadoAgora
           ? null
           : (btAprovadoAgora ?? this.btAprovadoAgora),
