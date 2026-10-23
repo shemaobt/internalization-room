@@ -154,6 +154,7 @@ const sceneRehearsalLabels = {
     'pt': 'falhou — toque para tentar de novo',
     'en': 'failed — tap to try again',
   },
+  'lost': {'pt': 'falhou', 'en': 'failed'},
   'refused': {
     'pt': 'não foi aceita — grave de novo',
     'en': 'not accepted — record it again',

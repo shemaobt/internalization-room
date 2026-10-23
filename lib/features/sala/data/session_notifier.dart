@@ -3853,10 +3853,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     } on Object {
       if (_endedSince(life) || _goneSessions.contains(sessionId)) return;
+      final gone = !await File(path).exists();
+      if (_endedSince(life)) return;
       _showTheTakeNotKept(
         NotKept(
           take: path,
-          why: _tooLargeForTheRoom(path)
+          why: gone
+              ? SendFailure.gone
+              : _tooLargeForTheRoom(path)
               ? SendFailure.tooLarge
               : SendFailure.failed,
         ),
@@ -3932,7 +3936,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<SendFailure> _whyNotSent(String row) async {
     for (final entry in await _takes.entries()) {
       if (entry.id != row) continue;
-      return entry.lost ? SendFailure.failed : entry.failure;
+      if (!entry.lost) return entry.failure;
+      return await File(entry.path).exists()
+          ? SendFailure.failed
+          : SendFailure.gone;
     }
     return SendFailure.failed;
   }
@@ -3952,6 +3959,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         asked.step != SceneStep.record ||
         asked.waiting ||
         waiting is! NotKept ||
+        waiting.why == SendFailure.gone ||
         state.channel is Microphone) {
       return;
     }

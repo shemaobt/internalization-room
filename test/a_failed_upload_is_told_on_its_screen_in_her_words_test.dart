@@ -1161,6 +1161,84 @@ void main() {
   );
 
   testWidgets(
+    'a scene take whose copy is gone reads falhou with no tap on the red '
+    'microphone, and a re-send of it is refused',
+    (tester) async {
+      late SceneRoom room;
+      await tester.runAsync(() async {
+        room = await atRest();
+        await theScreenOpens(room);
+        room.harness.room.failSceneWith = const NetworkFailed('sem rede');
+        await _recordAScene(room);
+        await waitFor(
+          'o ensaio ficar esperando',
+          () => room.state.scene.keep is NotKept,
+        );
+        room.harness.room.failSceneWith = null;
+        final linhas = await room.harness.takes.entries();
+        File(
+          linhas.singleWhere((row) => row.kind == sceneTakeKind).path,
+        ).deleteSync();
+      });
+      await _pumpTheRoom(tester, room);
+      await tester.tap(find.text(_falhou));
+      for (var i = 0; i < 100 && room.state.scene.keep is Keeping; i++) {
+        await tester.runAsync(settle);
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(find.text(_naoDeuParaGuardar), findsOneWidget);
+      expect(find.text(_perdida), findsOneWidget);
+      expect(find.widgetWithText(TextButton, _perdida), findsNothing);
+      expect(find.text(_falhou), findsNothing);
+
+      room.sala.sendTheSceneTakeAgain();
+
+      expect(room.state.scene.keep, isA<NotKept>());
+      expect(room.harness.room.sceneTakesSent, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'a scene take that never reached the Outbox and whose recording is gone '
+    'reads falhou with no tap on the red microphone',
+    (tester) async {
+      late SceneRoom room;
+      late _AQueueThatHoldsTheKeep fila;
+      await tester.runAsync(() async {
+        room = await atRest(
+          SalaHarness(
+            takesOverride: (sala, home, recordings) =>
+                fila = _AQueueThatHoldsTheKeep(
+                  room: sala,
+                  home: () async => home,
+                  recordings: recordings,
+                ),
+          ),
+        );
+        await theScreenOpens(room);
+        fila.falhar = true;
+        await _recordAScene(room);
+        await waitFor(
+          'o ensaio ficar esperando',
+          () => room.state.scene.keep is NotKept,
+        );
+        File(room.harness.recorder.lastPath!).deleteSync();
+      });
+      await _pumpTheRoom(tester, room);
+      await tester.tap(find.text(_falhou));
+      for (var i = 0; i < 100 && room.state.scene.keep is Keeping; i++) {
+        await tester.runAsync(settle);
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(find.text(_perdida), findsOneWidget);
+      expect(find.widgetWithText(TextButton, _perdida), findsNothing);
+      expect(find.text(_falhou), findsNothing);
+    },
+  );
+
+  testWidgets(
     'parar on the red microphone stops a spent scene take sent ahead of the '
     'new one, and a tap sends both in the order recorded',
     (tester) async {
