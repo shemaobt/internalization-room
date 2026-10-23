@@ -22,7 +22,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show pausadaNoToque, tocarNoCirculo;
+    show contarAteOFimDaParte, pausadaNoToque, tocarNoCirculo;
 
 const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
@@ -193,21 +193,14 @@ Future<String> gravarATraducao(
   return harness.recorder.lastPath!;
 }
 
-class DoisContados {
-  final ProviderContainer container;
-  final String primeira;
-
-  DoisContados(this.container, this.primeira);
-}
-
-Future<DoisContados> doisContadosEOTerceiroPendente(
+Future<ProviderContainer> doisContadosEOTerceiroPendente(
   WidgetTester tester,
   SalaHarness harness,
 ) async {
   final container = await entrarNaTraducao(tester, harness);
   harness.playback.at = cabeca;
   await tocarNoCirculo(tester);
-  final primeira = await gravarATraducao(tester, harness);
+  await gravarATraducao(tester, harness);
   harness.playback.at = const Duration(seconds: 8);
   await tocarNoCirculo(tester);
   await gravarATraducao(tester, harness);
@@ -219,7 +212,7 @@ Future<DoisContados> doisContadosEOTerceiroPendente(
     'translucent com anel',
     'translucent',
   ]);
-  return DoisContados(container, primeira);
+  return container;
 }
 
 void main() {
@@ -245,11 +238,14 @@ void main() {
   testWidgets('R3 — a conta tocada toca o seu trecho e devolve o anel ao '
       'pendente', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final contados = await doisContadosEOTerceiroPendente(tester, harness);
+    final container = await doisContadosEOTerceiroPendente(tester, harness);
 
     await tocarAConta(tester, 0);
 
-    expect(harness.playback.played.last, contados.primeira);
+    expect(
+      harness.playback.played.last,
+      container.read(salaSessionProvider).partes.first.path,
+    );
     expect(harness.playback.sounding, isTrue);
     expect(contas(tester), [
       'solid com anel',
@@ -258,7 +254,7 @@ void main() {
       'translucent',
     ]);
     expect(aceso(tester, pausar), isTrue);
-    expect(await olhar(tester), 'azul soando');
+    expect(await olhar(tester), 'wood soando');
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -291,7 +287,32 @@ void main() {
       '8000-9000',
       reason: 'o cursor e o corte não andaram',
     );
-    closeTheRoom(contados.container);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a bead tapped before any verdict plays its frase out of the '
+      'recording, not its translation, and opens no retell', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await doisContadosEOTerceiroPendente(tester, harness);
+    final gravacao = container.read(salaSessionProvider).partes.first.path;
+    final tocadas = harness.playback.played.length;
+    final trechos = harness.playback.ranges.length;
+
+    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      harness.playback.played.skip(tocadas),
+      [gravacao],
+      reason: 'a conta tocava a tradução da frase, e a dela toca a gravação',
+    );
+    expect(harness.playback.ranges.skip(trechos), ['0-4000']);
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo,
+      isNull,
+      reason: 'antes do veredito a conta abria a frase para traduzir de novo',
+    );
+    closeTheRoom(container);
   });
 
   testWidgets('R3 — com o clipe pausado no meio, a conta tocada não move a '
@@ -421,12 +442,7 @@ void main() {
     await tocar(tester, ouvir);
 
     for (var vez = 0; vez < 2; vez++) {
-      harness.playback.at = parte;
-      harness.playback.finishPlayback();
-      await tester.pump(const Duration(milliseconds: 300));
-      await tocarNoCirculo(tester);
-      await tocarNoCirculo(tester);
-      await tocarNoCirculo(tester);
+      await contarAteOFimDaParte(tester, harness);
     }
     await tocar(tester, conferir);
     await tester.pump(const Duration(milliseconds: 300));

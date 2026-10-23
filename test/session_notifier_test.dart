@@ -6407,7 +6407,8 @@ void main() {
     expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
   });
 
-  test('the retro pauses at a part boundary and waits for a gesture', () async {
+  test('the check plays on into the next part with no gesture, instead of '
+      'resting at the boundary', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -6417,24 +6418,25 @@ void main() {
     await gravaParte(notifier);
     notifier.startRetro();
     await settle();
+    final primeira = harness.playback.played.single;
 
     harness.playback.at = const Duration(seconds: 10);
     harness.playback.finishPlayback();
     await settle();
 
     var state = container.read(salaSessionProvider);
-    expect(state.btParteFronteira, isTrue);
+    expect(
+      harness.playback.played,
+      hasLength(2),
+      reason: 'a gravação parava calada na fronteira, esperando um toque',
+    );
+    expect(harness.playback.played.last, isNot(primeira));
+    expect(state.btClipRodando, isTrue);
     expect(
       state.btClipEnded,
       isFalse,
       reason: 'a fronteira não é o fim: a conferência não pode aparecer aqui',
     );
-    expect(harness.playback.played, hasLength(1));
-
-    notifier.ouvirGravacao();
-    await settle();
-    expect(harness.playback.played, hasLength(2));
-    expect(container.read(salaSessionProvider).btParteFronteira, isFalse);
 
     harness.playback.at = const Duration(seconds: 8);
     harness.playback.finishPlayback();
@@ -6442,6 +6444,110 @@ void main() {
     state = container.read(salaSessionProvider);
     expect(state.btClipEnded, isTrue);
     expect(state.canFinishBackTranslation, isTrue);
+  });
+
+  test('a frase told on a joined recording whose next part is already told '
+      'stops the part at its own end, not on into that part', () async {
+    final harness = SalaHarness();
+    final container = await _umaGravacaoRetomada(
+      harness,
+      fraseNaGravacao: 'gravacao-2',
+      juntas: const {1, 2},
+    );
+    final tocadas = await _contarUmaFraseEAcabarAParte(harness, container);
+
+    expect(
+      harness.playback.played.skip(tocadas),
+      isEmpty,
+      reason:
+          'numa gravação juntada a parte seguia para a próxima, já traduzida, '
+          'e o círculo caía numa frase sem nada para contar',
+    );
+  });
+
+  test('a frase told on a joined recording whose next part has nothing told '
+      'plays on into that part', () async {
+    final harness = SalaHarness();
+    final container = await _umaGravacaoRetomada(
+      harness,
+      fraseNaGravacao: 'gravacao-1',
+      juntas: const {1, 2},
+    );
+    final tocadas = await _contarUmaFraseEAcabarAParte(harness, container);
+
+    expect(
+      harness.playback.played.skip(tocadas),
+      [container.read(salaSessionProvider).partes[1].path],
+      reason:
+          'numa gravação juntada a parte parava mesmo com a próxima por contar',
+    );
+  });
+
+  test('a frase told on a recording that is not joined plays on into the '
+      'next part even when it is already told, as her resume does', () async {
+    final harness = SalaHarness();
+    final container = await _umaGravacaoRetomada(
+      harness,
+      fraseNaGravacao: 'gravacao-2',
+      juntas: const {},
+    );
+    final tocadas = await _contarUmaFraseEAcabarAParte(harness, container);
+
+    expect(
+      harness.playback.played.skip(tocadas),
+      [container.read(salaSessionProvider).partes[1].path],
+      reason:
+          'numa gravação não juntada a parte parava no fim dela, e a dela '
+          'segue pela corrente',
+    );
+  });
+
+  test('a frase told where only a part further on is joined stops at its own '
+      'end, since joined is the whole recording', () async {
+    final harness = SalaHarness();
+    final container = await _umaGravacaoRetomada(
+      harness,
+      fraseNaGravacao: 'gravacao-2',
+      juntas: const {3},
+      partes: 3,
+    );
+    final tocadas = await _contarUmaFraseEAcabarAParte(harness, container);
+
+    expect(
+      harness.playback.played.skip(tocadas),
+      isEmpty,
+      reason:
+          'com uma parte juntada mais adiante a parte seguia para a próxima, '
+          'já traduzida',
+    );
+  });
+
+  test('a part the team held does not play on when its end comes in, '
+      'instead of crossing under the hold', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+    notifier.startRetro();
+    await settle();
+    harness.playback.at = const Duration(seconds: 6);
+    await settle();
+    notifier.ouvirGravacao();
+    await settle();
+    expect(container.read(salaSessionProvider).btClipPausada, isTrue);
+
+    harness.playback.at = const Duration(seconds: 10);
+    harness.playback.finishPlayback();
+    await settle();
+
+    expect(
+      harness.playback.played,
+      hasLength(1),
+      reason: 'a parte segurada pela equipe seguia para a próxima sozinha',
+    );
   });
 
   test('a part says its own length the moment it opens', () async {
@@ -6574,13 +6680,8 @@ void main() {
       'o clipe estar rodando',
       () => container.read(salaSessionProvider).btClipRodando,
     );
-    harness.playback.finishPlayback();
-    await waitFor(
-      'a primeira parte acabar',
-      () => container.read(salaSessionProvider).btParteFronteira,
-    );
     final tocadas = harness.playback.played.length;
-    notifier.ouvirGravacao();
+    harness.playback.finishPlayback();
     await waitFor(
       'a segunda gravação tocar',
       () => harness.playback.played.length > tocadas && harness.playback.open,
@@ -6691,13 +6792,8 @@ void main() {
       () => container.read(salaSessionProvider).btClipRodando,
     );
     harness.playback.at = Duration.zero;
-    harness.playback.finishPlayback();
-    await waitFor(
-      'a primeira parte acabar',
-      () => container.read(salaSessionProvider).btParteFronteira,
-    );
     final tocadas = harness.playback.played.length;
-    notifier.ouvirGravacao();
+    harness.playback.finishPlayback();
     await waitFor(
       'a segunda gravação tocar',
       () => harness.playback.played.length > tocadas && harness.playback.open,
@@ -6766,8 +6862,6 @@ void main() {
     harness.playback.at = const Duration(seconds: 10);
     harness.playback.finishPlayback();
     await settle();
-    notifier.ouvirGravacao();
-    await settle();
     harness.playback.at = const Duration(seconds: 8);
     harness.playback.finishPlayback();
     await settle();
@@ -6816,8 +6910,6 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 10);
-    harness.playback.finishPlayback();
-    await settle();
     notifier.retroTap();
     notifier.retroTap();
     await settle();
@@ -6827,7 +6919,7 @@ void main() {
       () => harness.room.chunksSent == 1,
     );
     await settle();
-    notifier.ouvirGravacao();
+    harness.playback.finishPlayback();
     await settle();
     harness.playback.at = const Duration(seconds: 3);
     notifier.retroTap();
@@ -7328,4 +7420,75 @@ void main() {
           'por uma linha que a equipe nunca ouviu',
     );
   });
+}
+
+Future<ProviderContainer> _umaGravacaoRetomada(
+  SalaHarness harness, {
+  required String fraseNaGravacao,
+  required Set<int> juntas,
+  int partes = 2,
+}) async {
+  final pasta = Directory.systemTemp.createTempSync('sala-1747');
+  addTearDown(() => pasta.deleteSync(recursive: true));
+  harness.playback
+    ..measured = const Duration(seconds: 10)
+    ..length = const Duration(seconds: 10);
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+    sessionId: 'sessao-antiga',
+    stage: SalaStage.retro,
+    takes: [
+      for (var n = 1; n <= partes; n++)
+        KeptTake(
+          scopeId: KeptScope.parte(n),
+          path: (File(
+            '${pasta.path}/p$n.m4a',
+          )..writeAsBytesSync([1, 2, 3])).path,
+          takeId: 'gravacao-$n',
+          origin: juntas.contains(n) ? 'ensaio-da-cena-$n' : null,
+        ),
+    ],
+  );
+  harness.room.retroSoFar = BackTranslationProgress(
+    checked: false,
+    segments: [
+      SegmentView(
+        segmentId: 'trecho-1',
+        takeId: fraseNaGravacao,
+        startsMs: 0,
+        endsMs: 2000,
+        frase: 1,
+      ),
+    ],
+  );
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.abrirEscolha();
+  await settle();
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+  await waitFor(
+    'a primeira parte voltar a tocar',
+    () => container.read(salaSessionProvider).btClipRodando,
+  );
+  expect(container.read(salaSessionProvider).joined, juntas.isNotEmpty);
+  return container;
+}
+
+Future<int> _contarUmaFraseEAcabarAParte(
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  final notifier = container.read(salaSessionProvider.notifier);
+  harness.playback.at = const Duration(seconds: 4);
+  notifier.retroTap();
+  notifier.retroTap();
+  await settle();
+  await confirmarATraducao(container);
+  await waitFor('a frase chegar à sala', () => harness.room.chunksSent == 1);
+  await settle();
+  final tocadas = harness.playback.played.length;
+  harness.playback.at = const Duration(seconds: 10);
+  harness.playback.finishPlayback();
+  await settle();
+  return tocadas;
 }

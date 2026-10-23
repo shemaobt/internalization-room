@@ -227,14 +227,17 @@ void main() {
     expect(retroLabelFor('listenFirst', 'en'), 'Listen first');
   });
 
-  testWidgets('T5w: in english the circle held before anything was heard says '
-      'listen first', (tester) async {
+  testWidgets('T5w: in english the circle held before anything was heard reads '
+      'her paused line, not listen first', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await _freshlyInRetro(tester, harness);
     await tester.tap(byLabel('Pause'));
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(byLabel('Listen first'), findsOneWidget);
+    expect(
+      byLabel('paused — tap the circle to mark where the sentence ends'),
+      findsOneWidget,
+    );
     closeTheRoom(container);
   });
 
@@ -357,7 +360,8 @@ void main() {
     },
   );
 
-  test('P2: the scissors never cut behind the cursor', () async {
+  test('P2: the scissors never cut behind the cursor, only at her floor past '
+      'it', () async {
     final harness = SalaHarness();
     final (_, notifier, read, _) =
         await _playingWithAToldStretchAndAWarningArmed(harness);
@@ -366,7 +370,7 @@ void main() {
     notifier.retroTap();
     await settle();
 
-    expect(read().btCorte, const Duration(seconds: 12));
+    expect(read().btCorte, const Duration(milliseconds: 12200));
   });
 
   test(

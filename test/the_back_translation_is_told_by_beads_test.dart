@@ -137,11 +137,17 @@ Future<void> contarAteOFimDaParte(
   SalaHarness harness,
 ) async {
   harness.playback.at = parte;
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
+  await waitFor(
+    'a parte seguir depois da frase',
+    () => harness.playback.sounding,
+    step: () => tester.pump(const Duration(milliseconds: 100)),
+  );
+  harness.playback.at = parte;
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 300));
-  await tocarNoCirculo(tester);
-  await tocarNoCirculo(tester);
-  await tocarNoCirculo(tester);
 }
 
 Future<PendingTake> guardar(FakeTakeQueue fila, String scope) => fila.enqueue(
@@ -1317,7 +1323,6 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, ouvir);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
     await gravarATraducao(tester);
@@ -1467,7 +1472,6 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, ouvir);
     await contarAteOFimDaParte(tester, harness);
     harness.playback.at = parte;
     harness.playback.finishPlayback();

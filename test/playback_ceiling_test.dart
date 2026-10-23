@@ -119,11 +119,6 @@ void main() {
 
       harness.playback.at = const Duration(milliseconds: 600);
       harness.playback.finishPlayback();
-      await settle();
-
-      expect(container.read(salaSessionProvider).btParteFronteira, isTrue);
-
-      notifier.ouvirGravacao();
       await settle(const Duration(milliseconds: 250));
 
       final state = container.read(salaSessionProvider);

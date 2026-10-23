@@ -268,6 +268,27 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('frase 3 replayed to the end of its part stops there, not on '
+      'into the next part', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+    final parteUm = container.read(salaSessionProvider).partes[0].path;
+    final tocadas = harness.playback.played.length;
+    await tocar(tester, _barra(3));
+    expect(harness.playback.ranges, ['6000-10000']);
+
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    expect(
+      harness.playback.played.skip(tocadas),
+      [parteUm],
+      reason: 'a frase tocada de novo no fim da parte seguia para a próxima',
+    );
+    expect(container.read(salaSessionProvider).btClipRodando, isFalse);
+    closeTheRoom(container);
+  });
+
   testWidgets('the circle after a tap on frase 7 tells exactly its span '
       'again through the replace door, not as a new frase', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -620,6 +641,39 @@ void main() {
       reason: 'a sessão em inglês dizia a linha em português',
     );
     expect(byLabel('keep the earlier translation'), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a verdict a bead tapped on frase 5 opens it to be told '
+      'again and plays its piece of the recording, not its translation', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesConferidas(tester, harness);
+    await tocar(tester, _barra(2));
+    await _traduzirDeNovo(tester, container);
+    final aqui = container.read(salaSessionProvider);
+    expect(aqui.btPhase, BtPhase.playing);
+    final parteDois = aqui.partes[1].path;
+    final tocadas = harness.playback.played.length;
+    final trechos = harness.playback.ranges.length;
+
+    container
+        .read(salaSessionProvider.notifier)
+        .ouvirAConta(aqui.btTrechos.indexWhere((trecho) => trecho.frase == 5));
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.frase,
+      5,
+      reason: 'a conta só tocava a frase, e a barra dela abre a frase de novo',
+    );
+    expect(
+      harness.playback.played.skip(tocadas),
+      [parteDois],
+      reason: 'a conta tocava a tradução da frase 5, não a gravação',
+    );
+    expect(harness.playback.ranges.skip(trechos), ['2500-5000']);
     closeTheRoom(container);
   });
 
