@@ -38,7 +38,9 @@ final class Ensaio extends Station {
     TheBackTranslationOpened() =>
       everySceneHasItsPart && step == EnsaioStep.home ? const Retro() : this,
     TheBackTranslationResumed() => const Retro(),
-    TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
+    TheSceneRehearsalOpened() =>
+      step == EnsaioStep.plan ? const SceneRehearsal() : this,
+    TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
   };
 }

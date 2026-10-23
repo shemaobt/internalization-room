@@ -411,6 +411,15 @@ class SalaSessionState {
   /// The rehearsal a play button of the plan asked to hear, while it is fetched or sounds.
   final String? planListening;
 
+  /// The scene whose Rehearsal sheet is open over the plan, for one visit of the plan.
+  final String? planSheet;
+
+  /// Whether the card's Scene label is in the air.
+  final bool labelling;
+
+  /// Whether the card says her line for a label the room could not keep.
+  final bool labelLine;
+
   /// Whether the last plan read found the passage's rehearsals only in the other
   /// language's session.
   final bool rehearsalsElsewhere;
@@ -505,6 +514,9 @@ class SalaSessionState {
     this.ensaioFinalPlan,
     this.planChoices = const {},
     this.planListening,
+    this.planSheet,
+    this.labelling = false,
+    this.labelLine = false,
     this.rehearsalsElsewhere = false,
     this.theRoomJoinedAPart = false,
     this.wholeHeldByTheRoom = const {},
@@ -681,6 +693,9 @@ class SalaSessionState {
 
   /// Whether the scene rehearsal's screen stands over the Canvas.
   bool get sceneRehearsalIsOpen => station is SceneRehearsal;
+
+  /// Whether the plan holds its gestures: a label is in the air.
+  bool get planBusy => labelling;
 
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
   /// The loudness of the take on the scene screen, until it is read or for a take with
@@ -1242,6 +1257,10 @@ class SalaSessionState {
     Map<String, String>? planChoices,
     String? planListening,
     bool clearPlanListening = false,
+    String? planSheet,
+    bool clearPlanSheet = false,
+    bool? labelling,
+    bool? labelLine,
     bool? rehearsalsElsewhere,
     bool? theRoomJoinedAPart,
     Set<String>? wholeHeldByTheRoom,
@@ -1346,6 +1365,9 @@ class SalaSessionState {
       planListening: clearPlanListening
           ? null
           : (planListening ?? this.planListening),
+      planSheet: clearPlanSheet ? null : (planSheet ?? this.planSheet),
+      labelling: labelling ?? this.labelling,
+      labelLine: labelLine ?? this.labelLine,
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedAPart: theRoomJoinedAPart ?? this.theRoomJoinedAPart,
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,

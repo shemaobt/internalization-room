@@ -132,6 +132,21 @@ const ensaioFinalPlanLabels = {
   },
   'join': {'pt': 'juntar as cenas e ouvir', 'en': 'join the scenes and listen'},
   'listen': {'pt': 'Ouvir', 'en': 'Listen'},
+  'back': {'pt': 'Voltar para a gravação', 'en': 'Back to recording'},
+  'useThis': {'pt': 'usar este', 'en': 'use this one'},
+  'inUse': {'pt': 'em uso', 'en': 'in use'},
+  'recordSceneAgain': {
+    'pt': 'gravar esta cena de novo',
+    'en': 'record this scene again',
+  },
+  'whichScene': {
+    'pt': 'De que cena é este ensaio?',
+    'en': 'Which scene is this rehearsal?',
+  },
+  'labelFailed': {
+    'pt': 'não deu para guardar a resposta — toquem de novo',
+    'en': 'couldn\'t keep that answer — tap again',
+  },
 };
 
 String ensaioFinalPlanLabelFor(String control, String language) =>
@@ -155,6 +170,18 @@ String planRowFactsFor(SceneRehearsalRecord rehearsal, String language) {
       )
       .replaceAll('{k}', '${rehearsal.translatedFrases}');
 }
+
+/// A line of the Rehearsal sheet, her `candidateLine`: the row's facts, whether the voice
+/// received it, and «tradução incompleta» when a stretch is left untranslated.
+String sheetLineFor(SceneRehearsalRecord rehearsal, String language) => [
+  planRowFactsFor(rehearsal, language),
+  sceneRehearsalLabelFor(
+    rehearsal.unsent ? 'listUnsent' : 'listSent',
+    language,
+  ),
+  if (rehearsal.untranslatedStretch)
+    ensaioFinalPlanLabelFor('partial', language),
+].join(' · ');
 
 /// Her scene-rehearsal words (strings.ts), read only by VoiceOver.
 const sceneRehearsalLabels = {
