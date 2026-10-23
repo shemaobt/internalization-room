@@ -323,7 +323,7 @@ class _SceneRowView extends StatelessWidget {
           _said(words('sending'), colors),
           StopControl(
             key: ValueKey(inTheAir.row),
-            since: inTheAir.since,
+            since: inTheAir.keep.since,
             label: words('stopSending'),
             aria: words('stopSendingAria'),
             color: colors.telha,

@@ -183,7 +183,7 @@ final aStopNamesThisSessionsTakeInTheAir = Invariant<Machine>(
       final inTheAir = before.inTheAir;
       if (inTheAir == null ||
           inTheAir.row != row ||
-          inTheAir.session != before.session) {
+          inTheAir.keep.session != before.session) {
         return 'stopped $row with ${inTheAir?.row} in the air';
       }
     }

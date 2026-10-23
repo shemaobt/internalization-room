@@ -668,6 +668,40 @@ void main() {
     });
   });
 
+  testWidgets(
+    'a tap on a part whose newest take never reached the Outbox sends the '
+    'spent take ahead of it, then the new one',
+    (tester) async {
+      late _AQueueThatHoldsTheKeep fila;
+      final casa = await _naCasa(
+        tester,
+        harness: SalaHarness(
+          takesOverride: (room, home, recordings) =>
+              fila = _AQueueThatHoldsTheKeep(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
+        ),
+      );
+      casa.room.unreachableTake = 'ensaio/parte-3';
+      await casa.guardar(3);
+      expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
+
+      fila.falhar = true;
+      await casa.guardarSemEsperar(3);
+      expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
+
+      fila.falhar = false;
+      casa.room.unreachableTake = null;
+      await casa.tocar(casa.naLinha(3, find.text(_falhou)));
+      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+
+      expect(casa.room.takePasses, [1, 2]);
+      expect(casa.naLinha(3, find.text(_salvo)), findsOneWidget);
+    },
+  );
+
   testWidgets("a take reads salvo only after the room's list holds it", (
     tester,
   ) async {
@@ -1109,6 +1143,7 @@ class _AQueueThatHoldsTheKeep extends TakeUploadQueue {
   });
 
   Completer<void>? segurar;
+  bool falhar = false;
 
   @override
   Future<PendingTake> enqueue(
@@ -1121,6 +1156,7 @@ class _AQueueThatHoldsTheKeep extends TakeUploadQueue {
     String? scene,
   }) async {
     await segurar?.future;
+    if (falhar) throw const FileSystemException('o disco encheu');
     return super.enqueue(
       audio,
       sessionId: sessionId,

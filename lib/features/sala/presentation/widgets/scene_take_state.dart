@@ -39,7 +39,7 @@ class SceneTakeState extends StatelessWidget {
           if (inTheAir case final take?)
             StopControl(
               key: ValueKey(take.row),
-              since: take.since,
+              since: take.keep.since,
               label: label('stopSending'),
               aria: label('stopSendingAria'),
               color: colors.vermelhoMic,

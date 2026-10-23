@@ -85,33 +85,16 @@ typedef TheKeep = ({String session, String kind, String scope, DateTime since});
 
 final class TakeInTheAir {
   final String row;
-  final String kind;
-  final String session;
-  final String scope;
-  final DateTime since;
+  final TheKeep keep;
 
-  const TakeInTheAir({
-    required this.row,
-    required this.kind,
-    required this.session,
-    required this.scope,
-    required this.since,
-  });
+  const TakeInTheAir({required this.row, required this.keep});
 
   @override
   bool operator ==(Object other) =>
-      other is TakeInTheAir &&
-      other.row == row &&
-      other.kind == kind &&
-      other.session == session &&
-      other.scope == scope &&
-      other.since == since;
+      other is TakeInTheAir && other.row == row && other.keep == keep;
 
   @override
-  int get hashCode => Object.hash(row, kind, session, scope, since);
-
-  TheKeep get keep =>
-      (session: session, kind: kind, scope: scope, since: since);
+  int get hashCode => Object.hash(row, keep);
 }
 
 final class ATakeLeft extends MachineEvent {
@@ -1076,15 +1059,10 @@ final class Machine {
 
   Machine withNoPassage(Set<int> onTheirWay) => Machine(
     onTheirWay: onTheirWay,
-    parts: parts,
-    draining: draining,
-    inTheAir: inTheAir,
-    keeping: keeping,
-    keptThisVisit: keptThisVisit,
     generation: generation,
     station: station,
     panorama: panorama,
-  );
+  ).withTheOutboxOf(this);
 
   Machine copyWith({
     Halt? halt,

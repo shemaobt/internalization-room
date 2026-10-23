@@ -8,10 +8,12 @@ import 'fake_ports.dart';
 
 final _partTwo = TakeInTheAir(
   row: 'linha-2',
-  kind: 'ensaio',
-  session: 's1',
-  scope: 'parte-2',
-  since: DateTime.utc(2026, 10, 22, 9),
+  keep: (
+    session: 's1',
+    kind: 'ensaio',
+    scope: 'parte-2',
+    since: DateTime.utc(2026, 10, 22, 9),
+  ),
 );
 
 const _inThePassage = Machine(station: Canvas(), session: 's1');
@@ -42,10 +44,12 @@ void main() {
       'next', () {
     final next = TakeInTheAir(
       row: 'linha-3',
-      kind: 'ensaio',
-      session: 's1',
-      scope: 'parte-2',
-      since: _partTwo.since,
+      keep: (
+        session: 's1',
+        kind: 'ensaio',
+        scope: 'parte-2',
+        since: _partTwo.keep.since,
+      ),
     );
     final (_, effects) = reduce(
       _inThePassage.copyWith(inTheAir: next),
@@ -55,16 +59,37 @@ void main() {
     expect(effects, [const StopTheSend('linha-3')]);
   });
 
+  test("a stop tapped in an earlier pass of the same part stops nothing in a "
+      'later one', () {
+    final later = TakeInTheAir(
+      row: 'linha-2',
+      keep: (
+        session: 's1',
+        kind: 'ensaio',
+        scope: 'parte-2',
+        since: _partTwo.keep.since.add(const Duration(minutes: 1)),
+      ),
+    );
+    final (_, effects) = reduce(
+      _inThePassage.copyWith(inTheAir: later),
+      StopTapped(_partTwo.keep),
+    );
+
+    expect(effects.whereType<StopTheSend>(), isEmpty);
+  });
+
   test('a stop tapped on a take no longer in the air stops nothing', () {
     for (final machine in [
       _inThePassage,
       _inThePassage.copyWith(
         inTheAir: TakeInTheAir(
           row: 'linha-3',
-          kind: 'ensaio',
-          session: 's1',
-          scope: 'parte-3',
-          since: DateTime.utc(2026, 10, 22, 9),
+          keep: (
+            session: 's1',
+            kind: 'ensaio',
+            scope: 'parte-3',
+            since: DateTime.utc(2026, 10, 22, 9),
+          ),
         ),
       ),
     ]) {

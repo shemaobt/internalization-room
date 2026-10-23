@@ -226,7 +226,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   NetworkFailedAt(:final door) => 'NetworkFailedAt(${door.name})',
   RetryFired() => 'RetryFired',
   ATakeLeft(:final take) =>
-    'ATakeLeft(${take.row}, ${take.kind}, ${take.session}, ${take.scope})',
+    'ATakeLeft(${take.row}, ${take.keep.kind}, ${take.keep.session}, '
+        '${take.keep.scope})',
   ATakeSettled(:final row) => 'ATakeSettled($row)',
   AKeepBegan(:final part) => 'AKeepBegan(${part.session}, ${part.part})',
   AKeepEnded(:final part, :final row) =>
@@ -660,10 +661,12 @@ MachineEvent _draw(
   EventKind.aTakeLeft => ATakeLeft(
     TakeInTheAir(
       row: 'linha-${random.nextInt(3)}',
-      kind: const ['ensaio', 'cena', 'retro'][random.nextInt(3)],
-      session: _drawASession(random),
-      scope: 'parte-${random.nextInt(3) + 1}',
-      since: DateTime.utc(2026, 10, 22, 9, 0, random.nextInt(60)),
+      keep: (
+        session: _drawASession(random),
+        kind: const ['ensaio', 'cena', 'retro'][random.nextInt(3)],
+        scope: 'parte-${random.nextInt(3) + 1}',
+        since: DateTime.utc(2026, 10, 22, 9, 0, random.nextInt(60)),
+      ),
     ),
   ),
   EventKind.aTakeSettled => ATakeSettled('linha-${random.nextInt(3)}'),

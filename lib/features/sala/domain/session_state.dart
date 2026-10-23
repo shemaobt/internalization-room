@@ -493,7 +493,8 @@ class SalaSessionState {
   String? get sessionId => machine.session;
 
   TakeInTheAir? _theTakeInTheAirOf(String kind) => switch (machine.inTheAir) {
-    final take? when take.session == sessionId && take.kind == kind => take,
+    final take? when take.keep.session == sessionId && take.keep.kind == kind =>
+      take,
     _ => null,
   };
 
@@ -503,19 +504,19 @@ class SalaSessionState {
     if (machine.beingKept(sessionId, number)) {
       return const UnsentPart(fromAnEarlierVisit: false);
     }
-    if (machine.newestKeptFact(sessionId, number) case final fact?
-        when fact != PartFact.sent) {
-      return const UnsentPart(
+    return switch (machine.newestKeptFact(sessionId, number)) {
+      PartFact.pending => const UnsentPart(fromAnEarlierVisit: false),
+      PartFact.stranded => const UnsentPart(
         fromAnEarlierVisit: false,
         failure: SendFailure.failed,
-      );
-    }
-    return null;
+      ),
+      PartFact.sent || null => null,
+    };
   }
 
   TakeInTheAir? partInTheAir(int number) =>
       switch (_theTakeInTheAirOf(partTakeKind)) {
-        final take? when KeptScope.numberOf(take.scope) == number => take,
+        final take? when KeptScope.numberOf(take.keep.scope) == number => take,
         _ => null,
       };
 

@@ -5321,7 +5321,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       :final path,
       :final pass,
     )) {
-      return _guard(
+      await _guard(
         path,
         kind: partTakeKind,
         scope: scope,
@@ -5616,10 +5616,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ATakeLeft(
           TakeInTheAir(
             row: take.id,
-            kind: take.kind,
-            session: take.sessionId,
-            scope: take.scope,
-            since: since,
+            keep: (
+              session: take.sessionId,
+              kind: take.kind,
+              scope: take.scope,
+              since: since,
+            ),
           ),
         ),
       );

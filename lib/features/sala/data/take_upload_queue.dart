@@ -452,7 +452,10 @@ class TakeUploadQueue {
   Future<OutboxTally> tally({required String? sessionId}) async {
     final written = await _written();
     final waiting = await this.waiting();
-    final trying = {for (final entry in waiting) entry.id};
+    final trying = {
+      for (final entry in waiting)
+        if (await File(entry.path).exists()) entry.id,
+    };
     final unsentParts = await _unsentPartsIn(written, sessionId);
     return (
       parts: {
@@ -672,8 +675,8 @@ class TakeUploadQueue {
   /// own count and then by arrival. A row skipped here — backing off, audio gone, refused,
   /// unanswered — used to let the one behind it go, so a retry landing after the
   /// re-recording left the room holding the recording the team abandoned. A row that does
-  /// not land holds the rest of its part for the rest of this pass; a row no longer
-  /// waiting holds nothing, and a telling-back is not a part.
+  /// not land holds the rest of its part for the rest of this pass; a row refused for good
+  /// holds nothing, and a telling-back is not a part.
   Future<int> _flushOnce({required bool withTheCodeless}) async {
     var sent = 0;
     final held = <String>{};
