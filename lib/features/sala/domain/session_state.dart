@@ -1373,7 +1373,7 @@ class SceneRow {
     required this.title,
     required this.part,
     required this.unsent,
-    this.away,
+    required this.away,
     required this.recording,
     required this.dimmed,
     required this.current,

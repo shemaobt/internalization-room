@@ -22,6 +22,7 @@ const _intoTheMapper = [
 const _notYetMoved = <String, String>{
   '_aprovarRascunhoFinal': 'ENG-1444',
   '_asPartesDaSala': 'ENG-1444',
+  '_asPartesDescem': 'ENG-1444',
   '_confirmarTraducao': 'ENG-1444',
   '_createThePassage': 'ENG-1444',
   '_enviarAFrase': 'ENG-1444',

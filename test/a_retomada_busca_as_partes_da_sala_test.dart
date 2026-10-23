@@ -1156,4 +1156,75 @@ void main() {
       await waitFor('o círculo sair do verde', () => !it.estado.warning);
     },
   );
+
+  test(
+    'um rascunho aprovado nao pousa sobre uma parte do ensaio que a sala nao '
+    'tem mais',
+    () async {
+      final harness = SalaHarness()
+        ..room.approvedDraft = const ApprovedDraft(version: 1)
+        ..room.refuseClipOf.add('gravacao-2');
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.ensaio,
+        contado: _contado([1, 3], checked: true),
+      );
+      await waitFor(
+        'a sala dizer que a parte 2 se foi',
+        () => it.estado.partes.length == 2 && it.estado.everyPartIsHere,
+      );
+      await settle(const Duration(milliseconds: 300));
+
+      expect(it.estado.stage, SalaStage.ensaio);
+    },
+  );
+
+  test(
+    'um rascunho aprovado nao pousa sobre uma parte do ensaio que nao chegou',
+    () async {
+      final harness = SalaHarness()
+        ..room.approvedDraft = const ApprovedDraft(version: 1)
+        ..room.failClipOf['gravacao-2'] = const NetworkFailed('a rede caiu');
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.ensaio,
+        contado: _contado([1, 2, 3], checked: true),
+      );
+      await waitFor(
+        'as tres partes serem tentadas',
+        () => harness.room.clipsFetched.length == 3,
+      );
+      await settle(const Duration(milliseconds: 300));
+
+      expect(it.estado.stage, SalaStage.ensaio);
+    },
+  );
+
+  test(
+    'um trecho de uma parte depois da que a sala perdeu fica na sua parte',
+    () async {
+      final harness = SalaHarness()
+        ..room.refuseClipOf.add('gravacao-2')
+        ..room.holdNextClip();
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.ensaio,
+        contado: _contado([1, 3]),
+      );
+      await waitFor(
+        'os trechos voltarem enquanto as partes descem',
+        () => it.estado.btTrechos.length == 2,
+      );
+      harness.room.finishHeldClip();
+      await waitFor(
+        'a sala dizer que a parte 2 se foi',
+        () => it.estado.partes.length == 2 && it.estado.everyPartIsHere,
+      );
+
+      expect([for (final trecho in it.estado.btTrechos) trecho.parte], [0, 1]);
+    },
+  );
 }

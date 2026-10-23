@@ -356,7 +356,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The fetch of the parts on their way while it runs, and the station the Resume point
   /// names once it has tried every part.
-  late Future<void>? _partesDescendo;
+  late Completer<bool>? _partesDescendo;
   late Station _ondeFicam;
 
   /// When and in what language the session now open was created, so a row rewritten by
@@ -2646,8 +2646,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_abandoned(generation)) return true;
     }
     if (_partesDescendo case final descendo?) {
-      await descendo;
+      final inteiro = await descendo.future;
       if (_abandoned(generation)) return true;
+      if (!inteiro || !state.everyPartIsHere) return false;
     }
     final told = read.backTranslation;
     state = state.copyWith(clearBtFraseGuardada: true);
@@ -2974,7 +2975,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
       } else {
         _ondeFicam = Station.stored(waiting.stage);
-        _bringThePartsDown();
+        unawaited(_bringThePartsDown());
       }
     }
     unawaited(_countUnsent());
@@ -3121,32 +3122,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The parts on their way come down behind their rows, one at a time and in part order.
-  void _bringThePartsDown() {
-    if (_partesDescendo != null) return;
-    _partesDescendo = Future.microtask(() => _asPartesDescem(_thisLife));
+  /// The parts on their way come down behind their rows, one at a time and in part order;
+  /// true once they all came down or stayed missed, false when the room had lost one.
+  Future<bool> _bringThePartsDown() {
+    if (_partesDescendo case final descendo? when !descendo.isCompleted) {
+      return descendo.future;
+    }
+    final descem = Completer<bool>();
+    _partesDescendo = descem;
+    unawaited(_asPartesDescem(descem, _thisLife));
+    return descem.future;
   }
 
-  Future<void> _asPartesDescem(int? life) async {
-    String? daSessao;
+  Future<void> _asPartesDescem(Completer<bool> descem, int? life) async {
+    bool minha() => !_endedSince(life) && identical(_partesDescendo, descem);
+    var tentou = false;
     var faltou = false;
-    while (!_endedSince(life)) {
+    while (minha()) {
       final sessionId = state.sessionId;
       final parte = state.partes
           .where((take) => state.partsAway[take.takeId] == PartAway.coming)
           .firstOrNull;
       if (sessionId == null || parte == null) break;
-      if (sessionId != daSessao) {
-        daSessao = sessionId;
-        faltou = false;
-      }
+      tentou = true;
       final busca = await _buscarAParte(sessionId, parte, life);
       final arquivo = switch (busca) {
         Answered(value: final kept?) => kept,
         _ => null,
       };
       final quanto = arquivo == null ? null : await _playback.howLong(arquivo);
-      if (_endedSince(life)) return;
-      if (!_aindaACaminho(sessionId, parte)) {
+      if (_endedSince(life)) break;
+      if (!minha() || !_aindaACaminho(sessionId, parte)) {
         if (arquivo != null) unawaited(_recorder.delete(arquivo));
         continue;
       }
@@ -3165,14 +3171,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (KeptScope.numberOf(parte.scopeId) case final ordinal?) {
           _passadasDaSala = {...?_passadasDaSala, ordinal: parte.pass};
         }
+        final fora = state.partes.indexWhere((take) => take.takeId == takeId);
         state = state.copyWith(
           keptTakes: [
             for (final take in state.keptTakes)
               if (take.takeId != takeId) take,
           ],
           partsAway: {...state.partsAway}..remove(takeId),
+          btTrechos: _osTrechosSemAParte(fora),
         );
-        state = state.copyWith(btTrechos: _osTrechosNasSuasPartes());
       } else {
         state = state.copyWith(
           partsAway: {...state.partsAway, takeId: PartAway.missed},
@@ -3181,10 +3188,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
       _weighTheRehearsal();
     }
-    _partesDescendo = null;
-    if (daSessao != null && state.sessionId == daSessao) {
-      _rememberWhereTheyAre(faltou ? const Ensaio() : _ondeFicam);
+    if (minha()) {
+      if (tentou) _rememberWhereTheyAre(faltou ? const Ensaio() : _ondeFicam);
+      _ondeFicam = const Ensaio();
     }
+    descem.complete(!faltou);
   }
 
   bool _aindaACaminho(String sessionId, KeptTake parte) =>
@@ -3194,28 +3202,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         (take) => take.takeId == parte.takeId && take.scopeId == parte.scopeId,
       );
 
-  /// Each stretch on the part that now holds its take, by its place among the parts; a
-  /// stretch whose part is gone goes with it.
-  List<Trecho> _osTrechosNasSuasPartes() {
-    final partes = state.partes;
-    return [
-      for (final trecho in state.btTrechos)
-        if (partes.indexWhere((take) => take.takeId == trecho.takeId)
-            case final parte when parte >= 0)
-          Trecho(
-            segmentId: trecho.segmentId,
-            takeId: trecho.takeId,
-            retroPath: trecho.retroPath,
-            parte: parte,
-            from: trecho.from,
-            to: trecho.to,
-            contado: trecho.contado,
-            lugarFrom: trecho.lugarFrom,
-            lugarTo: trecho.lugarTo,
-            frase: trecho.frase,
-          ),
-    ];
-  }
+  /// The stretches as they stand once the part at [fora] has left the parts: its own go
+  /// with it, and each later one moves down to its part's new place (ADR 0022).
+  List<Trecho> _osTrechosSemAParte(int fora) => [
+    for (final trecho in state.btTrechos)
+      if (trecho.parte != fora)
+        trecho.parte < fora
+            ? trecho
+            : Trecho(
+                segmentId: trecho.segmentId,
+                takeId: trecho.takeId,
+                retroPath: trecho.retroPath,
+                parte: trecho.parte - 1,
+                from: trecho.from,
+                to: trecho.to,
+                contado: trecho.contado,
+                lugarFrom: trecho.lugarFrom,
+                lugarTo: trecho.lugarTo,
+                frase: trecho.frase,
+              ),
+  ];
 
   /// How long each part turned out to be, so the room knows where each part ends.
   ///
@@ -5380,7 +5386,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(
         partsAway: {...state.partsAway, takeId!: PartAway.coming},
       );
-      return _bringThePartsDown();
+      return unawaited(_bringThePartsDown());
     }
     _tocarAParte(indice);
   }
@@ -8769,6 +8775,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _pendingTakePath = null;
     _emCurso = null;
     state = state.copyWith(partsAway: const {});
+    _partesDescendo = null;
+    _ondeFicam = const Ensaio();
     _semNome.clear();
     _captureFails = {};
     _recordingStarting = false;
