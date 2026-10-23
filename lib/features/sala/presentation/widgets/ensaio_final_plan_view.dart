@@ -40,7 +40,7 @@ class EnsaioFinalPlanView extends ConsumerWidget {
     }
     final rows = planRowsOf(read, sessionId, session.planChoices);
     final joining = session.joining;
-    final idle = joining == null && !session.planBusy;
+    final idle = !session.planBusy;
     final sheet = rows
         .where((row) => row.scene.sceneId == session.planSheet)
         .firstOrNull;

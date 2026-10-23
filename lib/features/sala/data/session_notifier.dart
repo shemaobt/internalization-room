@@ -3744,12 +3744,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void joinTheScenes() => _gesture(() {
     final rows = _planRows;
-    if (rows == null ||
-        state.planBusy ||
-        !canJoin(rows) ||
-        state.joining != null) {
-      return;
-    }
+    if (rows == null || state.planBusy || !canJoin(rows)) return;
     _handOff(_joinTheScenesNow(rows));
   });
 
@@ -3757,7 +3752,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final rows = _planRows;
     if (rows == null ||
         state.planBusy ||
-        state.joining != null ||
         state.joinRows[number] != JoinRow.retry) {
       return;
     }

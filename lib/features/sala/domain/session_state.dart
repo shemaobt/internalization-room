@@ -712,8 +712,8 @@ class SalaSessionState {
   /// Whether the scene rehearsal's screen stands over the Canvas.
   bool get sceneRehearsalIsOpen => station is SceneRehearsal;
 
-  /// Whether the plan holds its gestures: a label is in the air.
-  bool get planBusy => labelling;
+  /// Whether the plan holds its gestures: a label is in the air, or a join runs.
+  bool get planBusy => labelling || joining != null;
 
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
   /// The loudness of the take on the scene screen, until it is read or for a take with
