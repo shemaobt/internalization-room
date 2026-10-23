@@ -19,6 +19,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, settle;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
+        aprovar,
         cabeca,
         conferir,
         contarAteOFimDaParte,
@@ -576,6 +577,69 @@ void main() {
         reason: 'o recomeço ficava armado para sempre depois de sair e voltar',
       );
       expect(find.text(_recomecar), findsOneWidget);
+
+      await tester.tap(byLabel(_recomecar));
+      await _passo(tester);
+      expect(find.text(_armado), findsOneWidget);
+      await tester.pump(const Duration(seconds: 7));
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'an armed restart is gone once the approval closes the passage, after its six seconds',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      harness.room.verdictChecked = true;
+      final container = await _contadaAoVivo(tester, harness);
+      await contarAteOFimDaParte(tester, harness);
+      await tocar(tester, conferir);
+      await waitFor(
+        'a sala conferir',
+        () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+        step: () => _passo(tester),
+      );
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(container.read(salaSessionProvider).btRecomeco, BtRecomeco.pronto);
+
+      await tocar(tester, aprovar);
+      await waitFor(
+        'o colar fechar',
+        () => container.read(salaSessionProvider).stage == SalaStage.fim,
+        step: () => _passo(tester),
+      );
+      await tester.pump(const Duration(seconds: 6));
+
+      expect(
+        container.read(salaSessionProvider).btRecomeco,
+        isNull,
+        reason:
+            'o recomeço ficava armado depois do fecho, sem prazo para desarmar',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a second tap in time starts the translation over once, and nothing stays armed after',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.tap(byLabel(_armado));
+      await waitFor(
+        'a sala receber o recomeço',
+        () => harness.room.restartsAsked.isNotEmpty,
+        step: () => _passo(tester),
+      );
+      await tester.pump(const Duration(seconds: 7));
+
+      expect(harness.room.restartsAsked, hasLength(1));
+      expect(container.read(salaSessionProvider).btRecomeco, isNull);
+      expect(find.text(_armado), findsNothing);
       closeTheRoom(container);
     },
   );

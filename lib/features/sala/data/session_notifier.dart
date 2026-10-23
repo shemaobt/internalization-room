@@ -698,7 +698,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _cancelTimers() {
     if (!_gone) {
-      state = state.copyWith(machine: moveTheGeneration(state.machine));
+      state = state.copyWith(
+        machine: moveTheGeneration(state.machine),
+        clearRecomeco: true,
+      );
     }
     for (final timer in _timers.values) {
       timer.cancel();
@@ -772,7 +775,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearLastSpoken: true,
       roomSaysItAgain: false,
       clearParteARegravar: true,
-      clearRecomeco: true,
     );
     _silenceTheRoom();
     _dispatch(const MicDiscarded());
@@ -1288,6 +1290,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       scene: leavesTheScene ? const SceneScreen() : null,
       sceneRehearsals: leavesTheScene ? const [] : null,
       clearSceneTurn: leavesTheScene,
+      clearRecomeco: machine.generation != before.generation,
     );
     _escutarNoEnsaio(before, machine);
     _runner.run(effects, micWasOpen: before.channel is Microphone);
@@ -6202,6 +6205,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.btRecomeco != BtRecomeco.pronto) return;
+    _timers.remove('recomecoArmado')?.cancel();
     state = state.copyWith(clearRecomeco: true);
     _handOff(_recomecarNaSala(sessionId));
   }
