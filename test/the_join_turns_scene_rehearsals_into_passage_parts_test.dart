@@ -274,8 +274,14 @@ Future<_Room> _atRest(
   return it;
 }
 
-Future<void> _theJoinEnds(_Room it) =>
-    it.until('a junta terminar na casa', () => it.showsTheHome());
+/// The join's end, at a state that lasts: the Back-translation it opens when every scene
+/// has its part, the recording home when one has none.
+Future<void> _theJoinEnds(_Room it) => it.until('a junta terminar', () {
+  final estado = it.container.read(salaSessionProvider);
+  return estado.joining == null &&
+      (estado.stage == SalaStage.retro ||
+          it.showsTheHome() && !estado.everySceneHasItsPart);
+});
 
 void main() {
   testWidgets(
@@ -307,6 +313,8 @@ void main() {
         }
       }
       await _theJoinEnds(it);
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await it.until('a casa voltar', () => it.showsTheHome());
 
       expect(
         [
