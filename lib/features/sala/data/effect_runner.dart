@@ -35,9 +35,6 @@ abstract interface class StationHost {
   /// Whether a start that answers now still has a microphone to record into.
   bool keepsTheStart(MicOwner owner);
 
-  /// What the room keeps to sound again if a line it fails to say calls a person.
-  Kept get sounding;
-
   /// The Station hears a part's end and its failure before the machine is answered.
   void hearThePartEnd();
 
@@ -336,12 +333,7 @@ class EffectRunner {
     host.answer(
       whole
           ? PlayerEnded(line: line, generation: stamp)
-          : PlayerFailed(
-              line.source,
-              sounding: host.sounding,
-              line: line,
-              generation: stamp,
-            ),
+          : PlayerFailed(line.source, line: line, generation: stamp),
     );
   }
 

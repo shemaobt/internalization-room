@@ -147,12 +147,11 @@ void main() {
 
     await notifier.hearAgain();
     await waitFor(
-      'the line to be lost on the network',
-      () => harness.voice.played.length > played,
+      'the line to be lost on the network twice',
+      () => harness.voice.played.length > played + 1 && read().needsPerson,
     );
     await settle();
 
-    expect(read().needsPerson, isFalse);
     expect(harness.room.sessionsSpokenTo, hasLength(1));
     expect(read().station, isA<Panorama>());
   });

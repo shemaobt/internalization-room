@@ -178,7 +178,7 @@ class FakeVoice implements FacilitatorVoiceService {
     sounds.add('voice:line');
     aoFalar?.call();
     onSoundStart?.call();
-    if (refuses.contains(url)) return Future.value(false);
+    if (refuses.contains(url) || _theLoadFails(url)) return Future.value(false);
     return _answer();
   }
 
@@ -208,6 +208,16 @@ class FakeVoice implements FacilitatorVoiceService {
     return succeeds;
   }
 
+  /// How many more times the player refuses a line, by url or by a fixed line's name.
+  final Map<String, int> failsToLoad = {};
+
+  bool _theLoadFails(String line) {
+    final left = failsToLoad[line] ?? 0;
+    if (left == 0) return false;
+    failsToLoad[line] = left - 1;
+    return true;
+  }
+
   @override
   Future<bool> ready(String url) => fetch(url);
 
@@ -217,6 +227,12 @@ class FakeVoice implements FacilitatorVoiceService {
     await _fetching?.future;
     return succeeds;
   }
+
+  @override
+  Future<void> forget(String url) async {}
+
+  @override
+  Future<void> forgetFixedLine(String line, String language) async {}
 
   @override
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
@@ -238,7 +254,9 @@ class FakeVoice implements FacilitatorVoiceService {
     sounds.add('voice:fixed');
     aoFalar?.call();
     onSoundStart?.call();
-    if (refuses.contains(line)) return Future.value(false);
+    if (refuses.contains(line) || _theLoadFails(line)) {
+      return Future.value(false);
+    }
     return _answer();
   }
 
@@ -1296,6 +1314,9 @@ class FakeRoom implements RoomRepository {
   }
 
   String fixedLine = '';
+
+  /// The address a turn's spoken reply is said from.
+  String replyUrl = turnoUrl;
   String bridgeMode = '';
   final List<String> booksAsked = [];
   List<Passagem> passages = const [
@@ -2662,7 +2683,7 @@ class FakeRoom implements RoomRepository {
 
   TurnResult _turn(String sessionId) => TurnResult(
     sessionId: sessionId,
-    audioUrl: answersTurnsWithoutAReply || fixedLine.isNotEmpty ? '' : turnoUrl,
+    audioUrl: answersTurnsWithoutAReply || fixedLine.isNotEmpty ? '' : replyUrl,
     fixedLine: answersTurnsWithoutAReply ? '' : fixedLine,
     transcript: 'a equipe falou',
     peerCue: peerCue,
@@ -3455,6 +3476,10 @@ class SalaHarness {
   final Duration? rewarm;
   final Duration? playbackCeiling;
   final Duration clipGrace;
+
+  /// How long a reply whose sound did not load waits to be loaded again; null leaves the
+  /// room's own.
+  final Duration? soundReload;
   final CaptureGuard captureGuard;
   final Duration fimLinger;
   final Duration restartWake;
@@ -3489,6 +3514,7 @@ class SalaHarness {
     this.rewarm,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
+    this.soundReload = const Duration(milliseconds: 20),
     this.captureGuard = const CaptureGuard(
       minDuration: Duration.zero,
       minBytes: 1,
@@ -3573,6 +3599,8 @@ class SalaHarness {
     connectionRewarmIntervalProvider.overrideWithValue(rewarm),
     playbackCeilingProvider.overrideWithValue(playbackCeiling),
     clipGraceProvider.overrideWithValue(clipGrace),
+    if (soundReload case final reload?)
+      soundReloadDelayProvider.overrideWithValue(reload),
     captureGuardProvider.overrideWithValue(captureGuard),
     fimLingerProvider.overrideWithValue(fimLinger),
     restartWakeProvider.overrideWithValue(restartWake),

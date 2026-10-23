@@ -200,22 +200,21 @@ void main() {
     );
   });
 
-  test(
-    'a verdict cut by a lost connection mid-stream is never reported heard',
-    () async {
-      final harness = SalaHarness();
-      final (_, notifier) = await _inConversa(harness);
-      await _whileTheVerdictPlays(harness, notifier);
+  test('a verdict cut by a lost connection mid-stream, and lost again on its '
+      'reload, is never reported heard', () async {
+    final harness = SalaHarness();
+    final (_, notifier) = await _inConversa(harness);
+    await _whileTheVerdictPlays(harness, notifier);
 
-      harness.voice.failHeldLine(const NetworkFailed('fala cortada'));
-      await settle();
+    harness.voice
+      ..roomFailsWith = const NetworkFailed('fala cortada')
+      ..failHeldLine(const NetworkFailed('fala cortada'));
+    await settle();
 
-      expect(
-        harness.room.heardStamps,
-        isEmpty,
-        reason:
-            'a conexão caiu no meio do veredito e a nuance contava como dita',
-      );
-    },
-  );
+    expect(
+      harness.room.heardStamps,
+      isEmpty,
+      reason: 'a conexão caiu no meio do veredito e a nuance contava como dita',
+    );
+  });
 }

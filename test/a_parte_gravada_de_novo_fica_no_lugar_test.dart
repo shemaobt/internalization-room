@@ -1308,20 +1308,11 @@ void main() {
     'em conferida sob parada a saída some, e volta com o toque no sinal',
     (tester) async {
       final it = await _ateAConferida(tester);
-      it.harness.voice.refuses.add('P3');
 
-      await tester.tap(byLabel(_aprovar));
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.tap(byLabel(_aprovar));
+      it.container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(
-        _estado(it.container).needsPerson,
-        isTrue,
-        reason:
-            'a linha da Guia que falha duas vezes seguidas para a sala para '
-            'uma pessoa — se não parar, não há parada que medir',
-      );
+      expect(_estado(it.container).needsPerson, isTrue);
       expect(_estado(it.container).btPhase, BtPhase.conferida);
       expect(byLabel(_sairDaPassagem), findsOneWidget);
       expect(
@@ -1403,7 +1394,9 @@ void main() {
     );
   });
 
-  testWidgets('a aprovação conta a vez que não tocou', (tester) async {
+  testWidgets('a aprovação que não toca deixa silêncio, e nunca chama ninguém', (
+    tester,
+  ) async {
     final it = await _ateAConferida(tester);
     it.harness.voice.refuses.add('P3');
 
@@ -1440,8 +1433,8 @@ void main() {
     );
     expect(
       _estado(it.container).needsPerson,
-      isTrue,
-      reason: 'na segunda a sala para por uma pessoa, como em toda outra fala',
+      isFalse,
+      reason: 'só a fala da Guia que responde conta para o sinal (ADR 0135)',
     );
 
     closeTheRoom(it.container);

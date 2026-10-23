@@ -35,7 +35,9 @@ String _why(RoomResult result) => switch (result) {
 };
 
 String _whatFailed(TabletFailure failure) => switch (failure) {
-  TheSoundFailed(:final inARow) => 'o som falhou ($inARow seguidas)',
+  TheSoundFailed(:final loads, :final because) =>
+    'o som da fala não carregou ($loads vezes'
+        '${because == null ? '' : ', ${_why(because)}'})',
   TheMicFailedToStart(:final inARow) =>
     'o microfone não abriu ($inARow seguidas)',
   TheTabletCannotRecord() => 'o tablet não grava',
