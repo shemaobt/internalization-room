@@ -36,6 +36,9 @@ dependencies:
   # with a sha256, as `tool/sync_doctrine.dart` does per vendored artefact, and there is
   # no digest in dart:convert.
   crypto: ^3.0.0
+  # Outside ADR 0018's stack list: the update screen's button opens the app's own store
+  # listing (ADR 0124).
+  url_launcher: ^6.3.3
 
 # path_provider_foundation 2.6.0 pulls objective_c as a native asset, and that
 # framework ships ad-hoc signed — iOS rejects the install with
