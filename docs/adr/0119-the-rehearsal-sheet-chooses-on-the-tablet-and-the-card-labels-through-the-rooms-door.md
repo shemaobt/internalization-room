@@ -26,11 +26,14 @@ afterwards, and answers its record.
   the plan's read, so the rows and the card re-derive without a second read.
 - **A label the room could not keep says her line**, «não deu para guardar a resposta —
   toquem de novo», and the rehearsal stays on the card. Tapping again is safe, because the
-  door changes nothing for the same label. A session the room forgot goes through the
-  Failure policy.
+  door changes nothing for the same label. The door names a rehearsal, so a 404 there is a
+  refusal and says the same line; a session the room forgot meets the Failure policy at the
+  next door that asks for the session.
 - **«gravar esta cena de novo» is an arrival from the plan Step to the Scene rehearsal
-  Station**, with the scene highlighted and never picked. Leaving that screen lands on the
-  Conversation, as from the red microphone.
+  Station**, with the scene highlighted and never picked. Unlike the red microphone, it never
+  reopens the room's newest unsent rehearsal, which stays on the sheet; a take still waiting
+  in the Outbox does come back, so it is never recorded over unseen. Leaving that screen
+  lands on the Conversation, as from the red microphone.
 
 ## Considered and rejected
 
