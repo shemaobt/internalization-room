@@ -450,6 +450,9 @@ class SalaSessionState {
   /// holds.
   final Set<String> wholeHeldByTheRoom;
 
+  /// The current parts the room holds that this tablet does not yet, by take id.
+  final Map<String, PartAway> partsAway;
+
   /// Whether Scene row [scene] does not apply right now (ADR 0040: dimmed means it does
   /// not apply). True for every row but the one a finding sent the team back to record,
   /// while that record-again stands open and nothing has been recorded for it yet. Once
@@ -542,6 +545,7 @@ class SalaSessionState {
     this.rehearsalsElsewhere = false,
     this.theRoomJoinedParts = const {},
     this.wholeHeldByTheRoom = const {},
+    this.partsAway = const {},
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -582,12 +586,16 @@ class SalaSessionState {
       naRoda != null &&
       naRoda!.every((passagem) => passagem.isPanorama);
 
-  /// The advance disc lights: every Scene has its Part, with nothing recorded and waiting
-  /// and no finding's mark standing.
+  /// The advance disc lights: every Scene has its Part and every Part is on the tablet,
+  /// with nothing recorded and waiting and no finding's mark standing.
   bool get ensaioDone =>
       ensaio == EnsaioStatus.idle &&
       parteARegravar == null &&
-      everySceneHasItsPart;
+      everySceneHasItsPart &&
+      everyPartIsHere;
+
+  /// Whether no Part on its way is still to come down.
+  bool get everyPartIsHere => partsAway.isEmpty;
 
   /// Whether every Scene has its Part. A passage the room answered with no scenes needs
   /// one part; a scene list still awaited or missing is never covered.
@@ -690,6 +698,10 @@ class SalaSessionState {
             null => null,
           },
           unsent: unsentParts[number],
+          away: switch (partIndexOf(number)) {
+            final index? => partsAway[partes[index].takeId],
+            null => null,
+          },
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
           dimmed: sceneRowIsDimmed(number),
           current: _numberAt(playing ?? again) == number,
@@ -917,13 +929,21 @@ class SalaSessionState {
     _ => false,
   };
 
+  /// The part in the air on the Rehearsal, found by its file, so a part leaving before it
+  /// does not move it.
   int? get parteDoEnsaioTocando {
     if (stage != SalaStage.ensaio) return null;
-    return switch (_paused) {
-      PartPlaying(:final part) => part.part,
-      Paused(what: final PartSound part) => part.part,
-      _ => null,
-    };
+    final PartSound som;
+    switch (_paused) {
+      case PartPlaying(:final part):
+        som = part;
+      case Paused(what: final PartSound part):
+        som = part;
+      default:
+        return null;
+    }
+    final aqui = partes.indexWhere((parte) => parte.path == som.path);
+    return aqui < 0 ? som.part : aqui;
   }
 
   bool get needsPerson => halt is Blocking;
@@ -1126,7 +1146,8 @@ class SalaSessionState {
 
   bool get canPlayTheRehearsal =>
       (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
-      ensaio != EnsaioStatus.recording;
+      ensaio != EnsaioStatus.recording &&
+      everyPartIsHere;
 
   Trecho? get btFraseTraduzidaDeNovo => switch (btTrechoTraduzidoDeNovo) {
     final Trecho trecho
@@ -1147,7 +1168,8 @@ class SalaSessionState {
       !needsPerson &&
       trecho.parte >= 0 &&
       trecho.parte < partes.length &&
-      partes[trecho.parte].path.endsWith('.wav');
+      partes[trecho.parte].path.endsWith('.wav') &&
+      aParteDoTrechoEstaAqui(trecho);
 
   /// The approval drawn on the checked telling-back, in place of the approve button and the
   /// Warning mark: only while nothing of this session waits in the Outbox (ADR 0106).
@@ -1170,6 +1192,7 @@ class SalaSessionState {
   bool get canListenAtConferida =>
       btPhase == BtPhase.conferida &&
       partes.isNotEmpty &&
+      everyPartIsHere &&
       aBackTranslationGestureActs;
 
   /// Whether a gesture on the Back-translation acts: never while an approval is in the
@@ -1178,6 +1201,16 @@ class SalaSessionState {
 
   /// Whether the approve button acts: never while a sentence's re-record is open.
   bool get canApprove => aBackTranslationGestureActs && btRegravacao == null;
+
+  /// Whether the part the stretch [trecho] sits on is on the tablet.
+  bool aParteDoTrechoEstaAqui(Trecho trecho) => aParteDoTrecho(trecho) == null;
+
+  /// The part the stretch [trecho] sits on while it is not on the tablet.
+  KeptTake? aParteDoTrecho(Trecho trecho) => switch (trecho.parte) {
+    final at when at >= 0 && at < partes.length =>
+      partsAway.containsKey(partes[at].takeId) ? partes[at] : null,
+    _ => null,
+  };
 
   bool get canRetellAFrase =>
       stage == SalaStage.retro &&
@@ -1309,6 +1342,7 @@ class SalaSessionState {
     bool? rehearsalsElsewhere,
     Set<int>? theRoomJoinedParts,
     Set<String>? wholeHeldByTheRoom,
+    Map<String, PartAway>? partsAway,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
@@ -1424,6 +1458,7 @@ class SalaSessionState {
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
+      partsAway: partsAway ?? this.partsAway,
     );
   }
 }
@@ -1436,6 +1471,7 @@ class SceneRow {
   final String? title;
   final KeptTake? part;
   final UnsentPart? unsent;
+  final PartAway? away;
   final bool recording;
   final bool dimmed;
 
@@ -1448,6 +1484,7 @@ class SceneRow {
     required this.title,
     required this.part,
     required this.unsent,
+    required this.away,
     required this.recording,
     required this.dimmed,
     required this.current,
