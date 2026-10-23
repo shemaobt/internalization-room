@@ -333,7 +333,7 @@ One row of the Rehearsal per Scene of the passage, in passage order, reading «C
 _Avoid_: bead (the Back-translation's), clip row, part row, linha
 
 **Part on its way**:
-A current Part the room holds that this tablet does not, on a Rehearsal reopened without its recordings. Its Scene row shows it from the moment the room's takes list answers, with its listen dark until its recording is here; the parts on their way come down one at a time, in part order. A fetch that fails leaves the row as it is, and the next tap on its listen fetches it again. Nothing plays, and the advance disc does not light, until every part is here; recording the scene again is never held back by it.
+A current Part the room holds that this tablet does not, on a Rehearsal reopened without its recordings. Its Scene row shows it from the moment the room's takes list answers, with its listen dark until its recording is here; the parts on their way come down one at a time, in part order. A fetch that fails leaves the row as it is, and the next tap on its listen fetches it again. Its own listen stays dark until it is here, and the wood play and the advance disc wait until every part is here; recording the scene again is never held back by it.
 _Avoid_: placeholder, missing part (a part the room no longer has), pending part, unsent take (the other direction)
 
 **Joined recording** (`origin`):
