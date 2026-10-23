@@ -284,8 +284,9 @@ class SalaSessionState {
   final bool peerCue;
   final bool noteMode;
 
-  /// Whether a note the team sent is still on its way to the facilitator.
-  final bool aNoteGoesOut;
+  /// The note the team sent that is still on its way to the facilitator, by the number
+  /// the raised hand gave it.
+  final int? noteOnItsWay;
   final List<HandReply> replies;
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
@@ -424,9 +425,9 @@ class SalaSessionState {
   /// language's session.
   final bool rehearsalsElsewhere;
 
-  /// Whether the room's listing named a current part of this session laid in from a Scene
+  /// The part numbers whose current part in the room's listing was laid in from a Scene
   /// rehearsal.
-  final bool theRoomJoinedAPart;
+  final Set<int> theRoomJoinedParts;
 
   /// The takes of a whole rehearsal set aside behind the scenes' parts that only the room
   /// holds.
@@ -454,7 +455,7 @@ class SalaSessionState {
     this.keptRetellings = const [],
     this.peerCue = false,
     this.noteMode = false,
-    this.aNoteGoesOut = false,
+    this.noteOnItsWay,
     this.replies = const [],
     this.playingReplyId,
     this.keptTakes = const [],
@@ -518,7 +519,7 @@ class SalaSessionState {
     this.labelling = false,
     this.labelLine = false,
     this.rehearsalsElsewhere = false,
-    this.theRoomJoinedAPart = false,
+    this.theRoomJoinedParts = const {},
     this.wholeHeldByTheRoom = const {},
   });
 
@@ -590,14 +591,16 @@ class SalaSessionState {
   /// Whether a current Part was laid in from a Scene rehearsal.
   bool get joined => partes.any((take) => take.origin != null);
 
-  /// Whether a current Part came from a join: as the tablet holds its parts, or as the room
-  /// lists them while the tablet holds none.
-  bool get aPartWasJoined => partes.isEmpty ? theRoomJoinedAPart : joined;
+  /// Whether a current Part came from a join, part by part: the tablet's take where it
+  /// holds one, the room's listing otherwise.
+  bool get aPartWasJoined =>
+      joined ||
+      theRoomJoinedParts.any((number) => !partNumbers.contains(number));
 
   /// How the orange dot stands on the Conversation: gone while the way out is hidden, any
   /// voice sounds or a sent note is on its way; bright from the send-off; faint otherwise.
   OrangeDotLook get orangeDotLook {
-    if (wayOutIsHidden || channel is GuideSpeaking || aNoteGoesOut) {
+    if (wayOutIsHidden || channel is GuideSpeaking || noteOnItsWay != null) {
       return OrangeDotLook.gone;
     }
     if (endOfThePassage || moment?.at == MomentAt.ensaioFinal) {
@@ -1178,7 +1181,8 @@ class SalaSessionState {
     List<KeptRetelling>? keptRetellings,
     bool? peerCue,
     bool? noteMode,
-    bool? aNoteGoesOut,
+    int? noteOnItsWay,
+    bool clearNoteOnItsWay = false,
     List<HandReply>? replies,
     String? playingReplyId,
     bool clearPlayingReply = false,
@@ -1263,7 +1267,7 @@ class SalaSessionState {
     bool? labelling,
     bool? labelLine,
     bool? rehearsalsElsewhere,
-    bool? theRoomJoinedAPart,
+    Set<int>? theRoomJoinedParts,
     Set<String>? wholeHeldByTheRoom,
   }) {
     return SalaSessionState(
@@ -1277,7 +1281,9 @@ class SalaSessionState {
       keptRetellings: keptRetellings ?? this.keptRetellings,
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
-      aNoteGoesOut: aNoteGoesOut ?? this.aNoteGoesOut,
+      noteOnItsWay: clearNoteOnItsWay
+          ? null
+          : (noteOnItsWay ?? this.noteOnItsWay),
       replies: replies ?? this.replies,
       playingReplyId: clearPlayingReply
           ? null
@@ -1370,7 +1376,7 @@ class SalaSessionState {
       labelling: labelling ?? this.labelling,
       labelLine: labelLine ?? this.labelLine,
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
-      theRoomJoinedAPart: theRoomJoinedAPart ?? this.theRoomJoinedAPart,
+      theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
     );
   }
