@@ -81,10 +81,10 @@ A continuation captures `_thisLife` before its await and checks `_endedSince(lif
 
 Lifecycle code still in the notifier moves out to the machine through slices, and new lifecycle
 work is built on the machine. The one written exception: the Retro screen keeps its notifier fields,
-`btFindings`, `btConferindo`, `btRecusa`, `btVeredito`, `btRecomeco`, `btAviso`, `btRecomecada`,
+`btFindings`, `btConferindo`, `btRecusa`, `btVeredito`, `armedTap`, `btAviso`, `btRecomecada`,
 `btPausaSoNaUltima`, `btRegravacao`, `btFraseQueAguarda`, `btFraseGuardada`, `btRascunhoAprovado`, `btSoOuvir`, `btAprovando`, `btAprovadoAgora` and `ensaioSalvo` included, its report
 that the verdict was heard, and the Listening ledger's reports with `_oQueFaltaOuvir`,
-`_partesDaEscuta`, `_umaParteFoiRegravada` and `_aTraducaoJaFoiDeixada`, until after the 2 November tablet freeze
+`_partesDaEscuta`, `_umaParteFoiRegravada`, `_aTraducaoJaFoiDeixada` and the armed tap's `_armHandedOver`, until after the 2 November tablet freeze
 (ADR 0046).
 
 ## Secrets

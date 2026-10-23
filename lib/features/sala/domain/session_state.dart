@@ -189,7 +189,22 @@ enum BtPhase { playing, capturing, thinking, findings, conferida }
 
 enum BtRecomeco { armado, pronto }
 
-enum BtAviso { recomecoFalhou, pausaSoNaUltima, pausaPassaDoFim, pausaNaoFica }
+/// The one control armed on the screen, and whether its second tap counts yet.
+class ArmedTap {
+  final String control;
+  final BtRecomeco phase;
+
+  const ArmedTap(this.control, this.phase);
+}
+
+enum BtAviso {
+  recomecoFalhou,
+  pausaSoNaUltima,
+  pausaPassaDoFim,
+  pausaNaoFica,
+  checagemFalhou,
+  checagemNaoAbre,
+}
 
 enum PassoDaRegravacao {
   ouvindo,
@@ -204,8 +219,17 @@ class RegravacaoDaFrase {
   final int frase;
   final PassoDaRegravacao passo;
   final String? path;
+  final bool reabre;
 
-  const RegravacaoDaFrase(this.frase, this.passo, {this.path});
+  const RegravacaoDaFrase(
+    this.frase,
+    this.passo, {
+    this.path,
+    this.reabre = false,
+  });
+
+  RegravacaoDaFrase em(PassoDaRegravacao passo, {String? path}) =>
+      RegravacaoDaFrase(frase, passo, path: path, reabre: reabre);
 }
 
 /// One stretch the team told back: a slice of one rehearsal recording.
@@ -348,7 +372,7 @@ class SalaSessionState {
   final Trecho? btTrechoTraduzidoDeNovo;
   final int? btContaEscolhida;
   final int btPass;
-  final BtRecomeco? btRecomeco;
+  final ArmedTap? armedTap;
   final BtAviso? btAviso;
   final bool btRecomecada;
   final RegravacaoDaFrase? btRegravacao;
@@ -520,7 +544,7 @@ class SalaSessionState {
     this.btTrechoTraduzidoDeNovo,
     this.btContaEscolhida,
     this.btPass = 1,
-    this.btRecomeco,
+    this.armedTap,
     this.btAviso,
     this.btRecomecada = false,
     this.btRegravacao,
@@ -1187,6 +1211,10 @@ class SalaSessionState {
       partes[trecho.parte].path.endsWith('.wav') &&
       aParteDoTrechoEstaAqui(trecho);
 
+  bool get overAnApprovedDraft => btRascunhoAprovado != null;
+
+  bool get microphoneOpen => channel is Microphone;
+
   /// The approval drawn on the checked telling-back, in place of the approve button and the
   /// Warning mark: only while nothing of this session waits in the Outbox (ADR 0106).
   ApprovedDraft? get approvedDraftDrawn =>
@@ -1310,8 +1338,8 @@ class SalaSessionState {
     int? btContaEscolhida,
     bool clearContaEscolhida = false,
     int? btPass,
-    BtRecomeco? btRecomeco,
-    bool clearRecomeco = false,
+    ArmedTap? armedTap,
+    bool clearArmedTap = false,
     BtAviso? btAviso,
     bool? btRecomecada,
     bool clearAviso = false,
@@ -1427,7 +1455,7 @@ class SalaSessionState {
           ? null
           : (btContaEscolhida ?? this.btContaEscolhida),
       btPass: btPass ?? this.btPass,
-      btRecomeco: clearRecomeco ? null : (btRecomeco ?? this.btRecomeco),
+      armedTap: clearArmedTap ? null : (armedTap ?? this.armedTap),
       btAviso: clearAviso ? null : (btAviso ?? this.btAviso),
       btRecomecada: btRecomecada ?? this.btRecomecada,
       btRegravacao: clearBtRegravacao
