@@ -40,7 +40,7 @@ The return to the entry the team last left by the way out, offered on the Choice
 _Avoid_: back button, return, chevron (the chevron is one way to take it)
 
 **Closing** (`fim`):
-The last station, where the necklace's cord closes into a circle and the session ends.
+The last station, where the necklace stays as it hung and the session ends.
 _Avoid_: fecho, ending, fim in prose (`SalaStage.fim` is the enum, not the term)
 
 **Step**:
