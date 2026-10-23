@@ -34,8 +34,9 @@ class UnsentPart {
   });
 }
 
-/// Where a Part on its way stands: coming down, or missed by its last fetch.
-enum PartAway { coming, missed }
+/// Where a Part on its way stands: coming down, missed by its last fetch, or lost by the
+/// room.
+enum PartAway { coming, missed, lost }
 
 class KeptTake {
   final String scopeId;

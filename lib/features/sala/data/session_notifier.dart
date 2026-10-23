@@ -357,6 +357,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The fetch of the parts on their way, which belongs to the passage it started in.
   late Completer<void>? _partesDescendo;
 
+  /// Whether the Session read of this opening has said where the team stands, which a part
+  /// the room lost waits for before it leaves the Rehearsal.
+  late bool _aLeituraDecidiu;
+
   /// When and in what language the session now open was created, so a row rewritten by
   /// a later stage advance carries them instead of going blank the moment the team leaves
   /// the conversa. A resume judges by the language; the date is the record of when the
@@ -523,6 +527,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _passadasDaSala = null;
     _goneSessions = {};
     _partesDescendo = null;
+    _aLeituraDecidiu = false;
     _sessionSavedAt = null;
     _sessionLanguage = null;
     _landingOn = null;
@@ -2531,9 +2536,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               generation,
               landed,
             )) {
-          if (!state.everyPartIsHere) {
-            _bringThePartsDown(Station.stored(waiting.stage));
-          }
+          _aLeituraDecidiu = true;
           return;
         }
         if (onde == _Resume.landed && Station.stored(waiting.stage) is Retro) {
@@ -2551,9 +2554,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // their retro rather than dropped back into the rehearsal.
         _resumeFailures.remove(theResume);
         _applyTheSessionRead(snapshot, sent);
-        if (!state.everyPartIsHere) {
-          _bringThePartsDown(Station.stored(waiting.stage));
-        }
+        _aLeituraDecidiu = true;
+        _asPartesPerdidasSaem();
         return;
       }
       final SessionSnapshot read;
@@ -2637,8 +2639,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SessionSnapshot read,
     int sent,
     int generation,
-    void Function() landed,
-  ) async {
+    void Function() landed, {
+    List<KeptTake> aqui = const [],
+  }) async {
     if (read.approved == null || read.backTranslation.nothingTold) return false;
     final waiting = (await _takes.pending()).any(
       (entry) =>
@@ -2646,7 +2649,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (waiting || _abandoned(generation)) return _abandoned(generation);
     if (state.partes.isEmpty) {
-      await _theRoomsRehearsalUnder(read.sessionId, generation);
+      await _theRoomsRehearsalUnder(read.sessionId, aqui, generation);
       if (_abandoned(generation)) return true;
     }
     final told = read.backTranslation;
@@ -2666,28 +2669,36 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _applyTheSessionRead(read, sent);
     _rememberWhereTheyAre(const Retro());
+    _bringThePartsDown(const Retro());
     await _countUnsent();
     return true;
   }
 
-  Future<void> _theRoomsRehearsalUnder(String sessionId, int generation) async {
+  /// The room's current parts laid under an approved draft: a part this tablet holds is
+  /// kept, every other comes down behind the landing.
+  Future<void> _theRoomsRehearsalUnder(
+    String sessionId,
+    List<KeptTake> aqui,
+    int generation,
+  ) async {
     _watchBusyState();
     if (await _room.takesOf(sessionId) case Answered(value: final guardadas)) {
       if (_abandoned(generation)) return;
-      final partes = await _asPartesDaSala(
-        sessionId,
-        guardadas,
-        const [],
-        generation,
+      final lidas = _lerAListagem(guardadas, aqui);
+      if (lidas.partes.isEmpty) return;
+      await _medirAsPartes([
+        for (final take in lidas.partes)
+          if (!lidas.aBuscar.contains(take.takeId)) take,
+      ], generation);
+      if (_abandoned(generation)) return;
+      state = state.copyWith(
+        keptTakes: lidas.partes,
+        wholeHeldByTheRoom: lidas.deLado,
+        partsAway: {
+          for (final takeId in lidas.aBuscar) takeId: PartAway.coming,
+        },
       );
-      if (partes case Answered(
-        value: _PartesDaSala(partes: final takes, :final deLado),
-      ) when takes.isNotEmpty) {
-        await _medirAsPartes(takes, generation);
-        if (_abandoned(generation)) return;
-        state = state.copyWith(keptTakes: takes, wholeHeldByTheRoom: deLado);
-        state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
-      }
+      state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
     }
   }
 
@@ -2838,22 +2849,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         (waiting.takes.isEmpty && !anEmptyEnsaio && !aPartlessRetro)) {
       return _Resume.nothingToRestore;
     }
-    // An approved draft's parts are the landing's to fetch, and its landing stands silent
-    // when they cannot be had (ADR 0106). One read decides it and lands it.
-    if (aPartlessRetro) {
-      final sent = ++_readsSent;
-      if (await _room.fetchState(waiting.sessionId) case Answered(
-        value: final read,
-      )) {
-        if (_abandoned(generation)) return _Resume.abandoned;
-        if (await _landedOnTheApprovedDraft(read, sent, generation, landed)) {
-          return _abandoned(generation)
-              ? _Resume.abandoned
-              : _Resume.onTheApprovedDraft;
-        }
-      }
-      if (_abandoned(generation)) return _Resume.abandoned;
-    }
     final aSceneHasItsPart = waiting.takes.any(
       (take) => KeptScope.isParte(take.scopeId),
     );
@@ -2873,6 +2868,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_abandoned(generation)) return _Resume.abandoned;
     final faltavam = aPartlessRetro || missing;
+    if (stage is Retro && faltavam) {
+      final sent = ++_readsSent;
+      if (await _room.fetchState(waiting.sessionId) case Answered(
+        value: final read,
+      )) {
+        if (_abandoned(generation)) return _Resume.abandoned;
+        if (await _landedOnTheApprovedDraft(
+          read,
+          sent,
+          generation,
+          landed,
+          aqui: here,
+        )) {
+          return _abandoned(generation)
+              ? _Resume.abandoned
+              : _Resume.onTheApprovedDraft;
+        }
+      }
+      if (_abandoned(generation)) return _Resume.abandoned;
+    }
     List<KeptTake>? takes = here;
     var inteiro = true;
     var aBuscar = const <String>{};
@@ -2966,6 +2981,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _rememberWhereTheyAre(
           inteiro ? Station.stored(waiting.stage) : const Ensaio(),
         );
+      } else {
+        _aLeituraDecidiu = false;
+        _bringThePartsDown(Station.stored(waiting.stage));
       }
     }
     unawaited(_countUnsent());
@@ -3157,22 +3175,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           ],
           partsAway: {...state.partsAway}..remove(takeId),
         );
-      } else if (busca case Refused(
-        code: RefusalCode.notFound,
-      ) when state.station is Ensaio) {
-        faltou = true;
-        if (KeptScope.numberOf(parte.scopeId) case final ordinal?) {
-          _passadasDaSala = {...?_passadasDaSala, ordinal: parte.pass};
-        }
-        final fora = state.partes.indexWhere((take) => take.takeId == takeId);
+      } else if (busca case Refused(code: RefusalCode.notFound)) {
         state = state.copyWith(
-          keptTakes: [
-            for (final take in state.keptTakes)
-              if (take.takeId != takeId) take,
-          ],
-          partsAway: {...state.partsAway}..remove(takeId),
-          btTrechos: _osTrechosSemAParte(fora),
+          partsAway: {...state.partsAway, takeId: PartAway.lost},
         );
+        if (_asPartesPerdidasSaem()) faltou = true;
       } else {
         state = state.copyWith(
           partsAway: {...state.partsAway, takeId: PartAway.missed},
@@ -3186,6 +3193,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       });
     }
     descem.complete();
+  }
+
+  /// The parts the room lost leave the Rehearsal once its Session read has said the team
+  /// stays there; under the approved draft they stay, silent. True when one left.
+  bool _asPartesPerdidasSaem() {
+    if (!_aLeituraDecidiu || state.station is! Ensaio) return false;
+    final perdidas = [
+      for (final parte in state.partes)
+        if (state.partsAway[parte.takeId] == PartAway.lost) parte,
+    ];
+    for (final parte in perdidas) {
+      if (KeptScope.numberOf(parte.scopeId) case final ordinal?) {
+        _passadasDaSala = {...?_passadasDaSala, ordinal: parte.pass};
+      }
+      final fora = state.partes.indexWhere(
+        (take) => take.takeId == parte.takeId,
+      );
+      state = state.copyWith(
+        keptTakes: [
+          for (final take in state.keptTakes)
+            if (take.takeId != parte.takeId) take,
+        ],
+        partsAway: {...state.partsAway}..remove(parte.takeId),
+        btTrechos: _osTrechosSemAParte(fora),
+      );
+    }
+    if (perdidas.isEmpty) return false;
+    state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+    _weighTheRehearsal();
+    _rememberWhereTheyAre(const Ensaio());
+    return true;
   }
 
   bool _aindaACaminho(String sessionId, KeptTake parte) =>
@@ -5380,7 +5418,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final indice = state.partIndexOf(cena);
     if (indice == null || state.sceneRowIsDimmed(cena)) return;
     final takeId = state.partes[indice].takeId;
-    if (state.partsAway[takeId] == PartAway.missed) {
+    if (state.partsAway[takeId] case PartAway.missed || PartAway.lost) {
       state = state.copyWith(
         partsAway: {...state.partsAway, takeId!: PartAway.coming},
       );
@@ -6575,7 +6613,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.canHearAFrase) return;
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
-    if (!trecho.contado || !state.aParteDoTrechoEstaAqui(trecho)) return;
+    if (!trecho.contado) return;
+    if (state.aParteDoTrecho(trecho) case final parte?) {
+      if (state.partsAway[parte.takeId] case PartAway.missed || PartAway.lost) {
+        state = state.copyWith(
+          partsAway: {...state.partsAway, parte.takeId!: PartAway.coming},
+        );
+        _bringThePartsDown(state.station);
+      }
+      return;
+    }
     final traducao = naGravacao ? null : trecho.retroPath;
     final materna = _ondeTocar(trecho);
     if (traducao == null && materna == null) return;

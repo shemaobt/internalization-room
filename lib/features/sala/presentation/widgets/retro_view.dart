@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/kept_take.dart';
 import '../../domain/bt_finding.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
@@ -222,7 +223,9 @@ class RetroView extends ConsumerWidget {
           parte: trecho.parte >= 0 ? trecho.parte + 1 : null,
           share: share(trecho),
           onHear:
-              session.canHearAFrase && session.aParteDoTrechoEstaAqui(trecho)
+              session.canHearAFrase &&
+                  session.partsAway[session.aParteDoTrecho(trecho)?.takeId] !=
+                      PartAway.coming
               ? () => notifier.ouvirOTrechoContado(onde)
               : null,
           onRetell:

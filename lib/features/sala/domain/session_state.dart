@@ -1134,10 +1134,14 @@ class SalaSessionState {
       btPhase == BtPhase.conferida && partes.isNotEmpty && everyPartIsHere;
 
   /// Whether the part the stretch [trecho] sits on is on the tablet.
-  bool aParteDoTrechoEstaAqui(Trecho trecho) =>
-      !(trecho.parte >= 0 &&
-          trecho.parte < partes.length &&
-          partsAway.containsKey(partes[trecho.parte].takeId));
+  bool aParteDoTrechoEstaAqui(Trecho trecho) => aParteDoTrecho(trecho) == null;
+
+  /// The part the stretch [trecho] sits on while it is not on the tablet.
+  KeptTake? aParteDoTrecho(Trecho trecho) => switch (trecho.parte) {
+    final at when at >= 0 && at < partes.length =>
+      partsAway.containsKey(partes[at].takeId) ? partes[at] : null,
+    _ => null,
+  };
 
   bool get canRetellAFrase =>
       stage == SalaStage.retro &&
