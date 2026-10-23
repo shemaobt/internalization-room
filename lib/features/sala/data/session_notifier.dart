@@ -3573,8 +3573,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final asked = PlanListen(chosen.rehearsalId);
     state = state.copyWith(planListening: asked);
     final generation = _waitOnTheGeneration;
-    final path = await _fetchTheSceneTake(chosen, generation);
     bool stillAsked() => !_gone && identical(state.planListening, asked);
+    final path = await _fetchTheSceneTake(
+      chosen,
+      () => _abandoned(generation) || !stillAsked(),
+      generation,
+    );
     void heardOut() {
       if (stillAsked()) state = state.copyWith(clearPlanListening: true);
     }
@@ -3856,7 +3860,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             _theSceneMovedOn(asked, generation)) {
           return;
         }
-        final take = await _fetchTheSceneTake(unsent, asked, generation);
+        final take = await _fetchTheSceneTake(
+          unsent,
+          () => _theSceneMovedOn(asked, generation),
+          generation,
+        );
         if (take == null || state.scenes is! ScenesAwaited) return;
         await _showTheRehearsal(
           unsent,
@@ -3884,7 +3892,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         (asked.rehearsal?.rehearsalId == rehearsal.rehearsalId
             ? asked.take
             : null) ??
-        await _fetchTheSceneTake(rehearsal, asked, generation);
+        await _fetchTheSceneTake(
+          rehearsal,
+          () => _theSceneMovedOn(asked, generation),
+          generation,
+        );
     if (here == null || _theSceneMovedOn(asked, generation)) return;
     final length = await _playback.howLong(here);
     if (_theSceneMovedOn(asked, generation) ||
@@ -3949,7 +3961,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<String?> _fetchTheSceneTake(
     SceneRehearsalRecord rehearsal,
-    SceneScreen asked,
+    bool Function() movedOn,
     int generation,
   ) => _fetchASceneClip(
     'cena-${rehearsal.rehearsalId}',
@@ -3957,14 +3969,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       rehearsal.sessionId,
       rehearsal.rehearsalId,
     ),
-    asked,
+    movedOn,
     generation,
   );
 
   Future<String?> _fetchASceneClip(
     String name,
     String url,
-    SceneScreen asked,
+    bool Function() movedOn,
     int generation,
   ) async {
     final held = await _heldOnTheTablet(name);
@@ -3976,7 +3988,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         try {
           return await _recorder.keepBytes(value, name);
         } on Exception {
-          if (!_theSceneMovedOn(asked, generation)) {
+          if (!movedOn()) {
             _dispatch(
               decidedOnTheTablet(
                 const TheDiskFailed(),
@@ -4865,7 +4877,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal.rehearsalId,
         frase.fraseId,
       ),
-      waiting,
+      () => _theSceneMovedOn(waiting, generation),
       generation,
     );
     if (_theSceneMovedOn(waiting, generation)) return;

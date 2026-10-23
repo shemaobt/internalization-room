@@ -380,6 +380,35 @@ void main() {
       },
     );
 
+    testWidgets(
+      'a play whose clip the disk cannot keep hears nothing, calls nobody, and '
+      'leaves the next tap to play it',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final (harness, container) = await _seeded(tester, _oneEach);
+        await _openThePlan(tester);
+        final sessionId = harness.room.sceneRehearsals.first.sessionId;
+        final before = harness.playback.played.length;
+        final persons = harness.room.personsAsked;
+        harness.recorder.keepBytesFails = true;
+
+        await tester.tap(_playOn(1));
+        await _theAnswerSettles(tester);
+
+        expect(harness.playback.played.length, before);
+        expect(container.read(salaSessionProvider).needsPerson, isFalse);
+        expect(harness.room.personsAsked, persons);
+        expect(find.text(_planLine), findsOneWidget);
+
+        harness.recorder.keepBytesFails = false;
+        await tester.tap(_playOn(1));
+        await _theAnswerSettles(tester);
+
+        expect(harness.playback.played.last, contains('$sessionId-ensaio-1'));
+        semantics.dispose();
+      },
+    );
+
     testWidgets('one row, another, then the first again, all slow, plays the '
         'first once', (tester) async {
       final semantics = tester.ensureSemantics();
