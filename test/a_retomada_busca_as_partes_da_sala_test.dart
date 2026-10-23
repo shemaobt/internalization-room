@@ -84,6 +84,7 @@ Future<_Retomada> _reabrir(
   Map<int, int> passadas = const {},
   BackTranslationProgress contado = const BackTranslationProgress(),
   List<TakeView>? naSala,
+  int? regravando,
 }) async {
   final casa = Directory.systemTemp.createTempSync('sala-retomada-busca');
   addTearDown(() => casa.deleteSync(recursive: true));
@@ -105,6 +106,7 @@ Future<_Retomada> _reabrir(
           pass: passadas[n] ?? 1,
         ),
     ],
+    partBeingRecordedAgain: regravando,
   );
   harness.emAberto.rows['Ruth/P01/pt'] = linha;
   harness.playback.measured = _parte;
@@ -1658,4 +1660,54 @@ void main() {
 
     expect(it.linha!.stage, SalaStage.ensaio);
   });
+
+  test(
+    'a parte a regravar continua a mesma cena quando uma parte antes dela sai '
+    'do ensaio',
+    () async {
+      final harness = SalaHarness()
+        ..room.refuseClipOf.add('gravacao-1')
+        ..room.holdNextState();
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.ensaio,
+        regravando: 2,
+      );
+      await waitFor(
+        'as tres partes serem tentadas com a leitura no ar',
+        () => harness.room.clipsFetched.length == 3,
+      );
+      expect(it.estado.sceneForTheCircle, 3);
+
+      harness.room.finishHeldState();
+      await waitFor('a parte 1 sair', () => it.estado.partes.length == 2);
+
+      expect(it.estado.sceneForTheCircle, 3);
+    },
+  );
+
+  test(
+    'um rascunho aprovado da retro com a lista fora do ar pede a lista uma vez '
+    'so',
+    () async {
+      final harness = SalaHarness()
+        ..room.approvedDraft = const ApprovedDraft(version: 1)
+        ..room.failTakesWith = const NetworkFailed('a rede caiu');
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        aindaNoTablet: {1, 3},
+        contado: _contado([1, 2, 3], checked: true),
+      );
+      await _deVoltaAEscolha(it);
+      await settle(const Duration(milliseconds: 300));
+
+      expect(
+        harness.room.calls.where((call) => call == 'takesOf'),
+        hasLength(1),
+      );
+    },
+  );
 }

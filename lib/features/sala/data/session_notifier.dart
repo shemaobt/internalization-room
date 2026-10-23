@@ -2654,6 +2654,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
     void Function() landed, {
     List<KeptTake>? aqui,
+    void Function(RoomFailure failure)? aListaFalhou,
   }) async {
     if (read.approved == null || read.backTranslation.nothingTold) return false;
     final waiting = (await _takes.pending()).any(
@@ -2662,13 +2663,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (waiting || _abandoned(generation)) return _abandoned(generation);
     if (state.partes.isEmpty) {
-      final listada = await _theRoomsRehearsalUnder(
+      final falhou = await _theRoomsRehearsalUnder(
         read.sessionId,
         aqui ?? const [],
         generation,
       );
       if (_abandoned(generation)) return true;
-      if (!listada && aqui != null) return false;
+      if (falhou != null && aqui != null) {
+        aListaFalhou?.call(falhou);
+        return false;
+      }
     }
     final told = read.backTranslation;
     state = state.copyWith(clearBtFraseGuardada: true);
@@ -2695,21 +2699,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The room's current parts laid under an approved draft: a part this tablet holds is
   /// kept, every other comes down behind the landing.
-  Future<bool> _theRoomsRehearsalUnder(
+  Future<RoomFailure?> _theRoomsRehearsalUnder(
     String sessionId,
     List<KeptTake> aqui,
     int generation,
   ) async {
     _watchBusyState();
-    if (await _room.takesOf(sessionId) case Answered(value: final guardadas)) {
-      if (_abandoned(generation)) return true;
+    final listagem = await _room.takesOf(sessionId);
+    if (listagem case final RoomFailure failure) return failure;
+    if (listagem case Answered(value: final guardadas)) {
+      if (_abandoned(generation)) return null;
       final lidas = _lerAListagem(guardadas, aqui);
-      if (lidas.partes.isEmpty) return true;
+      if (lidas.partes.isEmpty) return null;
       await _medirAsPartes([
         for (final take in lidas.partes)
           if (!lidas.aBuscar.contains(take.takeId)) take,
       ], generation);
-      if (_abandoned(generation)) return true;
+      if (_abandoned(generation)) return null;
       state = state.copyWith(
         keptTakes: lidas.partes,
         wholeHeldByTheRoom: lidas.deLado,
@@ -2718,9 +2724,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         },
       );
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
-      return true;
     }
-    return false;
+    return null;
   }
 
   Future<void> _learnWhetherAPartWasJoined(
@@ -2843,6 +2848,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return resta.isEmpty ? null : resta;
   }
 
+  /// The room's listing did not answer a resume: a session it no longer knows is retired,
+  /// anything else leaves the row as it was for the next opening.
+  _Resume _aListaFalhou(RoomFailure failure, int generation) {
+    if (_abandoned(generation)) return _Resume.abandoned;
+    switch (failure) {
+      case final SessionGone gone:
+        _decideTheFailure(gone);
+        return _Resume.gone;
+      case NetworkFailed():
+        return _theResumeFailed(const RoomNetworkFailed(), generation);
+      case final Refused refused:
+        return _theResumeFailed(refused.result, generation);
+    }
+  }
+
   _Resume _theResumeFailed(RoomResult result, int generation) {
     if (_abandoned(generation)) return _Resume.abandoned;
     _dispatch(
@@ -2897,16 +2917,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         value: final lida,
       )) {
         if (_abandoned(generation)) return _Resume.abandoned;
+        RoomFailure? listaFalhou;
         if (await _landedOnTheApprovedDraft(
           lida,
           sent,
           generation,
           landed,
           aqui: aPartlessRetro ? null : here,
+          aListaFalhou: (failure) => listaFalhou = failure,
         )) {
           return _abandoned(generation)
               ? _Resume.abandoned
               : _Resume.onTheApprovedDraft;
+        }
+        if (listaFalhou case final failure?) {
+          return _aListaFalhou(failure, generation);
         }
         read(lida, sent);
       }
@@ -2951,18 +2976,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             case final RoomFailure failure:
               return _theResumeFailed(failure.result, generation);
           }
-        case final SessionGone gone:
-          // This is the first call that names the remembered session on a resume, so the
-          // answer that retires a session arrives here, and swallowed it would make every
-          // opening ask a dead session for a rehearsal.
-          if (_abandoned(generation)) return _Resume.abandoned;
-          _decideTheFailure(gone);
-          return _Resume.gone;
-        case NetworkFailed():
-          if (_abandoned(generation)) return _Resume.abandoned;
-          return _theResumeFailed(const RoomNetworkFailed(), generation);
-        case final Refused refused:
-          return _theResumeFailed(refused.result, generation);
+        case final RoomFailure failure:
+          return _aListaFalhou(failure, generation);
       }
     }
     if (_abandoned(generation)) return _Resume.abandoned;
@@ -3226,6 +3241,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       for (final parte in state.partes)
         if (state.partsAway[parte.takeId] == PartAway.lost) parte,
     ];
+    if (perdidas.isNotEmpty && state.parteDoEnsaioTocando != null) {
+      _silenceTheRoom();
+    }
     for (final parte in perdidas) {
       if (KeptScope.numberOf(parte.scopeId) case final ordinal?) {
         _passadasDaSala = {...?_passadasDaSala, ordinal: parte.pass};
@@ -3233,6 +3251,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final fora = state.partes.indexWhere(
         (take) => take.takeId == parte.takeId,
       );
+      final regravando = state.parteARegravar;
       state = state.copyWith(
         keptTakes: [
           for (final take in state.keptTakes)
@@ -3240,6 +3259,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ],
         partsAway: {...state.partsAway}..remove(parte.takeId),
         btTrechos: _osTrechosSemAParte(fora),
+        parteARegravar: switch (regravando) {
+          final at? when at > fora => at - 1,
+          _ => regravando,
+        },
+        clearParteARegravar: regravando == fora,
       );
     }
     if (perdidas.isEmpty) return false;
@@ -8721,6 +8745,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.partes[parte].scopeId != KeptScope.whole) {
       state = state.copyWith(parteARegravar: parte);
     }
+    _asPartesPerdidasSaem();
     _rememberWhereTheyAre(const Ensaio());
   }
 
@@ -8757,7 +8782,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leaveTheStepFor(const Ensaio());
     _clearAll();
     _arriveAt(const TheRehearsalOpened());
-    _asPartesPerdidasSaem();
     state = state.copyWith(
       awaitingTheGuide: false,
       ensaio: EnsaioStatus.idle,

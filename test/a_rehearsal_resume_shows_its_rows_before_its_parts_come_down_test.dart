@@ -110,8 +110,9 @@ Future<void> _gravarNaLinha(
 
 Future<ProviderContainer> _abrir(
   WidgetTester tester,
-  SalaHarness harness,
-) async {
+  SalaHarness harness, {
+  bool aLeituraFicaNoAr = false,
+}) async {
   final container = harness.container();
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -121,9 +122,10 @@ Future<ProviderContainer> _abrir(
   final notifier = container.read(salaSessionProvider.notifier);
   await tester.runAsync(notifier.abrirEscolha);
   await tester.pump(const Duration(milliseconds: 200));
-  await tester.runAsync(
-    () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
-  );
+  await tester.runAsync(() async {
+    final abrindo = notifier.goConversa(book: 'Ruth', pericope: 'P01');
+    if (!aLeituraFicaNoAr) await abrindo;
+  });
   await _passos(tester, 6);
   return container;
 }
@@ -137,6 +139,7 @@ Future<ProviderContainer> _retomar(
   Set<int> aqui = const {},
   List<TakeView>? naSala,
   List<Scene> cenas = _cenas,
+  bool aLeituraFicaNoAr = false,
 }) async {
   tester.view
     ..physicalSize = const Size(820, 1180)
@@ -164,7 +167,7 @@ Future<ProviderContainer> _retomar(
         ),
     ],
   );
-  return _abrir(tester, harness);
+  return _abrir(tester, harness, aLeituraFicaNoAr: aLeituraFicaNoAr);
 }
 
 void main() {
@@ -525,4 +528,29 @@ void main() {
     expect(_buscadas(harness), [_daSala(1)]);
     expect(identical(harness.emAberto.rows[_linhaDoTablet], linha), isTrue);
   });
+
+  testWidgets(
+    'a part the room no longer has keeps its row dark until the session read '
+    'answers, and its listen fetches nothing',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      harness.room
+        ..refuseClipOf.add(_daSala(2))
+        ..holdNextState();
+      final container = await _retomar(tester, harness, aLeituraFicaNoAr: true);
+      await _passos(tester, 8);
+
+      expect(_buscadas(harness), [_daSala(1), _daSala(2), _daSala(3)]);
+      expect(_naLinha(2, _gravarDeNovo), findsOneWidget);
+      expect(_acesa(tester, _naLinha(2, _ouvir)), isFalse);
+      container.read(salaSessionProvider.notifier).ouvirACena(2);
+      await _passos(tester);
+      expect(_buscadas(harness), hasLength(3));
+      expect(harness.playback.played, isEmpty);
+
+      await tester.runAsync(() async => harness.room.finishHeldState());
+      await _passos(tester, 6);
+      expect(_naLinha(2, _gravar), findsOneWidget);
+    },
+  );
 }
