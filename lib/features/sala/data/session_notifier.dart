@@ -494,6 +494,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _aNewLife() {
     _timers = {};
+    _armHandedOver = null;
     _readsSent = 0;
     _readsApplied = 0;
     _perdidasNoTrecho = {};
@@ -825,7 +826,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return gesture;
   }
 
-  ArmedTap? _armHandedOver;
+  late ArmedTap? _armHandedOver;
 
   void _armedTap(
     String control, {
@@ -6226,6 +6227,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _abrirAChecagemExterna(String sessionId) async {
     final generation = _waitOnTheGeneration;
+    state = state.copyWith(clearAviso: true);
     final failure = await _readTheStretchesBack(sessionId, generation);
     if (_abandoned(generation)) return;
     if (failure != null) {
@@ -6889,7 +6891,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _enviarAFrase(
     PendingTake guardada, {
-    bool reabre = false,
+    required bool reabre,
   }) async {
     final frase = int.parse(guardada.scope);
     final generation = _waitOnTheGeneration;

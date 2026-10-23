@@ -149,6 +149,19 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a tap the room answers takes «$_naoDeu» away', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaConferida(tester, harness);
+    harness.room.failStateOnceWith = const NetworkFailed('sem rede');
+    await _tocarNaChecagem(tester);
+
+    await _tocarNaChecagem(tester);
+
+    expect(find.text(_naoDeu), findsNothing);
+    expect(byLabel(_checagem), findsOneWidget);
+    closeTheRoom(container);
+  });
+
   testWidgets('in English', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await aprovadaNaConferida(

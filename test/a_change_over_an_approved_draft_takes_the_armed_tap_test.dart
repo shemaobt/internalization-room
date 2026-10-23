@@ -22,7 +22,7 @@ const _recomecar = 'recomeçar a tradução';
 const _recomecoArmado = 'toque de novo para apagar as 4 frases traduzidas';
 const _tentarDeNovo = 'não deu para guardar a frase — tentar de novo';
 const _sinal = 'Um momento para uma pessoa';
-const _ouvirAGravacao = 'Ouvir a gravação';
+const _ouvirAFrase1 = 'ouvir a minha tradução da frase 1';
 const _ouvirAFrase = ('N6', 'pt');
 
 String _regravar(int n) => 'regravar a frase $n';
@@ -268,7 +268,7 @@ void main() {
     harness.voice.fixedLines.clear();
 
     await tocarNaLista(tester, _regravar(2));
-    await tocar(tester, _ouvirAGravacao);
+    await tocarNaLista(tester, _ouvirAFrase1);
 
     expect(_naLista(_regravar(2)), findsOneWidget);
     expect(_textoNaLista(_armado), findsNothing);
