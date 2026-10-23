@@ -28,7 +28,12 @@ afterwards, and answers its record.
   toquem de novo», and the rehearsal stays on the card. Tapping again is safe, because the
   door changes nothing for the same label. The door names a rehearsal, so a 404 there is a
   refusal and says the same line; a session the room forgot meets the Failure policy at the
-  next door that asks for the session.
+  next door that asks for the session. This failure is the one the card decides itself,
+  outside the Failure policy: it is a line on the card the team answers with another tap,
+  never a halt or a sign, and the plan stays where it is.
+- **A fast second tap never answers the next rehearsal.** After an answer the card's
+  buttons wake only after the house's double-tap wake, 0.6 s, so a tap meant for one
+  rehearsal never labels the one that took its place.
 - **«gravar esta cena de novo» is an arrival from the plan Step to the Scene rehearsal
   Station**, with the scene highlighted and never picked. Unlike the red microphone, it never
   reopens the room's newest unsent rehearsal, which stays on the sheet; a take still waiting
