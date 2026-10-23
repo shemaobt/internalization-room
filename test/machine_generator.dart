@@ -272,6 +272,7 @@ String describeEvent(MachineEvent event) => switch (event) {
     'TheSceneRehearsalsListed(${listed.length})',
   TheSceneDoorFailed(:final readAgain) =>
     'TheSceneDoorFailed(readAgain: $readAgain)',
+  TheSceneDiskFailed() => 'TheSceneDiskFailed',
   TheCallWasRefused() => 'TheCallWasRefused',
   TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
   LookEmpty(:final turn, :final sounding, :final theWaitRanOut) =>
@@ -413,6 +414,7 @@ enum EventKind {
   theHandFailed,
   theScenesMissed,
   theSceneDoorFailed,
+  theSceneDiskFailed,
   theSceneRehearsalsListed,
   theCallWasRefused,
   theCallMetAClosedPassage,
@@ -485,6 +487,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheHandFailed() => EventKind.theHandFailed,
   TheScenesMissed() => EventKind.theScenesMissed,
   TheSceneDoorFailed() => EventKind.theSceneDoorFailed,
+  TheSceneDiskFailed() => EventKind.theSceneDiskFailed,
   TheSceneRehearsalsListed() => EventKind.theSceneRehearsalsListed,
   TheCallWasRefused() => EventKind.theCallWasRefused,
   TheCallMetAClosedPassage() => EventKind.theCallMetAClosedPassage,
@@ -556,6 +559,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theHandFailed ||
   EventKind.theScenesMissed ||
   EventKind.theSceneDoorFailed ||
+  EventKind.theSceneDiskFailed ||
   EventKind.theSceneRehearsalsListed ||
   EventKind.theCallWasRefused ||
   EventKind.theCallMetAClosedPassage ||
@@ -756,6 +760,7 @@ MachineEvent _draw(
   EventKind.theSceneDoorFailed => TheSceneDoorFailed(
     readAgain: random.nextBool(),
   ),
+  EventKind.theSceneDiskFailed => const TheSceneDiskFailed(),
   EventKind.theCallWasRefused => const TheCallWasRefused(),
   EventKind.theCallMetAClosedPassage => const TheCallMetAClosedPassage(),
   EventKind.turnFailed => TurnFailed(_drawATurn(random)),

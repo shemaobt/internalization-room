@@ -63,6 +63,10 @@ final class TheTabletCannotRecord extends TabletFailure {
   const TheTabletCannotRecord({required this.owner});
 }
 
+final class TheDiskFailed extends TabletFailure {
+  const TheDiskFailed();
+}
+
 final class TheBuildCannotReachTheRoom extends TabletFailure {
   const TheBuildCannotReachTheRoom();
 }
@@ -243,6 +247,7 @@ abstract final class FailurePolicy {
       TheMicFailedToStart(:final inARow) =>
         inARow >= micFailuresBeforeAPerson ? halt : passed,
       TheTabletCannotRecord() => halt,
+      TheDiskFailed() => TheSceneDiskFailed(generation: generation),
       TheBuildCannotReachTheRoom() => RoomRaisedAHalt(
         callsForAPerson: false,
         generation: generation,
