@@ -94,8 +94,8 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   grave de novo» for final refusals, which offer no tap on the ensaio row.
   On the red microphone a failed scene take reads «não deu para guardar o ensaio da cena —
   gravem de novo» (or the too-large or not-accepted line) with «falhou — toque para tentar
-  de novo» as its tap, or with «falhou» and no tap once its recording is gone. The red microphone's take state is a named exception to the
-  wordless rule (ADR 0014).
+  de novo» as its tap, or with «falhou» and no tap once its recording is gone. The red
+  microphone's take state is a named exception to the wordless rule (ADR 0014).
 
 ## What this replaces in ADR 0103
 
