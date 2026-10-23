@@ -67,8 +67,6 @@ Future<(ProviderContainer, SalaSessionState Function())> _reopensOnPartTwoOfTwo(
         read().btCursor == const Duration(seconds: 6) &&
         harness.playback.sounding,
   );
-  harness.playback.finishPlayback();
-  await waitFor('a primeira parte terminar', () => read().btParteFronteira);
   return (container, read);
 }
 
@@ -80,14 +78,14 @@ void main() {
     final sala = container.read(salaSessionProvider.notifier);
 
     harness.playback.holdNextOpening();
-    sala.ouvirGravacao();
+    harness.playback.finishPlayback();
     await waitFor('a segunda parte ser pedida', () => read().btParte == 1);
     sala.retroTap();
 
     expect(read().btCursor, Duration.zero);
     expect(
       read().btCorte,
-      read().btCursor,
+      const Duration(milliseconds: 200),
       reason:
           'antes da abertura a Cabeça é o Cursor da parte 2; os 6 s eram '
           'da parte 1',

@@ -7,6 +7,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 const _cincoPartes = [
@@ -238,7 +239,7 @@ void main() {
   );
 
   test(
-    'duas partes não ouvidas tocam em ordem e nunca seguem para uma já ouvida',
+    'duas partes não ouvidas tocam em ordem sem toque e nunca seguem para uma já ouvida',
     () async {
       final it = await umEnsaioContadoInteiro(_cincoPartes);
       await _retomadaJuntada(it, _cincoPartes[4]);
@@ -254,22 +255,19 @@ void main() {
       await _entrar(it);
       expect(it.harness.playback.played.skip(tocadas), [segunda.path]);
 
-      await ouvirAteOFim(it, _cincoPartes[1]);
-      expect(
-        it.estado.btParteFronteira,
-        isTrue,
-        reason: 'falta a quarta: a travessia leva a ela',
-      );
-      it.sala.ouvirGravacao();
-      await waitFor(
-        'a próxima parte não ouvida entrar no ar',
-        () => it.harness.playback.played.length == tocadas + 2,
-      );
+      await theClipOpens(it.harness);
+      it.harness.playback
+        ..length = _cincoPartes[1]
+        ..at = _cincoPartes[1]
+        ..finishPlayback();
+      await settle();
       expect(
         it.harness.playback.played.skip(tocadas),
         [segunda.path, quarta.path],
-        reason: 'a travessia pula a terceira, já ouvida, para a quarta',
+        reason:
+            'a segunda acabava calada, esperando um toque para seguir à quarta',
       );
+      expect(it.estado.btClipRodando, isTrue);
       expect(it.harness.playback.playedFrom.last, Duration.zero);
 
       await ouvirAteOFim(it, _cincoPartes[3]);
@@ -323,15 +321,11 @@ void main() {
       expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
 
       await ouvirAteOFim(it, partesDoEnsaio[0]);
-      expect(it.estado.btParteFronteira, isTrue);
-      it.sala.ouvirGravacao();
       await waitFor(
         'a segunda parte entrar no ar',
         () => it.harness.playback.played.length == tocadas + 2,
       );
       await ouvirAteOFim(it, partesDoEnsaio[1]);
-      expect(it.estado.btParteFronteira, isTrue);
-      it.sala.ouvirGravacao();
       await waitFor(
         'a terceira parte entrar no ar',
         () => it.harness.playback.played.length == tocadas + 3,
@@ -485,7 +479,13 @@ void main() {
         CheckRefusal.partUnheard,
         reason: 'contar a segunda não ouve a quarta: o aviso fica',
       );
-      expect(it.estado.btParteFronteira, isTrue);
+      expect(
+        it.estado.btParteFronteira,
+        isTrue,
+        reason:
+            'numa gravação juntada com a terceira já contada, a parte para no '
+            'próprio fim depois da frase, como a dela',
+      );
 
       it.sala.ouvirGravacao();
       await waitFor(
@@ -679,16 +679,10 @@ void main() {
 
       await ouvirAteOFim(it, partesDoEnsaio[0]);
       expect(
-        it.estado.btParteFronteira,
-        isTrue,
-        reason: 'falta a terceira: a travessia leva a ela',
-      );
-      expect(
         it.estado.canFinishBackTranslation,
         isFalse,
         reason: 'ainda falta uma parte: terminei não acende no meio',
       );
-      it.sala.ouvirGravacao();
       await waitFor(
         'a terceira parte entrar no ar',
         () => it.harness.playback.played.length == tocadas + 2,

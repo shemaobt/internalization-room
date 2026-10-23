@@ -22,7 +22,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show pausadaNoToque, tocarNoCirculo;
+    show contarAteOFimDaParte, pausadaNoToque, tocarNoCirculo;
 
 const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
@@ -442,12 +442,7 @@ void main() {
     await tocar(tester, ouvir);
 
     for (var vez = 0; vez < 2; vez++) {
-      harness.playback.at = parte;
-      harness.playback.finishPlayback();
-      await tester.pump(const Duration(milliseconds: 300));
-      await tocarNoCirculo(tester);
-      await tocarNoCirculo(tester);
-      await tocarNoCirculo(tester);
+      await contarAteOFimDaParte(tester, harness);
     }
     await tocar(tester, conferir);
     await tester.pump(const Duration(milliseconds: 300));

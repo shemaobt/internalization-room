@@ -726,7 +726,9 @@ class RetroView extends ConsumerWidget {
             !session.btCortado &&
             session.nothingHeardSinceCursor) {
           return retroLabelFor(
-            session.btClipEnded ? 'paused' : 'listenFirst',
+            session.btClipEnded || session.btClipPausada
+                ? 'paused'
+                : 'listenFirst',
             language,
           );
         }

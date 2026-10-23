@@ -68,10 +68,14 @@ void _aSalaVaiRecusar(Sala it, String naoOuvida) {
 Future<void> _ouvirAParteNoAr(Sala it, Duration quanto) async {
   it.harness.playback.length = quanto;
   it.harness.playback.at = quanto;
+  final tocadas = it.harness.playback.played.length;
   it.harness.playback.finishPlayback();
   await waitFor(
     'a parte terminar',
-    () => it.estado.btParteFronteira || it.estado.btClipEnded,
+    () =>
+        it.estado.btParteFronteira ||
+        it.estado.btClipEnded ||
+        it.harness.playback.played.length > tocadas,
   );
 }
 
@@ -114,11 +118,6 @@ Future<void> _contarDeNovoAParteRefeita(Sala it, Duration quanto) async {
   );
   await _contarAParteNoAr(it, quanto);
   await _ouvirAParteNoAr(it, quanto);
-  it.sala.ouvirGravacao();
-  await waitFor(
-    'a parte seguinte entrar no ar',
-    () => !it.estado.btParteFronteira,
-  );
   await _ouvirAParteNoAr(it, partesDoEnsaio[2]);
 }
 
