@@ -547,6 +547,7 @@ void main() {
       expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
       expect(it.control(2, _bringBack), findsNothing);
       expect(find.text(_failed), findsNothing);
+      expect(byLabel(_theSign), findsNothing);
       semantics.dispose();
     },
   );

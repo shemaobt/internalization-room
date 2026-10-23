@@ -593,8 +593,7 @@ const recordingHomeLabels = {
   },
   'bringBackArmed': {
     'pt':
-        'toquem de novo: as traduções do ensaio voltam; as que vocês fizeram '
-        'aqui para esta cena ficam guardadas',
+        'toquem de novo: as traduções do ensaio voltam; as que vocês fizeram aqui para esta cena ficam guardadas',
     'en':
         'tap again: the rehearsal\'s translations come back; the ones you made '
         'here for this scene are kept',

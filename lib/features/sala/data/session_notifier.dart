@@ -3493,8 +3493,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
       case final SessionGone gone:
         _decideAt(gone, door: Door.stretches);
-      case RoomFailure():
+      case final RoomFailure failure:
         state = state.copyWith(bringBackFailed: cena);
+        _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
         unawaited(_readWhatComesBack(laidOn: cena));
     }
   }
