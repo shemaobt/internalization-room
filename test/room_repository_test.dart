@@ -1711,6 +1711,11 @@ void main() {
           'ensaio-da-cena-1',
           attempt: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
         ),
+        'labelTheSceneRehearsal': (room) => room.labelTheSceneRehearsal(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          scene: 'S2',
+        ),
         'keepTheSceneFrase': (room) async => room.keepTheSceneFrase(
           'sessao-1',
           'ensaio-da-cena-1',
@@ -2153,6 +2158,35 @@ void main() {
       },
     );
 
+    test('the label posts the scene to the rehearsal\'s scene door with the '
+        'tablet\'s headers and reads the record back', () async {
+      late http.Request seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response(jsonEncode({...record(), 'scene': 'S2'}), 200);
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+      repository.presents('credencial-1');
+
+      final answer = await repository.labelTheSceneRehearsal(
+        'sessao-1',
+        'r',
+        scene: 'S2',
+      );
+
+      expect(seen.method, 'POST');
+      expect(
+        seen.url.path,
+        '/api/internalization-room/sessions/sessao-1/scene-rehearsals/r/scene',
+      );
+      expect(seen.bodyFields, {'scene': 'S2'});
+      expect(seen.headers['X-Device-Credential'], 'credencial-1');
+      expect((answer as Answered<SceneRehearsalRecord>).value.scene, 'S2');
+    });
+
     test('the restart posts attempt and closes as form fields', () async {
       late http.Request seen;
       final repository = RoomRepository(
@@ -2510,8 +2544,8 @@ void main() {
       return repository;
     }
 
-    test('a joined part goes up naming its rehearsal, and the reopening only '
-        'when the team armed it', () async {
+    test('a joined part goes up naming its rehearsal, the take it replaces, '
+        'and the reopening only when the team armed it', () async {
       final file = await _tempRecording(extension: 'wav', bytes: aWavTake());
 
       await listening().sendTake(
@@ -2521,7 +2555,7 @@ void main() {
         scope: 'parte-2',
         origin: 'ensaio-2',
         reopensTheApprovedDraft: true,
-        sentAt: DateTime.utc(2026, 10, 23, 9, 4),
+        overTake: 'gravacao-7',
       );
       final armed = latin1.decode(sent.bodyBytes);
       await listening().sendTake(
@@ -2537,12 +2571,9 @@ void main() {
         armed,
         contains('name="reopens_the_approved_draft"\r\n\r\ntrue\r\n'),
       );
-      expect(
-        armed,
-        contains('name="sent_at"\r\n\r\n2026-10-23T09:04:00.000Z\r\n'),
-      );
+      expect(armed, contains('name="over_take"\r\n\r\ngravacao-7\r\n'));
       expect(plain, isNot(contains('name="origin"')));
-      expect(plain, isNot(contains('name="sent_at"')));
+      expect(plain, isNot(contains('name="over_take"')));
       expect(plain, isNot(contains('reopens_the_approved_draft')));
     });
 

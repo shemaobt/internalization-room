@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0074, 0108
+status: accepted, amended by 0074, 0108, 0124
 ---
 
 # Two packages outside the stack list, and one version pinned

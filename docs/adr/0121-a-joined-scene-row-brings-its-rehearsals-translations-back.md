@@ -6,7 +6,7 @@ extends: 0113, 0120
 
 # A joined Scene row brings its scene rehearsal's translations back with an armed tap, and the room says which rows can
 
-The Definer settled the rules on ENG-1405 (Definition of 22 October; answers Q46–Q48 and Q67 of 23 October). The room's half is shema-api ADR 0085.
+The Definer settled the rules on ENG-1405 (Definition of 22 October; answers Q46–Q48 of 23 October). The room's half is shema-api ADR 0085.
 
 ## Context
 

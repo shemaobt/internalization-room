@@ -110,6 +110,11 @@ class PendingTake {
   final String? origin;
   final bool reopensTheApprovedDraft;
 
+  /// The part's take a join row replaces, as the room listed it when the row was
+  /// written; none over an empty scene. The room turns the row away for good when the
+  /// part's take is another by then.
+  final String? overTake;
+
   const PendingTake({
     required this.id,
     required this.path,
@@ -132,6 +137,7 @@ class PendingTake {
     this.sha256,
     this.origin,
     this.reopensTheApprovedDraft = false,
+    this.overTake,
   });
 
   bool get exhausted => attempts >= takeUploadAttempts;
@@ -153,6 +159,7 @@ class PendingTake {
     sha256: sha256,
     origin: origin,
     reopensTheApprovedDraft: reopensTheApprovedDraft,
+    overTake: overTake,
   );
 
   bool get refusedWithNoCode =>
@@ -190,6 +197,7 @@ class PendingTake {
     sha256: sha256,
     origin: origin,
     reopensTheApprovedDraft: reopensTheApprovedDraft,
+    overTake: overTake,
   );
 
   Map<String, Object?> toJson() => {
@@ -214,6 +222,7 @@ class PendingTake {
     'sha256': sha256,
     'origin': origin,
     'reopens_the_approved_draft': reopensTheApprovedDraft,
+    'over_take': overTake,
   };
 
   factory PendingTake.fromJson(
@@ -254,6 +263,7 @@ class PendingTake {
     origin: json['origin'] as String?,
     reopensTheApprovedDraft:
         json['reopens_the_approved_draft'] as bool? ?? false,
+    overTake: json['over_take'] as String?,
   );
 }
 
@@ -568,8 +578,8 @@ class TakeUploadQueue {
   ))!;
 
   /// A row of a join: the rehearsal's own bytes as the part, written only when the copy
-  /// is [fingerprint]'s. Its Recording time is the tablet's clock as the row is written,
-  /// sent unchanged on every try beside the moment each try is made.
+  /// is [fingerprint]'s, naming [overTake], the part's take it replaces. Each try sends
+  /// the moment it is made as its Recording time.
   Future<PendingTake?> enqueueTheJoin(
     File audio, {
     required String sessionId,
@@ -577,6 +587,7 @@ class TakeUploadQueue {
     required int passNumber,
     required String origin,
     String? fingerprint,
+    String? overTake,
     bool reopensTheApprovedDraft = false,
   }) => _enqueue(
     audio,
@@ -589,6 +600,7 @@ class TakeUploadQueue {
     fingerprint: fingerprint,
     origin: origin,
     reopensTheApprovedDraft: reopensTheApprovedDraft,
+    overTake: overTake,
   );
 
   Future<PendingTake?> _enqueue(
@@ -603,6 +615,7 @@ class TakeUploadQueue {
     String? fingerprint,
     String? origin,
     bool reopensTheApprovedDraft = false,
+    String? overTake,
   }) async {
     final dir = await _dir();
     final id = _mintId();
@@ -631,6 +644,7 @@ class TakeUploadQueue {
       sha256: held.sha256,
       origin: origin,
       reopensTheApprovedDraft: reopensTheApprovedDraft,
+      overTake: overTake,
     );
     await _mutate((written) => [...written, entry]);
     return entry;
@@ -666,6 +680,12 @@ class TakeUploadQueue {
   Stream<String> get rowsBack => _back.stream;
 
   bool inTheAir(String row) => _inTheAir?.id == row;
+
+  final Set<String> _moved = {};
+
+  /// Whether the room turned this join row away because the part's take was another by
+  /// then; the row left the Outbox with its copy.
+  bool movedAway(String row) => _moved.contains(row);
 
   /// The room turned the tablet away, not the take: nothing more leaves until it is
   /// linked again, and nothing is given up for it.
@@ -720,7 +740,13 @@ class TakeUploadQueue {
     var sent = 0;
     final held = <String>{};
     _turnedAway = false;
-    for (final entry in await waiting(withTheCodeless: withTheCodeless)) {
+    final List<PendingTake> rows;
+    try {
+      rows = await waiting(withTheCodeless: withTheCodeless);
+    } on PathNotFoundException {
+      return 0;
+    }
+    for (final entry in rows) {
       if (_turnedAway) break;
       final part = _partOf(entry);
       if (part != null && held.contains(part)) continue;
@@ -792,12 +818,12 @@ class TakeUploadQueue {
               scope: entry.scope,
               passNumber: entry.passNumber,
               chunkIndex: entry.chunkIndex,
-              recordedAt: entry.recordedAt,
+              recordedAt: entry.origin == null ? entry.recordedAt : _now(),
               durationMs: entry.durationMs,
               sha256: entry.sha256,
               origin: entry.origin,
               reopensTheApprovedDraft: entry.reopensTheApprovedDraft,
-              sentAt: entry.origin == null ? null : _now(),
+              overTake: entry.overTake,
             );
     } on FileSystemException {
       _inTheAir = null;
@@ -823,6 +849,10 @@ class TakeUploadQueue {
           (now) =>
               now.copyWith(lost: false, waits: now.waits + 1, lastTry: _now()),
         );
+      case Refused(code: RefusalCode.takeMoved):
+        _moved.add(entry.id);
+        await withdraw(entry);
+        return _Landing.givenUp;
       case Refused(code: RefusalCode.deviceRevoked || RefusalCode.unauthorized):
         _turnedAway = true;
         await _settleWith(

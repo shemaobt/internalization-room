@@ -33,6 +33,7 @@ enum SceneLine {
   pauseOnlyOnTheLast,
   pausePastTheEnd,
   pauseCannotStandThere,
+  diskFailed,
 }
 
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
@@ -293,6 +294,10 @@ class Trecho {
 class SalaSessionState {
   final bool awaitingTheGuide;
 
+  /// Set when the room enters the Choice, cleared when it leaves it. The station the room
+  /// stands on before the launch settles is a Menu too, and it is not an arrival.
+  final bool arrivedAtTheChoice;
+
   /// The entry the team last left by the way out, for the Choice to offer the way back.
   final LeftEntry? leftEntry;
   final bool endOfThePassage;
@@ -452,6 +457,16 @@ class SalaSessionState {
   final Map<int, JoinRow> joinRows;
   final int? joining;
 
+  /// The scene whose Rehearsal sheet is open over the plan, for one visit of the plan.
+  final String? planSheet;
+
+  /// Whether the card's Scene label is in the air, or its answer has not yet woken the
+  /// next rehearsal on the card for a tap.
+  final bool labelling;
+
+  /// Whether the card says her line for a label the room could not keep.
+  final bool labelLine;
+
   /// Whether the last plan read found the passage's rehearsals only in the other
   /// language's session.
   final bool rehearsalsElsewhere;
@@ -480,6 +495,7 @@ class SalaSessionState {
 
   const SalaSessionState({
     this.awaitingTheGuide = false,
+    this.arrivedAtTheChoice = false,
     this.leftEntry,
     this.endOfThePassage = false,
     this.panoramaSaid = false,
@@ -554,6 +570,9 @@ class SalaSessionState {
     this.planListening,
     this.joinRows = const {},
     this.joining,
+    this.planSheet,
+    this.labelling = false,
+    this.labelLine = false,
     this.rehearsalsElsewhere = false,
     this.theRoomJoinedParts = const {},
     this.toBringBack = const [],
@@ -736,6 +755,9 @@ class SalaSessionState {
 
   /// Whether the scene rehearsal's screen stands over the Canvas.
   bool get sceneRehearsalIsOpen => station is SceneRehearsal;
+
+  /// Whether the plan holds its gestures: a label is in the air, or a join runs.
+  bool get planBusy => labelling || joining != null;
 
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
   /// The loudness of the take on the scene screen, until it is read or for a take with
@@ -1222,6 +1244,7 @@ class SalaSessionState {
 
   SalaSessionState copyWith({
     bool? awaitingTheGuide,
+    bool? arrivedAtTheChoice,
     LeftEntry? leftEntry,
     bool clearLeftEntry = false,
     bool? endOfThePassage,
@@ -1323,6 +1346,10 @@ class SalaSessionState {
     Map<int, JoinRow>? joinRows,
     int? joining,
     bool clearJoining = false,
+    String? planSheet,
+    bool clearPlanSheet = false,
+    bool? labelling,
+    bool? labelLine,
     bool? rehearsalsElsewhere,
     Set<int>? theRoomJoinedParts,
     List<int>? toBringBack,
@@ -1334,6 +1361,7 @@ class SalaSessionState {
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
+      arrivedAtTheChoice: arrivedAtTheChoice ?? this.arrivedAtTheChoice,
       leftEntry: clearLeftEntry ? null : (leftEntry ?? this.leftEntry),
       endOfThePassage: endOfThePassage ?? this.endOfThePassage,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
@@ -1441,6 +1469,9 @@ class SalaSessionState {
           : (planListening ?? this.planListening),
       joinRows: joinRows ?? this.joinRows,
       joining: clearJoining ? null : (joining ?? this.joining),
+      planSheet: clearPlanSheet ? null : (planSheet ?? this.planSheet),
+      labelling: labelling ?? this.labelling,
+      labelLine: labelLine ?? this.labelLine,
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
       toBringBack: toBringBack ?? this.toBringBack,
