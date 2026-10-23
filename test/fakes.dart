@@ -955,19 +955,31 @@ class FakeInbox implements HandInboxRepository {
   @override
   Stream<String?> get revoked => _revocations.stream;
 
-  Completer<void>? _holdingQuestion;
+  /// Each held question waits on its own hold, in the order the holds were asked for.
+  final List<Completer<void>> _holdingQuestions = [];
+  final List<Completer<void>> _holdsNotYetTaken = [];
 
-  void holdNextQuestion() => _holdingQuestion = Completer<void>();
+  /// What sending a question throws that is neither the room's answer nor the file.
+  Object? knotThrows;
+
+  void holdNextQuestion() {
+    final hold = Completer<void>();
+    _holdingQuestions.add(hold);
+    _holdsNotYetTaken.add(hold);
+  }
 
   void finishHeldQuestion() {
-    _holdingQuestion?.complete();
-    _holdingQuestion = null;
+    for (final held in _holdingQuestions) {
+      if (!held.isCompleted) return held.complete();
+    }
   }
 
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
-    final held = _holdingQuestion;
-    if (held != null) await held.future;
+    if (_holdsNotYetTaken.isNotEmpty) {
+      await _holdsNotYetTaken.removeAt(0).future;
+    }
+    if (knotThrows case final thrown?) throw thrown;
     if (cannotReadTheKnot) {
       throw FileSystemException('sem arquivo', audio.path);
     }

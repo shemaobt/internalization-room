@@ -510,14 +510,34 @@ List<KeptTake> _partThreeGone(Directory guardadas) => [
 ];
 
 void main() {
+  KeptTake byHand(int n) =>
+      KeptTake(scopeId: KeptScope.parte(n), path: 'parte-$n.m4a');
+
   test('a joined part the team recorded again by hand names the dot «Gravar o '
       'ensaio de vocês» again', () {
     final state = SalaSessionState(
-      theRoomJoinedAPart: true,
-      keptTakes: [KeptTake(scopeId: KeptScope.parte(1), path: 'parte-1.m4a')],
+      theRoomJoinedParts: const {1},
+      keptTakes: [byHand(1)],
     );
 
     expect(state.aPartWasJoined, isFalse);
+  });
+
+  test('a part recorded by hand on the tablet beside a part the room joined '
+      'names the dot «Abrir o Ensaio Final»', () {
+    final state = SalaSessionState(
+      theRoomJoinedParts: const {2},
+      keptTakes: [byHand(1)],
+    );
+
+    expect(state.aPartWasJoined, isTrue);
+  });
+
+  test('a joined part only the room lists names the dot «Abrir o Ensaio '
+      'Final»', () {
+    const state = SalaSessionState(theRoomJoinedParts: {1});
+
+    expect(state.aPartWasJoined, isTrue);
   });
 
   testWidgets(
@@ -699,6 +719,92 @@ void main() {
       expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
     },
   );
+
+  Future<void> sendANote(
+    WidgetTester tester,
+    ProviderContainer container,
+  ) async {
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.handTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.conversaTap();
+    await _pumpUntil(
+      tester,
+      () => container.read(salaSessionProvider).voice == VoiceState.listening,
+    );
+    await tester.pump(const Duration(seconds: 2));
+    notifier.conversaTap();
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  testWidgets(
+    'a note sent while an earlier one goes out keeps the dot away until it '
+    'is out itself',
+    (tester) async {
+      final (harness, container) = await _atRest(tester);
+      harness.inbox
+        ..holdNextQuestion()
+        ..holdNextQuestion();
+      await sendANote(tester, container);
+      await sendANote(tester, container);
+
+      harness.inbox.finishHeldQuestion();
+      await _theAnswerSettles(tester);
+
+      expect(_dotOpacity(tester), 0.0, reason: 'a segunda nota ainda sai');
+
+      harness.inbox.finishHeldQuestion();
+      await _theAnswerSettles(tester);
+
+      expect(harness.inbox.questionsSent, hasLength(2));
+      expect(_dotOpacity(tester), closeTo(0.22, 0.001));
+    },
+  );
+
+  testWidgets(
+    'a note from the passage the team left, ending after a note of the new '
+    'session went out, keeps the dot away until the new note is out',
+    (tester) async {
+      final (harness, container) = await _atRest(tester);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.inbox
+        ..holdNextQuestion()
+        ..holdNextQuestion();
+      await sendANote(tester, container);
+      notifier.leaveThePassage();
+      await tester.pump(const Duration(milliseconds: 300));
+      unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
+      await _arriveAtRest(tester, container);
+      await sendANote(tester, container);
+
+      harness.inbox.finishHeldQuestion();
+      await _theAnswerSettles(tester);
+
+      expect(
+        _dotOpacity(tester),
+        0.0,
+        reason: 'a nota da sessão nova ainda sai',
+      );
+
+      harness.inbox.finishHeldQuestion();
+      await _theAnswerSettles(tester);
+
+      expect(_dotOpacity(tester), closeTo(0.22, 0.001));
+    },
+  );
+
+  testWidgets('a note whose sending breaks off brings the dot back', (
+    tester,
+  ) async {
+    final (harness, container) = await _atRest(tester);
+    harness.inbox.knotThrows = StateError('a ligação caiu no meio');
+
+    await sendANote(tester, container);
+    await _theAnswerSettles(tester);
+
+    expect(_dotOpacity(tester), closeTo(0.22, 0.001));
+    expect(_dotIsDeaf(tester), isFalse);
+  });
 
   testWidgets('a Panorama never shows the dot', (tester) async {
     final harness = SalaHarness(watchesWithoutAHalt: true)
