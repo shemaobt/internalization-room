@@ -417,6 +417,16 @@ class SalaSessionState {
   /// The play a button of the plan last asked for, while it is fetched or sounds.
   final PlanListen? planListening;
 
+  /// The scene whose Rehearsal sheet is open over the plan, for one visit of the plan.
+  final String? planSheet;
+
+  /// Whether the card's Scene label is in the air, or its answer has not yet woken the
+  /// next rehearsal on the card for a tap.
+  final bool labelling;
+
+  /// Whether the card says her line for a label the room could not keep.
+  final bool labelLine;
+
   /// Whether the last plan read found the passage's rehearsals only in the other
   /// language's session.
   final bool rehearsalsElsewhere;
@@ -512,6 +522,9 @@ class SalaSessionState {
     this.ensaioFinalPlan,
     this.planChoices = const {},
     this.planListening,
+    this.planSheet,
+    this.labelling = false,
+    this.labelLine = false,
     this.rehearsalsElsewhere = false,
     this.theRoomJoinedParts = const {},
     this.wholeHeldByTheRoom = const {},
@@ -691,6 +704,9 @@ class SalaSessionState {
 
   /// Whether the scene rehearsal's screen stands over the Canvas.
   bool get sceneRehearsalIsOpen => station is SceneRehearsal;
+
+  /// Whether the plan holds its gestures: a label is in the air.
+  bool get planBusy => labelling;
 
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
   /// The loudness of the take on the scene screen, until it is read or for a take with
@@ -1254,6 +1270,10 @@ class SalaSessionState {
     Map<String, String>? planChoices,
     PlanListen? planListening,
     bool clearPlanListening = false,
+    String? planSheet,
+    bool clearPlanSheet = false,
+    bool? labelling,
+    bool? labelLine,
     bool? rehearsalsElsewhere,
     Set<int>? theRoomJoinedParts,
     Set<String>? wholeHeldByTheRoom,
@@ -1361,6 +1381,9 @@ class SalaSessionState {
       planListening: clearPlanListening
           ? null
           : (planListening ?? this.planListening),
+      planSheet: clearPlanSheet ? null : (planSheet ?? this.planSheet),
+      labelling: labelling ?? this.labelling,
+      labelLine: labelLine ?? this.labelLine,
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
