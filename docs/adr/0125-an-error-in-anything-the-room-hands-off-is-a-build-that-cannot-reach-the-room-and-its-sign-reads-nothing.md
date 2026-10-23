@@ -29,7 +29,7 @@ sign and calls nobody.
   keeps the failure policy's own path.
 - **An `Error` from a hand-off the team has moved past still raises the sign.** It is a
   defect, not a room answer, so the generation guard, which is for answers, does not drop
-  it. A container already disposed raises nothing.
+  it. An `Error` that lands after its Life ended, disposed or linked anew, raises nothing.
 - **A sign raised without a call calls nobody, and its tap reads nothing.** The team's
   tap clears it to the Choice as it stands; it neither reads the Wheel nor enters a
   passage. A raise that calls for a person over it, or a read that says a person is

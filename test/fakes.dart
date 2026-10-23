@@ -206,11 +206,11 @@ class FakeVoice implements FacilitatorVoiceService {
   @override
   Future<bool> fetch(String url) async {
     fetched.add(url);
+    await _fetching?.future;
     if (readyThrows case final thrown?) {
       readyThrows = null;
       throw thrown;
     }
-    await _fetching?.future;
     return succeeds;
   }
 

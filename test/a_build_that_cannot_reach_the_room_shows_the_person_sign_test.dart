@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -275,6 +277,41 @@ void main() {
         await settle();
 
         expect(logged.where((line) => line.contains('a late defect')), isEmpty);
+      },
+    );
+
+    test(
+      'an Error that lands after its Life ended raises nothing in the next one',
+      () async {
+        final logged = <String>[];
+        final print = debugPrint;
+        debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+        addTearDown(() => debugPrint = print);
+        final harness = SalaHarness();
+        final container = harness.container();
+        addTearDown(container.dispose);
+        harness.voice
+          ..holdNextFetch()
+          ..readyThrows = StateError('of the life before');
+        unawaited(
+          container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth'),
+        );
+        await waitFor(
+          'a abertura pedir a sua fala',
+          () => harness.voice.fetched.isNotEmpty,
+        );
+
+        container.invalidate(salaSessionProvider);
+        container.read(salaSessionProvider);
+        await settle();
+        harness.voice.finishHeldFetch();
+        await settle(const Duration(milliseconds: 300));
+
+        expect(container.read(salaSessionProvider).needsPerson, isFalse);
+        expect(
+          logged.where((line) => line.contains('of the life before')),
+          isEmpty,
+        );
       },
     );
   });
