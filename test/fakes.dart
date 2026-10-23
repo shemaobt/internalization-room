@@ -2371,6 +2371,7 @@ class FakeRoom implements RoomRepository {
   }
 
   final List<({String sentenceId, String segmentId})> sentencesSent = [];
+  final List<String> sentencesSentReopening = [];
   final List<String> sentencesLaid = [];
   final List<RoomFailure> sentenceAnswersFirst = [];
   Duration sentenceLaysInAs = const Duration(milliseconds: 3200);
@@ -2383,9 +2384,11 @@ class FakeRoom implements RoomRepository {
     String segmentId,
     File audio, {
     required String sentenceId,
+    bool reopensTheApprovedDraft = false,
   }) async {
     if (_guard('reRecordTheSentence') case final failure?) return failure;
     sentencesSent.add((sentenceId: sentenceId, segmentId: segmentId));
+    if (reopensTheApprovedDraft) sentencesSentReopening.add(sentenceId);
     await holdTheSentence?.future;
     if (sentenceAnswersFirst.isNotEmpty) {
       return sentenceAnswersFirst.removeAt(0);
@@ -2996,12 +2999,15 @@ class FakeRoom implements RoomRepository {
   }
 
   Completer<void>? _holdingRelease;
+  Completer<void>? _heldRelease;
 
-  /// Holds the approval in flight, so a test can press again before the answer lands.
+  /// Holds the next approval in flight, so a test can press again before the answer
+  /// lands; the approvals after it go through.
   void holdNextRelease() => _holdingRelease = Completer<void>();
 
   void finishHeldRelease() {
-    _holdingRelease?.complete();
+    (_heldRelease ?? _holdingRelease)?.complete();
+    _heldRelease = null;
     _holdingRelease = null;
   }
 
@@ -3020,7 +3026,11 @@ class FakeRoom implements RoomRepository {
     final refusal = failReleaseWith;
     if (refusal != null) return refusal;
     final held = _holdingRelease;
-    if (held != null) await held.future;
+    if (held != null) {
+      _holdingRelease = null;
+      _heldRelease = held;
+      await held.future;
+    }
     if (releaseBlockers.isEmpty) return Answered(release);
     return Answered(
       ApprovalAnswer(

@@ -471,9 +471,40 @@ const retroLabels = {
     'pt': 'Aprovar como rascunho final',
     'en': 'Approve as the final draft',
   },
+  'approved': {
+    'pt':
+        'Aprovado como rascunho final da equipe (v{n}). Próximo passo: a checagem externa — o botão aqui embaixo.',
+    'en':
+        'Approved as the team\'s final draft (v{n}). Next step: the external check — the button below.',
+  },
+  'notConferida': {
+    'pt': 'para aprovar, a tradução precisa estar conferida',
+    'en': 'to approve, the translation has to be checked first',
+  },
   'approvedDraft': {
     'pt': '✓ aprovado como rascunho final (v{n})',
     'en': '✓ approved as the final draft (v{n})',
+  },
+  'reopenArmed': {
+    'pt': 'toquem de novo: isto abre de novo o rascunho aprovado',
+    'en': 'tap again: this re-opens the approved draft',
+  },
+  'externalCheck': {'pt': 'Checagem externa', 'en': 'External check'},
+  'listenersOne': {
+    'pt': 'checagem externa: 1 ouvinte',
+    'en': 'external check: 1 listener',
+  },
+  'listeners': {
+    'pt': 'checagem externa: {n} ouvintes',
+    'en': 'external check: {n} listeners',
+  },
+  'externalCheckNotFinal': {
+    'pt': 'a checagem externa abre depois que o rascunho final é aprovado',
+    'en': 'the external check opens after the final draft is approved',
+  },
+  'externalCheckFailed': {
+    'pt': 'não deu para abrir a checagem externa — tentem de novo',
+    'en': 'couldn\'t open the external check — try again',
   },
   'listenFirst': {'pt': 'Ouvir primeiro', 'en': 'Listen first'},
   'thinking': {'pt': 'Um instante', 'en': 'One moment'},
@@ -516,6 +547,15 @@ const retroLabels = {
 String retroLabelFor(String control, String language, {int? n}) =>
     (retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!)
         .replaceAll('{n}', '$n');
+
+const savedScreenLabels = {
+  'title': {'pt': 'Ensaio salvo', 'en': 'Rehearsal saved'},
+  'done': {'pt': 'Pronto', 'en': 'Done'},
+};
+
+String savedScreenLabelFor(String key, String language) =>
+    savedScreenLabels[key]![language] ??
+    savedScreenLabels[key]![floorLanguage]!;
 
 /// Her recording home's words, byte for byte from her app (`strings.ts` at 18fa7c4); the
 /// playing cue VoiceOver reads is the room's own.

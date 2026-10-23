@@ -16,6 +16,7 @@ import 'facilitator_circle.dart';
 import 'frase_list.dart';
 import 'motion.dart';
 import 'pause_adjust_row.dart';
+import 'saved_screen.dart';
 import 'stage_heading.dart';
 import 'status_lines.dart';
 
@@ -27,6 +28,9 @@ class RetroView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
+    if (session.ensaioSalvo case final versao?) {
+      return SavedScreen(version: versao);
+    }
     // A halted voice is never painted over. The checked circle is drawn done because the
     // passage is right, and that read over a room stopped for a person or with no
     // network: the team got a green circle, two buttons the guards refuse, no way out of
@@ -98,7 +102,9 @@ class RetroView extends ConsumerWidget {
               halt: session.halt,
               voice: voz,
               tongue: lingua,
-              answersATouch: !conferida || session.btRegravacao != null,
+              answersATouch:
+                  session.aBackTranslationGestureActs &&
+                  (!conferida || session.btRegravacao != null),
               warning: session.warning && session.approvedDraftDrawn == null
                   ? warningNoticeLabelFor(language)
                   : null,
@@ -151,6 +157,24 @@ class RetroView extends ConsumerWidget {
               height: 60,
               child: _actions(session, notifier, language, colors),
             ),
+            if (session.approvedDraftDrawn case final aprovado?) ...[
+              if (aprovado.listeners > 0) ...[
+                const SizedBox(height: 12),
+                Text(
+                  aprovado.listeners == 1
+                      ? retroLabelFor('listenersOne', language)
+                      : retroLabelFor(
+                          'listeners',
+                          language,
+                          n: aprovado.listeners,
+                        ),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.mut, fontSize: 15),
+                ),
+              ],
+              const SizedBox(height: 12),
+              _checagemExterna(session, colors, notifier, language),
+            ],
             const SizedBox(height: 32),
             FraseList(
               rows: _frases(session, notifier, language),
@@ -181,6 +205,7 @@ class RetroView extends ConsumerWidget {
     SalaSessionNotifier notifier,
     String language,
   ) {
+    final atua = session.aBackTranslationGestureActs;
     final contadas = [
       for (final (onde, trecho) in session.btTrechos.indexed)
         if (trecho.contado) (onde, trecho),
@@ -239,20 +264,25 @@ class RetroView extends ConsumerWidget {
           regravar:
               session.fraseRegravavel(trecho) &&
                   (session.btPhase != BtPhase.conferida ||
-                      _markOn(trecho.frase, session) == BtFindingKind.nuance)
-              ? sceneRehearsalLabelFor(
-                  'rerecordFrase',
-                  language,
-                  n: trecho.frase,
-                )
+                      _markOn(trecho.frase, session) == BtFindingKind.nuance ||
+                      session.overAnApprovedDraft)
+              ? session.armedTap?.control == 'rerecord:${trecho.frase}'
+                    ? retroLabelFor('reopenArmed', language)
+                    : sceneRehearsalLabelFor(
+                        'rerecordFrase',
+                        language,
+                        n: trecho.frase,
+                      )
               : null,
+          regravarDormindo: _dormindo('rerecord:${trecho.frase}', session),
           onRegravar:
               session.btRegravacao == null ||
                   session.btRegravacao?.frase == trecho.frase
               ? () => notifier.regravarAFrase(trecho)
               : null,
           revisao:
-              session.btRegravacao?.frase == trecho.frase &&
+              atua &&
+                  session.btRegravacao?.frase == trecho.frase &&
                   session.btRegravacao?.passo == PassoDaRegravacao.revendo
               ? FraseRevisao(
                   ouvir: sceneRehearsalLabelFor(
@@ -280,11 +310,15 @@ class RetroView extends ConsumerWidget {
             null
                 when trecho.frase != null &&
                     session.btFraseGuardada == trecho.frase =>
-              sceneRehearsalLabelFor('spliceFail', language),
+              session.armedTap?.control == 'resend:${trecho.frase}'
+                  ? retroLabelFor('reopenArmed', language)
+                  : sceneRehearsalLabelFor('spliceFail', language),
             _ => null,
           },
+          estadoDormindo: _dormindo('resend:${trecho.frase}', session),
           onEstado:
-              session.btRegravacao == null &&
+              atua &&
+                  session.btRegravacao == null &&
                   trecho.frase != null &&
                   session.btFraseGuardada == trecho.frase
               ? notifier.tentarAFraseDeNovo
@@ -309,14 +343,15 @@ class RetroView extends ConsumerWidget {
     SalaSessionNotifier notifier,
     String language,
   ) {
-    final rotulo = session.btRecomeco == null
+    final rotulo = session.armedTap?.control != 'restart'
         ? retroLabelFor('restart', language)
         : retroLabelFor(
             'restartArmed',
             language,
             n: session.btTrechos.where((trecho) => trecho.contado).length,
           );
-    final dormindo = session.btRecomeco == BtRecomeco.armado;
+    final dormindo =
+        _dormindo('restart', session) || !session.aBackTranslationGestureActs;
     return Semantics(
       button: true,
       enabled: !dormindo,
@@ -344,18 +379,63 @@ class RetroView extends ConsumerWidget {
     );
   }
 
+  bool _dormindo(String control, SalaSessionState session) =>
+      session.armedTap?.control == control &&
+      session.armedTap?.phase == BtRecomeco.armado;
+
+  Widget _checagemExterna(
+    SalaSessionState session,
+    SalaColors colors,
+    SalaSessionNotifier notifier,
+    String language,
+  ) {
+    final abre = !session.microphoneOpen;
+    final rotulo = retroLabelFor('externalCheck', language);
+    return Semantics(
+      button: true,
+      enabled: abre,
+      label: rotulo,
+      child: Opacity(
+        opacity: abre ? 1 : 0.4,
+        child: ExcludeSemantics(
+          child: GestureDetector(
+            onTap: abre ? notifier.abrirAChecagemExterna : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: colors.mut),
+              ),
+              child: Text(
+                rotulo,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.ink, fontSize: 15),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   String? _estado(SalaSessionState session, String language) {
+    if (session.btAprovadoAgora case final versao?) {
+      return retroLabelFor('approved', language, n: versao);
+    }
     final aviso = switch (session.btAviso) {
       BtAviso.recomecoFalhou => 'restartFailed',
       BtAviso.pausaSoNaUltima => 'pauseOnlyOnTheLast',
       BtAviso.pausaPassaDoFim => 'pausePastTheEnd',
       BtAviso.pausaNaoFica => 'pauseCannotStandThere',
+      BtAviso.checagemFalhou => 'externalCheckFailed',
+      BtAviso.checagemNaoAbre => 'externalCheckNotFinal',
       null => null,
     };
     if (aviso != null) return retroLabelFor(aviso, language);
     final recusa = switch (session.btRecusa) {
       CheckRefusal.partUnheard => 'partUnheard',
       CheckRefusal.nothingTranslated => 'nothingTranslated',
+      CheckRefusal.notConferida => 'notConferida',
       CheckRefusal.checkUnavailable => 'checkFailed',
       _ => null,
     };
@@ -654,6 +734,7 @@ class RetroView extends ConsumerWidget {
                 size: 60,
                 semanticLabel: retroLabelFor('approve', language),
                 gradient: BeadStyles.verde,
+                mood: session.canApprove ? ButtonMood.lit : ButtonMood.dimmed,
                 onTap: notifier.aprovarRascunhoFinal,
                 child: const Icon(
                   LucideIcons.check,
