@@ -36,6 +36,8 @@ const _armado = 'toque de novo para apagar as 4 frases traduzidas';
 const _naoDeu = 'não deu para recomeçar agora — tentem de novo';
 const _semFrase = 'ainda não tem frase traduzida';
 const _naoEntendi = 'não entendi — traduzam de novo esse pedaço';
+const _ensaioSalvo = 'Ensaio salvo';
+const _pronto = 'Pronto';
 const _recomecada = 'tradução recomeçada — o ensaio da passagem ficou';
 
 const _quatroFrases = [
@@ -587,7 +589,7 @@ void main() {
   );
 
   testWidgets(
-    'an armed restart is gone once the approval closes the passage, after its six seconds',
+    'an armed restart is idle once «Pronto» leaves the Saved screen, and one tap arms it again',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       harness.room.verdictChecked = true;
@@ -603,20 +605,26 @@ void main() {
       await tester.pump(const Duration(milliseconds: 700));
       expect(container.read(salaSessionProvider).btRecomeco, BtRecomeco.pronto);
 
+      harness.room.approvedDraft = const ApprovedDraft(version: 1);
       await tocar(tester, aprovar);
       await waitFor(
-        'o colar fechar',
-        () => container.read(salaSessionProvider).stage == SalaStage.fim,
+        'o ensaio salvo',
+        () => find.text(_ensaioSalvo).evaluate().isNotEmpty,
         step: () => _passo(tester),
       );
-      await tester.pump(const Duration(seconds: 6));
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 800));
 
       expect(
-        container.read(salaSessionProvider).btRecomeco,
-        isNull,
-        reason:
-            'o recomeço ficava armado depois do fecho, sem prazo para desarmar',
+        find.text(_recomecar),
+        findsOneWidget,
+        reason: 'o recomeço armado antes da aprovação voltava armado',
       );
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(container.read(salaSessionProvider).btRecomeco, BtRecomeco.pronto);
+      expect(harness.room.restartsAsked, isEmpty);
+      await tester.pump(const Duration(seconds: 7));
       closeTheRoom(container);
     },
   );
