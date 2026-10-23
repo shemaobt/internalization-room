@@ -65,7 +65,7 @@ final class PlanRead extends EnsaioFinalPlan {
 }
 
 /// How one scene's join ended on this visit of the plan.
-enum JoinRow { joining, joined, cannotEnter, retry }
+enum JoinRow { joining, joined, cannotEnter, retry, notThePart }
 
 /// One scene «juntar» joins: its number, and the rehearsal that goes up as its part.
 typedef JoinStep = ({int number, SceneRehearsalRecord rehearsal, bool waiting});

@@ -677,6 +677,53 @@ void main() {
   });
 
   testWidgets(
+    'a join the room answers with a take that is not the part claims nothing '
+    'and opens the recording home',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      await it.openThePlan();
+      it.room.takes.addAll([
+        TakeView(
+          takeId: 'gravacao-junta-antiga',
+          kind: 'ensaio',
+          scope: KeptScope.parte(2),
+          ordinal: 2,
+          pass: 1,
+          origin: it.idOf(2),
+        ),
+        TakeView(
+          takeId: 'gravacao-a-mao',
+          kind: 'ensaio',
+          scope: KeptScope.parte(2),
+          ordinal: 2,
+          pass: 2,
+        ),
+      ]);
+      it.room.takeAudio['gravacao-junta-antiga'] = _bytesOf(2);
+      it.room.takeAudio['gravacao-a-mao'] = _bytesOf(7);
+      it.room.holdNextTake('parte-2');
+
+      await it.tapJoin();
+      await it.until(
+        'a parte 2 chegar à porta',
+        () => it.room.holdTakeScope == 'parte-2',
+      );
+      it.room.finishHeldTake();
+      await _theJoinEnds(it);
+
+      expect(it.ticked(2), isFalse);
+      expect(it.partsReceived, ['parte-1', 'parte-2']);
+      expect(
+        it.room.takes.where((take) => take.ordinal == 2).map((t) => t.takeId),
+        ['gravacao-junta-antiga', 'gravacao-a-mao'],
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     'a scene with an unsent hand-recorded take keeps the dot on the recording '
     'home and the take is not sent by it',
     (tester) async {
