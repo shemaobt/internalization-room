@@ -2091,7 +2091,8 @@ void main() {
       expect(sent.bytes, bytes);
     });
 
-    test('sends the moment of each try as its Recording time', () async {
+    test('written before a hand take and sent after it, keeps the moment it '
+        'was written as its Recording time and names each try\'s', () async {
       final room = FakeRoom()..unreachableTake = 'ensaio/parte-2';
       final queue = queueOn(room);
       final rehearsal = aRehearsal(aWavTake())
@@ -2110,7 +2111,11 @@ void main() {
 
       await queue.flush();
 
-      expect(room.takesReceivedWhole.single.recordedAt, clock);
+      expect(
+        room.takesReceivedWhole.single.recordedAt,
+        DateTime(2026, 8, 12, 9),
+      );
+      expect(room.takesReceivedWhole.single.sentAt, clock);
     });
   });
 }

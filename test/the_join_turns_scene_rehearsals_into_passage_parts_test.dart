@@ -886,6 +886,128 @@ void main() {
   });
 
   testWidgets(
+    'a join row that landed is ticked even while a slow upload after it is '
+    'still sending',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      await it.heldOnTheTablet(1);
+      await it.openThePlan();
+      it.holdTheTake('parte-1');
+
+      await it.tapJoin();
+      await it.until('a parte 1 chegar à porta', () => it.theHeldTakeArrived);
+      final slow = File('${it.harness.takesHome.path}/lenta.m4a')
+        ..writeAsBytesSync([1, 2, 3, 4]);
+      var queued = false;
+      unawaited(
+        it.harness.takes
+            .enqueue(
+              slow,
+              sessionId: it.sessionId,
+              kind: 'ensaio',
+              scope: 'parte-9',
+              chunkIndex: 9,
+            )
+            .then((_) => queued = true),
+      );
+      await it.until('a gravação lenta entrar na fila', () => queued);
+      unawaited(it.harness.takes.flush());
+      it.room.finishHeldTake();
+      it.holdTheTake('parte-9');
+      await it.until(
+        'a gravação lenta chegar à porta',
+        () => it.theHeldTakeArrived,
+      );
+      await it.wait(const Duration(seconds: 75));
+
+      expect(it.onRow(1, find.text(_retry)), findsNothing);
+      expect(it.ticked(1), isTrue);
+      it.room.finishHeldTake();
+      await _theJoinEnds(it);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a join left behind by a reopened plan changes nothing of the new join',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      await it.openThePlan();
+      it.room.holdNextClip();
+      await it.tapJoin();
+      await it.until(
+        'a primeira junta buscar a cena 1',
+        () => it.room.clipsFetched.any(
+          (url) => url.endsWith('/scene-rehearsals/${it.idOf(1)}/audio'),
+        ),
+      );
+      final sessionId = it.sessionId;
+
+      it.container.read(salaSessionProvider.notifier).leaveThePassage();
+      await it.settle();
+      await _toTheConversation(it);
+      expect(it.sessionId, sessionId);
+      await it.openThePlan();
+      await it.tapJoin();
+      await it.settle();
+      it.holdTheTake('parte-1');
+      it.room.finishHeldClip();
+      await it.until('a parte 1 chegar à porta', () => it.theHeldTakeArrived);
+      await it.settle();
+
+      expect(find.text('juntando a cena 1 de 3…'), findsOneWidget);
+      it.room.finishHeldTake();
+      await _theJoinEnds(it);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a scene the room refused for good offers its other rehearsal again',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      final other = SceneRehearsalRecord(
+        rehearsalId: _idOf(it.sessionId, 4),
+        sessionId: it.sessionId,
+        n: 4,
+        scene: 'S2',
+        recordedAt: DateTime.utc(2026, 10, 22, 13, 7),
+        sentAt: '2026-10-22T09:00:00+00:00',
+        durationMs: 6000,
+        frases: const [
+          SceneFrase(fraseId: 'frase-a', startsMs: 0, endsMs: 6000),
+        ],
+        verified: true,
+        sha256: _fingerprintOf(_bytesOf(4)),
+      );
+      it.room.sceneRehearsals.add(other);
+      it.room.sceneAudioOf[other.rehearsalId] = _bytesOf(4);
+      await it.openThePlan();
+      it.room.refuseTake = 'ensaio/parte-2';
+      it.room.refuseTakeCode = 'HTTP_500';
+
+      await it.tapJoin();
+      await it.until(
+        'a linha 2 pedir outra tentativa',
+        () => it.onRow(2, find.text(_retry)).evaluate().isNotEmpty,
+      );
+      await it.settle();
+
+      expect(
+        it.onRow(2, find.text('trocar o ensaio desta cena')),
+        findsOneWidget,
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     'a join row behind a slow upload is not given up before its own request '
     'goes out',
     (tester) async {

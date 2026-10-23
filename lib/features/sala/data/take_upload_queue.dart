@@ -568,7 +568,8 @@ class TakeUploadQueue {
   ))!;
 
   /// A row of a join: the rehearsal's own bytes as the part, written only when the copy
-  /// is [fingerprint]'s. Each try sends the moment it is made as its Recording time.
+  /// is [fingerprint]'s. Its Recording time is the tablet's clock as the row is written,
+  /// sent unchanged on every try beside the moment each try is made.
   Future<PendingTake?> enqueueTheJoin(
     File audio, {
     required String sessionId,
@@ -657,6 +658,13 @@ class TakeUploadQueue {
   /// Each row's id as its own request goes out to the room.
   Stream<String> get rowsLeaving => _leaving.stream;
 
+  final StreamController<String> _back = StreamController<String>.broadcast(
+    sync: true,
+  );
+
+  /// Each row's id once the room's answer to its request is written down.
+  Stream<String> get rowsBack => _back.stream;
+
   bool inTheAir(String row) => _inTheAir?.id == row;
 
   /// The room turned the tablet away, not the take: nothing more leaves until it is
@@ -731,6 +739,23 @@ class TakeUploadQueue {
   /// Whether the room took this row. Held is every reason it did not that holds the rest
   /// of this row's part on it; a row refused for good, sent or not, holds nothing.
   Future<_Landing> _landed(PendingTake entry) async {
+    var left = false;
+    void leaving() {
+      left = true;
+      _leaving.add(entry.id);
+    }
+
+    try {
+      return await _landedOnce(entry, leaving);
+    } finally {
+      if (left) _back.add(entry.id);
+    }
+  }
+
+  Future<_Landing> _landedOnce(
+    PendingTake entry,
+    void Function() leaving,
+  ) async {
     if (!_ready(entry)) return _Landing.held;
     final file = File(entry.path);
     if (!await file.exists()) {
@@ -757,7 +782,7 @@ class TakeUploadQueue {
         );
         return _Landing.givenUp;
       }
-      _leaving.add(entry.id);
+      leaving();
       answer = entry.kind == sceneTakeKind
           ? await _sendTheScene(entry, file)
           : await _room.sendTake(
@@ -767,11 +792,12 @@ class TakeUploadQueue {
               scope: entry.scope,
               passNumber: entry.passNumber,
               chunkIndex: entry.chunkIndex,
-              recordedAt: entry.origin == null ? entry.recordedAt : _now(),
+              recordedAt: entry.recordedAt,
               durationMs: entry.durationMs,
               sha256: entry.sha256,
               origin: entry.origin,
               reopensTheApprovedDraft: entry.reopensTheApprovedDraft,
+              sentAt: entry.origin == null ? null : _now(),
             );
     } on FileSystemException {
       _inTheAir = null;

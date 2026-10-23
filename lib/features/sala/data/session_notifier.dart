@@ -575,6 +575,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _semNome = {};
     _rowsOfThisVisit = {};
+    _plansOpened = 0;
     _notQueued = {};
     _keepsInFlight = {};
     _lengths = {};
@@ -3419,6 +3420,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _openTheRecordingHome(sessionId);
     }
     const plan = Ensaio(step: EnsaioStep.plan);
+    _plansOpened++;
     _leaveTheStepFor(plan);
     _clearAll();
     _arriveAt(const ThePlanOpened());
@@ -3609,6 +3611,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId!;
     final generation = _waitOnTheGeneration;
     final life = _thisLife;
+    final plan = _plansOpened;
     _silenceThePlan();
     for (final step in joinQueue(rows)) {
       state = state.copyWith(
@@ -3619,7 +3622,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           ? await _watchTheWaitingPart(sessionId, step, generation, life)
           : await _joinTheScene(sessionId, step, generation, life);
       if (_left(generation, life)) {
-        if (!_gone) state = state.copyWith(clearJoining: true);
+        if (!_gone && plan == _plansOpened) {
+          state = state.copyWith(clearJoining: true);
+        }
         return;
       }
       final read = state.ensaioFinalPlan;
@@ -3812,17 +3817,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final began = clock.now();
     while (true) {
       final leaving = Completer<void>();
-      final watching = _takes.rowsLeaving.where((id) => id == rowId).listen((
-        _,
-      ) {
-        if (!leaving.isCompleted) leaving.complete();
-      });
+      final back = Completer<int>();
+      final watching = [
+        _takes.rowsLeaving.where((id) => id == rowId).listen((_) {
+          if (!leaving.isCompleted) leaving.complete();
+        }),
+        _takes.rowsBack.where((id) => id == rowId).listen((_) {
+          if (!back.isCompleted) back.complete(0);
+        }),
+      ];
       if (_takes.inTheAir(rowId)) leaving.complete();
       final flushed = await _withinTheJoinWait(
-        _takes.flush(),
+        Future.any([_takes.flush(), back.future]),
         from: leaving.future,
       );
-      await watching.cancel();
+      for (final watch in watching) {
+        await watch.cancel();
+      }
       if (_left(generation, life)) return _joinLeftBehind;
       if (flushed == null) return _givenUpWaiting;
       await _adoptTheNames(_takes);
@@ -5859,6 +5870,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late Map<String, String> _semNome;
 
   late Set<String> _rowsOfThisVisit;
+
+  /// Each opening of the Ensaio Final plan, so a join left behind by an earlier one
+  /// touches nothing of the plan open now.
+  late int _plansOpened;
 
   late Map<String?, Map<int, ({String path, int? pass})>> _notQueued;
 

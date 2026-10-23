@@ -1176,6 +1176,7 @@ class FakeRoom implements RoomRepository {
       String? sha256,
       Uint8List bytes,
       DateTime? recordedAt,
+      DateTime? sentAt,
     })
   >
   takesReceivedWhole = [];
@@ -2636,6 +2637,7 @@ class FakeRoom implements RoomRepository {
     String? sha256,
     String? origin,
     bool reopensTheApprovedDraft = false,
+    DateTime? sentAt,
   }) async {
     if (_guard('sendTake') case final failure?) return failure;
     if (_forgot('sendTake', sessionId) case final gone?) {
@@ -2672,6 +2674,7 @@ class FakeRoom implements RoomRepository {
       sha256: sha256,
       bytes: bytes,
       recordedAt: recordedAt,
+      sentAt: sentAt,
     ));
     if (origin != null) {
       for (final take in takes) {
@@ -3236,6 +3239,9 @@ class FakeTakeQueue implements TakeUploadQueue {
 
   @override
   Stream<String> get rowsLeaving => const Stream.empty();
+
+  @override
+  Stream<String> get rowsBack => const Stream.empty();
 
   @override
   bool inTheAir(String row) => false;

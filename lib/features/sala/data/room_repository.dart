@@ -362,6 +362,7 @@ class RoomRepository {
     String? sha256,
     String? origin,
     bool reopensTheApprovedDraft = false,
+    DateTime? sentAt,
   }) async {
     final request =
         http.MultipartRequest('POST', _uri('/sessions/$sessionId/takes'))
@@ -373,6 +374,9 @@ class RoomRepository {
     if (passNumber != null) request.fields['pass_number'] = '$passNumber';
     if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
     if (origin != null) request.fields['origin'] = origin;
+    if (sentAt != null) {
+      request.fields['sent_at'] = sentAt.toUtc().toIso8601String();
+    }
     if (reopensTheApprovedDraft) {
       request.fields['reopens_the_approved_draft'] = 'true';
     }

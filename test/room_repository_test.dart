@@ -2521,6 +2521,7 @@ void main() {
         scope: 'parte-2',
         origin: 'ensaio-2',
         reopensTheApprovedDraft: true,
+        sentAt: DateTime.utc(2026, 10, 23, 9, 4),
       );
       final armed = latin1.decode(sent.bodyBytes);
       await listening().sendTake(
@@ -2536,7 +2537,12 @@ void main() {
         armed,
         contains('name="reopens_the_approved_draft"\r\n\r\ntrue\r\n'),
       );
+      expect(
+        armed,
+        contains('name="sent_at"\r\n\r\n2026-10-23T09:04:00.000Z\r\n'),
+      );
       expect(plain, isNot(contains('name="origin"')));
+      expect(plain, isNot(contains('name="sent_at"')));
       expect(plain, isNot(contains('reopens_the_approved_draft')));
     });
 
