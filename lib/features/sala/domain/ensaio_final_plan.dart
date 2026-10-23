@@ -274,3 +274,9 @@ HomeRow homeRowOf(
     inUse: inUse,
   );
 }
+
+bool offersToSwapIn(HomeRow home, SceneRehearsalRecord rehearsal) =>
+    rehearsal.joinable && rehearsal.rehearsalId != home.inUse;
+
+String swapControl(String sceneId, SceneRehearsalRecord rehearsal) =>
+    'swap:$sceneId:${rehearsal.n}';

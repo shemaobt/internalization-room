@@ -772,6 +772,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearParteARegravar: true,
       clearHomeSheet: true,
       clearSwapLine: true,
+      clearSwapping: true,
     );
     _silenceTheRoom();
     _dispatch(const MicDiscarded());
@@ -3653,23 +3654,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state.ensaio == EnsaioStatus.idle &&
       !state.needsPerson;
 
-  HomeRow? _homeRowOf(int number) {
-    final (read, sessionId) = _theHomeRead ?? (null, null);
-    final row = state.sceneRows
-        .where((row) => row.number == number)
-        .firstOrNull;
-    if (read == null || sessionId == null || row == null) return null;
-    return homeRowOf(
-      read,
-      sessionId,
-      number: number,
-      origin: row.part?.origin,
-      held: row.unsent != null,
-    );
-  }
-
   void openTheHomeSheet(int number) => _gesture(() {
-    final row = _homeRowOf(number);
+    final row = state.homeRowAt(number);
     if (!_theHomeIsFree || row == null || !(row.swap || row.useScene)) return;
     _silenceTheRoom();
     state = state.copyWith(homeSheet: number, clearSwapLine: true);
@@ -3677,12 +3663,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _useAtHome(int number, String rehearsalId) {
     final (read, sessionId) = _theHomeRead ?? (null, null);
-    final home = _homeRowOf(number);
+    final home = state.homeRowAt(number);
     final scene = read?.scenes.elementAtOrNull(number - 1);
     if (!_theHomeIsFree ||
         read == null ||
         sessionId == null ||
         home == null ||
+        !(home.swap || home.useScene) ||
         scene == null) {
       return;
     }
@@ -3692,14 +3679,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               (r) =>
                   r.rehearsalId == rehearsalId &&
                   r.scene == scene.sceneId &&
-                  r.joinable &&
-                  r.rehearsalId != home.inUse,
+                  offersToSwapIn(home, r),
             )
             .firstOrNull;
     if (rehearsal == null) return;
     final reopens = state.overAnApprovedDraft;
     _armedTap(
-      'swap:${scene.sceneId}:${rehearsal.n}',
+      swapControl(scene.sceneId, rehearsal),
       needs: reopens || state.partIndexOf(number) != null,
       then: () => _handOff(_swapTheScene(number, rehearsal, reopens: reopens)),
     );
@@ -3739,7 +3725,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         generation,
         life,
       );
-      if (_left(generation, life)) return;
+      if (_left(generation, life)) {
+        return unawaited(
+          _letGoOfTheSwap(written, number, id, generation, life),
+        );
+      }
       if (fate.row == JoinRow.joined) {
         _semNome[row.id] = path;
         _thePartIsTheSwapped(number, path, pass, id);
@@ -3748,14 +3738,38 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return _theSwapLanded(path);
       }
       _theSwapFailed(id, fate.row);
-      _semNome.remove(row.id);
-      unawaited(_takes.withdraw(row).then((_) => _recorder.delete(path)));
+      state = state.copyWith(clearSwapping: true);
+      unawaited(_letGoOfTheSwap(written, number, id, generation, life));
       if (fate.row != JoinRow.cannotEnter) {
         await _readTheApprovedDraft(sessionId, generation);
       }
     } finally {
       if (!_endedSince(life)) state = state.copyWith(clearSwapping: true);
     }
+  }
+
+  Future<void> _letGoOfTheSwap(
+    _JoinRowWritten written,
+    int number,
+    String origin,
+    int generation,
+    int? life,
+  ) async {
+    final (:row, :path, :pass) = written;
+    _semNome.remove(row.id);
+    await _takes.withdraw(row);
+    final landed = await _takes.takeIdOf(row.id);
+    if (landed == null) {
+      if (!state.keptTakes.any((take) => take.path == path)) {
+        await _recorder.delete(path);
+      }
+      return;
+    }
+    if (_left(generation, life) || state.homeBusy) return;
+    _semNome[row.id] = path;
+    _thePartIsTheSwapped(number, path, pass, origin);
+    await _adoptTheNames(_takes);
+    if (!_left(generation, life)) _theSwapLanded(path);
   }
 
   void _theSwapFailed(String rehearsalId, JoinRow failed) {
@@ -3811,8 +3825,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _theRehearsalsAtHome(String sessionId) async {
     final generation = _generation;
+    final life = _thisLife;
     final answer = await _room.sceneRehearsalsOf(sessionId);
-    if (_abandoned(generation) || state.station != const Ensaio()) return;
+    if (_left(generation, life) || state.station != const Ensaio()) return;
     switch ((answer, state.scenes)) {
       case (Answered(:final value), ScenesHad(:final scenes)):
         state = state.copyWith(

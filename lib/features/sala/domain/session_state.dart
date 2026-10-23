@@ -758,6 +758,19 @@ class SalaSessionState {
 
   bool get homeBusy => swapping != null;
 
+  HomeRow? homeRowAt(int number) {
+    final (read, sessionId) = (ensaioFinalPlan, this.sessionId);
+    final row = sceneRows.where((row) => row.number == number).firstOrNull;
+    if (read is! PlanRead || sessionId == null || row == null) return null;
+    return homeRowOf(
+      read,
+      sessionId,
+      number: number,
+      origin: row.part?.origin,
+      held: row.unsent != null,
+    );
+  }
+
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
   /// The loudness of the take on the scene screen, until it is read or for a take with
   /// none: a pausa then stays at the tap.

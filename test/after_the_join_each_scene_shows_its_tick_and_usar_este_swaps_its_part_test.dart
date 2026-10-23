@@ -466,9 +466,10 @@ void main() {
         reason: 'armada, a linha ainda diz «usar este»',
       );
       expect(it.enabled(it.use(s2b)), isFalse, reason: 'armada e esmaecida');
+      await it.wait(const Duration(seconds: 1));
       expect(it.received(2), hasLength(before), reason: 'um toque só arma');
+      expect(it.enabled(it.use(s2b)), isTrue, reason: 'acordada, sem troca');
 
-      await it.wait(const Duration(milliseconds: 700));
       await it.tapThe(it.use(s2b));
       await it.swapLands();
 
@@ -548,10 +549,6 @@ void main() {
       await it.openTheSheet(2, _swap);
       await it.swapIn(s2b);
       await it.swapLands();
-      it.room.retroSoFar = BackTranslationProgress(
-        segments: [told[0], told[2]],
-        stale: [told[1]],
-      );
       final played = it.harness.playback.played.length;
       await it.tapThe(byLabel(_listenAndCheck));
       await it.settle();
@@ -764,8 +761,9 @@ void main() {
       await it.tapThe(it.use(s1a));
       expect(it.use(s1a), findsOneWidget, reason: 'armada, o próprio rótulo');
       expect(it.enabled(it.use(s1a)), isFalse);
+      await it.wait(const Duration(seconds: 1));
       expect(it.received(1).where((take) => take.origin != null), isEmpty);
-      await it.wait(const Duration(milliseconds: 700));
+      expect(it.enabled(it.use(s1a)), isTrue, reason: 'acordada, sem troca');
       await it.tapThe(it.use(s1a));
       await it.swapLands();
 
@@ -862,6 +860,34 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a swap the room takes after its 70 s give-up becomes the part the room '
+    'holds',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+      it.holdTheTake('parte-2');
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+      await it.wait(const Duration(seconds: 71));
+      expect(it.onLine(s2b, find.text(_retry)), findsOneWidget);
+
+      it.room.finishHeldTake();
+      await it.swapLands();
+
+      expect(
+        [for (final take in it.takesOf(2)) take.origin],
+        [it.idOf(s2a), it.idOf(s2b)],
+      );
+      await it.openTheSheet(2, _swap);
+      expect(it.onLine(s2b, find.text(_inUse)), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
   testWidgets('while a swap runs nothing else starts', (tester) async {
     final semantics = tester.ensureSemantics();
     final it = await _atRest(tester);
@@ -897,6 +923,7 @@ void main() {
     final notifier = it.container.read(salaSessionProvider.notifier);
     final played = it.harness.playback.played.length;
     final received = it.room.takesReceivedWhole.length;
+    final captures = it.harness.recorder.captures;
 
     notifier
       ..gravarACena(1)
@@ -905,6 +932,7 @@ void main() {
       ..startRetro();
     await it.settle();
 
+    expect(it.harness.recorder.captures, captures);
     expect(it.harness.playback.played, hasLength(played));
     expect(it.room.takesReceivedWhole, hasLength(received));
     expect(it.showsTheSheet(), isTrue);

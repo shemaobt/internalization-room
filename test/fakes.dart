@@ -1182,9 +1182,8 @@ class FakeRoom implements RoomRepository {
   takesReceivedWhole = [];
   final List<int?> takePasses = [];
 
-  /// A join answers the Part's live take only when that take is already this rehearsal's,
-  /// same origin and bytes, and is a new take otherwise, as the room after ENG-1407's api;
-  /// off, the room of today, which answers any take holding those bytes.
+  /// On, a join answers the Part's live take only when it already is this rehearsal's,
+  /// same origin and bytes, and is a new take otherwise; off, any take holding the bytes.
   bool joinsTheLiveTake = false;
   String? refuseTake;
 

@@ -29,16 +29,6 @@ class EnsaioView extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
     final colors = SalaColors.of(context);
-    final (read, sessionId) = (session.ensaioFinalPlan, session.sessionId);
-    HomeRow? homeRowOfThe(SceneRow row) => read is PlanRead && sessionId != null
-        ? homeRowOf(
-            read,
-            sessionId,
-            number: row.number,
-            origin: row.part?.origin,
-            held: row.unsent != null,
-          )
-        : null;
     if (_theSheet(session) case (final plan?, final home?)) {
       return _homeSheet(session, plan, home, language);
     }
@@ -107,7 +97,7 @@ class EnsaioView extends ConsumerWidget {
                   for (final row in session.sceneRows)
                     _SceneRowView(
                       row: row,
-                      home: homeRowOfThe(row),
+                      home: session.homeRowAt(row.number),
                       session: session,
                       language: language,
                       onSheet: () => notifier.openTheHomeSheet(row.number),
@@ -217,24 +207,13 @@ class EnsaioView extends ConsumerWidget {
     if (number == null || read is! PlanRead || sessionId == null) {
       return (null, null);
     }
-    final row = session.sceneRows
-        .where((row) => row.number == number)
-        .firstOrNull;
     return (
       planRowsOf(
         read,
         sessionId,
         const {},
       ).where((plan) => plan.number == number).firstOrNull,
-      row == null
-          ? null
-          : homeRowOf(
-              read,
-              sessionId,
-              number: number,
-              origin: row.part?.origin,
-              held: row.unsent != null,
-            ),
+      session.homeRowAt(number),
     );
   }
 
@@ -245,10 +224,8 @@ class EnsaioView extends ConsumerWidget {
     String language,
   ) {
     String said(String control) => ensaioFinalPlanLabelFor(control, language);
-    String control(SceneRehearsalRecord rehearsal) =>
-        'swap:${plan.scene.sceneId}:${rehearsal.n}';
     bool armed(SceneRehearsalRecord rehearsal) =>
-        session.armedTap?.control == control(rehearsal);
+        session.armedTap?.control == swapControl(plan.scene.sceneId, rehearsal);
     return RehearsalSheet(
       number: plan.number,
       title: plan.scene.title,
@@ -257,18 +234,12 @@ class EnsaioView extends ConsumerWidget {
       inUseId: home.inUse,
       language: language,
       busy: session.homeBusy,
-      offersToUse: (rehearsal) =>
-          rehearsal.joinable && rehearsal.rehearsalId != home.inUse,
+      offersToUse: (rehearsal) => offersToSwapIn(home, rehearsal),
       noteOf: (rehearsal) => switch (session.swapLine) {
         (:final rehearsalId, :final cannotEnter)
             when rehearsalId == rehearsal.rehearsalId =>
           said(cannotEnter ? 'cannotEnter' : 'joinRetry'),
-        _ =>
-          rehearsal.rehearsalId != home.inUse &&
-                  !rehearsal.joinable &&
-                  !rehearsal.unsent
-              ? said('cannotEnter')
-              : null,
+        _ => null,
       },
       useLabelOf: (rehearsal) => armed(rehearsal) && session.overAnApprovedDraft
           ? retroLabelFor('reopenArmed', language)

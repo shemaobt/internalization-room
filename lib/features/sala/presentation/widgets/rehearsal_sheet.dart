@@ -94,9 +94,7 @@ class RehearsalSheet extends ConsumerWidget {
                       rehearsal: candidate,
                       inUse: candidate.rehearsalId == inUseId,
                       offersToUse: offersToUse(candidate),
-                      note: noteOf == null
-                          ? _cannotEnter(candidate)
-                          : noteOf!(candidate),
+                      note: noteOf?.call(candidate) ?? _cannotEnter(candidate),
                       useLabel: useLabelOf?.call(candidate) ?? said('useThis'),
                       waking: wakingOf?.call(candidate) ?? false,
                       language: language,
