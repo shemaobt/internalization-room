@@ -5987,6 +5987,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool doComeco = false,
     bool semChaoTraduzido = false,
     bool noCursor = false,
+    bool seguir = true,
     Duration? desde,
   }) {
     // Every way a part goes in the air passes here — the crossing at a boundary, the
@@ -6029,11 +6030,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // one, and a deadline read from it counts against a cursor that is not its own.
     _play(
       PartSound(parte, state.partes[parte].path, from: de),
-      onComplete: _fimDeParte,
+      onComplete: () => _fimDeParte(seguir: seguir),
     );
   }
 
-  void _fimDeParte() {
+  void _fimDeParte({required bool seguir}) {
     // The part's own length, not where the player says it stopped. A position read at the
     // moment a clip finishes can come back as nought, and every offset after it — every
     // stretch the team tells back, and the length this part is measured against — was
@@ -6070,6 +6071,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btParteNoArMs: 0,
     );
     _relatarAEscuta();
+    if (seguir &&
+        state.btParteFronteira &&
+        !state.btClipEnded &&
+        state.btClipRodando) {
+      _atravessar(doComeco: state.btPhase == BtPhase.conferida);
+    }
   }
 
   /// Listen to the rehearsal, hold it, or cross into the next part; once a stretch is
@@ -6148,12 +6155,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void ouvirOTrechoContado(int indice) =>
       _gesture(() => _ouvirOTrechoContado(indice));
 
-  void _ouvirOTrechoContado(int indice) {
+  void ouvirAConta(int indice) => _gesture(
+    () =>
+        state.canRetellAFrase &&
+            state.btTrechos.elementAtOrNull(indice)?.segmentId != null
+        ? _traduzirAFraseDeNovo(indice)
+        : _ouvirOTrechoContado(indice, naGravacao: true),
+  );
+
+  void _ouvirOTrechoContado(int indice, {bool naGravacao = false}) {
     if (!state.canHearAFrase) return;
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
     if (!trecho.contado) return;
-    final traducao = trecho.retroPath;
+    final traducao = naGravacao ? null : trecho.retroPath;
     final materna = _ondeTocar(trecho);
     if (traducao == null && materna == null) return;
     final segurada = _tirarAParteDoPlayer();
@@ -7136,7 +7151,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
       }
       _silenceTheRoom(holdTheClip: true);
-      if (_cabeca <= _trechoStart) return;
       final pausa = _aPausaNo(_cabeca);
       if (pausa == null) return;
       _trechoEnd = pausa;
@@ -7386,7 +7400,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.btClipEnded) return;
-    _tocarParteDaRetro(_parteTocando, noCursor: true);
+    final proxima = _parteTocando + 1;
+    _tocarParteDaRetro(
+      _parteTocando,
+      noCursor: true,
+      seguir:
+          !state.joined ||
+          !state.btTrechos.any((trecho) => trecho.parte == proxima),
+    );
   }
 
   /// The part in the air, or null while no part is.

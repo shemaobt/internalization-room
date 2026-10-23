@@ -22,7 +22,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         tocarNoCirculo;
 
 const _naoEntendi = 'não entendi — traduzam de novo esse pedaço';
-const _deNovo = 'Tocar para gravar a tradução de novo';
+const _ouvindo = 'ouvindo a gravação de vocês…';
 
 String _barra(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
 
@@ -101,7 +101,7 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final gravacao = harness.room.takeIds.first;
     await tocar(tester, _barra(1));
-    await tocar(tester, _deNovo);
+    await tocar(tester, _ouvindo);
 
     harness.room.failReplaceWith = const NetworkFailed('sem rede');
     await tocar(tester, terminar);
@@ -141,7 +141,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _vereditoNaFraseUm(tester, harness);
     await tocar(tester, _barra(1));
-    await tocar(tester, _deNovo);
+    await tocar(tester, _ouvindo);
     harness.room.failReplaceWith = const NetworkFailed('sem rede');
 
     for (var vez = 1; vez <= 3; vez++) {
@@ -168,7 +168,7 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final gravacao = harness.room.takeIds.first;
     await tocar(tester, _barra(1));
-    await tocar(tester, _deNovo);
+    await tocar(tester, _ouvindo);
 
     harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
     await tocar(tester, terminar);
@@ -209,7 +209,7 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final gravacao = harness.room.takeIds.first;
     await tocar(tester, _barra(1));
-    await tocar(tester, _deNovo);
+    await tocar(tester, _ouvindo);
 
     harness.room.loseTheNextReplaceAnswerAndLandItLaterWith = const Refused(
       'BAD_REQUEST',
@@ -247,7 +247,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _vereditoNaFraseUm(tester, harness);
     await tocar(tester, _barra(1));
-    await tocar(tester, _deNovo);
+    await tocar(tester, _ouvindo);
     harness.room.loseTheNextReplaceAnswerAndLandItLaterWith = const Refused(
       'BAD_REQUEST',
     );
@@ -286,7 +286,7 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final gravacao = harness.room.takeIds.first;
     await tocar(tester, _barra(1));
-    await tocar(tester, _deNovo);
+    await tocar(tester, _ouvindo);
     final pedidos = harness.room.replaceKeys.length;
 
     harness.room.replaceAnswersFirst.addAll(
@@ -331,7 +331,7 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final fila = harness.takes as FakeTakeQueue;
     await tocar(tester, _barra(1));
-    await tocar(tester, _deNovo);
+    await tocar(tester, _ouvindo);
 
     harness.room
       ..refuseTake = 'retro/${KeptScope.whole}'
@@ -373,7 +373,7 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final fila = harness.takes as FakeTakeQueue;
     await tocar(tester, _barra(1));
-    await tocar(tester, _deNovo);
+    await tocar(tester, _ouvindo);
 
     harness.room
       ..refuseTake = 'retro/${KeptScope.whole}'
@@ -414,7 +414,7 @@ void main() {
     final container = await _vereditoNaFraseUm(tester, harness);
     final fila = harness.takes as FakeTakeQueue;
     await tocar(tester, _barra(1));
-    await tocar(tester, _deNovo);
+    await tocar(tester, _ouvindo);
 
     harness.room
       ..refuseTake = 'retro/${KeptScope.whole}'

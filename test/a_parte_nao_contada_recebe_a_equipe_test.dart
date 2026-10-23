@@ -53,12 +53,6 @@ Future<Sala> _prontaParaTerminarComParteNaoContada() async {
   it.harness.playback.at = partesDoEnsaio[1];
   it.harness.playback.finishPlayback();
   await waitFor(
-    'a segunda parte acabar e abrir a travessia',
-    () => it.estado.btParteFronteira,
-  );
-
-  it.sala.ouvirGravacao();
-  await waitFor(
     'a terceira parte entrar no ar',
     () => !it.estado.btParteFronteira && it.harness.playback.sounding,
   );
