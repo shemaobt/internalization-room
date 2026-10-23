@@ -471,6 +471,8 @@ class EffectRunner {
     _retry = null;
   }
 
+  String? _startedTake;
+
   void _openTheMic(MicOwner owner, String take) {
     _micTaken ??= recorder.taken.listen(host.hearTheMicrophoneTaken);
     _newestStarted = null;
@@ -480,6 +482,7 @@ class EffectRunner {
         ++_starts,
         generation?.call(),
         recorder.start(take, owner),
+        take,
       ),
     );
   }
@@ -493,8 +496,10 @@ class EffectRunner {
     int start,
     int? stamp,
     Future<MicAnswer> starting,
+    String take,
   ) async {
     final answer = await starting;
+    if (answer == MicAnswer.started) _startedTake = take;
     if (_disposed) {
       if (answer == MicAnswer.started) unawaited(recorder.discard());
       return;
@@ -543,12 +548,22 @@ class EffectRunner {
       );
     }
     if (_disposed) {
-      if (take != null) unawaited(recorder.delete(take));
+      if (take != null && _isTheFileOf(_startedTake, take)) {
+        unawaited(recorder.delete(take));
+      }
       return;
     }
+    _startedTake = null;
     host.answer(
       MicAnswered(MicAnswer.closed, take: take, generation: generation?.call()),
     );
+  }
+
+  bool _isTheFileOf(String? startedTake, String path) {
+    if (startedTake == null) return false;
+    final name = path.split('/').last;
+    final dot = name.lastIndexOf('.');
+    return (dot < 0 ? name : name.substring(0, dot)) == startedTake;
   }
 
   void _closeAndDiscardTheMic({required bool wasOpen}) {
