@@ -413,6 +413,9 @@ class SalaSessionState {
   /// holds.
   final Set<String> wholeHeldByTheRoom;
 
+  /// The current parts the room holds that this tablet does not yet, by take id.
+  final Map<String, PartAway> partsAway;
+
   /// Whether Scene row [scene] does not apply right now (ADR 0040: dimmed means it does
   /// not apply). True for every row but the one a finding sent the team back to record,
   /// while that record-again stands open and nothing has been recorded for it yet. Once
@@ -495,6 +498,7 @@ class SalaSessionState {
     this.ensaioFinalPlan,
     this.theRoomJoinedParts = const {},
     this.wholeHeldByTheRoom = const {},
+    this.partsAway = const {},
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -535,12 +539,16 @@ class SalaSessionState {
       naRoda != null &&
       naRoda!.every((passagem) => passagem.isPanorama);
 
-  /// The advance disc lights: every Scene has its Part, with nothing recorded and waiting
-  /// and no finding's mark standing.
+  /// The advance disc lights: every Scene has its Part and every Part is on the tablet,
+  /// with nothing recorded and waiting and no finding's mark standing.
   bool get ensaioDone =>
       ensaio == EnsaioStatus.idle &&
       parteARegravar == null &&
-      everySceneHasItsPart;
+      everySceneHasItsPart &&
+      everyPartIsHere;
+
+  /// Whether no Part on its way is still to come down.
+  bool get everyPartIsHere => partsAway.isEmpty;
 
   /// Whether every Scene has its Part. A passage the room answered with no scenes needs
   /// one part; a scene list still awaited or missing is never covered.
@@ -643,6 +651,10 @@ class SalaSessionState {
             null => null,
           },
           unsent: unsentParts[number],
+          away: switch (partIndexOf(number)) {
+            final index? => partsAway[partes[index].takeId],
+            null => null,
+          },
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
           dimmed: sceneRowIsDimmed(number),
           current: _numberAt(playing ?? again) == number,
@@ -1076,7 +1088,8 @@ class SalaSessionState {
 
   bool get canPlayTheRehearsal =>
       (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
-      ensaio != EnsaioStatus.recording;
+      ensaio != EnsaioStatus.recording &&
+      everyPartIsHere;
 
   Trecho? get btFraseTraduzidaDeNovo => switch (btTrechoTraduzidoDeNovo) {
     final Trecho trecho
@@ -1232,6 +1245,7 @@ class SalaSessionState {
     EnsaioFinalPlan? ensaioFinalPlan,
     Set<int>? theRoomJoinedParts,
     Set<String>? wholeHeldByTheRoom,
+    Map<String, PartAway>? partsAway,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
@@ -1333,6 +1347,7 @@ class SalaSessionState {
       ensaioFinalPlan: ensaioFinalPlan ?? this.ensaioFinalPlan,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
+      partsAway: partsAway ?? this.partsAway,
     );
   }
 }
@@ -1345,6 +1360,7 @@ class SceneRow {
   final String? title;
   final KeptTake? part;
   final UnsentPart? unsent;
+  final PartAway? away;
   final bool recording;
   final bool dimmed;
 
@@ -1357,6 +1373,7 @@ class SceneRow {
     required this.title,
     required this.part,
     required this.unsent,
+    this.away,
     required this.recording,
     required this.dimmed,
     required this.current,

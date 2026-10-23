@@ -207,7 +207,7 @@ void main() {
       final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
       await waitFor(
         'as partes voltarem da sala',
-        () => it.estado.partes.length == 3,
+        () => it.estado.partes.length == 3 && it.estado.everyPartIsHere,
       );
 
       expect(
@@ -356,7 +356,7 @@ void main() {
     );
     await waitFor(
       'as partes voltarem da sala',
-      () => it.estado.partes.length == 3,
+      () => it.estado.partes.length == 3 && it.estado.everyPartIsHere,
     );
 
     expect(
@@ -421,7 +421,10 @@ void main() {
 
   Future<void> oEnsaioAbre(_Retomada it) => waitFor(
     'o ensaio abrir',
-    () => it.estado.stage == SalaStage.ensaio && !it.estado.awaitingTheGuide,
+    () =>
+        it.estado.stage == SalaStage.ensaio &&
+        !it.estado.awaitingTheGuide &&
+        it.estado.everyPartIsHere,
   );
 
   Future<void> gravarACena(_Retomada it, int cena) async {
@@ -655,12 +658,34 @@ void main() {
     },
   );
 
-  test('uma parte que a sala recusa por outro motivo volta a escolha e guarda '
-      'a linha', () async {
+  test('uma parte que a sala recusa por outro motivo deixa o ensaio de pe com '
+      'as suas linhas', () async {
     final harness = SalaHarness()
       ..room.failClipWith = const Refused(RefusalCode.forbidden);
 
     final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+    await waitFor(
+      'as partes recusadas ficarem nas suas linhas',
+      () =>
+          it.estado.partes.length == 3 && harness.room.clipsFetched.length == 3,
+    );
+    await settle();
+
+    expect(it.estado.stage, SalaStage.ensaio);
+    expect(it.estado.needsPerson, isFalse);
+    expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-2', 'gravacao-3']);
+  });
+
+  test('uma parte que a sala recusa por outro motivo volta a escolha e guarda '
+      'a linha da retro', () async {
+    final harness = SalaHarness()
+      ..room.failClipWith = const Refused(RefusalCode.forbidden);
+
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1]),
+    );
     await _deVoltaAEscolha(it);
 
     expect(it.estado.needsPerson, isFalse);
@@ -793,7 +818,7 @@ void main() {
     final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
     await waitFor(
       'as partes voltarem da sala',
-      () => it.estado.partes.length == 3,
+      () => it.estado.partes.length == 3 && it.estado.everyPartIsHere,
     );
 
     expect(
@@ -809,13 +834,40 @@ void main() {
   });
 
   test(
-    'uma parte que passa do teto solta a espera e nao chama ninguem',
+    'uma parte que passa do teto no ensaio deixa as linhas de pe e nao chama '
+    'ninguem',
     () async {
       final harness = SalaHarness(
         busyCeiling: const Duration(milliseconds: 200),
       )..room.holdNextClip();
 
       final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+      await waitFor(
+        'o ensaio abrir com as partes da sala',
+        () =>
+            it.estado.stage == SalaStage.ensaio && it.estado.partes.length == 3,
+      );
+      await settle(const Duration(milliseconds: 500));
+      expect(it.estado.needsPerson, isFalse);
+
+      it.harness.room.finishHeldClip();
+      await waitFor('as partes chegarem', () => it.estado.everyPartIsHere);
+      expect(it.estado.needsPerson, isFalse);
+    },
+  );
+
+  test(
+    'uma parte que passa do teto solta a espera e nao chama ninguem',
+    () async {
+      final harness = SalaHarness(
+        busyCeiling: const Duration(milliseconds: 200),
+      )..room.holdNextClip();
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1]),
+      );
       await waitFor(
         'o vigia soltar a espera',
         () => !it.estado.awaitingTheGuide,
@@ -984,7 +1036,7 @@ void main() {
       );
       await waitFor(
         'as partes voltarem da sala',
-        () => it.estado.partes.isNotEmpty,
+        () => it.estado.partes.isNotEmpty && it.estado.everyPartIsHere,
       );
 
       expect(

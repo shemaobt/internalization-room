@@ -213,6 +213,7 @@ class _SceneRowView extends StatelessWidget {
     final mood = row.dimmed || another ? ButtonMood.dimmed : ButtonMood.lit;
     final listens =
         row.dimmed ||
+            row.away == PartAway.coming ||
             session.needsPerson ||
             session.ensaio == EnsaioStatus.recording
         ? ButtonMood.dimmed

@@ -1084,6 +1084,9 @@ class FakeRoom implements RoomRepository {
   /// The recordings whose audio this room will not hand over, by take id.
   final Set<String> refuseClipOf = {};
 
+  /// What fetching one recording's audio fails with, by take id.
+  final Map<String, RoomFailure> failClipOf = {};
+
   /// How long this room takes to hand over one recording's audio. A link that answers
   /// every part in time is not a link that has stopped, however long the whole fetch adds
   /// up to.
@@ -1578,6 +1581,9 @@ class FakeRoom implements RoomRepository {
     final sceneBytes = sceneAudio;
     if (sceneBytes != null && url.contains('/scene-rehearsals/')) {
       return Answered(sceneBytes);
+    }
+    for (final MapEntry(key: take, value: failure) in failClipOf.entries) {
+      if (url.endsWith('/takes/$take/audio')) return failure;
     }
     for (final take in refuseClipOf) {
       if (url.endsWith('/takes/$take/audio')) {

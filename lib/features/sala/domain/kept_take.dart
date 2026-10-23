@@ -34,6 +34,9 @@ class UnsentPart {
   });
 }
 
+/// Where a Part on its way stands: coming down, or missed by its last fetch.
+enum PartAway { coming, missed }
+
 class KeptTake {
   final String scopeId;
   final String path;
@@ -63,6 +66,14 @@ class KeptTake {
     this.pass = 1,
     this.origin,
   });
+
+  KeptTake at(String file) => KeptTake(
+    scopeId: scopeId,
+    path: file,
+    takeId: takeId,
+    pass: pass,
+    origin: origin,
+  );
 
   KeptTake withTakeId(String? id) => KeptTake(
     scopeId: scopeId,
