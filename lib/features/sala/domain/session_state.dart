@@ -358,6 +358,10 @@ class SalaSessionState {
   /// The approval the newest Session read says the draft stands under.
   final ApprovedDraft? btRascunhoAprovado;
 
+  /// The First listen: on a Joined recording, every part heard through before anything
+  /// can be told back.
+  final bool btSoOuvir;
+
   /// The Generation an approval is in the air in: from the press until the Saved screen or
   /// the end of the refusal's handling. A newer Generation is not held by it.
   final int? btAprovando;
@@ -523,6 +527,7 @@ class SalaSessionState {
     this.btFraseQueAguarda,
     this.btFraseGuardada,
     this.btRascunhoAprovado,
+    this.btSoOuvir = false,
     this.btAprovando,
     this.btAprovadoAgora,
     this.ensaioSalvo,
@@ -999,7 +1004,10 @@ class SalaSessionState {
   bool get wheelOffersNothing => naRoda?.isEmpty ?? false;
 
   bool get canFinishBackTranslation =>
-      stage == SalaStage.retro && btPhase == BtPhase.playing && btClipEnded;
+      stage == SalaStage.retro &&
+      btPhase == BtPhase.playing &&
+      btClipEnded &&
+      !btSoOuvir;
 
   bool get _btNaVez =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && !needsPerson;
@@ -1166,6 +1174,7 @@ class SalaSessionState {
   };
 
   bool fraseRegravavel(Trecho trecho) =>
+      !btSoOuvir &&
       aBackTranslationGestureActs &&
       trecho.frase != null &&
       btFraseTraduzidaDeNovo == null &&
@@ -1221,6 +1230,7 @@ class SalaSessionState {
 
   bool get canRetellAFrase =>
       stage == SalaStage.retro &&
+      !btSoOuvir &&
       partes.isNotEmpty &&
       !needsPerson &&
       aBackTranslationGestureActs &&
@@ -1233,6 +1243,7 @@ class SalaSessionState {
 
   bool get canHearAFrase =>
       stage == SalaStage.retro &&
+      !btSoOuvir &&
       partes.isNotEmpty &&
       !needsPerson &&
       aBackTranslationGestureActs &&
@@ -1312,6 +1323,7 @@ class SalaSessionState {
     bool clearBtFraseGuardada = false,
     ApprovedDraft? btRascunhoAprovado,
     bool clearBtRascunhoAprovado = false,
+    bool? btSoOuvir,
     int? btAprovando,
     bool clearBtAprovando = false,
     int? btAprovadoAgora,
@@ -1430,6 +1442,7 @@ class SalaSessionState {
       btRascunhoAprovado: clearBtRascunhoAprovado
           ? null
           : (btRascunhoAprovado ?? this.btRascunhoAprovado),
+      btSoOuvir: btSoOuvir ?? this.btSoOuvir,
       btAprovando: clearBtAprovando ? null : (btAprovando ?? this.btAprovando),
       btAprovadoAgora: clearBtAprovadoAgora
           ? null

@@ -1366,7 +1366,7 @@ void main() {
           },
         ],
       });
-      expect(naoOuvidas, ['t2']);
+      expect(naoOuvidas.unheardTakeIds, ['t2']);
     },
   );
 
@@ -1395,9 +1395,46 @@ void main() {
         ),
       );
 
-      expect(naoOuvidas, isNull);
+      expect(naoOuvidas.unheardTakeIds, isNull);
     },
   );
+
+  test('the listen door\'s whole answer is read', () async {
+    final repository = RoomRepository(
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'session_id': 's1',
+            'unheard_take_ids': <String>[],
+            'automatic_check': true,
+            'fixed_line': 'N2',
+            'refusal': 'STRETCH_UNTRANSLATED',
+            'untranslated': [
+              {'take_id': 't2', 'scene': 2, 'from_ms': 4000},
+            ],
+          }),
+          200,
+        ),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    final ouvida = _value(
+      await repository.reportTheListening('s1', playedByTake: const []),
+    );
+
+    expect(ouvida.unheardTakeIds, isEmpty);
+    expect(ouvida.automaticCheck, isTrue);
+    expect(ouvida.fixedLine, 'N2');
+    expect(ouvida.stretchUntranslated, isTrue);
+    expect(
+      [
+        for (final parte in ouvida.untranslated)
+          (parte.takeId, parte.scene, parte.from),
+      ],
+      [('t2', 2, const Duration(milliseconds: 4000))],
+    );
+  });
 
   test(
     'a verdict heard to its end is reported with the round\'s stamp exactly as the room gave it',

@@ -685,7 +685,7 @@ class RoomRepository {
     asksForTheSession: true,
   );
 
-  Future<RoomAnswer<List<String>?>> reportTheListening(
+  Future<RoomAnswer<ListenedWhole>> reportTheListening(
     String sessionId, {
     required List<PlayedTake> playedByTake,
   }) => _room.ask(
@@ -697,9 +697,7 @@ class RoomRepository {
       }),
     ),
     timeout: _stateTimeout,
-    read: readJson(
-      (json) => (json['unheard_take_ids'] as List?)?.cast<String>(),
-    ),
+    read: readJson(ListenedWhole.fromJson),
     asksForTheSession: false,
   );
 

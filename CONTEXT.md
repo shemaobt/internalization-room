@@ -70,7 +70,7 @@ The fixed line played the moment a team turn ends: one of Marcia's three, picked
 _Avoid_: thinking line, filler, wait line
 
 **Process line**:
-One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), asked of the room by position in the Session language (the Room language on the Choice), never rotated; the approval's line is the fourth.
+One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), asked of the room by position in the Session language (the Room language on the Choice), never rotated; the approval's line is the fourth. On a Joined recording her Ensaio Final lines are asked the same way by position (`N0` the First listen; `N1` and `N2` as the room names them after it).
 _Avoid_: fail-safe (a fixed line that answers a failure and rotates), canned line, linha de processo
 
 **Spoken line**:
@@ -238,6 +238,10 @@ _Avoid_: empty capture, silence, inaudible take
 What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. It holds only what sounded, on the back-translation and on the rehearsal alike, but for a part stepped over because it was told back whole and a part picked up at its cursor over ground already told, both counted from their start, and entering the back-translation no longer forgets it; leaving the passage does. A part recorded again starts its listening over while the others keep theirs. The tablet reports it to the room as each part ends, when the team leaves the back-translation or the passage, when the app goes to the background, and with the check; a part the room has not named yet is left out of every report. Which parts are unheard is always the room's answer, never counted on the tablet (ADR 0105).
 _Avoid_: `_ouvido`, registro de escuta, played ranges, the concatenated passage, the rehearsal's whole length
 
+**First listen** (*Primeiro, só ouvir*):
+On a Joined recording, the Back-translation's listen-only step: her line N0, then every part from its beginning, one after another, with nothing to do but listen. The circle and «terminei» are closed and the bars and frases cannot be tapped; one control pauses and resumes. It runs whenever the room counts every part unheard; with some part already heard, her P2 and only the unheard parts play the same way. Translating opens only once the room counts every part heard, and the room's answer to that last report says what follows (ADR 0123).
+_Avoid_: escuta inicial, preview, playthrough, «Ouvir tudo» (the Rehearsal's own play)
+
 **Ruler**:
 Where each rehearsal part ends along the cord, derived from the measured length of each part's file. The parts are measured on entry to the back-translation, before the first of them plays. It is drawn only as far as the parts already measured, so a part nobody can measure ends the cord rather than lengthens it by a guess.
 _Avoid_: régua, timeline, listening ledger (what was heard, not where a part ends)
@@ -263,7 +267,7 @@ The row at the top of the Back-translation and the findings, one bead per Stretc
 _Avoid_: cord, band, reading head (the cord, its strokes and its dot, retired on 2026-09-25), contas, bits, progress bar
 
 **Circle**:
-The room's one control, the same size in every station: its colour is the voice (telha the Guide, wood the Mother tongue, azul the Bridge language) and its motion the direction (ring and ripples in while the room listens, ripples out while it sounds); the first tap opens the microphone and the second closes it.
+The room's one control, the same size in every station: its colour is the voice (telha the Guide, wood the Mother tongue, azul the Bridge language) and its motion the direction (ring and ripples in while the room listens, ripples out while it sounds); the first tap opens the microphone and the second closes it. On the First listen its tap does nothing.
 _Avoid_: círculo, facilitator circle, record circle, button, esfera
 
 **Advance disc**:
@@ -337,7 +341,7 @@ A current Part the room holds that this tablet does not, on a Rehearsal reopened
 _Avoid_: placeholder, missing part (a part the room no longer has), pending part, unsent take (the other direction)
 
 **Joined recording** (`origin`):
-A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final». The tablet makes one with «juntar as cenas e ouvir» on the Ensaio Final plan. Each scene's chosen rehearsal goes up through the Outbox as that scene's Part: the rehearsal's own bytes under its fingerprint, with `origin`. The same bytes joined again, from any tablet, are the same take (ADR 0120).
+A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final», and the Back-translation's into «Ensaio Final»; entering it starts the First listen while the room counts every part unheard. The tablet makes one with «juntar as cenas e ouvir» on the Ensaio Final plan. Each scene's chosen rehearsal goes up through the Outbox as that scene's Part: the rehearsal's own bytes under its fingerprint, with `origin`. The same bytes joined again, from any tablet, are the same take (ADR 0120).
 _Avoid_: assembled recording, merged, Junção (in prose)
 
 **Red microphone**:
