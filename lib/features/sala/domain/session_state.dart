@@ -347,7 +347,7 @@ class SalaSessionState {
   final ApprovedDraft? btRascunhoAprovado;
 
   /// The Generation an approval is in the air in: from the press until the Saved screen or
-  /// the refusal's words. A newer Generation is not held by it.
+  /// the end of the refusal's handling. A newer Generation is not held by it.
   final int? btAprovando;
 
   /// The version this press minted, while her approved sentence and P3 stand on the

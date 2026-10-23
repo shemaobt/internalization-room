@@ -94,6 +94,24 @@ Future<void> _conferir(
   await tester.pump(const Duration(milliseconds: 300));
 }
 
+Future<void> _saiEVoltaAConferida(WidgetTester tester, _Sala it) async {
+  final sala = it.container.read(salaSessionProvider.notifier);
+  sala.goEnsaio();
+  await tester.pump(const Duration(milliseconds: 300));
+  sala.startRetro();
+  await tester.pump(const Duration(milliseconds: 200));
+  await _conferir(tester, it.harness, it.container);
+}
+
+ButtonMood _humor(WidgetTester tester, String rotulo) => tester
+    .widget<RoundActionButton>(
+      find.ancestor(
+        of: byLabel(rotulo),
+        matching: find.byType(RoundActionButton),
+      ),
+    )
+    .mood;
+
 Future<void> _tocar(WidgetTester tester, [String rotulo = _aprovar]) async {
   await tester.tap(byLabel(rotulo));
   await tester.pump(const Duration(milliseconds: 300));
@@ -611,17 +629,7 @@ void main() {
       it.harness.voice.holdNextLine();
       await _tocar(tester);
 
-      expect(
-        tester
-            .widget<RoundActionButton>(
-              find.ancestor(
-                of: byLabel(_ouvir),
-                matching: find.byType(RoundActionButton),
-              ),
-            )
-            .mood,
-        ButtonMood.dimmed,
-      );
+      expect(_humor(tester, _ouvir), ButtonMood.dimmed);
       expect(
         tester
             .getSemantics(byLabel(_recomecar))
@@ -647,11 +655,7 @@ void main() {
     await _tocar(tester);
 
     final sala = it.container.read(salaSessionProvider.notifier);
-    sala.goEnsaio();
-    await tester.pump(const Duration(milliseconds: 300));
-    sala.startRetro();
-    await tester.pump(const Duration(milliseconds: 200));
-    await _conferir(tester, it.harness, it.container);
+    await _saiEVoltaAConferida(tester, it);
     it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
     it.harness.voice.holdNextLine();
     await _tocar(tester);
@@ -676,27 +680,83 @@ void main() {
   });
 
   testWidgets(
-    'a refusal\'s words give the gestures back while the room still reads the '
-    'stretches it names',
+    'while the room still reads back the stretch a refusal names, the restart '
+    'and the approve button do nothing and are not drawn live; the stretch '
+    'plays, then the restart acts',
     (tester) async {
       final it = await _ateAConferida(tester);
       it.harness.room
         ..releaseBlockers = const ['untold_stretch']
         ..releaseUntoldSegmentId = 'trecho-1'
         ..holdNextState();
+      final trechosNoAr = it.harness.playback.ranges.length;
       await _tocar(tester);
       expect(find.text(_precisaConferida), findsOneWidget);
 
-      it.container.read(salaSessionProvider.notifier).recomecarATraducao();
+      final sala = it.container.read(salaSessionProvider.notifier);
+      sala.recomecarATraducao();
+      await tester.pump(const Duration(milliseconds: 700));
+      sala.recomecarATraducao();
       await tester.pump(const Duration(milliseconds: 300));
+      expect(it.harness.room.restartsAsked, isEmpty);
+      expect(_humor(tester, _aprovar), ButtonMood.dimmed);
 
-      expect(
-        it.container.read(salaSessionProvider).btRecomeco,
-        isNotNull,
-        reason: 'os gestos ficavam presos até a sala acabar de ler os trechos',
-      );
       it.harness.room.finishHeldState();
       await tester.pump(const Duration(milliseconds: 400));
+      expect(it.harness.playback.ranges, hasLength(trechosNoAr + 1));
+
+      sala.recomecarATraducao();
+      await tester.pump(const Duration(milliseconds: 700));
+      sala.recomecarATraducao();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(it.harness.room.restartsAsked, hasLength(1));
+      await tester.pump(const Duration(seconds: 7));
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'an approval left in the air never lets a newer one be sent twice',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.room.holdNextRelease();
+      await _tocar(tester);
+      final sala = it.container.read(salaSessionProvider.notifier);
+      await _saiEVoltaAConferida(tester, it);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      it.harness.voice.holdNextLine();
+      await _tocar(tester);
+
+      it.harness.room.finishHeldRelease();
+      await tester.pump(const Duration(milliseconds: 300));
+      await sala.aprovarRascunhoFinal();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(it.harness.room.releasesAsked, hasLength(2));
+      it.harness.voice.finishHeldLine();
+      await tester.pump(const Duration(milliseconds: 300));
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'an approval left in the air holds nothing once the team comes back to '
+    'the checked translation: the restart and the recording act',
+    (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.room.holdNextRelease();
+      await _tocar(tester);
+      await _saiEVoltaAConferida(tester, it);
+
+      final tocadas = it.harness.playback.playedFrom.length;
+      await tester.tap(byLabel(_ouvir));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(it.harness.playback.playedFrom, hasLength(tocadas + 1));
+
+      it.container.read(salaSessionProvider.notifier).recomecarATraducao();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(it.container.read(salaSessionProvider).btRecomeco, isNotNull);
+      it.harness.room.finishHeldRelease();
       await tester.pump(const Duration(seconds: 7));
       closeTheRoom(it.container);
     },
