@@ -3769,7 +3769,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _theSwapFailed(id, fate.row);
       state = state.copyWith(clearSwapping: true);
       unawaited(_letGoOfTheSwap(written, number, id, over, generation, life));
-      if (fate.row != JoinRow.cannotEnter) {
+      if (fate.row == JoinRow.notThePart) {
+        if (_theHomeRead case (final read, _)) {
+          await _thePartsTheRoomHolds(
+            sessionId,
+            read,
+            generation,
+            life,
+            only: number,
+          );
+        }
+      } else if (fate.row != JoinRow.cannotEnter) {
         await _readTheApprovedDraft(sessionId, generation);
       }
     } finally {
@@ -3867,7 +3877,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             _aboveThePart(row))
           row,
     ];
-    if (_left(generation, life) || state.homeBusy) return;
+    if (_left(generation, life) || !_thePartsMayMove) return;
     if (left.isEmpty &&
         !read.rehearsals.any((rehearsal) => rehearsal.sessionId == sessionId)) {
       return;
@@ -3877,8 +3887,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await _countUnsent();
       if (_left(generation, life)) return;
     }
+    await _thePartsTheRoomHolds(sessionId, read, generation, life);
+  }
+
+  bool get _thePartsMayMove =>
+      !state.homeBusy && state.ensaio == EnsaioStatus.idle;
+
+  Future<void> _thePartsTheRoomHolds(
+    String sessionId,
+    PlanRead read,
+    int generation,
+    int? life, {
+    int? only,
+  }) async {
     final listing = await _room.takesOf(sessionId);
-    if (_left(generation, life) || state.homeBusy) return;
+    if (_left(generation, life)) return;
     final List<TakeView> guardadas;
     switch (listing) {
       case Answered(:final value):
@@ -3893,31 +3916,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       guardadas,
     ).entries) {
       final index = number == null ? null : state.partIndexOf(number);
-      final origin = current.origin;
-      final rehearsal = read.rehearsals
-          .where((r) => r.rehearsalId == origin)
-          .firstOrNull;
       if (number == null ||
           index == null ||
-          origin == null ||
-          rehearsal == null ||
-          state.unsentParts.containsKey(number)) {
+          (only != null && number != only) ||
+          state.unsentParts.containsKey(number) ||
+          !_thePartsMayMove) {
         continue;
       }
       final part = state.partes[index];
       final pass = current.pass ?? 1;
-      if (part.takeId == current.takeId || part.pass >= pass) continue;
-      final (bytes, _) = await _theRehearsalsBytes(
-        rehearsal,
-        fromTheTablet: true,
-      );
-      if (_left(generation, life) || state.homeBusy) return;
-      if (bytes == null) continue;
+      if (part.takeId == current.takeId ||
+          (part.takeId == null && part.pass >= pass)) {
+        continue;
+      }
+      final bytes = await _theBytesOf(sessionId, read, current);
+      if (_left(generation, life)) return;
+      if (bytes == null || !_thePartsMayMove) continue;
+      final origin = current.origin;
       final path = await _recorder.keepBytes(
         bytes,
-        'parte-$number-junta-$origin-$pass',
+        origin == null
+            ? 'parte-$number-${current.takeId}'
+            : 'parte-$number-junta-$origin-$pass',
       );
-      if (_left(generation, life) || state.homeBusy) return;
+      if (_left(generation, life) || !_thePartsMayMove) return;
       _thePartIsTheSwapped(number, path, pass, origin);
       state = state.copyWith(
         keptTakes: [
@@ -3936,6 +3958,35 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
+  Future<Uint8List?> _theBytesOf(
+    String sessionId,
+    PlanRead read,
+    TakeView take,
+  ) async {
+    final rehearsal = read.rehearsals
+        .where((r) => r.rehearsalId == take.origin && r.sessionId == sessionId)
+        .firstOrNull;
+    if (rehearsal != null) {
+      final (bytes, _) = await _theRehearsalsBytes(
+        rehearsal,
+        fromTheTablet: true,
+      );
+      return bytes;
+    }
+    final clip = await _withinTheJoinWait(
+      _room.fetchClip(RoomRepository.takeAudioUrl(sessionId, take.takeId)),
+    );
+    switch (clip) {
+      case Answered(:final value) when value.isNotEmpty:
+        return value;
+      case final SessionGone gone:
+        _decideAt(gone, door: Door.sceneRehearsal);
+        return null;
+      case _:
+        return null;
+    }
+  }
+
   bool _aboveThePart(PendingTake row) {
     final number = KeptScope.numberOf(row.scope);
     final index = number == null ? null : state.partIndexOf(number);
@@ -3951,7 +4002,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void _thePartIsTheSwapped(int number, String path, int pass, String origin) {
+  void _thePartIsTheSwapped(int number, String path, int pass, String? origin) {
     final scope = KeptScope.parte(number);
     if (state.partIndexOf(number) case final index?) {
       _aParteNoLugar(index, path, passada: pass, origin: origin);

@@ -920,8 +920,8 @@ void main() {
   );
 
   testWidgets(
-    'a swap over a part the room no longer holds is turned away and changes '
-    'nothing',
+    'a swap over a part another tablet replaced is turned away, the scene '
+    'takes the room\'s part, and the next «usar este» names it and lands',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _atRest(tester);
@@ -936,6 +936,7 @@ void main() {
           pass: 2,
         ),
       );
+      it.room.takeAudio['gravacao-outro-tablet'] = _bytesOf(9);
 
       await it.openTheSheet(2, _swap);
       await it.swapIn(s2b);
@@ -951,7 +952,58 @@ void main() {
         [joined, 'gravacao-outro-tablet'],
         reason: 'a sala não guardou a troca',
       );
-      expect(it.onLine(s2a, find.text(_inUse)), findsOneWidget);
+      expect(
+        it.partPath(2),
+        contains('gravacao-outro-tablet'),
+        reason: 'a cena mostra a parte que a sala tem',
+      );
+      expect(it.onLine(s2a, find.text(_inUse)), findsNothing);
+
+      await it.swapIn(s2b);
+      await it.swapLands();
+      expect(it.received(2).last.overTake, 'gravacao-outro-tablet');
+      expect(it.takesOf(2).last.origin, it.idOf(s2b));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a part another tablet laid in waits while the team records that scene',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      final joined = it.partPath(2);
+      it.room.takes.add(
+        const TakeView(
+          takeId: 'gravacao-outro-tablet',
+          kind: 'ensaio',
+          scope: 'parte-2',
+          ordinal: 2,
+          pass: 2,
+        ),
+      );
+      it.room
+        ..takeAudio['gravacao-outro-tablet'] = _bytesOf(9)
+        ..holdNextClip();
+      await it.relaunchOnTheHome();
+      await it.until(
+        'a casa buscar a parte da sala',
+        () => it.room.clipsFetched.any(
+          (url) => url.contains('gravacao-outro-tablet'),
+        ),
+      );
+
+      await it.tapThe(it.onRow(2, byLabel('Gravar de novo')));
+      await it.until(
+        'a cena 2 gravar',
+        () => it.onRow(2, byLabel('Parar')).evaluate().isNotEmpty,
+      );
+      it.room.finishHeldClip();
+      await it.settle();
+
+      expect(it.partPath(2), joined, reason: 'nada troca a parte em gravação');
+      expect(it.onRow(2, byLabel('Parar')), findsOneWidget);
       semantics.dispose();
     },
   );
