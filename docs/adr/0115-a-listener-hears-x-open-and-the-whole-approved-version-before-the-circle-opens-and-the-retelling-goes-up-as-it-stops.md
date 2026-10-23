@@ -37,7 +37,7 @@ recorded, and nothing of theirs may stay on the tablet.
 
 - «Novo ouvinte» mints an attempt at the tap and keeps it with the session and the Version
   until an answer lands, across a way back and a way in, so a re-tap after a lost answer is
-  the same listener. A failure shows «não deu para abrir a checagem
+  the same listener. The attempt lives within a Life: a relink from the Desk mints a new one. A failure shows «não deu para abrir a checagem
   externa — tentem de novo», never the person sign.
 - Then X-open, in the Session language (ADR 0084), whose second sentence is the consent; then
   the check's takes, fetched by take id, play back to back as one stream; only the end of the
@@ -45,8 +45,9 @@ recorded, and nothing of theirs may stay on the tablet.
   while the passage plays before the retelling, or while a recording is sent.
 - A part that fails to fetch or to play, or a call for a person that takes the stream, stops it
   and offers «ouvir de novo», which plays the passage again from its start with no line. There
-  is no skip. The circle opens only once X-retell was said; a call for a person that cuts it
-  has it said again when the room is back.
+  is no skip. The passage plays only once X-open was said, and the circle opens only once
+  X-retell was said; a call for a person that cuts either has it said again when the room is
+  back. A line that cannot sound at all lets the listener go on.
 - The retelling goes up as `retell` the moment it stops; a file under 800 bytes is dropped in
   silence; the file is deleted after the send whatever the answer; a failed send shows «não deu
   para guardar essa gravação — gravem de novo» and opens the circle again. Leaving the Station
