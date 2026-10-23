@@ -33,13 +33,16 @@ final class Warning extends Halt {
 
 final class Blocking extends Halt {
   final bool warningBeneath;
+  final bool reachesNoRoom;
 
-  const Blocking({this.warningBeneath = false});
+  const Blocking({this.warningBeneath = false, this.reachesNoRoom = false});
 
   @override
   bool operator ==(Object other) =>
-      other is Blocking && other.warningBeneath == warningBeneath;
+      other is Blocking &&
+      other.warningBeneath == warningBeneath &&
+      other.reachesNoRoom == reachesNoRoom;
 
   @override
-  int get hashCode => warningBeneath.hashCode;
+  int get hashCode => Object.hash(warningBeneath, reachesNoRoom);
 }

@@ -1893,20 +1893,36 @@ List<Effect> _leavingThePassage(Machine machine) => [
     switch (event) {
       SessionRead() => _read(halt, event),
       RoomRaisedAHalt(:final callsForAPerson) => switch (halt) {
+        Blocking(:final warningBeneath, reachesNoRoom: true)
+            when callsForAPerson =>
+          (
+            Blocking(warningBeneath: warningBeneath),
+            const [CallForAPerson(), _watch],
+          ),
         Blocking() => (
           halt,
           [if (callsForAPerson) const CallForAPerson(), _watch],
         ),
         _ => (
-          Blocking(warningBeneath: halt is Warning),
+          Blocking(
+            warningBeneath: halt is Warning,
+            reachesNoRoom: !callsForAPerson,
+          ),
           [..._enter, if (callsForAPerson) const CallForAPerson(), _watch],
         ),
       },
       TheAnswerWarned() => switch (halt) {
-        Blocking() => (const Blocking(warningBeneath: true), const [_watch]),
+        Blocking(:final reachesNoRoom) => (
+          Blocking(warningBeneath: true, reachesNoRoom: reachesNoRoom),
+          const [_watch],
+        ),
         _ => (const Warning(), const [_watch]),
       },
       TeamTapped() => switch (halt) {
+        Blocking(:final warningBeneath, reachesNoRoom: true) => (
+          warningBeneath ? const Warning() : const NoHalt(),
+          const [StopCallingForAPerson(), _watch],
+        ),
         Blocking(:final warningBeneath) => (
           warningBeneath ? const Warning() : const NoHalt(),
           const [StopCallingForAPerson(), GoOnAfterTheSign(), _watch],
@@ -1978,7 +1994,9 @@ List<Effect> _leavingThePassage(Machine machine) => [
   final warns = snapshot.halt == HaltKind.warning;
   if (halt is Blocking) {
     return (
-      snapshot.needsPerson ? halt : Blocking(warningBeneath: warns),
+      snapshot.needsPerson
+          ? Blocking(warningBeneath: halt.warningBeneath)
+          : Blocking(warningBeneath: warns, reachesNoRoom: halt.reachesNoRoom),
       const [_watch],
     );
   }
