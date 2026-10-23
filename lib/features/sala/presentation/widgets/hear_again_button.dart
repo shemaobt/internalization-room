@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import 'bead_styles.dart';
+import 'corner_disc.dart';
 import 'motion.dart';
 
 class HearAgainButton extends ConsumerWidget {
@@ -32,11 +32,7 @@ class HearAgainButton extends ConsumerWidget {
                       ref.watch(roomLanguageProvider),
                     ),
                     onTap: ref.read(salaSessionProvider.notifier).hearAgain,
-                    child: const Icon(
-                      LucideIcons.rotateCcw,
-                      size: 22,
-                      color: ShemaBrand.verdeClaro,
-                    ),
+                    child: const CornerDisc(glyph: LucideIcons.rotateCcw),
                   ),
                 ),
               )

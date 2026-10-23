@@ -50,6 +50,10 @@ class ResumePoint {
   /// Whether the row stood on the Checagem externa, with the listener it names there.
   bool get onTheExternalCheck => stage == SalaStage.checagem;
 
+  /// The takes of a whole rehearsal set aside behind the parts that only the room holds.
+  /// Empty for any other row.
+  final List<String> wholeHeldByTheRoom;
+
   const ResumePoint({
     required this.sessionId,
     required this.stage,
@@ -59,6 +63,7 @@ class ResumePoint {
     this.partBeingRecordedAgain,
     this.passesToGoAbove = const {},
     this.listener,
+    this.wholeHeldByTheRoom = const [],
   });
 
   Map<String, Object?> toJson() => {
@@ -74,6 +79,7 @@ class ResumePoint {
       },
     if (listener case (:final version, :final number))
       'listener': {'version': version, 'number': number},
+    if (wholeHeldByTheRoom.isNotEmpty) 'whole_set_aside': wholeHeldByTheRoom,
     'takes': [
       for (final take in takes)
         {
@@ -116,6 +122,10 @@ class ResumePoint {
         ),
         _ => null,
       },
+      wholeHeldByTheRoom: [
+        for (final id in (json['whole_set_aside'] as List? ?? const []))
+          if (id is String) id,
+      ],
       takes: [
         for (final raw in (json['takes'] as List? ?? const []))
           if (raw is Map)

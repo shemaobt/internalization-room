@@ -23,6 +23,7 @@ enum Capture { started, denied, failed }
 
 class RecordingRepository {
   final AudioRecorder _recorder = AudioRecorder();
+  final Map<String, Future<String>> _keeping = {};
 
   Future<Directory> _recordingsDir() async {
     final docs = await getApplicationDocumentsDirectory();
@@ -104,7 +105,13 @@ class RecordingRepository {
     await restoreTheSampleRate();
   }
 
+  /// Stops and deletes only a recording that is open. An idle recorder is left alone: the
+  /// platform's stop answers the last recording's path (record_android), and that file may
+  /// be a take the team just kept.
   Future<void> discard() async {
+    if (!await _recorder.isRecording().catchError((Object _) => false)) {
+      return restoreTheSampleRate();
+    }
     final path = await stop();
     if (path != null) {
       final file = File(path);
@@ -123,10 +130,18 @@ class RecordingRepository {
   /// one directory: a part of the rehearsal is a part of the rehearsal whoever's tablet
   /// recorded it, the resume point names its takes by file there, and a second home would
   /// be a second thing to keep alive.
+  ///
+  /// A keep of a name already being written gets that write, its file or its failure.
   Future<String> keepBytes(Uint8List bytes, String fileName) async {
     final dir = await _recordingsDir();
     final extension = _isWav(bytes) ? 'wav' : 'm4a';
     final target = p.join(dir.path, '$fileName.$extension');
+    return _keeping[target] ??= _write(bytes, dir, target).whenComplete(() {
+      _keeping.remove(target);
+    });
+  }
+
+  Future<String> _write(Uint8List bytes, Directory dir, String target) async {
     try {
       final whole = await File('$target.part').writeAsBytes(bytes, flush: true);
       return (await whole.rename(target)).path;

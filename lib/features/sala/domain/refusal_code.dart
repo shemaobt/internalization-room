@@ -16,6 +16,8 @@ abstract final class RefusalCode {
   static const restartOutOfOrder = 'RESTART_OUT_OF_ORDER';
   static const tooLarge = 'TOO_LARGE';
   static const unknownReference = 'UNKNOWN_REFERENCE';
+  static const takeFingerprintDiffers = 'TAKE_FINGERPRINT_DIFFERS';
+  static const takeMoved = 'TAKE_MOVED';
   static const sceneRehearsalSending = 'SCENE_REHEARSAL_SENDING';
   static const fraseOutOfPlace = 'FRASE_OUT_OF_PLACE';
   static const pauseOnlyOnTheLastFrase = 'PAUSE_ONLY_ON_THE_LAST_FRASE';
@@ -27,6 +29,7 @@ abstract final class RefusalCode {
   static const anotherSentenceAwaits = 'ANOTHER_SENTENCE_AWAITS';
   static const partNotWav = 'PART_NOT_WAV';
   static const sentenceIdReused = 'SENTENCE_ID_REUSED';
+  static const nothingToBringBack = 'NOTHING_TO_BRING_BACK';
   static const draftApproved = 'DRAFT_APPROVED';
   static const draftNotApproved = 'DRAFT_NOT_APPROVED';
 

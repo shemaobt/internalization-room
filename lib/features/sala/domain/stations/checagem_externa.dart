@@ -30,6 +30,7 @@ final class ChecagemExterna extends Station {
     TheExternalCheckOpened() ||
     TheSceneRehearsalOpened() ||
     TheSceneRehearsalLeft() ||
-    TheNecklaceClosed() => this,
+    TheNecklaceClosed() ||
+    ThePlanOpened() => this,
   };
 }
