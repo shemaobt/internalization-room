@@ -366,6 +366,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// of: kept across a way back and a way in, so a lost answer never mints a second
   /// listener.
   late ({String sessionId, int version, String attempt})? _listenerAttempt;
+
+  /// Whether one of her lines for the listener is said or waits to be: a line still in the
+  /// queue when the room is back is said then, never asked again.
+  late bool _listenerLineAwaited;
   late _Passage? _emCurso;
   Trecho? get _trechoTraduzidoDeNovo => state.btTrechoTraduzidoDeNovo;
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
@@ -520,6 +524,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _listeningSince = null;
     _recordingStarting = false;
     _listenerAttempt = null;
+    _listenerLineAwaited = false;
     _emCurso = null;
     _listenerInProgress = null;
     _faseAntesDeTraduzirDeNovo = null;
@@ -6530,6 +6535,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// (her rule: the screen says it). Not when a person's call cut it.
   Future<bool> _theListenerHeard(String line) async {
     Said said;
+    _listenerLineAwaited = true;
     try {
       said = await _sayTheLine(
         LineKind.guide,
@@ -6538,6 +6544,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on RoomFailure catch (failure) {
       _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
       said = Said.failed;
+    } finally {
+      _listenerLineAwaited = false;
     }
     return said != Said.unsaid || state.halt is! Blocking;
   }
@@ -6546,7 +6554,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (after.station is! ChecagemExterna) return;
     final shown = state.externalCheck;
     final halted = after.halt is Blocking && before.halt is! Blocking;
-    final back = before.halt is Blocking && after.halt is! Blocking;
+    final back =
+        before.halt is Blocking &&
+        after.halt is! Blocking &&
+        !_listenerLineAwaited;
     final playing = shown.step == ListenerStep.playing;
     if (halted && playing && shown.openSaid) {
       _showTheListener(shown.copyWith(stalled: true));
