@@ -2141,6 +2141,37 @@ void main() {
 
       expect(room.takesReceivedWhole.single.overTake, 'gravacao-a-mao');
     });
+
+    test('the room finds moved leaves the Outbox with its copy, is never '
+        'counted unsent and never sent again', () async {
+      final room = FakeRoom()
+        ..takes.add(
+          const TakeView(
+            takeId: 'gravacao-a-mao',
+            kind: 'ensaio',
+            scope: 'parte-2',
+            ordinal: 2,
+          ),
+        );
+      final queue = queueOn(room);
+      final row = await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 2,
+        origin: 'ensaio-2',
+        overTake: 'gravacao-de-antes',
+      );
+
+      await queue.flush();
+      await queue.dueAgain(row!.id);
+      await queue.flush();
+
+      expect(await queue.pending(), isEmpty);
+      expect(await queue.unsentOf('ensaio', sessionId: 'sessao-1'), 0);
+      expect(File(row.path).existsSync(), isFalse);
+      expect(room.calls.where((call) => call == 'sendTake'), hasLength(1));
+    });
   });
 
   group('a flush over an Outbox folder that is gone', () {

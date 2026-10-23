@@ -3281,6 +3281,9 @@ class FakeTakeQueue implements TakeUploadQueue {
   bool inTheAir(String row) => false;
 
   @override
+  bool movedAway(String row) => false;
+
+  @override
   Future<void> withdrawTheJoinsOf(String sessionId, String scope) async =>
       rows.removeWhere(
         (entry) =>

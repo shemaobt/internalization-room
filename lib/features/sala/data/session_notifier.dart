@@ -3703,8 +3703,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       if (_left(generation, life)) return _joinLeftBehind;
       if (bytes == null) return (row: refused!, part: JoinedPart.nowhere);
-      final (:pass, :live) = await _wherePartStands(sessionId, number);
+      final stands = await _wherePartStands(sessionId, number);
       if (_left(generation, life)) return _joinLeftBehind;
+      if (stands == null) return (row: JoinRow.retry, part: JoinedPart.nowhere);
+      final (:pass, :live) = stands;
       final String partPath;
       final PendingTake? row;
       try {
@@ -3748,17 +3750,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// One pass above the highest the room lists for the part as the row is written, and
   /// above every pass this tablet already knew of; and the take the room lists as the
-  /// part then, the one the row replaces.
-  Future<({int pass, String? live})> _wherePartStands(
+  /// part then, the one the row replaces. None when the room does not list its takes.
+  Future<({int pass, String? live})?> _wherePartStands(
     String sessionId,
     int number,
   ) async {
     final known = _passadasDaSala?[number] ?? 0;
     final listing = await _withinTheJoinWait(_room.takesOf(sessionId));
-    final guardadas = switch (listing) {
-      Answered(:final value) => value,
-      _ => const <TakeView>[],
-    };
+    if (listing is! Answered<List<TakeView>>) return null;
+    final guardadas = listing.value;
     return (
       pass: max(known, _passadasMaisAltas(guardadas)[number] ?? 0) + 1,
       live: _correntes(guardadas)[number]?.takeId,
@@ -3890,11 +3890,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           .where((entry) => entry.id == rowId)
           .firstOrNull;
       if (_left(generation, life)) return _joinLeftBehind;
-      if (row == null) return (row: JoinRow.retry, part: JoinedPart.nowhere);
+      if (row == null) {
+        if (!_takes.movedAway(rowId)) {
+          return (row: JoinRow.retry, part: JoinedPart.nowhere);
+        }
+        _semNome.remove(rowId);
+        return _notThePart(partPath);
+      }
       if (row.exhausted) {
         await _takes.withdraw(row);
         _semNome.remove(rowId);
-        if (row.refusal == RefusalCode.takeMoved) return _notThePart(partPath);
         _letGoOfTheJoinedPart(partPath);
         return (
           row: switch (row.refusal) {

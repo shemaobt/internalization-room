@@ -681,6 +681,12 @@ class TakeUploadQueue {
 
   bool inTheAir(String row) => _inTheAir?.id == row;
 
+  final Set<String> _moved = {};
+
+  /// Whether the room turned this join row away because the part's take was another by
+  /// then; the row left the Outbox with its copy.
+  bool movedAway(String row) => _moved.contains(row);
+
   /// The room turned the tablet away, not the take: nothing more leaves until it is
   /// linked again, and nothing is given up for it.
   bool _turnedAway = false;
@@ -843,6 +849,10 @@ class TakeUploadQueue {
           (now) =>
               now.copyWith(lost: false, waits: now.waits + 1, lastTry: _now()),
         );
+      case Refused(code: RefusalCode.takeMoved):
+        _moved.add(entry.id);
+        await withdraw(entry);
+        return _Landing.givenUp;
       case Refused(code: RefusalCode.deviceRevoked || RefusalCode.unauthorized):
         _turnedAway = true;
         await _settleWith(

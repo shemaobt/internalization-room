@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/ensaio_final_plan.dart';
@@ -815,6 +816,50 @@ void main() {
       );
       expect(it.partsReceived, isNot(contains('parte-3')));
       expect(triesOf2(), tries, reason: 'nada é tentado de novo');
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a scene whose part the room cannot list as the row would be written '
+    'writes no row and says to try again, and the tap names the part the '
+    'room then lists',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      await it.openThePlan();
+      it.room.takes.add(
+        TakeView(
+          takeId: 'gravacao-a-mao',
+          kind: 'ensaio',
+          scope: KeptScope.parte(2),
+          ordinal: 2,
+          pass: 1,
+        ),
+      );
+      it.room.takeAudio['gravacao-a-mao'] = _bytesOf(7);
+      it.room.failTakesWith = const NetworkFailed('sem rede');
+
+      await it.tapJoin();
+      await it.until(
+        'a linha 1 pedir outra tentativa',
+        () => it.onRow(1, find.text(_retry)).evaluate().isNotEmpty,
+      );
+      expect(it.partsReceived, isEmpty);
+      expect(it.showsTheHome(), isFalse);
+
+      it.room.failTakesWith = null;
+      await tester.tap(it.onRow(1, find.text(_retry)));
+      await _theJoinEnds(it);
+
+      expect(
+        {
+          for (final take in it.room.takesReceivedWhole)
+            take.scope: take.overTake,
+        },
+        {'parte-1': null, 'parte-2': 'gravacao-a-mao', 'parte-3': null},
+      );
       semantics.dispose();
     },
   );
