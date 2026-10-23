@@ -42,6 +42,7 @@ import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/pausa.dart';
+import 'package:internalization_room/features/sala/domain/minimum_build.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
@@ -137,6 +138,9 @@ class FakeVoice implements FacilitatorVoiceService {
   /// does not sound. Distinct from [refuses]: that is the player failing with the file
   /// already in hand.
   RoomFailure? roomFailsWith;
+
+  /// What the next readying of a line throws, the way a defect in getting it ready does.
+  Object? readyThrows;
   Completer<bool>? _holding;
   Completer<bool>? _saying;
 
@@ -205,6 +209,10 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<bool> fetch(String url) async {
     fetched.add(url);
     await _fetching?.future;
+    if (readyThrows case final thrown?) {
+      readyThrows = null;
+      throw thrown;
+    }
     return succeeds;
   }
 
@@ -1056,6 +1064,7 @@ class FakeRoom implements RoomRepository {
   int _turnCount = 0;
 
   final List<String> calls = [];
+  final Map<String, Object> throwOn = {};
   final List<String?> pericopesAsked = [];
   final List<String> languagesSent = [];
   final List<String?> clientTimingsSent = [];
@@ -1176,15 +1185,16 @@ class FakeRoom implements RoomRepository {
       String? sha256,
       Uint8List bytes,
       DateTime? recordedAt,
-      DateTime? sentAt,
+      String? overTake,
     })
   >
   takesReceivedWhole = [];
   final List<int?> takePasses = [];
 
-  /// A join answers the Part's live take only when it already is this rehearsal's, same
-  /// origin and bytes, and is a new take otherwise; off, the older room, which answers
-  /// any take holding the bytes.
+  /// A join answers the Part's live take, the last one the room accepted, only when it
+  /// already is this rehearsal's, same origin and bytes; one that names another take
+  /// than the live one is turned away as moved, and any other is a new take. Off, the
+  /// older room, which answers any take holding the bytes.
   bool joinsTheLiveTake = true;
   String? refuseTake;
 
@@ -1537,6 +1547,7 @@ class FakeRoom implements RoomRepository {
   RoomFailure? _guard(String call) {
     calls.add(call);
     presentedOnEachCall.add(presented);
+    if (throwOn[call] case final thrown?) throw thrown;
     final failure = failWith;
     if (failure is SessionGone && _sessionless.contains(call)) {
       return const Refused(RefusalCode.notFound);
@@ -2217,6 +2228,25 @@ class FakeRoom implements RoomRepository {
     return failBooksWith ?? Answered(books);
   }
 
+  RoomAnswer<MinimumBuilds> minimumBuildsAnswer = Answered(
+    const MinimumBuilds(ios: 0, android: 0),
+  );
+
+  int minimumBuildsAsked = 0;
+  Completer<void>? _holdingMinimumBuilds;
+
+  /// Hold the next read of the minimum build, the way a link that never answers holds it.
+  void holdNextMinimumBuilds() => _holdingMinimumBuilds = Completer<void>();
+
+  void releaseMinimumBuilds() => _holdingMinimumBuilds?.complete();
+
+  @override
+  Future<RoomAnswer<MinimumBuilds>> minimumBuilds() async {
+    minimumBuildsAsked++;
+    await _holdingMinimumBuilds?.future;
+    return minimumBuildsAnswer;
+  }
+
   @override
   Future<RoomAnswer<List<Passagem>>> passagesOf(
     String book, {
@@ -2692,7 +2722,7 @@ class FakeRoom implements RoomRepository {
     String? sha256,
     String? origin,
     bool reopensTheApprovedDraft = false,
-    DateTime? sentAt,
+    String? overTake,
   }) async {
     if (_guard('sendTake') case final failure?) return failure;
     if (_forgot('sendTake', sessionId) case final gone?) {
@@ -2729,7 +2759,7 @@ class FakeRoom implements RoomRepository {
       sha256: sha256,
       bytes: bytes,
       recordedAt: recordedAt,
-      sentAt: sentAt,
+      overTake: overTake,
     ));
     if (origin != null && !joinsTheLiveTake) {
       for (final take in takes) {
@@ -2738,16 +2768,15 @@ class FakeRoom implements RoomRepository {
           return Answered(take.takeId);
         }
       }
+      final live = takes
+          .where((take) => take.kind == kind && take.scope == scope)
+          .lastOrNull;
+      if (live?.takeId != overTake) return const Refused(RefusalCode.takeMoved);
     }
     if (origin != null && joinsTheLiveTake) {
       final live = takes
           .where((take) => take.kind == kind && take.ordinal == chunkIndex)
-          .fold<TakeView?>(
-            null,
-            (best, take) => best == null || (take.pass ?? 0) >= (best.pass ?? 0)
-                ? take
-                : best,
-          );
+          .lastOrNull;
       final audio = live == null ? null : takeAudio[live.takeId];
       if (live != null &&
           live.origin == origin &&
@@ -2755,6 +2784,7 @@ class FakeRoom implements RoomRepository {
           crypto.sha256.convert(audio).toString() == held) {
         return Answered(live.takeId);
       }
+      if (live?.takeId != overTake) return const Refused(RefusalCode.takeMoved);
     }
     takesKept.add('$kind/$scope');
     takesReceived.add((kind: kind, scope: scope, chunkIndex: chunkIndex));
@@ -3296,6 +3326,7 @@ class FakeTakeQueue implements TakeUploadQueue {
     required int passNumber,
     required String origin,
     String? fingerprint,
+    String? overTake,
     bool reopensTheApprovedDraft = false,
   }) async {
     final held = crypto.sha256.convert(audio.readAsBytesSync()).toString();
@@ -3324,6 +3355,9 @@ class FakeTakeQueue implements TakeUploadQueue {
 
   @override
   bool inTheAir(String row) => false;
+
+  @override
+  bool movedAway(String row) => false;
 
   @override
   Future<void> withdrawTheJoinsOf(String sessionId, String scope) async =>

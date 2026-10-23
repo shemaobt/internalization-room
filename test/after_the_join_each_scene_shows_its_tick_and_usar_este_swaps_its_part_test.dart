@@ -299,6 +299,7 @@ class _Room {
       bool reopens,
       String? sha256,
       Uint8List bytes,
+      String? overTake,
     })
   >
   received(int n) => [
@@ -310,6 +311,7 @@ class _Room {
           reopens: take.reopens,
           sha256: take.sha256,
           bytes: take.bytes,
+          overTake: take.overTake,
         ),
   ];
 
@@ -913,6 +915,43 @@ void main() {
       );
       await it.openTheSheet(2, _swap);
       expect(it.onLine(s2b, find.text(_inUse)), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a swap over a part the room no longer holds is turned away and changes '
+    'nothing',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      final joined = it.takesOf(2).single.takeId;
+      it.room.takes.add(
+        const TakeView(
+          takeId: 'gravacao-outro-tablet',
+          kind: 'ensaio',
+          scope: 'parte-2',
+          ordinal: 2,
+          pass: 2,
+        ),
+      );
+
+      await it.openTheSheet(2, _swap);
+      await it.swapIn(s2b);
+      await it.until(
+        'a linha dizer para tentar de novo',
+        () => it.onLine(s2b, find.text(_retry)).evaluate().isNotEmpty,
+      );
+      await it.settle();
+
+      expect(it.received(2).last.overTake, joined);
+      expect(
+        [for (final take in it.takesOf(2)) take.takeId],
+        [joined, 'gravacao-outro-tablet'],
+        reason: 'a sala não guardou a troca',
+      );
+      expect(it.onLine(s2a, find.text(_inUse)), findsOneWidget);
       semantics.dispose();
     },
   );

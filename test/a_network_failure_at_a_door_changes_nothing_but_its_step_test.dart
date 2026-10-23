@@ -715,7 +715,7 @@ class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
     String? sha256,
     String? origin,
     bool reopensTheApprovedDraft = false,
-    DateTime? sentAt,
+    String? overTake,
   }) {
     if (!stumbled) {
       stumbled = true;
@@ -733,7 +733,7 @@ class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
       sha256: sha256,
       origin: origin,
       reopensTheApprovedDraft: reopensTheApprovedDraft,
-      sentAt: sentAt,
+      overTake: overTake,
     );
   }
 }
