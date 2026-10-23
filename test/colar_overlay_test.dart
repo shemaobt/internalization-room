@@ -363,7 +363,10 @@ void main() {
       ?.where((shadow) => shadow.spreadRadius > 0)
       .firstOrNull;
 
-  void expectFiveLitBeadsGlowAndSevenDoNot(WidgetTester tester) {
+  void expectFiveLitBeadsGlowAndSevenDoNot(
+    WidgetTester tester, {
+    SalaColors colors = SalaColors.light,
+  }) {
     for (var i = 0; i < 12; i++) {
       final decoration = decorationAt(tester, i);
       final glow = woodGlow(decoration);
@@ -377,7 +380,8 @@ void main() {
         expect(decoration.boxShadow, containsAll(BeadStyles.matte));
       } else {
         expect(glow, isNull, reason: 'a conta $i está apagada e não brilha');
-        expect(decoration.border, isNotNull);
+        expect(decoration.gradient, BeadStyles.oat(colors));
+        expect(decoration.border!.top.color, colors.line);
       }
     }
   }
@@ -411,9 +415,7 @@ void main() {
       find.byType(ColarOverlay),
       paints..path(color: SalaColors.dark.line, strokeWidth: 1.5),
     );
-    expectFiveLitBeadsGlowAndSevenDoNot(tester);
-    expect(decorationAt(tester, 11).gradient, BeadStyles.oat(SalaColors.dark));
-    expect(decorationAt(tester, 11).border!.top.color, SalaColors.dark.line);
+    expectFiveLitBeadsGlowAndSevenDoNot(tester, colors: SalaColors.dark);
   });
 
   testWidgets(

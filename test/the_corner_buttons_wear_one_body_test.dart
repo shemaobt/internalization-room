@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/corner_disc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'fakes.dart';
@@ -99,27 +100,44 @@ Icon _glyphOf(WidgetTester tester, String label) => tester.widget<Icon>(
   find.descendant(of: _discOf(label).last, matching: find.byType(Icon)),
 );
 
+Finder _cornerDiscOf(String label) =>
+    find.descendant(of: byLabel(label), matching: find.byType(CornerDisc));
+
 List<double> _opacitiesOver(WidgetTester tester, String label) {
-  final disc = _discOf(label).last.evaluate().single;
-  final within = find
-      .descendant(of: byLabel(label), matching: find.byType(Opacity))
+  final glyph = find
+      .descendant(of: _discOf(label).last, matching: find.byType(Icon))
       .evaluate()
-      .toSet();
+      .single;
+  final labelled = byLabel(label).evaluate().first;
   final over = <double>[];
-  disc.visitAncestorElements((ancestor) {
-    if (within.contains(ancestor)) {
-      over.add((ancestor.widget as Opacity).opacity);
-    }
+  glyph.visitAncestorElements((ancestor) {
+    if (ancestor == labelled) return false;
+    final widget = ancestor.widget;
+    if (widget is Opacity) over.add(widget.opacity);
+    if (widget is AnimatedOpacity) over.add(widget.opacity);
+    if (widget is FadeTransition) over.add(widget.opacity.value);
     return true;
   });
   return over;
 }
 
-void _wearsTheBody(WidgetTester tester, String label, IconData glyph) {
+void _isDrawnInFull(WidgetTester tester, String label) {
+  final over = _opacitiesOver(tester, label);
+  expect(over.every((opacity) => opacity == 1.0), isTrue, reason: '$over');
+  expect(_glyphOf(tester, label).color!.a, 1.0);
+}
+
+void _wearsTheBody(
+  WidgetTester tester,
+  String label,
+  IconData glyph, {
+  SalaColors colors = SalaColors.light,
+}) {
+  expect(_cornerDiscOf(label), findsOneWidget);
   expect(_discOf(label), findsAtLeastNWidgets(1));
   expect(tester.getSize(_discOf(label).last), const Size(44, 44));
   final body = _bodyOf(tester, label);
-  expect(body.color, SalaColors.light.elev);
+  expect(body.color, colors.elev);
   final shadow = body.boxShadow!.single;
   expect(shadow.offset, const Offset(0, 1));
   expect(shadow.blurRadius, 3);
@@ -143,7 +161,8 @@ void main() {
     expect(byLabel(hearAgain), findsOneWidget);
     _wearsTheBody(tester, _leave, LucideIcons.menu);
     _wearsTheBody(tester, hearAgain, LucideIcons.rotateCcw);
-    expect(_opacitiesOver(tester, _leave), everyElement(1.0));
+    _isDrawnInFull(tester, _leave);
+    _isDrawnInFull(tester, hearAgain);
   });
 
   testWidgets('the way out keeps its place and its 46 px target', (
@@ -185,7 +204,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       _wearsTheBody(tester, _back, LucideIcons.chevronLeft);
-      expect(_opacitiesOver(tester, _back), everyElement(1.0));
+      _isDrawnInFull(tester, _back);
 
       await _tap(tester, _back);
       await tester.pump(const Duration(seconds: 1));
@@ -193,6 +212,32 @@ void main() {
       expect(room.state.stage, SalaStage.conversa);
     },
   );
+
+  testWidgets('in the dark look the three corner buttons wear the dark body', (
+    tester,
+  ) async {
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    final room = await _pump(tester);
+    await _takeThePanorama(tester, room);
+    final hearAgain = roomLabelFor('hearAgain', 'en');
+
+    _wearsTheBody(tester, _leave, LucideIcons.menu, colors: SalaColors.dark);
+    _wearsTheBody(
+      tester,
+      hearAgain,
+      LucideIcons.rotateCcw,
+      colors: SalaColors.dark,
+    );
+    await _tap(tester, _leave);
+    await tester.pump(const Duration(seconds: 1));
+    _wearsTheBody(
+      tester,
+      _back,
+      LucideIcons.chevronLeft,
+      colors: SalaColors.dark,
+    );
+  });
 
   testWidgets(
     'the way back is dimmed and takes no tap while the scene rehearsal sends',
@@ -249,7 +294,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(container.read(salaSessionProvider).stage, SalaStage.cena);
-      expect(_discOf(_backInPortuguese), findsAtLeastNWidgets(1));
+      expect(_cornerDiscOf(_backInPortuguese), findsOneWidget);
       expect(_opacitiesOver(tester, _backInPortuguese), contains(0.2));
       expect(
         tester.widget<Semantics>(byLabel(_backInPortuguese)).properties.enabled,
