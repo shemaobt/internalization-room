@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -17,6 +18,7 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/main.dart';
 
@@ -34,6 +36,7 @@ const _planLine = 'Estes são os ensaios das cenas que vocês me enviaram.';
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _thinking = 'pensando…';
 const _sceneByScene = 'Gravar cena por cena';
+final _leavePassage = roomLabelFor('leavePassage', 'pt');
 final _personSign = circleLabelFor('needsPerson', 'pt');
 
 const _threeScenes = [
@@ -55,6 +58,8 @@ const _midConversation = Moment(
 );
 const _lastScene = Moment(at: MomentAt.articulation, part: 3, parts: 3);
 const _sendOff = Moment(at: MomentAt.ensaioFinal, parts: 3);
+
+const _handReply = HandReply(id: 'r1', audioUrl: '/resposta/r1');
 
 const _thePassage = Passagem(pericope: 'P01', audioUrl: '/voice/p01');
 
@@ -140,11 +145,13 @@ Future<(SalaHarness, ProviderContainer)> _atRest(
   String lingua = 'pt',
   Moment moment = _midConversation,
   List<Scene> scenes = _threeScenes,
+  List<HandReply> replies = const [],
 }) async {
-  final harness = SalaHarness(lingua: lingua, filaEmMemoria: true)
-    ..room.passages = const [_thePassage]
-    ..room.nextMoment = moment
-    ..room.passageScenes = scenes;
+  final harness =
+      SalaHarness(lingua: lingua, filaEmMemoria: true, replies: replies)
+        ..room.passages = const [_thePassage]
+        ..room.nextMoment = moment
+        ..room.passageScenes = scenes;
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final notifier = container.read(salaSessionProvider.notifier);
@@ -212,6 +219,49 @@ Future<(SalaHarness, ProviderContainer)> _reopenedOnTheConversation(
   );
   await tester.pump(const Duration(seconds: 1));
   return (harness, container);
+}
+
+TakeView _roomPart(int n, {required int pass, String? origin}) => TakeView(
+  takeId: 'gravacao-$n',
+  kind: 'ensaio',
+  scope: KeptScope.parte(n),
+  ordinal: n,
+  pass: pass,
+  origin: origin,
+);
+
+/// Part 1 of the passage waits in the Outbox for a room that cannot take it.
+void _partOneWaitsInTheOutbox(SalaHarness harness) {
+  final waiting = Directory.systemTemp.createTempSync('sala-1382-fila');
+  addTearDown(() => waiting.deleteSync(recursive: true));
+  final audio = File('${waiting.path}/ensaio-parte-1.m4a')
+    ..writeAsBytesSync([1, 2, 3, 4]);
+  harness.room.unreachableTake = 'ensaio/${KeptScope.parte(1)}';
+  (harness.takes as FakeTakeQueue).rows.add(
+    PendingTake(
+      id: 'na-fila-1',
+      path: audio.path,
+      sessionId: 'sessao-antiga',
+      kind: 'ensaio',
+      scope: KeptScope.parte(1),
+      passNumber: 1,
+    ),
+  );
+}
+
+Future<void> _recordAgain(
+  WidgetTester tester,
+  ProviderContainer container,
+  int n,
+) async {
+  final notifier = container.read(salaSessionProvider.notifier);
+  notifier.gravarACena(n);
+  await _theAnswerSettles(tester);
+  notifier.gravarACena(n);
+  await _theAnswerSettles(tester);
+  notifier.takeKeep();
+  await _theAnswerSettles(tester);
+  await letTheRehearsalReachTheRoom(tester);
 }
 
 Future<void> _tapTheDot(WidgetTester tester) async {
@@ -460,16 +510,6 @@ List<KeptTake> _partThreeGone(Directory guardadas) => [
 ];
 
 void main() {
-  test('a joined part the team recorded again by hand names the dot «Gravar o '
-      'ensaio de vocês» again, whatever the room listed before', () {
-    final state = SalaSessionState(
-      theRoomJoinedAPart: true,
-      keptTakes: [KeptTake(scopeId: KeptScope.parte(1), path: 'parte-1.m4a')],
-    );
-
-    expect(state.aPartWasJoined, isFalse);
-  });
-
   testWidgets(
     'mid-conversation the dot is faint and opens the Ensaio Final plan',
     (tester) async {
@@ -579,6 +619,76 @@ void main() {
     },
   );
 
+  testWidgets(
+    'while the raised hand\'s reply plays there is no dot, and a tap where it '
+    'stood never stops it',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, container) = await _atRest(
+        tester,
+        replies: const [_handReply],
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
+      await _pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).hasUnheardReply,
+        beats: 200,
+      );
+      harness.voice.holdNextLine();
+      notifier.handTap();
+      await _pumpUntil(
+        tester,
+        () => harness.voice.played.contains(_handReply.audioUrl),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      final stops = harness.voice.stops;
+
+      expect(_dotOpacity(tester), 0.0);
+      expect(_dotIsDeaf(tester), isTrue);
+      expect(find.semantics.byLabel(_recordEnsaio), findsNothing);
+
+      notifier.openTheEnsaioFinal();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(harness.voice.stops, stops, reason: 'o toque calou a resposta');
+      expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+      harness.voice.finishHeldLine();
+      await _theAnswerSettles(tester);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'while a sent note goes out there is no dot, and a tap where it stood '
+    'never keeps it from the facilitator',
+    (tester) async {
+      final (harness, container) = await _atRest(tester);
+      final notifier = container.read(salaSessionProvider.notifier);
+      notifier.handTap();
+      await tester.pump(const Duration(milliseconds: 300));
+      notifier.conversaTap();
+      await _pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).voice == VoiceState.listening,
+      );
+      await tester.pump(const Duration(seconds: 2));
+      harness.inbox.holdNextQuestion();
+      notifier.conversaTap();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(_dotOpacity(tester), 0.0);
+      expect(_dotIsDeaf(tester), isTrue);
+
+      notifier.openTheEnsaioFinal();
+      await tester.pump(const Duration(milliseconds: 300));
+      harness.inbox.finishHeldQuestion();
+      await _theAnswerSettles(tester);
+
+      expect(harness.inbox.questionsSent, isNotEmpty);
+      expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+    },
+  );
+
   testWidgets('a Panorama never shows the dot', (tester) async {
     final harness = SalaHarness(watchesWithoutAHalt: true)
       ..room.passages = const [_thePanorama, _thePassage]
@@ -624,25 +734,27 @@ void main() {
   );
 
   testWidgets(
-    'the room\'s parts are fetched while «pensando…» stands, and the recording '
-    'home opens with them under their rows',
+    'a slow part opens the recording home by 6 seconds, with the way out, and '
+    'the room\'s part comes in behind its row',
     (tester) async {
       final (harness, _) = await _reopenedOverPartOne(tester, origin: 'cena-1');
-      harness.room.holdNextClip();
+      harness.room.clipDelay = const Duration(seconds: 30);
 
       await _tapTheDot(tester);
-      await _theAnswerSettles(tester);
-
-      expect(find.text(_thinking), findsOneWidget);
-      expect(find.text(_homeLine), findsNothing);
-
-      harness.room.finishHeldClip();
-      await _theAnswerSettles(tester);
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_thinking), findsNothing);
+      expect(byLabel(_leavePassage), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 25));
+      await _theAnswerSettles(tester);
+
       expect(
         find.descendant(of: _row(1, _threeScenes), matching: byLabel('Ouvir')),
         findsOneWidget,
+        reason: 'a parte da sala não chegou à linha 1',
       );
     },
   );
@@ -653,32 +765,62 @@ void main() {
     (tester) async {
       final (harness, container) = await _reopenedOnTheConversation(
         tester,
-        roomTakes: [
-          for (final (n, pass) in [(1, 1), (2, 3)])
-            TakeView(
-              takeId: 'gravacao-$n',
-              kind: 'ensaio',
-              scope: KeptScope.parte(n),
-              ordinal: n,
-              pass: pass,
-            ),
-        ],
+        roomTakes: [_roomPart(1, pass: 1), _roomPart(2, pass: 3)],
         before: (harness) => harness.room.refuseClipOf.add('gravacao-2'),
       );
-      final notifier = container.read(salaSessionProvider.notifier);
       await _tapTheDot(tester);
       await _theAnswerSettles(tester);
       expect(find.text(_homeLine), findsOneWidget);
 
-      notifier.gravarACena(2);
-      await _theAnswerSettles(tester);
-      notifier.gravarACena(2);
-      await _theAnswerSettles(tester);
-      notifier.takeKeep();
-      await _theAnswerSettles(tester);
-      await letTheRehearsalReachTheRoom(tester);
+      await _recordAgain(tester, container, 2);
 
       expect(harness.room.takePasses, [4]);
+    },
+  );
+
+  testWidgets(
+    'a part the room holds whose audio cannot be fetched, recorded again from '
+    'the dot\'s home, goes up above the room\'s pass',
+    (tester) async {
+      final (harness, container) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: [_roomPart(2, pass: 3)],
+      );
+      harness.room.failClipWith = const NetworkFailed('sem rede');
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      expect(find.text(_homeLine), findsOneWidget);
+      harness.room.failClipWith = null;
+
+      await _recordAgain(tester, container, 2);
+
+      expect(harness.room.takePasses, [4]);
+    },
+  );
+
+  testWidgets(
+    'with a part waiting in the Outbox the dot\'s home lays in the room\'s '
+    'part, and recording it again goes up above the room\'s pass',
+    (tester) async {
+      final (harness, container) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: [_roomPart(2, pass: 3)],
+        before: _partOneWaitsInTheOutbox,
+      );
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(
+        find.descendant(of: _row(2, _threeScenes), matching: byLabel('Ouvir')),
+        findsOneWidget,
+        reason: 'a linha 2 não trazia a parte da sala',
+      );
+
+      await _recordAgain(tester, container, 2);
+
+      expect(harness.room.takePasses.last, 4);
     },
   );
 
@@ -686,27 +828,10 @@ void main() {
     'a take of the passage waiting in the Outbox opens the recording home, '
     'never the plan',
     (tester) async {
-      final waiting = Directory.systemTemp.createTempSync('sala-1382-fila');
-      addTearDown(() => waiting.deleteSync(recursive: true));
-      final audio = File('${waiting.path}/ensaio-parte-1.m4a')
-        ..writeAsBytesSync([1, 2, 3, 4]);
       await _reopenedOnTheConversation(
         tester,
         roomTakes: const [],
-        before: (harness) =>
-            (harness.takes as FakeTakeQueue
-                  ..room.unreachableTake = 'ensaio/${KeptScope.parte(1)}')
-                .rows
-                .add(
-                  PendingTake(
-                    id: 'na-fila-1',
-                    path: audio.path,
-                    sessionId: 'sessao-antiga',
-                    kind: 'ensaio',
-                    scope: KeptScope.parte(1),
-                    passNumber: 1,
-                  ),
-                ),
+        before: _partOneWaitsInTheOutbox,
       );
 
       await _tapTheDot(tester);
@@ -769,8 +894,14 @@ void main() {
           tester,
           takes: _partThreeGone,
         );
+        final store = it.harness.emAberto;
         await it.relaunchIt();
         it.expectThreeRecordedRows();
+        final kept = store.rows['Ruth/P01/pt']!;
+        expect(kept.wholeHeldByTheRoom, ['gravacao-inteira']);
+        expect([
+          for (final take in kept.takes) take.scopeId,
+        ], isNot(contains(KeptScope.whole)));
         final reads = it.takeReads;
         final clips = it.room.clipsFetched.length;
 
@@ -861,7 +992,25 @@ void main() {
       return it;
     }
 
-    test('stays out of the telling-back after a second relaunch', () async {
+    Future<void> drawTheTellingBack(
+      WidgetTester tester,
+      ProviderContainer container,
+    ) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const Scaffold(body: RetroView()),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    testWidgets('stays out of the telling-back after a second relaunch', (
+      tester,
+    ) async {
       final home = Directory.systemTemp.createTempSync('sala-1382-traducao');
       addTearDown(() => home.deleteSync(recursive: true));
       final harness = SalaHarness(takesHome: home)
@@ -888,24 +1037,33 @@ void main() {
           ],
         )
         ..takes.addAll([_theWhole, _part(1), _part(2)]);
-      final launched = harness.container();
+      final launched = (await tester.runAsync(() async {
+        final launched = harness.container();
+        await openTheTellingBack(harness, launched);
+        return launched;
+      }))!;
       addTearDown(launched.dispose);
-      final first = await openTheTellingBack(harness, launched);
-      expect([
-        for (final trecho in first.estado.btTrechos) trecho.takeId,
-      ], isNot(contains('gravacao-inteira')));
 
       final clips = harness.room.clipsFetched.length;
-      final (again, next) = await relaunch(harness, first.container);
-      again.playback.measured = const Duration(seconds: 10);
-      final reopened = await openTheTellingBack(again, next);
+      final next = (await tester.runAsync(() async {
+        final (again, next) = await relaunch(harness, launched);
+        again.playback.measured = const Duration(seconds: 10);
+        await openTheTellingBack(again, next);
+        return next;
+      }))!;
+      await drawTheTellingBack(tester, next);
 
-      expect(reopened.estado.stage, SalaStage.retro);
+      expect(next.read(salaSessionProvider).stage, SalaStage.retro);
+      await tester.ensureVisible(find.text('recomeçar a tradução'));
+      await tester.pump();
+      await tester.tap(find.text('recomeçar a tradução'));
+      await tester.pump(const Duration(milliseconds: 100));
       expect(
-        [for (final trecho in reopened.estado.btTrechos) trecho.takeId],
-        isNot(contains('gravacao-inteira')),
+        find.text('toque de novo para apagar as 2 frases traduzidas'),
+        findsOneWidget,
         reason: 'o que foi contado sobre o inteiro voltou à tradução',
       );
+      await tester.pump(const Duration(seconds: 10));
       expect(
         harness.room.clipsFetched,
         hasLength(clips),

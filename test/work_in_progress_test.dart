@@ -195,7 +195,7 @@ void main() {
     const linha = ResumePoint(
       sessionId: 'sessao-1',
       stage: SalaStage.ensaio,
-      wholeSetAside: ['gravacao-inteira'],
+      wholeHeldByTheRoom: ['gravacao-inteira'],
     );
     const semEles = '{"session_id":"sessao-1","stage":"ensaio","takes":[]}';
 
@@ -205,8 +205,8 @@ void main() {
       folder: '/gravacoes',
     )!;
 
-    expect(volta.wholeSetAside, ['gravacao-inteira']);
-    expect(antiga.wholeSetAside, isEmpty);
+    expect(volta.wholeHeldByTheRoom, ['gravacao-inteira']);
+    expect(antiga.wholeHeldByTheRoom, isEmpty);
   });
 
   test('a row written before the part being recorded again existed reopens '
