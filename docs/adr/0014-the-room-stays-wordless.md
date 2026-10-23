@@ -68,9 +68,19 @@ primeiro». It is the ninth named exception, under the moment label's reason, he
 the team reads. Her record, listen, record-again and stop controls are icons VoiceOver reads
 by her names; the rest of that screen stays wordless.
 
+Amended by ENG-1382 (2026-10-22, ADR 0117): the orange dot opens her Ensaio Final plan
+(`widgets/ensaio_final_plan_view.dart`): «pensando…» while the room is read, then «Ensaio
+Final», «Estes são os ensaios das cenas que vocês me enviaram.» and «Gravar cena por cena».
+It is the tenth named exception, under the moment label's reason, her words the team reads.
+
+Amended by ENG-1408 (2026-10-22, ADR 0123): the Back-translation of a joined recording reads
+«Ensaio Final», and during the First listen «Primeiro, só ouvir: a passagem inteira, do
+começo ao fim.» and the position line «ouvindo a gravação de vocês… — parte 2 · 0:41 /
+1:10». `widgets/retro_view.dart` is already a named exception, so there is no new one.
+
 Amended by ENG-1259 (2026-10-22, ADR 0112): an approval ends on her Saved screen
 (`widgets/saved_screen.dart`): «Ensaio salvo», her approved sentence with its version, and
-«Pronto». It is the tenth named exception, under the moment label's reason, her words the team
+«Pronto». It is the eleventh named exception, under the moment label's reason, her words the team
 reads. The check mark is decorative and VoiceOver skips it; «Pronto» is read by its word.
 
 Amended by ENG-1260 (2026-10-22, ADR 0113): the Back-translation of an approved draft shows
@@ -107,3 +117,9 @@ moved outside it.
 The rule is mechanical and cannot be argued with in review, which is the point. The
 exception is honest: a **Facilitator** reads that one screen once, at installation, and the
 **Team** never sees it again.
+
+Amended by ENG-1377 (2026-10-22, ADR 0124): the Update screen writes its line and its button
+(`widgets/update_view.dart`): «Há uma versão nova do aplicativo. Toquem para atualizar.» and
+«Atualizar». It is a named exception under its own reason, the words that send the team to the
+store: a build kept out of the room has no stage to speak through. VoiceOver reads the line and
+the button.

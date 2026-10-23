@@ -52,30 +52,28 @@ ProviderContainer _tablet({
   Duration? flushesAfter,
 }) {
   final outbox = _tempHome();
+  final queue = QueueThatFlushesLate(
+    room: room,
+    home: () async => outbox,
+    recordings: FakeRecorder.new,
+  )..flushesAfter = flushesAfter;
+  addTearDown(() => _theFlushEnds(queue));
   return ProviderContainer(
     overrides: [
       roomRepositoryProvider.overrideWithValue(room),
       linkedTeamProvider.overrideWithValue(ledger),
       linkPollIntervalProvider.overrideWithValue(linkPoll),
       roomRetryBackoffProvider.overrideWithValue(const [_quickPoll]),
-      takeUploadQueueProvider.overrideWithValue(
-        QueueThatFlushesLate(
-          room: room,
-          home: () async => outbox,
-          recordings: FakeRecorder.new,
-        )..flushesAfter = flushesAfter,
-      ),
+      takeUploadQueueProvider.overrideWithValue(queue),
     ],
   );
 }
 
-Future<void> _theFlushEnds(ProviderContainer container) async {
-  final outbox =
-      container.read(takeUploadQueueProvider) as QueueThatFlushesLate;
+Future<void> _theFlushEnds(QueueThatFlushesLate queue) async {
   await waitFor(
     'o envio que a apresentação começou terminar antes de o caso acabar, '
     'ou o tearDown apaga a pasta da fila por baixo dele',
-    () => outbox.flushing == 0,
+    () => queue.flushing == 0,
   );
 }
 
@@ -365,7 +363,6 @@ void main() {
               'a credencial que já estava no cofre nunca precisou ser pedida '
               'de novo ao servidor',
         );
-        await _theFlushEnds(container);
       },
     );
 
