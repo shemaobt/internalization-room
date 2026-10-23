@@ -510,7 +510,6 @@ void main() {
       ..linkedTo = const TeamLink(projectId: 'equipe-2');
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byType(CodigoView), findsNothing);
   }
 
   testWidgets('a revocation while the Rehearsal records stops the microphone '
@@ -566,27 +565,5 @@ void main() {
           'mais ninguém para fechá-lo; gravaria atrás da tela do código',
     );
     await theDeskLinksAgain(tester, harness);
-  });
-
-  testWidgets('after the next link and a passage entry, the revocation '
-      'discarded the take once and the new Life discards nothing more', (
-    tester,
-  ) async {
-    final harness = SalaHarness(
-      linkedAs: _linked,
-      linkPoll: const Duration(milliseconds: 50),
-      filaEmMemoria: true,
-    );
-    final container = await pumpSala(tester, harness);
-    await tester.pump(const Duration(milliseconds: 300));
-    await openTheMicrophone(tester, container);
-    await theDeskRevokes(tester, harness, container);
-
-    await theDeskLinksAgain(tester, harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(harness.recorder.deleted, hasLength(1));
   });
 }

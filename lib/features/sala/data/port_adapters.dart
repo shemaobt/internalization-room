@@ -150,6 +150,9 @@ class ProviderRecorderPort implements RecorderPort {
   Future<void> discard() => _recorder.discard();
 
   @override
+  Future<void> delete(String path) => _recorder.delete(path);
+
+  @override
   Stream<bool> get taken => _recorder.interrupted;
 }
 

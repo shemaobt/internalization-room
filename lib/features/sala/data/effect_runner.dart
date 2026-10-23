@@ -542,7 +542,10 @@ class EffectRunner {
         ),
       );
     }
-    if (_disposed) return;
+    if (_disposed) {
+      if (take != null) unawaited(recorder.delete(take));
+      return;
+    }
     host.answer(
       MicAnswered(MicAnswer.closed, take: take, generation: generation?.call()),
     );

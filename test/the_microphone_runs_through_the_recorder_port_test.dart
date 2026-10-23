@@ -64,6 +64,15 @@ void main() {
     },
   );
 
+  test('a take handed back after the runner is disposed is deleted', () async {
+    runner.run(const [CloseTheMic()]);
+    runner.dispose();
+    recorder.answerTheStop(_file);
+    await pumpEventQueue();
+
+    expect(recorder.heard, ['stop', 'delete:$_file']);
+  });
+
   test('open, speak, close: one take is handed to the machine', () async {
     var machine = Machine(generation: generation);
     void reduceAndRun(MachineEvent event) {
