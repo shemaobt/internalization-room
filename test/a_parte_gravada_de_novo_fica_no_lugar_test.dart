@@ -1326,6 +1326,7 @@ void main() {
             'sem a leitura depois da aprovação o selo não vem, e aprovar '
             'segue oferecido',
       );
+      await tester.tap(byLabel(_aprovar));
       it.container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 400));
 
