@@ -120,7 +120,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
       if ((was?.linked ?? false) && !now.linked) _closeTheRoom();
     });
 
-    if (!link.linked) {
+    if (!link.linked && widget.built) {
       return Scaffold(
         body: SafeArea(
           child: CodigoView(
