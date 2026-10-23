@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
@@ -93,6 +92,18 @@ Future<Sala> _tresPartesAteAConferida() async {
   return it;
 }
 
+Future<void> _prontoEFora(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tester.tap(byLabel('Pronto'));
+  await tester.pump(const Duration(milliseconds: 300));
+  _notifier(container).leaveThePassage();
+  await tester.pump(const Duration(milliseconds: 700));
+  await tester.pump(const Duration(seconds: 1));
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
 Future<void> _aprovarEEsperar(WidgetTester tester) async {
   await tester.tap(byLabel(_aprovar));
   await tester.pump(const Duration(milliseconds: 300));
@@ -176,7 +187,7 @@ void main() {
   );
 
   testWidgets(
-    'aprovar manda a release com o aparelho, fala a linha P3 e só então fecha o colar',
+    'aprovar manda a release com o aparelho, fala a linha P3 e só então mostra o ensaio salvo',
     (tester) async {
       final it = await _ateAConferida(tester);
       final sessao = _estado(it.container).sessionId;
@@ -198,33 +209,29 @@ void main() {
             'a linha da aprovação é a quarta das falas de processo da '
             'Marcia; tocada do pacote, falava do OBT Refine depois de ela mudar',
       );
-      // Passado o tempo inteiro que o fecho leva, com a fala ainda na boca da sala: o
-      // colar fecha 700ms depois de ser mandado fechar, então medir logo após o toque diz
-      // apenas que 700ms não passaram, e um fecho mandado antes da fala passaria por aqui.
       await tester.pump(const Duration(seconds: 2));
 
       expect(
-        _estado(it.container).stage,
-        SalaStage.retro,
+        find.text('Ensaio salvo'),
+        findsNothing,
         reason:
-            'e a fala vem antes do fecho: fechar por cima dela tiraria a '
-            'equipe da tela no meio da frase que diz o que acabou de acontecer',
+            'e a fala vem antes da tela do ensaio salvo: trocar a tela por '
+            'cima dela tiraria a equipe da tradução no meio da frase que diz '
+            'o que acabou de acontecer',
       );
 
       it.harness.voice.finishHeldLine();
       await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 700));
 
       expect(
-        _estado(it.container).stage,
-        SalaStage.fim,
-        reason: 'dita a linha, o colar fecha como sempre fechou',
+        find.text('Ensaio salvo'),
+        findsOneWidget,
+        reason: 'dita a linha, a tela do ensaio salvo vem',
       );
-
       expect(
         it.harness.emAberto.rows,
-        isNot(contains('Ruth/P01/pt')),
-        reason: 'e não há mais a que voltar',
+        contains('Ruth/P01/pt'),
+        reason: 'e a passagem segue sendo o ponto de retomada',
       );
 
       closeTheRoom(it.container);
@@ -308,12 +315,11 @@ void main() {
       await _aprovarEEsperar(tester);
       expect(it.harness.room.releasesAsked, hasLength(1));
       expect(
-        _estado(it.container).stage,
-        SalaStage.retro,
+        find.text('Ensaio salvo'),
+        findsOneWidget,
         reason:
-            'a segunda pressão é feita antes de o colar fechar — depois do '
-            'fecho seria a guarda de etapa a recusá-la, e não a da aprovação '
-            'que já aconteceu',
+            'a segunda pressão é feita com a tela do ensaio salvo de pé, '
+            'sobre a mesma tradução conferida',
       );
 
       _notifier(it.container).aprovarRascunhoFinal();
@@ -323,8 +329,8 @@ void main() {
         it.harness.room.releasesAsked,
         hasLength(1),
         reason:
-            'aprovada uma vez, aprovada: o gesto acabou e o fecho está a '
-            'caminho',
+            'aprovada uma vez, aprovada: o gesto acabou e a tela do ensaio '
+            'salvo é a resposta dele',
       );
 
       closeTheRoom(it.container);
@@ -581,8 +587,7 @@ void main() {
   });
 
   testWidgets(
-    'the Choice after the Closing marks the approved passage with its '
-    'dot and tints nothing',
+    'the Choice after an approval marks the approved passage with its dot',
     (tester) async {
       final it = await _ateAConferida(
         tester,
@@ -608,9 +613,7 @@ void main() {
       ];
 
       await _aprovarEEsperar(tester);
-      await tester.pump(const Duration(milliseconds: 700));
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(milliseconds: 100));
+      await _prontoEFora(tester, it.container);
 
       expect(_estado(it.container).stage, SalaStage.escolha);
       expect(
@@ -622,18 +625,6 @@ void main() {
           matching: find.text('●'),
         ),
         findsOneWidget,
-      );
-      expect(
-        tester
-            .widgetList<DecoratedBox>(find.byType(DecoratedBox))
-            .map((box) => box.decoration)
-            .whereType<BoxDecoration>()
-            .where(
-              (decoration) =>
-                  decoration.color == ShemaBrand.azul.withValues(alpha: 0.18),
-            ),
-        isEmpty,
-        reason: 'o fecho larga a sessão: nada fica tingido',
       );
 
       closeTheRoom(it.container);
@@ -653,22 +644,20 @@ void main() {
 
     // A segunda passagem é uma que a equipe deixou conferida sem aprovar, que é o estado
     // que este ticket cria: ela tem de poder ser aprovada como a primeira. A linha é
-    // escrita antes do fecho porque a roda lê quais passagens já foram começadas ao
-    // reabrir, e o recomeço reabre a roda sozinho.
+    // escrita antes da saída porque a roda lê quais passagens já foram começadas ao
+    // reabrir.
     it.harness.emAberto.rows['Ruth/P02/${it.harness.lingua}'] =
         const ResumePoint(sessionId: 'sessao-da-p02', stage: SalaStage.retro);
 
     await _aprovarEEsperar(tester);
-    await tester.pump(const Duration(milliseconds: 700));
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump(const Duration(milliseconds: 100));
+    await _prontoEFora(tester, it.container);
 
     expect(
       _estado(it.container).stage,
       SalaStage.escolha,
       reason:
-          'a sala recomeça sozinha depois do fecho — se não recomeçar, '
-          'este cenário não chega à segunda passagem',
+          'a equipe sai pela saída da passagem depois do ensaio salvo — se '
+          'não sair, este cenário não chega à segunda passagem',
     );
     expect(it.harness.room.releasesAsked, hasLength(1));
 
@@ -1204,8 +1193,8 @@ void main() {
 
     await it.sala.aprovarRascunhoFinal();
     await waitFor(
-      'a passagem fechar',
-      () => !it.harness.emAberto.rows.containsKey('Ruth/P01/pt'),
+      'a aprovação terminar no ensaio salvo',
+      () => it.estado.ensaioSalvo != null,
     );
 
     expect(
@@ -1216,7 +1205,7 @@ void main() {
           'nem a da release já dada ficam de pé depois dela, e a equipe que '
           'tapou o buraco tem de poder aprovar de verdade — com a primeira '
           'trava presa o botão fica morto, com a segunda a sala fala a '
-          'linha e fecha o colar sobre uma release que nunca foi cunhada',
+          'linha e salva o ensaio sobre uma release que nunca foi cunhada',
     );
   });
 

@@ -357,6 +357,17 @@ class SalaSessionState {
 
   /// The approval the newest Session read says the draft stands under.
   final ApprovedDraft? btRascunhoAprovado;
+
+  /// The Generation an approval is in the air in: from the press until the Saved screen or
+  /// the end of the refusal's handling. A newer Generation is not held by it.
+  final int? btAprovando;
+
+  /// The version this press minted, while her approved sentence and P3 stand on the
+  /// Back-translation.
+  final int? btAprovadoAgora;
+
+  /// The version the Saved screen shows; the Saved screen stands while it is set.
+  final int? ensaioSalvo;
   final int unsentTakes;
   final int unsentChunks;
   final Map<int, UnsentPart> unsentParts;
@@ -507,6 +518,9 @@ class SalaSessionState {
     this.btFraseQueAguarda,
     this.btFraseGuardada,
     this.btRascunhoAprovado,
+    this.btAprovando,
+    this.btAprovadoAgora,
+    this.ensaioSalvo,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentParts = const {},
@@ -1145,6 +1159,7 @@ class SalaSessionState {
   };
 
   bool fraseRegravavel(Trecho trecho) =>
+      aBackTranslationGestureActs &&
       trecho.frase != null &&
       btFraseTraduzidaDeNovo == null &&
       btRegravacao?.passo != PassoDaRegravacao.enviando &&
@@ -1175,7 +1190,17 @@ class SalaSessionState {
   /// the screen so the affordance and the verb it opens read the same fact; the verb keeps
   /// its own guard as well, because it is reachable from more than this one press.
   bool get canListenAtConferida =>
-      btPhase == BtPhase.conferida && partes.isNotEmpty && everyPartIsHere;
+      btPhase == BtPhase.conferida &&
+      partes.isNotEmpty &&
+      everyPartIsHere &&
+      aBackTranslationGestureActs;
+
+  /// Whether a gesture on the Back-translation acts: never while an approval is in the
+  /// air, so nothing the team presses during her approved line moves what was approved.
+  bool get aBackTranslationGestureActs => btAprovando != machine.generation;
+
+  /// Whether the approve button acts: never while a sentence's re-record is open.
+  bool get canApprove => aBackTranslationGestureActs && btRegravacao == null;
 
   /// Whether the part the stretch [trecho] sits on is on the tablet.
   bool aParteDoTrechoEstaAqui(Trecho trecho) => aParteDoTrecho(trecho) == null;
@@ -1191,6 +1216,7 @@ class SalaSessionState {
       stage == SalaStage.retro &&
       partes.isNotEmpty &&
       !needsPerson &&
+      aBackTranslationGestureActs &&
       btRegravacao == null &&
       btFraseQueAguarda == null &&
       (btPhase == BtPhase.findings ||
@@ -1202,6 +1228,7 @@ class SalaSessionState {
       stage == SalaStage.retro &&
       partes.isNotEmpty &&
       !needsPerson &&
+      aBackTranslationGestureActs &&
       btRegravacao == null &&
       (btPhase == BtPhase.playing ||
           btPhase == BtPhase.findings ||
@@ -1278,6 +1305,12 @@ class SalaSessionState {
     bool clearBtFraseGuardada = false,
     ApprovedDraft? btRascunhoAprovado,
     bool clearBtRascunhoAprovado = false,
+    int? btAprovando,
+    bool clearBtAprovando = false,
+    int? btAprovadoAgora,
+    bool clearBtAprovadoAgora = false,
+    int? ensaioSalvo,
+    bool clearEnsaioSalvo = false,
     int? unsentTakes,
     int? unsentChunks,
     Map<int, UnsentPart>? unsentParts,
@@ -1387,6 +1420,11 @@ class SalaSessionState {
       btRascunhoAprovado: clearBtRascunhoAprovado
           ? null
           : (btRascunhoAprovado ?? this.btRascunhoAprovado),
+      btAprovando: clearBtAprovando ? null : (btAprovando ?? this.btAprovando),
+      btAprovadoAgora: clearBtAprovadoAgora
+          ? null
+          : (btAprovadoAgora ?? this.btAprovadoAgora),
+      ensaioSalvo: clearEnsaioSalvo ? null : (ensaioSalvo ?? this.ensaioSalvo),
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentParts: unsentParts ?? this.unsentParts,

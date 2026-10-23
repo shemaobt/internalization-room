@@ -17,6 +17,7 @@ import 'facilitator_circle.dart';
 import 'frase_list.dart';
 import 'motion.dart';
 import 'pause_adjust_row.dart';
+import 'saved_screen.dart';
 import 'stage_heading.dart';
 import 'status_lines.dart';
 
@@ -28,6 +29,9 @@ class RetroView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
+    if (session.ensaioSalvo case final versao?) {
+      return SavedScreen(version: versao);
+    }
     // A halted voice is never painted over. The checked circle is drawn done because the
     // passage is right, and that read over a room stopped for a person or with no
     // network: the team got a green circle, two buttons the guards refuse, no way out of
@@ -99,7 +103,9 @@ class RetroView extends ConsumerWidget {
               halt: session.halt,
               voice: voz,
               tongue: lingua,
-              answersATouch: !conferida || session.btRegravacao != null,
+              answersATouch:
+                  session.aBackTranslationGestureActs &&
+                  (!conferida || session.btRegravacao != null),
               warning: session.warning && session.approvedDraftDrawn == null
                   ? warningNoticeLabelFor(language)
                   : null,
@@ -182,6 +188,7 @@ class RetroView extends ConsumerWidget {
     SalaSessionNotifier notifier,
     String language,
   ) {
+    final atua = session.aBackTranslationGestureActs;
     final contadas = [
       for (final (onde, trecho) in session.btTrechos.indexed)
         if (trecho.contado) (onde, trecho),
@@ -262,7 +269,8 @@ class RetroView extends ConsumerWidget {
               ? () => notifier.regravarAFrase(trecho)
               : null,
           revisao:
-              session.btRegravacao?.frase == trecho.frase &&
+              atua &&
+                  session.btRegravacao?.frase == trecho.frase &&
                   session.btRegravacao?.passo == PassoDaRegravacao.revendo
               ? FraseRevisao(
                   ouvir: sceneRehearsalLabelFor(
@@ -294,7 +302,8 @@ class RetroView extends ConsumerWidget {
             _ => null,
           },
           onEstado:
-              session.btRegravacao == null &&
+              atua &&
+                  session.btRegravacao == null &&
                   trecho.frase != null &&
                   session.btFraseGuardada == trecho.frase
               ? notifier.tentarAFraseDeNovo
@@ -326,7 +335,9 @@ class RetroView extends ConsumerWidget {
             language,
             n: session.btTrechos.where((trecho) => trecho.contado).length,
           );
-    final dormindo = session.btRecomeco == BtRecomeco.armado;
+    final dormindo =
+        session.btRecomeco == BtRecomeco.armado ||
+        !session.aBackTranslationGestureActs;
     return Semantics(
       button: true,
       enabled: !dormindo,
@@ -355,6 +366,9 @@ class RetroView extends ConsumerWidget {
   }
 
   String? _estado(SalaSessionState session, String language) {
+    if (session.btAprovadoAgora case final versao?) {
+      return retroLabelFor('approved', language, n: versao);
+    }
     final aviso = switch (session.btAviso) {
       BtAviso.recomecoFalhou => 'restartFailed',
       BtAviso.pausaSoNaUltima => 'pauseOnlyOnTheLast',
@@ -366,6 +380,7 @@ class RetroView extends ConsumerWidget {
     final recusa = switch (session.btRecusa) {
       CheckRefusal.partUnheard => 'partUnheard',
       CheckRefusal.nothingTranslated => 'nothingTranslated',
+      CheckRefusal.notConferida => 'notConferida',
       CheckRefusal.checkUnavailable => 'checkFailed',
       _ => null,
     };
@@ -664,6 +679,7 @@ class RetroView extends ConsumerWidget {
                 size: 60,
                 semanticLabel: retroLabelFor('approve', language),
                 gradient: BeadStyles.verde,
+                mood: session.canApprove ? ButtonMood.lit : ButtonMood.dimmed,
                 onTap: notifier.aprovarRascunhoFinal,
                 child: const Icon(
                   LucideIcons.check,
