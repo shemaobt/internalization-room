@@ -36,7 +36,7 @@ stranger halfway through was asked to begin again under a new number.
 
 - Until the frases arrive (ENG-1431), a listener ends when the retelling lands: X-thanks in the
   Session language, the check mark, «Agradecemos sua ajuda.», «Outro ouvinte» and «Terminar a
-  checagem». The finish goes up once, `completed: true` (provisional, the Definer's Q72); both
+  checagem». The finish goes up once, `completed: true` (the Definer's Q72); both
   buttons send it again only when the room never acknowledged it, and a resend that fails
   holds no one.
 - «Outro ouvinte» starts the next number exactly as «Novo ouvinte» does. «Terminar a checagem»
@@ -58,5 +58,5 @@ stranger halfway through was asked to begin again under a new number.
 
 `em_curso.json` gains an optional `listener`; older rows read as no listener. The Back-
 translation reads the session on every leave of the check. Another tablet remembers no one of
-this tablet and takes the room's next number. Under Q72 a listener of this round reads
-complete on the Desk whatever the frases would have said.
+this tablet and takes the room's next number. A listener whose retelling landed reads
+complete on the Desk.

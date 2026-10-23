@@ -42,6 +42,7 @@ const _keptByDecision = <String, String>{
   '_backToTheCheck': 'ADR 0116',
   '_backToTheListener': 'ADR 0116',
   '_sendTheFinish': 'ADR 0116',
+  '_theCheckDidNotOpen': 'ADR 0116',
 };
 
 final _namesAFailure = RegExp(

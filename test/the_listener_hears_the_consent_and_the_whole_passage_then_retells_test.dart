@@ -605,9 +605,11 @@ void main() {
     await _tocar(tester, _circulo);
     await _tocar(tester, _circulo);
     expect(harness.room.listenerRecordings, hasLength(1));
-    await _passar(tester);
+    final desde = harness.playback.played.length;
 
-    expect(byLabel(_ouvirDeNovo), findsNothing);
+    await _tocar(tester, 'Outro ouvinte');
+
+    expect(_ouvidoDesde(harness, desde), ['t1']);
     expect(
       harness.playback.played.where(
         (path) =>
@@ -625,7 +627,7 @@ void main() {
       ))
         control.properties.label,
     };
-    expect(controles, {_voltar, 'Outro ouvinte', 'Terminar a checagem'});
+    expect(controles, {_voltar, _circulo});
     closeTheRoom(container);
   });
 

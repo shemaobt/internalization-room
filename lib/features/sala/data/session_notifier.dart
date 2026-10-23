@@ -2695,11 +2695,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     switch (answer) {
       case Answered(value: final check):
+        _resumeFailures.clear();
         await _backToTheListener(sessionId, check, generation);
       case Refused(code: RefusalCode.draftNotApproved):
         _listenerInProgress = null;
         _rememberWhereTheyAre(const Retro());
-      case SessionGone() && final failure:
+      case final RoomFailure failure:
+        _theCheckDidNotOpen(failure);
+    }
+  }
+
+  /// Her open-failed words on the Back-translation, or the Choice when the session is gone.
+  void _theCheckDidNotOpen(RoomFailure failure) {
+    switch (failure) {
+      case SessionGone():
         _decideTheFailure(failure);
       case NetworkFailed():
         _theNetworkFailedAt(Door.stretches);
@@ -6300,13 +6309,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Refused(code: RefusalCode.draftNotApproved):
         state = state.copyWith(btAviso: BtAviso.checagemNaoAbre);
         await _readTheStretchesBack(sessionId, generation);
-      case SessionGone() && final failure:
-        _decideTheFailure(failure);
-      case NetworkFailed():
-        _theNetworkFailedAt(Door.stretches);
-        state = state.copyWith(btAviso: BtAviso.checagemFalhou);
-      case Refused():
-        state = state.copyWith(btAviso: BtAviso.checagemFalhou);
+      case final RoomFailure failure:
+        _theCheckDidNotOpen(failure);
     }
   }
 
@@ -6363,13 +6367,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         _rememberWhereTheyAre(ChecagemExterna(check.version));
         if (ends) unawaited(_sendTheFinish(_waitOnTheGeneration));
-      case SessionGone() && final failure:
-        _decideTheFailure(failure);
-      case NetworkFailed():
-        _theNetworkFailedAt(Door.stretches);
-        state = state.copyWith(btAviso: BtAviso.checagemFalhou);
-      case Refused():
-        state = state.copyWith(btAviso: BtAviso.checagemFalhou);
+      case final RoomFailure failure:
+        _theCheckDidNotOpen(failure);
     }
     return true;
   }
@@ -6633,12 +6632,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
     );
     unawaited(_sendTheFinish(_waitOnTheGeneration));
-    _handOff(
-      _sayALine(
+    _handOff(_sayTheThanks());
+  }
+
+  Future<void> _sayTheThanks() async {
+    try {
+      await _sayALine(
         LineKind.guide,
         fixedLine: (name: listenerThanksLine, language: _inTheSessionsLanguage),
-      ),
-    );
+      );
+    } on RoomFailure catch (failure) {
+      _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
+    }
   }
 
   /// Tells the room the listener finished, unless it already acknowledged it. The end

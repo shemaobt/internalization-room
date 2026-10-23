@@ -183,6 +183,20 @@ List<(String, String)> _falasX(SalaHarness harness) => [
     if (line.$1.startsWith('X')) line,
 ];
 
+bool? _habilitado(WidgetTester tester, String label) =>
+    tester.widget<Semantics>(byLabel(label)).properties.enabled;
+
+Future<void> _entrarDeNovo(WidgetTester tester, _Tablet tablet) async {
+  await tester.runAsync(() async {
+    final notifier = tablet.container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+    await Future<void>.delayed(const Duration(seconds: 1));
+  });
+  await _passar(tester);
+}
+
 int _gravacoes(SalaHarness harness) =>
     harness.sounds.where((sound) => sound == 'recorder:start').length;
 
@@ -322,16 +336,15 @@ void main() {
     harness.room.holdNextFinish();
     final tablet = await _noAgradecimento(tester, harness);
 
-    for (final label in [_outroOuvinte, _outroOuvinte, _terminarAChecagem]) {
-      if (byLabel(label).evaluate().isEmpty) continue;
-      await tester.tap(byLabel(label), warnIfMissed: false);
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    expect(_habilitado(tester, _outroOuvinte), isFalse);
+    expect(_habilitado(tester, _terminarAChecagem), isFalse);
+    await _tocar(tester, _outroOuvinte);
+    await _tocar(tester, _outroOuvinte);
+    await _tocar(tester, _terminarAChecagem);
     harness.room.finishHeldFinish();
     await _passar(tester);
-    if (byLabel(_outroOuvinte).evaluate().isNotEmpty) {
-      await _tocar(tester, _outroOuvinte);
-    }
+    expect(_habilitado(tester, _outroOuvinte), isTrue);
+    await _tocar(tester, _outroOuvinte);
 
     expect(harness.room.listenersFinished, [
       (version: 1, number: 1, completed: true),
@@ -502,6 +515,40 @@ void main() {
     expect(harness.emAberto.rows['$_linha/pt']?.listener, isNull);
   });
 
+  testWidgets('a session zeroed on the Desk sends the team to the Choice from '
+      'the resume, and the row no longer names the listener', (tester) async {
+    final harness = _aprovadaNaSala();
+    final first = await _noReconto(tester, harness);
+    harness.room.failNextListenerReadWith = const SessionGone();
+
+    final again = await _relancar(tester, first);
+
+    expect(_sala(again).stage, SalaStage.escolha);
+    expect(harness.room.listenersRead, [1]);
+    expect(harness.emAberto.rows['$_linha/pt'], isNull);
+  });
+
+  testWidgets('a resume that goes on to the check counts as a resume that '
+      'landed, so two refusals around it do not forget the row', (
+    tester,
+  ) async {
+    final harness = _aprovadaNaSala();
+    final tablet = await _noReconto(tester, harness);
+    const recusa = Refused('RECUSADA');
+
+    harness.room.failStateOnceWith = recusa;
+    await _entrarDeNovo(tester, tablet);
+    await _entrarDeNovo(tester, tablet);
+    expect(_sala(tablet).stage, SalaStage.checagem);
+    harness.room.failStateOnceWith = recusa;
+    await _entrarDeNovo(tester, tablet);
+
+    expect(harness.emAberto.rows['$_linha/pt']?.listener, (
+      version: 1,
+      number: 1,
+    ));
+  });
+
   testWidgets('another tablet resumes nothing, and its «Novo ouvinte» takes '
       'the next number', (tester) async {
     final harness = _aprovadaNaSala();
@@ -533,6 +580,19 @@ void main() {
     await _tocar(tester, _checagem);
     expect(byLabel(_novoOuvinte), findsOneWidget);
     expect(harness.room.listenersRead, isEmpty);
+  });
+
+  testWidgets('a thanks the room cannot hand over leaves the thanks step '
+      'standing and calls nobody', (tester) async {
+    final harness = _aprovadaNaSala();
+    harness.voice.roomFailsFor['X4'] = const NetworkFailed('sem rede');
+    final tablet = await _noReconto(tester, harness);
+
+    await _reconta(tester);
+
+    _oAgradecimento();
+    expect(_sala(tablet).needsPerson, isFalse);
+    expect(harness.room.listenersFinished, hasLength(1));
   });
 
   testWidgets('a thanks that cannot sound leaves the thanks step standing', (
