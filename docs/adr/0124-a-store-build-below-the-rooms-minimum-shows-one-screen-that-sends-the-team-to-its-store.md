@@ -25,9 +25,12 @@ tablet acts on it.
 - Below the minimum, the **Update screen** replaces everything, the claim code included, and
   one button opens the app's own store listing through `url_launcher`. It shows only while the
   **Choice** is on screen: an answer below the minimum that lands while a passage is open is
-  held, and shows at the next arrival at the Choice. Only an arrival counts: the station the room
-  stands on before the launch settles is not the Choice, so a held **Session** lands with no
-  screen over it at any moment. It never covers an open **Session**.
+  held, and shows at the next arrival at the Choice. The room records the arrival itself: a
+  fact set when it enters the Choice and cleared when it leaves it. The station it stands on
+  before the launch settles is not an arrival, so a held **Session** lands with no screen over
+  it at any moment; a Choice whose list fails to load still counts. An unlinked tablet counts
+  only once the link read has finished and found no team. Once shown, the screen stands for the
+  run: a code claimed meanwhile does not hide it.
 - The fact is one-way within a run: a later failure or a lowered minimum does not lift it. Only
   a new process of a newer build starts clean.
 - An answer without `minimum_app`, or a failed read, changes nothing.

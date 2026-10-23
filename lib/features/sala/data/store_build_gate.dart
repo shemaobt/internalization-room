@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../domain/minimum_build.dart';
-import '../domain/session_state.dart';
 import 'device_link_notifier.dart';
 import 'room_answer.dart';
 import 'room_repository.dart';
@@ -37,16 +36,18 @@ final openTheStoreProvider = Provider<Future<void> Function(Uri)>(
 class StoreBuildGate extends Notifier<bool> {
   Future<void>? _reading;
   bool _kept = false;
+  bool _shown = false;
 
   @override
   bool build() {
-    final linked = ref.watch(deviceLinkProvider.select((l) => l.linked));
-    final onTheChoice = ref.watch(
-      salaSessionProvider.select(
-        (s) => s.stage == SalaStage.escolha && (s.naRoda != null || !linked),
-      ),
+    final arrived = ref.watch(
+      salaSessionProvider.select((s) => s.arrivedAtTheChoice),
     );
-    return _kept && onTheChoice;
+    final unlinked = ref.watch(
+      deviceLinkProvider.select((l) => l.team == null && l.code != null),
+    );
+    if (_kept && (arrived || unlinked)) _shown = true;
+    return _shown;
   }
 
   Future<void> look() {

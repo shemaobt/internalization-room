@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -7,13 +9,29 @@ import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/store_build_gate.dart';
+import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/minimum_build.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+
+class _SlowVault extends FakeLinkedTeam {
+  final Future<void> _opens;
+
+  _SlowVault(RememberedLink remembered, this._opens)
+    : super(remembered: remembered);
+
+  @override
+  Future<RememberedLink> read() async {
+    await _opens;
+    return super.read();
+  }
+}
 
 const _line = 'Há uma versão nova do aplicativo. Toquem para atualizar.';
 const _theChoice = 'Escolha a passagem';
@@ -255,6 +273,99 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text(_line), findsOneWidget);
+    });
+
+    testWidgets('a vault read slower than the version answer lets the held '
+        'session land with no update screen at any moment', (tester) async {
+      final currentSession = FakeCurrentSessionLedger()
+        ..held = const CurrentSession(
+          sessionId: 'sessao-7',
+          book: 'Ruth',
+          pericope: 'P02',
+          language: testLanguage,
+        );
+      final harness = SalaHarness(currentSession: currentSession);
+      harness.room.minimumBuildsAnswer = Answered(_minimum(android: 7));
+      final vaultOpens = Completer<void>();
+      final container = ProviderContainer(
+        overrides: [
+          ...harness.overrides,
+          linkedTeamProvider.overrideWithValue(
+            _SlowVault(harness.vinculo.remembered, vaultOpens.future),
+          ),
+          thisBuildProvider.overrideWithValue(6),
+          openTheStoreProvider.overrideWithValue((uri) async {}),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const SalaApp()),
+      );
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        expect(find.text(_line), findsNothing);
+      }
+
+      vaultOpens.complete();
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        expect(find.text(_line), findsNothing);
+      }
+      expect(find.byType(ConversaView), findsOneWidget);
+    });
+
+    testWidgets('a Choice whose list fails to load still shows the update '
+        'screen', (tester) async {
+      final harness = _roomWhoseMinimumIs(_minimum(android: 7));
+      harness.room.failBooksWith = const NetworkFailed('sem rede');
+
+      await _pumpWithBuild(tester, harness, build: 6, opened: []);
+
+      expect(find.text(_line), findsOneWidget);
+    });
+
+    testWidgets('a code claimed while the update screen shows does not hide '
+        'it', (tester) async {
+      final harness = SalaHarness(
+        linkedAs: const RememberedLink(),
+        linkPoll: const Duration(milliseconds: 50),
+      );
+      harness.room.minimumBuildsAnswer = Answered(_minimum(android: 7));
+      await _pumpWithBuild(tester, harness, build: 6, opened: []);
+      expect(find.text(_line), findsOneWidget);
+
+      harness.room.linkedTo = const TeamLink(projectId: 'equipe-1');
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(find.text(_line), findsOneWidget);
+      }
+    });
+
+    testWidgets('a minimum read that answers after the team entered the '
+        'Panorama leaves it until the next Choice', (tester) async {
+      const panorama = Passagem(
+        pericope: 'OV-Ruth',
+        audioUrl: '/voice/panorama',
+        kind: PassagemKind.panorama,
+        book: 'Ruth',
+      );
+      final harness = _roomWhoseMinimumIs(_minimum(android: 7));
+      harness.room.passages = const [panorama];
+      harness.room.holdNextMinimumBuilds();
+      final container = await _pumpWithBuild(
+        tester,
+        harness,
+        build: 6,
+        opened: [],
+      );
+      container.read(salaSessionProvider.notifier).openTheEntry(panorama);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(container.read(salaSessionProvider).stage, SalaStage.panorama);
+
+      harness.room.releaseMinimumBuilds();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text(_line), findsNothing);
     });
 
     testWidgets('a minimum read that answers after the team opened a passage '
