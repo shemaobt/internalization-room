@@ -3702,6 +3702,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _arriveAt(const ThePlanOpened());
     state = state.copyWith(
       ensaioFinalPlan: const PlanAwaited(),
+      planChoices: const {},
+      clearPlanListening: true,
+      rehearsalsElsewhere: false,
       peerCue: false,
     );
     _handOff(_readThePlan(sessionId));
@@ -3746,6 +3749,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               guardadas.any((guardada) => guardada.kind == 'ensaio'):
         state = state.copyWith(theRoomJoinedParts: _partesJuntadas(guardadas));
         _openTheRecordingHome(sessionId, listed: guardadas);
+      case (Answered(value: final guardadas), Answered(value: final listed), _)
+          when rehearsalsElsewhere(listed, sessionId):
+        state = state.copyWith(rehearsalsElsewhere: true);
+        _openTheRecordingHome(sessionId, listed: guardadas);
       case (
             Answered(),
             Answered(value: final listed),
@@ -3767,6 +3774,69 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station case Ensaio(step: EnsaioStep.plan)) {
       _openTheRecordingHome(sessionId);
     }
+  });
+
+  /// The plan's rows as they stand, or null off the plan.
+  List<PlanRow>? get _planRows => switch ((
+    state.station,
+    state.ensaioFinalPlan,
+    state.sessionId,
+  )) {
+    (Ensaio(step: EnsaioStep.plan), final PlanRead read, final sessionId?) =>
+      planRowsOf(read, sessionId, state.planChoices),
+    _ => null,
+  };
+
+  PlanRow? _planRowOf(String sceneId) =>
+      _planRows?.where((row) => row.scene.sceneId == sceneId).firstOrNull;
+
+  void swapTheRehearsal(String sceneId) => _gesture(() {
+    final next = _planRowOf(sceneId)?.nextJoinable;
+    if (next == null) return;
+    _silenceThePlan();
+    _chooseTheRehearsal(sceneId, next.rehearsalId);
+  });
+
+  void _chooseTheRehearsal(String sceneId, String rehearsalId) {
+    state = state.copyWith(
+      planChoices: {...state.planChoices, sceneId: rehearsalId},
+    );
+  }
+
+  void playThePlanRow(String sceneId) =>
+      _gesture(() => _handOff(_playThePlanRow(sceneId)));
+
+  /// A play button of the plan: a second tap on the row being heard stops it, and only
+  /// the newest tap is ever heard. A tap whose clip never sounds lets the next one play.
+  Future<void> _playThePlanRow(String sceneId) async {
+    final chosen = _planRowOf(sceneId)?.chosen;
+    if (chosen == null) return;
+    final heard = state.planListening;
+    _silenceThePlan();
+    if (heard?.rehearsalId == chosen.rehearsalId) return;
+    final asked = PlanListen(chosen.rehearsalId);
+    state = state.copyWith(planListening: asked);
+    final generation = _waitOnTheGeneration;
+    final path = await _fetchTheSceneTake(chosen, generation);
+    bool stillAsked() => !_gone && identical(state.planListening, asked);
+    void heardOut() {
+      if (stillAsked()) state = state.copyWith(clearPlanListening: true);
+    }
+
+    if (path == null || _abandoned(generation) || !stillAsked()) {
+      return heardOut();
+    }
+    _play(PartSound(0, path), onComplete: heardOut, onFailed: heardOut);
+  }
+
+  void _silenceThePlan() {
+    _silenceTheRoom();
+    state = state.copyWith(clearPlanListening: true);
+  }
+
+  void joinTheScenes() => _gesture(() {
+    final rows = _planRows;
+    if (rows == null || !canJoin(rows)) return;
   });
 
   /// The recording home the orange dot leads to, opened at once, with the room's listing

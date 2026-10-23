@@ -457,8 +457,22 @@ class FakeRecorder implements RecordingRepository {
   /// Whether looking for audio already on the tablet fails, the way a disk does.
   bool heldAsFails = false;
 
+  bool _holdTheNextLookup = false;
+  final List<Completer<void>> _heldLookups = [];
+
+  /// Holds the next look for audio on the tablet until [finishHeldLookup].
+  void holdNextLookup() => _holdTheNextLookup = true;
+
+  void finishHeldLookup() => _heldLookups.removeAt(0).complete();
+
   @override
   Future<String?> heldAs(String fileName) async {
+    if (_holdTheNextLookup) {
+      _holdTheNextLookup = false;
+      final held = Completer<void>();
+      _heldLookups.add(held);
+      await held.future;
+    }
     if (heldAsFails) throw const FileSystemException('o disco falhou');
     for (final extension in ['wav', 'm4a']) {
       final file = File('${home.path}/$fileName.$extension');

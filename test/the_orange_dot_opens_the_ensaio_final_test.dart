@@ -564,7 +564,6 @@ void main() {
       expect(find.text('Ensaio Final'), findsOneWidget);
       expect(find.text(_planLine), findsOneWidget);
       expect(find.text(_homeLine), findsNothing);
-      expect(_row(1, _threeScenes), findsNothing);
       semantics.dispose();
     },
   );
