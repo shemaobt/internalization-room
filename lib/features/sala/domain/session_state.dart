@@ -1149,17 +1149,20 @@ class SalaSessionState {
   /// The rehearsal's own recordings, in order — never a correction's own take, which is a
   /// slice of one of these and not a part of the rehearsal in its own right. The whole
   /// rehearsal an app before 19 August sent is the rehearsal only while no scene has its
-  /// part; from the first one on it is set aside, kept but no longer played or told.
+  /// part; from the first one on it is set aside, kept but no longer played or told. While
+  /// the room records the passage whole, only the whole is (ADR 0134).
   List<KeptTake> get partes {
+    final wholes = [
+      for (final take in keptTakes)
+        if (take.scopeId == KeptScope.whole) take,
+    ];
+    if (grainInForce == Grain.whole) return wholes;
     final numbered = [
       for (final take in keptTakes)
         if (KeptScope.isParte(take.scopeId)) take,
     ]..sort((a, b) => _byNumber(a).compareTo(_byNumber(b)));
     if (numbered.isNotEmpty) return numbered;
-    return [
-      for (final take in keptTakes)
-        if (take.scopeId == KeptScope.whole) take,
-    ];
+    return wholes;
   }
 
   /// The recordings of a whole rehearsal set aside behind the scenes' own parts.

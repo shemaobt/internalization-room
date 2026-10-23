@@ -537,6 +537,28 @@ void main() {
   );
 
   testWidgets(
+    '9. an empty whole recording opens the plan, and «gravar a passagem inteira '
+    'de uma vez» there returns to the whole home with no switch',
+    (tester) async {
+      final (harness, _) = await _atRest(
+        tester,
+        seed: (session) => [_rehearsal(session)],
+      );
+      harness.room.grain = Grain.whole;
+      await _tapTheDot(tester);
+      await _settles(tester);
+      expect(find.text(_planLine), findsOneWidget);
+
+      await _tap(tester, _wholeAtOnce);
+      await _settles(tester);
+
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_whole), findsOneWidget);
+      expect(harness.room.grainSwitches, isEmpty);
+    },
+  );
+
+  testWidgets(
     '10. over an approved draft the whole switch arms with «toquem de novo: isto '
     'abre de novo o rascunho aprovado» and goes up with the re-open',
     (tester) async {
@@ -740,6 +762,25 @@ void main() {
       expect(find.bySemanticsLabel(_openEnsaioFinal), findsNothing);
       semantics.dispose();
     });
+  });
+
+  test('16. scene parts the tablet still holds are never current once the room '
+      'records the passage whole', () {
+    final state = SalaSessionState(
+      grainInForce: Grain.whole,
+      keptTakes: [
+        for (final n in [1, 2, 3])
+          KeptTake(
+            scopeId: KeptScope.parte(n),
+            path: '/gravacoes/parte-$n.m4a',
+            takeId: 'gravacao-$n',
+          ),
+      ],
+    );
+
+    expect(state.partes, isEmpty);
+    expect(state.everySceneHasItsPart, isFalse);
+    expect(state.sceneRows.single.part, isNull);
   });
 
   group('17. the choice and a switch say nothing', () {
