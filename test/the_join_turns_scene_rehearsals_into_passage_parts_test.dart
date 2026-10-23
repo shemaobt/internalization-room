@@ -790,6 +790,7 @@ void main() {
           'parte-3': null,
         },
       );
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
@@ -875,6 +876,7 @@ void main() {
         },
         {'parte-1': null, 'parte-2': 'gravacao-a-mao', 'parte-3': null},
       );
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
