@@ -42,8 +42,10 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   either: it arms no retry, reads «falhou — toque para tentar de novo» like the spent one,
   and waits for the tap that sends the spent one, then it. A tap on a part sends every
   unsent pass of it, older ones first, each with three attempts, whichever way its newest
-  take took, even one that never reached the Outbox; an older pass refused for good is not
-  sent again, while the pass the tap names is sent once more even if it was refused. A keep
+  take took, even one that never reached the Outbox and fails to reach it again; an older
+  pass refused for good is not sent again, while the pass the tap names is sent once more
+  even if it was refused. A part reads as being kept from the moment its keep starts, and a
+  tap on it is refused until the keep ends, so no tap reorders its takes. A keep
   on the red microphone does the same for the scene takes of its session before it: the
   room numbers a session's scene rehearsals by arrival (`n` is the session's highest plus
   one when it is stored; the recording time does not number it), so a newer take that
@@ -70,19 +72,25 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   being kept, and the parts saved, from the machine's Outbox facts. The newest take of a
   part decides its row: while it is being kept the row reads «enviando…» and offers no
   tap, whatever it read before; it reads «✓ salvo» only when that take is one the room
-  holds; and it reads «falhou» when its recording is gone, whether it reached the Outbox or
-  not, never an older pass's «✓ salvo».
+  holds; and it reads «falhou», with no tap, when its recording is gone, whether it reached
+  the Outbox or not, never an older pass's «✓ salvo».
+- **A gone recording is final.** A take whose recording is gone can never go up, so its row
+  offers no tap, as a final refusal does. Recording the part again recovers it: the new
+  take waits behind any spent older pass, and its tap sends both, older first. The
+  Orchestrator decided this on 23 October; Jonatas may overrule it.
 - **A tap acts on the session and app run it was made in.** It names its session and part
-  when it lands; nothing it does after waiting on the Outbox touches another session's
-  takes, and nothing at all once the run has ended.
+  when it lands, and nothing it does after waiting on the Outbox touches another session's
+  takes. Once its run has ended it makes no spent take due again; a take it had already
+  handed to the Outbox goes as any kept take does.
 - **Every take over 25 MB is refused before sending,** of any kind: the room answers an
   oversize upload with a bare `BAD_REQUEST`, so only the tablet can tell it as too large.
 - **The take's state is told on its screen in her words, never by the voice:** «gravando»;
   «enviando…» while it is being kept or sent, until confirmed, spent or refused; «✓ salvo»
   once listed, for a part of this session's visit; «falhou — toque para tentar de novo»
-  when spent or stopped, on a take held behind a spent one, and on a newest take whose
-  recording is gone or never reached the Outbox; «grande demais para o servidor — grave em partes menores» and
-  «não foi aceita — grave de novo» for final refusals, which offer no tap on the ensaio row.
+  when spent or stopped, on a take held behind a spent one, and on a newest take that
+  never reached the Outbox; «falhou», with no tap, on a part's newest take whose recording
+  is gone; «grande demais para o servidor — grave em partes menores» and «não foi aceita —
+  grave de novo» for final refusals, which offer no tap on the ensaio row.
   On the red microphone a failed scene take reads «não deu para guardar o ensaio da cena —
   gravem de novo» (or the too-large or not-accepted line) with «falhou — toque para tentar
   de novo» as its tap. The red microphone's take state is a named exception to the

@@ -71,9 +71,10 @@ by her names; the rest of that screen stays wordless.
 Amended by ENG-1774 (2026-10-22, ADR 0112): the scene rehearsal's record step writes the
 take's state in her words: «gravando», «enviando…», her not-kept, too-large and
 not-accepted lines with «falhou — toque para tentar de novo», and «parar». The recording
-home's Scene rows show the same words and «✓ salvo». It is the tenth named exception, under
-the moment label's reason, her words the team reads. VoiceOver reads the same words, but
-for «parar», which it reads as her «Parar o envio (a gravação fica neste computador)».
+home's Scene rows show the same words, «✓ salvo», and «falhou» alone for a take whose
+recording is gone. It is the tenth named exception, under the moment label's reason, her
+words the team reads. VoiceOver reads the same words, but for «parar», which it reads as
+her «Parar o envio (a gravação fica neste computador)».
 
 ## Context
 
