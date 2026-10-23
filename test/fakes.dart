@@ -2312,6 +2312,7 @@ class FakeRoom implements RoomRepository {
   }
 
   final List<({String sentenceId, String segmentId})> sentencesSent = [];
+  final List<String> sentencesSentReopening = [];
   final List<String> sentencesLaid = [];
   final List<RoomFailure> sentenceAnswersFirst = [];
   Duration sentenceLaysInAs = const Duration(milliseconds: 3200);
@@ -2324,9 +2325,11 @@ class FakeRoom implements RoomRepository {
     String segmentId,
     File audio, {
     required String sentenceId,
+    bool reopensTheApprovedDraft = false,
   }) async {
     if (_guard('reRecordTheSentence') case final failure?) return failure;
     sentencesSent.add((sentenceId: sentenceId, segmentId: segmentId));
+    if (reopensTheApprovedDraft) sentencesSentReopening.add(sentenceId);
     await holdTheSentence?.future;
     if (sentenceAnswersFirst.isNotEmpty) {
       return sentenceAnswersFirst.removeAt(0);

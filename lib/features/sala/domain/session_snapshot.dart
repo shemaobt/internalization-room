@@ -184,10 +184,13 @@ class BackTranslationProgress {
 /// one it approved (ADR 0071 of the API).
 class ApprovedDraft {
   final int version;
+  final int listeners;
 
-  const ApprovedDraft({required this.version});
+  const ApprovedDraft({required this.version, this.listeners = 0});
 
   static ApprovedDraft? fromJson(Object? raw) => switch (raw) {
+    {'version': final int version, 'listeners': final int listeners} =>
+      ApprovedDraft(version: version, listeners: listeners),
     {'version': final int version} => ApprovedDraft(version: version),
     _ => null,
   };

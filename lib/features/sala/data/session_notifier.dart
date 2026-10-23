@@ -690,7 +690,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!_gone) {
       state = state.copyWith(
         machine: moveTheGeneration(state.machine),
-        clearRecomeco: true,
+        clearArmedTap: true,
       );
     }
     for (final timer in _timers.values) {
@@ -819,8 +819,42 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   int _startAGesture() {
     final gesture = ++_gestures;
+    _armHandedOver = state.armedTap;
     _dispatch(GestureStarted(gesture));
+    if (_armHandedOver != null) state = state.copyWith(clearArmedTap: true);
     return gesture;
+  }
+
+  ArmedTap? _armHandedOver;
+
+  void _armedTap(
+    String control, {
+    required bool needs,
+    required void Function() then,
+  }) {
+    final armed = _armHandedOver;
+    if (!needs) return then();
+    if (armed?.control != control) {
+      state = state.copyWith(
+        armedTap: ArmedTap(control, BtRecomeco.armado),
+        clearAviso: true,
+      );
+      _after('armedTapWakes', ref.read(restartWakeProvider), () {
+        if (state.armedTap?.control != control) return;
+        state = state.copyWith(armedTap: ArmedTap(control, BtRecomeco.pronto));
+      });
+      _after('armedTapLapses', ref.read(restartLapseProvider), () {
+        if (state.armedTap?.control != control) return;
+        state = state.copyWith(clearArmedTap: true);
+      });
+      return;
+    }
+    if (armed?.phase == BtRecomeco.armado) {
+      state = state.copyWith(armedTap: armed);
+      return;
+    }
+    _timers.remove('armedTapLapses')?.cancel();
+    then();
   }
 
   void _theSyncPartEnded(int gesture) {
@@ -1280,7 +1314,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       scene: leavesTheScene ? const SceneScreen() : null,
       sceneRehearsals: leavesTheScene ? const [] : null,
       clearSceneTurn: leavesTheScene,
-      clearRecomeco: machine.generation != before.generation,
+      clearArmedTap: machine.generation != before.generation,
     );
     _escutarNoEnsaio(before, machine);
     _runner.run(effects, micWasOpen: before.channel is Microphone);
@@ -6183,6 +6217,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void ouvirOTrechoPendente() => _gesture(() => _ouvirOTrechoPendente());
 
+  void abrirAChecagemExterna() => _gesture(() {
+    final sessionId = state.sessionId;
+    if (sessionId == null || state.approvedDraftDrawn == null) return;
+    if (!state.externalCheckOpens) return;
+    _handOff(_abrirAChecagemExterna(sessionId));
+  });
+
+  Future<void> _abrirAChecagemExterna(String sessionId) async {
+    final generation = _waitOnTheGeneration;
+    final failure = await _readTheStretchesBack(sessionId, generation);
+    if (_abandoned(generation)) return;
+    if (failure != null) {
+      state = state.copyWith(btAviso: BtAviso.checagemFalhou);
+    } else if (!state.overAnApprovedDraft) {
+      state = state.copyWith(btAviso: BtAviso.checagemNaoAbre);
+    }
+  }
+
   void recomecarATraducao() => _gesture(() => _recomecarATraducao());
 
   void _recomecarATraducao() {
@@ -6197,23 +6249,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case PassoDaRegravacao.gravando || PassoDaRegravacao.enviando) {
       return;
     }
-    if (state.btRecomeco == null) {
-      state = state.copyWith(btRecomeco: BtRecomeco.armado, clearAviso: true);
-      _after('recomecoPronto', ref.read(restartWakeProvider), () {
-        if (state.btRecomeco != BtRecomeco.armado) return;
-        state = state.copyWith(btRecomeco: BtRecomeco.pronto);
-      });
-      _after(
-        'recomecoArmado',
-        ref.read(restartLapseProvider),
-        () => state = state.copyWith(clearRecomeco: true),
-      );
-      return;
-    }
-    if (state.btRecomeco != BtRecomeco.pronto) return;
-    _timers.remove('recomecoArmado')?.cancel();
-    state = state.copyWith(clearRecomeco: true);
-    _handOff(_recomecarNaSala(sessionId));
+    _armedTap(
+      'restart',
+      needs: true,
+      then: () => _handOff(_recomecarNaSala(sessionId)),
+    );
   }
 
   Future<void> _recomecarNaSala(String sessionId) async {
@@ -6727,10 +6767,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoEnd = alcancado;
   }
 
-  void regravarAFrase(Trecho trecho) =>
-      _gesture(() => _handOff(_regravarAFrase(trecho)));
+  void regravarAFrase(Trecho trecho) => _gesture(() {
+    final reabre = state.overAnApprovedDraft;
+    _armedTap(
+      'rerecord:${trecho.frase}',
+      needs: reabre && state.btRegravacao == null,
+      then: () => _handOff(_regravarAFrase(trecho, reabre: reabre)),
+    );
+  });
 
-  Future<void> _regravarAFrase(Trecho trecho) async {
+  Future<void> _regravarAFrase(Trecho trecho, {required bool reabre}) async {
     final frase = trecho.frase;
     if (frase == null || !state.fraseRegravavel(trecho)) return;
     final aberta = state.btRegravacao;
@@ -6744,7 +6790,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final primeira = !_regravouNestaVisita;
     _silenceTheRoom();
     state = state.copyWith(
-      btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.ouvindo),
+      btRegravacao: RegravacaoDaFrase(
+        frase,
+        PassoDaRegravacao.ouvindo,
+        reabre: reabre,
+      ),
     );
     if (primeira) {
       await _sayALine(
@@ -6777,18 +6827,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (largada()) return;
     _regravouNestaVisita = true;
     state = state.copyWith(
-      btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.pronta),
+      btRegravacao: RegravacaoDaFrase(
+        frase,
+        PassoDaRegravacao.pronta,
+        reabre: reabre,
+      ),
     );
   }
 
   Future<void> _fecharAFrase(int frase) async {
+    final reabre = state.btRegravacao?.reabre ?? false;
     final generation = _waitOnTheGeneration;
     final path = (await _closeTheMicrophone()).take;
     if (_abandoned(generation)) return;
     if (path == null || _anAccidentalTap(path)) {
       if (path != null) unawaited(_recorder.delete(path));
       state = state.copyWith(
-        btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.pronta),
+        btRegravacao: RegravacaoDaFrase(
+          frase,
+          PassoDaRegravacao.pronta,
+          reabre: reabre,
+        ),
       );
       return;
     }
@@ -6808,6 +6867,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         frase,
         PassoDaRegravacao.revendo,
         path: path,
+        reabre: reabre,
       ),
       clearBtFraseGuardada: true,
     );
@@ -6824,10 +6884,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _silenceTheRoom();
-    await _enviarAFrase(guardada);
+    await _enviarAFrase(guardada, reabre: state.btRegravacao?.reabre ?? false);
   }
 
-  Future<void> _enviarAFrase(PendingTake guardada) async {
+  Future<void> _enviarAFrase(
+    PendingTake guardada, {
+    bool reabre = false,
+  }) async {
     final frase = int.parse(guardada.scope);
     final generation = _waitOnTheGeneration;
     state = state.copyWith(
@@ -6835,6 +6898,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         frase,
         PassoDaRegravacao.enviando,
         path: guardada.path,
+        reabre: reabre,
       ),
       clearBtFraseGuardada: true,
     );
@@ -6853,6 +6917,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       nome,
       File(guardada.path),
       sentenceId: guardada.id,
+      reopensTheApprovedDraft: reabre,
     );
     if (_abandoned(generation)) return;
     switch (resposta) {
@@ -6864,6 +6929,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _largarAFrase(guardada, PassoDaRegravacao.pronta);
       case Answered(value: final laid):
         await _aFraseNoLugar(guardada, nome, laid.segments, generation);
+        if (reabre && !_abandoned(generation)) {
+          await _readTheStretchesBack(guardada.sessionId, generation);
+        }
+      case Refused(code: RefusalCode.draftApproved):
+        _guardarAFrase(frase);
+        await _readTheStretchesBack(guardada.sessionId, generation);
       case Refused(
         code: RefusalCode.stretchNoLongerCounts ||
             RefusalCode.partNotWav ||
@@ -7017,9 +7088,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(clearBtRegravacao: true, btFraseGuardada: frase);
   }
 
-  void tentarAFraseDeNovo() => _gesture(() => _handOff(_tentarAFraseDeNovo()));
+  void tentarAFraseDeNovo() => _gesture(() {
+    final reabre = state.overAnApprovedDraft;
+    _armedTap(
+      'resend:${state.btFraseGuardada}',
+      needs: reabre,
+      then: () => _handOff(_tentarAFraseDeNovo(reabre: reabre)),
+    );
+  });
 
-  Future<void> _tentarAFraseDeNovo() async {
+  Future<void> _tentarAFraseDeNovo({required bool reabre}) async {
     final guardada = _fraseNaFila;
     if (state.btRegravacao != null ||
         state.btFraseGuardada == null ||
@@ -7027,14 +7105,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _silenceTheRoom();
-    await _enviarAFrase(guardada);
+    await _enviarAFrase(guardada, reabre: reabre);
   }
 
   void _largarAFrase(PendingTake guardada, PassoDaRegravacao passo) {
     _fraseNaFila = null;
     unawaited(_takes.withdraw(guardada));
     state = state.copyWith(
-      btRegravacao: RegravacaoDaFrase(int.parse(guardada.scope), passo),
+      btRegravacao: RegravacaoDaFrase(
+        int.parse(guardada.scope),
+        passo,
+        reabre: state.btRegravacao?.reabre ?? false,
+      ),
     );
   }
 
@@ -7064,6 +7146,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btRegravacao: RegravacaoDaFrase(
         regravacao.frase,
         PassoDaRegravacao.pronta,
+        reabre: regravacao.reabre,
       ),
     );
   });
@@ -7102,6 +7185,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             btRegravacao: RegravacaoDaFrase(
               regravacao.frase,
               PassoDaRegravacao.gravando,
+              reabre: regravacao.reabre,
             ),
           );
           _dispatch(
@@ -7597,7 +7681,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btAprovando: true,
       clearBtRecusa: true,
       clearAviso: true,
-      clearRecomeco: true,
+      clearArmedTap: true,
     );
     final generation = _waitOnTheGeneration;
     void failed(RoomFailure failure) {

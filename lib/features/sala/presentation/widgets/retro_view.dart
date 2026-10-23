@@ -155,6 +155,24 @@ class RetroView extends ConsumerWidget {
               height: 60,
               child: _actions(session, notifier, language, colors),
             ),
+            if (session.approvedDraftDrawn case final aprovado?) ...[
+              if (aprovado.listeners > 0) ...[
+                const SizedBox(height: 12),
+                Text(
+                  aprovado.listeners == 1
+                      ? retroLabelFor('listenersOne', language)
+                      : retroLabelFor(
+                          'listeners',
+                          language,
+                          n: aprovado.listeners,
+                        ),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.mut, fontSize: 15),
+                ),
+              ],
+              const SizedBox(height: 12),
+              _checagemExterna(session, colors, notifier, language),
+            ],
             const SizedBox(height: 32),
             FraseList(
               rows: _frases(session, notifier, language),
@@ -243,13 +261,17 @@ class RetroView extends ConsumerWidget {
           regravar:
               session.fraseRegravavel(trecho) &&
                   (session.btPhase != BtPhase.conferida ||
-                      _markOn(trecho.frase, session) == BtFindingKind.nuance)
-              ? sceneRehearsalLabelFor(
-                  'rerecordFrase',
-                  language,
-                  n: trecho.frase,
-                )
+                      _markOn(trecho.frase, session) == BtFindingKind.nuance ||
+                      session.overAnApprovedDraft)
+              ? session.armedTap?.control == 'rerecord:${trecho.frase}'
+                    ? retroLabelFor('reopenArmed', language)
+                    : sceneRehearsalLabelFor(
+                        'rerecordFrase',
+                        language,
+                        n: trecho.frase,
+                      )
               : null,
+          regravarDormindo: _dormindo('rerecord:${trecho.frase}', session),
           onRegravar:
               session.btRegravacao == null ||
                   session.btRegravacao?.frase == trecho.frase
@@ -284,9 +306,12 @@ class RetroView extends ConsumerWidget {
             null
                 when trecho.frase != null &&
                     session.btFraseGuardada == trecho.frase =>
-              sceneRehearsalLabelFor('spliceFail', language),
+              session.armedTap?.control == 'resend:${trecho.frase}'
+                  ? retroLabelFor('reopenArmed', language)
+                  : sceneRehearsalLabelFor('spliceFail', language),
             _ => null,
           },
+          estadoDormindo: _dormindo('resend:${trecho.frase}', session),
           onEstado:
               session.btRegravacao == null &&
                   trecho.frase != null &&
@@ -313,14 +338,14 @@ class RetroView extends ConsumerWidget {
     SalaSessionNotifier notifier,
     String language,
   ) {
-    final rotulo = session.btRecomeco == null
+    final rotulo = session.armedTap?.control != 'restart'
         ? retroLabelFor('restart', language)
         : retroLabelFor(
             'restartArmed',
             language,
             n: session.btTrechos.where((trecho) => trecho.contado).length,
           );
-    final dormindo = session.btRecomeco == BtRecomeco.armado;
+    final dormindo = _dormindo('restart', session);
     return Semantics(
       button: true,
       enabled: !dormindo,
@@ -348,6 +373,45 @@ class RetroView extends ConsumerWidget {
     );
   }
 
+  bool _dormindo(String control, SalaSessionState session) =>
+      session.armedTap?.control == control &&
+      session.armedTap?.phase == BtRecomeco.armado;
+
+  Widget _checagemExterna(
+    SalaSessionState session,
+    SalaColors colors,
+    SalaSessionNotifier notifier,
+    String language,
+  ) {
+    final abre = session.externalCheckOpens;
+    final rotulo = retroLabelFor('externalCheck', language);
+    return Semantics(
+      button: true,
+      enabled: abre,
+      label: rotulo,
+      child: Opacity(
+        opacity: abre ? 1 : 0.4,
+        child: ExcludeSemantics(
+          child: GestureDetector(
+            onTap: abre ? notifier.abrirAChecagemExterna : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: colors.mut),
+              ),
+              child: Text(
+                rotulo,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.ink, fontSize: 15),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   String? _estado(SalaSessionState session, String language) {
     if (session.btAprovadoAgora case final versao?) {
       return retroLabelFor('approved', language, n: versao);
@@ -357,6 +421,8 @@ class RetroView extends ConsumerWidget {
       BtAviso.pausaSoNaUltima => 'pauseOnlyOnTheLast',
       BtAviso.pausaPassaDoFim => 'pausePastTheEnd',
       BtAviso.pausaNaoFica => 'pauseCannotStandThere',
+      BtAviso.checagemFalhou => 'externalCheckFailed',
+      BtAviso.checagemNaoAbre => 'externalCheckNotFinal',
       null => null,
     };
     if (aviso != null) return retroLabelFor(aviso, language);

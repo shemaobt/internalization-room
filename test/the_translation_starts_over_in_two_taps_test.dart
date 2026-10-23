@@ -469,7 +469,7 @@ void main() {
     await tocar(tester, _recomecar);
 
     expect(
-      container.read(salaSessionProvider).btRecomeco,
+      container.read(salaSessionProvider).armedTap,
       isNull,
       reason: 'o recomeço armava por cima de uma frase sendo gravada',
     );
@@ -496,7 +496,7 @@ void main() {
       await tocar(tester, _recomecar);
 
       expect(
-        container.read(salaSessionProvider).btRecomeco,
+        container.read(salaSessionProvider).armedTap,
         isNull,
         reason: 'o recomeço armava com uma frase ainda a caminho da sala',
       );
@@ -574,7 +574,7 @@ void main() {
       await tester.pump(const Duration(seconds: 7));
 
       expect(
-        container.read(salaSessionProvider).btRecomeco,
+        container.read(salaSessionProvider).armedTap,
         isNull,
         reason: 'o recomeço ficava armado para sempre depois de sair e voltar',
       );
@@ -603,7 +603,10 @@ void main() {
       );
       await tester.tap(byLabel(_recomecar));
       await tester.pump(const Duration(milliseconds: 700));
-      expect(container.read(salaSessionProvider).btRecomeco, BtRecomeco.pronto);
+      expect(
+        container.read(salaSessionProvider).armedTap?.phase,
+        BtRecomeco.pronto,
+      );
 
       harness.room.approvedDraft = const ApprovedDraft(version: 1);
       await tocar(tester, aprovar);
@@ -622,7 +625,10 @@ void main() {
       );
       await tester.tap(byLabel(_recomecar));
       await tester.pump(const Duration(milliseconds: 700));
-      expect(container.read(salaSessionProvider).btRecomeco, BtRecomeco.pronto);
+      expect(
+        container.read(salaSessionProvider).armedTap?.phase,
+        BtRecomeco.pronto,
+      );
       expect(harness.room.restartsAsked, isEmpty);
       await tester.pump(const Duration(seconds: 7));
       closeTheRoom(container);
@@ -646,7 +652,7 @@ void main() {
       await tester.pump(const Duration(seconds: 7));
 
       expect(harness.room.restartsAsked, hasLength(1));
-      expect(container.read(salaSessionProvider).btRecomeco, isNull);
+      expect(container.read(salaSessionProvider).armedTap, isNull);
       closeTheRoom(container);
     },
   );

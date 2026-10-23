@@ -406,6 +406,27 @@ const retroLabels = {
     'pt': '✓ aprovado como rascunho final (v{n})',
     'en': '✓ approved as the final draft (v{n})',
   },
+  'reopenArmed': {
+    'pt': 'toquem de novo: isto abre de novo o rascunho aprovado',
+    'en': 'tap again: this re-opens the approved draft',
+  },
+  'externalCheck': {'pt': 'Checagem externa', 'en': 'External check'},
+  'listenersOne': {
+    'pt': 'checagem externa: 1 ouvinte',
+    'en': 'external check: 1 listener',
+  },
+  'listeners': {
+    'pt': 'checagem externa: {n} ouvintes',
+    'en': 'external check: {n} listeners',
+  },
+  'externalCheckNotFinal': {
+    'pt': 'a checagem externa abre depois que o rascunho final é aprovado',
+    'en': 'the external check opens after the final draft is approved',
+  },
+  'externalCheckFailed': {
+    'pt': 'não deu para abrir a checagem externa — tentem de novo',
+    'en': 'couldn\'t open the external check — try again',
+  },
   'listenFirst': {'pt': 'Ouvir primeiro', 'en': 'Listen first'},
   'thinking': {'pt': 'Um instante', 'en': 'One moment'},
   'translated': {'pt': 'traduzida e conferida', 'en': 'translated and checked'},

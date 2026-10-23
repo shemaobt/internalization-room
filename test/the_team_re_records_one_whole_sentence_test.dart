@@ -1316,7 +1316,7 @@ void main() {
     await recomecar(tester);
 
     expect(
-      container.read(salaSessionProvider).btRecomeco,
+      container.read(salaSessionProvider).armedTap,
       isNull,
       reason: 'o recomeço se armava com a frase sendo gravada',
     );
@@ -1340,7 +1340,7 @@ void main() {
     await recomecar(tester);
 
     expect(
-      container.read(salaSessionProvider).btRecomeco,
+      container.read(salaSessionProvider).armedTap,
       isNull,
       reason: 'o recomeço se armava com a frase a caminho da sala',
     );
