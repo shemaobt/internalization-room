@@ -1061,6 +1061,7 @@ class SalaSessionState {
   };
 
   bool fraseRegravavel(Trecho trecho) =>
+      aBackTranslationGestureActs &&
       trecho.frase != null &&
       btFraseTraduzidaDeNovo == null &&
       btRegravacao?.passo != PassoDaRegravacao.enviando &&
@@ -1097,6 +1098,9 @@ class SalaSessionState {
   /// Whether a gesture on the Back-translation acts: never while an approval is in the
   /// air, so nothing the team presses during her approved line moves what was approved.
   bool get aBackTranslationGestureActs => btAprovando != machine.generation;
+
+  /// Whether the approve button acts: never while a sentence's re-record is open.
+  bool get canApprove => aBackTranslationGestureActs && btRegravacao == null;
 
   bool get canRetellAFrase =>
       stage == SalaStage.retro &&
