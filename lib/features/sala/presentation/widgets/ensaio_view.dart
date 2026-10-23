@@ -55,6 +55,20 @@ class EnsaioView extends ConsumerWidget {
                 style: TextStyle(color: colors.mut, fontSize: 15, height: 1.35),
               ),
             ),
+            if (session.rehearsalsElsewhere && session.partes.isEmpty) ...[
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    recordingHomeLabelFor('elsewhere', language),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.telha, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
             if (session.aTakeFromAnEarlierVisitWaits) ...[
               const SizedBox(height: 12),
               ConstrainedBox(
@@ -319,7 +333,7 @@ class _SceneRowView extends StatelessWidget {
       UnsentPart(fromAnEarlierVisit: true, :final length) => (
         [
           cena,
-          if (length != null) ' · ${_mss(length)}',
+          if (length != null) ' · ${minutesAndSecondsOf(length)}',
           ' — ${recordingHomeLabelFor('sendNow', language)}',
         ].join(),
         recordingHomeLabelFor('sendAria', language),
@@ -347,11 +361,6 @@ class _SceneRowView extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static String _mss(Duration length) {
-    final seconds = length.inSeconds;
-    return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
   }
 
   Widget _control(

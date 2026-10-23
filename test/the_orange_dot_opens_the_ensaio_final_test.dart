@@ -564,7 +564,6 @@ void main() {
       expect(find.text('Ensaio Final'), findsOneWidget);
       expect(find.text(_planLine), findsOneWidget);
       expect(find.text(_homeLine), findsNothing);
-      expect(_row(1, _threeScenes), findsNothing);
       semantics.dispose();
     },
   );
@@ -868,7 +867,7 @@ void main() {
     tester,
   ) async {
     final (harness, container) = await _atRest(tester);
-    harness.inbox.knotThrows = StateError('a ligação caiu no meio');
+    harness.inbox.knotThrows = Exception('a ligação caiu no meio');
 
     await sendANote(tester, container);
     await _theAnswerSettles(tester);

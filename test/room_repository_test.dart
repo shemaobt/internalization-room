@@ -1711,6 +1711,11 @@ void main() {
           'ensaio-da-cena-1',
           attempt: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
         ),
+        'labelTheSceneRehearsal': (room) => room.labelTheSceneRehearsal(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          scene: 'S2',
+        ),
         'keepTheSceneFrase': (room) async => room.keepTheSceneFrase(
           'sessao-1',
           'ensaio-da-cena-1',
@@ -2153,6 +2158,35 @@ void main() {
       },
     );
 
+    test('the label posts the scene to the rehearsal\'s scene door with the '
+        'tablet\'s headers and reads the record back', () async {
+      late http.Request seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response(jsonEncode({...record(), 'scene': 'S2'}), 200);
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+      repository.presents('credencial-1');
+
+      final answer = await repository.labelTheSceneRehearsal(
+        'sessao-1',
+        'r',
+        scene: 'S2',
+      );
+
+      expect(seen.method, 'POST');
+      expect(
+        seen.url.path,
+        '/api/internalization-room/sessions/sessao-1/scene-rehearsals/r/scene',
+      );
+      expect(seen.bodyFields, {'scene': 'S2'});
+      expect(seen.headers['X-Device-Credential'], 'credencial-1');
+      expect((answer as Answered<SceneRehearsalRecord>).value.scene, 'S2');
+    });
+
     test('the restart posts attempt and closes as form fields', () async {
       late http.Request seen;
       final repository = RoomRepository(
@@ -2352,6 +2386,42 @@ void main() {
       expect(unreadable.sceneNumber, isNull);
       expect(unreadable.recordedAt, isNull);
     });
+
+    test(
+      'the list reads whether each sent rehearsal is a confirmed WAV',
+      () async {
+        final sent = record(sentAt: '2026-10-14T09:05:00+00:00');
+        final repository = RoomRepository(
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({
+                'pericope': 'P01',
+                'scene_rehearsals': [
+                  {...sent, 'content_type': 'audio/wav', 'verified': true},
+                  {...sent, 'content_type': 'audio/x-wav', 'verified': true},
+                  {...sent, 'content_type': 'audio/mp4', 'verified': true},
+                  {...sent, 'content_type': 'audio/wav', 'verified': false},
+                  {...sent, 'verified': true}..remove('content_type'),
+                  {...sent, 'content_type': 'audio/wav'}..remove('verified'),
+                ],
+              }),
+              200,
+            ),
+          ),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        final answer = await repository.sceneRehearsalsOf('sessao-1');
+
+        expect(
+          (answer as Answered<List<SceneRehearsalRecord>>).value.map(
+            (rehearsal) => rehearsal.joinable,
+          ),
+          [true, true, false, false, true, false],
+        );
+      },
+    );
 
     test(
       'the scene send posts its turn id and the attempt it closes',

@@ -313,7 +313,7 @@ _Avoid_: rehearsal (the station, and the whole passage's recording), take (what 
 _Avoid_: scene picker, scene menu
 
 **Scene label**:
-The scene the team tapped on the Scene question, read at the tap that starts the recording; never guessed, and never changed by a retry of the upload.
+The scene the team tapped on the Scene question, read at the tap that starts the recording, or later on the plan's card for an Unlabelled rehearsal (said later); never guessed, and never changed by a retry of the upload.
 _Avoid_: scene guess (the classifier's, Observation Room only), sceneId
 
 **Scene frase** (`frase N` on screen):
@@ -403,6 +403,14 @@ _Avoid_: join screen, summary
 **Default rehearsal**:
 The rehearsal a scene's plan row holds before the team chooses another: the last one the voice received that is joinable; an unsent one is never the default, and one with an untranslated frase stays the default, marked «tradução incompleta».
 _Avoid_: selected rehearsal, latest take
+
+**Rehearsal sheet**:
+What a plan row's «trocar o ensaio desta cena» opens: one scene's rehearsals of this session, newest first, each with its facts and «enviado» / «não enviado», «✓ em uso» on the one the row holds and «usar este» on the other Joinable ones, and «gravar esta cena de novo» at its foot. «usar este» is the only way the team puts a rehearsal other than the Default rehearsal on the plan.
+_Avoid_: swap sheet (her code's name), picker, modal
+
+**Unlabelled rehearsal**:
+A Scene rehearsal of this session with a translated frase and no Scene label of this passage: recorded while the scene list was missing, or before labels existed. The Ensaio Final plan puts it to the team on the card «De que cena é este ensaio?», one at a time, oldest first; it is never guessed and never joined until the team labels it.
+_Avoid_: unassigned (her code's word), orphan
 
 **Joinable**:
 A Scene rehearsal that can become a Part: sent, confirmed by the room, and a 16 kHz mono WAV.
