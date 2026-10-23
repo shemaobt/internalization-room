@@ -29,6 +29,7 @@ import '../domain/scene_question.dart';
 import '../domain/scene_rehearsal.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/halt.dart';
+import '../domain/hand_reply.dart';
 import '../domain/machine.dart';
 import '../domain/session_state.dart';
 import '../domain/station.dart';
@@ -8955,10 +8956,53 @@ class _HandHost implements HandHost {
   _HandHost(this._notifier);
 
   @override
-  SalaSessionState get state => _notifier._current;
+  HandView get view {
+    final state = _notifier._current;
+    return (
+      replies: state.replies,
+      playingReplyId: state.playingReplyId,
+      channel: state.channel,
+      noteMode: state.noteMode,
+      voice: state.voice,
+      stationSessionId: state.stationSessionId,
+      atTheTeamsIdleTurn: state.atTheTeamsIdleTurn,
+      oldestUnheardReply: state.oldestUnheardReply,
+      noteOnItsWay: state.noteOnItsWay,
+    );
+  }
 
   @override
-  set state(SalaSessionState value) => _notifier._current = value;
+  void showReplies(List<HandReply> replies) =>
+      _notifier._current = _notifier._current.copyWith(replies: replies);
+
+  @override
+  void markPlaying(String id) =>
+      _notifier._current = _notifier._current.copyWith(playingReplyId: id);
+
+  @override
+  void clearPlaying() =>
+      _notifier._current = _notifier._current.copyWith(clearPlayingReply: true);
+
+  @override
+  void markReplyHeard(List<HandReply> replies) => _notifier._current = _notifier
+      ._current
+      .copyWith(replies: replies, clearPlayingReply: true);
+
+  @override
+  void enterNoteMode() =>
+      _notifier._current = _notifier._current.copyWith(noteMode: true);
+
+  @override
+  void leaveNoteMode() =>
+      _notifier._current = _notifier._current.copyWith(noteMode: false);
+
+  @override
+  void markNoteOnItsWay(int note) => _notifier._current = _notifier._current
+      .copyWith(noteMode: false, noteOnItsWay: note);
+
+  @override
+  void clearNoteOnItsWay() =>
+      _notifier._current = _notifier._current.copyWith(clearNoteOnItsWay: true);
 
   @override
   bool get gone => _notifier._gone;
