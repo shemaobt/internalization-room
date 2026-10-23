@@ -130,11 +130,10 @@ class ProviderSoundPort implements SoundPort {
 }
 
 class ProviderRecorderPort implements RecorderPort {
-  final Ref _ref;
+  final RecordingRepository _recorder;
 
-  ProviderRecorderPort(this._ref);
-
-  RecordingRepository get _recorder => _ref.read(recordingRepositoryProvider);
+  ProviderRecorderPort(Ref ref)
+    : _recorder = ref.read(recordingRepositoryProvider);
 
   @override
   Future<MicAnswer> start(String take, MicOwner owner) async =>

@@ -493,7 +493,10 @@ class EffectRunner {
     Future<MicAnswer> starting,
   ) async {
     final answer = await starting;
-    if (_disposed) return;
+    if (_disposed) {
+      if (answer == MicAnswer.started) unawaited(recorder.discard());
+      return;
+    }
     final started = answer == MicAnswer.started;
     final now = generation?.call();
     if (start != _starts) {
