@@ -132,6 +132,21 @@ const ensaioFinalPlanLabels = {
   },
   'join': {'pt': 'juntar as cenas e ouvir', 'en': 'join the scenes and listen'},
   'listen': {'pt': 'Ouvir', 'en': 'Listen'},
+  'back': {'pt': 'Voltar para a gravação', 'en': 'Back to recording'},
+  'useThis': {'pt': 'usar este', 'en': 'use this one'},
+  'inUse': {'pt': 'em uso', 'en': 'in use'},
+  'recordSceneAgain': {
+    'pt': 'gravar esta cena de novo',
+    'en': 'record this scene again',
+  },
+  'whichScene': {
+    'pt': 'De que cena é este ensaio?',
+    'en': 'Which scene is this rehearsal?',
+  },
+  'labelFailed': {
+    'pt': 'não deu para guardar a resposta — toquem de novo',
+    'en': 'couldn\'t keep that answer — tap again',
+  },
 };
 
 String ensaioFinalPlanLabelFor(String control, String language) =>
@@ -160,6 +175,18 @@ String planRowFactsFor(SceneRehearsalRecord rehearsal, String language) {
       .replaceAll('{dur}', minutesAndSecondsOf(Duration(seconds: seconds)))
       .replaceAll('{k}', '${rehearsal.translatedFrases}');
 }
+
+/// A line of the Rehearsal sheet, her `candidateLine`: the row's facts, whether the voice
+/// received it, and «tradução incompleta» when a stretch is left untranslated.
+String sheetLineFor(SceneRehearsalRecord rehearsal, String language) => [
+  planRowFactsFor(rehearsal, language),
+  sceneRehearsalLabelFor(
+    rehearsal.unsent ? 'listUnsent' : 'listSent',
+    language,
+  ),
+  if (rehearsal.untranslatedStretch)
+    ensaioFinalPlanLabelFor('partial', language),
+].join(' · ');
 
 /// Her scene-rehearsal words (strings.ts).
 const sceneRehearsalLabels = {
@@ -468,6 +495,16 @@ const retroLabels = {
     'pt': 'Aprovar como rascunho final',
     'en': 'Approve as the final draft',
   },
+  'approved': {
+    'pt':
+        'Aprovado como rascunho final da equipe (v{n}). Próximo passo: a checagem externa — o botão aqui embaixo.',
+    'en':
+        'Approved as the team\'s final draft (v{n}). Next step: the external check — the button below.',
+  },
+  'notConferida': {
+    'pt': 'para aprovar, a tradução precisa estar conferida',
+    'en': 'to approve, the translation has to be checked first',
+  },
   'approvedDraft': {
     'pt': '✓ aprovado como rascunho final (v{n})',
     'en': '✓ approved as the final draft (v{n})',
@@ -513,6 +550,15 @@ const retroLabels = {
 String retroLabelFor(String control, String language, {int? n}) =>
     (retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!)
         .replaceAll('{n}', '$n');
+
+const savedScreenLabels = {
+  'title': {'pt': 'Ensaio salvo', 'en': 'Rehearsal saved'},
+  'done': {'pt': 'Pronto', 'en': 'Done'},
+};
+
+String savedScreenLabelFor(String key, String language) =>
+    savedScreenLabels[key]![language] ??
+    savedScreenLabels[key]![floorLanguage]!;
 
 /// Her recording home's words, byte for byte from her app (`strings.ts` at 18fa7c4); the
 /// playing cue VoiceOver reads is the room's own.

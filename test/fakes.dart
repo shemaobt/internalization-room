@@ -1859,6 +1859,53 @@ class FakeRoom implements RoomRepository {
     return Answered(restarted);
   }
 
+  /// Every Scene label this room was sent for an Unlabelled rehearsal.
+  final List<({String rehearsalId, String scene})> labelsSent = [];
+
+  /// What the next labels answer, one each, before the room takes them.
+  final List<RoomFailure> labelAnswersFirst = [];
+
+  Completer<void>? _holdingTheLabel;
+
+  /// Hold the next label's answer, after the room has been sent it.
+  void holdTheLabel() => _holdingTheLabel = Completer<void>();
+
+  void releaseTheLabel() {
+    _holdingTheLabel?.complete();
+    _holdingTheLabel = null;
+  }
+
+  @override
+  Future<RoomAnswer<SceneRehearsalRecord>> labelTheSceneRehearsal(
+    String sessionId,
+    String rehearsalId, {
+    required String scene,
+  }) async {
+    if (_guard('labelTheSceneRehearsal') case final failure?) return failure;
+    labelsSent.add((rehearsalId: rehearsalId, scene: scene));
+    await _holdingTheLabel?.future;
+    if (labelAnswersFirst.isNotEmpty) return labelAnswersFirst.removeAt(0);
+    final at = sceneRehearsals.indexWhere(
+      (rehearsal) => rehearsal.rehearsalId == rehearsalId,
+    );
+    final old = sceneRehearsals[at];
+    final labelled = SceneRehearsalRecord(
+      rehearsalId: old.rehearsalId,
+      sessionId: old.sessionId,
+      n: old.n,
+      scene: scene,
+      recordedAt: old.recordedAt,
+      sentAt: old.sentAt,
+      afterRestart: old.afterRestart,
+      durationMs: old.durationMs,
+      frases: old.frases,
+      contentType: old.contentType,
+      verified: old.verified,
+    );
+    sceneRehearsals[at] = labelled;
+    return Answered(labelled);
+  }
+
   /// Every frase this room was sent: its span, the attempt it names, its audio and the
   /// frase it replaces.
   final List<
@@ -2986,12 +3033,15 @@ class FakeRoom implements RoomRepository {
   }
 
   Completer<void>? _holdingRelease;
+  Completer<void>? _heldRelease;
 
-  /// Holds the approval in flight, so a test can press again before the answer lands.
+  /// Holds the next approval in flight, so a test can press again before the answer
+  /// lands; the approvals after it go through.
   void holdNextRelease() => _holdingRelease = Completer<void>();
 
   void finishHeldRelease() {
-    _holdingRelease?.complete();
+    (_heldRelease ?? _holdingRelease)?.complete();
+    _heldRelease = null;
     _holdingRelease = null;
   }
 
@@ -3010,7 +3060,11 @@ class FakeRoom implements RoomRepository {
     final refusal = failReleaseWith;
     if (refusal != null) return refusal;
     final held = _holdingRelease;
-    if (held != null) await held.future;
+    if (held != null) {
+      _holdingRelease = null;
+      _heldRelease = held;
+      await held.future;
+    }
     if (releaseBlockers.isEmpty) return Answered(release);
     return Answered(
       ApprovalAnswer(

@@ -357,6 +357,17 @@ class SalaSessionState {
 
   /// The approval the newest Session read says the draft stands under.
   final ApprovedDraft? btRascunhoAprovado;
+
+  /// The Generation an approval is in the air in: from the press until the Saved screen or
+  /// the end of the refusal's handling. A newer Generation is not held by it.
+  final int? btAprovando;
+
+  /// The version this press minted, while her approved sentence and P3 stand on the
+  /// Back-translation.
+  final int? btAprovadoAgora;
+
+  /// The version the Saved screen shows; the Saved screen stands while it is set.
+  final int? ensaioSalvo;
   final int unsentTakes;
   final int unsentChunks;
   final Map<int, UnsentPart> unsentParts;
@@ -416,6 +427,16 @@ class SalaSessionState {
 
   /// The play a button of the plan last asked for, while it is fetched or sounds.
   final PlanListen? planListening;
+
+  /// The scene whose Rehearsal sheet is open over the plan, for one visit of the plan.
+  final String? planSheet;
+
+  /// Whether the card's Scene label is in the air, or its answer has not yet woken the
+  /// next rehearsal on the card for a tap.
+  final bool labelling;
+
+  /// Whether the card says her line for a label the room could not keep.
+  final bool labelLine;
 
   /// Whether the last plan read found the passage's rehearsals only in the other
   /// language's session.
@@ -494,6 +515,9 @@ class SalaSessionState {
     this.btFraseQueAguarda,
     this.btFraseGuardada,
     this.btRascunhoAprovado,
+    this.btAprovando,
+    this.btAprovadoAgora,
+    this.ensaioSalvo,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentParts = const {},
@@ -512,6 +536,9 @@ class SalaSessionState {
     this.ensaioFinalPlan,
     this.planChoices = const {},
     this.planListening,
+    this.planSheet,
+    this.labelling = false,
+    this.labelLine = false,
     this.rehearsalsElsewhere = false,
     this.theRoomJoinedParts = const {},
     this.wholeHeldByTheRoom = const {},
@@ -719,6 +746,9 @@ class SalaSessionState {
 
   /// Whether the scene rehearsal's screen stands over the Canvas.
   bool get sceneRehearsalIsOpen => station is SceneRehearsal;
+
+  /// Whether the plan holds its gestures: a label is in the air.
+  bool get planBusy => labelling;
 
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
   /// The loudness of the take on the scene screen, until it is read or for a take with
@@ -1136,6 +1166,7 @@ class SalaSessionState {
   };
 
   bool fraseRegravavel(Trecho trecho) =>
+      aBackTranslationGestureActs &&
       trecho.frase != null &&
       btFraseTraduzidaDeNovo == null &&
       btRegravacao?.passo != PassoDaRegravacao.enviando &&
@@ -1165,12 +1196,22 @@ class SalaSessionState {
   /// the screen so the affordance and the verb it opens read the same fact; the verb keeps
   /// its own guard as well, because it is reachable from more than this one press.
   bool get canListenAtConferida =>
-      btPhase == BtPhase.conferida && partes.isNotEmpty;
+      btPhase == BtPhase.conferida &&
+      partes.isNotEmpty &&
+      aBackTranslationGestureActs;
+
+  /// Whether a gesture on the Back-translation acts: never while an approval is in the
+  /// air, so nothing the team presses during her approved line moves what was approved.
+  bool get aBackTranslationGestureActs => btAprovando != machine.generation;
+
+  /// Whether the approve button acts: never while a sentence's re-record is open.
+  bool get canApprove => aBackTranslationGestureActs && btRegravacao == null;
 
   bool get canRetellAFrase =>
       stage == SalaStage.retro &&
       partes.isNotEmpty &&
       !needsPerson &&
+      aBackTranslationGestureActs &&
       btRegravacao == null &&
       btFraseQueAguarda == null &&
       (btPhase == BtPhase.findings ||
@@ -1182,6 +1223,7 @@ class SalaSessionState {
       stage == SalaStage.retro &&
       partes.isNotEmpty &&
       !needsPerson &&
+      aBackTranslationGestureActs &&
       btRegravacao == null &&
       (btPhase == BtPhase.playing ||
           btPhase == BtPhase.findings ||
@@ -1258,6 +1300,12 @@ class SalaSessionState {
     bool clearBtFraseGuardada = false,
     ApprovedDraft? btRascunhoAprovado,
     bool clearBtRascunhoAprovado = false,
+    int? btAprovando,
+    bool clearBtAprovando = false,
+    int? btAprovadoAgora,
+    bool clearBtAprovadoAgora = false,
+    int? ensaioSalvo,
+    bool clearEnsaioSalvo = false,
     int? unsentTakes,
     int? unsentChunks,
     Map<int, UnsentPart>? unsentParts,
@@ -1282,6 +1330,10 @@ class SalaSessionState {
     Map<String, String>? planChoices,
     PlanListen? planListening,
     bool clearPlanListening = false,
+    String? planSheet,
+    bool clearPlanSheet = false,
+    bool? labelling,
+    bool? labelLine,
     bool? rehearsalsElsewhere,
     Set<int>? theRoomJoinedParts,
     Set<String>? wholeHeldByTheRoom,
@@ -1362,6 +1414,11 @@ class SalaSessionState {
       btRascunhoAprovado: clearBtRascunhoAprovado
           ? null
           : (btRascunhoAprovado ?? this.btRascunhoAprovado),
+      btAprovando: clearBtAprovando ? null : (btAprovando ?? this.btAprovando),
+      btAprovadoAgora: clearBtAprovadoAgora
+          ? null
+          : (btAprovadoAgora ?? this.btAprovadoAgora),
+      ensaioSalvo: clearEnsaioSalvo ? null : (ensaioSalvo ?? this.ensaioSalvo),
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentParts: unsentParts ?? this.unsentParts,
@@ -1389,6 +1446,9 @@ class SalaSessionState {
       planListening: clearPlanListening
           ? null
           : (planListening ?? this.planListening),
+      planSheet: clearPlanSheet ? null : (planSheet ?? this.planSheet),
+      labelling: labelling ?? this.labelling,
+      labelLine: labelLine ?? this.labelLine,
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,

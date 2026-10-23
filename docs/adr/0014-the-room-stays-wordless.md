@@ -73,11 +73,16 @@ Amended by ENG-1382 (2026-10-22, ADR 0117): the orange dot opens her Ensaio Fina
 Final», «Estes são os ensaios das cenas que vocês me enviaram.» and «Gravar cena por cena».
 It is the tenth named exception, under the moment label's reason, her words the team reads.
 
-Amended by ENG-1774 (2026-10-22, ADR 0112): the scene rehearsal's record step writes the
+Amended by ENG-1259 (2026-10-22, ADR 0112): an approval ends on her Saved screen
+(`widgets/saved_screen.dart`): «Ensaio salvo», her approved sentence with its version, and
+«Pronto». It is the eleventh named exception, under the moment label's reason, her words the team
+reads. The check mark is decorative and VoiceOver skips it; «Pronto» is read by its word.
+
+Amended by ENG-1774 (2026-10-22, ADR 0131): the scene rehearsal's record step writes the
 take's state in her words: «gravando», «enviando…», her not-kept, too-large and
 not-accepted lines with «falhou — toque para tentar de novo», «falhou» alone for a take
 whose recording is gone, and «parar». The recording home's Scene rows show the same words
-and «✓ salvo». It is the eleventh named exception, under the moment label's reason, her
+and «✓ salvo». It is the twelfth named exception, under the moment label's reason, her
 words the team reads. VoiceOver reads the same words, but for «parar», which it reads as
 her «Parar o envio (a gravação fica neste computador)».
 

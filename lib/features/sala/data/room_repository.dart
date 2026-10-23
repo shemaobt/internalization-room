@@ -533,6 +533,23 @@ class RoomRepository {
     asksForTheSession: false,
   );
 
+  /// The team's Scene label for an Unlabelled rehearsal, said later. It names a
+  /// rehearsal, whose 404 never ends the session.
+  Future<RoomAnswer<SceneRehearsalRecord>> labelTheSceneRehearsal(
+    String sessionId,
+    String rehearsalId, {
+    required String scene,
+  }) => _room.ask(
+    () => _client.post(
+      _uri('/sessions/$sessionId/scene-rehearsals/$rehearsalId/scene'),
+      headers: _whoWeAre,
+      body: {'scene': scene},
+    ),
+    timeout: _stateTimeout,
+    read: readJson(SceneRehearsalRecord.fromJson),
+    asksForTheSession: false,
+  );
+
   /// One frase of a scene rehearsal, told from [startsMs] to [endsMs] of its take,
   /// under the attempt [afterRestart]. It names a rehearsal, whose 404 never ends the
   /// session.

@@ -313,7 +313,7 @@ _Avoid_: rehearsal (the station, and the whole passage's recording), take (what 
 _Avoid_: scene picker, scene menu
 
 **Scene label**:
-The scene the team tapped on the Scene question, read at the tap that starts the recording; never guessed, and never changed by a retry of the upload.
+The scene the team tapped on the Scene question, read at the tap that starts the recording, or later on the plan's card for an Unlabelled rehearsal (said later); never guessed, and never changed by a retry of the upload.
 _Avoid_: scene guess (the classifier's, Observation Room only), sceneId
 
 **Scene frase** (`frase N` on screen):
@@ -373,7 +373,7 @@ A take of a Part of this session still on this tablet, the newest pass of its Pa
 _Avoid_: stranded take, stuck recording, gravação presa, pending take (the Outbox's row)
 
 **Resume point**:
-The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). One per passage and **Session language** (ADR 0077). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage — never the clock.
+The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). One per passage and **Session language** (ADR 0077). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session — never the clock. An approval keeps it, on the Back-translation (ADR 0112).
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
 **Current session**:
@@ -408,6 +408,14 @@ _Avoid_: join screen, summary
 The rehearsal a scene's plan row holds before the team chooses another: the last one the voice received that is joinable; an unsent one is never the default, and one with an untranslated frase stays the default, marked «tradução incompleta».
 _Avoid_: selected rehearsal, latest take
 
+**Rehearsal sheet**:
+What a plan row's «trocar o ensaio desta cena» opens: one scene's rehearsals of this session, newest first, each with its facts and «enviado» / «não enviado», «✓ em uso» on the one the row holds and «usar este» on the other Joinable ones, and «gravar esta cena de novo» at its foot. «usar este» is the only way the team puts a rehearsal other than the Default rehearsal on the plan.
+_Avoid_: swap sheet (her code's name), picker, modal
+
+**Unlabelled rehearsal**:
+A Scene rehearsal of this session with a translated frase and no Scene label of this passage: recorded while the scene list was missing, or before labels existed. The Ensaio Final plan puts it to the team on the card «De que cena é este ensaio?», one at a time, oldest first; it is never guessed and never joined until the team labels it.
+_Avoid_: unassigned (her code's word), orphan
+
 **Joinable**:
 A Scene rehearsal that can become a Part: sent, confirmed by the room, and a 16 kHz mono WAV.
 _Avoid_: valid, ready
@@ -423,7 +431,7 @@ One of the codes a refused approval names, one string each: the gate's ten plus 
 _Avoid_: reason, error code, bloqueio, refusal (the answer that carries them)
 
 **Approval**:
-The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line, asked of the room by name. The room closes only after it, and a refused one takes the team to the hole its blockers name.
+The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line, asked of the room by name, then the **Saved screen** over the Back-translation; the passage is not closed (ADR 0112). A refused one shows one of her three texts and takes the team to the hole its blockers name.
 _Avoid_: aprovação, finalize, release (the server's record of it), approve button
 
 **Draft** (*rascunho*):

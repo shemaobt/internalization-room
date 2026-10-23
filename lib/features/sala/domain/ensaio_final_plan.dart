@@ -28,6 +28,15 @@ final class PlanRead extends EnsaioFinalPlan {
   final List<Scene> scenes;
 
   const PlanRead({required this.rehearsals, required this.scenes});
+
+  /// The same read with the room's [answered] record in place of the one it names.
+  PlanRead withRehearsal(SceneRehearsalRecord answered) => PlanRead(
+    rehearsals: [
+      for (final rehearsal in rehearsals)
+        rehearsal.rehearsalId == answered.rehearsalId ? answered : rehearsal,
+    ],
+    scenes: scenes,
+  );
 }
 
 /// Why a row of the plan has no rehearsal to join.
@@ -56,21 +65,13 @@ final class PlanRow {
 
   bool get partial => chosen?.untranslatedStretch ?? false;
 
-  Iterable<SceneRehearsalRecord> get _joinable =>
-      candidates.where((c) => c.joinable);
+  /// «trocar» opens the Rehearsal sheet only where there is another joinable rehearsal
+  /// to choose.
+  bool get canSwap => candidates.where((c) => c.joinable).length > 1;
 
-  /// «trocar» moves the row only among the joinable, so it is offered only where there
-  /// is another one to move to.
-  bool get canSwap => _joinable.length > 1;
-
-  /// Her `nextChoice`, kept to the joinable: the next joinable candidate after the chosen
-  /// one, newest first, round and round.
-  SceneRehearsalRecord? get nextJoinable {
-    final joinable = _joinable.toList();
-    if (joinable.isEmpty) return null;
-    final at = joinable.indexWhere((c) => c.rehearsalId == chosen?.rehearsalId);
-    return joinable[(at + 1) % joinable.length];
-  }
+  /// «usar este» on a [candidate] of the sheet: a joinable one the row does not hold.
+  bool offersToUse(SceneRehearsalRecord candidate) =>
+      candidate.joinable && candidate.rehearsalId != chosen?.rehearsalId;
 }
 
 /// The plan's rows in passage order; [choices] maps a scene to the rehearsal the team
@@ -123,6 +124,19 @@ SceneRehearsalRecord? _theDefault(List<SceneRehearsalRecord> joinable) =>
           },
         ))
         .firstOrNull;
+
+/// This session's Unlabelled rehearsals, oldest first: each holds a frase and no Scene
+/// label of the passage.
+List<SceneRehearsalRecord> unlabelledRehearsalsOf(
+  PlanRead read,
+  String sessionId,
+) {
+  final scenes = {for (final scene in read.scenes) scene.sceneId};
+  return SceneRehearsalRecord.ofTheSession(
+    read.rehearsals,
+    sessionId,
+  ).where((r) => r.translatedFrases > 0 && !scenes.contains(r.scene)).toList();
+}
 
 /// Her `planHasRehearsals`: this session holds a rehearsal with a frase, labelled with a
 /// scene of the passage or not.

@@ -289,6 +289,18 @@ void main() {
     );
   });
 
+  test(
+    'the Ensaio Final plan answers the scene rehearsal opened with the Scene '
+    'rehearsal',
+    () {
+      _expectTheArrival(
+        const Ensaio(step: EnsaioStep.plan),
+        const TheSceneRehearsalOpened(),
+        isA<SceneRehearsal>(),
+      );
+    },
+  );
+
   test('every other Station ignores the scene rehearsal opened', () {
     for (final station in const <Station>[
       Menu(),

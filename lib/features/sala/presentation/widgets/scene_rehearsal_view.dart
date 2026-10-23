@@ -18,7 +18,7 @@ import 'scene_translate_step.dart';
 import 'scene_take_state.dart';
 
 /// The scene rehearsal's screen; her words reach the team only through VoiceOver, but on
-/// the translate step, which writes them (ADR 0014), and in the take's state (ADR 0112).
+/// the translate step, which writes them (ADR 0014), and in the take's state (ADR 0131).
 class SceneRehearsalView extends ConsumerWidget {
   const SceneRehearsalView({super.key});
 
