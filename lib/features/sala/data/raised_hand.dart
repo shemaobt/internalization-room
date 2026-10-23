@@ -9,9 +9,40 @@ import 'hand_inbox_repository.dart';
 import 'recording_repository.dart';
 import 'room_answer.dart';
 
+/// What the hand reads of the room, as the room stands when it is asked.
+typedef HandView = ({
+  List<HandReply> replies,
+  String? playingReplyId,
+  Channel channel,
+  bool noteMode,
+  VoiceState voice,
+  String? stationSessionId,
+  bool atTheTeamsIdleTurn,
+  HandReply? oldestUnheardReply,
+  int? noteOnItsWay,
+});
+
 abstract interface class HandHost {
-  SalaSessionState get state;
-  set state(SalaSessionState value);
+  /// The room as the hand reads it now, holding the very replies the hand last wrote.
+  HandView get view;
+
+  void showReplies(List<HandReply> replies);
+
+  void markPlaying(String id);
+
+  void clearPlaying();
+
+  /// The room shows [replies], one of them now heard, and the hand is lit on no reply.
+  void markReplyHeard(List<HandReply> replies);
+
+  void enterNoteMode();
+
+  void leaveNoteMode();
+
+  /// The room leaves note mode and holds [note] as the one on its way, in one write.
+  void markNoteOnItsWay(int note);
+
+  void clearNoteOnItsWay();
 
   bool get gone;
 
@@ -56,7 +87,7 @@ class RaisedHand {
   final _failures = <(String, String), int>{};
   var _notesSent = 0;
 
-  SalaSessionState get _state => host.state;
+  HandView get _state => host.view;
 
   Future<void> pull() {
     if (_inboxRead case final reading?) return reading;
@@ -91,7 +122,7 @@ class RaisedHand {
         },
     ];
     if (_sameReplies(merged, _state.replies)) return;
-    host.state = _state.copyWith(replies: merged);
+    host.showReplies(merged);
   }
 
   bool _sameReplies(List<HandReply> a, List<HandReply> b) {
@@ -109,7 +140,7 @@ class RaisedHand {
     }
     final unheard = _state.oldestUnheardReply;
     if (unheard != null) {
-      host.state = _state.copyWith(playingReplyId: unheard.id);
+      host.markPlaying(unheard.id);
       host.handOff(_playReply(unheard));
       return;
     }
@@ -117,7 +148,7 @@ class RaisedHand {
       cancelQuestion();
       return;
     }
-    host.state = _state.copyWith(noteMode: true);
+    host.enterNoteMode();
   }
 
   /// The circle's half of a question: it opens the microphone once the hand has armed
@@ -175,9 +206,7 @@ class RaisedHand {
         source: Source.reply(reply.id),
       );
     } on NetworkFailed catch (failure) {
-      if (_state.playingReplyId == reply.id) {
-        host.state = _state.copyWith(clearPlayingReply: true);
-      }
+      if (_state.playingReplyId == reply.id) host.clearPlaying();
       return host.decideAt(failure, door: Door.reply);
     } on Exception {
       said = Said.failed;
@@ -192,11 +221,9 @@ class RaisedHand {
       unawaited(_markHeard(reply));
       return;
     }
-    if (_state.playingReplyId == reply.id) {
-      host.state = _state.copyWith(clearPlayingReply: true);
-    }
+    if (_state.playingReplyId == reply.id) host.clearPlaying();
     if (current) {
-      host.state = _state.copyWith(replies: _unsounded(reply));
+      host.showReplies(_unsounded(reply));
       unawaited(pull());
     }
   }
@@ -261,12 +288,11 @@ class RaisedHand {
   Future<void> _markHeard(HandReply marked) async {
     final life = host.thisLife;
     HandReply? heard;
-    host.state = _state.copyWith(
-      replies: _replies(
+    host.markReplyHeard(
+      _replies(
         (kept) => _sameClip(kept, marked),
         (kept) => heard = kept.asHeard(),
       ),
-      clearPlayingReply: true,
     );
     final RoomFailure failure;
     switch (await inbox().markHeard(marked.id, audioUrl: marked.audioUrl)) {
@@ -277,8 +303,8 @@ class RaisedHand {
     }
     host.decideAt(failure, door: Door.inbox);
     if (host.endedSince(life)) return;
-    host.state = _state.copyWith(
-      replies: failure is Refused
+    host.showReplies(
+      failure is Refused
           ? _refused(marked, heard)
           : _replies(
               (kept) => identical(kept, heard),
@@ -308,13 +334,13 @@ class RaisedHand {
 
   void cancelQuestion() {
     host.dispatch(const MicDiscarded());
-    host.state = _state.copyWith(noteMode: false);
+    host.leaveNoteMode();
   }
 
   void _sendQuestion() {
     if (!_state.noteMode) return;
     final note = ++_notesSent;
-    host.state = _state.copyWith(noteMode: false, noteOnItsWay: note);
+    host.markNoteOnItsWay(note);
     host.handOff(_deliverQuestion(note, host.thisLife, host.listenedFor));
   }
 
@@ -327,7 +353,7 @@ class RaisedHand {
       await _deliver(listenedFor);
     } finally {
       if (!host.endedSince(life) && _state.noteOnItsWay == note) {
-        host.state = _state.copyWith(clearNoteOnItsWay: true);
+        host.clearNoteOnItsWay();
       }
     }
   }

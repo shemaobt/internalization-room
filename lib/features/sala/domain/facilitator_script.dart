@@ -13,6 +13,10 @@ const startLine = 'P0';
 
 const tellLine = 'P1';
 
+/// The first of her Ensaio Final lines, read by position from her N block: said as the
+/// First listen opens on a Joined recording.
+const firstListenLine = 'N0';
+
 /// The third of Marcia's process lines, read by position: start, tell, unheard,
 /// approved. Said when a part recorded again leaves some of the rehearsal still heard.
 const unheardLine = 'P2';
@@ -132,6 +136,14 @@ const ensaioFinalPlanLabels = {
   },
   'join': {'pt': 'juntar as cenas e ouvir', 'en': 'join the scenes and listen'},
   'listen': {'pt': 'Ouvir', 'en': 'Listen'},
+  'joining': {
+    'pt': 'juntando a cena {i} de {k}…',
+    'en': 'joining scene {i} of {k}…',
+  },
+  'joinRetry': {
+    'pt': 'não deu para juntar esta cena — toquem para tentar de novo',
+    'en': 'this scene could not be joined — tap to try again',
+  },
   'back': {'pt': 'Voltar para a gravação', 'en': 'Back to recording'},
   'useThis': {'pt': 'usar este', 'en': 'use this one'},
   'inUse': {'pt': 'em uso', 'en': 'in use'},
@@ -149,9 +161,19 @@ const ensaioFinalPlanLabels = {
   },
 };
 
-String ensaioFinalPlanLabelFor(String control, String language) =>
-    ensaioFinalPlanLabels[control]![language] ??
-    ensaioFinalPlanLabels[control]![floorLanguage]!;
+String ensaioFinalPlanLabelFor(
+  String control,
+  String language, {
+  int? i,
+  int? k,
+}) {
+  final label =
+      ensaioFinalPlanLabels[control]![language] ??
+      ensaioFinalPlanLabels[control]![floorLanguage]!;
+  return i == null || k == null
+      ? label
+      : label.replaceAll('{i}', '$i').replaceAll('{k}', '$k');
+}
 
 /// A local time as the room writes it, `HH:MM`.
 String clockOf(DateTime at) {
@@ -163,6 +185,20 @@ String clockOf(DateTime at) {
 /// A length as the room writes it, `m:ss`, in whole seconds cut down.
 String minutesAndSecondsOf(Duration length) =>
     '${length.inMinutes}:${'${length.inSeconds % 60}'.padLeft(2, '0')}';
+
+/// The First listen's place: «parte 2 · 0:41 / 1:10», the part's own clock.
+String firstListenPositionFor(
+  int part,
+  Duration at,
+  Duration? length,
+  String language,
+) {
+  final ofThePart = length != null && length > Duration.zero
+      ? ' / ${minutesAndSecondsOf(length)}'
+      : '';
+  return '${retroLabelFor('part', language)} $part · '
+      '${minutesAndSecondsOf(at)}$ofThePart';
+}
 
 /// A plan row's facts, her `rowText`: its number, its local clock, its length `m:ss`
 /// rounded to the nearest second as her `fmtDur` does, and its current frases.
@@ -440,6 +476,10 @@ const retroLabels = {
   'pauseAtTheTap': {
     'pt': 'a pausa ficou no toque — toquem no círculo para traduzir',
     'en': 'the pause is at your tap — tap the circle to translate',
+  },
+  'listenOnly': {
+    'pt': 'Primeiro, só ouvir: a passagem inteira, do começo ao fim.',
+    'en': 'First, just listen: the whole passage, from beginning to end.',
   },
   'advance': {'pt': 'terminei', 'en': 'done'},
   'checking': {'pt': 'conferindo…', 'en': 'checking…'},
