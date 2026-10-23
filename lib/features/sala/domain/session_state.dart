@@ -408,8 +408,8 @@ class SalaSessionState {
   /// plan.
   final Map<String, String> planChoices;
 
-  /// The rehearsal a play button of the plan asked to hear, while it is fetched or sounds.
-  final String? planListening;
+  /// The play a button of the plan last asked for, while it is fetched or sounds.
+  final PlanListen? planListening;
 
   /// The scene whose Rehearsal sheet is open over the plan, for one visit of the plan.
   final String? planSheet;
@@ -590,8 +590,9 @@ class SalaSessionState {
   /// Whether a current Part was laid in from a Scene rehearsal.
   bool get joined => partes.any((take) => take.origin != null);
 
-  /// Whether a current Part came from a join, as the tablet holds it or the room lists it.
-  bool get aPartWasJoined => joined || theRoomJoinedAPart;
+  /// Whether a current Part came from a join: as the tablet holds its parts, or as the room
+  /// lists them while the tablet holds none.
+  bool get aPartWasJoined => partes.isEmpty ? theRoomJoinedAPart : joined;
 
   /// How the orange dot stands on the Conversation: gone while the way out is hidden, any
   /// voice sounds or a sent note is on its way; bright from the send-off; faint otherwise.
@@ -1255,7 +1256,7 @@ class SalaSessionState {
     bool clearSceneLine = false,
     EnsaioFinalPlan? ensaioFinalPlan,
     Map<String, String>? planChoices,
-    String? planListening,
+    PlanListen? planListening,
     bool clearPlanListening = false,
     String? planSheet,
     bool clearPlanSheet = false,

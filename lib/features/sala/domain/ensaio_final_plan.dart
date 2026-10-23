@@ -10,6 +10,13 @@ sealed class EnsaioFinalPlan {
   const EnsaioFinalPlan();
 }
 
+/// One tap of a plan row's play: only the newest one is ever heard.
+final class PlanListen {
+  final String rehearsalId;
+
+  PlanListen(this.rehearsalId);
+}
+
 /// «pensando…»: the room has not answered yet.
 final class PlanAwaited extends EnsaioFinalPlan {
   const PlanAwaited();
@@ -58,7 +65,9 @@ final class PlanRow {
 
   bool get partial => chosen?.untranslatedStretch ?? false;
 
-  bool get canSwap => candidates.length > 1;
+  /// «trocar» opens the Rehearsal sheet only where there is another joinable rehearsal
+  /// to choose.
+  bool get canSwap => candidates.where((c) => c.joinable).length > 1;
 }
 
 /// The plan's rows in passage order; [choices] maps a scene to the rehearsal the team
@@ -77,8 +86,7 @@ List<PlanRow> planRowsOf(
         ours
             .where((r) => r.scene == scene.sceneId && r.translatedFrases > 0)
             .toList()
-            .reversed
-            .toList(),
+          ..sort((a, b) => b.n.compareTo(a.n)),
         choices[scene.sceneId],
       ),
   ];

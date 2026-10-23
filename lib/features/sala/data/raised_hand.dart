@@ -317,8 +317,11 @@ class RaisedHand {
   }
 
   Future<void> _deliverQuestion(Duration listenedFor) async {
-    await _deliver(listenedFor);
-    if (!host.gone) host.state = _state.copyWith(aNoteGoesOut: false);
+    try {
+      await _deliver(listenedFor);
+    } finally {
+      if (!host.gone) host.state = _state.copyWith(aNoteGoesOut: false);
+    }
   }
 
   Future<void> _deliver(Duration listenedFor) async {

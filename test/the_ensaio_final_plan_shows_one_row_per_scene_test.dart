@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
@@ -103,7 +105,7 @@ SceneRehearsalRecord _rehearsal(
 );
 
 List<SceneRehearsalRecord> _oneEach(String sessionId) => [
-  _rehearsal(sessionId, n: 1, scene: 'S1', durationMs: 7000, k: 2),
+  _rehearsal(sessionId, n: 1, scene: 'S1', durationMs: 6600, k: 2),
   _rehearsal(sessionId, n: 2, scene: 'S2', durationMs: 12000, k: 3),
   _rehearsal(sessionId, n: 3, scene: 'S3', durationMs: 65000, k: 1),
 ];
@@ -312,15 +314,68 @@ void main() {
       final (harness, _) = await _seeded(tester, _oneEach);
       await _openThePlan(tester);
       final sessionId = harness.room.sceneRehearsals.first.sessionId;
+      File(
+        '${harness.recorder.home.path}/cena-$sessionId-ensaio-2.wav',
+      ).writeAsBytesSync([1, 2, 3, 4]);
       harness.room.holdNextClip();
 
       await tester.tap(_playOn(1));
       await tester.pump(const Duration(milliseconds: 100));
-      harness.room.finishHeldClip();
       await tester.tap(_playOn(2));
+      await tester.pump(const Duration(milliseconds: 100));
+      harness.room.finishHeldClip();
       await _theAnswerSettles(tester);
 
       expect(harness.playback.played.last, contains('$sessionId-ensaio-2'));
+      expect(
+        harness.playback.played.where((p) => p.contains('$sessionId-ensaio-1')),
+        isEmpty,
+      );
+      semantics.dispose();
+    });
+
+    testWidgets(
+      'a play whose clip did not come leaves the next tap to play it',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final (harness, _) = await _seeded(tester, _oneEach);
+        await _openThePlan(tester);
+        final sessionId = harness.room.sceneRehearsals.first.sessionId;
+        harness.room.sceneAudio = Uint8List(0);
+
+        await tester.tap(_playOn(1));
+        await _theAnswerSettles(tester);
+        harness.room.sceneAudio = null;
+        await tester.tap(_playOn(1));
+        await _theAnswerSettles(tester);
+
+        expect(harness.playback.played.last, contains('$sessionId-ensaio-1'));
+        semantics.dispose();
+      },
+    );
+
+    testWidgets('one row, another, then the first again, all slow, plays the '
+        'first once', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(tester, _oneEach);
+      await _openThePlan(tester);
+      final sessionId = harness.room.sceneRehearsals.first.sessionId;
+      final before = harness.playback.played.length;
+      harness.room.holdNextClip();
+
+      for (final n in [1, 2, 1]) {
+        await tester.tap(_playOn(n));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      harness.room.finishHeldClip();
+      await _theAnswerSettles(tester);
+
+      final heard = harness.playback.played.skip(before);
+      expect(
+        heard.where((p) => p.contains('$sessionId-ensaio-1')),
+        hasLength(1),
+      );
+      expect(heard.where((p) => p.contains('$sessionId-ensaio-2')), isEmpty);
       semantics.dispose();
     });
 
@@ -540,6 +595,45 @@ void main() {
       expect(_onRow(2, find.text(_facts(1, '0:07', 2))), findsOneWidget);
       expect(_onRow(2, find.text(_facts(3, '0:07', 2))), findsNothing);
       semantics.dispose();
+    },
+  );
+
+  testWidgets('6. «trocar» walks the joinable rehearsals newest first', (
+    tester,
+  ) async {
+    await _seeded(
+      tester,
+      (s) => [
+        _rehearsal(s, n: 1, scene: 'S2', sentAt: _sentAt('10:00')),
+        _rehearsal(s, n: 2, scene: 'S2', sentAt: _sentAt('10:01')),
+        _rehearsal(s, n: 3, scene: 'S2', sentAt: _sentAt('10:05')),
+      ],
+    );
+
+    await _openThePlan(tester);
+    expect(_onRow(2, find.text(_facts(3, '0:07', 2))), findsOneWidget);
+
+    for (final n in [2, 1, 3]) {
+      await _tapSwapOn(tester, 2);
+      expect(_onRow(2, find.text(_facts(n, '0:07', 2))), findsOneWidget);
+    }
+  });
+
+  testWidgets(
+    '6. a row with one joinable rehearsal beside an unsent one offers no «trocar»',
+    (tester) async {
+      await _seeded(
+        tester,
+        (s) => [
+          _rehearsal(s, n: 1, scene: 'S2'),
+          _rehearsal(s, n: 2, scene: 'S2', sentAt: null),
+        ],
+      );
+
+      await _openThePlan(tester);
+
+      expect(_onRow(2, find.text(_facts(1, '0:07', 2))), findsOneWidget);
+      expect(_onRow(2, find.text(_swap)), findsNothing);
     },
   );
 

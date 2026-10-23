@@ -3475,7 +3475,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         _openTheRecordingHome(sessionId, listed: guardadas);
       case (Answered(value: final guardadas), Answered(value: final listed), _)
-          when !waiting && rehearsalsElsewhere(listed, sessionId):
+          when rehearsalsElsewhere(listed, sessionId):
         state = state.copyWith(rehearsalsElsewhere: true);
         _openTheRecordingHome(sessionId, listed: guardadas);
       case (
@@ -3639,21 +3639,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (chosen != null) _handOff(_hearTheSceneRehearsal(chosen));
   });
 
-  /// A play button of the plan: a second tap on the rehearsal being heard stops it, and a
-  /// clip sounds only while it is still the one last asked for.
+  /// A play button of the plan: a second tap on the rehearsal being heard stops it, and
+  /// only the newest tap is ever heard. A tap whose clip never sounds lets the next one
+  /// play.
   Future<void> _hearTheSceneRehearsal(SceneRehearsalRecord rehearsal) async {
     final heard = state.planListening;
     _silenceThePlan();
-    if (heard == rehearsal.rehearsalId) return;
-    state = state.copyWith(planListening: rehearsal.rehearsalId);
+    if (heard?.rehearsalId == rehearsal.rehearsalId) return;
+    final asked = PlanListen(rehearsal.rehearsalId);
+    state = state.copyWith(planListening: asked);
     final generation = _waitOnTheGeneration;
     final path = await _fetchTheSceneTake(rehearsal, generation);
-    if (path == null ||
-        _abandoned(generation) ||
-        state.planListening != rehearsal.rehearsalId) {
-      return;
+    bool stillAsked() => !_gone && identical(state.planListening, asked);
+    void heardOut() {
+      if (stillAsked()) state = state.copyWith(clearPlanListening: true);
     }
-    void heardOut() => state = state.copyWith(clearPlanListening: true);
+
+    if (path == null || _abandoned(generation) || !stillAsked()) {
+      return heardOut();
+    }
     _play(PartSound(0, path), onComplete: heardOut, onFailed: heardOut);
   }
 
