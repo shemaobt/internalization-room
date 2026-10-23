@@ -486,6 +486,8 @@ class EffectRunner {
 
   /// A start's answer is stamped with the generation it was opened under; a late start
   /// that is still the newest closes the Channel and leaves no recorder running (ADR 0057).
+  /// An answer that arrives after the runner is disposed has no Channel left to close, so a
+  /// start that opened the recorder is discarded and the rest is dropped.
   Future<void> _answerTheStart(
     MicOwner owner,
     int start,

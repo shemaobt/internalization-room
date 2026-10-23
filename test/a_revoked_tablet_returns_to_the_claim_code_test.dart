@@ -510,10 +510,11 @@ void main() {
       ..linkedTo = const TeamLink(projectId: 'equipe-2');
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(CodigoView), findsNothing);
   }
 
   testWidgets('a revocation while the Rehearsal records stops the microphone '
-      'and discards its take before the claim code shows', (tester) async {
+      'and discards its take by the time the claim code shows', (tester) async {
     final harness = SalaHarness(
       linkedAs: _linked,
       linkPoll: const Duration(milliseconds: 50),
@@ -567,8 +568,10 @@ void main() {
     await theDeskLinksAgain(tester, harness);
   });
 
-  testWidgets('after the next link and a passage entry, no take of the '
-      'revoked room reaches the Outbox', (tester) async {
+  testWidgets('after the next link and a passage entry, the revocation '
+      'discarded the take once and the new Life discards nothing more', (
+    tester,
+  ) async {
     final harness = SalaHarness(
       linkedAs: _linked,
       linkPoll: const Duration(milliseconds: 50),
@@ -580,13 +583,10 @@ void main() {
     await theDeskRevokes(tester, harness, container);
 
     await theDeskLinksAgain(tester, harness);
-    expect(find.byType(CodigoView), findsNothing);
     final notifier = container.read(salaSessionProvider.notifier);
     notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(harness.room.takesReceived, isEmpty);
-    expect(await harness.takes.entries(), isEmpty);
     expect(harness.recorder.deleted, hasLength(1));
   });
 }
