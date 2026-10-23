@@ -89,11 +89,6 @@ void main() {
 
     harness.playback.finishPlayback();
     await waitFor(
-      'a parte 3 fechar a fronteira',
-      () => container.read(salaSessionProvider).btParteFronteira,
-    );
-    notifier.ouvirGravacao();
-    await waitFor(
       'a retro tocar a parte 4',
       () => harness.playback.played.last == partes[3].path,
     );
@@ -159,11 +154,6 @@ void main() {
     );
     harness.playback.finishPlayback();
     await waitFor(
-      'a parte 3 fechar a fronteira',
-      () => container.read(salaSessionProvider).btParteFronteira,
-    );
-    notifier.ouvirGravacao();
-    await waitFor(
       'a retro tocar a parte 4',
       () => harness.playback.played.last == partes[3].path,
     );
@@ -223,11 +213,6 @@ void main() {
     );
 
     harness.playback.finishPlayback();
-    await waitFor(
-      'a parte 3 fechar a fronteira',
-      () => container.read(salaSessionProvider).btParteFronteira,
-    );
-    notifier.ouvirGravacao();
     await waitFor(
       'a retro tocar a parte 4',
       () =>

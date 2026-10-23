@@ -66,8 +66,6 @@ Future<ProviderContainer> quatroFrasesEmWav(
     harness.playback.at = cabeca;
     await _traduzir(tester);
     harness.playback.at = parte;
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
     await _traduzir(tester);
     await waitFor(
       'a parte $contada ficar contada em duas frases',
@@ -80,6 +78,9 @@ Future<ProviderContainer> quatroFrasesEmWav(
           contada * 2,
       step: () => _passo(tester),
     );
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
   }
   await _passo(tester);
   return container;
@@ -339,7 +340,7 @@ void main() {
       isEmpty,
       reason: 'as duas falas voltavam em cada regravação da mesma visita',
     );
-    expect(harness.playback.ranges.skip(tocadas), ['4000-10000']);
+    expect(harness.playback.ranges.skip(tocadas), ['4000-9900']);
     expect(
       find.descendant(
         of: find.byType(RetroView),
@@ -1236,6 +1237,38 @@ void main() {
       container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
       'trecho-3',
       reason: 'outra frase tomava o círculo da frase que esperava a tradução',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('while a re-recorded frase awaits its translation, a bead on '
+      'frase 1 plays its piece of the recording and leaves the circle on the '
+      'frase that awaits', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await umAchadoNaFraseDois(tester, harness, container);
+    await deitarAFrase(tester, harness, 3);
+    final aqui = container.read(salaSessionProvider);
+    expect(aqui.btFraseQueAguarda, 'trecho-3');
+    final parteUm = aqui.partes.first.path;
+    final tocadas = harness.playback.played.length;
+    final trechos = harness.playback.ranges.length;
+
+    container
+        .read(salaSessionProvider.notifier)
+        .ouvirAConta(aqui.btTrechos.indexWhere((trecho) => trecho.frase == 1));
+    await _passo(tester);
+
+    expect(
+      harness.playback.played.skip(tocadas),
+      [parteUm],
+      reason: 'a conta tocava a tradução da frase 1, não a gravação',
+    );
+    expect(harness.playback.ranges.skip(trechos), ['0-4000']);
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-3',
+      reason: 'a conta tomava o círculo da frase que esperava a tradução',
     );
     closeTheRoom(container);
   });

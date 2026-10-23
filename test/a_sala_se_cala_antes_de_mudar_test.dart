@@ -162,6 +162,8 @@ Future<_Cena> _nosAchadosComOTrechoNoAr() async {
 Future<_Cena> _naFronteiraDaParte() async {
   final cena = await _noRetro(partes: 2);
   cena.harness.playback.at = const Duration(milliseconds: 600);
+  cena.sala.ouvirGravacao();
+  await waitFor('a parte ficar segurada', () => _estado(cena).btClipPausada);
   cena.harness.playback.finishPlayback();
   await waitFor(
     'a fronteira da parte abrir',
@@ -433,19 +435,22 @@ void main() {
               _estado(cena).btPhase == BtPhase.playing &&
               cena.harness.playback.sounding,
         );
-        // O cursor está no último corte; a cabeça volta atrás dele, que é a única
-        // leitura que a sala recusa em vez de mandar um trecho que acaba antes de
-        // começar.
+        // O cursor está no último corte; a cabeça volta atrás dele, e o toque põe
+        // a pausa no piso em vez de mandar um trecho que acaba antes de começar.
         cena.harness.playback.at = const Duration(milliseconds: 5);
         return cena;
       },
       (cena) async {
         cena.sala.retroTap();
-        cena.sala.retroTap();
         expect(
           _estado(cena).btPhase,
           BtPhase.playing,
-          reason: 'o arranjo só vale se o corte for recusado',
+          reason: 'o primeiro toque só põe a pausa',
+        );
+        expect(
+          _estado(cena).btCortado,
+          isTrue,
+          reason: 'o toque atrás do cursor segurava o clipe sem pausa',
         );
       },
       segurando: true,

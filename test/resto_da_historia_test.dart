@@ -456,21 +456,19 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 12);
     notifier.retroTap();
-    notifier.retroTap();
     await settle();
+    expect(harness.room.chunksSent, 0);
     expect(
-      harness.room.chunksSent,
-      0,
+      container.read(salaSessionProvider).btCorte,
+      const Duration(milliseconds: 25200),
       reason: 'um corte sobre os vinte e cinco segundos já contados não sai',
     );
 
-    harness.playback.at = const Duration(seconds: 28);
-    notifier.retroTap();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
     await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
-    expect(harness.room.chunkSpans, ['25000-28000']);
+    expect(harness.room.chunkSpans, ['25000-25200']);
     expect(harness.room.chunkTakes, [partes[1].takeId]);
   });
 
