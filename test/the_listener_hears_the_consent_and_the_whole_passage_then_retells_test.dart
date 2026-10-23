@@ -714,6 +714,28 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a person called while «Novo ouvinte» is answered hears X-open '
+      'once, then the passage once', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naChecagem(tester, harness);
+    final desde = harness.playback.played.length;
+    harness.room.holdNextListener();
+    await _tocar(tester, _novoOuvinte);
+
+    _notifier(container).haltForABrokenBuild();
+    await _passar(tester);
+    harness.room.finishHeldListener();
+    await _passar(tester);
+    _notifier(container).teamTapped();
+    await _passar(tester);
+    await _passar(tester);
+    await _terminarAsPartes(tester, harness);
+
+    expect(_falasX(harness), [('X0', 'pt'), ('X1', 'pt')]);
+    expect(_ouvidoDesde(harness, desde), _partes);
+    closeTheRoom(container);
+  });
+
   testWidgets('a second tap while the microphone is still opening does not '
       'close it', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
