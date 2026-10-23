@@ -38,6 +38,9 @@ Choice. Her app shows the rows at once and streams a row's audio when it is play
   parts on their way, so an app closed meanwhile fetches them again on its next opening.
 - A Back-translation resume, the approved draft's landing and the refusal re-read still fetch
   every part before they land.
+- An approved draft the room reads after a Rehearsal landing waits for the parts on their way,
+  and lands only when every part came down: a part the room lost or a part that could not be
+  fetched keeps the team on the Rehearsal, as a rehearsal short of a part always did.
 
 ## Considered options
 
