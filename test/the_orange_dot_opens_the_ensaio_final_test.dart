@@ -510,6 +510,16 @@ List<KeptTake> _partThreeGone(Directory guardadas) => [
 ];
 
 void main() {
+  test('a joined part the team recorded again by hand names the dot «Gravar o '
+      'ensaio de vocês» again', () {
+    final state = SalaSessionState(
+      theRoomJoinedAPart: true,
+      keptTakes: [KeptTake(scopeId: KeptScope.parte(1), path: 'parte-1.m4a')],
+    );
+
+    expect(state.aPartWasJoined, isFalse);
+  });
+
   testWidgets(
     'mid-conversation the dot is faint and opens the Ensaio Final plan',
     (tester) async {
