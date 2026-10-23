@@ -11,7 +11,7 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
-import 'a_scene_room.dart' show articulation;
+import 'a_scene_room.dart' show articulation, pumpUntil;
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
@@ -50,12 +50,6 @@ SceneRehearsalRecord _theRehearsal({String? sentAt}) => SceneRehearsalRecord(
 final _unsent = _theRehearsal();
 final _listedSent = _theRehearsal(sentAt: '2026-10-15T15:00:00+00:00');
 
-Future<void> _pumpUntil(WidgetTester tester, bool Function() done) async {
-  for (var vez = 0; vez < 40 && !done(); vez++) {
-    await tester.pump(const Duration(milliseconds: 100));
-  }
-}
-
 bool? _enabled(WidgetTester tester, Finder control) =>
     tester.widget<Semantics>(control).properties.enabled;
 
@@ -88,10 +82,10 @@ Future<(SalaHarness, ProviderContainer)> _theRehearsalOnScreen(
   await notifier.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
   unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
-  await _pumpUntil(tester, () => _state(container).voice == VoiceState.invite);
+  await pumpUntil(tester, () => _state(container).voice == VoiceState.invite);
   await tester.pump(const Duration(milliseconds: 1500));
   await tester.tap(_redMicrophone);
-  await _pumpUntil(
+  await pumpUntil(
     tester,
     () =>
         _state(container).scene.step == SceneStep.translate &&
@@ -108,8 +102,8 @@ Future<void> _termineiAndTheLook(
   ProviderContainer container,
 ) async {
   await tester.tap(_terminei);
-  await _pumpUntil(tester, () => harness.room.turnIdsLookedAt.isNotEmpty);
-  await _pumpUntil(
+  await pumpUntil(tester, () => harness.room.turnIdsLookedAt.isNotEmpty);
+  await pumpUntil(
     tester,
     () =>
         !_state(container).awaitingTheGuide &&
@@ -123,8 +117,8 @@ Future<void> _backToTheSession(
   ProviderContainer container,
 ) async {
   await tester.tap(_theWayBack);
-  await _pumpUntil(tester, () => _state(container).stage == SalaStage.conversa);
-  await _pumpUntil(tester, () => _state(container).needsPerson);
+  await pumpUntil(tester, () => _state(container).stage == SalaStage.conversa);
+  await pumpUntil(tester, () => _state(container).needsPerson);
 }
 
 void main() {
@@ -143,7 +137,7 @@ void main() {
       expect(_enabled(tester, _terminei), isTrue);
 
       await tester.tap(_terminei);
-      await _pumpUntil(tester, () => _repliesPlayed(harness) > repliesBefore);
+      await pumpUntil(tester, () => _repliesPlayed(harness) > repliesBefore);
 
       expect(harness.room.scenesSent, hasLength(2));
       await tester.pump(const Duration(seconds: 2));
@@ -198,7 +192,7 @@ void main() {
         ..sceneListsAnswerFirst.add(Answered([_unsent]));
 
       await tester.tap(_terminei);
-      await _pumpUntil(tester, () => _says(_notSent).evaluate().isNotEmpty);
+      await pumpUntil(tester, () => _says(_notSent).evaluate().isNotEmpty);
       await tester.pump(const Duration(seconds: 1));
 
       expect(_state(container).stage, SalaStage.cena);
@@ -220,7 +214,7 @@ void main() {
         harness.room.answersTurnsWithoutAReply = true;
 
         await tester.tap(_terminei);
-        await _pumpUntil(
+        await pumpUntil(
           tester,
           () => byLabel('$_listen — $_alreadySent').evaluate().isNotEmpty,
         );
@@ -274,7 +268,7 @@ void main() {
       harness.room.failLooksWith = null;
 
       await tester.tap(_terminei);
-      await _pumpUntil(tester, () => _repliesPlayed(harness) > repliesBefore);
+      await pumpUntil(tester, () => _repliesPlayed(harness) > repliesBefore);
       await tester.pump(const Duration(seconds: 2));
 
       expect(

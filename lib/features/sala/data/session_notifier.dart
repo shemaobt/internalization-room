@@ -4417,8 +4417,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theDiskFailed() =>
       state = state.copyWith(sceneLine: SceneLine.diskFailed);
 
-  /// Her «não deu para enviar agora» stands until the list read after it says the room
-  /// holds the rehearsal as sent.
   void _theSendFailed() => state = state.copyWith(sceneLine: SceneLine.notSent);
 
   void _theDiskWordGoes() {

@@ -150,6 +150,27 @@ void main() {
       );
     });
 
+    test('a scene rehearsal answered without a reply to play is decided as one '
+        'whose look found nothing', () {
+      _decides(
+        const RoomAnsweredWithoutAReply(),
+        _at(const SceneRehearsal(), turn: _turn),
+        const TheSceneTurnFoundNothing(generation: 4),
+      );
+    });
+
+    test('on the scene rehearsal the machine tells the screen the send failed, '
+        'reads the list again and raises no halt', () {
+      final (machine, effects) = reduce(
+        const Machine(station: SceneRehearsal()),
+        const TheSceneTurnFoundNothing(),
+      );
+
+      expect(effects, contains(const TellTheSendFailed()));
+      expect(effects, contains(const ReadTheSceneRehearsals()));
+      expect(machine.halt, const NoHalt());
+    });
+
     test('the reply\'s sound failing once brings nothing; twice brings the '
         'person sign', () {
       final context = _at(const Canvas(), sounding: const ThePart());
