@@ -315,14 +315,18 @@ class RaisedHand {
     if (!_state.noteMode) return;
     final note = ++_notesSent;
     host.state = _state.copyWith(noteMode: false, noteOnItsWay: note);
-    host.handOff(_deliverQuestion(note, host.listenedFor));
+    host.handOff(_deliverQuestion(note, host.thisLife, host.listenedFor));
   }
 
-  Future<void> _deliverQuestion(int note, Duration listenedFor) async {
+  Future<void> _deliverQuestion(
+    int note,
+    int? life,
+    Duration listenedFor,
+  ) async {
     try {
       await _deliver(listenedFor);
     } finally {
-      if (!host.gone && _state.noteOnItsWay == note) {
+      if (!host.endedSince(life) && _state.noteOnItsWay == note) {
         host.state = _state.copyWith(clearNoteOnItsWay: true);
       }
     }
