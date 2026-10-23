@@ -214,7 +214,7 @@ void main() {
     expect(kept.bytes, _reconto);
     expect(harness.recorder.deleted, contains(harness.recorder.lastPath));
     expect(find.textContaining(_gravando), findsNothing);
-    expect(find.text(_toque), findsOneWidget);
+    expect(find.text('Agradecemos sua ajuda.'), findsOneWidget);
     closeTheRoom(container);
   });
 
@@ -579,11 +579,9 @@ void main() {
     await _tocar(tester, _circulo);
     await _tocar(tester, _circulo);
     expect(harness.room.listenerRecordings, hasLength(1));
-    final desde = harness.playback.played.length;
+    await _passar(tester);
 
-    await _tocar(tester, _ouvirDeNovo);
-
-    expect(_ouvidoDesde(harness, desde), ['t1']);
+    expect(byLabel(_ouvirDeNovo), findsNothing);
     expect(
       harness.playback.played.where(
         (path) =>

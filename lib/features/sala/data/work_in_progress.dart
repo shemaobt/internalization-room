@@ -42,6 +42,11 @@ class ResumePoint {
   /// room's pass for it, so the recording goes up above it. Empty for any other row.
   final Map<int, int> passesToGoAbove;
 
+  /// The outside listener this tablet has in progress on the Checagem externa, by version
+  /// and number; what they have done is the room's to say (ADR 0116). Null for any other
+  /// row.
+  final ({int version, int number})? listener;
+
   const ResumePoint({
     required this.sessionId,
     required this.stage,
@@ -50,6 +55,7 @@ class ResumePoint {
     this.language,
     this.partBeingRecordedAgain,
     this.passesToGoAbove = const {},
+    this.listener,
   });
 
   Map<String, Object?> toJson() => {
@@ -63,6 +69,8 @@ class ResumePoint {
         for (final MapEntry(:key, :value) in passesToGoAbove.entries)
           '$key': value,
       },
+    if (listener case (:final version, :final number))
+      'listener': {'version': version, 'number': number},
     'takes': [
       for (final take in takes)
         {
@@ -97,6 +105,13 @@ class ResumePoint {
             in (json['passes_to_go_above'] as Map? ?? const {}).entries)
           if (int.tryParse('$key') case final numero? when value is int)
             numero: value,
+      },
+      listener: switch (json['listener']) {
+        {'version': final int version, 'number': final int number} => (
+          version: version,
+          number: number,
+        ),
+        _ => null,
       },
       takes: [
         for (final raw in (json['takes'] as List? ?? const []))

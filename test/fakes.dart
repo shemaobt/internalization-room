@@ -439,7 +439,7 @@ class FakeRecorder implements RecordingRepository {
   }
 
   @override
-  Future<void> sweepTheFrasesLeftBehind() async => sweeps++;
+  Future<void> sweepTheRecordingsLeftBehind() async => sweeps++;
 
   /// Whether keeping fetched audio fails, the way a dead disk does.
   bool keepBytesFails = false;
@@ -3084,6 +3084,84 @@ class FakeRoom implements RoomRepository {
       kind: kind,
       bytes: bytes,
     ));
+    final lost = loseNextListenerRecordingAnswerWith;
+    if (lost != null) {
+      loseNextListenerRecordingAnswerWith = null;
+      return lost;
+    }
+    return const Answered(null);
+  }
+
+  /// What the next listener recording answers after the room kept it, the way an answer
+  /// lost on the way back does.
+  RoomFailure? loseNextListenerRecordingAnswerWith;
+
+  /// Every listener the tablet asked the room about, by number.
+  final List<int> listenersRead = [];
+
+  /// What the next read of a listener answers, the room telling nothing.
+  RoomFailure? failNextListenerReadWith;
+
+  /// The listeners the room holds as finished, by number, with the `completed` of the
+  /// first finish it kept.
+  final Map<int, bool> finishedListeners = {};
+
+  /// Answers what the room holds of a listener it gave a number: finished once a finish
+  /// was kept, retold once a retelling was. A number it never gave is not found, which the
+  /// tablet hears as the session gone.
+  @override
+  Future<RoomAnswer<ListenerRecord>> theListener(
+    String sessionId,
+    int version,
+    int listener,
+  ) async {
+    if (_guard('theListener') case final failure?) return failure;
+    if (_forgot('theListener', sessionId) case final gone?) return gone;
+    listenersRead.add(listener);
+    final failure = failNextListenerReadWith;
+    if (failure != null) {
+      failNextListenerReadWith = null;
+      return failure;
+    }
+    if (!_listenerOfAttempt.containsValue(listener)) return const SessionGone();
+    return Answered(
+      ListenerRecord(
+        finished: finishedListeners.containsKey(listener),
+        hasRetelling: listenerRecordings.any(
+          (kept) =>
+              kept.version == version &&
+              kept.listener == listener &&
+              kept.kind == listenerRetelling,
+        ),
+      ),
+    );
+  }
+
+  /// Every finish that reached the room, kept or not.
+  final List<({int version, int number, bool completed})> listenersFinished =
+      [];
+
+  /// What the next finishes answer, in order, the room keeping none of them.
+  final List<RoomFailure> failTheNextFinishesWith = [];
+
+  @override
+  Future<RoomAnswer<void>> finishTheListener(
+    String sessionId,
+    int version,
+    int listener, {
+    required bool completed,
+  }) async {
+    if (_guard('finishTheListener') case final failure?) return failure;
+    if (_forgot('finishTheListener', sessionId) case final gone?) return gone;
+    listenersFinished.add((
+      version: version,
+      number: listener,
+      completed: completed,
+    ));
+    if (failTheNextFinishesWith.isNotEmpty) {
+      return failTheNextFinishesWith.removeAt(0);
+    }
+    finishedListeners.putIfAbsent(listener, () => completed);
     return const Answered(null);
   }
 

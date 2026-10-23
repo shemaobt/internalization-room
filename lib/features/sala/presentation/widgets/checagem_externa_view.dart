@@ -112,6 +112,34 @@ class ChecagemExternaView extends ConsumerWidget {
         if (failed != null) ...[const SizedBox(height: 16), line(failed)],
       ];
     }
+    if (shown.step == ListenerStep.done) {
+      final free = !shown.sending && !session.listenerRecording;
+      return [
+        const SizedBox(height: 6),
+        line(externalCheckLabelFor('listener', language, n: shown.listener)),
+        const SizedBox(height: 20),
+        ExcludeSemantics(
+          child: Text(
+            '✓',
+            style: TextStyle(color: colors.ink, fontSize: 40, height: 1),
+          ),
+        ),
+        const SizedBox(height: 12),
+        line(externalCheckLabelFor('done', language)),
+        const SizedBox(height: 28),
+        _Control(
+          label: externalCheckLabelFor('anotherListener', language),
+          enabled: free,
+          onTap: notifier.anotherListener,
+        ),
+        const SizedBox(height: 16),
+        _Control(
+          label: externalCheckLabelFor('finishTheCheck', language),
+          enabled: free,
+          onTap: notifier.finishTheCheck,
+        ),
+      ];
+    }
     final retell = shown.step == ListenerStep.retell;
     final open = session.listenerCircleOpen;
     final recording = session.listenerRecording;

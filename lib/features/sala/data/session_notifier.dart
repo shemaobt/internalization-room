@@ -121,10 +121,10 @@ final class _FraseKeep {
   }
 }
 
-/// The launch sweep of the frases a killed app left on the tablet runs once per
+/// The launch sweep of the recordings a killed app left on the tablet runs once per
 /// process: a life rebuilt after a revocation must not delete a file another
 /// continuation still holds.
-bool _theFrasesLeftBehindWereSwept = false;
+bool _theRecordingsLeftBehindWereSwept = false;
 
 final roomPollDelayProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 30),
@@ -493,6 +493,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _highestGeneration = 0;
   int _firstGeneration = 0;
 
+  /// The outside listener this tablet has in progress, as its Resume point names them.
+  ({int version, int number})? _listenerInProgress;
+
   void _aNewLife() {
     _timers = {};
     _armHandedOver = null;
@@ -512,6 +515,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _listeningSince = null;
     _recordingStarting = false;
     _emCurso = null;
+    _listenerInProgress = null;
     _faseAntesDeTraduzirDeNovo = null;
     _traducoesGuardadas = {};
     _traducaoNaFila = {};
@@ -578,9 +582,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _aNewLife();
     _gone = false;
     final frases = _frases;
-    if (!_theFrasesLeftBehindWereSwept) {
-      _theFrasesLeftBehindWereSwept = true;
-      unawaited(_recorder.sweepTheFrasesLeftBehind());
+    if (!_theRecordingsLeftBehindWereSwept) {
+      _theRecordingsLeftBehindWereSwept = true;
+      unawaited(_recorder.sweepTheRecordingsLeftBehind());
     }
     listenSelf((_, now) {
       if (now.anArmedKnotLapsed) state = now.copyWith(noteMode: false);
@@ -2419,6 +2423,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ? await _emAberto.of(book, pericope, speaking)
         : null;
     if (_abandoned(generation)) return;
+    _listenerInProgress = waiting?.listener;
     final theResume = '$book/$pericope/$speaking';
     void failed(
       RoomFailure failure, {
@@ -2532,6 +2537,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               sent,
               generation,
               landed,
+              resumed: waiting,
             )) {
           return;
         }
@@ -2572,7 +2578,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         moment: read.moment,
         clearMoment: read.moment == null,
       );
-      if (await _landedOnTheApprovedDraft(read, sent, generation, landed)) {
+      if (await _landedOnTheApprovedDraft(
+        read,
+        sent,
+        generation,
+        landed,
+        resumed: waiting,
+      )) {
         return;
       }
       if (Station.stored(waiting.stage) is Retro) {
@@ -2632,8 +2644,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SessionSnapshot read,
     int sent,
     int generation,
-    void Function() landed,
-  ) async {
+    void Function() landed, {
+    ResumePoint? resumed,
+  }) async {
     if (read.approved == null || read.backTranslation.nothingTold) return false;
     final waiting = (await _takes.pending()).any(
       (entry) =>
@@ -2662,7 +2675,31 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _applyTheSessionRead(read, sent);
     _rememberWhereTheyAre(const Retro());
     await _countUnsent();
+    if (resumed?.stage == SalaStage.checagem && _listenerInProgress != null) {
+      await _backToTheCheck(read.sessionId, _waitOnTheGeneration);
+    }
     return true;
+  }
+
+  /// The row stood on the Checagem externa with a listener: the check is opened again and
+  /// the listener found where the room says they stand.
+  Future<void> _backToTheCheck(String sessionId, int generation) async {
+    final answer = await _room.openTheExternalCheck(sessionId);
+    if (_abandoned(generation)) return;
+    switch (answer) {
+      case Answered(value: final check):
+        await _backToTheListener(sessionId, check, generation);
+      case Refused(code: RefusalCode.draftNotApproved):
+        _listenerInProgress = null;
+        _rememberWhereTheyAre(const Retro());
+      case SessionGone() && final failure:
+        _decideTheFailure(failure);
+      case NetworkFailed():
+        _theNetworkFailedAt(Door.stretches);
+        state = state.copyWith(btAviso: BtAviso.checagemFalhou);
+      case Refused():
+        state = state.copyWith(btAviso: BtAviso.checagemFalhou);
+    }
   }
 
   Future<void> _theRoomsRehearsalUnder(String sessionId, int generation) async {
@@ -2753,6 +2790,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             language: _sessionLanguage,
             partBeingRecordedAgain: state.parteARegravar,
             passesToGoAbove: _passadasDaSala ?? const {},
+            listener: _listenerInProgress,
           ),
         ),
       ),
@@ -2805,7 +2843,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         value: final read,
       )) {
         if (_abandoned(generation)) return _Resume.abandoned;
-        if (await _landedOnTheApprovedDraft(read, sent, generation, landed)) {
+        if (await _landedOnTheApprovedDraft(
+          read,
+          sent,
+          generation,
+          landed,
+          resumed: waiting,
+        )) {
           return _abandoned(generation)
               ? _Resume.abandoned
               : _Resume.onTheApprovedDraft;
@@ -6241,6 +6285,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     switch (answer) {
       case Answered(value: final check):
+        if (await _backToTheListener(sessionId, check, generation)) return;
         _arriveAt(TheExternalCheckOpened(check.version));
         state = state.copyWith(
           externalCheck: ExternalCheckScreen(takes: check.takes),
@@ -6260,10 +6305,66 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void leaveTheExternalCheck() => _gesture(() {
     if (state.station is! ChecagemExterna) return;
+    _leaveTheExternalCheck();
+  });
+
+  void _leaveTheExternalCheck() {
+    final sessionId = state.sessionId;
     _silenceTheRoom();
     _dispatch(const MicDiscarded());
     _arriveAt(const TheExternalCheckLeft());
-  });
+    _rememberWhereTheyAre(const Retro());
+    if (sessionId != null) {
+      unawaited(_readTheStretchesBack(sessionId, _waitOnTheGeneration));
+    }
+  }
+
+  /// The listener this tablet remembers, back where the room's record says they stand,
+  /// with nothing said or played. False when there is no one of [check]'s version to go
+  /// back to; true when the read was handled, landed or not.
+  Future<bool> _backToTheListener(
+    String sessionId,
+    ExternalCheck check,
+    int generation,
+  ) async {
+    final remembered = _listenerInProgress;
+    if (remembered == null) return false;
+    if (remembered.version != check.version) {
+      _listenerInProgress = null;
+      _rememberWhereTheyAre(const Retro());
+      return false;
+    }
+    final answer = await _room.theListener(
+      sessionId,
+      check.version,
+      remembered.number,
+    );
+    if (_abandoned(generation)) return true;
+    switch (answer) {
+      case Answered(value: final record):
+        _arriveAt(TheExternalCheckOpened(check.version));
+        final ends = record.finished || record.hasRetelling;
+        state = state.copyWith(
+          externalCheck: ExternalCheckScreen(
+            takes: check.takes,
+            listener: remembered.number,
+            step: ends ? ListenerStep.done : ListenerStep.retell,
+            completed: ends ? true : null,
+            finishAcknowledged: record.finished,
+          ),
+        );
+        _rememberWhereTheyAre(ChecagemExterna(check.version));
+        if (ends) unawaited(_sendTheFinish(_waitOnTheGeneration));
+      case SessionGone() && final failure:
+        _decideTheFailure(failure);
+      case NetworkFailed():
+        _theNetworkFailedAt(Door.stretches);
+        state = state.copyWith(btAviso: BtAviso.checagemFalhou);
+      case Refused():
+        state = state.copyWith(btAviso: BtAviso.checagemFalhou);
+    }
+    return true;
+  }
 
   void _showTheListener(ExternalCheckScreen shown) =>
       state = state.copyWith(externalCheck: shown);
@@ -6301,6 +6402,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             clearAttempt: true,
           ),
         );
+        _listenerInProgress = (version: station.version, number: number);
+        _rememberWhereTheyAre(station);
         final parts = _partsOfTheCheck(sessionId, asked.takes, generation);
         try {
           await _sayALine(
@@ -6443,6 +6546,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (sent) {
       case Answered():
         _showTheListener(answered);
+        _theListenerIsDone(completed: true);
       case SessionGone() && final failure:
         _decideTheFailure(failure);
       case NetworkFailed():
@@ -6451,6 +6555,103 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Refused():
         _showTheListener(answered.copyWith(line: ListenerLine.clipFailed));
     }
+  }
+
+  /// The listener ends: her thanks, and the room told how they ended.
+  void _theListenerIsDone({required bool completed}) {
+    if (state.station is! ChecagemExterna ||
+        state.externalCheck.listener == null) {
+      return;
+    }
+    _silenceTheRoom();
+    _showTheListener(
+      state.externalCheck.copyWith(
+        step: ListenerStep.done,
+        completed: completed,
+        finishAcknowledged: false,
+        clearLine: true,
+      ),
+    );
+    unawaited(_sendTheFinish(_waitOnTheGeneration));
+    _handOff(
+      _sayALine(
+        LineKind.guide,
+        fixedLine: (name: listenerThanksLine, language: _inTheSessionsLanguage),
+      ),
+    );
+  }
+
+  /// Tells the room the listener finished, unless it already acknowledged it. A send
+  /// that fails holds no one: the next button sends it again.
+  Future<void> _sendTheFinish(int generation) async {
+    final sessionId = state.sessionId;
+    final station = state.station;
+    final shown = state.externalCheck;
+    final listener = shown.listener;
+    final completed = shown.completed;
+    if (sessionId == null ||
+        station is! ChecagemExterna ||
+        listener == null ||
+        completed == null ||
+        shown.finishAcknowledged) {
+      return;
+    }
+    final answer = await _room.finishTheListener(
+      sessionId,
+      station.version,
+      listener,
+      completed: completed,
+    );
+    if (_abandoned(generation)) return;
+    switch (answer) {
+      case Answered():
+        if (state.externalCheck.listener == listener) {
+          _showTheListener(
+            state.externalCheck.copyWith(finishAcknowledged: true),
+          );
+        }
+      case SessionGone() && final failure:
+        _decideTheFailure(failure);
+      case NetworkFailed() || Refused():
+        break;
+    }
+  }
+
+  void anotherListener() => _gesture(() => _handOff(_anotherListener()));
+
+  Future<void> _anotherListener() async {
+    final station = state.station;
+    final shown = state.externalCheck;
+    if (station is! ChecagemExterna ||
+        shown.step != ListenerStep.done ||
+        shown.sending) {
+      return;
+    }
+    final generation = _waitOnTheGeneration;
+    _silenceTheRoom();
+    await _sendTheFinish(generation);
+    if (_abandoned(generation)) return;
+    _listenerInProgress = null;
+    _showTheListener(ExternalCheckScreen(takes: shown.takes));
+    _rememberWhereTheyAre(station);
+    await _newListener();
+  }
+
+  void finishTheCheck() => _gesture(() => _handOff(_finishTheCheck()));
+
+  Future<void> _finishTheCheck() async {
+    final shown = state.externalCheck;
+    if (state.station is! ChecagemExterna ||
+        shown.step != ListenerStep.done ||
+        shown.sending) {
+      return;
+    }
+    final generation = _waitOnTheGeneration;
+    _silenceTheRoom();
+    await _sendTheFinish(generation);
+    if (_abandoned(generation)) return;
+    _listenerInProgress = null;
+    _leaveTheExternalCheck();
   }
 
   void recomecarATraducao() => _gesture(() => _recomecarATraducao());
@@ -8617,6 +8818,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _perdidasNoTrecho.clear();
     _stretchKeys.clear();
     _passadasDaSala = null;
+    _listenerInProgress = null;
     _personAsked = false;
     _runner.endTheWatch();
     _runner.forgetTheLadder();

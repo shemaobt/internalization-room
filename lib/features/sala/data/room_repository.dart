@@ -684,6 +684,41 @@ class RoomRepository {
     );
   }
 
+  /// What the room holds of [listener], so a tablet that reloads knows where they stand.
+  Future<RoomAnswer<ListenerRecord>> theListener(
+    String sessionId,
+    int version,
+    int listener,
+  ) => _room.ask(
+    () async => _client.get(
+      _uri('/sessions/$sessionId/external-check/$version/listeners/$listener'),
+      headers: {..._headers, 'X-Room-Device': await _deviceId()},
+    ),
+    timeout: _stateTimeout,
+    read: readJson(ListenerRecord.fromJson),
+    asksForTheSession: true,
+  );
+
+  /// [listener] is done: [completed] when they went to the end. The room keeps the first.
+  Future<RoomAnswer<void>> finishTheListener(
+    String sessionId,
+    int version,
+    int listener, {
+    required bool completed,
+  }) => _room.ask(
+    () async => _client.post(
+      _uri(
+        '/sessions/$sessionId/external-check/$version/listeners/'
+        '$listener/finish',
+      ),
+      headers: {..._headers, 'X-Room-Device': await _deviceId()},
+      body: jsonEncode({'completed': completed}),
+    ),
+    timeout: _stateTimeout,
+    read: readJson((_) {}),
+    asksForTheSession: true,
+  );
+
   Future<RoomAnswer<void>> askForAPerson(String sessionId) => _room.ask(
     () => _client.post(
       _uri('/sessions/$sessionId/needs-person'),
