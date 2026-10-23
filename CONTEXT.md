@@ -534,7 +534,7 @@ A Station with no session yet: the Choice, a passage or a Panorama not opened. A
 _Avoid_: reach, offline, out of reach
 
 **Failure policy**:
-The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071), and every failure of the tablet's own that may call a person (the reply's sound, the microphone's start, a tablet that cannot record); a refusal is never counted, and nothing outside the six cases becomes a Halt (ADR 0093). A network failure that is no turn's lets its Step go and changes nothing else (ADR 0108). Nothing decides a failure inside a Station or the notifier (ADR 0053).
+The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071), and every failure of the tablet's own that may call a person (the reply's sound, the microphone's start, a tablet that cannot record); a refusal is never counted, and nothing outside the six cases becomes a Halt (ADR 0093). A network failure that is no turn's lets its Step go and changes nothing else (ADR 0108). Nothing decides a failure inside a Station or the notifier (ADR 0053), except the plan card's «não deu para guardar a resposta», an inline refusal on the card (ADR 0119).
 _Avoid_: error handler, retry policy
 
 **One look**:
