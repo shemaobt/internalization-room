@@ -2,14 +2,18 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
+import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -17,6 +21,7 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -784,6 +789,72 @@ void main() {
         _dotOpacity(tester),
         0.0,
         reason: 'a nota da sessão nova ainda sai',
+      );
+
+      harness.inbox.finishHeldQuestion();
+      await _theAnswerSettles(tester);
+
+      expect(_dotOpacity(tester), closeTo(0.22, 0.001));
+    },
+  );
+
+  testWidgets(
+    'a note from before the Desk took the link back, ending after a note of '
+    'the relinked room went out, keeps the dot away until the new note is out',
+    (tester) async {
+      dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
+      final harness = SalaHarness(
+        linkedAs: const RememberedLink(
+          deviceId: 'aparelho-1',
+          team: TeamLink(projectId: 'equipe-1'),
+          credential: 'credencial-1',
+        ),
+        linkPoll: const Duration(milliseconds: 50),
+      )..room.nextMoment = _midConversation;
+      final container = await pumpSala(tester, harness);
+      addTearDown(() => closeTheRoom(container));
+      Future<void> enterP01() async {
+        await _pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).naRoda != null,
+        );
+        container
+            .read(salaSessionProvider.notifier)
+            .openTheEntry(
+              container
+                  .read(salaSessionProvider)
+                  .naRoda!
+                  .firstWhere((entry) => entry.pericope == 'P01'),
+            );
+        await _arriveAtRest(tester, container);
+      }
+
+      await enterP01();
+      harness.inbox
+        ..holdNextQuestion()
+        ..holdNextQuestion();
+      await sendANote(tester, container);
+
+      harness.room.failWith = const Refused(RefusalCode.deviceRevoked);
+      await container.read(roomRepositoryProvider).fetchState('sessao-1');
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.byType(CodigoView), findsOneWidget);
+      harness.room
+        ..failWith = null
+        ..linkedTo = const TeamLink(projectId: 'equipe-2');
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(CodigoView), findsNothing);
+      await enterP01();
+      await sendANote(tester, container);
+
+      harness.inbox.finishHeldQuestion();
+      await _theAnswerSettles(tester);
+
+      expect(
+        _dotOpacity(tester),
+        0.0,
+        reason: 'a nota da sala revinculada ainda sai',
       );
 
       harness.inbox.finishHeldQuestion();
