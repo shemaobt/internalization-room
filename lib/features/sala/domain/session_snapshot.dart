@@ -1,5 +1,6 @@
 import 'bt_finding.dart';
 import 'coverage.dart';
+import 'grain.dart';
 import 'moment.dart';
 
 /// One stretch the team told back, addressed rather than counted.
@@ -78,6 +79,10 @@ class TakeView {
   /// itself, and from a listing written before the room answered it.
   final String? origin;
 
+  /// When a grain switch set this recording aside. Absent from a current recording, and
+  /// from a listing written by a room that never sets one aside.
+  final String? setAsideAt;
+
   const TakeView({
     required this.takeId,
     required this.scope,
@@ -85,7 +90,10 @@ class TakeView {
     this.ordinal,
     this.pass,
     this.origin,
+    this.setAsideAt,
   });
+
+  bool get setAside => setAsideAt != null;
 
   static List<TakeView> listFrom(Map<String, dynamic> json) => [
     for (final raw in (json['takes'] as List? ?? const []))
@@ -99,6 +107,20 @@ class TakeView {
     ordinal: json['ordinal'] as int?,
     pass: json['pass_number'] as int?,
     origin: json['origin'] as String?,
+    setAsideAt: json['set_aside_at'] as String?,
+  );
+}
+
+/// The room's listing of a session's recordings, with the grain in force.
+final class TakesListing {
+  final List<TakeView> takes;
+  final Grain? grain;
+
+  const TakesListing({required this.takes, this.grain});
+
+  factory TakesListing.fromJson(Map<String, dynamic> json) => TakesListing(
+    takes: TakeView.listFrom(json),
+    grain: Grain.fromWire(json['grain']),
   );
 }
 
