@@ -361,6 +361,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the room lost waits for before it leaves the Rehearsal.
   late bool _aLeituraDecidiu;
 
+  /// The station this opening last wrote in the Resume point, so the parts coming down
+  /// never write back a station the team has left.
+  late Station? _aLinhaDiz;
+
   /// When and in what language the session now open was created, so a row rewritten by
   /// a later stage advance carries them instead of going blank the moment the team leaves
   /// the conversa. A resume judges by the language; the date is the record of when the
@@ -528,6 +532,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _goneSessions = {};
     _partesDescendo = null;
     _aLeituraDecidiu = false;
+    _aLinhaDiz = null;
     _sessionSavedAt = null;
     _sessionLanguage = null;
     _landingOn = null;
@@ -2331,6 +2336,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _openTheChoice() {
     _partesDescendo = null;
+    _aLinhaDiz = null;
     state = SalaSessionState(
       machine: state.machine.withNoPassage(_gesturesOnTheirWay.onTheirWay),
     );
@@ -2493,10 +2499,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_hand.pull());
     _watchBusyState();
     if (resumed) {
+      (SessionSnapshot, int)? lida;
       final onde = await _backToWhereTheyStopped(
         waiting,
         generation,
         landed: landed,
+        read: (read, sent) => lida = (read, sent),
       );
       if (_abandoned(generation)) return;
       if (onde == _Resume.failed ||
@@ -2510,18 +2518,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       if (onde == _Resume.landed || onde == _Resume.landedShort) {
         final SessionSnapshot snapshot;
-        final sent = ++_readsSent;
-        switch (await _room.fetchState(sessionId)) {
-          case Answered(value: final read):
-            snapshot = read;
-          case final SessionGone gone:
-            return failed(gone);
-          case final RoomFailure failure:
-            return failed(
-              failure,
-              rule: RefusalRule.keepsTheResume,
-              door: Door.resume,
-            );
+        final int sent;
+        if (lida case (final read, final enviada)) {
+          (snapshot, sent) = (read, enviada);
+        } else {
+          sent = ++_readsSent;
+          switch (await _room.fetchState(sessionId)) {
+            case Answered(value: final read):
+              snapshot = read;
+            case final SessionGone gone:
+              return failed(gone);
+            case final RoomFailure failure:
+              return failed(
+                failure,
+                rule: RefusalRule.keepsTheResume,
+                door: Door.resume,
+              );
+          }
         }
         if (_abandoned(generation)) return;
         state = state.copyWith(
@@ -2640,7 +2653,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int sent,
     int generation,
     void Function() landed, {
-    List<KeptTake> aqui = const [],
+    List<KeptTake>? aqui,
   }) async {
     if (read.approved == null || read.backTranslation.nothingTold) return false;
     final waiting = (await _takes.pending()).any(
@@ -2649,8 +2662,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (waiting || _abandoned(generation)) return _abandoned(generation);
     if (state.partes.isEmpty) {
-      await _theRoomsRehearsalUnder(read.sessionId, aqui, generation);
+      final listada = await _theRoomsRehearsalUnder(
+        read.sessionId,
+        aqui ?? const [],
+        generation,
+      );
       if (_abandoned(generation)) return true;
+      if (!listada && aqui != null) return false;
     }
     final told = read.backTranslation;
     state = state.copyWith(clearBtFraseGuardada: true);
@@ -2669,6 +2687,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _applyTheSessionRead(read, sent);
     _rememberWhereTheyAre(const Retro());
+    _aLeituraDecidiu = true;
     _bringThePartsDown(const Retro());
     await _countUnsent();
     return true;
@@ -2676,21 +2695,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The room's current parts laid under an approved draft: a part this tablet holds is
   /// kept, every other comes down behind the landing.
-  Future<void> _theRoomsRehearsalUnder(
+  Future<bool> _theRoomsRehearsalUnder(
     String sessionId,
     List<KeptTake> aqui,
     int generation,
   ) async {
     _watchBusyState();
     if (await _room.takesOf(sessionId) case Answered(value: final guardadas)) {
-      if (_abandoned(generation)) return;
+      if (_abandoned(generation)) return true;
       final lidas = _lerAListagem(guardadas, aqui);
-      if (lidas.partes.isEmpty) return;
+      if (lidas.partes.isEmpty) return true;
       await _medirAsPartes([
         for (final take in lidas.partes)
           if (!lidas.aBuscar.contains(take.takeId)) take,
       ], generation);
-      if (_abandoned(generation)) return;
+      if (_abandoned(generation)) return true;
       state = state.copyWith(
         keptTakes: lidas.partes,
         wholeHeldByTheRoom: lidas.deLado,
@@ -2699,7 +2718,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         },
       );
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+      return true;
     }
+    return false;
   }
 
   Future<void> _learnWhetherAPartWasJoined(
@@ -2780,6 +2801,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Write down where they are, so leaving lands them back here rather than at the start.
   void _rememberWhereTheyAre(Station station) {
     if (_gone) return;
+    _aLinhaDiz = station;
     final passage = _emCurso;
     final pericope = passage?.pericope;
     final sessionId = state.sessionId;
@@ -2841,6 +2863,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ResumePoint waiting,
     int generation, {
     required void Function() landed,
+    required void Function(SessionSnapshot read, int sent) read,
   }) async {
     final stage = Station.stored(waiting.stage);
     final anEmptyEnsaio = stage is Ensaio && waiting.takes.isEmpty;
@@ -2871,20 +2894,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (stage is Retro && faltavam) {
       final sent = ++_readsSent;
       if (await _room.fetchState(waiting.sessionId) case Answered(
-        value: final read,
+        value: final lida,
       )) {
         if (_abandoned(generation)) return _Resume.abandoned;
         if (await _landedOnTheApprovedDraft(
-          read,
+          lida,
           sent,
           generation,
           landed,
-          aqui: here,
+          aqui: aPartlessRetro ? null : here,
         )) {
           return _abandoned(generation)
               ? _Resume.abandoned
               : _Resume.onTheApprovedDraft;
         }
+        read(lida, sent);
       }
       if (_abandoned(generation)) return _Resume.abandoned;
     }
@@ -3148,7 +3172,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     bool minha() => !_endedSince(life) && identical(_partesDescendo, descem);
     final recorder = _recorder;
-    var faltou = false;
     while (minha()) {
       final sessionId = state.sessionId;
       final parte = state.partes
@@ -3179,7 +3202,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(
           partsAway: {...state.partsAway, takeId: PartAway.lost},
         );
-        if (_asPartesPerdidasSaem()) faltou = true;
+        _asPartesPerdidasSaem();
       } else {
         state = state.copyWith(
           partsAway: {...state.partsAway, takeId: PartAway.missed},
@@ -3188,7 +3211,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
       _weighTheRehearsal();
       _rememberWhereTheyAre(switch (state.station) {
-        Ensaio() => faltou ? const Ensaio() : ondeFicam,
+        Ensaio() => _aLinhaDiz is Ensaio ? const Ensaio() : ondeFicam,
         final onde => onde,
       });
     }
@@ -3604,6 +3627,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leaveTheStepFor(const Ensaio());
     _clearAll();
     _arriveAt(const TheRehearsalOpened());
+    _asPartesPerdidasSaem();
     state = state.copyWith(
       awaitingTheGuide: false,
       ensaio: EnsaioStatus.idle,
@@ -5418,7 +5442,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final indice = state.partIndexOf(cena);
     if (indice == null || state.sceneRowIsDimmed(cena)) return;
     final takeId = state.partes[indice].takeId;
-    if (state.partsAway[takeId] case PartAway.missed || PartAway.lost) {
+    if (state.partsAway[takeId] == PartAway.missed) {
       state = state.copyWith(
         partsAway: {...state.partsAway, takeId!: PartAway.coming},
       );
@@ -6615,7 +6639,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final trecho = state.btTrechos[indice];
     if (!trecho.contado) return;
     if (state.aParteDoTrecho(trecho) case final parte?) {
-      if (state.partsAway[parte.takeId] case PartAway.missed || PartAway.lost) {
+      if (state.partsAway[parte.takeId] == PartAway.missed) {
         state = state.copyWith(
           partsAway: {...state.partsAway, parte.takeId!: PartAway.coming},
         );
@@ -8733,6 +8757,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leaveTheStepFor(const Ensaio());
     _clearAll();
     _arriveAt(const TheRehearsalOpened());
+    _asPartesPerdidasSaem();
     state = state.copyWith(
       awaitingTheGuide: false,
       ensaio: EnsaioStatus.idle,
@@ -8825,6 +8850,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _emCurso = null;
     state = state.copyWith(partsAway: const {});
     _partesDescendo = null;
+    _aLinhaDiz = null;
     _semNome.clear();
     _captureFails = {};
     _recordingStarting = false;

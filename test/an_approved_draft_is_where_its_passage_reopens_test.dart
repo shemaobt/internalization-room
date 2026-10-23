@@ -832,4 +832,53 @@ void main() {
       expect(mood(last), ButtonMood.lit);
     },
   );
+
+  testWidgets(
+    'an approved draft whose part the room no longer has keeps that part\'s '
+    'frase dark',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1));
+      harness.room
+        ..retroSoFar = const BackTranslationProgress(
+          segments: [
+            SegmentView(
+              segmentId: 'trecho-1',
+              takeId: _gravacao,
+              startsMs: 0,
+              endsMs: 12000,
+              frase: 1,
+            ),
+          ],
+          checked: true,
+        )
+        ..refuseClipOf.add(_gravacao);
+      harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.retro,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.parte(1),
+            path: '${Directory.systemTemp.path}/ja-nao-esta-aqui-1762b.m4a',
+            takeId: _gravacao,
+          ),
+        ],
+      );
+      final room = await _enter(tester, harness);
+
+      expect(_state(room).stage, SalaStage.retro);
+      expect(
+        tester
+            .widget<RoundActionButton>(
+              find.ancestor(
+                of: byLabel(
+                  sceneRehearsalLabelFor('hearMine', testLanguage, n: 1),
+                ),
+                matching: find.byType(RoundActionButton),
+              ),
+            )
+            .mood,
+        ButtonMood.dimmed,
+      );
+    },
+  );
 }
