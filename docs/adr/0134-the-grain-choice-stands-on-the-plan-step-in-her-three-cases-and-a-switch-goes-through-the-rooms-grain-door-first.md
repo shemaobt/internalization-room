@@ -61,7 +61,7 @@ aside from a current one.
   scene has its part, as the room reads it: its home has the one row, and a finding over it
   leads there. The team reaches the scene rows with «Gravar cena por cena», which sets the
   whole aside in the room. This replaces ADR 0102's fold of the lone whole into the scene
-  rows; the Orchestrator chose it provisionally on 23 October, pending the Definer (Q73).
+  rows; the Definer settled it on 23 October (Q73).
 
 ## Considered options
 
