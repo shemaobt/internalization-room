@@ -146,12 +146,15 @@ void main() {
       expect(it.harness.playback.played.skip(tocadas), [terceira]);
       expect(it.harness.playback.playedFrom.last, Duration.zero);
 
+      it.harness.room.finishHeldTake();
+      await waitFor(
+        'a sala nomear a parte que faltava',
+        () => it.partes[2].takeId != null,
+      );
       await ouvirAteOFim(it, _cincoPartes[2]);
-
-      expect(
-        it.estado.canFinishBackTranslation,
-        isTrue,
-        reason: 'ouvida a parte que faltava, terminei acende',
+      await waitFor(
+        'ouvida a parte que faltava, terminei acende',
+        () => it.estado.canFinishBackTranslation,
       );
       expect(
         it.estado.btParteFronteira,
@@ -159,6 +162,32 @@ void main() {
         reason: 'a quarta parte já foi ouvida: não há travessia para ela',
       );
       expect(it.harness.playback.played.skip(tocadas), [terceira]);
+    },
+  );
+
+  test(
+    'numa gravação juntada, a parte que a sala ainda não nomeou segue por ouvir depois de tocada',
+    () async {
+      final it = await umEnsaioContadoInteiro(_cincoPartes);
+      await _retomadaJuntada(it, _cincoPartes[4]);
+      await _regravada(it, 2, _cincoPartes[2], semNome: true);
+      it.harness.room.listeningUnheardTakeIds = const [];
+      await _entrar(it);
+      final relatos = it.harness.room.listeningReports.length;
+
+      await ouvirAteOFim(it, _cincoPartes[2]);
+      await waitFor(
+        'o relato da parte',
+        () => it.harness.room.listeningReports.length > relatos,
+      );
+      await settle();
+
+      expect(
+        it.estado.canFinishBackTranslation,
+        isFalse,
+        reason: 'a sala não pode contar ouvida uma parte que ainda não nomeou',
+      );
+      expect(it.estado.btRecusa, CheckRefusal.partUnheard);
     },
   );
 

@@ -235,7 +235,6 @@ class FakeVoice implements FacilitatorVoiceService {
     void Function()? onSoundStart,
   }) {
     fixedLines.add((line, language));
-    if (roomFailsWith != null) return Future.value(false);
     sounds.add('voice:fixed');
     aoFalar?.call();
     onSoundStart?.call();
@@ -2906,7 +2905,7 @@ class FakeRoom implements RoomRepository {
   /// What the listen door says follows, on every answer: the tablet reads it only once
   /// the room counts nothing unheard.
   bool listeningAutomaticCheck = false;
-  String listeningFixedLine = '';
+  String? listeningFixedLine;
   List<UntranslatedPart> listeningUntranslated = const [];
 
   /// The refusal `STRETCH_UNTRANSLATED` also when [listeningUntranslated] names no part.

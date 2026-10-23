@@ -76,14 +76,14 @@ class ListenedWhole {
   /// Null when the room names nothing at all: an older room.
   final List<String>? unheardTakeIds;
   final bool automaticCheck;
-  final String fixedLine;
+  final String? fixedLine;
   final bool stretchUntranslated;
   final List<UntranslatedPart> untranslated;
 
   const ListenedWhole({
     this.unheardTakeIds,
     this.automaticCheck = false,
-    this.fixedLine = '',
+    this.fixedLine,
     this.stretchUntranslated = false,
     this.untranslated = const [],
   });
@@ -91,7 +91,7 @@ class ListenedWhole {
   factory ListenedWhole.fromJson(Map<String, dynamic> json) => ListenedWhole(
     unheardTakeIds: (json['unheard_take_ids'] as List?)?.cast<String>(),
     automaticCheck: json['automatic_check'] as bool? ?? false,
-    fixedLine: json['fixed_line'] as String? ?? '',
+    fixedLine: json['fixed_line'] as String?,
     stretchUntranslated: json['refusal'] == 'STRETCH_UNTRANSLATED',
     untranslated: [
       for (final parte in json['untranslated'] as List? ?? const [])

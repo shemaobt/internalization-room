@@ -3624,6 +3624,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final life = _thisLife;
     final plan = _plansOpened;
     _silenceThePlan();
+    var parou = false;
     for (final step in joinQueue(rows)) {
       state = state.copyWith(
         joining: step.number,
@@ -3653,14 +3654,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(clearJoining: true);
         return;
       }
-      if (joined.row == JoinRow.notThePart) break;
+      if (joined.row == JoinRow.notThePart) {
+        parou = true;
+        break;
+      }
     }
     state = state.copyWith(clearJoining: true);
     _goEnsaio();
     final home = _generation;
     await _layInTheRoomsListing(sessionId, null, home);
     if (_abandoned(home) || _endedSince(life)) return;
-    if (state.everySceneHasItsPart) _startRetro();
+    if (!parou && state.everySceneHasItsPart) _startRetro();
   }
 
   /// One scene's join: the rehearsal's bytes, kept as the part's own file, written as an
@@ -6402,8 +6406,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _ouvirAsPartes(partes, paraNaUltima: true);
   }
 
-  Future<void> _dizer(String linha) async {
-    if (linha.isEmpty) return;
+  Future<void> _dizer(String? linha) async {
+    if (linha == null) return;
     try {
       await _sayALine(
         LineKind.guide,
@@ -6454,12 +6458,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _oQueFaltaOuvir = _OQueFaltaOuvir(_partesDaEscuta, paraNaUltima: true);
       return;
     }
-    final faltam = [
-      for (final (onde, parte) in state.partes.indexed)
-        if (nomes.contains(parte.takeId)) onde,
-    ];
-    if (faltam.isNotEmpty) {
-      _oQueFaltaOuvir = _OQueFaltaOuvir(faltam, paraNaUltima: true);
+    final faltam = _asPartesNomeadas(nomes);
+    if (nomes.isNotEmpty || faltam.isNotEmpty) {
+      if (faltam.isNotEmpty) _partesDaEscuta = faltam;
+      _oQueFaltaOuvir = _OQueFaltaOuvir(_partesDaEscuta, paraNaUltima: true);
       state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
       return;
     }
