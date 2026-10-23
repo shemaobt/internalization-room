@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../domain/minimum_build.dart';
 import '../domain/session_state.dart';
+import 'device_link_notifier.dart';
 import 'room_answer.dart';
 import 'room_repository.dart';
 import 'session_notifier.dart';
@@ -38,11 +39,15 @@ class StoreBuildGate extends Notifier<bool> {
   bool _kept = false;
 
   @override
-  bool build() =>
-      _kept &&
-      ref.watch(
-        salaSessionProvider.select((s) => s.stage == SalaStage.escolha),
-      );
+  bool build() {
+    final linked = ref.watch(deviceLinkProvider.select((l) => l.linked));
+    final onTheChoice = ref.watch(
+      salaSessionProvider.select(
+        (s) => s.stage == SalaStage.escolha && (s.naRoda != null || !linked),
+      ),
+    );
+    return _kept && onTheChoice;
+  }
 
   Future<void> look() {
     final build = ref.read(thisBuildProvider);

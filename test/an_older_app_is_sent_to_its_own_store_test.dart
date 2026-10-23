@@ -8,6 +8,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/store_build_gate.dart';
 import 'package:internalization_room/features/sala/domain/minimum_build.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/main.dart';
@@ -217,6 +218,43 @@ void main() {
       expect(harness.room.calls, contains('servedBooks'));
       expect(find.text(_theChoice), findsOneWidget);
       harness.room.releaseMinimumBuilds();
+    });
+
+    testWidgets('a held session at launch lands with no update screen at any '
+        'moment, and the screen waits for the next Choice', (tester) async {
+      final currentSession = FakeCurrentSessionLedger()
+        ..held = const CurrentSession(
+          sessionId: 'sessao-7',
+          book: 'Ruth',
+          pericope: 'P02',
+          language: testLanguage,
+        );
+      final harness = SalaHarness(currentSession: currentSession);
+      harness.room.minimumBuildsAnswer = Answered(_minimum(android: 7));
+      final container = ProviderContainer(
+        overrides: [
+          ...harness.overrides,
+          thisBuildProvider.overrideWithValue(6),
+          openTheStoreProvider.overrideWithValue((uri) async {}),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const SalaApp()),
+      );
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        expect(find.text(_line), findsNothing);
+      }
+
+      expect(find.byType(ConversaView), findsOneWidget);
+      expect(harness.room.calls, contains('fetchState'));
+
+      await container.read(salaSessionProvider.notifier).abrirEscolha();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text(_line), findsOneWidget);
     });
 
     testWidgets('a minimum read that answers after the team opened a passage '
