@@ -247,8 +247,13 @@ Future<_Home> _onTheConversation(
   WidgetTester tester, {
   String lingua = 'pt',
   List<Scene> scenes = _threeScenes,
+  List<int>? offered,
 }) async {
-  final it = await _mount(tester, _aHarness(lingua, scenes), scenes);
+  final harness = _aHarness(lingua, scenes);
+  if (offered != null) {
+    harness.room.retroSoFar = BackTranslationProgress(bringBack: offered);
+  }
+  final it = await _mount(tester, harness, scenes);
   await _toTheConversation(it);
   it.joinedInTheRoom(it.sessionId);
   return it;
@@ -497,6 +502,51 @@ void main() {
         () => it.harness.playback.played.length > played,
       );
       it.room.unreachableTake = null;
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a Session read sent before the bring-back and landing after it does not '
+    'offer it again',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _onTheConversation(tester, offered: [2]);
+      it.room.holdTheNextRead();
+      await tester.tap(_dot);
+      await it.until('a casa de gravação abrir', () => it.showsTheHome);
+      await it.settle();
+
+      await _bringBackTwice(it, 2);
+      await it.settle();
+      expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
+      it.room.answerHeldRead(0);
+      await it.settle();
+
+      expect(it.control(2, _bringBack), findsNothing);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a bring-back the room made whose answer was lost leaves no note and no '
+    'control',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _onTheHome(tester);
+      it.room.failBringBackWith = const NetworkFailed('a resposta se perdeu');
+
+      await it.tapThe(it.control(2, _bringBack));
+      await it.wait(const Duration(milliseconds: 700));
+      it.room.retroSoFar = BackTranslationProgress(
+        segments: _theRehearsalsFrases(2),
+      );
+      await it.tapThe(it.control(2, _bringBackArmed));
+      await it.settle();
+
+      expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
+      expect(it.control(2, _bringBack), findsNothing);
+      expect(find.text(_failed), findsNothing);
       semantics.dispose();
     },
   );

@@ -2958,8 +2958,6 @@ class FakeRoom implements RoomRepository {
 
   RoomFailure? failBringBackWith;
 
-  List<SegmentView> standingAfterBringBack = const [];
-
   Completer<void>? _holdingBringBack;
   Completer<void>? _heldBringBack;
 
@@ -2978,9 +2976,6 @@ class FakeRoom implements RoomRepository {
     await held?.future;
     final refusal = failBringBackWith;
     if (refusal != null) return refusal;
-    segments
-      ..clear()
-      ..addAll(standingAfterBringBack);
     if (retroSoFar case final told?) {
       retroSoFar = BackTranslationProgress(
         segments: told.segments,

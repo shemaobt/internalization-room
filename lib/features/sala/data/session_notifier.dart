@@ -3434,15 +3434,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_readWhatComesBack());
   }
 
-  Future<void> _readWhatComesBack() async {
+  Future<void> _readWhatComesBack({int? laidOn}) async {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     final generation = _generation;
+    final life = _thisLife;
     final sent = ++_readsSent;
     final read = await _room.fetchState(sessionId);
-    if (_abandoned(generation)) return;
-    if (read case Answered(value: final snapshot)) {
+    if (_endedSince(life) || _abandoned(generation)) return;
+    if (read case Answered(value: final snapshot) when sent > _readsApplied) {
       _applyTheSessionRead(snapshot, sent);
+      final told = snapshot.backTranslation;
+      if (laidOn != null && !told.bringBack.contains(laidOn)) {
+        state = state.copyWith(
+          btTrechos: _trechosFrom(told.segments),
+          clearBringBackFailed: true,
+        );
+      }
     }
   }
 
@@ -3471,12 +3479,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final life = _thisLife;
     _silenceTheRoom();
     state = state.copyWith(bringingBack: cena);
+    final sent = ++_readsSent;
     final answer = await _room.bringBackTheTranslations(sessionId, cena);
     if (_endedSince(life)) return;
     state = state.copyWith(clearBringingBack: true);
     if (_abandoned(generation)) return;
     switch (answer) {
       case Answered(value: final segmentos):
+        _readsApplied = max(_readsApplied, sent);
         state = state.copyWith(
           btTrechos: _trechosFrom(segmentos),
           toBringBack: [...state.toBringBack]..remove(cena),
@@ -3485,7 +3495,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _decideAt(gone, door: Door.stretches);
       case RoomFailure():
         state = state.copyWith(bringBackFailed: cena);
-        unawaited(_readWhatComesBack());
+        unawaited(_readWhatComesBack(laidOn: cena));
     }
   }
 
