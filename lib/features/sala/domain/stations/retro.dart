@@ -14,6 +14,7 @@ final class Retro extends Station {
     TheChoiceOpened() => const Menu(),
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),
+    ThePlanOpened() => this,
     TheBackTranslationOpened() || TheBackTranslationResumed() => const Retro(),
     TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => const Fim(),

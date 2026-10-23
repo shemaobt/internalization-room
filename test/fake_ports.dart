@@ -166,6 +166,9 @@ class ARecorderPort implements RecorderPort {
   Future<void> discard() async => heard.add('discard');
 
   @override
+  Future<void> delete(String path) async => heard.add('delete:$path');
+
+  @override
   Stream<bool> get taken => _taken.stream;
 
   void takeTheMicrophone() => _taken.add(true);

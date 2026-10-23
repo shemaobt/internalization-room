@@ -39,5 +39,6 @@ String _whatFailed(TabletFailure failure) => switch (failure) {
   TheMicFailedToStart(:final inARow) =>
     'o microfone não abriu ($inARow seguidas)',
   TheTabletCannotRecord() => 'o tablet não grava',
+  TheDiskFailed() => 'o disco falhou',
   TheBuildCannotReachTheRoom() => 'o build não alcança a sala',
 };

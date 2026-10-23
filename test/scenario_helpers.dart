@@ -194,9 +194,11 @@ Future<(SalaHarness, ProviderContainer)> relaunch(
   Duration? linkPoll,
   Duration? busyCeiling,
   Duration? lookAgain,
+  bool filaEmMemoria = false,
 }) async {
   container.dispose();
   final again = SalaHarness(
+    filaEmMemoria: filaEmMemoria,
     room: harness.room,
     emAbertoNoDisco: harness.emAbertoNoDisco ?? harness.emAberto,
     takesHome: harness.takesHome,

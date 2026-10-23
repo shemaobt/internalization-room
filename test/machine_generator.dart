@@ -211,8 +211,8 @@ String describeKept(Kept kept) => switch (kept) {
 String describeHalt(Halt halt) => switch (halt) {
   NoHalt() => 'NoHalt',
   Warning() => 'Warning',
-  Blocking(:final warningBeneath) =>
-    'Blocking(warningBeneath: $warningBeneath)',
+  Blocking(:final warningBeneath, :final callsNobody) =>
+    'Blocking(warningBeneath: $warningBeneath, callsNobody: $callsNobody)',
 };
 
 String describeEvent(MachineEvent event) => switch (event) {
@@ -272,6 +272,7 @@ String describeEvent(MachineEvent event) => switch (event) {
     'TheSceneRehearsalsListed(${listed.length})',
   TheSceneDoorFailed(:final readAgain) =>
     'TheSceneDoorFailed(readAgain: $readAgain)',
+  TheSceneDiskFailed() => 'TheSceneDiskFailed',
   TheCallWasRefused() => 'TheCallWasRefused',
   TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
   LookEmpty(:final turn, :final sounding, :final theWaitRanOut) =>
@@ -292,6 +293,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheChoiceOpened() => 'TheChoiceOpened',
   PassageChosen() => 'PassageChosen',
   TheRehearsalOpened() => 'TheRehearsalOpened',
+  ThePlanOpened() => 'ThePlanOpened',
   TheBackTranslationOpened() => 'TheBackTranslationOpened',
   TheBackTranslationResumed() => 'TheBackTranslationResumed',
   TheNecklaceClosed() => 'TheNecklaceClosed',
@@ -308,8 +310,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheWayBackTaken(:final left) =>
     'TheWayBackTaken(${left.panorama ? 'Panorama' : 'passage'} ${left.pericope}, '
         'session: ${left.session}, said: ${left.said})',
-  TheRehearsalWeighed(:final everySceneHasItsPart) =>
-    'TheRehearsalWeighed($everySceneHasItsPart)',
+  TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsHere) =>
+    'TheRehearsalWeighed($everySceneHasItsPart, $everyPartIsHere)',
 };
 
 String describeLine(Line line) => '${line.kind.name}#${line.id}';
@@ -413,6 +415,7 @@ enum EventKind {
   theHandFailed,
   theScenesMissed,
   theSceneDoorFailed,
+  theSceneDiskFailed,
   theSceneRehearsalsListed,
   theCallWasRefused,
   theCallMetAClosedPassage,
@@ -420,6 +423,7 @@ enum EventKind {
   theChoiceOpened,
   passageChosen,
   theRehearsalOpened,
+  thePlanOpened,
   theBackTranslationOpened,
   theBackTranslationResumed,
   theNecklaceClosed,
@@ -485,6 +489,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheHandFailed() => EventKind.theHandFailed,
   TheScenesMissed() => EventKind.theScenesMissed,
   TheSceneDoorFailed() => EventKind.theSceneDoorFailed,
+  TheSceneDiskFailed() => EventKind.theSceneDiskFailed,
   TheSceneRehearsalsListed() => EventKind.theSceneRehearsalsListed,
   TheCallWasRefused() => EventKind.theCallWasRefused,
   TheCallMetAClosedPassage() => EventKind.theCallMetAClosedPassage,
@@ -492,6 +497,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheChoiceOpened() => EventKind.theChoiceOpened,
   PassageChosen() => EventKind.passageChosen,
   TheRehearsalOpened() => EventKind.theRehearsalOpened,
+  ThePlanOpened() => EventKind.thePlanOpened,
   TheBackTranslationOpened() => EventKind.theBackTranslationOpened,
   TheBackTranslationResumed() => EventKind.theBackTranslationResumed,
   TheNecklaceClosed() => EventKind.theNecklaceClosed,
@@ -556,6 +562,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theHandFailed ||
   EventKind.theScenesMissed ||
   EventKind.theSceneDoorFailed ||
+  EventKind.theSceneDiskFailed ||
   EventKind.theSceneRehearsalsListed ||
   EventKind.theCallWasRefused ||
   EventKind.theCallMetAClosedPassage ||
@@ -563,6 +570,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theChoiceOpened ||
   EventKind.passageChosen ||
   EventKind.theRehearsalOpened ||
+  EventKind.thePlanOpened ||
   EventKind.theBackTranslationOpened ||
   EventKind.theBackTranslationResumed ||
   EventKind.theNecklaceClosed ||
@@ -756,12 +764,14 @@ MachineEvent _draw(
   EventKind.theSceneDoorFailed => TheSceneDoorFailed(
     readAgain: random.nextBool(),
   ),
+  EventKind.theSceneDiskFailed => const TheSceneDiskFailed(),
   EventKind.theCallWasRefused => const TheCallWasRefused(),
   EventKind.theCallMetAClosedPassage => const TheCallMetAClosedPassage(),
   EventKind.turnFailed => TurnFailed(_drawATurn(random)),
   EventKind.theChoiceOpened => const TheChoiceOpened(),
   EventKind.passageChosen => const PassageChosen(),
   EventKind.theRehearsalOpened => const TheRehearsalOpened(),
+  EventKind.thePlanOpened => const ThePlanOpened(),
   EventKind.theBackTranslationOpened => const TheBackTranslationOpened(),
   EventKind.theBackTranslationResumed => const TheBackTranslationResumed(),
   EventKind.theNecklaceClosed => const TheNecklaceClosed(),
@@ -784,6 +794,7 @@ MachineEvent _draw(
   EventKind.theWayBackTaken => TheWayBackTaken(_drawAnEntryLeft(random)),
   EventKind.theRehearsalWeighed => TheRehearsalWeighed(
     everySceneHasItsPart: random.nextBool(),
+    everyPartIsHere: random.nextBool(),
   ),
 };
 

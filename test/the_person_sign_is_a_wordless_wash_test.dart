@@ -253,7 +253,7 @@ void main() {
   });
 
   testWidgets(
-    'the build guard\'s sign clears by the tap, and the Menu reads the Wheel',
+    'the build guard\'s sign clears by the tap, and the Menu reads nothing',
     (tester) async {
       final harness = SalaHarness()
         ..room.failWith = const Refused('BAD_REQUEST');
@@ -270,14 +270,13 @@ void main() {
       expect(byLabel(_theSign), findsOneWidget);
       expect(harness.room.calls, isNot(contains('askForAPerson')));
 
+      final asked = harness.room.calls.length;
       await _tapACorner(sala);
+      await _pass(sala, 20);
 
       expect(byLabel(_theSign), findsNothing);
-      await _until(
-        sala,
-        'the books to be listed',
-        () => _read(sala).entriesOpen,
-      );
+      expect(harness.room.calls.skip(asked), isNot(contains('servedBooks')));
+      expect(_read(sala).entriesOpen, isFalse);
       closeTheRoom(container);
     },
   );
