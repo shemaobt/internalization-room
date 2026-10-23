@@ -25,7 +25,9 @@ Choice. Her app shows the rows at once and streams a row's audio when it is play
   in its place among them, under a name that is no file. Its listen stays dark until its
   recording is here.
 - The parts on their way come down one at a time, in part order, each under the long timeout,
-  and the busy watchdog is re-armed for each. Each lights its row as it lands.
+  and the busy watchdog is re-armed for each, starting once the Session read has said where the
+  team stands. Each lights its row as it lands, and the Resume point names it at once, so a part
+  this tablet holds is never fetched again.
 - A part whose fetch fails keeps its row and the next tap on its listen fetches it again. No
   words, no sign, no person called. A part the room answers is gone (its 404) leaves its row
   with no part, and a recording made there goes above the room's pass, as before.
@@ -40,7 +42,8 @@ Choice. Her app shows the rows at once and streams a row's audio when it is play
   every part before they land.
 - An approved draft the room reads after a Rehearsal landing lands at once (ADR 0106); the parts
   on their way keep coming down behind it in the same order, and a frase over a part not yet
-  here stays silent and dimmed until that part lands.
+  here stays silent and dimmed until that part lands. A part the room lost stays under the
+  draft, its frases silent; dropping it is the Rehearsal's rule only.
 
 ## Considered options
 
