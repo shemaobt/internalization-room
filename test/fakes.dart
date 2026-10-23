@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -42,6 +43,7 @@ import 'package:internalization_room/features/sala/domain/external_check.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/pausa.dart';
+import 'package:internalization_room/features/sala/domain/minimum_build.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
@@ -137,6 +139,9 @@ class FakeVoice implements FacilitatorVoiceService {
   /// does not sound. Distinct from [refuses]: that is the player failing with the file
   /// already in hand.
   RoomFailure? roomFailsWith;
+
+  /// What the next readying of a line throws, the way a defect in getting it ready does.
+  Object? readyThrows;
   Completer<bool>? _holding;
   Completer<bool>? _saying;
 
@@ -205,6 +210,10 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<bool> fetch(String url) async {
     fetched.add(url);
     await _fetching?.future;
+    if (readyThrows case final thrown?) {
+      readyThrows = null;
+      throw thrown;
+    }
     return succeeds;
   }
 
@@ -450,8 +459,22 @@ class FakeRecorder implements RecordingRepository {
   /// Whether looking for audio already on the tablet fails, the way a disk does.
   bool heldAsFails = false;
 
+  bool _holdTheNextLookup = false;
+  final List<Completer<void>> _heldLookups = [];
+
+  /// Holds the next look for audio on the tablet until [finishHeldLookup].
+  void holdNextLookup() => _holdTheNextLookup = true;
+
+  void finishHeldLookup() => _heldLookups.removeAt(0).complete();
+
   @override
   Future<String?> heldAs(String fileName) async {
+    if (_holdTheNextLookup) {
+      _holdTheNextLookup = false;
+      final held = Completer<void>();
+      _heldLookups.add(held);
+      await held.future;
+    }
     if (heldAsFails) throw const FileSystemException('o disco falhou');
     for (final extension in ['wav', 'm4a']) {
       final file = File('${home.path}/$fileName.$extension');
@@ -956,19 +979,31 @@ class FakeInbox implements HandInboxRepository {
   @override
   Stream<String?> get revoked => _revocations.stream;
 
-  Completer<void>? _holdingQuestion;
+  /// Each held question waits on its own hold, in the order the holds were asked for.
+  final List<Completer<void>> _holdingQuestions = [];
+  final List<Completer<void>> _holdsNotYetTaken = [];
 
-  void holdNextQuestion() => _holdingQuestion = Completer<void>();
+  /// What sending a question throws that is neither the room's answer nor the file.
+  Object? knotThrows;
+
+  void holdNextQuestion() {
+    final hold = Completer<void>();
+    _holdingQuestions.add(hold);
+    _holdsNotYetTaken.add(hold);
+  }
 
   void finishHeldQuestion() {
-    _holdingQuestion?.complete();
-    _holdingQuestion = null;
+    for (final held in _holdingQuestions) {
+      if (!held.isCompleted) return held.complete();
+    }
   }
 
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
-    final held = _holdingQuestion;
-    if (held != null) await held.future;
+    if (_holdsNotYetTaken.isNotEmpty) {
+      await _holdsNotYetTaken.removeAt(0).future;
+    }
+    if (knotThrows case final thrown?) throw thrown;
     if (cannotReadTheKnot) {
       throw FileSystemException('sem arquivo', audio.path);
     }
@@ -1030,6 +1065,7 @@ class FakeRoom implements RoomRepository {
   int _turnCount = 0;
 
   final List<String> calls = [];
+  final Map<String, Object> throwOn = {};
   final List<String?> pericopesAsked = [];
   final List<String> languagesSent = [];
   final List<String?> clientTimingsSent = [];
@@ -1072,6 +1108,9 @@ class FakeRoom implements RoomRepository {
 
   /// The recordings whose audio this room will not hand over, by take id.
   final Set<String> refuseClipOf = {};
+
+  /// What fetching one recording's audio fails with, by take id.
+  final Map<String, RoomFailure> failClipOf = {};
 
   /// How long this room takes to hand over one recording's audio. A link that answers
   /// every part in time is not a link that has stopped, however long the whole fetch adds
@@ -1138,6 +1177,22 @@ class FakeRoom implements RoomRepository {
   /// What the next takes answer, one each, before [refuseTake] is read.
   final List<RoomFailure> takeAnswersFirst = [];
   final List<({String kind, String scope, int? chunkIndex})> takesReceived = [];
+
+  /// Every take the room took in, with what the upload carried beside its audio.
+  final List<
+    ({
+      String kind,
+      String scope,
+      int? chunkIndex,
+      String? origin,
+      bool reopens,
+      String? sha256,
+      Uint8List bytes,
+      DateTime? recordedAt,
+      String? overTake,
+    })
+  >
+  takesReceivedWhole = [];
   final List<int?> takePasses = [];
   String? refuseTake;
 
@@ -1490,6 +1545,7 @@ class FakeRoom implements RoomRepository {
   RoomFailure? _guard(String call) {
     calls.add(call);
     presentedOnEachCall.add(presented);
+    if (throwOn[call] case final thrown?) throw thrown;
     final failure = failWith;
     if (failure is SessionGone && _sessionless.contains(call)) {
       return const Refused(RefusalCode.notFound);
@@ -1564,9 +1620,22 @@ class FakeRoom implements RoomRepository {
         return const Refused(RefusalCode.notFound);
       }
     }
+    for (final gone in rehearsalsGone) {
+      if (url.endsWith('/scene-rehearsals/$gone/audio')) {
+        return const Refused(RefusalCode.notFound);
+      }
+    }
+    for (final entry in sceneAudioOf.entries) {
+      if (url.endsWith('/scene-rehearsals/${entry.key}/audio')) {
+        return Answered(entry.value);
+      }
+    }
     final sceneBytes = sceneAudio;
     if (sceneBytes != null && url.contains('/scene-rehearsals/')) {
       return Answered(sceneBytes);
+    }
+    for (final MapEntry(key: take, value: failure) in failClipOf.entries) {
+      if (url.endsWith('/takes/$take/audio')) return failure;
     }
     for (final take in refuseClipOf) {
       if (url.endsWith('/takes/$take/audio')) {
@@ -1643,6 +1712,12 @@ class FakeRoom implements RoomRepository {
 
   /// The bytes every scene take's audio comes back as, when it is set.
   Uint8List? sceneAudio;
+
+  /// Each scene rehearsal's own bytes, by its id, read before [sceneAudio].
+  final Map<String, Uint8List> sceneAudioOf = {};
+
+  /// The scene rehearsals whose recording is gone from the room: their audio answers 404.
+  final Set<String> rehearsalsGone = {};
 
   bool _holdTheNextSceneList = false;
   final List<Completer<void>> _heldSceneLists = [];
@@ -1802,6 +1877,53 @@ class FakeRoom implements RoomRepository {
     );
     sceneRehearsals[at] = restarted;
     return Answered(restarted);
+  }
+
+  /// Every Scene label this room was sent for an Unlabelled rehearsal.
+  final List<({String rehearsalId, String scene})> labelsSent = [];
+
+  /// What the next labels answer, one each, before the room takes them.
+  final List<RoomFailure> labelAnswersFirst = [];
+
+  Completer<void>? _holdingTheLabel;
+
+  /// Hold the next label's answer, after the room has been sent it.
+  void holdTheLabel() => _holdingTheLabel = Completer<void>();
+
+  void releaseTheLabel() {
+    _holdingTheLabel?.complete();
+    _holdingTheLabel = null;
+  }
+
+  @override
+  Future<RoomAnswer<SceneRehearsalRecord>> labelTheSceneRehearsal(
+    String sessionId,
+    String rehearsalId, {
+    required String scene,
+  }) async {
+    if (_guard('labelTheSceneRehearsal') case final failure?) return failure;
+    labelsSent.add((rehearsalId: rehearsalId, scene: scene));
+    await _holdingTheLabel?.future;
+    if (labelAnswersFirst.isNotEmpty) return labelAnswersFirst.removeAt(0);
+    final at = sceneRehearsals.indexWhere(
+      (rehearsal) => rehearsal.rehearsalId == rehearsalId,
+    );
+    final old = sceneRehearsals[at];
+    final labelled = SceneRehearsalRecord(
+      rehearsalId: old.rehearsalId,
+      sessionId: old.sessionId,
+      n: old.n,
+      scene: scene,
+      recordedAt: old.recordedAt,
+      sentAt: old.sentAt,
+      afterRestart: old.afterRestart,
+      durationMs: old.durationMs,
+      frases: old.frases,
+      contentType: old.contentType,
+      verified: old.verified,
+    );
+    sceneRehearsals[at] = labelled;
+    return Answered(labelled);
   }
 
   /// Every frase this room was sent: its span, the attempt it names, its audio and the
@@ -2105,6 +2227,25 @@ class FakeRoom implements RoomRepository {
     _holdingBooks = null;
     if (held != null) await held.future;
     return failBooksWith ?? Answered(books);
+  }
+
+  RoomAnswer<MinimumBuilds> minimumBuildsAnswer = Answered(
+    const MinimumBuilds(ios: 0, android: 0),
+  );
+
+  int minimumBuildsAsked = 0;
+  Completer<void>? _holdingMinimumBuilds;
+
+  /// Hold the next read of the minimum build, the way a link that never answers holds it.
+  void holdNextMinimumBuilds() => _holdingMinimumBuilds = Completer<void>();
+
+  void releaseMinimumBuilds() => _holdingMinimumBuilds?.complete();
+
+  @override
+  Future<RoomAnswer<MinimumBuilds>> minimumBuilds() async {
+    minimumBuildsAsked++;
+    await _holdingMinimumBuilds?.future;
+    return minimumBuildsAnswer;
   }
 
   @override
@@ -2580,6 +2721,9 @@ class FakeRoom implements RoomRepository {
     DateTime? recordedAt,
     int? durationMs,
     String? sha256,
+    String? origin,
+    bool reopensTheApprovedDraft = false,
+    String? overTake,
   }) async {
     if (_guard('sendTake') case final failure?) return failure;
     if (_forgot('sendTake', sessionId) case final gone?) {
@@ -2602,6 +2746,34 @@ class FakeRoom implements RoomRepository {
     if (unreachableTake == '$kind/$scope') {
       return const NetworkFailed('sem rede');
     }
+    final bytes = audio.existsSync() ? audio.readAsBytesSync() : Uint8List(0);
+    final held = crypto.sha256.convert(bytes).toString();
+    if (sha256 != null && sha256 != held) {
+      return const Refused('TAKE_FINGERPRINT_DIFFERS');
+    }
+    takesReceivedWhole.add((
+      kind: kind,
+      scope: scope,
+      chunkIndex: chunkIndex,
+      origin: origin,
+      reopens: reopensTheApprovedDraft,
+      sha256: sha256,
+      bytes: bytes,
+      recordedAt: recordedAt,
+      overTake: overTake,
+    ));
+    if (origin != null) {
+      for (final take in takes) {
+        final audio = takeAudio[take.takeId];
+        if (audio != null && crypto.sha256.convert(audio).toString() == held) {
+          return Answered(take.takeId);
+        }
+      }
+      final live = takes
+          .where((take) => take.kind == kind && take.scope == scope)
+          .lastOrNull;
+      if (live?.takeId != overTake) return const Refused(RefusalCode.takeMoved);
+    }
     takesKept.add('$kind/$scope');
     takesReceived.add((kind: kind, scope: scope, chunkIndex: chunkIndex));
     takePasses.add(passNumber);
@@ -2614,9 +2786,12 @@ class FakeRoom implements RoomRepository {
         scope: scope,
         ordinal: kind == 'ensaio' ? chunkIndex : null,
         pass: passNumber,
+        origin: origin,
       ),
     );
-    takeAudio[id] = Uint8List.fromList(utf8.encode('áudio de $id'));
+    takeAudio[id] = origin == null
+        ? Uint8List.fromList(utf8.encode('áudio de $id'))
+        : bytes;
     return Answered(id);
   }
 
@@ -2817,10 +2992,19 @@ class FakeRoom implements RoomRepository {
   /// answer names none.
   List<String>? listeningUnheardTakeIds;
 
+  /// What the listen door says follows, on every answer: the tablet reads it only once
+  /// the room counts nothing unheard.
+  bool listeningAutomaticCheck = false;
+  String? listeningFixedLine;
+  List<UntranslatedPart> listeningUntranslated = const [];
+
+  /// The refusal `STRETCH_UNTRANSLATED` also when [listeningUntranslated] names no part.
+  bool listeningStretchUntranslated = false;
+
   RoomFailure? failListeningWith;
 
   @override
-  Future<RoomAnswer<List<String>?>> reportTheListening(
+  Future<RoomAnswer<ListenedWhole>> reportTheListening(
     String sessionId, {
     required List<PlayedTake> playedByTake,
   }) async {
@@ -2828,7 +3012,16 @@ class FakeRoom implements RoomRepository {
     final falha = failListeningWith;
     if (falha != null) return falha;
     if (!reachable) return const NetworkFailed('sem rede');
-    return Answered(listeningUnheardTakeIds);
+    return Answered(
+      ListenedWhole(
+        unheardTakeIds: listeningUnheardTakeIds,
+        automaticCheck: listeningAutomaticCheck,
+        fixedLine: listeningFixedLine,
+        stretchUntranslated:
+            listeningStretchUntranslated || listeningUntranslated.isNotEmpty,
+        untranslated: listeningUntranslated,
+      ),
+    );
   }
 
   final List<String> heardStamps = [];
@@ -2863,6 +3056,42 @@ class FakeRoom implements RoomRepository {
       ..addAll(standingAfterRestart);
     retroSoFar = null;
     awaitingSegmentId = null;
+    return Answered(_numbered);
+  }
+
+  final List<(String, int)> bringBacksAsked = [];
+
+  RoomFailure? failBringBackWith;
+
+  Completer<void>? _holdingBringBack;
+  Completer<void>? _heldBringBack;
+
+  void holdBringBack() => _holdingBringBack = Completer<void>();
+
+  void finishHeldBringBack() => _heldBringBack?.complete();
+
+  @override
+  Future<RoomAnswer<List<SegmentView>>> bringBackTheTranslations(
+    String sessionId,
+    int number,
+  ) async {
+    bringBacksAsked.add((sessionId, number));
+    final held = _heldBringBack = _holdingBringBack;
+    _holdingBringBack = null;
+    await held?.future;
+    final refusal = failBringBackWith;
+    if (refusal != null) return refusal;
+    if (retroSoFar case final told?) {
+      retroSoFar = BackTranslationProgress(
+        segments: told.segments,
+        checked: told.checked,
+        findingSegmentId: told.findingSegmentId,
+        findings: told.findings,
+        awaitingSegmentId: told.awaitingSegmentId,
+        stale: told.stale,
+        bringBack: [...told.bringBack]..remove(number),
+      );
+    }
     return Answered(_numbered);
   }
 
@@ -3170,6 +3399,56 @@ class FakeTakeQueue implements TakeUploadQueue {
     rows.add(entry);
     return entry;
   }
+
+  @override
+  Future<PendingTake?> enqueueTheJoin(
+    File audio, {
+    required String sessionId,
+    required int number,
+    required int passNumber,
+    required String origin,
+    String? fingerprint,
+    String? overTake,
+    bool reopensTheApprovedDraft = false,
+  }) async {
+    final held = crypto.sha256.convert(audio.readAsBytesSync()).toString();
+    if (fingerprint != null && held != fingerprint) return null;
+    final entry = PendingTake(
+      id: '${_minted++}',
+      path: audio.path,
+      sessionId: sessionId,
+      kind: 'ensaio',
+      scope: 'parte-$number',
+      passNumber: passNumber,
+      chunkIndex: number,
+      sha256: held,
+      origin: origin,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
+    );
+    rows.add(entry);
+    return entry;
+  }
+
+  @override
+  Stream<String> get rowsLeaving => const Stream.empty();
+
+  @override
+  Stream<String> get rowsBack => const Stream.empty();
+
+  @override
+  bool inTheAir(String row) => false;
+
+  @override
+  bool movedAway(String row) => false;
+
+  @override
+  Future<void> withdrawTheJoinsOf(String sessionId, String scope) async =>
+      rows.removeWhere(
+        (entry) =>
+            entry.origin != null &&
+            entry.sessionId == sessionId &&
+            entry.scope == scope,
+      );
 
   @override
   Stream<void> get fallsOnTheNetwork => const Stream.empty();
