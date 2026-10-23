@@ -270,7 +270,7 @@ void main() {
           final (machine, effects) = reduce(before, const TheSceneDiskFailed());
 
           expect(effects, isEmpty, reason: '$station');
-          expect(machine.halt, const NoHalt(), reason: '$station');
+          expect(identical(machine, before), isTrue, reason: '$station');
         }
       });
     },

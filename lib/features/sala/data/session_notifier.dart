@@ -780,6 +780,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _gesture(void Function() act) {
     final gesture = _startAGesture();
+    _theDiskWordGoes();
     try {
       runZoned(
         act,
@@ -3541,7 +3542,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             _theSceneMovedOn(asked, generation)) {
           return;
         }
-        final take = await _fetchTheSceneTake(unsent, generation);
+        final take = await _fetchTheSceneTake(unsent, asked, generation);
         if (take == null || state.scenes is! ScenesAwaited) return;
         await _showTheRehearsal(
           unsent,
@@ -3569,7 +3570,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         (asked.rehearsal?.rehearsalId == rehearsal.rehearsalId
             ? asked.take
             : null) ??
-        await _fetchTheSceneTake(rehearsal, generation);
+        await _fetchTheSceneTake(rehearsal, asked, generation);
     if (here == null || _theSceneMovedOn(asked, generation)) return;
     final length = await _playback.howLong(here);
     if (_theSceneMovedOn(asked, generation) ||
@@ -3605,7 +3606,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         notUnderstood: herLineStands,
       ),
       sceneRehearsals: _listedWith(rehearsal),
-      clearSceneLine: state.sceneLine == SceneLine.diskFailed,
     );
     if (step == SceneStep.translate) _handOff(_readTheLoudness(here));
   }
@@ -3635,6 +3635,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<String?> _fetchTheSceneTake(
     SceneRehearsalRecord rehearsal,
+    SceneScreen asked,
     int generation,
   ) => _fetchASceneClip(
     'cena-${rehearsal.rehearsalId}',
@@ -3642,12 +3643,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       rehearsal.sessionId,
       rehearsal.rehearsalId,
     ),
+    asked,
     generation,
   );
 
   Future<String?> _fetchASceneClip(
     String name,
     String url,
+    SceneScreen asked,
     int generation,
   ) async {
     final held = await _heldOnTheTablet(name);
@@ -3659,7 +3662,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         try {
           return await _recorder.keepBytes(value, name);
         } on Exception {
-          if (!_abandoned(generation)) {
+          if (!_theSceneMovedOn(asked, generation)) {
             _dispatch(
               decidedOnTheTablet(
                 const TheDiskFailed(),
@@ -4391,10 +4394,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theFraseNotUnderstood() =>
       state = state.copyWith(scene: state.scene.copyWith(notUnderstood: true));
 
-  /// The disk word stands on the scene screen until the team's next gesture or a take
-  /// lands.
+  /// The disk word stands on the scene screen until the team's next gesture.
   void _theDiskFailed() =>
       state = state.copyWith(sceneLine: SceneLine.diskFailed);
+
+  void _theDiskWordGoes() {
+    if (state.sceneLine != SceneLine.diskFailed) return;
+    state = state.copyWith(clearSceneLine: true);
+  }
 
   /// The room may have kept the translation again whose answer was lost: that stands with
   /// the rehearsal, and the frase post waits on its list.
@@ -4542,6 +4549,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal.rehearsalId,
         frase.fraseId,
       ),
+      waiting,
       generation,
     );
     if (_theSceneMovedOn(waiting, generation)) return;

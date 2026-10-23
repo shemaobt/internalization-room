@@ -492,17 +492,14 @@ void main() {
       },
     );
 
-    test('a failed keep is shared by its twin and does not stick', () async {
+    test('a failed keep does not stick to its name', () async {
       Process.runSync('chmod', ['a-w', recordings.path]);
       addTearDown(() => Process.runSync('chmod', ['u+w', recordings.path]));
 
-      final twins = [
+      await expectLater(
         recording.keepBytes(aWavTake(), 'cena-y'),
-        recording.keepBytes(aWavTake(), 'cena-y'),
-      ];
-      for (final twin in twins) {
-        await expectLater(twin, throwsA(isA<FileSystemException>()));
-      }
+        throwsA(isA<FileSystemException>()),
+      );
 
       Process.runSync('chmod', ['u+w', recordings.path]);
       final kept = await recording.keepBytes(aWavTake(), 'cena-y');

@@ -3,7 +3,7 @@ status: accepted
 date: 2026-10-22
 ---
 
-# A dead disk at the scene door is the tablet's own failure, told on the scene screen, and one take is kept by one write at a time
+# A Disk failure at the scene door is the tablet's own failure, told on the scene screen, and one take is kept by one write at a time
 
 ## Context
 
@@ -32,8 +32,10 @@ spoken, no failure face is drawn) stand. The Definer settled the word on ENG-170
   which stay wordless, and as her line on the translate step. It is never spoken and adds
   no control: the team's next tap on the row fetches again. A take the room did not keep
   keeps its own word and retry on the record step.
-- **The word goes** at the team's next gesture that already clears her line, and when the
-  scene screen next shows a take.
+- **The word stands until the team's next gesture.** Every gesture of the team clears it
+  before the gesture acts, whatever it is: a row, a frase, a scene, the circle.
+- **The failure lands only on the rehearsal it was fetching.** A keep that fails after the
+  team moved the screen on tells nothing.
 - **One take is kept by one write at a time.** A keep of a name already being written gets
   that write's result, the same file or the same failure. Once the write settles the name
   is free, so a later keep writes again.
