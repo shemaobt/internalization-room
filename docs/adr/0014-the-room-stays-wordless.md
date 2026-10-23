@@ -80,6 +80,11 @@ listeners, and the «Checagem externa» button; an armed control over an approve
 her two texts. The Back-translation and its frase list are already named exceptions, her words
 the team reads, so no new exception is named.
 
+Amended by ENG-1382 (2026-10-22, ADR 0117): the orange dot opens her Ensaio Final plan
+(`widgets/ensaio_final_plan_view.dart`): «pensando…» while the room is read, then «Ensaio
+Final», «Estes são os ensaios das cenas que vocês me enviaram.» and «Gravar cena por cena».
+It is the eleventh named exception, under the moment label's reason, her words the team reads.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a

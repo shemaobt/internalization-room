@@ -245,6 +245,11 @@ final class TheRehearsalOpened extends StationEvent {
   const TheRehearsalOpened();
 }
 
+/// The orange dot opens the Ensaio Final plan over a passage that has no take yet.
+final class ThePlanOpened extends StationEvent {
+  const ThePlanOpened();
+}
+
 final class TheBackTranslationOpened extends StationEvent {
   const TheBackTranslationOpened();
 }
@@ -1298,9 +1303,9 @@ const _watch = ArmTheWatch();
     _ => (machine, const []),
   },
   TheRehearsalWeighed(:final everySceneHasItsPart) => switch (machine.station) {
-    Ensaio() => (
+    Ensaio(:final step) => (
       machine.copyWith(
-        station: Ensaio(everySceneHasItsPart: everySceneHasItsPart),
+        station: Ensaio(everySceneHasItsPart: everySceneHasItsPart, step: step),
       ),
       const [],
     ),

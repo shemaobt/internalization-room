@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -449,8 +450,22 @@ class FakeRecorder implements RecordingRepository {
   /// Whether looking for audio already on the tablet fails, the way a disk does.
   bool heldAsFails = false;
 
+  bool _holdTheNextLookup = false;
+  final List<Completer<void>> _heldLookups = [];
+
+  /// Holds the next look for audio on the tablet until [finishHeldLookup].
+  void holdNextLookup() => _holdTheNextLookup = true;
+
+  void finishHeldLookup() => _heldLookups.removeAt(0).complete();
+
   @override
   Future<String?> heldAs(String fileName) async {
+    if (_holdTheNextLookup) {
+      _holdTheNextLookup = false;
+      final held = Completer<void>();
+      _heldLookups.add(held);
+      await held.future;
+    }
     if (heldAsFails) throw const FileSystemException('o disco falhou');
     for (final extension in ['wav', 'm4a']) {
       final file = File('${home.path}/$fileName.$extension');
@@ -955,19 +970,31 @@ class FakeInbox implements HandInboxRepository {
   @override
   Stream<String?> get revoked => _revocations.stream;
 
-  Completer<void>? _holdingQuestion;
+  /// Each held question waits on its own hold, in the order the holds were asked for.
+  final List<Completer<void>> _holdingQuestions = [];
+  final List<Completer<void>> _holdsNotYetTaken = [];
 
-  void holdNextQuestion() => _holdingQuestion = Completer<void>();
+  /// What sending a question throws that is neither the room's answer nor the file.
+  Object? knotThrows;
+
+  void holdNextQuestion() {
+    final hold = Completer<void>();
+    _holdingQuestions.add(hold);
+    _holdsNotYetTaken.add(hold);
+  }
 
   void finishHeldQuestion() {
-    _holdingQuestion?.complete();
-    _holdingQuestion = null;
+    for (final held in _holdingQuestions) {
+      if (!held.isCompleted) return held.complete();
+    }
   }
 
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
-    final held = _holdingQuestion;
-    if (held != null) await held.future;
+    if (_holdsNotYetTaken.isNotEmpty) {
+      await _holdsNotYetTaken.removeAt(0).future;
+    }
+    if (knotThrows case final thrown?) throw thrown;
     if (cannotReadTheKnot) {
       throw FileSystemException('sem arquivo', audio.path);
     }
@@ -1137,6 +1164,22 @@ class FakeRoom implements RoomRepository {
   /// What the next takes answer, one each, before [refuseTake] is read.
   final List<RoomFailure> takeAnswersFirst = [];
   final List<({String kind, String scope, int? chunkIndex})> takesReceived = [];
+
+  /// Every take the room took in, with what the upload carried beside its audio.
+  final List<
+    ({
+      String kind,
+      String scope,
+      int? chunkIndex,
+      String? origin,
+      bool reopens,
+      String? sha256,
+      Uint8List bytes,
+      DateTime? recordedAt,
+      DateTime? sentAt,
+    })
+  >
+  takesReceivedWhole = [];
   final List<int?> takePasses = [];
   String? refuseTake;
 
@@ -1563,6 +1606,16 @@ class FakeRoom implements RoomRepository {
         return const Refused(RefusalCode.notFound);
       }
     }
+    for (final gone in rehearsalsGone) {
+      if (url.endsWith('/scene-rehearsals/$gone/audio')) {
+        return const Refused(RefusalCode.notFound);
+      }
+    }
+    for (final entry in sceneAudioOf.entries) {
+      if (url.endsWith('/scene-rehearsals/${entry.key}/audio')) {
+        return Answered(entry.value);
+      }
+    }
     final sceneBytes = sceneAudio;
     if (sceneBytes != null && url.contains('/scene-rehearsals/')) {
       return Answered(sceneBytes);
@@ -1642,6 +1695,12 @@ class FakeRoom implements RoomRepository {
 
   /// The bytes every scene take's audio comes back as, when it is set.
   Uint8List? sceneAudio;
+
+  /// Each scene rehearsal's own bytes, by its id, read before [sceneAudio].
+  final Map<String, Uint8List> sceneAudioOf = {};
+
+  /// The scene rehearsals whose recording is gone from the room: their audio answers 404.
+  final Set<String> rehearsalsGone = {};
 
   bool _holdTheNextSceneList = false;
   final List<Completer<void>> _heldSceneLists = [];
@@ -2579,6 +2638,9 @@ class FakeRoom implements RoomRepository {
     DateTime? recordedAt,
     int? durationMs,
     String? sha256,
+    String? origin,
+    bool reopensTheApprovedDraft = false,
+    DateTime? sentAt,
   }) async {
     if (_guard('sendTake') case final failure?) return failure;
     if (_forgot('sendTake', sessionId) case final gone?) {
@@ -2601,6 +2663,30 @@ class FakeRoom implements RoomRepository {
     if (unreachableTake == '$kind/$scope') {
       return const NetworkFailed('sem rede');
     }
+    final bytes = audio.existsSync() ? audio.readAsBytesSync() : Uint8List(0);
+    final held = crypto.sha256.convert(bytes).toString();
+    if (sha256 != null && sha256 != held) {
+      return const Refused('TAKE_FINGERPRINT_DIFFERS');
+    }
+    takesReceivedWhole.add((
+      kind: kind,
+      scope: scope,
+      chunkIndex: chunkIndex,
+      origin: origin,
+      reopens: reopensTheApprovedDraft,
+      sha256: sha256,
+      bytes: bytes,
+      recordedAt: recordedAt,
+      sentAt: sentAt,
+    ));
+    if (origin != null) {
+      for (final take in takes) {
+        final audio = takeAudio[take.takeId];
+        if (audio != null && crypto.sha256.convert(audio).toString() == held) {
+          return Answered(take.takeId);
+        }
+      }
+    }
     takesKept.add('$kind/$scope');
     takesReceived.add((kind: kind, scope: scope, chunkIndex: chunkIndex));
     takePasses.add(passNumber);
@@ -2613,9 +2699,12 @@ class FakeRoom implements RoomRepository {
         scope: scope,
         ordinal: kind == 'ensaio' ? chunkIndex : null,
         pass: passNumber,
+        origin: origin,
       ),
     );
-    takeAudio[id] = Uint8List.fromList(utf8.encode('áudio de $id'));
+    takeAudio[id] = origin == null
+        ? Uint8List.fromList(utf8.encode('áudio de $id'))
+        : bytes;
     return Answered(id);
   }
 
@@ -3129,6 +3218,52 @@ class FakeTakeQueue implements TakeUploadQueue {
     rows.add(entry);
     return entry;
   }
+
+  @override
+  Future<PendingTake?> enqueueTheJoin(
+    File audio, {
+    required String sessionId,
+    required int number,
+    required int passNumber,
+    required String origin,
+    String? fingerprint,
+    bool reopensTheApprovedDraft = false,
+  }) async {
+    final held = crypto.sha256.convert(audio.readAsBytesSync()).toString();
+    if (fingerprint != null && held != fingerprint) return null;
+    final entry = PendingTake(
+      id: '${_minted++}',
+      path: audio.path,
+      sessionId: sessionId,
+      kind: 'ensaio',
+      scope: 'parte-$number',
+      passNumber: passNumber,
+      chunkIndex: number,
+      sha256: held,
+      origin: origin,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
+    );
+    rows.add(entry);
+    return entry;
+  }
+
+  @override
+  Stream<String> get rowsLeaving => const Stream.empty();
+
+  @override
+  Stream<String> get rowsBack => const Stream.empty();
+
+  @override
+  bool inTheAir(String row) => false;
+
+  @override
+  Future<void> withdrawTheJoinsOf(String sessionId, String scope) async =>
+      rows.removeWhere(
+        (entry) =>
+            entry.origin != null &&
+            entry.sessionId == sessionId &&
+            entry.scope == scope,
+      );
 
   @override
   Stream<void> get fallsOnTheNetwork => const Stream.empty();

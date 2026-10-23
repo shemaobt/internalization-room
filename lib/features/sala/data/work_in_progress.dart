@@ -42,6 +42,10 @@ class ResumePoint {
   /// room's pass for it, so the recording goes up above it. Empty for any other row.
   final Map<int, int> passesToGoAbove;
 
+  /// The takes of a whole rehearsal set aside behind the parts that only the room holds.
+  /// Empty for any other row.
+  final List<String> wholeHeldByTheRoom;
+
   const ResumePoint({
     required this.sessionId,
     required this.stage,
@@ -50,6 +54,7 @@ class ResumePoint {
     this.language,
     this.partBeingRecordedAgain,
     this.passesToGoAbove = const {},
+    this.wholeHeldByTheRoom = const [],
   });
 
   Map<String, Object?> toJson() => {
@@ -63,6 +68,7 @@ class ResumePoint {
         for (final MapEntry(:key, :value) in passesToGoAbove.entries)
           '$key': value,
       },
+    if (wholeHeldByTheRoom.isNotEmpty) 'whole_set_aside': wholeHeldByTheRoom,
     'takes': [
       for (final take in takes)
         {
@@ -98,6 +104,10 @@ class ResumePoint {
           if (int.tryParse('$key') case final numero? when value is int)
             numero: value,
       },
+      wholeHeldByTheRoom: [
+        for (final id in (json['whole_set_aside'] as List? ?? const []))
+          if (id is String) id,
+      ],
       takes: [
         for (final raw in (json['takes'] as List? ?? const []))
           if (raw is Map)

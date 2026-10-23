@@ -333,7 +333,7 @@ One row of the Rehearsal per Scene of the passage, in passage order, reading «C
 _Avoid_: bead (the Back-translation's), clip row, part row, linha
 
 **Joined recording** (`origin`):
-A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final».
+A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final». The tablet makes one with «juntar as cenas e ouvir» on the Ensaio Final plan. Each scene's chosen rehearsal goes up through the Outbox as that scene's Part: the rehearsal's own bytes under its fingerprint, with `origin`. The same bytes joined again, from any tablet, are the same take (ADR 0120).
 _Avoid_: assembled recording, merged, Junção (in prose)
 
 **Red microphone**:
@@ -341,7 +341,7 @@ The round red control beside the orange dot that opens the Scene rehearsal's scr
 _Avoid_: orange dot (the other way, into the Rehearsal)
 
 **Orange dot**:
-The small orange control at the Conversation's right edge that opens the Rehearsal, the recording of the whole passage. It lights when the voice has said its send-off, when the completion floor is met, or at the Ensaio Final moment, and goes dark while the voice is busy, a microphone other than the raised-hand note's is open or a person is called; before it lights, nothing on the Conversation reaches the Rehearsal (ADR 0037, superseded).
+The small orange control at the Conversation's top right that opens the Ensaio Final: the Ensaio Final plan as its entry reads (today, over a passage with no take) and the recording home when there is a take; the join case arrives with ENG-1385. Faint and open whenever the Conversation rests, also before the send-off; bright from the voice's send-off, the completion floor or the Ensaio Final moment on; gone while any voice sounds or thinks, a microphone other than the raised-hand note's is open, a sent note is on its way, or a person is called; never on a Panorama. Its name is «Gravar o ensaio de vocês», and «Abrir o Ensaio Final» once a part came from a join (ADR 0117).
 _Avoid_: record entry, record button, botão de gravar, green check, green microphone (the glyphs the way into the Rehearsal wore until 2026-10-21), handoff, rehearsal gate (it gates nothing)
 
 **Opened**:
@@ -353,7 +353,7 @@ The app as the stores hold it: the build installed on every tablet from the App 
 _Avoid_: release (the server's record of an approved draft), the build (ambiguous), app version
 
 **Outbox**:
-The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it. Each row keeps its recording's **Recording time**, its length when it is a WAV and its fingerprint (sha256), fixed when the row is written; a row an older app wrote has none and sends none. An unsent take is shown on its Scene row, never spoken.
+The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it. Each row keeps its recording's **Recording time**, its length when it is a WAV and its fingerprint (sha256), fixed when the row is written; a row an older app wrote has none and sends none; a row of a join also keeps the rehearsal it came from (`origin`) and whether the team armed the reopening of an approved draft, its Recording time is the tablet's clock as the row is written, and each try also names the moment it is sent, from which the room measures the clock offset. An unsent take is shown on its Scene row, never spoken.
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Unsent take**:

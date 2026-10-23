@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../domain/kept_take.dart';
 import '../domain/machine.dart';
 import '../domain/scene_rehearsal.dart';
 import '../domain/wav.dart';
@@ -104,6 +105,11 @@ class PendingTake {
   final int? durationMs;
   final String? sha256;
 
+  /// The Scene rehearsal a join row's bytes are, and whether the team armed the reopening
+  /// of an approved draft for it. A row an older app wrote has neither.
+  final String? origin;
+  final bool reopensTheApprovedDraft;
+
   const PendingTake({
     required this.id,
     required this.path,
@@ -124,6 +130,8 @@ class PendingTake {
     this.recordedAt,
     this.durationMs,
     this.sha256,
+    this.origin,
+    this.reopensTheApprovedDraft = false,
   });
 
   bool get exhausted => attempts >= takeUploadAttempts;
@@ -143,6 +151,8 @@ class PendingTake {
     recordedAt: recordedAt,
     durationMs: durationMs,
     sha256: sha256,
+    origin: origin,
+    reopensTheApprovedDraft: reopensTheApprovedDraft,
   );
 
   bool get refusedWithNoCode =>
@@ -178,6 +188,8 @@ class PendingTake {
     recordedAt: recordedAt,
     durationMs: durationMs,
     sha256: sha256,
+    origin: origin,
+    reopensTheApprovedDraft: reopensTheApprovedDraft,
   );
 
   Map<String, Object?> toJson() => {
@@ -200,6 +212,8 @@ class PendingTake {
     'recorded_at': recordedAt?.toUtc().toIso8601String(),
     'duration_ms': durationMs,
     'sha256': sha256,
+    'origin': origin,
+    'reopens_the_approved_draft': reopensTheApprovedDraft,
   };
 
   factory PendingTake.fromJson(
@@ -237,6 +251,9 @@ class PendingTake {
     },
     durationMs: json['duration_ms'] as int?,
     sha256: json['sha256'] as String?,
+    origin: json['origin'] as String?,
+    reopensTheApprovedDraft:
+        json['reopens_the_approved_draft'] as bool? ?? false,
   );
 }
 
@@ -539,16 +556,66 @@ class TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
+  }) async => (await _enqueue(
+    audio,
+    sessionId: sessionId,
+    kind: kind,
+    scope: scope,
+    passNumber: passNumber,
+    chunkIndex: chunkIndex,
+    scene: scene,
+    recordedAt: await audio.lastModified(),
+  ))!;
+
+  /// A row of a join: the rehearsal's own bytes as the part, written only when the copy
+  /// is [fingerprint]'s. Its Recording time is the tablet's clock as the row is written,
+  /// sent unchanged on every try beside the moment each try is made.
+  Future<PendingTake?> enqueueTheJoin(
+    File audio, {
+    required String sessionId,
+    required int number,
+    required int passNumber,
+    required String origin,
+    String? fingerprint,
+    bool reopensTheApprovedDraft = false,
+  }) => _enqueue(
+    audio,
+    sessionId: sessionId,
+    kind: 'ensaio',
+    scope: KeptScope.parte(number),
+    passNumber: passNumber,
+    chunkIndex: number,
+    recordedAt: _now(),
+    fingerprint: fingerprint,
+    origin: origin,
+    reopensTheApprovedDraft: reopensTheApprovedDraft,
+  );
+
+  Future<PendingTake?> _enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    required DateTime recordedAt,
+    int? passNumber,
+    int? chunkIndex,
+    String? scene,
+    String? fingerprint,
+    String? origin,
+    bool reopensTheApprovedDraft = false,
   }) async {
     final dir = await _dir();
     final id = _mintId();
     final name = p.basenameWithoutExtension(audio.path);
     final kept = p.join(dir.path, '$kind-$name-$id${p.extension(audio.path)}');
-    final stopped = await audio.lastModified();
     if (audio.path != kept) {
       await audio.copy(kept);
     }
     final held = await _whatTheCopyHolds(kept);
+    if (fingerprint != null && held.sha256 != fingerprint) {
+      await File(kept).delete();
+      return null;
+    }
     final entry = PendingTake(
       id: id,
       path: kept,
@@ -559,9 +626,11 @@ class TakeUploadQueue {
       chunkIndex: chunkIndex,
       scene: scene,
       original: kind == sceneTakeKind ? name : null,
-      recordedAt: stopped,
+      recordedAt: recordedAt,
       durationMs: held.durationMs,
       sha256: held.sha256,
+      origin: origin,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
     await _mutate((written) => [...written, entry]);
     return entry;
@@ -581,6 +650,22 @@ class TakeUploadQueue {
   Stream<String> get sessionsGone => _sessionsGone.stream;
 
   PendingTake? _inTheAir;
+
+  final StreamController<String> _leaving = StreamController<String>.broadcast(
+    sync: true,
+  );
+
+  /// Each row's id as its own request goes out to the room.
+  Stream<String> get rowsLeaving => _leaving.stream;
+
+  final StreamController<String> _back = StreamController<String>.broadcast(
+    sync: true,
+  );
+
+  /// Each row's id once the room's answer to its request is written down.
+  Stream<String> get rowsBack => _back.stream;
+
+  bool inTheAir(String row) => _inTheAir?.id == row;
 
   /// The room turned the tablet away, not the take: nothing more leaves until it is
   /// linked again, and nothing is given up for it.
@@ -654,6 +739,23 @@ class TakeUploadQueue {
   /// Whether the room took this row. Held is every reason it did not that holds the rest
   /// of this row's part on it; a row refused for good, sent or not, holds nothing.
   Future<_Landing> _landed(PendingTake entry) async {
+    var left = false;
+    void leaving() {
+      left = true;
+      _leaving.add(entry.id);
+    }
+
+    try {
+      return await _landedOnce(entry, leaving);
+    } finally {
+      if (left) _back.add(entry.id);
+    }
+  }
+
+  Future<_Landing> _landedOnce(
+    PendingTake entry,
+    void Function() leaving,
+  ) async {
     if (!_ready(entry)) return _Landing.held;
     final file = File(entry.path);
     if (!await file.exists()) {
@@ -680,6 +782,7 @@ class TakeUploadQueue {
         );
         return _Landing.givenUp;
       }
+      leaving();
       answer = entry.kind == sceneTakeKind
           ? await _sendTheScene(entry, file)
           : await _room.sendTake(
@@ -692,6 +795,9 @@ class TakeUploadQueue {
               recordedAt: entry.recordedAt,
               durationMs: entry.durationMs,
               sha256: entry.sha256,
+              origin: entry.origin,
+              reopensTheApprovedDraft: entry.reopensTheApprovedDraft,
+              sentAt: entry.origin == null ? null : _now(),
             );
     } on FileSystemException {
       _inTheAir = null;
@@ -891,6 +997,30 @@ class TakeUploadQueue {
     });
     for (final entry in discarded) {
       if (!_isInTheAir(entry)) await _deleteTheCopy(entry);
+    }
+  }
+
+  /// Take every join row of [scope] still waiting off the manifest, with its copy: the
+  /// team recorded the part again by hand.
+  Future<void> withdrawTheJoinsOf(String sessionId, String scope) async {
+    final removed = <PendingTake>[];
+    await _mutate((written) {
+      final kept = <PendingTake>[];
+      for (final entry in written) {
+        if (!entry.stored &&
+            entry.origin != null &&
+            entry.sessionId == sessionId &&
+            entry.scope == scope &&
+            !_isInTheAir(entry)) {
+          removed.add(entry);
+          continue;
+        }
+        kept.add(entry);
+      }
+      return kept;
+    });
+    for (final entry in removed) {
+      await _deleteTheCopy(entry);
     }
   }
 
