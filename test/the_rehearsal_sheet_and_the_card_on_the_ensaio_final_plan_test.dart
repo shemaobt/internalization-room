@@ -552,6 +552,46 @@ void main() {
     },
   );
 
+  testWidgets(
+    '7. «gravar esta cena de novo» brings back a scene take still waiting in '
+    'the Outbox',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, container) = await _seeded(
+        tester,
+        (s) => [
+          _rehearsal(s, n: 2, scene: 'S2', sentAt: _sentAt('10:00')),
+          _rehearsal(s, n: 3, scene: 'S2', sentAt: _sentAt('10:05')),
+        ],
+      );
+      await harness.takes.enqueue(
+        harness.recorder.aFile('cena-que-espera'),
+        sessionId: container.read(salaSessionProvider).sessionId!,
+        kind: 'cena',
+        scope: 'cena',
+        scene: 'S1',
+      );
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 2);
+
+      await tester.ensureVisible(find.text(_recordAgain));
+      await tester.tap(find.text(_recordAgain));
+      await _pumpUntil(
+        tester,
+        () => find.byType(SceneChip).evaluate().isNotEmpty,
+      );
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.byType(SceneChip), findsOneWidget);
+      expect(
+        tester.widget<SceneChip>(find.byType(SceneChip)).words,
+        contains(_threeScenes[0].title),
+      );
+      expect(byLabel(_question), findsNothing);
+      semantics.dispose();
+    },
+  );
+
   testWidgets('8. play on a line plays that rehearsal, and a second tap stops '
       'it', (tester) async {
     final semantics = tester.ensureSemantics();
@@ -712,8 +752,13 @@ void main() {
     }
 
     await _tapLabel(tester, _sceneButton(3));
+    await _tapLabel(tester, 'Ouvir — ${_facts(1)}');
 
     expect(harness.room.labelsSent, hasLength(1));
+    expect(
+      harness.room.clipsFetched,
+      isNot(contains(endsWith('ensaio-1/audio'))),
+    );
 
     harness.room.releaseTheLabel();
     await _theAnswerSettles(tester);
@@ -724,6 +769,51 @@ void main() {
     }
     semantics.dispose();
   });
+
+  testWidgets(
+    '13. a double tap on a scene labels only the rehearsal the card showed',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(tester, _twoUnlabelled);
+      final sessionId = harness.room.sceneRehearsals.first.sessionId;
+      await _openThePlan(tester);
+      await tester.ensureVisible(byLabel(_sceneButton(2)));
+      await tester.pump();
+      final where = tester.getCenter(byLabel(_sceneButton(2)));
+
+      await tester.tapAt(where);
+      await tester.pump(const Duration(milliseconds: 120));
+      await tester.tapAt(where);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(harness.room.labelsSent, [
+        (rehearsalId: '$sessionId-ensaio-4', scene: 'S2'),
+      ]);
+      expect(_onCard(find.text(_facts(6))), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 600));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    '13. the next rehearsal on the card takes a tap once 0.6 s have passed',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(tester, _twoUnlabelled);
+      final sessionId = harness.room.sceneRehearsals.first.sessionId;
+      await _openThePlan(tester);
+      await _tapLabel(tester, _sceneButton(2));
+      await tester.pump(const Duration(milliseconds: 600));
+
+      await _tapLabel(tester, _sceneButton(1));
+
+      expect(harness.room.labelsSent, [
+        (rehearsalId: '$sessionId-ensaio-4', scene: 'S2'),
+        (rehearsalId: '$sessionId-ensaio-6', scene: 'S1'),
+      ]);
+      semantics.dispose();
+    },
+  );
 
   group('14. the sheet and the card show only facts', () {
     testWidgets('over the sheet', (tester) async {

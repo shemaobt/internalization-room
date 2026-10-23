@@ -3546,10 +3546,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sceneId == null ||
         row == null ||
         state.planBusy ||
-        rehearsalId == row.chosen?.rehearsalId ||
         !row.candidates.any(
           (candidate) =>
-              candidate.rehearsalId == rehearsalId && candidate.joinable,
+              candidate.rehearsalId == rehearsalId &&
+              row.offersToUse(candidate),
         )) {
       return;
     }
@@ -3616,10 +3616,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     switch ((answer, state.ensaioFinalPlan)) {
       case (Answered(:final value), final PlanRead read):
-        state = state.copyWith(
-          ensaioFinalPlan: read.withRehearsal(value),
-          labelling: false,
+        state = state.copyWith(ensaioFinalPlan: read.withRehearsal(value));
+        _after(
+          'labelWakes',
+          ref.read(restartWakeProvider),
+          () => state = state.copyWith(labelling: false),
         );
+      case (Answered(), _):
+        state = state.copyWith(labelling: false);
       case _:
         state = state.copyWith(labelling: false, labelLine: true);
     }
@@ -3632,6 +3636,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void playThePlanRow(String sceneId) => _gesture(() {
+    if (state.planBusy) return;
     final chosen = _planRowOf(sceneId)?.chosen;
     if (chosen != null) _handOff(_hearTheSceneRehearsal(chosen));
   });
@@ -3763,7 +3768,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       scenes: const ScenesAwaited(),
       clearSceneRestart: true,
       clearSceneLine: true,
-      clearPlanSheet: true,
     );
     _handOff(_openTheScreen(sessionId, reopensTheUnsent: again == null));
   }
@@ -3782,7 +3786,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _after('sceneList', sceneListWait, gate.complete);
     await Future.any([
       Future.wait([
-        _reopenTheUnsent(sessionId, reopensTheListed: reopensTheUnsent),
+        _reopenTheUnsent(sessionId, reopensTheUnsent: reopensTheUnsent),
         first.then((answer) => answered = answer),
       ]),
       gate.future,
@@ -3900,10 +3904,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state.channel is Microphone;
 
   /// A take waiting in the Outbox always comes back to the screen; the room's newest
-  /// unsent rehearsal only when [reopensTheListed], never for a scene asked again.
+  /// unsent rehearsal only when [reopensTheUnsent], never for a scene asked again.
   Future<void> _reopenTheUnsent(
     String sessionId, {
-    required bool reopensTheListed,
+    required bool reopensTheUnsent,
   }) async {
     final generation = _waitOnTheGeneration;
     var asked = state.scene;
@@ -3939,7 +3943,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         if (waiting != null ||
             unsent == null ||
-            !reopensTheListed ||
+            !reopensTheUnsent ||
             _theSceneMovedOn(asked, generation)) {
           return;
         }

@@ -68,6 +68,10 @@ final class PlanRow {
   /// «trocar» opens the Rehearsal sheet only where there is another joinable rehearsal
   /// to choose.
   bool get canSwap => candidates.where((c) => c.joinable).length > 1;
+
+  /// «usar este» on a [candidate] of the sheet: a joinable one the row does not hold.
+  bool offersToUse(SceneRehearsalRecord candidate) =>
+      candidate.joinable && candidate.rehearsalId != chosen?.rehearsalId;
 }
 
 /// The plan's rows in passage order; [choices] maps a scene to the rehearsal the team

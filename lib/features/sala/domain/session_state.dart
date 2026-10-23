@@ -415,7 +415,8 @@ class SalaSessionState {
   /// The scene whose Rehearsal sheet is open over the plan, for one visit of the plan.
   final String? planSheet;
 
-  /// Whether the card's Scene label is in the air.
+  /// Whether the card's Scene label is in the air, or its answer has not yet woken the
+  /// next rehearsal on the card for a tap.
   final bool labelling;
 
   /// Whether the card says her line for a label the room could not keep.

@@ -336,6 +336,7 @@ class _RehearsalSheet extends ConsumerWidget {
                     _SheetLine(
                       rehearsal: candidate,
                       inUse: candidate.rehearsalId == row.chosen?.rehearsalId,
+                      offersToUse: row.offersToUse(candidate),
                       language: language,
                       busy: busy,
                       onPlay: () =>
@@ -365,6 +366,7 @@ class _RehearsalSheet extends ConsumerWidget {
 class _SheetLine extends StatelessWidget {
   final SceneRehearsalRecord rehearsal;
   final bool inUse;
+  final bool offersToUse;
   final String language;
   final bool busy;
   final VoidCallback onPlay;
@@ -373,6 +375,7 @@ class _SheetLine extends StatelessWidget {
   const _SheetLine({
     required this.rehearsal,
     required this.inUse,
+    required this.offersToUse,
     required this.language,
     required this.busy,
     required this.onPlay,
@@ -431,7 +434,7 @@ class _SheetLine extends StatelessWidget {
                 '✓ ${said('inUse')}',
                 style: TextStyle(color: colors.mut, fontSize: 15),
               )
-            else if (rehearsal.joinable)
+            else if (offersToUse)
               Semantics(
                 button: true,
                 enabled: !busy,
