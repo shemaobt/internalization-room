@@ -44,6 +44,7 @@ frases, the time the voice received it, whether the room confirmed it, and its c
 
 ## Consequences
 
-ENG-1384's sheet and card and ENG-1385's join read the same rows. A server without the
-confirmation or the content type in the listing makes every rehearsal unjoinable, so its rows
-say «este ensaio não pode entrar» rather than join a take the room never confirmed.
+ENG-1384's sheet and card and ENG-1385's join read the same rows. A listing without the
+room's confirmation makes every rehearsal unjoinable, so its rows say «este ensaio não pode
+entrar» rather than join a take the room never confirmed; one without a content type reads
+as the WAV this tablet records.

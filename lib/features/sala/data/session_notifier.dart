@@ -3430,6 +3430,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       ensaioFinalPlan: const PlanAwaited(),
       planChoices: const {},
+      clearPlanListening: true,
       rehearsalsElsewhere: false,
       peerCue: false,
     );
@@ -3522,7 +3523,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void swapTheRehearsal(String sceneId) => _gesture(() {
     final next = _planRowOf(sceneId)?.next;
-    if (next != null) _chooseTheRehearsal(sceneId, next.rehearsalId);
+    if (next == null) return;
+    _silenceThePlan();
+    _chooseTheRehearsal(sceneId, next.rehearsalId);
   });
 
   void _chooseTheRehearsal(String sceneId, String rehearsalId) {
@@ -3534,15 +3537,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void playThePlanRow(String sceneId) =>
       _gesture(() => _handOff(_playThePlanRow(sceneId)));
 
+  /// A play button of the plan: a second tap on the row being heard stops it, and a clip
+  /// sounds only while it is still the one last asked for.
   Future<void> _playThePlanRow(String sceneId) async {
     final chosen = _planRowOf(sceneId)?.chosen;
     if (chosen == null) return;
-    if (state.channel is PartPlaying) return _silenceTheRoom();
+    final heard = state.planListening;
+    _silenceThePlan();
+    if (heard == chosen.rehearsalId) return;
+    state = state.copyWith(planListening: chosen.rehearsalId);
     final generation = _waitOnTheGeneration;
     final path = await _fetchTheSceneTake(chosen, generation);
-    if (path == null || _abandoned(generation)) return;
+    if (path == null ||
+        _abandoned(generation) ||
+        state.planListening != chosen.rehearsalId) {
+      return;
+    }
+    void heardOut() => state = state.copyWith(clearPlanListening: true);
+    _play(PartSound(0, path), onComplete: heardOut, onFailed: heardOut);
+  }
+
+  void _silenceThePlan() {
     _silenceTheRoom();
-    _play(PartSound(0, path));
+    state = state.copyWith(clearPlanListening: true);
   }
 
   void joinTheScenes() => _gesture(() {

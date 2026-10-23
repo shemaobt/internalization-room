@@ -128,10 +128,15 @@ final class SceneRehearsalRecord {
 
   bool get unsent => sentAt == null;
 
+  /// When the voice received it; null for an unsent one or a time that does not read.
+  DateTime? get receivedAt => DateTime.tryParse(sentAt ?? '');
+
   /// Joinable: sent, confirmed by the room, and a WAV, the server's own `is_wav`; a WAV
   /// this tablet records is always 16 kHz mono.
   bool get joinable =>
-      !unsent && verified && contentType.toLowerCase().contains('wav');
+      receivedAt != null &&
+      verified &&
+      contentType.toLowerCase().contains('wav');
 
   /// Whether the current frases leave a stretch of [untranslatedAtLeast] or more of the
   /// take uncovered, inside it or at its tail.

@@ -104,20 +104,14 @@ PlanRow _rowOf(
 
 /// The Default rehearsal: the joinable one the voice received last, ties to the higher
 /// number.
-SceneRehearsalRecord? _theDefault(List<SceneRehearsalRecord> joinable) {
-  final received =
-      [
-        for (final r in joinable)
-          if (DateTime.tryParse(r.sentAt!) case final at?)
-            (at: at, rehearsal: r),
-      ]..sort(
-        (a, b) => switch (b.at.compareTo(a.at)) {
-          0 => b.rehearsal.n.compareTo(a.rehearsal.n),
-          final order => order,
-        },
-      );
-  return received.firstOrNull?.rehearsal;
-}
+SceneRehearsalRecord? _theDefault(List<SceneRehearsalRecord> joinable) =>
+    (List.of(joinable)..sort(
+          (a, b) => switch (b.receivedAt!.compareTo(a.receivedAt!)) {
+            0 => b.n.compareTo(a.n),
+            final order => order,
+          },
+        ))
+        .firstOrNull;
 
 /// Her `planHasRehearsals`: this session holds a rehearsal with a frase, labelled with a
 /// scene of the passage or not.

@@ -405,6 +405,9 @@ class SalaSessionState {
   /// plan.
   final Map<String, String> planChoices;
 
+  /// The rehearsal a play button of the plan asked to hear, while it is fetched or sounds.
+  final String? planListening;
+
   /// Whether the last plan read found the passage's rehearsals only in the other
   /// language's session.
   final bool rehearsalsElsewhere;
@@ -497,6 +500,7 @@ class SalaSessionState {
     this.sceneLine,
     this.ensaioFinalPlan,
     this.planChoices = const {},
+    this.planListening,
     this.rehearsalsElsewhere = false,
     this.theRoomJoinedAPart = false,
     this.wholeHeldByTheRoom = const {},
@@ -1231,6 +1235,8 @@ class SalaSessionState {
     EnsaioFinalPlan? ensaioFinalPlan,
     bool clearEnsaioFinalPlan = false,
     Map<String, String>? planChoices,
+    String? planListening,
+    bool clearPlanListening = false,
     bool? rehearsalsElsewhere,
     bool? theRoomJoinedAPart,
     Set<String>? wholeHeldByTheRoom,
@@ -1333,6 +1339,9 @@ class SalaSessionState {
           ? null
           : (ensaioFinalPlan ?? this.ensaioFinalPlan),
       planChoices: planChoices ?? this.planChoices,
+      planListening: clearPlanListening
+          ? null
+          : (planListening ?? this.planListening),
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedAPart: theRoomJoinedAPart ?? this.theRoomJoinedAPart,
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,

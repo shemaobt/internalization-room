@@ -276,6 +276,78 @@ void main() {
       expect(harness.playback.played.last, contains('$sessionId-ensaio-1'));
       semantics.dispose();
     });
+
+    testWidgets(
+      'a second tap on play while its clip is fetched hears nothing',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final (harness, _) = await _seeded(tester, _oneEach);
+        await _openThePlan(tester);
+        final before = harness.playback.played.length;
+        harness.room.holdNextClip();
+
+        await tester.tap(_playOn(1));
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.tap(_playOn(1));
+        await tester.pump(const Duration(milliseconds: 100));
+        harness.room.finishHeldClip();
+        await _theAnswerSettles(tester);
+
+        expect(harness.playback.played.length, before);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets('the last row whose play was tapped is the one heard', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(tester, _oneEach);
+      await _openThePlan(tester);
+      final sessionId = harness.room.sceneRehearsals.first.sessionId;
+      harness.room.holdNextClip();
+
+      await tester.tap(_playOn(1));
+      await tester.pump(const Duration(milliseconds: 100));
+      harness.room.finishHeldClip();
+      await tester.tap(_playOn(2));
+      await _theAnswerSettles(tester);
+
+      expect(harness.playback.played.last, contains('$sessionId-ensaio-2'));
+      semantics.dispose();
+    });
+
+    testWidgets(
+      '«trocar» while a clip is fetched never plays the rehearsal the '
+      'row left',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final (harness, _) = await _seeded(
+          tester,
+          (s) => [
+            _rehearsal(s, n: 1, scene: 'S2', sentAt: _sentAt('10:00')),
+            _rehearsal(s, n: 2, scene: 'S2', sentAt: _sentAt('10:05')),
+          ],
+        );
+        await _openThePlan(tester);
+        final sessionId = harness.room.sceneRehearsals.first.sessionId;
+        harness.room.holdNextClip();
+
+        await tester.tap(_playOn(2));
+        await tester.pump(const Duration(milliseconds: 100));
+        await _tapSwapOn(tester, 2);
+        harness.room.finishHeldClip();
+        await _theAnswerSettles(tester);
+
+        expect(
+          harness.playback.played.where(
+            (p) => p.contains('$sessionId-ensaio-2'),
+          ),
+          isEmpty,
+        );
+        semantics.dispose();
+      },
+    );
   });
 
   group('2. a scene with two sent rehearsals', () {
@@ -318,6 +390,23 @@ void main() {
       (s) => [
         _rehearsal(s, n: 1, scene: 'S1'),
         _rehearsal(s, n: 2, scene: 'S1', sentAt: null),
+      ],
+    );
+
+    await _openThePlan(tester);
+
+    expect(_onRow(1, find.text(_facts(1, '0:07', 2))), findsOneWidget);
+    expect(_onRow(1, find.text(_facts(2, '0:07', 2))), findsNothing);
+  });
+
+  testWidgets('3. a sent time that does not read is never the default either', (
+    tester,
+  ) async {
+    await _seeded(
+      tester,
+      (s) => [
+        _rehearsal(s, n: 1, scene: 'S1'),
+        _rehearsal(s, n: 2, scene: 'S1', sentAt: 'ontem'),
       ],
     );
 
