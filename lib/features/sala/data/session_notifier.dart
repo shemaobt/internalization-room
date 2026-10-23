@@ -5595,7 +5595,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (keeping != null) _dispatch(AKeepBegan(keeping));
     final audio = File(path);
     if (!await audio.exists()) {
-      if (keeping != null && !_gone) _dispatch(AKeepEnded(keeping));
+      if (keeping != null && !_endedSince(life)) _dispatch(AKeepEnded(keeping));
       if (!_endedSince(life)) {
         _notInTheOutbox(path, kind, scope, passNumber, sessionId, gone: true);
       }
@@ -5618,12 +5618,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: chunkIndex,
       );
     } on Object {
-      if (keeping != null && !_gone) _dispatch(AKeepEnded(keeping));
+      if (keeping != null && !_endedSince(life)) _dispatch(AKeepEnded(keeping));
       if (_endedSince(life) || _goneSessions.contains(sessionId)) return;
       _notInTheOutbox(path, kind, scope, passNumber, sessionId);
       return;
     }
-    if (keeping != null && !_gone) {
+    if (keeping != null && !_endedSince(life)) {
       _dispatch(AKeepEnded(keeping, row: linha.id));
     }
     if (_endedSince(life)) {

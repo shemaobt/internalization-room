@@ -46,23 +46,25 @@ class SceneTakeState extends StatelessWidget {
               onStop: () => onStop(take.keep),
             ),
         ],
-        NotKept(why: SendFailure.gone) => [said('saveFailed'), said('lost')],
         NotKept(:final why) => [
           said(switch (why) {
             SendFailure.failed || SendFailure.gone => 'saveFailed',
             SendFailure.tooLarge => 'tooLarge',
             SendFailure.refused => 'refused',
           }),
-          Semantics(
-            button: true,
-            label: label('retry'),
-            onTap: onRetry,
-            excludeSemantics: true,
-            child: TextButton(
-              onPressed: onRetry,
-              child: Text(label('retry'), style: style),
+          if (why == SendFailure.gone)
+            said('lost')
+          else
+            Semantics(
+              button: true,
+              label: label('retry'),
+              onTap: onRetry,
+              excludeSemantics: true,
+              child: TextButton(
+                onPressed: onRetry,
+                child: Text(label('retry'), style: style),
+              ),
             ),
-          ),
         ],
         null => const <Widget>[],
       },

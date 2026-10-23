@@ -41,6 +41,38 @@ class _Fila extends QueueThatFlushesLate {
 
   void giveTheName() => _naming!.complete();
 
+  Completer<void>? _enqueue;
+  bool enqueueAsked = false;
+
+  void holdTheNextEnqueue() => _enqueue = Completer<void>();
+
+  void letTheEnqueueGo() => _enqueue!.complete();
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+    String? scene,
+  }) async {
+    if (_enqueue case final held? when !enqueueAsked) {
+      enqueueAsked = true;
+      await held.future;
+    }
+    return super.enqueue(
+      audio,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+      scene: scene,
+    );
+  }
+
   @override
   Future<void> discardTheSession(String sessionId) {
     discarded.add(sessionId);
@@ -289,11 +321,6 @@ class _Linha {
   final String name;
   final Future<_Caso> Function() arrange;
   final Future<void> Function(_Caso caso)? inTheNextLife;
-
-  /// The Outbox outlives the room, so the next life reads what the flush the ended
-  /// one started really sent. Such a row checks that the ended life left no trace:
-  /// once the flush settles, what the Outbox gave the next life is what a life built
-  /// fresh over the same Outbox reads.
   final bool theOutboxSendsAcrossTheRebuild;
 
   /// Lets the held answer land, and hands back what the row checks once it has.
@@ -567,6 +594,28 @@ final _linhas = [
     },
   ),
   _Linha(
+    '13: a keep whose row lands in the Outbox after the rebuild ends nothing '
+    'in the next life',
+    theOutboxSendsAcrossTheRebuild: true,
+    arrange: () async {
+      final caso = await _naConversa();
+      await _gravarUmaParte(caso);
+      caso.fila.holdTheNextEnqueue();
+      caso.sala.takeKeep();
+      await waitFor('a Fila receber a tomada', () => caso.fila.enqueueAsked);
+      return caso;
+    },
+    release: (caso) async {
+      caso.fila.letTheEnqueueGo();
+      await waitFor(
+        'a tomada chegar à sala',
+        () => caso.room.takesKept.contains('ensaio/parte-1'),
+      );
+      await waitFor('a Fila terminar', () => caso.fila.flushing == 0);
+      return () {};
+    },
+  ),
+  _Linha(
     '12: the end of a gesture of an ended Life does nothing in the next one',
     arrange: _criandoUmaPassagem,
     release: (caso) async {
@@ -631,11 +680,18 @@ void main() {
       await settle();
       var writes = 0;
       caso.container.listen(salaSessionProvider, (_, _) => writes++);
+      final antes = caso.estado;
       final check = await linha.release(caso);
       await settle(const Duration(milliseconds: 300));
 
       if (linha.theOutboxSendsAcrossTheRebuild) {
-        final depois = _oQueAFilaDeu(caso.estado);
+        final agora = caso.estado;
+        expect(agora.keptTakes, same(antes.keptTakes));
+        expect(agora.station, same(antes.station));
+        expect(agora.ensaio, antes.ensaio);
+        expect(agora.scene, same(antes.scene));
+        expect(agora.arrivedAtTheChoice, antes.arrivedAtTheChoice);
+        final depois = _oQueAFilaDeu(agora);
         caso.container.invalidate(salaSessionProvider);
         caso.container.read(salaSessionProvider);
         await caso.sala.refreshUnsent();
