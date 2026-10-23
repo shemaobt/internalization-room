@@ -3757,8 +3757,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     final known = _passadasDaSala?[number] ?? 0;
     final listing = await _withinTheJoinWait(_room.takesOf(sessionId));
-    if (listing is! Answered<List<TakeView>>) return null;
-    final guardadas = listing.value;
+    final guardadas = switch (listing) {
+      Answered(:final value) => value,
+      _ => null,
+    };
+    if (guardadas == null) return null;
     return (
       pass: max(known, _passadasMaisAltas(guardadas)[number] ?? 0) + 1,
       live: _correntes(guardadas)[number]?.takeId,
