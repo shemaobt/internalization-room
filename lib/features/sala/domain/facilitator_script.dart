@@ -113,11 +113,48 @@ const ensaioFinalPlanLabels = {
     'pt': 'Gravar cena por cena',
     'en': 'Record scene by scene instead',
   },
+  'row': {
+    'pt': 'ensaio {n} · {clock} · {dur} · {k} frases',
+    'en': 'rehearsal {n} · {clock} · {dur} · {k} sentences',
+  },
+  'partial': {'pt': 'tradução incompleta', 'en': 'translation incomplete'},
+  'swap': {
+    'pt': 'trocar o ensaio desta cena',
+    'en': 'use another rehearsal for this scene',
+  },
+  'missing': {
+    'pt': 'falta o ensaio desta cena',
+    'en': 'this scene has no rehearsal yet',
+  },
+  'cannotEnter': {
+    'pt': 'este ensaio não pode entrar — ensaiem esta cena de novo',
+    'en': 'this rehearsal cannot be used — rehearse this scene again',
+  },
+  'join': {'pt': 'juntar as cenas e ouvir', 'en': 'join the scenes and listen'},
+  'listen': {'pt': 'Ouvir', 'en': 'Listen'},
 };
 
 String ensaioFinalPlanLabelFor(String control, String language) =>
     ensaioFinalPlanLabels[control]![language] ??
     ensaioFinalPlanLabels[control]![floorLanguage]!;
+
+/// A plan row's facts, her `rowText`: its number, its local clock, its length `m:ss` and
+/// its current frases.
+String planRowFactsFor(SceneRehearsalRecord rehearsal, String language) {
+  final at = rehearsal.recordedAt?.toLocal();
+  final clock = at == null
+      ? ''
+      : '${'${at.hour}'.padLeft(2, '0')}:${'${at.minute}'.padLeft(2, '0')}';
+  final seconds = ((rehearsal.durationMs ?? 0) / 1000).round();
+  return ensaioFinalPlanLabelFor('row', language)
+      .replaceAll('{n}', '${rehearsal.n}')
+      .replaceAll('{clock}', clock)
+      .replaceAll(
+        '{dur}',
+        '${seconds ~/ 60}:${'${seconds % 60}'.padLeft(2, '0')}',
+      )
+      .replaceAll('{k}', '${rehearsal.translatedFrases}');
+}
 
 /// Her scene-rehearsal words (strings.ts), read only by VoiceOver.
 const sceneRehearsalLabels = {
@@ -494,6 +531,14 @@ const recordingHomeLabels = {
   'listenAndCheck': {
     'pt': 'ouvir e conferir o Ensaio Final',
     'en': 'listen to and check the Final Rehearsal',
+  },
+  'elsewhere': {
+    'pt':
+        'Os ensaios desta passagem foram gravados com o aplicativo na outra '
+        'língua. Voltem para aquela língua para abrir o Ensaio Final.',
+    'en':
+        'This passage\'s rehearsals were recorded with the app in the other '
+        'language. Switch back to that language to open the Final Rehearsal.',
   },
 };
 

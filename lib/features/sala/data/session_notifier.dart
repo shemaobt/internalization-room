@@ -3429,6 +3429,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _arriveAt(const ThePlanOpened());
     state = state.copyWith(
       ensaioFinalPlan: const PlanAwaited(),
+      planChoices: const {},
+      rehearsalsElsewhere: false,
       peerCue: false,
     );
     _handOff(_readThePlan(sessionId));
@@ -3481,6 +3483,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
         if (_abandoned(generation)) return;
         _goEnsaio();
+      case (Answered(), Answered(value: final listed), _)
+          when !waiting && rehearsalsElsewhere(listed, sessionId):
+        state = state.copyWith(rehearsalsElsewhere: true);
+        _goEnsaio();
       case (
             Answered(),
             Answered(value: final listed),
@@ -3498,6 +3504,50 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void recordSceneByScene() => _gesture(() {
     if (state.station case Ensaio(step: EnsaioStep.plan)) _goEnsaio();
+  });
+
+  /// The plan's rows as they stand, or null off the plan.
+  List<PlanRow>? get _planRows => switch ((
+    state.station,
+    state.ensaioFinalPlan,
+    state.sessionId,
+  )) {
+    (Ensaio(step: EnsaioStep.plan), final PlanRead read, final sessionId?) =>
+      planRowsOf(read, sessionId, state.planChoices),
+    _ => null,
+  };
+
+  PlanRow? _planRowOf(String sceneId) =>
+      _planRows?.where((row) => row.scene.sceneId == sceneId).firstOrNull;
+
+  void swapTheRehearsal(String sceneId) => _gesture(() {
+    final next = _planRowOf(sceneId)?.next;
+    if (next != null) _chooseTheRehearsal(sceneId, next.rehearsalId);
+  });
+
+  void _chooseTheRehearsal(String sceneId, String rehearsalId) {
+    state = state.copyWith(
+      planChoices: {...state.planChoices, sceneId: rehearsalId},
+    );
+  }
+
+  void playThePlanRow(String sceneId) =>
+      _gesture(() => _handOff(_playThePlanRow(sceneId)));
+
+  Future<void> _playThePlanRow(String sceneId) async {
+    final chosen = _planRowOf(sceneId)?.chosen;
+    if (chosen == null) return;
+    if (state.channel is PartPlaying) return _silenceTheRoom();
+    final generation = _waitOnTheGeneration;
+    final path = await _fetchTheSceneTake(chosen, generation);
+    if (path == null || _abandoned(generation)) return;
+    _silenceTheRoom();
+    _play(PartSound(0, path));
+  }
+
+  void joinTheScenes() => _gesture(() {
+    final rows = _planRows;
+    if (rows == null || !canJoin(rows)) return;
   });
 
   void openTheSceneRehearsal() => _gesture(() => _openTheSceneRehearsal());

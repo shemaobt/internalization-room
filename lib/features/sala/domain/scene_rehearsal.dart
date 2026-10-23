@@ -1,5 +1,9 @@
 import 'dart:math';
 
+/// The shortest stretch of a take no current frase covers that leaves its translation
+/// incomplete, her `UNTRANSLATED_MIN_SEC`.
+const untranslatedAtLeast = Duration(milliseconds: 500);
+
 /// One frase of a scene rehearsal: its place in the take, and what replaced it.
 final class SceneFrase {
   final String fraseId;
@@ -37,6 +41,8 @@ final class SceneRehearsalRecord {
   final String? afterRestart;
   final int? durationMs;
   final List<SceneFrase> frases;
+  final String contentType;
+  final bool verified;
 
   const SceneRehearsalRecord({
     required this.rehearsalId,
@@ -48,6 +54,8 @@ final class SceneRehearsalRecord {
     this.afterRestart,
     this.durationMs,
     this.frases = const [],
+    this.contentType = 'audio/wav',
+    this.verified = false,
   });
 
   factory SceneRehearsalRecord.fromJson(Map<String, dynamic> json) =>
@@ -69,6 +77,8 @@ final class SceneRehearsalRecord {
               replacedBy: frase['replaced_by'] as String?,
             ),
         ],
+        contentType: json['content_type'] as String? ?? 'audio/wav',
+        verified: json['verified'] as bool? ?? false,
       );
 
   static List<SceneRehearsalRecord> listFrom(Map<String, dynamic> json) => [
@@ -117,6 +127,35 @@ final class SceneRehearsalRecord {
   }
 
   bool get unsent => sentAt == null;
+
+  /// Joinable: sent, confirmed by the room, and a WAV, the server's own `is_wav`; a WAV
+  /// this tablet records is always 16 kHz mono.
+  bool get joinable =>
+      !unsent && verified && contentType.toLowerCase().contains('wav');
+
+  /// Whether the current frases leave a stretch of [untranslatedAtLeast] or more of the
+  /// take uncovered, inside it or at its tail.
+  bool get untranslatedStretch {
+    final length = durationMs ?? 0;
+    if (length <= 0) return false;
+    final covered =
+        [
+            for (final frase in _current)
+              if ((frase.startsMs, frase.endsMs) case (
+                final int starts,
+                final int ends,
+              ))
+                (max(0, starts), min(length, ends)),
+          ].where((span) => span.$2 > span.$1).toList()
+          ..sort((a, b) => a.$1.compareTo(b.$1));
+    final least = untranslatedAtLeast.inMilliseconds;
+    var at = 0;
+    for (final (starts, ends) in covered) {
+      if (starts - at >= least) return true;
+      at = max(at, ends);
+    }
+    return length - at >= least;
+  }
 
   /// The scene's number, from a label `S<N>`; null for no label or any other shape.
   int? get sceneNumber => switch (RegExp(r'^S(\d+)$').firstMatch(scene ?? '')) {

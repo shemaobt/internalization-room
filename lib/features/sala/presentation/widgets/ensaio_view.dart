@@ -55,6 +55,20 @@ class EnsaioView extends ConsumerWidget {
                 style: TextStyle(color: colors.mut, fontSize: 15, height: 1.35),
               ),
             ),
+            if (session.rehearsalsElsewhere && session.partes.isEmpty) ...[
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    recordingHomeLabelFor('elsewhere', language),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.telha, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
             if (session.aTakeFromAnEarlierVisitWaits) ...[
               const SizedBox(height: 12),
               ConstrainedBox(

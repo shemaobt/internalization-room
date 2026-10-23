@@ -401,6 +401,14 @@ class SalaSessionState {
   /// What the Ensaio Final plan is drawn from, while the plan stands.
   final EnsaioFinalPlan? ensaioFinalPlan;
 
+  /// The rehearsal the team chose for a scene of the plan, by scene, for one visit of the
+  /// plan.
+  final Map<String, String> planChoices;
+
+  /// Whether the last plan read found the passage's rehearsals only in the other
+  /// language's session.
+  final bool rehearsalsElsewhere;
+
   /// Whether the room's listing named a current part of this session laid in from a Scene
   /// rehearsal.
   final bool theRoomJoinedAPart;
@@ -488,6 +496,8 @@ class SalaSessionState {
     this.sceneRestart,
     this.sceneLine,
     this.ensaioFinalPlan,
+    this.planChoices = const {},
+    this.rehearsalsElsewhere = false,
     this.theRoomJoinedAPart = false,
     this.wholeHeldByTheRoom = const {},
   });
@@ -1220,6 +1230,8 @@ class SalaSessionState {
     bool clearSceneLine = false,
     EnsaioFinalPlan? ensaioFinalPlan,
     bool clearEnsaioFinalPlan = false,
+    Map<String, String>? planChoices,
+    bool? rehearsalsElsewhere,
     bool? theRoomJoinedAPart,
     Set<String>? wholeHeldByTheRoom,
   }) {
@@ -1320,6 +1332,8 @@ class SalaSessionState {
       ensaioFinalPlan: clearEnsaioFinalPlan
           ? null
           : (ensaioFinalPlan ?? this.ensaioFinalPlan),
+      planChoices: planChoices ?? this.planChoices,
+      rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedAPart: theRoomJoinedAPart ?? this.theRoomJoinedAPart,
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
     );

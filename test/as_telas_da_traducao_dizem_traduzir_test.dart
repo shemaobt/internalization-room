@@ -42,6 +42,7 @@ const _rotulosDeTraduzir = {
   'enviando a tradução do ensaio da cena para a voz…',
   'a tradução do ensaio da cena foi para a voz',
   'Traduzir a gravação',
+  'tradução incompleta',
   'Toquem no círculo para pausar onde a frase acaba; toquem de novo para traduzir só o que aquela frase diz, e de novo para a gravação seguir.',
   'Toquem numa frase para ouvir e traduzir de novo; voltem para regravar uma parte; ou toquem em terminei para conferir de novo.',
 };
