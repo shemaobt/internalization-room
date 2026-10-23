@@ -1109,7 +1109,8 @@ class SalaSessionState {
       !needsPerson &&
       trecho.parte >= 0 &&
       trecho.parte < partes.length &&
-      partes[trecho.parte].path.endsWith('.wav');
+      partes[trecho.parte].path.endsWith('.wav') &&
+      aParteDoTrechoEstaAqui(trecho);
 
   /// The approval drawn on the checked telling-back, in place of the approve button and the
   /// Warning mark: only while nothing of this session waits in the Outbox (ADR 0106).

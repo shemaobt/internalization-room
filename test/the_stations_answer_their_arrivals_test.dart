@@ -293,7 +293,10 @@ void main() {
   test('the Rehearsal weighed keeps its Station and its generation', () {
     final (weighed, effects) = reduce(
       _at(const Ensaio()),
-      const TheRehearsalWeighed(everySceneHasItsPart: true),
+      const TheRehearsalWeighed(
+        everySceneHasItsPart: true,
+        everyPartIsHere: true,
+      ),
     );
 
     expect(weighed.generation, _generation);

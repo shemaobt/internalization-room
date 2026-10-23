@@ -1219,12 +1219,12 @@ void main() {
 
     final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
     await _deVoltaAEscolha(it);
-    expect(harness.room.clipsFetched, hasLength(1));
+    final antes = harness.room.clipsFetched.length;
 
     unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
     await waitFor(
       'a nova abertura pedir a parte de novo',
-      () => harness.room.clipsFetched.length == 2,
+      () => harness.room.clipsFetched.length == antes + 1,
     );
     harness.room.finishHeldClip();
     await waitFor('as partes chegarem', () => it.estado.everyPartIsHere);
@@ -1253,6 +1253,103 @@ void main() {
       );
 
       expect([for (final trecho in it.estado.btTrechos) trecho.parte], [0, 1]);
+    },
+  );
+
+  test(
+    'uma parte que ja chegou nao e buscada de novo na abertura seguinte',
+    () async {
+      final harness = SalaHarness()..room.holdNextClip();
+
+      final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+      await waitFor(
+        'o ensaio abrir com as partes a caminho',
+        () =>
+            it.estado.stage == SalaStage.ensaio && it.estado.partes.length == 3,
+      );
+      harness.room
+        ..finishHeldClip()
+        ..holdNextClip();
+      await waitFor(
+        'a parte 1 chegar',
+        () => !it.estado.partsAway.containsKey('gravacao-1'),
+      );
+      await it.sala.abrirEscolha();
+      await settle();
+      unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
+      await waitFor(
+        'o ensaio abrir de novo',
+        () =>
+            it.estado.stage == SalaStage.ensaio && it.estado.partes.length == 3,
+      );
+      harness.room.finishHeldClip();
+      await waitFor('as partes chegarem', () => it.estado.everyPartIsHere);
+      await settle(const Duration(milliseconds: 300));
+
+      expect(
+        harness.room.clipsFetched.where((url) => url.contains('gravacao-1')),
+        hasLength(1),
+      );
+      expect(
+        harness.recorder.home.listSync().where(
+          (arquivo) =>
+              arquivo.path.contains('gravacao-1') &&
+              !harness.recorder.deleted.contains(arquivo.path),
+        ),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'uma vida que acaba no meio da guarda apaga o arquivo que buscou',
+    () async {
+      final harness = SalaHarness()..playback.holdNextMeasurement();
+
+      final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+      await waitFor(
+        'a primeira parte ser medida',
+        () => harness.playback.measurements.isNotEmpty,
+      );
+      final guardado = harness.playback.measurements.first;
+      it.container.dispose();
+      harness.playback.finishHeldMeasurement();
+      await settle(const Duration(milliseconds: 300));
+
+      expect(harness.recorder.deleted, contains(guardado));
+    },
+  );
+
+  test(
+    'sob um rascunho aprovado uma parte que a sala nao tem mais fica, calada, '
+    'e a linha continua a nomea-la',
+    () async {
+      final harness = SalaHarness()
+        ..room.approvedDraft = const ApprovedDraft(version: 1)
+        ..room.refuseClipOf.add('gravacao-2');
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.ensaio,
+        contado: _contado([1, 2, 3], checked: true),
+      );
+      await waitFor(
+        'as tres partes serem tentadas',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            harness.room.clipsFetched.length == 3,
+      );
+      await settle(const Duration(milliseconds: 300));
+
+      expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-2', 'gravacao-3']);
+      expect(it.estado.btTrechos, hasLength(3));
+      it.sala.ouvirOTrechoContado(1);
+      await settle();
+      expect(harness.playback.played, isEmpty);
+      expect(it.linha!.stage, SalaStage.retro);
+      expect([
+        for (final take in it.linha!.takes) take.takeId,
+      ], containsAll(['gravacao-1', 'gravacao-2', 'gravacao-3']));
     },
   );
 }

@@ -2531,6 +2531,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               generation,
               landed,
             )) {
+          if (!state.everyPartIsHere) {
+            _bringThePartsDown(Station.stored(waiting.stage));
+          }
           return;
         }
         if (onde == _Resume.landed && Station.stored(waiting.stage) is Retro) {
@@ -2548,6 +2551,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // their retro rather than dropped back into the rehearsal.
         _resumeFailures.remove(theResume);
         _applyTheSessionRead(snapshot, sent);
+        if (!state.everyPartIsHere) {
+          _bringThePartsDown(Station.stored(waiting.stage));
+        }
         return;
       }
       final SessionSnapshot read;
@@ -2960,8 +2966,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _rememberWhereTheyAre(
           inteiro ? Station.stored(waiting.stage) : const Ensaio(),
         );
-      } else {
-        _bringThePartsDown(Station.stored(waiting.stage));
       }
     }
     unawaited(_countUnsent());
@@ -3000,6 +3004,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     List<KeptTake> aqui,
     int generation,
   ) async {
+    final recorder = _recorder;
     final lidas = _lerAListagem(guardadas, aqui);
     final semParte = <int, int>{};
     var faltou = false;
@@ -3025,6 +3030,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return const Answered(null);
       }
       if (_abandoned(generation)) {
+        unawaited(recorder.delete(arquivo));
         return const Answered((
           partes: <KeptTake>[],
           inteiro: true,
@@ -3123,7 +3129,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int? life,
   ) async {
     bool minha() => !_endedSince(life) && identical(_partesDescendo, descem);
-    var tentou = false;
+    final recorder = _recorder;
     var faltou = false;
     while (minha()) {
       final sessionId = state.sessionId;
@@ -3131,16 +3137,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           .where((take) => state.partsAway[take.takeId] == PartAway.coming)
           .firstOrNull;
       if (sessionId == null || parte == null) break;
-      tentou = true;
       final busca = await _buscarAParte(sessionId, parte, life);
       final arquivo = switch (busca) {
         Answered(value: final kept?) => kept,
         _ => null,
       };
       final quanto = arquivo == null ? null : await _playback.howLong(arquivo);
-      if (_endedSince(life)) break;
       if (!minha() || !_aindaACaminho(sessionId, parte)) {
-        if (arquivo != null) unawaited(_recorder.delete(arquivo));
+        if (arquivo != null) unawaited(recorder.delete(arquivo));
         continue;
       }
       final takeId = parte.takeId!;
@@ -3153,7 +3157,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           ],
           partsAway: {...state.partsAway}..remove(takeId),
         );
-      } else if (busca case Refused(code: RefusalCode.notFound)) {
+      } else if (busca case Refused(
+        code: RefusalCode.notFound,
+      ) when state.station is Ensaio) {
         faltou = true;
         if (KeptScope.numberOf(parte.scopeId) case final ordinal?) {
           _passadasDaSala = {...?_passadasDaSala, ordinal: parte.pass};
@@ -3174,8 +3180,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
       _weighTheRehearsal();
-    }
-    if (minha() && tentou) {
       _rememberWhereTheyAre(switch (state.station) {
         Ensaio() => faltou ? const Ensaio() : ondeFicam,
         final onde => onde,
@@ -8572,7 +8576,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.canRetellAFrase) return;
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
-    if (!trecho.contado || trecho.segmentId == null) return;
+    if (!trecho.contado ||
+        trecho.segmentId == null ||
+        !state.aParteDoTrechoEstaAqui(trecho)) {
+      return;
+    }
     final fimMovido = _trechoTraduzidoDeNovo?.segmentId == trecho.segmentId
         ? _trechoEnd
         : null;

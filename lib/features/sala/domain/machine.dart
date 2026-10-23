@@ -321,7 +321,7 @@ final class TheRehearsalWeighed extends MachineEvent {
 
   const TheRehearsalWeighed({
     required this.everySceneHasItsPart,
-    this.everyPartIsHere = true,
+    required this.everyPartIsHere,
   });
 }
 

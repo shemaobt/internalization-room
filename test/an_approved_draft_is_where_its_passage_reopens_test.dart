@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/widgets.dart' show Semantics;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
@@ -763,4 +764,72 @@ void main() {
       expect(_state(room).stage, SalaStage.conversa);
     });
   });
+
+  testWidgets(
+    'an approved draft reopened while its part comes down keeps that part\'s '
+    'frase and the last listening dark and deaf until the part lands',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1));
+      harness.room
+        ..retroSoFar = const BackTranslationProgress(
+          segments: [
+            SegmentView(
+              segmentId: 'trecho-1',
+              takeId: _gravacao,
+              startsMs: 0,
+              endsMs: 12000,
+              frase: 1,
+            ),
+          ],
+          checked: true,
+        )
+        ..holdNextClip();
+      harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.ensaio,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.parte(1),
+            path: '${Directory.systemTemp.path}/ja-nao-esta-aqui-1762.m4a',
+            takeId: _gravacao,
+          ),
+        ],
+      );
+      final room = await _enter(tester, harness);
+
+      ButtonMood mood(String label) => tester
+          .widget<RoundActionButton>(
+            find.ancestor(
+              of: byLabel(label),
+              matching: find.byType(RoundActionButton),
+            ),
+          )
+          .mood;
+      final hear = sceneRehearsalLabelFor('hearMine', testLanguage, n: 1);
+      final retell = sceneRehearsalLabelFor('retellFrase', testLanguage, n: 1);
+      final last = retroLabelFor('listenToTheRecording', testLanguage);
+      bool enabled(String label) =>
+          tester.widget<Semantics>(byLabel(label)).properties.enabled == true;
+
+      expect(_state(room).stage, SalaStage.retro);
+      expect(mood(hear), ButtonMood.dimmed);
+      expect(enabled(retell), isFalse);
+      expect(mood(last), ButtonMood.dimmed);
+      await tester.tap(byLabel(retell));
+      room.container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(harness.playback.played, isEmpty);
+      expect(_theBadge(1), findsOneWidget);
+
+      await tester.runAsync(() async {
+        harness.room.finishHeldClip();
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      });
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(mood(hear), ButtonMood.lit);
+      expect(enabled(retell), isTrue);
+      expect(mood(last), ButtonMood.lit);
+    },
+  );
 }
