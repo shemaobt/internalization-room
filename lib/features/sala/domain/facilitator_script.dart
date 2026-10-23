@@ -21,6 +21,14 @@ const unheardLine = 'P2';
 /// approved. The approval's is the fourth, never rotated.
 const approvedLine = 'P3';
 
+/// The first of Marcia's external-check lines, read by position: open, retell, whole,
+/// frases, thanks. Its second sentence is the consent.
+const listenerOpenLine = 'X0';
+
+/// The second of Marcia's external-check lines, read by position: open, retell, whole,
+/// frases, thanks. Said once the whole passage ended, before the circle opens.
+const listenerRetellLine = 'X1';
+
 const sentenceInPlaceLine = 'N4';
 
 const sentenceAwaitingLine = 'N5';
@@ -570,11 +578,39 @@ const externalCheckLabels = {
   },
   'newListener': {'pt': 'Novo ouvinte', 'en': 'New listener'},
   'back': {'pt': 'Voltar para a gravação', 'en': 'Back to recording'},
+  'listener': {'pt': 'ouvinte {n}', 'en': 'listener {n}'},
+  'subPlaying': {
+    'pt': 'ouvindo a passagem inteira…',
+    'en': 'listening to the whole passage…',
+  },
+  'subRetell': {
+    'pt': 'Contem, do jeito de vocês, o que ouviram.',
+    'en': 'Tell, in your own way, what you heard.',
+  },
+  'recordHint': {
+    'pt': 'toque no círculo para falar; toque de novo para parar',
+    'en': 'tap the circle to speak; tap again to stop',
+  },
+  'recording': {'pt': 'gravando', 'en': 'recording'},
+  'hearAgain': {'pt': 'ouvir de novo', 'en': 'hear it again'},
+  'retellAria': {
+    'pt': 'Toque para contar o que ouviu',
+    'en': 'Tap to tell what you heard',
+  },
+  'openFail': {
+    'pt': 'não deu para abrir a checagem externa — tentem de novo',
+    'en': "couldn't open the external check — try again",
+  },
+  'clipFail': {
+    'pt': 'não deu para guardar essa gravação — gravem de novo',
+    'en': "couldn't keep that recording — record it again",
+  },
 };
 
-String externalCheckLabelFor(String control, String language) =>
-    externalCheckLabels[control]![language] ??
-    externalCheckLabels[control]![floorLanguage]!;
+String externalCheckLabelFor(String control, String language, {int? n}) =>
+    (externalCheckLabels[control]![language] ??
+            externalCheckLabels[control]![floorLanguage]!)
+        .replaceAll('{n}', '$n');
 
 const codigoLabels = {
   'preparing': {

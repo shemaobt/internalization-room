@@ -41,6 +41,62 @@ enum SceneLine {
   pauseCannotStandThere,
 }
 
+/// Her listener's steps on the Checagem externa.
+enum ListenerStep { idle, playing, retell }
+
+/// Her failure words the Checagem externa shows under its controls.
+enum ListenerLine { openFailed, clipFailed }
+
+/// What the Checagem externa's screen holds: the takes of the approved version's parts,
+/// the listener's number and Step, whether the passage stalled, whether a call this
+/// screen made is in the air, the failure words shown, when the retelling began, and the
+/// attempt of a «Novo ouvinte» no answer has landed for.
+final class ExternalCheckScreen {
+  final List<String> takes;
+  final int? listener;
+  final ListenerStep step;
+  final bool stalled;
+  final bool sending;
+  final ListenerLine? line;
+  final DateTime? recordingSince;
+  final String? attempt;
+
+  const ExternalCheckScreen({
+    this.takes = const [],
+    this.listener,
+    this.step = ListenerStep.idle,
+    this.stalled = false,
+    this.sending = false,
+    this.line,
+    this.recordingSince,
+    this.attempt,
+  });
+
+  ExternalCheckScreen copyWith({
+    int? listener,
+    ListenerStep? step,
+    bool? stalled,
+    bool? sending,
+    ListenerLine? line,
+    bool clearLine = false,
+    DateTime? recordingSince,
+    bool clearRecordingSince = false,
+    String? attempt,
+    bool clearAttempt = false,
+  }) => ExternalCheckScreen(
+    takes: takes,
+    listener: listener ?? this.listener,
+    step: step ?? this.step,
+    stalled: stalled ?? this.stalled,
+    sending: sending ?? this.sending,
+    line: clearLine ? null : (line ?? this.line),
+    recordingSince: clearRecordingSince
+        ? null
+        : (recordingSince ?? this.recordingSince),
+    attempt: clearAttempt ? null : (attempt ?? this.attempt),
+  );
+}
+
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
 /// answered it, its take as a file on this tablet and the take's measured length, and
 /// whether a call this screen made is in the air. On the record step it also holds the
@@ -414,6 +470,9 @@ class SalaSessionState {
 
   final SceneScreen scene;
 
+  /// The Checagem externa's listener as the screen shows it; set on arrival, never stored.
+  final ExternalCheckScreen externalCheck;
+
   /// This session's scene rehearsals, by number, as the room last answered them.
   final List<SceneRehearsalRecord> sceneRehearsals;
 
@@ -517,6 +576,7 @@ class SalaSessionState {
     this.parteARegravar,
     this.cenaDaGravacao,
     this.scene = const SceneScreen(),
+    this.externalCheck = const ExternalCheckScreen(),
     this.sceneRehearsals = const [],
     this.sceneTranslationsUnseen = const {},
     this.sceneLoudness,
@@ -802,6 +862,27 @@ class SalaSessionState {
   /// Whether a tap on the chip brings the question back.
   bool get sceneChipLive =>
       scene.keep == null && !sceneTakeUnderWay && !scene.waiting;
+
+  /// Whether the listener's circle answers a tap: at the retelling, once no line speaks
+  /// and while nothing is being sent. Its own open microphone counts, as the tap stops it.
+  bool get listenerCircleOpen =>
+      station is ChecagemExterna &&
+      externalCheck.step == ListenerStep.retell &&
+      !externalCheck.sending &&
+      channel is! GuideSpeaking;
+
+  /// Whether «ouvir de novo» plays the passage again: on a stall, or at the retelling,
+  /// while no microphone is open, no line speaks and nothing is being sent.
+  bool get listenerMayHearItAgain =>
+      station is ChecagemExterna &&
+      (externalCheck.step == ListenerStep.retell || externalCheck.stalled) &&
+      !externalCheck.sending &&
+      channel is! Microphone &&
+      channel is! GuideSpeaking;
+
+  bool get listenerRecording =>
+      channel is Microphone &&
+      (channel as Microphone).owner == MicOwner.listener;
 
   /// The scene the question highlights.
   String? get sceneHighlighted =>
@@ -1255,6 +1336,7 @@ class SalaSessionState {
     int? cenaDaGravacao,
     bool clearCenaDaGravacao = false,
     SceneScreen? scene,
+    ExternalCheckScreen? externalCheck,
     List<SceneRehearsalRecord>? sceneRehearsals,
     Map<String, String>? sceneTranslationsUnseen,
     ({String take, Envelope? envelope})? sceneLoudness,
@@ -1358,6 +1440,7 @@ class SalaSessionState {
           ? null
           : (cenaDaGravacao ?? this.cenaDaGravacao),
       scene: scene ?? this.scene,
+      externalCheck: externalCheck ?? this.externalCheck,
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
       sceneTranslationsUnseen:
           sceneTranslationsUnseen ?? this.sceneTranslationsUnseen,

@@ -6242,6 +6242,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (answer) {
       case Answered(value: final check):
         _arriveAt(TheExternalCheckOpened(check.version));
+        state = state.copyWith(
+          externalCheck: ExternalCheckScreen(takes: check.takes),
+        );
       case Refused(code: RefusalCode.draftNotApproved):
         state = state.copyWith(btAviso: BtAviso.checagemNaoAbre);
         await _readTheStretchesBack(sessionId, generation);
@@ -6258,8 +6261,186 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void leaveTheExternalCheck() => _gesture(() {
     if (state.station is! ChecagemExterna) return;
     _silenceTheRoom();
+    _dispatch(const MicDiscarded());
     _arriveAt(const TheExternalCheckLeft());
   });
+
+  void _showTheListener(ExternalCheckScreen shown) =>
+      state = state.copyWith(externalCheck: shown);
+
+  void newListener() => _gesture(() => _handOff(_newListener()));
+
+  Future<void> _newListener() async {
+    final sessionId = state.sessionId;
+    final station = state.station;
+    final shown = state.externalCheck;
+    if (sessionId == null ||
+        station is! ChecagemExterna ||
+        shown.step != ListenerStep.idle ||
+        shown.sending) {
+      return;
+    }
+    final generation = _waitOnTheGeneration;
+    final attempt = shown.attempt ?? mintAUuid();
+    _showTheListener(
+      shown.copyWith(sending: true, clearLine: true, attempt: attempt),
+    );
+    final answer = await _room.aNewListener(
+      sessionId,
+      station.version,
+      attempt: attempt,
+    );
+    if (_abandoned(generation)) return;
+    final asked = state.externalCheck.copyWith(sending: false);
+    switch (answer) {
+      case Answered(value: final number):
+        _showTheListener(
+          asked.copyWith(
+            listener: number,
+            step: ListenerStep.playing,
+            clearAttempt: true,
+          ),
+        );
+        final parts = _partsOfTheCheck(sessionId, asked.takes, generation);
+        try {
+          await _sayALine(
+            LineKind.guide,
+            fixedLine: (
+              name: listenerOpenLine,
+              language: _inTheSessionsLanguage,
+            ),
+          );
+        } on RoomFailure {
+          // Her rule: a line that cannot be fetched is voiced by the screen alone.
+        }
+        final paths = await parts;
+        if (_abandoned(generation)) return;
+        _hearTheWholePassage(paths);
+      case SessionGone() && final failure:
+        _decideTheFailure(failure);
+      case NetworkFailed():
+        _showTheListener(asked.copyWith(line: ListenerLine.openFailed));
+      case Refused():
+        _showTheListener(
+          asked.copyWith(line: ListenerLine.openFailed, clearAttempt: true),
+        );
+    }
+  }
+
+  Future<List<String>?> _partsOfTheCheck(
+    String sessionId,
+    List<String> takes,
+    int generation,
+  ) async {
+    final paths = <String>[];
+    for (final take in takes) {
+      final name = 'checagem-$take';
+      final held = await _heldOnTheTablet(name);
+      if (held != null) {
+        paths.add(held);
+        continue;
+      }
+      final clip = await _room.fetchClip(
+        RoomRepository.takeAudioUrl(sessionId, take),
+      );
+      if (_abandoned(generation)) return null;
+      if (clip is! Answered<Uint8List> || clip.value.isEmpty) return null;
+      try {
+        paths.add(await _recorder.keepBytes(clip.value, name));
+      } on FileSystemException {
+        return null;
+      }
+    }
+    return paths;
+  }
+
+  void _hearTheWholePassage(List<String>? paths) {
+    if (paths == null || paths.isEmpty) return _thePassageStalled();
+    _silenceTheRoom();
+    _showTheListener(state.externalCheck.copyWith(stalled: false));
+    _playAll(
+      [for (final (part, path) in paths.indexed) PartSound(part, path)],
+      onComplete: _theListenerHeardItAll,
+      onFailed: _thePassageStalled,
+    );
+  }
+
+  void _thePassageStalled() =>
+      _showTheListener(state.externalCheck.copyWith(stalled: true));
+
+  void _theListenerHeardItAll() {
+    if (state.station is! ChecagemExterna ||
+        state.externalCheck.step != ListenerStep.playing) {
+      return;
+    }
+    _showTheListener(state.externalCheck.copyWith(step: ListenerStep.retell));
+    _handOff(
+      _sayALine(
+        LineKind.guide,
+        fixedLine: (name: listenerRetellLine, language: _inTheSessionsLanguage),
+      ),
+    );
+  }
+
+  void hearTheWholePassageAgain() =>
+      _gesture(() => _handOff(_hearTheWholePassageAgain()));
+
+  Future<void> _hearTheWholePassageAgain() async {
+    final sessionId = state.sessionId;
+    if (sessionId == null || !state.listenerMayHearItAgain) return;
+    final shown = state.externalCheck;
+    final generation = _waitOnTheGeneration;
+    final paths = await _partsOfTheCheck(sessionId, shown.takes, generation);
+    if (_abandoned(generation)) return;
+    _hearTheWholePassage(paths);
+  }
+
+  void listenerTap() => _gesture(() {
+    if (state.listenerRecording) return _handOff(_keepTheRetelling());
+    if (!state.listenerCircleOpen) return;
+    _showTheListener(
+      state.externalCheck.copyWith(
+        clearLine: true,
+        recordingSince: clock.now(),
+      ),
+    );
+    _startListening('ouvinte_${_stamp()}', owner: MicOwner.listener);
+  });
+
+  Future<void> _keepTheRetelling() async {
+    final generation = _waitOnTheGeneration;
+    final sessionId = state.sessionId;
+    final station = state.station;
+    final listener = state.externalCheck.listener;
+    final path = (await _closeTheMicrophone()).take;
+    _showTheListener(state.externalCheck.copyWith(clearRecordingSince: true));
+    if (path == null) return;
+    if (station is! ChecagemExterna ||
+        sessionId == null ||
+        listener == null ||
+        _anAccidentalTap(path)) {
+      return _recorder.delete(path);
+    }
+    _showTheListener(state.externalCheck.copyWith(sending: true));
+    final sent = await _room.sendTheListenerRecording(
+      sessionId,
+      station.version,
+      listener,
+      File(path),
+      kind: listenerRetelling,
+    );
+    unawaited(_recorder.delete(path));
+    if (_abandoned(generation)) return;
+    final answered = state.externalCheck.copyWith(sending: false);
+    switch (sent) {
+      case Answered():
+        _showTheListener(answered);
+      case SessionGone() && final failure:
+        _decideTheFailure(failure);
+      case RoomFailure():
+        _showTheListener(answered.copyWith(line: ListenerLine.clipFailed));
+    }
+  }
 
   void recomecarATraducao() => _gesture(() => _recomecarATraducao());
 
