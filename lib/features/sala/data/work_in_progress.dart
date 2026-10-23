@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../domain/grain.dart';
 import '../domain/kept_take.dart';
 import '../domain/session_state.dart';
 import 'staged_write.dart';
@@ -54,6 +55,10 @@ class ResumePoint {
   /// Empty for any other row.
   final List<String> wholeHeldByTheRoom;
 
+  /// The grain in force when the row was written. Null when none was known, and for a
+  /// row written before this field existed.
+  final Grain? grain;
+
   const ResumePoint({
     required this.sessionId,
     required this.stage,
@@ -64,6 +69,7 @@ class ResumePoint {
     this.passesToGoAbove = const {},
     this.listener,
     this.wholeHeldByTheRoom = const [],
+    this.grain,
   });
 
   Map<String, Object?> toJson() => {
@@ -80,6 +86,7 @@ class ResumePoint {
     if (listener case (:final version, :final number))
       'listener': {'version': version, 'number': number},
     if (wholeHeldByTheRoom.isNotEmpty) 'whole_set_aside': wholeHeldByTheRoom,
+    'grain': ?grain?.wire,
     'takes': [
       for (final take in takes)
         {
@@ -126,6 +133,7 @@ class ResumePoint {
         for (final id in (json['whole_set_aside'] as List? ?? const []))
           if (id is String) id,
       ],
+      grain: Grain.fromWire(json['grain']),
       takes: [
         for (final raw in (json['takes'] as List? ?? const []))
           if (raw is Map)

@@ -28,13 +28,29 @@ void main() {
       Retro(),
       Fim(),
       SceneRehearsal(),
-      Ensaio(),
     ]) {
       final (machine, _) = reduce(_at(from), const ThePlanOpened());
 
       expect(machine.station, from, reason: '$from');
       expect(machine.generation, _generation, reason: '$from');
     }
+  });
+
+  test(
+    'the plan opened from the recording home reaches the Ensaio Final plan',
+    () {
+      final (machine, _) = reduce(_at(const Ensaio()), const ThePlanOpened());
+
+      expect(machine.station, _thePlan);
+      expect(machine.generation, _generation + 1);
+    },
+  );
+
+  test('the plan opened on the plan changes nothing', () {
+    final (machine, _) = reduce(_at(_thePlan), const ThePlanOpened());
+
+    expect(machine.station, _thePlan);
+    expect(machine.generation, _generation);
   });
 
   test('the rehearsal opened from the plan reaches the recording home', () {

@@ -95,6 +95,14 @@ her words the team reads: the title «Checagem externa», the idle sub-line «Qu
 traduzir ouve a passagem e diz o que entendeu.» and «Novo ouvinte». Its back control is an icon
 VoiceOver reads by her name, «Voltar para a gravação».
 
+Amended by ENG-1766 (2026-10-23, ADR 0134): her grain choice
+(`widgets/grain_choice_view.dart`): «Gravem o ensaio de vocês», «Como vocês querem gravar?»,
+«A passagem inteira» «uma gravação» and «Cena por cena» «{N} partes», and the recording
+home's and the plan's grain controls, «gravar a passagem inteira de uma vez», «Gravar a
+passagem inteira», «Gravar cena por cena» and «Ensaio Final: juntar os ensaios das cenas», with
+their armed texts. It is the thirteenth named exception, under the moment label's reason, her
+words the team reads.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a

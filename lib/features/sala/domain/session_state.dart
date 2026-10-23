@@ -8,6 +8,7 @@ import 'spoken_line.dart';
 import 'session_snapshot.dart';
 import 'coverage.dart';
 import 'ensaio_final_plan.dart';
+import 'grain.dart';
 import 'hand_reply.dart';
 import 'kept_take.dart';
 import 'left_entry.dart';
@@ -570,6 +571,13 @@ class SalaSessionState {
   /// holds.
   final Set<String> wholeHeldByTheRoom;
 
+  /// The grain the room says is in force for this session; null until a listing or a
+  /// switch said it.
+  final Grain? grainInForce;
+
+  /// Whether a switch of the grain is in the air.
+  final bool grainSwitching;
+
   /// The current parts the room holds that this tablet does not yet, by take id.
   final Map<String, PartAway> partsAway;
 
@@ -673,6 +681,8 @@ class SalaSessionState {
     this.bringingBack,
     this.bringBackFailed,
     this.wholeHeldByTheRoom = const {},
+    this.grainInForce,
+    this.grainSwitching = false,
     this.partsAway = const {},
   });
 
@@ -728,6 +738,7 @@ class SalaSessionState {
   /// Whether every Scene has its Part. A passage the room answered with no scenes needs
   /// one part; a scene list still awaited or missing is never covered.
   bool get everySceneHasItsPart {
+    if (recordsTheWhole) return partes.isNotEmpty;
     final numbers = partNumbers;
     return switch (scenes) {
       ScenesHad(scenes: final had) when had.isNotEmpty => [
@@ -770,11 +781,37 @@ class SalaSessionState {
     for (final take in partes) ?KeptScope.numberOf(take.scopeId),
   };
 
+  /// The grain in force: the room's, else read off the parts as the room reads it — a
+  /// numbered part is scene by scene, only the whole is the whole passage.
+  Grain? get grain {
+    if (grainInForce case final known?) return known;
+    if (partes.isEmpty) return null;
+    return partNumbers.isEmpty ? Grain.whole : Grain.scene;
+  }
+
+  bool get recordsTheWhole => grain == Grain.whole;
+
+  /// The row a recording of [scopeId] stands on: the whole is the one row while the
+  /// passage is recorded whole, and no row otherwise.
+  int? rowOf(String scopeId) => recordsTheWhole
+      ? (scopeId == KeptScope.whole ? 1 : null)
+      : KeptScope.numberOf(scopeId);
+
+  /// «gravar a passagem inteira de uma vez» takes the Armed tap only when it would leave
+  /// something behind: an approved draft, or a part that came from a join.
+  bool get wholeSwitchArms => overAnApprovedDraft || aPartWasJoined;
+
+  /// «Ensaio Final: juntar os ensaios das cenas»: only over an empty whole recording, with
+  /// no take on the tablet, in the room or waiting in the Outbox.
+  bool get offersTheWayBackToTheJoin =>
+      recordsTheWhole &&
+      partes.isEmpty &&
+      ensaio == EnsaioStatus.idle &&
+      !unsentParts.containsKey(1);
+
   /// Where in [partes] the part numbered [number] sits; null when there is none.
   int? partIndexOf(int number) {
-    final index = partes.indexWhere(
-      (take) => KeptScope.numberOf(take.scopeId) == number,
-    );
+    final index = partes.indexWhere((take) => rowOf(take.scopeId) == number);
     return index < 0 ? null : index;
   }
 
@@ -785,6 +822,7 @@ class SalaSessionState {
   int? get sceneForTheCircle {
     final marked = _numberAt(parteARegravar);
     if (marked != null) return marked;
+    if (recordsTheWhole) return partes.isEmpty ? 1 : null;
     final numbers = partNumbers;
     final free = KeptScope.firstFree(numbers);
     return switch (scenes) {
@@ -802,6 +840,7 @@ class SalaSessionState {
   /// scenes, one per Part plus one more. None while the list is awaited or missing.
   List<SceneRow> get sceneRows {
     final List<(int, String?)> numbered = switch (scenes) {
+      _ when recordsTheWhole => const [(1, null)],
       ScenesHad(scenes: final had) when had.isNotEmpty => [
         for (final (index, scene) in had.indexed) (index + 1, scene.title),
       ],
@@ -840,7 +879,7 @@ class SalaSessionState {
   /// The number of the part at [index] in [partes]; just past them, the scene of a
   /// recording waiting for the check.
   int? _numberAt(int? index) => switch (index) {
-    final at? when at < partes.length => KeptScope.numberOf(partes[at].scopeId),
+    final at? when at < partes.length => rowOf(partes[at].scopeId),
     final at? when at == partes.length && ensaio == EnsaioStatus.recorded =>
       cenaDaGravacao,
     _ => null,
@@ -1278,26 +1317,32 @@ class SalaSessionState {
   /// The rehearsal's own recordings, in order — never a correction's own take, which is a
   /// slice of one of these and not a part of the rehearsal in its own right. The whole
   /// rehearsal an app before 19 August sent is the rehearsal only while no scene has its
-  /// part; from the first one on it is set aside, kept but no longer played or told.
+  /// part; from the first one on it is set aside, kept but no longer played or told. While
+  /// the room records the passage whole, only the whole is (ADR 0134).
   List<KeptTake> get partes {
+    final wholes = [
+      for (final take in keptTakes)
+        if (take.scopeId == KeptScope.whole) take,
+    ];
+    if (grainInForce == Grain.whole) return wholes;
     final numbered = [
       for (final take in keptTakes)
         if (KeptScope.isParte(take.scopeId)) take,
     ]..sort((a, b) => _byNumber(a).compareTo(_byNumber(b)));
-    if (numbered.isNotEmpty) return numbered;
-    return [
-      for (final take in keptTakes)
-        if (take.scopeId == KeptScope.whole) take,
-    ];
+    if (numbered.isNotEmpty || grainInForce == Grain.scene) return numbered;
+    return wholes;
   }
 
-  /// The recordings of a whole rehearsal set aside behind the scenes' own parts.
-  Set<String> get wholeSetAside => {
-    ...wholeHeldByTheRoom,
-    if (keptTakes.any((take) => KeptScope.isParte(take.scopeId)))
-      for (final take in keptTakes)
-        if (take.scopeId == KeptScope.whole) ?take.takeId,
-  };
+  /// The recordings of a whole rehearsal set aside behind the scenes' own parts; none
+  /// while the room records the passage whole.
+  Set<String> get wholeSetAside => grainInForce == Grain.whole
+      ? const {}
+      : {
+          ...wholeHeldByTheRoom,
+          if (keptTakes.any((take) => KeptScope.isParte(take.scopeId)))
+            for (final take in keptTakes)
+              if (take.scopeId == KeptScope.whole) ?take.takeId,
+        };
 
   static int _byNumber(KeptTake take) => KeptScope.numberOf(take.scopeId) ?? 0;
 
@@ -1515,6 +1560,8 @@ class SalaSessionState {
     bool? labelLine,
     bool? rehearsalsElsewhere,
     Set<int>? theRoomJoinedParts,
+    Grain? grainInForce,
+    bool? grainSwitching,
     List<int>? toBringBack,
     int? bringingBack,
     bool clearBringingBack = false,
@@ -1643,6 +1690,8 @@ class SalaSessionState {
       labelLine: labelLine ?? this.labelLine,
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
+      grainInForce: grainInForce ?? this.grainInForce,
+      grainSwitching: grainSwitching ?? this.grainSwitching,
       toBringBack: toBringBack ?? this.toBringBack,
       bringingBack: clearBringingBack
           ? null

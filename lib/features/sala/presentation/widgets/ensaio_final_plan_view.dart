@@ -10,6 +10,7 @@ import '../../domain/scene_question.dart';
 import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
+import 'grain_choice_view.dart';
 import 'scene_question.dart';
 import 'stage_heading.dart';
 
@@ -27,6 +28,9 @@ class EnsaioFinalPlanView extends ConsumerWidget {
     final colors = SalaColors.of(context);
 
     final (read, sessionId) = (session.ensaioFinalPlan, session.sessionId);
+    if (read case GrainAsked(:final elsewhere)) {
+      return GrainChoiceView(elsewhere: elsewhere);
+    }
     if (read is! PlanRead || sessionId == null) {
       return Center(
         child: Semantics(
@@ -146,8 +150,11 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: 24),
+              wholeAtOnce(session, language, notifier.recordTheWholePassage),
               TextButton(
-                onPressed: idle ? notifier.recordSceneByScene : null,
+                onPressed: idle && !session.grainSwitching
+                    ? notifier.recordSceneByScene
+                    : null,
                 child: Text(
                   ensaioFinalPlanLabelFor('sceneByScene', language),
                   style: TextStyle(color: colors.telha, fontSize: 15),

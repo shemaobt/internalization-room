@@ -38,7 +38,13 @@ final class Ensaio extends Station {
     TheChoiceOpened() => const Menu(),
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),
-    ThePlanOpened() => this,
+    ThePlanOpened() =>
+      step == EnsaioStep.home
+          ? Ensaio(
+              step: EnsaioStep.plan,
+              everySceneHasItsPart: everySceneHasItsPart,
+            )
+          : this,
     TheBackTranslationOpened() =>
       everySceneHasItsPart && everyPartIsHere && step == EnsaioStep.home
           ? const Retro()

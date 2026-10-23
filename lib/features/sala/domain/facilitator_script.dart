@@ -625,6 +625,34 @@ String savedScreenLabelFor(String key, String language) =>
 /// playing cue VoiceOver reads is the room's own.
 const recordingHomeLabels = {
   'title': {'pt': 'Gravem o ensaio de vocês', 'en': 'Record your rehearsal'},
+  'how': {
+    'pt': 'Como vocês querem gravar?',
+    'en': 'How would you like to record it?',
+  },
+  'wholePassage': {'pt': 'A passagem inteira', 'en': 'The whole passage'},
+  'oneRecording': {'pt': 'uma gravação', 'en': 'one recording'},
+  'sceneByScene': {'pt': 'Cena por cena', 'en': 'Scene by scene'},
+  'parts': {'pt': '{n} partes', 'en': '{n} parts'},
+  'wholeInstead': {
+    'pt': 'Gravar a passagem inteira',
+    'en': 'Record the whole passage instead',
+  },
+  'sceneInstead': {
+    'pt': 'Gravar cena por cena',
+    'en': 'Record scene by scene instead',
+  },
+  'wholeAtOnce': {
+    'pt': 'gravar a passagem inteira de uma vez',
+    'en': 'record the whole passage in one go',
+  },
+  'wholeArmed': {
+    'pt': 'toquem de novo: as cenas e as traduções ficam guardadas',
+    'en': 'tap again: the scenes and the translations are kept',
+  },
+  'backToJoin': {
+    'pt': 'Ensaio Final: juntar os ensaios das cenas',
+    'en': 'Final Rehearsal: join the scene rehearsals',
+  },
   'joinedTitle': {'pt': 'Ensaio Final', 'en': 'Final Rehearsal'},
   'sub': {
     'pt': 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.',

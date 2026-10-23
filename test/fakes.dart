@@ -33,6 +33,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/capture_guard.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
@@ -1682,15 +1683,119 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  Future<RoomAnswer<List<TakeView>>> takesOf(String sessionId) async {
+  Future<RoomAnswer<List<TakeView>>> takesOf(String sessionId) async =>
+      switch (await takesListingOf(sessionId)) {
+        Answered(:final value) => Answered(value.takes),
+        final RoomFailure failure => failure,
+      };
+
+  /// The grain the room recorded at its last switch; null until one.
+  Grain? grain;
+
+  /// Every switch of the grain this room was asked for, in order.
+  final List<({Grain grain, bool reopens})> grainSwitches = [];
+
+  /// What the next switches answer, one each, before the room acts.
+  final List<RoomAnswer<TakesListing>> grainAnswersFirst = [];
+
+  /// When the room stamps what a switch sets aside.
+  static const grainSwitchedAt = '2026-10-23T10:00:00+00:00';
+
+  Completer<void>? _holdingGrainSwitch;
+
+  /// Hold the next switch's answer, the way a slow link holds it.
+  void holdTheGrainSwitch() => _holdingGrainSwitch = Completer<void>();
+
+  void finishTheGrainSwitch() {
+    _holdingGrainSwitch?.complete();
+    _holdingGrainSwitch = null;
+  }
+
+  /// The grain in force: the last switch's, else read off the current parts, as the
+  /// server's `grain_in_force`.
+  Grain? get _grainInForce {
+    if (grain case final recorded?) return recorded;
+    final current = [
+      for (final take in takes)
+        if (take.kind == 'ensaio' && !take.setAside) take,
+    ];
+    if (current.any((take) => take.ordinal != null)) return Grain.scene;
+    return current.isEmpty ? null : Grain.whole;
+  }
+
+  TakesListing get _listing =>
+      TakesListing(takes: List.of(takes), grain: _grainInForce);
+
+  Completer<void>? _holdingTheListing;
+
+  /// Hold the next takes listing after the room read it, so it answers what the room held
+  /// when it was asked.
+  void holdTheTakesListing() => _holdingTheListing = Completer<void>();
+
+  void finishTheTakesListing() => _heldListing?.complete();
+
+  Completer<void>? _heldListing;
+
+  /// The next switch acts in the room and its answer is lost on the way back.
+  bool loseTheNextGrainAnswer = false;
+
+  @override
+  Future<RoomAnswer<TakesListing>> takesListingOf(String sessionId) async {
     if (_guard('takesOf') case final failure?) return failure;
     if (_forgot('takesOf', sessionId) case final gone?) {
       return gone;
     }
     final refusal = failTakesWith;
     if (refusal != null) return refusal;
-    return Answered(List.of(takes));
+    final listing = _listing;
+    if (_holdingTheListing case final hold?) {
+      _holdingTheListing = null;
+      _heldListing = hold;
+      await hold.future;
+    }
+    return Answered(listing);
   }
+
+  @override
+  Future<RoomAnswer<TakesListing>> switchTheGrain(
+    String sessionId,
+    Grain grain, {
+    bool reopensTheApprovedDraft = false,
+  }) async {
+    if (_guard('switchTheGrain') case final failure?) return failure;
+    if (_forgot('switchTheGrain', sessionId) != null) {
+      return const Refused(RefusalCode.notFound);
+    }
+    grainSwitches.add((grain: grain, reopens: reopensTheApprovedDraft));
+    await _holdingGrainSwitch?.future;
+    if (grainAnswersFirst.isNotEmpty) return grainAnswersFirst.removeAt(0);
+    if (_grainInForce == grain) return Answered(_listing);
+    if (approvedDraft != null && !reopensTheApprovedDraft) {
+      return const Refused(RefusalCode.draftApproved);
+    }
+    approvedDraft = null;
+    this.grain = grain;
+    for (final (i, take) in takes.indexed) {
+      if (take.kind == 'ensaio' && !take.setAside) {
+        takes[i] = _setAside(take);
+      }
+    }
+    if (loseTheNextGrainAnswer) {
+      loseTheNextGrainAnswer = false;
+      return const NetworkFailed('timeout');
+    }
+    return Answered(_listing);
+  }
+
+  static TakeView _setAside(TakeView take) => TakeView(
+    takeId: take.takeId,
+    kind: take.kind,
+    scope: take.scope,
+    ordinal: take.ordinal,
+    pass: take.pass,
+    origin: take.origin,
+    setAsideAt: grainSwitchedAt,
+  );
 
   /// Every live scene rehearsal of the passage, from every session, as the list answers.
   final List<SceneRehearsalRecord> sceneRehearsals = [];
@@ -2784,6 +2889,13 @@ class FakeRoom implements RoomRepository {
     takePasses.add(passNumber);
     final id = 'gravacao-${takeIds.length + 1}';
     takeIds.add(id);
+    final leftBehind =
+        kind == 'ensaio' &&
+        switch (grain) {
+          Grain.whole => chunkIndex != null,
+          Grain.scene => chunkIndex == null,
+          null => false,
+        };
     takes.add(
       TakeView(
         takeId: id,
@@ -2792,6 +2904,7 @@ class FakeRoom implements RoomRepository {
         ordinal: kind == 'ensaio' ? chunkIndex : null,
         pass: passNumber,
         origin: origin,
+        setAsideAt: leftBehind ? grainSwitchedAt : null,
       ),
     );
     takeAudio[id] = origin == null
@@ -3569,6 +3682,9 @@ class FakeTakeQueue implements TakeUploadQueue {
 
   FakeTakeQueue({required this.room, this.recordings});
 
+  /// The disk refuses the next keep, before any row is written.
+  bool refusesTheNextKeep = false;
+
   @override
   Future<PendingTake> enqueue(
     File audio, {
@@ -3579,6 +3695,10 @@ class FakeTakeQueue implements TakeUploadQueue {
     int? chunkIndex,
     String? scene,
   }) async {
+    if (refusesTheNextKeep) {
+      refusesTheNextKeep = false;
+      throw const FileSystemException('o disco está cheio');
+    }
     final entry = PendingTake(
       id: '${_minted++}',
       path: audio.path,

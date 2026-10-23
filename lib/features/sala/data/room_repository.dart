@@ -15,6 +15,7 @@ import '../domain/cut_point.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
 import '../domain/external_check.dart';
+import '../domain/grain.dart';
 import '../domain/minimum_build.dart';
 import '../domain/passagem.dart';
 import '../domain/scene_rehearsal.dart';
@@ -402,11 +403,41 @@ class RoomRepository {
   /// recording answers for. A stretch names the recording it slices and nothing else, so
   /// a tablet picking a session back up over a recording it does not hold learns from
   /// here which of its own parts that stretch belongs to.
-  Future<RoomAnswer<List<TakeView>>> takesOf(String sessionId) => _room.ask(
-    () => _client.get(_uri('/sessions/$sessionId/takes'), headers: _headers),
+  Future<RoomAnswer<List<TakeView>>> takesOf(String sessionId) async =>
+      switch (await takesListingOf(sessionId)) {
+        Answered(:final value) => Answered(value.takes),
+        final RoomFailure failure => failure,
+      };
+
+  /// The session's recordings with the grain in force.
+  Future<RoomAnswer<TakesListing>> takesListingOf(String sessionId) =>
+      _room.ask(
+        () =>
+            _client.get(_uri('/sessions/$sessionId/takes'), headers: _headers),
+        timeout: _stateTimeout,
+        read: readJson(TakesListing.fromJson),
+        asksForTheSession: true,
+      );
+
+  /// The team records the passage at [grain] from now on; the room sets every rehearsal
+  /// take aside and answers the listing. Its 404 is a refusal and never a session gone:
+  /// a room without this door must leave the team where it was (ADR 0134).
+  Future<RoomAnswer<TakesListing>> switchTheGrain(
+    String sessionId,
+    Grain grain, {
+    bool reopensTheApprovedDraft = false,
+  }) => _room.ask(
+    () => _client.post(
+      _uri('/sessions/$sessionId/grain'),
+      headers: _headers,
+      body: jsonEncode({
+        'grain': grain.wire,
+        if (reopensTheApprovedDraft) 'reopens_the_approved_draft': true,
+      }),
+    ),
     timeout: _stateTimeout,
-    read: readJson(TakeView.listFrom),
-    asksForTheSession: true,
+    read: readJson(TakesListing.fromJson),
+    asksForTheSession: false,
   );
 
   /// Where the audio of one take is, for [fetchClip] to go and get.
