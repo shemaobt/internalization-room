@@ -31,6 +31,7 @@ abstract final class RefusalCode {
   static const sentenceIdReused = 'SENTENCE_ID_REUSED';
   static const nothingToBringBack = 'NOTHING_TO_BRING_BACK';
   static const draftApproved = 'DRAFT_APPROVED';
+  static const draftNotApproved = 'DRAFT_NOT_APPROVED';
 
   static const stopsTheRoom = {unauthorized, forbidden, deviceRevoked};
 

@@ -18,7 +18,16 @@ import 'scene_question.dart';
 import 'scene_rehearsal.dart';
 import 'station.dart';
 
-enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim, cena }
+enum SalaStage {
+  panorama,
+  escolha,
+  conversa,
+  ensaio,
+  retro,
+  fim,
+  cena,
+  checagem,
+}
 
 enum OrangeDotLook { gone, faint, bright }
 
@@ -390,6 +399,10 @@ class SalaSessionState {
   /// the end of the refusal's handling. A newer Generation is not held by it.
   final int? btAprovando;
 
+  /// The Generation an open of the Checagem externa is in the air in: from the tap until
+  /// the room answers. A newer Generation is not held by it.
+  final int? btAbrindoAChecagem;
+
   /// The version this press minted, while her approved sentence and P3 stand on the
   /// Back-translation.
   final int? btAprovadoAgora;
@@ -556,6 +569,7 @@ class SalaSessionState {
     this.btRascunhoAprovado,
     this.btSoOuvir = false,
     this.btAprovando,
+    this.btAbrindoAChecagem,
     this.btAprovadoAgora,
     this.ensaioSalvo,
     this.unsentTakes = 0,
@@ -768,6 +782,7 @@ class SalaSessionState {
       stage != SalaStage.ensaio &&
       stage != SalaStage.retro &&
       stage != SalaStage.fim &&
+      stage != SalaStage.checagem &&
       !sceneRehearsalIsOpen;
 
   /// Whether the scene rehearsal's screen stands over the Canvas.
@@ -1245,9 +1260,12 @@ class SalaSessionState {
       everyPartIsHere &&
       aBackTranslationGestureActs;
 
-  /// Whether a gesture on the Back-translation acts: never while an approval is in the
-  /// air, so nothing the team presses during her approved line moves what was approved.
-  bool get aBackTranslationGestureActs => btAprovando != machine.generation;
+  /// Whether a gesture on the Back-translation acts: never while an approval or an open of
+  /// the Checagem externa is in the air, so nothing the team presses meanwhile moves what
+  /// the answer lands on.
+  bool get aBackTranslationGestureActs =>
+      btAprovando != machine.generation &&
+      btAbrindoAChecagem != machine.generation;
 
   /// Whether the approve button acts: never while a sentence's re-record is open.
   bool get canApprove => aBackTranslationGestureActs && btRegravacao == null;
@@ -1359,7 +1377,9 @@ class SalaSessionState {
     bool clearBtRascunhoAprovado = false,
     bool? btSoOuvir,
     int? btAprovando,
+    int? btAbrindoAChecagem,
     bool clearBtAprovando = false,
+    bool clearBtAbrindoAChecagem = false,
     int? btAprovadoAgora,
     bool clearBtAprovadoAgora = false,
     int? ensaioSalvo,
@@ -1483,6 +1503,9 @@ class SalaSessionState {
           : (btRascunhoAprovado ?? this.btRascunhoAprovado),
       btSoOuvir: btSoOuvir ?? this.btSoOuvir,
       btAprovando: clearBtAprovando ? null : (btAprovando ?? this.btAprovando),
+      btAbrindoAChecagem: clearBtAbrindoAChecagem
+          ? null
+          : (btAbrindoAChecagem ?? this.btAbrindoAChecagem),
       btAprovadoAgora: clearBtAprovadoAgora
           ? null
           : (btAprovadoAgora ?? this.btAprovadoAgora),

@@ -90,6 +90,11 @@ listeners, and the «Checagem externa» button; an armed control over an approve
 her two texts. The Back-translation and its frase list are already named exceptions, her words
 the team reads, so no new exception is named.
 
+Amended by ENG-1421 (2026-10-23, ADR 0114): her Checagem externa screen is a named exception,
+her words the team reads: the title «Checagem externa», the idle sub-line «Quem não ajudou a
+traduzir ouve a passagem e diz o que entendeu.» and «Novo ouvinte». Its back control is an icon
+VoiceOver reads by her name, «Voltar para a gravação».
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a

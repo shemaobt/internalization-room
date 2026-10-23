@@ -39,6 +39,7 @@ import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
+import 'package:internalization_room/features/sala/domain/external_check.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/pausa.dart';
@@ -3180,6 +3181,46 @@ class FakeRoom implements RoomRepository {
         untoldSegmentId: releaseUntoldSegmentId,
       ),
     );
+  }
+
+  final List<String> externalChecksOpened = [];
+
+  /// What the next open of the external check answers, independent of `failWith`.
+  RoomFailure? failExternalCheckOnceWith;
+
+  Completer<void>? _holdingExternalCheck;
+
+  /// Holds the next open of the external check in flight, after the room has been sent it.
+  void holdNextExternalCheck() => _holdingExternalCheck = Completer<void>();
+
+  void finishHeldExternalCheck() => _holdingExternalCheck?.complete();
+
+  /// Opens the check of the draft the room holds as approved, the same [approvedDraft]
+  /// every read answers.
+  @override
+  Future<RoomAnswer<ExternalCheck>> openTheExternalCheck(
+    String sessionId,
+  ) async {
+    if (_guard('openTheExternalCheck') case final failure?) return failure;
+    if (_forgot('openTheExternalCheck', sessionId) case final gone?) {
+      return gone;
+    }
+    externalChecksOpened.add(sessionId);
+    final held = _holdingExternalCheck;
+    if (held != null) {
+      await held.future;
+      _holdingExternalCheck = null;
+    }
+    final failure = failExternalCheckOnceWith;
+    if (failure != null) {
+      failExternalCheckOnceWith = null;
+      return failure;
+    }
+    final approved = approvedDraft;
+    if (approved == null) {
+      return const Refused(RefusalCode.draftNotApproved);
+    }
+    return Answered(ExternalCheck(version: approved.version));
   }
 
   bool get coverageHasListener => _coverage.hasListener;

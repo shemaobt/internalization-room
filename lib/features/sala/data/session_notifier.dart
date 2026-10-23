@@ -15,6 +15,7 @@ import '../domain/bt_finding.dart';
 import '../domain/capture_guard.dart';
 import '../domain/channel.dart';
 import '../domain/escuta_das_partes.dart';
+import '../domain/external_check.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/failure_policy.dart';
 import '../domain/kept_take.dart';
@@ -7564,21 +7565,44 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void abrirAChecagemExterna() => _gesture(() {
     final sessionId = state.sessionId;
     if (sessionId == null || state.approvedDraftDrawn == null) return;
-    if (state.microphoneOpen) return;
+    if (state.microphoneOpen || !state.aBackTranslationGestureActs) return;
     _handOff(_abrirAChecagemExterna(sessionId));
   });
 
   Future<void> _abrirAChecagemExterna(String sessionId) async {
+    _silenceTheRoom();
     final generation = _waitOnTheGeneration;
-    state = state.copyWith(clearAviso: true);
-    final failure = await _readTheStretchesBack(sessionId, generation);
+    state = state.copyWith(clearAviso: true, btAbrindoAChecagem: generation);
+    final RoomAnswer<ExternalCheck> answer;
+    try {
+      answer = await _room.openTheExternalCheck(sessionId);
+    } finally {
+      if (!_gone && state.btAbrindoAChecagem == generation) {
+        state = state.copyWith(clearBtAbrindoAChecagem: true);
+      }
+    }
     if (_abandoned(generation)) return;
-    if (failure != null) {
-      state = state.copyWith(btAviso: BtAviso.checagemFalhou);
-    } else if (!state.overAnApprovedDraft) {
-      state = state.copyWith(btAviso: BtAviso.checagemNaoAbre);
+    switch (answer) {
+      case Answered(value: final check):
+        _arriveAt(TheExternalCheckOpened(check.version));
+      case Refused(code: RefusalCode.draftNotApproved):
+        state = state.copyWith(btAviso: BtAviso.checagemNaoAbre);
+        await _readTheStretchesBack(sessionId, generation);
+      case SessionGone() && final failure:
+        _decideTheFailure(failure);
+      case NetworkFailed():
+        _theNetworkFailedAt(Door.stretches);
+        state = state.copyWith(btAviso: BtAviso.checagemFalhou);
+      case Refused():
+        state = state.copyWith(btAviso: BtAviso.checagemFalhou);
     }
   }
+
+  void leaveTheExternalCheck() => _gesture(() {
+    if (state.station is! ChecagemExterna) return;
+    _silenceTheRoom();
+    _arriveAt(const TheExternalCheckLeft());
+  });
 
   void recomecarATraducao() => _gesture(() => _recomecarATraducao());
 
