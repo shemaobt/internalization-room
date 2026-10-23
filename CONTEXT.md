@@ -329,12 +329,16 @@ The scene rehearsal's wordless picture of its take while translating. The loudne
 _Avoid_: waveform, timeline, ruler (the Ensaio's)
 
 **Scene row**:
-One row of the Rehearsal per Scene of the passage, in passage order, reading «Cena N» and the scene's title, holding that scene's Part with its record, listen and record-again controls. Part N is Scene N: a recording made from row N is kept as part N, and a part the room holds under number N shows on row N.
+One row of the Rehearsal per Scene of the passage, in passage order, reading «Cena N» and the scene's title, holding that scene's Part with its record, listen and record-again controls. Part N is Scene N: a recording made from row N is kept as part N, and a part the room holds under number N shows on row N. A row with a take shows «✓»; a row offers its Rehearsal sheet with «trocar o ensaio desta cena» when its part is joined and another rehearsal could stand in it, or «usar o ensaio desta cena» when none of its takes came from a join and a Joinable rehearsal exists.
 _Avoid_: bead (the Back-translation's), clip row, part row, linha
 
 **Joined recording** (`origin`):
 A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final». The tablet makes one with «juntar as cenas e ouvir» on the Ensaio Final plan. Each scene's chosen rehearsal goes up through the Outbox as that scene's Part: the rehearsal's own bytes under its fingerprint, with `origin`. The same bytes joined again, from any tablet, are the same take (ADR 0120).
 _Avoid_: assembled recording, merged, Junção (in prose)
+
+**Rehearsal swap**:
+«usar este» on a Scene row's Rehearsal sheet: that Scene rehearsal goes up through the Outbox as the Part's next pass, carrying `origin`, and becomes the part once the room names it. The take it replaces is kept on the tablet and in the room, the part starts unheard, and the stretches told over the old take leave the check as history; swapping back to an earlier rehearsal is a new take again. Over an approved draft, or over a take already standing under the scene, it takes the Armed tap.
+_Avoid_: Swap (the room's word for a finding of two exchanged relations), troca, replace
 
 **Red microphone**:
 The round red control beside the orange dot that opens the Scene rehearsal's screen, shown only while the Conversation rests and no raised-hand note or person call stands. With the orange dot it is one of the two ways from the Conversation to a recording.
