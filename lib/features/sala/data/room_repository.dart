@@ -14,6 +14,7 @@ import '../domain/coverage_event.dart';
 import '../domain/cut_point.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
+import '../domain/minimum_build.dart';
 import '../domain/passagem.dart';
 import '../domain/scene_rehearsal.dart';
 import '../domain/scene_question.dart';
@@ -164,6 +165,13 @@ class RoomRepository {
         for (final book in json['books'] as List<Object?>) book as String,
       ],
     ),
+    asksForTheSession: false,
+  );
+
+  Future<RoomAnswer<MinimumBuilds>> minimumBuilds() => _room.ask(
+    () => _client.get(Uri.parse('${Env.backendUrl}/api/version')),
+    timeout: _stateTimeout,
+    read: readJson(MinimumBuilds.fromJson),
     asksForTheSession: false,
   );
 
@@ -362,7 +370,7 @@ class RoomRepository {
     String? sha256,
     String? origin,
     bool reopensTheApprovedDraft = false,
-    DateTime? sentAt,
+    String? overTake,
   }) async {
     final request =
         http.MultipartRequest('POST', _uri('/sessions/$sessionId/takes'))
@@ -374,9 +382,7 @@ class RoomRepository {
     if (passNumber != null) request.fields['pass_number'] = '$passNumber';
     if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
     if (origin != null) request.fields['origin'] = origin;
-    if (sentAt != null) {
-      request.fields['sent_at'] = sentAt.toUtc().toIso8601String();
-    }
+    if (overTake != null) request.fields['over_take'] = overTake;
     if (reopensTheApprovedDraft) {
       request.fields['reopens_the_approved_draft'] = 'true';
     }
@@ -522,6 +528,23 @@ class RoomRepository {
       _uri('/sessions/$sessionId/scene-rehearsals/$rehearsalId/restart'),
       headers: _whoWeAre,
       body: {'attempt': attempt, 'closes': ?closes},
+    ),
+    timeout: _stateTimeout,
+    read: readJson(SceneRehearsalRecord.fromJson),
+    asksForTheSession: false,
+  );
+
+  /// The team's Scene label for an Unlabelled rehearsal, said later. It names a
+  /// rehearsal, whose 404 never ends the session.
+  Future<RoomAnswer<SceneRehearsalRecord>> labelTheSceneRehearsal(
+    String sessionId,
+    String rehearsalId, {
+    required String scene,
+  }) => _room.ask(
+    () => _client.post(
+      _uri('/sessions/$sessionId/scene-rehearsals/$rehearsalId/scene'),
+      headers: _whoWeAre,
+      body: {'scene': scene},
     ),
     timeout: _stateTimeout,
     read: readJson(SceneRehearsalRecord.fromJson),
