@@ -4415,7 +4415,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (_left(generation, life) ||
-        state.homeBusy ||
+        !_thePartsMayMove ||
         _thePartAt(number)?.path != over) {
       return;
     }

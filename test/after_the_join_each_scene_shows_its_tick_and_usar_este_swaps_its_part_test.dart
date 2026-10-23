@@ -1040,6 +1040,60 @@ void main() {
   );
 
   testWidgets(
+    'a swap answered while the team records that scene leaves the recording '
+    'running, and the part changes only once it ends',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      final joined = it.partPath(2);
+
+      await it.openTheSheet(2, _swap);
+      it.holdTheTake('parte-2');
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+      await it.wait(const Duration(seconds: 71));
+      expect(it.onLine(s2b, find.text(_retry)), findsOneWidget);
+      await it.tapThe(byLabel(_back));
+      await it.until('a casa voltar', it.showsTheHome);
+
+      await it.tapThe(it.onRow(2, byLabel('Gravar de novo')));
+      await it.until(
+        'a cena 2 gravar',
+        () => it.onRow(2, byLabel('Parar')).evaluate().isNotEmpty,
+      );
+      it.room.finishHeldTake();
+      await it.wait(const Duration(seconds: 3));
+
+      expect(it.partPath(2), joined, reason: 'nada troca a parte em gravação');
+      expect(
+        it.container.read(salaSessionProvider).ensaio,
+        EnsaioStatus.recording,
+      );
+      expect(it.onRow(2, byLabel('Parar')), findsOneWidget);
+
+      await it.tapThe(it.onRow(2, byLabel('Parar')));
+      await it.until(
+        'a gravação ficar à espera do check',
+        () =>
+            it.container.read(salaSessionProvider).ensaio ==
+            EnsaioStatus.recorded,
+      );
+      expect(it.partPath(2), joined);
+      await it.tapThe(byLabel('Enviar a gravação'));
+      await it.settle();
+
+      expect(
+        it.partPath(2),
+        allOf(isNot(joined), isNot(contains(it.idOf(s2b)))),
+        reason: 'a parte é a gravação que a equipe acabou de guardar',
+      );
+      expect(find.text(_hearNew), findsNothing);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     'a swap answered after the team recorded the scene by hand leaves the hand '
     'take the part',
     (tester) async {
