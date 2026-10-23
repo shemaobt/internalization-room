@@ -24,7 +24,6 @@ typedef _Words = ({
   String conferida,
   String badge,
   String checagem,
-  String voltar,
 });
 
 String _sentencePt(int v) =>
@@ -44,7 +43,6 @@ _Words _pt(int v) => (
   conferida: '✓ traduzida e conferida',
   badge: '✓ aprovado como rascunho final (v$v)',
   checagem: 'Checagem externa',
-  voltar: 'Voltar para a gravação',
 );
 
 _Words _en(int v) => (
@@ -56,7 +54,6 @@ _Words _en(int v) => (
   conferida: '✓ translated and checked',
   badge: '✓ approved as the final draft (v$v)',
   checagem: 'External check',
-  voltar: 'Back to recording',
 );
 
 const _p3Pt = ('P3', 'pt');
@@ -163,12 +160,14 @@ void main() {
       expect(byLabel(w.pronto), findsOneWidget);
       expect(byLabel(w.checagem), findsNothing);
 
+      final sonsAntesDoPronto = List.of(harness.sounds);
       await tester.tap(byLabel(w.pronto));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text(w.salvo), findsNothing);
       expect(find.text(w.conferida), findsOneWidget);
       _expectTheButtonStands(tester, w);
+      expect(harness.sounds, sonsAntesDoPronto);
       expect(harness.room.releasesAsked, hasLength(1));
       expect(harness.voice.fixedLines.skip(antes), [_p3Pt]);
 
@@ -207,9 +206,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('while the line names the button, the button is there', (
-    tester,
-  ) async {
+  testWidgets('while her line plays the button stands dimmed, and it is lit '
+      'after «Pronto»', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _ateAConferida(tester, harness);
     final w = _pt(1);
@@ -217,9 +215,15 @@ void main() {
     await _approveWithP3Held(tester, harness, w);
 
     expect(find.text(w.approvedSentence), findsOneWidget);
-    _expectTheButtonStands(tester, w);
+    expect(find.text(w.badge), findsOneWidget);
+    expect(byLabel(w.checagem), findsOneWidget);
+    expect(_habilitado(tester, w.checagem), isFalse);
 
     await _finishP3(tester, harness);
+    await tester.tap(byLabel(w.pronto));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(_habilitado(tester, w.checagem), isTrue);
     closeTheRoom(container);
   });
 
@@ -282,6 +286,7 @@ void main() {
     harness.playback.finishPlayback();
     await _passo(tester);
 
+    expect(harness.room.sentencesSentReopening, hasLength(1));
     expect(byLabel(w1.checagem), findsNothing);
     expect(find.text(w1.badge), findsNothing);
     expect(find.textContaining('Aprovado como rascunho final'), findsNothing);
