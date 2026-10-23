@@ -47,6 +47,7 @@ enum CheckRefusal {
   fraseAwaiting,
   partUnheard,
   nothingTranslated,
+  notConferida,
   checkUnavailable;
 
   static CheckRefusal? fromJson(Object? raw) => switch (raw) {

@@ -87,6 +87,10 @@ const roomLabels = {
     'pt': 'Gravar o ensaio de vocês',
     'en': 'Record your rehearsal',
   },
+  'openEnsaioFinal': {
+    'pt': 'Abrir o Ensaio Final',
+    'en': 'Open the Final Rehearsal',
+  },
   'hearHowYouToldPart': {
     'pt': 'Ouvir como vocês contaram a parte {n}',
     'en': 'Hear how you told part {n}',
@@ -96,6 +100,93 @@ const roomLabels = {
 String roomLabelFor(String control, String language, {int? n}) =>
     (roomLabels[control]![language] ?? roomLabels[control]![floorLanguage]!)
         .replaceAll('{n}', '$n');
+
+/// Her Ensaio Final plan's words (strings.ts), the ones the team reads.
+const ensaioFinalPlanLabels = {
+  'title': {'pt': 'Ensaio Final', 'en': 'Final Rehearsal'},
+  'sub': {
+    'pt': 'Estes são os ensaios das cenas que vocês me enviaram.',
+    'en': 'These are the scene rehearsals you sent me.',
+  },
+  'thinking': {'pt': 'pensando…', 'en': 'thinking…'},
+  'sceneByScene': {
+    'pt': 'Gravar cena por cena',
+    'en': 'Record scene by scene instead',
+  },
+  'row': {
+    'pt': 'ensaio {n} · {clock} · {dur} · {k} frases',
+    'en': 'rehearsal {n} · {clock} · {dur} · {k} sentences',
+  },
+  'partial': {'pt': 'tradução incompleta', 'en': 'translation incomplete'},
+  'swap': {
+    'pt': 'trocar o ensaio desta cena',
+    'en': 'use another rehearsal for this scene',
+  },
+  'missing': {
+    'pt': 'falta o ensaio desta cena',
+    'en': 'this scene has no rehearsal yet',
+  },
+  'cannotEnter': {
+    'pt': 'este ensaio não pode entrar — ensaiem esta cena de novo',
+    'en': 'this rehearsal cannot be used — rehearse this scene again',
+  },
+  'join': {'pt': 'juntar as cenas e ouvir', 'en': 'join the scenes and listen'},
+  'listen': {'pt': 'Ouvir', 'en': 'Listen'},
+  'back': {'pt': 'Voltar para a gravação', 'en': 'Back to recording'},
+  'useThis': {'pt': 'usar este', 'en': 'use this one'},
+  'inUse': {'pt': 'em uso', 'en': 'in use'},
+  'recordSceneAgain': {
+    'pt': 'gravar esta cena de novo',
+    'en': 'record this scene again',
+  },
+  'whichScene': {
+    'pt': 'De que cena é este ensaio?',
+    'en': 'Which scene is this rehearsal?',
+  },
+  'labelFailed': {
+    'pt': 'não deu para guardar a resposta — toquem de novo',
+    'en': 'couldn\'t keep that answer — tap again',
+  },
+};
+
+String ensaioFinalPlanLabelFor(String control, String language) =>
+    ensaioFinalPlanLabels[control]![language] ??
+    ensaioFinalPlanLabels[control]![floorLanguage]!;
+
+/// A local time as the room writes it, `HH:MM`.
+String clockOf(DateTime at) {
+  final local = at.toLocal();
+  return '${'${local.hour}'.padLeft(2, '0')}:'
+      '${'${local.minute}'.padLeft(2, '0')}';
+}
+
+/// A length as the room writes it, `m:ss`, in whole seconds cut down.
+String minutesAndSecondsOf(Duration length) =>
+    '${length.inMinutes}:${'${length.inSeconds % 60}'.padLeft(2, '0')}';
+
+/// A plan row's facts, her `rowText`: its number, its local clock, its length `m:ss`
+/// rounded to the nearest second as her `fmtDur` does, and its current frases.
+String planRowFactsFor(SceneRehearsalRecord rehearsal, String language) {
+  final at = rehearsal.recordedAt;
+  final seconds = ((rehearsal.durationMs ?? 0) / 1000).round();
+  return ensaioFinalPlanLabelFor('row', language)
+      .replaceAll('{n}', '${rehearsal.n}')
+      .replaceAll('{clock}', at == null ? '' : clockOf(at))
+      .replaceAll('{dur}', minutesAndSecondsOf(Duration(seconds: seconds)))
+      .replaceAll('{k}', '${rehearsal.translatedFrases}');
+}
+
+/// A line of the Rehearsal sheet, her `candidateLine`: the row's facts, whether the voice
+/// received it, and «tradução incompleta» when a stretch is left untranslated.
+String sheetLineFor(SceneRehearsalRecord rehearsal, String language) => [
+  planRowFactsFor(rehearsal, language),
+  sceneRehearsalLabelFor(
+    rehearsal.unsent ? 'listUnsent' : 'listSent',
+    language,
+  ),
+  if (rehearsal.untranslatedStretch)
+    ensaioFinalPlanLabelFor('partial', language),
+].join(' · ');
 
 /// Her scene-rehearsal words (strings.ts), read only by VoiceOver.
 const sceneRehearsalLabels = {
@@ -276,13 +367,11 @@ String sceneRehearsalLabelFor(String control, String language, {int? n}) =>
 
 /// «ouvindo o ensaio da cena…» with her clock, «0:03 / 0:20».
 String sceneListeningLineFor(Duration at, Duration? length, String language) {
-  String clock(Duration time) =>
-      '${time.inMinutes}:${'${time.inSeconds % 60}'.padLeft(2, '0')}';
   final ofTheTake = length != null && length > Duration.zero
-      ? ' / ${clock(length)}'
+      ? ' / ${minutesAndSecondsOf(length)}'
       : '';
   return '${sceneRehearsalLabelFor('listening', language)} — '
-      '${clock(at)}$ofTheTake';
+      '${minutesAndSecondsOf(at)}$ofTheTake';
 }
 
 /// A scene button's name: «cena N» and the scene's title.
@@ -311,12 +400,11 @@ String sceneRehearsalRowLabelFor(
       ? '${said('title')} ${row.n}'
       : said(row.unsent ? 'resume' : 'listenTo', row.n);
   final scene = row.sceneNumber;
-  final at = row.recordedAt?.toLocal();
+  final at = row.recordedAt;
   return [
     name,
     if (scene != null) ' — ${said('sceneN', scene)}',
-    if (at != null)
-      ', ${'${at.hour}'.padLeft(2, '0')}:${'${at.minute}'.padLeft(2, '0')}',
+    if (at != null) ', ${clockOf(at)}',
     ', ${row.translatedFrases} · ${said('frases')}',
     ', ${said(row.unsent ? 'listUnsent' : 'listSent')}',
   ].join();
@@ -404,6 +492,16 @@ const retroLabels = {
     'pt': 'Aprovar como rascunho final',
     'en': 'Approve as the final draft',
   },
+  'approved': {
+    'pt':
+        'Aprovado como rascunho final da equipe (v{n}). Próximo passo: a checagem externa — o botão aqui embaixo.',
+    'en':
+        'Approved as the team\'s final draft (v{n}). Next step: the external check — the button below.',
+  },
+  'notConferida': {
+    'pt': 'para aprovar, a tradução precisa estar conferida',
+    'en': 'to approve, the translation has to be checked first',
+  },
   'approvedDraft': {
     'pt': '✓ aprovado como rascunho final (v{n})',
     'en': '✓ approved as the final draft (v{n})',
@@ -450,6 +548,15 @@ String retroLabelFor(String control, String language, {int? n}) =>
     (retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!)
         .replaceAll('{n}', '$n');
 
+const savedScreenLabels = {
+  'title': {'pt': 'Ensaio salvo', 'en': 'Rehearsal saved'},
+  'done': {'pt': 'Pronto', 'en': 'Done'},
+};
+
+String savedScreenLabelFor(String key, String language) =>
+    savedScreenLabels[key]![language] ??
+    savedScreenLabels[key]![floorLanguage]!;
+
 /// Her recording home's words, byte for byte from her app (`strings.ts` at 18fa7c4); the
 /// playing cue VoiceOver reads is the room's own.
 const recordingHomeLabels = {
@@ -484,6 +591,14 @@ const recordingHomeLabels = {
   'listenAndCheck': {
     'pt': 'ouvir e conferir o Ensaio Final',
     'en': 'listen to and check the Final Rehearsal',
+  },
+  'elsewhere': {
+    'pt':
+        'Os ensaios desta passagem foram gravados com o aplicativo na outra '
+        'língua. Voltem para aquela língua para abrir o Ensaio Final.',
+    'en':
+        'This passage\'s rehearsals were recorded with the app in the other '
+        'language. Switch back to that language to open the Final Rehearsal.',
   },
 };
 

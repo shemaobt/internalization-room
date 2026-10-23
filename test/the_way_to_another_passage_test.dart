@@ -659,32 +659,33 @@ void main() {
     expect(room.harness.room.pericopesAsked, hasLength(created));
   });
 
-  testWidgets('the Closing carries no «Choose another passage»', (
-    tester,
-  ) async {
-    final harness = SalaHarness(
-      lingua: 'en',
-      filaEmMemoria: true,
-      fimLinger: const Duration(seconds: 3),
-    );
-    harness.room.passages = _theBook;
-    final room = _Room(harness, await pumpSala(tester, harness));
-    await _takeThePassage(tester, room, 'P01');
-    await _keepAPart(tester, room);
-    room.notifier.startRetro();
-    await _passTime(tester, 300);
-    harness.playback.finishPlayback();
-    await _passTime(tester, 300);
-    await room.notifier.finishBackTranslation();
-    await _passTime(tester, 400);
-    await room.notifier.aprovarRascunhoFinal();
-    await tester.pump(const Duration(milliseconds: 800));
-    await tester.pump(const Duration(milliseconds: 400));
+  testWidgets(
+    'the Saved screen carries no «Choose another passage», and «Done» '
+    'brings it back',
+    (tester) async {
+      final harness = SalaHarness(lingua: 'en', filaEmMemoria: true);
+      harness.room.passages = _theBook;
+      final room = _Room(harness, await pumpSala(tester, harness));
+      await _takeThePassage(tester, room, 'P01');
+      await _keepAPart(tester, room);
+      room.notifier.startRetro();
+      await _passTime(tester, 300);
+      harness.playback.finishPlayback();
+      await _passTime(tester, 300);
+      await room.notifier.finishBackTranslation();
+      await _passTime(tester, 400);
+      await room.notifier.aprovarRascunhoFinal();
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pump(const Duration(milliseconds: 400));
 
-    expect(room.state.stage, SalaStage.fim);
-    expect(byLabel(_leave), findsNothing);
+      expect(find.text('Rehearsal saved'), findsOneWidget);
+      expect(byLabel(_leave), findsNothing);
 
-    await tester.pump(const Duration(seconds: 5));
-    closeTheRoom(room.container);
-  });
+      await _tap(tester, 'Done');
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(byLabel(_leave), findsOneWidget);
+      closeTheRoom(room.container);
+    },
+  );
 }
