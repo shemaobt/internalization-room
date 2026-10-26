@@ -913,6 +913,30 @@ void main() {
     await expectStatus(500, isA<NetworkFailed>());
   });
 
+  test('a session read whose canon is gone is refused by its name, not taken '
+      'for a lost session', () async {
+    final repository = RoomRepository(
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'detail': 'no kept canon for pin 2026-10-01',
+            'code': 'CANON_NOT_KEPT',
+          }),
+          409,
+        ),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    expect(
+      await repository.fetchState('sessao-1'),
+      _refusedWith(RefusalCode.canonNotKept),
+      reason:
+          'a leitura de uma sessão sem cânone chegava como um código que o '
+          'tablet não conhecia',
+    );
+  });
+
   test(
     'a room that cannot be reached is not the same as one that answers badly',
     () async {
@@ -1787,6 +1811,29 @@ void main() {
         );
       },
     );
+
+    test('an approval on a session whose canon is gone is refused by its name, '
+        'not as the version race', () async {
+      final repository = umaSala(
+        MockClient(
+          (request) async => http.Response(
+            jsonEncode({
+              'detail': 'no kept canon for pin 2026-10-01',
+              'code': 'CANON_NOT_KEPT',
+            }),
+            409,
+          ),
+        ),
+      );
+
+      expect(
+        await repository.approveRelease('sessao-1'),
+        _refusedWith(RefusalCode.canonNotKept),
+        reason:
+            'o 409 do cânone perdido chegava como um código que o tablet não '
+            'conhecia, igual à corrida de versão',
+      );
+    });
 
     test('as outras recusas seguem as de sempre', () async {
       for (final caso in [
