@@ -9362,12 +9362,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _rememberWhereTheyAre(const Retro());
   }
 
-  /// Put the cursor back on the furthest stretch already told.
+  /// Put the cursor back on the furthest stretch told on the part in the air or after it.
   ///
   /// Telling a stretch again adds no new ground, so the cursor goes back rather than
   /// staying where the excursion left it. The ordinary path walks it forward past what
   /// was just told; here there is nothing to walk past, and a cursor left behind makes
   /// the next cut begin inside ground already explained.
+  ///
+  /// The furthest stretch of every part used to be the answer, and a frase told again in
+  /// the middle of part 2 put the cursor at the end of part 1, where part 2 took no pause
+  /// until the head passed it. The part in the air keeps its own ground now, as hers keeps
+  /// one frontier per take. A part a later part was already told past still goes back to
+  /// the furthest stretch of them all, and a part with nothing told goes back to its start.
   void _walkTheCursorBack(List<Trecho> trechos) {
     final alcancado = trechos.fold(
       Duration.zero,
@@ -10555,9 +10561,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Take the room's own reading of the stretches, names and all.
   ///
-  /// A stretch is born on the server and only the server knows what it is called; the
-  /// answer to telling one back carries a count and no name. Without this the pointer on
-  /// a finding matched nothing this tablet held, and a team that had told six stretches
+  /// A stretch is born on the server and only the server knows what it is called. The
+  /// answer to telling one back names it, but an answer the room kept from before it
+  /// named its stretches carries a count and no name. Without this the pointer on a
+  /// finding matched nothing this tablet held, and a team that had told six stretches
   /// back was offered the whole recording every time.
   ///
   /// It answers the failure of a read that did not happen, and whether that is survivable
