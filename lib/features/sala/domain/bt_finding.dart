@@ -1,10 +1,14 @@
 class BackTranslationChunk {
   final int? frase;
+  final String? segmentId;
 
-  const BackTranslationChunk({this.frase});
+  const BackTranslationChunk({this.frase, this.segmentId});
 
   factory BackTranslationChunk.fromJson(Map<String, dynamic> json) =>
-      BackTranslationChunk(frase: json['frase'] as int?);
+      BackTranslationChunk(
+        frase: json['frase'] as int?,
+        segmentId: json['segment_id'] as String?,
+      );
 }
 
 enum BtFindingKind {

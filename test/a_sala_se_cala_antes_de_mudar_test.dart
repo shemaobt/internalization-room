@@ -512,11 +512,11 @@ void main() {
         // de novo, e a sala só se cala, sem chamar ninguém.
         cena.harness.room
           ..verdictChecked = false
-          ..verdictFindingSegmentId = 'trecho-1'
+          ..verdictFindingSegmentId = 'trecho-de-outro-tablet'
           ..segments.clear()
           ..segments.add(
             const SegmentView(
-              segmentId: 'trecho-1',
+              segmentId: 'trecho-de-outro-tablet',
               takeId: 'gravacao-de-outro-tablet',
               startsMs: 0,
               endsMs: 40,
