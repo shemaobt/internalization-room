@@ -93,6 +93,37 @@ Future<void> _terminei(
   await _passo(tester);
 }
 
+Future<ProviderContainer> _quatroFrasesContadas(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  _telaAlta(tester);
+  final container = await entrarNaTraducao(tester, harness);
+  for (final corte in _cortes.first) {
+    harness.playback.at = corte;
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+  }
+  await contarAteOFimDaParte(tester, harness);
+  harness.playback.at = _cortes.last.first;
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
+  await waitFor(
+    '4 frases ficarem contadas',
+    () =>
+        container
+            .read(salaSessionProvider)
+            .btTrechos
+            .where((trecho) => trecho.contado)
+            .length ==
+        4,
+    step: () => _passo(tester),
+  );
+  return container;
+}
+
 Future<ProviderContainer> _vereditoNaFraseTres(
   WidgetTester tester,
   SalaHarness harness,
@@ -573,30 +604,29 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('before any verdict a tap on a frase opens nothing to tell '
-      'again', (tester) async {
+  testWidgets('before any verdict a tap on a frase of a telling picked back up '
+      'opens it to be told again', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _voltaAUmaTraducao(
       tester,
       harness,
       conferida: false,
     );
-    expect(
-      container.read(salaSessionProvider).btTrechos[1].segmentId,
-      isNotNull,
-    );
+    final parteDois = container.read(salaSessionProvider).partes[1].path;
     final tocadas = harness.playback.played.length;
+    final trechos = harness.playback.ranges.length;
 
     await tocar(tester, _barra(2));
 
     expect(
-      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo,
-      isNull,
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-2',
       reason:
-          'antes de qualquer conferência a frase já abria para traduzir '
-          'de novo',
+          'antes de qualquer conferência a frase não abria para traduzir de '
+          'novo, e a dela abre',
     );
-    expect(harness.playback.played.length, tocadas);
+    expect(harness.playback.played.skip(tocadas), [parteDois]);
+    expect(harness.playback.ranges.skip(trechos), ['0-5000']);
     closeTheRoom(container);
   });
 
@@ -757,6 +787,137 @@ void main() {
       tester.widget<Semantics>(byLabel(_barra(1))).properties.enabled,
       isFalse,
       reason: 'a frase se oferecia ao toque sem nada para tocar',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase told this session carries the name the room gave it '
+      'as soon as the room answers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesContadas(tester, harness);
+
+    expect(
+      [
+        for (final trecho in container.read(salaSessionProvider).btTrechos)
+          trecho.segmentId,
+      ],
+      [
+        'trecho-1',
+        'trecho-2',
+        'trecho-3',
+        'trecho-4',
+        'trecho-5',
+        'trecho-6',
+        'trecho-7',
+      ],
+      reason:
+          'a frase contada nesta sessão ficava sem nome até a próxima '
+          'leitura, e a porta de substituir não a alcançava',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('before any check, a tap on frase 7 told this session replays '
+      'its piece and the circle tells it again through the replace door', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesContadas(tester, harness);
+    final parteDois = container.read(salaSessionProvider).partes[1].path;
+    final pedacos = harness.room.chunksSent;
+    final tocadas = harness.playback.played.length;
+    final trechos = harness.playback.ranges.length;
+
+    await tocar(tester, _barra(7));
+
+    expect(
+      harness.playback.played.skip(tocadas),
+      [parteDois],
+      reason: 'antes de uma conferência a frase não aceitava toque',
+    );
+    expect(harness.playback.ranges.skip(trechos), ['7500-10000']);
+    expect(
+      find.text('traduzindo de novo a frase 7 — toquem no círculo'),
+      findsOneWidget,
+    );
+
+    await _traduzirDeNovo(tester, container);
+
+    expect(
+      harness.room.replacesAsked,
+      ['trecho-7@gravacao-2:7500-10000'],
+      reason: 'a nova tradução não ia pela porta de substituir a frase 7',
+    );
+    expect(harness.room.chunksSent, pedacos);
+    expect(
+      harness.room.playedByTakeSent,
+      isEmpty,
+      reason: 'a frase traduzida de novo pedia a conferência sozinha',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('after frase 4 is told again in the middle of its part, the '
+      'next pause on that part tells from where the telling stood', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesContadas(tester, harness);
+
+    await tocar(tester, _barra(4));
+    await _traduzirDeNovo(tester, container);
+    expect(harness.room.replacesAsked, ['trecho-4@gravacao-2:0-2500']);
+
+    await tocar(tester, 'Ouvir');
+    harness.playback.at = const Duration(seconds: 5);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await waitFor(
+      'a frase seguinte subir',
+      () => harness.room.chunkSpans.length == 5,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      [harness.room.chunkTakes.last, harness.room.chunkSpans.last],
+      ['gravacao-2', '2500-5000'],
+      reason:
+          'o cursor voltava ao fim da parte 1, e a parte 2 não aceitava '
+          'mais pausa até passar dele',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('«manter a tradução de antes» on frase 4 in the middle of its '
+      'part replaces nothing, and the next pause tells from where the telling '
+      'stood', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesContadas(tester, harness);
+
+    await tocar(tester, _barra(4));
+    await tocar(tester, 'manter a tradução de antes');
+    await _passo(tester);
+    expect(container.read(salaSessionProvider).btTrechoTraduzidoDeNovo, isNull);
+
+    await tocar(tester, 'Ouvir');
+    harness.playback.at = const Duration(seconds: 5);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await waitFor(
+      'a frase seguinte subir',
+      () => harness.room.chunkSpans.length == 5,
+      step: () => _passo(tester),
+    );
+
+    expect(harness.room.replacesAsked, isEmpty);
+    expect(
+      [harness.room.chunkTakes.last, harness.room.chunkSpans.last],
+      ['gravacao-2', '2500-5000'],
+      reason:
+          'manter a tradução de antes voltava o cursor ao fim da parte 1, e a '
+          'parte 2 não aceitava mais pausa até passar dele',
     );
     closeTheRoom(container);
   });

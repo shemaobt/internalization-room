@@ -3032,6 +3032,7 @@ class FakeRoom implements RoomRepository {
         frase:
             fraseDaProximaFrase ??
             segments.where((segment) => segment.told).length,
+        segmentId: chunksAnswerWithNoName ? null : segments.last.segmentId,
       ),
     );
   }
@@ -3048,6 +3049,8 @@ class FakeRoom implements RoomRepository {
   }
 
   int? fraseDaProximaFrase;
+
+  bool chunksAnswerWithNoName = false;
 
   /// Holds a stretch's delivery in flight, so a test can see the room still thinking.
   void holdNextChunk() => _holdingChunk = Completer<void>();

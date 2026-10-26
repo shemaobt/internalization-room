@@ -351,6 +351,7 @@ void main() {
           it.estado.stage == SalaStage.retro &&
           it.estado.btPhase == BtPhase.playing,
     );
+    it.harness.room.chunksAnswerWithNoName = true;
     await _contarUmTrecho(it, partesDoEnsaio[1]);
     final onde = it.estado.btTrechos.indexWhere(
       (trecho) => trecho.parte == 1 && trecho.contado,

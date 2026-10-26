@@ -322,9 +322,11 @@ class RegravacaoDaFrase {
 class Trecho {
   /// The room's own name for this stretch, or null while it has not said one.
   ///
-  /// Telling a stretch back answers with a count and no name, so a stretch is nameless
-  /// until the room's reading of the session is read back. A nameless one matches no
-  /// pointer, which is the answer a pointer naming nothing should get anyway.
+  /// The answer to telling a stretch back names it, so a stretch told this session has
+  /// its name as soon as the room answers. An answer the room kept from before it named
+  /// its stretches carries none, and that stretch stays nameless until the room's reading
+  /// of the session is read back. A nameless one matches no pointer, which is the answer
+  /// a pointer naming nothing should get anyway.
   final String? segmentId;
   final String takeId;
 
@@ -1472,8 +1474,7 @@ class SalaSessionState {
       btFraseQueAguarda == null &&
       (btPhase == BtPhase.findings ||
           btPhase == BtPhase.conferida ||
-          (btPhase == BtPhase.playing &&
-              (btVeredito || btFindings.isNotEmpty)));
+          btPhase == BtPhase.playing);
 
   bool get canHearAFrase =>
       stage == SalaStage.retro &&
