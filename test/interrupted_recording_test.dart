@@ -48,7 +48,6 @@ class RecorderSpy extends RecordPlatform {
     return encoder != AudioEncoder.wav || wavSupported;
   }
 
-  int stops = 0;
   bool aStopEndsTheRecording = false;
   void Function()? whenAsked;
 
@@ -63,7 +62,6 @@ class RecorderSpy extends RecordPlatform {
 
   @override
   Future<String?> stop(String recorderId) async {
-    stops++;
     if (aStopEndsTheRecording) recordingAgain = false;
     return openedPath;
   }
@@ -324,9 +322,10 @@ void main() {
     await recording.discard();
     await pumpEventQueue();
 
+    expect(existedWhenHandedOver, isFalse);
     expect(
       take.existsSync(),
-      existedWhenHandedOver,
+      isFalse,
       reason:
           'um CloseTheMic entre a pergunta do discard e a parada entregava a '
           'tomada, e a parada do discard a apagava no meio do enfileiramento',

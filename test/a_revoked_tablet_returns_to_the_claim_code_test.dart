@@ -567,27 +567,41 @@ void main() {
     await theDeskLinksAgain(tester, harness);
   });
 
-  testWidgets('a revocation silences the Sound port by the time the claim code '
-      'shows', (tester) async {
+  testWidgets('a revocation silences a line that is sounding before the claim '
+      'code shows', (tester) async {
     final harness = SalaHarness(
       linkedAs: _linked,
       linkPoll: const Duration(milliseconds: 50),
       filaEmMemoria: true,
-    );
+    )..room.passages = _bookWithPanorama;
     final container = await pumpSala(tester, harness);
     await tester.pump(const Duration(milliseconds: 300));
-    container.read(salaSessionProvider.notifier).goEnsaio();
-    await tester.pump(const Duration(milliseconds: 120));
-    final before = harness.sounds.length;
+    harness.voice.holdNextLine();
+    container
+        .read(salaSessionProvider.notifier)
+        .openTheEntry(container.read(salaSessionProvider).naRoda!.first);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      harness.sounds.where(
+        (it) => it.startsWith('voice:') && it != 'voice:stop',
+      ),
+      isNotEmpty,
+      reason: 'a fala tem de estar soando quando a revogação chegar',
+    );
+    final stopsBefore = harness.voice.stops;
+    bool? codeShowedAtTheStop;
+    harness.voice.onStop = () =>
+        codeShowedAtTheStop ??= find.byType(CodigoView).evaluate().isNotEmpty;
 
     await theDeskRevokes(tester, harness, container);
 
+    expect(harness.voice.stops, greaterThan(stopsBefore));
     expect(
-      harness.sounds.skip(before),
-      containsAll(['playback:stop', 'voice:stop']),
+      codeShowedAtTheStop,
+      isFalse,
       reason:
-          'a parte ou a fala que soava quando a revogação chegou continuaria '
-          'soando atrás da tela do código',
+          'a fala que soava quando a revogação chegou continuaria soando '
+          'atrás da tela do código',
     );
     await theDeskLinksAgain(tester, harness);
   });
