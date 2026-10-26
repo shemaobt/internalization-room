@@ -4,6 +4,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+
+import 'package:flutter/foundation.dart' show listEquals;
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
@@ -3376,7 +3378,10 @@ class FakeRoom implements RoomRepository {
   final List<({String sessionId, int version, String attempt})> listenersAsked =
       [];
 
-  final Map<String, int> _listenerOfAttempt = {};
+  final Map<({int version, String attempt}), int> _listenerOfAttempt = {};
+
+  bool _givenANumber(int version, int listener) => _listenerOfAttempt.entries
+      .any((e) => e.key.version == version && e.value == listener);
 
   /// What the next ask for a listener answers after the room minted it, the way an
   /// answer lost on the way back does.
@@ -3409,8 +3414,9 @@ class FakeRoom implements RoomRepository {
       attempt: attempt,
     ));
     final number = _listenerOfAttempt.putIfAbsent(
-      attempt,
-      () => _listenerOfAttempt.length + 1,
+      (version: version, attempt: attempt),
+      () =>
+          _listenerOfAttempt.keys.where((k) => k.version == version).length + 1,
     );
     final held = _holdingListener;
     if (held != null) await held.future;
@@ -3460,7 +3466,7 @@ class FakeRoom implements RoomRepository {
     if (_forgot('sendTheListenerRecording', sessionId) case final gone?) {
       return gone;
     }
-    if (!_listenerOfAttempt.containsValue(listener)) return const SessionGone();
+    if (!_givenANumber(version, listener)) return const SessionGone();
     if (!_aKindWithItsSegment(kind, segmentId)) {
       return const Refused('BAD_REQUEST');
     }
@@ -3472,13 +3478,21 @@ class FakeRoom implements RoomRepository {
       failNextListenerRecordingWith = null;
       return failure;
     }
-    listenerRecordings.add((
-      version: version,
-      listener: listener,
-      kind: kind,
-      segmentId: segmentId,
-      bytes: bytes,
-    ));
+    final resent = listenerRecordings.any(
+      (kept) =>
+          kept.version == version &&
+          kept.listener == listener &&
+          listEquals(kept.bytes, bytes),
+    );
+    if (!resent) {
+      listenerRecordings.add((
+        version: version,
+        listener: listener,
+        kind: kind,
+        segmentId: segmentId,
+        bytes: bytes,
+      ));
+    }
     final lost = loseNextListenerRecordingAnswerWith;
     if (lost != null) {
       loseNextListenerRecordingAnswerWith = null;
@@ -3504,9 +3518,6 @@ class FakeRoom implements RoomRepository {
   final List<({int version, int listener, String segmentId})> listenerMarks =
       [];
 
-  /// What the next mark answers, the room keeping nothing.
-  RoomFailure? failNextMarkWith;
-
   @override
   Future<RoomAnswer<void>> markTheFrase(
     String sessionId,
@@ -3516,12 +3527,7 @@ class FakeRoom implements RoomRepository {
   ) async {
     if (_guard('markTheFrase') case final failure?) return failure;
     if (_forgot('markTheFrase', sessionId) case final gone?) return gone;
-    final failure = failNextMarkWith;
-    if (failure != null) {
-      failNextMarkWith = null;
-      return failure;
-    }
-    if (!_listenerOfAttempt.containsValue(listener)) return const SessionGone();
+    if (!_givenANumber(version, listener)) return const SessionGone();
     if (!_listeningUnits.contains(segmentId)) {
       return const Refused('BAD_REQUEST');
     }
@@ -3561,7 +3567,7 @@ class FakeRoom implements RoomRepository {
       failNextListenerReadWith = null;
       return failure;
     }
-    if (!_listenerOfAttempt.containsValue(listener)) return const SessionGone();
+    if (!_givenANumber(version, listener)) return const SessionGone();
     return Answered(
       ListenerRecord(
         finished: finishedListeners.containsKey(listener),

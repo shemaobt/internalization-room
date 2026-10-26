@@ -79,6 +79,13 @@ void main() {
       );
       expect(seen.url.path, '/api/internalization-room/fixed-lines/D1');
       expect(seen.url.queryParameters, {'language': 'pt'});
+      for (final (line, name) in [
+        (listenerWholeLine, 'X2'),
+        (listenerFrasesLine, 'X3'),
+      ]) {
+        await repository.fixedLineAddress(line, language: 'pt');
+        expect(seen.url.path, '/api/internalization-room/fixed-lines/$name');
+      }
     },
   );
 
@@ -1727,6 +1734,8 @@ void main() {
         'keepSceneRehearsal': (room) async =>
             room.keepSceneRehearsal('sessao-1', await _tempRecording()),
         'askForAPerson': (room) => room.askForAPerson('sessao-1'),
+        'markTheFrase': (room) =>
+            room.markTheFrase('sessao-1', 2, 3, 'trecho-1'),
         'approveRelease': (room) => room.approveRelease('sessao-1'),
         'finishBackTranslation': (room) =>
             room.finishBackTranslation('sessao-1', playedByTake: const []),
@@ -3270,6 +3279,7 @@ void main() {
         );
 
         final sent = doors.seen.single;
+        expect(sent.method, 'POST');
         expect(sent.url.path, '$base/recordings');
         expect(sent.body, contains('name="kind"\r\n\r\nfrase\r\n'));
         expect(sent.body, contains('name="segment_id"\r\n\r\ntrecho-5\r\n'));
@@ -3316,25 +3326,6 @@ void main() {
           expect(jsonDecode(sent.body), {'completed': completed});
         },
       );
-    }
-
-    for (final (line, name) in [
-      (listenerWholeLine, 'X2'),
-      (listenerFrasesLine, 'X3'),
-    ]) {
-      test('the line $name is fetched from fixed-lines like X1', () async {
-        final doors = await room('{"audio_url": "/voice/abc"}');
-
-        final answer = await doors.repository.fixedLineAddress(
-          line,
-          language: 'pt',
-        );
-
-        final sent = doors.seen.single;
-        expect(sent.url.path, '/api/internalization-room/fixed-lines/$name');
-        expect(sent.url.queryParameters, {'language': 'pt'});
-        expect(_value(answer), '/voice/abc');
-      });
     }
   });
 }
