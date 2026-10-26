@@ -41,10 +41,7 @@ class RetroView extends ConsumerWidget {
     // 700 ms; it is where the team now waits.
     final conferida = _conferida(session);
 
-    final avanca =
-        session.btPhase != BtPhase.findings &&
-        session.btPhase != BtPhase.conferida &&
-        !session.btSoOuvir;
+    final avanca = session.btPhase != BtPhase.conferida && !session.btSoOuvir;
     final contas = _contas(session, notifier, language);
     final (voz, lingua) = _voz(session, conferida);
     final colors = SalaColors.of(context);
@@ -181,6 +178,16 @@ class RetroView extends ConsumerWidget {
               height: 60,
               child: _actions(session, notifier, language, colors),
             ),
+            if (session.offersTheVerdictAgain) ...[
+              const SizedBox(height: 12),
+              _botaoEscrito(
+                retroLabelFor('hearTheVerdict', language),
+                colors,
+                session.canHearTheVerdictAgain
+                    ? notifier.ouvirARespostaDeNovo
+                    : null,
+              ),
+            ],
             if (session.approvedDraftDrawn case final aprovado?) ...[
               if (aprovado.listeners > 0) ...[
                 const SizedBox(height: 12),
@@ -217,6 +224,17 @@ class RetroView extends ConsumerWidget {
               height: 78,
               child: _disc(session, notifier, language, avanca),
             ),
+            if (avanca && session.btVeredito) ...[
+              const SizedBox(height: 16),
+              _botaoEscrito(
+                findingLabelFor('recordThePart', language),
+                colors,
+                session.btFindingTrecho != null &&
+                        session.btPhase == BtPhase.playing
+                    ? notifier.gravarAParteDeNovo
+                    : null,
+              ),
+            ],
             const SizedBox(height: 48),
           ],
         ),
@@ -413,6 +431,34 @@ class RetroView extends ConsumerWidget {
     );
   }
 
+  Widget _botaoEscrito(String rotulo, SalaColors colors, VoidCallback? onTap) {
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: rotulo,
+      child: Opacity(
+        opacity: onTap != null ? 1 : 0.4,
+        child: ExcludeSemantics(
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: colors.mut),
+              ),
+              child: Text(
+                rotulo,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.mut, fontSize: 15),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   bool _dormindo(String control, SalaSessionState session) =>
       session.armedTap?.control == control &&
       session.armedTap?.phase == BtRecomeco.armado;
@@ -573,13 +619,10 @@ class RetroView extends ConsumerWidget {
     SalaSessionNotifier notifier,
     String language,
   ) {
-    final naPergunta = session.btPhase == BtPhase.findings;
-    final aberta = session.btPhase != BtPhase.conferida && !naPergunta;
+    final aberta = session.btPhase != BtPhase.conferida;
     final nomeado = aberta ? session.btTrechoTraduzidoDeNovo : null;
     final escolhida = aberta ? session.btContaEscolhida : null;
-    final apontado = naPergunta
-        ? session.btFindingTrecho?.segmentId
-        : nomeado?.segmentId == session.btFindingSegmentId
+    final apontado = nomeado?.segmentId == session.btFindingSegmentId
         ? nomeado?.segmentId
         : null;
     String parte(int onde) => '${retroLabelFor('part', language)} ${onde + 1}';
@@ -589,15 +632,7 @@ class RetroView extends ConsumerWidget {
     };
     final contas = <(BeadFill, bool, bool, VoidCallback?, String)>[
       for (final (onde, trecho) in session.btTrechos.indexed)
-        if (naPergunta)
-          (
-            _fillOf(trecho, session),
-            trecho.segmentId == apontado,
-            apontado != null && trecho.segmentId != apontado,
-            null,
-            nome(trecho),
-          )
-        else if (nomeado != null && trecho.segmentId == nomeado.segmentId)
+        if (nomeado != null && trecho.segmentId == nomeado.segmentId)
           (
             _fillOf(trecho, session),
             escolhida == null,
@@ -654,8 +689,7 @@ class RetroView extends ConsumerWidget {
         trecho.segmentId == session.btFindingSegmentId) {
       final regravando =
           session.btPhase == BtPhase.capturing ||
-          (session.btPhase != BtPhase.findings &&
-              session.btTraducaoPendente != null &&
+          (session.btTraducaoPendente != null &&
               !session.btTraducaoPendenteEmprestada);
       return regravando ? BeadFill.translucent : BeadFill.drained;
     }
@@ -680,57 +714,6 @@ class RetroView extends ConsumerWidget {
     String language,
     SalaColors colors,
   ) {
-    if (session.btPhase == BtPhase.findings) {
-      final humor = session.btFindingTrecho == null
-          ? ButtonMood.dimmed
-          : ButtonMood.lit;
-      final soando = session.btTrechoTocando || session.btRetroTocando;
-      return FadeUp(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RoundActionButton(
-              size: 60,
-              semanticLabel: findingLabelFor('play', language),
-              mood: humor,
-              gradient: BeadStyles.wood,
-              onTap: notifier.ouvirOTrechoEATraducao,
-              child: Icon(
-                soando ? LucideIcons.pause : LucideIcons.play,
-                size: 24,
-                color: ShemaBrand.branco,
-              ),
-            ),
-            const SizedBox(width: 24),
-            RoundActionButton(
-              size: 60,
-              semanticLabel: findingLabelFor('recordThePart', language),
-              mood: humor,
-              gradient: BeadStyles.wood,
-              onTap: notifier.gravarAParteDeNovo,
-              child: const Icon(
-                LucideIcons.mic,
-                size: 24,
-                color: ShemaBrand.branco,
-              ),
-            ),
-            const SizedBox(width: 24),
-            RoundActionButton(
-              size: 60,
-              semanticLabel: findingLabelFor('translateTheStretch', language),
-              mood: humor,
-              gradient: BeadStyles.azul,
-              onTap: notifier.traduzirDeNovoEmPortugues,
-              child: const Icon(
-                LucideIcons.mic,
-                size: 24,
-                color: ShemaBrand.branco,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
     final soando =
         session.btClipRodando ||
         session.btTrechoTocando ||
@@ -872,8 +855,6 @@ class RetroView extends ConsumerWidget {
         );
       case BtPhase.capturing:
         return retroLabelFor('recording', language);
-      case BtPhase.findings:
-        return findingLabelFor('circle', language);
       case BtPhase.thinking:
         return retroLabelFor('thinking', language);
       case BtPhase.conferida:

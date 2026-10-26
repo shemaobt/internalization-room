@@ -261,7 +261,8 @@ void main() {
     final container = await pumpUpToAVerdict(tester, harness);
 
     final antes = container.read(salaSessionProvider);
-    expect(antes.btPhase, BtPhase.findings);
+    expect(antes.btPhase, BtPhase.playing);
+    expect(antes.btVeredito, isTrue);
     expect(byLabel(continuarOEnsaio), findsNothing);
     final gravacoes = [for (final take in antes.keptTakes) take.takeId];
     expect(gravacoes, isNotEmpty);
@@ -320,7 +321,8 @@ void main() {
     final container = await pumpUpToAVerdict(tester, harness);
 
     final depois = container.read(salaSessionProvider);
-    expect(depois.btPhase, BtPhase.findings);
+    expect(depois.btPhase, BtPhase.playing);
+    expect(depois.btVeredito, isTrue);
     expect(depois.btFindingTrecho?.segmentId, 'trecho-1');
     expect(depois.btTrechoTocando, isFalse);
     expect(depois.needsPerson, isFalse);
@@ -343,7 +345,7 @@ void main() {
     final depois = container.read(salaSessionProvider);
     expect(
       depois.btPhase,
-      BtPhase.findings,
+      BtPhase.playing,
       reason:
           'o veredito já está na mão e já foi dito: falhar em reler os '
           'nomes custa o ponteiro, não o veredito, e a tela dos achados '

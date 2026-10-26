@@ -14,8 +14,6 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 
-const _micRetro = 'Traduzir este trecho de novo';
-
 SalaHarness? _harnessDaVez;
 
 SalaSessionNotifier _notifier(ProviderContainer c) =>
@@ -102,7 +100,7 @@ Future<void> _consertoQueNaoPegou(
   _harnessDaVez!.room.failReplaceWith = const Refused(
     RefusalCode.wordlessTelling,
   );
-  await tester.tap(byLabel(_micRetro));
+  traduzirOApontadoDeNovo(container);
   await tester.pump(const Duration(milliseconds: 300));
   _notifier(container).retroTap();
   await tester.pump(const Duration(milliseconds: 300));
@@ -284,7 +282,7 @@ void main() {
 
     expect(
       container.read(salaSessionProvider).btPhase,
-      BtPhase.findings,
+      BtPhase.playing,
       reason: 'um veredito com achado não confere a passagem',
     );
     expect(

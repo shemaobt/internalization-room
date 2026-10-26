@@ -13,7 +13,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show settle, traduzirOApontadoDeNovo;
 import 'session_notifier_test.dart' show inConversa;
 
 const _aLadderThatWaits = [Duration(hours: 1)];
@@ -126,7 +126,7 @@ Future<_Room> _aFindingToTellAgain(SalaHarness harness) async {
     'o achado apontar o trecho',
     () => room.estado.btFindingTrecho != null,
   );
-  room.sala.traduzirDeNovoEmPortugues();
+  traduzirOApontadoDeNovo(room.container);
   room.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',

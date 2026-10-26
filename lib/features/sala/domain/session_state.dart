@@ -263,7 +263,7 @@ const folgaDoFimDaParte = Duration(milliseconds: 750);
 const emVoltaDaFraseNova = Duration(milliseconds: 1500);
 
 /// Where the telling-back is, step by step.
-enum BtPhase { playing, capturing, thinking, findings, conferida }
+enum BtPhase { playing, capturing, thinking, conferida }
 
 enum BtRecomeco { armado, pronto }
 
@@ -901,6 +901,17 @@ class SalaSessionState {
     _ => null,
   };
 
+  bool get offersTheVerdictAgain =>
+      stage == SalaStage.retro && lastSpoken != null;
+
+  bool get canHearTheVerdictAgain =>
+      offersTheVerdictAgain &&
+      (voice == VoiceState.invite || voice == VoiceState.done) &&
+      !btClipRodando &&
+      !btTrechoTocando &&
+      !btRetroTocando &&
+      btRegravacao == null;
+
   bool get canHearAgain =>
       (lastSpoken != null || roomSaysItAgain) &&
       (voice == VoiceState.invite || voice == VoiceState.done) &&
@@ -1474,9 +1485,7 @@ class SalaSessionState {
       aBackTranslationGestureActs &&
       btRegravacao == null &&
       btFraseQueAguarda == null &&
-      (btPhase == BtPhase.findings ||
-          btPhase == BtPhase.conferida ||
-          btPhase == BtPhase.playing);
+      (btPhase == BtPhase.conferida || btPhase == BtPhase.playing);
 
   bool get canHearAFrase =>
       stage == SalaStage.retro &&
@@ -1485,9 +1494,7 @@ class SalaSessionState {
       !needsPerson &&
       aBackTranslationGestureActs &&
       btRegravacao == null &&
-      (btPhase == BtPhase.playing ||
-          btPhase == BtPhase.findings ||
-          btPhase == BtPhase.conferida);
+      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida);
 
   SalaSessionState copyWith({
     bool? awaitingTheGuide,

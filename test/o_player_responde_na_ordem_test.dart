@@ -8,7 +8,6 @@ import 'fakes.dart';
 import 'playback_ceiling_test.dart' show gravaParte;
 import 'session_notifier_test.dart' show inConversa;
 import 'scenario_helpers.dart' show settle;
-import 'tocar_vira_pausar_test.dart' show harnessApontando, pumpAoApontado;
 
 /// Two parts recorded and kept, with the rehearsal at rest: the state the button that
 /// plays the whole rehearsal back lives in.
@@ -103,47 +102,6 @@ void main() {
       final estado = cena.container.read(salaSessionProvider);
       expect(estado.needsPerson, isFalse);
       expect(estado.playPing, isTrue);
-    },
-  );
-
-  test(
-    'o terceiro toque dado enquanto o clipe ainda abre põe-no a tocar',
-    () async {
-      final harness = harnessApontando();
-      final container = await pumpAoApontado(harness);
-      addTearDown(container.dispose);
-      final sala = container.read(salaSessionProvider.notifier);
-      harness.playback.holdNextOpening();
-
-      sala.ouvirOTrechoEATraducao();
-      await waitFor(
-        'a sala pedir o trecho',
-        () => container.read(salaSessionProvider).btTrechoTocando,
-      );
-      sala.ouvirOTrechoEATraducao();
-      await waitFor(
-        'a equipe segurar o trecho',
-        () => container.read(salaSessionProvider).btTrechoPausada,
-      );
-      sala.ouvirOTrechoEATraducao();
-      await waitFor(
-        'a equipe soltar o trecho',
-        () => container.read(salaSessionProvider).btTrechoTocando,
-      );
-
-      expect(
-        harness.playback.sounding,
-        isFalse,
-        reason:
-            'a fonte ainda está abrindo: o resume desfaz o hold, não '
-            'inventa som de um clipe que o player ainda não tem',
-      );
-
-      harness.playback.finishHeldOpening();
-      await waitFor(
-        'o trecho soar quando a fonte fica pronta',
-        () => harness.playback.sounding,
-      );
     },
   );
 

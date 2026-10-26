@@ -15,8 +15,6 @@ const _rotulosDeTraduzir = {
   'Tocar para gravar a tradução de novo',
   'Ouvir a tradução',
   'traduzida e conferida',
-  'Ouvir o trecho e a tradução',
-  'Traduzir este trecho de novo',
   'não entendi — traduzam de novo esse pedaço',
   'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo para traduzir',
   'a pausa ficou no toque — toquem no círculo para traduzir',

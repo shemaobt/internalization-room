@@ -37,7 +37,7 @@ Future<Sala> _oAchadoNaParteDois({WorkInProgress? emAbertoNoDisco}) async {
   await pedirOVeredito(it);
   expect(
     it.estado.btPhase,
-    BtPhase.findings,
+    BtPhase.playing,
     reason:
         'o cenário só mede alguma coisa se a sala tiver mesmo devolvido '
         'um achado',
@@ -1078,6 +1078,7 @@ void main() {
     final antes = container.read(salaSessionProvider).partes;
     expect(antes, hasLength(3));
 
+    await tester.ensureVisible(byLabel(micParteLabel));
     await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -1091,7 +1092,7 @@ void main() {
         for (var onde = 0; onde < fases.length; onde++)
           if (onde == 0 || fases[onde] != fases[onde - 1]) fases[onde],
       ],
-      [BtPhase.findings, BtPhase.playing],
+      [BtPhase.playing],
       reason:
           'do achado ao ensaio num gesto: o microfone de madeira não '
           'passa por posto nenhum pelo caminho',
@@ -1111,6 +1112,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     await resto.aHistoriaSemOFim(tester, harness, ondeFalta: 'trecho-2');
 
+    await tester.ensureVisible(byLabel(micParteLabel));
     await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -1172,6 +1174,7 @@ void main() {
     );
     final antes = container.read(salaSessionProvider).partes;
 
+    await tester.ensureVisible(byLabel(micParteLabel));
     await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 400));
     await _gravarAParteDoisPorCimaEConfirmar(tester);
@@ -1223,6 +1226,7 @@ void main() {
     }
     harness.playback.measured = const Duration(seconds: 12);
 
+    await tester.ensureVisible(byLabel(micParteLabel));
     await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 400));
     await _gravarAParteDoisPorCimaEConfirmar(tester);
