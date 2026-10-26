@@ -17,6 +17,7 @@ import 'bead_row.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'frase_list.dart';
+import 'external_check_button.dart';
 import 'motion.dart';
 import 'pause_adjust_row.dart';
 import 'saved_screen.dart';
@@ -192,7 +193,7 @@ class RetroView extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: 12),
-              externalCheckButton(session, colors, notifier, language),
+              const ExternalCheckButton(),
             ],
             const SizedBox(height: 32),
             FraseList(
@@ -912,42 +913,4 @@ class _ManterADeAntes extends StatelessWidget {
       ),
     );
   }
-}
-
-Widget externalCheckButton(
-  SalaSessionState session,
-  SalaColors colors,
-  SalaSessionNotifier notifier,
-  String language,
-) {
-  final abre =
-      !session.microphoneOpen &&
-      session.voice != VoiceState.speaking &&
-      session.voice != VoiceState.thinking;
-  final rotulo = retroLabelFor('externalCheck', language);
-  return Semantics(
-    button: true,
-    enabled: abre,
-    label: rotulo,
-    child: Opacity(
-      opacity: abre ? 1 : 0.4,
-      child: ExcludeSemantics(
-        child: GestureDetector(
-          onTap: abre ? notifier.abrirAChecagemExterna : null,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: colors.mut),
-            ),
-            child: Text(
-              rotulo,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: colors.ink, fontSize: 15),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
 }

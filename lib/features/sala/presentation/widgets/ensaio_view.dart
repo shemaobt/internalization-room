@@ -13,11 +13,11 @@ import '../../domain/session_state.dart';
 import '../../domain/station.dart';
 import 'bead_styles.dart';
 import 'ensaio_final_plan_view.dart';
+import 'external_check_button.dart';
 import 'facilitator_circle.dart';
 import 'grain_choice_view.dart';
 import 'motion.dart';
 import 'rehearsal_sheet.dart';
-import 'retro_view.dart' show externalCheckButton;
 import 'saved_screen.dart';
 import 'stage_heading.dart';
 
@@ -233,7 +233,7 @@ class EnsaioView extends ConsumerWidget {
                       style: TextStyle(color: colors.ink, fontSize: 17),
                     ),
                     const SizedBox(height: 12),
-                    externalCheckButton(session, colors, notifier, language),
+                    const ExternalCheckButton(),
                   ],
                   const SizedBox(height: 24),
                   FadeUp(

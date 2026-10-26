@@ -973,6 +973,56 @@ void main() {
       closeTheRoom(it.container);
     });
 
+    testWidgets('a grain switch takes the offer away', (tester) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.holdNextState();
+
+      it.container
+          .read(salaSessionProvider.notifier)
+          .recordTheWholePassageInstead();
+      await _assentar(tester);
+
+      expect(byLabel(_aprovar), findsNothing);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('a draft the room reopens and checks again offers the button '
+        'again', (tester) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await _tocar(tester);
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(byLabel(_aprovar), findsNothing);
+
+      it.harness.room.approvedDraft = null;
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await _assentar(tester);
+
+      expect(byLabel(_aprovar), findsOneWidget);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('no approval, no external check', (tester) async {
+      final it = await aCasaConferida(tester);
+
+      it.container.read(salaSessionProvider.notifier).abrirAChecagemExterna();
+      await _assentar(tester);
+
+      expect(it.harness.room.externalChecksOpened, isEmpty);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('no offer while a take is being recorded', (tester) async {
+      final it = await aCasaConferida(tester);
+
+      it.container.read(salaSessionProvider.notifier).ensaioTap();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(byLabel(_aprovar), findsNothing);
+      closeTheRoom(it.container);
+    });
+
     testWidgets('the circle does not record while the approval is in the air', (
       tester,
     ) async {
