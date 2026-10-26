@@ -4,9 +4,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -3368,17 +3370,20 @@ class FakeRoom implements RoomRepository {
     );
   }
 
-  /// The frases of the approved version, as the check's open answers them.
-  List<ExternalCheckFrase> checkFrases = const [];
-
   /// The takes of the approved version's parts, as the check's open answers them.
   List<String> checkTakes = const [];
+
+  /// The frases of the approved version, as the check's open answers them.
+  List<ExternalCheckFrase> checkFrases = const [];
 
   /// Every «Novo ouvinte» that reached the room, with the attempt it carried.
   final List<({String sessionId, int version, String attempt})> listenersAsked =
       [];
 
-  final Map<String, int> _listenerOfAttempt = {};
+  final Map<({int version, String attempt}), int> _listenerOfAttempt = {};
+
+  bool _givenANumber(int version, int listener) => _listenerOfAttempt.entries
+      .any((e) => e.key.version == version && e.value == listener);
 
   /// What the next ask for a listener answers after the room minted it, the way an
   /// answer lost on the way back does.
@@ -3411,8 +3416,9 @@ class FakeRoom implements RoomRepository {
       attempt: attempt,
     ));
     final number = _listenerOfAttempt.putIfAbsent(
-      attempt,
-      () => _listenerOfAttempt.length + 1,
+      (version: version, attempt: attempt),
+      () =>
+          _listenerOfAttempt.keys.where((k) => k.version == version).length + 1,
     );
     final held = _holdingListener;
     if (held != null) await held.future;
@@ -3462,6 +3468,10 @@ class FakeRoom implements RoomRepository {
     if (_forgot('sendTheListenerRecording', sessionId) case final gone?) {
       return gone;
     }
+    if (!_givenANumber(version, listener)) return const SessionGone();
+    if (!_aKindWithItsSegment(kind, segmentId)) {
+      return const Refused('BAD_REQUEST');
+    }
     final bytes = audio.readAsBytesSync();
     final held = _holdingListenerRecording;
     if (held != null) await held.future;
@@ -3470,13 +3480,21 @@ class FakeRoom implements RoomRepository {
       failNextListenerRecordingWith = null;
       return failure;
     }
-    listenerRecordings.add((
-      version: version,
-      listener: listener,
-      kind: kind,
-      segmentId: segmentId,
-      bytes: bytes,
-    ));
+    final resent = listenerRecordings.any(
+      (kept) =>
+          kept.version == version &&
+          kept.listener == listener &&
+          listEquals(kept.bytes, bytes),
+    );
+    if (!resent) {
+      listenerRecordings.add((
+        version: version,
+        listener: listener,
+        kind: kind,
+        segmentId: segmentId,
+        bytes: bytes,
+      ));
+    }
     final lost = loseNextListenerRecordingAnswerWith;
     if (lost != null) {
       loseNextListenerRecordingAnswerWith = null;
@@ -3485,7 +3503,20 @@ class FakeRoom implements RoomRepository {
     return const Answered(null);
   }
 
-  /// Every «está boa» that reached the room.
+  /// What a listener hears one by one: the frases, or the parts on a check with none.
+  Iterable<String> get _listeningUnits => checkFrases.isEmpty
+      ? checkTakes
+      : checkFrases.map((frase) => frase.segmentId);
+
+  /// The room's 400: a kind it does not know, a `frase` naming no frase of the check, or
+  /// another kind naming one.
+  bool _aKindWithItsSegment(String kind, String? segmentId) => switch (kind) {
+    listenerRetelling || listenerWholeComment => segmentId == null,
+    listenerFraseComment => _listeningUnits.contains(segmentId),
+    _ => false,
+  };
+
+  /// Every «está boa» the room kept, once per listener and frase as its unique mark.
   final List<({int version, int listener, String segmentId})> listenerMarks =
       [];
 
@@ -3498,11 +3529,12 @@ class FakeRoom implements RoomRepository {
   ) async {
     if (_guard('markTheFrase') case final failure?) return failure;
     if (_forgot('markTheFrase', sessionId) case final gone?) return gone;
-    listenerMarks.add((
-      version: version,
-      listener: listener,
-      segmentId: segmentId,
-    ));
+    if (!_givenANumber(version, listener)) return const SessionGone();
+    if (!_listeningUnits.contains(segmentId)) {
+      return const Refused('BAD_REQUEST');
+    }
+    final mark = (version: version, listener: listener, segmentId: segmentId);
+    if (!listenerMarks.contains(mark)) listenerMarks.add(mark);
     return const Answered(null);
   }
 
@@ -3537,7 +3569,7 @@ class FakeRoom implements RoomRepository {
       failNextListenerReadWith = null;
       return failure;
     }
-    if (!_listenerOfAttempt.containsValue(listener)) return const SessionGone();
+    if (!_givenANumber(version, listener)) return const SessionGone();
     return Answered(
       ListenerRecord(
         finished: finishedListeners.containsKey(listener),
