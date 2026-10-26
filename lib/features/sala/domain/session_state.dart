@@ -481,6 +481,9 @@ class SalaSessionState {
 
   /// The version the Saved screen shows; the Saved screen stands while it is set.
   final int? ensaioSalvo;
+
+  /// The room's own read of whether the passage is checked, kept for the recording home.
+  final bool btChecked;
   final int unsentTakes;
   final int unsentChunks;
   final Map<int, UnsentPart> unsentParts;
@@ -661,6 +664,7 @@ class SalaSessionState {
     this.btAbrindoAChecagem,
     this.btAprovadoAgora,
     this.ensaioSalvo,
+    this.btChecked = false,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentParts = const {},
@@ -1425,8 +1429,7 @@ class SalaSessionState {
   ApprovedDraft? get approvedDraftDrawn =>
       stage == SalaStage.retro &&
           btPhase == BtPhase.conferida &&
-          unsentTakes == 0 &&
-          unsentChunks == 0 &&
+          nothingWaitsInTheOutbox &&
           btFraseGuardada == null
       ? btRascunhoAprovado
       : null;
@@ -1450,6 +1453,27 @@ class SalaSessionState {
   bool get aBackTranslationGestureActs =>
       btAprovando != machine.generation &&
       btAbrindoAChecagem != machine.generation;
+
+  /// Whether the recording home offers the approval: the room calls the passage checked
+  /// and holds no release, and nothing is being recorded or sent.
+  bool get approveOffered =>
+      stage == SalaStage.ensaio &&
+      ensaio == EnsaioStatus.idle &&
+      btChecked &&
+      btRascunhoAprovado == null &&
+      ensaioSalvo == null &&
+      nothingWaitsInTheOutbox &&
+      aBackTranslationGestureActs;
+
+  /// The approval drawn on the recording home, in place of the approve button.
+  ApprovedDraft? get approvedOnTheHome =>
+      stage == SalaStage.ensaio &&
+          ensaio == EnsaioStatus.idle &&
+          nothingWaitsInTheOutbox
+      ? btRascunhoAprovado
+      : null;
+
+  bool get nothingWaitsInTheOutbox => unsentTakes == 0 && unsentChunks == 0;
 
   /// Whether the approve button acts: never while a sentence's re-record is open.
   bool get canApprove => aBackTranslationGestureActs && btRegravacao == null;
@@ -1568,6 +1592,7 @@ class SalaSessionState {
     bool clearBtAprovadoAgora = false,
     int? ensaioSalvo,
     bool clearEnsaioSalvo = false,
+    bool? btChecked,
     int? unsentTakes,
     int? unsentChunks,
     Map<int, UnsentPart>? unsentParts,
@@ -1705,6 +1730,7 @@ class SalaSessionState {
           ? null
           : (btAprovadoAgora ?? this.btAprovadoAgora),
       ensaioSalvo: clearEnsaioSalvo ? null : (ensaioSalvo ?? this.ensaioSalvo),
+      btChecked: btChecked ?? this.btChecked,
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentParts: unsentParts ?? this.unsentParts,

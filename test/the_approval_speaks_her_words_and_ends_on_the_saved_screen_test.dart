@@ -95,6 +95,12 @@ Future<void> _conferir(
   await tester.pump(const Duration(milliseconds: 300));
 }
 
+Future<void> _assentar(WidgetTester tester) async {
+  await tester.pump(const Duration(milliseconds: 100));
+  await tester.pump(const Duration(seconds: 2));
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
 Future<void> _saiEVoltaAConferida(WidgetTester tester, _Sala it) async {
   final sala = it.container.read(salaSessionProvider.notifier);
   sala.goEnsaio();
@@ -787,5 +793,82 @@ void main() {
     expect(_recomecoArmado(), findsOneWidget);
     await tester.pump(const Duration(seconds: 7));
     closeTheRoom(it.container);
+  });
+
+  group('the recording home', () {
+    Future<_Sala> aCasaConferida(
+      WidgetTester tester, {
+      String lingua = testLanguage,
+    }) async {
+      final it = await _ateAConferida(
+        tester,
+        lingua: lingua,
+        aprovar: lingua == 'en' ? 'Approve as the final draft' : _aprovar,
+      );
+      it.harness.room.retroSoFar = const BackTranslationProgress(checked: true);
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await _assentar(tester);
+      return it;
+    }
+
+    testWidgets('a checked, unapproved draft: the tap approves in silence', (
+      tester,
+    ) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      final falasAntes = it.harness.voice.fixedLines.length;
+
+      await _tocar(tester);
+
+      expect(find.text(_ensaioSalvo), findsOneWidget);
+      expect(it.harness.voice.fixedLines.skip(falasAntes), isEmpty);
+      expect(it.harness.room.releasesAsked, hasLength(1));
+
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text(_badge), findsOneWidget);
+      expect(byLabel('Checagem externa'), findsOneWidget);
+      expect(byLabel(_aprovar), findsNothing);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('an approved draft: no button', (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.room
+        ..retroSoFar = const BackTranslationProgress(checked: true)
+        ..approvedDraft = const ApprovedDraft(version: 1);
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await _assentar(tester);
+
+      expect(byLabel(_aprovar), findsNothing);
+      expect(find.text(_badge), findsOneWidget);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('a passage the room has not checked: no button', (
+      tester,
+    ) async {
+      final it = await _ateAConferida(tester);
+      it.harness.room.retroSoFar = const BackTranslationProgress();
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await _assentar(tester);
+      expect(byLabel(_aprovar), findsNothing);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('an English session: «Approve as the final draft», silent', (
+      tester,
+    ) async {
+      final it = await aCasaConferida(tester, lingua: 'en');
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      final falasAntes = it.harness.voice.fixedLines.length;
+
+      await _tocar(tester, 'Approve as the final draft');
+
+      expect(find.text('Rehearsal saved'), findsOneWidget);
+      expect(it.harness.voice.fixedLines.skip(falasAntes), isEmpty);
+      closeTheRoom(it.container);
+    });
   });
 }

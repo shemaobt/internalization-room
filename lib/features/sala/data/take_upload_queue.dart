@@ -472,7 +472,10 @@ class TakeUploadQueue {
       unsentTakes: written == null
           ? 1
           : unsentParts.values.fold(0, (count, rows) => count + rows.length),
-      unsentChunks: _unsentIn(written, 'retro', sessionId),
+      unsentChunks: written == null
+          ? 1
+          : _unsentIn(written, 'retro', sessionId) +
+                _unsentIn(written, sentenceKind, sessionId),
       unsentParts: unsentParts,
     );
   }
