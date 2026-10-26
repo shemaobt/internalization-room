@@ -194,15 +194,18 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     _next?.cancel();
     unawaited(_present(null));
     state = const DeviceLink();
-    await _endTheLife();
+    await _endTheLife(_ledger, _currentSession);
   }
 
-  Future<void> _endTheLife() async {
-    if (_closed) return;
-    if (!await ref.read(takeUploadQueueProvider).endTheLife()) {
-      return _tryAgainLater(_endTheLife);
+  Future<void> _endTheLife(
+    LinkedTeam ledger,
+    CurrentSessionLedger current,
+  ) async {
+    final takes = ref.read(takeUploadQueueProvider);
+    if (!await takes.endTheLife()) {
+      return _tryAgainLater(() => _endTheLife(ledger, current));
     }
-    await _startOver(_ledger, _currentSession);
+    await _startOver(ledger, current);
   }
 
   /// Told to everything that speaks to the room. The hand keeps a client and a header of

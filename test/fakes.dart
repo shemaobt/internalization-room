@@ -3707,8 +3707,6 @@ class FakeTakeQueue implements TakeUploadQueue {
   bool refusesTheNextKeep = false;
 
   bool _lifeEnded = false;
-
-  /// Whether the sweep of a revoked life fails, the way a full disk does.
   bool sweepFails = false;
 
   @override

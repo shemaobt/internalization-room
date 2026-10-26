@@ -570,14 +570,7 @@ class TakeUploadQueue {
       for (final row in await entries()) {
         await _deleteTheCopy(row);
       }
-      final late = <PendingTake>[];
-      await _mutate((written) {
-        late.addAll(written);
-        return const [];
-      });
-      for (final row in late) {
-        await _deleteTheCopy(row);
-      }
+      await _mutate((_) => const []);
       return true;
     } on FileSystemException {
       return false;

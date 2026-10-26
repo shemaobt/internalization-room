@@ -107,7 +107,6 @@ void main() {
     Directory(kept.path).createSync();
 
     expect(await queue.endTheLife(), isFalse);
-
     expect(await queue.entries(), hasLength(1));
   });
 
@@ -118,7 +117,6 @@ void main() {
     File(first.path).deleteSync();
 
     expect(await queue.endTheLife(), isTrue);
-
     expect(await queue.entries(), isEmpty);
     expect(inTheFolder(), ['fila.json']);
   });

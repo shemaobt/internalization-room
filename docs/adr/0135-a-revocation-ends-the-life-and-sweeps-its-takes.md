@@ -24,9 +24,6 @@ stays and the sweep is tried again on the room's retry ladder; if the app restar
 it presents the revoked credential, is refused again and sweeps again. A relink therefore
 always finds the Outbox empty.
 
-The Outbox still keeps and re-sends a take on a plain 401 and at launch, as ADR 0070 says.
-Only a revocation sweeps it.
-
 ## Considered Options
 
 - Keep the rows and send them after the relink, as ADR 0070 did: rejected, for the reason
@@ -37,5 +34,3 @@ Only a revocation sweeps it.
 ## Consequences
 
 - An unsent take of the revoked tablet is lost for good.
-- A copy whose row is gone because the manifest was unreadable and quarantined is not found
-  by the sweep; it is never sent.
