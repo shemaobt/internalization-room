@@ -10531,13 +10531,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (await _room.fetchState(sessionId)) {
       case Answered(value: final snapshot):
         if (_abandoned(generation)) return null;
-        final trechos = _trechosFrom(snapshot.backTranslation.segments);
-        if (trechos.isNotEmpty) state = state.copyWith(btTrechos: trechos);
-        final aguardando = snapshot.backTranslation.awaitingSegmentId;
-        state = state.copyWith(
-          btFraseQueAguarda: aguardando,
-          clearBtFraseQueAguarda: aguardando == null,
-        );
+        if (sent > _readsApplied) {
+          final trechos = _trechosFrom(snapshot.backTranslation.segments);
+          if (trechos.isNotEmpty) state = state.copyWith(btTrechos: trechos);
+          final aguardando = snapshot.backTranslation.awaitingSegmentId;
+          state = state.copyWith(
+            btFraseQueAguarda: aguardando,
+            clearBtFraseQueAguarda: aguardando == null,
+          );
+        }
         _applyTheSessionRead(snapshot, sent);
         return null;
       case NetworkFailed() && final failure:
