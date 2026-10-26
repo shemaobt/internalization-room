@@ -864,6 +864,51 @@ void main() {
     },
   );
 
+  test(
+    'coming back to a joined recording the team checked clean, a stretch the '
+    'room still names stays quiet, as their own terminei closed it',
+    () async {
+      final it = await _juntadaNaCasa();
+      _frasesTrazidas(it);
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      it.harness.room
+        ..listeningAutomaticCheck = true
+        ..listeningFixedLine = 'N1'
+        ..verdictChecked = true;
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a conferência limpa',
+        () => it.estado.btPhase == BtPhase.conferida,
+      );
+      it.sala.goEnsaio();
+      await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
+      it.harness.room
+        ..listeningAutomaticCheck = false
+        ..listeningFixedLine = 'N2'
+        ..listeningUntranslated = [
+          UntranslatedPart(
+            takeId: it.partes[1].takeId!,
+            scene: 2,
+            from: const Duration(milliseconds: 3000),
+          ),
+        ];
+      final linhas = it.harness.voice.fixedLines.length;
+
+      await _oDisco(it);
+      await settle();
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        isEmpty,
+        reason: 'a N-3 voltava sobre um trecho que a conferência limpa fechou',
+      );
+      expect(it.estado.btRecusa, isNull);
+    },
+  );
+
   test('a terminei the room refuses over an untranslated stretch says N2 again '
       'and plays that stretch, never an empty findings screen', () async {
     final it = await _juntadaNaCasa();

@@ -7644,6 +7644,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station.answer(const TheBackTranslationOpened()) is! Retro) {
       return;
     }
+    final conferida = state.btPhase == BtPhase.conferida;
     // Before the write, not after: the mark belongs to the Rehearsal alone, and a row
     // saved for the retro must never carry one to restore.
     _leaveTheStepFor(const Retro());
@@ -7667,7 +7668,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _umaParteFoiRegravada = false;
     _handOff(
       regravada || state.joined
-          ? _ouvirOQueFaltaDepoisDeRegravar(_generation)
+          ? _ouvirOQueFaltaDepoisDeRegravar(_generation, conferida: conferida)
           : _playFromTheUntoldGround(_generation),
     );
   }
@@ -7712,7 +7713,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _tocarDoChaoNaoContado();
   }
 
-  Future<void> _ouvirOQueFaltaDepoisDeRegravar(int generation) async {
+  Future<void> _ouvirOQueFaltaDepoisDeRegravar(
+    int generation, {
+    bool conferida = false,
+  }) async {
     final life = _thisLife;
     if (!await _medirAsPartesDaRetro(generation)) return;
     final juntada = state.joined;
@@ -7727,7 +7731,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final naoOuvidas = nomes == null ? null : _asPartesNomeadas(nomes);
     final deFora = juntada && naoOuvidas != null && nomes!.isNotEmpty;
     if (naoOuvidas == null || naoOuvidas.isEmpty && !deFora) {
-      if (ouvida case ListenedWhole(stretchUntranslated: true)) {
+      if (ouvida case ListenedWhole(
+        stretchUntranslated: true,
+      ) when !conferida) {
         return _levarAoTrechoSemTraducao(
           ouvida.fixedLine,
           ouvida.untranslated,
