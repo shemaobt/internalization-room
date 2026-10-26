@@ -601,7 +601,7 @@ void main() {
   );
 
   test(
-    'uma cena gravada de novo no ensaio antes da primeira entrada deixa a entrada como hoje',
+    'uma cena gravada de novo no ensaio antes da primeira entrada deixa a entrada na primeira escuta, não na P2',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
       final antiga = it.partes[1].path;
@@ -631,8 +631,8 @@ void main() {
 
       expect(
         _linhas(it, linhas),
-        isEmpty,
-        reason: 'a primeira entrada fica intacta: nem P2, nem P0',
+        ['P0'],
+        reason: 'a primeira entrada é a primeira escuta: a P0, nunca a P2',
       );
       expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
     },
@@ -680,7 +680,7 @@ void main() {
     },
   );
 
-  test('a primeira entrada na tradução não diz linha nova', () async {
+  test('a primeira entrada na tradução diz a P0, não a P2', () async {
     final it = await umEnsaioDeTresPartesGravado();
     it.harness.room.listeningUnheardTakeIds = [
       for (final parte in it.partes) parte.takeId!,
@@ -690,7 +690,7 @@ void main() {
 
     await _entrar(it);
 
-    expect(_linhas(it, linhas), isEmpty);
+    expect(_linhas(it, linhas), ['P0']);
     expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
   });
 

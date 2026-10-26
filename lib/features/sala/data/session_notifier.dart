@@ -7664,12 +7664,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btSoOuvir: false,
     );
     _descartarATraducaoPendente();
-    final regravada = _umaParteFoiRegravada;
     _umaParteFoiRegravada = false;
     _handOff(
-      regravada || state.joined
-          ? _ouvirOQueFaltaDepoisDeRegravar(_generation, conferida: conferida)
-          : _playFromTheUntoldGround(_generation),
+      _ouvirOQueFaltaDepoisDeRegravar(_generation, conferida: conferida),
     );
   }
 
@@ -7749,10 +7746,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ? [for (var onde = 0; onde < state.partes.length; onde++) onde]
         : naoOuvidas;
     state = state.copyWith(
-      btSoOuvir: juntada,
+      btSoOuvir: true,
       btRecusa: juntada && doComeco ? null : CheckRefusal.partUnheard,
     );
-    if (juntada) _partesDaEscuta = partes;
+    _partesDaEscuta = partes;
     await _dizer(
       doComeco ? (juntada ? firstListenLine : startLine) : unheardLine,
     );

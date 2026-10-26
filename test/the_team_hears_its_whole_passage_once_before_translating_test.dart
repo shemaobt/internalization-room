@@ -1408,19 +1408,47 @@ void main() {
     },
   );
 
-  test('a recording no join touched keeps today\'s path', () async {
-    final it = await umEnsaioDeTresPartesGravado();
-    _nadaOuvido(it);
-    final linhas = it.harness.voice.fixedLines.length;
-    final tocadas = it.harness.playback.played.length;
+  test(
+    'a recording no join touched is heard whole after P0, then P1 starts the '
+    'telling from its first part, not the telling at once',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      _nadaOuvido(it);
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+      final desde = it.harness.playback.playedFrom.length;
 
-    await _oDisco(it);
+      await _oDisco(it);
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('P0', testLanguage)],
+        reason: 'a gravação sem junção ia direto para a tradução, sem a P0',
+      );
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a primeira parte voltar ao ar',
+        () => it.harness.playback.played.length == tocadas + 4,
+      );
 
-    expect(it.harness.voice.fixedLines.skip(linhas), isEmpty);
-    expect(it.harness.playback.played.skip(tocadas), _caminhos(it, [0]));
-    expect(it.harness.playback.playedFrom.last, Duration.zero);
-    await _abrirOMicrofone(it);
-  });
+      expect(it.harness.voice.fixedLines.skip(linhas), [
+        ('P0', testLanguage),
+        ('P1', testLanguage),
+      ]);
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        _caminhos(it, [0, 1, 2, 0]),
+      );
+      expect(it.harness.playback.playedFrom.skip(desde), [
+        Duration.zero,
+        Duration.zero,
+        Duration.zero,
+        Duration.zero,
+      ]);
+      await _abrirOMicrofone(it);
+    },
+  );
 
   test(
     'a relaunch on the back translation of a joined recording nobody heard plays the first listen',
