@@ -760,4 +760,30 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('a frase told this session carries the name the room gave it '
+      'as soon as the room answers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesContadas(tester, harness);
+
+    expect(
+      [
+        for (final trecho in container.read(salaSessionProvider).btTrechos)
+          trecho.segmentId,
+      ],
+      [
+        'trecho-1',
+        'trecho-2',
+        'trecho-3',
+        'trecho-4',
+        'trecho-5',
+        'trecho-6',
+        'trecho-7',
+      ],
+      reason:
+          'a frase contada nesta sessão ficava sem nome até a próxima '
+          'leitura, e a porta de substituir não a alcançava',
+    );
+    closeTheRoom(container);
+  });
 }

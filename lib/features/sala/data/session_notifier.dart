@@ -9954,10 +9954,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _theStepsNetworkFailed();
     }
     final int? frase;
+    final String? nome;
     switch (sent) {
       case Answered(:final value):
         if (_abandoned(generation)) return;
         frase = value.frase;
+        nome = value.segmentId;
       case Refused(code: RefusalCode.stretchNoLongerCounts) && final refused:
         if (_abandoned(generation)) return;
         await _readWhatTheChunkRefusalSays(
@@ -9985,7 +9987,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     final trecho = Trecho(
-      segmentId: null,
+      segmentId: nome,
       takeId: gravacao,
       retroPath: path,
       parte: _parteTocando,
