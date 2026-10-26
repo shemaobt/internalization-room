@@ -1434,11 +1434,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _takeTheStretches(BackTranslationProgress told, int sent) {
     if (state.station is! Retro ||
         state.btPhase == BtPhase.thinking ||
-        told.nothingTold ||
-        sent <= _stretchesAt) {
+        told.nothingTold) {
       return;
     }
-    _stretchesAt = sent;
+    _stretchesAt = max(_stretchesAt, sent);
     state = state.copyWith(btTrechos: _trechosFrom(told.segments));
   }
 
@@ -9271,18 +9270,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final perdida in _perdidasNoTrecho.remove(alvo.segmentId) ?? {}) {
       unawaited(_retirarDaFilaSeGuardada(perdida));
     }
-    if (sucessor < 0 || sent <= _stretchesAt) {
+    if (sucessor < 0) {
       _theStretchIsGone(segments, sent);
       return false;
     }
-    _stretchesAt = sent;
-    final trechos = _trechosFrom(segments, lugar: sucessor, noLugarDe: alvo);
+    final fresh = sent > _stretchesAt;
+    final List<Trecho> trechos;
+    final int lugar;
+    if (fresh) {
+      _stretchesAt = sent;
+      trechos = _trechosFrom(segments, lugar: sucessor, noLugarDe: alvo);
+      lugar = sucessor;
+    } else {
+      trechos = state.btTrechos;
+      lugar = trechos.indexWhere(
+        (trecho) =>
+            trecho.segmentId != alvo.segmentId &&
+            trecho.takeId == alvo.takeId &&
+            trecho.from == alvo.from &&
+            trecho.to == alvo.to,
+      );
+      if (lugar < 0) {
+        _theStretchIsGone(segments, sent);
+        return false;
+      }
+    }
     state = state.copyWith(
       btPhase: BtPhase.playing,
       awaitingTheGuide: false,
       btTrechos: trechos,
     );
-    _armarOTrecho(trechos[sucessor]);
+    _armarOTrecho(trechos[lugar]);
     _rememberWhereTheyAre(const Retro());
     return true;
   }
