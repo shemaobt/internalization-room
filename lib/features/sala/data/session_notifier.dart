@@ -7737,6 +7737,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           deixou,
         );
       }
+      if (naoOuvidas != null &&
+          !state.btTrechos.any((trecho) => trecho.contado)) {
+        return _dizerComoTraduzir(deixou);
+      }
       _sairDaEspera();
       _tocarDoChaoNaoContado();
       return;
@@ -7837,13 +7841,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _finishBackTranslation();
     }
     if (!state.joined || !state.btTrechos.any((trecho) => trecho.contado)) {
-      await _dizer(tellLine);
-      if (deixou()) return;
-      _deixarDeSoOuvir();
-      _sairDaEspera();
-      return _tocarParteDaRetro(0, doComeco: true);
+      return _dizerComoTraduzir(deixou);
     }
     _deixarDeSoOuvir();
+  }
+
+  Future<void> _dizerComoTraduzir(bool Function() deixou) async {
+    await _dizer(tellLine);
+    if (deixou()) return;
+    _deixarDeSoOuvir();
+    _sairDaEspera();
+    _tocarParteDaRetro(0, doComeco: true);
   }
 
   Future<void> _levarAoTrechoSemTraducao(

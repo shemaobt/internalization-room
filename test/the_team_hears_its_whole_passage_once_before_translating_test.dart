@@ -1514,6 +1514,32 @@ void main() {
   );
 
   test(
+    'coming back to a recording heard whole with nothing told says P1 and plays '
+    'its first part, not the telling in silence',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      await _oDisco(it);
+      it.sala.goEnsaio();
+      await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
+      _tudoOuvido(it);
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+
+      await _oDisco(it);
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('P1', testLanguage)],
+        reason:
+            'voltar com tudo ouvido e nada traduzido não dizia como traduzir',
+      );
+      expect(it.harness.playback.played.skip(tocadas), _caminhos(it, [0]));
+      expect(it.harness.playback.playedFrom.last, Duration.zero);
+      await _abrirOMicrofone(it);
+    },
+  );
+
+  test(
     'a relaunch on the back translation of a joined recording nobody heard plays the first listen',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
