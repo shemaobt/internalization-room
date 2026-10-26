@@ -87,6 +87,7 @@ void main() {
     final harness = SalaHarness(
       linkedAs: _linked,
       linkPoll: const Duration(milliseconds: 50),
+      filaEmMemoria: true,
     );
     final container = await pumpSala(tester, harness);
     await tester.pump(const Duration(milliseconds: 300));
@@ -119,6 +120,7 @@ void main() {
     final harness = SalaHarness(
       linkedAs: _linked,
       linkPoll: const Duration(milliseconds: 50),
+      filaEmMemoria: true,
       currentSession: currentSession,
     );
     final container = await pumpSala(tester, harness);
@@ -150,6 +152,7 @@ void main() {
     final harness = SalaHarness(
       linkedAs: _linked,
       linkPoll: const Duration(milliseconds: 50),
+      filaEmMemoria: true,
       inboxWatch: const Duration(hours: 1),
     );
     final container = await pumpSala(tester, harness);
@@ -184,6 +187,7 @@ void main() {
     final harness = SalaHarness(
       linkedAs: _linked,
       linkPoll: const Duration(milliseconds: 50),
+      filaEmMemoria: true,
       inboxWatch: const Duration(hours: 1),
     );
     final container = await pumpSala(tester, harness);

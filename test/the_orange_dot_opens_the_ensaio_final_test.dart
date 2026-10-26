@@ -810,6 +810,7 @@ void main() {
           credential: 'credencial-1',
         ),
         linkPoll: const Duration(milliseconds: 50),
+        filaEmMemoria: true,
       )..room.nextMoment = _midConversation;
       final container = await pumpSala(tester, harness);
       addTearDown(() => closeTheRoom(container));

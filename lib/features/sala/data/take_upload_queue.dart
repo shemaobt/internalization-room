@@ -48,6 +48,10 @@ final takeRetryBackoffProvider = Provider<List<Duration>>(
   ],
 );
 
+class TheLifeEnded implements Exception {
+  const TheLifeEnded();
+}
+
 class PendingTake {
   final String id;
 
@@ -558,6 +562,30 @@ class TakeUploadQueue {
     return next;
   }
 
+  bool _lifeEnded = false;
+
+  Future<bool> endTheLife() async {
+    _lifeEnded = true;
+    try {
+      for (final row in await entries()) {
+        await _deleteTheCopy(row);
+      }
+      final late = <PendingTake>[];
+      await _mutate((written) {
+        late.addAll(written);
+        return const [];
+      });
+      for (final row in late) {
+        await _deleteTheCopy(row);
+      }
+      return true;
+    } on FileSystemException {
+      return false;
+    }
+  }
+
+  void beginALife() => _lifeEnded = false;
+
   Future<PendingTake> enqueue(
     File audio, {
     required String sessionId,
@@ -646,7 +674,12 @@ class TakeUploadQueue {
       reopensTheApprovedDraft: reopensTheApprovedDraft,
       overTake: overTake,
     );
-    await _mutate((written) => [...written, entry]);
+    await _mutate((written) => _lifeEnded ? written : [...written, entry]);
+    if (_lifeEnded) {
+      await _deleteTheCopy(entry);
+      if (await audio.exists()) await audio.delete();
+      throw const TheLifeEnded();
+    }
     return entry;
   }
 
@@ -967,8 +1000,11 @@ class TakeUploadQueue {
   }
 
   Future<void> _deleteTheCopy(PendingTake entry) async {
-    final file = File(entry.path);
-    if (await file.exists()) await file.delete();
+    try {
+      await File(entry.path).delete();
+    } on PathNotFoundException {
+      return;
+    }
   }
 
   Future<SceneRehearsalRecord?> keepTheScene(String row) async {

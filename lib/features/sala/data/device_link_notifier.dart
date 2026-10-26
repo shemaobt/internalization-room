@@ -194,6 +194,14 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     _next?.cancel();
     unawaited(_present(null));
     state = const DeviceLink();
+    await _endTheLife();
+  }
+
+  Future<void> _endTheLife() async {
+    if (_closed) return;
+    if (!await ref.read(takeUploadQueueProvider).endTheLife()) {
+      return _tryAgainLater(_endTheLife);
+    }
     await _startOver(_ledger, _currentSession);
   }
 
@@ -212,7 +220,10 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       team: state.team,
       presented: credential != null,
     );
-    if (credential != null) await ref.read(takeUploadQueueProvider).flush();
+    if (credential != null) {
+      final takes = ref.read(takeUploadQueueProvider)..beginALife();
+      await takes.flush();
+    }
   }
 
   Future<void> _showACode() async {
