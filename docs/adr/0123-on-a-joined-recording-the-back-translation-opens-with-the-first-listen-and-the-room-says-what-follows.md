@@ -21,7 +21,13 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
    - a part the room names that this tablet does not hold: her P2, then every part, as rule 7.1
      keeps the listen for it;
    - none unheard, no answer, or an older room: today's path.
-2. **A recording no join touched keeps today's path**, ADR 0105's P0/P2 replay included.
+2. **A recording no join touched has the First listen too** (ENG-1206, 26 October), as hers
+   does (`listenPlan`, `afterFullListen`): every entry asks the room in the same way; every
+   part unheard is her P0 and the whole recording, listen-only, and so is a part recorded
+   again (the whole recording, not only that part). Once the room counts every part heard,
+   her P1 is said and the recording plays again from its first part, whatever was told.
+   Coming back with every part heard and nothing told says P1 the same way. The «ainda falta
+   ouvir» line shows during that listen only after a part was recorded again (ADR 0105).
 3. **The First listen is listen-only**, from the line to the room's answer after the last
    listed part. The circle is drawn but its tap does nothing. There is no «terminei», no pause
    row and no «recomeçar a tradução». The bars and the frase rows cannot be tapped. The wood
@@ -53,8 +59,6 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
 
 ## Considered and rejected
 
-- **The First listen on a plain recording**: the ticket asks for it; the Definition keeps
-  today's path there.
 - **Counting on the tablet whether the whole was heard**: the room is the only counter (ADR 0105).
 - **A separate play/pause button**: the wood play already pauses and resumes, and closes the
   ledger's span.

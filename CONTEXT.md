@@ -239,7 +239,7 @@ What the team heard of each part of its rehearsal, kept one part at a time, in t
 _Avoid_: `_ouvido`, registro de escuta, played ranges, the concatenated passage, the rehearsal's whole length
 
 **First listen** (*Primeiro, só ouvir*):
-On a Joined recording, the Back-translation's listen-only step: her line N0, then every part from its beginning, one after another, with nothing to do but listen. The circle and «terminei» are closed and the bars and frases cannot be tapped; one control pauses and resumes. It runs whenever the room counts every part unheard; with some part already heard, her P2 and only the unheard parts play the same way. Translating opens only once the room counts every part heard, and the room's answer to that last report says what follows (ADR 0123).
+The Back-translation's listen-only step: her line, then every part from its beginning, one after another, with nothing to do but listen. On a Joined recording the line is N0; on a recording no join touched it is P0, and the whole recording always plays. The circle and «terminei» are closed and the bars and frases cannot be tapped; one control pauses and resumes. It runs whenever the room counts every part unheard; on a Joined recording with some part already heard, her P2 and only the unheard parts play the same way. Translating opens only once the room counts every part heard, and the room's answer to that last report says what follows; on a recording no join touched that is always P1 and the recording again from its first part (ADR 0123).
 _Avoid_: escuta inicial, preview, playthrough, «Ouvir tudo» (the Rehearsal's own play)
 
 **Ruler**:
