@@ -1347,6 +1347,7 @@ class FakeRoom implements RoomRepository {
   List<BtFinding> verdictFindings = const [];
   CheckRefusal? verdictRefusal;
   String verdictFixedLine = '';
+  List<UntranslatedPart> verdictUntranslated = const [];
   String? verdictCheckAt;
   BtFinding? verdictNamedNuance;
   String? serverStatus;
@@ -3092,6 +3093,7 @@ class FakeRoom implements RoomRepository {
           findingsRemaining: 0,
           usedFailSafe: false,
           refusal: recusa,
+          untranslated: verdictUntranslated,
         ),
       );
     }

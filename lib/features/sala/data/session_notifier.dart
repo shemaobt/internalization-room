@@ -7812,15 +7812,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (ouvida.stretchUntranslated) {
-      await _dizer(ouvida.fixedLine);
-      if (deixou()) return;
-      _deixarDeSoOuvir();
-      final primeira = ouvida.untranslated.firstOrNull;
-      final onde = state.partes.indexWhere(
-        (parte) => parte.takeId == primeira?.takeId,
+      return _levarAoTrechoSemTraducao(
+        ouvida.fixedLine,
+        ouvida.untranslated,
+        deixou,
       );
-      if (primeira == null || onde < 0) return _tocarDoChaoNaoContado();
-      return _tocarParteDaRetro(onde, desde: primeira.from);
     }
     if (ouvida.automaticCheck) {
       await _dizer(ouvida.fixedLine);
@@ -7836,6 +7832,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _tocarDoChaoNaoContado();
     }
     _deixarDeSoOuvir();
+  }
+
+  Future<void> _levarAoTrechoSemTraducao(
+    String? linha,
+    List<UntranslatedPart> partes,
+    bool Function() deixou,
+  ) async {
+    await _dizer(linha);
+    if (deixou()) return;
+    _deixarDeSoOuvir();
+    _sairDaEspera();
+    final primeira = partes.firstOrNull;
+    final onde = state.partes.indexWhere(
+      (parte) => parte.takeId == primeira?.takeId,
+    );
+    if (primeira == null || onde < 0) return _tocarDoChaoNaoContado();
+    return _tocarParteDaRetro(onde, desde: primeira.from);
   }
 
   void _deixarDeSoOuvir() =>
@@ -10133,6 +10146,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _levarAoTrechoNaoTraduzido(aguardando);
       }
       return;
+    }
+    if (verdict.refusal == CheckRefusal.stretchUntranslated) {
+      return _levarAoTrechoSemTraducao(
+        verdict.fixedLine,
+        verdict.untranslated,
+        () => _abandoned(generation),
+      );
     }
     try {
       await _readyToSpeak(verdict.audioUrl, verdict.fixedLine);

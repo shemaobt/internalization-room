@@ -779,6 +779,63 @@ void main() {
     },
   );
 
+  test('a terminei the room refuses over an untranslated stretch says N2 again '
+      'and plays that stretch, never an empty findings screen', () async {
+    final it = await _juntadaNaCasa();
+    _nadaOuvido(it);
+    await _oDisco(it);
+    await _ouvirAte(it, ate: 1);
+    _tudoOuvido(it);
+    it.harness.room
+      ..listeningFixedLine = 'N2'
+      ..listeningUntranslated = [
+        UntranslatedPart(
+          takeId: it.partes[1].takeId!,
+          scene: 2,
+          from: const Duration(milliseconds: 4000),
+        ),
+      ];
+    await _ouvirAte(it, desde: 2);
+    await _ouvirAte(it, desde: 1);
+    await waitFor('o terminei abrir', () => it.estado.canFinishBackTranslation);
+    it.harness.room
+      ..verdictRefusal = CheckRefusal.stretchUntranslated
+      ..verdictFixedLine = 'N2'
+      ..verdictUntranslated = [
+        UntranslatedPart(
+          takeId: it.partes[1].takeId!,
+          scene: 2,
+          from: const Duration(milliseconds: 2500),
+        ),
+      ];
+    final linhas = it.harness.voice.fixedLines.length;
+    final tocadas = it.harness.playback.played.length;
+
+    await it.sala.finishBackTranslation();
+    await waitFor(
+      'a segunda voltar ao ar',
+      () => it.harness.playback.played.length > tocadas,
+    );
+
+    expect(
+      it.harness.voice.fixedLines.skip(linhas),
+      [('N2', testLanguage)],
+      reason: 'a recusa do terminei passava sem a N-3 dela',
+    );
+    expect(it.harness.playback.played.last, it.partes[1].path);
+    expect(
+      it.harness.playback.playedFrom.last,
+      const Duration(milliseconds: 2500),
+    );
+    expect(
+      it.estado.btPhase,
+      BtPhase.playing,
+      reason: 'a recusa caía na tela de achados, vazia',
+    );
+    expect(it.estado.awaitingTheGuide, isFalse);
+    await _abrirOMicrofone(it);
+  });
+
   testWidgets(
     'heard whole with everything translated runs one automatic check',
     (tester) async {
