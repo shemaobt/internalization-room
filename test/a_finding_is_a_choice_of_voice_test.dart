@@ -13,10 +13,7 @@ import 'scenario_helpers.dart';
 import 'the_translation_is_recorded_over_until_the_check_test.dart'
     show aceso, olhar, tocar;
 
-const ouvirOAchado = 'ouvir a resposta de novo';
-const ouvirOTrechoEATraducao = 'Ouvir o trecho e a tradução';
 const microfoneDeMadeira = 'voltar e regravar uma parte';
-const microfoneAzul = 'Traduzir este trecho de novo';
 const continuarOEnsaio = 'Continuar o ensaio';
 
 const gravarATraducaoDeNovo = 'Tocar para gravar a tradução de novo';
@@ -75,112 +72,6 @@ Future<void> abrirOAchado(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('F1 — o achado mostra a conta apontada em evidência, sem grade', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await aHistoriaSemOFim(
-      tester,
-      harness,
-      ondeFalta: 'trecho-2',
-    );
-    await abrirOAchado(tester);
-    final estado = estadoDe(container);
-    expect(estado.btPhase, BtPhase.findings);
-
-    expect(contasEm(tester, RetroView), [
-      'solid apagada',
-      'drained com anel',
-      'solid apagada',
-    ]);
-    for (final rotulo in [...rotulosDaGrade, tesoura, continuarOEnsaio]) {
-      expect(byLabel(rotulo), findsNothing, reason: rotulo);
-    }
-    for (final rotulo in [
-      ouvirOTrechoEATraducao,
-      microfoneDeMadeira,
-      microfoneAzul,
-    ]) {
-      expect(aceso(tester, rotulo), isTrue, reason: rotulo);
-    }
-
-    expect(await olhar(tester), 'telha parado');
-    final linha = estado.lastSpoken!.url;
-    final faladas = harness.voice.played.length;
-    await tocar(tester, ouvirOAchado);
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(harness.voice.played.length, faladas + 1);
-    expect(harness.voice.played.last, linha);
-    expect(harness.playback.ranges, isEmpty);
-
-    final trecho = estadoDe(container).btTrechos[1];
-    final parteDois = estadoDe(container).partes[1].path;
-    await tocar(tester, ouvirOTrechoEATraducao);
-    expect(harness.playback.played.last, parteDois);
-    expect(
-      harness.playback.ranges.last,
-      '${trecho.from.inMilliseconds}-${trecho.to.inMilliseconds}',
-    );
-    expect(await olhar(tester), 'wood soando');
-
-    await tocar(tester, ouvirOTrechoEATraducao);
-    expect(harness.playback.paused, isTrue);
-    expect(harness.playback.sounding, isFalse);
-    await tocar(tester, ouvirOTrechoEATraducao);
-    expect(harness.playback.sounding, isTrue);
-    expect(harness.playback.played.last, parteDois);
-
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(harness.playback.played.last, trecho.retroPath);
-    expect(await olhar(tester), 'azul soando');
-
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(harness.playback.sounding, isFalse);
-    expect(await olhar(tester), 'telha parado');
-    closeTheRoom(container);
-  });
-
-  testWidgets('F1b — a tela do achado segue o quadro dela, com o título e a '
-      'linha acima das contas', (tester) async {
-    tester.view
-      ..physicalSize = const Size(820, 1180)
-      ..devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await aHistoriaSemOFim(
-      tester,
-      harness,
-      ondeFalta: 'trecho-2',
-    );
-    await abrirOAchado(tester);
-
-    expect(
-      tester
-          .getTopLeft(
-            find.descendant(
-              of: find.byType(RetroView),
-              matching: find.byType(BeadRow),
-            ),
-          )
-          .dy,
-      169,
-    );
-    expect(tester.getSize(byLabel(ouvirOAchado)), const Size(160, 160));
-    expect(tester.getTopLeft(byLabel(ouvirOAchado)), const Offset(330, 297));
-    expect(
-      tester.getTopLeft(byLabel(ouvirOTrechoEATraducao)),
-      const Offset(296, 473),
-    );
-    expect(
-      tester.getTopLeft(byLabel(microfoneDeMadeira)),
-      const Offset(380, 473),
-    );
-    expect(tester.getTopLeft(byLabel(microfoneAzul)), const Offset(464, 473));
-    closeTheRoom(container);
-  });
-
   testWidgets('F2 — o microfone de madeira leva ao ensaio, na parte 2', (
     tester,
   ) async {
@@ -254,14 +145,15 @@ void main() {
     final pedacos = harness.room.chunksSent;
     final vereditos = harness.room.playedByTakeSent.length;
 
-    await tocar(tester, microfoneAzul);
+    traduzirOApontadoDeNovo(container);
     await tester.pump(const Duration(milliseconds: 200));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
 
     final chegada = estadoDe(container);
     expect(chegada.stage, SalaStage.retro);
     expect(chegada.btPhase, BtPhase.playing);
     expect(harness.recorder.captures, capturas);
-    expect(harness.playback.sounding, isFalse);
     expect(contasEm(tester, RetroView), [
       'drained com anel',
       'solid apagada',
@@ -321,8 +213,10 @@ void main() {
     final antiga = estadoDe(container).btTrechos[0].retroPath!;
     final guardadas = await traducoesGuardadas(tester, harness);
 
-    await tocar(tester, microfoneAzul);
+    traduzirOApontadoDeNovo(container);
     await tester.pump(const Duration(milliseconds: 200));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
     await tocar(tester, gravarATraducaoDeNovo);
     await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 300));
@@ -349,8 +243,10 @@ void main() {
     final antiga = estadoDe(container).btTrechos[0].retroPath!;
     final guardadas = await traducoesGuardadas(tester, harness);
 
-    await tocar(tester, microfoneAzul);
+    traduzirOApontadoDeNovo(container);
     await tester.pump(const Duration(milliseconds: 200));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
     await tocar(tester, sairDaPassagem);
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -368,23 +264,17 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aHistoriaSemOFim(tester, harness);
     await abrirOAchado(tester);
-    expect(estadoDe(container).btPhase, BtPhase.findings);
+    expect(estadoDe(container).btPhase, BtPhase.playing);
+    expect(estadoDe(container).btVeredito, isTrue);
 
     expect(contasEm(tester, RetroView), ['solid', 'solid', 'solid']);
     expect(await olhar(tester), 'telha parado');
     for (final rotulo in [...rotulosDaGrade, tesoura]) {
       expect(byLabel(rotulo), findsNothing, reason: rotulo);
     }
-    for (final rotulo in [
-      ouvirOTrechoEATraducao,
-      microfoneDeMadeira,
-      microfoneAzul,
-    ]) {
-      expect(aceso(tester, rotulo), isFalse, reason: rotulo);
-    }
     expect(
-      tester.getTopLeft(byLabel(ouvirOTrechoEATraducao)),
-      const Offset(296, 473),
+      tester.widget<Semantics>(byLabel(microfoneDeMadeira)).properties.enabled,
+      isFalse,
     );
     expect(
       byLabel(continuarOEnsaio),
@@ -406,10 +296,12 @@ void main() {
       ondeFalta: 'trecho-2',
     );
     await abrirOAchado(tester);
-    expect(contasEm(tester, RetroView)[1], 'drained com anel');
+    expect(contasEm(tester, RetroView)[1], 'drained');
 
-    await tocar(tester, microfoneAzul);
+    traduzirOApontadoDeNovo(container);
     await tester.pump(const Duration(milliseconds: 200));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
     await tocar(tester, gravarATraducaoDeNovo);
     harness.room.failFinishWith = const NetworkFailed('timeout');
     await tocar(tester, terminar);
@@ -417,7 +309,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked, hasLength(1));
-    expect(estadoDe(container).btPhase, isNot(BtPhase.findings));
     expect(contasEm(tester, RetroView), ['solid', 'solid', 'solid']);
     closeTheRoom(container);
   });
@@ -433,14 +324,7 @@ void main() {
     );
     await abrirOAchado(tester);
 
-    for (final rotulo in [
-      'hear the verdict again',
-      'Hear the stretch and its translation',
-      'go back and re-record a part',
-      'Translate this stretch again',
-    ]) {
-      expect(byLabel(rotulo), findsOneWidget, reason: rotulo);
-    }
+    expect(byLabel('go back and re-record a part'), findsOneWidget);
     closeTheRoom(container);
   });
 

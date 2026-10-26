@@ -8,9 +8,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 
-const ouvirOTrecho = 'Ouvir o trecho e a tradução';
 const micParteLabel = 'voltar e regravar uma parte';
-const micRetroLabel = 'Traduzir este trecho de novo';
 const continuarOEnsaio = 'Continuar o ensaio';
 
 SalaSessionNotifier notifier(ProviderContainer c) =>
@@ -80,16 +78,9 @@ void main() {
     },
   );
 
-  testWidgets('falta com endereço mostra os dois microfones', (tester) async {
+  testWidgets('falta com endereço mostra a volta ao ensaio', (tester) async {
     await pumpToPergunta(tester);
 
-    expect(
-      byLabel(micRetroLabel),
-      findsOneWidget,
-      reason:
-          'a materna pode já ter a parte; só a ponte pulou a frase, e a '
-          'equipe sabe se é o caso — não a tela por ela',
-    );
     expect(byLabel(micParteLabel), findsOneWidget);
     expect(
       byLabel('Regravar esta parte e contá-la de novo'),
@@ -100,27 +91,12 @@ void main() {
     );
   });
 
-  testWidgets('só a ponte funciona', (tester) async {
-    final container = await pumpToPergunta(tester);
-
-    await tester.tap(byLabel(micRetroLabel));
-    await tester.pump(const Duration(milliseconds: 300));
-
-    final estado = container.read(salaSessionProvider);
-    expect(
-      (estado.stage, estado.btPhase, estado.btTrechoTocando),
-      (SalaStage.retro, BtPhase.playing, false),
-      reason:
-          'tocar o microfone só-ponte leva à tradução daquele trecho, sem '
-          'tocar a voz materna',
-    );
-  });
-
   testWidgets('a madeira leva ao ensaio, a gravar a parte de novo', (
     tester,
   ) async {
     final container = await pumpToPergunta(tester);
 
+    await tester.ensureVisible(byLabel(micParteLabel));
     await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -143,21 +119,12 @@ void main() {
           'a falta se conserta na frase onde cabe, nunca gravando mais '
           'depois da última',
     );
-    for (final microfone in [micRetroLabel, micParteLabel]) {
-      expect(
-        tester.widget<Semantics>(byLabel(microfone)).properties.enabled,
-        isFalse,
-        reason: 'sem trecho, os microfones ficam apagados, nunca escondidos',
-      );
-    }
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-  });
-
-  testWidgets('os outros achados não mudam', (tester) async {
-    await pumpToPergunta(tester);
-
-    expect(byLabel(micParteLabel), findsOneWidget);
-    expect(byLabel(micRetroLabel), findsOneWidget);
-    expect(byLabel(ouvirOTrecho), findsOneWidget);
+    expect(
+      tester.widget<Semantics>(byLabel(micParteLabel)).properties.enabled,
+      isFalse,
+      reason: 'sem trecho, os microfones ficam apagados, nunca escondidos',
+    );
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+    expect(container.read(salaSessionProvider).btVeredito, isTrue);
   });
 }

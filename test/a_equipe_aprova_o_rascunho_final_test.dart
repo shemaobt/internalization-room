@@ -531,7 +531,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await sala.finishBackTranslation();
     await tester.pump(const Duration(milliseconds: 300));
-    await semAprovar(BtPhase.findings);
+    await semAprovar(BtPhase.playing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     final conferida = await _ateAConferida(tester);

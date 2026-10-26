@@ -10,9 +10,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 
-const ouvirOTrecho = 'Ouvir o trecho e a tradução';
 const micParteLabel = 'voltar e regravar uma parte';
-const micRetro = 'Traduzir este trecho de novo';
 
 SalaHarness? harnessDaVez;
 
@@ -86,7 +84,7 @@ Future<void> traduzirDeNovo(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
-  await tester.tap(byLabel(micRetro));
+  traduzirOApontadoDeNovo(container);
   await tester.pump(const Duration(milliseconds: 300));
   notifier(container).retroTap();
   await tester.pump(const Duration(milliseconds: 300));
@@ -166,8 +164,6 @@ void main() {
           'o tipo do achado decidia sozinho pela equipe, e um tipo '
           'escondia a saída de traduzir de novo',
     );
-    expect(byLabel(micRetro), findsOneWidget);
-    expect(byLabel(ouvirOTrecho), findsOneWidget);
   });
 
   testWidgets('choosing only the telling leaves the mother tongue untouched', (
@@ -177,7 +173,7 @@ void main() {
 
     final harness = harnessDaVez!;
 
-    await tester.tap(byLabel(micRetro));
+    traduzirOApontadoDeNovo(container);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
@@ -208,46 +204,6 @@ void main() {
     );
   });
 
-  testWidgets('listening is free and decides nothing', (tester) async {
-    final container = await pumpToPergunta(tester);
-
-    final harness = harnessDaVez!;
-    harness.playback.played.clear();
-
-    await tester.tap(byLabel(ouvirOTrecho));
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(
-      container.read(salaSessionProvider).btPhase,
-      BtPhase.findings,
-      reason:
-          'ouvir não é escolher — a equipe precisa poder comparar as '
-          'duas vozes sem se comprometer com nenhuma',
-    );
-    expect(
-      harness.playback.ranges,
-      isNotEmpty,
-      reason:
-          'e ouvir tem de ouvir: o player de madeira toca a fatia da '
-          'gravação em língua materna',
-    );
-
-    harness.playback.played.clear();
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-    expect(
-      harness.playback.played,
-      isNotEmpty,
-      reason:
-          'depois da materna o play toca o contar em português daquele '
-          'trecho — sem isso a equipe compara uma voz com o silêncio',
-    );
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-  });
-
   testWidgets(
     'a finding that names no stretch still falls to the whole thing',
     (tester) async {
@@ -262,12 +218,8 @@ void main() {
             'escondido (ADR 0040)',
       );
       expect(
-        tester.widget<Semantics>(byLabel(micRetro)).properties.enabled,
-        isFalse,
-      );
-      expect(
         container.read(salaSessionProvider).btPhase,
-        BtPhase.findings,
+        BtPhase.playing,
         reason: 'o caminho de hoje para achado sem ponteiro não muda',
       );
     },
@@ -396,7 +348,7 @@ void main() {
     expect(harnessDaVez!.room.personsAsked, 0);
     expect(
       container.read(salaSessionProvider).btPhase,
-      BtPhase.findings,
+      BtPhase.playing,
       reason:
           'e a correção comum, com o terminei, termina no veredito: quem '
           'só corrigiu um trecho continua sendo levado ao resultado dele',

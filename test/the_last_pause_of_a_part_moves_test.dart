@@ -15,7 +15,7 @@ import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show stateReads;
+import 'scenario_helpers.dart' show stateReads, traduzirOApontadoDeNovo;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, entrarNaTraducao, parte, tocar;
 import 'the_pause_snaps_to_silence_test.dart'
@@ -70,7 +70,7 @@ Future<ProviderContainer> _duasFrasesNoVeredito(
     'o veredito chegar',
     () =>
         container.read(salaSessionProvider).btPhase ==
-        (apontada == null ? BtPhase.conferida : BtPhase.findings),
+        (apontada == null ? BtPhase.conferida : BtPhase.playing),
     step: () => _passo(tester),
   );
   await _passo(tester);
@@ -87,12 +87,13 @@ Future<ProviderContainer> _duasFrasesEUmAchadoNa(
     harness,
     apontada: apontada,
   );
-  await tocar(tester, 'Traduzir este trecho de novo');
+  traduzirOApontadoDeNovo(container);
   await waitFor(
     'a frase apontada ficar para traduzir de novo',
     () => container.read(salaSessionProvider).btTrechoTraduzidoDeNovo != null,
     step: () => _passo(tester),
   );
+  harness.playback.finishPlayback();
   await _passo(tester);
   return container;
 }
@@ -532,31 +533,6 @@ void main() {
   );
 
   testWidgets(
-    'the findings retell after the bar of an earlier frase says the plain line again',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true)
-        ..recorder.rehearsalSpeaks = _duasLacunas;
-      final container = await _duasFrasesNoVeredito(
-        tester,
-        harness,
-        apontada: 'trecho-1',
-      );
-      await tocar(tester, _barra(1));
-      await tocar(tester, 'manter a tradução de antes');
-      await _passo(tester);
-
-      await tocar(tester, 'Traduzir este trecho de novo');
-
-      expect(
-        find.text('traduzindo de novo a frase 1 — toquem no círculo'),
-        findsOneWidget,
-        reason: 'a linha da barra ficava no reconto que veio do achado',
-      );
-      closeTheRoom(container);
-    },
-  );
-
-  testWidgets(
     'at conferida a second bar tap on the last frase keeps its pause where it fell',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
@@ -968,7 +944,9 @@ void main() {
       );
       await waitFor(
         'o veredito chegar',
-        () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+        () =>
+            container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+            container.read(salaSessionProvider).btVeredito,
         step: () => _passo(tester),
       );
       await _passo(tester);

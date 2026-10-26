@@ -263,7 +263,7 @@ const folgaDoFimDaParte = Duration(milliseconds: 750);
 const emVoltaDaFraseNova = Duration(milliseconds: 1500);
 
 /// Where the telling-back is, step by step.
-enum BtPhase { playing, capturing, thinking, findings, conferida }
+enum BtPhase { playing, capturing, thinking, conferida }
 
 enum BtRecomeco { armado, pronto }
 
@@ -1472,9 +1472,7 @@ class SalaSessionState {
       aBackTranslationGestureActs &&
       btRegravacao == null &&
       btFraseQueAguarda == null &&
-      (btPhase == BtPhase.findings ||
-          btPhase == BtPhase.conferida ||
-          btPhase == BtPhase.playing);
+      (btPhase == BtPhase.conferida || btPhase == BtPhase.playing);
 
   bool get canHearAFrase =>
       stage == SalaStage.retro &&
@@ -1483,9 +1481,7 @@ class SalaSessionState {
       !needsPerson &&
       aBackTranslationGestureActs &&
       btRegravacao == null &&
-      (btPhase == BtPhase.playing ||
-          btPhase == BtPhase.findings ||
-          btPhase == BtPhase.conferida);
+      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida);
 
   SalaSessionState copyWith({
     bool? awaitingTheGuide,

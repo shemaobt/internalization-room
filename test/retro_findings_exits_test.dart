@@ -7,7 +7,7 @@ import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, traduzirOApontadoDeNovo;
 
 const retellStretchExit = 'Ouvir e traduzir esta parte de novo';
 const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
@@ -105,7 +105,7 @@ void main() {
   ) async {
     final container = await pumpToFindings(tester, true, trecho: 'trecho-1');
 
-    await tester.tap(byLabel('Traduzir este trecho de novo'));
+    traduzirOApontadoDeNovo(container);
     await tester.pump(const Duration(milliseconds: 300));
 
     final estado = container.read(salaSessionProvider);
@@ -113,9 +113,9 @@ void main() {
       (estado.btPhase, estado.btTrechoTraduzidoDeNovo?.segmentId),
       (BtPhase.playing, 'trecho-1'),
       reason:
-          'contar o trecho de novo continua sendo uma saída da tela de '
-          'achados; a equipe a escolhe pelo microfone azul, que leva à '
-          'tradução com aquele trecho armado (ADR 0040)',
+          'contar o trecho de novo continua sendo uma saída depois do '
+          'veredito; a equipe a escolhe pela frase, que leva à tradução '
+          'com aquele trecho armado (ADR 0040)',
     );
   });
 
@@ -141,7 +141,10 @@ void main() {
       'still leaves a way out that works', (tester) async {
     final container = await pumpToFindings(tester, true);
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+    expect(container.read(salaSessionProvider).btVeredito, isTrue);
+
+    expect(container.read(salaSessionProvider).btVeredito, isTrue);
     final offered = [
       retellStretchExit,
       wholeClipExit,

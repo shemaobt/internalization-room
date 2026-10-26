@@ -60,7 +60,7 @@ Future<Sala> _aSalaNaPergunta() async {
   await waitFor(
     'o analista apontar um trecho',
     () =>
-        it.estado.btPhase == BtPhase.findings &&
+        it.estado.btPhase == BtPhase.playing &&
         it.estado.btFindingTrecho != null,
   );
   return it;

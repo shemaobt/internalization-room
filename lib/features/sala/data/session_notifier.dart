@@ -1235,21 +1235,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// Repeat the narrator's last line on the circle in `findings`, instead of the stretch
-  /// the findings' play already offers.
-  ///
-  /// [canHearAgain] hides its button for the whole retro stage, so this reaches
-  /// [_repeatLastSpoken] on its own guard: a stored line and a room not already speaking
-  /// one. Nothing plays when there is none — a fail-safe verdict is never remembered, and
-  /// the circle answers a tap on it with nothing rather than falling back to the trecho.
-  Future<void> _repeatTheFinding() async {
-    final line = state.lastSpoken;
-    if (line == null || state.voice != VoiceState.invite || state.needsPerson) {
-      return;
-    }
-    await _repeatLastSpoken(line);
-  }
-
   Future<void> _repeatLastSpoken(SpokenLine line) async {
     final generation = _waitOnTheGeneration;
     await _readyToRepeat(line.url, line.fixedLine);
@@ -9841,9 +9826,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // on. Stopped, the room loses the length the end of the part is measured by.
         _silenceTheRoom(holdTheClip: true);
         _handOff(_closeTheCaptureAndSend());
-      case BtPhase.findings:
-        _silenceTheRoom();
-        _handOff(_repeatTheFinding());
       case BtPhase.thinking:
       case BtPhase.conferida:
         break;
@@ -10284,7 +10266,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
       }
       state = state.copyWith(
-        btPhase: BtPhase.findings,
+        btPhase: BtPhase.playing,
         awaitingTheGuide: false,
         btFindingSegmentId: verdict.findingSegmentId,
         clearFindingSegment: verdict.findingSegmentId == null,
@@ -10865,45 +10847,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void ouvirOTrechoEATraducao() => _gesture(() => _ouvirOTrechoEATraducao());
-
-  void _ouvirOTrechoEATraducao() {
-    if (state.btPhase != BtPhase.findings) return;
-    if (state.btTrechoTocando || state.btRetroTocando) {
-      _holdClip();
-      return;
-    }
-    if (state.btTrechoPausada || state.btRetroPausada) {
-      _letTheClipRun();
-      return;
-    }
-    final trecho = state.btFindingTrecho;
-    if (trecho == null) return;
-    _silenceTheRoom();
-    _leadThemToTheTrecho(trecho, depois: () => _ouvirATraducaoDada(trecho));
-  }
-
-  void _ouvirATraducaoDada(Trecho trecho) {
-    final path = trecho.retroPath;
-    if (path == null || state.btPhase != BtPhase.findings) return;
-    _play(
-      StretchSound(path, named: trecho.segmentId, telling: true),
-      onComplete: _calarOQueSeOuvia,
-      onFailed: _calarOQueSeOuvia,
-    );
-  }
-
-  /// The team's own voice stands and only the telling slipped: the explanation is redone
-  /// over a recording that does not move.
-  void traduzirDeNovoEmPortugues() =>
-      _gesture(() => _traduzirDeNovoEmPortugues());
-
-  void _traduzirDeNovoEmPortugues() {
-    final trecho = state.btFindingTrecho;
-    if (state.btPhase != BtPhase.findings || trecho == null) return;
-    _traduzirOTrechoDeNovo(trecho);
-  }
-
   void traduzirAFraseDeNovo(int indice) =>
       _gesture(() => _traduzirAFraseDeNovo(indice));
 
@@ -10968,7 +10911,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void gravarAParteDeNovo() => _gesture(() => _gravarAParteDeNovo());
 
   void _gravarAParteDeNovo() {
-    if (state.btPhase != BtPhase.findings) return;
+    if (state.btPhase != BtPhase.playing) return;
     final trecho = state.btFindingTrecho;
     if (trecho == null) return;
     // Read before the way back clears the pointer, which is the only place the part is

@@ -5,7 +5,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart'
+    show settle, ouvirOApontado, traduzirOApontadoDeNovo;
 
 /// Record one part and wait for the room to have named it.
 ///
@@ -60,7 +61,7 @@ Future<void> _traduzDeNovo(
   ProviderContainer container,
   SalaSessionNotifier notifier,
 ) async {
-  notifier.traduzirDeNovoEmPortugues();
+  traduzirOApontadoDeNovo(container);
   notifier.retroTap();
   await waitFor(
     'o microfone abrir no trecho apontado',
@@ -100,22 +101,19 @@ Future<ProviderContainer> _levadaAoTrechoApontado(SalaHarness harness) async {
   await notifier.finishBackTranslation();
   await waitFor(
     'o veredito chegar',
-    () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+    () =>
+        container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+        container.read(salaSessionProvider).btVeredito,
   );
-  notifier.ouvirOTrechoEATraducao();
+  ouvirOApontado(container);
   await waitFor(
     'o trecho apontado estar tocando',
     () => container.read(salaSessionProvider).btTrechoTocando,
   );
   harness.playback.finishPlayback();
   await waitFor(
-    'a tradução dada entrar depois do trecho',
-    () => container.read(salaSessionProvider).btRetroTocando,
-  );
-  harness.playback.finishPlayback();
-  await waitFor(
-    'a tradução dada parar de tocar',
-    () => !container.read(salaSessionProvider).btRetroTocando,
+    'o trecho apontado parar de tocar',
+    () => !container.read(salaSessionProvider).btTrechoTocando,
   );
   return container;
 }
@@ -149,7 +147,7 @@ void main() {
     final container = await _levadaAoTrechoApontado(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.traduzirDeNovoEmPortugues();
+    traduzirOApontadoDeNovo(container);
     await settle();
     notifier.leaveThePassage();
     await settle();
@@ -190,7 +188,7 @@ void main() {
       // O microfone recusa abrir, e a sala volta a tocar com o conserto ainda
       // armado naquele trecho: é onde a equipe toca o círculo de novo.
       harness.recorder.startThrows = true;
-      notifier.traduzirDeNovoEmPortugues();
+      traduzirOApontadoDeNovo(container);
       notifier.retroTap();
       await settle();
       expect(

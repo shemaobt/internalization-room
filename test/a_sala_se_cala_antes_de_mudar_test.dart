@@ -5,6 +5,7 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
+import 'scenario_helpers.dart' show ouvirOApontado, traduzirOApontadoDeNovo;
 import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa;
 import 'playback_ceiling_test.dart' show gravaParte;
@@ -150,7 +151,7 @@ Future<_Cena> _nosAchados() async {
 /// gesture of the findings is really made in.
 Future<_Cena> _nosAchadosComOTrechoNoAr() async {
   final cena = await _nosAchados();
-  cena.sala.ouvirOTrechoEATraducao();
+  ouvirOApontado(cena.container);
   await waitFor(
     'o trecho apontado tocar',
     () => _estado(cena).btTrechoTocando && cena.harness.playback.sounding,
@@ -260,9 +261,7 @@ const _matrizDaRetro = [
   'a aprovação',
   'terminei',
   'o círculo, capturando',
-  'o círculo, nos achados',
   'atravessar para a próxima parte',
-  'ouvir o trecho e a tradução',
   'traduzir de novo, no achado',
   'cortar o trecho',
   'cortar com a cabeça atrás do cursor',
@@ -345,14 +344,6 @@ void main() {
         );
       },
     ),
-    _linha('o círculo, nos achados', _nosAchadosComOTrechoNoAr, (cena) async {
-      final ditas = cena.harness.voice.played.length;
-      cena.sala.retroTap();
-      await waitFor(
-        'a Guia repetir o veredito',
-        () => cena.harness.voice.played.length > ditas,
-      );
-    }, somProprio: 'voice:line'),
     _linha(
       'atravessar para a próxima parte',
       _naFronteiraDaParte,
@@ -367,33 +358,10 @@ void main() {
       },
       somProprio: 'playback:play',
     ),
-    _linha(
-      'ouvir o trecho e a tradução',
-      () async {
-        final cena = await _nosAchados();
-        // A Guia no meio de uma linha: é por cima dela que o trecho começava.
-        cena.harness.voice.holdNextLine();
-        cena.sala.retroTap();
-        await waitFor(
-          'a Guia começar a repetir o veredito',
-          () => cena.harness.sounds.contains('voice:line'),
-        );
-        return cena;
-      },
-      (cena) async {
-        cena.sala.ouvirOTrechoEATraducao();
-        await waitFor(
-          'o trecho apontado tocar',
-          () => _estado(cena).btTrechoTocando,
-        );
-        cena.harness.voice.finishHeldLine();
-      },
-      somProprio: 'playback:play',
-    ),
     _linha('traduzir de novo, no achado', _nosAchadosComOTrechoNoAr, (
       cena,
     ) async {
-      cena.sala.traduzirDeNovoEmPortugues();
+      traduzirOApontadoDeNovo(cena.container);
       await waitFor(
         'a tradução abrir no trecho apontado',
         () => _estado(cena).btPhase == BtPhase.playing,
@@ -525,7 +493,9 @@ void main() {
         await cena.sala.finishBackTranslation();
         await waitFor(
           'o achado abrir',
-          () => _estado(cena).btPhase == BtPhase.findings,
+          () =>
+              _estado(cena).btPhase == BtPhase.playing &&
+              _estado(cena).btVeredito,
         );
         expect(
           _estado(cena).btFindingTrecho?.parte,
@@ -540,7 +510,8 @@ void main() {
         cena.sala.gravarAParteDeNovo();
         await waitFor('a sala se calar', () => !cena.harness.playback.sounding);
         expect(_estado(cena).needsPerson, isFalse);
-        expect(_estado(cena).btPhase, BtPhase.findings);
+        expect(_estado(cena).btPhase, BtPhase.playing);
+        expect(_estado(cena).btVeredito, isTrue);
       },
     ),
   ], _matrizDaRetro);
@@ -682,40 +653,6 @@ void main() {
       somProprio: 'voice:line',
     ),
   ], _matrizDaConversaEDaRoda);
-
-  test('um hold dado enquanto o clipe abre não deixa a sala tocando', () async {
-    final cena = await _nosAchados();
-    cena.harness.playback.holdNextOpening();
-
-    cena.sala.ouvirOTrechoEATraducao();
-    await waitFor('a sala pedir o trecho', () => _estado(cena).btTrechoTocando);
-    cena.sala.ouvirOTrechoEATraducao();
-    await waitFor(
-      'a equipe segurar o trecho',
-      () => _estado(cena).btTrechoPausada,
-    );
-
-    cena.harness.playback.finishHeldOpening();
-    await waitFor(
-      'a abertura segurada terminar',
-      () => cena.harness.playback.playingLength != null,
-    );
-
-    expect(
-      cena.harness.playback.sounding,
-      isFalse,
-      reason:
-          'a equipe segurou o clipe enquanto ele abria: o load não pode '
-          'tocar por cima do gesto dela',
-    );
-    expect(_estado(cena).btTrechoTocando, isFalse);
-
-    cena.sala.ouvirOTrechoEATraducao();
-    await waitFor(
-      'o próximo toque começar o trecho',
-      () => cena.harness.playback.sounding,
-    );
-  });
 
   test('o razão fecha o vão onde a sala se calou', () async {
     final cena = await _noRetro();

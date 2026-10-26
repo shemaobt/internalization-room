@@ -129,39 +129,6 @@ void main() {
   );
 
   test(
-    'a verdict heard again to its end is reported again with the same round\'s stamp',
-    () async {
-      final harness = SalaHarness();
-      harness.room
-        ..verdictChecked = false
-        ..verdictHasFinding = true;
-      final (container, notifier) = await _inConversa(harness);
-      await _toTheVerdict(harness, notifier);
-      await waitFor(
-        'o veredito abrir os achados',
-        () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
-      );
-      final faladas = harness.voice.played.length;
-
-      notifier.retroTap();
-      await waitFor(
-        'a resposta tocar de novo',
-        () => harness.voice.played.length == faladas + 1,
-      );
-      await settle();
-
-      expect(harness.voice.played.last, falaDoVeredito);
-      expect(
-        harness.room.heardStamps,
-        [_stamp, _stamp],
-        reason:
-            'ouvir a resposta de novo até o fim não dizia nada à sala, e um '
-            'primeiro aviso perdido deixava a nuance por dizer para sempre',
-      );
-    },
-  );
-
-  test(
     'a heard report the room never takes is not sent again, and the team sees '
     'nothing of it',
     () async {

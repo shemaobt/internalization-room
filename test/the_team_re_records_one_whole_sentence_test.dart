@@ -1003,13 +1003,19 @@ void main() {
     await tocar(tester, 'terminei');
     await waitFor(
       'o achado chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
     await _passo(tester);
 
+    final apontada = container.read(salaSessionProvider).btFindingTrecho!;
     expect(
-      aceso(tester, 'Traduzir este trecho de novo'),
+      _acesa(
+        tester,
+        'Ouvir esta frase de novo e traduzir de novo — ${apontada.frase}',
+      ),
       isTrue,
       reason: 'o caminho de traduzir de novo, se X está no áudio, sumia',
     );
@@ -1124,7 +1130,9 @@ void main() {
     await tocar(tester, 'terminei');
     await waitFor(
       'o achado chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
     await _passo(tester);
@@ -1160,7 +1168,9 @@ void main() {
     await tocar(tester, 'terminei');
     await waitFor(
       'o achado chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
     await _passo(tester);
