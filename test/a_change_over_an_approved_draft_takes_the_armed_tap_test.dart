@@ -219,6 +219,7 @@ void main() {
     await _passo(tester);
     harness.room.approvedDraft = null;
     harness.room.holdTheNextRead();
+    harness.room.holdTheNextRead();
     container.read(salaSessionProvider.notifier).abrirAChecagemExterna();
     await waitFor(
       'a leitura sair e ficar presa',
@@ -231,7 +232,11 @@ void main() {
       () => harness.room.sentencesLaid.isNotEmpty,
       step: () => _passo(tester),
     );
-    await _passo(tester);
+    await waitFor(
+      'a leitura depois da frase sair e ficar presa',
+      () => harness.room.heldReads.length == 2,
+      step: () => _passo(tester),
+    );
     final nova = harness.room.takes.last.takeId;
 
     harness.room.answerHeldRead(0);

@@ -9534,6 +9534,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     _fraseNaFila = null;
     unawaited(_takes.withdraw(guardada));
+    _readsApplied = _readsSent;
     final frase = int.parse(guardada.scope);
     final parte = state.trechoChamado(nome)?.parte;
     final nova = segments.where((segment) => segment.segmentId == nome);
