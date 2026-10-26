@@ -876,6 +876,83 @@ void main() {
       closeTheRoom(it.container);
     });
 
+    for (final (what, blockers, failure, text, offered) in [
+      (
+        'not checked',
+        ['telling_back_not_checked'],
+        null,
+        _precisaConferida,
+        false,
+      ),
+      (
+        'a part unheard',
+        ['playback_did_not_cover_the_clip'],
+        null,
+        _faltaOuvir,
+        true,
+      ),
+      (
+        'the server cannot answer',
+        <String>[],
+        NetworkFailed('sem rede'),
+        _naoDeu,
+        true,
+      ),
+    ]) {
+      testWidgets('a refusal on the home says one of her three texts: $what', (
+        tester,
+      ) async {
+        final it = await aCasaConferida(tester);
+        it.harness.room
+          ..releaseBlockers = blockers
+          ..failReleaseWith = failure;
+        final tocadas = it.harness.playback.played.length;
+
+        await _tocar(tester);
+
+        expect(find.text(text), findsOneWidget);
+        expect(byLabel(_aprovar).evaluate().isNotEmpty, offered);
+        expect(it.container.read(salaSessionProvider).stage, SalaStage.ensaio);
+        expect(it.harness.playback.played, hasLength(tocadas));
+        closeTheRoom(it.container);
+      });
+    }
+
+    testWidgets('the circle does not record while the approval is in the air', (
+      tester,
+    ) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.holdNextRelease();
+      await _tocar(tester);
+
+      it.container.read(salaSessionProvider.notifier).ensaioTap();
+      await tester.pump(const Duration(milliseconds: 300));
+      it.harness.room.finishHeldRelease();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(it.container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('a kept take takes the offer away until the room reads again', (
+      tester,
+    ) async {
+      final it = await aCasaConferida(tester);
+      final sala = it.container.read(salaSessionProvider.notifier);
+      it.harness.room.holdNextState();
+      sala.ensaioTap();
+      sala.ensaioTap();
+      await tester.pump(const Duration(milliseconds: 100));
+      sala.takeKeep();
+      await tester.pump(const Duration(seconds: 3));
+
+      expect(byLabel(_aprovar), findsNothing);
+      it.harness.room.finishHeldState();
+      await tester.pump(const Duration(seconds: 1));
+      expect(byLabel(_aprovar), findsOneWidget);
+      closeTheRoom(it.container);
+    });
+
     testWidgets('an approved draft: no button', (tester) async {
       final it = await _ateAConferida(tester);
       it.harness.room

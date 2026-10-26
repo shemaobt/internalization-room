@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/bt_finding.dart';
 import '../../domain/ensaio_final_plan.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/kept_take.dart';
@@ -208,6 +209,19 @@ class EnsaioView extends ConsumerWidget {
                       ],
                     ],
                   ),
+                  if (session.btRecusa case final recusa?
+                      when session.stage == SalaStage.ensaio) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      retroLabelFor(switch (recusa) {
+                        CheckRefusal.partUnheard => 'partUnheard',
+                        CheckRefusal.notConferida => 'notConferida',
+                        _ => 'checkFailed',
+                      }, language),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: colors.telha, fontSize: 15),
+                    ),
+                  ],
                   if (session.approvedOnTheHome case final aprovado?) ...[
                     const SizedBox(height: 12),
                     Text(
