@@ -1568,6 +1568,28 @@ void main() {
   );
 
   test(
+    'the first listen of a recording no join touched says nothing is left to '
+    'hear, as nothing was heard yet',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      _nadaOuvido(it);
+      CheckRefusal? naTelaDuranteAFala = CheckRefusal.partUnheard;
+      it.harness.voice.aoFalar = () => naTelaDuranteAFala = it.estado.btRecusa;
+
+      await _oDisco(it);
+
+      expect(
+        naTelaDuranteAFala,
+        isNull,
+        reason:
+            'a primeira escuta dizia «ainda falta ouvir um trecho» de uma '
+            'gravação que ninguém ouviu ainda',
+      );
+      expect(it.estado.btRecusa, isNull);
+    },
+  );
+
+  test(
     'a relaunch on the back translation of a joined recording nobody heard plays the first listen',
     () async {
       final it = await umEnsaioDeTresPartesGravado();

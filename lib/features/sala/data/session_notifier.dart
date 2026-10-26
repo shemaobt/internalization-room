@@ -7664,9 +7664,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btSoOuvir: false,
     );
     _descartarATraducaoPendente();
+    final regravada = _umaParteFoiRegravada;
     _umaParteFoiRegravada = false;
     _handOff(
-      _ouvirOQueFaltaDepoisDeRegravar(_generation, conferida: conferida),
+      _ouvirOQueFaltaDepoisDeRegravar(
+        _generation,
+        conferida: conferida,
+        regravada: regravada,
+      ),
     );
   }
 
@@ -7713,6 +7718,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _ouvirOQueFaltaDepoisDeRegravar(
     int generation, {
     bool conferida = false,
+    bool regravada = false,
   }) async {
     final life = _thisLife;
     if (!await _medirAsPartesDaRetro(generation)) return;
@@ -7751,7 +7757,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         : naoOuvidas;
     state = state.copyWith(
       btSoOuvir: true,
-      btRecusa: juntada && doComeco ? null : CheckRefusal.partUnheard,
+      btRecusa: doComeco && (juntada || !regravada)
+          ? null
+          : CheckRefusal.partUnheard,
     );
     _partesDaEscuta = partes;
     await _dizer(
