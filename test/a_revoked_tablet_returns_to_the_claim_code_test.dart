@@ -566,4 +566,29 @@ void main() {
     );
     await theDeskLinksAgain(tester, harness);
   });
+
+  testWidgets('a revocation silences the Sound port by the time the claim code '
+      'shows', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+      filaEmMemoria: true,
+    );
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    container.read(salaSessionProvider.notifier).goEnsaio();
+    await tester.pump(const Duration(milliseconds: 120));
+    final before = harness.sounds.length;
+
+    await theDeskRevokes(tester, harness, container);
+
+    expect(
+      harness.sounds.skip(before),
+      containsAll(['playback:stop', 'voice:stop']),
+      reason:
+          'a parte ou a fala que soava quando a revogação chegou continuaria '
+          'soando atrás da tela do código',
+    );
+    await theDeskLinksAgain(tester, harness);
+  });
 }

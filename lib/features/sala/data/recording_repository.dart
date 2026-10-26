@@ -24,6 +24,16 @@ enum Capture { started, denied, failed }
 class RecordingRepository {
   final AudioRecorder _recorder = AudioRecorder();
   final Map<String, Future<String>> _keeping = {};
+  Future<void> _turn = Future.value();
+
+  /// One turn at a time for the questions and acts that end a recording: the plugin's own
+  /// semaphore is private and spans one call, so a stop could slip between a discard's
+  /// question and its act.
+  Future<T> _inTurn<T>(Future<T> Function() act) {
+    final result = _turn.then((_) => act());
+    _turn = result.then<void>((_) {}, onError: (Object _) {});
+    return result;
+  }
 
   Future<Directory> _recordingsDir() async {
     final docs = await getApplicationDocumentsDirectory();
@@ -92,7 +102,9 @@ class RecordingRepository {
   Stream<bool> get interrupted =>
       _recorder.onStateChanged().map((state) => state == RecordState.pause);
 
-  Future<String?> stop() async {
+  Future<String?> stop() => _inTurn(_stop);
+
+  Future<String?> _stop() async {
     try {
       return await _recorder.stop();
     } finally {
@@ -108,11 +120,13 @@ class RecordingRepository {
   /// Stops and deletes only a recording that is open. An idle recorder is left alone: the
   /// platform's stop answers the last recording's path (record_android), and that file may
   /// be a take the team just kept.
-  Future<void> discard() async {
+  Future<void> discard() => _inTurn(_discard);
+
+  Future<void> _discard() async {
     if (!await _recorder.isRecording().catchError((Object _) => false)) {
       return restoreTheSampleRate();
     }
-    final path = await stop();
+    final path = await _stop();
     if (path != null) {
       final file = File(path);
       if (await file.exists()) await file.delete();
