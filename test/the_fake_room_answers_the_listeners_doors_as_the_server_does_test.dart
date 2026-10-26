@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/external_check.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 
 import 'fakes.dart';
 
@@ -72,11 +73,48 @@ void main() {
     },
   );
 
-  test('the same bytes sent again by the listener are kept once', () async {
-    await send(listenerWholeComment);
-    await send(listenerWholeComment);
-    expect(room.listenerRecordings, hasLength(1));
+  test(
+    'the same bytes are kept once per listener and version, whatever the kind',
+    () async {
+      final other = File('${audio.path}.2')..writeAsBytesSync([9, 9]);
+      await room.aNewListener('S', 1, attempt: 'b');
+      await room.aNewListener('S', 2, attempt: 'a');
+      await send(listenerWholeComment);
+      await send(listenerWholeComment);
+      await send(listenerFraseComment, segment: 'trecho-1');
+      await send(listenerWholeComment, listener: 2);
+      await send(listenerWholeComment, version: 2);
+      await send(listenerWholeComment, file: other);
+      expect(
+        room.listenerRecordings.map((r) => (r.version, r.listener, r.kind)),
+        [
+          (1, 1, listenerWholeComment),
+          (1, 2, listenerWholeComment),
+          (2, 1, listenerWholeComment),
+          (1, 1, listenerWholeComment),
+        ],
+      );
+    },
+  );
+
+  test('a recording keeps the segment id it was sent with', () async {
+    await send(listenerFraseComment, segment: 'trecho-2');
+    expect(room.listenerRecordings.single.segmentId, 'trecho-2');
   });
+
+  test(
+    'the open answer carries the check\'s takes and frases in order',
+    () async {
+      room.approvedDraft = const ApprovedDraft(version: 1);
+      final opened = await room.openTheExternalCheck('S');
+      final check = (opened as Answered<ExternalCheck>).value;
+      expect(check.takes, ['tomada-1']);
+      expect(check.frases.map((f) => (f.number, f.segmentId)), [
+        (1, 'trecho-1'),
+        (2, 'trecho-2'),
+      ]);
+    },
+  );
 
   test(
     'a listener is numbered within its version, and known only there',
