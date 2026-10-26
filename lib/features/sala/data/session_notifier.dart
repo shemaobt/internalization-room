@@ -451,8 +451,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The parts the First listen put in the air, so a listen whose last report found no
   /// answer plays them again.
   late List<int> _partesDaEscuta;
-  late bool _umaParteFoiRegravada;
-  late bool _aTraducaoJaFoiDeixada;
 
   /// How long each part of the rehearsal turned out to be, by the file the part is kept
   /// as and never by where the part sits in the row.
@@ -565,8 +563,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _parteJaTocou = false;
     _oQueFaltaOuvir = null;
     _partesDaEscuta = const [];
-    _umaParteFoiRegravada = false;
-    _aTraducaoJaFoiDeixada = false;
     _tamanhoDaParteMs = {};
     _envelopes = {};
     _frases = _FraseKeep(_recorder.delete);
@@ -781,7 +777,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _leaveTheStepFor(Station next) {
     if (state.station == next) return;
     if (state.station is Retro) {
-      _aTraducaoJaFoiDeixada = true;
       _relatarAEscuta();
     }
     _dispatch(const StepLeft());
@@ -3483,11 +3478,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_voltarAFraseQueAguarda(aguardando, _generation));
       return;
     }
-    unawaited(
-      state.joined
-          ? _ouvirOQueFaltaDepoisDeRegravar(_generation)
-          : _playFromTheUntoldGround(_generation),
-    );
+    unawaited(_ouvirOQueFaltaDepoisDeRegravar(_generation));
   }
 
   Future<void> _voltarAFraseQueAguarda(
@@ -7182,7 +7173,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (!saem.contains(finding.frase)) finding,
       ],
     );
-    if (_aTraducaoJaFoiDeixada) _umaParteFoiRegravada = true;
     _weighTheRehearsal();
   }
 
@@ -7664,12 +7654,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btSoOuvir: false,
     );
     _descartarATraducaoPendente();
-    final regravada = _umaParteFoiRegravada;
-    _umaParteFoiRegravada = false;
     _handOff(
-      regravada || state.joined
-          ? _ouvirOQueFaltaDepoisDeRegravar(_generation, conferida: conferida)
-          : _playFromTheUntoldGround(_generation),
+      _ouvirOQueFaltaDepoisDeRegravar(_generation, conferida: conferida),
     );
   }
 
@@ -7740,6 +7726,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           deixou,
         );
       }
+      if (naoOuvidas != null &&
+          !state.btTrechos.any((trecho) => trecho.contado)) {
+        return _dizerComoTraduzir(deixou);
+      }
       _sairDaEspera();
       _tocarDoChaoNaoContado();
       return;
@@ -7749,10 +7739,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ? [for (var onde = 0; onde < state.partes.length; onde++) onde]
         : naoOuvidas;
     state = state.copyWith(
-      btSoOuvir: juntada,
-      btRecusa: juntada && doComeco ? null : CheckRefusal.partUnheard,
+      btSoOuvir: true,
+      btRecusa: doComeco ? null : CheckRefusal.partUnheard,
     );
-    if (juntada) _partesDaEscuta = partes;
+    _partesDaEscuta = partes;
     await _dizer(
       doComeco ? (juntada ? firstListenLine : startLine) : unheardLine,
     );
@@ -7839,14 +7829,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _deixarDeSoOuvir();
       return _finishBackTranslation();
     }
-    if (!state.btTrechos.any((trecho) => trecho.contado)) {
-      await _dizer(tellLine);
-      if (deixou()) return;
-      _deixarDeSoOuvir();
-      _sairDaEspera();
-      return _tocarDoChaoNaoContado();
+    if (!state.joined || !state.btTrechos.any((trecho) => trecho.contado)) {
+      return _dizerComoTraduzir(deixou);
     }
     _deixarDeSoOuvir();
+  }
+
+  Future<void> _dizerComoTraduzir(bool Function() deixou) async {
+    await _dizer(tellLine);
+    if (deixou()) return;
+    _deixarDeSoOuvir();
+    _sairDaEspera();
+    if (state.partes.isEmpty) return;
+    _tocarParteDaRetro(0, doComeco: true);
   }
 
   Future<void> _levarAoTrechoSemTraducao(
@@ -11062,8 +11057,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _tamanhoDaParteMs.clear();
     _oQueFaltaOuvir = null;
     _partesDaEscuta = const [];
-    _umaParteFoiRegravada = false;
-    _aTraducaoJaFoiDeixada = false;
     _escuta.esquecerTudo();
     _desdeMs = 0;
     _pendingTakePath = null;

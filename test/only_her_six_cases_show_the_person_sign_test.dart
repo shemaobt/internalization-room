@@ -163,7 +163,7 @@ Future<_Room> _aResumedBackTranslation(SalaHarness harness) async {
   await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a tradução retomada pôr a parte no ar',
-    () => room.state.stage == SalaStage.retro,
+    () => room.state.stage == SalaStage.retro && harness.playback.sounding,
   );
   return room;
 }

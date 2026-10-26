@@ -394,9 +394,13 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await tester.runAsync(notifier.abrirEscolha);
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.runAsync(
-      () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
-    );
+    await tester.runAsync(() async {
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+      await waitFor(
+        'a tradução retomada pôr a parte no ar',
+        () => harness.playback.sounding,
+      );
+    });
     await tester.pump(const Duration(milliseconds: 600));
     expect(contas(tester), ['solid', 'translucent com anel']);
 

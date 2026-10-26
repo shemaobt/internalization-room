@@ -24,7 +24,8 @@ Future<Sala> _naTraducao() async {
     'a tradução começar a tocar a primeira parte',
     () =>
         it.estado.stage == SalaStage.retro &&
-        it.estado.btPhase == BtPhase.playing,
+        it.estado.btPhase == BtPhase.playing &&
+        it.harness.playback.sounding,
   );
   return it;
 }
@@ -45,10 +46,11 @@ Future<Sala> _umaParteOuvidaEOutraSegurada() async {
 void main() {
   test('cada parte que acaba chega à sala na hora', () async {
     final it = await _naTraducao();
+    final antes = it.harness.room.listeningReports.length;
 
     await ouvirAteOFim(it, partesDoEnsaio[0]);
 
-    expect(it.harness.room.listeningReports, [
+    expect(it.harness.room.listeningReports.skip(antes), [
       [_ouvida(it.partes[0].takeId!, 0, 10000, 10000)],
     ]);
     expect(
@@ -111,12 +113,16 @@ void main() {
     it.harness.room.failListeningWith = const NetworkFailed('sem rede');
     final linhas = it.harness.voice.fixedLines.length;
     final falas = it.harness.voice.played.length;
+    final antes = it.harness.room.listeningReports.length;
 
     for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
       await ouvirAteOFim(it, partesDoEnsaio[onde]);
     }
 
-    expect(it.harness.room.listeningReports, hasLength(partesDoEnsaio.length));
+    expect(
+      it.harness.room.listeningReports.skip(antes),
+      hasLength(partesDoEnsaio.length),
+    );
     expect(it.estado.needsPerson, isFalse);
     expect(it.harness.voice.fixedLines.length, linhas);
     expect(it.harness.voice.played.length, falas);

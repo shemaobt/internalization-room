@@ -3,7 +3,7 @@ status: accepted
 date: 2026-10-20
 ---
 
-Extended by 0123 (a joined recording asks the room on every entry; every part unheard is N0 and the First listen).
+Extended by 0123 (every recording asks the room on every entry; every part unheard is the First listen, N0 on a joined recording and P0 on one no join touched, which ENG-1206 gave the first entry; the mark that a part was recorded again is gone, and a listen on a recording no join touched shows no «ainda falta ouvir», as hers).
 
 # The tablet reports its listening as each part ends and asks the room which parts are unheard
 
