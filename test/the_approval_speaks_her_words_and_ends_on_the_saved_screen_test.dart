@@ -995,8 +995,17 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(byLabel(_aprovar), findsNothing);
 
-      it.harness.room.approvedDraft = null;
-      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      it.harness.room
+        ..approvedDraft = null
+        ..retroSoFar = const BackTranslationProgress();
+      final sala = it.container.read(salaSessionProvider.notifier);
+      sala.goEnsaio();
+      await _assentar(tester);
+
+      expect(byLabel(_aprovar), findsNothing);
+
+      it.harness.room.retroSoFar = const BackTranslationProgress(checked: true);
+      sala.goEnsaio();
       await _assentar(tester);
 
       expect(byLabel(_aprovar), findsOneWidget);
