@@ -1771,4 +1771,52 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('a read of the stretches in the air never takes the translation '
+      'that landed after it back to the old stretch', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final pasta = Directory.systemTemp.createTempSync('sala-1789');
+    addTearDown(() => pasta.deleteSync(recursive: true));
+    await harness.takes.enqueue(
+      File('${pasta.path}/frase.wav')
+        ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
+      sessionId: 'sessao-antiga',
+      kind: 'frase',
+      scope: '3',
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      aguardando: 'trecho-1',
+    );
+    await _passo(tester);
+    await _passo(tester);
+    harness.room.holdNextReplace();
+    await _traduzirDeNovo(tester);
+    harness.room
+      ..holdTheNextRead()
+      ..sentenceAnswersFirst.add(const Refused('ANOTHER_SENTENCE_AWAITS'));
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await waitFor(
+      'a leitura dos trechos sair e ficar presa',
+      () => harness.room.heldReads.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    harness.room.finishHeldReplace();
+    await _passo(tester);
+    await _passo(tester);
+
+    harness.room.answerHeldRead(0);
+    await _passo(tester);
+    await _passo(tester);
+
+    final aqui = container.read(salaSessionProvider);
+    expect(aqui.btTrechos.first.segmentId, 'trecho-1-v1');
+    expect(
+      aqui.btFraseQueAguarda,
+      isNull,
+      reason: 'a leitura de antes da tradução devolvia a frase que já foi dita',
+    );
+    closeTheRoom(container);
+  });
 }
