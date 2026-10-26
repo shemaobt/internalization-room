@@ -78,7 +78,9 @@ class RetroView extends ConsumerWidget {
               child: Text(
                 retroLabelFor(
                   session.btSoOuvir
-                      ? 'listenOnly'
+                      ? session.joined
+                            ? 'listenOnly'
+                            : 'listenOnlyRecording'
                       : veredito
                       ? 'subVerdict'
                       : 'subTell',

@@ -500,6 +500,10 @@ const retroLabels = {
     'pt': 'Primeiro, só ouvir: a passagem inteira, do começo ao fim.',
     'en': 'First, just listen: the whole passage, from beginning to end.',
   },
+  'listenOnlyRecording': {
+    'pt': 'Primeiro, só ouvir: a gravação de vocês inteira, do começo ao fim.',
+    'en': 'First, just listen: your whole recording, from beginning to end.',
+  },
   'advance': {'pt': 'terminei', 'en': 'done'},
   'checking': {'pt': 'conferindo…', 'en': 'checking…'},
   'checkFailed': {

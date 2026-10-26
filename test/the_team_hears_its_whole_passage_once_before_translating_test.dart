@@ -30,6 +30,8 @@ import 'um_ensaio_de_tres_partes.dart';
 const _soOuvir = 'Primeiro, só ouvir: a passagem inteira, do começo ao fim.';
 const _soOuvirEn =
     'First, just listen: the whole passage, from beginning to end.';
+const _soOuvirAGravacao =
+    'Primeiro, só ouvir: a gravação de vocês inteira, do começo ao fim.';
 const _ensaioFinal = 'Ensaio Final';
 const _terminei = 'terminei';
 const _tocarOuPausar = 'Tocar ou pausar a gravação';
@@ -1447,6 +1449,38 @@ void main() {
         Duration.zero,
       ]);
       await _abrirOMicrofone(it);
+    },
+  );
+
+  testWidgets(
+    'during the listen of a recording no join touched there is no terminei, the '
+    'circle opens no microphone, and her line names the recording, not the passage',
+    (tester) async {
+      final it = await _naTela(tester, umEnsaioDeTresPartesGravado);
+      await _ate(tester, () async {
+        _nadaOuvido(it);
+        await _oDisco(it);
+        await theClipOpens(it.harness);
+        it.harness.playback.at = const Duration(seconds: 3);
+      });
+      final microfones = _microfones(it);
+
+      await tester.tap(find.byType(FacilitatorCircle).last);
+      await _ate(tester, () => settle());
+      expect(
+        _microfones(it),
+        microfones,
+        reason: 'o círculo abria o microfone no meio da escuta',
+      );
+      expect(it.harness.playback.sounding, isTrue);
+      expect(find.text(_terminei), findsNothing);
+      expect(
+        find.text(_soOuvirAGravacao),
+        findsOneWidget,
+        reason: 'a gravação sem junção lia a linha da passagem do Ensaio Final',
+      );
+      expect(find.text(_soOuvir), findsNothing);
+      closeTheRoom(it.container);
     },
   );
 
