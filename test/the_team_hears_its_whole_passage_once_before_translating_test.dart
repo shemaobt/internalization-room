@@ -1485,6 +1485,35 @@ void main() {
   );
 
   test(
+    'recomeçar a tradução on a recording no join touched says P1 and plays its '
+    'first part, never a new listen',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      _nadaOuvido(it);
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+
+      it.sala.recomecarATraducao();
+      await settle(const Duration(milliseconds: 700));
+      it.sala.recomecarATraducao();
+      await waitFor(
+        'a tradução recomeçar com uma parte no ar',
+        () =>
+            it.harness.room.restartsAsked.isNotEmpty &&
+            it.harness.playback.played.length > tocadas,
+      );
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('P1', testLanguage)],
+        reason: 'recomeçar é a P1 e a tradução do começo, sem a P0 de novo',
+      );
+      expect(it.harness.playback.played.last, it.partes[0].path);
+      expect(it.harness.playback.playedFrom.last, Duration.zero);
+    },
+  );
+
+  test(
     'a relaunch on the back translation of a joined recording nobody heard plays the first listen',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
