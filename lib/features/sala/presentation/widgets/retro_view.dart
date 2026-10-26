@@ -50,7 +50,10 @@ class RetroView extends ConsumerWidget {
         : retroLabelFor('title', language);
     final estado = _estado(session, language);
     final nota = session.btRecomecada
-        ? retroLabelFor('restarted', language)
+        ? retroLabelFor(
+            session.joined ? 'restartedJoined' : 'restarted',
+            language,
+          )
         : null;
     final linha = estado == null && nota == null
         ? _linha(session, language)
@@ -79,7 +82,9 @@ class RetroView extends ConsumerWidget {
                             ? 'listenOnly'
                             : 'listenOnlyRecording'
                       : veredito
-                      ? 'subVerdict'
+                      ? session.offersASentence
+                            ? 'subVerdictSentence'
+                            : 'subVerdict'
                       : 'subTell',
                   language,
                 ),
@@ -392,7 +397,7 @@ class RetroView extends ConsumerWidget {
     final rotulo = session.armedTap?.control != 'restart'
         ? retroLabelFor('restart', language)
         : retroLabelFor(
-            'restartArmed',
+            session.joined ? 'restartArmedJoined' : 'restartArmed',
             language,
             n: session.btTrechos.where((trecho) => trecho.contado).length,
           );

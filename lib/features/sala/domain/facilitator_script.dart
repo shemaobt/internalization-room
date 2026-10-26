@@ -548,6 +548,12 @@ const retroLabels = {
     'en':
         'Tap a sentence to hear it and translate it again; go back to re-record a part; or tap done to check again.',
   },
+  'subVerdictSentence': {
+    'pt':
+        "Toquem numa frase para ouvir e traduzir de novo; toquem em regravar para gravar a frase inteira de novo; depois toquem em 'terminei'.",
+    'en':
+        "Tap a sentence to hear it and translate it again; tap re-record to record the whole sentence again; then tap 'done'.",
+  },
   'listenToTheRecording': {
     'pt': 'Ouvir a gravação',
     'en': 'Listen to the recording',
@@ -602,6 +608,16 @@ const retroLabels = {
   'restartArmed': {
     'pt': 'toque de novo para apagar as {n} frases traduzidas',
     'en': 'tap again to discard the {n} translated sentences',
+  },
+  'restartArmedJoined': {
+    'pt':
+        'toquem de novo: as {n} traduções saem da tela e vocês traduzem a passagem inteira de novo',
+    'en':
+        'tap again: the {n} translations leave the screen and you translate the whole passage again',
+  },
+  'restartedJoined': {
+    'pt': 'tradução recomeçada — a gravação da passagem ficou',
+    'en': 'translation started over — the passage recording stays',
   },
   'restarted': {
     'pt': 'tradução recomeçada — o ensaio da passagem ficou',

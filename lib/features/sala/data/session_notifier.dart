@@ -2498,9 +2498,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       Door door = Door.step,
     }) {
       if (_abandoned(generation)) return;
-      if (failure case Refused(
-        :final code,
-      ) when waiting != null && !RefusalCode.stopsTheRoom.contains(code)) {
+      if (failure case Refused(:final code)
+          when waiting != null &&
+              !RefusalCode.stopsTheRoom.contains(code) &&
+              code != RefusalCode.canonNotKept) {
         final failures = (_resumeFailures[theResume] ?? 0) + 1;
         _resumeFailures[theResume] = failures;
         if (failures >= _resumeFailuresBeforeForgetting) {

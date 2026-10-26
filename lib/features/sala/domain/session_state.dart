@@ -773,6 +773,8 @@ class SalaSessionState {
   /// Whether a current Part was laid in from a Scene rehearsal.
   bool get joined => partes.any((take) => take.origin != null);
 
+  bool get offersASentence => joined || partes.any((take) => take.isWav);
+
   /// Whether a current Part came from a join, part by part: the tablet's take where it
   /// holds one, the room's listing otherwise.
   bool get aPartWasJoined =>
@@ -1424,7 +1426,7 @@ class SalaSessionState {
       !needsPerson &&
       trecho.parte >= 0 &&
       trecho.parte < partes.length &&
-      partes[trecho.parte].path.endsWith('.wav') &&
+      partes[trecho.parte].isWav &&
       aParteDoTrechoEstaAqui(trecho);
 
   bool get overAnApprovedDraft => btRascunhoAprovado != null;

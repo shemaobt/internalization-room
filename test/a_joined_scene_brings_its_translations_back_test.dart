@@ -351,7 +351,7 @@ void main() {
         find.byWidgetPredicate(
           (widget) =>
               widget is Semantics &&
-              (widget.properties.label ?? '').startsWith('toque de novo'),
+              (widget.properties.label ?? '').startsWith('toquem de novo'),
         ),
       );
       await it.until(
