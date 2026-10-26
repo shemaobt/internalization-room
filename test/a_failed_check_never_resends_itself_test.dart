@@ -66,7 +66,7 @@ Future<_Check> _readyForTheVerdict(SalaHarness harness) async {
   await check.sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a tradução retomada pôr a parte no ar',
-    () => check.estado.stage == SalaStage.retro,
+    () => check.estado.stage == SalaStage.retro && harness.playback.sounding,
   );
   harness.playback.finishPlayback();
   await waitFor(

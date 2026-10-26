@@ -83,7 +83,7 @@ Future<_Room> _aResumedBackTranslation(
   await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a tradução retomada pôr a parte no ar',
-    () => room.estado.stage == SalaStage.retro,
+    () => room.estado.stage == SalaStage.retro && harness.playback.sounding,
   );
   return room;
 }

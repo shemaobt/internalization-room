@@ -1015,8 +1015,8 @@ void main() {
     );
     await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor(
-      'a tradução ser retomada',
-      () => it.estado.stage == SalaStage.retro,
+      'a tradução ser retomada com a parte no ar',
+      () => it.estado.stage == SalaStage.retro && harness.playback.sounding,
     );
     harness.playback.finishPlayback();
     await waitFor('o ensaio acabar de tocar', () => it.estado.btClipEnded);
