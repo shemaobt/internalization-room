@@ -909,6 +909,55 @@ void main() {
     },
   );
 
+  test('after recomeçar a tradução the next listen the room checks runs the '
+      'automatic check again, not a memory of the first', () async {
+    final it = await _juntadaNaCasa();
+    _frasesTrazidas(it);
+    _nadaOuvido(it);
+    await _oDisco(it);
+    await _ouvirAte(it, ate: 1);
+    _tudoOuvido(it);
+    it.harness.room
+      ..listeningAutomaticCheck = true
+      ..listeningFixedLine = 'N1'
+      ..verdictChecked = true;
+    await _ouvirAte(it, desde: 2);
+    await waitFor(
+      'a primeira conferência',
+      () => it.estado.btPhase == BtPhase.conferida,
+    );
+    it.sala.recomecarATraducao();
+    await settle(const Duration(milliseconds: 700));
+    it.sala.recomecarATraducao();
+    await waitFor(
+      'a tradução recomeçar',
+      () =>
+          it.harness.room.restartsAsked.isNotEmpty &&
+          it.estado.btPhase == BtPhase.playing,
+    );
+    it.sala.goEnsaio();
+    await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
+    _nadaOuvido(it);
+    await _oDisco(it);
+    await _ouvirAte(it, ate: 1);
+    _tudoOuvido(it);
+    final linhas = it.harness.voice.fixedLines.length;
+    final conferidas = it.harness.room.playedByTakeSent.length;
+
+    await _ouvirAte(it, desde: 2);
+    await waitFor(
+      'a segunda conferência',
+      () => it.harness.room.playedByTakeSent.length > conferidas,
+    );
+
+    expect(it.harness.voice.fixedLines.skip(linhas), [('N1', testLanguage)]);
+    expect(
+      it.harness.room.playedByTakeSent.length,
+      conferidas + 1,
+      reason: 'depois do recomeço, a conferência sozinha não voltava',
+    );
+  });
+
   test('a terminei the room refuses over an untranslated stretch says N2 again '
       'and plays that stretch, never an empty findings screen', () async {
     final it = await _juntadaNaCasa();
