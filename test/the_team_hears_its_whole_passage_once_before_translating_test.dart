@@ -1540,6 +1540,34 @@ void main() {
   );
 
   test(
+    'a recording no join touched that the room still counts unheard after its '
+    'listen keeps the listen, with no P1 and no terminei',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      _nadaOuvido(it);
+      final linhas = it.harness.voice.fixedLines.length;
+
+      await _oDisco(it);
+      await _ouvirAte(it);
+      await waitFor(
+        'a sala responder o fim da escuta',
+        () => it.estado.btRecusa == CheckRefusal.partUnheard,
+      );
+      await settle();
+
+      expect(it.harness.voice.fixedLines.skip(linhas), [('P0', testLanguage)]);
+      expect(it.estado.btRecusa, CheckRefusal.partUnheard);
+      expect(
+        it.estado.canFinishBackTranslation,
+        isFalse,
+        reason:
+            'a escuta acabava com o terminei aceso sem a sala contar a '
+            'gravação ouvida',
+      );
+    },
+  );
+
+  test(
     'a relaunch on the back translation of a joined recording nobody heard plays the first listen',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
