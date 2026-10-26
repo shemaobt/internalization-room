@@ -1472,8 +1472,7 @@ class SalaSessionState {
       btFraseQueAguarda == null &&
       (btPhase == BtPhase.findings ||
           btPhase == BtPhase.conferida ||
-          (btPhase == BtPhase.playing &&
-              (btVeredito || btFindings.isNotEmpty)));
+          btPhase == BtPhase.playing);
 
   bool get canHearAFrase =>
       stage == SalaStage.retro &&

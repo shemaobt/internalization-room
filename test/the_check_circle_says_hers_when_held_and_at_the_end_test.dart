@@ -207,8 +207,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('once a bead\'s frase ends before any verdict, the part it held '
-      'reads her «pausado», not «ouvindo»', (tester) async {
+  testWidgets('once a bead\'s frase ends before any verdict, the circle reads '
+      'its own line to tell it again, not «ouvindo»', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await umaFraseContada(tester, harness);
     harness.playback.at = s(5.0);
@@ -220,11 +220,16 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).btClipPausada, isTrue);
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo,
+      isNotNull,
+    );
     expect(
       rotuloDoCirculo(tester),
-      pausado,
-      reason: 'o círculo seguia dizendo ouvindo com nada tocando',
+      'Tocar para gravar a tradução de novo',
+      reason:
+          'antes do veredito a conta não abria a frase, e o círculo voltava '
+          'à parte segurada',
     );
     closeTheRoom(container);
   });

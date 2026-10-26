@@ -237,7 +237,8 @@ void main() {
 
   testWidgets('R3 — a conta tocada toca o seu trecho e devolve o anel ao '
       'pendente', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.chunksAnswerWithNoName = true;
     final container = await doisContadosEOTerceiroPendente(tester, harness);
 
     await tocarAConta(tester, 0);
@@ -290,8 +291,10 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a bead tapped before any verdict plays its frase out of the '
-      'recording, not its translation, and opens no retell', (tester) async {
+  testWidgets('a bead tapped before any verdict opens its frase to be told '
+      'again and plays it out of the recording, not its translation', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await doisContadosEOTerceiroPendente(tester, harness);
     final gravacao = container.read(salaSessionProvider).partes.first.path;
@@ -308,16 +311,19 @@ void main() {
     );
     expect(harness.playback.ranges.skip(trechos), ['0-4000']);
     expect(
-      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo,
-      isNull,
-      reason: 'antes do veredito a conta abria a frase para traduzir de novo',
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-1',
+      reason:
+          'antes do veredito a conta só tocava a frase, e a barra dela já a '
+          'abre para traduzir de novo',
     );
     closeTheRoom(container);
   });
 
   testWidgets('R3 — com o clipe pausado no meio, a conta tocada não move a '
       'cabeça', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.chunksAnswerWithNoName = true;
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
@@ -348,8 +354,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — uma conta sem tradução no tablet toca a sua língua '
-      'materna', (tester) async {
+  testWidgets('R3 — uma conta sem tradução no tablet, antes do veredito, abre '
+      'a frase e toca a sua língua materna', (tester) async {
     final gravada = File(
       '${Directory.systemTemp.createTempSync('sala-1117').path}/p1.m4a',
     )..writeAsBytesSync([1, 2, 3]);
@@ -398,13 +404,14 @@ void main() {
 
     expect(harness.playback.played.lastOrNull, gravada.path);
     expect(harness.playback.ranges.lastOrNull, '0-4000');
-    expect(contas(tester), ['solid com anel', 'translucent']);
     expect(await olhar(tester), 'wood soando');
-
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(contas(tester), ['solid', 'translucent com anel']);
-    expect(await olhar(tester), 'telha parado');
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-1',
+      reason:
+          'antes do veredito a conta só tocava a frase, e a barra dela já a '
+          'abre para traduzir de novo',
+    );
     closeTheRoom(container);
   });
 
@@ -428,7 +435,8 @@ void main() {
   testWidgets('R3b — ouvir uma conta não conta como ouvir a parte', (
     tester,
   ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.chunksAnswerWithNoName = true;
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
@@ -468,7 +476,8 @@ void main() {
 
   testWidgets('R3 — uma conta tocada com a parte ainda abrindo não deixa a '
       'cabeça atrás do cursor', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.chunksAnswerWithNoName = true;
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
@@ -491,7 +500,8 @@ void main() {
 
   testWidgets('R3 — a tesoura depois de uma conta tocada corta na cabeça de '
       'antes', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.chunksAnswerWithNoName = true;
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
@@ -513,7 +523,8 @@ void main() {
   testWidgets('R3 — o disco de avanço se apaga enquanto uma conta toca', (
     tester,
   ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.chunksAnswerWithNoName = true;
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);

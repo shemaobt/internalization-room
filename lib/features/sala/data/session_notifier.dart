@@ -9371,7 +9371,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _walkTheCursorBack(List<Trecho> trechos) {
     final alcancado = trechos.fold(
       Duration.zero,
-      (ate, trecho) => trecho.to > ate ? trecho.to : ate,
+      (ate, trecho) =>
+          trecho.parte >= _parteTocando && trecho.to > ate ? trecho.to : ate,
     );
     _trechoStart = alcancado;
     _trechoEnd = alcancado;
