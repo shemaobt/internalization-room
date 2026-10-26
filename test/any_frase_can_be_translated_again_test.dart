@@ -868,6 +868,27 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('«voltar e regravar uma parte» rests while a frase is being told '
+      'again, instead of taking a tap it would drop', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+    await tocar(tester, _barra(7));
+    await tocar(tester, 'ouvindo a gravação de vocês…');
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
+    expect(
+      tester
+          .widget<Semantics>(byLabel('voltar e regravar uma parte'))
+          .properties
+          .enabled,
+      isFalse,
+      reason:
+          'com o microfone aberto o botão ficava aceso e o toque não levava '
+          'a lugar nenhum',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a tap on «regravar a frase 4» is that button\'s, never the '
       'row\'s retell', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

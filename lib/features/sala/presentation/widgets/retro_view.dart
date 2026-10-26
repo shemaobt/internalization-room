@@ -229,7 +229,8 @@ class RetroView extends ConsumerWidget {
               _botaoEscrito(
                 findingLabelFor('recordThePart', language),
                 colors,
-                session.btFindingTrecho != null
+                session.btFindingTrecho != null &&
+                        session.btPhase == BtPhase.playing
                     ? notifier.gravarAParteDeNovo
                     : null,
               ),
