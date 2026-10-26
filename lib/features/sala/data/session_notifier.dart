@@ -9155,7 +9155,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
     }
     if (_abandoned(generation)) return;
-    final seguir = _theRefusalLandsOn(snapshot, alvo, sent);
+    final seguir = _theRefusalLandsOn(snapshot, alvo);
     _applyTheSessionRead(snapshot, sent);
     if (seguir) await _confirmarTraducao();
   }
@@ -9180,7 +9180,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return _theRefusalCouldNotBeRead(path, unread, generation, life);
         }
         if (_abandoned(generation)) return;
-        _theStretchIsGone(snapshot.backTranslation.segments, sent);
+        _theStretchIsGone(snapshot.backTranslation.segments);
         _applyTheSessionRead(snapshot, sent);
       case final RoomFailure failure:
         _theRefusalCouldNotBeRead(path, failure, generation, life);
@@ -9251,14 +9251,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     switch (lido) {
       case Answered(value: final snapshot):
-        _theStretchIsGone(snapshot.backTranslation.segments, sent);
+        _theStretchIsGone(snapshot.backTranslation.segments);
         _applyTheSessionRead(snapshot, sent);
       case final RoomFailure failure:
         _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
     }
   }
 
-  bool _theRefusalLandsOn(SessionSnapshot snapshot, Trecho alvo, int sent) {
+  bool _theRefusalLandsOn(SessionSnapshot snapshot, Trecho alvo) {
     final segments = snapshot.backTranslation.segments;
     final sucessor = segments.indexWhere(
       (segment) =>
@@ -9272,44 +9272,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_retirarDaFilaSeGuardada(perdida));
     }
     if (sucessor < 0) {
-      _theStretchIsGone(segments, sent);
+      _theStretchIsGone(segments);
       return false;
     }
-    final fresh = sent > _stretchesAt;
-    final List<Trecho> trechos;
-    final int lugar;
-    if (fresh) {
-      _stretchesAt = sent;
-      trechos = _trechosFrom(segments, lugar: sucessor, noLugarDe: alvo);
-      lugar = sucessor;
-    } else {
-      trechos = state.btTrechos;
-      lugar = trechos.indexWhere(
-        (trecho) =>
-            trecho.segmentId != alvo.segmentId &&
-            trecho.takeId == alvo.takeId &&
-            trecho.from == alvo.from &&
-            trecho.to == alvo.to,
-      );
-      if (lugar < 0) {
-        _theStretchIsGone(segments, sent);
-        return false;
-      }
-    }
+    final trechos = _trechosFrom(segments, lugar: sucessor, noLugarDe: alvo);
     state = state.copyWith(
       btPhase: BtPhase.playing,
       awaitingTheGuide: false,
       btTrechos: trechos,
     );
-    _armarOTrecho(trechos[lugar]);
+    _armarOTrecho(trechos[sucessor]);
     _rememberWhereTheyAre(const Retro());
     return true;
   }
 
-  void _theStretchIsGone(List<SegmentView> segments, int sent) {
-    final fresh = sent > _stretchesAt;
-    if (fresh) _stretchesAt = sent;
-    final trechos = fresh ? _trechosFrom(segments) : state.btTrechos;
+  void _theStretchIsGone(List<SegmentView> segments) {
+    final trechos = _trechosFrom(segments);
     _walkTheCursorBack(trechos);
     _trechoTraduzidoDeNovo = null;
     _descartarATraducaoPendente();
