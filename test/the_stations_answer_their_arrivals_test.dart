@@ -361,7 +361,20 @@ void main() {
     _expectTheArrival(
       const Ensaio(),
       const TheExternalCheckOpened(3),
-      equals(const ChecagemExterna(3)),
+      equals(const ChecagemExterna(3, fromTheHome: true)),
+    );
+  });
+
+  test('the Checagem externa leaves to the door it was opened from', () {
+    _expectTheArrival(
+      const ChecagemExterna(3, fromTheHome: true),
+      const TheExternalCheckLeft(),
+      isA<Ensaio>(),
+    );
+    _expectTheArrival(
+      const ChecagemExterna(3),
+      const TheExternalCheckLeft(),
+      isA<Retro>(),
     );
   });
 

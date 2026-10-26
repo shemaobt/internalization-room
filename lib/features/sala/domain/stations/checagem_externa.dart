@@ -4,18 +4,21 @@ part of '../station.dart';
 /// resume point that names it reopens on the Back-translation first (ADR 0116).
 final class ChecagemExterna extends Station {
   final int version;
+  final bool fromTheHome;
 
-  const ChecagemExterna(this.version);
+  const ChecagemExterna(this.version, {this.fromTheHome = false});
 
   @override
   SalaStage get stage => SalaStage.checagem;
 
   @override
   bool operator ==(Object other) =>
-      other is ChecagemExterna && other.version == version;
+      other is ChecagemExterna &&
+      other.version == version &&
+      other.fromTheHome == fromTheHome;
 
   @override
-  int get hashCode => version.hashCode;
+  int get hashCode => Object.hash(version, fromTheHome);
 
   @override
   Station answer(StationEvent event) => switch (event) {
@@ -24,9 +27,8 @@ final class ChecagemExterna extends Station {
     TheChoiceOpened() => const Menu(),
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),
-    TheBackTranslationOpened() ||
-    TheBackTranslationResumed() ||
-    TheExternalCheckLeft() => const Retro(),
+    TheBackTranslationOpened() || TheBackTranslationResumed() => const Retro(),
+    TheExternalCheckLeft() => fromTheHome ? const Ensaio() : const Retro(),
     TheExternalCheckOpened() ||
     TheSceneRehearsalOpened() ||
     TheSceneRehearsalLeft() ||

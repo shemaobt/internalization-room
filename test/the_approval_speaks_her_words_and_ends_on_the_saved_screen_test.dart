@@ -851,6 +851,25 @@ void main() {
       closeTheRoom(it.container);
     });
 
+    testWidgets('leaving the external check opened from the home returns to '
+        'the home and keeps the home as the resume point', (tester) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await _tocar(tester);
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(byLabel('Checagem externa'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await _assentar(tester);
+
+      it.container.read(salaSessionProvider.notifier).leaveTheExternalCheck();
+      await _assentar(tester);
+
+      expect(it.container.read(salaSessionProvider).stage, SalaStage.ensaio);
+      expect(it.harness.emAberto.rows['Ruth/P01/pt']?.stage, SalaStage.ensaio);
+      closeTheRoom(it.container);
+    });
+
     testWidgets('an approved draft: no button', (tester) async {
       final it = await _ateAConferida(tester);
       it.harness.room

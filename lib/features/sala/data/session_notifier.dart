@@ -8419,7 +8419,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     _dispatch(const MicDiscarded());
     _arriveAt(const TheExternalCheckLeft());
-    _rememberWhereTheyAre(const Retro());
+    _rememberWhereTheyAre(state.station);
+    if (state.station is Ensaio) return;
     if (sessionId != null) {
       unawaited(_readTheStretchesBack(sessionId, _waitOnTheGeneration));
     }
