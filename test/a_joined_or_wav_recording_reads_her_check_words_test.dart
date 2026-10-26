@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show byLabel;
 
 const _herSubVerdict =
     'Toquem numa frase para ouvir e traduzir de novo; toquem em regravar para '
@@ -92,6 +93,8 @@ Future<ProviderContainer> _voltaAUmaTraducao(
   return container;
 }
 
+const _recomecar = 'recomeçar a tradução';
+
 void main() {
   testWidgets('a verdict on a joined recording reads her sentence line, not '
       'the line about going back to re-record a part', (tester) async {
@@ -162,6 +165,111 @@ void main() {
       retroLabelFor('subVerdict', 'en'),
       'Tap a sentence to hear it and translate it again; go back to re-record '
       'a part; or tap done to check again.',
+    );
+  });
+
+  testWidgets('the first tap of a restart on a joined recording says the '
+      'translations leave the screen, in her words', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAUmaTraducao(
+      tester,
+      harness,
+      extension: 'm4a',
+      juntada: true,
+    );
+
+    await tester.tap(byLabel(_recomecar));
+    await _passo(tester);
+
+    expect(
+      find.text(
+        'toquem de novo: as 2 traduções saem da tela e vocês traduzem a '
+        'passagem inteira de novo',
+      ),
+      findsOneWidget,
+      reason: 'o toque armado falava em apagar frases de um ensaio',
+    );
+    expect(harness.room.restartsAsked, isEmpty);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a restart done on a joined recording says the recording of the '
+      'passage stays, in her words', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAUmaTraducao(
+      tester,
+      harness,
+      extension: 'm4a',
+      juntada: true,
+    );
+
+    await tester.tap(byLabel(_recomecar));
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.tap(
+      byLabel(
+        'toquem de novo: as 2 traduções saem da tela e vocês traduzem a '
+        'passagem inteira de novo',
+      ),
+    );
+    await waitFor(
+      'a tradução recomeçar',
+      () => container.read(salaSessionProvider).btTrechos.isEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      find.text('tradução recomeçada — a gravação da passagem ficou'),
+      findsOneWidget,
+      reason: 'a nota falava do ensaio da passagem onde só ficou a gravação',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a restart on a hand-recorded wav recording keeps the words it '
+      'had, because only a join changes them', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAUmaTraducao(
+      tester,
+      harness,
+      extension: 'wav',
+      juntada: false,
+    );
+
+    await tester.tap(byLabel(_recomecar));
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(
+      find.text('toque de novo para apagar as 2 frases traduzidas'),
+      findsOneWidget,
+      reason: 'o wav gravado à mão passava a falar de uma gravação juntada',
+    );
+    await tester.tap(
+      byLabel('toque de novo para apagar as 2 frases traduzidas'),
+    );
+    await waitFor(
+      'a tradução recomeçar',
+      () => container.read(salaSessionProvider).btTrechos.isEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      find.text('tradução recomeçada — o ensaio da passagem ficou'),
+      findsOneWidget,
+      reason: 'o wav gravado à mão passava a falar de uma gravação juntada',
+    );
+    closeTheRoom(container);
+  });
+
+  test('her restart lines are worded the same in english', () {
+    expect(
+      retroLabelFor('restartArmedJoined', 'en', n: 4),
+      'tap again: the 4 translations leave the screen and you translate the '
+      'whole passage again',
+    );
+    expect(
+      retroLabelFor('restartedJoined', 'en'),
+      'translation started over — the passage recording stays',
     );
   });
 }

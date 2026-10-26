@@ -605,6 +605,16 @@ const retroLabels = {
     'pt': 'toque de novo para apagar as {n} frases traduzidas',
     'en': 'tap again to discard the {n} translated sentences',
   },
+  'restartArmedJoined': {
+    'pt':
+        'toquem de novo: as {n} traduções saem da tela e vocês traduzem a passagem inteira de novo',
+    'en':
+        'tap again: the {n} translations leave the screen and you translate the whole passage again',
+  },
+  'restartedJoined': {
+    'pt': 'tradução recomeçada — a gravação da passagem ficou',
+    'en': 'translation started over — the passage recording stays',
+  },
   'restarted': {
     'pt': 'tradução recomeçada — o ensaio da passagem ficou',
     'en': 'translation started over — the passage rehearsal stays',
