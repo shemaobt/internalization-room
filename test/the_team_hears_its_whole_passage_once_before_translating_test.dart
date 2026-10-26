@@ -34,6 +34,8 @@ const _ensaioFinal = 'Ensaio Final';
 const _terminei = 'terminei';
 const _tocarOuPausar = 'Tocar ou pausar a gravação';
 const _faltaOuvir = 'ainda falta ouvir um trecho da gravação';
+const _faltaTraduzir =
+    "falta traduzir um trecho — ouçam e traduzam, depois toquem em 'terminei'";
 
 /// The parts of [it] stood as a Joined recording on the tablet: each one is the bytes of
 /// its scene's rehearsal, as the join leaves them.
@@ -779,6 +781,43 @@ void main() {
     },
   );
 
+  testWidgets(
+    'the untranslated stretch the room names after the listen is written '
+    'with its scenes, not left to the voice alone',
+    (tester) async {
+      final it = await _naTela(tester, _juntadaNaCasa);
+      await _ate(tester, () async {
+        _nadaOuvido(it);
+        await _oDisco(it);
+        await _ouvirAte(it, ate: 1);
+        _tudoOuvido(it);
+        it.harness.room
+          ..listeningFixedLine = 'N2'
+          ..listeningUntranslated = [
+            UntranslatedPart(
+              takeId: it.partes[1].takeId!,
+              scene: 2,
+              from: const Duration(milliseconds: 4000),
+            ),
+            UntranslatedPart(takeId: it.partes[2].takeId!, scene: 3),
+          ];
+        final tocadas = it.harness.playback.played.length;
+        await _ouvirAte(it, desde: 2);
+        await waitFor(
+          'a segunda voltar ao ar',
+          () => it.harness.playback.played.length > tocadas,
+        );
+      });
+
+      expect(
+        find.text('$_faltaTraduzir · cena 2, cena 3'),
+        findsOneWidget,
+        reason: 'a tela não dizia que faltava traduzir, nem em que cena',
+      );
+      closeTheRoom(it.container);
+    },
+  );
+
   test('a terminei the room refuses over an untranslated stretch says N2 again '
       'and plays that stretch, never an empty findings screen', () async {
     final it = await _juntadaNaCasa();
@@ -833,6 +872,12 @@ void main() {
       reason: 'a recusa caía na tela de achados, vazia',
     );
     expect(it.estado.awaitingTheGuide, isFalse);
+    expect(
+      it.estado.btRecusa,
+      CheckRefusal.stretchUntranslated,
+      reason: 'a recusa do terminei não deixava a dica na tela',
+    );
+    expect(it.estado.btCenasSemTraducao, [2]);
     await _abrirOMicrofone(it);
   });
 

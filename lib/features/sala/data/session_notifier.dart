@@ -7843,6 +7843,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (deixou()) return;
     _deixarDeSoOuvir();
     _sairDaEspera();
+    state = state.copyWith(
+      btRecusa: CheckRefusal.stretchUntranslated,
+      btCenasSemTraducao: [for (final parte in partes) ?parte.scene],
+    );
     final primeira = partes.firstOrNull;
     final onde = state.partes.indexWhere(
       (parte) => parte.takeId == primeira?.takeId,
