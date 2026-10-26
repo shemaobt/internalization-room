@@ -68,6 +68,8 @@ class KeptTake {
     this.origin,
   });
 
+  bool get isWav => path.endsWith('.wav');
+
   KeptTake at(String file) => KeptTake(
     scopeId: scopeId,
     path: file,

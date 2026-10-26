@@ -82,7 +82,9 @@ class RetroView extends ConsumerWidget {
                             ? 'listenOnly'
                             : 'listenOnlyRecording'
                       : veredito
-                      ? 'subVerdict'
+                      ? session.offersASentence
+                            ? 'subVerdictSentence'
+                            : 'subVerdict'
                       : 'subTell',
                   language,
                 ),
