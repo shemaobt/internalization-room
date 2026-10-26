@@ -7840,6 +7840,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (deixou()) return;
     _deixarDeSoOuvir();
     _sairDaEspera();
+    if (state.partes.isEmpty) return;
     _tocarParteDaRetro(0, doComeco: true);
   }
 

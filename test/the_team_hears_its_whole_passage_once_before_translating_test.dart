@@ -1627,6 +1627,39 @@ void main() {
   );
 
   test(
+    'a row emptied while P1 is said leaves nothing to put in the air, not a room '
+    'taken down',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      await _oDisco(it);
+      it.sala.goEnsaio();
+      await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
+      _tudoOuvido(it);
+      it.harness.voice.holdNextLine();
+      it.sala.startRetro();
+      await waitFor(
+        'a P1 ser dita',
+        () => it.harness.voice.fixedLines.lastOrNull?.$1 == 'P1',
+      );
+      final tocadas = it.harness.playback.played.length;
+
+      // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+      it.sala.state = it.estado.copyWith(keptTakes: const []);
+      it.harness.voice.finishHeldLine();
+      await settle();
+
+      expect(
+        it.estado.halt,
+        isA<NoHalt>(),
+        reason:
+            'pedir a primeira parte de uma fileira vazia derrubava a sala '
+            'debaixo da equipe',
+      );
+      expect(it.harness.playback.played.length, tocadas);
+    },
+  );
+
+  test(
     'a relaunch on the back translation of a joined recording nobody heard plays the first listen',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
