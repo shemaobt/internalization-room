@@ -40,6 +40,22 @@ void main() {
     return file;
   }
 
+  Future<PendingTake> keep(
+    TakeUploadQueue queue,
+    String name,
+    String session,
+  ) => queue.enqueue(
+    aTake(name),
+    sessionId: session,
+    kind: 'ensaio',
+    scope: 'inteira',
+  );
+
+  List<String> inTheFolder() => [
+    for (final e in Directory('${home.path}/guardadas').listSync())
+      p.basename(e.path),
+  ];
+
   File manifest() => File('${home.path}/guardadas/fila.json');
 
   /// The tablet comes back from a backup under a container prefix it has never had.
@@ -64,6 +80,62 @@ void main() {
       '"stored":false,"lost":false,"attempts":0,"waits":0,"last_try":null}]',
     );
   }
+
+  test('the end of a life empties the Outbox with its copies and refuses a '
+      'take until the next life begins', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    await keep(queue, 'velha-1', 'sessao-1');
+    await keep(queue, 'velha-2', 'sessao-2');
+
+    await queue.endTheLife();
+
+    expect(await queue.entries(), isEmpty);
+    expect(inTheFolder(), ['fila.json']);
+    await expectLater(
+      keep(queue, 'tardia', 'sessao-1'),
+      throwsA(isA<TheLifeEnded>()),
+    );
+    queue.beginALife();
+    await keep(queue, 'nova', 'sessao-3');
+    expect(await queue.entries(), hasLength(1));
+  });
+
+  test('a sweep that fails leaves every row for the next try', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    final kept = await keep(queue, 'velha', 'sessao-1');
+    File(kept.path).deleteSync();
+    Directory(kept.path).createSync();
+
+    expect(await queue.endTheLife(), isFalse);
+    expect(await queue.entries(), hasLength(1));
+  });
+
+  test('a sweep goes on past a copy already gone', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    final first = await keep(queue, 'velha-1', 'sessao-1');
+    await keep(queue, 'velha-2', 'sessao-1');
+    File(first.path).deleteSync();
+
+    expect(await queue.endTheLife(), isTrue);
+    expect(await queue.entries(), isEmpty);
+    expect(inTheFolder(), ['fila.json']);
+  });
+
+  test(
+    'a take being copied when the life ends leaves no row and no copy',
+    () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+
+      final enqueuing = keep(queue, 'no-ar', 'sessao-1');
+      final ending = queue.endTheLife();
+
+      await expectLater(enqueuing, throwsA(isA<TheLifeEnded>()));
+      await ending;
+      expect(File('${home.path}/no-ar.m4a').existsSync(), isFalse);
+      expect(await queue.entries(), isEmpty);
+      expect(inTheFolder(), ['fila.json']);
+    },
+  );
 
   test('a manifest it cannot read is never rewritten from scratch', () async {
     final room = FakeRoom()..reachable = false;

@@ -3709,6 +3709,20 @@ class FakeTakeQueue implements TakeUploadQueue {
   /// The disk refuses the next keep, before any row is written.
   bool refusesTheNextKeep = false;
 
+  bool _lifeEnded = false;
+  bool sweepFails = false;
+
+  @override
+  Future<bool> endTheLife() async {
+    _lifeEnded = true;
+    if (sweepFails) return false;
+    rows.clear();
+    return true;
+  }
+
+  @override
+  void beginALife() => _lifeEnded = false;
+
   @override
   Future<PendingTake> enqueue(
     File audio, {
@@ -3719,6 +3733,7 @@ class FakeTakeQueue implements TakeUploadQueue {
     int? chunkIndex,
     String? scene,
   }) async {
+    if (_lifeEnded) throw const TheLifeEnded();
     if (refusesTheNextKeep) {
       refusesTheNextKeep = false;
       throw const FileSystemException('o disco está cheio');
