@@ -81,6 +81,7 @@ void main() {
     await pumpEventQueue();
 
     expect(recorder.heard, contains('delete:/recordings/$older.m4a'));
+    expect(recorder.heard, isNot(contains('delete:/recordings/$newer.m4a')));
     expect(answered().where((answer) => answer.take != null), isEmpty);
   });
 
@@ -101,6 +102,22 @@ void main() {
     await pumpEventQueue();
 
     expect(recorder.heard, contains('delete:/recordings/conversa_2.m4a'));
+  });
+
+  test('an idle stop answering a kept take after the disposal leaves it '
+      'alone', () async {
+    runner.run(const [OpenTheMic(MicOwner.rehearsal, take: _take)]);
+    recorder.answerTheStart(MicAnswer.started);
+    await pumpEventQueue();
+    runner.run(const [CloseTheMic()]);
+    recorder.answerTheStop(_file);
+    await pumpEventQueue();
+    runner.run(const [CloseTheMic()]);
+    runner.dispose();
+    recorder.answerTheStop(_file);
+    await pumpEventQueue();
+
+    expect(recorder.heard, isNot(contains('delete:$_file')));
   });
 
   test('a take handed back after the runner is disposed is deleted '

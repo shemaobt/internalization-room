@@ -332,6 +332,19 @@ void main() {
     );
   });
 
+  test('every recording on the tablet can be deleted at once', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+    await recording.start('ensaio_parte1', owner: MicOwner.rehearsal);
+    final first = File(microphone.openedPath!)..createSync(recursive: true);
+    final second = File('${first.parent.path}/conversa_1.m4a')..createSync();
+
+    await recording.deleteEveryRecording();
+
+    expect(first.existsSync(), isFalse);
+    expect(second.existsSync(), isFalse);
+  });
+
   test('a discard stops and deletes the recording that is open', () async {
     final recording = RecordingRepository();
     addTearDown(recording.dispose);

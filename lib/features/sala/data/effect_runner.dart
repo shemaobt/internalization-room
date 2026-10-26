@@ -553,14 +553,16 @@ class EffectRunner {
         ),
       );
     }
+    final handedOver = take;
     if (_disposed) {
-      if (take != null && _startedTakes.any((it) => _isTheFileOf(it, take!))) {
-        unawaited(recorder.delete(take));
+      if (handedOver != null &&
+          _startedTakes.any((it) => _isTheFileOf(it, handedOver))) {
+        unawaited(recorder.delete(handedOver));
       }
       return;
     }
-    if (take != null) {
-      _startedTakes.removeWhere((it) => _isTheFileOf(it, take!));
+    if (handedOver != null) {
+      _startedTakes.removeWhere((it) => _isTheFileOf(it, handedOver));
     }
     host.answer(
       MicAnswered(MicAnswer.closed, take: take, generation: generation?.call()),

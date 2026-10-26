@@ -19,8 +19,12 @@ import 'fakes.dart';
 
 void main() {
   late Directory home;
+  var recorder = FakeRecorder();
 
-  setUp(() => home = Directory.systemTemp.createTempSync('fila-tomadas'));
+  setUp(() {
+    home = Directory.systemTemp.createTempSync('fila-tomadas');
+    recorder = FakeRecorder();
+  });
   tearDown(() => home.deleteSync(recursive: true));
 
   var clock = DateTime(2026, 8, 12, 9);
@@ -29,7 +33,7 @@ void main() {
       TakeUploadQueue(
         room: room,
         home: () async => home,
-        recordings: FakeRecorder.new,
+        recordings: () => recorder,
         backoff: backoff,
         now: () => clock,
       );
@@ -64,6 +68,79 @@ void main() {
       '"stored":false,"lost":false,"attempts":0,"waits":0,"last_try":null}]',
     );
   }
+
+  test('the end of a life empties the Outbox with its copies and refuses a '
+      'take until the next life begins', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    await queue.enqueue(
+      aTake('velha-1'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+    await queue.enqueue(
+      aTake('velha-2'),
+      sessionId: 'sessao-2',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+
+    final original = File('${recorder.home.path}/ensaio_parte1.wav')
+      ..writeAsBytesSync([1]);
+
+    await queue.endTheLife();
+
+    expect(original.existsSync(), isFalse);
+    expect(await queue.entries(), isEmpty);
+    expect(
+      Directory(
+        '${home.path}/guardadas',
+      ).listSync().map((e) => p.basename(e.path)),
+      ['fila.json'],
+    );
+    await expectLater(
+      queue.enqueue(
+        aTake('tardia'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      ),
+      throwsA(isA<TheLifeEnded>()),
+    );
+    queue.beginALife();
+    await queue.enqueue(
+      aTake('nova'),
+      sessionId: 'sessao-3',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+    expect(await queue.entries(), hasLength(1));
+  });
+
+  test(
+    'a take being copied when the life ends leaves no row and no copy',
+    () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+
+      final enqueuing = queue.enqueue(
+        aTake('no-ar'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+      final ending = queue.endTheLife();
+
+      await expectLater(enqueuing, throwsA(isA<TheLifeEnded>()));
+      await ending;
+      expect(await queue.entries(), isEmpty);
+      expect(
+        Directory(
+          '${home.path}/guardadas',
+        ).listSync().map((e) => p.basename(e.path)),
+        ['fila.json'],
+      );
+    },
+  );
 
   test('a manifest it cannot read is never rewritten from scratch', () async {
     final room = FakeRoom()..reachable = false;

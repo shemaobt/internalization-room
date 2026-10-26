@@ -26,9 +26,6 @@ class RecordingRepository {
   final Map<String, Future<String>> _keeping = {};
   Future<void> _turn = Future.value();
 
-  /// One turn at a time for the questions and acts that end a recording: the plugin's own
-  /// semaphore is private and spans one call, so a stop could slip between a discard's
-  /// question and its act.
   Future<T> _inTurn<T>(Future<T> Function() act) {
     final result = _turn.then((_) => act());
     _turn = result.then<void>((_) {}, onError: (Object _) {});
@@ -175,6 +172,17 @@ class RecordingRepository {
         if (name.startsWith('frase_') || name.startsWith('ouvinte_')) {
           await entry.delete();
         }
+      }
+    } on Exception {
+      return;
+    }
+  }
+
+  Future<void> deleteEveryRecording() async {
+    try {
+      final dir = await _recordingsDir();
+      await for (final entry in dir.list()) {
+        if (entry is File) await entry.delete();
       }
     } on Exception {
       return;
