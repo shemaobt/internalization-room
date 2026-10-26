@@ -571,6 +571,7 @@ class TakeUploadQueue {
         await _deleteTheCopy(row);
       }
       await _mutate((_) => const []);
+      await _recordings().deleteEveryRecording();
       return true;
     } on FileSystemException {
       return false;

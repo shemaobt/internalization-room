@@ -451,6 +451,16 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<void> sweepTheRecordingsLeftBehind() async => sweeps++;
 
+  bool deleteEveryFails = false;
+
+  @override
+  Future<void> deleteEveryRecording() async {
+    if (deleteEveryFails) throw const FileSystemException('o disco falhou');
+    for (final entry in home.listSync()) {
+      if (entry is File) entry.deleteSync();
+    }
+  }
+
   /// Whether keeping fetched audio fails, the way a dead disk does.
   bool keepBytesFails = false;
 
@@ -3714,6 +3724,7 @@ class FakeTakeQueue implements TakeUploadQueue {
     _lifeEnded = true;
     if (sweepFails) return false;
     rows.clear();
+    await recordings?.deleteEveryRecording();
     return true;
   }
 

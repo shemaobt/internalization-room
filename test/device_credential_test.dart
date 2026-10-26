@@ -11,6 +11,7 @@ import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
+import 'package:internalization_room/features/sala/data/recording_repository.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_client.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
@@ -164,6 +165,7 @@ ProviderContainer _tablet({
 }) => ProviderContainer(
   overrides: [
     roomRepositoryProvider.overrideWithValue(room),
+    recordingRepositoryProvider.overrideWithValue(FakeRecorder()),
     linkedTeamProvider.overrideWithValue(ledger),
     linkPollIntervalProvider.overrideWithValue(linkPoll),
     roomRetryBackoffProvider.overrideWithValue(const [_quickPoll]),

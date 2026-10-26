@@ -659,6 +659,7 @@ void main() {
     await theDeskRevokes(tester, harness, container);
 
     expect((harness.takes as FakeTakeQueue).rows, isEmpty);
+    expect(kept.existsSync(), isFalse);
     await theDeskLinksAgain(tester, harness);
     await expectLater(
       container

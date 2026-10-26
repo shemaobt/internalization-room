@@ -19,8 +19,12 @@ import 'fakes.dart';
 
 void main() {
   late Directory home;
+  var recorder = FakeRecorder();
 
-  setUp(() => home = Directory.systemTemp.createTempSync('fila-tomadas'));
+  setUp(() {
+    home = Directory.systemTemp.createTempSync('fila-tomadas');
+    recorder = FakeRecorder();
+  });
   tearDown(() => home.deleteSync(recursive: true));
 
   var clock = DateTime(2026, 8, 12, 9);
@@ -29,7 +33,7 @@ void main() {
       TakeUploadQueue(
         room: room,
         home: () async => home,
-        recordings: FakeRecorder.new,
+        recordings: () => recorder,
         backoff: backoff,
         now: () => clock,
       );
@@ -108,6 +112,23 @@ void main() {
 
     expect(await queue.endTheLife(), isFalse);
     expect(await queue.entries(), hasLength(1));
+  });
+
+  test('the end of a life deletes every recording on the tablet', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    final recording = File('${recorder.home.path}/ensaio_parte1.wav')
+      ..writeAsBytesSync([1]);
+
+    expect(await queue.endTheLife(), isTrue);
+
+    expect(recording.existsSync(), isFalse);
+  });
+
+  test('a recordings folder that cannot be swept fails the sweep', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    recorder.deleteEveryFails = true;
+
+    expect(await queue.endTheLife(), isFalse);
   });
 
   test('a sweep goes on past a copy already gone', () async {
