@@ -88,6 +88,13 @@ that the verdict was heard, and the Listening ledger's reports with `_oQueFaltaO
 `_partesDaEscuta`, `_umaParteFoiRegravada`, `_aTraducaoJaFoiDeixada` and the armed tap's `_armHandedOver`, until after the 2 November tablet freeze
 (ADR 0046).
 
+## The weakest device
+
+The room runs on everything from an iPhone 16 Pro Max down to old Android tablets and old
+iPhones, and no change may weigh on a weak device. Judge motion and memory against the
+weakest device, never against the newest: what is smooth on a new phone has not shown it is
+light enough. `docs/setup.md` says what the repo does and does not yet pin down about it.
+
 ## Secrets
 
 Copy `.env.example` to `.env` and fill `BACKEND_URL`. The app ships no shared key: the

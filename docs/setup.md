@@ -16,6 +16,24 @@ compiled it.
 `flutter run` with no device flag offers a picker. `flutter run -d <iphone-id>` goes
 straight to one; `flutter devices` lists the ids.
 
+## The weakest device
+
+The room runs on everything from an iPhone 16 Pro Max down to old Android tablets and old
+iPhones (João, 23 September 2026), and no change may weigh on a weak device. Motion and
+memory are judged against the weakest device, never against the newest.
+
+No reference device is named yet. Naming one — model, RAM, Android version — takes the
+devices the teams actually carry, and nobody has listed them, so `minSdk` stays Flutter's
+default (`flutter.minSdkVersion`, `android/app/build.gradle.kts`) until they do. The iOS
+floor is 15.0, as `AGENTS.md` says.
+
+The repo states no frame-time budget for motion and no budget for the memory clips hold,
+and none is invented here. The only figures it carries are redraw rates: the ambient clock
+draws the circle at 30 Hz, or at 60 Hz while a ripple runs
+(`lib/features/sala/presentation/widgets/motion.dart`). That is how often the room draws,
+not what a weak device must sustain. A change that moves motion or holds clips in memory
+states its own figure in its ticket and measures it on the weakest device available.
+
 ## The dev skip bar
 
 Every build, a debug one included, stops at the claim code until a facilitator spends it
