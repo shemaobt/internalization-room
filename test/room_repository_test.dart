@@ -833,6 +833,69 @@ void main() {
     );
   });
 
+  test(
+    'a stretch told back comes back with the name the room gave it',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async =>
+              http.Response('{"frase":3,"segment_id":"trecho-9"}', 200),
+        ),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.sendChunk(
+        'sessao-1',
+        await _tempRecording(),
+        takeId: 'gravacao-1',
+        from: Duration.zero,
+        to: const Duration(seconds: 3),
+        idempotencyKey: 'chave-1',
+      );
+
+      expect(
+        answer,
+        isA<Answered<BackTranslationChunk>>().having(
+          (answered) => answered.value.segmentId,
+          'segmentId',
+          'trecho-9',
+        ),
+        reason:
+            'a resposta do trecho trazia o nome e o tablet o jogava fora, e a '
+            'frase contada nesta sessão não podia ser traduzida de novo',
+      );
+    },
+  );
+
+  test('a stretch answer kept from before the room named it still lands, '
+      'with no name, not as a broken room', () async {
+    final repository = RoomRepository(
+      client: MockClient((_) async => http.Response('{"frase":3}', 200)),
+      deviceId: () async => 'aparelho-1',
+    );
+    addTearDown(repository.dispose);
+
+    final answer = await repository.sendChunk(
+      'sessao-1',
+      await _tempRecording(),
+      takeId: 'gravacao-1',
+      from: Duration.zero,
+      to: const Duration(seconds: 3),
+      idempotencyKey: 'chave-1',
+    );
+
+    expect(
+      answer,
+      isA<Answered<BackTranslationChunk>>()
+          .having((answered) => answered.value.frase, 'frase', 3)
+          .having((answered) => answered.value.segmentId, 'segmentId', null),
+      reason:
+          'uma resposta guardada antes do nome voltava como sala quebrada, e '
+          'o trecho já contado parava a tradução',
+    );
+  });
+
   test('each refusal keeps its own meaning', () async {
     Future<void> expectStatus(int status, Matcher matcher) async {
       final repository = RoomRepository(
