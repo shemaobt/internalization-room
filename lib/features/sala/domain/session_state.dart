@@ -427,6 +427,7 @@ class SalaSessionState {
   final bool btConferindo;
   final bool btVeredito;
   final CheckRefusal? btRecusa;
+  final List<int> btCenasSemTraducao;
   final String? btFindingSegmentId;
 
   final bool btClipEnded;
@@ -628,6 +629,7 @@ class SalaSessionState {
     this.btConferindo = false,
     this.btVeredito = false,
     this.btRecusa,
+    this.btCenasSemTraducao = const [],
     this.btFindingSegmentId,
     this.btClipEnded = false,
     this.btParteFronteira = false,
@@ -1520,6 +1522,7 @@ class SalaSessionState {
     bool? btConferindo,
     bool? btVeredito,
     CheckRefusal? btRecusa,
+    List<int>? btCenasSemTraducao,
     bool clearBtRecusa = false,
     String? btFindingSegmentId,
     bool clearFindingSegment = false,
@@ -1649,6 +1652,7 @@ class SalaSessionState {
       btConferindo: btConferindo ?? this.btConferindo,
       btVeredito: btVeredito ?? this.btVeredito,
       btRecusa: clearBtRecusa ? null : (btRecusa ?? this.btRecusa),
+      btCenasSemTraducao: btCenasSemTraducao ?? this.btCenasSemTraducao,
       btFindingSegmentId: clearFindingSegment
           ? null
           : (btFindingSegmentId ?? this.btFindingSegmentId),
