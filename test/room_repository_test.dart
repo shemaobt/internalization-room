@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -1445,6 +1446,52 @@ void main() {
       [('t2', 2, const Duration(milliseconds: 4000))],
     );
   });
+
+  test(
+    'a terminei refused over an untranslated stretch is read with its parts, '
+    'not as no refusal',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'session_id': 's1',
+              'checked': false,
+              'fixed_line': 'N2',
+              'refusal': 'STRETCH_UNTRANSLATED',
+              'untranslated': [
+                {'take_id': 't2', 'scene': 2, 'from_ms': 0},
+                {'take_id': 't3', 'scene': 3, 'from_ms': 7500},
+              ],
+            }),
+            200,
+          ),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final veredito = _value(
+        await repository.finishBackTranslation('s1', playedByTake: const []),
+      );
+
+      expect(
+        veredito.refusal,
+        CheckRefusal.stretchUntranslated,
+        reason: 'a recusa virava nenhuma, e o terminei caía em achados vazios',
+      );
+      expect(veredito.fixedLine, 'N2');
+      expect(
+        [
+          for (final parte in veredito.untranslated)
+            (parte.takeId, parte.scene, parte.from),
+        ],
+        [
+          ('t2', 2, Duration.zero),
+          ('t3', 3, const Duration(milliseconds: 7500)),
+        ],
+      );
+    },
+  );
 
   test(
     'a verdict heard to its end is reported with the round\'s stamp exactly as the room gave it',

@@ -75,18 +75,20 @@ void main() {
       [
         lida('FRASE_AWAITING'),
         lida('PART_UNHEARD'),
+        lida('STRETCH_UNTRANSLATED'),
         lida('NOTHING_TRANSLATED'),
         lida('CHECK_UNAVAILABLE'),
       ],
       [
         CheckRefusal.fraseAwaiting,
         CheckRefusal.partUnheard,
+        CheckRefusal.stretchUntranslated,
         CheckRefusal.nothingTranslated,
         CheckRefusal.checkUnavailable,
       ],
       reason: 'o app não lia o campo refusal, e toda recusa virava silêncio',
     );
-    expect(lida('STRETCH_UNTRANSLATED'), isNull);
+    expect(lida('A_REFUSAL_FROM_A_NEWER_ROOM'), isNull);
     expect(lida(null), isNull);
   });
 

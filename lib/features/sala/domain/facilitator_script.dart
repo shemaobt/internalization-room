@@ -518,6 +518,11 @@ const retroLabels = {
     'pt': 'ainda falta ouvir um trecho da gravação',
     'en': 'there is still a part of the recording to listen to',
   },
+  'stretchUntranslated': {
+    'pt':
+        "falta traduzir um trecho — ouçam e traduzam, depois toquem em 'terminei'",
+    'en': "one stretch has no translation — listen, translate, then tap 'done'",
+  },
   'nothingTranslated': {
     'pt': 'ainda não tem frase traduzida',
     'en': 'no sentence translated yet',
@@ -627,6 +632,15 @@ const retroLabels = {
 String retroLabelFor(String control, String language, {int? n}) =>
     (retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!)
         .replaceAll('{n}', '$n');
+
+String untranslatedHintFor(List<int> cenas, String language) => [
+  retroLabelFor('stretchUntranslated', language),
+  if (cenas.isNotEmpty)
+    [
+      for (final cena in cenas)
+        sceneRehearsalLabelFor('sceneN', language, n: cena),
+    ].join(', '),
+].join(' · ');
 
 const savedScreenLabels = {
   'title': {'pt': 'Ensaio salvo', 'en': 'Rehearsal saved'},
