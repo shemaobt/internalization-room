@@ -406,8 +406,8 @@ void main() {
 
     expect(_sala(again).stage, SalaStage.ensaio);
     expect(
-      again.harness.emAberto.rows['$_linha/pt']?.stage,
-      isNot(anyOf(SalaStage.retro, SalaStage.checagem)),
+      first.harness.emAberto.rows['$_linha/pt']?.stage,
+      equals(SalaStage.ensaio),
     );
   });
 
@@ -526,6 +526,16 @@ void main() {
     await _tocar(tester, _novoOuvinte);
     expect(find.text('ouvinte 2'), findsOneWidget);
     expect(harness.room.listenersFinished, isEmpty);
+    await _fechar(tester, tablet);
+  });
+
+  testWidgets('a row left on the check whose draft was reopened elsewhere '
+      'resumes on the recording home', (tester) async {
+    final harness = _aprovadaNaSala(stage: SalaStage.checagem);
+    harness.room.approvedDraft = null;
+    final tablet = await _aberta(tester, harness);
+
+    expect(_sala(tablet).stage, SalaStage.ensaio);
     await _fechar(tester, tablet);
   });
 
