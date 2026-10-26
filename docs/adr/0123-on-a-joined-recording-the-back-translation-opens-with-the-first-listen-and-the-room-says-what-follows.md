@@ -26,8 +26,9 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
    part unheard is her P0 and the whole recording, listen-only, and so is a part recorded
    again (the whole recording, not only that part). Once the room counts every part heard,
    her P1 is said and the recording plays again from its first part, whatever was told.
-   Coming back with every part heard and nothing told says P1 the same way. The «ainda falta
-   ouvir» line shows during that listen only after a part was recorded again (ADR 0105).
+   Coming back with every part heard and nothing told says P1 the same way. That listen
+   never shows «ainda falta ouvir», whether it opens from the advance disc or a relaunch:
+   hers clears the line on every entry (Drafting.tsx:1084).
 3. **The First listen is listen-only**, from the line to the room's answer after the last
    listed part. The circle is drawn but its tap does nothing. There is no «terminei», no pause
    row and no «recomeçar a tradução». The bars and the frase rows cannot be tapped. The wood
@@ -74,5 +75,5 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
 - ADR 0105's "every part unheard: her opening line P0" is N0 on a joined recording.
 - ADR 0105's replay on a joined recording is listen-only and crosses by itself; telling a part
   during that replay is no longer possible.
-- The mark that a part was recorded again no longer matters on a joined recording: every entry asks.
+- The mark that a part was recorded again is gone: every entry asks the room, on every recording.
 - A complete join no longer rests on the recording home: the Back-translation opens.

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
@@ -473,23 +474,76 @@ void main() {
     },
   );
 
-  test('a abertura também mostra o que falta ouvir', () async {
-    final it = await umEnsaioDeTresPartesContadoInteiro();
-    await _regravada(it, 1, partesDoEnsaio[1]);
-    it.harness.room.listeningUnheardTakeIds = [
-      for (final parte in it.partes) parte.takeId!,
-    ];
-    CheckRefusal? naTelaDuranteAFala;
-    it.harness.voice.aoFalar = () => naTelaDuranteAFala = it.estado.btRecusa;
+  test(
+    'on a recording no join touched, the listen after a part recorded again shows nothing left to hear, as hers clears the line',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      await _regravada(it, 1, partesDoEnsaio[1]);
+      it.harness.room.listeningUnheardTakeIds = [
+        for (final parte in it.partes) parte.takeId!,
+      ];
+      CheckRefusal? naTelaDuranteAFala = CheckRefusal.partUnheard;
+      it.harness.voice.aoFalar = () => naTelaDuranteAFala = it.estado.btRecusa;
 
-    await _entrar(it);
+      await _entrar(it);
 
-    expect(
-      naTelaDuranteAFala,
-      CheckRefusal.partUnheard,
-      reason: 'quando algo falta ouvir, a tela diz, com a P0 também',
-    );
-  });
+      expect(
+        naTelaDuranteAFala,
+        isNull,
+        reason:
+            'pelo disco a escuta dizia «ainda falta ouvir», e pela retomada '
+            'não; a dela não diz em nenhuma das duas',
+      );
+    },
+  );
+
+  test(
+    'on a recording no join touched, a relaunch after a part recorded again shows nothing left to hear during P0, as the advance disc does',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      await _regravada(it, 1, partesDoEnsaio[1]);
+      for (final MapEntry(:key, :value)
+          in it.harness.emAberto.rows.entries.toList()) {
+        it.harness.emAberto.rows[key] = ResumePoint(
+          sessionId: value.sessionId,
+          stage: SalaStage.retro,
+          takes: value.takes,
+          savedAt: value.savedAt,
+          language: value.language,
+        );
+      }
+      it.harness.room
+        ..retroSoFar = BackTranslationProgress(
+          segments: [...it.harness.room.segments],
+        )
+        ..listeningUnheardTakeIds = [
+          for (final parte in it.partes) parte.takeId!,
+        ];
+      CheckRefusal? naTelaDuranteAFala = CheckRefusal.partUnheard;
+      it.harness.voice.aoFalar = () => naTelaDuranteAFala = it.estado.btRecusa;
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+
+      it.container.dispose();
+      it.container = it.harness.container();
+      addTearDown(it.container.dispose);
+      await it.sala.abrirEscolha();
+      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await waitFor(
+        'a retomada pôr uma parte no ar',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            it.harness.playback.played.length > tocadas,
+      );
+
+      expect(_linhas(it, linhas), ['P0']);
+      expect(
+        naTelaDuranteAFala,
+        isNull,
+        reason: 'a retomada e o disco abrem a mesma escuta, com a mesma tela',
+      );
+    },
+  );
 
   test('a sala pedindo uma pessoa no meio do replay não mostra o sinal, e o '
       'relato tem só o que soou', () async {
