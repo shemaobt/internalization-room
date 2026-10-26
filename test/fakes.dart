@@ -3460,8 +3460,9 @@ class FakeRoom implements RoomRepository {
     if (_forgot('sendTheListenerRecording', sessionId) case final gone?) {
       return gone;
     }
+    if (!_listenerOfAttempt.containsValue(listener)) return const SessionGone();
     if (!_aKindWithItsSegment(kind, segmentId)) {
-      return Refused(RefusalCode.unnamed(400));
+      return const Refused('BAD_REQUEST');
     }
     final bytes = audio.readAsBytesSync();
     final held = _holdingListenerRecording;
@@ -3486,13 +3487,16 @@ class FakeRoom implements RoomRepository {
     return const Answered(null);
   }
 
+  /// What a listener hears one by one: the frases, or the parts on a check with none.
+  Iterable<String> get _listeningUnits => checkFrases.isEmpty
+      ? checkTakes
+      : checkFrases.map((frase) => frase.segmentId);
+
   /// The room's 400: a kind it does not know, a `frase` naming no frase of the check, or
   /// another kind naming one.
   bool _aKindWithItsSegment(String kind, String? segmentId) => switch (kind) {
     listenerRetelling || listenerWholeComment => segmentId == null,
-    listenerFraseComment => checkFrases.any(
-      (frase) => frase.segmentId == segmentId,
-    ),
+    listenerFraseComment => _listeningUnits.contains(segmentId),
     _ => false,
   };
 
@@ -3517,8 +3521,9 @@ class FakeRoom implements RoomRepository {
       failNextMarkWith = null;
       return failure;
     }
-    if (!checkFrases.any((frase) => frase.segmentId == segmentId)) {
-      return Refused(RefusalCode.unnamed(400));
+    if (!_listenerOfAttempt.containsValue(listener)) return const SessionGone();
+    if (!_listeningUnits.contains(segmentId)) {
+      return const Refused('BAD_REQUEST');
     }
     final mark = (version: version, listener: listener, segmentId: segmentId);
     if (!listenerMarks.contains(mark)) listenerMarks.add(mark);

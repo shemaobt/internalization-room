@@ -3217,16 +3217,21 @@ void main() {
 
       final check = _value(await doors.repository.openTheExternalCheck('S'));
 
-      expect(check.frases, hasLength(16));
-      expect(check.frases.map((f) => f.segmentId), [
-        for (var n = 1; n <= 16; n++) 'trecho-$n',
-      ]);
-      expect(check.frases[6].number, isNull);
-      expect(check.frases[0].number, 1);
-      expect(check.frases[15].number, 16);
-      expect(check.frases[2].takeId, 'tomada-0');
-      expect(check.frases[2].startsMs, 3000);
-      expect(check.frases[2].endsMs, 3900);
+      expect(
+        check.frases.map(
+          (f) => (f.number, f.segmentId, f.takeId, f.startsMs, f.endsMs),
+        ),
+        [
+          for (var n = 1; n <= 16; n++)
+            (
+              n == 7 ? null : n,
+              'trecho-$n',
+              'tomada-${n % 3}',
+              n * 1000,
+              n * 1000 + 900,
+            ),
+        ],
+      );
     });
 
     test(
@@ -3320,13 +3325,15 @@ void main() {
       test('the line $name is fetched from fixed-lines like X1', () async {
         final doors = await room('{"audio_url": "/voice/abc"}');
 
-        await doors.repository.fixedLineAddress(line, language: 'pt');
-
-        expect(line, name);
-        expect(
-          doors.seen.single.url.toString(),
-          'http://sala.local/api/internalization-room/fixed-lines/$name?language=pt',
+        final answer = await doors.repository.fixedLineAddress(
+          line,
+          language: 'pt',
         );
+
+        final sent = doors.seen.single;
+        expect(sent.url.path, '/api/internalization-room/fixed-lines/$name');
+        expect(sent.url.queryParameters, {'language': 'pt'});
+        expect(_value(answer), '/voice/abc');
       });
     }
   });
