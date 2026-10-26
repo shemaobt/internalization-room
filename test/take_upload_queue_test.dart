@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
@@ -126,9 +127,14 @@ void main() {
 
   test('a recordings folder that cannot be swept fails the sweep', () async {
     final queue = queueOn(FakeRoom()..reachable = false);
-    recorder.deleteEveryFails = true;
+    for (final error in [
+      const FileSystemException('o disco falhou'),
+      MissingPlatformDirectoryException('sem pasta'),
+    ]) {
+      recorder.deleteEveryThrows = error;
 
-    expect(await queue.endTheLife(), isFalse);
+      expect(await queue.endTheLife(), isFalse);
+    }
   });
 
   test('a sweep goes on past a copy already gone', () async {

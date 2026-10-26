@@ -451,11 +451,11 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<void> sweepTheRecordingsLeftBehind() async => sweeps++;
 
-  bool deleteEveryFails = false;
+  Object? deleteEveryThrows;
 
   @override
   Future<void> deleteEveryRecording() async {
-    if (deleteEveryFails) throw const FileSystemException('o disco falhou');
+    if (deleteEveryThrows case final error?) throw error;
     for (final entry in home.listSync()) {
       if (entry is File) entry.deleteSync();
     }

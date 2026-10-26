@@ -575,6 +575,8 @@ class TakeUploadQueue {
       return true;
     } on FileSystemException {
       return false;
+    } on MissingPlatformDirectoryException {
+      return false;
     }
   }
 

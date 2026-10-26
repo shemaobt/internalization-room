@@ -41,3 +41,5 @@ always finds the Outbox empty.
 - A sweep that failed only on the recordings folder is tried again when the revoked
   credential is next refused. With an empty Outbox the launch sends nothing to the room, so
   that waits for the first room call.
+- A recording the revoked life keeps in the milliseconds after the sweep listed the folder
+  stays there; it is never sent.
