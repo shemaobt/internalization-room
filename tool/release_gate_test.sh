@@ -70,6 +70,25 @@ commit "$repo" "a bump with one note"
 output="$(cd "$repo" && bash "$gate" HEAD~1 HEAD 2>&1)"
 expect_line "one changed note is enough, not both" "$output" "changed=true"
 
+repo="$(repo_at 0.1.0+1)"
+printf 'name: room\nversion: 0.1.1\n' > "$repo/pubspec.yaml"
+echo 'Novidades.' > "$repo/fastlane/metadata/pt-BR/release_notes.txt"
+echo "What's new." > "$repo/fastlane/metadata/en-US/release_notes.txt"
+commit "$repo" "a bump that drops the build number"
+output="$(cd "$repo" && bash "$gate" HEAD~1 HEAD 2>/dev/null)"
+status=$?
+errors="$(cd "$repo" && bash "$gate" HEAD~1 HEAD 2>&1 >/dev/null)"
+if [ "$status" -eq 0 ] || grep -q '^build_number=' <<< "$output"; then
+  echo "FAIL: a version with no +N fails the gate instead of building with a made-up number, got:"
+  echo "$output"
+  failures=$((failures + 1))
+fi
+if ! grep -qF "pubspec.yaml" <<< "$errors"; then
+  echo "FAIL: a version with no +N names pubspec.yaml in the log, got:"
+  echo "$errors"
+  failures=$((failures + 1))
+fi
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures failed"
   exit 1

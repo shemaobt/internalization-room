@@ -18,4 +18,9 @@ if [ "$(version_at "$base")" != "$(version_at "$head")" ]; then
 else
   echo "changed=false"
 fi
-echo "build_number=$(version_at "$head" | sed 's/.*+//')"
+build_number="$(version_at "$head" | sed -n 's/^version:.*+\([0-9][0-9]*\)[[:space:]]*$/\1/p')"
+if [ -z "$build_number" ]; then
+  echo "::error::The version in pubspec.yaml carries no +N. The stores take the build number from pubspec.yaml alone; write the version as x.y.z+N." >&2
+  exit 1
+fi
+echo "build_number=$build_number"
