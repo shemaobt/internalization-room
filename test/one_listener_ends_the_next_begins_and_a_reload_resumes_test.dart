@@ -394,6 +394,23 @@ void main() {
     expect(_gravacoes(again.harness), 1);
   });
 
+  testWidgets('a relaunch inside the check leaves it to the recording home', (
+    tester,
+  ) async {
+    final first = await _aberta(tester, _aprovadaNaSala());
+    await _tocar(tester, _checagem);
+    await _tocar(tester, _novoOuvinte);
+
+    final again = await _relancar(tester, first);
+    await _tocar(tester, _voltar);
+
+    expect(_sala(again).stage, SalaStage.ensaio);
+    expect(
+      again.harness.emAberto.rows['$_linha/pt']?.stage,
+      isNot(anyOf(SalaStage.retro, SalaStage.checagem)),
+    );
+  });
+
   testWidgets('a relaunch after the retelling landed and its finish was lost '
       'comes to the thanks, never asks the retelling again, and finishes the '
       'listener', (tester) async {

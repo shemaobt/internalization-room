@@ -862,9 +862,15 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       await _assentar(tester);
 
+      it.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
       it.container.read(salaSessionProvider.notifier).leaveTheExternalCheck();
       await _assentar(tester);
 
+      expect(
+        it.harness.room.failStateOnceWith,
+        isNotNull,
+        reason: 'the home reads no telling-back on the way out',
+      );
       expect(it.container.read(salaSessionProvider).stage, SalaStage.ensaio);
       expect(it.harness.emAberto.rows['Ruth/P01/pt']?.stage, SalaStage.ensaio);
       closeTheRoom(it.container);

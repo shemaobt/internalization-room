@@ -2795,7 +2795,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (answer) {
       case Answered(value: final check):
         _resumeFailures.clear();
-        await _backToTheListener(sessionId, check, generation);
+        await _backToTheListener(
+          sessionId,
+          check,
+          generation,
+          relaunched: true,
+        );
       case Refused(code: RefusalCode.draftNotApproved):
         _listenerInProgress = null;
         _rememberWhereTheyAre(const Retro());
@@ -8432,8 +8437,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<bool> _backToTheListener(
     String sessionId,
     ExternalCheck check,
-    int generation,
-  ) async {
+    int generation, {
+    bool relaunched = false,
+  }) async {
     final remembered = _listenerInProgress;
     if (remembered == null) return false;
     if (remembered.version != check.version) {
@@ -8449,7 +8455,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return true;
     switch (answer) {
       case Answered(value: final record):
-        _arriveAt(TheExternalCheckOpened(check.version));
+        _arriveAt(
+          TheExternalCheckOpened(check.version, relaunched: relaunched),
+        );
         final ends = record.finished || record.hasRetelling;
         state = state.copyWith(
           externalCheck: ExternalCheckScreen(
