@@ -727,6 +727,7 @@ class RoomRepository {
     int listener,
     File audio, {
     required String kind,
+    String? segmentId,
   }) async {
     final request =
         http.MultipartRequest(
@@ -739,6 +740,7 @@ class RoomRepository {
           ..headers.addAll(_whoWeAre)
           ..headers['X-Room-Device'] = await _deviceId()
           ..fields['kind'] = kind
+          ..fields.addAll({'segment_id': ?segmentId})
           ..files.add(await _audioPart(audio));
     return _room.askStreamed(
       request,
@@ -760,6 +762,26 @@ class RoomRepository {
     ),
     timeout: _stateTimeout,
     read: readJson(ListenerRecord.fromJson),
+    asksForTheSession: true,
+  );
+
+  /// [listener] says «está boa» on the frase [segmentId].
+  Future<RoomAnswer<void>> markTheFrase(
+    String sessionId,
+    int version,
+    int listener,
+    String segmentId,
+  ) => _room.ask(
+    () async => _client.post(
+      _uri(
+        '/sessions/$sessionId/external-check/$version/listeners/'
+        '$listener/marks',
+      ),
+      headers: {..._headers, 'X-Room-Device': await _deviceId()},
+      body: jsonEncode({'segment_id': segmentId}),
+    ),
+    timeout: _stateTimeout,
+    read: readJson((_) {}),
     asksForTheSession: true,
   );
 

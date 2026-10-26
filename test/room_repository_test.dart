@@ -15,6 +15,8 @@ import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
+import 'package:internalization_room/features/sala/domain/external_check.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
@@ -3170,6 +3172,164 @@ void main() {
       expect(listing.takes.single.setAside, isFalse);
     },
   );
+  group('the outside listener\'s doors', () {
+    const base =
+        '/api/internalization-room/sessions/sessao-1/external-check/2/listeners/3';
+
+    Future<({RoomRepository repository, List<http.Request> seen})> room(
+      String body,
+    ) async {
+      final seen = <http.Request>[];
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen.add(request);
+          return http.Response(body, 200);
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+      return (repository: repository, seen: seen);
+    }
+
+    test('the open answer keeps the frases in the order received, the null '
+        'number staying null', () async {
+      final frases = [
+        for (var n = 1; n <= 16; n++)
+          {
+            'frase': n == 7 ? null : n,
+            'segment_id': 'trecho-$n',
+            'take_id': 'tomada-${n % 3}',
+            'starts_ms': n * 1000,
+            'ends_ms': n * 1000 + 900,
+          },
+      ];
+      final doors = await room(
+        jsonEncode({
+          'check_id': 'c1',
+          'version': 2,
+          'opened_at': '2026-10-24T10:00:00Z',
+          'takes': [
+            {'take_id': 'tomada-0', 'key': null},
+          ],
+          'frases': frases,
+        }),
+      );
+
+      final check = _value(await doors.repository.openTheExternalCheck('S'));
+
+      expect(check.frases, hasLength(16));
+      expect(check.frases.map((f) => f.segmentId), [
+        for (var n = 1; n <= 16; n++) 'trecho-$n',
+      ]);
+      expect(check.frases[6].number, isNull);
+      expect(check.frases[0].number, 1);
+      expect(check.frases[15].number, 16);
+      expect(check.frases[2].takeId, 'tomada-0');
+      expect(check.frases[2].startsMs, 3000);
+      expect(check.frases[2].endsMs, 3900);
+    });
+
+    test(
+      'a whole recording is one POST of kind whole with no segment id',
+      () async {
+        final doors = await room('{}');
+
+        await doors.repository.sendTheListenerRecording(
+          'sessao-1',
+          2,
+          3,
+          await _tempRecording(),
+          kind: listenerWholeComment,
+        );
+
+        final sent = doors.seen.single;
+        expect(sent.method, 'POST');
+        expect(sent.url.path, '$base/recordings');
+        expect(sent.body, contains('name="kind"\r\n\r\nwhole\r\n'));
+        expect(sent.body, isNot(contains('name="segment_id"')));
+      },
+    );
+
+    test(
+      'a frase recording is one POST of kind frase with its segment id',
+      () async {
+        final doors = await room('{}');
+
+        await doors.repository.sendTheListenerRecording(
+          'sessao-1',
+          2,
+          3,
+          await _tempRecording(),
+          kind: listenerFraseComment,
+          segmentId: 'trecho-5',
+        );
+
+        final sent = doors.seen.single;
+        expect(sent.url.path, '$base/recordings');
+        expect(sent.body, contains('name="kind"\r\n\r\nfrase\r\n'));
+        expect(sent.body, contains('name="segment_id"\r\n\r\ntrecho-5\r\n'));
+      },
+    );
+
+    test(
+      'a mark is one POST to marks naming the frase\'s segment id',
+      () async {
+        final doors = await room('{}');
+
+        final answer = await doors.repository.markTheFrase(
+          'sessao-1',
+          2,
+          3,
+          'trecho-5',
+        );
+
+        expect(answer, isA<Answered<void>>());
+        final sent = doors.seen.single;
+        expect(sent.method, 'POST');
+        expect(sent.url.path, '$base/marks');
+        expect(sent.headers['X-Room-Device'], 'aparelho-1');
+        expect(jsonDecode(sent.body), {'segment_id': 'trecho-5'});
+      },
+    );
+
+    for (final completed in [false, true]) {
+      test(
+        'finish(completed: $completed) is one POST to finish saying so',
+        () async {
+          final doors = await room('{}');
+
+          await doors.repository.finishTheListener(
+            'sessao-1',
+            2,
+            3,
+            completed: completed,
+          );
+
+          final sent = doors.seen.single;
+          expect(sent.method, 'POST');
+          expect(sent.url.path, '$base/finish');
+          expect(jsonDecode(sent.body), {'completed': completed});
+        },
+      );
+    }
+
+    for (final (line, name) in [
+      (listenerWholeLine, 'X2'),
+      (listenerFrasesLine, 'X3'),
+    ]) {
+      test('the line $name is fetched from fixed-lines like X1', () async {
+        final doors = await room('{"audio_url": "/voice/abc"}');
+
+        await doors.repository.fixedLineAddress(line, language: 'pt');
+
+        expect(line, name);
+        expect(
+          doors.seen.single.url.toString(),
+          'http://sala.local/api/internalization-room/fixed-lines/$name?language=pt',
+        );
+      });
+    }
+  });
 }
 
 Future<File> _tempRecording({

@@ -3358,12 +3358,19 @@ class FakeRoom implements RoomRepository {
       return const Refused(RefusalCode.draftNotApproved);
     }
     return Answered(
-      ExternalCheck(version: approved.version, takes: checkTakes),
+      ExternalCheck(
+        version: approved.version,
+        takes: checkTakes,
+        frases: checkFrases,
+      ),
     );
   }
 
   /// The takes of the approved version's parts, as the check's open answers them.
   List<String> checkTakes = const [];
+
+  /// The frases of the approved version, as the check's open answers them.
+  List<ExternalCheckFrase> checkFrases = const [];
 
   /// Every «Novo ouvinte» that reached the room, with the attempt it carried.
   final List<({String sessionId, int version, String attempt})> listenersAsked =
@@ -3416,7 +3423,15 @@ class FakeRoom implements RoomRepository {
   }
 
   /// Every listener recording the room kept, with the bytes it was sent.
-  final List<({int version, int listener, String kind, Uint8List bytes})>
+  final List<
+    ({
+      int version,
+      int listener,
+      String kind,
+      String? segmentId,
+      Uint8List bytes,
+    })
+  >
   listenerRecordings = [];
 
   /// What the next listener recording answers, the room keeping nothing.
@@ -3439,10 +3454,14 @@ class FakeRoom implements RoomRepository {
     int listener,
     File audio, {
     required String kind,
+    String? segmentId,
   }) async {
     if (_guard('sendTheListenerRecording') case final failure?) return failure;
     if (_forgot('sendTheListenerRecording', sessionId) case final gone?) {
       return gone;
+    }
+    if (!_aKindWithItsSegment(kind, segmentId)) {
+      return Refused(RefusalCode.unnamed(400));
     }
     final bytes = audio.readAsBytesSync();
     final held = _holdingListenerRecording;
@@ -3456,6 +3475,7 @@ class FakeRoom implements RoomRepository {
       version: version,
       listener: listener,
       kind: kind,
+      segmentId: segmentId,
       bytes: bytes,
     ));
     final lost = loseNextListenerRecordingAnswerWith;
@@ -3463,6 +3483,45 @@ class FakeRoom implements RoomRepository {
       loseNextListenerRecordingAnswerWith = null;
       return lost;
     }
+    return const Answered(null);
+  }
+
+  /// The room's 400: a kind it does not know, a `frase` naming no frase of the check, or
+  /// another kind naming one.
+  bool _aKindWithItsSegment(String kind, String? segmentId) => switch (kind) {
+    listenerRetelling || listenerWholeComment => segmentId == null,
+    listenerFraseComment => checkFrases.any(
+      (frase) => frase.segmentId == segmentId,
+    ),
+    _ => false,
+  };
+
+  /// Every «está boa» the room kept, once per listener and frase as its unique mark.
+  final List<({int version, int listener, String segmentId})> listenerMarks =
+      [];
+
+  /// What the next mark answers, the room keeping nothing.
+  RoomFailure? failNextMarkWith;
+
+  @override
+  Future<RoomAnswer<void>> markTheFrase(
+    String sessionId,
+    int version,
+    int listener,
+    String segmentId,
+  ) async {
+    if (_guard('markTheFrase') case final failure?) return failure;
+    if (_forgot('markTheFrase', sessionId) case final gone?) return gone;
+    final failure = failNextMarkWith;
+    if (failure != null) {
+      failNextMarkWith = null;
+      return failure;
+    }
+    if (!checkFrases.any((frase) => frase.segmentId == segmentId)) {
+      return Refused(RefusalCode.unnamed(400));
+    }
+    final mark = (version: version, listener: listener, segmentId: segmentId);
+    if (!listenerMarks.contains(mark)) listenerMarks.add(mark);
     return const Answered(null);
   }
 

@@ -33,6 +33,14 @@ const listenerOpenLine = 'X0';
 /// frases, thanks. Said once the whole passage ended, before the circle opens.
 const listenerRetellLine = 'X1';
 
+/// The third of Marcia's external-check lines, read by position: open, retell, whole,
+/// frases, thanks. Said as the listener may comment on the whole passage.
+const listenerWholeLine = 'X2';
+
+/// The fourth of Marcia's external-check lines, read by position: open, retell, whole,
+/// frases, thanks. Said as the listener starts on the frases.
+const listenerFrasesLine = 'X3';
+
 /// The last of Marcia's external-check lines, her thanks as a listener ends.
 const listenerThanksLine = 'X4';
 
