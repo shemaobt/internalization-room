@@ -12,7 +12,6 @@ import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -607,40 +606,5 @@ void main() {
           'atrás da tela do código',
     );
     await theDeskLinksAgain(tester, harness);
-  });
-
-  testWidgets('a revocation leaves no take of the revoked life in the Outbox '
-      'or on the tablet', (tester) async {
-    final harness = SalaHarness(
-      linkedAs: _linked,
-      linkPoll: const Duration(milliseconds: 50),
-      filaEmMemoria: true,
-    );
-    final container = await pumpSala(tester, harness);
-    await tester.pump(const Duration(milliseconds: 300));
-    final kept = File('${harness.recorder.home.path}/ensaio_parte1.wav')
-      ..writeAsBytesSync([1, 2, 3]);
-    await container
-        .read(takeUploadQueueProvider)
-        .enqueue(kept, sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-1');
-    expect((harness.takes as FakeTakeQueue).rows, isNotEmpty);
-
-    await theDeskRevokes(tester, harness, container);
-
-    expect((harness.takes as FakeTakeQueue).rows, isEmpty);
-    expect(kept.existsSync(), isFalse);
-    await theDeskLinksAgain(tester, harness);
-    await expectLater(
-      container
-          .read(takeUploadQueueProvider)
-          .enqueue(
-            File('${harness.recorder.home.path}/outra.wav')
-              ..writeAsBytesSync([1]),
-            sessionId: 'sessao-2',
-            kind: 'ensaio',
-            scope: 'parte-1',
-          ),
-      completes,
-    );
   });
 }

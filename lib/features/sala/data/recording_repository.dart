@@ -178,22 +178,6 @@ class RecordingRepository {
     }
   }
 
-  Future<void> deleteEveryRecording() async {
-    try {
-      final dir = await _recordingsDir();
-      await for (final entry in dir.list()) {
-        if (entry is! File) continue;
-        try {
-          await entry.delete();
-        } on PathNotFoundException {
-          continue;
-        }
-      }
-    } on Exception {
-      return;
-    }
-  }
-
   Future<void> forgetTheKeptRetellings(String sessionId) async {
     try {
       final dir = await _recordingsDir();

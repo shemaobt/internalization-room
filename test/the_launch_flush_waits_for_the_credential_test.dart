@@ -108,7 +108,7 @@ void main() {
     );
   });
 
-  test('a relink sends nothing of the revoked life', () async {
+  test('a relink sends the takes that were turned away', () async {
     final harness = SalaHarness(
       linkedAs: const RememberedLink(
         deviceId: 'aparelho-1',
@@ -130,24 +130,17 @@ void main() {
       'um código novo aparecer',
       () => container.read(deviceLinkProvider).code != null,
     );
-    final sentBefore = room.calls.where((call) => call == 'sendTake').length;
 
     room
       ..failWith = null
       ..credential = 'credencial-2'
       ..linkedTo = const TeamLink(projectId: 'equipe-1');
     await waitFor(
-      'o vínculo novo abrir a sala',
-      () => container.read(deviceLinkProvider).linked,
-    );
-    await settle();
-
-    expect(
-      room.calls.where((call) => call == 'sendTake'),
-      hasLength(sentBefore),
-      reason:
-          'a parte da vida revogada subiria com a credencial de uma equipe '
-          'que talvez não seja a dela',
+      'a parte recusada sair com a credencial nova',
+      () => [
+        for (var at = 0; at < room.calls.length; at++)
+          if (room.calls[at] == 'sendTake') room.presentedOnEachCall[at],
+      ].contains('credencial-2'),
     );
   });
 

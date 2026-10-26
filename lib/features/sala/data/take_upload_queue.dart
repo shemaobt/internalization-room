@@ -48,10 +48,6 @@ final takeRetryBackoffProvider = Provider<List<Duration>>(
   ],
 );
 
-class TheLifeEnded implements Exception {
-  const TheLifeEnded();
-}
-
 class PendingTake {
   final String id;
 
@@ -562,37 +558,6 @@ class TakeUploadQueue {
     return next;
   }
 
-  bool _lifeEnded = false;
-
-  Future<void> _ending = Future.value();
-
-  Future<void> endTheLife() {
-    _lifeEnded = true;
-    _ending = _sweep();
-    return _ending.onError<Object>((_, _) {});
-  }
-
-  Future<void> _sweep() async {
-    final rows = <PendingTake>[];
-    await _mutate((written) {
-      rows.addAll(written);
-      return const [];
-    });
-    for (final row in rows) {
-      await _deleteTheCopy(row);
-    }
-    await _recordings().deleteEveryRecording();
-  }
-
-  Future<void> beginALife() async {
-    try {
-      await _ending;
-    } on Object {
-      await _sweep();
-    }
-    _lifeEnded = false;
-  }
-
   Future<PendingTake> enqueue(
     File audio, {
     required String sessionId,
@@ -681,12 +646,7 @@ class TakeUploadQueue {
       reopensTheApprovedDraft: reopensTheApprovedDraft,
       overTake: overTake,
     );
-    await _mutate((written) => _lifeEnded ? written : [...written, entry]);
-    if (_lifeEnded) {
-      await _deleteTheCopy(entry);
-      if (await audio.exists()) await audio.delete();
-      throw const TheLifeEnded();
-    }
+    await _mutate((written) => [...written, entry]);
     return entry;
   }
 

@@ -451,13 +451,6 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<void> sweepTheRecordingsLeftBehind() async => sweeps++;
 
-  @override
-  Future<void> deleteEveryRecording() async {
-    for (final entry in home.listSync()) {
-      if (entry is File) entry.deleteSync();
-    }
-  }
-
   /// Whether keeping fetched audio fails, the way a dead disk does.
   bool keepBytesFails = false;
 
@@ -3713,18 +3706,6 @@ class FakeTakeQueue implements TakeUploadQueue {
   /// The disk refuses the next keep, before any row is written.
   bool refusesTheNextKeep = false;
 
-  bool _lifeEnded = false;
-
-  @override
-  Future<void> endTheLife() async {
-    _lifeEnded = true;
-    rows.clear();
-    await recordings?.deleteEveryRecording();
-  }
-
-  @override
-  Future<void> beginALife() async => _lifeEnded = false;
-
   @override
   Future<PendingTake> enqueue(
     File audio, {
@@ -3735,7 +3716,6 @@ class FakeTakeQueue implements TakeUploadQueue {
     int? chunkIndex,
     String? scene,
   }) async {
-    if (_lifeEnded) throw const TheLifeEnded();
     if (refusesTheNextKeep) {
       refusesTheNextKeep = false;
       throw const FileSystemException('o disco está cheio');
