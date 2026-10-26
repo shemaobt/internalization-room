@@ -9787,6 +9787,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
+  void ouvirARespostaDeNovo() => _gesture(() => _ouvirARespostaDeNovo());
+
+  void _ouvirARespostaDeNovo() {
+    final line = state.lastSpoken;
+    if (!state.canHearTheVerdictAgain || line == null) return;
+    _silenceTheRoom();
+    _handOff(_repeatLastSpoken(line));
+  }
+
   void retroTap() => _gesture(() => _retroTap());
 
   void _retroTap() {

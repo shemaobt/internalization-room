@@ -173,6 +173,16 @@ class RetroView extends ConsumerWidget {
               height: 60,
               child: _actions(session, notifier, language, colors),
             ),
+            if (session.offersTheVerdictAgain) ...[
+              const SizedBox(height: 12),
+              _botaoEscrito(
+                retroLabelFor('hearTheVerdict', language),
+                colors,
+                session.canHearTheVerdictAgain
+                    ? notifier.ouvirARespostaDeNovo
+                    : null,
+              ),
+            ],
             if (session.approvedDraftDrawn case final aprovado?) ...[
               if (aprovado.listeners > 0) ...[
                 const SizedBox(height: 12),
@@ -211,7 +221,13 @@ class RetroView extends ConsumerWidget {
             ),
             if (avanca && session.btVeredito) ...[
               const SizedBox(height: 16),
-              _voltarERegravar(session, colors, notifier, language),
+              _botaoEscrito(
+                findingLabelFor('recordThePart', language),
+                colors,
+                session.btFindingTrecho != null
+                    ? notifier.gravarAParteDeNovo
+                    : null,
+              ),
             ],
             const SizedBox(height: 48),
           ],
@@ -409,23 +425,16 @@ class RetroView extends ConsumerWidget {
     );
   }
 
-  Widget _voltarERegravar(
-    SalaSessionState session,
-    SalaColors colors,
-    SalaSessionNotifier notifier,
-    String language,
-  ) {
-    final rotulo = findingLabelFor('recordThePart', language);
-    final volta = session.btFindingTrecho != null;
+  Widget _botaoEscrito(String rotulo, SalaColors colors, VoidCallback? onTap) {
     return Semantics(
       button: true,
-      enabled: volta,
+      enabled: onTap != null,
       label: rotulo,
       child: Opacity(
-        opacity: volta ? 1 : 0.4,
+        opacity: onTap != null ? 1 : 0.4,
         child: ExcludeSemantics(
           child: GestureDetector(
-            onTap: volta ? notifier.gravarAParteDeNovo : null,
+            onTap: onTap,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(

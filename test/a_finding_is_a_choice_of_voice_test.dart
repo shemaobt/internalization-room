@@ -325,6 +325,7 @@ void main() {
     await abrirOAchado(tester);
 
     expect(byLabel('go back and re-record a part'), findsOneWidget);
+    expect(byLabel('hear the verdict again'), findsOneWidget);
     closeTheRoom(container);
   });
 

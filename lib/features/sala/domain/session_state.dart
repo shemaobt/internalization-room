@@ -899,6 +899,17 @@ class SalaSessionState {
     _ => null,
   };
 
+  bool get offersTheVerdictAgain =>
+      stage == SalaStage.retro && lastSpoken != null;
+
+  bool get canHearTheVerdictAgain =>
+      offersTheVerdictAgain &&
+      (voice == VoiceState.invite || voice == VoiceState.done) &&
+      !btClipRodando &&
+      !btTrechoTocando &&
+      !btRetroTocando &&
+      btRegravacao == null;
+
   bool get canHearAgain =>
       (lastSpoken != null || roomSaysItAgain) &&
       (voice == VoiceState.invite || voice == VoiceState.done) &&

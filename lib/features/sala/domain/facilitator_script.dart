@@ -506,6 +506,10 @@ const retroLabels = {
   },
   'advance': {'pt': 'terminei', 'en': 'done'},
   'checking': {'pt': 'conferindo…', 'en': 'checking…'},
+  'hearTheVerdict': {
+    'pt': 'ouvir a resposta de novo',
+    'en': 'hear the verdict again',
+  },
   'checkFailed': {
     'pt': 'não deu para conferir agora — tentem de novo',
     'en': 'couldn\'t check right now — try again',
@@ -741,7 +745,6 @@ String recordingHomeLabelFor(String key, String language, {int? n}) =>
         .replaceAll('{n}', '$n');
 
 const findingLabels = {
-  'circle': {'pt': 'ouvir a resposta de novo', 'en': 'hear the verdict again'},
   'recordThePart': {
     'pt': 'voltar e regravar uma parte',
     'en': 'go back and re-record a part',
