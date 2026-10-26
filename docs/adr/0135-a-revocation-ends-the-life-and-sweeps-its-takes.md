@@ -28,9 +28,10 @@ always finds the Outbox empty.
 
 - Keep the rows and send them after the relink, as ADR 0070 did: rejected, for the reason
   in Context.
-- Mark each row with its team and skip the foreign ones: rejected for now, it needs a
-  manifest migration.
+- Mark each row with its team and skip the foreign ones: rejected, it needs a migration.
 
 ## Consequences
 
 - An unsent take of the revoked tablet is lost for good.
+- A copy whose row is gone because the manifest was unreadable and quarantined is not found
+  by the sweep; it stays in the queue folder and is never sent.
