@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -176,6 +178,36 @@ void main() {
           'o que a equipe conta preenche o trecho nomeado, no endereço '
           'dele; um pedaço novo deixaria o trecho por contar e o portão '
           'pararia a passagem de novo',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a read of the names that lands after a newer read still brings '
+      'the names the refusal points at', (tester) async {
+    final harness = SalaHarness(
+      filaEmMemoria: true,
+      settleDelay: const Duration(seconds: 10),
+      watchesWithoutAHalt: true,
+    );
+    final container = await upToTwoUntoldHalves(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.room
+      ..verdictRefusal = CheckRefusal.fraseAwaiting
+      ..verdictUntoldSegmentId = 'trecho-1-a'
+      ..holdTheNextRead();
+
+    unawaited(notifier.finishBackTranslation());
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(harness.room.heldReads, hasLength(1));
+    await tester.pump(const Duration(seconds: 10));
+    harness.room.answerHeldRead(0);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(
+      harness.playback.ranges.lastOrNull,
+      '0-5000',
+      reason:
+          'a leitura dos nomes chegou depois de uma mais nova e foi perdida',
     );
     closeTheRoom(container);
   });

@@ -348,6 +348,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late Map<String, Timer> _timers;
   late int _readsSent;
   late int _readsApplied;
+  late int _stretchesAt;
   late Map<String, Set<String>> _perdidasNoTrecho;
   late Map<String, int> _resumeFailures;
 
@@ -538,6 +539,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _armHandedOver = null;
     _readsSent = 0;
     _readsApplied = 0;
+    _stretchesAt = 0;
     _perdidasNoTrecho = {};
     _resumeFailures = {};
     _passadasDaSala = null;
@@ -1429,12 +1431,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _applyWhatOnlyGrows(snapshot);
   }
 
-  void _takeTheStretches(BackTranslationProgress told) {
+  void _takeTheStretches(BackTranslationProgress told, int sent) {
     if (state.station is! Retro ||
         state.btPhase == BtPhase.thinking ||
-        told.nothingTold) {
+        told.nothingTold ||
+        sent <= _stretchesAt) {
       return;
     }
+    _stretchesAt = sent;
     state = state.copyWith(btTrechos: _trechosFrom(told.segments));
   }
 
@@ -1464,7 +1468,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearBtRascunhoAprovado: snapshot.approved == null,
     );
     if (rowWhenSent != null && identical(state.btTrechos, rowWhenSent)) {
-      _takeTheStretches(snapshot.backTranslation);
+      _takeTheStretches(snapshot.backTranslation, sent);
     }
     _dispatch(SessionRead(snapshot, generation: _generation));
   }
@@ -9151,7 +9155,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
     }
     if (_abandoned(generation)) return;
-    final seguir = _theRefusalLandsOn(snapshot, alvo);
+    final seguir = _theRefusalLandsOn(snapshot, alvo, sent);
     _applyTheSessionRead(snapshot, sent);
     if (seguir) await _confirmarTraducao();
   }
@@ -9176,7 +9180,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return _theRefusalCouldNotBeRead(path, unread, generation, life);
         }
         if (_abandoned(generation)) return;
-        _theStretchIsGone(snapshot.backTranslation.segments);
+        _theStretchIsGone(snapshot.backTranslation.segments, sent);
         _applyTheSessionRead(snapshot, sent);
       case final RoomFailure failure:
         _theRefusalCouldNotBeRead(path, failure, generation, life);
@@ -9247,14 +9251,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     switch (lido) {
       case Answered(value: final snapshot):
-        _theStretchIsGone(snapshot.backTranslation.segments);
+        _theStretchIsGone(snapshot.backTranslation.segments, sent);
         _applyTheSessionRead(snapshot, sent);
       case final RoomFailure failure:
         _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
     }
   }
 
-  bool _theRefusalLandsOn(SessionSnapshot snapshot, Trecho alvo) {
+  bool _theRefusalLandsOn(SessionSnapshot snapshot, Trecho alvo, int sent) {
     final segments = snapshot.backTranslation.segments;
     final sucessor = segments.indexWhere(
       (segment) =>
@@ -9267,10 +9271,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final perdida in _perdidasNoTrecho.remove(alvo.segmentId) ?? {}) {
       unawaited(_retirarDaFilaSeGuardada(perdida));
     }
-    if (sucessor < 0) {
-      _theStretchIsGone(segments);
+    if (sucessor < 0 || sent <= _stretchesAt) {
+      _theStretchIsGone(segments, sent);
       return false;
     }
+    _stretchesAt = sent;
     final trechos = _trechosFrom(segments, lugar: sucessor, noLugarDe: alvo);
     state = state.copyWith(
       btPhase: BtPhase.playing,
@@ -9282,8 +9287,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return true;
   }
 
-  void _theStretchIsGone(List<SegmentView> segments) {
-    final trechos = _trechosFrom(segments);
+  void _theStretchIsGone(List<SegmentView> segments, int sent) {
+    final fresh = sent > _stretchesAt;
+    if (fresh) _stretchesAt = sent;
+    final trechos = fresh ? _trechosFrom(segments) : state.btTrechos;
     _walkTheCursorBack(trechos);
     _trechoTraduzidoDeNovo = null;
     _descartarATraducaoPendente();
@@ -9534,7 +9541,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     _fraseNaFila = null;
     unawaited(_takes.withdraw(guardada));
-    _readsApplied = _readsSent;
+    _stretchesAt = _readsSent;
     final frase = int.parse(guardada.scope);
     final parte = state.trechoChamado(nome)?.parte;
     final nova = segments.where((segment) => segment.segmentId == nome);
@@ -10532,7 +10539,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (await _room.fetchState(sessionId)) {
       case Answered(value: final snapshot):
         if (_abandoned(generation)) return null;
-        if (sent > _readsApplied) {
+        if (sent > _stretchesAt) {
+          _stretchesAt = sent;
           final trechos = _trechosFrom(snapshot.backTranslation.segments);
           if (trechos.isNotEmpty) state = state.copyWith(btTrechos: trechos);
           final aguardando = snapshot.backTranslation.awaitingSegmentId;

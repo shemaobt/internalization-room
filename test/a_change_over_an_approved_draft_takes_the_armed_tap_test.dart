@@ -218,6 +218,9 @@ void main() {
     await tester.tap(_textoNaLista('usar esta'));
     await _passo(tester);
     harness.room.approvedDraft = null;
+    harness.room.keptRetellings = const [
+      KeptRetelling(scope: 'parte-1', turnNumber: 1, audioUrl: 'ouvinte.mp3'),
+    ];
     harness.room.holdTheNextRead();
     harness.room.holdTheNextRead();
     container.read(salaSessionProvider.notifier).abrirAChecagemExterna();
@@ -250,6 +253,16 @@ void main() {
           .takeId,
       nova,
       reason: 'a leitura de antes da frase voltava a velha por cima da nova',
+    );
+    expect(
+      container.read(salaSessionProvider).btFraseQueAguarda,
+      'trecho-2',
+      reason: 'a leitura de antes da frase apagava a frase que espera tradução',
+    );
+    expect(
+      container.read(salaSessionProvider).keptRetellings,
+      hasLength(1),
+      reason: 'a frase mantida jogava fora o que a leitura em voo trazia',
     );
     closeTheRoom(container);
   });
