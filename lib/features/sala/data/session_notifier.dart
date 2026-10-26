@@ -3483,11 +3483,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_voltarAFraseQueAguarda(aguardando, _generation));
       return;
     }
-    unawaited(
-      state.joined
-          ? _ouvirOQueFaltaDepoisDeRegravar(_generation)
-          : _playFromTheUntoldGround(_generation),
-    );
+    unawaited(_ouvirOQueFaltaDepoisDeRegravar(_generation));
   }
 
   Future<void> _voltarAFraseQueAguarda(

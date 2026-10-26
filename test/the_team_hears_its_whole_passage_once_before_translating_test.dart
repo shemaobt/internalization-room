@@ -1590,6 +1590,43 @@ void main() {
   );
 
   test(
+    'a relaunch on the back translation of a recording no join touched nobody '
+    'heard plays P0 and the whole recording, not the telling',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      it.sala.startRetro();
+      await waitFor(
+        'a tradução abrir',
+        () =>
+            it.estado.stage == SalaStage.retro && it.harness.playback.sounding,
+      );
+      _nadaOuvido(it);
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+
+      await _reabrir(it);
+      await waitFor(
+        'a retomada pôr uma parte no ar',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            it.harness.playback.played.length > tocadas,
+      );
+      expect(it.estado.joined, isFalse);
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('P0', testLanguage)],
+        reason: 'a retomada caía na tradução sem a gravação ouvida inteira',
+      );
+      await _ouvirAte(it);
+
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        _caminhos(it, [0, 1, 2]),
+      );
+    },
+  );
+
+  test(
     'a relaunch on the back translation of a joined recording nobody heard plays the first listen',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
