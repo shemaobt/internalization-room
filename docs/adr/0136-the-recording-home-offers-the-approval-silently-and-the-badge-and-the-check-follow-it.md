@@ -18,10 +18,14 @@ approve door on the recording home, whatever the mode, ending in the Saved scree
 - **The approval from the home is silent**: no voiced line, no P3. It ends on «Ensaio salvo» drawn over the
   home, with no stage change, so the resume point stays the home. «Pronto» returns to the home, which then
   draws the approved badge and the «Checagem externa» button.
-- **A refusal from the home shows one of her three texts on the home** and runs no Back-translation
-  routine: `playback_did_not_cover_the_clip` → «ainda falta ouvir um trecho da gravação»; any other
-  blocker → «para aprovar, a tradução precisa estar conferida» and the offer is withdrawn; a failed request
-  → «não deu para conferir agora — tentem de novo».
+- **A refusal from the home shows one of her three texts on the home**, chosen by the same door order
+  as ADR 0112 (the first hole its order names): a part nobody heard → «ainda falta ouvir um trecho da
+  gravação»; an untold stretch or part, or a check not made → «para aprovar, a tradução precisa estar
+  conferida» and the offer is withdrawn; anything else (an unknown code, an answer with neither a
+  version nor blockers, a failed request) → «não deu para conferir agora — tentem de novo». The home
+  runs none of the Back-translation's doors (no part plays, no stretch is opened). A request refused
+  outright (a version race) still takes the Back-translation's failure path, whose changes are
+  invisible on the home. The text clears when the station changes or a take is kept.
 - **The record circle waits while the approval is in the air.**
 - **The external check leaves to the door it was opened from.** Opened from the home, or reopened after a
   relaunch, it leaves to the recording home and the resume point is the home; opened from the

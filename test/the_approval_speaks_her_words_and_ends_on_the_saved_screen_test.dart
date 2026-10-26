@@ -876,13 +876,31 @@ void main() {
       closeTheRoom(it.container);
     });
 
-    for (final (what, blockers, failure, text, offered) in [
+    for (final (what, blockers, failure, text, offered, answer) in [
       (
         'not checked',
         ['telling_back_not_checked'],
         null,
         _precisaConferida,
         false,
+        null,
+      ),
+      ('an unknown code', ['coisa_nova'], null, _naoDeu, true, null),
+      (
+        'neither a version nor a refusal',
+        <String>[],
+        null,
+        _naoDeu,
+        true,
+        ApprovalAnswer(),
+      ),
+      (
+        'an untold stretch before an unheard part',
+        ['playback_did_not_cover_the_clip', 'untold_stretch'],
+        null,
+        _precisaConferida,
+        false,
+        null,
       ),
       (
         'a part unheard',
@@ -890,6 +908,7 @@ void main() {
         null,
         _faltaOuvir,
         true,
+        null,
       ),
       (
         'the server cannot answer',
@@ -897,6 +916,7 @@ void main() {
         NetworkFailed('sem rede'),
         _naoDeu,
         true,
+        null,
       ),
     ]) {
       testWidgets('a refusal on the home says one of her three texts: $what', (
@@ -906,6 +926,7 @@ void main() {
         it.harness.room
           ..releaseBlockers = blockers
           ..failReleaseWith = failure;
+        if (answer != null) it.harness.room.release = answer;
         final tocadas = it.harness.playback.played.length;
 
         await _tocar(tester);
@@ -917,6 +938,40 @@ void main() {
         closeTheRoom(it.container);
       });
     }
+
+    testWidgets('a refusal text stays on the home it was said on', (
+      tester,
+    ) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.releaseBlockers = const ['telling_back_not_checked'];
+      await _tocar(tester);
+      expect(find.text(_precisaConferida), findsOneWidget);
+
+      it.container.read(salaSessionProvider.notifier).startRetro();
+      await tester.pump(const Duration(milliseconds: 300));
+      await _assentar(tester);
+
+      expect(find.text(_precisaConferida), findsNothing);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('a kept take clears the refusal text on the home', (
+      tester,
+    ) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.releaseBlockers = const ['telling_back_not_checked'];
+      await _tocar(tester);
+      final sala = it.container.read(salaSessionProvider.notifier);
+
+      sala.ensaioTap();
+      sala.ensaioTap();
+      await tester.pump(const Duration(milliseconds: 100));
+      sala.takeKeep();
+      await tester.pump(const Duration(seconds: 3));
+
+      expect(find.text(_precisaConferida), findsNothing);
+      closeTheRoom(it.container);
+    });
 
     testWidgets('the circle does not record while the approval is in the air', (
       tester,

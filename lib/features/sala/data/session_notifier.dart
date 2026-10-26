@@ -1392,6 +1392,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       sceneRehearsals: leavesTheScene ? const [] : null,
       clearSceneTurn: leavesTheScene,
       clearArmedTap: machine.generation != before.generation,
+      clearBtRecusa: machine.generation != before.generation,
     );
     _escutarNoEnsaio(before, machine);
     _runner.run(effects, micWasOpen: before.channel is Microphone);
@@ -1463,7 +1464,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       keptRetellings: snapshot.keptRetellings,
       toBringBack: snapshot.backTranslation.bringBack,
       btChecked: snapshot.backTranslation.checked,
-      clearBtRecusa: state.station is Ensaio,
       btRascunhoAprovado: snapshot.approved,
       clearBtRascunhoAprovado: snapshot.approved == null,
     );
@@ -7050,6 +7050,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _readTheCheckAfterTheUpload = true;
     state = state.copyWith(
       btChecked: false,
+      clearBtRecusa: true,
       clearParteARegravar: true,
       clearCenaDaGravacao: true,
     );
@@ -10369,14 +10370,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       if (_abandoned(generation)) return;
       if (!resposta.minted && fromTheHome) {
-        final unheard = resposta.blockers.any(
-          (blocker) => _portaDaRecusa(blocker) == _PortaDaRecusa.parteNaoOuvida,
-        );
+        final recusa = _recusaDaCasa(resposta.blockers);
         state = state.copyWith(
-          btChecked: unheard,
-          btRecusa: unheard
-              ? CheckRefusal.partUnheard
-              : CheckRefusal.notConferida,
+          btChecked: recusa != CheckRefusal.notConferida,
+          btRecusa: recusa,
         );
         return;
       }
@@ -10412,6 +10409,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
       }
     }
+  }
+
+  CheckRefusal _recusaDaCasa(List<String> blockers) {
+    _PortaDaRecusa? first;
+    for (final porta in blockers.map(_portaDaRecusa).nonNulls) {
+      if (first == null || porta.index < first.index) first = porta;
+    }
+    return switch (first) {
+      null => CheckRefusal.checkUnavailable,
+      _PortaDaRecusa.parteNaoOuvida => CheckRefusal.partUnheard,
+      _ => CheckRefusal.notConferida,
+    };
   }
 
   void _saysWhy(CheckRefusal recusa) =>
