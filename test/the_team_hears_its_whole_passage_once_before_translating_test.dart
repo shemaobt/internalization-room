@@ -818,6 +818,52 @@ void main() {
     },
   );
 
+  test(
+    'coming back to a joined recording heard whole, a stretch the room names '
+    'is said once and played, not skipped for the untold ground',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      final tocadas = it.harness.playback.played.length;
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a primeira voltar ao ar com a P1',
+        () => it.harness.playback.played.length > tocadas,
+      );
+      it.sala.goEnsaio();
+      await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
+      it.harness.room
+        ..listeningFixedLine = 'N2'
+        ..listeningUntranslated = [
+          UntranslatedPart(
+            takeId: it.partes[1].takeId!,
+            scene: 2,
+            from: const Duration(milliseconds: 3000),
+          ),
+        ];
+      final linhas = it.harness.voice.fixedLines.length;
+
+      await _oDisco(it);
+      await settle();
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('N2', testLanguage)],
+        reason: 'de volta à tradução, o trecho sem tradução passava calado',
+      );
+      expect(it.harness.playback.played.last, it.partes[1].path);
+      expect(
+        it.harness.playback.playedFrom.last,
+        const Duration(milliseconds: 3000),
+      );
+      expect(it.estado.btCenasSemTraducao, [2]);
+      await _abrirOMicrofone(it);
+    },
+  );
+
   test('a terminei the room refuses over an untranslated stretch says N2 again '
       'and plays that stretch, never an empty findings screen', () async {
     final it = await _juntadaNaCasa();
