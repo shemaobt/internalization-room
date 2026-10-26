@@ -3721,7 +3721,7 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
-  void beginALife() => _lifeEnded = false;
+  Future<void> beginALife() async => _lifeEnded = false;
 
   @override
   Future<PendingTake> enqueue(

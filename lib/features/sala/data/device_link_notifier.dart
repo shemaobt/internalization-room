@@ -214,7 +214,8 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       presented: credential != null,
     );
     if (credential != null) {
-      final takes = ref.read(takeUploadQueueProvider)..beginALife();
+      final takes = ref.read(takeUploadQueueProvider);
+      await takes.beginALife();
       await takes.flush();
     }
   }

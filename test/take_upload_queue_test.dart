@@ -20,10 +20,12 @@ import 'fakes.dart';
 void main() {
   late Directory home;
   var recorder = FakeRecorder();
+  var diskFails = false;
 
   setUp(() {
     home = Directory.systemTemp.createTempSync('fila-tomadas');
     recorder = FakeRecorder();
+    diskFails = false;
   });
   tearDown(() => home.deleteSync(recursive: true));
 
@@ -32,7 +34,10 @@ void main() {
   TakeUploadQueue queueOn(FakeRoom room, {List<Duration> backoff = const []}) =>
       TakeUploadQueue(
         room: room,
-        home: () async => home,
+        home: () async {
+          if (diskFails) throw const FileSystemException('o disco falhou');
+          return home;
+        },
         recordings: () => recorder,
         backoff: backoff,
         now: () => clock,
@@ -107,7 +112,7 @@ void main() {
       ),
       throwsA(isA<TheLifeEnded>()),
     );
-    queue.beginALife();
+    await queue.beginALife();
     await queue.enqueue(
       aTake('nova'),
       sessionId: 'sessao-3',
@@ -115,6 +120,27 @@ void main() {
       scope: 'inteira',
     );
     expect(await queue.entries(), hasLength(1));
+  });
+
+  test('a life whose sweep failed is swept again before the next begins, and '
+      'its rows never go up', () async {
+    final room = FakeRoom();
+    final queue = queueOn(room);
+    await queue.enqueue(
+      aTake('velha'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+    diskFails = true;
+    await queue.endTheLife();
+    diskFails = false;
+
+    await queue.beginALife();
+    await queue.flush();
+
+    expect(room.calls, isNot(contains('sendTake')));
+    expect(await queue.entries(), isEmpty);
   });
 
   test(
@@ -132,6 +158,7 @@ void main() {
 
       await expectLater(enqueuing, throwsA(isA<TheLifeEnded>()));
       await ending;
+      expect(File('${home.path}/no-ar.m4a').existsSync(), isFalse);
       expect(await queue.entries(), isEmpty);
       expect(
         Directory(

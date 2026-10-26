@@ -564,8 +564,15 @@ class TakeUploadQueue {
 
   bool _lifeEnded = false;
 
-  Future<void> endTheLife() async {
+  Future<void> _ending = Future.value();
+
+  Future<void> endTheLife() {
     _lifeEnded = true;
+    _ending = _sweep();
+    return _ending.onError<Object>((_, _) {});
+  }
+
+  Future<void> _sweep() async {
     final rows = <PendingTake>[];
     await _mutate((written) {
       rows.addAll(written);
@@ -577,7 +584,14 @@ class TakeUploadQueue {
     await _recordings().deleteEveryRecording();
   }
 
-  void beginALife() => _lifeEnded = false;
+  Future<void> beginALife() async {
+    try {
+      await _ending;
+    } on Object {
+      await _sweep();
+    }
+    _lifeEnded = false;
+  }
 
   Future<PendingTake> enqueue(
     File audio, {
@@ -670,6 +684,7 @@ class TakeUploadQueue {
     await _mutate((written) => _lifeEnded ? written : [...written, entry]);
     if (_lifeEnded) {
       await _deleteTheCopy(entry);
+      if (await audio.exists()) await audio.delete();
       throw const TheLifeEnded();
     }
     return entry;

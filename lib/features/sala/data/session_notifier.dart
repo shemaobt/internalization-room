@@ -9427,17 +9427,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     if (_fraseNaFila case final antiga?) unawaited(_takes.withdraw(antiga));
-    final PendingTake guardada;
-    try {
-      guardada = await _takes.enqueue(
-        File(path),
-        sessionId: sessionId,
-        kind: sentenceKind,
-        scope: '$frase',
-      );
-    } on TheLifeEnded {
-      return;
-    }
+    final guardada = await _takes.enqueue(
+      File(path),
+      sessionId: sessionId,
+      kind: sentenceKind,
+      scope: '$frase',
+    );
     if (largada()) return;
     _fraseNaFila = guardada;
     state = state.copyWith(
