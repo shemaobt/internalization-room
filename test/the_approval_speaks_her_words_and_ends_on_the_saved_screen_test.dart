@@ -833,6 +833,24 @@ void main() {
       closeTheRoom(it.container);
     });
 
+    testWidgets('«Checagem externa» on the home opens the external check', (
+      tester,
+    ) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await _tocar(tester);
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(byLabel('Checagem externa'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await _assentar(tester);
+
+      expect(it.harness.room.externalChecksOpened, hasLength(1));
+      expect(byLabel('Novo ouvinte'), findsOneWidget);
+      closeTheRoom(it.container);
+    });
+
     testWidgets('an approved draft: no button', (tester) async {
       final it = await _ateAConferida(tester);
       it.harness.room

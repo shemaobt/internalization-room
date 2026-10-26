@@ -356,12 +356,20 @@ void main() {
     },
   );
 
+  test('the recording home answers the external check opened with the Checagem '
+      'externa of that version', () {
+    _expectTheArrival(
+      const Ensaio(),
+      const TheExternalCheckOpened(3),
+      equals(const ChecagemExterna(3)),
+    );
+  });
+
   test('every other Station ignores the external check opened', () {
     for (final station in const <Station>[
       Menu(),
       Panorama('OV-Ruth'),
       Canvas(),
-      Ensaio(),
       Fim(),
       SceneRehearsal(),
     ]) {
