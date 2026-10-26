@@ -48,11 +48,23 @@ class RecorderSpy extends RecordPlatform {
     return encoder != AudioEncoder.wav || wavSupported;
   }
 
-  @override
-  Future<bool> isRecording(String recorderId) async => recordingAgain;
+  bool aStopEndsTheRecording = false;
+  void Function()? whenAsked;
 
   @override
-  Future<String?> stop(String recorderId) async => openedPath;
+  Future<bool> isRecording(String recorderId) async {
+    final answer = recordingAgain;
+    final slipIn = whenAsked;
+    whenAsked = null;
+    slipIn?.call();
+    return answer;
+  }
+
+  @override
+  Future<String?> stop(String recorderId) async {
+    if (aStopEndsTheRecording) recordingAgain = false;
+    return openedPath;
+  }
 
   @override
   Stream<RecordState> onStateChanged(String recorderId) => states.stream;
@@ -292,6 +304,33 @@ void main() {
       );
     },
   );
+
+  test('a stop slipping in after a discard asked never hands over a take the '
+      'discard then deletes', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+    await recording.start('ensaio_parte1', owner: MicOwner.rehearsal);
+    microphone
+      ..recordingAgain = true
+      ..aStopEndsTheRecording = true;
+    final take = File(microphone.openedPath!)..createSync(recursive: true);
+    var existedWhenHandedOver = false;
+    microphone.whenAsked = () => unawaited(
+      recording.stop().then((_) => existedWhenHandedOver = take.existsSync()),
+    );
+
+    await recording.discard();
+    await pumpEventQueue();
+
+    expect(existedWhenHandedOver, isFalse);
+    expect(
+      take.existsSync(),
+      isFalse,
+      reason:
+          'um CloseTheMic entre a pergunta do discard e a parada entregava a '
+          'tomada, e a parada do discard a apagava no meio do enfileiramento',
+    );
+  });
 
   test('a discard stops and deletes the recording that is open', () async {
     final recording = RecordingRepository();
