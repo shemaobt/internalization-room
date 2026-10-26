@@ -3852,7 +3852,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (answer) {
       case Answered(value: final segmentos):
         _readsApplied = max(_readsApplied, sent);
-        _stretchesAt = max(_stretchesAt, sent);
         final segurada = state.btFraseGuardada ?? state.btRegravacao?.frase;
         if (segurada != null && _numeroDaParteDe(segurada) == cena) {
           _esquecerAFrase();
