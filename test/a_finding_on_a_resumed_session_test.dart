@@ -50,7 +50,9 @@ Future<ProviderContainer> _retomadaNoAchado(SalaHarness harness) async {
   await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a tradução retomada pôr a parte no ar',
-    () => container.read(salaSessionProvider).stage == SalaStage.retro,
+    () =>
+        container.read(salaSessionProvider).stage == SalaStage.retro &&
+        harness.playback.sounding,
   );
   harness.playback.finishPlayback();
   await waitFor(
