@@ -81,17 +81,14 @@ void main() {
   test(
     'a listener is numbered within its version, and known only there',
     () async {
+      expect(await send(listenerWholeComment, version: 2), const SessionGone());
+      expect(
+        await room.markTheFrase('S', 2, 1, 'trecho-1'),
+        const SessionGone(),
+      );
       final second = await room.aNewListener('S', 2, attempt: 'a');
       expect((second as Answered<int>).value, 1);
       expect(await send(listenerWholeComment, version: 2), isA<Answered>());
-      expect(
-        await send(listenerWholeComment, version: 2, listener: 2),
-        const SessionGone(),
-      );
-      expect(
-        await room.markTheFrase('S', 2, 2, 'trecho-1'),
-        const SessionGone(),
-      );
     },
   );
 
