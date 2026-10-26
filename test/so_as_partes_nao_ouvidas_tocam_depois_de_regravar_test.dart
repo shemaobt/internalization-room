@@ -431,6 +431,48 @@ void main() {
     },
   );
 
+  test(
+    'on a recording no join touched, a part recorded again and heard brings P1 and the recording again from its first part, not the end of the listen',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      await _regravada(it, 1, partesDoEnsaio[1]);
+      it.harness.room.listeningUnheardTakeIds = [it.partes[1].takeId!];
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+
+      await _entrar(it);
+      for (var onde = 0; onde < 2; onde++) {
+        await ouvirAteOFim(it, partesDoEnsaio[onde]);
+        await waitFor(
+          'a parte ${onde + 2} entrar no ar',
+          () => it.harness.playback.played.length == tocadas + onde + 2,
+        );
+      }
+      it.harness.room.listeningUnheardTakeIds = const [];
+      await ouvirAteOFim(it, partesDoEnsaio[2]);
+      await waitFor(
+        'a primeira parte voltar ao ar',
+        () => it.harness.playback.played.length == tocadas + 4,
+      );
+
+      expect(
+        _linhas(it, linhas),
+        ['P0', 'P1'],
+        reason:
+            'a escuta acabava em silêncio, com o terminei aceso, e a P1 nunca '
+            'era dita',
+      );
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        [
+          for (final onde in [0, 1, 2, 0]) it.partes[onde].path,
+        ],
+        reason: 'depois da P1 a gravação volta à primeira parte',
+      );
+      expect(it.harness.playback.playedFrom.last, Duration.zero);
+    },
+  );
+
   test('a abertura também mostra o que falta ouvir', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();
     await _regravada(it, 1, partesDoEnsaio[1]);

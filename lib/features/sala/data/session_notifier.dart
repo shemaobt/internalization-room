@@ -7836,12 +7836,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _deixarDeSoOuvir();
       return _finishBackTranslation();
     }
-    if (!state.btTrechos.any((trecho) => trecho.contado)) {
+    if (!state.joined || !state.btTrechos.any((trecho) => trecho.contado)) {
       await _dizer(tellLine);
       if (deixou()) return;
       _deixarDeSoOuvir();
       _sairDaEspera();
-      return _tocarDoChaoNaoContado();
+      return _tocarParteDaRetro(0, doComeco: true);
     }
     _deixarDeSoOuvir();
   }
