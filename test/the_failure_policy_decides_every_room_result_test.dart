@@ -173,6 +173,12 @@ void main() {
       aHaltWaitsForTheCanvas: true,
     );
 
+    test('a «terminei» again in the air keeps the sign waiting', () {
+      final (machine, _) = reduce(theSignWaits, const TurnSent(_turn));
+
+      expect(machine.aHaltWaitsForTheCanvas, isTrue);
+    });
+
     test('a «terminei» refused as already sent tells the scene screen it went, '
         'reads the list again and forgets the waiting sign', () {
       final (machine, effects) = reduce(
