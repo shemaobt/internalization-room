@@ -743,7 +743,7 @@ class SalaSessionState {
 
   TakeInTheAir? partInTheAir(int number) =>
       switch (_theTakeInTheAirOf(partTakeKind)) {
-        final take? when KeptScope.numberOf(take.keep.scope) == number => take,
+        final take? when rowOf(take.keep.scope) == number => take,
         _ => null,
       };
 
@@ -949,7 +949,7 @@ class SalaSessionState {
       for (final keep in machine.keeping.keys)
         if (keep.session == sessionId) keep.part,
       ?switch (_theTakeInTheAirOf(partTakeKind)) {
-        final take? => KeptScope.numberOf(take.keep.scope),
+        final take? => rowOf(take.keep.scope),
         null => null,
       },
     })

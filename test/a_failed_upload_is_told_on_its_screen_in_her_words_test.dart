@@ -355,6 +355,30 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a whole-passage recording on its way reads enviando and shows parar past '
+    'eight seconds',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      await casa.emTempoReal(() async {
+        casa.sala.recordTheWholePassageInstead();
+        await waitFor(
+          'a passagem inteira ser a linha',
+          () =>
+              casa.estado.recordsTheWhole && casa.estado.sceneRows.length == 1,
+        );
+      });
+      casa.room.holdNextTake(KeptScope.whole);
+      await casa.guardarSemEsperar(1);
+      await tester.runAsync(casa.room.untilTakeHeld);
+
+      await tester.pump(const Duration(seconds: 8));
+
+      expect(find.text(_enviando), findsOneWidget);
+      expect(find.text(_parar), findsOneWidget);
+    },
+  );
+
   testWidgets('a send that lands within eight seconds never shows parar', (
     tester,
   ) async {
