@@ -364,7 +364,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The fetch of the parts on their way, which belongs to the passage it started in.
   late Completer<void>? _partesDescendo;
-  late Completer<void>? _reload;
 
   /// Whether the Session read of this opening has said where the team stands, which a part
   /// the room lost waits for before it leaves the Rehearsal.
@@ -542,7 +541,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _aNewLife() {
     _timers = {};
-    _reload = null;
     _armHandedOver = null;
     _readsSent = 0;
     _readsApplied = 0;
@@ -653,6 +651,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       partCeiling: () => ref.read(playbackCeilingProvider),
       clipGrace: () => ref.read(clipGraceProvider),
       lookAgainAfter: () => ref.read(lookAgainIntervalProvider),
+      reloadAfter: () => ref.read(soundReloadDelayProvider),
       generation: () => _generation,
     );
     ref.onDispose(() {
@@ -1156,7 +1155,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Say a reply, loading it once more when the machine asks after a failed load
-  /// (ADR 0093).
+  /// (ADR 0135).
   ///
   /// [asked] is a replay, which goes straight to speaking for a line already held.
   Future<Said> _sayTheReply(
@@ -1166,7 +1165,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     void Function()? onSoundStart,
   }) async {
     final generation = _waitOnTheGeneration;
-    while (true) {
+    for (var load = 1; ; load++) {
       final Said said;
       try {
         said = await _loadTheReply(
@@ -1177,11 +1176,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           onSoundStart: onSoundStart,
         );
       } on RoomFailure catch (failure) {
-        if (await _loadAgain(line, generation, failure)) continue;
+        if (await _loadAgain(line, load, generation, failure)) continue;
         return Said.failed;
       }
       if (said != Said.failed) return said;
-      if (!await _loadAgain(line, generation)) return said;
+      if (!await _loadAgain(line, load, generation)) return said;
     }
   }
 
@@ -1202,40 +1201,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return _speak(line, onSoundStart: onSoundStart);
   }
 
-  /// A reply whose sound will not load raises the sign and stays the one «Ouvir de novo»
-  /// says.
+  /// Under the sign the reply that would not load stays the one «Ouvir de novo» says.
   Future<bool> _loadAgain(
     SpokenLine line,
+    int load,
     int generation, [
     RoomFailure? because,
   ]) async {
     if (_abandoned(generation)) return false;
-    decidedOnTheTablet(
-      TheSoundFailed(state.machine.failedLoads + 1, because: because?.result),
-      _failureContext(),
-    );
-    _reload = null;
+    final loadAgain = Completer<bool>();
     _dispatch(
       TheReplyFailedToLoad(
+        load,
         because: because?.result,
         sounding: _whatIsSounding(),
+        answered: loadAgain.complete,
         generation: _generation,
       ),
     );
     if (state.needsPerson) state = state.copyWith(lastSpoken: line);
-    final reload = _reload?.future;
-    if (reload == null) return false;
-    await reload;
-    if (_abandoned(generation)) return false;
+    if (!await loadAgain.future || _abandoned(generation)) return false;
     await (line.fixedLine.isEmpty
         ? _voice.forget(line.url)
         : _voice.forgetFixedLine(line.fixedLine, _inTheSessionsLanguage));
     return true;
-  }
-
-  void _loadTheReplyAgainLater() {
-    final reload = _reload = Completer<void>();
-    _after('reload', ref.read(soundReloadDelayProvider), reload.complete);
   }
 
   /// Say a line, and remember it as the one "ouvir de novo" gives back, whether it was
@@ -1406,6 +1395,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _dispatch(MachineEvent event) {
     final before = state.machine;
     final (machine, effects) = reduce(before, event);
+    if (event is TheReplyFailedToLoad) logTheReplysSound(event, effects);
     final leavesTheScene =
         before.station is SceneRehearsal && machine.station is! SceneRehearsal;
     if (machine.halt is Blocking && before.halt is! Blocking) {
@@ -11365,9 +11355,6 @@ class _NotifierHost implements StationHost {
   @override
   void hearTheReplyKept(Turn turn, TurnResult reply) =>
       _notifier._keepTheReplyTheLookFound(turn, reply);
-
-  @override
-  void hearTheReloadAsked() => _notifier._loadTheReplyAgainLater();
 
   @override
   void hearTheLineLetGo() => _notifier._letTheLineGo();

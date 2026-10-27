@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -49,6 +49,14 @@ Future<void> _theTeamSpeaks(_Room room) async {
   room.sala.conversaTap();
 }
 
+Future<void> _theTeamSpeaksAndTheReplyIsHeld(_Room room) async {
+  room.harness.room.holdNextTurn();
+  await _theTeamSpeaks(room);
+  await waitFor('o turno no ar', () => room.harness.room.turnsSent > 0);
+  room.harness.voice.holdNextLine();
+  room.harness.room.finishHeldTurn();
+}
+
 Future<void> _theRoomRests(_Room room) async {
   await waitFor(
     'a sala descansar',
@@ -67,14 +75,6 @@ Future<void> _theSignIsCleared(_Room room) async {
   room.sala.teamTapped();
   await waitFor('o sinal sair', () => !room.state.needsPerson);
   await _theRoomRests(room);
-}
-
-List<String> _theLog() {
-  final logged = <String>[];
-  final print = debugPrint;
-  debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
-  addTearDown(() => debugPrint = print);
-  return logged;
 }
 
 void main() {
@@ -214,37 +214,19 @@ void main() {
 
   test('a clip download that fails on the network never takes the room '
       'offline', () async {
-    final logged = _theLog();
     final harness = SalaHarness();
     final room = await _onTheCanvas(harness);
     harness.room.replyUrl = _theReply;
-    harness.voice.roomFailsWith = const NetworkFailed('sem rede');
+    await _theTeamSpeaksAndTheReplyIsHeld(room);
+    await waitFor('a resposta tocar', () => room.timesPlayed(_theReply) == 1);
+    harness.voice.failHeldLine(const NetworkFailed('sem rede'));
+    await _theRoomRests(room);
 
-    await _theTeamSpeaks(room);
-    await _theSignRises(room);
-    await settle(const Duration(milliseconds: 300));
-
-    expect(logged, isNot(contains(contains('NetworkFailedAt'))));
-    expect(logged, isNot(contains(contains('TurnGivenUp'))));
+    expect(room.timesPlayed(_theReply), 2);
+    expect(room.state.needsPerson, isFalse);
+    expect(room.state.canHearAgain, isTrue);
+    expect(harness.room.turnsSent, 1);
   });
-
-  test(
-    'a reply whose sound the room answers with a session gone takes the team '
-    'back to the wheel, with no reload and no person sign',
-    () async {
-      final harness = SalaHarness();
-      final room = await _onTheCanvas(harness);
-      harness.room.replyUrl = _theReply;
-      harness.voice.roomFailsWith = const SessionGone();
-
-      await _theTeamSpeaks(room);
-      await waitFor('a sessão sair', () => room.state.sessionId == null);
-      await settle(const Duration(milliseconds: 300));
-
-      expect(room.timesPlayed(_theReply), 1);
-      expect(room.state.needsPerson, isFalse);
-    },
-  );
 
   test('a reply whose sound fails to load once is downloaded afresh for its '
       'reload', () async {
@@ -256,7 +238,6 @@ void main() {
     await _theTeamSpeaks(room);
     await _theRoomRests(room);
 
-    expect(harness.voice.forgotten, [_theReply]);
     expect(
       harness.voice.fetched.where((url) => url == _theReply),
       hasLength(2),
@@ -281,6 +262,84 @@ void main() {
     expect(room.timesPlayed(_theReply), 2);
     expect(room.timesPlayed(_theNextReply), 2);
   });
+
+  test('a reply whose reload the team cut leaves the next reply its own '
+      'reload', () async {
+    final harness = SalaHarness();
+    final room = await _onTheCanvas(harness);
+    harness.room.replyUrl = _theReply;
+    harness.voice
+      ..failsToLoad[_theReply] = 1
+      ..refuses.addAll(instantAckLines);
+    await _theTeamSpeaksAndTheReplyIsHeld(room);
+    await waitFor(
+      'a resposta tocar de novo',
+      () =>
+          room.timesPlayed(_theReply) == 2 &&
+          room.state.voice == VoiceState.speaking,
+    );
+    room.sala.conversaTap();
+    await waitFor(
+      'o microfone abrir sobre a resposta',
+      () => room.state.voice == VoiceState.listening,
+    );
+    harness.room.replyUrl = _theNextReply;
+    harness.voice.failsToLoad[_theNextReply] = 1;
+
+    room.sala.conversaTap();
+    await _theRoomRests(room);
+
+    expect(room.timesPlayed(_theNextReply), 2);
+    expect(room.state.needsPerson, isFalse);
+  });
+
+  test('a replay whose reload the room left behind ends its wait', () async {
+    final harness = SalaHarness(soundReload: const Duration(milliseconds: 400));
+    final room = await _onTheCanvas(harness);
+    harness.room.replyUrl = _theReply;
+    await _theTeamSpeaks(room);
+    await _theRoomRests(room);
+    harness.voice.failsToLoad[_theReply] = 1;
+
+    final replay = room.sala.hearAgain();
+    await waitFor('a repetição falhar', () => room.timesPlayed(_theReply) == 2);
+    room.sala.leaveThePassage();
+
+    await expectLater(replay.timeout(const Duration(seconds: 2)), completes);
+  });
+
+  test(
+    'a fresh passage gives its first reply its own reload, whatever the last '
+    'passage\'s reply failed',
+    () async {
+      final harness = SalaHarness(
+        soundReload: const Duration(milliseconds: 400),
+      );
+      final room = await _onTheCanvas(harness);
+      harness.room.replyUrl = _theReply;
+      harness.voice.failsToLoad[_theReply] = 1;
+      await _theTeamSpeaks(room);
+      await waitFor(
+        'a resposta falhar',
+        () => room.timesPlayed(_theReply) == 1,
+      );
+      room.sala.leaveThePassage();
+      await settle();
+      await enterThePassage(room.sala, () => room.state, 'P01');
+      await _theRoomRests(room);
+      harness.room.replyUrl = _theNextReply;
+      harness.voice.failsToLoad[_theNextReply] = 1;
+
+      await _theTeamSpeaks(room);
+      await waitFor(
+        'a resposta da passagem nova carregar de novo',
+        () => room.timesPlayed(_theNextReply) == 2,
+      );
+      await _theRoomRests(room);
+
+      expect(room.state.needsPerson, isFalse);
+    },
+  );
 
   test(
     'a replay whose sound fails to load is loaded once more, then raises the '

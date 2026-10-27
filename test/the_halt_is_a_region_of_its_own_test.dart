@@ -119,15 +119,33 @@ void main() {
       () {
         final (once, reload) = reduce(
           const Machine(),
-          const TheReplyFailedToLoad(),
+          const TheReplyFailedToLoad(1),
         );
         expect(once.halt, isNot(isA<Blocking>()));
-        expect(reload, contains(const LoadTheReplyAgain()));
+        expect(reload, contains(isA<LoadTheReplyAgain>()));
 
-        final (twice, _) = reduce(once, const TheReplyFailedToLoad());
+        final (twice, letGo) = reduce(once, const TheReplyFailedToLoad(2));
         expect(twice.halt, isA<Blocking>());
+        expect(letGo, contains(isA<LetTheReplyGo>()));
       },
     );
+
+    test('the first failed load of the next reply is loaded once more, even '
+        'after the last reply\'s reload was abandoned', () {
+      final (afterTheFirst, _) = reduce(
+        const Machine(),
+        const TheReplyFailedToLoad(1),
+      );
+      final moved = moveTheGeneration(afterTheFirst);
+
+      final (afterTheNext, reload) = reduce(
+        moved,
+        TheReplyFailedToLoad(1, generation: moved.generation),
+      );
+
+      expect(afterTheNext.halt, isNot(isA<Blocking>()));
+      expect(reload, contains(isA<LoadTheReplyAgain>()));
+    });
 
     test('a raised halt calls for a person and arms the Watch', () {
       expect(

@@ -94,9 +94,7 @@ class World {
       looking: looks,
       serverHoldsAWarning: switch (event) {
         TheAnswerWarned() => true,
-        TheSessionIsGone() ||
-        ThePassageClosed() ||
-        TheReplyFailedToLoad(because: RoomSessionGone()) => false,
+        TheSessionIsGone() || ThePassageClosed() => false,
         SessionRead(:final snapshot) when !snapshot.needsPerson =>
           snapshot.halt == HaltKind.warning,
         _ => serverHoldsAWarning,
@@ -755,11 +753,8 @@ MachineEvent _draw(
   ),
   EventKind.theOpeningMissed => const TheOpeningMissed(),
   EventKind.theReplyFailedToLoad => TheReplyFailedToLoad(
-    because: switch (random.nextInt(3)) {
-      0 => null,
-      1 => const RoomNetworkFailed(),
-      _ => const RoomSessionGone(),
-    },
+    1 + random.nextInt(2),
+    because: random.nextBool() ? null : const RoomNetworkFailed(),
     sounding: _drawKept(random),
   ),
   EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),

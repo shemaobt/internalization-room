@@ -3588,14 +3588,14 @@ void main() {
     await notifier.hearAgain();
     await settle();
 
-    expect(harness.voice.played.skip(before), [turnoUrl, turnoUrl]);
     expect(
       container.read(salaSessionProvider).peerCue,
       isTrue,
       reason:
-          'a sala mandou conversarem entre si e não conseguiu repetir a linha — '
-          'perder a instrução junto com a repetição troca a tela por baixo da equipe',
+          'a sala mandou conversarem entre si e a recarga repetiu a linha — '
+          'perder a instrução troca a tela por baixo da equipe',
     );
+    expect(harness.voice.played.skip(before), [turnoUrl, turnoUrl]);
   });
 
   test('a replay nobody could hear on either load fetches a person', () async {

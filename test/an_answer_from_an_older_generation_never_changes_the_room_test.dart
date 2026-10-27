@@ -102,11 +102,13 @@ AnsweringEvent _stampedAnswer(
     sounding: sounding,
     generation: generation,
   ),
-  TheReplyFailedToLoad(:final because, :final sounding) => TheReplyFailedToLoad(
-    because: because,
-    sounding: sounding,
-    generation: generation,
-  ),
+  TheReplyFailedToLoad(:final load, :final because, :final sounding) =>
+    TheReplyFailedToLoad(
+      load,
+      because: because,
+      sounding: sounding,
+      generation: generation,
+    ),
   ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
   TheTellingCameBackEmpty(:final readAgain) => TheTellingCameBackEmpty(
     readAgain: readAgain,

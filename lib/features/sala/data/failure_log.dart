@@ -24,6 +24,14 @@ MachineEvent decidedOnTheTablet(TabletFailure failure, FailureContext context) {
   return event;
 }
 
+void logTheReplysSound(TheReplyFailedToLoad failed, List<Effect> decided) {
+  debugPrint(
+    'Falha do tablet decidida: '
+    '${_whatFailed(TheSoundFailed(failed.load, because: failed.because))} → '
+    '${decided.map((effect) => effect.runtimeType).join(', ')}',
+  );
+}
+
 String _why(RoomResult result) => switch (result) {
   RoomRefused(:final code) => 'recusada ($code)',
   RoomNetworkFailed() => 'a rede caiu',

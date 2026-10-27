@@ -240,9 +240,6 @@ abstract final class FailurePolicy {
     final halt = RoomRaisedAHalt(generation: generation);
     final passed = TheRefusalPassed(generation: generation);
     return switch (failure) {
-      TheSoundFailed(because: RoomSessionGone()) => TheSessionIsGone(
-        generation: generation,
-      ),
       TheSoundFailed(:final loads) when loads < soundFailuresBeforeAPerson =>
         passed,
       TheSoundFailed() when context.sounding is TheOpening => TheOpeningMissed(

@@ -140,9 +140,6 @@ class AStationHost implements StationHost {
   void hearTheLineLetGo() => asked.add('hearTheLineLetGo');
 
   @override
-  void hearTheReloadAsked() => asked.add('hearTheReloadAsked');
-
-  @override
   void hearTheWaitResumed() => asked.add('hearTheWaitResumed');
 
   @override
@@ -209,5 +206,6 @@ EffectRunner runnerOver(
   partCeiling: () => null,
   clipGrace: () => clipGrace,
   lookAgainAfter: () => Duration.zero,
+  reloadAfter: () => Duration.zero,
   generation: generation,
 );

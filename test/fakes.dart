@@ -241,15 +241,11 @@ class FakeVoice implements FacilitatorVoiceService {
     return succeeds;
   }
 
-  /// The lines let go of on the tablet, by url or by a fixed line's name.
-  final List<String> forgotten = [];
+  @override
+  Future<void> forget(String url) async {}
 
   @override
-  Future<void> forget(String url) async => forgotten.add(url);
-
-  @override
-  Future<void> forgetFixedLine(String line, String language) async =>
-      forgotten.add(line);
+  Future<void> forgetFixedLine(String line, String language) async {}
 
   @override
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
