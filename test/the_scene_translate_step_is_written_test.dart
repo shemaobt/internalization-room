@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 
 import 'a_scene_room.dart' show articulation, pumpUntil;
 import 'a_wav_take.dart';
@@ -547,4 +549,51 @@ void main() {
       },
     );
   }
+  testWidgets(
+    'a sent scene rehearsal writes «ouvindo o ensaio da cena…» with her clock beside play while the take plays',
+    (tester) async {
+      final (harness, container) = await _inListenMode(tester);
+      const line = 'ouvindo o ensaio da cena… — 0:03 / 0:10';
+      final play = byLabel('Tocar ou pausar a gravação');
+
+      expect(find.textContaining('ouvindo'), findsNothing);
+      await tester.tap(play);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 3);
+      await tester.pump(const Duration(milliseconds: 1100));
+
+      expect(
+        find.text(line),
+        findsOneWidget,
+        reason: 'a escuta tocava sem dizer onde estava',
+      );
+      expect(byLabel(line), findsOneWidget);
+      expect(
+        tester.getCenter(find.text(line)).dx,
+        greaterThan(tester.getCenter(play).dx),
+      );
+      expect(
+        (tester.getCenter(find.text(line)).dy - tester.getCenter(play).dy)
+            .abs(),
+        lessThan(20),
+        reason: 'o relógio fica ao lado do play, como no dela',
+      );
+    },
+  );
+
+  testWidgets('a sent scene rehearsal draws her strip', (tester) async {
+    await _inListenMode(tester);
+
+    expect(
+      find.descendant(
+        of: find.byType(SceneRehearsalView),
+        matching: find.byType(SceneStrip),
+      ),
+      findsOneWidget,
+      reason: 'a escuta desenhava uma faixa lisa, não a dela',
+    );
+  });
 }

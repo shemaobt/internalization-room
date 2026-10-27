@@ -111,6 +111,7 @@ class SceneRehearsalView extends ConsumerWidget {
               ),
               SceneStep.sent => SceneListenMode(
                 scene: scene,
+                envelope: session.sceneEnvelope,
                 channel: session.channel,
                 language: language,
                 sending: sending,

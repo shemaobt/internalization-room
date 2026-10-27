@@ -433,6 +433,7 @@ class ScenePlacesUnknown extends ConsumerWidget {
 
 class SceneListenMode extends ConsumerWidget {
   final SceneScreen scene;
+  final Envelope? envelope;
   final Channel channel;
   final String language;
   final bool sending;
@@ -441,6 +442,7 @@ class SceneListenMode extends ConsumerWidget {
   const SceneListenMode({
     super.key,
     required this.scene,
+    required this.envelope,
     required this.channel,
     required this.language,
     required this.sending,
@@ -450,9 +452,11 @@ class SceneListenMode extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(salaSessionProvider.notifier);
+    final playback = ref.read(playbackRepositoryProvider);
     final colors = SalaColors.of(context);
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
+    final playing = channel is PartPlaying;
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
     int span(SceneFrase frase) => frase.spanIn(scene.length);
     final longest = frases.map(span).fold(0, max);
@@ -468,20 +472,49 @@ class SceneListenMode extends ConsumerWidget {
             style: TextStyle(color: colors.ink, fontSize: 16),
           ),
           const SizedBox(height: 12),
-          RoundActionButton(
-            size: 120,
-            mood: sending || scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
-            semanticLabel: said('playPause'),
-            onTap: notifier.playTheSceneRehearsal,
-            border: Border.all(color: colors.vermelhoMic, width: 2),
-            child: Icon(
-              channel is PartPlaying ? LucideIcons.pause : LucideIcons.play,
-              size: 40,
-              color: colors.vermelhoMic,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RoundActionButton(
+                size: 52,
+                mood: sending || scene.waiting
+                    ? ButtonMood.dimmed
+                    : ButtonMood.lit,
+                semanticLabel: said('playPause'),
+                onTap: notifier.playTheSceneRehearsal,
+                border: Border.all(color: colors.vermelhoMic, width: 2),
+                child: Icon(
+                  playing ? LucideIcons.pause : LucideIcons.play,
+                  size: 22,
+                  color: colors.vermelhoMic,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Loop(
+                period: const Duration(seconds: 1),
+                animate: playing,
+                reducible: false,
+                builder: (context, _) => playing
+                    ? _Written(
+                        sceneListeningLineFor(
+                          playback.position,
+                          scene.length,
+                          language,
+                        ),
+                        style: TextStyle(color: colors.mut, fontSize: 16),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          _Strip(frases: frases, length: scene.length),
+          const SizedBox(height: 12),
+          SceneStrip(
+            envelope: envelope,
+            length: scene.length,
+            frases: frases,
+            pausa: null,
+            playing: playing,
+          ),
           const SizedBox(height: 16),
           for (final (i, frase) in frases.indexed)
             Padding(
@@ -547,56 +580,6 @@ class SceneListenMode extends ConsumerWidget {
             child: Icon(LucideIcons.mic, size: 22, color: colors.vermelhoMic),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _Strip extends StatelessWidget {
-  final List<SceneFrase> frases;
-  final Duration? length;
-
-  const _Strip({required this.frases, required this.length});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SalaColors.of(context);
-    final whole = length?.inMilliseconds ?? 0;
-    return ExcludeSemantics(
-      child: SizedBox(
-        width: 292,
-        height: 8,
-        child: LayoutBuilder(
-          builder: (context, box) => Stack(
-            children: [
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: colors.line,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              if (whole > 0)
-                for (final frase in frases.where((f) => f.placedIn(length)))
-                  Positioned(
-                    left: box.maxWidth * frase.startsMs! / whole,
-                    width:
-                        box.maxWidth *
-                        (frase.endsMs! - frase.startsMs!) /
-                        whole,
-                    top: 0,
-                    bottom: 0,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colors.vermelhoMic.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-            ],
-          ),
-        ),
       ),
     );
   }
