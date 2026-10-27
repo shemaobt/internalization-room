@@ -369,6 +369,69 @@ class SceneRestartControl extends ConsumerWidget {
   }
 }
 
+class ScenePlacesUnknown extends ConsumerWidget {
+  final SceneScreen scene;
+  final String language;
+  final bool sending;
+  final bool sendable;
+  final SceneLine? line;
+  final bool restartShown;
+  final BtRecomeco? restart;
+
+  const ScenePlacesUnknown({
+    super.key,
+    required this.scene,
+    required this.language,
+    required this.sending,
+    required this.sendable,
+    required this.line,
+    required this.restartShown,
+    required this.restart,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(salaSessionProvider.notifier);
+    final colors = SalaColors.of(context);
+    String said(String control) => sceneRehearsalLabelFor(control, language);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _Written(
+          said('placesUnknown'),
+          style: TextStyle(color: colors.mut, fontSize: 16),
+        ),
+        if (restartShown || line != null) ...[
+          const SizedBox(height: 16),
+          SceneRestartControl(
+            shown: restartShown,
+            written: false,
+            armed: restart,
+            n: scene.rehearsal?.translatedFrases ?? 0,
+            line: line,
+            live: !sending && !scene.waiting,
+            language: language,
+          ),
+        ],
+        const SizedBox(height: 16),
+        _WrittenButton(
+          said(sending ? 'sending' : 'send'),
+          live: sendable && !sending,
+          onTap: notifier.sendTheSceneRehearsal,
+          large: true,
+        ),
+        const SizedBox(height: 8),
+        _WrittenButton(
+          said('again'),
+          live: !sending,
+          onTap: notifier.recordTheSceneAgain,
+          bare: true,
+        ),
+      ],
+    );
+  }
+}
+
 /// Her words written on the screen, read by VoiceOver as written.
 class _Written extends StatelessWidget {
   final String words;

@@ -284,4 +284,67 @@ void main() {
       },
     );
   }
+
+  for (final (language, line, terminei, restart, again) in [
+    (
+      'pt',
+      'as frases já traduzidas não estão neste computador — toquem em terminei '
+          'para enviar, ou recomecem a tradução',
+      'terminei',
+      'recomeçar a tradução',
+      'gravar o ensaio da cena de novo',
+    ),
+    (
+      'en',
+      'the phrases already translated are not on this computer — tap done to '
+          'send them, or start the translation over',
+      'done',
+      'start the translation over',
+      'record the scene rehearsal again',
+    ),
+  ]) {
+    testWidgets(
+      '$language: a scene rehearsal whose frase places cannot be read writes her line, then «recomeçar», «terminei» and «gravar de novo» as written buttons',
+      (tester) async {
+        final (_, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 12000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.placesUnknown,
+        );
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          find.text(line),
+          findsOneWidget,
+          reason: 'a linha dela só chegava ao VoiceOver',
+        );
+        expect(byLabel(line), findsOneWidget);
+        for (final button in [restart, terminei, again]) {
+          expect(find.text(button), findsOneWidget, reason: button);
+          expect(byLabel(button), findsOneWidget, reason: button);
+          expect(
+            tester.widget<Semantics>(byLabel(button)).properties.button,
+            isTrue,
+            reason: button,
+          );
+        }
+        expect(
+          tester.widget<Semantics>(byLabel(terminei)).properties.enabled,
+          isTrue,
+        );
+        final tops = [
+          line,
+          restart,
+          terminei,
+          again,
+        ].map((words) => tester.getTopLeft(find.text(words)).dy).toList();
+        for (var i = 1; i < tops.length; i++) {
+          expect(tops[i], greaterThan(tops[i - 1]), reason: 'o controle $i');
+        }
+      },
+    );
+  }
 }
