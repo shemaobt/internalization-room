@@ -305,15 +305,21 @@ void main() {
     closeTheRoom(room.container);
   });
 
-  testWidgets('A reply that arrives while the question records does not take '
-      'the tap: the hand throws the question away and the reply still waits', (
-    tester,
-  ) async {
+  testWidgets('A reply that arrives while the question records puts its dot on '
+      'the hand, as hers, but does not take the tap: the question is thrown '
+      'away and the reply still waits', (tester) async {
     final room = await _inConversa(tester);
     await room.theKnotRecords();
     room.harness.inbox.replies = const [_reply];
     room.sala.lookForReplies();
     await room.until('a resposta chegar', () => room.estado.hasUnheardReply);
+
+    expect(
+      tester.widget<HandButton>(room._hand).hasUnheardReply,
+      isTrue,
+      reason: 'a mão escondia o ponto da resposta que a dela mostra',
+    );
+    expect(room.handLabel, 'Ouvir a resposta do facilitador');
 
     await tester.tap(room._hand);
     await room.until(
