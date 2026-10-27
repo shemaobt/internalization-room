@@ -187,33 +187,18 @@ class SceneTranslateStep extends ConsumerWidget {
           ],
           if (frases.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Semantics(
-              header: true,
-              label: said('frases'),
-              child: ExcludeSemantics(
-                child: Text(
-                  said('frases').toUpperCase(),
-                  style: TextStyle(
-                    color: colors.mut,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 2.4,
-                  ),
-                ),
-              ),
-            ),
+            _Heading(said('frases')),
             const SizedBox(height: 8),
             for (final (i, frase) in frases.indexed)
               _FraseBar(
                 n: i + 1,
                 share: frase.spanIn(scene.length) / longest,
                 words: said('frase', i + 1),
-                translateAgain: said('retellFrase', i + 1),
+                name: said('retellFrase', i + 1),
                 hearMine: said('hearMine', i + 1),
                 live: idle,
                 style: words,
-                onTranslateAgain: () =>
-                    notifier.translateTheFraseAgain(frase.fraseId),
+                onTap: () => notifier.translateTheFraseAgain(frase.fraseId),
                 onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
               ),
           ],
@@ -458,8 +443,10 @@ class SceneListenMode extends ConsumerWidget {
         sceneRehearsalLabelFor(control, language, n: n);
     final playing = channel is PartPlaying;
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
-    int span(SceneFrase frase) => frase.spanIn(scene.length);
-    final longest = frases.map(span).fold(0, max);
+    final longest = frases.fold(
+      1,
+      (longest, frase) => max(longest, frase.spanIn(scene.length)),
+    );
     return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -516,61 +503,22 @@ class SceneListenMode extends ConsumerWidget {
             playing: playing,
           ),
           const SizedBox(height: 16),
-          for (final (i, frase) in frases.indexed)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Semantics(
-                    button: true,
-                    enabled: !scene.waiting,
-                    label: said('frase', i + 1),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: scene.waiting
-                          ? null
-                          : () => notifier.playTheFrase(frase.fraseId),
-                      child: SizedBox(
-                        width: 240,
-                        height: 24,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: FractionallySizedBox(
-                            widthFactor: span(frase) > 0
-                                ? max(0.08, span(frase) / longest)
-                                : 1,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: colors.vermelhoMic.withValues(
-                                  alpha: span(frase) > 0 && !scene.waiting
-                                      ? 0.6
-                                      : 0.2,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  RoundActionButton(
-                    size: 40,
-                    mood: scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
-                    semanticLabel: said('hearMine', i + 1),
-                    onTap: () =>
-                        notifier.hearTheFraseTranslation(frase.fraseId),
-                    child: Icon(
-                      LucideIcons.volume2,
-                      size: 18,
-                      color: colors.vermelhoMic,
-                    ),
-                  ),
-                ],
+          if (frases.isNotEmpty) ...[
+            _Heading(said('frases')),
+            const SizedBox(height: 8),
+            for (final (i, frase) in frases.indexed)
+              _FraseBar(
+                n: i + 1,
+                share: frase.spanIn(scene.length) / longest,
+                words: said('frase', i + 1),
+                name: said('frase', i + 1),
+                hearMine: said('hearMine', i + 1),
+                live: !scene.waiting,
+                style: TextStyle(color: colors.ink, fontSize: 16),
+                onTap: () => notifier.playTheFrase(frase.fraseId),
+                onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
               ),
-            ),
+          ],
           const SizedBox(height: 16),
           RoundActionButton(
             size: 52,
@@ -600,6 +548,29 @@ class _Written extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: Text(words, style: style, textAlign: TextAlign.center),
+      ),
+    ),
+  );
+}
+
+class _Heading extends StatelessWidget {
+  final String words;
+
+  const _Heading(this.words);
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    header: true,
+    label: words,
+    child: ExcludeSemantics(
+      child: Text(
+        words.toUpperCase(),
+        style: TextStyle(
+          color: SalaColors.of(context).mut,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 2.4,
+        ),
       ),
     ),
   );
@@ -669,22 +640,22 @@ class _FraseBar extends StatelessWidget {
   final int n;
   final double share;
   final String words;
-  final String translateAgain;
+  final String name;
   final String hearMine;
   final bool live;
   final TextStyle style;
-  final VoidCallback onTranslateAgain;
+  final VoidCallback onTap;
   final VoidCallback onHear;
 
   const _FraseBar({
     required this.n,
     required this.share,
     required this.words,
-    required this.translateAgain,
+    required this.name,
     required this.hearMine,
     required this.live,
     required this.style,
-    required this.onTranslateAgain,
+    required this.onTap,
     required this.onHear,
   });
 
@@ -699,10 +670,10 @@ class _FraseBar extends StatelessWidget {
           Semantics(
             button: true,
             enabled: live,
-            label: translateAgain,
+            label: name,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: live ? onTranslateAgain : null,
+              onTap: live ? onTap : null,
               child: ExcludeSemantics(
                 child: Opacity(
                   opacity: live ? 1 : 0.35,

@@ -197,7 +197,7 @@ void main() {
             ),
           )
           .map((text) => text.data),
-      ['Ensaio da cena', _listenLine],
+      ['Ensaio da cena', _listenLine, 'FRASES TRADUZIDAS', '1', 'frase 1'],
       reason:
           'a escuta escreve só as palavras dela; uma palavra a mais escapava '
           'da varredura',
@@ -596,4 +596,48 @@ void main() {
       reason: 'a escuta desenhava uma faixa lisa, não a dela',
     );
   });
+  testWidgets(
+    'a sent scene rehearsal heads its frases «frases traduzidas» and writes each as its number, a bar and «frase N», beside its speaker',
+    (tester) async {
+      await _inListenMode(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-27T10:00:00+00:00',
+            frases: [_frase('f1', 0, 3000), _frase('f2', 3000, 6000)],
+          ),
+        ],
+      );
+      final heading = byLabel('frases traduzidas');
+
+      expect(
+        find.text('FRASES TRADUZIDAS'),
+        findsOneWidget,
+        reason: 'as frases da escuta não tinham cabeçalho escrito',
+      );
+      expect(tester.widget<Semantics>(heading).properties.header, isTrue);
+      expect(
+        tester.getBottomLeft(heading).dy,
+        lessThan(tester.getTopLeft(byLabel('frase 1')).dy),
+      );
+      for (final n in [1, 2]) {
+        final row = byLabel('frase $n');
+        expect(
+          find.descendant(of: row, matching: find.text('$n')),
+          findsOneWidget,
+          reason: 'a barra da frase $n não tinha número',
+        );
+        expect(
+          find.descendant(of: row, matching: find.text('frase $n')),
+          findsOneWidget,
+        );
+        expect(
+          (tester.getCenter(byLabel('ouvir a minha tradução da frase $n')).dy -
+                  tester.getCenter(row).dy)
+              .abs(),
+          lessThan(20),
+        );
+      }
+    },
+  );
 }
