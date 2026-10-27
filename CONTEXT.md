@@ -517,8 +517,8 @@ The mark at the top centre of the Conversation, drawn from the four shapes of Ma
 _Avoid_: logo, watermark, icon
 
 **Warning mark**:
-The small mark beside the Circle while a warning stands, said in words through its own
-VoiceOver label; the Circle's own colour stays the voice, in every state.
+Retired 2026-10-27 (ENG-1831): a standing warning shows nothing on the team's screen, as
+Marcia's does; the Desk lists it. The Circle's own colour stays the voice, in every state.
 _Avoid_: aviso, warning badge, the green disc (retired 2026-09-25)
 
 **Call for a person**:

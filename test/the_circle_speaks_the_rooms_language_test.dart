@@ -21,7 +21,6 @@ void main() {
       'escolhaLabels': escolhaLabels,
       'handLabels': handLabels,
       'roomLabels': roomLabels,
-      'warningNoticeLabel': {'notice': warningNoticeLabel},
       'codigoLabels': codigoLabels,
     };
     for (final MapEntry(key: table, value: states) in tables.entries) {

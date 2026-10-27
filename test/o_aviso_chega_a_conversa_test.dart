@@ -1,17 +1,20 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 
 void main() {
   testWidgets(
-    'a warning that lands in the Conversation shows its mark beside the '
-    'circle, in the rooms language',
+    'a warning that lands in the Conversation leaves the team screen as it '
+    'was, with no mark beside the circle',
     (tester) async {
       final handle = tester.ensureSemantics();
       final harness = SalaHarness(lingua: 'en')
@@ -39,11 +42,23 @@ void main() {
       expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
       expect(
         find.bySemanticsLabel('A warning is asking someone to come watch'),
-        findsOneWidget,
+        findsNothing,
         reason:
-            'a marca existe ao lado do círculo, mas o que ela diz a um '
-            'leitor de tela em inglês precisa vir do mapa, não do português '
-            'fixo — a Conversa é onde a equipe passa a maior parte do turno',
+            'a marca verde ficava ao lado do círculo até a Mesa atender; a '
+            'tela da equipe dela não mostra nada por um aviso (page.tsx:996-1062)',
+      );
+      expect(
+        find.descendant(
+          of: find.byType(FacilitatorCircle),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Container &&
+                (widget.decoration as BoxDecoration?)?.gradient ==
+                    BeadStyles.verde,
+          ),
+        ),
+        findsNothing,
+        reason: 'nem a bolinha verde sem rótulo',
       );
       handle.dispose();
       closeTheRoom(container);
