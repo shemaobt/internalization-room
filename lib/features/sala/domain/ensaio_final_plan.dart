@@ -233,8 +233,9 @@ bool rehearsalsElsewhere(List<SceneRehearsalRecord> listed, String sessionId) =>
     listed.any((r) => r.sessionId != sessionId && !r.unsent);
 
 /// Her `canJoin`: some scene has a joinable rehearsal chosen, or is already joined.
-bool canJoin(List<PlanRow> rows) =>
-    rows.any((row) => row.joined || row.chosen != null);
+bool canJoin(List<PlanRow> rows, {Set<int> held = const {}}) => rows.any(
+  (row) => row.joined || (row.chosen != null && !held.contains(row.number)),
+);
 
 /// Her `joinQueue`: what «juntar» does, in passage order — the joined part still on its
 /// way watched to its landing, and each scene with no part whose chosen rehearsal is

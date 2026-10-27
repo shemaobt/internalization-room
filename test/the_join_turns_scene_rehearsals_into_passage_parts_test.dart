@@ -19,6 +19,7 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
@@ -1576,6 +1577,48 @@ void main() {
             'ainda não tinha enviado',
       );
       expect(it.container.read(salaSessionProvider).joinRows, contains(2));
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'with every joinable scene\'s hand take still on the tablet, «juntar» on '
+    'the plan is closed and the plan stays',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.room.grain = Grain.whole;
+      it.seed([1]);
+      await it.heldOnTheTablet(1);
+      await it.aHandTakeHeld(1);
+      await it.openThePlan();
+      expect(find.text(_planLine), findsOneWidget);
+      expect(
+        tester
+            .widget<RoundActionButton>(
+              find.ancestor(
+                of: byLabel(_join),
+                matching: find.byType(RoundActionButton),
+              ),
+            )
+            .mood,
+        ButtonMood.dimmed,
+        reason: 'o «juntar» acenava sem nenhuma cena que pudesse juntar',
+      );
+
+      it.container.read(salaSessionProvider.notifier).joinTheScenes();
+      await it.settle();
+
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason:
+            'o «juntar» não tinha nada a juntar e mesmo assim tirava a equipe do '
+            'plano para a casa da gravação',
+      );
+      expect(it.container.read(salaSessionProvider).joinRows, isEmpty);
+      expect(await it.scopesJoined(), isEmpty);
       closeTheRoom(it.container);
       semantics.dispose();
     },

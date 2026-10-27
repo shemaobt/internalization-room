@@ -4772,7 +4772,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void joinTheScenes() => _gesture(() {
     final rows = _planRows;
-    if (rows == null || state.planBusy || !canJoin(rows)) return;
+    if (rows == null ||
+        state.planBusy ||
+        !canJoin(rows, held: state.heldScenes)) {
+      return;
+    }
     _handOff(_joinTheScenesNow(rows));
   });
 
