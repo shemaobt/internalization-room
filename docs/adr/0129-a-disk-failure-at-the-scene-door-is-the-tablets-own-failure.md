@@ -3,6 +3,9 @@ status: accepted
 date: 2026-10-22
 ---
 
+Amended by ENG-1790: the Ensaio Final plan tells the disk word too, on its play; every other
+Station still does nothing.
+
 # A Disk failure at the scene door is the tablet's own failure, told on the scene screen, and one take is kept by one write at a time
 
 ## Context

@@ -28,6 +28,7 @@ const _pronto = 'Pronto';
 const _recomecar = 'recomeçar a tradução';
 const _naoDeuRecomecar = 'não deu para recomeçar agora — tentem de novo';
 const _badge = '✓ aprovado como rascunho final (v1)';
+const _conferida = '✓ traduzida e conferida';
 
 String _aprovado(int v) =>
     'Aprovado como rascunho final da equipe (v$v). Próximo passo: a checagem '
@@ -811,6 +812,78 @@ void main() {
       return it;
     }
 
+    testWidgets('a checked passage says «$_conferida» above the approve '
+        'button', (tester) async {
+      final it = await aCasaConferida(tester);
+
+      expect(
+        find.text(_conferida),
+        findsOneWidget,
+        reason: 'a sala dava a passagem por conferida e a casa não dizia',
+      );
+      expect(
+        tester.getTopLeft(find.text(_conferida)).dy,
+        lessThan(tester.getTopLeft(byLabel(_aprovar)).dy),
+      );
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('an approved passage still says «$_conferida», above its '
+        'badge', (tester) async {
+      final it = await aCasaConferida(tester);
+      await _approvedThroughPronto(tester, it);
+
+      expect(find.text(_conferida), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text(_conferida)).dy,
+        lessThan(tester.getTopLeft(find.text(_badge)).dy),
+      );
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('an English session says «✓ translated and checked»', (
+      tester,
+    ) async {
+      final it = await aCasaConferida(tester, lingua: 'en');
+
+      expect(find.text('✓ translated and checked'), findsOneWidget);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('a passage the room has not checked says nothing of it, and a '
+        'kept take takes the line away', (tester) async {
+      final it = await _ateAConferida(tester);
+      it.harness.room.retroSoFar = const BackTranslationProgress();
+      final sala = it.container.read(salaSessionProvider.notifier);
+      sala.goEnsaio();
+      await _assentar(tester);
+      expect(
+        find.text(_conferida),
+        findsNothing,
+        reason: 'a casa dizia conferida sem a sala ter conferido',
+      );
+
+      it.harness.room.retroSoFar = const BackTranslationProgress(checked: true);
+      sala.goEnsaio();
+      await _assentar(tester);
+      expect(find.text(_conferida), findsOneWidget);
+      it.harness.room.holdNextState();
+      sala.ensaioTap();
+      sala.ensaioTap();
+      await tester.pump(const Duration(milliseconds: 100));
+      sala.takeKeep();
+      await tester.pump(const Duration(seconds: 3));
+
+      expect(
+        find.text(_conferida),
+        findsNothing,
+        reason: 'a gravação nova ficava dita conferida antes da sala ler',
+      );
+      it.harness.room.finishHeldState();
+      await tester.pump(const Duration(seconds: 1));
+      closeTheRoom(it.container);
+    });
+
     testWidgets('a checked, unapproved draft: the tap approves in silence', (
       tester,
     ) async {
@@ -842,6 +915,7 @@ void main() {
       await tester.tap(byLabel(_pronto));
       await tester.pump(const Duration(milliseconds: 300));
 
+      await tester.ensureVisible(byLabel('Checagem externa'));
       await tester.tap(byLabel('Checagem externa'));
       await tester.pump(const Duration(milliseconds: 300));
       await _assentar(tester);
