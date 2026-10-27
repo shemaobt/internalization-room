@@ -540,7 +540,6 @@ class SceneListenMode extends ConsumerWidget {
   }
 }
 
-/// Her words written on the screen, read by VoiceOver as written.
 class SceneRehearsalList extends ConsumerWidget {
   final List<SceneRehearsalRecord> rows;
   final String? onScreen;
@@ -677,6 +676,7 @@ class _ListedRow extends StatelessWidget {
   }
 }
 
+/// Her words written on the screen, read by VoiceOver as written.
 class _Written extends StatelessWidget {
   final String words;
   final String? heard;
