@@ -264,6 +264,15 @@ void main() {
         },
       );
 
+      test('on the Ensaio Final plan the machine tells the screen too', () {
+        final (_, effects) = reduce(
+          const Machine(station: Ensaio(step: EnsaioStep.plan)),
+          const TheSceneDiskFailed(),
+        );
+
+        expect(effects, const [TellTheDiskFailed()]);
+      });
+
       test('on every other Station the machine does nothing', () {
         for (final station in const [
           Menu(),

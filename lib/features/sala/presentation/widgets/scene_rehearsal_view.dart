@@ -14,6 +14,7 @@ import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'scene_question.dart';
 import 'scene_translate_step.dart';
+import 'stage_heading.dart';
 
 /// The scene rehearsal's screen; her words reach the team only through VoiceOver, but on
 /// the translate step, which writes them (ADR 0014).
@@ -36,22 +37,6 @@ class SceneRehearsalView extends ConsumerWidget {
         ? ButtonMood.dimmed
         : ButtonMood.lit;
 
-    final terminei = RoundActionButton(
-      size: 52,
-      mood: sending
-          ? ButtonMood.waiting
-          : sendable
-          ? ButtonMood.lit
-          : ButtonMood.dimmed,
-      halo: colors.vermelhoMic,
-      semanticLabel: said(sending ? 'sending' : 'send'),
-      onTap: notifier.sendTheSceneRehearsal,
-      child: Icon(
-        LucideIcons.check,
-        size: 22,
-        color: sending || sendable ? colors.vermelhoMic : colors.mut,
-      ),
-    );
     final again = RoundActionButton(
       size: 52,
       mood: unlessSending,
@@ -67,6 +52,14 @@ class SceneRehearsalView extends ConsumerWidget {
 
     return Column(
       children: [
+        StageHeading(
+          text: said('title'),
+          style: TextStyle(
+            color: colors.ink,
+            fontSize: 26,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         Expanded(
           child: Center(
             child: switch (scene.step) {
@@ -126,27 +119,14 @@ class SceneRehearsalView extends ConsumerWidget {
                 restartShown: session.sceneRestartShown,
                 restart: session.sceneRestart,
               ),
-              SceneStep.placesUnknown => Semantics(
-                label: said('placesUnknown'),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    terminei,
-                    const SizedBox(width: 24),
-                    if (session.sceneRestartShown || session.sceneLine != null)
-                      SceneRestartControl(
-                        shown: session.sceneRestartShown,
-                        written: false,
-                        armed: session.sceneRestart,
-                        n: scene.rehearsal?.translatedFrases ?? 0,
-                        line: session.sceneLine,
-                        live: !sending && !scene.waiting,
-                        language: language,
-                      ),
-                    const SizedBox(width: 24),
-                    again,
-                  ],
-                ),
+              SceneStep.placesUnknown => ScenePlacesUnknown(
+                scene: scene,
+                language: language,
+                sending: sending,
+                sendable: sendable,
+                line: session.sceneLine,
+                restartShown: session.sceneRestartShown,
+                restart: session.sceneRestart,
               ),
               SceneStep.sent => Semantics(
                 label: switch (session.sceneLine) {

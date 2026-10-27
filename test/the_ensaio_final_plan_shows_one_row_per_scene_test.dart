@@ -25,6 +25,7 @@ import 'scenario_helpers.dart' show byLabel, relaunch;
 const _recordEnsaio = 'Gravar o ensaio de vocês';
 const _recordEnsaioEn = 'Record your rehearsal';
 
+const _diskWord = 'não deu para guardar o ensaio da cena neste computador';
 const _planLine = 'Estes são os ensaios das cenas que vocês me enviaram.';
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _thinking = 'pensando…';
@@ -408,11 +409,13 @@ void main() {
         expect(container.read(salaSessionProvider).needsPerson, isFalse);
         expect(harness.room.personsAsked, persons);
         expect(find.text(_planLine), findsOneWidget);
+        expect(byLabel(_diskWord), findsOneWidget);
 
         harness.recorder.keepBytesFails = false;
         await tester.tap(_playOn(1));
         await _theAnswerSettles(tester);
 
+        expect(byLabel(_diskWord), findsNothing);
         expect(harness.playback.played.last, contains('$sessionId-ensaio-1'));
         semantics.dispose();
       },

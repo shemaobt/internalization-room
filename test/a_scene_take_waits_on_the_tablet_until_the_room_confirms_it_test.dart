@@ -88,12 +88,18 @@ void main() {
       expect(byLabel(_saveFailed), findsOneWidget);
       expect(byLabel(_retry), findsOneWidget);
       expect(
-        find.descendant(
-          of: find.byType(SceneRehearsalView),
-          matching: find.byType(Text),
-        ),
-        findsNothing,
-        reason: 'a sala não tem texto; as palavras dela são só do VoiceOver',
+        tester
+            .widgetList<Text>(
+              find.descendant(
+                of: find.byType(SceneRehearsalView),
+                matching: find.byType(Text),
+              ),
+            )
+            .map((text) => text.data),
+        ['Ensaio da cena'],
+        reason:
+            'só o título é escrito; a falha e o «tentar de novo» são só do '
+            'VoiceOver',
       );
     },
   );
