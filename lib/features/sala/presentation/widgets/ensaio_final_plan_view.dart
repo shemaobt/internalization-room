@@ -139,7 +139,7 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                 const SizedBox(height: 24),
                 RoundActionButton(
                   size: 78,
-                  mood: idle && canJoin(rows)
+                  mood: idle && canJoin(rows, held: session.heldScenes)
                       ? ButtonMood.beckoning
                       : ButtonMood.dimmed,
                   gradient: BeadStyles.wood,

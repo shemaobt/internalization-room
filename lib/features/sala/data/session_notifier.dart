@@ -4776,7 +4776,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void joinTheScenes() => _gesture(() {
     final rows = _planRows;
-    if (rows == null || state.planBusy || !canJoin(rows)) return;
+    if (rows == null ||
+        state.planBusy ||
+        !canJoin(rows, held: state.heldScenes)) {
+      return;
+    }
     _handOff(_joinTheScenesNow(rows));
   });
 
@@ -4800,7 +4804,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final plan = _plansOpened;
     _silenceThePlan();
     var parou = false;
-    for (final step in joinQueue(rows)) {
+    for (final step in joinQueue(rows, held: state.heldScenes)) {
       state = state.copyWith(
         joining: step.number,
         joinRows: {...state.joinRows, step.number: JoinRow.joining},
@@ -7533,7 +7537,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _readTheCheckAfterTheUpload = false;
       if (state.station is Ensaio) unawaited(_readWhatComesBack());
     }
-    state = state.copyWith(unsentParts: _unsentPartsOf(speaking));
+    state = state.copyWith(
+      unsentParts: _unsentPartsOf(speaking),
+      heldScenes: {
+        for (final MapEntry(key: scope, value: rows)
+            in tally.unsentParts.entries)
+          if (rows.any((row) => row.origin == null)) ?KeptScope.numberOf(scope),
+      },
+    );
     if (sessionId != null) {
       state = state.copyWith(
         unsentTakes: _unsentTakesOf(tally, speaking),

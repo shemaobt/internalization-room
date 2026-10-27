@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/ensaio_final_plan.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -18,6 +19,7 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
@@ -149,6 +151,34 @@ class _Room {
       'cena-${idOf(n)}',
     ),
   );
+
+  /// A take the team recorded by hand for scene [n], kept in the Outbox and never let
+  /// through to the room.
+  Future<void> aHandTakeHeld(int n) async {
+    room.unreachableTake = 'ensaio/${KeptScope.parte(n)}';
+    final audio = File('${harness.takesHome.path}/a-mao-$n.m4a')
+      ..writeAsBytesSync([1, 2, 3, 4]);
+    await tester.runAsync(
+      () => harness.takes.enqueue(
+        audio,
+        sessionId: sessionId,
+        kind: 'ensaio',
+        scope: KeptScope.parte(n),
+        passNumber: 1,
+        chunkIndex: n,
+      ),
+    );
+    unawaited(container.read(salaSessionProvider.notifier).refreshUnsent());
+    await settle();
+  }
+
+  /// Every part a join wrote, landed in the room or still in the Outbox.
+  Future<Set<String>> scopesJoined() async => {
+    for (final take in room.takesReceivedWhole)
+      if (take.origin != null) take.scope,
+    for (final row in (await tester.runAsync(harness.takes.entries))!)
+      if (row.origin != null) row.scope,
+  };
 
   void seed([Iterable<int> scenes = const [1, 2, 3]]) {
     for (final n in scenes) {
@@ -1517,4 +1547,80 @@ void main() {
     await it.settle();
     semantics.dispose();
   });
+
+  testWidgets(
+    'on a plan the room records whole, «juntar» never writes a part over a '
+    'scene whose hand take the tablet still holds',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.room.grain = Grain.whole;
+      it.seed();
+      for (final n in [1, 2, 3]) {
+        await it.heldOnTheTablet(n);
+      }
+      await it.aHandTakeHeld(1);
+      await it.openThePlan();
+      expect(find.text(_planLine), findsOneWidget);
+
+      await it.tapJoin();
+      await it.until('a junta parar', () {
+        final estado = it.container.read(salaSessionProvider);
+        return estado.joining == null && estado.joinRows.isNotEmpty;
+      });
+
+      expect(
+        await it.scopesJoined(),
+        isNot(contains('parte-1')),
+        reason:
+            'a junta escrevia a parte 1 por cima da gravação à mão que o tablet '
+            'ainda não tinha enviado',
+      );
+      expect(it.container.read(salaSessionProvider).joinRows, contains(2));
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'with every joinable scene\'s hand take still on the tablet, «juntar» on '
+    'the plan is closed and the plan stays',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.room.grain = Grain.whole;
+      it.seed([1]);
+      await it.heldOnTheTablet(1);
+      await it.aHandTakeHeld(1);
+      await it.openThePlan();
+      expect(find.text(_planLine), findsOneWidget);
+      expect(
+        tester
+            .widget<RoundActionButton>(
+              find.ancestor(
+                of: byLabel(_join),
+                matching: find.byType(RoundActionButton),
+              ),
+            )
+            .mood,
+        ButtonMood.dimmed,
+        reason: 'o «juntar» acenava sem nenhuma cena que pudesse juntar',
+      );
+
+      it.container.read(salaSessionProvider.notifier).joinTheScenes();
+      await it.settle();
+
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason:
+            'o «juntar» não tinha nada a juntar e mesmo assim tirava a equipe do '
+            'plano para a casa da gravação',
+      );
+      expect(it.container.read(salaSessionProvider).joinRows, isEmpty);
+      expect(await it.scopesJoined(), isEmpty);
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
 }
