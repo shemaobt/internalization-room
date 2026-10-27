@@ -217,7 +217,8 @@ class RetroView extends ConsumerWidget {
               language: language,
             ),
             if (!session.btSoOuvir &&
-                session.btTrechos.any((trecho) => trecho.contado)) ...[
+                (session.btTrechos.any((trecho) => trecho.contado) ||
+                    session.btTrechosRegravados.isNotEmpty)) ...[
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -405,7 +406,9 @@ class RetroView extends ConsumerWidget {
         : retroLabelFor(
             session.joined ? 'restartArmedJoined' : 'restartArmed',
             language,
-            n: session.btTrechos.where((trecho) => trecho.contado).length,
+            n:
+                session.btTrechos.where((trecho) => trecho.contado).length +
+                session.btTrechosRegravados.length,
           );
     final dormindo =
         _dormindo('restart', session) || !session.aBackTranslationGestureActs;
