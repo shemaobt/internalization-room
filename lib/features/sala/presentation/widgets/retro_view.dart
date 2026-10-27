@@ -409,7 +409,9 @@ class RetroView extends ConsumerWidget {
         : retroLabelFor(
             session.joined ? 'restartArmedJoined' : 'restartArmed',
             language,
-            n: session.btTrechos.where((trecho) => trecho.contado).length,
+            n:
+                session.btTrechos.where((trecho) => trecho.contado).length +
+                session.btTrechosRegravados.length,
           );
     final dormindo =
         _dormindo('restart', session) || !session.aBackTranslationGestureActs;
