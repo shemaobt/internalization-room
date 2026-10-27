@@ -395,6 +395,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Whether one of her lines for the listener is said or waits to be: a line still in the
   /// queue when the room is back is said then, never asked again.
   late bool _listenerLineAwaited;
+
+  /// A kept take drops the room's checked read; it is asked for again once the take is up.
+  late bool _readTheCheckAfterTheUpload;
   late _Passage? _emCurso;
   Trecho? get _trechoTraduzidoDeNovo => state.btTrechoTraduzidoDeNovo;
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
@@ -556,6 +559,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _recordingStarting = false;
     _listenerAttempt = null;
     _listenerLineAwaited = false;
+    _readTheCheckAfterTheUpload = false;
     _emCurso = null;
     _listenerInProgress = null;
     _faseAntesDeTraduzirDeNovo = null;
@@ -1373,6 +1377,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       sceneRehearsals: leavesTheScene ? const [] : null,
       clearSceneTurn: leavesTheScene,
       clearArmedTap: machine.generation != before.generation,
+      clearBtRecusa: machine.generation != before.generation,
     );
     _escutarNoEnsaio(before, machine);
     _runner.run(effects, micWasOpen: before.channel is Microphone);
@@ -6958,6 +6963,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _ensaioTap() {
     if (state.needsPerson || state.playPing) return;
+    if (!state.aBackTranslationGestureActs) return;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
         _readTheScenesForTheRehearsal();
@@ -7027,7 +7033,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(ensaio: EnsaioStatus.idle);
       return;
     }
+    _readTheCheckAfterTheUpload = true;
     state = state.copyWith(
+      btChecked: false,
+      clearBtRecusa: true,
       clearParteARegravar: true,
       clearCenaDaGravacao: true,
     );
@@ -7514,9 +7523,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation) || counting != _newestCount) return;
     final speaking = _theNewestPass(tally.unsentParts);
     if (sessionId != null &&
-        state.station is Ensaio &&
-        _unsentTakesOf(tally, speaking) < state.unsentTakes) {
-      unawaited(_readWhatComesBack());
+        _readTheCheckAfterTheUpload &&
+        _unsentTakesOf(tally, speaking) == 0) {
+      _readTheCheckAfterTheUpload = false;
+      if (state.station is Ensaio) unawaited(_readWhatComesBack());
     }
     state = state.copyWith(unsentParts: _unsentPartsOf(speaking));
     if (sessionId != null) {
@@ -10351,6 +10361,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return failed(failure);
       }
       if (_abandoned(generation)) return;
+      if (!resposta.minted && fromTheHome) {
+        final recusa = _recusaDaCasa(resposta.blockers);
+        state = state.copyWith(
+          btChecked: recusa != CheckRefusal.notConferida,
+          btRecusa: recusa,
+        );
+        return;
+      }
       if (!resposta.minted) {
         final failure = await _levarAoBuracoQueARecusaNomeia(
           resposta,
@@ -10383,6 +10401,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
       }
     }
+  }
+
+  CheckRefusal _recusaDaCasa(List<String> blockers) {
+    _PortaDaRecusa? first;
+    for (final porta in blockers.map(_portaDaRecusa).nonNulls) {
+      if (first == null || porta.index < first.index) first = porta;
+    }
+    return switch (first) {
+      null => CheckRefusal.checkUnavailable,
+      _PortaDaRecusa.parteNaoOuvida => CheckRefusal.partUnheard,
+      _ => CheckRefusal.notConferida,
+    };
   }
 
   void _saysWhy(CheckRefusal recusa) =>
