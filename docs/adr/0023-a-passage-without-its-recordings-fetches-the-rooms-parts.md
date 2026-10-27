@@ -1,3 +1,5 @@
+Amended by 0128 (the Rehearsal lands before its parts come down).
+
 # A passage resumed without its recordings fetches the room's parts
 
 ## Context

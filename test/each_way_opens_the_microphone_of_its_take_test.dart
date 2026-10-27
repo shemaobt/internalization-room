@@ -14,7 +14,8 @@ Future<Sala> _oAchadoNaParteDois() async {
     ..verdictHasFinding = true
     ..verdictFindingPlace = 1;
   await pedirOVeredito(it);
-  expect(it.estado.btPhase, BtPhase.findings);
+  expect(it.estado.btPhase, BtPhase.playing);
+  expect(it.estado.btVeredito, isTrue);
   return it;
 }
 

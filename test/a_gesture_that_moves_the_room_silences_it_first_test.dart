@@ -34,6 +34,7 @@ void main() {
     final heldLine = (machine().channel as GuideSpeaking).line;
     final stagesAtTheStop = <SalaStage>[];
     harness.voice.onStop = () => stagesAtTheStop.add(stage());
+    addTearDown(() => harness.voice.onStop = null);
     final linesEnded = <LineOutcome>[];
     container.listen(salaSessionProvider, (before, after) {
       final ended = after.machine.lastLine;

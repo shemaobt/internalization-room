@@ -301,6 +301,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   ThePanoramaChosen(:final id) => 'ThePanoramaChosen($id)',
   TheSceneRehearsalOpened() => 'TheSceneRehearsalOpened',
   TheSceneRehearsalLeft() => 'TheSceneRehearsalLeft',
+  TheExternalCheckOpened(:final version) => 'TheExternalCheckOpened($version)',
+  TheExternalCheckLeft() => 'TheExternalCheckLeft',
   TheLanguageChosen() => 'TheLanguageChosen',
   ThePanoramaAsked(:final id, :final language) =>
     'ThePanoramaAsked($id, $language)',
@@ -310,8 +312,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheWayBackTaken(:final left) =>
     'TheWayBackTaken(${left.panorama ? 'Panorama' : 'passage'} ${left.pericope}, '
         'session: ${left.session}, said: ${left.said})',
-  TheRehearsalWeighed(:final everySceneHasItsPart) =>
-    'TheRehearsalWeighed($everySceneHasItsPart)',
+  TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsHere) =>
+    'TheRehearsalWeighed($everySceneHasItsPart, $everyPartIsHere)',
 };
 
 String describeLine(Line line) => '${line.kind.name}#${line.id}';
@@ -431,6 +433,8 @@ enum EventKind {
   thePanoramaChosen,
   theSceneRehearsalOpened,
   theSceneRehearsalLeft,
+  theExternalCheckOpened,
+  theExternalCheckLeft,
   theLanguageChosen,
   thePanoramaAsked,
   theSessionOpened,
@@ -505,6 +509,8 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   ThePanoramaChosen() => EventKind.thePanoramaChosen,
   TheSceneRehearsalOpened() => EventKind.theSceneRehearsalOpened,
   TheSceneRehearsalLeft() => EventKind.theSceneRehearsalLeft,
+  TheExternalCheckOpened() => EventKind.theExternalCheckOpened,
+  TheExternalCheckLeft() => EventKind.theExternalCheckLeft,
   TheLanguageChosen() => EventKind.theLanguageChosen,
   ThePanoramaAsked() => EventKind.thePanoramaAsked,
   TheSessionOpened() => EventKind.theSessionOpened,
@@ -577,7 +583,9 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theRoomStartedOver ||
   EventKind.thePanoramaChosen ||
   EventKind.theSceneRehearsalOpened ||
-  EventKind.theSceneRehearsalLeft => true,
+  EventKind.theSceneRehearsalLeft ||
+  EventKind.theExternalCheckOpened ||
+  EventKind.theExternalCheckLeft => true,
   EventKind.theLanguageChosen ||
   EventKind.thePanoramaAsked ||
   EventKind.theSessionOpened ||
@@ -781,6 +789,10 @@ MachineEvent _draw(
   ),
   EventKind.theSceneRehearsalOpened => const TheSceneRehearsalOpened(),
   EventKind.theSceneRehearsalLeft => const TheSceneRehearsalLeft(),
+  EventKind.theExternalCheckOpened => TheExternalCheckOpened(
+    1 + random.nextInt(3),
+  ),
+  EventKind.theExternalCheckLeft => const TheExternalCheckLeft(),
   EventKind.theLanguageChosen => const TheLanguageChosen(),
   EventKind.thePanoramaAsked => ThePanoramaAsked(
     _drawAPanorama(random),
@@ -794,6 +806,7 @@ MachineEvent _draw(
   EventKind.theWayBackTaken => TheWayBackTaken(_drawAnEntryLeft(random)),
   EventKind.theRehearsalWeighed => TheRehearsalWeighed(
     everySceneHasItsPart: random.nextBool(),
+    everyPartIsHere: random.nextBool(),
   ),
 };
 

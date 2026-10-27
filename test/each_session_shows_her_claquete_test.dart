@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/claquete.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
@@ -89,6 +93,63 @@ Iterable<String> _everythingTheScreenReaderCouldSay(WidgetTester tester) sync* {
       return true;
     });
   }
+}
+
+Future<ProviderContainer> _resumedOnTheCheckScreenOfAnSE(
+  WidgetTester tester,
+) async {
+  tester.view
+    ..physicalSize = const Size(375, 667)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final folder = Directory.systemTemp.createTempSync('sala-1817');
+  addTearDown(() => folder.deleteSync(recursive: true));
+  final harness = SalaHarness(filaEmMemoria: true);
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+    sessionId: _sessionId,
+    stage: SalaStage.retro,
+    takes: [
+      for (final n in [1, 2])
+        KeptTake(
+          scopeId: KeptScope.parte(n),
+          path: (File(
+            '${folder.path}/p$n.m4a',
+          )..writeAsBytesSync([1, 2, 3])).path,
+          takeId: 'take-$n',
+        ),
+    ],
+  );
+  harness.room.retroSoFar = BackTranslationProgress(
+    segments: [
+      for (final frase in [1, 2, 3, 4])
+        SegmentView(
+          segmentId: 'segment-$frase',
+          takeId: 'take-${(frase + 1) ~/ 2}',
+          startsMs: frase.isOdd ? 0 : 4000,
+          endsMs: frase.isOdd ? 4000 : 8000,
+          frase: frase,
+        ),
+    ],
+  );
+  final container = harness.container();
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: const SalaApp()),
+  );
+  await tester.pump(const Duration(milliseconds: 100));
+  unawaited(
+    container
+        .read(salaSessionProvider.notifier)
+        .goConversa(book: 'Ruth', pericope: 'P01'),
+  );
+  await waitFor(
+    'the check screen to come back with its four frases',
+    () =>
+        container.read(salaSessionProvider).stage == SalaStage.retro &&
+        container.read(salaSessionProvider).btTrechos.length == 4,
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
+  await tester.pump(const Duration(milliseconds: 100));
+  return container;
 }
 
 void main() {
@@ -349,4 +410,23 @@ void main() {
       expect(_claquete, findsNothing);
     });
   });
+
+  testWidgets(
+    'a session resumed on the check screen of an SE draws no claquete over its frases',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      final container = await _resumedOnTheCheckScreenOfAnSE(tester);
+      final state = container.read(salaSessionProvider);
+      expect(state.stage, SalaStage.retro);
+      expect(state.sessionId, _sessionId);
+
+      expect(
+        _claquete,
+        findsNothing,
+        reason:
+            'a claquete ficava parada sobre a tela da conferência e cobria o '
+            'título das frases; a dela só existe no canvas da conversa',
+      );
+      closeTheRoom(container);
+    }),
+  );
 }

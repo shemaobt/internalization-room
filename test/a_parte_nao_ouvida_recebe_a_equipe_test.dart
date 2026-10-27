@@ -184,7 +184,7 @@ void main() {
     );
     expect(
       it.estado.btPhase,
-      BtPhase.findings,
+      BtPhase.playing,
       reason: 'sem recusa, o mesmo aperto chega ao veredito como sempre',
     );
   });

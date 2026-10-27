@@ -211,7 +211,9 @@ Future<void> atravessarAFronteira(Sala it) async {
 
 /// Open the microphone to translate the stretch in the air a second time.
 Future<void> escolherTraduzirDeNovo(Sala it) async {
-  it.sala.traduzirDeNovoEmPortugues();
+  it.sala.traduzirAFraseDeNovo(
+    it.estado.btTrechos.indexOf(it.estado.btFindingTrecho!),
+  );
   it.sala.retroTap();
   await waitFor(
     'o microfone abrir para traduzir de novo',

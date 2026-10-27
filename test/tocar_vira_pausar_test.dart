@@ -39,7 +39,9 @@ Future<ProviderContainer> pumpAoApontado(SalaHarness harness) async {
   await notifier.finishBackTranslation();
   await waitFor(
     'o veredito chegar',
-    () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+    () =>
+        container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+        container.read(salaSessionProvider).btVeredito,
   );
   return container;
 }
@@ -51,177 +53,6 @@ SalaHarness harnessApontando() =>
       ..room.verdictFindingSegmentId = 'trecho-1';
 
 void main() {
-  group('a voz materna', () {
-    test('tocar de novo pausa em vez de recomeçar', () async {
-      final harness = harnessApontando();
-      final container = await pumpAoApontado(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      notifier.ouvirOTrechoEATraducao();
-      await waitFor(
-        'o trecho apontado estar tocando',
-        () => container.read(salaSessionProvider).btTrechoTocando,
-      );
-
-      notifier.ouvirOTrechoEATraducao();
-      await settle();
-
-      expect(
-        harness.playback.paused,
-        isTrue,
-        reason: 'o dublê recebeu pause, não um segundo play/playRange',
-      );
-      expect(
-        harness.playback.ranges.length,
-        1,
-        reason: 'nenhum playRange novo — o clipe não recomeçou',
-      );
-
-      final state = container.read(salaSessionProvider);
-      expect(state.btTrechoTocando, isFalse);
-      expect(state.btTrechoPausada, isTrue);
-    });
-
-    test('tocar uma terceira vez retoma de onde parou', () async {
-      final harness = harnessApontando();
-      final container = await pumpAoApontado(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      notifier.ouvirOTrechoEATraducao();
-      await waitFor(
-        'o trecho apontado estar tocando',
-        () => container.read(salaSessionProvider).btTrechoTocando,
-      );
-      notifier.ouvirOTrechoEATraducao();
-      await settle();
-      notifier.ouvirOTrechoEATraducao();
-      await settle();
-
-      expect(
-        harness.playback.paused,
-        isFalse,
-        reason: 'o dublê recebeu resume',
-      );
-      expect(
-        harness.playback.ranges.length,
-        1,
-        reason: 'sem um novo playRange — não recomeçou do zero',
-      );
-
-      final state = container.read(salaSessionProvider);
-      expect(state.btTrechoTocando, isTrue);
-      expect(state.btTrechoPausada, isFalse);
-    });
-
-    test('terminar sozinho volta ao começo na próxima vez', () async {
-      final harness = harnessApontando();
-      final container = await pumpAoApontado(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      notifier.ouvirOTrechoEATraducao();
-      await waitFor(
-        'o trecho apontado estar tocando',
-        () => container.read(salaSessionProvider).btTrechoTocando,
-      );
-      harness.playback.finishPlayback();
-      await waitFor(
-        'a tradução entrar depois do trecho',
-        () => container.read(salaSessionProvider).btRetroTocando,
-      );
-      harness.playback.finishPlayback();
-      await waitFor(
-        'a tradução parar de tocar sozinha',
-        () => !container.read(salaSessionProvider).btRetroTocando,
-      );
-
-      notifier.ouvirOTrechoEATraducao();
-      await settle();
-
-      expect(
-        harness.playback.ranges.length,
-        2,
-        reason: 'um clipe que terminou sozinho recomeça do zero na próxima vez',
-      );
-      expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
-    });
-  });
-
-  group('a voz da ponte', () {
-    test('tocar de novo pausa em vez de recomeçar', () async {
-      final harness = harnessApontando();
-      final container = await pumpAoApontado(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      notifier.ouvirOTrechoEATraducao();
-      await waitFor(
-        'o trecho apontado estar tocando',
-        () => container.read(salaSessionProvider).btTrechoTocando,
-      );
-      harness.playback.finishPlayback();
-      await waitFor(
-        'a ponte estar tocando',
-        () => container.read(salaSessionProvider).btRetroTocando,
-      );
-      final tocadosAntes = harness.playback.played.length;
-
-      notifier.ouvirOTrechoEATraducao();
-      await settle();
-
-      expect(harness.playback.paused, isTrue);
-      expect(
-        harness.playback.played.length,
-        tocadosAntes,
-        reason: 'nenhuma nova chamada a play — o dublê só recebeu pause',
-      );
-
-      final state = container.read(salaSessionProvider);
-      expect(state.btRetroTocando, isFalse);
-      expect(state.btRetroPausada, isTrue);
-    });
-
-    test('tocar uma terceira vez retoma de onde parou', () async {
-      final harness = harnessApontando();
-      final container = await pumpAoApontado(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      notifier.ouvirOTrechoEATraducao();
-      await waitFor(
-        'o trecho apontado estar tocando',
-        () => container.read(salaSessionProvider).btTrechoTocando,
-      );
-      harness.playback.finishPlayback();
-      await waitFor(
-        'a ponte estar tocando',
-        () => container.read(salaSessionProvider).btRetroTocando,
-      );
-      final tocadosAntes = harness.playback.played.length;
-
-      notifier.ouvirOTrechoEATraducao();
-      await settle();
-      notifier.ouvirOTrechoEATraducao();
-      await settle();
-
-      expect(harness.playback.paused, isFalse);
-      expect(
-        harness.playback.played.length,
-        tocadosAntes,
-        reason: 'sem um novo play — retomou, não recomeçou',
-      );
-      expect(container.read(salaSessionProvider).btRetroTocando, isTrue);
-    });
-  });
-
-  // The two cases that lived here for the circle "Ouvir de novo a parte apontada" —
-  // pause-instead-of-restart and resume-from-where-it-stopped — asserted that a tap on it
-  // played the trecho. That decision changed: the circle now repeats the verdict's own
-  // line instead, and `a_esfera_repete_a_pergunta_test.dart` covers it (cases 6 and 8 of
-  // the R16 testing plan).
-
   test('um teto que vence antes do dublê nunca deixa o player real soando com '
       'o estado dizendo parado', () async {
     final harness = SalaHarness(clipGrace: const Duration(milliseconds: 20))
@@ -232,7 +63,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     harness.playback.length = const Duration(milliseconds: 50);
 
-    notifier.ouvirOTrechoEATraducao();
+    notifier.traduzirAFraseDeNovo(0);
     await waitFor(
       'o trecho apontado estar tocando',
       () => container.read(salaSessionProvider).btTrechoTocando,

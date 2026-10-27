@@ -68,7 +68,9 @@ Future<ProviderContainer> _vereditoNaFraseUm(
   );
   await waitFor(
     'o veredito chegar',
-    () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+    () =>
+        container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+        container.read(salaSessionProvider).btVeredito,
     step: () => _passo(tester),
   );
   await _passo(tester);

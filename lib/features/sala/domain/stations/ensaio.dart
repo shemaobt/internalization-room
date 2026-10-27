@@ -5,16 +5,20 @@ part of '../station.dart';
 enum EnsaioStep { home, plan }
 
 /// The Rehearsal; the Closing is not reached from it, and the Back-translation is opened
-/// from it only once every scene has its part. A reopened passage that had already
+/// from it only once every scene has its part and every part is on the tablet. A reopened passage that had already
 /// reached its telling-back resumes it whatever the Rehearsal weighed.
 final class Ensaio extends Station {
   /// Whether every scene of the passage has its part, as the Rehearsal was last weighed.
   final bool everySceneHasItsPart;
 
+  /// Whether every part is on the tablet, as the Rehearsal was last weighed.
+  final bool everyPartIsHere;
+
   final EnsaioStep step;
 
   const Ensaio({
     this.everySceneHasItsPart = false,
+    this.everyPartIsHere = true,
     this.step = EnsaioStep.home,
   });
 
@@ -34,13 +38,25 @@ final class Ensaio extends Station {
     TheChoiceOpened() => const Menu(),
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),
-    ThePlanOpened() => this,
+    ThePlanOpened() =>
+      step == EnsaioStep.home
+          ? Ensaio(
+              step: EnsaioStep.plan,
+              everySceneHasItsPart: everySceneHasItsPart,
+            )
+          : this,
     TheBackTranslationOpened() =>
-      everySceneHasItsPart && step == EnsaioStep.home ? const Retro() : this,
+      everySceneHasItsPart && everyPartIsHere && step == EnsaioStep.home
+          ? const Retro()
+          : this,
     TheBackTranslationResumed() => const Retro(),
-    TheSceneRehearsalOpened() =>
-      step == EnsaioStep.plan ? const SceneRehearsal() : this,
+    TheSceneRehearsalOpened() => const SceneRehearsal(),
     TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
+    TheExternalCheckOpened(:final version) => ChecagemExterna(
+      version,
+      fromTheHome: true,
+    ),
+    TheExternalCheckLeft() => this,
   };
 }

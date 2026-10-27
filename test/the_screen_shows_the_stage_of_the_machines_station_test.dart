@@ -14,6 +14,7 @@ void main() {
     expect(_shownAt(const Ensaio()), SalaStage.ensaio);
     expect(_shownAt(const Retro()), SalaStage.retro);
     expect(_shownAt(const Fim()), SalaStage.fim);
+    expect(_shownAt(const ChecagemExterna(1)), SalaStage.checagem);
     expect(const SalaSessionState().stage, SalaStage.escolha);
   });
 

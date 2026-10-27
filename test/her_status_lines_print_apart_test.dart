@@ -89,7 +89,9 @@ Future<void> _duasFrasesComUmAchado(
   );
   await waitFor(
     'o veredito chegar',
-    () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+    () =>
+        container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+        container.read(salaSessionProvider).btVeredito,
     step: () => _passo(tester),
   );
   await _passo(tester);
@@ -248,6 +250,53 @@ void main() {
         find.text(_passaDoFim),
         findsOneWidget,
         reason: 'o relógio da nota levava a recusa dela junto',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'on a phone as narrow as the iPhone SE a refusal keeps the margin the frase rows keep, not the screen edge',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      tester.view
+        ..physicalSize = const Size(375, 2400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      harness.recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await entrarNaTraducao(tester, harness, partes: 1);
+      await pausarAos(tester, harness, s(4.2));
+      await traduzirEConfirmar(tester);
+      await waitFor(
+        'a frase chegar',
+        () => container.read(salaSessionProvider).btTrechos.length == 1,
+        step: () => _passo(tester),
+      );
+      await contarAteOFimDaParte(tester, harness);
+      await waitFor(
+        'o terminei acender',
+        () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
+        step: () => _passo(tester),
+      );
+      harness.room.verdictRefusal = CheckRefusal.nothingTranslated;
+      await tocar(tester, conferir);
+      await waitFor(
+        'a recusa voltar',
+        () => container.read(salaSessionProvider).btRecusa != null,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+
+      final linha = tester.getRect(find.text(_semFrase));
+      expect(
+        linha.left,
+        16,
+        reason: 'a recusa encostava na borda esquerda do iPhone SE',
+      );
+      expect(
+        linha.right,
+        375 - 16,
+        reason: 'a recusa encostava na borda direita do iPhone SE',
       );
       closeTheRoom(container);
     },

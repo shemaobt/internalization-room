@@ -4,6 +4,8 @@ date: 2026-10-16
 amends: 0083, 0025
 ---
 
+Extended by 0120 (a join row carries `origin` and the rehearsal's fingerprint)
+
 # A scene take waits in the Outbox until the room confirms it, and a confirmed recording leaves the Outbox
 
 This amends ADRs 0083 and 0025 without editing their decisions; it adds "amended by 0087"

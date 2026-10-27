@@ -67,6 +67,20 @@ Future<void> settle([
   await Future<void>.delayed(delay);
 }
 
+void ouvirOApontado(ProviderContainer container) {
+  final estado = container.read(salaSessionProvider);
+  container
+      .read(salaSessionProvider.notifier)
+      .ouvirAConta(estado.btTrechos.indexOf(estado.btFindingTrecho!));
+}
+
+void traduzirOApontadoDeNovo(ProviderContainer container) {
+  final estado = container.read(salaSessionProvider);
+  container
+      .read(salaSessionProvider.notifier)
+      .traduzirAFraseDeNovo(estado.btTrechos.indexOf(estado.btFindingTrecho!));
+}
+
 const umaParteInteira = Duration(seconds: 30);
 
 /// Record a part through the widget tree: two taps to bracket the take, a pump for the

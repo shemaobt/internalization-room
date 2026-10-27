@@ -24,6 +24,13 @@ enum Capture { started, denied, failed }
 class RecordingRepository {
   final AudioRecorder _recorder = AudioRecorder();
   final Map<String, Future<String>> _keeping = {};
+  Future<void> _turn = Future.value();
+
+  Future<T> _inTurn<T>(Future<T> Function() act) {
+    final result = _turn.then((_) => act());
+    _turn = result.then<void>((_) {}, onError: (Object _) {});
+    return result;
+  }
 
   Future<Directory> _recordingsDir() async {
     final docs = await getApplicationDocumentsDirectory();
@@ -92,7 +99,9 @@ class RecordingRepository {
   Stream<bool> get interrupted =>
       _recorder.onStateChanged().map((state) => state == RecordState.pause);
 
-  Future<String?> stop() async {
+  Future<String?> stop() => _inTurn(_stop);
+
+  Future<String?> _stop() async {
     try {
       return await _recorder.stop();
     } finally {
@@ -108,11 +117,13 @@ class RecordingRepository {
   /// Stops and deletes only a recording that is open. An idle recorder is left alone: the
   /// platform's stop answers the last recording's path (record_android), and that file may
   /// be a take the team just kept.
-  Future<void> discard() async {
+  Future<void> discard() => _inTurn(_discard);
+
+  Future<void> _discard() async {
     if (!await _recorder.isRecording().catchError((Object _) => false)) {
       return restoreTheSampleRate();
     }
-    final path = await stop();
+    final path = await _stop();
     if (path != null) {
       final file = File(path);
       if (await file.exists()) await file.delete();
@@ -150,18 +161,32 @@ class RecordingRepository {
     }
   }
 
-  /// Deletes every scene frase a killed app left in the recordings: at launch no frase is
-  /// held, so none of them will be sent again.
-  Future<void> sweepTheFrasesLeftBehind() async {
+  /// Deletes every scene frase and every listener retelling a killed app left in the
+  /// recordings: at launch none of them is held, so none will be sent again.
+  Future<void> sweepTheRecordingsLeftBehind() async {
     try {
       final dir = await _recordingsDir();
       await for (final entry in dir.list()) {
-        if (entry is File && p.basename(entry.path).startsWith('frase_')) {
+        if (entry is! File) continue;
+        final name = p.basename(entry.path);
+        if (name.startsWith('frase_') || name.startsWith('ouvinte_')) {
           await entry.delete();
         }
       }
     } on Exception {
       return;
+    }
+  }
+
+  Future<void> deleteEveryRecording() async {
+    final dir = await _recordingsDir();
+    await for (final entry in dir.list()) {
+      if (entry is! File) continue;
+      try {
+        await entry.delete();
+      } on PathNotFoundException {
+        continue;
+      }
     }
   }
 

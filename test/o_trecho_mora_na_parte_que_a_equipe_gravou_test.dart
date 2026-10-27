@@ -11,7 +11,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show settle, ouvirOApontado;
 
 const _parteLen = Duration(seconds: 10);
 
@@ -238,10 +238,10 @@ void main() {
       await it.sala.finishBackTranslation();
       await waitFor(
         'a sala abrir os achados',
-        () => it.estado.btPhase == BtPhase.findings,
+        () => it.estado.btPhase == BtPhase.playing && it.estado.btVeredito,
       );
 
-      it.sala.ouvirOTrechoEATraducao();
+      ouvirOApontado(it.container);
       await waitFor('o trecho apontado tocar', () => it.estado.btTrechoTocando);
 
       expect(

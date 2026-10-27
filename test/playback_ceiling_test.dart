@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa;
@@ -163,88 +162,6 @@ void main() {
       reason:
           'e o teto continua existindo: passado o comprimento do clipe '
           'mais a margem, a parte termina mesmo sem aviso de fim',
-    );
-  });
-
-  test('pausing the pointed stretch and resuming it does not cut it short', () async {
-    final harness = SalaHarness(clipGrace: const Duration(milliseconds: 60))
-      ..playback.length = const Duration(milliseconds: 600)
-      ..room.verdictChecked = false
-      ..room.verdictHasFinding = true
-      ..room.verdictFindingSegmentId = 'trecho-1';
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.goEnsaio();
-    await gravaParte(container, notifier);
-    notifier.startRetro();
-    await settle();
-
-    harness.playback.at = const Duration(milliseconds: 40);
-    notifier.retroTap();
-    notifier.retroTap();
-    await settle();
-    await confirmarATraducao(container);
-    await waitFor(
-      'o primeiro trecho chegar à sala',
-      () => harness.room.chunksSent == 1,
-    );
-    await settle();
-
-    harness.playback.at = const Duration(milliseconds: 600);
-    harness.playback.finishPlayback();
-    // finishBackTranslation is a no-op while the clip has not ended, and ouvirOTrechoEATraducao
-    // is one until the verdict is in: both taps are dropped in silence when they arrive
-    // early, so each waits for the door it goes through.
-    await waitFor(
-      'o clipe poder ser dado por ouvido',
-      () => container.read(salaSessionProvider).canFinishBackTranslation,
-    );
-    await notifier.finishBackTranslation();
-    await waitFor(
-      'o veredito chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
-    );
-
-    notifier.ouvirOTrechoEATraducao();
-    await waitFor(
-      'o trecho apontado estar tocando',
-      () => container.read(salaSessionProvider).btTrechoTocando,
-    );
-
-    expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
-
-    // The findings' play pauses the stretch rather than restarting it: a second tap while
-    // it is sounding no longer sends a fresh playRange. (The circle no longer plays the
-    // trecho at all in findings — it repeats the verdict's own line instead — so this
-    // exercises the player through the findings' own play, `ouvirOTrechoEATraducao`.)
-    notifier.ouvirOTrechoEATraducao();
-    await settle();
-    expect(container.read(salaSessionProvider).btTrechoTocando, isFalse);
-
-    notifier.ouvirOTrechoEATraducao();
-    await settle(const Duration(milliseconds: 250));
-
-    expect(
-      container.read(salaSessionProvider).btTrechoTocando,
-      isTrue,
-      reason:
-          'retomado, o trecho toca até o fim: o teto herdado da '
-          'primeira vez não pode devolver a tela ao repouso com o áudio '
-          'ainda correndo',
-    );
-
-    harness.playback.finishPlayback();
-    await waitFor(
-      'o trecho apontado parar de tocar',
-      () => !container.read(salaSessionProvider).btTrechoTocando,
-    );
-
-    expect(
-      container.read(salaSessionProvider).btTrechoTocando,
-      isFalse,
-      reason: 'e quem cala o trecho é o fim dele',
     );
   });
 

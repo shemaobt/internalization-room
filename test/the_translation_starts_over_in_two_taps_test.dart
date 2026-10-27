@@ -170,6 +170,17 @@ Future<void> _recomecarNaTela(
   await tester.pump(const Duration(seconds: 7));
 }
 
+Finder _recomecoArmado() => find.byWidgetPredicate(
+  (widget) =>
+      widget is Semantics &&
+      (widget.properties.label ?? '').startsWith(
+        'toque de novo para apagar as',
+      ),
+);
+
+bool _recomecoPronto(WidgetTester tester) =>
+    tester.widget<Semantics>(_recomecoArmado()).properties.enabled ?? false;
+
 void main() {
   testWidgets(
     'the screen offers «recomeçar a tradução» under the frases, and not before there is one',
@@ -469,8 +480,8 @@ void main() {
     await tocar(tester, _recomecar);
 
     expect(
-      container.read(salaSessionProvider).btRecomeco,
-      isNull,
+      _recomecoArmado(),
+      findsNothing,
       reason: 'o recomeço armava por cima de uma frase sendo gravada',
     );
     expect(find.text(_recomecar), findsOneWidget);
@@ -496,8 +507,8 @@ void main() {
       await tocar(tester, _recomecar);
 
       expect(
-        container.read(salaSessionProvider).btRecomeco,
-        isNull,
+        _recomecoArmado(),
+        findsNothing,
         reason: 'o recomeço armava com uma frase ainda a caminho da sala',
       );
       harness.room.finishHeldChunk();
@@ -574,8 +585,8 @@ void main() {
       await tester.pump(const Duration(seconds: 7));
 
       expect(
-        container.read(salaSessionProvider).btRecomeco,
-        isNull,
+        _recomecoArmado(),
+        findsNothing,
         reason: 'o recomeço ficava armado para sempre depois de sair e voltar',
       );
       expect(find.text(_recomecar), findsOneWidget);
@@ -603,7 +614,7 @@ void main() {
       );
       await tester.tap(byLabel(_recomecar));
       await tester.pump(const Duration(milliseconds: 700));
-      expect(container.read(salaSessionProvider).btRecomeco, BtRecomeco.pronto);
+      expect(_recomecoPronto(tester), isTrue);
 
       harness.room.approvedDraft = const ApprovedDraft(version: 1);
       await tocar(tester, aprovar);
@@ -622,12 +633,12 @@ void main() {
       );
       await tester.tap(byLabel(_recomecar));
       await tester.pump(const Duration(milliseconds: 700));
-      expect(container.read(salaSessionProvider).btRecomeco, BtRecomeco.pronto);
+      expect(_recomecoPronto(tester), isTrue);
       expect(harness.room.restartsAsked, isEmpty);
       await tester.pump(const Duration(seconds: 7));
       expect(
-        container.read(salaSessionProvider).btRecomeco,
-        isNull,
+        _recomecoArmado(),
+        findsNothing,
         reason: 'o recomeço armado de novo não caducava nos seus seis segundos',
       );
       closeTheRoom(container);
@@ -651,7 +662,7 @@ void main() {
       await tester.pump(const Duration(seconds: 7));
 
       expect(harness.room.restartsAsked, hasLength(1));
-      expect(container.read(salaSessionProvider).btRecomeco, isNull);
+      expect(_recomecoArmado(), findsNothing);
       closeTheRoom(container);
     },
   );

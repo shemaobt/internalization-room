@@ -29,7 +29,7 @@ class _StatusLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600),
         child: Text(

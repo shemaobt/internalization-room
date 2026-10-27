@@ -1,8 +1,10 @@
 ---
-status: accepted
+status: accepted, amended by 0134 (a whole-passage recording, the lone whole an app before 19 August sent included, is the home with one row)
 date: 2026-10-20
 amends: 0014, 0040
 ---
+
+Extended by 0122 (after a join a Scene row marks its part and swaps it).
 
 # The Rehearsal is her recording home: one row per scene, part N is scene N, and translation opens when every scene has its part
 

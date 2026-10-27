@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -339,6 +340,12 @@ Future<ProviderContainer> _retomarNoEnsaio(
   );
   for (var i = 0; i < 10; i++) {
     await tester.pump(const Duration(seconds: 1));
+  }
+  for (var i = 0; i < 20 && !_estado(container).everyPartIsHere; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
   }
   expect(
     _estado(container).stage,
@@ -1204,8 +1211,9 @@ void main() {
   );
 
   test(
-    'a finding on the whole rehearsal leads to the scene rows with nothing marked, '
-    'and the circle records scene 1',
+    'a finding on the whole rehearsal leads to its one row with nothing marked, '
+    'and «Gravar cena por cena» to the scene rows, where the circle records '
+    'scene 1 and the room holds the whole set aside',
     () async {
       final it = await _reabrirNaTraducao(
         naSala: const [_oInteiro],
@@ -1227,10 +1235,7 @@ void main() {
       );
       await settle();
       expect(it.estado.needsPerson, isFalse);
-      expect(
-        [for (final row in it.estado.sceneRows) row.dimmed],
-        [false, false],
-      );
+      expect([for (final row in it.estado.sceneRows) row.dimmed], [false]);
       await waitFor(
         'a linha guardar o ensaio',
         () =>
@@ -1241,6 +1246,9 @@ void main() {
         isNull,
         reason: 'reaberto, o ensaio não pode voltar com uma marca no inteiro',
       );
+      it.sala.recordSceneByScene();
+      await waitFor('as cenas', () => it.estado.sceneRows.length == 2);
+      expect(it.harness.room.grainSwitches.single.grain, Grain.scene);
       it.sala.ensaioTap();
       await waitFor(
         'o círculo gravar',
@@ -1259,9 +1267,11 @@ void main() {
         [KeptScope.parte(1)],
       );
       expect(
-        [for (final take in it.estado.keptTakes) take.takeId],
-        contains('gravacao-inteira'),
-        reason: 'posto de lado, o inteiro fica guardado',
+        it.harness.room.takes
+            .singleWhere((take) => take.takeId == 'gravacao-inteira')
+            .setAside,
+        isTrue,
+        reason: 'posto de lado, o inteiro fica guardado na sala',
       );
     },
   );
@@ -1287,11 +1297,13 @@ void main() {
         () => it.estado.stage == SalaStage.ensaio,
       );
       await settle();
-      await _gravarACenaEGuardar(it, 1);
-      await _gravarACenaEGuardar(it, 2);
       final inteiro = it.estado.keptTakes
           .singleWhere((take) => take.scopeId == KeptScope.whole)
           .path;
+      it.sala.recordSceneByScene();
+      await waitFor('as cenas', () => it.estado.sceneRows.length == 2);
+      await _gravarACenaEGuardar(it, 1);
+      await _gravarACenaEGuardar(it, 2);
       final antes = it.harness.playback.played.length;
 
       it.sala.startRetro();
@@ -1491,8 +1503,8 @@ void main() {
   );
 
   test(
-    'a finding with no address on the whole rehearsal leaves with it when scene 1 '
-    'lands',
+    'a finding with no address on the whole rehearsal leaves with it when the team '
+    'records scene by scene',
     () async {
       final it = await _reabrirComOInteiro(
         parouEm: SalaStage.ensaio,
@@ -1503,6 +1515,8 @@ void main() {
       );
       expect(it.estado.btFindings, hasLength(1));
 
+      it.sala.recordSceneByScene();
+      await waitFor('as cenas', () => it.estado.sceneRows.length == 2);
       await _gravarACenaEGuardar(it, 1);
 
       expect(it.estado.btFindings, isEmpty);
@@ -1539,6 +1553,117 @@ void main() {
           contains(RoomRepository.takeAudioUrl(_sessao, 'gravacao-inteira')),
         ),
       );
+    },
+  );
+
+  testWidgets(
+    'a finding on a lone whole rehearsal leaves «Gravar cena por cena» on its '
+    'home, and its tap leads to the scene rows',
+    (tester) async {
+      _umIpadEmPe(tester);
+      final casa = Directory.systemTemp.createTempSync('sala-1766-achado');
+      addTearDown(() => casa.deleteSync(recursive: true));
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..playback.measured = const Duration(seconds: 10);
+      final inteiro = File('${casa.path}/inteiro.m4a')
+        ..writeAsBytesSync([1, 2, 3]);
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+        sessionId: _sessao,
+        stage: SalaStage.ensaio,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.whole,
+            path: inteiro.path,
+            takeId: 'gravacao-inteira',
+          ),
+        ],
+      );
+      harness.room
+        ..passageScenes = _duasCenas
+        ..retroSoFar = const BackTranslationProgress(
+          segments: [_contadoNoInteiro],
+          findings: [_achadoNoInteiro],
+        )
+        ..takes.add(_oInteiro);
+      final container = harness.container();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const SalaApp()),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      final notifier = container.read(salaSessionProvider.notifier);
+      await tester.runAsync(notifier.abrirEscolha);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.runAsync(
+        () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+      );
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+      expect(_estado(container).stage, SalaStage.ensaio);
+      expect(_estado(container).btFindings, hasLength(1));
+      expect(find.text('A passagem inteira'), findsOneWidget);
+
+      await _tocar(tester, find.text('Gravar cena por cena'));
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(harness.room.grainSwitches.single.grain, Grain.scene);
+      expect(_linha(1, cenas: _duasCenas), findsOneWidget);
+      expect(_linha(2, cenas: _duasCenas), findsOneWidget);
+      expect(find.text('A passagem inteira'), findsNothing);
+    },
+  );
+
+  test(
+    'a switch the room does not answer leaves the told stretches as they were',
+    () async {
+      final it = await _reabrirNaTraducao(
+        naSala: const [
+          TakeView(
+            takeId: 'gravacao-1',
+            kind: 'ensaio',
+            scope: 'parte-1',
+            ordinal: 1,
+          ),
+          TakeView(
+            takeId: 'gravacao-2',
+            kind: 'ensaio',
+            scope: 'parte-2',
+            ordinal: 2,
+          ),
+        ],
+        contados: const [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 10000,
+          ),
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 10000,
+          ),
+        ],
+      );
+      await _umAchadoEm(it, 'trecho-1');
+      it.sala.gravarAParteDeNovo();
+      await waitFor(
+        'o ensaio abrir',
+        () => it.estado.stage == SalaStage.ensaio,
+      );
+      await settle();
+      final contados = [for (final t in it.estado.btTrechos) t.segmentId];
+      expect(contados, isNotEmpty);
+      it.harness.room.grainAnswersFirst.add(const NetworkFailed('sem rede'));
+
+      it.sala.recordTheWholePassageInstead();
+      await settle(const Duration(milliseconds: 600));
+
+      expect(it.harness.room.grainSwitches, hasLength(1));
+      expect(it.estado.sceneRows, hasLength(2));
+      expect([for (final t in it.estado.btTrechos) t.segmentId], contados);
     },
   );
 }
