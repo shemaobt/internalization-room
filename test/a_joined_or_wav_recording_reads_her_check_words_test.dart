@@ -115,6 +115,32 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('on a phone as narrow as the iPhone SE her sentence line keeps '
+      'the margin the frase rows keep, not the screen edge', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAUmaTraducao(
+      tester,
+      harness,
+      extension: 'm4a',
+      juntada: true,
+    );
+    tester.view.physicalSize = const Size(375, 2400);
+    await _passo(tester);
+
+    final linha = tester.getRect(find.text(_herSubVerdict));
+    expect(
+      linha.left,
+      16,
+      reason: 'a linha encostava na borda esquerda do iPhone SE',
+    );
+    expect(
+      linha.right,
+      375 - 16,
+      reason: 'a linha encostava na borda direita do iPhone SE',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a verdict on a recording with a wav part reads her sentence '
       'line even when nothing was joined', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
