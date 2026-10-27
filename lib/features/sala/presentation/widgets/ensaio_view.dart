@@ -364,6 +364,7 @@ class _SceneRowView extends StatelessWidget {
         : recordingHomeLabelFor('scene', language, n: row.number);
     final title = row.title;
     final named = title == null ? cena : '$cena — $title';
+    final mark = _mark();
     final playing = row.current && session.playPing;
     final recording = row.recording && session.ensaio == EnsaioStatus.recording;
     final frozen = session.bringingBack != null;
@@ -389,7 +390,9 @@ class _SceneRowView extends StatelessWidget {
         named,
         if (playing) recordingHomeLabelFor('playing', language),
       ].join(', '),
-      value: row.part == null ? null : '✓',
+      value: row.part == null && mark == null
+          ? null
+          : [if (row.part != null) '✓', ?mark].join(' '),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         decoration: BoxDecoration(
@@ -442,6 +445,11 @@ class _SceneRowView extends StatelessWidget {
                             title,
                             style: TextStyle(color: colors.mut, fontSize: 14),
                           ),
+                        if (mark != null)
+                          Text(
+                            mark,
+                            style: TextStyle(color: colors.telha, fontSize: 14),
+                          ),
                       ],
                     ),
                   ),
@@ -493,6 +501,15 @@ class _SceneRowView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String? _mark() {
+    final parte = session.partIndexOf(row.number);
+    if (parte == null) return null;
+    if (session.btTrechosRegravados.any((trecho) => trecho.parte == parte)) {
+      return retroLabelFor('stale', language);
+    }
+    return null;
   }
 
   Widget? _unsentControl(UnsentPart? unsent, String cena, SalaColors colors) {

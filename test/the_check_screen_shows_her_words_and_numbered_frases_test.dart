@@ -392,6 +392,61 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a session picked back up on the rehearsal marks the scene whose '
+      'frases the room serves as stale, and only that one', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+      parouEm: SalaStage.ensaio,
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    Finder naLinha(int n) => find.descendant(
+      of: byLabel('Cena $n'),
+      matching: find.text('regravada — traduzam de novo'),
+    );
+    expect(
+      naLinha(1),
+      findsOneWidget,
+      reason: 'reaberta no ensaio, a casa não dizia que a cena foi regravada',
+    );
+    expect(naLinha(2), findsNothing);
+    closeTheRoom(container);
+  });
+
   testWidgets('starting the translation over clears the stale frases too', (
     tester,
   ) async {
