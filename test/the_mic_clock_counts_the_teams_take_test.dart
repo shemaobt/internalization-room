@@ -224,4 +224,34 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'the clock takes no touch, and VoiceOver passes over it, not reading the '
+    'digits',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final room = await _inConversa(tester);
+      await room.theTeamOpensItsTake();
+      expect(room.clock('0:00'), isNotNull);
+
+      expect(
+        tester
+            .widgetList<IgnorePointer>(
+              find.ancestor(
+                of: find.text('0:00'),
+                matching: find.byType(IgnorePointer),
+              ),
+            )
+            .any((pointer) => pointer.ignoring),
+        isTrue,
+        reason: 'o relógio recebia o toque',
+      );
+      expect(
+        find.bySemanticsLabel(RegExp(r'\d+:\d\d')),
+        findsNothing,
+        reason: 'o leitor de tela lia os dígitos',
+      );
+      semantics.dispose();
+    },
+  );
 }
