@@ -4,26 +4,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show enterThePanorama;
 
 final _azul = const Color(0xFF89AAA3).withValues(alpha: 0.75);
 
-final _theCircle = find.descendant(
-  of: find.byType(ConversaView),
-  matching: find.byType(FacilitatorCircle),
+const _panorama = Passagem(
+  pericope: 'panorama',
+  audioUrl: '/voice/panorama',
+  kind: PassagemKind.panorama,
 );
 
 class _Room {
   final WidgetTester tester;
   final SalaHarness harness;
   final ProviderContainer container;
+  final Type view;
 
-  _Room(this.tester, this.harness, this.container);
+  _Room(this.tester, this.harness, this.container, this.view);
 
   SalaSessionNotifier get sala => container.read(salaSessionProvider.notifier);
 
@@ -44,13 +49,18 @@ class _Room {
 
   static const _second = Duration(seconds: 1);
 
+  Finder get circle => find.descendant(
+    of: find.byType(view),
+    matching: find.byType(FacilitatorCircle),
+  );
+
   Text? clock(String digits) => switch (find.text(digits).evaluate()) {
     final found when found.isEmpty => null,
     final found => found.single.widget as Text,
   };
 
   Future<void> theTeamOpensItsTake() async {
-    sala.conversaTap();
+    view == PanoramaView ? sala.panoramaTap() : sala.conversaTap();
     await until(
       'o microfone abrir',
       () => estado.voice == VoiceState.listening,
@@ -62,7 +72,7 @@ Future<_Room> _inConversa(WidgetTester tester) async {
   final harness = SalaHarness();
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
-  final room = _Room(tester, harness, container);
+  final room = _Room(tester, harness, container, ConversaView);
   unawaited(room.sala.goConversa(book: 'Ruth'));
   await room.until(
     'a conversa abrir no convite',
@@ -75,30 +85,53 @@ Future<_Room> _inConversa(WidgetTester tester) async {
   return room;
 }
 
+Future<_Room> _inThePanorama(WidgetTester tester) async {
+  final harness = SalaHarness();
+  harness.room.passages = [_panorama, ...harness.room.passages];
+  final container = await pumpSala(tester, harness);
+  addTearDown(() => closeTheRoom(container));
+  final room = _Room(tester, harness, container, PanoramaView);
+  await enterThePanorama(room.sala, () => room.estado, step: room.beat);
+  await room.until('o panorama ser dito', () => room.estado.panoramaSaid);
+  await room.until(
+    'a sala voltar ao convite',
+    () => room.estado.voice == VoiceState.invite,
+  );
+  await room.beat(300);
+  return room;
+}
+
+Future<void> _theClockCountsTheTake(_Room room) async {
+  final tester = room.tester;
+  expect(room.clock('0:00'), isNull, reason: 'o relógio já estava lá');
+
+  await room.theTeamOpensItsTake();
+
+  final atStart = room.clock('0:00');
+  expect(atStart, isNotNull, reason: 'o microfone abriu sem relógio');
+  expect(atStart!.style?.color, _azul);
+  expect(
+    tester.getRect(find.text('0:00')).bottom,
+    lessThan(tester.getRect(room.circle).top),
+    reason: 'o relógio não estava acima do círculo',
+  );
+
+  await room.waits(const Duration(seconds: 1));
+  expect(room.clock('0:01'), isNotNull, reason: 'o relógio não andou');
+
+  await room.waits(const Duration(seconds: 64));
+  expect(room.clock('1:05'), isNotNull, reason: 'o relógio não contava');
+}
+
 void main() {
   testWidgets(
     'a take on the conversation shows 0:00 above the circle and counts up '
     'each second, in a quiet blue-green',
-    (tester) async {
-      final room = await _inConversa(tester);
-      expect(room.clock('0:00'), isNull, reason: 'o relógio já estava lá');
+    (tester) async => _theClockCountsTheTake(await _inConversa(tester)),
+  );
 
-      await room.theTeamOpensItsTake();
-
-      final atStart = room.clock('0:00');
-      expect(atStart, isNotNull, reason: 'o microfone abriu sem relógio');
-      expect(atStart!.style?.color, _azul);
-      expect(
-        tester.getRect(find.text('0:00')).bottom,
-        lessThan(tester.getRect(_theCircle).top),
-        reason: 'o relógio não estava acima do círculo',
-      );
-
-      await room.waits(const Duration(seconds: 1));
-      expect(room.clock('0:01'), isNotNull, reason: 'o relógio não andou');
-
-      await room.waits(const Duration(seconds: 64));
-      expect(room.clock('1:05'), isNotNull, reason: 'o relógio não contava');
-    },
+  testWidgets(
+    'a take on the Panorama shows the same clock, not a bare circle',
+    (tester) async => _theClockCountsTheTake(await _inThePanorama(tester)),
   );
 }
