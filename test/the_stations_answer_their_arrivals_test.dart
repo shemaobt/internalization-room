@@ -320,11 +320,19 @@ void main() {
     },
   );
 
+  test('the recording home answers the scene rehearsal opened with the Scene '
+      'rehearsal, as the plan does', () {
+    _expectTheArrival(
+      const Ensaio(),
+      const TheSceneRehearsalOpened(),
+      isA<SceneRehearsal>(),
+    );
+  });
+
   test('every other Station ignores the scene rehearsal opened', () {
     for (final station in const <Station>[
       Menu(),
       Panorama('OV-Ruth'),
-      Ensaio(),
       Retro(),
       Fim(),
       ChecagemExterna(1),

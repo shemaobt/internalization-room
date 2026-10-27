@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_question.dart';
 import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
@@ -45,6 +46,18 @@ const _cannotEnter = 'este ensaio não pode entrar — ensaiem esta cena de novo
 const _retry = 'não deu para juntar esta cena — toquem para tentar de novo';
 const _reopenArmed = 'toquem de novo: isto abre de novo o rascunho aprovado';
 const _tick = '✓';
+const _recordAgain = 'gravar esta cena de novo';
+const _question = 'Qual cena vocês vão ensaiar?';
+const _houseBack = 'Voltar para a passagem atual';
+const _bringBack = 'trazer de volta as traduções do ensaio desta cena';
+const _bringBackArmed =
+    'toquem de novo: as traduções do ensaio voltam; as que vocês fizeram aqui '
+    'para esta cena ficam guardadas';
+const _sceneCircle = [
+  'Gravar o ensaio da cena',
+  'gravem o ensaio da cena na língua materna; toquem para parar',
+  'guardando o ensaio da cena…',
+];
 
 const _threeScenes = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -1232,6 +1245,79 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets(
+    'while a swap runs «gravar esta cena de novo» is dimmed and its tap opens '
+    'nothing',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined(listed: const [s1a, s2a, s3a, s2b, s2c]);
+      await it.openTheSheet(2, _swap);
+      it.holdTheTake('parte-2');
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+
+      final recordAgain = find.ancestor(
+        of: find.text(_recordAgain),
+        matching: find.byType(TextButton),
+      );
+      expect(tester.widget<TextButton>(recordAgain).onPressed, isNull);
+      await it.tapThe(find.text(_recordAgain));
+      await it.wait(const Duration(seconds: 1));
+      expect(
+        byLabel(_question),
+        findsNothing,
+        reason: 'a troca no ar ainda deixava sair para gravar a cena',
+      );
+      expect(it.showsTheSheet(), isTrue);
+
+      it.room.finishHeldTake();
+      await it.swapLands();
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'while a bring-back runs, «gravar esta cena de novo» on the home\'s sheet '
+    'opens nothing',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      it.room.retroSoFar = const BackTranslationProgress(bringBack: [2]);
+      final notifier = it.container.read(salaSessionProvider.notifier);
+      notifier.goEnsaio();
+      await it.until(
+        'a casa oferecer a volta das traduções',
+        () => it.door(2, _bringBack).evaluate().isNotEmpty,
+      );
+      it.room.holdBringBack();
+      await it.tapThe(it.door(2, _bringBack));
+      await it.wait(const Duration(milliseconds: 700));
+      await it.tapThe(it.door(2, _bringBackArmed));
+      await it.until(
+        'a volta das traduções ficar no ar',
+        () => it.container.read(salaSessionProvider).bringingBack == 2,
+      );
+
+      notifier.openTheHomeSheet(2);
+      await it.until('a folha da cena 2 abrir', it.showsTheSheet);
+      await it.tapThe(find.text(_recordAgain));
+      await it.wait(const Duration(seconds: 1));
+
+      expect(
+        byLabel(_question),
+        findsNothing,
+        reason: 'a volta das traduções no ar ainda deixava sair para gravar',
+      );
+      expect(it.showsTheSheet(), isTrue);
+
+      it.room.finishHeldBringBack();
+      await it.settle();
+      semantics.dispose();
+    },
+  );
+
   group('«ouçam a cena nova antes de conferir»', () {
     testWidgets('stands until the listen starts', (tester) async {
       final semantics = tester.ensureSemantics();
@@ -1264,6 +1350,96 @@ void main() {
       semantics.dispose();
     });
   });
+
+  testWidgets(
+    'the sheet opened from a joined row offers «gravar esta cena de novo», as '
+    'the plan\'s sheet does',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+
+      expect(
+        find.text(_recordAgain),
+        findsOneWidget,
+        reason: 'a folha da casa não tinha como gravar a cena de novo',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    '«gravar esta cena de novo» on the home\'s sheet asks which scene with that '
+    'scene highlighted, never picked',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+
+      await it.tapThe(find.text(_recordAgain));
+      await it.until(
+        'a pergunta da cena aparecer',
+        () => byLabel(_question).evaluate().isNotEmpty,
+      );
+      await it.settle();
+
+      expect(byLabel(_question), findsOneWidget);
+      expect(
+        [
+          for (final button in tester.widgetList<SceneButton>(
+            find.byType(SceneButton),
+          ))
+            if (button.highlighted) button.label,
+        ],
+        ['cena 2 Noemi decide voltar'],
+        reason: 'a cena da folha vem destacada debaixo da pergunta',
+      );
+      for (final circle in _sceneCircle) {
+        expect(byLabel(circle), findsNothing, reason: 'nada foi escolhido');
+      }
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'leaving the scene rehearsal the home\'s sheet opened lands on the '
+    'conversation, and the orange dot brings back the home, not the sheet',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+      await it.tapThe(find.text(_recordAgain));
+      await it.until(
+        'a pergunta da cena aparecer',
+        () => byLabel(_question).evaluate().isNotEmpty,
+      );
+      await it.settle();
+
+      await it.tapThe(byLabel(_houseBack));
+      await it.until(
+        'a pergunta sumir',
+        () => byLabel(_question).evaluate().isEmpty,
+      );
+      await it.settle();
+
+      expect(byLabel(_question), findsNothing);
+      expect(_dot, findsOneWidget, reason: 'a saída volta para a conversa');
+
+      await it.openThePlan();
+
+      expect(it.showsTheHome(), isTrue);
+      expect(
+        it.showsTheSheet(),
+        isFalse,
+        reason: 'a folha velha voltava por cima da casa',
+      );
+      semantics.dispose();
+    },
+  );
 
   testWidgets('an English room swaps in her English', (tester) async {
     final semantics = tester.ensureSemantics();

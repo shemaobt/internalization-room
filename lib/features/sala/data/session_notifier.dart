@@ -4671,11 +4671,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// «gravar esta cena de novo»: the Scene rehearsal screen with the sheet's scene
   /// highlighted and the question still asked.
   void rehearseThisSceneAgain() => _gesture(() {
-    final (sceneId, sessionId) = (state.planSheet, state.sessionId);
+    final (sceneId, sessionId) = (
+      _theHomeRead == null ? state.planSheet : state.homeSheet,
+      state.sessionId,
+    );
     if (sceneId == null ||
         sessionId == null ||
-        _thePlan == null ||
+        (_thePlan == null && _theHomeRead == null) ||
         state.planBusy ||
+        state.bringingBack != null ||
         state.machine.inFlight != null ||
         state.awaitingTheGuide) {
       return;
