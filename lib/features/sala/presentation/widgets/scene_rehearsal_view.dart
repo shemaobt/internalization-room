@@ -13,8 +13,9 @@ import 'scene_question.dart';
 import 'scene_translate_step.dart';
 import 'stage_heading.dart';
 
-/// The scene rehearsal's screen; her words reach the team only through VoiceOver, but on
-/// the translate step, which writes them (ADR 0014).
+/// The scene rehearsal's screen; her title and this session's list are written on every
+/// step, the translate, places-unknown and sent steps write her words (ADR 0014), and the
+/// record step's other words reach the team only through VoiceOver.
 class SceneRehearsalView extends ConsumerWidget {
   const SceneRehearsalView({super.key});
 
