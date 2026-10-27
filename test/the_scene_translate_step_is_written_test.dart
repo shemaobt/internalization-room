@@ -95,9 +95,11 @@ void _titled(WidgetTester tester, String title) {
 Future<(SalaHarness, ProviderContainer)> _inListenMode(
   WidgetTester tester, {
   List<SceneRehearsalRecord>? rehearsals,
+  Size view = const Size(820, 2400),
 }) async {
   final (harness, container) = await _onTheSceneScreen(
     tester,
+    view: view,
     rehearsals:
         rehearsals ??
         [
@@ -851,4 +853,17 @@ void main() {
       expect(bar(1).width, 100);
     },
   );
+  testWidgets('on a phone her listen line keeps 16 points on each side', (
+    tester,
+  ) async {
+    await _inListenMode(tester, view: const Size(420, 1600));
+
+    final line = tester.getRect(find.text(_listenLine));
+    expect(
+      line.left,
+      greaterThanOrEqualTo(16),
+      reason: 'no iPhone SE a linha da escuta encostava nas duas bordas',
+    );
+    expect(line.right, lessThanOrEqualTo(420 - 16));
+  });
 }

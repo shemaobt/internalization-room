@@ -451,12 +451,15 @@ class SceneListenMode extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _Written(
-            said('listen'),
-            heard: line == SceneLine.diskFailed
-                ? '${said('listen')} — ${said('diskFailed')}'
-                : null,
-            style: TextStyle(color: colors.ink, fontSize: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _Written(
+              said('listen'),
+              heard: line == SceneLine.diskFailed
+                  ? '${said('listen')} — ${said('diskFailed')}'
+                  : null,
+              style: TextStyle(color: colors.ink, fontSize: 16),
+            ),
           ),
           const SizedBox(height: 12),
           Row(
