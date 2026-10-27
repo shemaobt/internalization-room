@@ -244,6 +244,27 @@ void main() {
     );
   });
 
+  test('after a sign the team cleared, the next reply that fails to load once '
+      'is loaded again, with no sign', () async {
+    final harness = SalaHarness();
+    final room = await _onTheCanvas(harness);
+    harness.room.replyUrl = _theReply;
+    harness.voice.refuses
+      ..add(_theReply)
+      ..addAll(instantAckLines);
+    await _theTeamSpeaks(room);
+    await _theSignRises(room);
+    await _theSignIsCleared(room);
+    harness.room.replyUrl = _theNextReply;
+    harness.voice.failsToLoad[_theNextReply] = 1;
+
+    await _theTeamSpeaks(room);
+    await _theRoomRests(room);
+
+    expect(room.timesPlayed(_theNextReply), 2);
+    expect(room.state.needsPerson, isFalse);
+  });
+
   test('one failed load of a reply and one failed load of the next never raise '
       'the person sign', () async {
     final harness = SalaHarness();
