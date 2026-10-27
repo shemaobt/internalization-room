@@ -128,6 +128,45 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a tablet that asks for less motion keeps her arcs standing, a little '
+    'faded, instead of turning them',
+    (tester) async {
+      await _pumpCircle(
+        tester,
+        VoiceState.thinking,
+        size: 232,
+        canvas: true,
+        still: true,
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(
+        _arcTurns(tester),
+        [closeTo(0, 1e-9), closeTo(0, 1e-9)],
+        reason:
+            'no reduced motion dela os arcos ficam, parados (globals.css:245)',
+      );
+      expect(
+        [
+          for (final element in _arcs().evaluate())
+            tester
+                .widget<Opacity>(
+                  find
+                      .ancestor(
+                        of: find.byWidget(element.widget),
+                        matching: find.byType(Opacity),
+                      )
+                      .first,
+                )
+                .opacity,
+        ],
+        [0.9, 0.9],
+        reason: 'e a .9 de opacidade, não inteiros nem sumidos',
+      );
+    },
+  );
+
   testWidgets('no voice ever draws a turning transform', (tester) async {
     for (final still in [false, true]) {
       for (final voice in VoiceState.values) {

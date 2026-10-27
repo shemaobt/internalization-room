@@ -263,6 +263,7 @@ class FacilitatorCircle extends StatelessWidget {
             _arc(
               const Duration(milliseconds: 1600),
               1,
+              still,
               ArcPainter(
                 side: size * 1.14,
                 stroke: size * 4 / 232,
@@ -273,6 +274,7 @@ class FacilitatorCircle extends StatelessWidget {
             _arc(
               const Duration(milliseconds: 2600),
               -1,
+              still,
               ArcPainter(
                 side: size * 1.26,
                 stroke: size * 2 / 232,
@@ -306,15 +308,18 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
-  Widget _arc(Duration period, double way, ArcPainter painter) => Spin(
-    period: period,
-    builder: (context, t) => Transform.rotate(
-      angle: way * 2 * math.pi * t,
-      child: RepaintBoundary(
-        child: CustomPaint(size: Size.square(size), painter: painter),
+  Widget _arc(Duration period, double way, bool still, ArcPainter painter) {
+    final turning = Spin(
+      period: period,
+      builder: (context, t) => Transform.rotate(
+        angle: way * 2 * math.pi * t,
+        child: RepaintBoundary(
+          child: CustomPaint(size: Size.square(size), painter: painter),
+        ),
       ),
-    ),
-  );
+    );
+    return still ? Opacity(opacity: 0.9, child: turning) : turning;
+  }
 
   Widget _notUnderstoodMark(String label) => Positioned(
     left: 0,
