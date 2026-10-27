@@ -781,8 +781,9 @@ final class LoadTheReplyAgain extends Effect {
 
 final class LetTheReplyGo extends Effect {
   final void Function(bool loadAgain) answered;
+  final MachineEvent decided;
 
-  const LetTheReplyGo(this.answered);
+  const LetTheReplyGo(this.answered, {required this.decided});
 }
 
 final class StopLooking extends Effect {
@@ -1574,7 +1575,7 @@ Paused? _openedUnder(Paused? paused) => switch (paused) {
   final decided => switch (reduce(machine, decided)) {
     (final next, final effects) => (
       next,
-      [...effects, LetTheReplyGo(failed.answered)],
+      [...effects, LetTheReplyGo(failed.answered, decided: decided)],
     ),
   },
 };

@@ -24,11 +24,18 @@ MachineEvent decidedOnTheTablet(TabletFailure failure, FailureContext context) {
   return event;
 }
 
-void logTheReplysSound(TheReplyFailedToLoad failed, List<Effect> decided) {
+void logTheReplysSound(TheReplyFailedToLoad failed, List<Effect> effects) {
+  final decided = [
+    for (final effect in effects)
+      if (effect is LoadTheReplyAgain)
+        'LoadTheReplyAgain'
+      else if (effect case LetTheReplyGo(:final decided))
+        '${decided.runtimeType}',
+  ].join();
   debugPrint(
     'Falha do tablet decidida: '
     '${_whatFailed(TheSoundFailed(failed.load, because: failed.because))} → '
-    '${decided.map((effect) => effect.runtimeType).join(', ')}',
+    '$decided',
   );
 }
 
