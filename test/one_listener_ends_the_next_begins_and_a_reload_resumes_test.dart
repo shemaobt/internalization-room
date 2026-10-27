@@ -394,6 +394,23 @@ void main() {
     expect(_gravacoes(again.harness), 1);
   });
 
+  testWidgets('a relaunch inside the check leaves it to the recording home', (
+    tester,
+  ) async {
+    final first = await _aberta(tester, _aprovadaNaSala());
+    await _tocar(tester, _checagem);
+    await _tocar(tester, _novoOuvinte);
+
+    final again = await _relancar(tester, first);
+    await _tocar(tester, _voltar);
+
+    expect(_sala(again).stage, SalaStage.ensaio);
+    expect(
+      first.harness.emAberto.rows['$_linha/pt']?.stage,
+      equals(SalaStage.ensaio),
+    );
+  });
+
   testWidgets('a relaunch after the retelling landed and its finish was lost '
       'comes to the thanks, never asks the retelling again, and finishes the '
       'listener', (tester) async {
@@ -509,6 +526,16 @@ void main() {
     await _tocar(tester, _novoOuvinte);
     expect(find.text('ouvinte 2'), findsOneWidget);
     expect(harness.room.listenersFinished, isEmpty);
+    await _fechar(tester, tablet);
+  });
+
+  testWidgets('a row left on the check whose draft was reopened elsewhere '
+      'resumes on the recording home', (tester) async {
+    final harness = _aprovadaNaSala(stage: SalaStage.checagem);
+    harness.room.approvedDraft = null;
+    final tablet = await _aberta(tester, harness);
+
+    expect(_sala(tablet).stage, SalaStage.ensaio);
     await _fechar(tester, tablet);
   });
 

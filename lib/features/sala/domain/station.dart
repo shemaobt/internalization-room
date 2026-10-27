@@ -22,7 +22,7 @@ sealed class Station {
     SalaStage.retro => const Retro(),
     SalaStage.fim => const Fim(),
     SalaStage.cena => const Canvas(),
-    SalaStage.checagem => const Retro(),
+    SalaStage.checagem => const Ensaio(),
   };
 
   /// What the screen shows for this Station.
