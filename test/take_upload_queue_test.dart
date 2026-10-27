@@ -2279,6 +2279,26 @@ void main() {
       expect(sent.bytes, bytes);
     });
 
+    test('is never spent by network failures: each one is a wait', () async {
+      final room = FakeRoom()..unreachableTake = 'ensaio/parte-2';
+      final queue = queueOn(room);
+      await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      );
+
+      for (var pass = 0; pass < takeUploadAttempts + 1; pass++) {
+        await queue.flush();
+      }
+
+      final row = (await queue.pending()).single;
+      expect(row.exhausted, isFalse);
+      expect(row.attempts, 0);
+    });
+
     test('sends the moment of each try as its Recording time', () async {
       final room = FakeRoom()..unreachableTake = 'ensaio/parte-2';
       final queue = queueOn(room);

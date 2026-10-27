@@ -936,7 +936,8 @@ class TakeUploadQueue {
             await _deleteTheCopy(entry);
             _sessionsGone.add(entry.sessionId);
             return _Landing.held;
-          case NetworkFailed() when entry.kind == retroKind:
+          case NetworkFailed()
+              when entry.kind == retroKind || entry.origin != null:
             if (_stopped) return await _theTeamStopped(sent);
             _fellOnTheNetwork();
             await _settleWith(

@@ -34,6 +34,10 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   read each spend one. A final refusal spends all three at once. A revoked or unauthorized
   tablet spends none and stops the pass, as before. A row an older app left with three or
   more attempts reads as spent.
+- **A join row keeps ADR 0120's window.** A network failure on a row of a join or a swap
+  (one that names its rehearsal) is a wait, never an attempt, so it is never spent by the
+  network: the join resends it quietly every 5 s for 90 s, and one still waiting at a drop
+  goes up by itself after the relaunch. The Orchestrator decided this on 27 October.
 - **Only a tap sends a spent take.** A take whose three attempts are gone does not go up
   by itself. One older exception stands: a part take refused with a bare `HTTP_*` code
   gets one more try on the Outbox's retry drain, which asks for the codeless; ENG-1777
