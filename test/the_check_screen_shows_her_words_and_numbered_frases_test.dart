@@ -78,6 +78,7 @@ Future<ProviderContainer> _voltaATraducao(
   BackTranslationProgress contado, {
   SalaStage parouEm = SalaStage.retro,
   String lingua = testLanguage,
+  bool juntada = false,
 }) async {
   _telaAlta(tester);
   final pasta = Directory.systemTemp.createTempSync('sala-1205');
@@ -88,6 +89,7 @@ Future<ProviderContainer> _voltaATraducao(
         scopeId: KeptScope.parte(n),
         path: (File('${pasta.path}/p$n.m4a')..writeAsBytesSync([1, 2, 3])).path,
         takeId: 'gravacao-$n',
+        origin: juntada ? 'ensaio-da-cena-$n' : null,
       ),
   ];
   harness.emAberto.rows['Ruth/P01/$lingua'] = ResumePoint(
@@ -619,6 +621,63 @@ void main() {
     expect(
       byLabel('tap again to discard the 2 translated sentences'),
       findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 7));
+    closeTheRoom(container);
+  });
+
+  testWidgets('armed on a joined recording, the restart counts the stale '
+      'frases among the translations that leave the screen', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+      juntada: true,
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    expect(container.read(salaSessionProvider).joined, isTrue);
+
+    await tocar(tester, 'recomeçar a tradução');
+
+    expect(
+      find.text(
+        'toquem de novo: as 2 traduções saem da tela e vocês traduzem a '
+        'passagem inteira de novo',
+      ),
+      findsOneWidget,
+      reason:
+          'numa gravação juntada o botão armado contava só as frases contadas',
     );
     await tester.pump(const Duration(seconds: 7));
     closeTheRoom(container);
