@@ -394,9 +394,12 @@ class ScenePlacesUnknown extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _Written(
-          said('placesUnknown'),
-          style: TextStyle(color: colors.mut, fontSize: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _Written(
+            said('placesUnknown'),
+            style: TextStyle(color: colors.mut, fontSize: 16),
+          ),
         ),
         if (restartShown || line != null) ...[
           const SizedBox(height: 16),

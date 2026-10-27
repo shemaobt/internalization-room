@@ -377,4 +377,31 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'on a phone her places-unknown line keeps 16 points on each side',
+    (tester) async {
+      await _onTheSceneScreen(
+        tester,
+        view: const Size(420, 1600),
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+
+      final line = tester.getRect(
+        find.text(
+          'as frases já traduzidas não estão neste computador — toquem em '
+          'terminei para enviar, ou recomecem a tradução',
+        ),
+      );
+      expect(
+        line.left,
+        greaterThanOrEqualTo(16),
+        reason: 'no iPhone SE a linha dela ia de uma borda à outra',
+      );
+      expect(line.right, lessThanOrEqualTo(420 - 16));
+    },
+  );
 }
