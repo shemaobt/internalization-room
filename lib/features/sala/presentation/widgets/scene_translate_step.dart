@@ -187,6 +187,22 @@ class SceneTranslateStep extends ConsumerWidget {
           ],
           if (frases.isNotEmpty) ...[
             const SizedBox(height: 12),
+            Semantics(
+              header: true,
+              label: said('frases'),
+              child: ExcludeSemantics(
+                child: Text(
+                  said('frases').toUpperCase(),
+                  style: TextStyle(
+                    color: colors.mut,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 2.4,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             for (final (i, frase) in frases.indexed)
               _FraseBar(
                 n: i + 1,
@@ -214,7 +230,6 @@ class SceneTranslateStep extends ConsumerWidget {
             const SizedBox(height: 12),
             SceneRestartControl(
               shown: restartShown,
-              written: true,
               armed: restart,
               n: scene.rehearsal?.translatedFrases ?? 0,
               line: line,
@@ -295,7 +310,6 @@ class SceneTranslateStep extends ConsumerWidget {
 /// the step may carry words.
 class SceneRestartControl extends ConsumerWidget {
   final bool shown;
-  final bool written;
   final BtRecomeco? armed;
   final int n;
   final SceneLine? line;
@@ -305,7 +319,6 @@ class SceneRestartControl extends ConsumerWidget {
   const SceneRestartControl({
     super.key,
     required this.shown,
-    required this.written,
     required this.armed,
     required this.n,
     required this.line,
@@ -326,34 +339,93 @@ class SceneRestartControl extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (shown)
-          RoundActionButton(
-            size: 52,
-            mood: live ? ButtonMood.lit : ButtonMood.dimmed,
-            semanticLabel: armed == null
-                ? sceneRehearsalLabelFor('restart', language)
-                : retroLabelFor('restartArmed', language, n: n),
-            onTap: ref
-                .read(salaSessionProvider.notifier)
-                .restartTheSceneTranslation,
-            child: Icon(
-              LucideIcons.rotateCcw,
-              size: 22,
-              color: colors.vermelhoMic,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _WrittenButton(
+              armed == null
+                  ? sceneRehearsalLabelFor('restart', language)
+                  : retroLabelFor('restartArmed', language, n: n),
+              live: live,
+              onTap: ref
+                  .read(salaSessionProvider.notifier)
+                  .restartTheSceneTranslation,
             ),
           ),
         if (words != null) ...[
           const SizedBox(height: 8),
-          if (written)
-            Semantics(
-              liveRegion: true,
-              child: _Written(
-                words,
-                style: TextStyle(color: colors.mut, fontSize: 16),
-              ),
-            )
-          else
-            Semantics(liveRegion: true, label: words),
+          Semantics(
+            liveRegion: true,
+            child: _Written(
+              words,
+              style: TextStyle(color: colors.mut, fontSize: 16),
+            ),
+          ),
         ],
+      ],
+    );
+  }
+}
+
+class ScenePlacesUnknown extends ConsumerWidget {
+  final SceneScreen scene;
+  final String language;
+  final bool sending;
+  final bool sendable;
+  final SceneLine? line;
+  final bool restartShown;
+  final BtRecomeco? restart;
+
+  const ScenePlacesUnknown({
+    super.key,
+    required this.scene,
+    required this.language,
+    required this.sending,
+    required this.sendable,
+    required this.line,
+    required this.restartShown,
+    required this.restart,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(salaSessionProvider.notifier);
+    final colors = SalaColors.of(context);
+    String said(String control) => sceneRehearsalLabelFor(control, language);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _Written(
+            said('placesUnknown'),
+            style: TextStyle(color: colors.mut, fontSize: 16),
+          ),
+        ),
+        if (restartShown || line != null) ...[
+          const SizedBox(height: 16),
+          SceneRestartControl(
+            shown: restartShown,
+            armed: restart,
+            n: scene.rehearsal?.translatedFrases ?? 0,
+            line: line,
+            live: !sending && !scene.waiting,
+            language: language,
+          ),
+        ],
+        const SizedBox(height: 16),
+        _WrittenButton(
+          said(sending ? 'sending' : 'send'),
+          live: sendable && !sending,
+          onTap: notifier.sendTheSceneRehearsal,
+          large: true,
+        ),
+        const SizedBox(height: 8),
+        _WrittenButton(
+          said('again'),
+          live: !sending,
+          onTap: notifier.recordTheSceneAgain,
+          bare: true,
+        ),
       ],
     );
   }
@@ -420,6 +492,7 @@ class _WrittenButton extends StatelessWidget {
                     ),
               child: Text(
                 words,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: large ? colors.paper : colors.ink,
                   fontSize: large ? 18 : 14,

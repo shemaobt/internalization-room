@@ -4,13 +4,13 @@ import '../../domain/session_state.dart';
 import 'leave_passage_button.dart';
 
 class StageHeading extends StatelessWidget {
-  final SalaStage stage;
+  final SalaStage? stage;
   final String text;
   final TextStyle style;
 
   const StageHeading({
     super.key,
-    required this.stage,
+    this.stage,
     required this.text,
     required this.style,
   });
@@ -19,6 +19,7 @@ class StageHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final stage = this.stage;
     final heading = Semantics(
       header: true,
       label: text,
@@ -48,7 +49,8 @@ class StageHeading extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(_flank, 24, _flank, 0),
                   child: heading,
                 ),
-                LeavePassageButton(carried: (stage: stage, top: 8)),
+                if (stage != null)
+                  LeavePassageButton(carried: (stage: stage, top: 8)),
               ],
             ),
           );
@@ -59,7 +61,10 @@ class StageHeading extends StatelessWidget {
               width: double.infinity,
               height: 46,
               child: Stack(
-                children: [LeavePassageButton(carried: (stage: stage, top: 0))],
+                children: [
+                  if (stage != null)
+                    LeavePassageButton(carried: (stage: stage, top: 0)),
+                ],
               ),
             ),
             heading,
