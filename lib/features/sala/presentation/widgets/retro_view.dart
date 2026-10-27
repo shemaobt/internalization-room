@@ -292,7 +292,7 @@ class RetroView extends ConsumerWidget {
           ))
         FraseRow(
           n: null,
-          parte: trecho.parte >= 0 ? trecho.parte + 1 : null,
+          parte: parteDe(trecho),
           share: share(trecho),
           onHear: null,
           mark: retroLabelFor('stale', language),
