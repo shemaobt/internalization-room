@@ -40,7 +40,7 @@ class EnsaioView extends ConsumerWidget {
     final sheet = homeRows.values
         .where((row) => row.plan.scene.sceneId == session.homeSheet)
         .firstOrNull;
-    if (sheet != null) return _homeSheet(session, sheet, language);
+    if (sheet != null) return _homeSheet(session, notifier, sheet, language);
     final pending = session.ensaio == EnsaioStatus.recorded;
     final titulo = recordingHomeLabelFor(
       session.joined ? 'joinedTitle' : 'title',
@@ -275,6 +275,7 @@ class EnsaioView extends ConsumerWidget {
 
   Widget _homeSheet(
     SalaSessionState session,
+    SalaSessionNotifier notifier,
     ({PlanRow plan, HomeRow home}) row,
     String language,
   ) {
@@ -302,6 +303,7 @@ class EnsaioView extends ConsumerWidget {
           : said('useThis'),
       wakingOf: (rehearsal) =>
           armed(rehearsal) && session.armedTap?.phase == BtRecomeco.armado,
+      onRecordAgain: notifier.rehearseThisSceneAgain,
     );
   }
 

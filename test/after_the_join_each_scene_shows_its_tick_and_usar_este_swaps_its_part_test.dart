@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_question.dart';
 import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
@@ -45,6 +46,13 @@ const _cannotEnter = 'este ensaio não pode entrar — ensaiem esta cena de novo
 const _retry = 'não deu para juntar esta cena — toquem para tentar de novo';
 const _reopenArmed = 'toquem de novo: isto abre de novo o rascunho aprovado';
 const _tick = '✓';
+const _recordAgain = 'gravar esta cena de novo';
+const _question = 'Qual cena vocês vão ensaiar?';
+const _sceneCircle = [
+  'Gravar o ensaio da cena',
+  'gravem o ensaio da cena na língua materna; toquem para parar',
+  'guardando o ensaio da cena…',
+];
 
 const _threeScenes = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -1264,6 +1272,59 @@ void main() {
       semantics.dispose();
     });
   });
+
+  testWidgets(
+    'the sheet opened from a joined row offers «gravar esta cena de novo», as '
+    'the plan\'s sheet does',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+
+      expect(
+        find.text(_recordAgain),
+        findsOneWidget,
+        reason: 'a folha da casa não tinha como gravar a cena de novo',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    '«gravar esta cena de novo» on the home\'s sheet asks which scene with that '
+    'scene highlighted, never picked',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+
+      await it.tapThe(find.text(_recordAgain));
+      await it.until(
+        'a pergunta da cena aparecer',
+        () => byLabel(_question).evaluate().isNotEmpty,
+      );
+      await it.settle();
+
+      expect(byLabel(_question), findsOneWidget);
+      expect(
+        [
+          for (final button in tester.widgetList<SceneButton>(
+            find.byType(SceneButton),
+          ))
+            if (button.highlighted) button.label,
+        ],
+        ['cena 2 Noemi decide voltar'],
+        reason: 'a cena da folha vem destacada debaixo da pergunta',
+      );
+      for (final circle in _sceneCircle) {
+        expect(byLabel(circle), findsNothing, reason: 'nada foi escolhido');
+      }
+      semantics.dispose();
+    },
+  );
 
   testWidgets('an English room swaps in her English', (tester) async {
     final semantics = tester.ensureSemantics();
