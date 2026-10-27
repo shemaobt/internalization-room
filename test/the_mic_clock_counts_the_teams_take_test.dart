@@ -15,6 +15,7 @@ import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show enterThePanorama;
 
 final _azul = const Color(0xFF89AAA3).withValues(alpha: 0.75);
+final _terracotta = const Color(0xFFBE4A01).withValues(alpha: 0.95);
 
 const _panorama = Passagem(
   pericope: 'panorama',
@@ -133,5 +134,28 @@ void main() {
   testWidgets(
     'a take on the Panorama shows the same clock, not a bare circle',
     (tester) async => _theClockCountsTheTake(await _inThePanorama(tester)),
+  );
+
+  testWidgets(
+    'a take past four minutes turns its clock terracotta, and not a second '
+    'before',
+    (tester) async {
+      final room = await _inConversa(tester);
+      await room.theTeamOpensItsTake();
+
+      await room.waits(const Duration(minutes: 3, seconds: 59));
+      expect(
+        room.clock('3:59')?.style?.color,
+        _azul,
+        reason: 'ficava telha antes dos quatro minutos',
+      );
+
+      await room.waits(const Duration(seconds: 1));
+      expect(
+        room.clock('4:00')?.style?.color,
+        _terracotta,
+        reason: 'aos quatro minutos o relógio seguia azul',
+      );
+    },
   );
 }

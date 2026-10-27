@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/sala_colors.dart';
 import 'motion.dart';
 
+const _longTake = Duration(minutes: 4);
+
 class MicClock extends StatefulWidget {
   final double circleSize;
 
@@ -32,7 +34,9 @@ class _MicClockState extends State<MicClock> {
               '${elapsed.inMinutes}:'
               '${(elapsed.inSeconds % 60).toString().padLeft(2, '0')}',
               style: TextStyle(
-                color: ShemaBrand.azul.withValues(alpha: 0.75),
+                color: elapsed >= _longTake
+                    ? SalaColors.of(context).telha.withValues(alpha: 0.95)
+                    : ShemaBrand.azul.withValues(alpha: 0.75),
                 fontSize: 13.76,
                 letterSpacing: 1.376,
                 fontFeatures: const [FontFeature.tabularFigures()],
