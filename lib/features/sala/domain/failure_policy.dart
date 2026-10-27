@@ -91,7 +91,9 @@ enum RefusalRule {
   /// A scene refusal reads the scene rehearsals again.
   readsTheListAgain,
 
-  /// «terminei» refused: the scene screen says so and reads the scene rehearsals again.
+  /// «terminei» refused: the scene screen says whether it went already or can be sent
+  /// again, forgets the waiting person sign and reads the scene rehearsals again; a closed
+  /// passage closes, and a code that stops the room only reads them again.
   sendsTheScene,
 }
 
@@ -162,17 +164,14 @@ abstract final class FailurePolicy {
         TheTellingCameBackEmpty(generation: generation),
       RoomRefused(code: RefusalCode.sceneRehearsalSent)
           when rule == RefusalRule.sendsTheScene =>
-        TheSceneDoorFailed(
-          readAgain: true,
-          wentAlready: true,
-          generation: generation,
-        ),
-      RoomRefused() when rule == RefusalRule.sendsTheScene =>
-        TheSceneDoorFailed(
-          readAgain: true,
-          sendFailed: true,
-          generation: generation,
-        ),
+        TheSceneWentAlready(generation: generation),
+      RoomRefused(code: RefusalCode.passageClosed)
+          when rule == RefusalRule.sendsTheScene =>
+        TheCallMetAClosedPassage(generation: generation),
+      RoomRefused(:final code)
+          when rule == RefusalRule.sendsTheScene &&
+              !RefusalCode.stopsTheRoom.contains(code) =>
+        TheSceneSendRefused(generation: generation),
       RoomRefused(
         code: RefusalCode.sceneRehearsalSent ||
             RefusalCode.restartOutOfOrder ||
@@ -186,7 +185,9 @@ abstract final class FailurePolicy {
         TheTellingCameBackEmpty(generation: generation),
       RoomRefused() when _theSceneDoors.contains(context.door) =>
         TheSceneDoorFailed(
-          readAgain: rule == RefusalRule.readsTheListAgain,
+          readAgain:
+              rule == RefusalRule.readsTheListAgain ||
+              rule == RefusalRule.sendsTheScene,
           generation: generation,
         ),
       RoomSessionGone() ||

@@ -81,13 +81,17 @@ opened while the server is away would have no way back but a relaunch.
 
 Her third case, as her app draws it. A scene rehearsal given up whose look finds nothing,
 and a scene rehearsal the room answers with nothing to play, are one case: the scene screen
-stays open, the sign waits for the team's return to the Conversation, and the list is read
-again. The screen says «não deu para enviar agora — tentem de novo» and «terminei» sends the
-rehearsal again under the same turn id; when the list reads it as sent, the screen says «a
-tradução deste ensaio da cena já foi para a voz» and nothing is sent again; so does a
-«terminei», first or again, the room refuses as already sent. A reply the look
-finds plays as one that arrived on time, and the screen closes as after any «terminei». A
-«terminei» again that fails in any other way, dropped or refused, leaves the screen with its
-sentence and the sign waiting, as the first failure did; only a «terminei» that lands, or
-whose reply the look finds, forgets the waiting sign. Nothing is resent by itself: a row
-read as sent while a person is called is no longer sent again.
+stays open, says «não deu para enviar agora — tentem de novo», the sign waits for the team's
+return to the Conversation, and the list is read again. «terminei» sends the rehearsal again
+under the same turn id; a re-tap that drops again keeps the sign waiting. When the list reads
+it as sent, the screen says «a tradução deste ensaio da cena já foi para a voz» and nothing is
+sent again. A reply the look finds plays as one that arrived on time, and the screen closes as
+after any «terminei».
+
+A «terminei» the room refuses, first tap or again, is not a call for a person, as in her app:
+the screen says «não deu para enviar agora — tentem de novo», or «a tradução deste ensaio da
+cena já foi para a voz» when the refusal says it was already sent, no sign is raised, and a
+sign that was waiting is forgotten. A refusal because the passage closed closes the passage,
+and a code that stops the room only reads the list again. A «terminei» that lands, or whose
+reply the look finds, forgets the waiting sign too. Nothing is resent by itself: a row read as
+sent while a person is called is never sent again.

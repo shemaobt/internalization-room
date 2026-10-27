@@ -467,20 +467,21 @@ final class TheSceneRehearsalsListed extends AnsweringEvent {
 }
 
 /// A scene door failed; [readAgain] when the room's refusal says the rehearsal moved on
-/// without this tablet: sent to the voice, or restarted by an answer it never heard;
-/// [wentAlready] when the refused call was «terminei» and the rehearsal was already sent;
-/// [sendFailed] when it was «terminei» refused for any other reason.
+/// without this tablet: sent to the voice, or restarted by an answer it never heard.
 final class TheSceneDoorFailed extends AnsweringEvent {
   final bool readAgain;
-  final bool wentAlready;
-  final bool sendFailed;
 
-  const TheSceneDoorFailed({
-    this.readAgain = false,
-    this.wentAlready = false,
-    this.sendFailed = false,
-    super.generation,
-  });
+  const TheSceneDoorFailed({this.readAgain = false, super.generation});
+}
+
+/// The room refused «terminei» because the rehearsal had already gone to the voice.
+final class TheSceneWentAlready extends AnsweringEvent {
+  const TheSceneWentAlready({super.generation});
+}
+
+/// The room refused «terminei» for a reason a later tap can mend.
+final class TheSceneSendRefused extends AnsweringEvent {
+  const TheSceneSendRefused({super.generation});
 }
 
 /// The tablet's disk could not keep audio a scene door brought in.
@@ -1204,13 +1205,15 @@ const _watch = ArmTheWatch();
   TheRefusalPassed() => _resumeTheLook(machine),
   TheHandFailed() => (machine, const []),
   TheScenesMissed() => (machine, const []),
-  TheSceneDoorFailed(wentAlready: true)
-      when machine.station is SceneRehearsal =>
-    (machine, const [TellItWentAlready(), ReadTheSceneRehearsals()]),
-  TheSceneDoorFailed(sendFailed: true)
-      when machine.station is SceneRehearsal &&
-          machine.aHaltWaitsForTheCanvas =>
-    (machine, const [TellTheSendFailed(), ReadTheSceneRehearsals()]),
+  TheSceneWentAlready() when machine.station is SceneRehearsal => (
+    machine.copyWith(aHaltWaitsForTheCanvas: false),
+    const [TellItWentAlready(), ReadTheSceneRehearsals()],
+  ),
+  TheSceneSendRefused() when machine.station is SceneRehearsal => (
+    machine.copyWith(aHaltWaitsForTheCanvas: false),
+    const [TellTheSendFailed(), ReadTheSceneRehearsals()],
+  ),
+  TheSceneWentAlready() || TheSceneSendRefused() => (machine, const []),
   TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
     (machine, const [ReadTheSceneRehearsals()]),
   TheSceneDoorFailed() => (machine, const []),
@@ -2032,6 +2035,8 @@ List<Effect> _leavingThePassage(Machine machine) => [
   TheHandFailed() ||
   TheScenesMissed() ||
   TheSceneDoorFailed() ||
+  TheSceneWentAlready() ||
+  TheSceneSendRefused() ||
   TheSceneDiskFailed() ||
   TheSceneRehearsalsListed() ||
   TheCallWasRefused() ||
