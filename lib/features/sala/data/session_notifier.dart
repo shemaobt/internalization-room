@@ -2160,7 +2160,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _handOff(_entrarNoPanorama(entry.pericope));
       return;
     }
-    _handOff(goConversa(book: entry.book, pericope: entry.pericope));
+    _handOff(
+      _openedFromTheChoice(
+        () => goConversa(book: entry.book, pericope: entry.pericope),
+      ),
+    );
+  }
+
+  Future<void> _openedFromTheChoice(Future<void> Function() open) async {
+    final opening = open();
+    final generation = _generation;
+    await opening;
+    if (_generation != generation || state.needsPerson) return;
+    if (state.station is! Canvas || state.sessionId != null) return;
+    _forgetThePassage();
+    _leaveTheStepFor(const Menu());
+    _clearAll();
+    _arriveAt(const TheChoiceOpened());
   }
 
   /// Open the Panorama's session and voice its opening. It has no foreseen end, and
