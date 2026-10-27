@@ -55,6 +55,9 @@ class _Room {
     matching: find.byType(FacilitatorCircle),
   );
 
+  bool get anyClock =>
+      find.textContaining(RegExp(r'^\d+:\d\d$')).evaluate().isNotEmpty;
+
   Text? clock(String digits) => switch (find.text(digits).evaluate()) {
     final found when found.isEmpty => null,
     final found => found.single.widget as Text,
@@ -155,6 +158,69 @@ void main() {
         room.clock('4:00')?.style?.color,
         _terracotta,
         reason: 'aos quatro minutos o relógio seguia azul',
+      );
+    },
+  );
+
+  testWidgets(
+    'the clock goes when the take ends, and the next take starts again at '
+    '0:00',
+    (tester) async {
+      final room = await _inConversa(tester);
+      await room.theTeamOpensItsTake();
+      await room.waits(const Duration(seconds: 3));
+      expect(room.clock('0:03'), isNotNull);
+
+      room.sala.conversaTap();
+      await room.until(
+        'o microfone fechar',
+        () => room.estado.voice != VoiceState.listening,
+      );
+      expect(room.anyClock, isFalse, reason: 'o relógio ficou depois da vez');
+
+      await room.until(
+        'a sala voltar ao convite',
+        () => room.estado.voice == VoiceState.invite,
+      );
+      await room.theTeamOpensItsTake();
+      expect(
+        room.clock('0:00'),
+        isNotNull,
+        reason: 'a vez seguinte herdava o tempo da anterior',
+      );
+    },
+  );
+
+  testWidgets(
+    'the raised-hand note records with no clock, nor on the tap that sends it',
+    (tester) async {
+      final room = await _inConversa(tester);
+      room.sala.handTap();
+      await room.beat();
+      room.sala.conversaTap();
+      await room.until(
+        'a pergunta abrir o microfone',
+        () => room.estado.voice == VoiceState.listening,
+      );
+      expect(room.estado.noteMode, isTrue);
+      await room.waits(const Duration(seconds: 3));
+      expect(room.anyClock, isFalse, reason: 'o recado mostrava o relógio');
+
+      room.harness.recorder.holdNextStop();
+      room.sala.conversaTap();
+      await room.beat(300);
+      expect(room.estado.voice, VoiceState.listening);
+      expect(room.estado.noteMode, isFalse);
+      expect(
+        room.anyClock,
+        isFalse,
+        reason: 'o toque que envia o recado acendia o relógio',
+      );
+
+      room.harness.recorder.finishStop();
+      await room.until(
+        'o recado sair',
+        () => room.estado.voice != VoiceState.listening,
       );
     },
   );
