@@ -305,6 +305,37 @@ void main() {
     closeTheRoom(room.container);
   });
 
+  testWidgets('A reply that arrives while the question records does not take '
+      'the tap: the hand throws the question away and the reply still waits', (
+    tester,
+  ) async {
+    final room = await _inConversa(tester);
+    await room.theKnotRecords();
+    room.harness.inbox.replies = const [_reply];
+    room.sala.lookForReplies();
+    await room.until('a resposta chegar', () => room.estado.hasUnheardReply);
+
+    await tester.tap(room._hand);
+    await room.until(
+      'o microfone fechar',
+      () => room.estado.voice != VoiceState.listening,
+    );
+    await room.beat(600);
+
+    expect(
+      room.harness.voice.played,
+      isNot(contains(_reply.audioUrl)),
+      reason: 'a resposta tocava por cima do microfone aberto',
+    );
+    expect(room.harness.recorder.deleted, [
+      room.harness.recorder.lastPath,
+    ], reason: 'a pergunta seguia gravando');
+    expect(room.estado.noteMode, isFalse);
+    expect(room.estado.hasUnheardReply, isTrue);
+    expect(room.harness.inbox.questionsSent, isEmpty);
+    closeTheRoom(room.container);
+  });
+
   testWidgets('In note mode tapping the menu abandons the question: nothing '
       'reaches the facilitator', (tester) async {
     final room = await _inConversa(tester);

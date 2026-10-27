@@ -134,7 +134,8 @@ class RaisedHand {
   }
 
   void tap() {
-    if (!_state.atTheTeamsIdleTurn && !_aQuestionRecords) return;
+    if (_aQuestionRecords) return cancelQuestion();
+    if (!_state.atTheTeamsIdleTurn) return;
     if (_state.playingReplyId != null || _state.channel is PartPlaying) {
       host.silenceTheRoom();
     }
