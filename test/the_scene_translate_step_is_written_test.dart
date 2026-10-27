@@ -7,6 +7,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
 
 import 'a_scene_room.dart' show articulation, pumpUntil;
 import 'a_wav_take.dart';
@@ -152,6 +153,20 @@ void main() {
 
     expect(container.read(salaSessionProvider).scene.step, SceneStep.sent);
     _titled(tester, 'Ensaio da cena');
+    expect(
+      tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byType(SceneRehearsalView),
+              matching: find.byType(Text),
+            ),
+          )
+          .map((text) => text.data),
+      ['Ensaio da cena'],
+      reason:
+          'só o título é escrito na escuta; o resto dela continua só do '
+          'VoiceOver',
+    );
   });
 
   testWidgets('in English the scene screen is headed «Scene rehearsal»', (
