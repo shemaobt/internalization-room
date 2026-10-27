@@ -14,7 +14,6 @@ import 'kept_retelling_buttons.dart';
 import 'mic_clock.dart';
 import 'moment_label.dart';
 import 'motion.dart';
-import 'think_note.dart';
 
 const _circleSize = 158.0;
 
@@ -46,8 +45,6 @@ class ConversaView extends ConsumerWidget {
         ),
         if (session.channel case Microphone(owner: MicOwner.conversation))
           const MicClock(circleSize: _circleSize),
-        if (session.voice == VoiceState.thinking)
-          ThinkNote(circleSize: _circleSize, words: voiceThinkingFor(language)),
         if (session.partsToReplay.isNotEmpty)
           KeptRetellingButtons(
             parts: session.partsToReplay,

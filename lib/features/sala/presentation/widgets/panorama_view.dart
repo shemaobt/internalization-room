@@ -7,7 +7,6 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'facilitator_circle.dart';
 import 'mic_clock.dart';
-import 'think_note.dart';
 
 class PanoramaView extends ConsumerWidget {
   const PanoramaView({super.key});
@@ -35,11 +34,6 @@ class PanoramaView extends ConsumerWidget {
         ),
         if (session.channel case Microphone(owner: MicOwner.conversation))
           const MicClock(circleSize: facilitatorCircleSize),
-        if (session.voice == VoiceState.thinking)
-          ThinkNote(
-            circleSize: facilitatorCircleSize,
-            words: voiceThinkingFor(language),
-          ),
       ],
     );
   }

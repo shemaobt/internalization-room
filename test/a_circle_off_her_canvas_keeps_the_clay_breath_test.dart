@@ -26,7 +26,7 @@ bool _aGlyph(Widget widget) => widget is Icon;
 void main() {
   testWidgets(
     'the Choice thinking while its wheel loads keeps the clay breath, with no '
-    'arcs, no glyph and no word',
+    'arcs and no glyph',
     (tester) async {
       final harness = SalaHarness(lingua: 'pt');
       final container = await pumpSala(tester, harness);
@@ -44,7 +44,6 @@ void main() {
             '(page.tsx:985-990); os arcos são só do canvas',
       );
       expect(_drawnOn(EscolhaView, _aGlyph), findsNothing);
-      expect(find.text('pensando…'), findsNothing);
 
       harness.room.finishHeldPassages();
       await tester.pump(const Duration(milliseconds: 300));
