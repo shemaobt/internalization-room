@@ -235,4 +235,53 @@ void main() {
     expect(find.text('FRASES TRADUZIDAS'), findsNothing);
     expect(byLabel('frases traduzidas'), findsNothing);
   });
+
+  for (final (language, restart, armed) in [
+    (
+      'pt',
+      'recomeçar a tradução',
+      'toque de novo para apagar as 2 frases traduzidas',
+    ),
+    (
+      'en',
+      'start the translation over',
+      'tap again to discard the 2 translated sentences',
+    ),
+  ]) {
+    testWidgets(
+      '$language: «recomeçar a tradução» is a written button, and armed it writes the count it discards',
+      (tester) async {
+        final (_, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              frases: [_frase('f1', 0, 3000), _frase('f2', 3000, 6000)],
+            ),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.text(restart), findsOneWidget);
+        expect(byLabel(restart), findsOneWidget);
+        expect(
+          tester.widget<Semantics>(byLabel(restart)).properties.button,
+          isTrue,
+        );
+
+        await tester.tap(find.text(restart));
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          find.text(armed),
+          findsOneWidget,
+          reason: 'a contagem armada só chegava ao VoiceOver',
+        );
+        expect(byLabel(armed), findsOneWidget);
+        expect(find.text(restart), findsNothing);
+        await tester.pump(const Duration(seconds: 6));
+      },
+    );
+  }
 }

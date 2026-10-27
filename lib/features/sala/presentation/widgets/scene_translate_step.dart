@@ -342,20 +342,14 @@ class SceneRestartControl extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (shown)
-          RoundActionButton(
-            size: 52,
-            mood: live ? ButtonMood.lit : ButtonMood.dimmed,
-            semanticLabel: armed == null
+          _WrittenButton(
+            armed == null
                 ? sceneRehearsalLabelFor('restart', language)
                 : retroLabelFor('restartArmed', language, n: n),
+            live: live,
             onTap: ref
                 .read(salaSessionProvider.notifier)
                 .restartTheSceneTranslation,
-            child: Icon(
-              LucideIcons.rotateCcw,
-              size: 22,
-              color: colors.vermelhoMic,
-            ),
           ),
         if (words != null) ...[
           const SizedBox(height: 8),
