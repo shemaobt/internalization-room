@@ -4796,7 +4796,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final plan = _plansOpened;
     _silenceThePlan();
     var parou = false;
-    for (final step in joinQueue(rows)) {
+    for (final step in joinQueue(rows, held: state.heldScenes)) {
       state = state.copyWith(
         joining: step.number,
         joinRows: {...state.joinRows, step.number: JoinRow.joining},
