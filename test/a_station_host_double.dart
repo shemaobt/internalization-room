@@ -140,6 +140,9 @@ class AStationHost implements StationHost {
   void hearTheLineLetGo() => asked.add('hearTheLineLetGo');
 
   @override
+  void hearTheReloadAsked() => asked.add('hearTheReloadAsked');
+
+  @override
   void hearTheWaitResumed() => asked.add('hearTheWaitResumed');
 
   @override

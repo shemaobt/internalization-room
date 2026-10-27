@@ -113,6 +113,22 @@ void main() {
       expect(machine.halt, isNot(isA<Blocking>()));
     });
 
+    test(
+      'a reply whose sound fails to load is loaded once more, and its second '
+      'failed load brings the sign',
+      () {
+        final (once, reload) = reduce(
+          const Machine(),
+          const TheReplyFailedToLoad(),
+        );
+        expect(once.halt, isNot(isA<Blocking>()));
+        expect(reload, contains(const LoadTheReplyAgain()));
+
+        final (twice, _) = reduce(once, const TheReplyFailedToLoad());
+        expect(twice.halt, isA<Blocking>());
+      },
+    );
+
     test('a raised halt calls for a person and arms the Watch', () {
       expect(
         _reduce(none, const RoomRaisedAHalt()),

@@ -228,6 +228,41 @@ void main() {
     expect(logged, isNot(contains(contains('TurnGivenUp'))));
   });
 
+  test(
+    'a reply whose sound the room answers with a session gone takes the team '
+    'back to the wheel, with no reload and no person sign',
+    () async {
+      final harness = SalaHarness();
+      final room = await _onTheCanvas(harness);
+      harness.room.replyUrl = _theReply;
+      harness.voice.roomFailsWith = const SessionGone();
+
+      await _theTeamSpeaks(room);
+      await waitFor('a sessão sair', () => room.state.sessionId == null);
+      await settle(const Duration(milliseconds: 300));
+
+      expect(room.timesPlayed(_theReply), 1);
+      expect(room.state.needsPerson, isFalse);
+    },
+  );
+
+  test('a reply whose sound fails to load once is downloaded afresh for its '
+      'reload', () async {
+    final harness = SalaHarness();
+    final room = await _onTheCanvas(harness);
+    harness.room.replyUrl = _theReply;
+    harness.voice.failsToLoad[_theReply] = 1;
+
+    await _theTeamSpeaks(room);
+    await _theRoomRests(room);
+
+    expect(harness.voice.forgotten, [_theReply]);
+    expect(
+      harness.voice.fetched.where((url) => url == _theReply),
+      hasLength(2),
+    );
+  });
+
   test('one failed load of a reply and one failed load of the next never raise '
       'the person sign', () async {
     final harness = SalaHarness();

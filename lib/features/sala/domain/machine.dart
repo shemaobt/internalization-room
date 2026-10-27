@@ -395,6 +395,17 @@ final class LookEmpty extends AnsweringEvent {
   });
 }
 
+final class TheReplyFailedToLoad extends AnsweringEvent {
+  final RoomResult? because;
+  final Kept sounding;
+
+  const TheReplyFailedToLoad({
+    this.because,
+    this.sounding = const NothingKept(),
+    super.generation,
+  });
+}
+
 final class LookFailed extends AnsweringEvent {
   final Turn turn;
   final RoomResult result;
@@ -743,6 +754,10 @@ final class LetTheLineGo extends Effect {
   const LetTheLineGo();
 }
 
+final class LoadTheReplyAgain extends Effect {
+  const LoadTheReplyAgain();
+}
+
 final class StopLooking extends Effect {
   const StopLooking();
 }
@@ -913,6 +928,7 @@ final class Machine {
   final Halt halt;
   final Channel channel;
   final List<Line> queue;
+  final int failedLoads;
   final Set<int> onTheirWay;
   final Map<Line, Set<int>> owners;
   final Map<String, PartFact> parts;
@@ -950,6 +966,7 @@ final class Machine {
     this.halt = const NoHalt(),
     this.channel = const Silence(),
     this.queue = const [],
+    this.failedLoads = 0,
     this.onTheirWay = const {},
     this.owners = const {},
     this.parts = const {},
@@ -985,6 +1002,7 @@ final class Machine {
     Halt? halt,
     Channel? channel,
     List<Line>? queue,
+    int? failedLoads,
     Set<int>? onTheirWay,
     Map<Line, Set<int>>? owners,
     Map<String, PartFact>? parts,
@@ -1008,6 +1026,7 @@ final class Machine {
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
     queue: queue ?? this.queue,
+    failedLoads: failedLoads ?? this.failedLoads,
     onTheirWay: onTheirWay ?? this.onTheirWay,
     owners: owners ?? this.owners,
     parts: parts ?? this.parts,
@@ -1118,6 +1137,7 @@ const _watch = ArmTheWatch();
     machine.copyWith(
       channel: const Silence(),
       queue: const [],
+      failedLoads: 0,
       owners: const {},
     ),
     [const StopTheSound(), for (final line in machine.queue) DropTheLine(line)],
@@ -1213,6 +1233,11 @@ const _watch = ArmTheWatch();
     ),
   ),
   TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
+  TheReplyFailedToLoad(:final because, :final sounding) => _theReplyFailed(
+    machine,
+    because,
+    sounding,
+  ),
   LookEmpty(:final turn, :final sounding, :final theWaitRanOut) =>
     switch (reduce(
       machine.copyWith(forgetTheLook: true),
@@ -1514,15 +1539,43 @@ Paused? _openedUnder(Paused? paused) => switch (paused) {
   _ => paused,
 };
 
+Machine _loaded(Machine machine, Source source) =>
+    source == Source.guide ? machine.copyWith(failedLoads: 0) : machine;
+
+(Machine, List<Effect>) _theReplyFailed(
+  Machine machine,
+  RoomResult? because,
+  Kept sounding,
+) {
+  final loads = machine.failedLoads + 1;
+  return switch (FailurePolicy.decideOnTheTablet(
+    TheSoundFailed(loads, because: because),
+    FailureContext(
+      station: machine.station,
+      generation: machine.generation,
+      sounding: sounding,
+    ),
+  )) {
+    TheRefusalPassed() => (
+      machine.copyWith(failedLoads: loads),
+      const [LoadTheReplyAgain()],
+    ),
+    final decided => reduce(machine.copyWith(failedLoads: 0), decided),
+  };
+}
+
 (Machine, List<Effect>) _ended(Machine machine) {
   switch (machine.channel) {
     case GuideSpeaking(:final held):
-      return _drain(machine.copyWith(channel: held ?? const Silence()));
+      return _drain(
+        machine.copyWith(channel: held ?? const Silence(), failedLoads: 0),
+      );
     case final Playing playing:
+      final heard = _loaded(machine, playing.sound.source);
       if (playing.next.isNotEmpty) {
-        return _start(machine, playing.next, playing.held);
+        return _start(heard, playing.next, playing.held);
       }
-      return _drain(machine.copyWith(channel: playing.held ?? const Silence()));
+      return _drain(heard.copyWith(channel: playing.held ?? const Silence()));
     case Paused(:final next, :final held) when next.isNotEmpty:
       return (
         machine.copyWith(
@@ -1776,7 +1829,7 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
     );
   }
   if (halt is! Blocking && machine.halt is Blocking) {
-    final (rested, resumed) = _resumeTheLook(next);
+    final (rested, resumed) = _resumeTheLook(next.copyWith(failedLoads: 0));
     return _drain(rested, [...effects, ...resumed]);
   }
   return (next, effects);
@@ -1845,6 +1898,7 @@ Machine _leftThePassage(Machine machine, Halt halt) => machine.copyWith(
   halt: halt,
   channel: const Silence(),
   queue: const [],
+  failedLoads: 0,
   owners: const {},
   aHaltWaitsForTheCanvas: false,
 );
@@ -1938,6 +1992,7 @@ List<Effect> _leavingThePassage(Machine machine) => [
   LookFailed() ||
   LookPending() ||
   TheOpeningMissed() ||
+  TheReplyFailedToLoad() ||
   ThePassageCannotOpen() ||
   TheTellingCameBackEmpty() ||
   TheStepFailed() ||

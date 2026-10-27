@@ -168,7 +168,6 @@ class FacilitatorVoiceService {
     }
   }
 
-  /// Let go of the line's copy on the tablet, so the next load downloads it again.
   Future<void> forget(String url) async {
     if (url.isEmpty) return;
     if (_arriving.remove(url) case final arriving?) await _settled(arriving);

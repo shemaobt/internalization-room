@@ -1312,7 +1312,6 @@ void main() {
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _ateAConferida(tester);
-      it.harness.voice.refuses.add('P3');
       it.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
 
       await tester.tap(byLabel(_aprovar));

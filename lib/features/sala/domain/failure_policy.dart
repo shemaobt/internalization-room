@@ -44,7 +44,6 @@ sealed class TabletFailure {
   const TabletFailure();
 }
 
-/// A reply's sound that did not load, [loads] times for that one reply.
 final class TheSoundFailed extends TabletFailure {
   final int loads;
   final RoomResult? because;
@@ -241,6 +240,9 @@ abstract final class FailurePolicy {
     final halt = RoomRaisedAHalt(generation: generation);
     final passed = TheRefusalPassed(generation: generation);
     return switch (failure) {
+      TheSoundFailed(because: RoomSessionGone()) => TheSessionIsGone(
+        generation: generation,
+      ),
       TheSoundFailed(:final loads) when loads < soundFailuresBeforeAPerson =>
         passed,
       TheSoundFailed() when context.sounding is TheOpening => TheOpeningMissed(

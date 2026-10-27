@@ -92,6 +92,8 @@ abstract interface class StationHost {
   /// The Station rests on a reply the look found, unheard, for «Ouvir de novo» to say.
   void hearTheReplyKept(Turn turn, TurnResult reply);
 
+  void hearTheReloadAsked();
+
   void hearTheLineLetGo();
 
   /// The Station waits again on a look the team's tap resumed.
@@ -250,6 +252,8 @@ class EffectRunner {
           _armTheLookAgain(turn, sounding);
         case LetTheLineGo():
           host.hearTheLineLetGo();
+        case LoadTheReplyAgain():
+          host.hearTheReloadAsked();
         case StopLooking():
           _lookAgain?.cancel();
         case ResumeTheWait():

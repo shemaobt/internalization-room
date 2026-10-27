@@ -361,6 +361,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The fetch of the parts on their way, which belongs to the passage it started in.
   late Completer<void>? _partesDescendo;
+  late Completer<void>? _reload;
 
   /// Whether the Session read of this opening has said where the team stands, which a part
   /// the room lost waits for before it leaves the Rehearsal.
@@ -525,6 +526,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _aNewLife() {
     _timers = {};
+    _reload = null;
     _readsSent = 0;
     _readsApplied = 0;
     _perdidasNoTrecho = {};
@@ -1097,8 +1099,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         : _voice.readyFixedLine(fixedLine, _inTheSessionsLanguage);
   }
 
-  /// Say a reply, loading it once more after [soundReloadDelayProvider] when its sound
-  /// does not load; the second failed load is the failure policy's (ADR 0093).
+  /// Say a reply, loading it once more when the machine asks after a failed load
+  /// (ADR 0093).
   ///
   /// [asked] is a replay, which goes straight to speaking for a line already held.
   Future<Said> _sayTheReply(
@@ -1108,8 +1110,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     void Function()? onSoundStart,
   }) async {
     final generation = _waitOnTheGeneration;
-    for (var load = 1; ; load++) {
-      final Said said;
+    while (true) {
+      Said said;
+      RoomResult? because;
       try {
         said = await _loadTheReply(
           line,
@@ -1119,11 +1122,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           onSoundStart: onSoundStart,
         );
       } on RoomFailure catch (failure) {
-        if (await _loadAgain(line, load, generation, failure)) continue;
-        return Said.failed;
+        said = Said.failed;
+        because = failure.result;
       }
-      if (said != Said.failed) return said;
-      if (!await _loadAgain(line, load, generation)) return said;
+      if (said != Said.failed || _abandoned(generation)) return said;
+      final reload = _theReplyFailedToLoad(line, because);
+      if (reload == null) return said;
+      await reload;
+      if (_abandoned(generation)) return Said.unsaid;
+      await (line.fixedLine.isEmpty
+          ? _voice.forget(line.url)
+          : _voice.forgetFixedLine(line.fixedLine, _inTheSessionsLanguage));
     }
   }
 
@@ -1144,28 +1153,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return _speak(line, onSoundStart: onSoundStart);
   }
 
-  /// Whether the reply is loaded again: a reply whose sound will not load raises the sign
-  /// and stays the one «Ouvir de novo» says.
-  Future<bool> _loadAgain(
-    SpokenLine line,
-    int load,
-    int generation, [
-    RoomFailure? because,
-  ]) async {
-    if (_abandoned(generation)) return false;
-    final decision = decidedOnTheTablet(
-      TheSoundFailed(load, because: because?.result),
+  /// A reply whose sound will not load raises the sign and stays the one «Ouvir de novo»
+  /// says.
+  Future<void>? _theReplyFailedToLoad(SpokenLine line, RoomResult? because) {
+    decidedOnTheTablet(
+      TheSoundFailed(state.machine.failedLoads + 1, because: because),
       _failureContext(),
     );
-    _dispatch(decision);
-    if (decision is RoomRaisedAHalt) state = state.copyWith(lastSpoken: line);
-    if (decision is! TheRefusalPassed) return false;
-    await Future<void>.delayed(ref.read(soundReloadDelayProvider));
-    if (_abandoned(generation)) return false;
-    await (line.fixedLine.isEmpty
-        ? _voice.forget(line.url)
-        : _voice.forgetFixedLine(line.fixedLine, _inTheSessionsLanguage));
-    return true;
+    _reload = null;
+    _dispatch(
+      TheReplyFailedToLoad(
+        because: because,
+        sounding: _whatIsSounding(),
+        generation: _generation,
+      ),
+    );
+    if (state.needsPerson) state = state.copyWith(lastSpoken: line);
+    return _reload?.future;
+  }
+
+  void _loadTheReplyAgainLater() {
+    final reload = _reload = Completer<void>();
+    _after('reload', ref.read(soundReloadDelayProvider), reload.complete);
   }
 
   /// Say a line, and remember it as the one "ouvir de novo" gives back, whether it was
@@ -1241,15 +1250,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the findings' play already offers.
   ///
   /// [canHearAgain] hides its button for the whole retro stage, so this reaches
-  /// [_repeatLastSpoken] on its own guard: a stored line and a room not already speaking
-  /// one. Nothing plays when there is none, and the circle answers a tap on it with
-  /// nothing rather than falling back to the trecho.
+  /// [_repeatLastSpoken] on its own guard: a room not already speaking. The findings open
+  /// only after the verdict was heard, so a line is always kept here.
   Future<void> _repeatTheFinding() async {
-    final line = state.lastSpoken;
-    if (line == null || state.voice != VoiceState.invite || state.needsPerson) {
-      return;
-    }
-    await _repeatLastSpoken(line);
+    if (state.voice != VoiceState.invite || state.needsPerson) return;
+    if (state.lastSpoken case final line?) await _repeatLastSpoken(line);
   }
 
   Future<void> _repeatLastSpoken(SpokenLine line) async {
@@ -8799,17 +8804,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ),
       );
       if (_abandoned(generation)) return;
-      // It returns, as all five of its siblings do. Registering and carrying on was the
-      // other option and it is not one: on the third rung the halt fires, the room says
-      // out loud that a person is needed and the desk is called — and then the lines
-      // below overwrite that with the closing screen, so the team hears the call and is
-      // shown a finished passage.
+      // It returns, as all five of its siblings do: when the halt fires, the lines below
+      // would overwrite the call for a person with the closing screen.
       //
       // Leaving `thinking` is not decoration. The five siblings never speak from inside
       // it, so the invitation they hand back is already a gesture; this one does, and
       // `thinking` takes no tap and holds the finish button down — the team would be left
-      // watching "um instante" with nothing to touch. The third rung escapes only because
-      // the halt leaves it on the way past. Same door, not a new one.
+      // watching "um instante" with nothing to touch.
       if (!spoke.heard) {
         _leaveThinking();
         return _registerUnplayableTurn();
@@ -9897,6 +9898,9 @@ class _NotifierHost implements StationHost {
   @override
   void hearTheReplyKept(Turn turn, TurnResult reply) =>
       _notifier._keepTheReplyTheLookFound(turn, reply);
+
+  @override
+  void hearTheReloadAsked() => _notifier._loadTheReplyAgainLater();
 
   @override
   void hearTheLineLetGo() => _notifier._letTheLineGo();

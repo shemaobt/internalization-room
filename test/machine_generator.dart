@@ -94,7 +94,9 @@ class World {
       looking: looks,
       serverHoldsAWarning: switch (event) {
         TheAnswerWarned() => true,
-        TheSessionIsGone() || ThePassageClosed() => false,
+        TheSessionIsGone() ||
+        ThePassageClosed() ||
+        TheReplyFailedToLoad(because: RoomSessionGone()) => false,
         SessionRead(:final snapshot) when !snapshot.needsPerson =>
           snapshot.halt == HaltKind.warning,
         _ => serverHoldsAWarning,
@@ -281,6 +283,8 @@ String describeEvent(MachineEvent event) => switch (event) {
     'LookFailed(${turn.turnId}, ${result.runtimeType}, '
         '${describeKept(sounding)})',
   TheOpeningMissed() => 'TheOpeningMissed',
+  TheReplyFailedToLoad(:final because, :final sounding) =>
+    'TheReplyFailedToLoad(${because.runtimeType}, ${describeKept(sounding)})',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
   TheTellingCameBackEmpty(:final readAgain) =>
     'TheTellingCameBackEmpty(readAgain: $readAgain)',
@@ -401,6 +405,7 @@ enum EventKind {
   lookFailed,
   lookPending,
   theOpeningMissed,
+  theReplyFailedToLoad,
   thePassageCannotOpen,
   theTellingCameBackEmpty,
   theStepFailed,
@@ -475,6 +480,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   LookFailed() => EventKind.lookFailed,
   LookPending() => EventKind.lookPending,
   TheOpeningMissed() => EventKind.theOpeningMissed,
+  TheReplyFailedToLoad() => EventKind.theReplyFailedToLoad,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
   TheTellingCameBackEmpty() => EventKind.theTellingCameBackEmpty,
   TheStepFailed() => EventKind.theStepFailed,
@@ -548,6 +554,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.passageClosed ||
   EventKind.turnGivenUp ||
   EventKind.theOpeningMissed ||
+  EventKind.theReplyFailedToLoad ||
   EventKind.thePassageCannotOpen ||
   EventKind.theTellingCameBackEmpty ||
   EventKind.theStepFailed ||
@@ -739,6 +746,14 @@ MachineEvent _draw(
     sounding: _drawKept(random),
   ),
   EventKind.theOpeningMissed => const TheOpeningMissed(),
+  EventKind.theReplyFailedToLoad => TheReplyFailedToLoad(
+    because: switch (random.nextInt(3)) {
+      0 => null,
+      1 => const RoomNetworkFailed(),
+      _ => const RoomSessionGone(),
+    },
+    sounding: _drawKept(random),
+  ),
   EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
   EventKind.theTellingCameBackEmpty => TheTellingCameBackEmpty(
     readAgain: random.nextBool(),

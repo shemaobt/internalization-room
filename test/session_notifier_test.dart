@@ -3569,8 +3569,8 @@ void main() {
     expect(harness.room.clipsFetched, isEmpty);
   });
 
-  test('a replay whose first load fails leaves the team where the room had put '
-      'them', () async {
+  test('a replay whose first load fails and whose reload plays leaves the team '
+      'where the room had put them', () async {
     final harness = SalaHarness()..room.peerCue = true;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -3578,9 +3578,11 @@ void main() {
     expect(container.read(salaSessionProvider).peerCue, isTrue);
 
     harness.voice.failsToLoad[turnoUrl] = 1;
+    final before = harness.voice.played.length;
     await notifier.hearAgain();
     await settle();
 
+    expect(harness.voice.played.skip(before), [turnoUrl, turnoUrl]);
     expect(
       container.read(salaSessionProvider).peerCue,
       isTrue,
@@ -3590,17 +3592,15 @@ void main() {
     );
   });
 
-  test('three replays nobody could hear fetch a person', () async {
+  test('a replay nobody could hear on either load fetches a person', () async {
     final harness = SalaHarness()..room.peerCue = true;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
     harness.voice.succeeds = false;
-    for (var attempt = 0; attempt < 3; attempt++) {
-      await notifier.hearAgain();
-      await settle();
-    }
+    await notifier.hearAgain();
+    await settle();
 
     expect(
       container.read(salaSessionProvider).needsPerson,
