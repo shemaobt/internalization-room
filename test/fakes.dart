@@ -3834,6 +3834,15 @@ class FakeTakeQueue implements TakeUploadQueue {
   bool movedAway(String row) => false;
 
   @override
+  void offerTheTapThrough(bool Function(PendingTake row) aRowOffersItsTap) {}
+
+  @override
+  Future<bool> withdrawUnlessInTheAir(PendingTake row) async {
+    await withdraw(row);
+    return true;
+  }
+
+  @override
   Future<void> withdrawTheJoinsOf(String sessionId, String scope) async =>
       rows.removeWhere(
         (entry) =>

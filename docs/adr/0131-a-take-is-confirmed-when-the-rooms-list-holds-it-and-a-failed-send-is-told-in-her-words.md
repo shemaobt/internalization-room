@@ -34,6 +34,11 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   read each spend one. A final refusal spends all three at once. A revoked or unauthorized
   tablet spends none and stops the pass, as before. A row an older app left with three or
   more attempts reads as spent.
+- **A take is spent only while a row can offer its tap.** A take of the open session that
+  no row shows under the grain in force, such as a part after a switch to the whole
+  passage, is never held for a tap: it goes up on the next pass, and the room sets it
+  aside as ADR 0134 expects. The Orchestrator decided this on 27
+  October.
 - **A join row keeps ADR 0120's window.** A network failure on a row of a join or a swap
   (one that names its rehearsal) is a wait, never an attempt, so it is never spent by the
   network: the join resends it quietly every 5 s for 90 s, and one still waiting at a drop

@@ -229,9 +229,9 @@ String describeEvent(MachineEvent event) => switch (event) {
     'ATakeLeft(${take.row}, ${take.keep.kind}, ${take.keep.session}, '
         '${take.keep.scope})',
   ATakeSettled(:final row) => 'ATakeSettled($row)',
-  AKeepBegan(:final part) => 'AKeepBegan(${part.session}, ${part.part})',
+  AKeepBegan(:final part) => 'AKeepBegan(${part.session}, ${part.scope})',
   AKeepEnded(:final part, :final row) =>
-    'AKeepEnded(${part.session}, ${part.part}, $row)',
+    'AKeepEnded(${part.session}, ${part.scope}, $row)',
   StopTapped(:final keep) =>
     'StopTapped(${keep.session}, ${keep.kind}, ${keep.scope})',
   TheRoomAnswered() => 'TheRoomAnswered',
@@ -688,11 +688,11 @@ MachineEvent _draw(
   EventKind.aTakeSettled => ATakeSettled('linha-${random.nextInt(3)}'),
   EventKind.aKeepBegan => AKeepBegan((
     session: _drawASession(random),
-    part: random.nextInt(3) + 1,
+    scope: 'parte-${random.nextInt(3) + 1}',
   )),
   EventKind.aKeepEnded => AKeepEnded((
     session: _drawASession(random),
-    part: random.nextInt(3) + 1,
+    scope: 'parte-${random.nextInt(3) + 1}',
   ), row: random.nextBool() ? 'linha-${random.nextInt(3)}' : null),
   EventKind.stopTapped => StopTapped((
     session: _drawASession(random),

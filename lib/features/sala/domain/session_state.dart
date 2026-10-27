@@ -732,7 +732,7 @@ class SalaSessionState {
   TakeInTheAir? get sceneTakeInTheAir => _theTakeInTheAirOf(sceneTakeKind);
 
   UnsentPart? _unsentByTheNewestKeptTake(int number) =>
-      switch (machine.newestKeptFact(sessionId, number)) {
+      switch (machine.newestKeptFact(sessionId, scopeOfRow(number))) {
         PartFact.pending => const UnsentPart(fromAnEarlierVisit: false),
         PartFact.stranded => const UnsentPart(
           fromAnEarlierVisit: false,
@@ -743,7 +743,7 @@ class SalaSessionState {
 
   TakeInTheAir? partInTheAir(int number) =>
       switch (_theTakeInTheAirOf(partTakeKind)) {
-        final take? when rowOf(take.keep.scope) == number => take,
+        final take? when take.keep.scope == scopeOfRow(number) => take,
         _ => null,
       };
 
@@ -843,6 +843,10 @@ class SalaSessionState {
       ? (scopeId == KeptScope.whole ? 1 : null)
       : KeptScope.numberOf(scopeId);
 
+  /// The scope a recording on row [number] is kept under, at the grain in force.
+  String scopeOfRow(int number) =>
+      recordsTheWhole ? KeptScope.whole : KeptScope.parte(number);
+
   /// «gravar a passagem inteira de uma vez» takes the Armed tap only when it would leave
   /// something behind: an approved draft, or a part that came from a join.
   bool get wholeSwitchArms => overAnApprovedDraft || aPartWasJoined;
@@ -891,10 +895,11 @@ class SalaSessionState {
   bool get aTakeFromAnEarlierVisitWaits =>
       sceneRows.any((row) => row.unsent?.fromAnEarlierVisit ?? false);
 
-  /// One row per Scene, in passage order, then one per part beyond the last scene with a
-  /// take still to send, in the air, being kept or kept this visit; with a passage the
-  /// room answered with no scenes, one per Part plus one more. None while the list is
-  /// awaited or missing.
+  /// The one row of the whole while the passage is recorded whole. Otherwise one row per
+  /// Scene, in passage order, then one per part beyond the last scene with a take still to
+  /// send, in the air, being kept or kept this visit; with a passage the room answered
+  /// with no scenes, one per Part plus one more. None while the list is awaited or
+  /// missing.
   List<SceneRow> get sceneRows {
     final List<(int, String?, bool)> numbered = switch (scenes) {
       _ when recordsTheWhole => const [(1, null, false)],
@@ -925,11 +930,11 @@ class SalaSessionState {
             final index? => partes[index],
             null => null,
           },
-          unsent: machine.beingKept(sessionId, number)
+          unsent: machine.beingKept(sessionId, scopeOfRow(number))
               ? const UnsentPart(fromAnEarlierVisit: false)
               : unsentParts[number] ?? _unsentByTheNewestKeptTake(number),
           inTheAir: partInTheAir(number),
-          saved: machine.savedParts(sessionId).contains(number),
+          saved: machine.savedParts(sessionId).contains(scopeOfRow(number)),
           away: switch (partIndexOf(number)) {
             final index? => partsAway[partes[index].takeId],
             null => null,
@@ -945,9 +950,9 @@ class SalaSessionState {
     for (final number in {
       ...unsentParts.keys,
       for (final kept in machine.keptThisVisit.values)
-        if (kept.session == sessionId) kept.part,
+        if (kept.session == sessionId) ?rowOf(kept.scope),
       for (final keep in machine.keeping.keys)
-        if (keep.session == sessionId) keep.part,
+        if (keep.session == sessionId) ?rowOf(keep.scope),
       ?switch (_theTakeInTheAirOf(partTakeKind)) {
         final take? => rowOf(take.keep.scope),
         null => null,

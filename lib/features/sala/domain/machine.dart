@@ -109,7 +109,7 @@ final class ATakeSettled extends MachineEvent {
   const ATakeSettled(this.row);
 }
 
-typedef PartOfASession = ({String session, int part});
+typedef PartOfASession = ({String session, String scope});
 
 final class AKeepBegan extends MachineEvent {
   final PartOfASession part;
@@ -1069,22 +1069,23 @@ final class Machine {
     keptThisVisit: before.keptThisVisit,
   );
 
-  bool beingKept(String? session, int part) =>
-      session != null && (keeping[(session: session, part: part)] ?? 0) > 0;
+  bool beingKept(String? session, String scope) =>
+      session != null && (keeping[(session: session, scope: scope)] ?? 0) > 0;
 
-  PartFact? newestKeptFact(String? session, int part) {
+  PartFact? newestKeptFact(String? session, String scope) {
     String? newest;
     for (final MapEntry(key: row, value: kept) in keptThisVisit.entries) {
-      if (kept.session == session && kept.part == part) newest = row;
+      if (kept.session == session && kept.scope == scope) newest = row;
     }
     return newest == null ? null : parts[newest];
   }
 
-  Set<int> savedParts(String? session) => {
+  Set<String> savedParts(String? session) => {
     for (final kept in keptThisVisit.values)
-      if (!beingKept(session, kept.part) &&
-          newestKeptFact(session, kept.part) == PartFact.sent)
-        kept.part,
+      if (kept.session == session &&
+          !beingKept(session, kept.scope) &&
+          newestKeptFact(session, kept.scope) == PartFact.sent)
+        kept.scope,
   };
 
   Machine withNoPassage(Set<int> onTheirWay) => Machine(

@@ -168,6 +168,24 @@ class _Casa {
     });
   }
 
+  Future<void> gravarAPassagemInteira() => emTempoReal(() async {
+    sala.recordTheWholePassageInstead();
+    await waitFor(
+      'a passagem inteira ser a linha',
+      () => estado.recordsTheWhole && estado.sceneRows.length == 1,
+    );
+    await settle();
+  });
+
+  Future<void> gravarCenaPorCena() => emTempoReal(() async {
+    sala.recordSceneByScene();
+    await waitFor(
+      'as cenas voltarem a ser as linhas',
+      () => !estado.recordsTheWhole && estado.sceneRows.length == _cenas.length,
+    );
+    await settle();
+  });
+
   Future<void> gravarPeloCirculo() => emTempoReal(() async {
     sala.ensaioTap();
     await waitFor(
@@ -360,14 +378,7 @@ void main() {
     'eight seconds',
     (tester) async {
       final casa = await _naCasa(tester);
-      await casa.emTempoReal(() async {
-        casa.sala.recordTheWholePassageInstead();
-        await waitFor(
-          'a passagem inteira ser a linha',
-          () =>
-              casa.estado.recordsTheWhole && casa.estado.sceneRows.length == 1,
-        );
-      });
+      await casa.gravarAPassagemInteira();
       casa.room.holdNextTake(KeptScope.whole);
       await casa.guardarSemEsperar(1);
       await tester.runAsync(casa.room.untilTakeHeld);
@@ -376,6 +387,86 @@ void main() {
 
       expect(find.text(_enviando), findsOneWidget);
       expect(find.text(_parar), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a part take spent before a switch to the whole passage goes up on the '
+    'next pass, and once it lands nothing waits',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+      casa.room.unreachableTake = null;
+
+      await casa.gravarAPassagemInteira();
+      await casa.emTempoReal(
+        () => waitFor(
+          'nada esperar no tablet',
+          () => casa.estado.nothingWaitsInTheOutbox,
+        ),
+      );
+
+      expect(casa.room.takesKept, contains('ensaio/parte-2'));
+      expect(casa.estado.nothingWaitsInTheOutbox, isTrue);
+    },
+  );
+
+  testWidgets(
+    'a whole-passage take spent before a switch to scene by scene goes up on '
+    'the next pass, and once it lands nothing waits',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      await casa.gravarAPassagemInteira();
+      casa.room.unreachableTake = 'ensaio/${KeptScope.whole}';
+      await casa.guardar(1);
+      expect(find.text(_falhou), findsOneWidget);
+      casa.room.unreachableTake = null;
+
+      await casa.gravarCenaPorCena();
+      await casa.emTempoReal(
+        () => waitFor(
+          'nada esperar no tablet',
+          () => casa.estado.nothingWaitsInTheOutbox,
+        ),
+      );
+
+      expect(casa.room.takesKept, contains('ensaio/${KeptScope.whole}'));
+      expect(casa.estado.nothingWaitsInTheOutbox, isTrue);
+    },
+  );
+
+  testWidgets(
+    'a whole-passage take kept this visit reads nothing on scene 1 after a '
+    'switch to scene by scene',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      await casa.gravarAPassagemInteira();
+      await casa.guardar(1);
+      expect(find.text(_salvo), findsOneWidget);
+
+      await casa.gravarCenaPorCena();
+
+      expect(casa.naLinha(1, find.text(_salvo)), findsNothing);
+      expect(casa.naLinha(1, find.text(_enviando)), findsNothing);
+      expect(casa.naLinha(1, find.text(_falhou)), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a part take kept this visit reads nothing on the whole-passage row after '
+    'a switch to the whole passage',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      await casa.guardar(1);
+      expect(casa.naLinha(1, find.text(_salvo)), findsOneWidget);
+
+      await casa.gravarAPassagemInteira();
+
+      expect(find.text(_salvo), findsNothing);
+      expect(find.text(_enviando), findsNothing);
+      expect(find.text(_falhou), findsNothing);
     },
   );
 
@@ -968,25 +1059,6 @@ void main() {
     },
   );
 
-  testWidgets(
-    'an unsent part beyond the last scene reads on its own numbered row, and '
-    'its tap sends it',
-    (tester) async {
-      final casa = await _naCasa(tester);
-      casa.room.unreachableTake = 'ensaio/parte-4';
-      await casa.umaTomadaDeOutraVisita(4, pass: 1);
-
-      expect(_aQuarta, findsOneWidget);
-      expect(_naQuarta(find.textContaining('enviar agora')), findsOneWidget);
-
-      casa.room.unreachableTake = null;
-      await casa.tocar(_naQuarta(find.textContaining('enviar agora')));
-      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
-
-      expect(casa.room.takesKept, contains('ensaio/parte-4'));
-    },
-  );
-
   testWidgets('a row beyond the last scene offers no Gravar', (tester) async {
     final casa = await _naCasa(tester);
     casa.room.unreachableTake = 'ensaio/parte-4';
@@ -1163,13 +1235,14 @@ void main() {
   );
 
   testWidgets(
-    'an earlier-visit take of a part beyond the last scene leaves no row once '
-    'its tap sends it',
+    'an earlier-visit take of a part beyond the last scene reads on its own '
+    'numbered row, its tap sends it, and the row leaves',
     (tester) async {
       final casa = await _naCasa(tester);
       casa.room.unreachableTake = 'ensaio/parte-4';
       await casa.umaTomadaDeOutraVisita(4, pass: 1);
       expect(_aQuarta, findsOneWidget);
+      expect(_naQuarta(find.textContaining('enviar agora')), findsOneWidget);
 
       casa.room.unreachableTake = null;
       await casa.tocar(_naQuarta(find.textContaining('enviar agora')));

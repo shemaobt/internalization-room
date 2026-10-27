@@ -630,6 +630,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   SalaSessionState build() {
     _aNewLife();
     _gone = false;
+    _takes.offerTheTapThrough(_aRowOffersTheTap);
     final frases = _frases;
     if (!_theRecordingsLeftBehindWereSwept) {
       _theRecordingsLeftBehindWereSwept = true;
@@ -4458,7 +4459,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final watch = queue.rowsBack.where((id) => id == row.id).listen((_) {
       withdraw();
     });
-    if (!queue.inTheAir(row.id)) withdraw();
+    if (await queue.withdrawUnlessInTheAir(row) && !withdrawn.isCompleted) {
+      withdrawn.complete();
+    }
     try {
       await withdrawn.future;
     } finally {
@@ -7277,10 +7280,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final queue = _takes;
     final sessionId = state.sessionId;
     if (_goneSessions.contains(sessionId)) return;
-    final PartOfASession? keeping = switch ((sessionId, state.rowOf(scope))) {
-      (final session?, final number?) when kind == partTakeKind => (
+    final PartOfASession? keeping = switch (sessionId) {
+      final session? when kind == partTakeKind => (
         session: session,
-        part: number,
+        scope: scope,
       ),
       _ => null,
     };
@@ -7358,7 +7361,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _enviarACena(int cena) {
     if (state.station is! Ensaio ||
         state.ensaio == EnsaioStatus.recording ||
-        state.machine.beingKept(state.sessionId, cena) ||
+        state.machine.beingKept(state.sessionId, state.scopeOfRow(cena)) ||
         state.unsentParts[cena]?.failure == SendFailure.gone ||
         !state.unsentParts.containsKey(cena)) {
       return;
@@ -7645,10 +7648,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return tally.unsentTakes - behindANewerPass + notQueued.length;
   }
 
+  bool _aRowOffersTheTap(PendingTake row) =>
+      _gone ||
+      row.kind != partTakeKind ||
+      row.sessionId != state.sessionId ||
+      state.rowOf(row.scope) != null;
+
   bool _ofThisVisit(int number, PendingTake newest) =>
       _rowsOfThisVisit.contains(newest.id) ||
       state.machine.keptThisVisit.containsKey(newest.id) ||
-      state.machine.beingKept(state.sessionId, number);
+      state.machine.beingKept(state.sessionId, state.scopeOfRow(number));
 
   Map<int, UnsentPart> _unsentPartsOf(
     OutboxTally tally,

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -2279,7 +2280,8 @@ void main() {
       expect(sent.bytes, bytes);
     });
 
-    test('is never spent by network failures: each one is a wait', () async {
+    test('is never spent by network failures: it goes up on the next pass '
+        'once the network returns', () async {
       final room = FakeRoom()..unreachableTake = 'ensaio/parte-2';
       final queue = queueOn(room);
       await queue.enqueueTheJoin(
@@ -2289,14 +2291,84 @@ void main() {
         passNumber: 1,
         origin: 'ensaio-2',
       );
-
       for (var pass = 0; pass < takeUploadAttempts + 1; pass++) {
         await queue.flush();
       }
+      room.unreachableTake = null;
 
-      final row = (await queue.pending()).single;
-      expect(row.exhausted, isFalse);
-      expect(row.attempts, 0);
+      await queue.flush();
+
+      expect(room.takesKept, ['ensaio/parte-2']);
+    });
+
+    test('withdrawn after its pass found it and before it is sent stays '
+        'unsent, and the room never receives it', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final copy = (await queue.pending()).single.path;
+      final outside = Zone.current;
+
+      await IOOverrides.runZoned(
+        queue.flush,
+        createFile: (path) {
+          final real = outside.run(() => File(path));
+          if (path != copy) return real;
+          return _ACopyWhoseDeleteLags(
+            real,
+            whenChecked: () {
+              if (!queue.inTheAir(row.id)) unawaited(queue.withdraw(row));
+            },
+          );
+        },
+      );
+
+      expect(room.takesReceivedWhole, isEmpty);
+      expect(await queue.pending(), isEmpty);
+    });
+
+    test('withdrawn unless in the air, as its pass claims it, either stays '
+        'unsent or is left to its send', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final copy = (await queue.pending()).single.path;
+      final outside = Zone.current;
+      late Future<bool> withdrawn;
+
+      await IOOverrides.runZoned(
+        queue.flush,
+        createFile: (path) {
+          final real = outside.run(() => File(path));
+          if (path != copy) return real;
+          return _ACopyWhoseDeleteLags(
+            real,
+            whenMeasured: () => Future.microtask(
+              () => Future.microtask(
+                () => withdrawn = queue.withdrawUnlessInTheAir(row),
+              ),
+            ),
+          );
+        },
+      );
+
+      expect(
+        room.takesReceivedWhole.isEmpty,
+        await withdrawn,
+        reason: 'a row the Outbox let go never reaches the room',
+      );
     });
 
     test('sends the moment of each try as its Recording time', () async {
@@ -2462,4 +2534,56 @@ class _ADiskThatThrowsOnTheRename extends FakeRecorder {
   @override
   Future<String?> heldAs(String fileName) async =>
       throw StateError('o contêiner já foi descartado');
+}
+
+class _ACopyWhoseDeleteLags implements File {
+  final File _real;
+  final void Function() whenChecked;
+  final void Function() whenMeasured;
+
+  _ACopyWhoseDeleteLags(
+    this._real, {
+    this.whenChecked = _nothing,
+    this.whenMeasured = _nothing,
+  });
+
+  static void _nothing() {}
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<bool> exists() {
+    whenChecked();
+    return _real.exists();
+  }
+
+  @override
+  bool existsSync() => _real.existsSync();
+
+  @override
+  Future<int> length() async {
+    final length = await _real.length();
+    whenMeasured();
+    return length;
+  }
+
+  @override
+  int lengthSync() => _real.lengthSync();
+
+  @override
+  Uint8List readAsBytesSync() => _real.readAsBytesSync();
+
+  @override
+  Future<Uint8List> readAsBytes() => _real.readAsBytes();
+
+  @override
+  Stream<List<int>> openRead([int? start, int? end]) =>
+      _real.openRead(start, end);
+
+  @override
+  Future<FileSystemEntity> delete({bool recursive = false}) async => this;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

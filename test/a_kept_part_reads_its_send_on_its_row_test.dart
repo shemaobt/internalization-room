@@ -13,7 +13,7 @@ const _cenas = [
 SceneRow _partThreeWhenItsNewestTakeIs(PartFact fact) => SalaSessionState(
   machine: Machine(
     session: 's1',
-    keptThisVisit: const {'linha-3': (session: 's1', part: 3)},
+    keptThisVisit: const {'linha-3': (session: 's1', scope: 'parte-3')},
     parts: {'linha-3': fact},
   ),
   scenes: const ScenesHad(_cenas),
@@ -38,7 +38,7 @@ void main() {
     final row = SalaSessionState(
       machine: const Machine(
         session: 's1',
-        keeping: {(session: 's1', part: 3): 1},
+        keeping: {(session: 's1', scope: 'parte-3'): 1},
       ),
       scenes: const ScenesHad(_cenas),
       unsentParts: const {
