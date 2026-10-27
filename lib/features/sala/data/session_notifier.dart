@@ -2156,7 +2156,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _leaveTheStepFor(Panorama(entry.pericope));
       _clearAll();
       _arriveAt(ThePanoramaChosen(entry.pericope));
-      _handOff(_entrarNoPanorama(entry.pericope));
+      _handOff(_openedFromTheChoice(() => _entrarNoPanorama(entry.pericope)));
       return;
     }
     _handOff(
@@ -2171,7 +2171,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _generation;
     await opening;
     if (_generation != generation || state.needsPerson) return;
-    if (state.station is! Canvas || state.sessionId != null) return;
+    final unopened = switch (state.station) {
+      Canvas() => state.sessionId == null,
+      Panorama() => state.panoramaSessionId == null,
+      _ => false,
+    };
+    if (!unopened) return;
     _forgetThePassage();
     _leaveTheStepFor(const Menu());
     _clearAll();
@@ -2208,6 +2213,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     final panorama = state.panoramaSessionId ?? created!.sessionId;
     _dispatch(TheSessionOpened(panorama, generation: generation));
+    state = state.copyWith(clearLeftEntry: true);
     _warmHerLines();
     _openingOwed = true;
     final turnId = _openTurnId ??= _stamp();
