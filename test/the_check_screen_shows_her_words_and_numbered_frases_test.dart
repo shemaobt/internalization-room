@@ -624,6 +624,51 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('during the First listen «recomeçar a tradução» stays hidden, '
+      'even with stale frases listed', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room
+      ..listeningUnheardTakeIds = const ['gravacao-1', 'gravacao-2']
+      ..takes.add(
+        const TakeView(
+          takeId: 'gravacao-velha-1',
+          scope: 'parte-1',
+          kind: 'ensaio',
+          ordinal: 1,
+        ),
+      );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'a primeira escuta começar com a frase regravada na lista',
+      () =>
+          container.read(salaSessionProvider).btSoOuvir &&
+          container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      byLabel('recomeçar a tradução'),
+      findsNothing,
+      reason: 'na primeira escuta não há tradução para recomeçar',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a frase just told shows the number its answer carries, not '
       'a count the tablet keeps, before the session is read again', (
     tester,
