@@ -827,7 +827,15 @@ class SalaSessionState {
       recordsTheWhole &&
       partes.isEmpty &&
       ensaio == EnsaioStatus.idle &&
-      !unsentParts.containsKey(1);
+      !unsentParts.containsKey(1) &&
+      switch ((ensaioFinalPlan, sessionId)) {
+        (final PlanRead read, final String sessionId) => stillToJoin(
+          read,
+          sessionId,
+          planChoices,
+        ),
+        _ => false,
+      };
 
   /// Where in [partes] the part numbered [number] sits; null when there is none.
   int? partIndexOf(int number) {

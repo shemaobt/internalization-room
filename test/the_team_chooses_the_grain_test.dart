@@ -82,22 +82,25 @@ final _dot = find.byWidgetPredicate(
       }.contains(widget.properties.label),
 );
 
-SceneRehearsalRecord _rehearsal(String sessionId, {String? sentAt}) =>
-    SceneRehearsalRecord(
-      rehearsalId: '$sessionId-ensaio-1',
-      sessionId: sessionId,
-      n: 1,
-      scene: 'S1',
-      recordedAt: DateTime.utc(2026, 10, 22, 13, 7),
-      sentAt: sentAt ?? '2026-10-22T10:00:00+00:00',
-      durationMs: 7000,
-      frases: const [
-        SceneFrase(fraseId: 'frase-0', startsMs: 0, endsMs: 3500),
-        SceneFrase(fraseId: 'frase-1', startsMs: 3500, endsMs: 7000),
-      ],
-      contentType: 'audio/wav',
-      verified: true,
-    );
+SceneRehearsalRecord _rehearsal(
+  String sessionId, {
+  String? sentAt,
+  String contentType = 'audio/wav',
+}) => SceneRehearsalRecord(
+  rehearsalId: '$sessionId-ensaio-1',
+  sessionId: sessionId,
+  n: 1,
+  scene: 'S1',
+  recordedAt: DateTime.utc(2026, 10, 22, 13, 7),
+  sentAt: sentAt ?? '2026-10-22T10:00:00+00:00',
+  durationMs: 7000,
+  frases: const [
+    SceneFrase(fraseId: 'frase-0', startsMs: 0, endsMs: 3500),
+    SceneFrase(fraseId: 'frase-1', startsMs: 3500, endsMs: 7000),
+  ],
+  contentType: contentType,
+  verified: true,
+);
 
 TakeView _joinedPart(int n, {String? setAsideAt}) => TakeView(
   takeId: 'gravacao-$n',
@@ -250,12 +253,13 @@ Future<(SalaHarness, ProviderContainer)> _onTheChoice(
   WidgetTester tester, {
   String lingua = 'pt',
   List<Scene> scenes = _threeScenes,
+  String contentType = 'audio/wav',
 }) async {
   final (harness, container) = await _atRest(
     tester,
     lingua: lingua,
     scenes: scenes,
-    seed: (session) => [_rehearsal(session)],
+    seed: (session) => [_rehearsal(session, contentType: contentType)],
   );
   harness.room.holdNextSceneList();
   await _tapTheDot(tester);
@@ -268,9 +272,13 @@ Future<(SalaHarness, ProviderContainer)> _onTheChoice(
 
 /// The choice answered «A passagem inteira»: the team on the empty whole home.
 Future<(SalaHarness, ProviderContainer)> _onTheEmptyWholeHome(
-  WidgetTester tester,
-) async {
-  final (harness, container) = await _onTheChoice(tester);
+  WidgetTester tester, {
+  String contentType = 'audio/wav',
+}) async {
+  final (harness, container) = await _onTheChoice(
+    tester,
+    contentType: contentType,
+  );
   await _tap(tester, _whole);
   await _settles(tester);
   return (harness, container);
@@ -958,6 +966,63 @@ void main() {
 
       expect(find.text(_backToJoin), findsNothing);
       expect(find.text(_sceneInstead), findsOneWidget);
+    });
+
+    testWidgets('is not offered when no scene rehearsal can be joined', (
+      tester,
+    ) async {
+      final (_, container) = await _onTheEmptyWholeHome(
+        tester,
+        contentType: 'audio/webm',
+      );
+
+      expect(container.read(salaSessionProvider).recordsTheWhole, isTrue);
+      expect(container.read(salaSessionProvider).partes, isEmpty);
+      expect(
+        find.text(_backToJoin),
+        findsNothing,
+        reason:
+            'a linha voltava para uma junção que não teria o que juntar: o único '
+            'ensaio da cena não é um WAV',
+      );
+    });
+
+    testWidgets(
+      'leaves «Gravar cena por cena» in place, one tap to the scene rows',
+      (tester) async {
+        final (harness, _) = await _onTheEmptyWholeHome(
+          tester,
+          contentType: 'audio/webm',
+        );
+
+        await _tap(tester, _sceneInstead);
+        await _settles(tester);
+
+        expect(harness.room.grainSwitches.last.grain, Grain.scene);
+        for (final n in [1, 2, 3]) {
+          expect(find.text('Cena $n'), findsOneWidget);
+        }
+      },
+    );
+
+    testWidgets('is not offered while the scene rehearsals could not be read', (
+      tester,
+    ) async {
+      final (harness, container) = await _onTheChoice(tester);
+      harness.room.sceneListsAnswerFirst.add(const NetworkFailed('sem rede'));
+
+      await _tap(tester, _whole);
+      await _settles(tester);
+
+      expect(container.read(salaSessionProvider).recordsTheWhole, isTrue);
+      expect(find.text(_sceneInstead), findsOneWidget);
+      expect(
+        find.text(_backToJoin),
+        findsNothing,
+        reason:
+            'sem a lista dos ensaios a linha aparecia mesmo assim, sem saber se '
+            'havia o que juntar',
+      );
     });
   });
 
