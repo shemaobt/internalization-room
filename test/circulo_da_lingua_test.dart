@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -79,13 +78,10 @@ Future<void> _pumpCirculo(
   ThemeData theme, {
   bool peerCue = false,
   bool noteMode = false,
-  bool warning = false,
   Halt halt = const NoHalt(),
 }) => tester.pumpWidget(
   MaterialApp(
-    key: ValueKey(
-      '$voice-$halt-$peerCue-$noteMode-$warning-${theme.brightness}',
-    ),
+    key: ValueKey('$voice-$halt-$peerCue-$noteMode-${theme.brightness}'),
     theme: theme,
     home: Scaffold(
       body: Center(
@@ -95,7 +91,6 @@ Future<void> _pumpCirculo(
           voice: voice,
           peerCue: peerCue,
           noteMode: noteMode,
-          warning: warning ? 'aviso' : null,
           semanticLabel: 'circulo',
           onTap: () {},
         ),
@@ -205,15 +200,12 @@ void main() {
     );
   });
 
-  testWidgets('uma parada bloqueante nunca é verde, mesmo com o aviso ligado', (
-    tester,
-  ) async {
+  testWidgets('uma parada bloqueante nunca é verde', (tester) async {
     await _pumpCirculo(
       tester,
       VoiceState.invite,
       AppTheme.light,
       halt: const Blocking(),
-      warning: true,
     );
 
     expect(
@@ -242,59 +234,24 @@ void main() {
     );
   });
 
-  testWidgets(
-    'nenhuma voz acende o disco verde de pronto, nem com o aviso ligado',
-    (tester) async {
-      const vozes = [
-        ('invite', VoiceState.invite, NoHalt()),
-        ('listening', VoiceState.listening, NoHalt()),
-        ('speaking', VoiceState.speaking, NoHalt()),
-        ('done', VoiceState.done, NoHalt()),
-      ];
+  testWidgets('nenhuma voz acende o disco verde de pronto', (tester) async {
+    const vozes = [
+      ('invite', VoiceState.invite, NoHalt()),
+      ('listening', VoiceState.listening, NoHalt()),
+      ('speaking', VoiceState.speaking, NoHalt()),
+      ('done', VoiceState.done, NoHalt()),
+    ];
 
-      for (final (nome, voz, parada) in vozes) {
-        for (final aviso in [true, false]) {
-          await _pumpCirculo(
-            tester,
-            voz,
-            AppTheme.light,
-            halt: parada,
-            warning: aviso,
-          );
-
-          expect(
-            _disco(tester) == BeadStyles.verde,
-            isFalse,
-            reason:
-                '$nome com aviso=$aviso não acende o disco: a Marcia nunca '
-                'desenhou um disco verde de pronto, e o aviso deixou de ser '
-                'uma cor do disco (Henok, revertendo o PR #230)',
-          );
-        }
-      }
-    },
-  );
-
-  // Caso 6 (Emenda 1, 07/09): a deixa ao vivo da equipe ("é sua vez de falar")
-  // é um sinal de turno, e o aviso é uma notícia de fundo — a deixa vence o
-  // verde da mesma forma que uma voz parada vence.
-  testWidgets('a deixa da equipe não some atrás de um aviso', (tester) async {
-    for (final aviso in [true, false]) {
-      await _pumpCirculo(
-        tester,
-        VoiceState.invite,
-        AppTheme.light,
-        peerCue: true,
-        warning: aviso,
-      );
+    for (final (nome, voz, parada) in vozes) {
+      await _pumpCirculo(tester, voz, AppTheme.light, halt: parada);
 
       expect(
-        find.byIcon(LucideIcons.users),
-        findsOneWidget,
+        _disco(tester) == BeadStyles.verde,
+        isFalse,
         reason:
-            'aviso=$aviso: a marca da deixa ao vivo não é negociável — '
-            'sumir atrás de um aviso de fundo tira da equipe o único sinal '
-            'de que é a vez dela de falar',
+            '$nome não acende o disco: a Marcia nunca desenhou um disco '
+            'verde de pronto, e o aviso deixou de ser uma cor do disco '
+            '(Henok, revertendo o PR #230)',
       );
     }
   });

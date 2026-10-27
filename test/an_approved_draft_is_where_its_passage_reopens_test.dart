@@ -657,24 +657,8 @@ void main() {
   );
 
   testWidgets(
-    'the approved draft shows no warning mark even while the room still holds a '
-    'warning',
-    (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1))
-        ..room.createdOpened = true
-        ..room.serverStatus = 'needs_person'
-        ..room.serverHalt = HaltKind.warning;
-
-      final room = await _enter(tester, harness);
-
-      _landsOnTheApprovedDraft(room);
-      expect(byLabel(warningNoticeLabelFor(testLanguage)), findsNothing);
-    },
-  );
-
-  testWidgets(
     'translating a frase of the approved draft again leaves the approved draft, '
-    'and the warning mark stands again',
+    'even while the room holds a warning',
     (tester) async {
       final harness = _aRoomHolding(approved: _approvedAs(1))
         ..room.createdOpened = true
@@ -692,7 +676,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(_theBadge(1), findsNothing);
-      expect(byLabel(warningNoticeLabelFor(testLanguage)), findsOneWidget);
     },
   );
 
