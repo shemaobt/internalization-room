@@ -1153,10 +1153,11 @@ void main() {
       await it.swapIn(s2b);
       await it.theHeldTakeArrives();
       it.room
-        ..takeAnswersFirst.add(const NetworkFailed('sem rede'))
+        ..unreachableTake = 'ensaio/parte-2'
         ..finishHeldTake();
       await it.settle();
       await it.relaunchOnTheHome();
+      it.room.unreachableTake = null;
       await it.within(
         const Duration(seconds: 30),
         'a troca chegar à sala',
