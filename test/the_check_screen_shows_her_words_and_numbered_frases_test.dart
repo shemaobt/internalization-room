@@ -565,6 +565,24 @@ void main() {
           'e não havia como recomeçar a tradução',
     );
     expect(find.text('recomeçar a tradução'), findsOneWidget);
+
+    await tocar(tester, 'recomeçar a tradução');
+    await tester.pump(const Duration(milliseconds: 700));
+    await tocar(tester, 'toque de novo para apagar as 2 frases traduzidas');
+    await waitFor(
+      'a tradução recomeçar',
+      () =>
+          harness.room.restartsAsked.isNotEmpty &&
+          container.read(salaSessionProvider).btTrechosRegravados.isEmpty,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      harness.room.restartsAsked,
+      hasLength(1),
+      reason: 'o segundo toque não recomeçava uma tradução sem frase contada',
+    );
+    await tester.pump(const Duration(seconds: 7));
     closeTheRoom(container);
   });
 
