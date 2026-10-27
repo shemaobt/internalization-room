@@ -229,15 +229,22 @@ void main() {
     await waitFor('the Choice to list its entries', () => read().entriesOpen);
     final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
     final before = said();
+    final asked = harness.room.calls.length;
     harness.room.reachable = false;
 
     notifier.openTheEntry(p02);
+    await waitFor(
+      'the room to be asked',
+      () => harness.room.calls.skip(asked).contains('createSession'),
+    );
     await waitFor(
       'the Choice to come back',
       () => read().station is Menu && read().entriesOpen,
     );
     await settle();
+    await settle();
 
+    expect(read().station, isA<Menu>());
     expect(said(), before, reason: 'a volta à Escolha falava uma linha');
     expect(read().needsPerson, isFalse);
     expect(read().voice, VoiceState.invite);
