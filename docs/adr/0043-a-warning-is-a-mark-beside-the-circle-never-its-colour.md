@@ -13,6 +13,15 @@ stands; only the mark beside it goes. The Desk still lists the warning, and the 
 calls nobody over one (ADR 0032). Wherever this record says the warning shows as a mark,
 read that: it shows nowhere on the team's screen.
 
+The same amendment brings the arcs back, superseding the paragraph on the thinking state
+below and ENG-1141's removal: while the voice thinks, the conversation's circle (and the
+Panorama's, drawn on the same canvas in hers) turns her two terracotta arcs, the thick one
+with the clock in 1.6 s and the thin one against it in 2.6 s (`app/globals.css:209-212`, her
+ruling of 16 September, `docs/FRASES-E-ENSAIO-DA-CENA-SPEC.md:271-272`). `ArcPainter` and
+`Spin` return with them. Her check circles carry no arcs while they think
+(`app/globals.css:384`), so ours on the Retro, the Choice and the claim code keep the clay
+breath alone.
+
 ## Context
 
 ADR 0032 (the tablet is silent over a warning) took as its premise that "the circle turns
