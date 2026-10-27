@@ -18,6 +18,7 @@ typedef HandView = ({
   VoiceState voice,
   String? stationSessionId,
   bool atTheTeamsIdleTurn,
+  bool aQuestionRecords,
   HandReply? oldestUnheardReply,
   int? noteOnItsWay,
 });
@@ -134,7 +135,7 @@ class RaisedHand {
   }
 
   void tap() {
-    if (_aQuestionRecords) return cancelQuestion();
+    if (_state.aQuestionRecords) return cancelQuestion();
     if (!_state.atTheTeamsIdleTurn) return;
     if (_state.playingReplyId != null || _state.channel is PartPlaying) {
       host.silenceTheRoom();
@@ -151,13 +152,6 @@ class RaisedHand {
     }
     host.enterNoteMode();
   }
-
-  bool get _aQuestionRecords =>
-      _state.noteMode &&
-      switch (_state.channel) {
-        Microphone(owner: MicOwner.question) => true,
-        _ => false,
-      };
 
   /// The circle's half of a question: it opens the microphone once the hand has armed
   /// the note, and closes and sends it on the touch after that.
