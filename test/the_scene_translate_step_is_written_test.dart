@@ -823,4 +823,32 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
     },
   );
+  testWidgets(
+    'each frase of a sent scene rehearsal draws its bar, the longest across the whole track',
+    (tester) async {
+      await _inListenMode(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-27T10:00:00+00:00',
+            frases: [_frase('f1', 0, 2000), _frase('f2', 2000, 6000)],
+          ),
+        ],
+      );
+      Size bar(int n) => tester.getSize(
+        find.descendant(
+          of: byLabel('frase $n'),
+          matching: find.byType(DecoratedBox),
+        ),
+      );
+
+      expect(
+        bar(2).height,
+        10,
+        reason: 'a barra da frase tinha altura zero e não aparecia',
+      );
+      expect(bar(2).width, 200);
+      expect(bar(1).width, 100);
+    },
+  );
 }

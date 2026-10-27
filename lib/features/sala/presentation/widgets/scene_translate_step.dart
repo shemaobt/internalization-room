@@ -825,6 +825,7 @@ class _FraseBar extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                           child: FractionallySizedBox(
                             widthFactor: share > 0 ? max(0.08, share) : 1,
+                            heightFactor: 1,
                             child: DecoratedBox(
                               decoration: BoxDecoration(
                                 color: colors.vermelhoMic.withValues(
