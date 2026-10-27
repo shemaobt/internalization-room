@@ -264,7 +264,7 @@ class FacilitatorCircle extends StatelessWidget {
               still,
               ArcPainter(
                 side: size * 1.14,
-                stroke: size * 4 / 232,
+                stroke: 4,
                 top: colors.telha,
                 right: colors.telha.withValues(alpha: 0.35),
               ),
@@ -275,7 +275,7 @@ class FacilitatorCircle extends StatelessWidget {
               still,
               ArcPainter(
                 side: size * 1.26,
-                stroke: size * 2 / 232,
+                stroke: 2,
                 bottom: colors.telha.withValues(alpha: 0.55),
               ),
             ),

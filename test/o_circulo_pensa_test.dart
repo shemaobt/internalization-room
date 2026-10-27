@@ -129,6 +129,22 @@ void main() {
   );
 
   testWidgets(
+    'on our 158 circle her arcs keep her 4 px and 2 px strokes, not strokes '
+    'scaled down from her 232',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.thinking, canvas: true);
+
+      expect(
+        [for (final arc in _arcPainters(tester)) arc.stroke],
+        [4, 2],
+        reason:
+            '.r1 e .r2 dela têm borda fixa de 4px e 2px (globals.css:210-211); '
+            'só o inset é proporcional ao círculo',
+      );
+    },
+  );
+
+  testWidgets(
     'a tablet that asks for less motion keeps her arcs standing, a little '
     'faded, instead of turning them',
     (tester) async {
