@@ -20,7 +20,6 @@ const _herWordsTheTeamReads = {
   'lib/features/sala/presentation/widgets/escolha_view.dart',
   'lib/features/sala/presentation/widgets/moment_label.dart',
   'lib/features/sala/presentation/widgets/scene_question.dart',
-  'lib/features/sala/presentation/widgets/scene_rehearsal_view.dart',
   'lib/features/sala/presentation/widgets/frase_list.dart',
   'lib/features/sala/presentation/widgets/grain_choice_view.dart',
   'lib/features/sala/presentation/widgets/retro_view.dart',

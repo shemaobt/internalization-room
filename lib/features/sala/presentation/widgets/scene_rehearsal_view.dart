@@ -14,6 +14,7 @@ import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'scene_question.dart';
 import 'scene_translate_step.dart';
+import 'stage_heading.dart';
 
 /// The scene rehearsal's screen; her words reach the team only through VoiceOver, but on
 /// the translate step, which writes them (ADR 0014).
@@ -49,26 +50,14 @@ class SceneRehearsalView extends ConsumerWidget {
       color: colors.vermelhoMic,
     );
 
-    final title = said('title');
-
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(60, 24, 60, 0),
-          child: Semantics(
-            header: true,
-            label: title,
-            child: ExcludeSemantics(
-              child: Text(
-                title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: colors.ink,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
+        StageHeading(
+          text: said('title'),
+          style: TextStyle(
+            color: colors.ink,
+            fontSize: 26,
+            fontWeight: FontWeight.w500,
           ),
         ),
         Expanded(

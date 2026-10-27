@@ -440,4 +440,26 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
     },
   );
+
+  testWidgets(
+    'at twice the text size «Ensaio da cena» takes the whole width and holds one line, with no «Escolher outra passagem» beside it',
+    (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await _onTheSceneScreen(
+        tester,
+        until: (state) =>
+            state.stage == SalaStage.cena &&
+            state.scene.step == SceneStep.record,
+      );
+
+      expect(
+        tester.getSize(find.text('Ensaio da cena')).height,
+        lessThan(80),
+        reason:
+            'o título ficava preso entre as margens do botão e quebrava em duas linhas',
+      );
+      expect(byLabel('Escolher outra passagem'), findsNothing);
+    },
+  );
 }
