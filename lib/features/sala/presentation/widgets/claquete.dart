@@ -80,7 +80,7 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
               right: 0,
               child: Center(child: ShemaMark(onTap: _show)),
             ),
-          if (words != null)
+          if (inConversa && words != null)
             Positioned(
               left: 14 + 76 + 8,
               right: 14 + 76 + 8,
