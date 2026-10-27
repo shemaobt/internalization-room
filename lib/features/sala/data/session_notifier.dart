@@ -8211,6 +8211,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btOuvidoMs: _pontoNoColar(0),
       btParteNoArMs: 0,
       btOuvidoAlemDoCursor: false,
+      clearBtRecusa: state.btRecusa == CheckRefusal.checkUnavailable,
     );
     _parteJaTocou = true;
     // The deadline is armed once this clip's own `openings` event lands, never here:
@@ -8219,7 +8220,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _play(
       PartSound(parte, state.partes[parte].path, from: de),
       onComplete: () => _fimDeParte(seguir: seguir),
+      onFailed: _aParteNaoTocou,
     );
+  }
+
+  void _aParteNaoTocou() {
+    if (!state.btSoOuvir) return;
+    state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
   }
 
   void _fimDeParte({required bool seguir}) {
@@ -11160,6 +11167,7 @@ class _HandHost implements HandHost {
       voice: state.voice,
       stationSessionId: state.stationSessionId,
       atTheTeamsIdleTurn: state.atTheTeamsIdleTurn,
+      aQuestionRecords: state.aQuestionRecords,
       oldestUnheardReply: state.oldestUnheardReply,
       noteOnItsWay: state.noteOnItsWay,
     );

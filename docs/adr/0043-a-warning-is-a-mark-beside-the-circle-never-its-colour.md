@@ -1,9 +1,26 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1831
 date: 2026-09-25
 ---
 
 # A warning is a mark beside the circle, never its colour
+
+Amended by ENG-1831 (2026-10-27, João's rule of 26 October: Marcia's frozen app 18fa7c4 wins):
+the mark is gone too. Her team screen shows nothing for a warning (`app/page.tsx:996-1062`),
+and her design says a moment for a person is "never an error, never alarm"
+(`docs/design.md:72`). The disc still never takes the verde, so this record's first rule
+stands; only the mark beside it goes. The Desk still lists the warning, and the tablet still
+calls nobody over one (ADR 0032). Wherever this record says the warning shows as a mark,
+read that: it shows nowhere on the team's screen.
+
+The same amendment brings the arcs back, superseding the paragraph on the thinking state
+below and ENG-1141's removal: while the voice thinks, the conversation's circle (and the
+Panorama's, drawn on the same canvas in hers) turns her two terracotta arcs, the thick one
+with the clock in 1.6 s and the thin one against it in 2.6 s (`app/globals.css:209-212`, her
+ruling of 16 September, `docs/FRASES-E-ENSAIO-DA-CENA-SPEC.md:271-272`). `ArcPainter` and
+`Spin` return with them. Her check circles carry no arcs while they think
+(`app/globals.css:384`), so ours on the Retro, the Choice and the claim code keep the clay
+breath alone.
 
 ## Context
 

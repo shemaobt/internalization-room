@@ -1201,10 +1201,12 @@ const _watch = ArmTheWatch();
   TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
     (machine, const [ReadTheSceneRehearsals()]),
   TheSceneDoorFailed() => (machine, const []),
-  TheSceneDiskFailed() when machine.station is SceneRehearsal => (
-    machine,
-    const [TellTheDiskFailed()],
-  ),
+  TheSceneDiskFailed()
+      when switch (machine.station) {
+        SceneRehearsal() || Ensaio(step: EnsaioStep.plan) => true,
+        _ => false,
+      } =>
+    (machine, const [TellTheDiskFailed()]),
   TheSceneDiskFailed() => (machine, const []),
   TheSceneRehearsalsListed(:final listed)
       when machine.station is SceneRehearsal =>
