@@ -404,4 +404,40 @@ void main() {
       expect(line.right, lessThanOrEqualTo(420 - 16));
     },
   );
+
+  testWidgets(
+    'while «terminei» is in the air on places unknown, «enviando…», «recomeçar» and «gravar de novo» are written and dimmed',
+    (tester) async {
+      final (harness, _) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      const sending = 'enviando a tradução do ensaio da cena para a voz…';
+      const restart = 'recomeçar a tradução';
+      const again = 'gravar o ensaio da cena de novo';
+      bool? enabled(String words) =>
+          tester.widget<Semantics>(byLabel(words)).properties.enabled;
+      expect(enabled(restart), isTrue);
+      expect(enabled(again), isTrue);
+      harness.room.holdNextTurn();
+
+      await tester.tap(find.text('terminei'));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text(sending), findsOneWidget);
+      expect(find.text('terminei'), findsNothing);
+      expect(
+        enabled(sending),
+        isFalse,
+        reason: 'o terminei aceitava outro toque',
+      );
+      expect(enabled(restart), isFalse);
+      expect(enabled(again), isFalse);
+      harness.room.finishHeldTurn();
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
 }
