@@ -1087,6 +1087,13 @@ class SalaSessionState {
 
   String? get stationSessionId => machine.stationSession;
 
+  bool get aQuestionRecords =>
+      noteMode &&
+      switch (channel) {
+        Microphone(owner: MicOwner.question) => true,
+        _ => false,
+      };
+
   bool get anArmedKnotLapsed =>
       noteMode &&
       !atTheTeamsIdleTurn &&

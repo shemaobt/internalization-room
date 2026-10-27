@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
@@ -11,6 +12,7 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'a_scene_room.dart';
@@ -97,6 +99,20 @@ void main() {
 
       expect(find.text(_saveFailed), findsOneWidget);
       expect(find.text(_retry), findsOneWidget);
+      expect(
+        tester
+            .widgetList<Text>(
+              find.descendant(
+                of: find.byType(SceneRehearsalView),
+                matching: find.byType(Text),
+              ),
+            )
+            .map((text) => text.data),
+        ['Ensaio da cena', _saveFailed, _retry],
+        reason:
+            'só o título e o estado da gravação são escritos (ADR 0131); o '
+            'resto é só do VoiceOver',
+      );
     },
   );
 

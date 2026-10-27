@@ -6,12 +6,16 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'facilitator_circle.dart';
 import 'kept_retelling_buttons.dart';
+import 'mic_clock.dart';
 import 'moment_label.dart';
 import 'motion.dart';
+
+const _circleSize = 158.0;
 
 class ConversaView extends ConsumerWidget {
   const ConversaView({super.key});
@@ -29,16 +33,18 @@ class ConversaView extends ConsumerWidget {
       children: [
         Center(
           child: FacilitatorCircle(
-            size: 158,
+            size: _circleSize,
             halt: session.halt,
             voice: session.voice,
             noteMode: session.noteMode,
             peerCue: session.peerCue,
-            warning: session.warning ? warningNoticeLabelFor(language) : null,
+            canvas: true,
             semanticLabel: _circleLabel(session, language),
             onTap: notifier.conversaTap,
           ),
         ),
+        if (session.channel case Microphone(owner: MicOwner.conversation))
+          const MicClock(circleSize: _circleSize),
         if (session.partsToReplay.isNotEmpty)
           KeptRetellingButtons(
             parts: session.partsToReplay,

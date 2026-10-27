@@ -130,9 +130,6 @@ class RetroView extends ConsumerWidget {
               answersATouch:
                   session.aBackTranslationGestureActs &&
                   (!conferida || session.btRegravacao != null),
-              warning: session.warning && session.approvedDraftDrawn == null
-                  ? warningNoticeLabelFor(language)
-                  : null,
               notUnderstood: session.wordlessTelling
                   ? retroLabelFor('notUnderstood', language)
                   : null,
@@ -220,7 +217,8 @@ class RetroView extends ConsumerWidget {
               language: language,
             ),
             if (!session.btSoOuvir &&
-                session.btTrechos.any((trecho) => trecho.contado)) ...[
+                (session.btTrechos.any((trecho) => trecho.contado) ||
+                    session.btTrechosRegravados.isNotEmpty)) ...[
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -276,6 +274,12 @@ class RetroView extends ConsumerWidget {
             (trecho.to - trecho.from).inMicroseconds / maior.inMicroseconds,
           )
         : 1;
+    int? parteDe(Trecho trecho) =>
+        trecho.parte < 0 ||
+            session.partes.elementAtOrNull(trecho.parte)?.scopeId ==
+                KeptScope.whole
+        ? null
+        : trecho.parte + 1;
     final regravadas = [
       for (final (_, trecho)
           in [...session.btTrechosRegravados.indexed]..sort(
@@ -285,7 +289,7 @@ class RetroView extends ConsumerWidget {
           ))
         FraseRow(
           n: null,
-          parte: trecho.parte >= 0 ? trecho.parte + 1 : null,
+          parte: parteDe(trecho),
           share: share(trecho),
           onHear: null,
           mark: retroLabelFor('stale', language),
@@ -295,7 +299,7 @@ class RetroView extends ConsumerWidget {
       for (final (onde, trecho) in contadas)
         FraseRow(
           n: trecho.frase,
-          parte: trecho.parte >= 0 ? trecho.parte + 1 : null,
+          parte: parteDe(trecho),
           share: share(trecho),
           onHear:
               session.canHearAFrase &&
@@ -408,7 +412,9 @@ class RetroView extends ConsumerWidget {
         : retroLabelFor(
             session.joined ? 'restartArmedJoined' : 'restartArmed',
             language,
-            n: session.btTrechos.where((trecho) => trecho.contado).length,
+            n:
+                session.btTrechos.where((trecho) => trecho.contado).length +
+                session.btTrechosRegravados.length,
           );
     final dormindo =
         _dormindo('restart', session) || !session.aBackTranslationGestureActs;

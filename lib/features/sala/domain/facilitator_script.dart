@@ -65,14 +65,6 @@ const circleLabels = {
 String circleLabelFor(String state, String language) =>
     circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
 
-const warningNoticeLabel = {
-  'pt': 'Um aviso pede que alguém venha olhar',
-  'en': 'A warning is asking someone to come watch',
-};
-
-String warningNoticeLabelFor(String language) =>
-    warningNoticeLabel[language] ?? warningNoticeLabel[floorLanguage]!;
-
 const handLabels = {
   'hearTheAnswer': {
     'pt': 'Ouvir a resposta do facilitador',
