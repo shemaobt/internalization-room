@@ -108,9 +108,9 @@ void main() {
   testWidgets('gravando a tradução, o círculo é azul', (tester) async {
     final (container, _) = await pumpToPergunta(tester);
 
-    await tester.tap(byLabel('Traduzir este trecho de novo'));
+    traduzirOApontadoDeNovo(container);
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(byLabel('Tocar para gravar a tradução de novo'));
+    container.read(salaSessionProvider.notifier).retroTap();
     await tester.pump(const Duration(milliseconds: 300));
 
     final estado = container.read(salaSessionProvider);

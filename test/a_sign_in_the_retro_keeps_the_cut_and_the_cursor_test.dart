@@ -413,17 +413,15 @@ void main() {
       () => read().canFinishBackTranslation,
     );
     await notifier.finishBackTranslation();
-    await waitFor(
-      'o veredito chegar',
-      () => read().btPhase == BtPhase.findings,
-    );
+    await waitFor('o veredito chegar', () => read().btPhase == BtPhase.playing);
 
-    notifier.traduzirDeNovoEmPortugues();
+    notifier.traduzirAFraseDeNovo(
+      read().btTrechos.indexOf(read().btFindingTrecho!),
+    );
     await waitFor(
       'o trecho ficar armado para retraduzir',
       () => read().btPhase == BtPhase.playing,
     );
-    notifier.ouvirGravacao();
     await waitFor(
       'o trecho apontado tocar',
       () => read().btTrechoTocando || read().btRetroTocando,

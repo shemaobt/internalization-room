@@ -6,8 +6,6 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'a_pergunta_da_grade.dart' show pumpToPergunta;
@@ -15,35 +13,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart';
 
 const continuarOEnsaioLabel = 'Continuar o ensaio';
-const ouvirOTrechoLabel = 'Ouvir o trecho e a tradução';
 const micParteLabel = 'voltar e regravar uma parte';
-const micRetroLabel = 'Traduzir este trecho de novo';
-const gravarDeNovoLabel = 'Tocar para gravar a tradução de novo';
-
-/// Every button on the finding the team can put a finger on, in the order they are drawn.
-///
-/// Read off the buttons rather than off a list of labels this test also writes: what is
-/// being held is that the screen offers these and nothing else, and a reading that only
-/// looked for the ones it expected could not see a fourth.
-List<String> botoesDoAchado(WidgetTester tester) {
-  final daLista = tester
-      .widgetList<RoundActionButton>(
-        find.descendant(
-          of: find.byType(FraseList),
-          matching: find.byType(RoundActionButton),
-        ),
-      )
-      .toSet();
-  return [
-    for (final botao in tester.widgetList<RoundActionButton>(
-      find.descendant(
-        of: find.byType(RetroView),
-        matching: find.byType(RoundActionButton),
-      ),
-    ))
-      if (!daLista.contains(botao)) botao.semanticLabel,
-  ];
-}
 
 /// A team that recorded the rehearsal in three parts and told every one of them back
 /// whole, standing on the verdict's answer.
@@ -89,16 +59,6 @@ Future<ProviderContainer> aPerguntaSobreAParteDois(
   return container;
 }
 
-/// Let whatever is sounding reach its end, so the ceiling watching it is spent rather
-/// than left running past the widget tree it belongs to.
-Future<void> deixarOArSilenciar(
-  WidgetTester tester,
-  SalaHarness harness,
-) async {
-  harness.playback.finishPlayback();
-  await tester.pump(const Duration(milliseconds: 300));
-}
-
 /// The gradient of the disc at the centre of the circle: the one drawing that carries one.
 Gradient? discoDoCirculo(WidgetTester tester) {
   final pintados = tester
@@ -140,35 +100,6 @@ bool mesmoTom(Color uma, Color outra) =>
     uma.r == outra.r && uma.g == outra.g && uma.b == outra.b;
 
 void main() {
-  testWidgets('o achado oferece o play e os dois microfones, e nada mais', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    await aPerguntaSobreAParteDois(tester, harness);
-
-    await tester.tap(byLabel(ouvirOTrechoLabel));
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(
-      botoesDoAchado(tester),
-      [ouvirOTrechoLabel, micParteLabel, micRetroLabel],
-      reason:
-          'a pergunta é entre duas vozes: ouvir as duas e pedir a uma delas '
-          'que fale de novo. A tesoura, os dois tocadores e a seta de '
-          'recomeçar saíram da tela',
-    );
-    expect(
-      botoesDoAchado(tester),
-      hasLength(3),
-      reason:
-          'contado, e não só listado: um alvo repetido é um dedo que cai '
-          'no lugar errado, e o conjunto acima não o veria',
-    );
-
-    await deixarOArSilenciar(tester, harness);
-    await deixarOArSilenciar(tester, harness);
-  });
-
   testWidgets('o microfone azul leva à tradução e o check manda o replace', (
     tester,
   ) async {
@@ -181,16 +112,16 @@ void main() {
           '${trecho.segmentId}:${trecho.from.inMilliseconds}-${trecho.to.inMilliseconds}',
     ];
 
-    await tester.tap(byLabel(micRetroLabel));
+    traduzirOApontadoDeNovo(container);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
       container.read(salaSessionProvider).btPhase,
       BtPhase.playing,
-      reason: 'o microfone azul leva à tradução, sem abrir captura nenhuma',
+      reason: 'a barra da frase leva à tradução, sem abrir captura nenhuma',
     );
 
-    await tester.tap(byLabel(gravarDeNovoLabel));
+    container.read(salaSessionProvider.notifier).retroTap();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(byLabel('Tocar ao terminar'));
     await tester.pump(const Duration(milliseconds: 300));
@@ -226,6 +157,7 @@ void main() {
       final antes = container.read(salaSessionProvider).partes;
       expect(antes, hasLength(3));
 
+      await tester.ensureVisible(byLabel(micParteLabel));
       await tester.tap(byLabel(micParteLabel));
       await tester.pump(const Duration(milliseconds: 400));
 
@@ -330,7 +262,7 @@ void main() {
     harness.room.takesKept.clear();
     harness.playback.measurements.clear();
 
-    await tester.tap(byLabel(micRetroLabel));
+    traduzirOApontadoDeNovo(container);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.retro);
@@ -358,9 +290,9 @@ void main() {
           'estação que saiu',
     );
 
-    await tester.tap(byLabel(micRetroLabel));
+    traduzirOApontadoDeNovo(container);
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(byLabel(gravarDeNovoLabel));
+    container.read(salaSessionProvider.notifier).retroTap();
     await tester.pump(const Duration(milliseconds: 300));
     expect(
       container.read(salaSessionProvider).voice,

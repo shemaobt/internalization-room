@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -129,6 +130,66 @@ double _opacityOf(Finder what) => find
 
 bool _hitTestable(String label) =>
     byLabel(label).hitTestable().evaluate().isNotEmpty;
+
+Future<void> _speakAgain(_Sala sala) async {
+  final sent = sala.harness.room.turnsSent;
+  await sala.tester.tap(find.byType(FacilitatorCircle));
+  await _until(
+    sala,
+    'the microphone to open',
+    () => _read(sala).voice == VoiceState.listening,
+  );
+  await sala.tester.tap(find.byType(FacilitatorCircle));
+  await _until(
+    sala,
+    'the take to go out',
+    () => sala.harness.room.turnsSent == sent + 1,
+  );
+}
+
+List<String?> _wordsOnScreen(WidgetTester tester) => tester
+    .widgetList<Text>(find.byType(Text))
+    .map((text) => text.data ?? text.textSpan?.toPlainText())
+    .toList();
+
+const _everyRefusalThatKeepsTheConversation = <RoomFailure>[
+  NetworkFailed('HTTP 502'),
+  Refused('TURN_COLLISION'),
+  Refused('PIPELINE_REFUSED'),
+  Refused('A_CODE_THIS_BUILD_DOES_NOT_KNOW'),
+  Refused(RefusalCode.unauthorized),
+  Refused(RefusalCode.forbidden),
+  Refused(RefusalCode.deviceRevoked),
+  Refused(RefusalCode.notFound),
+  Refused(RefusalCode.stretchNoLongerCounts),
+  Refused(RefusalCode.unreadable),
+  Refused(RefusalCode.credentialNotYet),
+  Refused(RefusalCode.credentialTaken),
+  Refused(RefusalCode.nobodyToReach),
+  Refused(RefusalCode.idempotencyKeyInFlight),
+  Refused(RefusalCode.passageClosed),
+  Refused(RefusalCode.wordlessTelling),
+  Refused(RefusalCode.sceneRehearsalSent),
+  Refused(RefusalCode.restartOutOfOrder),
+  Refused(RefusalCode.tooLarge),
+  Refused(RefusalCode.unknownReference),
+  Refused(RefusalCode.takeFingerprintDiffers),
+  Refused(RefusalCode.takeMoved),
+  Refused(RefusalCode.sceneRehearsalSending),
+  Refused(RefusalCode.fraseOutOfPlace),
+  Refused(RefusalCode.pauseOnlyOnTheLastFrase),
+  Refused(RefusalCode.pausePastTheEnd),
+  Refused(RefusalCode.pauseCannotStandThere),
+  Refused(RefusalCode.sentenceTooLong),
+  Refused(RefusalCode.sentenceTooShort),
+  Refused(RefusalCode.sentenceFormatDiffers),
+  Refused(RefusalCode.anotherSentenceAwaits),
+  Refused(RefusalCode.partNotWav),
+  Refused(RefusalCode.sentenceIdReused),
+  Refused(RefusalCode.nothingToBringBack),
+  Refused(RefusalCode.draftApproved),
+  Refused(RefusalCode.draftNotApproved),
+];
 
 void main() {
   testWidgets(
@@ -328,6 +389,120 @@ void main() {
 
       expect(_labelsHeard(tester), isNot(contains(label)));
       heard.dispose();
+      closeTheRoom(sala.container);
+    },
+  );
+
+  testWidgets(
+    'an outage clears by a tap to the circle at rest with «Ouvir de novo» lit, and the next take goes out as a turn of its own',
+    (tester) async {
+      final sala = await _atRestInTheConversation(tester);
+      sala.harness.room.failTurnsWith = const NetworkFailed('HTTP 502');
+      await _speak(sala);
+      await _until(sala, 'the person sign', () => _read(sala).needsPerson);
+      await _pass(sala, 20);
+      final lostTurn = sala.harness.room.turnIdsSent.last;
+      sala.harness.room.failTurnsWith = null;
+
+      await _tapACorner(sala);
+
+      expect(_read(sala).needsPerson, isFalse);
+      expect(_hitTestable(_hearAgain), isTrue);
+
+      await _speakAgain(sala);
+      await _until(sala, 'the new reply to play', () => _replies(sala) == 2);
+
+      expect(_replies(sala), 2);
+      expect(sala.harness.room.turnIdsSent.last, isNot(lostTurn));
+      expect(
+        sala.harness.room.turnIdsSent.where((id) => id == lostTurn),
+        hasLength(1),
+        reason: 'a fala perdida na queda voltava a ser mandada atrás da equipe',
+      );
+      closeTheRoom(sala.container);
+    },
+  );
+
+  testWidgets(
+    'three outages in a row each end in the same wordless sign, and nothing but the acknowledgement is said',
+    (tester) async {
+      final sala = await _atRestInTheConversation(tester);
+      final voice = sala.harness.voice;
+      final linesBefore = voice.fixedLines.length;
+      final playedBefore = voice.played.length;
+      final assetsBefore = voice.assets.length;
+      sala.harness.room.failTurnsWith = const NetworkFailed('HTTP 502');
+
+      for (var outage = 0; outage < 3; outage++) {
+        await _speakAgain(sala);
+        await _until(sala, 'the person sign', () => _read(sala).needsPerson);
+        await _pass(sala, 20);
+
+        expect(byLabel(_theSign), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(PersonSign),
+            matching: find.byType(Text),
+          ),
+          findsNothing,
+        );
+        await _tapACorner(sala);
+      }
+
+      expect(
+        voice.fixedLines.skip(linesBefore).map((line) => line.$1),
+        [isIn(instantAckLines), isIn(instantAckLines), isIn(instantAckLines)],
+        reason:
+            'a terceira queda seguida trazia a pausa ou a fala de sem conexão',
+      );
+      expect(voice.played.skip(playedBefore), isEmpty);
+      expect(voice.assets.skip(assetsBefore), isEmpty);
+      closeTheRoom(sala.container);
+    },
+  );
+
+  for (final refusal in _everyRefusalThatKeepsTheConversation) {
+    testWidgets('a turn refused with $refusal writes no word on the screen', (
+      tester,
+    ) async {
+      final sala = await _atRestInTheConversation(tester);
+      final written = _wordsOnScreen(tester);
+      sala.harness.room.failTurnsWith = refusal;
+
+      await _speakAgain(sala);
+      await _pass(sala, 40);
+
+      expect(
+        _wordsOnScreen(tester),
+        written,
+        reason: 'uma recusa do servidor chegava à tela da equipe como palavra',
+      );
+      closeTheRoom(sala.container);
+    });
+  }
+
+  testWidgets(
+    'a turn refused because the passage cannot open lands on the Choice, with no word of a failure',
+    (tester) async {
+      final sala = await _atRestInTheConversation(tester);
+      sala.harness.room.failTurnsWith = const Refused(
+        RefusalCode.passageCannotOpen,
+      );
+
+      await _speakAgain(sala);
+      await _until(
+        sala,
+        'the Choice',
+        () => _read(sala).stage == SalaStage.escolha,
+      );
+      await _pass(sala, 20);
+
+      expect(_wordsOnScreen(tester), contains('Escolha a passagem'));
+      expect(
+        _wordsOnScreen(tester),
+        isNot(contains(_theSign)),
+        reason: 'a recusa escrevia na tela o pedido de uma pessoa',
+      );
       closeTheRoom(sala.container);
     },
   );

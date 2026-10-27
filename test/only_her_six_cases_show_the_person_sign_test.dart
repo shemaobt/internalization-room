@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:fake_async/fake_async.dart';
@@ -6,8 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
+import 'package:internalization_room/features/sala/data/room_client.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
@@ -163,7 +166,7 @@ Future<_Room> _aResumedBackTranslation(SalaHarness harness) async {
   await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a tradução retomada pôr a parte no ar',
-    () => room.state.stage == SalaStage.retro,
+    () => room.state.stage == SalaStage.retro && harness.playback.sounding,
   );
   return room;
 }
@@ -226,6 +229,17 @@ Future<_Room> _aPassageToResume(SalaHarness harness) async {
   await waitFor('a Escolha abrir', () => room.state.entriesOpen);
   return room;
 }
+
+final _theCanonIsGone = RoomClient.classify(
+  409,
+  utf8.encode(
+    jsonEncode({
+      'detail': 'no kept canon for pin 2026-10-01',
+      'code': 'CANON_NOT_KEPT',
+    }),
+  ),
+  asksForTheSession: true,
+)!;
 
 void main() {
   test('the voice\'s service down: the acknowledgement plays, then the person '
@@ -716,6 +730,68 @@ void main() {
     }
   });
 
+  test('a resume whose canon is gone goes back to the passage menu with no '
+      'sign, no sound and no call', () async {
+    final harness = SalaHarness();
+    final room = await _aPassageToResume(harness);
+    final reads = room.asked('fetchState');
+    final played = harness.voice.played.length;
+    final fixedLines = harness.voice.fixedLines.length;
+    final assets = harness.voice.assets.length;
+    harness.room.failStateOnceWith = _theCanonIsGone;
+
+    await enterThePassage(room.sala, () => room.state, 'P01');
+    await waitFor(
+      'a leitura da retomada falhar',
+      () => room.asked('fetchState') > reads,
+    );
+    await waitFor(
+      'a Escolha voltar',
+      () => room.state.stage == SalaStage.escolha && room.state.entriesOpen,
+    );
+    await settle();
+
+    expect(
+      room.state.needsPerson,
+      isFalse,
+      reason: 'uma sessão sem cânone na retomada não é um dos casos dela',
+    );
+    expect(harness.voice.played.skip(played), isEmpty);
+    expect(harness.voice.fixedLines.skip(fixedLines), isEmpty);
+    expect(harness.voice.assets.skip(assets), isEmpty);
+    expect(harness.room.personsAsked, 0);
+  });
+
+  test('two resumes in a row whose canon is gone keep the stored passage, '
+      'counted on no strike', () async {
+    final harness = SalaHarness();
+    final room = await _aPassageToResume(harness);
+    final stored = harness.emAberto.rows['Ruth/P01/pt']?.sessionId;
+    for (var tap = 0; tap < 2; tap++) {
+      final reads = room.asked('fetchState');
+      harness.room.failStateOnceWith = _theCanonIsGone;
+      await enterThePassage(room.sala, () => room.state, 'P01');
+      await waitFor(
+        'a leitura da retomada falhar',
+        () => room.asked('fetchState') > reads,
+      );
+      await waitFor(
+        'a Escolha voltar',
+        () => room.state.stage == SalaStage.escolha && room.state.entriesOpen,
+      );
+    }
+    await settle();
+
+    expect(stored, isNotNull);
+    expect(
+      harness.emAberto.rows['Ruth/P01/pt']?.sessionId,
+      stored,
+      reason:
+          'duas leituras recusadas pelo cânone perdido esqueciam a passagem '
+          'guardada, como se a equipe tivesse falhado duas vezes',
+    );
+  });
+
   test('a resume that lands clears the count of failed resumes, so only '
       'consecutive failures forget the passage', () async {
     final harness = SalaHarness();
@@ -999,6 +1075,38 @@ void main() {
 
       expect(room.state.needsPerson, isFalse);
       expect(room.state.canFinishBackTranslation, isTrue);
+    });
+
+    test('on a session whose canon is gone says her «não deu para conferir '
+        'agora», with no sign, no sound and nothing sent again', () async {
+      final harness = SalaHarness();
+      final room = await _aCheckedPassage(harness);
+      final played = harness.voice.played.length;
+      final fixedLines = harness.voice.fixedLines.length;
+      final assets = harness.voice.assets.length;
+      harness.room.failReleaseWith = _theCanonIsGone;
+
+      await room.sala.aprovarRascunhoFinal();
+      await settle();
+      await settle();
+
+      expect(
+        room.state.btRecusa,
+        CheckRefusal.checkUnavailable,
+        reason:
+            'para qualquer outra recusa da aprovação o app dela mostra «não '
+            'deu para conferir agora — tentem de novo»',
+      );
+      expect(room.state.needsPerson, isFalse);
+      expect(harness.voice.played.skip(played), isEmpty);
+      expect(harness.voice.fixedLines.skip(fixedLines), isEmpty);
+      expect(harness.voice.assets.skip(assets), isEmpty);
+      expect(harness.room.personsAsked, 0);
+      expect(
+        harness.room.releasesAsked,
+        hasLength(1),
+        reason: 'só o toque da equipe pede a aprovação; nada a repete sozinho',
+      );
     });
   });
 

@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (amended by 0136)
 date: 2026-10-22
 amends: 0030 (in part: the approval's landing now shows a text), 0014 (her Saved screen is a named exception)
 ---

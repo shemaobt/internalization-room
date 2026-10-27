@@ -4,7 +4,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show settle, traduzirOApontadoDeNovo;
 
 /// Record one rehearsal part and wait for the room to have named it.
 Future<void> _gravaParte(
@@ -55,7 +55,7 @@ Future<void> traduzirDeNovoOApontado(
   ProviderContainer container,
   SalaSessionNotifier notifier,
 ) async {
-  notifier.traduzirDeNovoEmPortugues();
+  traduzirOApontadoDeNovo(container);
   notifier.retroTap();
   await waitFor(
     'o microfone abrir no trecho apontado',
@@ -97,7 +97,7 @@ Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
   await waitFor(
     'o achado apontar o primeiro trecho',
     () =>
-        container.read(salaSessionProvider).btPhase == BtPhase.findings &&
+        container.read(salaSessionProvider).btPhase == BtPhase.playing &&
         container.read(salaSessionProvider).btFindingTrecho != null,
   );
 
@@ -118,7 +118,7 @@ Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
   await waitFor(
     'o achado apontar o segundo trecho',
     () =>
-        container.read(salaSessionProvider).btPhase == BtPhase.findings &&
+        container.read(salaSessionProvider).btPhase == BtPhase.playing &&
         container.read(salaSessionProvider).btFindingTrecho != null,
   );
   return container;
@@ -149,7 +149,7 @@ void main() {
     final container = await achadoComAvisoAtivo(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.traduzirDeNovoEmPortugues();
+    traduzirOApontadoDeNovo(container);
     notifier.retroTap();
 
     expect(
@@ -233,7 +233,7 @@ void main() {
       final pedidosAntes = harness.room.replacesAsked.length;
       final pedacosAntes = harness.room.chunksSent;
 
-      notifier.traduzirDeNovoEmPortugues();
+      traduzirOApontadoDeNovo(container);
       harness.recorder.holdNextStart();
       notifier.retroTap();
       await settle();

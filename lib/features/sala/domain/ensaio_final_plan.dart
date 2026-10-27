@@ -33,6 +33,14 @@ final class PlanAwaited extends EnsaioFinalPlan {
   const PlanAwaited();
 }
 
+/// The plan cannot stand and no grain is in force: «Como vocês querem gravar?», under her
+/// line when the rehearsals sit in the other language's session.
+final class GrainAsked extends EnsaioFinalPlan {
+  final bool elsewhere;
+
+  const GrainAsked({required this.elsewhere});
+}
+
 /// Every session's scene rehearsals of the passage, each naming its own, and its scenes.
 final class PlanRead extends EnsaioFinalPlan {
   final List<SceneRehearsalRecord> rehearsals;
@@ -225,16 +233,19 @@ bool rehearsalsElsewhere(List<SceneRehearsalRecord> listed, String sessionId) =>
     listed.any((r) => r.sessionId != sessionId && !r.unsent);
 
 /// Her `canJoin`: some scene has a joinable rehearsal chosen, or is already joined.
-bool canJoin(List<PlanRow> rows) =>
-    rows.any((row) => row.joined || row.chosen != null);
+bool canJoin(List<PlanRow> rows, {Set<int> held = const {}}) => rows.any(
+  (row) => row.joined || (row.chosen != null && !held.contains(row.number)),
+);
 
 /// Her `joinQueue`: what «juntar» does, in passage order — the joined part still on its
 /// way watched to its landing, and each scene with no part whose chosen rehearsal is
 /// Joinable joined.
-List<JoinStep> joinQueue(List<PlanRow> rows) => [
+List<JoinStep> joinQueue(List<PlanRow> rows, {Set<int> held = const {}}) => [
   for (final row in rows)
     if (row.chosen case final rehearsal?
-        when !row.joined && (row.waiting || rehearsal.joinable))
+        when !row.joined &&
+            !held.contains(row.number) &&
+            (row.waiting || rehearsal.joinable))
       (number: row.number, rehearsal: rehearsal, waiting: row.waiting),
 ];
 
@@ -242,7 +253,40 @@ List<JoinStep> joinQueue(List<PlanRow> rows) => [
 bool stillToJoin(
   PlanRead read,
   String sessionId,
-  Map<String, String> choices,
-) => joinQueue(
+  Map<String, String> choices, {
+  Set<int> held = const {},
+}) => joinQueue(
   planRowsOf(read, sessionId, choices),
+  held: held,
 ).any((step) => !step.waiting);
+
+/// What a Scene row of the recording home offers after a join: «trocar o ensaio desta
+/// cena» over a joined part, «usar o ensaio desta cena» where no joined part stands, and
+/// the rehearsal in use; neither while the row's take is unsent.
+typedef HomeRow = ({bool swap, bool useScene, String? inUse});
+
+/// Her `homeRow`, from the row's plan candidates, its part's origin, and whether its take
+/// is still unsent.
+HomeRow homeRowOf(
+  PlanRead read,
+  PlanRow? plan, {
+  required String? origin,
+  required bool held,
+}) {
+  final joinable = (plan?.candidates ?? const []).where((c) => c.joinable);
+  final inUse = read.rehearsals.any((r) => r.rehearsalId == origin)
+      ? origin
+      : null;
+  return (
+    swap:
+        !held && origin != null && joinable.any((c) => c.rehearsalId != origin),
+    useScene: !held && origin == null && joinable.isNotEmpty,
+    inUse: inUse,
+  );
+}
+
+bool offersToSwapIn(HomeRow home, SceneRehearsalRecord rehearsal) =>
+    rehearsal.joinable && rehearsal.rehearsalId != home.inUse;
+
+String swapControl(String sceneId, SceneRehearsalRecord rehearsal) =>
+    'swap:$sceneId:${rehearsal.n}';

@@ -110,7 +110,7 @@ What the room hears or sounds at one moment: silence, an open microphone and who
 _Avoid_: audio state, voice (the Circle's colour), player
 
 **Microphone owner**:
-Whose open microphone the Channel holds: the conversation's, the rehearsal's, the capture's, the question's, the scene rehearsal's or a scene frase's. The circle's words follow it.
+Whose open microphone the Channel holds: the conversation's, the rehearsal's, the capture's, the question's, the scene rehearsal's, a scene frase's or an outside listener's. The circle's words follow it.
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
 **Microphone answer**:
@@ -239,7 +239,7 @@ What the team heard of each part of its rehearsal, kept one part at a time, in t
 _Avoid_: `_ouvido`, registro de escuta, played ranges, the concatenated passage, the rehearsal's whole length
 
 **First listen** (*Primeiro, só ouvir*):
-On a Joined recording, the Back-translation's listen-only step: her line N0, then every part from its beginning, one after another, with nothing to do but listen. The circle and «terminei» are closed and the bars and frases cannot be tapped; one control pauses and resumes. It runs whenever the room counts every part unheard; with some part already heard, her P2 and only the unheard parts play the same way. Translating opens only once the room counts every part heard, and the room's answer to that last report says what follows (ADR 0123).
+The Back-translation's listen-only step: her line, then every part from its beginning, one after another, with nothing to do but listen. On a Joined recording the line is N0; on a recording no join touched it is P0, and the whole recording always plays. The circle and «terminei» are closed and the bars and frases cannot be tapped; one control pauses and resumes. It runs whenever the room counts every part unheard; on a Joined recording with some part already heard, her P2 and only the unheard parts play the same way. Translating opens only once the room counts every part heard, and the room's answer to that last report says what follows; on a recording no join touched that is always P1 and the recording again from its first part (ADR 0123).
 _Avoid_: escuta inicial, preview, playthrough, «Ouvir tudo» (the Rehearsal's own play)
 
 **Ruler**:
@@ -333,7 +333,7 @@ The scene rehearsal's wordless picture of its take while translating. The loudne
 _Avoid_: waveform, timeline, ruler (the Ensaio's)
 
 **Scene row**:
-One row of the Rehearsal per Scene of the passage, in passage order, reading «Cena N» and the scene's title, holding that scene's Part with its record, listen and record-again controls. Part N is Scene N: a recording made from row N is kept as part N, and a part the room holds under number N shows on row N.
+One row of the Rehearsal per Scene of the passage, in passage order, reading «Cena N» and the scene's title, holding that scene's Part with its record, listen and record-again controls. Part N is Scene N: a recording made from row N is kept as part N, and a part the room holds under number N shows on row N. A row with a take shows «✓»; a row offers its Rehearsal sheet with «trocar o ensaio desta cena» when its part is joined and another rehearsal could stand in it, or «usar o ensaio desta cena» when none of its takes came from a join and a Joinable rehearsal exists.
 _Avoid_: bead (the Back-translation's), clip row, part row, linha
 
 **Part on its way**:
@@ -343,6 +343,14 @@ _Avoid_: placeholder, missing part (a part the room no longer has), pending part
 **Joined recording** (`origin`):
 A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final», and the Back-translation's into «Ensaio Final»; entering it starts the First listen while the room counts every part unheard. The tablet makes one with «juntar as cenas e ouvir» on the Ensaio Final plan. Each scene's chosen rehearsal goes up through the Outbox as that scene's Part: the rehearsal's own bytes under its fingerprint, with `origin`. The same bytes joined again, from any tablet, are the same take (ADR 0120).
 _Avoid_: assembled recording, merged, Junção (in prose)
+
+**Rehearsal swap**:
+«usar este» on a Scene row's Rehearsal sheet: that Scene rehearsal goes up through the Outbox as the Part's next pass, carrying `origin`, and becomes the part once the room names it. The take it replaces is kept on the tablet and in the room, the part starts unheard, and the stretches told over the old take leave the check as history; swapping back to an earlier rehearsal is a new take again. Over an approved draft, or over a take already standing under the scene, it takes the Armed tap.
+_Avoid_: Swap (the room's word for a finding of two exchanged relations), troca, replace
+
+**Bring-back** («trazer de volta as traduções do ensaio desta cena»):
+The armed tap on a joined Scene row that lays its Scene rehearsal's frases over the Part again, when none of them stands there: after the translation was restarted, or when they never came. The stretches told here for that scene are kept as history, never deleted. The room says which parts can take it: never a part a sentence was re-recorded in, nor one joined from the other language's session.
+_Avoid_: reimport, restore, undo
 
 **Red microphone**:
 The round red control beside the orange dot that opens the Scene rehearsal's screen, shown only while the Conversation rests and no raised-hand note or person call stands. With the orange dot it is one of the two ways from the Conversation to a recording.
@@ -377,7 +385,7 @@ A take of a Part of this session still on this tablet, the newest pass of its Pa
 _Avoid_: stranded take, stuck recording, gravação presa, pending take (the Outbox's row)
 
 **Resume point**:
-The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). One per passage and **Session language** (ADR 0077). On the Rehearsal, the parts it names that are not here come down behind their rows (ADR 0128). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session — never the clock. An approval keeps it, on the Back-translation (ADR 0112).
+The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation, the Listening ledger and the outside listener in progress (its version and number; what that listener has done is the room's to say, ADR 0116) — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). One per passage and **Session language** (ADR 0077). On the Rehearsal, the parts it names that are not here come down behind their rows (ADR 0128). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session — never the clock. An approval keeps it, on the Back-translation (ADR 0112).
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
 **Current session**:
@@ -550,7 +558,7 @@ A Station with no session yet: the Choice, a passage or a Panorama not opened. A
 _Avoid_: reach, offline, out of reach
 
 **Failure policy**:
-The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071), and every failure of the tablet's own that may call a person (the reply's sound, the microphone's start, a tablet that cannot record), and the Disk failure at the scene door, which never does; a refusal is never counted, and nothing outside the six cases becomes a Halt, except a broken build (no room address) or an `Error` in a hand-off, whose halt calls nobody (ADR 0093, 0125). A network failure that is no turn's lets its Step go and changes nothing else (ADR 0108). Nothing decides a failure inside a Station or the notifier (ADR 0053).
+The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071), and every failure of the tablet's own that may call a person (the reply's sound, the microphone's start, a tablet that cannot record), and the Disk failure at the scene door, which never does; a refusal is never counted, and nothing outside the six cases becomes a Halt, except a broken build (no room address) or an `Error` in a hand-off, whose halt calls nobody (ADR 0093, 0125). A network failure that is no turn's lets its Step go and changes nothing else (ADR 0108). Nothing decides a failure inside a Station or the notifier (ADR 0053), except the plan card's «não deu para guardar a resposta», an inline refusal on the card (ADR 0119).
 _Avoid_: error handler, retry policy
 
 **Disk failure**:

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -180,6 +182,36 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a read of the names that lands after a newer read still brings '
+      'the names the refusal points at', (tester) async {
+    final harness = SalaHarness(
+      filaEmMemoria: true,
+      settleDelay: const Duration(seconds: 10),
+      watchesWithoutAHalt: true,
+    );
+    final container = await upToTwoUntoldHalves(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.room
+      ..verdictRefusal = CheckRefusal.fraseAwaiting
+      ..verdictUntoldSegmentId = 'trecho-1-a'
+      ..holdTheNextRead();
+
+    unawaited(notifier.finishBackTranslation());
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(harness.room.heldReads, hasLength(1));
+    await tester.pump(const Duration(seconds: 10));
+    harness.room.answerHeldRead(0);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(
+      harness.playback.ranges.lastOrNull,
+      '0-5000',
+      reason:
+          'a leitura dos nomes chegou depois de uma mais nova e foi perdida',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('o círculo corta o trecho nomeado com o tocador atrás dele', (
     tester,
   ) async {
@@ -229,7 +261,8 @@ void main() {
     final container = await pumpUpToAVerdict(tester, harness);
 
     final antes = container.read(salaSessionProvider);
-    expect(antes.btPhase, BtPhase.findings);
+    expect(antes.btPhase, BtPhase.playing);
+    expect(antes.btVeredito, isTrue);
     expect(byLabel(continuarOEnsaio), findsNothing);
     final gravacoes = [for (final take in antes.keptTakes) take.takeId];
     expect(gravacoes, isNotEmpty);
@@ -288,7 +321,8 @@ void main() {
     final container = await pumpUpToAVerdict(tester, harness);
 
     final depois = container.read(salaSessionProvider);
-    expect(depois.btPhase, BtPhase.findings);
+    expect(depois.btPhase, BtPhase.playing);
+    expect(depois.btVeredito, isTrue);
     expect(depois.btFindingTrecho?.segmentId, 'trecho-1');
     expect(depois.btTrechoTocando, isFalse);
     expect(depois.needsPerson, isFalse);
@@ -311,7 +345,7 @@ void main() {
     final depois = container.read(salaSessionProvider);
     expect(
       depois.btPhase,
-      BtPhase.findings,
+      BtPhase.playing,
       reason:
           'o veredito já está na mão e já foi dito: falhar em reler os '
           'nomes custa o ponteiro, não o veredito, e a tela dos achados '

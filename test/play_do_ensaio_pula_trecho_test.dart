@@ -6,6 +6,7 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
+import 'scenario_helpers.dart' show traduzirOApontadoDeNovo;
 import 'fakes.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
@@ -32,7 +33,7 @@ Future<void> _pedirOVeredito(Sala it) async {
   await waitFor(
     'o analista apontar um trecho',
     () =>
-        it.estado.btPhase == BtPhase.findings &&
+        it.estado.btPhase == BtPhase.playing &&
         it.estado.btFindingTrecho != null,
   );
 }
@@ -88,7 +89,7 @@ Future<void> _tocarOEnsaioAteAcabar(Sala it) => waitFor(
 
 /// The short way: the telling redone over the same mother tongue, no re-recording.
 Future<void> _traduzirDeNovoPeloCaminhoCurto(Sala it) async {
-  it.sala.traduzirDeNovoEmPortugues();
+  traduzirOApontadoDeNovo(it.container);
   it.sala.retroTap();
   await waitFor(
     'o microfone abrir para traduzir de novo',
@@ -171,7 +172,7 @@ void main() {
 
     expect(
       it.estado.btPhase,
-      BtPhase.findings,
+      BtPhase.playing,
       reason: 'a sala está de volta às perguntas depois da última correção',
     );
 

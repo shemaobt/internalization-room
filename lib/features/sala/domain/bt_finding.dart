@@ -1,10 +1,14 @@
 class BackTranslationChunk {
   final int? frase;
+  final String? segmentId;
 
-  const BackTranslationChunk({this.frase});
+  const BackTranslationChunk({this.frase, this.segmentId});
 
   factory BackTranslationChunk.fromJson(Map<String, dynamic> json) =>
-      BackTranslationChunk(frase: json['frase'] as int?);
+      BackTranslationChunk(
+        frase: json['frase'] as int?,
+        segmentId: json['segment_id'] as String?,
+      );
 }
 
 enum BtFindingKind {
@@ -46,6 +50,7 @@ class BtFinding {
 enum CheckRefusal {
   fraseAwaiting,
   partUnheard,
+  stretchUntranslated,
   nothingTranslated,
   notConferida,
   checkUnavailable;
@@ -53,6 +58,7 @@ enum CheckRefusal {
   static CheckRefusal? fromJson(Object? raw) => switch (raw) {
     'FRASE_AWAITING' => CheckRefusal.fraseAwaiting,
     'PART_UNHEARD' => CheckRefusal.partUnheard,
+    'STRETCH_UNTRANSLATED' => CheckRefusal.stretchUntranslated,
     'NOTHING_TRANSLATED' => CheckRefusal.nothingTranslated,
     'CHECK_UNAVAILABLE' => CheckRefusal.checkUnavailable,
     _ => null,
@@ -69,6 +75,16 @@ class UntranslatedPart {
     this.scene,
     this.from = Duration.zero,
   });
+
+  static List<UntranslatedPart> listFrom(Map<String, dynamic> json) => [
+    for (final parte in json['untranslated'] as List? ?? const [])
+      if (parte is Map)
+        UntranslatedPart(
+          takeId: parte['take_id'] as String,
+          scene: parte['scene'] as int?,
+          from: Duration(milliseconds: parte['from_ms'] as int? ?? 0),
+        ),
+  ];
 }
 
 /// The listen door's answer to a report: what the room still counts unheard and, once
@@ -94,15 +110,7 @@ class ListenedWhole {
     automaticCheck: json['automatic_check'] as bool? ?? false,
     fixedLine: json['fixed_line'] as String?,
     stretchUntranslated: json['refusal'] == 'STRETCH_UNTRANSLATED',
-    untranslated: [
-      for (final parte in json['untranslated'] as List? ?? const [])
-        if (parte is Map)
-          UntranslatedPart(
-            takeId: parte['take_id'] as String,
-            scene: parte['scene'] as int?,
-            from: Duration(milliseconds: parte['from_ms'] as int? ?? 0),
-          ),
-    ],
+    untranslated: UntranslatedPart.listFrom(json),
   );
 }
 
@@ -146,6 +154,7 @@ class BackTranslationVerdict {
   final CheckRefusal? refusal;
   final String? checkAt;
   final BtFinding? namedNuance;
+  final List<UntranslatedPart> untranslated;
 
   const BackTranslationVerdict({
     required this.audioUrl,
@@ -161,6 +170,7 @@ class BackTranslationVerdict {
     this.refusal,
     this.checkAt,
     this.namedNuance,
+    this.untranslated = const [],
   });
 
   factory BackTranslationVerdict.fromJson(Map<String, dynamic> json) =>
@@ -191,5 +201,6 @@ class BackTranslationVerdict {
           ),
           _ => null,
         },
+        untranslated: UntranslatedPart.listFrom(json),
       );
 }

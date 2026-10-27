@@ -35,7 +35,8 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
   screen, read by the facilitator and not the team, her moment label, the claquete,
   the «PT»/«EN» codes on the Choice, the scene question, her passage menu on the
   Choice, her check screen with its numbered frase list, the scene rehearsal's translate step,
-  the numerals of her kept-retelling buttons, her recording home, her Saved screen, and the update screen (ADR 0014).
+  the numerals of her kept-retelling buttons, her recording home, the Ensaio Final plan,
+  her Rehearsal sheet, her Saved screen, her Checagem externa screen, her grain choice, and the update screen (ADR 0014).
 - Nothing forbidden returns to `lib/`: `tool/check_doctrine.dart` mirrors the backend's
   doctrine guard (`tripod-backend`, `scripts/check_doctrine.py`) against Marcia's six rules,
   spelled in Dart, against a typed allowlist in `tool/doctrine_allowlist.dart`.
@@ -81,11 +82,18 @@ A continuation captures `_thisLife` before its await and checks `_endedSince(lif
 
 Lifecycle code still in the notifier moves out to the machine through slices, and new lifecycle
 work is built on the machine. The one written exception: the Retro screen keeps its notifier fields,
-`btFindings`, `btConferindo`, `btRecusa`, `btVeredito`, `btRecomeco`, `btAviso`, `btRecomecada`,
-`btPausaSoNaUltima`, `btRegravacao`, `btFraseQueAguarda`, `btFraseGuardada`, `btRascunhoAprovado`, `btSoOuvir`, `btAprovando`, `btAprovadoAgora` and `ensaioSalvo` included, its report
+`btFindings`, `btConferindo`, `btRecusa`, `btVeredito`, `armedTap`, `btAviso`, `btRecomecada`,
+`btPausaSoNaUltima`, `btRegravacao`, `btFraseQueAguarda`, `btFraseGuardada`, `btRascunhoAprovado`, `btChecked`, `btSoOuvir`, `btAprovando`, `btAprovadoAgora` and `ensaioSalvo` included, its report
 that the verdict was heard, and the Listening ledger's reports with `_oQueFaltaOuvir`,
-`_partesDaEscuta`, `_umaParteFoiRegravada` and `_aTraducaoJaFoiDeixada`, until after the 2 November tablet freeze
+`_partesDaEscuta`, `_umaParteFoiRegravada`, `_aTraducaoJaFoiDeixada` and the armed tap's `_armHandedOver`, until after the 2 November tablet freeze
 (ADR 0046).
+
+## The weakest device
+
+The room runs on everything from an iPhone 16 Pro Max down to old Android tablets and old
+iPhones, and no change may weigh on a weak device. Judge motion and memory against the
+weakest device, never against the newest: what is smooth on a new phone has not shown it is
+light enough. `docs/setup.md` says what the repo does and does not yet pin down about it.
 
 ## Secrets
 

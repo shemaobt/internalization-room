@@ -21,6 +21,7 @@ class FacilitatorCircle extends StatelessWidget {
   final bool noteMode;
   final bool peerCue;
   final bool answersATouch;
+  final bool enabled;
 
   /// What the warning mark says to VoiceOver, or null while the server's last word
   /// was silence rather than a warning.
@@ -48,6 +49,7 @@ class FacilitatorCircle extends StatelessWidget {
     this.noteMode = false,
     this.peerCue = false,
     this.answersATouch = true,
+    this.enabled = true,
     this.warning,
     this.notUnderstood,
     this.halt = const NoHalt(),
@@ -76,6 +78,7 @@ class FacilitatorCircle extends StatelessWidget {
       duration: const Duration(milliseconds: 500),
       child: Semantics(
         button: true,
+        enabled: enabled ? null : false,
         label: semanticLabel,
         child: GestureDetector(
           onTap: onTap,

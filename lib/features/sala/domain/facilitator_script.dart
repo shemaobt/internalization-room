@@ -25,6 +25,17 @@ const unheardLine = 'P2';
 /// approved. The approval's is the fourth, never rotated.
 const approvedLine = 'P3';
 
+/// The first of Marcia's external-check lines, read by position: open, retell, whole,
+/// frases, thanks. Its second sentence is the consent.
+const listenerOpenLine = 'X0';
+
+/// The second of Marcia's external-check lines, read by position: open, retell, whole,
+/// frases, thanks. Said once the whole passage ended, before the circle opens.
+const listenerRetellLine = 'X1';
+
+/// The last of Marcia's external-check lines, her thanks as a listener ends.
+const listenerThanksLine = 'X4';
+
 const sentenceInPlaceLine = 'N4';
 
 const sentenceAwaitingLine = 'N5';
@@ -158,6 +169,14 @@ const ensaioFinalPlanLabels = {
   'labelFailed': {
     'pt': 'não deu para guardar a resposta — toquem de novo',
     'en': 'couldn\'t keep that answer — tap again',
+  },
+  'useScene': {
+    'pt': 'usar o ensaio desta cena',
+    'en': 'use this scene\'s rehearsal',
+  },
+  'hearNewScene': {
+    'pt': 'ouçam a cena nova antes de conferir',
+    'en': 'listen to the new scene before the check',
   },
 };
 
@@ -481,8 +500,16 @@ const retroLabels = {
     'pt': 'Primeiro, só ouvir: a passagem inteira, do começo ao fim.',
     'en': 'First, just listen: the whole passage, from beginning to end.',
   },
+  'listenOnlyRecording': {
+    'pt': 'Primeiro, só ouvir: a gravação de vocês inteira, do começo ao fim.',
+    'en': 'First, just listen: your whole recording, from beginning to end.',
+  },
   'advance': {'pt': 'terminei', 'en': 'done'},
   'checking': {'pt': 'conferindo…', 'en': 'checking…'},
+  'hearTheVerdict': {
+    'pt': 'ouvir a resposta de novo',
+    'en': 'hear the verdict again',
+  },
   'checkFailed': {
     'pt': 'não deu para conferir agora — tentem de novo',
     'en': 'couldn\'t check right now — try again',
@@ -490,6 +517,11 @@ const retroLabels = {
   'partUnheard': {
     'pt': 'ainda falta ouvir um trecho da gravação',
     'en': 'there is still a part of the recording to listen to',
+  },
+  'stretchUntranslated': {
+    'pt':
+        "falta traduzir um trecho — ouçam e traduzam, depois toquem em 'terminei'",
+    'en': "one stretch has no translation — listen, translate, then tap 'done'",
   },
   'nothingTranslated': {
     'pt': 'ainda não tem frase traduzida',
@@ -516,6 +548,12 @@ const retroLabels = {
     'en':
         'Tap a sentence to hear it and translate it again; go back to re-record a part; or tap done to check again.',
   },
+  'subVerdictSentence': {
+    'pt':
+        "Toquem numa frase para ouvir e traduzir de novo; toquem em regravar para gravar a frase inteira de novo; depois toquem em 'terminei'.",
+    'en':
+        "Tap a sentence to hear it and translate it again; tap re-record to record the whole sentence again; then tap 'done'.",
+  },
   'listenToTheRecording': {
     'pt': 'Ouvir a gravação',
     'en': 'Listen to the recording',
@@ -538,6 +576,27 @@ const retroLabels = {
     'pt': '✓ aprovado como rascunho final (v{n})',
     'en': '✓ approved as the final draft (v{n})',
   },
+  'reopenArmed': {
+    'pt': 'toquem de novo: isto abre de novo o rascunho aprovado',
+    'en': 'tap again: this re-opens the approved draft',
+  },
+  'externalCheck': {'pt': 'Checagem externa', 'en': 'External check'},
+  'listenersOne': {
+    'pt': 'checagem externa: 1 ouvinte',
+    'en': 'external check: 1 listener',
+  },
+  'listeners': {
+    'pt': 'checagem externa: {n} ouvintes',
+    'en': 'external check: {n} listeners',
+  },
+  'externalCheckNotFinal': {
+    'pt': 'a checagem externa abre depois que o rascunho final é aprovado',
+    'en': 'the external check opens after the final draft is approved',
+  },
+  'externalCheckFailed': {
+    'pt': 'não deu para abrir a checagem externa — tentem de novo',
+    'en': 'couldn\'t open the external check — try again',
+  },
   'listenFirst': {'pt': 'Ouvir primeiro', 'en': 'Listen first'},
   'thinking': {'pt': 'Um instante', 'en': 'One moment'},
   'translated': {'pt': 'traduzida e conferida', 'en': 'translated and checked'},
@@ -549,6 +608,16 @@ const retroLabels = {
   'restartArmed': {
     'pt': 'toque de novo para apagar as {n} frases traduzidas',
     'en': 'tap again to discard the {n} translated sentences',
+  },
+  'restartArmedJoined': {
+    'pt':
+        'toquem de novo: as {n} traduções saem da tela e vocês traduzem a passagem inteira de novo',
+    'en':
+        'tap again: the {n} translations leave the screen and you translate the whole passage again',
+  },
+  'restartedJoined': {
+    'pt': 'tradução recomeçada — a gravação da passagem ficou',
+    'en': 'translation started over — the passage recording stays',
   },
   'restarted': {
     'pt': 'tradução recomeçada — o ensaio da passagem ficou',
@@ -580,6 +649,15 @@ String retroLabelFor(String control, String language, {int? n}) =>
     (retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!)
         .replaceAll('{n}', '$n');
 
+String untranslatedHintFor(List<int> cenas, String language) => [
+  retroLabelFor('stretchUntranslated', language),
+  if (cenas.isNotEmpty)
+    [
+      for (final cena in cenas)
+        sceneRehearsalLabelFor('sceneN', language, n: cena),
+    ].join(', '),
+].join(' · ');
+
 const savedScreenLabels = {
   'title': {'pt': 'Ensaio salvo', 'en': 'Rehearsal saved'},
   'done': {'pt': 'Pronto', 'en': 'Done'},
@@ -593,6 +671,34 @@ String savedScreenLabelFor(String key, String language) =>
 /// playing cue VoiceOver reads is the room's own.
 const recordingHomeLabels = {
   'title': {'pt': 'Gravem o ensaio de vocês', 'en': 'Record your rehearsal'},
+  'how': {
+    'pt': 'Como vocês querem gravar?',
+    'en': 'How would you like to record it?',
+  },
+  'wholePassage': {'pt': 'A passagem inteira', 'en': 'The whole passage'},
+  'oneRecording': {'pt': 'uma gravação', 'en': 'one recording'},
+  'sceneByScene': {'pt': 'Cena por cena', 'en': 'Scene by scene'},
+  'parts': {'pt': '{n} partes', 'en': '{n} parts'},
+  'wholeInstead': {
+    'pt': 'Gravar a passagem inteira',
+    'en': 'Record the whole passage instead',
+  },
+  'sceneInstead': {
+    'pt': 'Gravar cena por cena',
+    'en': 'Record scene by scene instead',
+  },
+  'wholeAtOnce': {
+    'pt': 'gravar a passagem inteira de uma vez',
+    'en': 'record the whole passage in one go',
+  },
+  'wholeArmed': {
+    'pt': 'toquem de novo: as cenas e as traduções ficam guardadas',
+    'en': 'tap again: the scenes and the translations are kept',
+  },
+  'backToJoin': {
+    'pt': 'Ensaio Final: juntar os ensaios das cenas',
+    'en': 'Final Rehearsal: join the scene rehearsals',
+  },
   'joinedTitle': {'pt': 'Ensaio Final', 'en': 'Final Rehearsal'},
   'sub': {
     'pt': 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.',
@@ -619,6 +725,21 @@ const recordingHomeLabels = {
     'en': 'failed — tap to try again',
   },
   'retryAria': {'pt': 'Tentar enviar de novo', 'en': 'Try sending again'},
+  'bringBack': {
+    'pt': 'trazer de volta as traduções do ensaio desta cena',
+    'en': 'bring back this scene rehearsal\'s translations',
+  },
+  'bringBackArmed': {
+    'pt':
+        'toquem de novo: as traduções do ensaio voltam; as que vocês fizeram aqui para esta cena ficam guardadas',
+    'en':
+        'tap again: the rehearsal\'s translations come back; the ones you made '
+        'here for this scene are kept',
+  },
+  'bringBackFailed': {
+    'pt': 'não deu para juntar esta cena — toquem para tentar de novo',
+    'en': 'this scene could not be joined — tap to try again',
+  },
   'translate': {'pt': 'Traduzir a gravação', 'en': 'Translate the recording'},
   'listenAndCheck': {
     'pt': 'ouvir e conferir o Ensaio Final',
@@ -640,18 +761,9 @@ String recordingHomeLabelFor(String key, String language, {int? n}) =>
         .replaceAll('{n}', '$n');
 
 const findingLabels = {
-  'circle': {'pt': 'ouvir a resposta de novo', 'en': 'hear the verdict again'},
-  'play': {
-    'pt': 'Ouvir o trecho e a tradução',
-    'en': 'Hear the stretch and its translation',
-  },
   'recordThePart': {
     'pt': 'voltar e regravar uma parte',
     'en': 'go back and re-record a part',
-  },
-  'translateTheStretch': {
-    'pt': 'Traduzir este trecho de novo',
-    'en': 'Translate this stretch again',
   },
 };
 
@@ -678,6 +790,53 @@ const escolhaLabels = {
 String escolhaLabelFor(String control, String language) =>
     escolhaLabels[control]![language] ??
     escolhaLabels[control]![floorLanguage]!;
+
+const externalCheckLabels = {
+  'title': {'pt': 'Checagem externa', 'en': 'External check'},
+  'subIdle': {
+    'pt': 'Quem não ajudou a traduzir ouve a passagem e diz o que entendeu.',
+    'en':
+        "Those who didn't help translate hear the passage and say what they "
+        'understood.',
+  },
+  'newListener': {'pt': 'Novo ouvinte', 'en': 'New listener'},
+  'back': {'pt': 'Voltar para a gravação', 'en': 'Back to recording'},
+  'listener': {'pt': 'ouvinte {n}', 'en': 'listener {n}'},
+  'subPlaying': {
+    'pt': 'ouvindo a passagem inteira…',
+    'en': 'listening to the whole passage…',
+  },
+  'subRetell': {
+    'pt': 'Contem, do jeito de vocês, o que ouviram.',
+    'en': 'Tell, in your own way, what you heard.',
+  },
+  'recordHint': {
+    'pt': 'toque no círculo para falar; toque de novo para parar',
+    'en': 'tap the circle to speak; tap again to stop',
+  },
+  'recording': {'pt': 'gravando', 'en': 'recording'},
+  'hearAgain': {'pt': 'ouvir de novo', 'en': 'hear it again'},
+  'retellAria': {
+    'pt': 'Toque para contar o que ouviu',
+    'en': 'Tap to tell what you heard',
+  },
+  'openFail': {
+    'pt': 'não deu para abrir a checagem externa — tentem de novo',
+    'en': "couldn't open the external check — try again",
+  },
+  'clipFail': {
+    'pt': 'não deu para guardar essa gravação — gravem de novo',
+    'en': "couldn't keep that recording — record it again",
+  },
+  'done': {'pt': 'Agradecemos sua ajuda.', 'en': 'Thank you for your help.'},
+  'anotherListener': {'pt': 'Outro ouvinte', 'en': 'Another listener'},
+  'finishTheCheck': {'pt': 'Terminar a checagem', 'en': 'Finish the check'},
+};
+
+String externalCheckLabelFor(String control, String language, {int? n}) =>
+    (externalCheckLabels[control]![language] ??
+            externalCheckLabels[control]![floorLanguage]!)
+        .replaceAll('{n}', '$n');
 
 const codigoLabels = {
   'preparing': {

@@ -14,6 +14,8 @@ import '../domain/coverage_event.dart';
 import '../domain/cut_point.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
+import '../domain/external_check.dart';
+import '../domain/grain.dart';
 import '../domain/minimum_build.dart';
 import '../domain/passagem.dart';
 import '../domain/scene_rehearsal.dart';
@@ -401,11 +403,41 @@ class RoomRepository {
   /// recording answers for. A stretch names the recording it slices and nothing else, so
   /// a tablet picking a session back up over a recording it does not hold learns from
   /// here which of its own parts that stretch belongs to.
-  Future<RoomAnswer<List<TakeView>>> takesOf(String sessionId) => _room.ask(
-    () => _client.get(_uri('/sessions/$sessionId/takes'), headers: _headers),
+  Future<RoomAnswer<List<TakeView>>> takesOf(String sessionId) async =>
+      switch (await takesListingOf(sessionId)) {
+        Answered(:final value) => Answered(value.takes),
+        final RoomFailure failure => failure,
+      };
+
+  /// The session's recordings with the grain in force.
+  Future<RoomAnswer<TakesListing>> takesListingOf(String sessionId) =>
+      _room.ask(
+        () =>
+            _client.get(_uri('/sessions/$sessionId/takes'), headers: _headers),
+        timeout: _stateTimeout,
+        read: readJson(TakesListing.fromJson),
+        asksForTheSession: true,
+      );
+
+  /// The team records the passage at [grain] from now on; the room sets every rehearsal
+  /// take aside and answers the listing. Its 404 is a refusal and never a session gone:
+  /// a room without this door must leave the team where it was (ADR 0134).
+  Future<RoomAnswer<TakesListing>> switchTheGrain(
+    String sessionId,
+    Grain grain, {
+    bool reopensTheApprovedDraft = false,
+  }) => _room.ask(
+    () => _client.post(
+      _uri('/sessions/$sessionId/grain'),
+      headers: _headers,
+      body: jsonEncode({
+        'grain': grain.wire,
+        if (reopensTheApprovedDraft) 'reopens_the_approved_draft': true,
+      }),
+    ),
     timeout: _stateTimeout,
-    read: readJson(TakeView.listFrom),
-    asksForTheSession: true,
+    read: readJson(TakesListing.fromJson),
+    asksForTheSession: false,
   );
 
   /// Where the audio of one take is, for [fetchClip] to go and get.
@@ -619,21 +651,29 @@ class RoomRepository {
     String segmentId,
     File audio, {
     required String sentenceId,
-  }) async => _room.askStreamed(
-    http.MultipartRequest(
-        'POST',
-        _uri(
-          '/sessions/$sessionId/segments/$segmentId/sentence?include_stale=true',
-        ),
-      )
-      ..headers.addAll(_whoWeAre)
-      ..headers['X-Room-Device'] = await _deviceId()
-      ..fields['sentence_id'] = sentenceId
-      ..files.add(await _audioPart(audio)),
-    timeout: _longCallTimeout,
-    read: readJson(TellingAgain.fromJson),
-    asksForTheSession: false,
-  );
+    bool reopensTheApprovedDraft = false,
+  }) async {
+    final request =
+        http.MultipartRequest(
+            'POST',
+            _uri(
+              '/sessions/$sessionId/segments/$segmentId/sentence?include_stale=true',
+            ),
+          )
+          ..headers.addAll(_whoWeAre)
+          ..headers['X-Room-Device'] = await _deviceId()
+          ..fields['sentence_id'] = sentenceId
+          ..files.add(await _audioPart(audio));
+    if (reopensTheApprovedDraft) {
+      request.fields['reopens_the_approved_draft'] = 'true';
+    }
+    return _room.askStreamed(
+      request,
+      timeout: _longCallTimeout,
+      read: readJson(TellingAgain.fromJson),
+      asksForTheSession: false,
+    );
+  }
 
   /// The team's approval of its own final draft.
   ///
@@ -650,6 +690,98 @@ class RoomRepository {
         read: readJson(ApprovalAnswer.fromJson),
         asksForTheSession: true,
       );
+
+  Future<RoomAnswer<ExternalCheck>> openTheExternalCheck(String sessionId) =>
+      _room.ask(
+        () async => _client.post(
+          _uri('/sessions/$sessionId/external-check/open'),
+          headers: {..._headers, 'X-Room-Device': await _deviceId()},
+        ),
+        timeout: _stateTimeout,
+        read: readJson(ExternalCheck.fromJson),
+        asksForTheSession: true,
+      );
+
+  /// The next **Outside listener** of [version]'s check, under the [attempt] this tablet
+  /// minted for the tap: the same attempt again answers the listener it already got.
+  Future<RoomAnswer<int>> aNewListener(
+    String sessionId,
+    int version, {
+    required String attempt,
+  }) => _room.ask(
+    () async => _client.post(
+      _uri('/sessions/$sessionId/external-check/$version/listeners'),
+      headers: {..._headers, 'X-Room-Device': await _deviceId()},
+      body: jsonEncode({'attempt': attempt}),
+    ),
+    timeout: _stateTimeout,
+    read: readJson((json) => json['number'] as int),
+    asksForTheSession: true,
+  );
+
+  /// One recording of [listener], sent the moment it stops. The room measures and
+  /// fingerprints it, so neither travels.
+  Future<RoomAnswer<void>> sendTheListenerRecording(
+    String sessionId,
+    int version,
+    int listener,
+    File audio, {
+    required String kind,
+  }) async {
+    final request =
+        http.MultipartRequest(
+            'POST',
+            _uri(
+              '/sessions/$sessionId/external-check/$version/listeners/'
+              '$listener/recordings',
+            ),
+          )
+          ..headers.addAll(_whoWeAre)
+          ..headers['X-Room-Device'] = await _deviceId()
+          ..fields['kind'] = kind
+          ..files.add(await _audioPart(audio));
+    return _room.askStreamed(
+      request,
+      timeout: _longCallTimeout,
+      read: readJson((_) {}),
+      asksForTheSession: true,
+    );
+  }
+
+  /// What the room holds of [listener], so a tablet that reloads knows where they stand.
+  Future<RoomAnswer<ListenerRecord>> theListener(
+    String sessionId,
+    int version,
+    int listener,
+  ) => _room.ask(
+    () async => _client.get(
+      _uri('/sessions/$sessionId/external-check/$version/listeners/$listener'),
+      headers: {..._headers, 'X-Room-Device': await _deviceId()},
+    ),
+    timeout: _stateTimeout,
+    read: readJson(ListenerRecord.fromJson),
+    asksForTheSession: true,
+  );
+
+  /// [listener] is done: [completed] when they went to the end. The room keeps the first.
+  Future<RoomAnswer<void>> finishTheListener(
+    String sessionId,
+    int version,
+    int listener, {
+    required bool completed,
+  }) => _room.ask(
+    () async => _client.post(
+      _uri(
+        '/sessions/$sessionId/external-check/$version/listeners/'
+        '$listener/finish',
+      ),
+      headers: {..._headers, 'X-Room-Device': await _deviceId()},
+      body: jsonEncode({'completed': completed}),
+    ),
+    timeout: _stateTimeout,
+    read: readJson((_) {}),
+    asksForTheSession: true,
+  );
 
   Future<RoomAnswer<void>> askForAPerson(String sessionId) => _room.ask(
     () => _client.post(
@@ -718,6 +850,19 @@ class RoomRepository {
   ) => _room.ask(
     () => _client.post(
       _uri('/sessions/$sessionId/back-translation/restart'),
+      headers: _whoWeAre,
+    ),
+    timeout: _stateTimeout,
+    read: readJson(SegmentView.listFrom),
+    asksForTheSession: true,
+  );
+
+  Future<RoomAnswer<List<SegmentView>>> bringBackTheTranslations(
+    String sessionId,
+    int number,
+  ) => _room.ask(
+    () => _client.post(
+      _uri('/sessions/$sessionId/parts/$number/bring-back'),
       headers: _whoWeAre,
     ),
     timeout: _stateTimeout,

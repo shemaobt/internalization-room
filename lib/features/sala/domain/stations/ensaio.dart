@@ -38,15 +38,25 @@ final class Ensaio extends Station {
     TheChoiceOpened() => const Menu(),
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),
-    ThePlanOpened() => this,
+    ThePlanOpened() =>
+      step == EnsaioStep.home
+          ? Ensaio(
+              step: EnsaioStep.plan,
+              everySceneHasItsPart: everySceneHasItsPart,
+            )
+          : this,
     TheBackTranslationOpened() =>
       everySceneHasItsPart && everyPartIsHere && step == EnsaioStep.home
           ? const Retro()
           : this,
     TheBackTranslationResumed() => const Retro(),
-    TheSceneRehearsalOpened() =>
-      step == EnsaioStep.plan ? const SceneRehearsal() : this,
+    TheSceneRehearsalOpened() => const SceneRehearsal(),
     TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
+    TheExternalCheckOpened(:final version) => ChecagemExterna(
+      version,
+      fromTheHome: true,
+    ),
+    TheExternalCheckLeft() => this,
   };
 }

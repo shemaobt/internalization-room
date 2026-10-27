@@ -10,6 +10,8 @@ import '../../domain/scene_question.dart';
 import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
+import 'grain_choice_view.dart';
+import 'rehearsal_sheet.dart';
 import 'scene_question.dart';
 import 'stage_heading.dart';
 
@@ -27,6 +29,9 @@ class EnsaioFinalPlanView extends ConsumerWidget {
     final colors = SalaColors.of(context);
 
     final (read, sessionId) = (session.ensaioFinalPlan, session.sessionId);
+    if (read case GrainAsked(:final elsewhere)) {
+      return GrainChoiceView(elsewhere: elsewhere);
+    }
     if (read is! PlanRead || sessionId == null) {
       return Center(
         child: Semantics(
@@ -45,10 +50,16 @@ class EnsaioFinalPlanView extends ConsumerWidget {
         .where((row) => row.scene.sceneId == session.planSheet)
         .firstOrNull;
     if (sheet != null) {
-      return _RehearsalSheet(
-        row: sheet,
+      return RehearsalSheet(
+        number: sheet.number,
+        title: sheet.scene.title,
+        sub: ensaioFinalPlanLabelFor('swap', language),
+        candidates: sheet.candidates,
+        inUseId: sheet.chosen?.rehearsalId,
         language: language,
         busy: session.planBusy,
+        offersToUse: sheet.offersToUse,
+        onRecordAgain: notifier.rehearseThisSceneAgain,
       );
     }
     final unlabelled = unlabelledRehearsalsOf(read, sessionId).firstOrNull;
@@ -128,7 +139,7 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                 const SizedBox(height: 24),
                 RoundActionButton(
                   size: 78,
-                  mood: idle && canJoin(rows)
+                  mood: idle && canJoin(rows, held: session.heldScenes)
                       ? ButtonMood.beckoning
                       : ButtonMood.dimmed,
                   gradient: BeadStyles.wood,
@@ -146,8 +157,11 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: 24),
+              wholeAtOnce(session, language, notifier.recordTheWholePassage),
               TextButton(
-                onPressed: idle ? notifier.recordSceneByScene : null,
+                onPressed: idle && !session.grainSwitching
+                    ? notifier.recordSceneByScene
+                    : null,
                 child: Text(
                   ensaioFinalPlanLabelFor('sceneByScene', language),
                   style: TextStyle(color: colors.telha, fontSize: 15),
@@ -307,196 +321,6 @@ class _PlanRowView extends StatelessWidget {
                       ensaioFinalPlanLabelFor('swap', language),
                       style: TextStyle(color: colors.telha, fontSize: 15),
                     ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Her `EnsaioFinalSheet` over the plan: one scene's rehearsals, newest first, the one the
-/// row holds «✓ em uso» and «usar este» on the other Joinable ones.
-class _RehearsalSheet extends ConsumerWidget {
-  final PlanRow row;
-  final String language;
-  final bool busy;
-
-  const _RehearsalSheet({
-    required this.row,
-    required this.language,
-    required this.busy,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(salaSessionProvider.notifier);
-    final colors = SalaColors.of(context);
-    String said(String control) => ensaioFinalPlanLabelFor(control, language);
-
-    return SafeArea(
-      bottom: false,
-      child: SizedBox.expand(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Semantics(
-                    button: true,
-                    enabled: !busy,
-                    label: said('back'),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: busy ? null : notifier.closeTheRehearsalSheet,
-                      child: SizedBox(
-                        width: 46,
-                        height: 46,
-                        child: Icon(
-                          LucideIcons.chevronLeft,
-                          size: 24,
-                          color: colors.mut,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    recordingHomeLabelFor('scene', language, n: row.number),
-                    style: TextStyle(
-                      color: colors.ink,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    row.scene.title,
-                    style: TextStyle(color: colors.mut, fontSize: 15),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    said('swap'),
-                    style: TextStyle(color: colors.mut, fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-                  for (final candidate in row.candidates)
-                    _SheetLine(
-                      rehearsal: candidate,
-                      inUse: candidate.rehearsalId == row.chosen?.rehearsalId,
-                      offersToUse: row.offersToUse(candidate),
-                      language: language,
-                      busy: busy,
-                      onPlay: () =>
-                          notifier.playARehearsal(candidate.rehearsalId),
-                      onUse: () =>
-                          notifier.useThisRehearsal(candidate.rehearsalId),
-                    ),
-                  const SizedBox(height: 24),
-                  TextButton(
-                    onPressed: busy ? null : notifier.rehearseThisSceneAgain,
-                    child: Text(
-                      said('recordSceneAgain'),
-                      style: TextStyle(color: colors.telha, fontSize: 15),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SheetLine extends StatelessWidget {
-  final SceneRehearsalRecord rehearsal;
-  final bool inUse;
-  final bool offersToUse;
-  final String language;
-  final bool busy;
-  final VoidCallback onPlay;
-  final VoidCallback onUse;
-
-  const _SheetLine({
-    required this.rehearsal,
-    required this.inUse,
-    required this.offersToUse,
-    required this.language,
-    required this.busy,
-    required this.onPlay,
-    required this.onUse,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SalaColors.of(context);
-    String said(String control) => ensaioFinalPlanLabelFor(control, language);
-    final line = sheetLineFor(rehearsal, language);
-
-    return Semantics(
-      container: true,
-      label: line,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: colors.line)),
-        ),
-        child: Row(
-          children: [
-            RoundActionButton(
-              size: 44,
-              gradient: BeadStyles.wood,
-              mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
-              semanticLabel: '${said('listen')} — $line',
-              onTap: onPlay,
-              child: const Icon(
-                LucideIcons.play,
-                size: 18,
-                color: ShemaBrand.branco,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ExcludeSemantics(
-                    child: Text(
-                      line,
-                      style: TextStyle(color: colors.ink, fontSize: 15),
-                    ),
-                  ),
-                  if (!inUse && !rehearsal.joinable && !rehearsal.unsent)
-                    Text(
-                      said('cannotEnter'),
-                      style: TextStyle(color: colors.telha, fontSize: 14),
-                    ),
-                ],
-              ),
-            ),
-            if (inUse)
-              Text(
-                '✓ ${said('inUse')}',
-                style: TextStyle(color: colors.mut, fontSize: 15),
-              )
-            else if (offersToUse)
-              Semantics(
-                button: true,
-                enabled: !busy,
-                label: '${said('useThis')} — $line',
-                onTap: busy ? null : onUse,
-                excludeSemantics: true,
-                child: TextButton(
-                  onPressed: busy ? null : onUse,
-                  child: Text(
-                    said('useThis'),
-                    style: TextStyle(color: colors.telha, fontSize: 15),
                   ),
                 ),
               ),

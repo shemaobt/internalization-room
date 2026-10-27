@@ -138,12 +138,14 @@ void main() {
       final (container, notifier) = await _inConversa(harness);
       await _toTheVerdict(harness, notifier);
       await waitFor(
-        'o veredito abrir os achados',
-        () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+        'o veredito chegar com os achados',
+        () =>
+            container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+            container.read(salaSessionProvider).btVeredito,
       );
       final faladas = harness.voice.played.length;
 
-      notifier.retroTap();
+      notifier.ouvirARespostaDeNovo();
       await waitFor(
         'a resposta tocar de novo',
         () => harness.voice.played.length == faladas + 1,

@@ -1738,7 +1738,7 @@ void main() {
         await settle(const Duration(milliseconds: 300));
         // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
         it.sala.state = it.estado.copyWith(
-          btPhase: BtPhase.findings,
+          btPhase: BtPhase.playing,
           btFindingSegmentId: achado,
         );
 

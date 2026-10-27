@@ -9,8 +9,6 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 
-const _micRetro = 'Traduzir este trecho de novo';
-
 SalaHarness? _harnessDaVez;
 
 SalaSessionNotifier _notifier(ProviderContainer c) =>
@@ -86,9 +84,11 @@ Future<ProviderContainer> _pumpToPergunta(
   return container;
 }
 
-/// The short way: the azul microphone lands on the translation, on that stretch.
-Future<void> _escolherTraduzirDeNovo(WidgetTester tester) async {
-  await tester.tap(byLabel(_micRetro));
+Future<void> _escolherTraduzirDeNovo(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  traduzirOApontadoDeNovo(container);
   await tester.pump(const Duration(milliseconds: 300));
 }
 
@@ -154,7 +154,7 @@ void main() {
       final harness = _harnessDaVez!;
       final pedidos = harness.room.calls.length;
 
-      await _escolherTraduzirDeNovo(tester);
+      await _escolherTraduzirDeNovo(tester, container);
       expect(
         _faixasVazias(tester, container),
         [0],
@@ -181,7 +181,7 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherTraduzirDeNovo(tester);
+    await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.recorder.returnsEmpty = true;
@@ -210,7 +210,7 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherTraduzirDeNovo(tester);
+    await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.room.failReplaceWith = const Refused('UNAUTHORIZED');
@@ -233,7 +233,7 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherTraduzirDeNovo(tester);
+    await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.room.failReplaceWith = const Refused(RefusalCode.wordlessTelling);
@@ -259,7 +259,7 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherTraduzirDeNovo(tester);
+    await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.recorder.returnsNothing = true;
@@ -288,7 +288,7 @@ void main() {
     final harness = _harnessDaVez!;
 
     harness.recorder.startThrows = true;
-    await _escolherTraduzirDeNovo(tester);
+    await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
     await _abrirOMicrofone(tester, container);
 
@@ -317,7 +317,7 @@ void main() {
     final harness = _harnessDaVez!;
 
     harness.recorder.startThrows = true;
-    await _escolherTraduzirDeNovo(tester);
+    await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), [0]);
 
@@ -352,7 +352,7 @@ void main() {
     );
     final harness = _harnessDaVez!;
 
-    await _escolherTraduzirDeNovo(tester);
+    await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     // The one hang the ladder never sees: the room's own watchdog gives up on a busy
@@ -403,7 +403,7 @@ void main() {
     // end of a correction — naming the stretch afterwards would be answering a question
     // that had already been asked, and the second one the room rightly refuses.
     harness.room.verdictFindingPlace = 0;
-    await _escolherTraduzirDeNovo(tester);
+    await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
     await _entregarATraducao(tester, container);
     harness.playback.finishPlayback();
@@ -437,7 +437,7 @@ void main() {
         .btTrechos
         .firstWhere((trecho) => trecho.segmentId == 'trecho-2');
 
-    await _escolherTraduzirDeNovo(tester);
+    await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
     await _entregarATraducao(tester, container);
 

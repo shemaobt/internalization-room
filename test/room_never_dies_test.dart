@@ -1333,7 +1333,8 @@ void main() {
 
     final state = container.read(salaSessionProvider);
     expect(state.stage, SalaStage.retro);
-    expect(state.btPhase, BtPhase.findings);
+    expect(state.btPhase, BtPhase.playing);
+    expect(state.btVeredito, isTrue);
     expect(state.lastSpoken, isNotNull);
     expect(state.voice, VoiceState.invite);
     expect(state.canHearAgain, isFalse);

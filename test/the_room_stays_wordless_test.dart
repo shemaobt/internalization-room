@@ -12,12 +12,16 @@ const _screensTheTeamNeverReads = {
 };
 
 const _herWordsTheTeamReads = {
+  'lib/features/sala/presentation/widgets/checagem_externa_view.dart',
   'lib/features/sala/presentation/widgets/ensaio_view.dart',
+  'lib/features/sala/presentation/widgets/external_check_button.dart',
   'lib/features/sala/presentation/widgets/ensaio_final_plan_view.dart',
+  'lib/features/sala/presentation/widgets/rehearsal_sheet.dart',
   'lib/features/sala/presentation/widgets/escolha_view.dart',
   'lib/features/sala/presentation/widgets/moment_label.dart',
   'lib/features/sala/presentation/widgets/scene_question.dart',
   'lib/features/sala/presentation/widgets/frase_list.dart',
+  'lib/features/sala/presentation/widgets/grain_choice_view.dart',
   'lib/features/sala/presentation/widgets/retro_view.dart',
   'lib/features/sala/presentation/widgets/saved_screen.dart',
   'lib/features/sala/presentation/widgets/stage_heading.dart',
@@ -41,6 +45,10 @@ const _wordsThatSendTheTeamToTheStore = {
   'lib/features/sala/presentation/widgets/update_view.dart',
 };
 
+const _digitsTheTakeIsTimedBy = {
+  'lib/features/sala/presentation/widgets/mic_clock.dart',
+};
+
 const _wordyExceptions = {
   ..._screensTheTeamNeverReads,
   ..._herWordsTheTeamReads,
@@ -48,6 +56,7 @@ const _wordyExceptions = {
   ..._wordsTheTeamPicksItsLanguageBy,
   ..._numeralsThePartsAreCalledBy,
   ..._wordsThatSendTheTeamToTheStore,
+  ..._digitsTheTakeIsTimedBy,
 };
 
 final _textWidgetPattern = RegExp(r'\bText\(');

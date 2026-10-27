@@ -23,7 +23,13 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
-    show enterThePanorama, settle, stateReads, withDiskThatAnswersAtOnce;
+    show
+        enterThePanorama,
+        settle,
+        stateReads,
+        withDiskThatAnswersAtOnce,
+        ouvirOApontado,
+        traduzirOApontadoDeNovo;
 
 Future<void> _intoFindings(
   SalaHarness harness,
@@ -4449,7 +4455,7 @@ void main() {
           'o nome vem do servidor; derivá-lo da posição na lista '
           'desalinha assim que uma resposta se perde depois de persistir',
     );
-    notifier.ouvirOTrechoEATraducao();
+    ouvirOApontado(container);
     await waitFor(
       'o trecho apontado estar tocando',
       () => container.read(salaSessionProvider).btTrechoTocando,
@@ -4518,7 +4524,7 @@ void main() {
     await _intoFindings(harness, notifier, container);
     final before = container.read(salaSessionProvider);
 
-    notifier.traduzirDeNovoEmPortugues();
+    traduzirOApontadoDeNovo(container);
     notifier.retroTap();
     await waitFor(
       'o microfone abrir',
@@ -4558,7 +4564,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await _intoFindings(harness, notifier, container);
 
-    notifier.traduzirDeNovoEmPortugues();
+    traduzirOApontadoDeNovo(container);
     notifier.retroTap();
     await waitFor(
       'o microfone abrir',
@@ -4924,7 +4930,7 @@ void main() {
           'precisa falar de novo, e ouvir é um gesto da equipe',
     );
 
-    notifier.ouvirOTrechoEATraducao();
+    ouvirOApontado(container);
     await waitFor(
       'o trecho apontado ser tocado',
       () => harness.playback.ranges.isNotEmpty,
@@ -5451,7 +5457,8 @@ void main() {
     await settle();
 
     final state = container.read(salaSessionProvider);
-    expect(state.btPhase, BtPhase.findings);
+    expect(state.btPhase, BtPhase.playing);
+    expect(state.btVeredito, isTrue);
     expect(harness.voice.played.last, contains('veredito'));
   });
 
@@ -6579,7 +6586,8 @@ void main() {
 
       harness.playback.length = const Duration(seconds: 40);
       await _intoFindings(harness, notifier, container);
-      expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+      expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+      expect(container.read(salaSessionProvider).btVeredito, isTrue);
       expect(
         container.read(salaSessionProvider).btParteNoArMs,
         0,
@@ -6587,7 +6595,7 @@ void main() {
       );
 
       harness.playback.length = const Duration(seconds: 12);
-      notifier.ouvirOTrechoEATraducao();
+      ouvirOApontado(container);
       await settle();
 
       expect(
@@ -6885,7 +6893,7 @@ void main() {
       from: const Duration(seconds: 4),
       to: const Duration(seconds: 9),
     );
-    notifier.ouvirOTrechoEATraducao();
+    ouvirOApontado(container);
     await settle();
 
     expect(harness.playback.ranges, isNotEmpty);

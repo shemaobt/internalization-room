@@ -821,7 +821,10 @@ void main() {
     await notifier.finishBackTranslation();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+    expect(container.read(salaSessionProvider).btVeredito, isTrue);
+
+    expect(container.read(salaSessionProvider).btVeredito, isTrue);
     expect(
       byLabel('voltar e regravar uma parte'),
       findsOneWidget,
@@ -829,7 +832,6 @@ void main() {
           'as duas saídas continuam ali, mas agora como os dois microfones '
           'do achado, e é a equipe que diz qual voz precisa falar de novo',
     );
-    expect(byLabel('Traduzir este trecho de novo'), findsOneWidget);
     expect(
       byLabel(retellExit),
       findsNothing,
@@ -845,7 +847,10 @@ void main() {
   ) async {
     final container = await achados.pumpToFindings(tester, true);
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+    expect(container.read(salaSessionProvider).btVeredito, isTrue);
+
+    expect(container.read(salaSessionProvider).btVeredito, isTrue);
     expect(byLabel(retellExit), findsNothing);
     expect(
       byLabel(wholeClipExit),
@@ -864,7 +869,10 @@ void main() {
       'sentence of a frase', (tester) async {
     final container = await achados.pumpToFindings(tester, true);
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+    expect(container.read(salaSessionProvider).btVeredito, isTrue);
+
+    expect(container.read(salaSessionProvider).btVeredito, isTrue);
     expect(byLabel(wholeClipExit), findsNothing);
     expect(
       byLabel(regravarAFrase1),
@@ -880,7 +888,10 @@ void main() {
   ) async {
     final container = await achados.pumpToFindings(tester, false);
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+    expect(container.read(salaSessionProvider).btVeredito, isTrue);
+
+    expect(container.read(salaSessionProvider).btVeredito, isTrue);
     final offered =
         byLabel(retellExit).evaluate().length +
         byLabel(wholeClipExit).evaluate().length +

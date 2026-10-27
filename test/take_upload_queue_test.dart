@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
@@ -19,8 +20,12 @@ import 'fakes.dart';
 
 void main() {
   late Directory home;
+  var recorder = FakeRecorder();
 
-  setUp(() => home = Directory.systemTemp.createTempSync('fila-tomadas'));
+  setUp(() {
+    home = Directory.systemTemp.createTempSync('fila-tomadas');
+    recorder = FakeRecorder();
+  });
   tearDown(() => home.deleteSync(recursive: true));
 
   var clock = DateTime(2026, 8, 12, 9);
@@ -29,7 +34,7 @@ void main() {
       TakeUploadQueue(
         room: room,
         home: () async => home,
-        recordings: FakeRecorder.new,
+        recordings: () => recorder,
         backoff: backoff,
         now: () => clock,
       );
@@ -39,6 +44,22 @@ void main() {
     file.writeAsStringSync('a equipe contou a passagem');
     return file;
   }
+
+  Future<PendingTake> keep(
+    TakeUploadQueue queue,
+    String name,
+    String session,
+  ) => queue.enqueue(
+    aTake(name),
+    sessionId: session,
+    kind: 'ensaio',
+    scope: 'inteira',
+  );
+
+  List<String> inTheFolder() => [
+    for (final e in Directory('${home.path}/guardadas').listSync())
+      p.basename(e.path),
+  ];
 
   File manifest() => File('${home.path}/guardadas/fila.json');
 
@@ -64,6 +85,84 @@ void main() {
       '"stored":false,"lost":false,"attempts":0,"waits":0,"last_try":null}]',
     );
   }
+
+  test('the end of a life empties the Outbox with its copies and refuses a '
+      'take until the next life begins', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    await keep(queue, 'velha-1', 'sessao-1');
+    await keep(queue, 'velha-2', 'sessao-2');
+
+    await queue.endTheLife();
+
+    expect(await queue.entries(), isEmpty);
+    expect(inTheFolder(), ['fila.json']);
+    await expectLater(
+      keep(queue, 'tardia', 'sessao-1'),
+      throwsA(isA<TheLifeEnded>()),
+    );
+    queue.beginALife();
+    await keep(queue, 'nova', 'sessao-3');
+    expect(await queue.entries(), hasLength(1));
+  });
+
+  test('a sweep that fails leaves every row for the next try', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    final kept = await keep(queue, 'velha', 'sessao-1');
+    File(kept.path).deleteSync();
+    Directory(kept.path).createSync();
+
+    expect(await queue.endTheLife(), isFalse);
+    expect(await queue.entries(), hasLength(1));
+  });
+
+  test('the end of a life deletes every recording on the tablet', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    final recording = File('${recorder.home.path}/ensaio_parte1.wav')
+      ..writeAsBytesSync([1]);
+
+    expect(await queue.endTheLife(), isTrue);
+
+    expect(recording.existsSync(), isFalse);
+  });
+
+  test('a recordings folder that cannot be swept fails the sweep', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    for (final error in [
+      const FileSystemException('o disco falhou'),
+      MissingPlatformDirectoryException('sem pasta'),
+    ]) {
+      recorder.deleteEveryThrows = error;
+
+      expect(await queue.endTheLife(), isFalse);
+    }
+  });
+
+  test('a sweep goes on past a copy already gone', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    final first = await keep(queue, 'velha-1', 'sessao-1');
+    await keep(queue, 'velha-2', 'sessao-1');
+    File(first.path).deleteSync();
+
+    expect(await queue.endTheLife(), isTrue);
+    expect(await queue.entries(), isEmpty);
+    expect(inTheFolder(), ['fila.json']);
+  });
+
+  test(
+    'a take being copied when the life ends leaves no row and no copy',
+    () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+
+      final enqueuing = keep(queue, 'no-ar', 'sessao-1');
+      final ending = queue.endTheLife();
+
+      await expectLater(enqueuing, throwsA(isA<TheLifeEnded>()));
+      await ending;
+      expect(File('${home.path}/no-ar.m4a').existsSync(), isFalse);
+      expect(await queue.entries(), isEmpty);
+      expect(inTheFolder(), ['fila.json']);
+    },
+  );
 
   test('a manifest it cannot read is never rewritten from scratch', () async {
     final room = FakeRoom()..reachable = false;

@@ -48,11 +48,23 @@ class RecorderSpy extends RecordPlatform {
     return encoder != AudioEncoder.wav || wavSupported;
   }
 
-  @override
-  Future<bool> isRecording(String recorderId) async => recordingAgain;
+  bool aStopEndsTheRecording = false;
+  void Function()? whenAsked;
 
   @override
-  Future<String?> stop(String recorderId) async => openedPath;
+  Future<bool> isRecording(String recorderId) async {
+    final answer = recordingAgain;
+    final slipIn = whenAsked;
+    whenAsked = null;
+    slipIn?.call();
+    return answer;
+  }
+
+  @override
+  Future<String?> stop(String recorderId) async {
+    if (aStopEndsTheRecording) recordingAgain = false;
+    return openedPath;
+  }
 
   @override
   Stream<RecordState> onStateChanged(String recorderId) => states.stream;
@@ -94,6 +106,76 @@ class _ListedByPosition implements Directory {
       yield now[at];
     }
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// A directory whose listing starts with a file that is gone by the time it is deleted,
+/// the way the open recording a discard just removed would be.
+class _ListingAGhostFirst implements Directory {
+  final Directory _real;
+
+  _ListingAGhostFirst(String path)
+    : _real = IOOverrides.runWithIOOverrides(() => Directory(path), _Plain());
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<Directory> create({bool recursive = false}) async {
+    await _real.create(recursive: recursive);
+    return this;
+  }
+
+  @override
+  Stream<FileSystemEntity> list({
+    bool recursive = false,
+    bool followLinks = true,
+  }) async* {
+    yield IOOverrides.runWithIOOverrides(
+      () => File(p.join(_real.path, 'a_ja_se_foi.wav')),
+      _Plain(),
+    );
+    yield* _real.list();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// A directory that lists a file the disk will not delete.
+class _ListingAFileThatRefuses implements Directory {
+  final Directory _real;
+
+  _ListingAFileThatRefuses(String path)
+    : _real = IOOverrides.runWithIOOverrides(() => Directory(path), _Plain());
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<Directory> create({bool recursive = false}) async {
+    await _real.create(recursive: recursive);
+    return this;
+  }
+
+  @override
+  Stream<FileSystemEntity> list({
+    bool recursive = false,
+    bool followLinks = true,
+  }) async* {
+    yield _RefusesToBeDeleted();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _RefusesToBeDeleted implements File {
+  @override
+  Future<FileSystemEntity> delete({bool recursive = false}) =>
+      Future.error(const FileSystemException('o disco recusou'));
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -292,6 +374,76 @@ void main() {
       );
     },
   );
+
+  test('a stop slipping in after a discard asked never hands over a take the '
+      'discard then deletes', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+    await recording.start('ensaio_parte1', owner: MicOwner.rehearsal);
+    microphone
+      ..recordingAgain = true
+      ..aStopEndsTheRecording = true;
+    final take = File(microphone.openedPath!)..createSync(recursive: true);
+    var existedWhenHandedOver = false;
+    microphone.whenAsked = () => unawaited(
+      recording.stop().then((_) => existedWhenHandedOver = take.existsSync()),
+    );
+
+    await recording.discard();
+    await pumpEventQueue();
+
+    expect(existedWhenHandedOver, isFalse);
+    expect(
+      take.existsSync(),
+      isFalse,
+      reason:
+          'um CloseTheMic entre a pergunta do discard e a parada entregava a '
+          'tomada, e a parada do discard a apagava no meio do enfileiramento',
+    );
+  });
+
+  test('every recording on the tablet can be deleted at once', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+    await recording.start('ensaio_parte1', owner: MicOwner.rehearsal);
+    final first = File(microphone.openedPath!)..createSync(recursive: true);
+    final second = File('${first.parent.path}/conversa_1.m4a')..createSync();
+
+    await recording.deleteEveryRecording();
+
+    expect(first.existsSync(), isFalse);
+    expect(second.existsSync(), isFalse);
+  });
+
+  test('a recording that cannot be deleted fails the sweep', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+    await recording.start('ensaio_parte1', owner: MicOwner.rehearsal);
+
+    await expectLater(
+      IOOverrides.runZoned(
+        () => recording.deleteEveryRecording(),
+        createDirectory: _ListingAFileThatRefuses.new,
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
+  });
+
+  test('the sweep goes on past a file already gone', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+    await recording.start('ensaio_parte1', owner: MicOwner.rehearsal);
+    final dir = File(microphone.openedPath!).parent
+      ..createSync(recursive: true);
+    final after = File('${dir.path}/zz_depois.m4a')..createSync();
+
+    await IOOverrides.runZoned(
+      () => recording.deleteEveryRecording(),
+      createDirectory: _ListingAGhostFirst.new,
+    );
+
+    expect(after.existsSync(), isFalse);
+  });
 
   test('a discard stops and deletes the recording that is open', () async {
     final recording = RecordingRepository();

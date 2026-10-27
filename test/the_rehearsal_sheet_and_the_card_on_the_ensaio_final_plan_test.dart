@@ -34,6 +34,7 @@ const _cannotEnter = 'este ensaio não pode entrar — ensaiem esta cena de novo
 const _question = 'Qual cena vocês vão ensaiar?';
 const _join = 'juntar as cenas e ouvir';
 const _sceneByScene = 'Gravar cena por cena';
+const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _houseBack = 'Voltar para a passagem atual';
 const _circle = [
   'Gravar o ensaio da cena',
@@ -251,6 +252,7 @@ void _expectOnlyFacts(WidgetTester tester) {
     'Escolher outra passagem',
     _planLine,
     _sceneByScene,
+    _wholeAtOnce,
     'falta o ensaio desta cena',
     _cannotEnter,
     'tradução incompleta',

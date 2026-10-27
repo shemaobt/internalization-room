@@ -65,6 +65,61 @@ void main() {
     },
   );
 
+  test('a stop answering after a newer start and the disposal still deletes '
+      'its own file', () async {
+    const older = 'conversa_1';
+    const newer = 'conversa_2';
+    runner.run(const [OpenTheMic(MicOwner.rehearsal, take: older)]);
+    recorder.answerTheStart(MicAnswer.started);
+    await pumpEventQueue();
+    runner.run(const [CloseTheMic()]);
+    runner.run(const [OpenTheMic(MicOwner.rehearsal, take: newer)]);
+    recorder.answerTheStart(MicAnswer.started);
+    await pumpEventQueue();
+    runner.dispose();
+    recorder.answerTheStop('/recordings/$older.m4a');
+    await pumpEventQueue();
+
+    expect(recorder.heard, contains('delete:/recordings/$older.m4a'));
+    expect(recorder.heard, isNot(contains('delete:/recordings/$newer.m4a')));
+    expect(answered().where((answer) => answer.take != null), isEmpty);
+  });
+
+  test('a stop answered before the disposal does not make a newer take '
+      'untracked', () async {
+    runner.run(const [OpenTheMic(MicOwner.rehearsal, take: 'conversa_1')]);
+    recorder.answerTheStart(MicAnswer.started);
+    await pumpEventQueue();
+    runner.run(const [CloseTheMic()]);
+    runner.run(const [OpenTheMic(MicOwner.rehearsal, take: 'conversa_2')]);
+    recorder.answerTheStart(MicAnswer.started);
+    await pumpEventQueue();
+    runner.run(const [CloseTheMic()]);
+    recorder.answerTheStop('/recordings/conversa_1.m4a');
+    await pumpEventQueue();
+    runner.dispose();
+    recorder.answerTheStop('/recordings/conversa_2.m4a');
+    await pumpEventQueue();
+
+    expect(recorder.heard, contains('delete:/recordings/conversa_2.m4a'));
+  });
+
+  test('an idle stop answering a kept take after the disposal leaves it '
+      'alone', () async {
+    runner.run(const [OpenTheMic(MicOwner.rehearsal, take: _take)]);
+    recorder.answerTheStart(MicAnswer.started);
+    await pumpEventQueue();
+    runner.run(const [CloseTheMic()]);
+    recorder.answerTheStop(_file);
+    await pumpEventQueue();
+    runner.run(const [CloseTheMic()]);
+    runner.dispose();
+    recorder.answerTheStop(_file);
+    await pumpEventQueue();
+
+    expect(recorder.heard, isNot(contains('delete:$_file')));
+  });
+
   test('a take handed back after the runner is disposed is deleted '
       'and reaches nobody', () async {
     runner.run(const [OpenTheMic(MicOwner.rehearsal, take: _take)]);

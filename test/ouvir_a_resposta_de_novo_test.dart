@@ -7,7 +7,7 @@ import 'scenario_helpers.dart' show settle;
 import 'tocar_vira_pausar_test.dart' show pumpAoApontado, harnessApontando;
 
 void main() {
-  group('a esfera em findings', () {
+  group('ouvir a resposta de novo', () {
     test('repete a fala do veredito, não o trecho', () async {
       final harness = harnessApontando();
       final container = await pumpAoApontado(harness);
@@ -19,9 +19,9 @@ void main() {
 
       final tocadosAntes = harness.voice.played.length;
 
-      notifier.retroTap();
+      notifier.ouvirARespostaDeNovo();
       await waitFor(
-        'a esfera tocar a fala de novo',
+        'a resposta tocar de novo',
         () => harness.voice.played.length > tocadosAntes,
       );
       await settle();
@@ -34,7 +34,7 @@ void main() {
       expect(
         harness.playback.ranges,
         isEmpty,
-        reason: 'a esfera não toca o trecho — o play do achado faz isso',
+        reason: 'o botão toca a resposta, não o trecho',
       );
     });
 
@@ -45,15 +45,15 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       harness.voice.holdNextLine();
-      notifier.retroTap();
+      notifier.ouvirARespostaDeNovo();
       await waitFor(
-        'a esfera mostrar o narrador falando',
+        'a sala mostrar o narrador falando',
         () => container.read(salaSessionProvider).voice == VoiceState.speaking,
       );
 
       harness.voice.finishHeldLine();
       await waitFor(
-        'a esfera voltar a convidar',
+        'a sala voltar a convidar',
         () => container.read(salaSessionProvider).voice == VoiceState.invite,
       );
     });
@@ -70,9 +70,9 @@ void main() {
         final ditoAntes = harness.voice.played.last;
         final tocadosAntes = harness.voice.played.length;
 
-        notifier.retroTap();
+        notifier.ouvirARespostaDeNovo();
         await waitFor(
-          'a esfera tocar a fala de novo',
+          'a resposta tocar de novo',
           () => harness.voice.played.length > tocadosAntes,
         );
         await settle();
@@ -81,20 +81,5 @@ void main() {
         expect(harness.playback.ranges, isEmpty);
       },
     );
-
-    test('o play do achado continua tocando o trecho diretamente', () async {
-      final harness = harnessApontando();
-      final container = await pumpAoApontado(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      notifier.ouvirOTrechoEATraducao();
-      await waitFor(
-        'o trecho apontado estar tocando',
-        () => container.read(salaSessionProvider).btTrechoTocando,
-      );
-
-      expect(harness.playback.ranges, isNotEmpty);
-    });
   });
 }

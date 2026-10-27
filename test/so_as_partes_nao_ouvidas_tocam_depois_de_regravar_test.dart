@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
@@ -431,23 +432,118 @@ void main() {
     },
   );
 
-  test('a abertura também mostra o que falta ouvir', () async {
-    final it = await umEnsaioDeTresPartesContadoInteiro();
-    await _regravada(it, 1, partesDoEnsaio[1]);
-    it.harness.room.listeningUnheardTakeIds = [
-      for (final parte in it.partes) parte.takeId!,
-    ];
-    CheckRefusal? naTelaDuranteAFala;
-    it.harness.voice.aoFalar = () => naTelaDuranteAFala = it.estado.btRecusa;
+  test(
+    'on a recording no join touched, a part recorded again and heard brings P1 and the recording again from its first part, not the end of the listen',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      await _regravada(it, 1, partesDoEnsaio[1]);
+      it.harness.room.listeningUnheardTakeIds = [it.partes[1].takeId!];
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
 
-    await _entrar(it);
+      await _entrar(it);
+      for (var onde = 0; onde < 2; onde++) {
+        await ouvirAteOFim(it, partesDoEnsaio[onde]);
+        await waitFor(
+          'a parte ${onde + 2} entrar no ar',
+          () => it.harness.playback.played.length == tocadas + onde + 2,
+        );
+      }
+      it.harness.room.listeningUnheardTakeIds = const [];
+      await ouvirAteOFim(it, partesDoEnsaio[2]);
+      await waitFor(
+        'a primeira parte voltar ao ar',
+        () => it.harness.playback.played.length == tocadas + 4,
+      );
 
-    expect(
-      naTelaDuranteAFala,
-      CheckRefusal.partUnheard,
-      reason: 'quando algo falta ouvir, a tela diz, com a P0 também',
-    );
-  });
+      expect(
+        _linhas(it, linhas),
+        ['P0', 'P1'],
+        reason:
+            'a escuta acabava em silêncio, com o terminei aceso, e a P1 nunca '
+            'era dita',
+      );
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        [
+          for (final onde in [0, 1, 2, 0]) it.partes[onde].path,
+        ],
+        reason: 'depois da P1 a gravação volta à primeira parte',
+      );
+      expect(it.harness.playback.playedFrom.last, Duration.zero);
+    },
+  );
+
+  test(
+    'on a recording no join touched, the listen after a part recorded again shows nothing left to hear, as hers clears the line',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      await _regravada(it, 1, partesDoEnsaio[1]);
+      it.harness.room.listeningUnheardTakeIds = [
+        for (final parte in it.partes) parte.takeId!,
+      ];
+      CheckRefusal? naTelaDuranteAFala = CheckRefusal.partUnheard;
+      it.harness.voice.aoFalar = () => naTelaDuranteAFala = it.estado.btRecusa;
+
+      await _entrar(it);
+
+      expect(
+        naTelaDuranteAFala,
+        isNull,
+        reason:
+            'pelo disco a escuta dizia «ainda falta ouvir», e pela retomada '
+            'não; a dela não diz em nenhuma das duas',
+      );
+    },
+  );
+
+  test(
+    'on a recording no join touched, a relaunch after a part recorded again shows nothing left to hear during P0, as the advance disc does',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      await _regravada(it, 1, partesDoEnsaio[1]);
+      for (final MapEntry(:key, :value)
+          in it.harness.emAberto.rows.entries.toList()) {
+        it.harness.emAberto.rows[key] = ResumePoint(
+          sessionId: value.sessionId,
+          stage: SalaStage.retro,
+          takes: value.takes,
+          savedAt: value.savedAt,
+          language: value.language,
+        );
+      }
+      it.harness.room
+        ..retroSoFar = BackTranslationProgress(
+          segments: [...it.harness.room.segments],
+        )
+        ..listeningUnheardTakeIds = [
+          for (final parte in it.partes) parte.takeId!,
+        ];
+      CheckRefusal? naTelaDuranteAFala = CheckRefusal.partUnheard;
+      it.harness.voice.aoFalar = () => naTelaDuranteAFala = it.estado.btRecusa;
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+
+      it.container.dispose();
+      it.container = it.harness.container();
+      addTearDown(it.container.dispose);
+      await it.sala.abrirEscolha();
+      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await waitFor(
+        'a retomada pôr uma parte no ar',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            it.harness.playback.played.length > tocadas,
+      );
+
+      expect(_linhas(it, linhas), ['P0']);
+      expect(
+        naTelaDuranteAFala,
+        isNull,
+        reason: 'a retomada e o disco abrem a mesma escuta, com a mesma tela',
+      );
+    },
+  );
 
   test('a sala pedindo uma pessoa no meio do replay não mostra o sinal, e o '
       'relato tem só o que soou', () async {
@@ -601,7 +697,7 @@ void main() {
   );
 
   test(
-    'uma cena gravada de novo no ensaio antes da primeira entrada deixa a entrada como hoje',
+    'uma cena gravada de novo no ensaio antes da primeira entrada deixa a entrada na primeira escuta, não na P2',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
       final antiga = it.partes[1].path;
@@ -631,8 +727,8 @@ void main() {
 
       expect(
         _linhas(it, linhas),
-        isEmpty,
-        reason: 'a primeira entrada fica intacta: nem P2, nem P0',
+        ['P0'],
+        reason: 'a primeira entrada é a primeira escuta: a P0, nunca a P2',
       );
       expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
     },
@@ -680,7 +776,7 @@ void main() {
     },
   );
 
-  test('a primeira entrada na tradução não diz linha nova', () async {
+  test('a primeira entrada na tradução diz a P0, não a P2', () async {
     final it = await umEnsaioDeTresPartesGravado();
     it.harness.room.listeningUnheardTakeIds = [
       for (final parte in it.partes) parte.takeId!,
@@ -690,7 +786,7 @@ void main() {
 
     await _entrar(it);
 
-    expect(_linhas(it, linhas), isEmpty);
+    expect(_linhas(it, linhas), ['P0']);
     expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
   });
 

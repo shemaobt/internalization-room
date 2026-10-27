@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/main.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -93,6 +94,37 @@ Future<void> _terminei(
   await _passo(tester);
 }
 
+Future<ProviderContainer> _quatroFrasesContadas(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  _telaAlta(tester);
+  final container = await entrarNaTraducao(tester, harness);
+  for (final corte in _cortes.first) {
+    harness.playback.at = corte;
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+  }
+  await contarAteOFimDaParte(tester, harness);
+  harness.playback.at = _cortes.last.first;
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
+  await waitFor(
+    '4 frases ficarem contadas',
+    () =>
+        container
+            .read(salaSessionProvider)
+            .btTrechos
+            .where((trecho) => trecho.contado)
+            .length ==
+        4,
+    step: () => _passo(tester),
+  );
+  return container;
+}
+
 Future<ProviderContainer> _vereditoNaFraseTres(
   WidgetTester tester,
   SalaHarness harness,
@@ -104,7 +136,15 @@ Future<ProviderContainer> _vereditoNaFraseTres(
     ..verdictFindings = const [
       BtFinding(kind: BtFindingKind.addition, frase: 3, segmentId: 'trecho-3'),
     ];
-  await _terminei(tester, container, BtPhase.findings);
+  unawaited(
+    container.read(salaSessionProvider.notifier).finishBackTranslation(),
+  );
+  await waitFor(
+    'o veredito chegar',
+    () => container.read(salaSessionProvider).btVeredito,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
   return container;
 }
 
@@ -373,9 +413,12 @@ void main() {
     final estado = container.read(salaSessionProvider);
     expect(
       estado.btPhase,
-      BtPhase.findings,
-      reason: 'manter a tradução de antes não voltava ao veredito',
+      BtPhase.playing,
+      reason:
+          'manter a tradução de antes voltava a um passo de achados que o '
+          'relato dela não tem',
     );
+    expect(estado.btVeredito, isTrue);
     expect(estado.btTrechoTraduzidoDeNovo, isNull);
     expect(estado.btTrechos[6].retroPath, antes.retroPath);
     expect(harness.room.replacesAsked, isEmpty);
@@ -386,31 +429,6 @@ void main() {
       findsNothing,
     );
     expect(byLabel('manter a tradução de antes'), findsNothing);
-    closeTheRoom(container);
-  });
-
-  testWidgets('the findings screen\'s retell names its frase the same way, and '
-      'its «manter a tradução de antes» goes back to the finding', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _vereditoNaFraseTres(tester, harness);
-
-    await tocar(tester, 'Traduzir este trecho de novo');
-
-    expect(
-      find.text('traduzindo de novo a frase 3 — toquem no círculo'),
-      findsOneWidget,
-    );
-    await tocar(tester, 'manter a tradução de antes');
-    await _passo(tester);
-
-    expect(
-      container.read(salaSessionProvider).btPhase,
-      BtPhase.findings,
-      reason: 'voltar atrás no trecho do achado largava a equipe na tradução',
-    );
-    expect(harness.room.replacesAsked, isEmpty);
     closeTheRoom(container);
   });
 
@@ -531,17 +549,342 @@ void main() {
     await tocar(tester, _barra(7));
     await _traduzirDeNovo(tester, container);
     expect(harness.room.playedByTakeSent, hasLength(1));
-    await _terminei(tester, container, BtPhase.findings);
+    await _terminei(tester, container, BtPhase.playing);
 
     await tocar(tester, _barra(3));
     await _traduzirDeNovo(tester, container);
     expect(harness.room.playedByTakeSent, hasLength(2));
-    await _terminei(tester, container, BtPhase.findings);
+    await _terminei(tester, container, BtPhase.playing);
 
     expect(
       harness.room.playedByTakeSent,
       hasLength(3),
       reason: 'o terceiro terminei não chegava à sala como o primeiro',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a verdict with findings «terminei» stays lit, and a tap '
+      'on it sends a new check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+
+    expect(
+      byLabel('terminei'),
+      findsOneWidget,
+      reason:
+          'depois de um veredito com achado o terminei sumia até a equipe '
+          'contar alguma frase de novo',
+    );
+    expect(
+      tester
+          .widget<RoundActionButton>(
+            find.ancestor(
+              of: byLabel('terminei'),
+              matching: find.byType(RoundActionButton),
+            ),
+          )
+          .mood,
+      ButtonMood.beckoning,
+    );
+    await tocar(tester, 'terminei');
+    await waitFor(
+      'a nova conferência chegar à sala',
+      () => harness.room.playedByTakeSent.length == 2,
+      step: () => _passo(tester),
+    );
+    expect(
+      harness.room.playedByTakeSent,
+      hasLength(2),
+      reason: 'o terminei depois do veredito não pedia uma nova conferência',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a verdict with findings a bead opens its frase to be '
+      'told again, as it does before a verdict', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+
+    await tester.tap(byLabel('frase 5'));
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.frase,
+      5,
+      reason:
+          'depois do veredito com achado as contas ficavam mudas, e antes '
+          'dele abriam a frase para traduzir de novo',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a verdict with findings the screen offers none of the '
+      'controls her telling does not have', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+
+    expect(
+      byLabel('Ouvir o trecho e a tradução'),
+      findsNothing,
+      reason: 'o achado abria um passo nosso com um play que ela não tem',
+    );
+    expect(
+      byLabel('Traduzir este trecho de novo'),
+      findsNothing,
+      reason:
+          'o achado abria um passo nosso com um microfone azul que ela não tem',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a verdict that names a stretch, «voltar e regravar uma '
+      'parte» is a written button, and it takes the team to the rehearsal', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+
+    expect(
+      find.text('voltar e regravar uma parte'),
+      findsOneWidget,
+      reason:
+          'a volta ao ensaio era um microfone sem palavra, e na tela dela '
+          'é um botão escrito',
+    );
+    await tocar(tester, 'voltar e regravar uma parte');
+
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.ensaio,
+      reason: 'sem os três botões do achado a retro não tinha volta ao ensaio',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a clean verdict «ouvir a resposta de novo» shows and '
+      'plays that verdict again', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesConferidas(tester, harness);
+    final faladas = harness.voice.played.length;
+
+    expect(
+      find.text('ouvir a resposta de novo'),
+      findsOneWidget,
+      reason:
+          'depois de um veredito limpo a equipe não tinha como ouvi-lo de novo',
+    );
+    await tocar(tester, 'ouvir a resposta de novo');
+    await waitFor(
+      'a resposta tocar de novo',
+      () => harness.voice.played.length == faladas + 1,
+      step: () => _passo(tester),
+    );
+
+    expect(harness.voice.played.last, falaDoVeredito);
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'after a verdict with findings «ouvir a resposta de novo» still '
+    'shows once a frase is told again, and plays the verdict, not the retell',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _vereditoNaFraseTres(tester, harness);
+      await tocar(tester, _barra(7));
+      await _traduzirDeNovo(tester, container);
+      final faladas = harness.voice.played.length;
+
+      expect(
+        find.text('ouvir a resposta de novo'),
+        findsOneWidget,
+        reason:
+            'a resposta só se ouvia de novo até a equipe começar a traduzir '
+            'uma frase de novo',
+      );
+      await tocar(tester, 'ouvir a resposta de novo');
+      await waitFor(
+        'a resposta tocar de novo',
+        () => harness.voice.played.length == faladas + 1,
+        step: () => _passo(tester),
+      );
+
+      expect(harness.voice.played.last, falaDoVeredito);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('«recomeçar a tradução» takes «ouvir a resposta de novo» away', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    expect(find.text('ouvir a resposta de novo'), findsOneWidget);
+
+    notifier.recomecarATraducao();
+    await tester.pump(const Duration(milliseconds: 700));
+    notifier.recomecarATraducao();
+    await waitFor(
+      'a tradução recomeçar',
+      () => harness.room.restartsAsked.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      find.text('ouvir a resposta de novo'),
+      findsNothing,
+      reason: 'a tradução recomeçada ainda oferecia a resposta de antes',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a new «terminei» puts its own verdict behind «ouvir a resposta '
+      'de novo», not the one before it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.verdictCheckAt = 'primeira';
+    final container = await _vereditoNaFraseTres(tester, harness);
+    await tocar(tester, _barra(7));
+    await _traduzirDeNovo(tester, container);
+    harness.room.verdictCheckAt = 'segunda';
+    await _terminei(tester, container, BtPhase.playing);
+    final faladas = harness.voice.played.length;
+
+    await tocar(tester, 'ouvir a resposta de novo');
+    await waitFor(
+      'a resposta tocar de novo',
+      () => harness.voice.played.length == faladas + 1,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      harness.room.heardStamps.last,
+      'segunda',
+      reason: 'o botão repetia o veredito da conferência anterior',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('«ouvir a resposta de novo» rests while the verdict sounds and '
+      'while a sentence is recorded again', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    harness.room
+      ..verdictChecked = true
+      ..verdictFindings = const []
+      ..verdictNamedNuance = const BtFinding(
+        kind: BtFindingKind.nuance,
+        frase: 4,
+        segmentId: 'trecho-4',
+      );
+    await _terminei(tester, container, BtPhase.conferida);
+    bool? acesa() => tester
+        .widget<Semantics>(byLabel('ouvir a resposta de novo'))
+        .properties
+        .enabled;
+    expect(acesa(), isTrue);
+
+    harness.voice.holdNextLine();
+    await tocar(tester, 'ouvir a resposta de novo');
+    expect(
+      acesa(),
+      isFalse,
+      reason: 'o botão aceitava outro toque com a resposta ainda soando',
+    );
+    harness.voice.finishHeldLine();
+    await _passo(tester);
+    await _passo(tester);
+    expect(acesa(), isTrue);
+
+    await tester.ensureVisible(find.text('regravar a frase 4'));
+    await tester.tap(find.text('regravar a frase 4'));
+    await _passo(tester);
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    await _passo(tester);
+    expect(
+      container.read(salaSessionProvider).btRegravacao?.passo,
+      PassoDaRegravacao.pronta,
+    );
+    expect(
+      acesa(),
+      isFalse,
+      reason: 'com uma frase sendo regravada a resposta podia tocar por cima',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('«ouvir a resposta de novo» rests while the recording, a '
+      'translation or a stretch sounds', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesConferidas(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState estado() => container.read(salaSessionProvider);
+    bool? acesa() => tester
+        .widget<Semantics>(byLabel('ouvir a resposta de novo'))
+        .properties
+        .enabled;
+    expect(acesa(), isTrue);
+
+    notifier.ouvirGravacao();
+    await waitFor(
+      'a gravação tocar',
+      () => estado().btClipRodando,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    expect(acesa(), isFalse, reason: 'a resposta tocava por cima da gravação');
+    notifier.ouvirGravacao();
+    await waitFor(
+      'a gravação parar',
+      () => !estado().btClipRodando,
+      step: () => _passo(tester),
+    );
+
+    notifier.ouvirOTrechoContado(0);
+    await waitFor(
+      'a tradução da frase tocar',
+      () => estado().btRetroTocando,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    expect(acesa(), isFalse, reason: 'a resposta tocava por cima da tradução');
+    harness.playback.finishPlayback();
+    await waitFor(
+      'a tradução parar',
+      () => !estado().btRetroTocando,
+      step: () => _passo(tester),
+    );
+
+    await tocar(tester, _barra(2));
+    await waitFor(
+      'o trecho da frase tocar',
+      () => estado().btTrechoTocando,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    expect(acesa(), isFalse, reason: 'a resposta tocava por cima do trecho');
+    closeTheRoom(container);
+  });
+
+  testWidgets('«voltar e regravar uma parte» rests while a frase is being told '
+      'again, instead of taking a tap it would drop', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+    await tocar(tester, _barra(7));
+    await tocar(tester, 'ouvindo a gravação de vocês…');
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
+    expect(
+      tester
+          .widget<Semantics>(byLabel('voltar e regravar uma parte'))
+          .properties
+          .enabled,
+      isFalse,
+      reason:
+          'com o microfone aberto o botão ficava aceso e o toque não levava '
+          'a lugar nenhum',
     );
     closeTheRoom(container);
   });
@@ -573,30 +916,29 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('before any verdict a tap on a frase opens nothing to tell '
-      'again', (tester) async {
+  testWidgets('before any verdict a tap on a frase of a telling picked back up '
+      'opens it to be told again', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _voltaAUmaTraducao(
       tester,
       harness,
       conferida: false,
     );
-    expect(
-      container.read(salaSessionProvider).btTrechos[1].segmentId,
-      isNotNull,
-    );
+    final parteDois = container.read(salaSessionProvider).partes[1].path;
     final tocadas = harness.playback.played.length;
+    final trechos = harness.playback.ranges.length;
 
     await tocar(tester, _barra(2));
 
     expect(
-      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo,
-      isNull,
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-2',
       reason:
-          'antes de qualquer conferência a frase já abria para traduzir '
-          'de novo',
+          'antes de qualquer conferência a frase não abria para traduzir de '
+          'novo, e a dela abre',
     );
-    expect(harness.playback.played.length, tocadas);
+    expect(harness.playback.played.skip(tocadas), [parteDois]);
+    expect(harness.playback.ranges.skip(trechos), ['0-5000']);
     closeTheRoom(container);
   });
 
@@ -631,7 +973,7 @@ void main() {
           segmentId: 'trecho-1',
         ),
       ];
-    await _terminei(tester, container, BtPhase.findings);
+    await _terminei(tester, container, BtPhase.playing);
 
     await tocar(tester, 'Hear this sentence again and translate it again — 2');
 
@@ -757,6 +1099,137 @@ void main() {
       tester.widget<Semantics>(byLabel(_barra(1))).properties.enabled,
       isFalse,
       reason: 'a frase se oferecia ao toque sem nada para tocar',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase told this session carries the name the room gave it '
+      'as soon as the room answers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesContadas(tester, harness);
+
+    expect(
+      [
+        for (final trecho in container.read(salaSessionProvider).btTrechos)
+          trecho.segmentId,
+      ],
+      [
+        'trecho-1',
+        'trecho-2',
+        'trecho-3',
+        'trecho-4',
+        'trecho-5',
+        'trecho-6',
+        'trecho-7',
+      ],
+      reason:
+          'a frase contada nesta sessão ficava sem nome até a próxima '
+          'leitura, e a porta de substituir não a alcançava',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('before any check, a tap on frase 7 told this session replays '
+      'its piece and the circle tells it again through the replace door', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _seteFrasesContadas(tester, harness);
+    final parteDois = container.read(salaSessionProvider).partes[1].path;
+    final pedacos = harness.room.chunksSent;
+    final tocadas = harness.playback.played.length;
+    final trechos = harness.playback.ranges.length;
+
+    await tocar(tester, _barra(7));
+
+    expect(
+      harness.playback.played.skip(tocadas),
+      [parteDois],
+      reason: 'antes de uma conferência a frase não aceitava toque',
+    );
+    expect(harness.playback.ranges.skip(trechos), ['7500-10000']);
+    expect(
+      find.text('traduzindo de novo a frase 7 — toquem no círculo'),
+      findsOneWidget,
+    );
+
+    await _traduzirDeNovo(tester, container);
+
+    expect(
+      harness.room.replacesAsked,
+      ['trecho-7@gravacao-2:7500-10000'],
+      reason: 'a nova tradução não ia pela porta de substituir a frase 7',
+    );
+    expect(harness.room.chunksSent, pedacos);
+    expect(
+      harness.room.playedByTakeSent,
+      isEmpty,
+      reason: 'a frase traduzida de novo pedia a conferência sozinha',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('after frase 4 is told again in the middle of its part, the '
+      'next pause on that part tells from where the telling stood', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesContadas(tester, harness);
+
+    await tocar(tester, _barra(4));
+    await _traduzirDeNovo(tester, container);
+    expect(harness.room.replacesAsked, ['trecho-4@gravacao-2:0-2500']);
+
+    await tocar(tester, 'Ouvir');
+    harness.playback.at = const Duration(seconds: 5);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await waitFor(
+      'a frase seguinte subir',
+      () => harness.room.chunkSpans.length == 5,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      [harness.room.chunkTakes.last, harness.room.chunkSpans.last],
+      ['gravacao-2', '2500-5000'],
+      reason:
+          'o cursor voltava ao fim da parte 1, e a parte 2 não aceitava '
+          'mais pausa até passar dele',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('«manter a tradução de antes» on frase 4 in the middle of its '
+      'part replaces nothing, and the next pause tells from where the telling '
+      'stood', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesContadas(tester, harness);
+
+    await tocar(tester, _barra(4));
+    await tocar(tester, 'manter a tradução de antes');
+    await _passo(tester);
+    expect(container.read(salaSessionProvider).btTrechoTraduzidoDeNovo, isNull);
+
+    await tocar(tester, 'Ouvir');
+    harness.playback.at = const Duration(seconds: 5);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await waitFor(
+      'a frase seguinte subir',
+      () => harness.room.chunkSpans.length == 5,
+      step: () => _passo(tester),
+    );
+
+    expect(harness.room.replacesAsked, isEmpty);
+    expect(
+      [harness.room.chunkTakes.last, harness.room.chunkSpans.last],
+      ['gravacao-2', '2500-5000'],
+      reason:
+          'manter a tradução de antes voltava o cursor ao fim da parte 1, e a '
+          'parte 2 não aceitava mais pausa até passar dele',
     );
     closeTheRoom(container);
   });

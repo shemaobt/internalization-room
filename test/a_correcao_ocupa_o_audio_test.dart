@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
+import 'scenario_helpers.dart' show ouvirOApontado, traduzirOApontadoDeNovo;
 import 'fakes.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
@@ -53,7 +54,7 @@ Future<Sala> _aSalaNaPergunta({int lugar = 1}) async {
   await waitFor(
     'o analista apontar um trecho',
     () =>
-        it.estado.btPhase == BtPhase.findings &&
+        it.estado.btPhase == BtPhase.playing &&
         it.estado.btFindingTrecho != null,
   );
   return it;
@@ -68,7 +69,7 @@ void main() {
         final trecho = it.estado.btFindingTrecho!;
         final caminhoDaParte = it.estado.partes[trecho.parte].path;
 
-        it.sala.ouvirOTrechoEATraducao();
+        ouvirOApontado(it.container);
         await waitFor(
           'o trecho apontado estar tocando',
           () => it.estado.btTrechoTocando,
@@ -96,7 +97,7 @@ void main() {
       final antes = _no(it.container, 1);
       final parteAntes = it.estado.partes[antes.parte].path;
 
-      it.sala.traduzirDeNovoEmPortugues();
+      traduzirOApontadoDeNovo(it.container);
       it.sala.retroTap();
       await waitFor(
         'o microfone abrir para traduzir de novo',
@@ -110,7 +111,7 @@ void main() {
       expect(depois.to, antes.to);
 
       it.harness.playback.played.clear();
-      it.sala.ouvirOTrechoEATraducao();
+      ouvirOApontado(it.container);
       await waitFor(
         'o trecho apontado estar tocando',
         () => it.estado.btTrechoTocando,

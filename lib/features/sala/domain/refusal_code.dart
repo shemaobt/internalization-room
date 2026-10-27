@@ -29,6 +29,10 @@ abstract final class RefusalCode {
   static const anotherSentenceAwaits = 'ANOTHER_SENTENCE_AWAITS';
   static const partNotWav = 'PART_NOT_WAV';
   static const sentenceIdReused = 'SENTENCE_ID_REUSED';
+  static const nothingToBringBack = 'NOTHING_TO_BRING_BACK';
+  static const draftApproved = 'DRAFT_APPROVED';
+  static const draftNotApproved = 'DRAFT_NOT_APPROVED';
+  static const canonNotKept = 'CANON_NOT_KEPT';
 
   static const stopsTheRoom = {unauthorized, forbidden, deviceRevoked};
 

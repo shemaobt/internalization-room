@@ -10,11 +10,13 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
@@ -831,6 +833,69 @@ void main() {
     );
   });
 
+  test(
+    'a stretch told back comes back with the name the room gave it',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async =>
+              http.Response('{"frase":3,"segment_id":"trecho-9"}', 200),
+        ),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.sendChunk(
+        'sessao-1',
+        await _tempRecording(),
+        takeId: 'gravacao-1',
+        from: Duration.zero,
+        to: const Duration(seconds: 3),
+        idempotencyKey: 'chave-1',
+      );
+
+      expect(
+        answer,
+        isA<Answered<BackTranslationChunk>>().having(
+          (answered) => answered.value.segmentId,
+          'segmentId',
+          'trecho-9',
+        ),
+        reason:
+            'a resposta do trecho trazia o nome e o tablet o jogava fora, e a '
+            'frase contada nesta sessão não podia ser traduzida de novo',
+      );
+    },
+  );
+
+  test('a stretch answer kept from before the room named it still lands, '
+      'with no name, not as a broken room', () async {
+    final repository = RoomRepository(
+      client: MockClient((_) async => http.Response('{"frase":3}', 200)),
+      deviceId: () async => 'aparelho-1',
+    );
+    addTearDown(repository.dispose);
+
+    final answer = await repository.sendChunk(
+      'sessao-1',
+      await _tempRecording(),
+      takeId: 'gravacao-1',
+      from: Duration.zero,
+      to: const Duration(seconds: 3),
+      idempotencyKey: 'chave-1',
+    );
+
+    expect(
+      answer,
+      isA<Answered<BackTranslationChunk>>()
+          .having((answered) => answered.value.frase, 'frase', 3)
+          .having((answered) => answered.value.segmentId, 'segmentId', null),
+      reason:
+          'uma resposta guardada antes do nome voltava como sala quebrada, e '
+          'o trecho já contado parava a tradução',
+    );
+  });
+
   test('each refusal keeps its own meaning', () async {
     Future<void> expectStatus(int status, Matcher matcher) async {
       final repository = RoomRepository(
@@ -846,6 +911,30 @@ void main() {
     await expectStatus(400, isA<Refused>());
     await expectStatus(422, isA<Refused>());
     await expectStatus(500, isA<NetworkFailed>());
+  });
+
+  test('a session read whose canon is gone is refused by its name, not taken '
+      'for a lost session', () async {
+    final repository = RoomRepository(
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'detail': 'no kept canon for pin 2026-10-01',
+            'code': 'CANON_NOT_KEPT',
+          }),
+          409,
+        ),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    expect(
+      await repository.fetchState('sessao-1'),
+      _refusedWith(RefusalCode.canonNotKept),
+      reason:
+          'a leitura de uma sessão sem cânone chegava como um código que o '
+          'tablet não conhecia',
+    );
   });
 
   test(
@@ -1437,6 +1526,52 @@ void main() {
   });
 
   test(
+    'a terminei refused over an untranslated stretch is read with its parts, '
+    'not as no refusal',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'session_id': 's1',
+              'checked': false,
+              'fixed_line': 'N2',
+              'refusal': 'STRETCH_UNTRANSLATED',
+              'untranslated': [
+                {'take_id': 't2', 'scene': 2, 'from_ms': 0},
+                {'take_id': 't3', 'scene': 3, 'from_ms': 7500},
+              ],
+            }),
+            200,
+          ),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final veredito = _value(
+        await repository.finishBackTranslation('s1', playedByTake: const []),
+      );
+
+      expect(
+        veredito.refusal,
+        CheckRefusal.stretchUntranslated,
+        reason: 'a recusa virava nenhuma, e o terminei caía em achados vazios',
+      );
+      expect(veredito.fixedLine, 'N2');
+      expect(
+        [
+          for (final parte in veredito.untranslated)
+            (parte.takeId, parte.scene, parte.from),
+        ],
+        [
+          ('t2', 2, Duration.zero),
+          ('t3', 3, const Duration(milliseconds: 7500)),
+        ],
+      );
+    },
+  );
+
+  test(
     'a verdict heard to its end is reported with the round\'s stamp exactly as the room gave it',
     () async {
       http.BaseRequest? seen;
@@ -1677,6 +1812,29 @@ void main() {
       },
     );
 
+    test('an approval on a session whose canon is gone is refused by its name, '
+        'not as the version race', () async {
+      final repository = umaSala(
+        MockClient(
+          (request) async => http.Response(
+            jsonEncode({
+              'detail': 'no kept canon for pin 2026-10-01',
+              'code': 'CANON_NOT_KEPT',
+            }),
+            409,
+          ),
+        ),
+      );
+
+      expect(
+        await repository.approveRelease('sessao-1'),
+        _refusedWith(RefusalCode.canonNotKept),
+        reason:
+            'o 409 do cânone perdido chegava como um código que o tablet não '
+            'conhecia, igual à corrida de versão',
+      );
+    });
+
     test('as outras recusas seguem as de sempre', () async {
       for (final caso in [
         (status: 404, erro: isA<SessionGone>()),
@@ -1719,6 +1877,7 @@ void main() {
           turnId: 'turno-1',
         ),
         'takesOf': (room) => room.takesOf('sessao-1'),
+        'takesListingOf': (room) => room.takesListingOf('sessao-1'),
         'sceneRehearsalsOf': (room) => room.sceneRehearsalsOf('sessao-1'),
         'keepSceneRehearsal': (room) async =>
             room.keepSceneRehearsal('sessao-1', await _tempRecording()),
@@ -3030,6 +3189,144 @@ void main() {
       expect(body, isNot(contains('name="interrupted')));
     });
   });
+
+  group('the grain door', () {
+    late List<http.Request> seen;
+    late RoomRepository repository;
+
+    setUp(() {
+      seen = [];
+      repository = RoomRepository(
+        client: MockClient((request) async {
+          seen.add(request);
+          return http.Response(
+            jsonEncode({
+              'grain': 'whole',
+              'takes': [
+                {
+                  'take_id': 'gravacao-1',
+                  'kind': 'ensaio',
+                  'scope': 'parte-1',
+                  'ordinal': 1,
+                  'set_aside_at': '2026-10-23T10:00:00+00:00',
+                },
+                {
+                  'take_id': 'gravacao-2',
+                  'kind': 'ensaio',
+                  'scope': 'passagem-inteira',
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+      addTearDown(repository.dispose);
+    });
+
+    test(
+      'a switch posts the grain as JSON to the session\'s grain door',
+      () async {
+        await repository.switchTheGrain('S', Grain.whole);
+
+        expect(seen.single.method, 'POST');
+        expect(
+          seen.single.url.path,
+          '/api/internalization-room/sessions/S/grain',
+        );
+        expect(
+          seen.single.headers['content-type'],
+          contains('application/json'),
+        );
+        expect(jsonDecode(seen.single.body), {'grain': 'whole'});
+      },
+    );
+
+    test('a switch that re-opens the approved draft says so', () async {
+      await repository.switchTheGrain(
+        'S',
+        Grain.scene,
+        reopensTheApprovedDraft: true,
+      );
+
+      expect(jsonDecode(seen.single.body), {
+        'grain': 'scene',
+        'reopens_the_approved_draft': true,
+      });
+    });
+
+    test(
+      'the door answers the listing with the grain in force and what was set '
+      'aside',
+      () async {
+        final listing = _value(
+          await repository.switchTheGrain('S', Grain.whole),
+        );
+
+        expect(listing.grain, Grain.whole);
+        expect(
+          [for (final take in listing.takes) take.setAside],
+          [true, false],
+        );
+      },
+    );
+
+    test(
+      'the takes listing reads the grain in force and what was set aside',
+      () async {
+        final listing = _value(await repository.takesListingOf('S'));
+
+        expect(
+          seen.single.url.path,
+          '/api/internalization-room/sessions/S/takes',
+        );
+        expect(listing.grain, Grain.whole);
+        expect(
+          [for (final take in listing.takes) take.setAside],
+          [true, false],
+        );
+      },
+    );
+  });
+
+  test('a room without the grain door answers its 404 as a refusal, never as a '
+      'session gone', () async {
+    final repository = RoomRepository(
+      client: MockClient(
+        (_) async => http.Response('{"detail": "Not Found"}', 404),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    final answer = await repository.switchTheGrain('S', Grain.whole);
+
+    expect(answer, _refusedWith('NOT_FOUND'));
+  });
+
+  test(
+    'a listing from a room that never sets aside reads no grain and nothing set '
+    'aside',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'takes': [
+                {'take_id': 'gravacao-1', 'kind': 'ensaio', 'scope': 'parte-1'},
+              ],
+            }),
+            200,
+          ),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final listing = _value(await repository.takesListingOf('S'));
+
+      expect(listing.grain, isNull);
+      expect(listing.takes.single.setAside, isFalse);
+    },
+  );
 }
 
 Future<File> _tempRecording({
