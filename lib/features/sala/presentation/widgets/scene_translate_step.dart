@@ -187,6 +187,22 @@ class SceneTranslateStep extends ConsumerWidget {
           ],
           if (frases.isNotEmpty) ...[
             const SizedBox(height: 12),
+            Semantics(
+              header: true,
+              label: said('frases'),
+              child: ExcludeSemantics(
+                child: Text(
+                  said('frases').toUpperCase(),
+                  style: TextStyle(
+                    color: colors.mut,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 2.4,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             for (final (i, frase) in frases.indexed)
               _FraseBar(
                 n: i + 1,

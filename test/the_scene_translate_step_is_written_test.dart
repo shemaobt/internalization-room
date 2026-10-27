@@ -16,6 +16,8 @@ import 'scenario_helpers.dart' show byLabel;
 
 const _session = 'sessao-1';
 
+String _bar(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
+
 SceneFrase _frase(String id, int startsMs, int endsMs) =>
     SceneFrase(fraseId: id, startsMs: startsMs, endsMs: endsMs);
 
@@ -167,5 +169,70 @@ void main() {
 
     _titled(tester, 'Scene rehearsal');
     expect(find.text('Ensaio da cena'), findsNothing);
+  });
+
+  testWidgets(
+    '«frases traduzidas» heads the frases told, under the circle and over the first one',
+    (tester) async {
+      await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000), _frase('f2', 3000, 6000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      final heading = byLabel('frases traduzidas');
+
+      expect(find.text('FRASES TRADUZIDAS'), findsOneWidget);
+      expect(heading, findsOneWidget);
+      expect(tester.widget<Semantics>(heading).properties.header, isTrue);
+      expect(
+        tester.getTopLeft(heading).dy,
+        greaterThan(
+          tester
+              .getBottomLeft(
+                byLabel('Toque para traduzir esta frase do ensaio da cena'),
+              )
+              .dy,
+        ),
+      );
+      expect(
+        tester.getBottomLeft(heading).dy,
+        lessThan(tester.getTopLeft(byLabel(_bar(1))).dy),
+        reason: 'o cabeçalho ficava fora da lista, ou não existia',
+      );
+    },
+  );
+
+  testWidgets('in English the frases told are headed «translated sentences»', (
+    tester,
+  ) async {
+    final (_, container) = await _onTheSceneScreen(
+      tester,
+      rehearsals: [
+        _rehearsal(frases: [_frase('f1', 0, 3000)]),
+      ],
+      until: (state) => state.scene.step == SceneStep.translate,
+    );
+
+    container.read(roomLanguageProvider.notifier).choose('en');
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('TRANSLATED SENTENCES'), findsOneWidget);
+    expect(byLabel('translated sentences'), findsOneWidget);
+  });
+
+  testWidgets('a translate step with no frase told yet carries no heading', (
+    tester,
+  ) async {
+    await _onTheSceneScreen(
+      tester,
+      rehearsals: [_rehearsal()],
+      until: (state) => state.scene.step == SceneStep.translate,
+    );
+
+    expect(byLabel('traduzir o ensaio da cena'), findsOneWidget);
+    expect(find.text('FRASES TRADUZIDAS'), findsNothing);
+    expect(byLabel('frases traduzidas'), findsNothing);
   });
 }
