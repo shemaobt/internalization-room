@@ -520,12 +520,11 @@ class SceneListenMode extends ConsumerWidget {
               ),
           ],
           const SizedBox(height: 16),
-          RoundActionButton(
-            size: 52,
-            mood: sending ? ButtonMood.dimmed : ButtonMood.lit,
-            semanticLabel: said('again'),
+          _WrittenButton(
+            said('again'),
+            live: !sending,
             onTap: notifier.recordTheSceneAgain,
-            child: Icon(LucideIcons.mic, size: 22, color: colors.vermelhoMic),
+            bare: true,
           ),
         ],
       ),

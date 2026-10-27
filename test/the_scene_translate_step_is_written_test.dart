@@ -197,7 +197,14 @@ void main() {
             ),
           )
           .map((text) => text.data),
-      ['Ensaio da cena', _listenLine, 'FRASES TRADUZIDAS', '1', 'frase 1'],
+      [
+        'Ensaio da cena',
+        _listenLine,
+        'FRASES TRADUZIDAS',
+        '1',
+        'frase 1',
+        'gravar o ensaio da cena de novo',
+      ],
       reason:
           'a escuta escreve só as palavras dela; uma palavra a mais escapava '
           'da varredura',
@@ -638,6 +645,28 @@ void main() {
           lessThan(20),
         );
       }
+    },
+  );
+  testWidgets(
+    'a sent scene rehearsal writes «gravar o ensaio da cena de novo», and a tap on the words records again',
+    (tester) async {
+      final (_, container) = await _inListenMode(tester);
+      const again = 'gravar o ensaio da cena de novo';
+
+      expect(
+        find.text(again),
+        findsOneWidget,
+        reason: 'o gravar de novo era um microfone sem palavra',
+      );
+      expect(
+        tester.widget<Semantics>(byLabel(again)).properties.button,
+        isTrue,
+      );
+
+      await tester.tap(find.text(again));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(container.read(salaSessionProvider).scene.step, SceneStep.record);
     },
   );
 }
