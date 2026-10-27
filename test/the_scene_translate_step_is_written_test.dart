@@ -984,4 +984,44 @@ void main() {
       );
     },
   );
+  testWidgets(
+    'on a phone the translate step\'s clock line wraps beside play too, and play stays clear of the back button',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        view: const Size(420, 1600),
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      container.read(roomLanguageProvider.notifier).choose('en');
+      await tester.pump(const Duration(milliseconds: 300));
+      const line = 'listening to the scene rehearsal… — 0:05 / 0:10';
+
+      await tester.tap(find.text('translate the scene rehearsal'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 5);
+      await tester.pump(const Duration(milliseconds: 1100));
+
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'no iPhone SE o relógio do passo de traduzir passava da borda',
+      );
+      expect(
+        tester.getRect(find.text(line)).right,
+        lessThanOrEqualTo(420 - 16),
+      );
+      expect(
+        tester.getRect(byLabel('Play or pause your recording')).left,
+        greaterThanOrEqualTo(
+          tester.getRect(byLabel('Back to the current passage')).right,
+        ),
+      );
+    },
+  );
 }

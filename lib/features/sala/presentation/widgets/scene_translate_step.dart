@@ -55,7 +55,6 @@ class SceneTranslateStep extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(salaSessionProvider.notifier);
-    final playback = ref.read(playbackRepositoryProvider);
     final colors = SalaColors.of(context);
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
@@ -76,38 +75,11 @@ class SceneTranslateStep extends ConsumerWidget {
         children: [
           _Written(said('subTranslate'), style: words),
           const SizedBox(height: 12),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RoundActionButton(
-                size: 52,
-                mood: idle && scene.listened
-                    ? ButtonMood.lit
-                    : ButtonMood.dimmed,
-                semanticLabel: said('playPause'),
-                onTap: notifier.playTheSceneRehearsal,
-                border: Border.all(color: colors.vermelhoMic, width: 2),
-                child: Icon(
-                  playing ? LucideIcons.pause : LucideIcons.play,
-                  size: 22,
-                  color: colors.vermelhoMic,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Loop(
-                period: const Duration(seconds: 1),
-                animate: playing,
-                reducible: false,
-                builder: (context, _) =>
-                    switch (_hintOf(playing: playing, at: playback.position)) {
-                      final hint? => _Written(
-                        hint,
-                        style: TextStyle(color: colors.mut, fontSize: 16),
-                      ),
-                      null => const SizedBox.shrink(),
-                    },
-              ),
-            ],
+          _PlayRow(
+            mood: idle && scene.listened ? ButtonMood.lit : ButtonMood.dimmed,
+            playing: playing,
+            label: said('playPause'),
+            hint: (at) => _hintOf(playing: playing, at: at),
           ),
           const SizedBox(height: 12),
           SceneStrip(
@@ -437,7 +409,6 @@ class SceneListenMode extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(salaSessionProvider.notifier);
-    final playback = ref.read(playbackRepositoryProvider);
     final colors = SalaColors.of(context);
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
@@ -463,45 +434,13 @@ class SceneListenMode extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 60),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RoundActionButton(
-                  size: 52,
-                  mood: sending || scene.waiting
-                      ? ButtonMood.dimmed
-                      : ButtonMood.lit,
-                  semanticLabel: said('playPause'),
-                  onTap: notifier.playTheSceneRehearsal,
-                  border: Border.all(color: colors.vermelhoMic, width: 2),
-                  child: Icon(
-                    playing ? LucideIcons.pause : LucideIcons.play,
-                    size: 22,
-                    color: colors.vermelhoMic,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Flexible(
-                  child: Loop(
-                    period: const Duration(seconds: 1),
-                    animate: playing,
-                    reducible: false,
-                    builder: (context, _) => playing
-                        ? _Written(
-                            sceneListeningLineFor(
-                              playback.position,
-                              scene.length,
-                              language,
-                            ),
-                            style: TextStyle(color: colors.mut, fontSize: 16),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                ),
-              ],
-            ),
+          _PlayRow(
+            mood: sending || scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
+            playing: playing,
+            label: said('playPause'),
+            hint: (at) => playing
+                ? sceneListeningLineFor(at, scene.length, language)
+                : null,
           ),
           const SizedBox(height: 12),
           SceneStrip(
@@ -534,6 +473,61 @@ class SceneListenMode extends ConsumerWidget {
             live: !sending,
             onTap: notifier.recordTheSceneAgain,
             bare: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlayRow extends ConsumerWidget {
+  final ButtonMood mood;
+  final bool playing;
+  final String label;
+  final String? Function(Duration at) hint;
+
+  const _PlayRow({
+    required this.mood,
+    required this.playing,
+    required this.label,
+    required this.hint,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final playback = ref.read(playbackRepositoryProvider);
+    final colors = SalaColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 60),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          RoundActionButton(
+            size: 52,
+            mood: mood,
+            semanticLabel: label,
+            onTap: ref.read(salaSessionProvider.notifier).playTheSceneRehearsal,
+            border: Border.all(color: colors.vermelhoMic, width: 2),
+            child: Icon(
+              playing ? LucideIcons.pause : LucideIcons.play,
+              size: 22,
+              color: colors.vermelhoMic,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Flexible(
+            child: Loop(
+              period: const Duration(seconds: 1),
+              animate: playing,
+              reducible: false,
+              builder: (context, _) => switch (hint(playback.position)) {
+                final words? => _Written(
+                  words,
+                  style: TextStyle(color: colors.mut, fontSize: 16),
+                ),
+                null => const SizedBox.shrink(),
+              },
+            ),
           ),
         ],
       ),
