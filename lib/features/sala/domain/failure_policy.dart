@@ -172,8 +172,7 @@ abstract final class FailurePolicy {
         TheTellingCameBackEmpty(readAgain: true, generation: generation),
       RoomNetworkFailed() when context.door == Door.sceneFrase =>
         TheTellingCameBackEmpty(generation: generation),
-      RoomRefused(code: RefusalCode.unreadable)
-          when rule == RefusalRule.sendsTheScene && turn != null =>
+      RoomRefused() when turn != null && theAnswerWasLost(result, rule) =>
         TurnGivenUp(turn, sounding: sounding, generation: generation),
       RoomRefused(code: RefusalCode.sceneRehearsalSent)
           when rule == RefusalRule.sendsTheScene =>

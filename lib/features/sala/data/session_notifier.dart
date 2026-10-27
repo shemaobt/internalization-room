@@ -1612,8 +1612,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// One turn, sent once. A network failure, the client's 305 s give-up included, is
-  /// looked at once; any other failure goes to [failed]. An answer to a turn the machine
-  /// no longer holds in flight was already given up on, and the look decides it.
+  /// looked at once, and so is a «terminei» answer the tablet cannot read; any other
+  /// failure goes to [failed]. An answer acts only for the call that sent it, on every
+  /// turn: one to a turn the machine no longer holds in flight was already given up on,
+  /// and the look decides it.
   Future<void> _sendATurn(
     Turn turn,
     int generation,

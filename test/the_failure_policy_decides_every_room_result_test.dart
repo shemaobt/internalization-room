@@ -225,12 +225,16 @@ void main() {
     );
 
     for (final code in RefusalCode.stopsTheRoom) {
-      test('a «terminei» refused with $code says nothing on the scene screen '
-          'and reads the list again', () {
-        final (_, effects) = reduce(theSignWaits, decidedForTerminei(code));
+      test('a «terminei» refused with $code says nothing on the scene screen, '
+          'reads the list again and leaves the sign waiting', () {
+        final (machine, effects) = reduce(
+          theSignWaits,
+          decidedForTerminei(code),
+        );
 
         expect(effects, contains(const ReadTheSceneRehearsals()));
         expect(effects, isNot(contains(const TellTheSendFailed())));
+        expect(machine.aHaltWaitsForTheCanvas, isTrue);
       });
     }
 

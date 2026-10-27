@@ -94,7 +94,8 @@ cena já foi para a voz» when the refusal says it was already sent, no sign is 
 sign that was waiting is forgotten. A refusal because the passage closed closes the passage,
 and a code that stops the room only reads the list again, leaving a waiting sign waiting. An
 answer to «terminei» the tablet cannot read is a lost answer, not a refusal: the one look
-runs, as after a drop. An answer belongs to the «terminei» that sent it: one from an earlier
-tap, given up on, never acts on the tap that followed. A «terminei» that lands, or whose
+runs, as after a drop. An answer belongs to the «terminei» that sent it, as every turn's answer belongs to
+the call that sent it: one from an earlier tap, given up on, never acts on the tap that
+followed. A «terminei» that lands, or whose
 reply the look finds, forgets the waiting sign too. Nothing is resent by itself: a row read as
 sent while a person is called is never sent again.

@@ -576,6 +576,18 @@ void main() {
       return (harness, container, repliesBefore);
     }
 
+    testWidgets('keeps the sign waiting and says nothing while the «terminei» '
+        'again is in the air', (tester) async {
+      final (harness, container, _) = await theEarlierRefusalLate(tester);
+
+      expect(_state(container).machine.aHaltWaitsForTheCanvas, isTrue);
+      expect(_says(_notSent), findsNothing);
+
+      harness.room.heldSceneSends[1].complete(null);
+      await pumpUntil(tester, () => !_state(container).awaitingTheGuide);
+      closeTheRoom(container);
+    });
+
     testWidgets('lets the «terminei» again play its reply', (tester) async {
       final (harness, _, repliesBefore) = await theEarlierRefusalLate(tester);
 
