@@ -920,4 +920,29 @@ void main() {
       );
     },
   );
+  testWidgets(
+    'a long list of the session\'s scene rehearsals scrolls in a third of the screen instead of pushing the step off it',
+    (tester) async {
+      await _onTheSceneScreen(
+        tester,
+        view: const Size(420, 700),
+        rehearsals: [
+          for (var n = 1; n < 14; n++)
+            _rehearsal(n: n, sentAt: '2026-10-27T10:00:00+00:00'),
+          _rehearsal(n: 14),
+        ],
+        until: (state) => state.scene.rehearsal?.n == 14,
+      );
+
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'catorze linhas escritas empurravam o passo para fora da tela',
+      );
+      expect(
+        tester.getSize(byLabel('ensaios da cena desta sessão')).height,
+        lessThanOrEqualTo(700 / 3),
+      );
+    },
+  );
 }

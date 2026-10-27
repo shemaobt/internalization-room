@@ -563,24 +563,29 @@ class SceneRehearsalList extends ConsumerWidget {
     return Semantics(
       label: said('list'),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 470),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ExcludeSemantics(child: _Upper(said('list'))),
-              const SizedBox(height: 8),
-              for (final row in rows)
-                _ListedRow(
-                  row: row,
-                  onScreen: row.rehearsalId == onScreen,
-                  still: still,
-                  language: language,
-                  onTap: () =>
-                      notifier.openTheListedSceneRehearsal(row.rehearsalId),
-                ),
-            ],
+        constraints: BoxConstraints(
+          maxWidth: 470,
+          maxHeight: MediaQuery.sizeOf(context).height / 3,
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ExcludeSemantics(child: _Upper(said('list'))),
+                const SizedBox(height: 8),
+                for (final row in rows)
+                  _ListedRow(
+                    row: row,
+                    onScreen: row.rehearsalId == onScreen,
+                    still: still,
+                    language: language,
+                    onTap: () =>
+                        notifier.openTheListedSceneRehearsal(row.rehearsalId),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
