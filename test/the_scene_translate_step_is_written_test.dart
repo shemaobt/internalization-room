@@ -866,4 +866,22 @@ void main() {
     );
     expect(line.right, lessThanOrEqualTo(420 - 16));
   });
+  testWidgets(
+    'on a phone the list heading that takes two lines in English stays centred',
+    (tester) async {
+      final (_, container) = await _inListenMode(
+        tester,
+        view: const Size(420, 1600),
+      );
+      container.read(roomLanguageProvider.notifier).choose('en');
+      await tester.pump(const Duration(milliseconds: 300));
+      const heading = 'SCENE REHEARSALS OF THIS SESSION';
+
+      expect(
+        tester.widget<Text>(find.text(heading)).textAlign,
+        TextAlign.center,
+        reason: 'no iPhone SE o cabeçalho quebrava em duas linhas à esquerda',
+      );
+    },
+  );
 }

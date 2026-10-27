@@ -707,6 +707,7 @@ class _Upper extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     words.toUpperCase(),
+    textAlign: TextAlign.center,
     style: TextStyle(
       color: SalaColors.of(context).mut,
       fontSize: 14,
