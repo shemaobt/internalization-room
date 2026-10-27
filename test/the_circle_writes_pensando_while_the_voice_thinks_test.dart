@@ -8,9 +8,11 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show enterThePanorama;
 
 const _telha = Color(0xFFBE4A01);
 
@@ -30,6 +32,13 @@ Future<(SalaHarness, ProviderContainer)> _theOpeningIsDrafted(
   await tester.pump(const Duration(milliseconds: 300));
   return (harness, container);
 }
+
+Finder _arcsOn(Type screen) => find.descendant(
+  of: find.byType(screen),
+  matching: find.byWidgetPredicate(
+    (widget) => widget is CustomPaint && widget.painter is ArcPainter,
+  ),
+);
 
 void main() {
   testWidgets(
@@ -79,6 +88,11 @@ void main() {
         findsOneWidget,
         reason: 'role=status: o leitor de tela anuncia que a voz pensa',
       );
+      expect(
+        _arcsOn(ConversaView),
+        findsNWidgets(2),
+        reason: 'e os dois arcos dela giram em volta do círculo da conversa',
+      );
 
       harness.room.finishHeldTurn();
       for (var beat = 0; beat < 30 && voice() == VoiceState.thinking; beat++) {
@@ -118,4 +132,66 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
   });
+
+  testWidgets(
+    'while the Panorama is drafted, the same word is written under its circle',
+    (tester) async {
+      final harness = SalaHarness(lingua: 'pt')
+        ..room.passages = const [
+          Passagem(
+            pericope: 'panorama',
+            audioUrl: '/voice/panorama',
+            kind: PassagemKind.panorama,
+          ),
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        ];
+      final container = await pumpSala(tester, harness);
+      addTearDown(() => closeTheRoom(container));
+      SalaSessionState read() => container.read(salaSessionProvider);
+      harness.room.holdNextTurn();
+      await enterThePanorama(
+        container.read(salaSessionProvider.notifier),
+        read,
+        step: () => tester.pump(const Duration(milliseconds: 100)),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(read().stage, SalaStage.panorama);
+      expect(read().voice, VoiceState.thinking);
+
+      final word = find.text('pensando…');
+      expect(
+        word,
+        findsOneWidget,
+        reason:
+            'o Panorama dela é desenhado no mesmo canvas, com o mesmo '
+            'think-note (page.tsx:1005)',
+      );
+      expect(
+        tester.getTopLeft(word).dy -
+            tester
+                .getRect(
+                  find.descendant(
+                    of: find.byType(PanoramaView),
+                    matching: find.byType(FacilitatorCircle),
+                  ),
+                )
+                .bottom,
+        closeTo(35.2, 0.5),
+      );
+      expect(
+        _arcsOn(PanoramaView),
+        findsNWidgets(2),
+        reason: 'e os dois arcos dela giram em volta do círculo do Panorama',
+      );
+
+      harness.room.finishHeldTurn();
+      for (
+        var beat = 0;
+        beat < 30 && read().voice == VoiceState.thinking;
+        beat++
+      ) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    },
+  );
 }
