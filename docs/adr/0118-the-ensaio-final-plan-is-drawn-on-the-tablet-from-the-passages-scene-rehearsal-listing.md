@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0134 (the other-language case opens the grain choice under her line while no grain is in force)
 date: 2026-10-23
 ---
 

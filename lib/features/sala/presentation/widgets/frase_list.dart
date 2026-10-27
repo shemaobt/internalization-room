@@ -14,9 +14,11 @@ class FraseRow {
   final String? mark;
   final bool nuance;
   final String? regravar;
+  final bool regravarDormindo;
   final VoidCallback? onRegravar;
   final FraseRevisao? revisao;
   final String? estado;
+  final bool estadoDormindo;
   final VoidCallback? onEstado;
 
   const FraseRow({
@@ -28,9 +30,11 @@ class FraseRow {
     this.mark,
     this.nuance = false,
     this.regravar,
+    this.regravarDormindo = false,
     this.onRegravar,
     this.revisao,
     this.estado,
+    this.estadoDormindo = false,
     this.onEstado,
   });
 }
@@ -164,7 +168,11 @@ class FraseList extends StatelessWidget {
                       estado,
                       style: TextStyle(color: colors.mut, fontSize: 14),
                     )
-                  : _Pill(label: estado, onTap: row.onEstado),
+                  : _Pill(
+                      label: estado,
+                      onTap: row.onEstado,
+                      dormindo: row.estadoDormindo,
+                    ),
             ),
         ],
       ],
@@ -175,18 +183,27 @@ class FraseList extends StatelessWidget {
 class _Pill extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
+  final bool dormindo;
 
-  const _Pill({required this.label, required this.onTap});
+  const _Pill({
+    required this.label,
+    required this.onTap,
+    this.dormindo = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
     return Semantics(
       button: true,
-      enabled: onTap != null,
+      enabled: onTap != null && !dormindo,
       label: label,
       child: Opacity(
-        opacity: onTap == null ? 0.35 : 1,
+        opacity: onTap == null
+            ? 0.35
+            : dormindo
+            ? 0.4
+            : 1,
         child: GestureDetector(
           onTap: onTap ?? () {},
           child: ExcludeSemantics(
@@ -302,7 +319,11 @@ class _FraseTile extends StatelessWidget {
                           ),
                         ),
                       if (row.regravar case final regravar?)
-                        _Pill(label: regravar, onTap: row.onRegravar),
+                        _Pill(
+                          label: regravar,
+                          onTap: row.onRegravar,
+                          dormindo: row.regravarDormindo,
+                        ),
                     ],
                   ),
                 ],

@@ -10,7 +10,6 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/kept_take.dart';
-
 import '../domain/machine.dart';
 import '../domain/scene_rehearsal.dart';
 import '../domain/wav.dart';
@@ -54,6 +53,10 @@ final takeAttemptSpacingProvider = Provider<List<Duration>>(
 );
 
 typedef TakeLeaving = ({PendingTake take, DateTime since});
+
+class TheLifeEnded implements Exception {
+  const TheLifeEnded();
+}
 
 class PendingTake {
   final String id;
@@ -112,6 +115,16 @@ class PendingTake {
   final int? durationMs;
   final String? sha256;
 
+  /// The Scene rehearsal a join row's bytes are, and whether the team armed the reopening
+  /// of an approved draft for it. A row an older app wrote has neither.
+  final String? origin;
+  final bool reopensTheApprovedDraft;
+
+  /// The part's take a join row replaces, as the room listed it when the row was
+  /// written; none over an empty scene. The room turns the row away for good when the
+  /// part's take is another by then.
+  final String? overTake;
+
   const PendingTake({
     required this.id,
     required this.path,
@@ -132,6 +145,9 @@ class PendingTake {
     this.recordedAt,
     this.durationMs,
     this.sha256,
+    this.origin,
+    this.reopensTheApprovedDraft = false,
+    this.overTake,
   });
 
   int get budget =>
@@ -160,6 +176,9 @@ class PendingTake {
     recordedAt: recordedAt,
     durationMs: durationMs,
     sha256: sha256,
+    origin: origin,
+    reopensTheApprovedDraft: reopensTheApprovedDraft,
+    overTake: overTake,
   );
 
   bool get refusedWithNoCode =>
@@ -195,6 +214,9 @@ class PendingTake {
     recordedAt: recordedAt,
     durationMs: durationMs,
     sha256: sha256,
+    origin: origin,
+    reopensTheApprovedDraft: reopensTheApprovedDraft,
+    overTake: overTake,
   );
 
   Map<String, Object?> toJson() => {
@@ -217,6 +239,9 @@ class PendingTake {
     'recorded_at': recordedAt?.toUtc().toIso8601String(),
     'duration_ms': durationMs,
     'sha256': sha256,
+    'origin': origin,
+    'reopens_the_approved_draft': reopensTheApprovedDraft,
+    'over_take': overTake,
   };
 
   factory PendingTake.fromJson(
@@ -254,6 +279,10 @@ class PendingTake {
     },
     durationMs: json['duration_ms'] as int?,
     sha256: json['sha256'] as String?,
+    origin: json['origin'] as String?,
+    reopensTheApprovedDraft:
+        json['reopens_the_approved_draft'] as bool? ?? false,
+    overTake: json['over_take'] as String?,
   );
 }
 
@@ -471,7 +500,10 @@ class TakeUploadQueue {
       unsentTakes: written == null
           ? 1
           : unsentParts.values.fold(0, (count, rows) => count + rows.length),
-      unsentChunks: _unsentIn(written, retroKind, sessionId),
+      unsentChunks: written == null
+          ? 1
+          : _unsentIn(written, retroKind, sessionId) +
+                _unsentIn(written, sentenceKind, sessionId),
       unsentParts: unsentParts,
     );
   }
@@ -561,6 +593,26 @@ class TakeUploadQueue {
     return next;
   }
 
+  bool _lifeEnded = false;
+
+  Future<bool> endTheLife() async {
+    _lifeEnded = true;
+    try {
+      for (final row in await entries()) {
+        await _deleteTheCopy(row);
+      }
+      await _mutate((_) => const []);
+      await _recordings().deleteEveryRecording();
+      return true;
+    } on FileSystemException {
+      return false;
+    } on MissingPlatformDirectoryException {
+      return false;
+    }
+  }
+
+  void beginALife() => _lifeEnded = false;
+
   Future<PendingTake> enqueue(
     File audio, {
     required String sessionId,
@@ -569,16 +621,69 @@ class TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
+  }) async => (await _enqueue(
+    audio,
+    sessionId: sessionId,
+    kind: kind,
+    scope: scope,
+    passNumber: passNumber,
+    chunkIndex: chunkIndex,
+    scene: scene,
+    recordedAt: await audio.lastModified(),
+  ))!;
+
+  /// A row of a join: the rehearsal's own bytes as the part, written only when the copy
+  /// is [fingerprint]'s, naming [overTake], the part's take it replaces. Each try sends
+  /// the moment it is made as its Recording time.
+  Future<PendingTake?> enqueueTheJoin(
+    File audio, {
+    required String sessionId,
+    required int number,
+    required int passNumber,
+    required String origin,
+    String? fingerprint,
+    String? overTake,
+    bool reopensTheApprovedDraft = false,
+  }) => _enqueue(
+    audio,
+    sessionId: sessionId,
+    kind: 'ensaio',
+    scope: KeptScope.parte(number),
+    passNumber: passNumber,
+    chunkIndex: number,
+    recordedAt: _now(),
+    fingerprint: fingerprint,
+    origin: origin,
+    reopensTheApprovedDraft: reopensTheApprovedDraft,
+    overTake: overTake,
+  );
+
+  Future<PendingTake?> _enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    required DateTime recordedAt,
+    int? passNumber,
+    int? chunkIndex,
+    String? scene,
+    String? fingerprint,
+    String? origin,
+    bool reopensTheApprovedDraft = false,
+    String? overTake,
   }) async {
     final dir = await _dir();
     final id = _mintId();
     final name = p.basenameWithoutExtension(audio.path);
     final kept = p.join(dir.path, '$kind-$name-$id${p.extension(audio.path)}');
-    final stopped = await audio.lastModified();
     if (audio.path != kept) {
       await audio.copy(kept);
     }
     final held = await _whatTheCopyHolds(kept);
+    if (fingerprint != null && held.sha256 != fingerprint) {
+      await File(kept).delete();
+      return null;
+    }
     final entry = PendingTake(
       id: id,
       path: kept,
@@ -589,11 +694,19 @@ class TakeUploadQueue {
       chunkIndex: chunkIndex,
       scene: scene,
       original: kind == sceneTakeKind ? name : null,
-      recordedAt: stopped,
+      recordedAt: recordedAt,
       durationMs: held.durationMs,
       sha256: held.sha256,
+      origin: origin,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
+      overTake: overTake,
     );
-    await _mutate((written) => [...written, entry]);
+    await _mutate((written) => _lifeEnded ? written : [...written, entry]);
+    if (_lifeEnded) {
+      await _deleteTheCopy(entry);
+      if (await audio.exists()) await audio.delete();
+      throw const TheLifeEnded();
+    }
     return entry;
   }
 
@@ -618,6 +731,27 @@ class TakeUploadQueue {
   Stream<TakeLeaving?> get leaving => _leaving.stream;
 
   Completer<void>? _stop;
+
+  final StreamController<String> _rowsLeaving =
+      StreamController<String>.broadcast(sync: true);
+
+  /// Each row's id as its own request goes out to the room.
+  Stream<String> get rowsLeaving => _rowsLeaving.stream;
+
+  final StreamController<String> _rowsBack = StreamController<String>.broadcast(
+    sync: true,
+  );
+
+  /// Each row's id once the room's answer to its request is written down.
+  Stream<String> get rowsBack => _rowsBack.stream;
+
+  bool inTheAir(String row) => _inTheAir?.id == row;
+
+  final Set<String> _moved = {};
+
+  /// Whether the room turned this join row away because the part's take was another by
+  /// then; the row left the Outbox with its copy.
+  bool movedAway(String row) => _moved.contains(row);
 
   /// The room turned the tablet away, not the take: nothing more leaves until it is
   /// linked again, and nothing is given up for it.
@@ -711,6 +845,24 @@ class TakeUploadQueue {
     PendingTake entry,
     Map<String, DateTime> leftInThisPass,
   ) async {
+    var left = false;
+    void leaving() {
+      left = true;
+      _rowsLeaving.add(entry.id);
+    }
+
+    try {
+      return await _landedOnce(entry, leftInThisPass, leaving);
+    } finally {
+      if (left) _rowsBack.add(entry.id);
+    }
+  }
+
+  Future<_Landing> _landedOnce(
+    PendingTake entry,
+    Map<String, DateTime> leftInThisPass,
+    void Function() leaving,
+  ) async {
     if (!_ready(entry)) return _Landing.held;
     final file = File(entry.path);
     if (!await file.exists()) {
@@ -743,6 +895,7 @@ class TakeUploadQueue {
           null => _now(),
         },
       ));
+      leaving();
       var fell = false;
       for (var attempt = 0; ; attempt++) {
         final answer = await _attempt(entry, file, stop.future);
@@ -750,6 +903,10 @@ class TakeUploadQueue {
           case Answered(value: final landed):
             await _confirm(entry, landed);
             return _Landing.landed;
+          case Refused(code: RefusalCode.takeMoved):
+            _moved.add(entry.id);
+            await withdraw(entry);
+            return _Landing.givenUp;
           case Refused(
             code: RefusalCode.deviceRevoked || RefusalCode.unauthorized,
           ):
@@ -893,9 +1050,12 @@ class TakeUploadQueue {
         scope: entry.scope,
         passNumber: entry.passNumber,
         chunkIndex: entry.chunkIndex,
-        recordedAt: entry.recordedAt,
+        recordedAt: entry.origin == null ? entry.recordedAt : _now(),
         durationMs: entry.durationMs,
         sha256: entry.sha256,
+        origin: entry.origin,
+        reopensTheApprovedDraft: entry.reopensTheApprovedDraft,
+        overTake: entry.overTake,
         abortTrigger: stop,
       ),
       stop,
@@ -995,8 +1155,11 @@ class TakeUploadQueue {
   }
 
   Future<void> _deleteTheCopy(PendingTake entry) async {
-    final file = File(entry.path);
-    if (await file.exists()) await file.delete();
+    try {
+      await File(entry.path).delete();
+    } on PathNotFoundException {
+      return;
+    }
   }
 
   Future<SceneRehearsalRecord?> keepTheScene(String row) async {
@@ -1059,6 +1222,30 @@ class TakeUploadQueue {
     });
     for (final entry in discarded) {
       if (!_isInTheAir(entry)) await _deleteTheCopy(entry);
+    }
+  }
+
+  /// Take every join row of [scope] still waiting off the manifest, with its copy: the
+  /// team recorded the part again by hand.
+  Future<void> withdrawTheJoinsOf(String sessionId, String scope) async {
+    final removed = <PendingTake>[];
+    await _mutate((written) {
+      final kept = <PendingTake>[];
+      for (final entry in written) {
+        if (!entry.stored &&
+            entry.origin != null &&
+            entry.sessionId == sessionId &&
+            entry.scope == scope &&
+            !_isInTheAir(entry)) {
+          removed.add(entry);
+          continue;
+        }
+        kept.add(entry);
+      }
+      return kept;
+    });
+    for (final entry in removed) {
+      await _deleteTheCopy(entry);
     }
   }
 

@@ -13,7 +13,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show settle, traduzirOApontadoDeNovo;
 import 'session_notifier_test.dart' show inConversa;
 
 const _aLadderThatWaits = [Duration(hours: 1)];
@@ -83,7 +83,7 @@ Future<_Room> _aResumedBackTranslation(
   await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor(
     'a tradução retomada pôr a parte no ar',
-    () => room.estado.stage == SalaStage.retro,
+    () => room.estado.stage == SalaStage.retro && harness.playback.sounding,
   );
   return room;
 }
@@ -126,7 +126,7 @@ Future<_Room> _aFindingToTellAgain(SalaHarness harness) async {
     'o achado apontar o trecho',
     () => room.estado.btFindingTrecho != null,
   );
-  room.sala.traduzirDeNovoEmPortugues();
+  traduzirOApontadoDeNovo(room.container);
   room.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
@@ -713,6 +713,9 @@ class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
     DateTime? recordedAt,
     int? durationMs,
     String? sha256,
+    String? origin,
+    bool reopensTheApprovedDraft = false,
+    String? overTake,
     Future<void>? abortTrigger,
   }) {
     if (!stumbled) {
@@ -729,6 +732,9 @@ class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
       recordedAt: recordedAt,
       durationMs: durationMs,
       sha256: sha256,
+      origin: origin,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
+      overTake: overTake,
       abortTrigger: abortTrigger,
     );
   }

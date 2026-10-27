@@ -2,23 +2,30 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
 
 void main() {
   late Directory home;
+  var recorder = FakeRecorder();
 
-  setUp(() => home = Directory.systemTemp.createTempSync('fila-tomadas'));
+  setUp(() {
+    home = Directory.systemTemp.createTempSync('fila-tomadas');
+    recorder = FakeRecorder();
+  });
   tearDown(() => home.deleteSync(recursive: true));
 
   var clock = DateTime(2026, 8, 12, 9);
@@ -27,7 +34,7 @@ void main() {
       TakeUploadQueue(
         room: room,
         home: () async => home,
-        recordings: FakeRecorder.new,
+        recordings: () => recorder,
         backoff: backoff,
         now: () => clock,
       );
@@ -37,6 +44,22 @@ void main() {
     file.writeAsStringSync('a equipe contou a passagem');
     return file;
   }
+
+  Future<PendingTake> keep(
+    TakeUploadQueue queue,
+    String name,
+    String session,
+  ) => queue.enqueue(
+    aTake(name),
+    sessionId: session,
+    kind: 'ensaio',
+    scope: 'inteira',
+  );
+
+  List<String> inTheFolder() => [
+    for (final e in Directory('${home.path}/guardadas').listSync())
+      p.basename(e.path),
+  ];
 
   File manifest() => File('${home.path}/guardadas/fila.json');
 
@@ -62,6 +85,84 @@ void main() {
       '"stored":false,"lost":false,"attempts":0,"waits":0,"last_try":null}]',
     );
   }
+
+  test('the end of a life empties the Outbox with its copies and refuses a '
+      'take until the next life begins', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    await keep(queue, 'velha-1', 'sessao-1');
+    await keep(queue, 'velha-2', 'sessao-2');
+
+    await queue.endTheLife();
+
+    expect(await queue.entries(), isEmpty);
+    expect(inTheFolder(), ['fila.json']);
+    await expectLater(
+      keep(queue, 'tardia', 'sessao-1'),
+      throwsA(isA<TheLifeEnded>()),
+    );
+    queue.beginALife();
+    await keep(queue, 'nova', 'sessao-3');
+    expect(await queue.entries(), hasLength(1));
+  });
+
+  test('a sweep that fails leaves every row for the next try', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    final kept = await keep(queue, 'velha', 'sessao-1');
+    File(kept.path).deleteSync();
+    Directory(kept.path).createSync();
+
+    expect(await queue.endTheLife(), isFalse);
+    expect(await queue.entries(), hasLength(1));
+  });
+
+  test('the end of a life deletes every recording on the tablet', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    final recording = File('${recorder.home.path}/ensaio_parte1.wav')
+      ..writeAsBytesSync([1]);
+
+    expect(await queue.endTheLife(), isTrue);
+
+    expect(recording.existsSync(), isFalse);
+  });
+
+  test('a recordings folder that cannot be swept fails the sweep', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    for (final error in [
+      const FileSystemException('o disco falhou'),
+      MissingPlatformDirectoryException('sem pasta'),
+    ]) {
+      recorder.deleteEveryThrows = error;
+
+      expect(await queue.endTheLife(), isFalse);
+    }
+  });
+
+  test('a sweep goes on past a copy already gone', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    final first = await keep(queue, 'velha-1', 'sessao-1');
+    await keep(queue, 'velha-2', 'sessao-1');
+    File(first.path).deleteSync();
+
+    expect(await queue.endTheLife(), isTrue);
+    expect(await queue.entries(), isEmpty);
+    expect(inTheFolder(), ['fila.json']);
+  });
+
+  test(
+    'a take being copied when the life ends leaves no row and no copy',
+    () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+
+      final enqueuing = keep(queue, 'no-ar', 'sessao-1');
+      final ending = queue.endTheLife();
+
+      await expectLater(enqueuing, throwsA(isA<TheLifeEnded>()));
+      await ending;
+      expect(File('${home.path}/no-ar.m4a').existsSync(), isFalse);
+      expect(await queue.entries(), isEmpty);
+      expect(inTheFolder(), ['fila.json']);
+    },
+  );
 
   test('a manifest it cannot read is never rewritten from scratch', () async {
     final room = FakeRoom()..reachable = false;
@@ -2093,6 +2194,171 @@ void main() {
         ]);
       },
     );
+  });
+
+  group('a join row', () {
+    File aRehearsal(List<int> bytes) =>
+        File('${home.path}/parte-2-junta-ensaio-2.wav')
+          ..writeAsBytesSync(bytes);
+
+    String fingerprintOf(List<int> bytes) =>
+        crypto.sha256.convert(bytes).toString();
+
+    test('whose copy is not the rehearsal\'s bytes writes nothing and leaves '
+        'no copy', () async {
+      final queue = queueOn(FakeRoom());
+
+      final row = await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+        fingerprint: fingerprintOf([1, 2, 3]),
+      );
+
+      expect(row, isNull);
+      expect(await queue.entries(), isEmpty);
+      expect(
+        Directory(
+          '${home.path}/guardadas',
+        ).listSync().where((file) => !file.path.endsWith('fila.json')),
+        isEmpty,
+      );
+    });
+
+    test('keeps its origin and reopening across a manifest read', () async {
+      final room = FakeRoom()..reachable = false;
+      aQueueWrittenByTheOlderApp('velha.m4a');
+      final older = (await queueOn(room).entries()).single;
+      expect(older.origin, isNull);
+      expect(older.reopensTheApprovedDraft, isFalse);
+
+      final row = await queueOn(room).enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+        reopensTheApprovedDraft: true,
+      );
+      await queueOn(room).flush();
+      await queueOn(room).dueAgain(row!.id);
+
+      final read = (await queueOn(room).entries()).last;
+      expect(read.tries, 0, reason: 'a linha não passou pelo dueNow');
+      expect(read.origin, 'ensaio-2');
+      expect(read.reopensTheApprovedDraft, isTrue);
+    });
+
+    test('goes up with its origin, the reopening and the rehearsal\'s '
+        'fingerprint', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final bytes = aWavTake();
+      await queue.enqueueTheJoin(
+        aRehearsal(bytes),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 3,
+        origin: 'ensaio-2',
+        fingerprint: fingerprintOf(bytes),
+        reopensTheApprovedDraft: true,
+      );
+
+      await queue.flush();
+
+      final sent = room.takesReceivedWhole.single;
+      expect(sent.kind, 'ensaio');
+      expect(sent.scope, 'parte-2');
+      expect(sent.chunkIndex, 2);
+      expect(room.takePasses.single, 3);
+      expect(sent.origin, 'ensaio-2');
+      expect(sent.reopens, isTrue);
+      expect(sent.sha256, fingerprintOf(bytes));
+      expect(sent.bytes, bytes);
+    });
+
+    test('sends the moment of each try as its Recording time', () async {
+      final room = FakeRoom()..unreachableTake = 'ensaio/parte-2';
+      final queue = queueOn(room);
+      final rehearsal = aRehearsal(aWavTake())
+        ..setLastModifiedSync(DateTime(2026, 8, 12, 6));
+      clock = DateTime(2026, 8, 12, 9);
+      await queue.enqueueTheJoin(
+        rehearsal,
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      );
+      await queue.flush();
+      room.unreachableTake = null;
+      clock = DateTime(2026, 8, 12, 9, 4);
+
+      await queue.flush();
+
+      expect(room.takesReceivedWhole.single.recordedAt, clock);
+    });
+
+    test('names the part\'s take it replaces on every try, across a manifest '
+        'read', () async {
+      final room = FakeRoom()
+        ..takes.add(
+          const TakeView(
+            takeId: 'gravacao-a-mao',
+            kind: 'ensaio',
+            scope: 'parte-2',
+            ordinal: 2,
+          ),
+        )
+        ..unreachableTake = 'ensaio/parte-2';
+      await queueOn(room).enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 2,
+        origin: 'ensaio-2',
+        overTake: 'gravacao-a-mao',
+      );
+      await queueOn(room).flush();
+      room.unreachableTake = null;
+
+      await queueOn(room).flush();
+
+      expect(room.takesReceivedWhole.single.overTake, 'gravacao-a-mao');
+    });
+
+    test('the room finds moved leaves the Outbox with its copy, is never '
+        'counted unsent and never sent again', () async {
+      final room = FakeRoom()
+        ..takes.add(
+          const TakeView(
+            takeId: 'gravacao-a-mao',
+            kind: 'ensaio',
+            scope: 'parte-2',
+            ordinal: 2,
+          ),
+        );
+      final queue = queueOn(room);
+      final row = await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 2,
+        origin: 'ensaio-2',
+        overTake: 'gravacao-de-antes',
+      );
+
+      await queue.flush();
+      await queue.dueAgain(row!.id);
+      await queue.flush();
+
+      expect(await queue.pending(), isEmpty);
+      expect(await queue.unsentOf('ensaio', sessionId: 'sessao-1'), 0);
+      expect(File(row.path).existsSync(), isFalse);
+      expect(room.calls.where((call) => call == 'sendTake'), hasLength(1));
+    });
   });
 
   group('a flush over an Outbox folder that is gone', () {

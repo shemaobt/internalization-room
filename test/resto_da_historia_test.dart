@@ -168,7 +168,8 @@ void main() {
     final container = await aHistoriaSemOFim(tester, harness);
 
     final antes = container.read(salaSessionProvider);
-    expect(antes.btPhase, BtPhase.findings);
+    expect(antes.btPhase, BtPhase.playing);
+    expect(antes.btVeredito, isTrue);
     expect(
       antes.btFindingTrecho,
       isNull,
@@ -584,21 +585,16 @@ void main() {
 
     final agora = container.read(salaSessionProvider);
     expect(agora.stage, SalaStage.retro);
-    expect(agora.btPhase, BtPhase.findings);
+    expect(agora.btPhase, BtPhase.playing);
+    expect(agora.btVeredito, isTrue);
     expect(agora.btFindingTrecho?.segmentId, 'trecho-2');
-    for (final microfone in [
-      'voltar e regravar uma parte',
-      'Traduzir este trecho de novo',
-    ]) {
-      expect(
-        byLabel(microfone),
-        findsOneWidget,
-        reason:
-            'a falta cabe num trecho: a equipe sabe se a materna já tem o '
-            'que faltou, então o achado oferece os dois microfones como para '
-            'qualquer outro achado',
-      );
-    }
+    expect(
+      byLabel('voltar e regravar uma parte'),
+      findsOneWidget,
+      reason:
+          'a falta cabe num trecho: a equipe sabe se a materna já tem o que '
+          'faltou, então a volta ao ensaio fica como para qualquer outro achado',
+    );
     expect(
       byLabel(continuarOEnsaio),
       findsNothing,

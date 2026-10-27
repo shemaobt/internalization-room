@@ -479,7 +479,7 @@ class EffectRunner {
     _retry = null;
   }
 
-  String? _startedTake;
+  final Set<String> _startedTakes = {};
 
   void _openTheMic(MicOwner owner, String take) {
     _micTaken ??= recorder.taken.listen(host.hearTheMicrophoneTaken);
@@ -507,7 +507,7 @@ class EffectRunner {
     String take,
   ) async {
     final answer = await starting;
-    if (answer == MicAnswer.started) _startedTake = take;
+    if (answer == MicAnswer.started) _startedTakes.add(take);
     if (_disposed) {
       if (answer == MicAnswer.started) unawaited(recorder.discard());
       return;
@@ -555,20 +555,23 @@ class EffectRunner {
         ),
       );
     }
+    final handedOver = take;
     if (_disposed) {
-      if (take != null && _isTheFileOf(_startedTake, take)) {
-        unawaited(recorder.delete(take));
+      if (handedOver != null &&
+          _startedTakes.any((it) => _isTheFileOf(it, handedOver))) {
+        unawaited(recorder.delete(handedOver));
       }
       return;
     }
-    _startedTake = null;
+    if (handedOver != null) {
+      _startedTakes.removeWhere((it) => _isTheFileOf(it, handedOver));
+    }
     host.answer(
       MicAnswered(MicAnswer.closed, take: take, generation: generation?.call()),
     );
   }
 
-  bool _isTheFileOf(String? startedTake, String path) {
-    if (startedTake == null) return false;
+  bool _isTheFileOf(String startedTake, String path) {
     final name = path.split('/').last;
     final dot = name.lastIndexOf('.');
     return (dot < 0 ? name : name.substring(0, dot)) == startedTake;

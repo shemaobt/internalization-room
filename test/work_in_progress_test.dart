@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -207,6 +208,25 @@ void main() {
 
     expect(volta.wholeHeldByTheRoom, ['gravacao-inteira']);
     expect(antiga.wholeHeldByTheRoom, isEmpty);
+  });
+
+  test('a resume point keeps the grain in force through toJson/fromJson, and a '
+      'row without it reads none', () {
+    const linha = ResumePoint(
+      sessionId: 'sessao-1',
+      stage: SalaStage.ensaio,
+      grain: Grain.whole,
+    );
+    const semEle = '{"session_id":"sessao-1","stage":"ensaio","takes":[]}';
+
+    final volta = ResumePoint.fromJson(linha.toJson(), folder: '/gravacoes')!;
+    final antiga = ResumePoint.fromJson(
+      jsonDecode(semEle) as Map<String, Object?>,
+      folder: '/gravacoes',
+    )!;
+
+    expect(volta.grain, Grain.whole);
+    expect(antiga.grain, isNull);
   });
 
   test('a row written before the part being recorded again existed reopens '

@@ -57,12 +57,12 @@ class ProviderRoomPort implements RoomPort {
 }
 
 class ProviderSoundPort implements SoundPort {
-  final Ref _ref;
+  final FacilitatorVoiceService _voice;
+  final PlaybackRepository _playback;
 
-  ProviderSoundPort(this._ref);
-
-  FacilitatorVoiceService get _voice => _ref.read(facilitatorVoiceProvider);
-  PlaybackRepository get _playback => _ref.read(playbackRepositoryProvider);
+  ProviderSoundPort(Ref ref)
+    : _voice = ref.read(facilitatorVoiceProvider),
+      _playback = ref.read(playbackRepositoryProvider);
 
   @override
   Future<bool> playLine(String url, {void Function()? onSoundStart}) {

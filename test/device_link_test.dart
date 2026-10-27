@@ -100,6 +100,7 @@ void main() {
     final harness = SalaHarness(
       linkedAs: _unclaimed,
       linkPoll: const Duration(milliseconds: 50),
+      filaEmMemoria: true,
     );
     final container = await pumpSala(tester, harness);
     final room = harness.room;

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../domain/grain.dart';
 import '../domain/kept_take.dart';
 import '../domain/session_state.dart';
 import 'staged_write.dart';
@@ -42,9 +43,21 @@ class ResumePoint {
   /// room's pass for it, so the recording goes up above it. Empty for any other row.
   final Map<int, int> passesToGoAbove;
 
+  /// The outside listener this tablet has in progress on the Checagem externa, by version
+  /// and number; what they have done is the room's to say (ADR 0116). Kept on the
+  /// Back-translation the back control returns to; null when no listener is in progress.
+  final ({int version, int number})? listener;
+
+  /// Whether the row stood on the Checagem externa, with the listener it names there.
+  bool get onTheExternalCheck => stage == SalaStage.checagem;
+
   /// The takes of a whole rehearsal set aside behind the parts that only the room holds.
   /// Empty for any other row.
   final List<String> wholeHeldByTheRoom;
+
+  /// The grain in force when the row was written. Null when none was known, and for a
+  /// row written before this field existed.
+  final Grain? grain;
 
   const ResumePoint({
     required this.sessionId,
@@ -54,7 +67,9 @@ class ResumePoint {
     this.language,
     this.partBeingRecordedAgain,
     this.passesToGoAbove = const {},
+    this.listener,
     this.wholeHeldByTheRoom = const [],
+    this.grain,
   });
 
   Map<String, Object?> toJson() => {
@@ -68,7 +83,10 @@ class ResumePoint {
         for (final MapEntry(:key, :value) in passesToGoAbove.entries)
           '$key': value,
       },
+    if (listener case (:final version, :final number))
+      'listener': {'version': version, 'number': number},
     if (wholeHeldByTheRoom.isNotEmpty) 'whole_set_aside': wholeHeldByTheRoom,
+    'grain': ?grain?.wire,
     'takes': [
       for (final take in takes)
         {
@@ -104,10 +122,18 @@ class ResumePoint {
           if (int.tryParse('$key') case final numero? when value is int)
             numero: value,
       },
+      listener: switch (json['listener']) {
+        {'version': final int version, 'number': final int number} => (
+          version: version,
+          number: number,
+        ),
+        _ => null,
+      },
       wholeHeldByTheRoom: [
         for (final id in (json['whole_set_aside'] as List? ?? const []))
           if (id is String) id,
       ],
+      grain: Grain.fromWire(json['grain']),
       takes: [
         for (final raw in (json['takes'] as List? ?? const []))
           if (raw is Map)

@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -211,6 +212,31 @@ void main() {
     _theLinkIsForgotten(tablet);
   });
 
+  test('a relaunch after a failed sweep sweeps again', () async {
+    final tablet = await _linkedTablet(
+      SalaHarness(linkedAs: _linked, filaEmMemoria: true),
+    );
+    final takes = tablet.harness.takes as FakeTakeQueue;
+    await takes.enqueue(_aRecording(), sessionId: 's', kind: 'x', scope: 'p');
+    takes.sweepFails = true;
+    tablet.harness.room.failWith = _revoked;
+    await takes.flush();
+    await pumpEventQueue();
+    tablet.container.dispose();
+    takes.sweepFails = false;
+
+    final again = tablet.harness.container();
+    addTearDown(again.dispose);
+    await again.read(deviceLinkProvider.notifier).findTheTeam();
+    await waitFor(
+      'a fresh code',
+      () => again.read(deviceLinkProvider).code != null,
+    );
+
+    expect(takes.rows, isEmpty);
+    expect(tablet.harness.vinculo.remembered.credential, isNull);
+  });
+
   test('a revoked question forgets the link too', () async {
     final inbox = HandInboxRepository(
       client: MockClient((_) async => _revokedAnswer()),
@@ -298,6 +324,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(
+      filaEmMemoria: true,
       linkedAs: _linked,
       linkPoll: const Duration(milliseconds: 50),
     );
@@ -333,6 +360,7 @@ void main() {
     (tester) async {
       final currentSession = FakeCurrentSessionLedger();
       final harness = SalaHarness(
+        filaEmMemoria: true,
         linkedAs: _linked,
         linkPoll: const Duration(milliseconds: 50),
         currentSession: currentSession,
@@ -379,6 +407,7 @@ void main() {
   testWidgets('a relinked tablet opens the Choice with its passages on the '
       'first try', (tester) async {
     final harness = SalaHarness(
+      filaEmMemoria: true,
       linkedAs: _linked,
       linkPoll: const Duration(milliseconds: 50),
     );
@@ -416,6 +445,7 @@ void main() {
   testWidgets('a relink while the Choice still waits on its passages opens the '
       'Choice with them', (tester) async {
     final harness = SalaHarness(
+      filaEmMemoria: true,
       linkedAs: _linked,
       linkPoll: const Duration(milliseconds: 50),
     );
@@ -448,6 +478,7 @@ void main() {
   testWidgets('a relinked tablet entering the Panorama opens a new session '
       'instead of the old link\'s', (tester) async {
     final harness = SalaHarness(
+      filaEmMemoria: true,
       linkedAs: _linked,
       linkPoll: const Duration(milliseconds: 50),
     )..room.passages = _bookWithPanorama;
@@ -564,6 +595,113 @@ void main() {
           'o início que a plataforma respondeu depois da revogação não tem '
           'mais ninguém para fechá-lo; gravaria atrás da tela do código',
     );
+    await theDeskLinksAgain(tester, harness);
+  });
+
+  testWidgets('a revocation silences a line that is sounding before the claim '
+      'code shows', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+      filaEmMemoria: true,
+    )..room.passages = _bookWithPanorama;
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.voice.holdNextLine();
+    container
+        .read(salaSessionProvider.notifier)
+        .openTheEntry(container.read(salaSessionProvider).naRoda!.first);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      harness.sounds.where(
+        (it) => it.startsWith('voice:') && it != 'voice:stop',
+      ),
+      isNotEmpty,
+      reason: 'a fala tem de estar soando quando a revogação chegar',
+    );
+    final stopsBefore = harness.voice.stops;
+    final soundsBefore = harness.sounds.length;
+    bool? codeShowedAtTheStop;
+    harness.voice.onStop = () =>
+        codeShowedAtTheStop ??= find.byType(CodigoView).evaluate().isNotEmpty;
+
+    await theDeskRevokes(tester, harness, container);
+
+    expect(harness.voice.stops, greaterThan(stopsBefore));
+    expect(harness.sounds.skip(soundsBefore), contains('playback:stop'));
+    expect(
+      codeShowedAtTheStop,
+      isFalse,
+      reason:
+          'a fala que soava quando a revogação chegou continuaria soando '
+          'atrás da tela do código',
+    );
+    await theDeskLinksAgain(tester, harness);
+  });
+
+  testWidgets('a revocation leaves no take of the revoked life in the Outbox', (
+    tester,
+  ) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+      filaEmMemoria: true,
+    );
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    final kept = File('${harness.recorder.home.path}/ensaio_parte1.wav')
+      ..writeAsBytesSync([1, 2, 3]);
+    await container
+        .read(takeUploadQueueProvider)
+        .enqueue(kept, sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-1');
+    expect((harness.takes as FakeTakeQueue).rows, isNotEmpty);
+
+    await theDeskRevokes(tester, harness, container);
+
+    expect((harness.takes as FakeTakeQueue).rows, isEmpty);
+    expect(kept.existsSync(), isFalse);
+    await theDeskLinksAgain(tester, harness);
+    await expectLater(
+      container
+          .read(takeUploadQueueProvider)
+          .enqueue(
+            File('${harness.recorder.home.path}/outra.wav')
+              ..writeAsBytesSync([1]),
+            sessionId: 'sessao-2',
+            kind: 'ensaio',
+            scope: 'parte-1',
+          ),
+      completes,
+    );
+  });
+
+  testWidgets('a sweep that fails keeps the link until it succeeds', (
+    tester,
+  ) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+      filaEmMemoria: true,
+    );
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    final takes = harness.takes as FakeTakeQueue..sweepFails = true;
+
+    await theDeskRevokes(tester, harness, container);
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(
+      harness.vinculo.remembered.credential,
+      isNotNull,
+      reason:
+          'esquecer o vínculo antes de varrer deixa as tomadas da vida '
+          'revogada subirem com a credencial da próxima',
+    );
+
+    takes.sweepFails = false;
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(harness.vinculo.remembered.credential, isNull);
     await theDeskLinksAgain(tester, harness);
   });
 }

@@ -19,7 +19,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, traduzirOApontadoDeNovo;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         aceso,
@@ -166,7 +166,9 @@ Future<ProviderContainer> _quatroFrasesConferidas(
   );
   await waitFor(
     'o veredito chegar com os achados',
-    () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+    () =>
+        container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+        container.read(salaSessionProvider).btVeredito,
     step: () => _passo(tester),
   );
   await _passo(tester);
@@ -182,9 +184,9 @@ Future<void> _traduzirAFraseApontadaDeNovo(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
-  await tocar(tester, 'Traduzir este trecho de novo');
+  traduzirOApontadoDeNovo(container);
   await _passo(tester);
-  await tocar(tester, 'Tocar para gravar a tradução de novo');
+  await tocar(tester, 'ouvindo a gravação de vocês…');
   await tocar(tester, 'Tocar ao terminar');
   await _passo(tester);
   await waitFor(
@@ -555,7 +557,8 @@ void main() {
       harness,
       _achadosDaDoisEDaQuatro,
     );
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+    expect(container.read(salaSessionProvider).btVeredito, isTrue);
     final terceira = harness.room.chunkFiles[2];
     harness.playback.finishPlayback();
     await _passo(tester);
@@ -835,7 +838,9 @@ void main() {
     );
     await waitFor(
       'o veredito chegar com um achado',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
 
@@ -845,6 +850,33 @@ void main() {
       reason: 'depois do veredito a linha seguia dizendo para pausar',
     );
     expect(find.text(_subTell), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('on a phone as narrow as the iPhone SE the line before a '
+      'verdict keeps the margin the frase rows keep, not the screen edge', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(segments: _quatroFrases),
+    );
+    tester.view.physicalSize = const Size(375, 2400);
+    await _passo(tester);
+
+    final linha = tester.getRect(find.text(_subTell));
+    expect(
+      linha.left,
+      16,
+      reason: 'a linha antes do veredito encostava na borda esquerda',
+    );
+    expect(
+      linha.right,
+      375 - 16,
+      reason: 'a linha antes do veredito encostava na borda direita',
+    );
     closeTheRoom(container);
   });
 
@@ -1387,8 +1419,8 @@ void main() {
   });
 
   testWidgets(
-    'after a verdict the circle offers «ouvir a resposta de novo» and '
-    'the way back is «voltar e regravar uma parte», never «achado»',
+    'after a verdict the way back is «voltar e regravar uma parte», never '
+    '«achado»',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await _quatroFrasesConferidas(
@@ -1398,13 +1430,10 @@ void main() {
       );
 
       expect(
-        tester
-            .widget<FacilitatorCircle>(find.byType(FacilitatorCircle))
-            .semanticLabel,
-        'ouvir a resposta de novo',
+        byLabel('voltar e regravar uma parte'),
+        findsOneWidget,
         reason: '«achado» é palavra da mecânica, não dela',
       );
-      expect(byLabel('voltar e regravar uma parte'), findsOneWidget);
       expect(byLabel('Gravar a parte de novo na língua materna'), findsNothing);
       closeTheRoom(container);
     },

@@ -34,6 +34,7 @@ const _cannotEnter = 'este ensaio não pode entrar — ensaiem esta cena de novo
 const _question = 'Qual cena vocês vão ensaiar?';
 const _join = 'juntar as cenas e ouvir';
 const _sceneByScene = 'Gravar cena por cena';
+const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _houseBack = 'Voltar para a passagem atual';
 const _circle = [
   'Gravar o ensaio da cena',
@@ -251,6 +252,7 @@ void _expectOnlyFacts(WidgetTester tester) {
     'Escolher outra passagem',
     _planLine,
     _sceneByScene,
+    _wholeAtOnce,
     'falta o ensaio desta cena',
     _cannotEnter,
     'tradução incompleta',
@@ -932,4 +934,34 @@ void main() {
       },
     );
   });
+
+  testWidgets(
+    'the card rests while a join runs, and a tap on it labels nothing',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, container) = await _seeded(tester, _twoUnlabelled);
+      await _openThePlan(tester);
+      harness.room.holdNextTake('parte-2');
+      await tester.ensureVisible(byLabel(_join));
+      await tester.tap(byLabel(_join));
+      await _pumpUntil(
+        tester,
+        () =>
+            harness.room.holdTakeScope == 'parte-2' &&
+            container.read(salaSessionProvider).joining == 2,
+      );
+      await tester.pump();
+
+      expect(_enabledAt(tester, _sceneButton(3)), Tristate.isFalse);
+      await tester.ensureVisible(byLabel(_sceneButton(3)));
+      await tester.tap(byLabel(_sceneButton(3)), warnIfMissed: false);
+      await tester.pump(const Duration(milliseconds: 100));
+      harness.room.finishHeldTake();
+      await _theAnswerSettles(tester);
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(harness.room.labelsSent, isEmpty);
+      semantics.dispose();
+    },
+  );
 }

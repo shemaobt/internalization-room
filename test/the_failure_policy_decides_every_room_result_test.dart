@@ -197,14 +197,20 @@ void main() {
   });
 
   group('a microphone off the session screen is silent', () {
-    test('a microphone failure on the scene rehearsal, the Rehearsal or the '
-        'Back-translation never shows the sign', () {
-      for (final station in const [SceneRehearsal(), Ensaio(), Retro()]) {
+    test('a microphone failure on the scene rehearsal, the Rehearsal, the '
+        'Back-translation or the Checagem externa never shows the sign', () {
+      for (final station in const [
+        SceneRehearsal(),
+        Ensaio(),
+        Retro(),
+        ChecagemExterna(1),
+      ]) {
         for (final owner in const [
           MicOwner.scene,
           MicOwner.frase,
           MicOwner.rehearsal,
           MicOwner.capture,
+          MicOwner.listener,
         ]) {
           for (final failure in [
             TheTabletCannotRecord(owner: owner),

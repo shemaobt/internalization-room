@@ -41,6 +41,7 @@ const _planLine = 'Estes são os ensaios das cenas que vocês me enviaram.';
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _thinking = 'pensando…';
 const _sceneByScene = 'Gravar cena por cena';
+const _how = 'Como vocês querem gravar?';
 final _leavePassage = roomLabelFor('leavePassage', 'pt');
 final _personSign = circleLabelFor('needsPerson', 'pt');
 
@@ -809,6 +810,7 @@ void main() {
           credential: 'credencial-1',
         ),
         linkPoll: const Duration(milliseconds: 50),
+        filaEmMemoria: true,
       )..room.nextMoment = _midConversation;
       final container = await pumpSala(tester, harness);
       addTearDown(() => closeTheRoom(container));
@@ -1029,7 +1031,7 @@ void main() {
     },
   );
 
-  testWidgets('a plan read that takes 6 seconds opens the recording home', (
+  testWidgets('a plan read that takes 6 seconds opens the grain choice', (
     tester,
   ) async {
     final (harness, container) = await _atRest(tester);
@@ -1039,18 +1041,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 5800));
 
     expect(find.text(_thinking), findsOneWidget);
-    expect(find.text(_homeLine), findsNothing);
+    expect(find.text(_how), findsNothing);
 
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text(_homeLine), findsOneWidget);
+    expect(find.text(_how), findsOneWidget);
     expect(find.text(_thinking), findsNothing);
 
     harness.room.finishHeldSceneList();
     await _theAnswerSettles(tester);
 
-    expect(find.text(_homeLine), findsOneWidget);
+    expect(find.text(_how), findsOneWidget);
     expect(find.text(_planLine), findsNothing);
     expect(byLabel(_personSign), findsNothing);
     expect(container.read(salaSessionProvider).needsPerson, isFalse);
@@ -1310,20 +1312,20 @@ void main() {
   );
 
   testWidgets(
-    'a passage the room answers with no scenes opens the recording home',
+    'a passage the room answers with no scenes opens the grain choice',
     (tester) async {
       await _atRest(tester, scenes: const []);
 
       await _tapTheDot(tester);
       await _theAnswerSettles(tester);
 
-      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_how), findsOneWidget);
       expect(find.text(_planLine), findsNothing);
       expect(find.text(_thinking), findsNothing);
     },
   );
 
-  testWidgets('a takes read that fails opens the recording home with no sign', (
+  testWidgets('a takes read that fails opens the grain choice with no sign', (
     tester,
   ) async {
     final (harness, container) = await _atRest(tester);
@@ -1332,7 +1334,7 @@ void main() {
     await _tapTheDot(tester);
     await _theAnswerSettles(tester);
 
-    expect(find.text(_homeLine), findsOneWidget);
+    expect(find.text(_how), findsOneWidget);
     expect(find.text(_planLine), findsNothing);
     expect(byLabel(_personSign), findsNothing);
     expect(container.read(salaSessionProvider).needsPerson, isFalse);

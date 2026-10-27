@@ -531,7 +531,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await sala.finishBackTranslation();
     await tester.pump(const Duration(milliseconds: 300));
-    await semAprovar(BtPhase.findings);
+    await semAprovar(BtPhase.playing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     final conferida = await _ateAConferida(tester);
@@ -1237,7 +1237,10 @@ void main() {
     'a conferida whose verdict could not read the names back still leads the '
     'team to the stretch a refusal names',
     () async {
-      final it = await umEnsaioDeTresPartesContadoInteiro();
+      final it = await umEnsaioContadoInteiro(
+        partesDoEnsaio,
+        numaSala: SalaHarness()..room.chunksAnswerWithNoName = true,
+      );
       it.harness.room
         ..verdictChecked = true
         ..failStateOnceWith = Refused(RefusalCode.unnamed(400));

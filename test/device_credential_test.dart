@@ -11,11 +11,13 @@ import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
+import 'package:internalization_room/features/sala/data/recording_repository.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_client.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
@@ -73,6 +75,8 @@ final Map<String, _Request> _everyRequest = {
   'sendTake': (room, audio) =>
       room.sendTake('sessao-1', audio, kind: 'ensaio', scope: 'passagem'),
   'takesOf': (room, _) => room.takesOf('sessao-1'),
+  'takesListingOf': (room, _) => room.takesListingOf('sessao-1'),
+  'switchTheGrain': (room, _) => room.switchTheGrain('sessao-1', Grain.whole),
   'sceneRehearsalsOf': (room, _) => room.sceneRehearsalsOf('sessao-1'),
   'scenesOf': (room, _) => room.scenesOf('sessao-1'),
   'keepSceneRehearsal': (room, audio) =>
@@ -120,10 +124,20 @@ final Map<String, _Request> _everyRequest = {
       room.reportTheVerdictHeard('sessao-1', '2026-10-19T19:58:13.123456Z'),
   'startTheTranslationOver': (room, _) =>
       room.startTheTranslationOver('sessao-1'),
+  'bringBackTheTranslations': (room, _) =>
+      room.bringBackTheTranslations('sessao-1', 2),
   'fixedLineAddress': (room, _) => room.fixedLineAddress('F0', language: 'pt'),
   'fetchClip': (room, _) => room.fetchClip('/voice/p01'),
   'openClip': (room, _) => room.openClip('/voice/p01', from: 3, ifRange: 'e1'),
   'approveRelease': (room, _) => room.approveRelease('sessao-1'),
+  'openTheExternalCheck': (room, _) => room.openTheExternalCheck('sessao-1'),
+  'aNewListener': (room, _) =>
+      room.aNewListener('sessao-1', 1, attempt: 'tentativa-1'),
+  'sendTheListenerRecording': (room, audio) =>
+      room.sendTheListenerRecording('sessao-1', 1, 1, audio, kind: 'retell'),
+  'theListener': (room, _) => room.theListener('sessao-1', 1, 1),
+  'finishTheListener': (room, _) =>
+      room.finishTheListener('sessao-1', 1, 1, completed: true),
 };
 
 typedef _InboxRequest =
@@ -151,6 +165,7 @@ ProviderContainer _tablet({
 }) => ProviderContainer(
   overrides: [
     roomRepositoryProvider.overrideWithValue(room),
+    recordingRepositoryProvider.overrideWithValue(FakeRecorder()),
     linkedTeamProvider.overrideWithValue(ledger),
     linkPollIntervalProvider.overrideWithValue(linkPoll),
     roomRetryBackoffProvider.overrideWithValue(const [_quickPoll]),

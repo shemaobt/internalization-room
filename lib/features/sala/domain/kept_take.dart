@@ -43,6 +43,10 @@ class UnsentPart {
   });
 }
 
+/// Where a Part on its way stands: coming down, missed by its last fetch, or lost by the
+/// room.
+enum PartAway { coming, missed, lost }
+
 class KeptTake {
   final String scopeId;
   final String path;
@@ -72,6 +76,16 @@ class KeptTake {
     this.pass = 1,
     this.origin,
   });
+
+  bool get isWav => path.endsWith('.wav');
+
+  KeptTake at(String file) => KeptTake(
+    scopeId: scopeId,
+    path: file,
+    takeId: takeId,
+    pass: pass,
+    origin: origin,
+  );
 
   KeptTake withTakeId(String? id) => KeptTake(
     scopeId: scopeId,

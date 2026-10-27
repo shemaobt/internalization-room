@@ -330,6 +330,17 @@ final class TheSceneRehearsalLeft extends StationEvent {
   const TheSceneRehearsalLeft();
 }
 
+final class TheExternalCheckOpened extends StationEvent {
+  final int version;
+  final bool relaunched;
+
+  const TheExternalCheckOpened(this.version, {this.relaunched = false});
+}
+
+final class TheExternalCheckLeft extends StationEvent {
+  const TheExternalCheckLeft();
+}
+
 /// The team asks for a Panorama in a language: the same one keeps the session the machine
 /// holds for it, any other lets that session go.
 final class ThePanoramaAsked extends MachineEvent {
@@ -362,11 +373,16 @@ final class TheLanguageChosen extends MachineEvent {
   const TheLanguageChosen();
 }
 
-/// The Rehearsal's parts or its scene list changed: whether every scene has its part.
+/// The Rehearsal's parts or its scene list changed: whether every scene has its part, and
+/// whether every part is on the tablet.
 final class TheRehearsalWeighed extends MachineEvent {
   final bool everySceneHasItsPart;
+  final bool everyPartIsHere;
 
-  const TheRehearsalWeighed({required this.everySceneHasItsPart});
+  const TheRehearsalWeighed({
+    required this.everySceneHasItsPart,
+    required this.everyPartIsHere,
+  });
 }
 
 final class TheSessionIsGone extends AnsweringEvent {
@@ -1443,15 +1459,20 @@ const _watch = ArmTheWatch();
     ),
     _ => (machine, const []),
   },
-  TheRehearsalWeighed(:final everySceneHasItsPart) => switch (machine.station) {
-    Ensaio(:final step) => (
-      machine.copyWith(
-        station: Ensaio(everySceneHasItsPart: everySceneHasItsPart, step: step),
+  TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsHere) =>
+    switch (machine.station) {
+      Ensaio(:final step) => (
+        machine.copyWith(
+          station: Ensaio(
+            everySceneHasItsPart: everySceneHasItsPart,
+            everyPartIsHere: everyPartIsHere,
+            step: step,
+          ),
+        ),
+        const [],
       ),
-      const [],
-    ),
-    _ => (machine, const []),
-  },
+      _ => (machine, const []),
+    },
   TheWayBackTaken(:final left) => _takeTheWayBack(machine, left),
   StationEvent() => _reachTheStation(machine, event),
 };

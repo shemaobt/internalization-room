@@ -73,6 +73,11 @@ Amended by ENG-1382 (2026-10-22, ADR 0117): the orange dot opens her Ensaio Fina
 Final», «Estes são os ensaios das cenas que vocês me enviaram.» and «Gravar cena por cena».
 It is the tenth named exception, under the moment label's reason, her words the team reads.
 
+Amended by ENG-1408 (2026-10-22, ADR 0123): the Back-translation of a joined recording reads
+«Ensaio Final», and during the First listen «Primeiro, só ouvir: a passagem inteira, do
+começo ao fim.» and the position line «ouvindo a gravação de vocês… — parte 2 · 0:41 /
+1:10». `widgets/retro_view.dart` is already a named exception, so there is no new one.
+
 Amended by ENG-1259 (2026-10-22, ADR 0112): an approval ends on her Saved screen
 (`widgets/saved_screen.dart`): «Ensaio salvo», her approved sentence with its version, and
 «Pronto». It is the eleventh named exception, under the moment label's reason, her words the team
@@ -86,6 +91,26 @@ for each unsent part beyond the last scene, show the same words, «✓ salvo», 
 grave de novo» for a part whose recording is gone. It is the twelfth named exception,
 under the moment label's reason, her words the team reads. VoiceOver reads the same words,
 but for «parar», which it reads as her «Parar o envio (a gravação fica neste computador)».
+
+Amended by ENG-1260 (2026-10-22, ADR 0113): the Back-translation of an approved draft shows
+«checagem externa: {n} ouvintes» (or «checagem externa: 1 ouvinte») when the version has
+listeners, and the «Checagem externa» button; an armed control over an approved draft reads
+«toquem de novo: isto abre de novo o rascunho aprovado», and a tap the room cannot answer reads
+her two texts. The Back-translation and its frase list are already named exceptions, her words
+the team reads, so no new exception is named.
+
+Amended by ENG-1421 (2026-10-23, ADR 0114): her Checagem externa screen is a named exception,
+her words the team reads: the title «Checagem externa», the idle sub-line «Quem não ajudou a
+traduzir ouve a passagem e diz o que entendeu.» and «Novo ouvinte». Its back control is an icon
+VoiceOver reads by her name, «Voltar para a gravação».
+
+Amended by ENG-1766 (2026-10-23, ADR 0134): her grain choice
+(`widgets/grain_choice_view.dart`): «Gravem o ensaio de vocês», «Como vocês querem gravar?»,
+«A passagem inteira» «uma gravação» and «Cena por cena» «{N} partes», and the recording
+home's and the plan's grain controls, «gravar a passagem inteira de uma vez», «Gravar a
+passagem inteira», «Gravar cena por cena» and «Ensaio Final: juntar os ensaios das cenas», with
+their armed texts. It is the thirteenth named exception, under the moment label's reason, her
+words the team reads.
 
 ## Context
 

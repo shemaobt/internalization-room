@@ -144,6 +144,9 @@ class _Sala extends FakeRoom {
     DateTime? recordedAt,
     int? durationMs,
     String? sha256,
+    String? origin,
+    bool reopensTheApprovedDraft = false,
+    String? overTake,
     Future<void>? abortTrigger,
   }) {
     takesSent.add((session: sessionId, kind: kind));
@@ -157,6 +160,9 @@ class _Sala extends FakeRoom {
       recordedAt: recordedAt,
       durationMs: durationMs,
       sha256: sha256,
+      origin: origin,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
+      overTake: overTake,
       abortTrigger: abortTrigger,
     );
   }

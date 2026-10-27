@@ -6,7 +6,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle, umaParteInteira;
+import 'scenario_helpers.dart'
+    show settle, umaParteInteira, traduzirOApontadoDeNovo;
 
 void main() {
   test('a guarded back-translation take carries no number, a rehearsal part '
@@ -106,9 +107,11 @@ void main() {
     await notifier.finishBackTranslation();
     await waitFor(
       'o veredito chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+          container.read(salaSessionProvider).btVeredito,
     );
-    notifier.traduzirDeNovoEmPortugues();
+    traduzirOApontadoDeNovo(container);
     notifier.retroTap();
     await waitFor(
       'o microfone abrir no trecho',
