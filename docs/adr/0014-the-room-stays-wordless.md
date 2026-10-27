@@ -26,11 +26,13 @@ exception, under its own reason, words only the camera reads, so that the field 
 matched to the session. It is also on the Team's screen, so «the only one the Team sees»
 above is not read alone; it is not a control and VoiceOver skips it.
 
-Amended by ENG-1817 (2026-10-27): the claquete shows on the conversation only, as in her
-app, whose slate lives only inside `.canvas` (`app/page.tsx:1004`, `app/globals.css:67-73`);
-on the check screen and every other stage it is not drawn, and the Shema mark that shows it
-again is on the conversation only. Its twenty seconds are armed on the session id
-(`widgets/claquete.dart`), as hers are on opening or resuming a session (`app/page.tsx:211`,
+Amended by ENG-1817 and ENG-1819 (2026-10-27): the claquete shows on her canvas: the
+conversation and the Panorama, and nowhere else. In her app the slate and the Shema mark
+live inside `.canvas`, which the Panorama shares with a passage's conversation
+(`app/page.tsx:120`, `:998-1004`; `app/globals.css:67-73`), so the Panorama reads «OV-Ruth ·
+2026-09-30 14:14 · fia-fixt» as a passage reads «P05 · …». The check screen, the rehearsals
+and the Choice draw neither the claquete nor the mark. Its twenty seconds are armed on the
+session of the Station, as hers are on opening or resuming a session (`app/page.tsx:211`,
 `:261-265`), so a session resumed onto another stage spends them unseen, as in hers.
 
 Amended by ENG-1296 (2026-10-15): the Choice shows «PT» and «EN» at its top right, and the
