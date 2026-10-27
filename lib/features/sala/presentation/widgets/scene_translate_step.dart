@@ -603,7 +603,10 @@ class _ListedRow extends StatelessWidget {
     final live = !onScreen && !still;
     final scene = row.sceneNumber;
     final at = row.recordedAt;
-    final words = TextStyle(color: colors.mut, fontSize: 14);
+    final words = TextStyle(
+      color: onScreen ? colors.ink : colors.mut,
+      fontSize: 14,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Semantics(
@@ -614,47 +617,44 @@ class _ListedRow extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onTap: live ? onTap : null,
           child: ExcludeSemantics(
-            child: Opacity(
-              opacity: live ? 1 : 0.35,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: onScreen ? ShemaBrand.azul : colors.line,
+                  width: 1.2,
                 ),
-                decoration: BoxDecoration(
-                  border: Border.all(color: colors.line, width: 1.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Text('${row.n}', style: words),
-                    if (scene != null) ...[
-                      const SizedBox(width: 10),
-                      Text(said('sceneN', scene), style: words),
-                    ],
-                    if (at != null) ...[
-                      const SizedBox(width: 10),
-                      Text(clockOf(at), style: words),
-                    ],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Text('${row.n}', style: words),
+                  if (scene != null) ...[
                     const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        '${row.translatedFrases} · ${said('frases')}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: words,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      said(row.unsent ? 'listUnsent' : 'listSent'),
-                      style: TextStyle(
-                        color: row.unsent ? colors.telha : colors.mut,
-                        fontSize: 14,
-                      ),
-                    ),
+                    Text(said('sceneN', scene), style: words),
                   ],
-                ),
+                  if (at != null) ...[
+                    const SizedBox(width: 10),
+                    Text(clockOf(at), style: words),
+                  ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${row.translatedFrases} · ${said('frases')}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: words,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    said(row.unsent ? 'listUnsent' : 'listSent'),
+                    style: TextStyle(
+                      color: row.unsent ? colors.telha : colors.mut,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -755,4 +755,72 @@ void main() {
       },
     );
   }
+  testWidgets(
+    'the row on screen is marked in azul, not dimmed, and a row that cannot be opened while a translation comes down is not dimmed either',
+    (tester) async {
+      const sentRow =
+          'ouvir o ensaio da cena 1, 1 · frases traduzidas, enviado';
+      const rowOnScreen =
+          'Ensaio da cena 2, 1 · frases traduzidas, não enviado';
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-15T14:20:00+00:00',
+            frases: [_frase('f1', 0, 3000)],
+          ),
+          _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+        ],
+        until: (state) => state.scene.rehearsal?.n == 2,
+      );
+      Iterable<double> opacities(String row) => tester
+          .widgetList<Opacity>(
+            find.descendant(of: byLabel(row), matching: find.byType(Opacity)),
+          )
+          .map((opacity) => opacity.opacity);
+      Color? border(String row) =>
+          ((tester
+                              .widget<Container>(
+                                find.descendant(
+                                  of: byLabel(row),
+                                  matching: find.byType(Container),
+                                ),
+                              )
+                              .decoration
+                          as BoxDecoration?)
+                      ?.border
+                  as Border?)
+              ?.top
+              .color;
+
+      expect(
+        opacities(rowOnScreen),
+        everyElement(1.0),
+        reason: 'a linha da tela vinha apagada; no dela ela é marcada',
+      );
+      expect(border(rowOnScreen), ShemaBrand.azul);
+      expect(border(sentRow), isNot(ShemaBrand.azul));
+
+      harness.room.holdNextClip();
+      await tester.tap(byLabel('ouvir a minha tradução da frase 1'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).scene.waiting,
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(container.read(salaSessionProvider).scene.waiting, isTrue);
+      expect(
+        tester.widget<Semantics>(byLabel(sentRow)).properties.enabled,
+        isFalse,
+      );
+      expect(
+        opacities(sentRow),
+        everyElement(1.0),
+        reason: 'no dela uma linha que não abre agora não se apaga',
+      );
+      harness.room.finishHeldClip();
+      await tester.pump(const Duration(milliseconds: 500));
+    },
+  );
 }
