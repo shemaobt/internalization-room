@@ -6,10 +6,12 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'facilitator_circle.dart';
 import 'kept_retelling_buttons.dart';
+import 'mic_clock.dart';
 import 'moment_label.dart';
 import 'motion.dart';
 
@@ -39,6 +41,8 @@ class ConversaView extends ConsumerWidget {
             onTap: notifier.conversaTap,
           ),
         ),
+        if (session.channel case Microphone(owner: MicOwner.conversation))
+          const MicClock(circleSize: 158),
         if (session.partsToReplay.isNotEmpty)
           KeptRetellingButtons(
             parts: session.partsToReplay,
