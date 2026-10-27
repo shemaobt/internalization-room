@@ -230,7 +230,6 @@ class SceneTranslateStep extends ConsumerWidget {
             const SizedBox(height: 12),
             SceneRestartControl(
               shown: restartShown,
-              written: true,
               armed: restart,
               n: scene.rehearsal?.translatedFrases ?? 0,
               line: line,
@@ -311,7 +310,6 @@ class SceneTranslateStep extends ConsumerWidget {
 /// the step may carry words.
 class SceneRestartControl extends ConsumerWidget {
   final bool shown;
-  final bool written;
   final BtRecomeco? armed;
   final int n;
   final SceneLine? line;
@@ -321,7 +319,6 @@ class SceneRestartControl extends ConsumerWidget {
   const SceneRestartControl({
     super.key,
     required this.shown,
-    required this.written,
     required this.armed,
     required this.n,
     required this.line,
@@ -353,16 +350,13 @@ class SceneRestartControl extends ConsumerWidget {
           ),
         if (words != null) ...[
           const SizedBox(height: 8),
-          if (written)
-            Semantics(
-              liveRegion: true,
-              child: _Written(
-                words,
-                style: TextStyle(color: colors.mut, fontSize: 16),
-              ),
-            )
-          else
-            Semantics(liveRegion: true, label: words),
+          Semantics(
+            liveRegion: true,
+            child: _Written(
+              words,
+              style: TextStyle(color: colors.mut, fontSize: 16),
+            ),
+          ),
         ],
       ],
     );
@@ -405,7 +399,6 @@ class ScenePlacesUnknown extends ConsumerWidget {
           const SizedBox(height: 16),
           SceneRestartControl(
             shown: restartShown,
-            written: false,
             armed: restart,
             n: scene.rehearsal?.translatedFrases ?? 0,
             line: line,
