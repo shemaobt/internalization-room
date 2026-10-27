@@ -22,6 +22,7 @@ void main() {
       'handLabels': handLabels,
       'roomLabels': roomLabels,
       'codigoLabels': codigoLabels,
+      'voiceThinking': {'thinking': voiceThinking},
     };
     for (final MapEntry(key: table, value: states) in tables.entries) {
       for (final MapEntry(key: state, value: labels) in states.entries) {

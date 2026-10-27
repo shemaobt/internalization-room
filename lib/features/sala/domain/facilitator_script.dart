@@ -880,6 +880,11 @@ String? momentLabelFor(Moment moment, String language) {
 String momentAriaFor(String language) =>
     momentAria[language] ?? momentAria[floorLanguage]!;
 
+const voiceThinking = {'pt': 'pensando…', 'en': 'thinking…'};
+
+String voiceThinkingFor(String language) =>
+    voiceThinking[language] ?? voiceThinking[floorLanguage]!;
+
 const updateLabels = {
   'line': {
     'pt': 'Há uma versão nova do aplicativo. Toquem para atualizar.',
