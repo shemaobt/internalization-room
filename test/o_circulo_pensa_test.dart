@@ -167,7 +167,9 @@ void main() {
     },
   );
 
-  testWidgets('no voice ever draws a turning transform', (tester) async {
+  testWidgets('a circle off her canvas draws a turning transform in no voice', (
+    tester,
+  ) async {
     for (final still in [false, true]) {
       for (final voice in VoiceState.values) {
         await _pumpCircle(tester, voice, still: still);
@@ -176,18 +178,16 @@ void main() {
           _transformsInCircle(tester),
           isNot(anyElement(predicate(_rotates))),
           reason:
-              'os arcos giravam sozinhos, sem dizer nada que a respiração e o '
-              'brilho já não dissessem — e nos ~50 s do turno de pensar a sala '
-              'lia como um relógio, não como alguém trabalhando (Henok, '
-              'revertendo o PR #230); em ${voice.name} (still=$still) não pode '
-              'haver nem essa volta',
+              'os círculos de checagem dela pensam só respirando, sem arcos '
+              '(globals.css:384); fora do canvas, em ${voice.name} '
+              '(still=$still), não pode haver nem essa volta',
         );
       }
     }
   });
 
   testWidgets(
-    'the thinking circle paints only the clay disc and its glow, nothing else',
+    'a thinking circle off her canvas paints only the clay disc and its glow',
     (tester) async {
       await _pumpCircle(tester, VoiceState.thinking);
 
@@ -206,8 +206,8 @@ void main() {
         painters,
         {GlowPainter},
         reason:
-            'ArcPainter pintava dois arcos por cima do disco; sem eles não '
-            'sobra nenhum outro CustomPaint além do brilho',
+            'os arcos são do canvas dela; um círculo da Retro, da Escolha ou '
+            'do código que pensa não pinta outro CustomPaint além do brilho',
       );
     },
   );

@@ -397,7 +397,9 @@ void main() {
     },
   );
 
-  testWidgets('the room\'s own voices draw no mark', (tester) async {
+  testWidgets('off her canvas, the room\'s own voices draw no mark', (
+    tester,
+  ) async {
     for (final voice in const [
       VoiceState.invite,
       VoiceState.listening,
@@ -410,9 +412,9 @@ void main() {
         _glyphs(tester),
         isEmpty,
         reason:
-            'a voz da própria sala não é um pedido: ${voice.name} se diz '
-            'pela cor e pela respiração, e o alto-falante que ficou aqui um '
-            'dia lia como um botão que a equipe devia apertar (João, 10/09)',
+            'os círculos de checagem dela não desenham glifo nenhum '
+            '(Drafting.tsx:2405, Rehearsal.tsx:903, ExternalCheck.tsx:426); '
+            'fora do canvas, ${voice.name} se diz pela cor e pela respiração',
       );
     }
   });
