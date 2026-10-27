@@ -17,6 +17,11 @@ import 'scenario_helpers.dart' show byLabel;
 
 const _session = 'sessao-1';
 
+const _listenLine =
+    'A tradução deste ensaio da cena já foi para a voz. Toquem numa frase '
+    'para ouvir o ensaio naquela parte, e no alto-falante para ouvir a '
+    'tradução de vocês.';
+
 String _bar(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
 
 SceneFrase _frase(String id, int startsMs, int endsMs) =>
@@ -78,6 +83,34 @@ void _titled(WidgetTester tester, String title) {
     isTrue,
     reason: 'o título é o cabeçalho da tela, como o h1 dela',
   );
+}
+
+Future<(SalaHarness, ProviderContainer)> _inListenMode(
+  WidgetTester tester, {
+  List<SceneRehearsalRecord>? rehearsals,
+}) async {
+  final (harness, container) = await _onTheSceneScreen(
+    tester,
+    rehearsals:
+        rehearsals ??
+        [
+          _rehearsal(
+            sentAt: '2026-10-27T10:00:00+00:00',
+            frases: [_frase('f1', 0, 3000)],
+          ),
+        ],
+    until: (state) => state.sceneRehearsals.isNotEmpty,
+  );
+  container
+      .read(salaSessionProvider.notifier)
+      .openTheListedSceneRehearsal('ensaio-da-cena-1');
+  await pumpUntil(
+    tester,
+    () => container.read(salaSessionProvider).scene.step == SceneStep.sent,
+  );
+  await tester.pump(const Duration(milliseconds: 300));
+  expect(container.read(salaSessionProvider).scene.step, SceneStep.sent);
+  return (harness, container);
 }
 
 void main() {
@@ -162,10 +195,10 @@ void main() {
             ),
           )
           .map((text) => text.data),
-      ['Ensaio da cena'],
+      ['Ensaio da cena', _listenLine],
       reason:
-          'só o título é escrito na escuta; o resto dela continua só do '
-          'VoiceOver',
+          'a escuta escreve só as palavras dela; uma palavra a mais escapava '
+          'da varredura',
     );
   });
 
@@ -477,4 +510,41 @@ void main() {
       expect(byLabel('Escolher outra passagem'), findsNothing);
     },
   );
+  for (final (language, line) in [
+    ('pt', _listenLine),
+    (
+      'en',
+      'This scene rehearsal\'s translation already went to the voice. Tap a '
+          'phrase to hear the rehearsal there, and the speaker to hear your '
+          'translation of it.',
+    ),
+  ]) {
+    testWidgets(
+      '$language: a sent scene rehearsal writes her line under its title',
+      (tester) async {
+        final (_, container) = await _inListenMode(tester);
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          find.text(line),
+          findsOneWidget,
+          reason: 'a linha dela só chegava ao VoiceOver',
+        );
+        expect(byLabel(line), findsOneWidget);
+        expect(
+          tester.getTopLeft(find.text(line)).dy,
+          greaterThan(
+            tester
+                .getBottomLeft(
+                  find.text(
+                    language == 'pt' ? 'Ensaio da cena' : 'Scene rehearsal',
+                  ),
+                )
+                .dy,
+          ),
+        );
+      },
+    );
+  }
 }

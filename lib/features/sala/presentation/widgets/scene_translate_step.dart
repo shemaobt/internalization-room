@@ -431,16 +431,188 @@ class ScenePlacesUnknown extends ConsumerWidget {
   }
 }
 
+class SceneListenMode extends ConsumerWidget {
+  final SceneScreen scene;
+  final Channel channel;
+  final String language;
+  final bool sending;
+  final SceneLine? line;
+
+  const SceneListenMode({
+    super.key,
+    required this.scene,
+    required this.channel,
+    required this.language,
+    required this.sending,
+    required this.line,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(salaSessionProvider.notifier);
+    final colors = SalaColors.of(context);
+    String said(String control, [int? n]) =>
+        sceneRehearsalLabelFor(control, language, n: n);
+    final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
+    int span(SceneFrase frase) => frase.spanIn(scene.length);
+    final longest = frases.map(span).fold(0, max);
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _Written(
+            said('listen'),
+            heard: line == SceneLine.diskFailed
+                ? '${said('listen')} — ${said('diskFailed')}'
+                : null,
+            style: TextStyle(color: colors.ink, fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+          RoundActionButton(
+            size: 120,
+            mood: sending || scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
+            semanticLabel: said('playPause'),
+            onTap: notifier.playTheSceneRehearsal,
+            border: Border.all(color: colors.vermelhoMic, width: 2),
+            child: Icon(
+              channel is PartPlaying ? LucideIcons.pause : LucideIcons.play,
+              size: 40,
+              color: colors.vermelhoMic,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _Strip(frases: frases, length: scene.length),
+          const SizedBox(height: 16),
+          for (final (i, frase) in frases.indexed)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Semantics(
+                    button: true,
+                    enabled: !scene.waiting,
+                    label: said('frase', i + 1),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: scene.waiting
+                          ? null
+                          : () => notifier.playTheFrase(frase.fraseId),
+                      child: SizedBox(
+                        width: 240,
+                        height: 24,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: FractionallySizedBox(
+                            widthFactor: span(frase) > 0
+                                ? max(0.08, span(frase) / longest)
+                                : 1,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: colors.vermelhoMic.withValues(
+                                  alpha: span(frase) > 0 && !scene.waiting
+                                      ? 0.6
+                                      : 0.2,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  RoundActionButton(
+                    size: 40,
+                    mood: scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
+                    semanticLabel: said('hearMine', i + 1),
+                    onTap: () =>
+                        notifier.hearTheFraseTranslation(frase.fraseId),
+                    child: Icon(
+                      LucideIcons.volume2,
+                      size: 18,
+                      color: colors.vermelhoMic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 16),
+          RoundActionButton(
+            size: 52,
+            mood: sending ? ButtonMood.dimmed : ButtonMood.lit,
+            semanticLabel: said('again'),
+            onTap: notifier.recordTheSceneAgain,
+            child: Icon(LucideIcons.mic, size: 22, color: colors.vermelhoMic),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Strip extends StatelessWidget {
+  final List<SceneFrase> frases;
+  final Duration? length;
+
+  const _Strip({required this.frases, required this.length});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    final whole = length?.inMilliseconds ?? 0;
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: 292,
+        height: 8,
+        child: LayoutBuilder(
+          builder: (context, box) => Stack(
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colors.line,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              if (whole > 0)
+                for (final frase in frases.where((f) => f.placedIn(length)))
+                  Positioned(
+                    left: box.maxWidth * frase.startsMs! / whole,
+                    width:
+                        box.maxWidth *
+                        (frase.endsMs! - frase.startsMs!) /
+                        whole,
+                    top: 0,
+                    bottom: 0,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colors.vermelhoMic.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Her words written on the screen, read by VoiceOver as written.
 class _Written extends StatelessWidget {
   final String words;
+  final String? heard;
   final TextStyle style;
 
-  const _Written(this.words, {required this.style});
+  const _Written(this.words, {this.heard, required this.style});
 
   @override
   Widget build(BuildContext context) => Semantics(
-    label: words,
+    label: heard ?? words,
     child: ExcludeSemantics(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
