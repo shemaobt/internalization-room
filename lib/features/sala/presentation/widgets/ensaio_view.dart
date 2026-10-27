@@ -150,9 +150,6 @@ class EnsaioView extends ConsumerWidget {
                     halt: session.halt,
                     voice: _voice(session),
                     tongue: Tongue.motherTongue,
-                    warning: session.warning
-                        ? warningNoticeLabelFor(language)
-                        : null,
                     semanticLabel: _circleLabel(session, language),
                     enabled: !frozen,
                     onTap: notifier.ensaioTap,
