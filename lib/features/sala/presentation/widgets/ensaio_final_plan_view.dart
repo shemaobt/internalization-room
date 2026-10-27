@@ -92,6 +92,12 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                   ),
                 ),
               ),
+              if (session.sceneLine == SceneLine.diskFailed)
+                Semantics(
+                  label: sceneRehearsalLabelFor('diskFailed', language),
+                  liveRegion: true,
+                  child: const SizedBox.shrink(),
+                ),
               if (joining != null) ...[
                 const SizedBox(height: 8),
                 Semantics(
