@@ -122,6 +122,7 @@ Future<ProviderContainer> _voltaATraducao(
   WidgetTester tester,
   SalaHarness harness, {
   String? aguardando,
+  List<SegmentView> regravadas = const [],
 }) async {
   tester.view
     ..physicalSize = const Size(820, 2400)
@@ -158,6 +159,7 @@ Future<ProviderContainer> _voltaATraducao(
     ..retroSoFar = BackTranslationProgress(
       segments: _daSala,
       awaitingSegmentId: aguardando,
+      stale: regravadas,
     );
   final container = harness.container();
   await tester.pumpWidget(
@@ -1826,6 +1828,84 @@ void main() {
       aqui.btFraseQueAguarda,
       isNull,
       reason: 'a leitura de antes da tradução devolvia a frase que já foi dita',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('back on the home, the scene whose only open frase awaits its '
+      'new sentence says «regravada — traduzam esta frase»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      aguardando: 'trecho-2',
+    );
+    container.read(salaSessionProvider.notifier).goEnsaio();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _passo(tester);
+
+    expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-2');
+    Finder naLinha(int n) => find.descendant(
+      of: byLabel('Cena $n'),
+      matching: find.text('regravada — traduzam esta frase'),
+    );
+    expect(
+      naLinha(1),
+      findsOneWidget,
+      reason: 'a casa não dizia que uma frase da cena espera a tradução',
+    );
+    expect(naLinha(2), findsNothing);
+    expect(
+      find.text('regravada — traduzam de novo'),
+      findsNothing,
+      reason: 'a frase que espera não é uma frase caducada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a scene with a frase that awaits and another gone stale says '
+      '«regravada — traduzam de novo», as hers does', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      aguardando: 'trecho-2',
+      regravadas: const [
+        SegmentView(
+          segmentId: 'trecho-velho',
+          takeId: 'gravacao-velha-1',
+          startsMs: 0,
+          endsMs: 4000,
+        ),
+      ],
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    container.read(salaSessionProvider.notifier).goEnsaio();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _passo(tester);
+
+    expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-2');
+    expect(
+      find.descendant(
+        of: byLabel('Cena 1'),
+        matching: find.text('regravada — traduzam de novo'),
+      ),
+      findsOneWidget,
+      reason:
+          'a frase que espera escondia a frase caducada da mesma cena, que '
+          'também precisa ser traduzida de novo',
     );
     closeTheRoom(container);
   });
