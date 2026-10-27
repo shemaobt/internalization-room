@@ -50,8 +50,7 @@ final class Ensaio extends Station {
           ? const Retro()
           : this,
     TheBackTranslationResumed() => const Retro(),
-    TheSceneRehearsalOpened() =>
-      step == EnsaioStep.plan ? const SceneRehearsal() : this,
+    TheSceneRehearsalOpened() => const SceneRehearsal(),
     TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
     TheExternalCheckOpened(:final version) => ChecagemExterna(
