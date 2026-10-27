@@ -28,7 +28,7 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
   void initState() {
     super.initState();
     ref.listenManual(
-      salaSessionProvider.select((state) => state.machine.stationSession),
+      salaSessionProvider.select((state) => state.stationSessionId),
       (was, now) {
         if (now == null) {
           _hide();
@@ -49,7 +49,7 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
   void _show() {
     final state = ref.read(salaSessionProvider);
     final station = state.station;
-    final sessionId = state.machine.stationSession;
+    final sessionId = state.stationSessionId;
     final pericope = station is Panorama ? station.id : state.pericope;
     if (sessionId == null || pericope == null) return;
     final now = clock.now();
