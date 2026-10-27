@@ -37,6 +37,7 @@ Future<(SalaHarness, ProviderContainer)> _onTheSceneScreen(
   WidgetTester tester, {
   List<SceneRehearsalRecord> rehearsals = const [],
   bool scenesHeld = false,
+  Size view = const Size(820, 2400),
   required bool Function(SalaSessionState state) until,
 }) async {
   final harness = SalaHarness(filaEmMemoria: true)
@@ -46,7 +47,7 @@ Future<(SalaHarness, ProviderContainer)> _onTheSceneScreen(
   harness.room.sceneAudio = aSpokenWav(length: const Duration(seconds: 10));
   harness.playback.measured = const Duration(seconds: 10);
   tester.view
-    ..physicalSize = const Size(820, 2400)
+    ..physicalSize = view
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final container = await pumpSala(tester, harness);
@@ -284,6 +285,35 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'on a phone the armed «recomeçar» keeps 16 points on each side, its words centred',
+    (tester) async {
+      final (_, container) = await _onTheSceneScreen(
+        tester,
+        view: const Size(420, 1600),
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000), _frase('f2', 3000, 6000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const armed = 'toque de novo para apagar as 2 frases traduzidas';
+
+      await tester.tap(find.text('recomeçar a tradução'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final pill = tester.getRect(byLabel(armed));
+      expect(
+        pill.left,
+        greaterThanOrEqualTo(16),
+        reason: 'no iPhone SE o botão armado encostava nas duas bordas',
+      );
+      expect(pill.right, lessThanOrEqualTo(420 - 16));
+      expect(tester.widget<Text>(find.text(armed)).textAlign, TextAlign.center);
+      expect(container.read(salaSessionProvider).sceneRestart, isNotNull);
+      await tester.pump(const Duration(seconds: 6));
+    },
+  );
 
   for (final (language, line, terminei, restart, again) in [
     (

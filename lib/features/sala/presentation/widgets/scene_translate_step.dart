@@ -339,14 +339,17 @@ class SceneRestartControl extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (shown)
-          _WrittenButton(
-            armed == null
-                ? sceneRehearsalLabelFor('restart', language)
-                : retroLabelFor('restartArmed', language, n: n),
-            live: live,
-            onTap: ref
-                .read(salaSessionProvider.notifier)
-                .restartTheSceneTranslation,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _WrittenButton(
+              armed == null
+                  ? sceneRehearsalLabelFor('restart', language)
+                  : retroLabelFor('restartArmed', language, n: n),
+              live: live,
+              onTap: ref
+                  .read(salaSessionProvider.notifier)
+                  .restartTheSceneTranslation,
+            ),
           ),
         if (words != null) ...[
           const SizedBox(height: 8),
@@ -486,6 +489,7 @@ class _WrittenButton extends StatelessWidget {
                     ),
               child: Text(
                 words,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: large ? colors.paper : colors.ink,
                   fontSize: large ? 18 : 14,
