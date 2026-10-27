@@ -204,7 +204,7 @@ class RetroView extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: 12),
-              _checagemExterna(session, colors, notifier, language),
+              externalCheckButton(session, colors, notifier, language),
             ],
             const SizedBox(height: 32),
             FraseList(
@@ -462,44 +462,6 @@ class RetroView extends ConsumerWidget {
   bool _dormindo(String control, SalaSessionState session) =>
       session.armedTap?.control == control &&
       session.armedTap?.phase == BtRecomeco.armado;
-
-  Widget _checagemExterna(
-    SalaSessionState session,
-    SalaColors colors,
-    SalaSessionNotifier notifier,
-    String language,
-  ) {
-    final abre =
-        !session.microphoneOpen &&
-        session.voice != VoiceState.speaking &&
-        session.voice != VoiceState.thinking;
-    final rotulo = retroLabelFor('externalCheck', language);
-    return Semantics(
-      button: true,
-      enabled: abre,
-      label: rotulo,
-      child: Opacity(
-        opacity: abre ? 1 : 0.4,
-        child: ExcludeSemantics(
-          child: GestureDetector(
-            onTap: abre ? notifier.abrirAChecagemExterna : null,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: colors.mut),
-              ),
-              child: Text(
-                rotulo,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.ink, fontSize: 15),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   String? _estado(SalaSessionState session, String language) {
     if (session.btAprovadoAgora case final versao?) {
@@ -936,4 +898,42 @@ class _ManterADeAntes extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget externalCheckButton(
+  SalaSessionState session,
+  SalaColors colors,
+  SalaSessionNotifier notifier,
+  String language,
+) {
+  final abre =
+      !session.microphoneOpen &&
+      session.voice != VoiceState.speaking &&
+      session.voice != VoiceState.thinking;
+  final rotulo = retroLabelFor('externalCheck', language);
+  return Semantics(
+    button: true,
+    enabled: abre,
+    label: rotulo,
+    child: Opacity(
+      opacity: abre ? 1 : 0.4,
+      child: ExcludeSemantics(
+        child: GestureDetector(
+          onTap: abre ? notifier.abrirAChecagemExterna : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: colors.mut),
+            ),
+            child: Text(
+              rotulo,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.ink, fontSize: 15),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }

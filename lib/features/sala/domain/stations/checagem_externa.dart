@@ -1,6 +1,6 @@
 part of '../station.dart';
 
-/// The Checagem externa of one approved Version, reached only from the Back-translation; a
+/// The Checagem externa of one approved Version, reached from the Back-translation or the recording home; a
 /// resume point that names it reopens on the Back-translation first (ADR 0116).
 final class ChecagemExterna extends Station {
   final int version;

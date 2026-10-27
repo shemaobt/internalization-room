@@ -54,6 +54,7 @@ final class Ensaio extends Station {
       step == EnsaioStep.plan ? const SceneRehearsal() : this,
     TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
-    TheExternalCheckOpened() || TheExternalCheckLeft() => this,
+    TheExternalCheckOpened(:final version) => ChecagemExterna(version),
+    TheExternalCheckLeft() => this,
   };
 }

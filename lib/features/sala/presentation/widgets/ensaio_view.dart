@@ -16,6 +16,8 @@ import 'facilitator_circle.dart';
 import 'grain_choice_view.dart';
 import 'motion.dart';
 import 'rehearsal_sheet.dart';
+import 'retro_view.dart' show externalCheckButton;
+import 'saved_screen.dart';
 import 'stage_heading.dart';
 
 class EnsaioView extends ConsumerWidget {
@@ -26,6 +28,9 @@ class EnsaioView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     if (session.station case Ensaio(step: EnsaioStep.plan)) {
       return const EnsaioFinalPlanView();
+    }
+    if (session.ensaioSalvo case final versao?) {
+      return SavedScreen(version: versao);
     }
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
@@ -184,8 +189,38 @@ class EnsaioView extends ConsumerWidget {
                           color: ShemaBrand.branco,
                         ),
                       ),
+                      if (session.approveOffered) ...[
+                        const SizedBox(width: 24),
+                        RoundActionButton(
+                          size: 60,
+                          mood: session.canApprove && !frozen
+                              ? ButtonMood.lit
+                              : ButtonMood.dimmed,
+                          gradient: BeadStyles.verde,
+                          semanticLabel: retroLabelFor('approve', language),
+                          onTap: notifier.aprovarRascunhoFinal,
+                          child: const Icon(
+                            LucideIcons.check,
+                            size: 24,
+                            color: ShemaBrand.branco,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
+                  if (session.approvedOnTheHome case final aprovado?) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      retroLabelFor(
+                        'approvedDraft',
+                        language,
+                        n: aprovado.version,
+                      ),
+                      style: TextStyle(color: colors.ink, fontSize: 17),
+                    ),
+                    const SizedBox(height: 12),
+                    externalCheckButton(session, colors, notifier, language),
+                  ],
                   const SizedBox(height: 24),
                   FadeUp(
                     child: RoundActionButton(

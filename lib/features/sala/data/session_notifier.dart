@@ -1443,6 +1443,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       keptRetellings: snapshot.keptRetellings,
       toBringBack: snapshot.backTranslation.bringBack,
+      btChecked: snapshot.backTranslation.checked,
       btRascunhoAprovado: snapshot.approved,
       clearBtRascunhoAprovado: snapshot.approved == null,
     );
@@ -7507,6 +7508,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(OutboxChanged(tally.parts, due: tally.due));
     if (_abandoned(generation) || counting != _newestCount) return;
     final speaking = _theNewestPass(tally.unsentParts);
+    if (sessionId != null &&
+        state.station is Ensaio &&
+        _unsentTakesOf(tally, speaking) < state.unsentTakes) {
+      unawaited(_readWhatComesBack());
+    }
     state = state.copyWith(unsentParts: _unsentPartsOf(speaking));
     if (sessionId != null) {
       state = state.copyWith(
@@ -8338,7 +8344,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void abrirAChecagemExterna() => _gesture(() {
     final sessionId = state.sessionId;
-    if (sessionId == null || state.approvedDraftDrawn == null) return;
+    if (sessionId == null) return;
+    if ((state.approvedDraftDrawn ?? state.approvedOnTheHome) == null) return;
     if (state.microphoneOpen || !state.aBackTranslationGestureActs) return;
     _handOff(_abrirAChecagemExterna(sessionId));
   });
@@ -10302,8 +10309,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gestureThen(() => _aprovarRascunhoFinal());
 
   Future<void> _aprovarRascunhoFinal() async {
-    if (state.station is! Retro) return;
-    if (state.btPhase != BtPhase.conferida) return;
+    final fromTheHome = state.approveOffered;
+    if (!fromTheHome &&
+        (state.station is! Retro || state.btPhase != BtPhase.conferida)) {
+      return;
+    }
     if (state.needsPerson) return;
     if (!state.canApprove || state.ensaioSalvo != null) return;
     _silenceTheRoom();
@@ -10344,10 +10354,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(btAprovadoAgora: resposta.version);
       unawaited(_readTheApprovedDraft(sessionId, generation));
       try {
-        if (!await _sayALine(
-          LineKind.approved,
-          fixedLine: (name: approvedLine, language: _inTheSessionsLanguage),
-        )) {
+        if (!fromTheHome &&
+            !await _sayALine(
+              LineKind.approved,
+              fixedLine: (name: approvedLine, language: _inTheSessionsLanguage),
+            )) {
           _registerUnplayableTurn();
         }
       } on RoomFailure catch (failure) {
