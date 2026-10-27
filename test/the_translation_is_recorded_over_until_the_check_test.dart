@@ -762,7 +762,7 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R2b — the warning mark speaks the rooms language', (
+  testWidgets('R2b — a standing warning draws no mark beside the circle', (
     tester,
   ) async {
     final handle = tester.ensureSemantics();
@@ -770,12 +770,25 @@ void main() {
     final container = await retomarComAviso(tester, harness);
     await tester.pump(const Duration(seconds: 1));
 
+    expect(container.read(salaSessionProvider).warning, isTrue);
     expect(
       find.bySemanticsLabel('A warning is asking someone to come watch'),
-      findsOneWidget,
+      findsNothing,
       reason:
-          'a marca existe ao lado do círculo, mas o que ela diz a um leitor '
-          'de tela em inglês precisa vir do mapa, não do português fixo',
+          'a marca verde ficava ao lado do círculo da Retro até a Mesa '
+          'atender; a tela da equipe dela não mostra nada por um aviso',
+    );
+    expect(
+      find.descendant(
+        of: find.byType(FacilitatorCircle),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Container &&
+              (widget.decoration as BoxDecoration?)?.gradient ==
+                  BeadStyles.verde,
+        ),
+      ),
+      findsNothing,
     );
     handle.dispose();
     closeTheRoom(container);

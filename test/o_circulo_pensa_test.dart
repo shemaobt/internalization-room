@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
@@ -13,10 +11,9 @@ Future<void> _pumpCircle(
   double size = 158,
   ThemeData? theme,
   bool still = false,
-  String? warning,
 }) => tester.pumpWidget(
   MaterialApp(
-    key: ValueKey('$voice-$size-${theme?.brightness}-$still-$warning'),
+    key: ValueKey('$voice-$size-${theme?.brightness}-$still'),
     theme: theme ?? AppTheme.light,
     home: MediaQuery(
       data: MediaQueryData(disableAnimations: still),
@@ -25,7 +22,6 @@ Future<void> _pumpCircle(
           child: FacilitatorCircle(
             size: size,
             voice: voice,
-            warning: warning,
             semanticLabel: 'circulo',
             onTap: () {},
           ),
@@ -49,18 +45,6 @@ Iterable<Transform> _transformsInCircle(WidgetTester tester) =>
         matching: find.byType(Transform),
       ),
     );
-
-Iterable<Gradient> _gradients(WidgetTester tester) => tester
-    .widgetList<Container>(
-      find.descendant(
-        of: find.byType(FacilitatorCircle),
-        matching: find.byType(Container),
-      ),
-    )
-    .map((box) => box.decoration)
-    .whereType<BoxDecoration>()
-    .map((paint) => paint.gradient)
-    .whereType<Gradient>();
 
 void main() {
   testWidgets('no voice ever draws a turning transform', (tester) async {
@@ -105,32 +89,6 @@ void main() {
             'ArcPainter pintava dois arcos por cima do disco; sem eles não '
             'sobra nenhum outro CustomPaint além do brilho',
       );
-    },
-  );
-
-  testWidgets(
-    'a warning that arrives during a think leaves the clay disc as it was',
-    (tester) async {
-      final handle = tester.ensureSemantics();
-      await _pumpCircle(
-        tester,
-        VoiceState.thinking,
-        warning: 'Alguém deve vir olhar',
-      );
-
-      expect(
-        _gradients(tester),
-        contains(BeadStyles.clay(SalaColors.light)),
-        reason:
-            'o pensar já tem a sua própria cor de barro; o aviso não é mais '
-            'uma cor do disco, em nenhuma voz',
-      );
-      expect(
-        find.bySemanticsLabel('Alguém deve vir olhar'),
-        findsOneWidget,
-        reason: 'o aviso ainda existe — só que ao lado, nunca por cima',
-      );
-      handle.dispose();
     },
   );
 

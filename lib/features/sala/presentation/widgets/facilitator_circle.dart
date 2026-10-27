@@ -23,15 +23,6 @@ class FacilitatorCircle extends StatelessWidget {
   final bool answersATouch;
   final bool enabled;
 
-  /// What the warning mark says to VoiceOver, or null while the server's last word
-  /// was silence rather than a warning.
-  ///
-  /// The room has no text on screen, so a warning is a small mark beside the disc,
-  /// never a colour drawn over it: the disc keeps saying the voice. Read only while
-  /// neither [halt] blocks nor [voice] is a halted state — a room the team cannot use yet is
-  /// still a stop, whatever the last warning said.
-  final String? warning;
-
   /// Her line after a telling the room made nothing of, said to VoiceOver by a mark on
   /// the other side of the disc, or null while no telling came back empty.
   final String? notUnderstood;
@@ -50,7 +41,6 @@ class FacilitatorCircle extends StatelessWidget {
     this.peerCue = false,
     this.answersATouch = true,
     this.enabled = true,
-    this.warning,
     this.notUnderstood,
     this.halt = const NoHalt(),
     this.opacity = 1,
@@ -97,7 +87,6 @@ class FacilitatorCircle extends StatelessWidget {
                   _listenRing(colors),
                 if (!_halted && voice == VoiceState.listening)
                   ..._gatheringIn(),
-                if (warning != null && !_halted) _warningMark(warning!),
                 if (notUnderstood != null && !_halted)
                   _notUnderstoodMark(notUnderstood!),
                 AnimatedSwitcher(
@@ -290,20 +279,8 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
-  Widget _warningMark(String label) =>
-      _mark(label, right: 0, gradient: BeadStyles.verde);
-
-  Widget _notUnderstoodMark(String label) =>
-      _mark(label, left: 0, gradient: BeadStyles.azul);
-
-  Widget _mark(
-    String label, {
-    double? left,
-    double? right,
-    required Gradient gradient,
-  }) => Positioned(
-    left: left,
-    right: right,
+  Widget _notUnderstoodMark(String label) => Positioned(
+    left: 0,
     bottom: 0,
     child: Semantics(
       container: true,
@@ -313,7 +290,7 @@ class FacilitatorCircle extends StatelessWidget {
         height: size * 0.22,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: gradient,
+          gradient: BeadStyles.azul,
           boxShadow: BeadStyles.matte,
         ),
       ),

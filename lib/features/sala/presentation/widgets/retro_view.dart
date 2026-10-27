@@ -130,9 +130,6 @@ class RetroView extends ConsumerWidget {
               answersATouch:
                   session.aBackTranslationGestureActs &&
                   (!conferida || session.btRegravacao != null),
-              warning: session.warning && session.approvedDraftDrawn == null
-                  ? warningNoticeLabelFor(language)
-                  : null,
               notUnderstood: session.wordlessTelling
                   ? retroLabelFor('notUnderstood', language)
                   : null,
