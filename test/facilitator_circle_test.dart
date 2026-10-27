@@ -15,12 +15,13 @@ Future<void> _pumpCircle(
   bool peerCue = false,
   bool noteMode = false,
   bool inPlace = false,
+  bool canvas = false,
   Halt halt = const NoHalt(),
 }) => tester.pumpWidget(
   MaterialApp(
     key: inPlace
         ? const ValueKey('o mesmo círculo')
-        : ValueKey('$voice-$halt-$peerCue-$noteMode'),
+        : ValueKey('$voice-$halt-$peerCue-$noteMode-$canvas'),
     theme: AppTheme.light,
     home: Scaffold(
       body: Center(
@@ -30,6 +31,7 @@ Future<void> _pumpCircle(
           voice: voice,
           peerCue: peerCue,
           noteMode: noteMode,
+          canvas: canvas,
           semanticLabel: 'circulo',
           onTap: () {},
         ),
@@ -300,6 +302,96 @@ void main() {
               'um período inteiro depois ${half.key.name} ainda estava '
               'subindo para o pico, em vez de já ter voltado ao ponto de '
               'partida — o dobro do tempo dela outra vez',
+        );
+      }
+    },
+  );
+
+  testWidgets(
+    'on the conversation her loudspeaker sits in the circle in voice time, '
+    'and nothing while the voice thinks',
+    (tester) async {
+      for (final (name, voice, peerCue, noteMode, halt, glyphs) in [
+        (
+          'invite',
+          VoiceState.invite,
+          false,
+          false,
+          const NoHalt(),
+          [LucideIcons.volume2],
+        ),
+        (
+          'listening',
+          VoiceState.listening,
+          false,
+          false,
+          const NoHalt(),
+          [LucideIcons.volume2],
+        ),
+        (
+          'speaking',
+          VoiceState.speaking,
+          false,
+          false,
+          const NoHalt(),
+          [LucideIcons.volume2],
+        ),
+        (
+          'done',
+          VoiceState.done,
+          false,
+          false,
+          const NoHalt(),
+          [LucideIcons.volume2],
+        ),
+        (
+          'thinking',
+          VoiceState.thinking,
+          false,
+          false,
+          const NoHalt(),
+          <IconData>[],
+        ),
+        (
+          'team talk',
+          VoiceState.invite,
+          true,
+          false,
+          const NoHalt(),
+          [LucideIcons.users],
+        ),
+        (
+          'note',
+          VoiceState.listening,
+          false,
+          true,
+          const NoHalt(),
+          [LucideIcons.hand],
+        ),
+        (
+          'halted',
+          VoiceState.invite,
+          false,
+          false,
+          const Blocking(),
+          <IconData>[],
+        ),
+      ]) {
+        await _pumpCircle(
+          tester,
+          voice,
+          peerCue: peerCue,
+          noteMode: noteMode,
+          halt: halt,
+          canvas: true,
+        );
+        expect(
+          _glyphs(tester),
+          glyphs,
+          reason:
+              '$name: o círculo dela desenha o som enquanto a voz fala ou '
+              'ouve, e no turno parado fora da conversa da equipe; nada '
+              'enquanto pensa (page.tsx:485-489, :1033)',
         );
       }
     },
