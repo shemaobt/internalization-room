@@ -4182,6 +4182,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         for (final take in state.keptTakes)
           if (!leftBehind(take.scopeId)) take,
       ],
+      btChecked: false,
       theRoomJoinedParts: _partesJuntadas(listing.takes),
       wholeHeldByTheRoom: grain == Grain.whole ? const {} : null,
       clearParteARegravar: true,
