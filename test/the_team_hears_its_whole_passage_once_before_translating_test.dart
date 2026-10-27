@@ -34,6 +34,7 @@ const _soOuvirAGravacao =
     'Primeiro, só ouvir: a gravação de vocês inteira, do começo ao fim.';
 const _ensaioFinal = 'Ensaio Final';
 const _terminei = 'terminei';
+const _naoDeuParaConferir = 'não deu para conferir agora — tentem de novo';
 const _tocarOuPausar = 'Tocar ou pausar a gravação';
 const _faltaOuvir = 'ainda falta ouvir um trecho da gravação';
 const _faltaTraduzir =
@@ -1135,6 +1136,35 @@ void main() {
       expect(it.harness.playback.played.last, it.partes[0].path);
       expect(it.harness.playback.playedFrom.last, Duration.zero);
       await _abrirOMicrofone(it);
+    },
+  );
+
+  testWidgets(
+    'a part that fails to play says so, calls nobody, and the next tap plays it',
+    (tester) async {
+      final it = await _naTela(tester, _juntadaNaCasa);
+      await _ate(tester, () async {
+        _nadaOuvido(it);
+        await _oDisco(it);
+        it.harness.playback.failPlayback();
+        await settle();
+      });
+
+      expect(find.text(_naoDeuParaConferir), findsOneWidget);
+      expect(it.container.read(salaSessionProvider).needsPerson, isFalse);
+      final tocadas = it.harness.playback.played.length;
+      await tester.tap(byLabel(_tocarOuPausar));
+      await _ate(
+        tester,
+        () => waitFor(
+          'a parte tocar de novo',
+          () => it.harness.playback.played.length > tocadas,
+        ),
+      );
+
+      expect(find.text(_naoDeuParaConferir), findsNothing);
+      expect(it.harness.playback.played.last, it.partes[0].path);
+      closeTheRoom(it.container);
     },
   );
 
