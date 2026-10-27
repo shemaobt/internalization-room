@@ -11147,6 +11147,7 @@ class _HandHost implements HandHost {
       voice: state.voice,
       stationSessionId: state.stationSessionId,
       atTheTeamsIdleTurn: state.atTheTeamsIdleTurn,
+      aQuestionRecords: state.aQuestionRecords,
       oldestUnheardReply: state.oldestUnheardReply,
       noteOnItsWay: state.noteOnItsWay,
     );

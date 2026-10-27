@@ -260,7 +260,7 @@ class _HandLayer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
-    if (!session.atTheTeamsIdleTurn) {
+    if (!session.atTheTeamsIdleTurn && !session.aQuestionRecords) {
       return const SizedBox.shrink();
     }
     final notifier = ref.read(salaSessionProvider.notifier);
