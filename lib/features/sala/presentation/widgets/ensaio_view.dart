@@ -509,6 +509,9 @@ class _SceneRowView extends StatelessWidget {
     if (session.btTrechosRegravados.any((trecho) => trecho.parte == parte)) {
       return retroLabelFor('stale', language);
     }
+    if (session.trechoChamado(session.btFraseQueAguarda)?.parte == parte) {
+      return sceneRehearsalLabelFor('awaiting', language);
+    }
     return null;
   }
 
