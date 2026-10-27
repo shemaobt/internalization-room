@@ -1570,9 +1570,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(decided(const RoomTimedOut(), _failureContext()));
   }
 
-  void _giveUpOnTheTurn(Turn turn, RoomResult result) => _dispatch(
-    decided(result, _failureContext(turn: turn, rule: RefusalRule.aSpokenTurn)),
-  );
+  void _giveUpOnTheTurn(
+    Turn turn,
+    RoomResult result, {
+    RefusalRule rule = RefusalRule.aSpokenTurn,
+  }) => _dispatch(decided(result, _failureContext(turn: turn, rule: rule)));
 
   void _playTheReplyTheLookFound(Turn turn, TurnResult reply) {
     final awaited = _awaitedReplies.remove(turn);
@@ -1619,6 +1621,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     required Future<void> Function(TurnResult reply) play,
     required void Function(RoomFailure failure) failed,
     Kept keeps = const NothingKept(),
+    RefusalRule rule = RefusalRule.aSpokenTurn,
   }) async {
     Future<void> heard(TurnResult reply) async {
       try {
@@ -1633,9 +1636,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ..[turn] = (play: heard, gestures: _chain);
     _dispatch(TurnSent(turn, keeps: keeps));
     final answer = await _theTakeGoes(send);
-    if (_abandoned(generation)) return;
-    if (answer case NetworkFailed() && final fell) {
-      return _giveUpOnTheTurn(turn, fell.result);
+    if (_abandoned(generation) ||
+        !identical(_awaitedReplies[turn]?.play, heard)) {
+      return;
+    }
+    if (answer case final RoomFailure lost
+        when FailurePolicy.theAnswerWasLost(lost.result, rule)) {
+      return _giveUpOnTheTurn(turn, lost.result, rule: rule);
     }
     if (state.machine.inFlight != turn) return;
     _awaitedReplies.remove(turn);
@@ -6759,6 +6766,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           rule: RefusalRule.sendsTheScene,
         );
       },
+      rule: RefusalRule.sendsTheScene,
     );
   }
 

@@ -136,6 +136,16 @@ abstract final class FailurePolicy {
     RefusalCode.fraseOutOfPlace,
   };
 
+  /// A turn's answer that never reached the tablet whole: the room may have acted on it,
+  /// so the one look decides. For «terminei», an answer it could not read is one too.
+  static bool theAnswerWasLost(RoomResult result, RefusalRule rule) =>
+      switch (result) {
+        RoomNetworkFailed() => true,
+        RoomRefused(code: RefusalCode.unreadable) =>
+          rule == RefusalRule.sendsTheScene,
+        _ => false,
+      };
+
   static MachineEvent decide(RoomResult result, FailureContext context) {
     final generation = context.generation;
     final sounding = context.sounding;
@@ -162,6 +172,9 @@ abstract final class FailurePolicy {
         TheTellingCameBackEmpty(readAgain: true, generation: generation),
       RoomNetworkFailed() when context.door == Door.sceneFrase =>
         TheTellingCameBackEmpty(generation: generation),
+      RoomRefused(code: RefusalCode.unreadable)
+          when rule == RefusalRule.sendsTheScene && turn != null =>
+        TurnGivenUp(turn, sounding: sounding, generation: generation),
       RoomRefused(code: RefusalCode.sceneRehearsalSent)
           when rule == RefusalRule.sendsTheScene =>
         TheSceneWentAlready(generation: generation),
@@ -172,6 +185,8 @@ abstract final class FailurePolicy {
           when rule == RefusalRule.sendsTheScene &&
               !RefusalCode.stopsTheRoom.contains(code) =>
         TheSceneSendRefused(generation: generation),
+      RoomRefused() when rule == RefusalRule.sendsTheScene =>
+        TheSceneDoorFailed(readAgain: true, generation: generation),
       RoomRefused(
         code: RefusalCode.sceneRehearsalSent ||
             RefusalCode.restartOutOfOrder ||
@@ -185,9 +200,7 @@ abstract final class FailurePolicy {
         TheTellingCameBackEmpty(generation: generation),
       RoomRefused() when _theSceneDoors.contains(context.door) =>
         TheSceneDoorFailed(
-          readAgain:
-              rule == RefusalRule.readsTheListAgain ||
-              rule == RefusalRule.sendsTheScene,
+          readAgain: rule == RefusalRule.readsTheListAgain,
           generation: generation,
         ),
       RoomSessionGone() ||

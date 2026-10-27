@@ -467,7 +467,8 @@ final class TheSceneRehearsalsListed extends AnsweringEvent {
 }
 
 /// A scene door failed; [readAgain] when the room's refusal says the rehearsal moved on
-/// without this tablet: sent to the voice, or restarted by an answer it never heard.
+/// without this tablet, sent to the voice or restarted by an answer it never heard, or
+/// when it refused «terminei» with a code that stops the room.
 final class TheSceneDoorFailed extends AnsweringEvent {
   final bool readAgain;
 

@@ -92,6 +92,9 @@ A «terminei» the room refuses, first tap or again, is not a call for a person,
 the screen says «não deu para enviar agora — tentem de novo», or «a tradução deste ensaio da
 cena já foi para a voz» when the refusal says it was already sent, no sign is raised, and a
 sign that was waiting is forgotten. A refusal because the passage closed closes the passage,
-and a code that stops the room only reads the list again. A «terminei» that lands, or whose
+and a code that stops the room only reads the list again, leaving a waiting sign waiting. An
+answer to «terminei» the tablet cannot read is a lost answer, not a refusal: the one look
+runs, as after a drop. An answer belongs to the «terminei» that sent it: one from an earlier
+tap, given up on, never acts on the tap that followed. A «terminei» that lands, or whose
 reply the look finds, forgets the waiting sign too. Nothing is resent by itself: a row read as
 sent while a person is called is never sent again.

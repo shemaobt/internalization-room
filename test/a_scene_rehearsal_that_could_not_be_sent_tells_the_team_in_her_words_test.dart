@@ -553,4 +553,106 @@ void main() {
     expect(_repliesPlayed(harness), repliesBefore);
     expect(_says(_notSent), findsWidgets);
   });
+
+  group('a refusal of an earlier «terminei» that comes after the team tapped '
+      'again', () {
+    Future<(SalaHarness, ProviderContainer, int)> theEarlierRefusalLate(
+      WidgetTester tester,
+    ) async {
+      final (harness, container) = await _theRehearsalOnScreen(
+        tester,
+        busyCeiling: const Duration(seconds: 3),
+      );
+      final repliesBefore = _repliesPlayed(harness);
+      harness.room.holdSceneSends = true;
+      await _termineiAndTheLook(tester, harness, container);
+      expect(_says(_notSent), findsWidgets);
+      await tester.tap(_terminei);
+      await pumpUntil(tester, () => harness.room.heldSceneSends.length == 2);
+      harness.room.heldSceneSends[0].complete(
+        Refused(RefusalCode.unnamed(422)),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+      return (harness, container, repliesBefore);
+    }
+
+    testWidgets('lets the «terminei» again play its reply', (tester) async {
+      final (harness, _, repliesBefore) = await theEarlierRefusalLate(tester);
+
+      harness.room.heldSceneSends[1].complete(null);
+      await pumpUntil(tester, () => _repliesPlayed(harness) > repliesBefore);
+      await tester.pump(const Duration(seconds: 4));
+
+      expect(_repliesPlayed(harness), repliesBefore + 1);
+    });
+
+    testWidgets('leaves the sign waiting when the «terminei» again drops', (
+      tester,
+    ) async {
+      final (harness, container, _) = await theEarlierRefusalLate(tester);
+
+      harness.room.heldSceneSends[1].complete(
+        const NetworkFailed('a rede caiu'),
+      );
+      await pumpUntil(tester, () => harness.room.turnIdsLookedAt.length == 2);
+      await pumpUntil(tester, () => !_state(container).awaitingTheGuide);
+      await _backToTheSession(tester, container);
+
+      expect(_state(container).needsPerson, isTrue);
+      closeTheRoom(container);
+    });
+  });
+
+  group('a «terminei» whose answer cannot be read', () {
+    testWidgets('plays the reply the look finds, once', (tester) async {
+      final (harness, container) = await _theRehearsalOnScreen(tester);
+      harness.room
+        ..turnsLandBeforeTheyFail = true
+        ..failHeldTurnWith = const Refused(RefusalCode.unreadable);
+      final repliesBefore = _repliesPlayed(harness);
+
+      await tester.tap(_terminei);
+      await pumpUntil(tester, () => _repliesPlayed(harness) > repliesBefore);
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(_repliesPlayed(harness), repliesBefore + 1);
+      expect(harness.room.scenesSent, hasLength(1));
+    });
+
+    testWidgets(
+      'says «não deu para enviar agora — tentem de novo» and leaves the sign '
+      'waiting when the look finds nothing',
+      (tester) async {
+        final (harness, container) = await _theRehearsalOnScreen(tester);
+        harness.room.failHeldTurnWith = const Refused(RefusalCode.unreadable);
+
+        await _termineiAndTheLook(tester, harness, container);
+
+        expect(_says(_notSent), findsWidgets);
+
+        await _backToTheSession(tester, container);
+
+        expect(_state(container).needsPerson, isTrue);
+        closeTheRoom(container);
+      },
+    );
+  });
+
+  testWidgets(
+    'a refused «terminei» whose list reads the rehearsal as sent shows that it '
+    'went to the voice instead of «não deu para enviar agora»',
+    (tester) async {
+      final (harness, container) = await _theRehearsalOnScreen(tester);
+      harness.room
+        ..sendRefusalsFirst.add(RefusalCode.unnamed(422))
+        ..sceneRehearsals[0] = _listedSent;
+
+      await tester.tap(_terminei);
+      await pumpUntil(tester, () => _wentToTheVoice.evaluate().isNotEmpty);
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(_wentToTheVoice, findsOneWidget);
+      expect(_says(_notSent), findsNothing);
+    },
+  );
 }
