@@ -463,7 +463,7 @@ class SceneListenMode extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 60),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

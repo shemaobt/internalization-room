@@ -909,6 +909,15 @@ void main() {
         lessThanOrEqualTo(420 - 16),
         reason: 'no iPhone SE o relógio passava da borda da tela',
       );
+      expect(
+        tester.getRect(byLabel('Play or pause your recording')).left,
+        greaterThanOrEqualTo(
+          tester.getRect(byLabel('Back to the current passage')).right,
+        ),
+        reason:
+            'no iPhone SE o relógio empurrava o play para baixo do voltar, '
+            'que flutua à esquerda',
+      );
     },
   );
 }
