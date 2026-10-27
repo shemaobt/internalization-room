@@ -701,12 +701,13 @@ void main() {
     );
 
     testWidgets(
-      'on places unknown, a restart the room refuses says her line to VoiceOver and writes no word',
+      'on places unknown, a restart the room refuses writes «não deu para recomeçar agora — tentem de novo», as on the translate step',
       (tester) async {
         final screen = await _onScreen(
           tester,
           rehearsal: _rehearsal([_frase('f1', 0, 12000)]),
         );
+        expect(screen.state.scene.step, SceneStep.placesUnknown);
         await screen.tap(_restart);
         await screen.beat(700);
         screen.room.failSceneWith = const NetworkFailed('sem rede');
@@ -715,7 +716,11 @@ void main() {
         await screen.until(() => screen.shows(_restartFailed));
 
         expect(screen.shows(_restartFailed), isTrue);
-        expect(find.text(_restartFailed), findsNothing);
+        expect(
+          find.text(_restartFailed),
+          findsOneWidget,
+          reason: 'a linha dela só chegava ao VoiceOver nesta tela',
+        );
       },
     );
 
