@@ -77,6 +77,8 @@ Future<ProviderContainer> _voltaATraducao(
   SalaHarness harness,
   BackTranslationProgress contado, {
   SalaStage parouEm = SalaStage.retro,
+  String lingua = testLanguage,
+  bool juntada = false,
 }) async {
   _telaAlta(tester);
   final pasta = Directory.systemTemp.createTempSync('sala-1205');
@@ -87,9 +89,10 @@ Future<ProviderContainer> _voltaATraducao(
         scopeId: KeptScope.parte(n),
         path: (File('${pasta.path}/p$n.m4a')..writeAsBytesSync([1, 2, 3])).path,
         takeId: 'gravacao-$n',
+        origin: juntada ? 'ensaio-da-cena-$n' : null,
       ),
   ];
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  harness.emAberto.rows['Ruth/P01/$lingua'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: parouEm,
     takes: partes,
@@ -490,7 +493,7 @@ void main() {
 
     await tocar(tester, 'recomeçar a tradução');
     await tester.pump(const Duration(milliseconds: 700));
-    await tocar(tester, 'toque de novo para apagar as 1 frases traduzidas');
+    await tocar(tester, 'toque de novo para apagar as 2 frases traduzidas');
     await waitFor(
       'a tradução recomeçar',
       () => container.read(salaSessionProvider).btTrechos.isEmpty,
@@ -506,6 +509,240 @@ void main() {
           'tradução que já não existia',
     );
     await tester.pump(const Duration(seconds: 7));
+    closeTheRoom(container);
+  });
+
+  testWidgets('with every part recorded again and only its stale frases '
+      'listed, the team can still start the translation over', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.addAll(const [
+      TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+      TakeView(
+        takeId: 'gravacao-velha-2',
+        scope: 'parte-2',
+        kind: 'ensaio',
+        ordinal: 2,
+      ),
+    ]);
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-velha-2',
+            startsMs: 0,
+            endsMs: 6000,
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'as frases regravadas acharem as suas partes',
+      () => container.read(salaSessionProvider).btTrechosRegravados.length == 2,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      byLabel('recomeçar a tradução'),
+      findsOneWidget,
+      reason:
+          'com todas as partes regravadas a lista só tinha frases regravadas '
+          'e não havia como recomeçar a tradução',
+    );
+    expect(find.text('recomeçar a tradução'), findsOneWidget);
+
+    await tocar(tester, 'recomeçar a tradução');
+    await tester.pump(const Duration(milliseconds: 700));
+    await tocar(tester, 'toque de novo para apagar as 2 frases traduzidas');
+    await waitFor(
+      'a tradução recomeçar',
+      () =>
+          harness.room.restartsAsked.isNotEmpty &&
+          container.read(salaSessionProvider).btTrechosRegravados.isEmpty,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      harness.room.restartsAsked,
+      hasLength(1),
+      reason: 'o segundo toque não recomeçava uma tradução sem frase contada',
+    );
+    await tester.pump(const Duration(seconds: 7));
+    closeTheRoom(container);
+  });
+
+  testWidgets('armed, «start the translation over» counts the stale frases '
+      'it discards with the told ones', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+      lingua: 'en',
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+
+    await tocar(tester, 'start the translation over');
+
+    expect(
+      find.text('tap again to discard the 2 translated sentences'),
+      findsOneWidget,
+      reason:
+          'armado, o botão contava só as frases contadas e não as regravadas '
+          'que o segundo toque também apaga',
+    );
+    expect(
+      byLabel('tap again to discard the 2 translated sentences'),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 7));
+    closeTheRoom(container);
+  });
+
+  testWidgets('armed on a joined recording, the restart counts the stale '
+      'frases among the translations that leave the screen', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+      juntada: true,
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    expect(container.read(salaSessionProvider).joined, isTrue);
+
+    await tocar(tester, 'recomeçar a tradução');
+
+    expect(
+      find.text(
+        'toquem de novo: as 2 traduções saem da tela e vocês traduzem a '
+        'passagem inteira de novo',
+      ),
+      findsOneWidget,
+      reason:
+          'numa gravação juntada o botão armado contava só as frases contadas',
+    );
+    await tester.pump(const Duration(seconds: 7));
+    closeTheRoom(container);
+  });
+
+  testWidgets('during the First listen «recomeçar a tradução» stays hidden, '
+      'even with stale frases listed', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room
+      ..listeningUnheardTakeIds = const ['gravacao-1', 'gravacao-2']
+      ..takes.add(
+        const TakeView(
+          takeId: 'gravacao-velha-1',
+          scope: 'parte-1',
+          kind: 'ensaio',
+          ordinal: 1,
+        ),
+      );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'a primeira escuta começar com a frase regravada na lista',
+      () =>
+          container.read(salaSessionProvider).btSoOuvir &&
+          container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      byLabel('recomeçar a tradução'),
+      findsNothing,
+      reason: 'na primeira escuta não há tradução para recomeçar',
+    );
     closeTheRoom(container);
   });
 
