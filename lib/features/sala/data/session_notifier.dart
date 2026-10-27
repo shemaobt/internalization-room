@@ -2152,7 +2152,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _silenceTheRoom();
-    state = state.copyWith(clearLeftEntry: true);
     if (entry.isPanorama) {
       _leaveTheStepFor(Panorama(entry.pericope));
       _clearAll();
@@ -2555,6 +2554,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       pericope: pericope,
       coverage: created?.coverage,
       moment: created?.moment,
+      clearLeftEntry: true,
     );
     _dispatch(TheSessionOpened(sessionId, generation: generation));
     // The scenes are the passage's, asked while the session opens on the network it

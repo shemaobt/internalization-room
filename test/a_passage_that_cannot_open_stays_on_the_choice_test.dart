@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
@@ -98,6 +99,119 @@ void main() {
       harness.room.calls.skip(before).where((call) => call == 'createSession'),
       hasLength(2),
     );
+  });
+
+  test('a failed open from the Choice keeps the way back to the passage the '
+      'team left, and asks the room for nothing else', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePassage(notifier, read, 'P01');
+    await waitFor(
+      'P01 to open',
+      () => read().sessionId != null && read().voice == VoiceState.invite,
+    );
+    final p01 = read().sessionId;
+    notifier.leaveThePassage();
+    await waitFor(
+      'the way back to P01 to be live',
+      () => read().entriesOpen && read().theWayBackIsLive,
+    );
+    final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+    final before = harness.room.calls.length;
+    harness.room.reachable = false;
+
+    notifier.openTheEntry(p02);
+    await waitFor(
+      'the room to be asked',
+      () => harness.room.calls.skip(before).contains('createSession'),
+    );
+    await settle();
+    await settle();
+
+    expect(read().station, isA<Menu>());
+    expect(
+      read().theWayBackIsLive,
+      isTrue,
+      reason: 'o toque na P02 apagava o caminho de volta para a P01',
+    );
+    expect(read().leftEntry?.pericope, 'P01');
+    expect(read().leftEntry?.session, p01);
+    expect(harness.room.calls.skip(before), ['createSession']);
+  });
+
+  test('a passage resumed from its pill no longer holds the way back to the '
+      'passage left before it', () async {
+    final harness = SalaHarness();
+    harness.emAberto.rows['Ruth/P02/pt'] = const ResumePoint(
+      sessionId: 'sessao-da-p02',
+      stage: SalaStage.conversa,
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePassage(notifier, read, 'P01');
+    await waitFor(
+      'P01 to open',
+      () => read().sessionId != null && read().voice == VoiceState.invite,
+    );
+    notifier.leaveThePassage();
+    await waitFor(
+      'the way back to P01 to be live',
+      () => read().entriesOpen && read().theWayBackIsLive,
+    );
+    final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+
+    notifier.openTheEntry(p02);
+    await waitFor('P02 to resume', () => read().sessionId == 'sessao-da-p02');
+
+    expect(
+      read().leftEntry,
+      isNull,
+      reason: 'a P02 retomada ainda guardava a volta para a P01',
+    );
+  });
+
+  test('a passage the room refuses keeps the way back to the passage the team '
+      'left', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePassage(notifier, read, 'P01');
+    await waitFor(
+      'P01 to open',
+      () => read().sessionId != null && read().voice == VoiceState.invite,
+    );
+    final p01 = read().sessionId;
+    notifier.leaveThePassage();
+    await waitFor(
+      'the way back to P01 to be live',
+      () => read().entriesOpen && read().theWayBackIsLive,
+    );
+    final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+    harness.room.passagesThatCannotOpen = {'P02'};
+
+    notifier.openTheEntry(p02);
+    await waitFor(
+      'the room to refuse P02',
+      () =>
+          harness.room.calls.where((call) => call == 'createSession').length ==
+          2,
+    );
+    await waitFor('the Choice to come back', () => read().entriesOpen);
+
+    expect(read().station, isA<Menu>());
+    expect(
+      read().theWayBackIsLive,
+      isTrue,
+      reason: 'a recusa da P02 apagava o caminho de volta para a P01',
+    );
+    expect(read().leftEntry?.session, p01);
   });
 
   test(
