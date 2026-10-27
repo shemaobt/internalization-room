@@ -9,6 +9,8 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/think_note.dart';
+import 'package:internalization_room/core/theme/app_theme.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -194,4 +196,51 @@ void main() {
       }
     },
   );
+
+  for (final (still, from, to, rule) in [
+    (false, 0.45, 1.0, 'thinkGlow'),
+    (true, 0.72, 0.96, 'thinkPulse'),
+  ]) {
+    testWidgets('the word pulses from $from to $to on her 2.4 s '
+        '(${still ? 'less motion' : 'full motion'}), not a still label', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: const Size(375, 667),
+              disableAnimations: still,
+            ),
+            child: const Scaffold(
+              body: Stack(
+                children: [ThinkNote(circleSize: 158, words: 'pensando…')],
+              ),
+            ),
+          ),
+        ),
+      );
+      double veil() => tester
+          .widgetList<Opacity>(
+            find.ancestor(
+              of: find.text('pensando…'),
+              matching: find.byType(Opacity),
+            ),
+          )
+          .fold(1.0, (opacity, veil) => opacity * veil.opacity);
+
+      expect(
+        veil(),
+        closeTo(from, 1e-6),
+        reason: '$rule dela abre em $from (globals.css:217, :246)',
+      );
+      await tester.pump(const Duration(milliseconds: 1200));
+      expect(
+        veil(),
+        closeTo(to, 1e-6),
+        reason: 'e chega a $to na metade dos 2,4 s',
+      );
+    });
+  }
 }
