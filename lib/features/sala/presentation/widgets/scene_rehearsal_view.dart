@@ -7,7 +7,6 @@ import '../../data/session_notifier.dart';
 import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/scene_question.dart';
-import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'scene_question.dart';
@@ -121,69 +120,16 @@ class SceneRehearsalView extends ConsumerWidget {
           ),
         ),
         if (session.sceneRehearsals.isNotEmpty)
-          Semantics(
-            label: said('list'),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 32),
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                alignment: WrapAlignment.center,
-                children: [
-                  for (final row in session.sceneRehearsals)
-                    _ListedRow(
-                      row: row,
-                      onScreen: row.rehearsalId == scene.rehearsal?.rehearsalId,
-                      still:
-                          sending ||
-                          scene.waiting ||
-                          session.channel is Microphone,
-                      language: language,
-                      onTap: () =>
-                          notifier.openTheListedSceneRehearsal(row.rehearsalId),
-                    ),
-                ],
-              ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 32),
+            child: SceneRehearsalList(
+              rows: session.sceneRehearsals,
+              onScreen: scene.rehearsal?.rehearsalId,
+              still: sending || scene.waiting || session.channel is Microphone,
+              language: language,
             ),
           ),
       ],
-    );
-  }
-}
-
-class _ListedRow extends StatelessWidget {
-  final SceneRehearsalRecord row;
-  final bool onScreen;
-  final bool still;
-  final String language;
-  final VoidCallback onTap;
-
-  const _ListedRow({
-    required this.row,
-    required this.onScreen,
-    required this.still,
-    required this.language,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SalaColors.of(context);
-    return RoundActionButton(
-      size: 44,
-      mood: onScreen || still ? ButtonMood.dimmed : ButtonMood.lit,
-      semanticLabel: sceneRehearsalRowLabelFor(
-        row,
-        language,
-        onScreen: onScreen,
-      ),
-      onTap: onTap,
-      border: Border.all(color: colors.vermelhoMic, width: 1.5),
-      child: Icon(
-        row.unsent ? LucideIcons.mic : LucideIcons.check,
-        size: 18,
-        color: colors.vermelhoMic,
-      ),
     );
   }
 }

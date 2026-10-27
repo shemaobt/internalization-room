@@ -533,6 +533,137 @@ class SceneListenMode extends ConsumerWidget {
 }
 
 /// Her words written on the screen, read by VoiceOver as written.
+class SceneRehearsalList extends ConsumerWidget {
+  final List<SceneRehearsalRecord> rows;
+  final String? onScreen;
+  final bool still;
+  final String language;
+
+  const SceneRehearsalList({
+    super.key,
+    required this.rows,
+    required this.onScreen,
+    required this.still,
+    required this.language,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(salaSessionProvider.notifier);
+    String said(String control, [int? n]) =>
+        sceneRehearsalLabelFor(control, language, n: n);
+    return Semantics(
+      label: said('list'),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 470),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ExcludeSemantics(child: _Upper(said('list'))),
+              const SizedBox(height: 8),
+              for (final row in rows)
+                _ListedRow(
+                  row: row,
+                  onScreen: row.rehearsalId == onScreen,
+                  still: still,
+                  language: language,
+                  onTap: () =>
+                      notifier.openTheListedSceneRehearsal(row.rehearsalId),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ListedRow extends StatelessWidget {
+  final SceneRehearsalRecord row;
+  final bool onScreen;
+  final bool still;
+  final String language;
+  final VoidCallback onTap;
+
+  const _ListedRow({
+    required this.row,
+    required this.onScreen,
+    required this.still,
+    required this.language,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    String said(String control, [int? n]) =>
+        sceneRehearsalLabelFor(control, language, n: n);
+    final live = !onScreen && !still;
+    final scene = row.sceneNumber;
+    final at = row.recordedAt;
+    final words = TextStyle(color: colors.mut, fontSize: 14);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Semantics(
+        button: true,
+        enabled: live,
+        label: sceneRehearsalRowLabelFor(row, language, onScreen: onScreen),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: live ? onTap : null,
+          child: ExcludeSemantics(
+            child: Opacity(
+              opacity: live ? 1 : 0.35,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: colors.line, width: 1.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Text('${row.n}', style: words),
+                    if (scene != null) ...[
+                      const SizedBox(width: 10),
+                      Text(said('sceneN', scene), style: words),
+                    ],
+                    if (at != null) ...[
+                      const SizedBox(width: 10),
+                      Text(clockOf(at), style: words),
+                    ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '${row.translatedFrases} · ${said('frases')}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: words,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      said(row.unsent ? 'listUnsent' : 'listSent'),
+                      style: TextStyle(
+                        color: row.unsent ? colors.telha : colors.mut,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Written extends StatelessWidget {
   final String words;
   final String? heard;
@@ -561,16 +692,23 @@ class _Heading extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
     header: true,
     label: words,
-    child: ExcludeSemantics(
-      child: Text(
-        words.toUpperCase(),
-        style: TextStyle(
-          color: SalaColors.of(context).mut,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 2.4,
-        ),
-      ),
+    child: ExcludeSemantics(child: _Upper(words)),
+  );
+}
+
+class _Upper extends StatelessWidget {
+  final String words;
+
+  const _Upper(this.words);
+
+  @override
+  Widget build(BuildContext context) => Text(
+    words.toUpperCase(),
+    style: TextStyle(
+      color: SalaColors.of(context).mut,
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 2.4,
     ),
   );
 }

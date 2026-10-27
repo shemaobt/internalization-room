@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -31,12 +32,16 @@ SceneFrase _frase(String id, int startsMs, int endsMs) =>
 
 SceneRehearsalRecord _rehearsal({
   int n = 1,
+  String? scene,
+  DateTime? recordedAt,
   String? sentAt,
   List<SceneFrase> frases = const [],
 }) => SceneRehearsalRecord(
   rehearsalId: 'ensaio-da-cena-$n',
   sessionId: _session,
   n: n,
+  scene: scene,
+  recordedAt: recordedAt,
   sentAt: sentAt,
   frases: frases,
 );
@@ -204,6 +209,10 @@ void main() {
         '1',
         'frase 1',
         'gravar o ensaio da cena de novo',
+        'ENSAIOS DA CENA DESTA SESSÃO',
+        '1',
+        '1 · frases traduzidas',
+        'enviado',
       ],
       reason:
           'a escuta escreve só as palavras dela; uma palavra a mais escapava '
@@ -669,4 +678,81 @@ void main() {
       expect(container.read(salaSessionProvider).scene.step, SceneStep.record);
     },
   );
+  for (final (
+        language,
+        heading,
+        scene,
+        sentWords,
+        unsentWords,
+        sentRow,
+        rowOnScreen,
+      )
+      in [
+        (
+          'pt',
+          'ENSAIOS DA CENA DESTA SESSÃO',
+          'cena 2',
+          ['3 · frases traduzidas', 'enviado'],
+          ['0 · frases traduzidas', 'não enviado'],
+          'ouvir o ensaio da cena 1 — cena 2, 14:05, 3 · frases traduzidas, enviado',
+          'Ensaio da cena 2, 14:10, 0 · frases traduzidas, não enviado',
+        ),
+        (
+          'en',
+          'SCENE REHEARSALS OF THIS SESSION',
+          'scene 2',
+          ['3 · translated sentences', 'sent'],
+          ['0 · translated sentences', 'not sent'],
+          'listen to scene rehearsal 1 — scene 2, 14:05, 3 · translated sentences, sent',
+          'Scene rehearsal 2, 14:10, 0 · translated sentences, not sent',
+        ),
+      ]) {
+    testWidgets(
+      '$language: the list writes its heading and each rehearsal as its number, scene, time, frases and whether it was sent',
+      (tester) async {
+        final (_, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              scene: 'S2',
+              recordedAt: DateTime(2026, 10, 15, 14, 5),
+              sentAt: '2026-10-15T14:20:00+00:00',
+              frases: [
+                _frase('f1', 0, 3000),
+                _frase('f2', 3000, 6000),
+                _frase('f3', 6000, 9000),
+              ],
+            ),
+            _rehearsal(n: 2, recordedAt: DateTime(2026, 10, 15, 14, 10)),
+          ],
+          until: (state) => state.scene.rehearsal?.n == 2,
+        );
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+        List<String?> written(String row) => [
+          for (final text in tester.widgetList<Text>(
+            find.descendant(of: byLabel(row), matching: find.byType(Text)),
+          ))
+            text.data,
+        ];
+
+        expect(
+          find.text(heading),
+          findsOneWidget,
+          reason: 'a lista era uma fileira de ícones, sem cabeçalho escrito',
+        );
+        expect(written(sentRow), ['1', scene, '14:05', ...sentWords]);
+        expect(
+          written(rowOnScreen),
+          ['2', '14:10', ...unsentWords],
+          reason: 'um ensaio sem cena escolhida não ganha «cena N»',
+        );
+        expect(
+          tester.widget<Text>(find.text(unsentWords.last)).style?.color,
+          SalaColors.light.telha,
+          reason: '«não enviado» é telha, como no dela',
+        );
+      },
+    );
+  }
 }
