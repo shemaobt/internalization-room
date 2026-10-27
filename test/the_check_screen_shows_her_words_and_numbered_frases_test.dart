@@ -509,6 +509,63 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('with every part recorded again and only its stale frases '
+      'listed, the team can still start the translation over', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.addAll(const [
+      TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+      TakeView(
+        takeId: 'gravacao-velha-2',
+        scope: 'parte-2',
+        kind: 'ensaio',
+        ordinal: 2,
+      ),
+    ]);
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-velha-2',
+            startsMs: 0,
+            endsMs: 6000,
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'as frases regravadas acharem as suas partes',
+      () =>
+          container.read(salaSessionProvider).btTrechosRegravados.length == 2,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      byLabel('recomeçar a tradução'),
+      findsOneWidget,
+      reason:
+          'com todas as partes regravadas a lista só tinha frases regravadas '
+          'e não havia como recomeçar a tradução',
+    );
+    expect(find.text('recomeçar a tradução'), findsOneWidget);
+    closeTheRoom(container);
+  });
+
   testWidgets('a frase just told shows the number its answer carries, not '
       'a count the tablet keeps, before the session is read again', (
     tester,

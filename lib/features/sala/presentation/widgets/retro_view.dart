@@ -220,7 +220,8 @@ class RetroView extends ConsumerWidget {
               language: language,
             ),
             if (!session.btSoOuvir &&
-                session.btTrechos.any((trecho) => trecho.contado)) ...[
+                (session.btTrechos.any((trecho) => trecho.contado) ||
+                    session.btTrechosRegravados.isNotEmpty)) ...[
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
