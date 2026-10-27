@@ -1167,8 +1167,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) async {
     final generation = _waitOnTheGeneration;
     while (true) {
-      Said said;
-      RoomResult? because;
+      final Said said;
       try {
         said = await _loadTheReply(
           line,
@@ -1178,17 +1177,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           onSoundStart: onSoundStart,
         );
       } on RoomFailure catch (failure) {
-        said = Said.failed;
-        because = failure.result;
+        if (await _loadAgain(line, generation, failure)) continue;
+        return Said.failed;
       }
-      if (said != Said.failed || _abandoned(generation)) return said;
-      final reload = _theReplyFailedToLoad(line, because);
-      if (reload == null) return said;
-      await reload;
-      if (_abandoned(generation)) return Said.unsaid;
-      await (line.fixedLine.isEmpty
-          ? _voice.forget(line.url)
-          : _voice.forgetFixedLine(line.fixedLine, _inTheSessionsLanguage));
+      if (said != Said.failed) return said;
+      if (!await _loadAgain(line, generation)) return said;
     }
   }
 
@@ -1211,21 +1204,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// A reply whose sound will not load raises the sign and stays the one «Ouvir de novo»
   /// says.
-  Future<void>? _theReplyFailedToLoad(SpokenLine line, RoomResult? because) {
+  Future<bool> _loadAgain(
+    SpokenLine line,
+    int generation, [
+    RoomFailure? because,
+  ]) async {
+    if (_abandoned(generation)) return false;
     decidedOnTheTablet(
-      TheSoundFailed(state.machine.failedLoads + 1, because: because),
+      TheSoundFailed(state.machine.failedLoads + 1, because: because?.result),
       _failureContext(),
     );
     _reload = null;
     _dispatch(
       TheReplyFailedToLoad(
-        because: because,
+        because: because?.result,
         sounding: _whatIsSounding(),
         generation: _generation,
       ),
     );
     if (state.needsPerson) state = state.copyWith(lastSpoken: line);
-    return _reload?.future;
+    final reload = _reload?.future;
+    if (reload == null) return false;
+    await reload;
+    if (_abandoned(generation)) return false;
+    await (line.fixedLine.isEmpty
+        ? _voice.forget(line.url)
+        : _voice.forgetFixedLine(line.fixedLine, _inTheSessionsLanguage));
+    return true;
   }
 
   void _loadTheReplyAgainLater() {
