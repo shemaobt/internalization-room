@@ -284,6 +284,28 @@ Future<(SalaHarness, ProviderContainer)> _onTheEmptyWholeHome(
   return (harness, container);
 }
 
+/// A take the team recorded by hand for [scene], still on the tablet, unsent.
+Future<PendingTake> _aHandTakeHeld(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container, {
+  required int scene,
+}) async {
+  final held = PendingTake(
+    id: 'a-mao-$scene',
+    path: '/gravacoes/parte-$scene.m4a',
+    sessionId: container.read(salaSessionProvider).sessionId!,
+    kind: 'ensaio',
+    scope: KeptScope.parte(scene),
+    passNumber: 1,
+    chunkIndex: scene,
+  );
+  (harness.takes as FakeTakeQueue).rows.add(held);
+  unawaited(container.read(salaSessionProvider.notifier).refreshUnsent());
+  await _settles(tester);
+  return held;
+}
+
 Future<void> _recordAndKeep(
   WidgetTester tester,
   ProviderContainer container,
@@ -1022,6 +1044,44 @@ void main() {
         reason:
             'sem a lista dos ensaios a linha aparecia mesmo assim, sem saber se '
             'havia o que juntar',
+      );
+    });
+
+    testWidgets(
+      'is not offered while the only joinable scene\'s hand take is held on '
+      'the tablet',
+      (tester) async {
+        final (harness, container) = await _onTheEmptyWholeHome(tester);
+        await _aHandTakeHeld(tester, harness, container, scene: 1);
+
+        expect(container.read(salaSessionProvider).recordsTheWhole, isTrue);
+        expect(find.text(_sceneInstead), findsOneWidget);
+        expect(
+          find.text(_backToJoin),
+          findsNothing,
+          reason:
+              'a linha contava a cena cuja gravação à mão o tablet ainda não '
+              'enviou, e a junção passaria por cima dela',
+        );
+      },
+    );
+
+    testWidgets('comes back once that hand take is sent', (tester) async {
+      final (harness, container) = await _onTheEmptyWholeHome(tester);
+      final held = await _aHandTakeHeld(tester, harness, container, scene: 1);
+      expect(find.text(_backToJoin), findsNothing);
+
+      final rows = (harness.takes as FakeTakeQueue).rows;
+      rows[rows.indexOf(held)] = held.copyWith(stored: true);
+      unawaited(container.read(salaSessionProvider.notifier).refreshUnsent());
+      await _settles(tester);
+
+      expect(
+        find.text(_backToJoin),
+        findsOneWidget,
+        reason:
+            'a cena continuava fora da junção depois que a gravação à mão '
+            'chegou à sala',
       );
     });
   });

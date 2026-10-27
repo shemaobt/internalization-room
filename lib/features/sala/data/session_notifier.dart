@@ -7529,7 +7529,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _readTheCheckAfterTheUpload = false;
       if (state.station is Ensaio) unawaited(_readWhatComesBack());
     }
-    state = state.copyWith(unsentParts: _unsentPartsOf(speaking));
+    state = state.copyWith(
+      unsentParts: _unsentPartsOf(speaking),
+      heldScenes: {
+        for (final MapEntry(key: scope, value: rows)
+            in tally.unsentParts.entries)
+          if (rows.any((row) => row.origin == null)) ?KeptScope.numberOf(scope),
+      },
+    );
     if (sessionId != null) {
       state = state.copyWith(
         unsentTakes: _unsentTakesOf(tally, speaking),

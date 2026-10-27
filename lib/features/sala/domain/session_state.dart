@@ -487,6 +487,7 @@ class SalaSessionState {
   final int unsentTakes;
   final int unsentChunks;
   final Map<int, UnsentPart> unsentParts;
+  final Set<int> heldScenes;
 
   final Machine machine;
 
@@ -668,6 +669,7 @@ class SalaSessionState {
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentParts = const {},
+    this.heldScenes = const {},
     this.machine = const Machine(),
     this.parteARegravar,
     this.cenaDaGravacao,
@@ -833,6 +835,7 @@ class SalaSessionState {
           read,
           sessionId,
           planChoices,
+          held: heldScenes,
         ),
         _ => false,
       };
@@ -1613,6 +1616,7 @@ class SalaSessionState {
     int? unsentTakes,
     int? unsentChunks,
     Map<int, UnsentPart>? unsentParts,
+    Set<int>? heldScenes,
     Machine? machine,
     int? parteARegravar,
     bool clearParteARegravar = false,
@@ -1751,6 +1755,7 @@ class SalaSessionState {
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentParts: unsentParts ?? this.unsentParts,
+      heldScenes: heldScenes ?? this.heldScenes,
       machine: machine ?? this.machine,
       parteARegravar: clearParteARegravar
           ? null
