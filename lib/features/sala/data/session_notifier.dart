@@ -1155,7 +1155,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Say a reply, loading it once more when the machine asks after a failed load
-  /// (ADR 0135).
+  /// (ADR 0137).
   ///
   /// [asked] is a replay, which goes straight to speaking for a line already held.
   Future<Said> _sayTheReply(
