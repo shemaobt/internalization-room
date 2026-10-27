@@ -884,4 +884,31 @@ void main() {
       );
     },
   );
+  testWidgets(
+    'on a phone her clock line wraps beside play, 16 points from the edge, instead of running off it',
+    (tester) async {
+      final (harness, container) = await _inListenMode(
+        tester,
+        view: const Size(420, 1600),
+      );
+      container.read(roomLanguageProvider.notifier).choose('en');
+      await tester.pump(const Duration(milliseconds: 300));
+      const line = 'listening to the scene rehearsal… — 0:03 / 0:10';
+
+      await tester.tap(byLabel('Play or pause your recording'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 3);
+      await tester.pump(const Duration(milliseconds: 1100));
+
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getRect(find.text(line)).right,
+        lessThanOrEqualTo(420 - 16),
+        reason: 'no iPhone SE o relógio passava da borda da tela',
+      );
+    },
+  );
 }

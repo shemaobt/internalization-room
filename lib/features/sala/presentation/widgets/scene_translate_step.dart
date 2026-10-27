@@ -462,40 +462,45 @@ class SceneListenMode extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RoundActionButton(
-                size: 52,
-                mood: sending || scene.waiting
-                    ? ButtonMood.dimmed
-                    : ButtonMood.lit,
-                semanticLabel: said('playPause'),
-                onTap: notifier.playTheSceneRehearsal,
-                border: Border.all(color: colors.vermelhoMic, width: 2),
-                child: Icon(
-                  playing ? LucideIcons.pause : LucideIcons.play,
-                  size: 22,
-                  color: colors.vermelhoMic,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RoundActionButton(
+                  size: 52,
+                  mood: sending || scene.waiting
+                      ? ButtonMood.dimmed
+                      : ButtonMood.lit,
+                  semanticLabel: said('playPause'),
+                  onTap: notifier.playTheSceneRehearsal,
+                  border: Border.all(color: colors.vermelhoMic, width: 2),
+                  child: Icon(
+                    playing ? LucideIcons.pause : LucideIcons.play,
+                    size: 22,
+                    color: colors.vermelhoMic,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Loop(
-                period: const Duration(seconds: 1),
-                animate: playing,
-                reducible: false,
-                builder: (context, _) => playing
-                    ? _Written(
-                        sceneListeningLineFor(
-                          playback.position,
-                          scene.length,
-                          language,
-                        ),
-                        style: TextStyle(color: colors.mut, fontSize: 16),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
+                const SizedBox(width: 16),
+                Flexible(
+                  child: Loop(
+                    period: const Duration(seconds: 1),
+                    animate: playing,
+                    reducible: false,
+                    builder: (context, _) => playing
+                        ? _Written(
+                            sceneListeningLineFor(
+                              playback.position,
+                              scene.length,
+                              language,
+                            ),
+                            style: TextStyle(color: colors.mut, fontSize: 16),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           SceneStrip(
