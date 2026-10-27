@@ -390,9 +390,7 @@ class _SceneRowView extends StatelessWidget {
         named,
         if (playing) recordingHomeLabelFor('playing', language),
       ].join(', '),
-      value: row.part == null && mark == null
-          ? null
-          : [if (row.part != null) '✓', ?mark].join(' '),
+      value: row.part == null ? null : ['✓', ?mark].join(' '),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         decoration: BoxDecoration(
