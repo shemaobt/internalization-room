@@ -853,6 +853,33 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('on a phone as narrow as the iPhone SE the line before a '
+      'verdict keeps the margin the frase rows keep, not the screen edge', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(segments: _quatroFrases),
+    );
+    tester.view.physicalSize = const Size(375, 2400);
+    await _passo(tester);
+
+    final linha = tester.getRect(find.text(_subTell));
+    expect(
+      linha.left,
+      16,
+      reason: 'a linha antes do veredito encostava na borda esquerda',
+    );
+    expect(
+      linha.right,
+      375 - 16,
+      reason: 'a linha antes do veredito encostava na borda direita',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('every frase the check named carries its word, and a frase it '
       'did not name carries none', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

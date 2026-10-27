@@ -115,6 +115,32 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('on a phone as narrow as the iPhone SE her sentence line keeps '
+      'the margin the frase rows keep, not the screen edge', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAUmaTraducao(
+      tester,
+      harness,
+      extension: 'm4a',
+      juntada: true,
+    );
+    tester.view.physicalSize = const Size(375, 2400);
+    await _passo(tester);
+
+    final linha = tester.getRect(find.text(_herSubVerdict));
+    expect(
+      linha.left,
+      16,
+      reason: 'a linha encostava na borda esquerda do iPhone SE',
+    );
+    expect(
+      linha.right,
+      375 - 16,
+      reason: 'a linha encostava na borda direita do iPhone SE',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a verdict on a recording with a wav part reads her sentence '
       'line even when nothing was joined', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -222,6 +248,53 @@ void main() {
       find.text('tradução recomeçada — a gravação da passagem ficou'),
       findsOneWidget,
       reason: 'a nota falava do ensaio da passagem onde só ficou a gravação',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('on a phone as narrow as the iPhone SE the note that the '
+      'recording stays keeps the margin the frase rows keep, not the screen '
+      'edge', (tester) async {
+    final harness = SalaHarness(
+      filaEmMemoria: true,
+      restartLapse: const Duration(minutes: 1),
+    );
+    final container = await _voltaAUmaTraducao(
+      tester,
+      harness,
+      extension: 'm4a',
+      juntada: true,
+    );
+    tester.view.physicalSize = const Size(375, 2400);
+    await _passo(tester);
+
+    await tester.tap(byLabel(_recomecar));
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.tap(
+      byLabel(
+        'toquem de novo: as 2 traduções saem da tela e vocês traduzem a '
+        'passagem inteira de novo',
+      ),
+    );
+    await waitFor(
+      'a tradução recomeçar',
+      () => container.read(salaSessionProvider).btTrechos.isEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    final nota = tester.getRect(
+      find.text('tradução recomeçada — a gravação da passagem ficou'),
+    );
+    expect(
+      nota.left,
+      16,
+      reason: 'a nota encostava na borda esquerda do iPhone SE',
+    );
+    expect(
+      nota.right,
+      375 - 16,
+      reason: 'a nota encostava na borda direita do iPhone SE',
     );
     closeTheRoom(container);
   });

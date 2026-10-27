@@ -74,23 +74,30 @@ class RetroView extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Text(
-                retroLabelFor(
-                  session.btSoOuvir
-                      ? session.joined
-                            ? 'listenOnly'
-                            : 'listenOnlyRecording'
-                      : veredito
-                      ? session.offersASentence
-                            ? 'subVerdictSentence'
-                            : 'subVerdict'
-                      : 'subTell',
-                  language,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Text(
+                  retroLabelFor(
+                    session.btSoOuvir
+                        ? session.joined
+                              ? 'listenOnly'
+                              : 'listenOnlyRecording'
+                        : veredito
+                        ? session.offersASentence
+                              ? 'subVerdictSentence'
+                              : 'subVerdict'
+                        : 'subTell',
+                    language,
+                  ),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colors.mut,
+                    fontSize: 15,
+                    height: 1.35,
+                  ),
                 ),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.mut, fontSize: 15, height: 1.35),
               ),
             ),
             const SizedBox(height: 20),
