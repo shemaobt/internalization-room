@@ -148,10 +148,6 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   /// Whether the room is already showing a stop for this voice.
-  ///
-  /// A warning is a lesser thing than any of these — it asks somebody to come and
-  /// look, and refuses nothing — so it never draws over a state that has already
-  /// told the team to stop.
   bool get _halted => halt is Blocking;
 
   IconData? get _modeGlyph {
