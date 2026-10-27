@@ -125,6 +125,14 @@ class EnsaioView extends ConsumerWidget {
                       ],
                     ),
                   ),
+                  if (session.btChecked) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      '✓ ${retroLabelFor('translated', language)}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: colors.ink, fontSize: 17),
+                    ),
+                  ],
                   if (session.hearNewScene) ...[
                     const SizedBox(height: 12),
                     Semantics(
