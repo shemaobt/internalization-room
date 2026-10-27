@@ -945,4 +945,43 @@ void main() {
       );
     },
   );
+  testWidgets(
+    'a sent scene rehearsal whose take the tablet cannot measure still draws each bar against the longest, not every bar full',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-27T10:00:00+00:00',
+            frases: [_frase('f1', 0, 2000), _frase('f2', 2000, 6000)],
+          ),
+          _rehearsal(n: 2),
+        ],
+        until: (state) => state.scene.rehearsal?.n == 2,
+      );
+      harness.playback.measured = null;
+      container
+          .read(salaSessionProvider.notifier)
+          .openTheListedSceneRehearsal('ensaio-da-cena-1');
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).scene.step == SceneStep.sent,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      Size bar(int n) => tester.getSize(
+        find.descendant(
+          of: byLabel('frase $n'),
+          matching: find.byType(DecoratedBox),
+        ),
+      );
+
+      expect(container.read(salaSessionProvider).scene.length, isNull);
+      expect(bar(2).width, 200);
+      expect(
+        bar(1).width,
+        100,
+        reason: 'sem a medida do take toda barra saía cheia, como a mais longa',
+      );
+    },
+  );
 }

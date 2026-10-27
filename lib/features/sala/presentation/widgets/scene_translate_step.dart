@@ -443,10 +443,11 @@ class SceneListenMode extends ConsumerWidget {
         sceneRehearsalLabelFor(control, language, n: n);
     final playing = channel is PartPlaying;
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
-    final longest = frases.fold(
-      1,
-      (longest, frase) => max(longest, frase.spanIn(scene.length)),
-    );
+    int span(SceneFrase frase) => switch ((frase.startsMs, frase.endsMs)) {
+      (final int starts, final int ends) => max(0, ends - starts),
+      _ => 0,
+    };
+    final longest = frases.map(span).fold(1, max);
     return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -517,7 +518,7 @@ class SceneListenMode extends ConsumerWidget {
             for (final (i, frase) in frases.indexed)
               _FraseBar(
                 n: i + 1,
-                share: frase.spanIn(scene.length) / longest,
+                share: span(frase) / longest,
                 words: said('frase', i + 1),
                 name: said('frase', i + 1),
                 hearMine: said('hearMine', i + 1),
