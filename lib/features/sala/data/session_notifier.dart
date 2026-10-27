@@ -5100,6 +5100,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       if (row.exhausted) {
         await _takes.withdraw(row);
+        await _countUnsentIn(life);
         _semNome.remove(rowId);
         _letGoOfTheJoinedPart(partPath);
         return (

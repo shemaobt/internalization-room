@@ -864,6 +864,7 @@ class TakeUploadQueue {
     void Function() leaving,
   ) async {
     if (!_ready(entry)) return _Landing.held;
+    if (!await _stillWritten(entry)) return _Landing.givenUp;
     final file = File(entry.path);
     if (!await file.exists()) {
       // Already written off and gone again between the check above and here: the row
@@ -1134,6 +1135,11 @@ class TakeUploadQueue {
       ],
     );
     await _deleteTheCopy(entry);
+  }
+
+  Future<bool> _stillWritten(PendingTake entry) async {
+    await _writes;
+    return (await _written() ?? const []).any((row) => _sameRow(row, entry));
   }
 
   static bool _sameRow(PendingTake a, PendingTake b) =>
