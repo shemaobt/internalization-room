@@ -1082,8 +1082,7 @@ final class Machine {
 
   Set<String> savedParts(String? session) => {
     for (final kept in keptThisVisit.values)
-      if (kept.session == session &&
-          !beingKept(session, kept.scope) &&
+      if (!beingKept(session, kept.scope) &&
           newestKeptFact(session, kept.scope) == PartFact.sent)
         kept.scope,
   };

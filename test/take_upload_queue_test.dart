@@ -2197,6 +2197,35 @@ void main() {
     );
   });
 
+  test('a take a row can show goes up before every take no row can show, '
+      'each part still in its order', () async {
+    final room = FakeRoom();
+    final queue = queueOn(room)
+      ..offerTheTapThrough((row) => row.scope != 'parte-2');
+    for (final (name, scope, pass) in [
+      ('parte-2-a', 'parte-2', 1),
+      ('parte-2-b', 'parte-2', 2),
+      ('inteira', 'passagem-inteira', 3),
+    ]) {
+      await queue.enqueue(
+        aTake(name),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: scope,
+        passNumber: pass,
+      );
+    }
+
+    await queue.flush();
+
+    expect(room.takesAsked, [
+      'ensaio/passagem-inteira',
+      'ensaio/parte-2',
+      'ensaio/parte-2',
+    ]);
+    expect(room.takePasses, [3, 1, 2]);
+  });
+
   group('a join row', () {
     File aRehearsal(List<int> bytes) =>
         File('${home.path}/parte-2-junta-ensaio-2.wav')
@@ -2320,7 +2349,7 @@ void main() {
         createFile: (path) {
           final real = outside.run(() => File(path));
           if (path != copy) return real;
-          return _ACopyWhoseDeleteLags(
+          return _ACopyThatOutlivesItsDelete(
             real,
             whenChecked: () {
               if (!queue.inTheAir(row.id)) unawaited(queue.withdraw(row));
@@ -2333,8 +2362,8 @@ void main() {
       expect(await queue.pending(), isEmpty);
     });
 
-    test('withdrawn unless in the air, as its pass claims it, either stays '
-        'unsent or is left to its send', () async {
+    test('withdrawn unless in the air before its pass claims it is taken off '
+        'and never sent', () async {
       final room = FakeRoom();
       final queue = queueOn(room);
       final row = (await queue.enqueueTheJoin(
@@ -2353,7 +2382,39 @@ void main() {
         createFile: (path) {
           final real = outside.run(() => File(path));
           if (path != copy) return real;
-          return _ACopyWhoseDeleteLags(
+          return _ACopyThatOutlivesItsDelete(
+            real,
+            whenChecked: () => withdrawn = queue.withdrawUnlessInTheAir(row),
+          );
+        },
+      );
+
+      expect(await withdrawn, isTrue);
+      expect(room.takesReceivedWhole, isEmpty);
+      expect(await queue.pending(), isEmpty);
+    });
+
+    test('withdrawn unless in the air once its pass claimed it is left to its '
+        'send, and lands', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final copy = (await queue.pending()).single.path;
+      final outside = Zone.current;
+      late Future<bool> withdrawn;
+
+      await IOOverrides.runZoned(
+        queue.flush,
+        createFile: (path) {
+          final real = outside.run(() => File(path));
+          if (path != copy) return real;
+          return _ACopyThatOutlivesItsDelete(
             real,
             whenMeasured: () => Future.microtask(
               () => Future.microtask(
@@ -2364,11 +2425,48 @@ void main() {
         },
       );
 
-      expect(
-        room.takesReceivedWhole.isEmpty,
-        await withdrawn,
-        reason: 'a row the Outbox let go never reaches the room',
+      expect(await withdrawn, isFalse);
+      expect(room.takesKept, ['ensaio/parte-2']);
+    });
+
+    test('withdrawn while its pass is under way is given up, and the newer '
+        'take of its part goes up in the same pass', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final join = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      await queue.enqueue(
+        aTake('a-mao'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'parte-2',
+        passNumber: 2,
       );
+      final copy = (await queue.pending()).first.path;
+      final outside = Zone.current;
+
+      await IOOverrides.runZoned(
+        queue.flush,
+        createFile: (path) {
+          final real = outside.run(() => File(path));
+          if (path != copy) return real;
+          return _ACopyThatOutlivesItsDelete(
+            real,
+            whenChecked: () {
+              real.deleteSync();
+              unawaited(queue.withdraw(join));
+            },
+          );
+        },
+      );
+
+      expect(room.takePasses, [2]);
+      expect(await queue.pending(), isEmpty);
     });
 
     test('sends the moment of each try as its Recording time', () async {
@@ -2536,12 +2634,12 @@ class _ADiskThatThrowsOnTheRename extends FakeRecorder {
       throw StateError('o contêiner já foi descartado');
 }
 
-class _ACopyWhoseDeleteLags implements File {
+class _ACopyThatOutlivesItsDelete implements File {
   final File _real;
   final void Function() whenChecked;
   final void Function() whenMeasured;
 
-  _ACopyWhoseDeleteLags(
+  _ACopyThatOutlivesItsDelete(
     this._real, {
     this.whenChecked = _nothing,
     this.whenMeasured = _nothing,

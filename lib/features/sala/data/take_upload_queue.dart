@@ -400,13 +400,11 @@ class TakeUploadQueue {
   Future<bool> _reallyGone(PendingTake entry) async =>
       entry.lost && !await File(entry.path).exists();
 
-  /// The rows a flush will try. A written-off row is back among them the moment its
-  /// audio is on the disk again; one whose audio really is gone stays out, so the queue
-  /// still empties.
   bool Function(PendingTake row) _aRowOffersItsTap = (_) => true;
 
-  /// Whether a row on screen can offer [row]'s tap. A spent take no row can show is never
-  /// held for a tap: it goes up on the next pass.
+  /// [aRowOffersItsTap] says whether a row on screen can offer a take's tap. A take no row
+  /// can show goes up after every take a row can show, and once spent it is never held
+  /// for a tap.
   void offerTheTapThrough(bool Function(PendingTake row) aRowOffersItsTap) =>
       _aRowOffersItsTap = aRowOffersItsTap;
 
@@ -414,6 +412,9 @@ class TakeUploadQueue {
       entry.exhausted &&
       (entry.refusal != null || entry.lost || _aRowOffersItsTap(entry));
 
+  /// The rows a flush will try. A written-off row is back among them the moment its
+  /// audio is on the disk again; one whose audio really is gone stays out, so the queue
+  /// still empties.
   Future<List<PendingTake>> waiting({bool withTheCodeless = false}) async {
     final trying = <PendingTake>[];
     final heldForATap = <String>{};
@@ -433,7 +434,12 @@ class TakeUploadQueue {
       if (await _reallyGone(entry)) continue;
       trying.add(entry);
     }
-    return trying;
+    return [
+      for (final entry in trying)
+        if (_aRowOffersItsTap(entry)) entry,
+      for (final entry in trying)
+        if (!_aRowOffersItsTap(entry)) entry,
+    ];
   }
 
   Future<File> _quarantineFile() async =>
@@ -878,6 +884,9 @@ class TakeUploadQueue {
     if (!_ready(entry)) return _Landing.held;
     final file = File(entry.path);
     if (!await file.exists()) {
+      if (!await _betweenWrites((written) => _holds(written, entry))) {
+        return _Landing.givenUp;
+      }
       // Already written off and gone again between the check above and here: the row
       // is already saying so, and rewriting the manifest to say it twice is a write
       // for no change of state.
@@ -1148,19 +1157,23 @@ class TakeUploadQueue {
     await _deleteTheCopy(entry);
   }
 
+  /// [read] over the manifest as written, in a step of its own between writes.
+  Future<T> _betweenWrites<T>(T Function(List<PendingTake> written) read) {
+    final done = _writes.then((_) async => read(await _written() ?? const []));
+    _writes = done.then((_) {}, onError: (_) {});
+    return done;
+  }
+
+  static bool _holds(List<PendingTake> written, PendingTake entry) =>
+      written.any((row) => _sameRow(row, entry));
+
   /// The row goes up only while the manifest still holds it, and it is in the air from
   /// the same step: a withdraw runs wholly before the send or wholly after it.
-  Future<bool> _claim(PendingTake entry) {
-    final claimed = _writes.then((_) async {
-      final held = (await _written() ?? const []).any(
-        (row) => _sameRow(row, entry),
-      );
-      if (held) _inTheAir = entry;
-      return held;
-    });
-    _writes = claimed.then((_) {}, onError: (_) {});
-    return claimed;
-  }
+  Future<bool> _claim(PendingTake entry) => _betweenWrites((written) {
+    final held = _holds(written, entry);
+    if (held) _inTheAir = entry;
+    return held;
+  });
 
   static bool _sameRow(PendingTake a, PendingTake b) =>
       a.id == b.id && a.kind == b.kind;
@@ -1284,39 +1297,39 @@ class TakeUploadQueue {
   /// never be an error either way. Matched by id and kind, the same pair `_replace`
   /// reads a row by.
   Future<void> withdraw(PendingTake row) async {
-    await _withdraw(row, unlessInTheAir: false);
+    PendingTake? removed;
+    await _mutate((written) {
+      removed = written.where((entry) => _isTheRow(entry, row)).firstOrNull;
+      return [
+        for (final entry in written)
+          if (!_isTheRow(entry, row)) entry,
+      ];
+    });
+    if (removed case final entry?) await _deleteTheCopy(entry);
   }
 
   /// Take [row] off the manifest unless its request is in the air, decided in the same
   /// step a pass claims a row; false when it is left to its send.
-  Future<bool> withdrawUnlessInTheAir(PendingTake row) =>
-      _withdraw(row, unlessInTheAir: true);
-
-  Future<bool> _withdraw(
-    PendingTake row, {
-    required bool unlessInTheAir,
-  }) async {
+  Future<bool> withdrawUnlessInTheAir(PendingTake row) async {
     PendingTake? removed;
     var leftToItsSend = false;
     await _mutate((written) {
-      if (unlessInTheAir && _isInTheAir(row)) {
+      if (_isInTheAir(row)) {
         leftToItsSend = true;
         return written;
       }
-      final kept = <PendingTake>[];
-      for (final entry in written) {
-        if (!entry.stored && entry.id == row.id && entry.kind == row.kind) {
-          removed = entry;
-          continue;
-        }
-        kept.add(entry);
-      }
-      return kept;
+      removed = written.where((entry) => _isTheRow(entry, row)).firstOrNull;
+      return [
+        for (final entry in written)
+          if (!_isTheRow(entry, row)) entry,
+      ];
     });
-    final entry = removed;
-    if (entry != null) await _deleteTheCopy(entry);
+    if (removed case final entry?) await _deleteTheCopy(entry);
     return !leftToItsSend;
   }
+
+  static bool _isTheRow(PendingTake entry, PendingTake row) =>
+      !entry.stored && _sameRow(entry, row);
 }
 
 final takeUploadQueueProvider = Provider<TakeUploadQueue>(

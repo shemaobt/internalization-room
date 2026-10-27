@@ -12,6 +12,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
@@ -33,6 +35,7 @@ const _gravando = 'gravando';
 const _enviando = 'enviando…';
 const _salvo = '✓ salvo';
 const _parar = 'parar';
+final _aprovar = byLabel(retroLabelFor('approve', 'pt'));
 const _gravarNaLinha = 'Gravar';
 const _ouvirNaLinha = 'Ouvir';
 const _gravarDeNovoNaLinha = 'Gravar de novo';
@@ -113,6 +116,25 @@ class _Casa {
       () => estado.sceneRows.length == _cenas.length,
     );
     await settle();
+  });
+
+  Future<void> voltarAPassagem(String pericope) => emTempoReal(() async {
+    final antes = estado.sessionId;
+    sala.leaveThePassage();
+    await waitFor(
+      'a sala abrir a Escolha',
+      () => estado.stage == SalaStage.escolha && estado.naRoda != null,
+    );
+    await sala.goConversa(book: 'Ruth', pericope: pericope);
+    await waitFor(
+      'a passagem $pericope abrir',
+      () =>
+          estado.sessionId != null &&
+          estado.sessionId != antes &&
+          !estado.awaitingTheGuide,
+    );
+    sala.goEnsaio();
+    await settle(const Duration(milliseconds: 300));
   });
 
   Future<void> deixarATela() => tester.pumpWidget(const SizedBox());
@@ -392,32 +414,31 @@ void main() {
 
   testWidgets(
     'a part take spent before a switch to the whole passage goes up on the '
-    'next pass, and once it lands nothing waits',
+    'next pass, and once it lands the approval is offered',
     (tester) async {
       final casa = await _naCasa(tester);
-      casa.room.unreachableTake = 'ensaio/parte-2';
+      casa.room
+        ..retroSoFar = const BackTranslationProgress(checked: true)
+        ..unreachableTake = 'ensaio/parte-2';
       await casa.guardar(2);
       expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
       casa.room.unreachableTake = null;
 
       await casa.gravarAPassagemInteira();
-      await casa.emTempoReal(
-        () => waitFor(
-          'nada esperar no tablet',
-          () => casa.estado.nothingWaitsInTheOutbox,
-        ),
-      );
+      await casa.guardar(1);
+      await casa.ateVer(_aprovar);
 
       expect(casa.room.takesKept, contains('ensaio/parte-2'));
-      expect(casa.estado.nothingWaitsInTheOutbox, isTrue);
+      expect(_aprovar, findsOneWidget);
     },
   );
 
   testWidgets(
     'a whole-passage take spent before a switch to scene by scene goes up on '
-    'the next pass, and once it lands nothing waits',
+    'the next pass, and once it lands the approval is offered',
     (tester) async {
       final casa = await _naCasa(tester);
+      casa.room.retroSoFar = const BackTranslationProgress(checked: true);
       await casa.gravarAPassagemInteira();
       casa.room.unreachableTake = 'ensaio/${KeptScope.whole}';
       await casa.guardar(1);
@@ -425,15 +446,89 @@ void main() {
       casa.room.unreachableTake = null;
 
       await casa.gravarCenaPorCena();
-      await casa.emTempoReal(
-        () => waitFor(
-          'nada esperar no tablet',
-          () => casa.estado.nothingWaitsInTheOutbox,
-        ),
-      );
+      for (final n in [1, 2, 3]) {
+        await casa.guardar(n);
+      }
+      await casa.ateVer(_aprovar);
 
       expect(casa.room.takesKept, contains('ensaio/${KeptScope.whole}'));
-      expect(casa.estado.nothingWaitsInTheOutbox, isTrue);
+      expect(_aprovar, findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a part take refused as too large blocks no approval once the passage is '
+    'recorded whole, and stays on the tablet',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.retroSoFar = const BackTranslationProgress(checked: true);
+      casa.harness.recorder.rehearsalSpeaks = _grandeDemaisParaASala;
+      await casa.guardarSemEsperar(2);
+      await casa.ateVer(casa.naLinha(2, find.text(_grandeDemais)));
+      casa.harness.recorder.rehearsalSpeaks = null;
+
+      await casa.gravarAPassagemInteira();
+      await casa.guardar(1);
+      await casa.ateVer(_aprovar);
+
+      expect(_aprovar, findsOneWidget);
+      expect(casa.copias, hasLength(1), reason: 'a parte 2 fica no tablet');
+    },
+  );
+
+  testWidgets(
+    'a spent whole-passage take is held for its tap while the grain is not '
+    'known',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      await casa.gravarAPassagemInteira();
+      casa.room.unreachableTake = 'ensaio/${KeptScope.whole}';
+      await casa.guardar(1);
+      expect(find.text(_falhou), findsOneWidget);
+      final daInteira = casa.estado.sessionId;
+      await casa.abrirAPassagem('P02');
+      final ondeParou = casa.harness.emAberto.rows['Ruth/P01/pt']!;
+      casa.harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+        sessionId: ondeParou.sessionId,
+        stage: ondeParou.stage,
+        savedAt: ondeParou.savedAt,
+        language: ondeParou.language,
+        wholeHeldByTheRoom: ondeParou.wholeHeldByTheRoom,
+      );
+      casa.room
+        ..unreachableTake = null
+        ..failTakesWith = const NetworkFailed('sem rede');
+
+      await casa.voltarAPassagem('P01');
+      final antes = casa.envios;
+      await casa.emTempoReal(() async {
+        await casa.harness.takes.flush();
+        await settle(const Duration(milliseconds: 300));
+      });
+
+      expect(casa.estado.sessionId, daInteira);
+      expect(casa.estado.grainInForce, isNull);
+      expect(casa.envios, antes);
+      expect(casa.room.takesKept, isNot(contains('ensaio/${KeptScope.whole}')));
+    },
+  );
+
+  testWidgets(
+    'a whole-passage take in the air reads nothing on scene 1 after a switch '
+    'to scene by scene',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      await casa.gravarAPassagemInteira();
+      casa.room.holdNextTake(KeptScope.whole);
+      await casa.guardarSemEsperar(1);
+      await tester.runAsync(casa.room.untilTakeHeld);
+
+      await casa.gravarCenaPorCena();
+      await tester.pump(const Duration(seconds: 8));
+
+      expect(casa.naLinha(1, find.text(_enviando)), findsNothing);
+      expect(casa.naLinha(1, find.text(_parar)), findsNothing);
+      casa.room.finishHeldTake();
     },
   );
 

@@ -7636,22 +7636,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   int _unsentTakesOf(OutboxTally tally, Map<int, List<PendingTake>> speaking) {
     var behindANewerPass = 0;
+    var onNoRow = 0;
     for (final MapEntry(key: scope, value: rows) in tally.unsentParts.entries) {
       final number = state.rowOf(scope);
-      if (number == null) continue;
+      if (number == null) {
+        if (state.grainInForce != null) onNoRow += rows.length;
+        continue;
+      }
       behindANewerPass += rows.length - (speaking[number]?.length ?? 0);
     }
     final notQueued = [
       for (final number in _notQueuedRows.keys)
         if (!speaking.containsKey(number)) number,
     ];
-    return tally.unsentTakes - behindANewerPass + notQueued.length;
+    return tally.unsentTakes - behindANewerPass - onNoRow + notQueued.length;
   }
 
   bool _aRowOffersTheTap(PendingTake row) =>
       _gone ||
       row.kind != partTakeKind ||
       row.sessionId != state.sessionId ||
+      state.grainInForce == null ||
       state.rowOf(row.scope) != null;
 
   bool _ofThisVisit(int number, PendingTake newest) =>

@@ -688,11 +688,11 @@ MachineEvent _draw(
   EventKind.aTakeSettled => ATakeSettled('linha-${random.nextInt(3)}'),
   EventKind.aKeepBegan => AKeepBegan((
     session: _drawASession(random),
-    scope: 'parte-${random.nextInt(3) + 1}',
+    scope: _drawAScope(random),
   )),
   EventKind.aKeepEnded => AKeepEnded((
     session: _drawASession(random),
-    scope: 'parte-${random.nextInt(3) + 1}',
+    scope: _drawAScope(random),
   ), row: random.nextBool() ? 'linha-${random.nextInt(3)}' : null),
   EventKind.stopTapped => StopTapped((
     session: _drawASession(random),
@@ -868,6 +868,11 @@ String _drawAPanorama(Random random) =>
 String _drawALanguage(Random random) => random.nextBool() ? 'pt' : 'en';
 
 String _drawASession(Random random) => 'sessao-${random.nextInt(3)}';
+
+String _drawAScope(Random random) => switch (random.nextInt(4)) {
+  0 => 'passagem-inteira',
+  final n => 'parte-$n',
+};
 
 /// A Panorama left said or unsaid, on a session the machine may or may not still hold,
 /// or a passage left.

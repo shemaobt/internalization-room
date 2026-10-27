@@ -2861,6 +2861,9 @@ class FakeRoom implements RoomRepository {
 
   final List<DateTime> takesSentAt = [];
 
+  /// Every take the room was asked to keep, as `kind/scope`, in the order asked.
+  final List<String> takesAsked = [];
+
   @override
   Future<RoomAnswer<String>> sendTake(
     String sessionId,
@@ -2878,6 +2881,7 @@ class FakeRoom implements RoomRepository {
     Future<void>? abortTrigger,
   }) async {
     takesSentAt.add(DateTime.now());
+    takesAsked.add('$kind/$scope');
     if (_guard('sendTake') case final failure?) return failure;
     if (_forgot('sendTake', sessionId) case final gone?) {
       return gone;
