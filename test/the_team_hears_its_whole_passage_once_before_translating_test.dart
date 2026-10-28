@@ -635,14 +635,9 @@ void main() {
       expect(it.harness.playback.played.last, it.partes[0].path);
       expect(it.harness.playback.sounding, isTrue);
       expect(
-        [
-          for (final circulo in tester.widgetList<FacilitatorCircle>(
-            find.byType(FacilitatorCircle),
-          ))
-            circulo.halt,
-        ],
-        everyElement(isA<NoHalt>()),
-        reason: 'nenhum sinal de pessoa no círculo',
+        it.container.read(salaSessionProvider).halt,
+        isA<NoHalt>(),
+        reason: 'nenhum sinal de pessoa na tela',
       );
       closeTheRoom(it.container);
     },
