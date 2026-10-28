@@ -281,6 +281,7 @@ void main() {
       const TheRehearsalWeighed(
         everySceneHasItsPart: true,
         everyPartIsHere: false,
+        everyPartIsSent: true,
       ),
     );
 
@@ -316,6 +317,7 @@ void main() {
       const TheRehearsalWeighed(
         everySceneHasItsPart: true,
         everyPartIsHere: true,
+        everyPartIsSent: true,
       ),
     );
 
