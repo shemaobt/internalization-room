@@ -51,3 +51,28 @@ ENG-1384's sheet and card and ENG-1385's join read the same rows. A listing with
 room's confirmation makes every rehearsal unjoinable, so its rows say «este ensaio não pode
 entrar» rather than join a take the room never confirmed; one without a content type reads
 as the WAV this tablet records.
+
+## Amendment · 2026-10-27 (ENG-1830)
+
+Her app lets the team choose an unsent rehearsal; only the default must be sent. «Unsent
+rehearsals are swappable with a 'não enviado' badge and are never the default»
+(`ENSAIO-FINAL-SPEC.md:522`). Her plan's candidates include unsent rehearsals
+(`src/draft/joinPlan.ts:103-107`), her sheet marks «usar este» on any WAV the row does not
+hold, sent or not (`ensaioFinal.ts:617`, `usable: c.wav && c.n !== inUseN`), and her row
+offers «trocar» where there is more than one candidate or none is chosen
+(`ensaioFinal.ts:363`). Her app wins over this record, so three of its rules change.
+
+- **Usable** is a new fact of the record: confirmed by the room and a WAV, sent or not yet
+  sent. A sent one whose time does not read is not Usable. Joinable keeps its meaning and
+  still draws the Default rehearsal, so an unsent one is never the default.
+- «trocar o ensaio desta cena» is offered wherever the row has a Usable rehearsal it does
+  not hold, and the Rehearsal sheet marks «usar este» on each of them. A row the team points
+  at an unsent one holds it, «juntar» opens on it, and the join sends it as the scene's
+  part. The room's take door accepts an unsent origin: it checks only that the origin is a
+  live rehearsal of the passage.
+- A row with nothing chosen says «falta o ensaio desta cena» while a Usable rehearsal is
+  there, and «este ensaio não pode entrar — ensaiem esta cena de novo» only when none is, as
+  her row does (`ensaioFinal.ts:360`).
+
+The recording home's doors still read Joinable. Hers offer an unsent rehearsal there too;
+that is its own follow-up.
