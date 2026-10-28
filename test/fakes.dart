@@ -225,14 +225,18 @@ class FakeVoice implements FacilitatorVoiceService {
     _fetching = null;
   }
 
-  @override
-  Future<bool> fetch(String url) async {
-    fetched.add(url);
-    await _fetching?.future;
+  void _theReadyingFails() {
     if (readyThrows case final thrown?) {
       readyThrows = null;
       throw thrown;
     }
+  }
+
+  @override
+  Future<bool> fetch(String url) async {
+    fetched.add(url);
+    await _fetching?.future;
+    _theReadyingFails();
     return succeeds;
   }
 
@@ -252,7 +256,10 @@ class FakeVoice implements FacilitatorVoiceService {
 
   @override
   Future<bool> ready(String url) async {
-    if (_broughtDown.contains(url) && !missing.contains(url)) return true;
+    if (_broughtDown.contains(url) && !missing.contains(url)) {
+      _theReadyingFails();
+      return true;
+    }
     final ready = await fetch(url);
     if (ready) {
       _broughtDown.add(url);
