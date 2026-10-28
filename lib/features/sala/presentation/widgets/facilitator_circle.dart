@@ -1,12 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/halt.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
+import 'circle_glyph.dart';
 import 'motion.dart';
 
 enum Tongue { guide, motherTongue, bridge }
@@ -91,14 +91,20 @@ class FacilitatorCircle extends StatelessWidget {
           _notUnderstoodMark(notUnderstood!),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 1000),
-          child: _modeGlyph == null
-              ? const SizedBox.shrink()
-              : Icon(
-                  _modeGlyph,
-                  key: ValueKey(_modeGlyph),
-                  size: size * 0.3,
-                  color: canvas ? _herInk(colors) : ShemaBrand.branco,
+          child: switch (_modeGlyph) {
+            null => const SizedBox.shrink(),
+            final glyph => Opacity(
+              key: ValueKey(glyph),
+              opacity: 0.92,
+              child: CustomPaint(
+                size: Size.square(size * 0.6),
+                painter: CircleGlyphPainter(
+                  glyph: glyph,
+                  ink: canvas ? _herInk(colors) : ShemaBrand.branco,
                 ),
+              ),
+            ),
+          },
         ),
       ],
     );
@@ -165,12 +171,12 @@ class FacilitatorCircle extends StatelessWidget {
   /// Whether the room is already showing a stop for this voice.
   bool get _halted => halt is Blocking;
 
-  IconData? get _modeGlyph {
+  CircleGlyph? get _modeGlyph {
     if (_halted) return null;
-    if (noteMode) return LucideIcons.hand;
-    if (_teamTalk) return LucideIcons.users;
+    if (noteMode) return CircleGlyph.hand;
+    if (_teamTalk) return CircleGlyph.team;
     if (!canvas || voice == VoiceState.thinking) return null;
-    return LucideIcons.volume2;
+    return CircleGlyph.sound;
   }
 
   Color _herInk(SalaColors colors) {

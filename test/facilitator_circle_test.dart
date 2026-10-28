@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
@@ -56,14 +56,16 @@ Gradient? _disc(WidgetTester tester) {
   return painted.isEmpty ? null : painted.first;
 }
 
-List<IconData> _glyphs(WidgetTester tester) => tester
-    .widgetList<Icon>(
+List<CircleGlyph> _glyphs(WidgetTester tester) => tester
+    .widgetList<CustomPaint>(
       find.descendant(
         of: find.byType(FacilitatorCircle),
-        matching: find.byType(Icon),
+        matching: find.byType(CustomPaint),
       ),
     )
-    .map((mark) => mark.icon!)
+    .map((paint) => paint.painter)
+    .whereType<CircleGlyphPainter>()
+    .map((mark) => mark.glyph)
     .toList();
 
 Future<void> _pumpStillCircle(
@@ -318,7 +320,7 @@ void main() {
           false,
           false,
           const NoHalt(),
-          [LucideIcons.volume2],
+          [CircleGlyph.sound],
         ),
         (
           'listening',
@@ -326,7 +328,7 @@ void main() {
           false,
           false,
           const NoHalt(),
-          [LucideIcons.volume2],
+          [CircleGlyph.sound],
         ),
         (
           'speaking',
@@ -334,7 +336,7 @@ void main() {
           false,
           false,
           const NoHalt(),
-          [LucideIcons.volume2],
+          [CircleGlyph.sound],
         ),
         (
           'done',
@@ -342,7 +344,7 @@ void main() {
           false,
           false,
           const NoHalt(),
-          [LucideIcons.volume2],
+          [CircleGlyph.sound],
         ),
         (
           'thinking',
@@ -350,7 +352,7 @@ void main() {
           false,
           false,
           const NoHalt(),
-          <IconData>[],
+          <CircleGlyph>[],
         ),
         (
           'team talk',
@@ -358,7 +360,7 @@ void main() {
           true,
           false,
           const NoHalt(),
-          [LucideIcons.users],
+          [CircleGlyph.team],
         ),
         (
           'note',
@@ -366,7 +368,7 @@ void main() {
           false,
           true,
           const NoHalt(),
-          [LucideIcons.hand],
+          [CircleGlyph.hand],
         ),
         (
           'halted',
@@ -374,7 +376,7 @@ void main() {
           false,
           false,
           const Blocking(),
-          <IconData>[],
+          <CircleGlyph>[],
         ),
       ]) {
         await _pumpCircle(
@@ -426,7 +428,7 @@ void main() {
 
       expect(
         _glyphs(tester),
-        [LucideIcons.hand],
+        [CircleGlyph.hand],
         reason:
             'o modo nota era só um disco azul, e azul é também a cor do '
             'microfone aberto: nada na tela dizia que aquela fala vai para o '
@@ -447,7 +449,7 @@ void main() {
         inPlace: true,
       );
       expect(_glyphs(tester), [
-        LucideIcons.hand,
+        CircleGlyph.hand,
       ], reason: 'o caso precisa começar na marca que vai sair');
 
       await _pumpCircle(
@@ -460,7 +462,7 @@ void main() {
 
       expect(
         _glyphs(tester),
-        containsAll(const [LucideIcons.hand, LucideIcons.users]),
+        containsAll(const [CircleGlyph.hand, CircleGlyph.team]),
         reason:
             'meio segundo depois da deixa as duas marcas ainda dividem o '
             'disco: um corte seco no meio de uma tela sem palavra nenhuma é '
@@ -470,7 +472,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 700));
       expect(
         _glyphs(tester),
-        [LucideIcons.users],
+        [CircleGlyph.team],
         reason:
             'e um segundo depois só a nova ficou — a travessia acaba, não '
             'deixa a marca velha pendurada',
@@ -493,8 +495,8 @@ void main() {
             'achar o círculo de volta',
       );
       expect(
-        find.byIcon(LucideIcons.users),
-        findsOneWidget,
+        _glyphs(tester),
+        [CircleGlyph.team],
         reason:
             'e quem diz que a vez é deles é o glifo, que é a única coisa '
             'que tem de mudar',
@@ -509,7 +511,7 @@ void main() {
 
       expect(
         _glyphs(tester),
-        [LucideIcons.users],
+        [CircleGlyph.team],
         reason:
             'a Marcia desenha o glifo da equipe em todo turno ocioso, e o '
             'pronto é um deles; a deixa chegava junto com o pronto e o '

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
@@ -17,6 +16,7 @@ import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
@@ -35,6 +35,7 @@ import 'fakes.dart';
 import 'retro_findings_exits_test.dart' as achados;
 import 'scenario_helpers.dart'
     show byLabel, offTheRows, onTheCircle, stateReads, inTheHome;
+import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
 
 Set<Color> paintedBy(WidgetTester tester, Finder corner) {
   final colours = <Color>{};
@@ -534,7 +535,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).peerCue, isTrue);
-    expect(find.byIcon(LucideIcons.users), findsOneWidget);
+    expect(paintedGlyph(CircleGlyph.team), findsOneWidget);
     expect(
       byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
       findsOneWidget,
@@ -553,7 +554,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).voice, VoiceState.done);
-    expect(find.byIcon(LucideIcons.users), findsOneWidget);
+    expect(paintedGlyph(CircleGlyph.team), findsOneWidget);
     expect(
       byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
       findsOneWidget,
@@ -571,7 +572,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(container.read(salaSessionProvider).voice, VoiceState.done);
-      expect(find.byIcon(LucideIcons.users), findsNothing);
+      expect(paintedGlyph(CircleGlyph.team), findsNothing);
       expect(byLabel('Tocar para falar'), findsOneWidget);
       expect(
         byLabel('Conversem entre vocês — tocar quando quiserem me contar'),

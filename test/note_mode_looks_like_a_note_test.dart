@@ -9,14 +9,15 @@ import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
+import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
 
 const _reply = HandReply(id: 'r1', audioUrl: '/resposta/r1');
 const _panorama = Passagem(
@@ -58,7 +59,7 @@ class _Room {
   String? get handLabel => _labelWithin(_hand);
 
   bool get circleHoldsTheHand => find
-      .descendant(of: _circle, matching: find.byIcon(LucideIcons.hand))
+      .descendant(of: _circle, matching: paintedGlyph(CircleGlyph.hand))
       .evaluate()
       .isNotEmpty;
 
