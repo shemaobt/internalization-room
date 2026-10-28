@@ -1195,6 +1195,36 @@ void main() {
   );
 
   testWidgets(
+    'a tap on a part whose take never reached the Outbox, on a dead link, makes '
+    'three attempts before falhou',
+    (tester) async {
+      late _AQueueThatHoldsTheKeep fila;
+      final casa = await _naCasa(
+        tester,
+        harness: SalaHarness(
+          takesOverride: (room, home, recordings) =>
+              fila = _AQueueThatHoldsTheKeep(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
+        ),
+      );
+      fila.falhar = true;
+      await casa.guardarSemEsperar(3);
+      fila.falhar = false;
+      expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
+      casa.room.unreachableTake = 'ensaio/parte-3';
+
+      await casa.tocar(casa.naLinha(3, find.text(_falhou)));
+      await casa.emTempoReal(() => settle(const Duration(seconds: 1)));
+
+      expect(casa.envios, 3);
+      expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     "a tap on a part never sends another session's spent take when the team "
     'moves to it during the send',
     (tester) async {

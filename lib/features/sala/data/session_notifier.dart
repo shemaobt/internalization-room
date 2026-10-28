@@ -7213,7 +7213,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   late Map<String, Duration?> _lengths;
 
-  Future<void> _guard(
+  Future<String?> _guard(
     String path,
     int? life, {
     required String kind,
@@ -7221,10 +7221,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int? passNumber,
     int? chunkIndex,
   }) => _apart(() async {
-    if (_endedSince(life)) return;
+    if (_endedSince(life)) return null;
     final queue = _takes;
     final sessionId = state.sessionId;
-    if (_goneSessions.contains(sessionId)) return;
+    if (_goneSessions.contains(sessionId)) return null;
     final PartOfASession? keeping = switch (sessionId) {
       final session? when kind == partTakeKind => (
         session: session,
@@ -7239,13 +7239,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (!_endedSince(life)) {
         _notInTheOutbox(path, kind, scope, passNumber, sessionId, gone: true);
       }
-      return;
+      return null;
     }
     if (sessionId == null) {
       if (!_endedSince(life)) {
         _notInTheOutbox(path, kind, scope, passNumber, sessionId);
       }
-      return;
+      return null;
     }
     final PendingTake linha;
     try {
@@ -7259,19 +7259,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     } on Object {
       if (keeping != null && !_endedSince(life)) _dispatch(AKeepEnded(keeping));
-      if (_endedSince(life) || _goneSessions.contains(sessionId)) return;
+      if (_endedSince(life) || _goneSessions.contains(sessionId)) return null;
       _notInTheOutbox(path, kind, scope, passNumber, sessionId);
-      return;
+      return null;
     }
     if (keeping != null && !_endedSince(life)) {
       _dispatch(AKeepEnded(keeping, row: linha.id));
     }
     if (_endedSince(life)) {
       await queue.flush();
-      return;
+      return null;
     }
     if (_goneSessions.contains(sessionId)) {
-      return queue.discardTheSession(sessionId);
+      await queue.discardTheSession(sessionId);
+      return null;
     }
     if (kind == partTakeKind) {
       _semNome[linha.id] = path;
@@ -7282,6 +7283,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await queue.flush();
     await _countUnsentIn(life);
     await _adoptTheNames(queue, life);
+    return linha.id;
   });
 
   void _notInTheOutbox(
@@ -7317,21 +7319,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _enviarAgora(int cena) async {
     final sessionId = state.sessionId;
     final life = _thisLife;
-    if (_notQueuedRows[cena] case (
-      :final scope,
-      :final path,
-      :final pass,
-      gone: false,
-    )) {
-      await _guard(
+    final sent = switch (_notQueuedRows[cena]) {
+      (:final scope, :final path, :final pass, gone: false) => await _guard(
         path,
         life,
         kind: partTakeKind,
         scope: scope,
         passNumber: pass,
         chunkIndex: KeptScope.numberOf(scope),
-      );
-    }
+      ),
+      _ => null,
+    };
     final queue = _takes;
     final tally = await queue.tally(sessionId: sessionId);
     if (_endedSince(life)) return;
@@ -7342,7 +7340,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final MapEntry(key: scope, value: rows) in tally.unsentParts.entries) {
       if (state.rowOf(scope) != cena) continue;
       for (final row in rows) {
-        if (tapped.contains(row.id) || row.refusal == null) {
+        if (row.id != sent &&
+            (tapped.contains(row.id) || row.refusal == null)) {
           await queue.dueAgain(row.id);
         }
       }
