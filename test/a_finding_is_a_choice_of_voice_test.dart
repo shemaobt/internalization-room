@@ -224,6 +224,10 @@ void main() {
 
     await tocar(tester, voltarParaAGravacao);
     await tester.pump(const Duration(milliseconds: 300));
+    expect(estadoDe(container).stage, SalaStage.ensaio);
+    container.read(salaSessionProvider.notifier).startRetro();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(estadoDe(container).stage, SalaStage.retro);
 
     expect(harness.recorder.deleted, isNot(contains(antiga)));
     expect(await traducoesGuardadas(tester, harness), guardadas);
@@ -249,6 +253,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tocar(tester, voltarParaAGravacao);
     await tester.pump(const Duration(milliseconds: 300));
+    expect(estadoDe(container).stage, SalaStage.ensaio);
+    container.read(salaSessionProvider.notifier).startRetro();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(estadoDe(container).stage, SalaStage.retro);
 
     expect(harness.recorder.deleted, isNot(contains(antiga)));
     expect(await traducoesGuardadas(tester, harness), guardadas);
