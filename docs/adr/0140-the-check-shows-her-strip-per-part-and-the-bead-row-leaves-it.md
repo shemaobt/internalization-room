@@ -37,8 +37,8 @@ the frase rows are the ways to hear and to translate again.
 
 Nothing on the check is a bead any more, so there is no ring, no drained bead and no dimmed
 bead there. A finding is marked on its frase row, as hers is, and its stretch is a band like
-any told one; ADR 0011's drained bead leaves with the row. Three things only a bead did go
+any told one; ADR 0011's drained bead leaves with the row. Two things only a bead did go
 with it, as in her app: hearing the mother tongue of a stretch whose translation is on the
-tablet, hearing or reopening a told stretch the room gave no number, and stopping a chosen
-stretch to give the ring back. The notifier verbs only the beads called stay until a
-follow-up removes them with their tests.
+tablet, and stopping a chosen stretch to give the ring back. Every told stretch keeps its
+frase row, since the room numbers each one it hands back. The notifier verbs only the beads
+called stay until a follow-up removes them with their tests.
