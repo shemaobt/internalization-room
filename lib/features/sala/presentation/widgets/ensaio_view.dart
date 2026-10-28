@@ -237,6 +237,20 @@ class EnsaioView extends ConsumerWidget {
                       ),
                       style: TextStyle(color: colors.ink, fontSize: 17),
                     ),
+                    if (aprovado.listeners > 0) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        aprovado.listeners == 1
+                            ? retroLabelFor('listenersOne', language)
+                            : retroLabelFor(
+                                'listeners',
+                                language,
+                                n: aprovado.listeners,
+                              ),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: colors.mut, fontSize: 15),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     const ExternalCheckButton(),
                   ],

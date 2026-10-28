@@ -2618,7 +2618,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               sent,
               generation,
               landed,
-              resumed: waiting,
             )) {
           _aLeituraDecidiu = true;
           return;
@@ -2662,13 +2661,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         moment: read.moment,
         clearMoment: read.moment == null,
       );
-      if (await _landedOnTheApprovedDraft(
-        read,
-        sent,
-        generation,
-        landed,
-        resumed: waiting,
-      )) {
+      if (await _landedOnTheApprovedDraft(read, sent, generation, landed)) {
         return;
       }
       if (Station.stored(waiting.stage) is Retro) {
@@ -2720,47 +2713,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// The draft the room says is approved is where its passage reopens: its telling-back,
-  /// checked, over the parts the room holds, and never the Opening (ADR 0106). Anything of
-  /// the session still in the Outbox un-approves the draft once it lands, so the team stays
-  /// where it stood. The read keeps the number it was sent under, so a Watch beat sent while
-  /// the parts come down outranks it.
   Future<bool> _landedOnTheApprovedDraft(
     SessionSnapshot read,
     int sent,
     int generation,
-    void Function() landed, {
-    ResumePoint? resumed,
-    List<KeptTake>? aqui,
-    void Function(RoomFailure failure)? aListaFalhou,
-  }) async {
+    void Function() landed,
+  ) async {
     if (read.approved == null || read.backTranslation.nothingTold) return false;
     final waiting = (await _takes.pending()).any(
       (entry) =>
           entry.sessionId == read.sessionId && entry.kind != sceneTakeKind,
     );
     if (waiting || _abandoned(generation)) return _abandoned(generation);
-    if (state.partes.isEmpty) {
-      final falhou = await _theRoomsRehearsalUnder(
-        read.sessionId,
-        aqui ?? const [],
-        generation,
-      );
-      if (_abandoned(generation)) return true;
-      if (falhou != null && aqui != null) {
-        aListaFalhou?.call(falhou);
-        return false;
-      }
-    }
-    final told = read.backTranslation;
-    state = state.copyWith(clearBtFraseGuardada: true);
-    _pickTheTellingBackUp(
-      BackTranslationProgress(
-        segments: told.segments,
-        checked: true,
-        findings: told.findings,
-      ),
-    );
+    _leaveTheStepFor(const Canvas());
+    _arriveAt(const PassageChosen());
     landed();
     state = state.copyWith(
       coverage: read.coverage,
@@ -2768,36 +2734,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearMoment: read.moment == null,
     );
     _applyTheSessionRead(read, sent);
-    _rememberWhereTheyAre(const Retro());
+    _rememberWhereTheyAre(const Canvas());
     _aLeituraDecidiu = true;
-    _bringThePartsDown(const Retro());
-    await _countUnsent();
-    if ((resumed?.onTheExternalCheck ?? false) && _listenerInProgress != null) {
-      await _backToTheCheck(read.sessionId, _waitOnTheGeneration);
-    }
+    _landWhereTheyStopped();
     return true;
-  }
-
-  /// The row stood on the Checagem externa with a listener: the check is opened again and
-  /// the listener found where the room says they stand.
-  Future<void> _backToTheCheck(String sessionId, int generation) async {
-    final answer = await _room.openTheExternalCheck(sessionId);
-    if (_abandoned(generation)) return;
-    switch (answer) {
-      case Answered(value: final check):
-        _resumeFailures.clear();
-        await _backToTheListener(
-          sessionId,
-          check,
-          generation,
-          relaunched: true,
-        );
-      case Refused(code: RefusalCode.draftNotApproved):
-        _listenerInProgress = null;
-        _rememberWhereTheyAre(const Retro());
-      case final RoomFailure failure:
-        _theCheckDidNotOpen(failure);
-    }
   }
 
   /// Her open-failed words on the Back-translation, or the Choice when the session is gone.
@@ -2811,37 +2751,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Refused():
         state = state.copyWith(btAviso: BtAviso.checagemFalhou);
     }
-  }
-
-  /// The room's current parts laid under an approved draft: a part this tablet holds is
-  /// kept, every other comes down behind the landing.
-  Future<RoomFailure?> _theRoomsRehearsalUnder(
-    String sessionId,
-    List<KeptTake> aqui,
-    int generation,
-  ) async {
-    _watchBusyState();
-    final listagem = await _room.takesOf(sessionId);
-    if (listagem case final RoomFailure failure) return failure;
-    if (listagem case Answered(value: final guardadas)) {
-      if (_abandoned(generation)) return null;
-      final lidas = _lerAListagem(guardadas, aqui);
-      if (lidas.partes.isEmpty) return null;
-      await _medirAsPartes([
-        for (final take in lidas.partes)
-          if (!lidas.aBuscar.contains(take.takeId)) take,
-      ], generation);
-      if (_abandoned(generation)) return null;
-      state = state.copyWith(
-        keptTakes: lidas.partes,
-        wholeHeldByTheRoom: lidas.deLado,
-        partsAway: {
-          for (final takeId in lidas.aBuscar) takeId: PartAway.coming,
-        },
-      );
-      state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
-    }
-    return null;
   }
 
   Future<void> _learnWhetherAPartWasJoined(
@@ -3041,22 +2950,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         value: final lida,
       )) {
         if (_abandoned(generation)) return _Resume.abandoned;
-        RoomFailure? listaFalhou;
-        if (await _landedOnTheApprovedDraft(
-          lida,
-          sent,
-          generation,
-          landed,
-          aqui: aPartlessRetro ? null : here,
-          resumed: waiting,
-          aListaFalhou: (failure) => listaFalhou = failure,
-        )) {
+        if (await _landedOnTheApprovedDraft(lida, sent, generation, landed)) {
           return _abandoned(generation)
               ? _Resume.abandoned
               : _Resume.onTheApprovedDraft;
-        }
-        if (listaFalhou case final failure?) {
-          return _aListaFalhou(failure, generation);
         }
         read(lida, sent);
       }
@@ -8444,7 +8341,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(const MicDiscarded());
     _arriveAt(const TheExternalCheckLeft());
     _rememberWhereTheyAre(state.station);
-    if (state.station is Ensaio) return;
+    if (state.station is Ensaio) return unawaited(_readWhatComesBack());
     if (sessionId != null) {
       unawaited(_readTheStretchesBack(sessionId, _waitOnTheGeneration));
     }
@@ -8456,9 +8353,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<bool> _backToTheListener(
     String sessionId,
     ExternalCheck check,
-    int generation, {
-    bool relaunched = false,
-  }) async {
+    int generation,
+  ) async {
     final remembered = _listenerInProgress;
     if (remembered == null) return false;
     if (remembered.version != check.version) {
@@ -8474,9 +8370,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return true;
     switch (answer) {
       case Answered(value: final record):
-        _arriveAt(
-          TheExternalCheckOpened(check.version, relaunched: relaunched),
-        );
+        _arriveAt(TheExternalCheckOpened(check.version));
         final ends = record.finished || record.hasRetelling;
         state = state.copyWith(
           externalCheck: ExternalCheckScreen(
