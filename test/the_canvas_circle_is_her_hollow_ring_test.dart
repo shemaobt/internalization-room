@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -458,6 +459,66 @@ void main() {
             'o fundo escuro dela (globals.css:29) só vence onde a fase '
             'não pinta o seu; em ${voice.name}',
       );
+    }
+  });
+
+  testWidgets('the glyph inside the ring wears her colour, not a white that '
+      'vanishes on the paper', (tester) async {
+    for (final (theme, telha, azul) in [
+      (AppTheme.light, const Color(0xFFBE4A01), const Color(0xFF89AAA3)),
+      (AppTheme.dark, const Color(0xFFD6612A), const Color(0xFF8FB1A9)),
+    ]) {
+      for (final (voice, noteMode, peerCue, glyph, colour, hers) in [
+        (
+          VoiceState.invite,
+          false,
+          false,
+          LucideIcons.volume2,
+          telha,
+          'globals.css:124',
+        ),
+        (
+          VoiceState.speaking,
+          false,
+          false,
+          LucideIcons.volume2,
+          telha,
+          'globals.css:124',
+        ),
+        (
+          VoiceState.invite,
+          true,
+          false,
+          LucideIcons.hand,
+          azul,
+          'globals.css:174',
+        ),
+        (
+          VoiceState.invite,
+          false,
+          true,
+          LucideIcons.users,
+          const Color(0xFF3F7F76),
+          'page.tsx:72',
+        ),
+      ]) {
+        await _pumpCircle(
+          tester,
+          voice,
+          noteMode: noteMode,
+          peerCue: peerCue,
+          theme: theme,
+        );
+        await tester.pump(const Duration(milliseconds: 1200));
+
+        expect(
+          tester.widget<Icon>(find.byIcon(glyph)).color,
+          colour,
+          reason:
+              'o glifo era branco sobre o disco telha; no anel vazado o '
+              'branco some no papel ($hers, ${theme.brightness.name})',
+        );
+      }
     }
   });
 }

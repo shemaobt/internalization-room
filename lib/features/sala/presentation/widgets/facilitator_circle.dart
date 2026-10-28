@@ -97,7 +97,7 @@ class FacilitatorCircle extends StatelessWidget {
                   _modeGlyph,
                   key: ValueKey(_modeGlyph),
                   size: size * 0.3,
-                  color: ShemaBrand.branco,
+                  color: canvas ? _herInk(colors) : ShemaBrand.branco,
                 ),
         ),
       ],
@@ -171,6 +171,12 @@ class FacilitatorCircle extends StatelessWidget {
     if (_teamTalk) return LucideIcons.users;
     if (!canvas || voice == VoiceState.thinking) return null;
     return LucideIcons.volume2;
+  }
+
+  Color _herInk(SalaColors colors) {
+    if (noteMode) return colors.azul;
+    if (_teamTalk) return const Color(0xFF3F7F76);
+    return colors.telha;
   }
 
   Widget _body(BuildContext context, SalaColors colors, bool still) {
