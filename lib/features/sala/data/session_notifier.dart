@@ -7993,7 +7993,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final todas = [for (var onde = 0; onde < state.partes.length; onde++) onde];
     final deNovo = _partesDaEscuta.length == todas.length
         ? todas
-        : todas.sublist(_partesDaEscuta.last);
+        : todas.skip(_partesDaEscuta.last).toList();
     _partesDaEscuta = todas;
     if (ouvida == null || nomes == null) {
       _oQueFaltaOuvir = _OQueFaltaOuvir(deNovo, paraNaUltima: true);
