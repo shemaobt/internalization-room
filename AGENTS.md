@@ -27,6 +27,8 @@ dart run tool/check_doctrine.dart                # the doctrine guard, on demand
 
 Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on every commit.
 
+A release is one PR that raises `version:` in `pubspec.yaml` and rewrites `fastlane/metadata/pt-BR/release_notes.txt` and `fastlane/metadata/en-US/release_notes.txt`; its merge to `main` sends the build to Google Play production and to App Store review (ADR 0110), and `bash tool/release_gate_test.sh` proves the gate.
+
 ## What CI enforces beyond the suite
 
 - No test is skipped.
