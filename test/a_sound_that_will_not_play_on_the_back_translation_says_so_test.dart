@@ -9,12 +9,20 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'machine_generator.dart';
-import 'the_back_translation_is_told_by_beads_test.dart' show entrarNaTraducao;
+import 'the_back_translation_is_told_by_beads_test.dart'
+    show entrarNaTraducao, tocar;
+import 'the_pause_snaps_to_silence_test.dart'
+    show entrarComAFala, ouvirAPausa, pausarAos, s, umaLacunaAos3;
 
 const _naoDeuParaConferir = 'não deu para conferir agora — tentem de novo';
 const _couldNotCheck = 'couldn\'t check right now — try again';
 
 const _part = PartSound(0, 'parte-0.m4a');
+const _stretch = StretchSound(
+  'parte-0.m4a',
+  from: Duration(seconds: 2),
+  to: Duration(seconds: 4),
+);
 
 const _everyOtherStation = [
   Menu(),
@@ -53,6 +61,18 @@ void main() {
       expect(machine.channel, const Silence());
     });
 
+    test('a stretch of the recording that fails on the Back-translation tells '
+        'the screen', () {
+      final (machine, effects) = reduce(
+        const Machine(station: Retro(), channel: StretchPlaying(_stretch)),
+        PlayerFailed(_stretch.source, sound: _stretch),
+      );
+
+      expect(effects, contains(const TellThePlayFailed()));
+      expect(effects.whereType<CallForAPerson>(), isEmpty);
+      expect(machine.channel, const Silence());
+    });
+
     test('a part that fails on every other Station tells nothing', () {
       for (final station in _everyOtherStation) {
         final (_, effects) = reduce(
@@ -64,17 +84,17 @@ void main() {
       }
     });
 
-    test('in every sequence a part that fails tells the screen only on the '
+    test('in every sequence a sound that fails tells the screen only on the '
         'Back-translation', () {
       for (var seed = 0; seed < 50; seed++) {
         final random = Random(seed);
         var machine = const Machine(station: Retro());
         var world = const World();
         for (var step = 0; step < 40; step++) {
-          if (machine.channel case PartPlaying(:final part)) {
+          if (machine.channel case Playing(:final sound)) {
             final (_, effects) = reduce(
               machine,
-              PlayerFailed(part.source, sound: part),
+              PlayerFailed(sound.source, sound: sound),
             );
             expect(
               effects.contains(const TellThePlayFailed()),
@@ -128,5 +148,22 @@ void main() {
         },
       );
     }
+
+    testWidgets('«ouvir a pausa» that fails writes her line', (tester) async {
+      _telaAlta(tester);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+      await pausarAos(tester, harness, s(4.2));
+      await tocar(tester, ouvirAPausa);
+      expect(find.text(_naoDeuParaConferir), findsNothing);
+
+      harness.playback.failPlayback();
+      await _passo(tester);
+      await _passo(tester);
+
+      expect(find.text(_naoDeuParaConferir), findsOneWidget);
+      expect(container.read(salaSessionProvider).needsPerson, isFalse);
+      closeTheRoom(container);
+    });
   });
 }

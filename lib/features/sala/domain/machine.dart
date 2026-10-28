@@ -1275,7 +1275,8 @@ const _watch = ArmTheWatch();
     const [],
   ),
   PlayerEnded() => _ended(machine),
-  PlayerFailed(sound: PartSound()) when machine.station is Retro =>
+  PlayerFailed(sound: PartSound() || StretchSound())
+      when machine.station is Retro =>
     _tellThePlayFailed(machine),
   PlayerFailed() => _failed(machine),
   MicOpened(:final owner, :final take) => _openTheMic(machine, owner, take),
