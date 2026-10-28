@@ -806,7 +806,9 @@ class SalaSessionState {
   /// Whether at least one Scene has its Part and another has none.
   bool get someScenesWaitForTheirPart {
     final count = scenes.scenes.length;
-    final had = partNumbers.where((n) => n <= count).length;
+    final had = partNumbers
+        .where((n) => n <= count && !unsentParts.containsKey(n))
+        .length;
     return had > 0 && had < count;
   }
 

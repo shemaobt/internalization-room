@@ -1076,6 +1076,41 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'with three parts in the room and the fourth in the Outbox, the home says '
+    '«gravem todas as partes primeiro», as hers',
+    (tester) async {
+      await _comAQuartaNaFila(tester);
+
+      expect(
+        find.text('gravem todas as partes primeiro'),
+        findsOneWidget,
+        reason:
+            'a casa contava a cena 4 da fila como gravada e calava a linha que '
+            'a dela mostra',
+      );
+    },
+  );
+
+  testWidgets(
+    'with the only part recorded still in the Outbox, the home does not say '
+    '«gravem todas as partes primeiro», as hers counts what the room holds',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      expect(casa.estado.unsentParts.keys, [2]);
+
+      expect(
+        find.text('gravem todas as partes primeiro'),
+        findsNothing,
+        reason:
+            'a casa contava a cena 2 da fila como gravada; na dela, sem parte '
+            'nenhuma na sala, a linha não aparece',
+      );
+    },
+  );
 }
 
 class _QueueThatRefusesOnce extends TakeUploadQueue {
