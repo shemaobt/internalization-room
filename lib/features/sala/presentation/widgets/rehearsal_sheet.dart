@@ -128,9 +128,7 @@ class RehearsalSheet extends ConsumerWidget {
   }
 
   String? _cannotEnter(SceneRehearsalRecord rehearsal) =>
-      rehearsal.rehearsalId != inUseId &&
-          !rehearsal.joinable &&
-          !rehearsal.unsent
+      rehearsal.rehearsalId != inUseId && !rehearsal.usable
       ? ensaioFinalPlanLabelFor('cannotEnter', language)
       : null;
 }
