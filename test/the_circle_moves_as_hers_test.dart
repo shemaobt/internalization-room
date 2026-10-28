@@ -272,4 +272,45 @@ void main() {
       reason: 'e continua a acender de .45 a 1 em 2,4 s (globals.css:216)',
     );
   });
+
+  testWidgets('a check circle that thinks breathes her thinkBreath on 4.5 s '
+      'and lights no glow', (tester) async {
+    await tester.pumpWidget(_circle(VoiceState.thinking, canvas: false));
+
+    final painted = find.descendant(
+      of: find.byType(FacilitatorCircle),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            (widget is CustomPaint && widget.painter != null) ||
+            (widget is Container &&
+                (widget.decoration as BoxDecoration?)?.gradient != null),
+      ),
+    );
+    expect(
+      painted,
+      findsOneWidget,
+      reason:
+          'o check-circle dela não tem span .glow (Drafting.tsx:2406); '
+          'só o disco de barro é pintado',
+    );
+
+    List<double> drawn() => [
+      _scaleAbove(tester, _ring.first),
+      _seen(tester, _ring.first),
+    ];
+    for (final (at, scale, opacity) in [
+      (0, .97, .82),
+      (2250, 1.03, 1.0),
+      (2250, .97, .82),
+    ]) {
+      await tester.pump(Duration(milliseconds: at));
+      expect(
+        drawn(),
+        [closeTo(scale, 1e-6), closeTo(opacity, 1e-6)],
+        reason:
+            'o check-circle dela pensa com thinkBreath em 4,5 s '
+            '(globals.css:384); o nosso usava os 2,4 s do canvas',
+      );
+    }
+  });
 }

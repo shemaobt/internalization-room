@@ -288,14 +288,7 @@ class FacilitatorCircle extends StatelessWidget {
               ),
             ],
           );
-    final glow = canvas
-        ? _herLight(.16, .62)
-        : RepaintBoundary(
-            child: CustomPaint(
-              size: Size.square(size),
-              painter: GlowPainter(color: colors.telha.withValues(alpha: 0.16)),
-            ),
-          );
+    final glow = _herLight(.16, .62);
     final arcs = canvas
         ? [
             _arc(
@@ -324,7 +317,7 @@ class FacilitatorCircle extends StatelessWidget {
     Widget over(Widget light) => Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
-      children: canvas ? [...arcs, light, body] : [body, light],
+      children: canvas ? [...arcs, light, body] : [body],
     );
     if (still) {
       return Loop(
@@ -335,7 +328,7 @@ class FacilitatorCircle extends StatelessWidget {
       );
     }
     return Loop(
-      period: const Duration(milliseconds: 2400),
+      period: Duration(milliseconds: canvas ? 2400 : 4500),
       builder: (context, t) => Transform.scale(
         scale: 0.97 + 0.06 * t,
         child: Opacity(
@@ -631,30 +624,6 @@ class FacilitatorCircle extends StatelessWidget {
     );
     return [ring(0), ring(0.5)];
   }
-}
-
-class GlowPainter extends CustomPainter {
-  final Color color;
-
-  const GlowPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final disc = Rect.fromCircle(
-      center: size.center(Offset.zero),
-      radius: size.shortestSide / 2,
-    );
-    canvas.drawOval(
-      disc,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [color, color.withValues(alpha: 0)],
-        ).createShader(disc),
-    );
-  }
-
-  @override
-  bool shouldRepaint(GlowPainter old) => old.color != color;
 }
 
 class ArcPainter extends CustomPainter {

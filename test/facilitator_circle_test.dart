@@ -235,7 +235,7 @@ void main() {
   ) async {
     const tempos = {
       VoiceState.listening: Duration(milliseconds: 3200),
-      VoiceState.thinking: Duration(milliseconds: 2400),
+      VoiceState.thinking: Duration(milliseconds: 4500),
       VoiceState.speaking: Duration(milliseconds: 3400),
     };
 
@@ -265,7 +265,7 @@ void main() {
     'a breath lands back where it started after her period, at its peak halfway there',
     (tester) async {
       const halves = {
-        VoiceState.thinking: Duration(milliseconds: 1200),
+        VoiceState.thinking: Duration(milliseconds: 2250),
         VoiceState.speaking: Duration(milliseconds: 1700),
       };
       const peaks = {VoiceState.thinking: 1.03, VoiceState.speaking: 1.02};
