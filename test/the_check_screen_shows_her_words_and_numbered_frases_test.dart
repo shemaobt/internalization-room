@@ -300,7 +300,9 @@ Future<ProviderContainer> _comUmaFraseRegravada(
 BackTranslationProgress _umaParteRegravada({
   required int fresca,
   required int? regravada,
+  List<BtFinding> achados = const [],
 }) => BackTranslationProgress(
+  findings: achados,
   segments: [
     SegmentView(
       segmentId: 'trecho-3',
@@ -326,6 +328,7 @@ Future<ProviderContainer> _relidaPelaSala(
   SalaHarness harness, {
   required ({int fresca, int? regravada}) antes,
   required ({int fresca, int? regravada}) depois,
+  List<BtFinding> achados = const [],
 }) async {
   harness.room.takes.add(
     const TakeView(
@@ -339,7 +342,11 @@ Future<ProviderContainer> _relidaPelaSala(
     tester,
     harness,
     juntada: true,
-    _umaParteRegravada(fresca: antes.fresca, regravada: antes.regravada),
+    _umaParteRegravada(
+      fresca: antes.fresca,
+      regravada: antes.regravada,
+      achados: achados,
+    ),
   );
   await waitFor(
     'a frase regravada achar a sua parte',
@@ -359,7 +366,9 @@ Future<ProviderContainer> _relidaPelaSala(
     () =>
         container.read(salaSessionProvider).stage == SalaStage.retro &&
         container.read(salaSessionProvider).btTrechos.single.frase ==
-            depois.fresca,
+            depois.fresca &&
+        container.read(salaSessionProvider).btTrechosRegravados.single.frase ==
+            depois.regravada,
     step: () => _passo(tester),
   );
   await _passo(tester);
@@ -532,9 +541,10 @@ void main() {
       _naLista(tester),
       [
         'FRASES TRADUZIDAS',
+        '1',
         'parte 1',
         'regravada — traduzam de novo',
-        '1',
+        '2',
         'parte 2',
       ],
       reason:
@@ -590,7 +600,7 @@ void main() {
 
     expect(
       _naLista(tester),
-      ['FRASES TRADUZIDAS', '1', 'regravada — traduzam de novo'],
+      ['FRASES TRADUZIDAS', '1', '2', 'regravada — traduzam de novo'],
       reason:
           'reaberta, a passagem gravada inteira perdia a frase regravada: a '
           'gravação velha não tinha número e a frase não achava lugar',
@@ -644,7 +654,13 @@ void main() {
 
     expect(
       _naLista(tester),
-      ['FRASES TRADUZIDAS', 'regravada — traduzam de novo', '1', 'parte 1'],
+      [
+        'FRASES TRADUZIDAS',
+        '1',
+        'regravada — traduzam de novo',
+        '2',
+        'parte 1',
+      ],
       reason:
           'posto de lado o inteiro, a frase regravada dele sumia, e no índice '
           'da cena 1 diria «parte 1», uma parte em que nunca foi contada',
@@ -750,9 +766,10 @@ void main() {
       _naLista(tester),
       [
         'FRASES TRADUZIDAS',
+        '1',
         'parte 1',
         'regravada — traduzam de novo',
-        '1',
+        '2',
         'parte 2',
       ],
       reason:
@@ -1113,10 +1130,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a frase just told shows the number its answer carries, not '
-      'a count the tablet keeps, before the session is read again', (
-    tester,
-  ) async {
+  testWidgets('a frase just told is numbered at once by its place in the '
+      'list, as hers, before the session is read again', (tester) async {
     _telaAlta(tester);
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
@@ -1136,7 +1151,7 @@ void main() {
 
     expect(
       _naLista(tester),
-      ['FRASES TRADUZIDAS', '7', 'parte 1'],
+      ['FRASES TRADUZIDAS', '1', 'parte 1'],
       reason:
           'a frase recém-contada entrava sem número até a próxima leitura da '
           'sessão',
@@ -1144,8 +1159,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a told stretch the room gave no number is listed with no '
-      'number, never one the tablet counted', (tester) async {
+  testWidgets('a told stretch the room gave no number is still numbered by '
+      'its place in the list, as hers', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _voltaATraducao(
       tester,
@@ -1166,16 +1181,16 @@ void main() {
 
     expect(
       _naLista(tester),
-      ['FRASES TRADUZIDAS', '1', 'parte 1', 'parte 1', '3', 'parte 2'],
+      ['FRASES TRADUZIDAS', '1', 'parte 1', '2', 'parte 1', '3', 'parte 2'],
       reason:
-          'um número contado no aparelho não é o da voz, e a «frase 2» da '
-          'tela seria outra',
+          'uma frase que a sala ainda não numerara ficava sem número, e a '
+          'dela numera toda frase pelo lugar na lista',
     );
     closeTheRoom(container);
   });
 
   testWidgets('the loudspeaker of a frase plays the team\'s own translation '
-      'of it, named by its number', (tester) async {
+      'of it, named by its place in the list', (tester) async {
     _telaAlta(tester);
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
@@ -1196,7 +1211,7 @@ void main() {
     harness.playback.finishPlayback();
     await _passo(tester);
 
-    await tocar(tester, 'ouvir a minha tradução da frase 3');
+    await tocar(tester, 'ouvir a minha tradução da frase 1');
 
     expect(
       harness.playback.played.last,
@@ -1283,7 +1298,7 @@ void main() {
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
     expect(
-      aceso(tester, 'ouvir a minha tradução da frase 3'),
+      aceso(tester, 'ouvir a minha tradução da frase 1'),
       isFalse,
       reason:
           'o alto-falante seguia aceso com o microfone aberto, e o toque '
@@ -1308,7 +1323,7 @@ void main() {
     );
 
     expect(
-      aceso(tester, 'ouvir a minha tradução da frase 3'),
+      aceso(tester, 'ouvir a minha tradução da frase 1'),
       isFalse,
       reason:
           'o alto-falante seguia aceso enquanto a sala conferia, e o toque '
@@ -1341,7 +1356,7 @@ void main() {
     }
 
     expect(
-      aceso(tester, 'ouvir a minha tradução da frase 3'),
+      aceso(tester, 'ouvir a minha tradução da frase 1'),
       isTrue,
       reason: 'uma rede que cai fora de uma entrada não muda nada',
     );
@@ -1410,7 +1425,7 @@ void main() {
     expect(container.read(salaSessionProvider).partes, isEmpty);
 
     expect(
-      aceso(tester, 'ouvir a minha tradução da frase 3'),
+      aceso(tester, 'ouvir a minha tradução da frase 1'),
       isFalse,
       reason:
           'o alto-falante seguia aceso numa sessão sem gravação nenhuma no '
@@ -1892,8 +1907,9 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a «regravada» row drops the number the tablet held when the '
-      'room reads it back with none and renumbers the others', (tester) async {
+  testWidgets('after the room reads the frases back, every row is numbered by '
+      'its place as hers, and the «regravada» one keeps its loudspeaker and '
+      'its retell', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _relidaPelaSala(
       tester,
@@ -1901,33 +1917,8 @@ void main() {
       antes: (fresca: 2, regravada: 1),
       depois: (fresca: 1, regravada: null),
     );
-
-    expect(
-      _naLista(tester),
-      [
-        'FRASES TRADUZIDAS',
-        'parte 1',
-        'regravada — traduzam de novo',
-        '1',
-        'parte 2',
-      ],
-      reason:
-          'relidas as frases, a regravada seguia com o 1 de antes ao lado da '
-          'frase 1 da sala, e a equipe tinha duas frases 1',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets('a «regravada» row takes the number the room reads back for it', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _relidaPelaSala(
-      tester,
-      harness,
-      antes: (fresca: 1, regravada: null),
-      depois: (fresca: 2, regravada: 1),
-    );
+    harness.playback.finishPlayback();
+    await _passo(tester);
 
     expect(
       _naLista(tester),
@@ -1940,7 +1931,61 @@ void main() {
         'parte 2',
       ],
       reason:
-          'a sala numerava a frase regravada e a lista não mostrava o número',
+          'relidas as frases, a regravada ficava com o 1 de antes ao lado da '
+          'frase 1 da sala, ou sem número nenhum',
+    );
+    expect(
+      [
+        for (final rotulo in [
+          'ouvir a minha tradução da frase 1',
+          'Ouvir esta frase de novo e traduzir de novo — 1',
+          'ouvir a minha tradução da frase 2',
+          'Ouvir esta frase de novo e traduzir de novo — 2',
+        ])
+          byLabel(rotulo).evaluate().length,
+      ],
+      [1, 1, 1, 1],
+      reason:
+          'sem número, a frase regravada perdia o alto-falante e a barra de '
+          'traduzir de novo',
+    );
+    await tocar(tester, 'Ouvir esta frase de novo e traduzir de novo — 1');
+    expect(
+      find.textContaining('traduzindo de novo a frase 1 —'),
+      findsOneWidget,
+      reason:
+          'a linha de traduzir de novo não dizia o número que a tela mostra',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a finding stays on the frase the room named after a read, not '
+      'on the row the screen now numbers with that number', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _relidaPelaSala(
+      tester,
+      harness,
+      antes: (fresca: 1, regravada: 3),
+      depois: (fresca: 1, regravada: null),
+      achados: const [
+        BtFinding(kind: BtFindingKind.unclear, frase: 1, segmentId: 'trecho-3'),
+      ],
+    );
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        '1',
+        'parte 1',
+        'regravada — traduzam de novo',
+        '2',
+        'parte 2',
+        'não ficou claro',
+      ],
+      reason:
+          'o achado da frase 1 da sala caía na linha que a tela numera 1, a '
+          'regravada, e não na frase que a sala ouviu',
     );
     closeTheRoom(container);
   });
@@ -1999,7 +2044,7 @@ void main() {
 
     expect(
       [
-        for (final n in [1, 2])
+        for (final n in [2, 3])
           tester
               .widget<Semantics>(
                 byLabel('Ouvir esta frase de novo e traduzir de novo — $n'),

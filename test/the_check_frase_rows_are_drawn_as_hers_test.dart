@@ -308,6 +308,7 @@ void main() {
         'FRASES TRADUZIDAS',
         '1',
         'parte 1',
+        '2',
         'parte 3',
         'regravada — traduzam de novo',
       ],
