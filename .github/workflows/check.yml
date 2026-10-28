@@ -83,8 +83,17 @@ jobs:
       - name: Provide a .env
         run: cp .env.example .env
 
+      # Whole files per shard, never a file split across shards: some files' tests run in
+      # order and lean on it, and flutter's --total-shards splits a file's tests apart.
+      # Files go to shards by size (largest first, into the lightest shard) so the six
+      # finish together.
       - name: Test (shard ${{ matrix.shard }} of 6)
-        run: flutter test --reporter expanded --concurrency=2 --total-shards=6 --shard-index=${{ matrix.shard }}
+        run: |
+          files=$(find test -name '*_test.dart' -printf '%s %p\n' | sort -rn | awk -v k=${{ matrix.shard }} -v n=6 '
+            { best = 0; for (i = 1; i < n; i++) if (load[i] < load[best]) best = i
+              load[best] += $1; if (best == k) print $2 }')
+          echo "$files" | wc -l
+          flutter test --reporter expanded --concurrency=2 $files
 
   check:
     if: always()
