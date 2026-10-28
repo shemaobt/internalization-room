@@ -1047,6 +1047,26 @@ void main() {
   );
 
   testWidgets(
+    "under the whole passage another session's spent part take stays held for "
+    'its tap and does not go up on the next pass',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      await casa.abrirAPassagem('P02');
+      casa.room.unreachableTake = 'ensaio/parte-3';
+      await casa.guardar(3);
+      expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
+
+      await casa.abrirAPassagem('P01');
+      await casa.gravarAPassagemInteira();
+      casa.room.unreachableTake = null;
+      await casa.guardar(1);
+      await casa.emTempoReal(() => settle(const Duration(milliseconds: 600)));
+
+      expect(casa.room.takesKept, ['ensaio/${KeptScope.whole}']);
+    },
+  );
+
+  testWidgets(
     'a part whose newest take never reached the Outbox and is gone reads '
     'falhou, grave de novo with no tap once the team taps it',
     (tester) async {
