@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/person_sign.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'fakes.dart';
@@ -20,6 +21,19 @@ import 'fakes.dart';
 /// tests read the screen the way a screen reader would, not by widget type.
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
+);
+
+Finder get thePersonSign => find.descendant(
+  of: find.descendant(
+    of: find.byType(PersonSign),
+    matching: find.byWidgetPredicate(
+      (widget) => widget is IgnorePointer && !widget.ignoring,
+    ),
+  ),
+  matching: find.byWidgetPredicate(
+    (widget) =>
+        widget is FadeTransition && widget.opacity.status.isForwardOrCompleted,
+  ),
 );
 
 Finder onTheCircle(String label) => find.descendant(

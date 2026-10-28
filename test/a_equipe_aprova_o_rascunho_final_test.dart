@@ -1403,7 +1403,7 @@ void main() {
 
       expect(_circulo(tester).halt, isA<Blocking>());
       expect(
-        byLabel('A moment for someone'),
+        thePersonSign,
         findsOneWidget,
         reason: 'o sinal da pessoa sobre o retro fala a língua da sala',
       );

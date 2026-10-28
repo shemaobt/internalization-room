@@ -15,7 +15,8 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, settle, theChoiceOffersAPassage;
+import 'scenario_helpers.dart'
+    show byLabel, settle, theChoiceOffersAPassage, thePersonSign;
 
 const _aPanorama = Passagem(
   pericope: 'OV-Ruth',
@@ -24,7 +25,6 @@ const _aPanorama = Passagem(
   book: 'Ruth',
 );
 
-final _theSign = byLabel(circleLabelFor('needsPerson', testLanguage));
 final _theChoicesCircle = byLabel(
   escolhaLabelFor('readTheWheel', testLanguage),
 );
@@ -47,7 +47,7 @@ Future<ProviderContainer> _aBrokenBuild(
 
 Future<void> _theSignIsTappedAway(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 1700));
-  await tester.tap(_theSign);
+  await tester.tap(thePersonSign);
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 1700));
   await tester.pump();
@@ -61,7 +61,7 @@ void main() {
         final harness = SalaHarness(filaEmMemoria: true);
         final container = await _aBrokenBuild(tester, harness);
 
-        expect(_theSign, findsOneWidget);
+        expect(thePersonSign, findsOneWidget);
         expect(
           byLabel(codigoLabelFor('preparing', testLanguage)),
           findsNothing,
@@ -69,7 +69,7 @@ void main() {
         expect(harness.room.calls, isEmpty);
 
         await tester.pump(const Duration(seconds: 2));
-        expect(_theSign, findsOneWidget);
+        expect(thePersonSign, findsOneWidget);
         expect(harness.room.personsAsked, 0);
         closeTheRoom(container);
       },
@@ -83,7 +83,7 @@ void main() {
 
         await _theSignIsTappedAway(tester);
 
-        expect(_theSign, findsNothing);
+        expect(thePersonSign, findsNothing);
         expect(find.text('Escolha a passagem'), findsOneWidget);
         expect(_theChoicesCircle, findsOneWidget);
         expect(find.text(bookNameFor('Ruth', testLanguage)), findsNothing);
@@ -105,7 +105,7 @@ void main() {
         await tester.tap(_theChoicesCircle);
         await tester.pump();
 
-        expect(_theSign, findsOneWidget);
+        expect(thePersonSign, findsOneWidget);
         expect(container.read(salaSessionProvider).awaitingTheGuide, isFalse);
         closeTheRoom(container);
       },

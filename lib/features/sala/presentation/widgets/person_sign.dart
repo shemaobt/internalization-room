@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
-import '../../domain/facilitator_script.dart';
 import 'shema_mark.dart';
 
 class PersonSign extends ConsumerStatefulWidget {
@@ -35,9 +34,6 @@ class _PersonSignState extends ConsumerState<PersonSign>
 
   @override
   Widget build(BuildContext context) {
-    final shown = ref.watch(
-      salaSessionProvider.select((session) => session.needsPerson),
-    );
     ref.listen(
       salaSessionProvider.select((session) => session.needsPerson),
       (_, now) => now ? _fade.forward() : _fade.reverse(),
@@ -50,31 +46,25 @@ class _PersonSignState extends ConsumerState<PersonSign>
             IgnorePointer(ignoring: _fade.isDismissed, child: sign),
         child: FadeTransition(
           opacity: _opacity,
-          child: Semantics(
-            button: shown,
-            label: shown
-                ? circleLabelFor('needsPerson', ref.watch(roomLanguageProvider))
-                : null,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _tapped,
-              child: ColoredBox(
-                color: colors.personSignWash,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const ShemaMark(size: 76, opacity: 0.8),
-                    const SizedBox(height: 26),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _Figure(colors.shemaMark),
-                        const SizedBox(width: 14),
-                        _Figure(colors.shemaMark),
-                      ],
-                    ),
-                  ],
-                ),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _tapped,
+            child: ColoredBox(
+              color: colors.personSignWash,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const ShemaMark(size: 76, opacity: 0.8),
+                  const SizedBox(height: 26),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _Figure(colors.shemaMark),
+                      const SizedBox(width: 14),
+                      _Figure(colors.shemaMark),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
