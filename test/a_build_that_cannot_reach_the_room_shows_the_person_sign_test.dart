@@ -256,6 +256,32 @@ void main() {
     );
 
     test(
+      'a pill whose session opened before its opening threw still shows the sign, not the Choice',
+      () async {
+        final harness = SalaHarness();
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        SalaSessionState read() => container.read(salaSessionProvider);
+        await notifier.abrirEscolha();
+        await theChoiceOffersAPassage(container);
+        harness.voice.readyThrows = StateError('x');
+
+        notifier.openTheEntry(
+          read().naRoda!.firstWhere((entry) => entry.pericope == 'P01'),
+        );
+        await settle();
+
+        expect(read().sessionId, isNotNull);
+        expect(
+          read().needsPerson,
+          isTrue,
+          reason: 'um erro com a sessão já aberta sumia sem sinal',
+        );
+      },
+    );
+
+    test(
       'a gesture awaited directly whose body throws a StateError shows the sign and the await does not throw',
       () async {
         final harness = SalaHarness();

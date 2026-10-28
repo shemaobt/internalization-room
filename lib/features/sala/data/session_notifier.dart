@@ -2203,19 +2203,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _openedFromTheChoice(Future<void> Function() open) async {
     final opening = open().catchError(
       (Object _) {},
-      test: (error) => error is Error,
+      test: (error) => error is Error && _theOpenBroughtNoSession,
     );
     final generation = _generation;
     await opening;
     if (_generation != generation || state.needsPerson) return;
-    final unopened = switch (state.station) {
-      Canvas() => state.sessionId == null,
-      Panorama() => state.panoramaSessionId == null,
-      _ => false,
-    };
+    final unopened = _theOpenBroughtNoSession;
     if (!unopened) return;
     _arriveAtTheChoice();
   }
+
+  bool get _theOpenBroughtNoSession => switch (state.station) {
+    Canvas() => state.sessionId == null,
+    Panorama() => state.panoramaSessionId == null,
+    _ => false,
+  };
 
   void _arriveAtTheChoice() {
     if (state.station is! Menu) {
