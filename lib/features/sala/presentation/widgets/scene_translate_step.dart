@@ -171,6 +171,7 @@ class SceneTranslateStep extends ConsumerWidget {
                 name: said('retellFrase', i + 1),
                 hearMine: said('hearMine', i + 1),
                 live: idle,
+                again: frase.fraseId == scene.translatingAgain?.fraseId,
                 style: words,
                 onTap: () => notifier.translateTheFraseAgain(frase.fraseId),
                 onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
@@ -469,6 +470,7 @@ class SceneListenMode extends ConsumerWidget {
                 name: said('frase', i + 1),
                 hearMine: said('hearMine', i + 1),
                 live: !scene.waiting,
+                again: false,
                 style: TextStyle(color: colors.ink, fontSize: 16),
                 onTap: () => notifier.playTheFrase(frase.fraseId),
                 onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
@@ -796,6 +798,7 @@ class _FraseBar extends StatelessWidget {
   final String name;
   final String hearMine;
   final bool live;
+  final bool again;
   final TextStyle style;
   final VoidCallback onTap;
   final VoidCallback onHear;
@@ -807,6 +810,7 @@ class _FraseBar extends StatelessWidget {
     required this.name,
     required this.hearMine,
     required this.live,
+    required this.again,
     required this.style,
     required this.onTap,
     required this.onHear,
@@ -839,7 +843,10 @@ class _FraseBar extends StatelessWidget {
                       color: Theme.of(context).brightness == Brightness.dark
                           ? const Color.fromRGBO(236, 234, 220, .05)
                           : const Color.fromRGBO(255, 255, 255, .4),
-                      border: Border.all(color: colors.areia, width: 1.2),
+                      border: Border.all(
+                        color: again ? colors.telha : colors.areia,
+                        width: 1.2,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -884,9 +891,11 @@ class _FraseBar extends StatelessWidget {
                                     heightFactor: 1,
                                     child: DecoratedBox(
                                       decoration: BoxDecoration(
-                                        color: colors.claquete.withValues(
-                                          alpha: .85,
-                                        ),
+                                        color:
+                                            (again
+                                                    ? colors.telha
+                                                    : colors.claquete)
+                                                .withValues(alpha: .85),
                                         borderRadius: BorderRadius.circular(5),
                                       ),
                                     ),

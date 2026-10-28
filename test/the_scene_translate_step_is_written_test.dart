@@ -1383,4 +1383,60 @@ void main() {
       },
     );
   }
+  for (final (look, telha, areia) in [
+    (Brightness.light, const Color(0xFFBE4A01), const Color(0xFFC5C29F)),
+    (Brightness.dark, const Color(0xFFD6612A), const Color(0xFF6E6A57)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look the frase being translated again wears telha on its bar and its border, and the others keep theirs',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        final (_, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              frases: [_frase('f1', 0, 3000), _frase('f2', 3000, 6000)],
+            ),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+        await tester.tap(byLabel(_bar(1)));
+        await tester.pump(const Duration(milliseconds: 300));
+        BoxDecoration paint(int n, bool Function(BoxDecoration) which) => tester
+            .widgetList<DecoratedBox>(
+              find.descendant(
+                of: byLabel(_bar(n)),
+                matching: find.byType(DecoratedBox),
+              ),
+            )
+            .map((box) => box.decoration)
+            .whereType<BoxDecoration>()
+            .singleWhere(which);
+        Color? border(int n) =>
+            (paint(n, (box) => box.border != null).border as Border?)
+                ?.top
+                .color;
+        Color? fill(int n) => paint(
+          n,
+          (box) =>
+              box.borderRadius == BorderRadius.circular(5) &&
+              box.color != const Color.fromRGBO(199, 194, 159, .28),
+        ).color;
+
+        expect(
+          container.read(salaSessionProvider).scene.translatingAgain?.fraseId,
+          'f1',
+        );
+        expect(
+          border(1),
+          telha,
+          reason: 'a frase traduzida de novo não se distinguia das outras',
+        );
+        expect(fill(1), telha.withValues(alpha: .85));
+        expect(border(2), areia);
+        expect(fill(2), isNot(telha.withValues(alpha: .85)));
+      },
+    );
+  }
 }
