@@ -106,11 +106,28 @@ void main() {
               ],
               excludes: const [Offset(-58, 0), Offset(-30, -28), Offset(0, 0)],
             )
-            ..path(style: PaintingStyle.stroke, strokeWidth: 5.5, color: telha),
+            ..path(
+              style: PaintingStyle.stroke,
+              strokeWidth: 5.5,
+              color: telha,
+              includes: const [Offset(0, 0), Offset(15, 0), Offset(35, 0)],
+              excludes: const [Offset(4, 0), Offset(20, 30), Offset(45, 0)],
+            ),
           reason:
               '${theme.brightness.name}: o corpo do alto-falante dela é '
               '«M -56 -13 H -38 L -18 -30 V 30 L -38 13 H -56 Z» cheio, e as '
-              'três ondas são traços de 5.5 (page.tsx:60-65), em telha',
+              'três ondas são arcos de raio 20, 34 e 48 traçados a 5.5 '
+              '(page.tsx:60-65), em telha',
+        );
+        expect(
+          _glyph,
+          paints..something(
+            (method, arguments) =>
+                method == #drawPath &&
+                (arguments[1] as Paint).style == PaintingStyle.stroke &&
+                (arguments[1] as Paint).strokeCap == StrokeCap.round,
+          ),
+          reason: 'as ondas dela terminam redondas (page.tsx:61)',
         );
       }
     },
@@ -152,6 +169,16 @@ void main() {
               '${theme.brightness.name}: a mão dela é um traço de 1.5 na caixa '
               'de 24 (page.tsx:84-94) — a palma e o primeiro dedo onde ela '
               'os desenhou — em azul (globals.css:174)',
+        );
+        expect(
+          _glyph,
+          paints..something(
+            (method, arguments) =>
+                method == #drawPath &&
+                (arguments[1] as Paint).strokeCap == StrokeCap.round &&
+                (arguments[1] as Paint).strokeJoin == StrokeJoin.round,
+          ),
+          reason: 'a mão dela tem pontas e quinas redondas (page.tsx:89)',
         );
       }
     },
