@@ -929,6 +929,41 @@ void main() {
     },
   );
 
+  test('coming back to a joined recording the room checked elsewhere lands on '
+      'its verdict, though this tablet never heard the check', () async {
+    final it = await _juntadaNaCasa();
+    _frasesTrazidas(it);
+    _nadaOuvido(it);
+    await _oDisco(it);
+    await _ouvirAte(it, ate: 1);
+    _tudoOuvido(it);
+    await _ouvirAte(it, desde: 2);
+    it.sala.goEnsaio();
+    await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
+    expect(it.estado.btChecked, isFalse);
+    it.harness.room.retroSoFar = BackTranslationProgress(
+      segments: [...it.harness.room.segments],
+      checked: true,
+    );
+    final linhas = it.harness.voice.fixedLines.length;
+    final tocadas = it.harness.playback.played.length;
+
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução voltar',
+      () => it.estado.stage == SalaStage.retro && !it.estado.awaitingTheGuide,
+    );
+    await settle();
+
+    expect(
+      it.estado.btPhase,
+      BtPhase.conferida,
+      reason: 'a conferência que a sala guarda não voltava a este tablet',
+    );
+    expect(it.harness.voice.fixedLines.skip(linhas), isEmpty);
+    expect(it.harness.playback.played.skip(tocadas), isEmpty);
+  });
+
   test('after recomeçar a tradução the next listen the room checks runs the '
       'automatic check again, not a memory of the first', () async {
     final it = await _juntadaNaCasa();
