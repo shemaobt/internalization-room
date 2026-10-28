@@ -547,7 +547,7 @@ class SalaSessionState {
 
   /// The loudness of a scene take, once it was read off the UI thread; null for a take
   /// with none to read.
-  final ({String take, Envelope? envelope})? sceneLoudness;
+  final List<({String take, Envelope? envelope})> sceneLoudness;
 
   final Map<String, ({Duration length, Envelope? envelope})> partLoudness;
 
@@ -709,7 +709,7 @@ class SalaSessionState {
     this.externalCheck = const ExternalCheckScreen(),
     this.sceneRehearsals = const [],
     this.sceneTranslationsUnseen = const {},
-    this.sceneLoudness,
+    this.sceneLoudness = const [],
     this.partLoudness = const {},
     this.scenes = const ScenesAwaited(),
     this.scenesOfThePassage,
@@ -1071,10 +1071,10 @@ class SalaSessionState {
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
   /// The loudness of the take on the scene screen, until it is read or for a take with
   /// none: a pausa then stays at the tap.
-  Envelope? get sceneEnvelope => switch (sceneLoudness) {
-    (take: final take, :final envelope) when take == scene.take => envelope,
-    _ => null,
-  };
+  Envelope? get sceneEnvelope => sceneLoudness
+      .where((loudness) => loudness.take == scene.take)
+      .firstOrNull
+      ?.envelope;
 
   /// The frase being translated again whose pausa the team may move: the last one, on a
   /// take with loudness to read.
@@ -1737,7 +1737,7 @@ class SalaSessionState {
     ExternalCheckScreen? externalCheck,
     List<SceneRehearsalRecord>? sceneRehearsals,
     Map<String, String>? sceneTranslationsUnseen,
-    ({String take, Envelope? envelope})? sceneLoudness,
+    List<({String take, Envelope? envelope})>? sceneLoudness,
     Map<String, ({Duration length, Envelope? envelope})>? partLoudness,
     SceneList? scenes,
     List<Scene>? scenesOfThePassage,
