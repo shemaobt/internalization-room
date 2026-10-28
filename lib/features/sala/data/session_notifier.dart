@@ -1588,10 +1588,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       moment: reply.moment,
       clearMoment: reply.moment == null,
       endOfThePassage: reply.done ? true : null,
-      lastSpoken: reply.usedFailSafe
-          ? null
-          : SpokenLine(url: reply.audioUrl, fixedLine: reply.fixedLine),
-      roomSaysItAgain: reply.usedFailSafe ? true : null,
+      lastSpoken: SpokenLine(url: reply.audioUrl, fixedLine: reply.fixedLine),
       awaitingTheGuide: false,
     );
   }
