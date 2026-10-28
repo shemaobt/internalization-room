@@ -14,6 +14,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/claquete.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/shema_mark.dart';
@@ -538,6 +539,50 @@ void main() {
       expect(claquete.bottom, closeTo(649.658, 0.5));
     });
   });
+
+  testWidgets(
+    'on an SE her corner keeps the claquete clear of the replay, the hand and the circle',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 667);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await withClock(Clock.fixed(_noon), () async {
+        final (_, container) = await _openP05(tester);
+        for (var beat = 0; beat < 50; beat++) {
+          if (container.read(salaSessionProvider).canHearAgain) break;
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(container.read(salaSessionProvider).canHearAgain, isTrue);
+        expect(_claquete, findsOneWidget);
+
+        final claquete = tester.getRect(_claquete);
+        for (final (what, widget) in [
+          (
+            'o ouvir de novo',
+            find.descendant(
+              of: find.byType(HearAgainButton),
+              matching: find.byType(RoundActionButton),
+            ),
+          ),
+          ('a mão', find.byType(HandButton)),
+          ('o círculo', find.byType(FacilitatorCircle)),
+        ]) {
+          expect(widget, findsWidgets);
+          for (final one in widget.evaluate()) {
+            final box = one.renderObject! as RenderBox;
+            final overlap = claquete.intersect(
+              box.localToGlobal(Offset.zero) & box.size,
+            );
+            expect(
+              overlap.width <= 0 || overlap.height <= 0,
+              isTrue,
+              reason: 'no canto dela a claquete cobria $what',
+            );
+          }
+        }
+      });
+    },
+  );
 
   testWidgets(
     'a tap on the Shema mark on the Panorama shows the claquete for twenty seconds again',
