@@ -440,9 +440,12 @@ class SceneListenMode extends ConsumerWidget {
             mood: sending || scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
             playing: playing,
             label: said('playPause'),
-            hint: (at) => playing
-                ? sceneListeningLineFor(at, scene.length, language)
-                : null,
+            hint: (at) => switch ((playing, scene.heard)) {
+              (true, _) => sceneListeningLineFor(at, scene.length, language),
+              (false, SceneHeard.partly) => said('paused'),
+              (false, SceneHeard.toTheEnd) => said('ended'),
+              (false, _) => null,
+            },
           ),
           const SizedBox(height: 12),
           SceneStrip(

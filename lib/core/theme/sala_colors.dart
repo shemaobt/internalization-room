@@ -31,6 +31,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
   final Color card;
   final Color cord;
   final Color telha;
+  final Color areia;
+  final Color azul;
   final Color halo;
   final Color oatHi;
   final Color oat;
@@ -55,6 +57,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
     required this.card,
     required this.cord,
     required this.telha,
+    required this.areia,
+    required this.azul,
     required this.halo,
     required this.oatHi,
     required this.oat,
@@ -80,6 +84,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
     card: Color(0xFFECEADF),
     cord: Color(0xFFC5C29F),
     telha: Color(0xFFBE4A01),
+    areia: ShemaBrand.areia,
+    azul: ShemaBrand.azul,
     halo: Color(0x59BE4A01),
     oatHi: Color(0xFFFBFAF3),
     oat: Color(0xFFE7E3D3),
@@ -105,6 +111,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
     card: Color(0xFF241D13),
     cord: Color(0xFF4A4336),
     telha: Color(0xFFD6612A),
+    areia: Color(0xFF6E6A57),
+    azul: Color(0xFF8FB1A9),
     halo: Color(0x73D6612A),
     // Raised out of the background. At #2C2620 the unfilled bead sat at 1.2:1 against the
     // dark paper, and the only thing carrying its shape was a ten-percent black shadow,
@@ -147,6 +155,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
       card: mix(card, other.card),
       cord: mix(cord, other.cord),
       telha: mix(telha, other.telha),
+      areia: mix(areia, other.areia),
+      azul: mix(azul, other.azul),
       halo: mix(halo, other.halo),
       oatHi: mix(oatHi, other.oatHi),
       oat: mix(oat, other.oat),
