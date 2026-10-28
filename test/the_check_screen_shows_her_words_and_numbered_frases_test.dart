@@ -245,6 +245,51 @@ Future<ProviderContainer> _aParteUmRegravada(
   return container;
 }
 
+Future<ProviderContainer> _comUmaFraseRegravada(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  harness.room.takes.add(
+    const TakeView(
+      takeId: 'gravacao-velha-1',
+      scope: 'parte-1',
+      kind: 'ensaio',
+      ordinal: 1,
+    ),
+  );
+  final container = await _voltaATraducao(
+    tester,
+    harness,
+    const BackTranslationProgress(
+      segments: [
+        SegmentView(
+          segmentId: 'trecho-3',
+          takeId: 'gravacao-2',
+          startsMs: 0,
+          endsMs: 6000,
+          frase: 2,
+        ),
+      ],
+      stale: [
+        SegmentView(
+          segmentId: 'trecho-1',
+          takeId: 'gravacao-velha-1',
+          startsMs: 0,
+          endsMs: 4000,
+          frase: 1,
+        ),
+      ],
+    ),
+  );
+  await waitFor(
+    'a frase regravada achar a sua parte',
+    () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
+  return container;
+}
+
 Finder _oCartao(Finder dentro) => find.ancestor(
   of: dentro,
   matching: find.byWidgetPredicate(
@@ -1530,6 +1575,37 @@ void main() {
       harness.playback.played.last,
       primeira,
       reason: 'a tradução de antes da frase regravada não se ouvia mais',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a «regravada» frase is told again over the part as it stands '
+      'now, at the place it had', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _comUmaFraseRegravada(tester, harness);
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    await tocar(tester, 'Ouvir esta frase de novo e traduzir de novo — 1');
+    expect(
+      [harness.playback.played.last, harness.playback.ranges.lastOrNull],
+      [container.read(salaSessionProvider).partes.first.path, '0-4000'],
+      reason: 'a barra da frase regravada não tocava nada',
+    );
+    await tocar(tester, 'ouvindo a gravação de vocês…');
+    await tocar(tester, 'Tocar ao terminar');
+    await waitFor(
+      'a frase regravada traduzida de novo subir',
+      () => harness.room.replacesAsked.isNotEmpty,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      harness.room.replacesAsked,
+      ['trecho-1@gravacao-1:0-4000'],
+      reason:
+          'a frase regravada não se traduzia de novo, e a equipe só podia '
+          'recomeçar a tradução inteira',
     );
     closeTheRoom(container);
   });

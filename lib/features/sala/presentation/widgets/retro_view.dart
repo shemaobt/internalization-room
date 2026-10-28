@@ -284,6 +284,12 @@ class RetroView extends ConsumerWidget {
           onHear: session.canHearAFrase && trecho.retroPath != null
               ? () => notifier.ouvirAFraseRegravada(onde)
               : null,
+          onRetell:
+              session.canRetellAFrase &&
+                  trecho.segmentId != null &&
+                  session.partes.elementAtOrNull(trecho.parte)?.takeId != null
+              ? () => notifier.traduzirAFraseRegravadaDeNovo(onde)
+              : null,
           mark: retroLabelFor('stale', language),
         ),
     ];

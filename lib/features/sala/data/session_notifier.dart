@@ -11115,6 +11115,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leadThemToTheTrecho(trecho, ate: fimMovido);
   }
 
+  void traduzirAFraseRegravadaDeNovo(int indice) =>
+      _gesture(() => _traduzirAFraseRegravadaDeNovo(indice));
+
+  void _traduzirAFraseRegravadaDeNovo(int indice) {
+    if (!state.canRetellAFrase) return;
+    final regravada = state.btTrechosRegravados.elementAtOrNull(indice);
+    if (regravada == null) return;
+    final takeId = state.partes.elementAtOrNull(regravada.parte)?.takeId;
+    if (regravada.segmentId == null || takeId == null) return;
+    final trecho = Trecho(
+      segmentId: regravada.segmentId,
+      takeId: takeId,
+      retroPath: regravada.retroPath,
+      parte: regravada.parte,
+      from: regravada.lugarFrom,
+      to: regravada.lugarTo,
+      lugarFrom: regravada.lugarFrom,
+      lugarTo: regravada.lugarTo,
+      contado: true,
+      frase: regravada.frase,
+    );
+    if (!state.aParteDoTrechoEstaAqui(trecho)) return;
+    if (!_traduzirOTrechoDeNovo(trecho)) return;
+    state = state.copyWith(
+      btPausaSoNaUltima: state.anEarlierPauseStays(
+        trecho,
+        naFase: _faseAntesDeTraduzirDeNovo,
+      ),
+      clearAviso: true,
+    );
+    _leadThemToTheTrecho(trecho);
+  }
+
   bool _traduzirOTrechoDeNovo(Trecho trecho) {
     final fase = _trechoTraduzidoDeNovo == null
         ? state.btPhase
