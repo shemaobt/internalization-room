@@ -5,6 +5,7 @@ import 'dart:isolate';
 
 import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -23,9 +24,10 @@ const _manifest = 'fila.json';
 
 const takeUploadAttempts = 3;
 
-const retroUploadAttempts = 5;
-
 const sentenceKind = 'frase';
+
+/// The kind an older build gave the Back-translation's stretches in the Outbox.
+const _theBackTranslationsOldKind = 'retro';
 
 const largestTakeTheRoomKeeps = 25 * 1024 * 1024;
 
@@ -151,10 +153,7 @@ class PendingTake {
     this.overTake,
   });
 
-  int get budget =>
-      kind == retroKind ? retroUploadAttempts : takeUploadAttempts;
-
-  bool get exhausted => attempts >= budget;
+  bool get exhausted => attempts >= takeUploadAttempts;
 
   SendFailure get failure => switch (refusal) {
     null => SendFailure.failed,
@@ -555,8 +554,7 @@ class TakeUploadQueue {
           : unsentParts.values.fold(0, (count, rows) => count + rows.length),
       unsentChunks: written == null
           ? 1
-          : _unsentIn(written, retroKind, sessionId) +
-                _unsentIn(written, sentenceKind, sessionId),
+          : _unsentIn(written, sentenceKind, sessionId),
       unsentParts: unsentParts,
       goneParts: await _gonePartsIn(written, sessionId),
     );
@@ -884,6 +882,7 @@ class TakeUploadQueue {
     _stopped = false;
     final List<PendingTake> rows;
     try {
+      await _sweepTheOldBackTranslations();
       rows = await waiting(withTheCodeless: withTheCodeless);
     } on PathNotFoundException {
       return 0;
@@ -947,7 +946,7 @@ class TakeUploadQueue {
           entry,
           (now) => now.copyWith(
             lost: false,
-            attempts: now.budget,
+            attempts: takeUploadAttempts,
             lastTry: _now(),
             refusal: RefusalCode.tooLarge,
           ),
@@ -993,7 +992,7 @@ class TakeUploadQueue {
               sent,
               (now) => now.copyWith(
                 lost: false,
-                attempts: now.budget,
+                attempts: takeUploadAttempts,
                 lastTry: _now(),
                 refusal: code,
               ),
@@ -1004,8 +1003,7 @@ class TakeUploadQueue {
             await _deleteTheCopy(entry);
             _sessionsGone.add(entry.sessionId);
             return _Landing.held;
-          case NetworkFailed()
-              when entry.kind == retroKind || entry.origin != null:
+          case NetworkFailed() when entry.origin != null:
             if (_stopped) return await _theTeamStopped(sent);
             _fellOnTheNetwork();
             await _settleWith(
@@ -1065,7 +1063,11 @@ class TakeUploadQueue {
   Future<_Landing> _theTeamStopped(PendingTake entry) async {
     await _settleWith(
       entry,
-      (now) => now.copyWith(lost: false, attempts: now.budget, lastTry: _now()),
+      (now) => now.copyWith(
+        lost: false,
+        attempts: takeUploadAttempts,
+        lastTry: _now(),
+      ),
     );
     return _Landing.held;
   }
@@ -1246,6 +1248,32 @@ class TakeUploadQueue {
       ];
     });
     return found;
+  }
+
+  /// A Back-translation stretch is never queued: one an older build left is a stale
+  /// translation, and it leaves with its copy before anything is sent.
+  Future<void> _sweepTheOldBackTranslations() async {
+    final old = [
+      for (final entry in await _written() ?? const <PendingTake>[])
+        if (entry.kind == _theBackTranslationsOldKind) entry,
+    ];
+    if (old.isEmpty) return;
+    for (final entry in old) {
+      try {
+        await _deleteTheCopy(entry);
+      } on FileSystemException catch (error) {
+        debugPrint(
+          'Uma tradução antiga não pôde ser apagada da fila (${entry.path}): '
+          '$error',
+        );
+      }
+    }
+    await _mutate(
+      (written) => [
+        for (final entry in written)
+          if (entry.kind != _theBackTranslationsOldKind) entry,
+      ],
+    );
   }
 
   Future<void> _deleteTheCopy(PendingTake entry) async {
