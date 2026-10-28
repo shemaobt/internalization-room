@@ -1853,7 +1853,8 @@ Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
   String take,
   CutPoint measured,
 ) {
-  if (machine.station is! Canvas || machine.halt is Blocking) {
+  if ((machine.station is! Canvas && machine.station is! Panorama) ||
+      machine.halt is Blocking) {
     return (machine, const []);
   }
   final (reply, held, cut) = switch (machine.channel) {
