@@ -131,6 +131,9 @@ abstract final class FailurePolicy {
 
   static const _theSceneDoors = {Door.sceneRehearsal, Door.sceneFrase};
 
+  /// The doors a translated piece goes up through.
+  static const _theTranslationDoors = {Door.sceneFrase, Door.telling};
+
   /// The refusals at the frase door that say nothing of the frase itself.
   static const _theFraseIsNotRefused = {
     RefusalCode.sceneRehearsalSending,
@@ -167,22 +170,23 @@ abstract final class FailurePolicy {
       _ when context.door == Door.sceneList => TheScenesMissed(
         generation: generation,
       ),
-      RoomNetworkFailed() || RoomRefused(code: RefusalCode.unreadable)
+      RoomNetworkFailed() ||
+      RoomTimedOut() ||
+      RoomFoundNothing() ||
+      RoomAnsweredWithoutAReply() ||
+      RoomRefused(code: RefusalCode.unreadable)
           when context.door == Door.sceneFrase &&
               rule == RefusalRule.readsTheListAgain =>
         TheTellingCameBackEmpty(readAgain: true, generation: generation),
       RoomNetworkFailed() ||
       RoomTimedOut() ||
       RoomFoundNothing() ||
-      RoomAnsweredWithoutAReply() when context.door == Door.sceneFrase =>
+      RoomAnsweredWithoutAReply()
+          when _theTranslationDoors.contains(context.door) =>
         TheTellingCameBackEmpty(generation: generation),
       RoomRefused(code: RefusalCode.sceneRehearsalSent)
           when context.door == Door.sceneFrase =>
         TheSceneWentAlready(generation: generation),
-      RoomNetworkFailed() ||
-      RoomTimedOut() ||
-      RoomFoundNothing() ||
-      RoomAnsweredWithoutAReply() ||
       RoomRefused() when context.door == Door.telling =>
         TheTellingCameBackEmpty(generation: generation),
       RoomRefused() when turn != null && theAnswerWasLost(result, rule) =>

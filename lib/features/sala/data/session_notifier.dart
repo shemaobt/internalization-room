@@ -9346,9 +9346,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     } on FileSystemException {
       if (_abandoned(generation)) return;
-      state = state.copyWith(
-        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
-      );
       return _theStretchWasNotStored();
     }
     final TellingAgain told;
@@ -10170,9 +10167,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     final gravacao = _parteNoAr?.takeId;
     if (gravacao == null) {
-      state = state.copyWith(
-        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
-      );
       return _theStretchWasNotStored();
     }
 
@@ -10192,9 +10186,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     } on FileSystemException {
       if (_abandoned(generation)) return;
-      state = state.copyWith(
-        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
-      );
       return _theStretchWasNotStored();
     }
     final int? frase;
@@ -10284,6 +10275,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// A stretch that never reached the room leaves her line at the cut, and nothing of
   /// it is kept to go up later.
   void _theStretchWasNotStored() {
+    state = state.copyWith(
+      btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+    );
     _leaveThinking();
     _dispatch(TheTellingCameBackEmpty(generation: _generation));
   }

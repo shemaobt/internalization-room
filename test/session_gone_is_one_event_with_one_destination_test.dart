@@ -576,4 +576,18 @@ void main() {
           'a equipe já saiu; uma segunda criação deixaria uma sessão fantasma',
     );
   });
+
+  test('ENG-1155: a gone at the chunk door leaves the translation\'s file '
+      'nowhere on the tablet', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness);
+    await _abrirACapturaDeUmTrecho(harness, container);
+
+    harness.room.chunkAnswersFirst.add(const SessionGone());
+    await confirmarATraducao(container);
+    final traducao = harness.recorder.lastPath!;
+    await _naEscolha(container);
+
+    expect(harness.recorder.deleted, contains(traducao));
+  });
 }

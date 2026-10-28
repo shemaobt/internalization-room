@@ -757,6 +757,26 @@ void main() {
       const TheTellingCameBackEmpty(generation: 4),
     ),
     (
+      'a translation again whose wait timed out is not understood and reads the list',
+      const RoomTimedOut(),
+      _at(
+        const SceneRehearsal(),
+        door: Door.sceneFrase,
+        rule: RefusalRule.readsTheListAgain,
+      ),
+      const TheTellingCameBackEmpty(readAgain: true, generation: 4),
+    ),
+    (
+      'a translation again the room found nothing for is not understood and reads the list',
+      const RoomFoundNothing(),
+      _at(
+        const SceneRehearsal(),
+        door: Door.sceneFrase,
+        rule: RefusalRule.readsTheListAgain,
+      ),
+      const TheTellingCameBackEmpty(readAgain: true, generation: 4),
+    ),
+    (
       'a call that is not a turn whose session is gone is the session gone',
       const RoomSessionGone(),
       _notATurn(),

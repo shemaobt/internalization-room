@@ -152,9 +152,7 @@ class PendingTake {
     this.overTake,
   });
 
-  int get budget => takeUploadAttempts;
-
-  bool get exhausted => attempts >= budget;
+  bool get exhausted => attempts >= takeUploadAttempts;
 
   SendFailure get failure => switch (refusal) {
     null => SendFailure.failed,
@@ -945,7 +943,7 @@ class TakeUploadQueue {
           entry,
           (now) => now.copyWith(
             lost: false,
-            attempts: now.budget,
+            attempts: takeUploadAttempts,
             lastTry: _now(),
             refusal: RefusalCode.tooLarge,
           ),
@@ -991,7 +989,7 @@ class TakeUploadQueue {
               sent,
               (now) => now.copyWith(
                 lost: false,
-                attempts: now.budget,
+                attempts: takeUploadAttempts,
                 lastTry: _now(),
                 refusal: code,
               ),
@@ -1062,7 +1060,11 @@ class TakeUploadQueue {
   Future<_Landing> _theTeamStopped(PendingTake entry) async {
     await _settleWith(
       entry,
-      (now) => now.copyWith(lost: false, attempts: now.budget, lastTry: _now()),
+      (now) => now.copyWith(
+        lost: false,
+        attempts: takeUploadAttempts,
+        lastTry: _now(),
+      ),
     );
     return _Landing.held;
   }
@@ -1248,19 +1250,20 @@ class TakeUploadQueue {
   /// A Back-translation stretch is never queued: one an older build left is a stale
   /// translation, and it leaves with its copy before anything is sent.
   Future<void> _sweepTheOldBackTranslations() async {
-    bool old(PendingTake entry) => entry.kind == _theBackTranslationsOldKind;
-    if (!(await _written() ?? const <PendingTake>[]).any(old)) return;
-    final swept = <PendingTake>[];
-    await _mutate((written) {
-      swept.addAll(written.where(old));
-      return [
-        for (final entry in written)
-          if (!old(entry)) entry,
-      ];
-    });
-    for (final entry in swept) {
+    final old = [
+      for (final entry in await _written() ?? const <PendingTake>[])
+        if (entry.kind == _theBackTranslationsOldKind) entry,
+    ];
+    if (old.isEmpty) return;
+    for (final entry in old) {
       await _deleteTheCopy(entry);
     }
+    await _mutate(
+      (written) => [
+        for (final entry in written)
+          if (entry.kind != _theBackTranslationsOldKind) entry,
+      ],
+    );
   }
 
   Future<void> _deleteTheCopy(PendingTake entry) async {

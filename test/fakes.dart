@@ -4171,7 +4171,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       unsentChunks: [
         for (final entry in rows)
           if (!entry.stored &&
-              entry.kind == 'retro' &&
+              entry.kind == sentenceKind &&
               entry.sessionId == sessionId)
             entry,
       ].length,
@@ -4241,13 +4241,6 @@ Future<void> theRoomNamesTheParts(
 
 Future<void> theClipOpens(SalaHarness harness) =>
     waitFor('o clipe abrir', () => harness.playback.open);
-
-Future<void> theRoomRefusesTheGuardedCopy(SalaHarness harness) => waitFor(
-  'a sala recusar a cópia de reserva da tradução',
-  () async => (await harness.takes.entries()).any(
-    (entry) => entry.kind == 'retro' && entry.refusal != null,
-  ),
-);
 
 Future<void> confirmarATraducao(ProviderContainer container) =>
     fecharACaptura(container);
@@ -4640,76 +4633,6 @@ class QueueThatDiscardsLate extends TakeUploadQueue {
     final wait = discardsAfter;
     if (wait != null) await Future<void>.delayed(wait);
     await super.discardTheSession(sessionId);
-  }
-}
-
-class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
-  QueueWhoseTranslationLandsLate({
-    required super.room,
-    super.home,
-    required super.recordings,
-  });
-
-  Duration? landsAfter;
-  bool translationLanded = false;
-
-  @override
-  Future<PendingTake> enqueue(
-    File audio, {
-    required String sessionId,
-    required String kind,
-    required String scope,
-    int? passNumber,
-    int? chunkIndex,
-    String? scene,
-  }) async {
-    final wait = landsAfter;
-    if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
-    final row = await super.enqueue(
-      audio,
-      sessionId: sessionId,
-      kind: kind,
-      scope: scope,
-      passNumber: passNumber,
-      chunkIndex: chunkIndex,
-      scene: scene,
-    );
-    if (kind == 'retro') translationLanded = true;
-    return row;
-  }
-}
-
-class QueueThatFinishesLate extends TakeUploadQueue {
-  QueueThatFinishesLate({
-    required super.room,
-    super.home,
-    required super.recordings,
-  });
-
-  Duration? answersAfter;
-
-  @override
-  Future<PendingTake> enqueue(
-    File audio, {
-    required String sessionId,
-    required String kind,
-    required String scope,
-    int? passNumber,
-    int? chunkIndex,
-    String? scene,
-  }) async {
-    final row = await super.enqueue(
-      audio,
-      sessionId: sessionId,
-      kind: kind,
-      scope: scope,
-      passNumber: passNumber,
-      chunkIndex: chunkIndex,
-      scene: scene,
-    );
-    final wait = answersAfter;
-    if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
-    return row;
   }
 }
 
