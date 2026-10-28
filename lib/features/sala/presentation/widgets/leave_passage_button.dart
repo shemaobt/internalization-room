@@ -8,24 +8,19 @@ import '../../domain/session_state.dart';
 import 'corner_disc.dart';
 
 class LeavePassageButton extends ConsumerWidget {
-  final ({SalaStage stage, double top})? carried;
-
-  const LeavePassageButton({super.key, this.carried});
+  const LeavePassageButton({super.key});
 
   static const _floating = {SalaStage.panorama, SalaStage.conversa};
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
-    final stands = carried == null
-        ? _floating.contains(session.stage)
-        : session.stage == carried!.stage;
-    if (!stands) return const SizedBox.shrink();
+    if (!_floating.contains(session.stage)) return const SizedBox.shrink();
     final away = session.wayOutIsHidden;
 
     return Positioned(
       left: 14,
-      top: carried?.top ?? 118 + MediaQuery.viewPaddingOf(context).top,
+      top: 118 + MediaQuery.viewPaddingOf(context).top,
       child: IgnorePointer(
         ignoring: away,
         child: AnimatedOpacity(

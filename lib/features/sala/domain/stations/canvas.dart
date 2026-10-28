@@ -19,6 +19,8 @@ final class Canvas extends Station {
     TheSceneRehearsalOpened() => const SceneRehearsal(),
     TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
-    TheExternalCheckOpened() || TheExternalCheckLeft() => this,
+    TheExternalCheckOpened() ||
+    TheExternalCheckLeft() ||
+    TheRecordingLeft() => this,
   };
 }

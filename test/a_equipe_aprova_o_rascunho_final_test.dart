@@ -10,7 +10,7 @@ import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/leave_passage_button.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/way_back_button.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -1413,13 +1413,13 @@ void main() {
   );
 
   testWidgets(
-    'under the person sign on the retro\'s checked screen the passage button is gone too',
+    'under the person sign on the retro\'s checked screen the way back is gone too',
     (tester) async {
       final it = await _ateAConferida(tester);
       double passageButton() => tester
           .widget<AnimatedOpacity>(
             find.descendant(
-              of: find.byType(LeavePassageButton),
+              of: find.byType(WayBackButton),
               matching: find.byType(AnimatedOpacity),
             ),
           )

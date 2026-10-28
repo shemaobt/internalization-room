@@ -6754,6 +6754,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _arriveAt(const TheSceneRehearsalLeft());
   }
 
+  void leaveTheRecording() => _gesture(() => _leaveTheRecording());
+
+  void _leaveTheRecording() {
+    if (state.station is! Ensaio) return;
+    _clearAll();
+    _dropThePendingTake();
+    state = state.copyWith(ensaio: EnsaioStatus.idle);
+    _arriveAt(const TheRecordingLeft());
+  }
+
+  void leaveTheBackTranslation() => _gesture(() => _leaveTheBackTranslation());
+
+  void _leaveTheBackTranslation() {
+    if (state.station is! Retro) return;
+    _voltarAoEnsaio();
+  }
+
   void playTheRehearsal() => _gesture(() => _playTheRehearsal());
 
   void _playTheRehearsal() {
