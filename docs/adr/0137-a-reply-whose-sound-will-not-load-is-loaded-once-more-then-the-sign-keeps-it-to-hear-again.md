@@ -33,21 +33,36 @@ sound failed.
 - **«Ouvir de novo» says the last reply as it was meant**, a fail-safe line included. As in
   her app, it is not offered under the sign; it is lit once the team's tap clears it.
 
-- **The reload answers the waiting reply by callback, an exception to AGENTS.md.** Every
-  other answer comes back as an event stamped with the generation. Here the reply that
-  failed is awaited by the gesture that said it (a turn, the Panorama, the verdict, a line
-  said again), and that gesture finishes on the reply's outcome. An answer that came back
-  as an event would reach the notifier only through state, and resuming the gesture's wait
-  would take a completer parked on the notifier, which AGENTS.md forbids. So the failed
-  load carries its answer with it, the effect runner stamps the 1.5 s wait with the
-  generation, and an abandoned or replaced wait answers "do not load again". The failed
-  load is told in the generation it happened in and is never stale, so the machine always
-  answers it, exactly once.
+- **While the reload waits, the room is thinking** («pensando»), as it already is for a
+  turn's reply, so nothing offers to say the reply again: a second «Ouvir de novo» in the
+  wait would play it alongside the reload, which then deletes the file it plays.
+
+- **The reload answers the waiting reply by callback, an exception to the rule that every
+  answer returns as an event stamped with the generation.** The gesture that said the reply
+  (a turn, the Panorama, the verdict, a line said again) awaits the reload's answer. The
+  repo already resolves a stamped line event to its gesture through the line's saying, the
+  completer kept for each Line and answered from the machine's last line outcome. The reload
+  cannot ride it without bending three things. A readying that fails has no Line yet: the
+  reply never reached the machine, so a Line that never sounds would be minted only as a
+  key. The answer is "load again or not", so a line's outcome (said, failed, unsaid, cut)
+  would be read as load again. And a stale due event is dropped by the reducer, so the
+  saying would never end unless the machine held the waiting reply as state of its own and
+  answered it on every path that ends it: the halt, a step left, leaving the passage, the
+  notifier disposed, and a generation moved, which happens outside the dispatch that
+  answers sayings. That is about 150 lines across the machine, the runner, the notifier and
+  the generator. So the failed load carries its answer with it, the effect runner stamps
+  the 1.5 s wait with the generation, and an abandoned or replaced wait answers "do not
+  load again".
+- **The failed load is never stale, by discipline, not by type.** It is told under the
+  generation it happened in because the notifier dispatches it synchronously right after
+  checking that the generation was not abandoned. The event carries no generation, so
+  nothing but that order keeps it fresh; the machine then answers it exactly once.
 
 ## Considered Options
 
-**The reload's due time as a stamped event.** Rejected: see the exception above. It needs
-a new notifier field to resume the gesture that awaits the reply.
+**The reload answered through the line's saying, by a stamped due event.** Rejected: see
+the exception above. It needs a Line minted as a key, a line outcome read as "load again",
+and the waiting reply kept and answered by the machine on every ending path.
 
 **«Ouvir de novo» lit over the sign.** Rejected (Jonatas, 23 October: as in her app): her
 replay waits for the sign to clear, and the sign takes every tap.
