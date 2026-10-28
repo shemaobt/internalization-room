@@ -283,13 +283,16 @@ final class TheSceneRehearsalLeft extends StationEvent {
 
 final class TheExternalCheckOpened extends StationEvent {
   final int version;
-  final bool relaunched;
 
-  const TheExternalCheckOpened(this.version, {this.relaunched = false});
+  const TheExternalCheckOpened(this.version);
 }
 
 final class TheExternalCheckLeft extends StationEvent {
   const TheExternalCheckLeft();
+}
+
+final class TheRecordingLeft extends StationEvent {
+  const TheRecordingLeft();
 }
 
 /// The team asks for a Panorama in a language: the same one keeps the session the machine

@@ -957,7 +957,7 @@ void main() {
 
     final fixed = {
       'Ensaio Final',
-      'Escolher outra passagem',
+      'Voltar para a passagem atual',
       _planLine,
       _sceneByScene,
       'gravar a passagem inteira de uma vez',
