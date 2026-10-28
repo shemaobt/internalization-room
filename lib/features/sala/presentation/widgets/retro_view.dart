@@ -267,12 +267,12 @@ class RetroView extends ConsumerWidget {
               ) /
               100
         : 1;
-    int? parteDe(Trecho trecho) =>
-        trecho.parte < 0 ||
-            session.partes.elementAtOrNull(trecho.parte)?.scopeId ==
-                KeptScope.whole
+    int? parteDe(Trecho trecho) => trecho.parte < 0
         ? null
-        : trecho.parte + 1;
+        : switch (session.partes.elementAtOrNull(trecho.parte)) {
+            final parte? => KeptScope.numberOf(parte.scopeId),
+            null => trecho.parte + 1,
+          };
     final regravadas = [
       for (final (_, trecho)
           in [...session.btTrechosRegravados.indexed]..sort(

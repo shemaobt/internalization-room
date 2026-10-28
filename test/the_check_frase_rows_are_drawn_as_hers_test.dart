@@ -87,6 +87,13 @@ double _barra(WidgetTester tester, int n) => tester
     )
     .widthFactor!;
 
+List<String> _naLista(WidgetTester tester) => [
+  for (final texto in tester.widgetList<Text>(
+    find.descendant(of: find.byType(FraseList), matching: find.byType(Text)),
+  ))
+    texto.data ?? '',
+];
+
 void main() {
   testWidgets('a frase the room serves with no span fills its whole bar, '
       'not the sliver of a frase too short to see', (tester) async {
@@ -154,6 +161,101 @@ void main() {
       _barra(tester, 2),
       0.22,
       reason: 'a barra media 22,2%, uma fração que a dela arredonda',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase on the part the room numbers 3 reads «parte 3», not '
+      'its place in the list of parts', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-3',
+            startsMs: 0,
+            endsMs: 5000,
+            frase: 2,
+          ),
+        ],
+      ),
+      partes: [1, 3],
+    );
+
+    expect(
+      _naLista(tester),
+      ['FRASES TRADUZIDAS', '1', 'parte 1', '2', 'parte 3'],
+      reason:
+          'a frase da parte 3 dizia «parte 2», o lugar dela na lista, e não a '
+          'parte que a equipe gravou',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a «regravada» frase on the part the room numbers 3 reads '
+      '«parte 3» too', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-3',
+        scope: 'parte-3',
+        kind: 'ensaio',
+        ordinal: 3,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-velha-3',
+            startsMs: 0,
+            endsMs: 5000,
+          ),
+        ],
+      ),
+      partes: [1, 3],
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        '1',
+        'parte 1',
+        'parte 3',
+        'regravada — traduzam de novo',
+      ],
+      reason:
+          'a frase regravada da parte 3 dizia «parte 2», o lugar da parte na '
+          'lista',
     );
     closeTheRoom(container);
   });
