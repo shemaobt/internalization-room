@@ -97,7 +97,9 @@ class FacilitatorCircle extends StatelessWidget {
               key: ValueKey(glyph),
               opacity: 0.92,
               child: CustomPaint(
-                size: Size.square(size * 0.6),
+                size: Size.square(
+                  size * (glyph == CircleGlyph.hand ? 0.36 : 0.6),
+                ),
                 painter: CircleGlyphPainter(
                   glyph: glyph,
                   ink: canvas ? _herInk(colors) : ShemaBrand.branco,

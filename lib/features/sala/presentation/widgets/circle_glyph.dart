@@ -29,6 +29,43 @@ class CircleGlyphPainter extends CustomPainter {
     ..moveTo(22, -40)
     ..arcToPoint(const Offset(22, 40), radius: const Radius.circular(48));
 
+  static const _handBox = Rect.fromLTWH(0, 0, 24, 24);
+
+  static final _hand = Path()
+    ..moveTo(8.2, 11.5)
+    ..lineTo(8.2, 5.6)
+    ..relativeArcToPoint(
+      const Offset(2.4, 0),
+      radius: const Radius.circular(1.2),
+    )
+    ..relativeLineTo(0, 4.7)
+    ..relativeMoveTo(0, -5.6)
+    ..relativeArcToPoint(
+      const Offset(2.4, 0),
+      radius: const Radius.circular(1.2),
+    )
+    ..relativeLineTo(0, 5.6)
+    ..relativeMoveTo(0, -4.4)
+    ..relativeArcToPoint(
+      const Offset(2.4, 0),
+      radius: const Radius.circular(1.2),
+    )
+    ..relativeLineTo(0, 5)
+    ..relativeMoveTo(0, -3.4)
+    ..relativeArcToPoint(
+      const Offset(2.4, 0),
+      radius: const Radius.circular(1.2),
+    )
+    ..relativeLineTo(0, 6.4)
+    ..relativeCubicTo(0, 3.6, -2.3, 6, -5.8, 6)
+    ..relativeCubicTo(-2.6, 0, -4, -0.9, -5.3, -3)
+    ..relativeLineTo(-2, -3.3)
+    ..relativeArcToPoint(
+      const Offset(2.1, -1.3),
+      radius: const Radius.circular(1.25),
+    )
+    ..relativeLineTo(1.4, 2.1);
+
   void _fit(Canvas canvas, Size size, Rect box) {
     final scale = math.min(size.width / box.width, size.height / box.height);
     canvas
@@ -56,8 +93,18 @@ class CircleGlyphPainter extends CustomPainter {
               ..strokeWidth = 5.5
               ..strokeCap = StrokeCap.round,
           );
-      case CircleGlyph.team:
       case CircleGlyph.hand:
+        _fit(canvas, size, _handBox);
+        canvas.drawPath(
+          _hand,
+          Paint()
+            ..color = ink
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round,
+        );
+      case CircleGlyph.team:
         break;
     }
     canvas.restore();

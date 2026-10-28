@@ -115,4 +115,45 @@ void main() {
       }
     },
   );
+
+  testWidgets(
+    'a note being left shows her raised hand in azul at a third of the '
+    'circle, not the loudspeaker box',
+    (tester) async {
+      for (final (theme, azul) in [
+        (AppTheme.light, const Color(0xFF89AAA3)),
+        (AppTheme.dark, const Color(0xFF8FB1A9)),
+      ]) {
+        await _pumpCircle(
+          tester,
+          VoiceState.invite,
+          noteMode: true,
+          theme: theme,
+        );
+        expect(_painter(tester).glyph, CircleGlyph.hand);
+        expect(
+          tester.getSize(_glyph),
+          const Size(72, 72),
+          reason:
+              'a mão dela ocupa 60% do ícone, que ocupa 60% do círculo '
+              '(globals.css:121, :175): 36%, não a caixa inteira do som',
+        );
+        expect(_veil(tester), 0.92);
+        expect(
+          _glyph,
+          paints..path(
+            style: PaintingStyle.stroke,
+            strokeWidth: 1.5,
+            color: azul,
+            includes: const [Offset(14, 15), Offset(9, 8)],
+            excludes: const [Offset(12, 21), Offset(3, 3), Offset(20, 10)],
+          ),
+          reason:
+              '${theme.brightness.name}: a mão dela é um traço de 1.5 na caixa '
+              'de 24 (page.tsx:84-94) — a palma e o primeiro dedo onde ela '
+              'os desenhou — em azul (globals.css:174)',
+        );
+      }
+    },
+  );
 }
