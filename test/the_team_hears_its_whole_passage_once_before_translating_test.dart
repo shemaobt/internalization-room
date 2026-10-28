@@ -903,10 +903,10 @@ void main() {
 
       it.sala.startRetro();
       await waitFor(
-        'a tradução voltar',
+        'a tradução voltar ao seu veredito',
         () =>
             it.estado.stage == SalaStage.retro &&
-            it.estado.btPhase == BtPhase.playing &&
+            it.estado.btPhase == BtPhase.conferida &&
             !it.estado.awaitingTheGuide,
       );
       await settle();

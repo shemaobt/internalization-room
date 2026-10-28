@@ -7619,7 +7619,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station.answer(const TheBackTranslationOpened()) is! Retro) {
       return;
     }
-    final conferida = state.btPhase == BtPhase.conferida;
+    final conferida = state.btPhase == BtPhase.conferida || state.btChecked;
     // Before the write, not after: the mark belongs to the Rehearsal alone, and a row
     // saved for the retro must never carry one to restore.
     _leaveTheStepFor(const Retro());
@@ -7719,6 +7719,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return _dizerComoTraduzir(deixou);
       }
       _sairDaEspera();
+      if (conferida) {
+        state = state.copyWith(btPhase: BtPhase.conferida, btVeredito: true);
+        return;
+      }
       _tocarDoChaoNaoContado(emSilencio: naoOuvidas != null);
       return;
     }
