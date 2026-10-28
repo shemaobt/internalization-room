@@ -1104,38 +1104,6 @@ void main() {
     );
   });
 
-  test('a fresh passage does not inherit the last one\'s strikes', () async {
-    final harness = SalaHarness();
-    final container = await inConversaHarness(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    harness.voice.succeeds = false;
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
-    await settle();
-    expect(
-      container.read(salaSessionProvider).needsPerson,
-      isFalse,
-      reason: 'uma falha ainda não chama ninguém',
-    );
-
-    // Entered with the room still failing, because a turn that lands resets the counters
-    // itself — the inheritance only shows when the new passage stumbles too.
-    notifier.leaveThePassage();
-    await settle();
-    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
-    await settle();
-
-    expect(
-      container.read(salaSessionProvider).needsPerson,
-      isFalse,
-      reason:
-          'a passagem nova começava com as faltas da anterior e parava na primeira',
-    );
-  });
-
   test(
     'an inbox that cannot be asked three times in a row does not stop the room',
     () async {

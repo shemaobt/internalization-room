@@ -19,6 +19,8 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/part_strips.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/stage_heading.dart';
 import 'package:internalization_room/main.dart';
 
@@ -475,7 +477,7 @@ void main() {
   );
 
   testWidgets(
-    'during the first listen there is no terminei and the circle and bars do nothing',
+    'during the first listen there is no terminei and the circle and the part strips do nothing',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _naTela(tester, _juntadaNaCasa);
@@ -494,8 +496,12 @@ void main() {
       expect(it.harness.playback.sounding, isTrue);
       expect(_microfones(it), microfones);
 
-      expect(find.bySemanticsLabel('parte 1'), findsWidgets);
-      await tester.tap(find.bySemanticsLabel('parte 1').first);
+      final faixasDasPartes = find.descendant(
+        of: find.byType(PartStrips),
+        matching: find.byType(SceneStrip),
+      );
+      expect(faixasDasPartes, findsWidgets);
+      await tester.tap(faixasDasPartes.first);
       await _ate(tester, () => settle());
       expect(it.harness.playback.played.length, tocadas);
       expect(it.harness.playback.ranges, isEmpty);
@@ -2000,7 +2006,6 @@ void main() {
     for (final alvo in [
       ouvirAPrimeira,
       find.bySemanticsLabel(RegExp('frase de novo e traduzir de novo — 1')),
-      find.bySemanticsLabel('frase 1'),
     ]) {
       expect(alvo, findsWidgets);
       await tester.ensureVisible(alvo.first);

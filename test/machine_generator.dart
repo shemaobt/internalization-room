@@ -232,8 +232,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   LineArrived(:final line) => 'LineArrived(${describeLine(line)})',
   PlayerOpened() => 'PlayerOpened',
   PlayerEnded() => 'PlayerEnded',
-  PlayerFailed(:final source, :final sounding) =>
-    'PlayerFailed(${source.key}, ${describeKept(sounding)})',
+  PlayerFailed(:final source) => 'PlayerFailed(${source.key})',
   MicOpened(:final owner) => 'MicOpened(${owner.name})',
   MicClosed() => 'MicClosed',
   MicAnswered(:final answer) => 'MicAnswered(${answer.name})',
@@ -284,6 +283,9 @@ String describeEvent(MachineEvent event) => switch (event) {
     'LookFailed(${turn.turnId}, ${result.runtimeType}, '
         '${describeKept(sounding)})',
   TheOpeningMissed() => 'TheOpeningMissed',
+  TheReplyFailedToLoad(:final load, :final because, :final sounding) =>
+    'TheReplyFailedToLoad(load $load, ${because.runtimeType}, '
+        '${describeKept(sounding)})',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
   TheTellingCameBackEmpty(:final readAgain) =>
     'TheTellingCameBackEmpty(readAgain: $readAgain)',
@@ -409,6 +411,7 @@ enum EventKind {
   lookFailed,
   lookPending,
   theOpeningMissed,
+  theReplyFailedToLoad,
   thePassageCannotOpen,
   theTellingCameBackEmpty,
   theStepFailed,
@@ -489,6 +492,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   LookFailed() => EventKind.lookFailed,
   LookPending() => EventKind.lookPending,
   TheOpeningMissed() => EventKind.theOpeningMissed,
+  TheReplyFailedToLoad() => EventKind.theReplyFailedToLoad,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
   TheTellingCameBackEmpty() => EventKind.theTellingCameBackEmpty,
   TheStepFailed() => EventKind.theStepFailed,
@@ -568,6 +572,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.passageClosed ||
   EventKind.turnGivenUp ||
   EventKind.theOpeningMissed ||
+  EventKind.theReplyFailedToLoad ||
   EventKind.thePassageCannotOpen ||
   EventKind.theTellingCameBackEmpty ||
   EventKind.theStepFailed ||
@@ -681,10 +686,7 @@ MachineEvent _draw(
   ),
   EventKind.playerOpened => const PlayerOpened(),
   EventKind.playerEnded => const PlayerEnded(),
-  EventKind.playerFailed => PlayerFailed(
-    _drawASource(random),
-    sounding: _drawKept(random),
-  ),
+  EventKind.playerFailed => PlayerFailed(_drawASource(random)),
   EventKind.micOpened => MicOpened(
     MicOwner.values[random.nextInt(MicOwner.values.length)],
   ),
@@ -768,6 +770,12 @@ MachineEvent _draw(
     sounding: _drawKept(random),
   ),
   EventKind.theOpeningMissed => const TheOpeningMissed(),
+  EventKind.theReplyFailedToLoad => TheReplyFailedToLoad(
+    1 + random.nextInt(2),
+    answered: _unheard,
+    because: random.nextBool() ? null : const RoomNetworkFailed(),
+    sounding: _drawKept(random),
+  ),
   EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
   EventKind.theTellingCameBackEmpty => TheTellingCameBackEmpty(
     readAgain: random.nextBool(),
@@ -872,3 +880,5 @@ MachineEvent drawAnEvent(World world, Random random) {
   assert(kindOf(event) == kind);
   return event;
 }
+
+void _unheard(bool loadAgain) {}
