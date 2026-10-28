@@ -857,6 +857,47 @@ void main() {
     },
   );
 
+  testWidgets(
+    'an earlier note that reaches the facilitator while a later one\'s '
+    'microphone still closes does not free the dot\'s touch, and the later '
+    'note still goes out',
+    (tester) async {
+      final (harness, container) = await _atRest(tester);
+      harness.inbox
+        ..holdNextQuestion()
+        ..holdNextQuestion();
+      await sendANote(tester, container);
+      harness.recorder.holdNextStop();
+      await sendANote(tester, container);
+      harness.inbox.finishHeldQuestion();
+      await _theAnswerSettles(tester);
+      expect(harness.inbox.questionsSent, hasLength(1));
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(
+        container.read(salaSessionProvider).stage,
+        SalaStage.conversa,
+        reason:
+            'a primeira nota, ao chegar, soltava o toque enquanto o microfone '
+            'da segunda fechava',
+      );
+      harness.recorder.finishStop();
+      await _theAnswerSettles(tester);
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      expect(find.text(_planLine), findsOneWidget);
+      harness.inbox.finishHeldQuestion();
+      await _theAnswerSettles(tester);
+      expect(
+        harness.inbox.questionsSent,
+        hasLength(2),
+        reason: 'a segunda nota se perdeu no toque do ponto',
+      );
+    },
+  );
+
   testWidgets('a note whose sending breaks off brings the dot back', (
     tester,
   ) async {
