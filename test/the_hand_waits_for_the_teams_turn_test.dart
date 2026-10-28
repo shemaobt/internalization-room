@@ -22,7 +22,7 @@ import 'scenario_helpers.dart';
 
 const _raise = 'Deixar uma pergunta para o facilitador';
 const _hearTheAnswer = 'Ouvir a resposta do facilitador';
-const _tapToSpeak = 'Tocar para falar';
+const _tapToSpeak = 'Toque para falar';
 const _reply = HandReply(id: 'r1', audioUrl: '/resposta/r1');
 const _panorama = Passagem(
   pericope: 'panorama',

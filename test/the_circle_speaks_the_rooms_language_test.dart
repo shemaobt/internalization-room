@@ -46,7 +46,7 @@ void main() {
       expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
       expect(byLabel('Tap to speak'), findsOneWidget);
       expect(
-        byLabel('Tocar para falar'),
+        byLabel('Toque para falar'),
         findsNothing,
         reason:
             'o rótulo do círculo era sempre em português, mesmo com o '

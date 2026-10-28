@@ -37,7 +37,7 @@ class ConversaView extends ConsumerWidget {
             noteMode: session.noteMode,
             peerCue: session.peerCue,
             canvas: true,
-            semanticLabel: _circleLabel(session, language),
+            semanticLabel: circleLabelFor('default', language),
             onTap: notifier.conversaTap,
           ),
         ),
@@ -154,17 +154,6 @@ class ConversaView extends ConsumerWidget {
       VoiceState.listening || VoiceState.thinking || VoiceState.speaking => 0.6,
       _ => 1,
     };
-  }
-
-  String _circleLabel(SalaSessionState session, String language) {
-    if (session.voice == VoiceState.listening) {
-      return circleLabelFor('listening', language);
-    }
-    if (session.noteMode) return circleLabelFor('default', language);
-    if (isTeamTalk(peerCue: session.peerCue, voice: session.voice)) {
-      return circleLabelFor('teamTalk', language);
-    }
-    return circleLabelFor('default', language);
   }
 }
 

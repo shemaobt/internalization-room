@@ -317,6 +317,8 @@ String describeEvent(MachineEvent event) => switch (event) {
         'session: ${left.session}, said: ${left.said})',
   TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsHere) =>
     'TheRehearsalWeighed($everySceneHasItsPart, $everyPartIsHere)',
+  TheLeftPassageReturns(:final session, :final warned) =>
+    'TheLeftPassageReturns($session, warned: $warned)',
 };
 
 String describeLine(Line line) => '${line.kind.name}#${line.id}';
@@ -447,6 +449,7 @@ enum EventKind {
   theSessionLetGo,
   theWayBackTaken,
   theRehearsalWeighed,
+  theLeftPassageReturns,
 }
 
 EventKind kindOf(MachineEvent event) => switch (event) {
@@ -525,6 +528,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheSessionOpened() => EventKind.theSessionOpened,
   TheSessionLetGo() => EventKind.theSessionLetGo,
   TheWayBackTaken() => EventKind.theWayBackTaken,
+  TheLeftPassageReturns() => EventKind.theLeftPassageReturns,
   TheRehearsalWeighed() => EventKind.theRehearsalWeighed,
 };
 
@@ -603,7 +607,8 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theSessionOpened ||
   EventKind.theSessionLetGo ||
   EventKind.theWayBackTaken ||
-  EventKind.theRehearsalWeighed => true,
+  EventKind.theRehearsalWeighed ||
+  EventKind.theLeftPassageReturns => true,
 };
 
 Source _drawASource(Random random) => switch (random.nextInt(4)) {
@@ -819,6 +824,10 @@ MachineEvent _draw(
   ),
   EventKind.theSessionLetGo => TheSessionLetGo(_drawASession(random)),
   EventKind.theWayBackTaken => TheWayBackTaken(_drawAnEntryLeft(random)),
+  EventKind.theLeftPassageReturns => TheLeftPassageReturns(
+    _drawASession(random),
+    warned: world.serverHoldsAWarning,
+  ),
   EventKind.theRehearsalWeighed => TheRehearsalWeighed(
     everySceneHasItsPart: random.nextBool(),
     everyPartIsHere: random.nextBool(),

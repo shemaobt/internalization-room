@@ -1,13 +1,18 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -129,6 +134,38 @@ Future<void> _intoThePanorama(_Tablet tablet) async {
   await settle();
 }
 
+const _held = 'sessao-guardada';
+
+_Tablet _aTabletHolding(SalaStage stage, {List<KeptTake> takes = const []}) {
+  final harness = SalaHarness();
+  (harness.currentSession as FakeCurrentSessionLedger).held =
+      const CurrentSession(
+        sessionId: _held,
+        book: 'Ruth',
+        pericope: 'P01',
+        language: testLanguage,
+      );
+  harness.emAberto.rows['Ruth/P01/$testLanguage'] = ResumePoint(
+    sessionId: _held,
+    stage: stage,
+    takes: takes,
+  );
+  harness.room.openedSessions.add(_held);
+  final container = harness.container();
+  addTearDown(container.dispose);
+  return _Tablet(harness, container);
+}
+
+KeptTake _aPartHere() {
+  final home = Directory.systemTemp.createTempSync('sala-parte-aqui');
+  addTearDown(() => home.deleteSync(recursive: true));
+  return KeptTake(
+    scopeId: KeptScope.parte(1),
+    path: (File('${home.path}/p1.m4a')..writeAsBytesSync([1])).path,
+    takeId: 'gravacao-1',
+  );
+}
+
 void main() {
   test(
     'a relaunch asks the room for the session the tablet holds before anything else',
@@ -246,32 +283,182 @@ void main() {
     },
   );
 
-  test('a relaunch in the Rehearsal lands on the Rehearsal', () async {
-    final first = await _aTablet();
-    final it = Sala(first.harness, first.container);
-    await enterThePassage(first.notifier, () => first.state, 'P01');
-    await waitFor(
-      'the opening to be said',
-      () =>
-          first.state.sessionId != null &&
-          first.state.voice == VoiceState.invite,
-    );
-    final session = first.state.sessionId!;
-    it.sala.goEnsaio();
-    await gravarUmaParteDoEnsaio(it);
-    await settle();
+  test(
+    'a relaunch in the Rehearsal lands on its conversation at rest, never on '
+    'the recording home',
+    () async {
+      final first = await _aTablet();
+      final it = Sala(first.harness, first.container);
+      await enterThePassage(first.notifier, () => first.state, 'P01');
+      await waitFor(
+        'the opening to be said',
+        () =>
+            first.state.sessionId != null &&
+            first.state.voice == VoiceState.invite,
+      );
+      final session = first.state.sessionId!;
+      it.sala.goEnsaio();
+      await gravarUmaParteDoEnsaio(it);
+      await settle();
 
-    final again = await _relaunch(first);
-    await again.notifier.openTheRoom();
-    await waitFor(
-      'the team to land on the Rehearsal',
-      () => again.state.sessionId == session && again.state.station is Ensaio,
-    );
-    await settle();
+      final again = await _relaunch(first);
+      final before = again.harness.room.calls.length;
+      await again.notifier.openTheRoom();
+      await _landsOn(again, session);
 
-    expect(again.state.station, isA<Ensaio>());
-    expect(again.said, isEmpty);
-  });
+      expect(
+        again.state.station,
+        isA<Canvas>(),
+        reason: 'o relançamento voltava para a casa das gravações',
+      );
+      expect(again.state.roomSaysItAgain, isTrue);
+      expect(
+        again.harness.room.calls.skip(before),
+        isNot(contains('openSession')),
+      );
+      expect(again.said, isEmpty);
+    },
+  );
+
+  test(
+    'a relaunch in the Back-translation lands on its conversation at rest and '
+    'plays nothing',
+    () async {
+      final tablet = _aTabletHolding(SalaStage.retro, takes: [_aPartHere()]);
+
+      await tablet.notifier.openTheRoom();
+      await _landsOn(tablet, _held);
+
+      expect(
+        tablet.state.station,
+        isA<Canvas>(),
+        reason: 'o relançamento voltava para a retrotradução',
+      );
+      expect(tablet.state.roomSaysItAgain, isTrue);
+      expect(tablet.harness.playback.played, isEmpty);
+      expect(tablet.said, isEmpty);
+    },
+  );
+
+  test(
+    'a relaunch onto a checked Back-translation the room holds no parts for '
+    'lands on its conversation with «Ouvir de novo», not on the check',
+    () async {
+      final tablet = _aTabletHolding(SalaStage.retro);
+      tablet.harness.room.retroSoFar = const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 12000,
+          ),
+        ],
+        checked: true,
+      );
+
+      await tablet.notifier.openTheRoom();
+      await waitFor(
+        'the team to stop on the session',
+        () => tablet.state.sessionId == _held && !tablet.state.awaitingTheGuide,
+      );
+      await settle();
+
+      expect(
+        tablet.state.station,
+        isA<Canvas>(),
+        reason: 'o relançamento abria a retrotradução conferida',
+      );
+      expect(tablet.state.roomSaysItAgain, isTrue);
+      expect(tablet.said, isEmpty);
+    },
+  );
+
+  test(
+    'a relaunch onto a Rehearsal with no part yet lands on its conversation',
+    () async {
+      final tablet = _aTabletHolding(SalaStage.ensaio);
+
+      await tablet.notifier.openTheRoom();
+      await _landsOn(tablet, _held);
+
+      expect(
+        tablet.state.station,
+        isA<Canvas>(),
+        reason: 'o relançamento abria o ensaio vazio',
+      );
+      expect(tablet.state.roomSaysItAgain, isTrue);
+    },
+  );
+
+  test(
+    'a relaunch onto a Rehearsal whose parts left the tablet lands on its '
+    'conversation without fetching them, and the place still names them',
+    () async {
+      const gone = KeptTake(
+        scopeId: 'parte-1',
+        path: '/nao/existe/p1.m4a',
+        takeId: 'gravacao-1',
+      );
+      final tablet = _aTabletHolding(SalaStage.ensaio, takes: [gone]);
+      tablet.harness.room
+        ..takes.add(
+          const TakeView(
+            takeId: 'gravacao-1',
+            kind: 'ensaio',
+            scope: 'parte-1',
+            ordinal: 1,
+          ),
+        )
+        ..takeAudio['gravacao-1'] = Uint8List.fromList([7, 7]);
+
+      await tablet.notifier.openTheRoom();
+      await _landsOn(tablet, _held);
+      await settle(const Duration(milliseconds: 500));
+
+      expect(tablet.state.station, isA<Canvas>());
+      expect(
+        tablet.asked('fetchClip'),
+        0,
+        reason: 'o relançamento baixava as partes atrás da conversa',
+      );
+      final row = tablet.harness.emAberto.rows['Ruth/P01/$testLanguage'];
+      expect(
+        row?.stage,
+        SalaStage.ensaio,
+        reason: 'a parte baixada reescrevia o lugar como conversa',
+      );
+      expect(row?.takes.map((take) => take.takeId), ['gravacao-1']);
+    },
+  );
+
+  test(
+    'after a relaunch the orange dot opens the recording home with the parts '
+    'the tablet kept, and the place stands there with them',
+    () async {
+      final part = _aPartHere();
+      final tablet = _aTabletHolding(SalaStage.ensaio, takes: [part]);
+      await tablet.notifier.openTheRoom();
+      await _landsOn(tablet, _held);
+
+      tablet.notifier.openTheEnsaioFinal();
+      await waitFor(
+        'the recording home to open',
+        () => tablet.state.station == const Ensaio(),
+      );
+      await settle();
+
+      expect(tablet.state.station, const Ensaio());
+      expect(
+        tablet.state.partes.map((take) => take.path),
+        [part.path],
+        reason: 'a casa abria sem a parte guardada no tablet',
+      );
+      final row = tablet.harness.emAberto.rows['Ruth/P01/$testLanguage'];
+      expect(row?.stage, SalaStage.ensaio);
+      expect(row?.takes.map((take) => take.path), [part.path]);
+    },
+  );
 
   group('a relaunch into a session the room no longer knows', () {
     late _Tablet again;

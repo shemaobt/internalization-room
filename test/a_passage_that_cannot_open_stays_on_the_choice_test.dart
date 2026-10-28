@@ -101,8 +101,8 @@ void main() {
     );
   });
 
-  test('a failed open from the Choice keeps the way back to the passage the '
-      'team left, and asks the room for nothing else', () async {
+  test('a failed open from the Choice lays the passage the team left back on '
+      'its canvas, and asks the room for nothing else', () async {
     final harness = SalaHarness()..room.passages = _theBook;
     final container = harness.container();
     addTearDown(container.dispose);
@@ -131,14 +131,15 @@ void main() {
     await settle();
     await settle();
 
-    expect(read().station, isA<Menu>());
     expect(
-      read().theWayBackIsLive,
-      isTrue,
-      reason: 'o toque na P02 apagava o caminho de volta para a P01',
+      read().station,
+      isA<Canvas>(),
+      reason:
+          'a P02 que não abriu deixava a equipe na Escolha, a um toque da P01',
     );
-    expect(read().leftEntry?.pericope, 'P01');
-    expect(read().leftEntry?.session, p01);
+    expect(read().sessionId, p01);
+    expect(read().pericope, 'P01');
+    expect(read().voice, VoiceState.invite);
     expect(harness.room.calls.skip(before), ['createSession']);
   });
 
@@ -175,8 +176,8 @@ void main() {
     );
   });
 
-  test('a passage the room refuses keeps the way back to the passage the team '
-      'left', () async {
+  test('a passage the room refuses lays the passage the team left back on its '
+      'canvas, without reading the wheel again', () async {
     final harness = SalaHarness()..room.passages = _theBook;
     final container = harness.container();
     addTearDown(container.dispose);
@@ -195,6 +196,7 @@ void main() {
     );
     final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
     harness.room.passagesThatCannotOpen = {'P02'};
+    final before = harness.room.calls.length;
 
     notifier.openTheEntry(p02);
     await waitFor(
@@ -203,15 +205,18 @@ void main() {
           harness.room.calls.where((call) => call == 'createSession').length ==
           2,
     );
-    await waitFor('the Choice to come back', () => read().entriesOpen);
+    await settle();
+    await settle();
 
-    expect(read().station, isA<Menu>());
     expect(
-      read().theWayBackIsLive,
-      isTrue,
-      reason: 'a recusa da P02 apagava o caminho de volta para a P01',
+      read().station,
+      isA<Canvas>(),
+      reason: 'a recusa da P02 deixava a equipe na Escolha, a um toque da P01',
     );
-    expect(read().leftEntry?.session, p01);
+    expect(read().sessionId, p01);
+    expect(harness.room.calls.skip(before), [
+      'createSession',
+    ], reason: 'a recusa lia a roda de novo');
   });
 
   test('a passage that cannot open goes back to the Choice saying nothing and '
@@ -250,62 +255,70 @@ void main() {
     expect(read().voice, VoiceState.invite);
   });
 
-  test('a Panorama the room cannot be reached for leaves the team on the '
-      'Choice with the way back live, saying nothing, and its pill asks '
-      'again', () async {
-    final harness = SalaHarness()..room.passages = _theBook;
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    int said() =>
-        harness.voice.played.length +
-        harness.voice.assets.length +
-        harness.voice.fixedLines.length;
-    await enterThePassage(notifier, read, 'P01');
-    await waitFor(
-      'P01 to open',
-      () => read().sessionId != null && read().voice == VoiceState.invite,
-    );
-    notifier.leaveThePassage();
-    await waitFor(
-      'the way back to P01 to be live',
-      () => read().entriesOpen && read().theWayBackIsLive,
-    );
-    final panorama = read().naRoda!.firstWhere((entry) => entry.isPanorama);
-    final before = harness.room.calls.length;
-    final quiet = said();
-    harness.room.reachable = false;
+  test(
+    'a Panorama the room cannot be reached for lays the passage the team '
+    'left back on its canvas, saying nothing, and its pill asks again',
+    () async {
+      final harness = SalaHarness()..room.passages = _theBook;
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      int said() =>
+          harness.voice.played.length +
+          harness.voice.assets.length +
+          harness.voice.fixedLines.length;
+      await enterThePassage(notifier, read, 'P01');
+      await waitFor(
+        'P01 to open',
+        () => read().sessionId != null && read().voice == VoiceState.invite,
+      );
+      notifier.leaveThePassage();
+      await waitFor(
+        'the way back to P01 to be live',
+        () => read().entriesOpen && read().theWayBackIsLive,
+      );
+      final p01 = read().leftEntry?.session;
+      final panorama = read().naRoda!.firstWhere((entry) => entry.isPanorama);
+      final before = harness.room.calls.length;
+      final quiet = said();
+      harness.room.reachable = false;
 
-    notifier.openTheEntry(panorama);
-    await waitFor(
-      'the room to be asked',
-      () => harness.room.calls.skip(before).contains('createSession'),
-    );
-    await settle();
-    await settle();
+      notifier.openTheEntry(panorama);
+      await waitFor(
+        'the room to be asked',
+        () => harness.room.calls.skip(before).contains('createSession'),
+      );
+      await settle();
+      await settle();
 
-    expect(
-      read().station,
-      isA<Menu>(),
-      reason: 'a equipe ficava no Panorama sem sessão',
-    );
-    expect(read().entriesOpen, isTrue);
-    expect(read().theWayBackIsLive, isTrue);
-    expect(read().leftEntry?.pericope, 'P01');
-    expect(harness.room.calls.skip(before), ['createSession']);
-    expect(said(), quiet);
-    expect(read().needsPerson, isFalse);
+      expect(
+        read().station,
+        isA<Canvas>(),
+        reason:
+            'o Panorama que não abriu deixava a equipe na Escolha, a um toque da P01',
+      );
+      expect(read().sessionId, p01);
+      expect(read().pericope, 'P01');
+      expect(harness.room.calls.skip(before), ['createSession']);
+      expect(said(), quiet);
+      expect(read().needsPerson, isFalse);
 
-    harness.room.reachable = true;
-    notifier.openTheEntry(panorama);
-    await waitFor(
-      'the Panorama to open',
-      () => read().panoramaSessionId != null,
-    );
+      harness.room.reachable = true;
+      notifier.leaveThePassage();
+      await waitFor(
+        'the way back to P01 to be live again',
+        () => read().entriesOpen && read().theWayBackIsLive,
+      );
+      notifier.openTheEntry(panorama);
+      await waitFor(
+        'the Panorama to open',
+        () => read().panoramaSessionId != null,
+      );
 
-    expect(read().station, isA<Panorama>());
-  });
+      expect(read().station, isA<Panorama>());
+    },
+  );
 
   test('a Panorama opened from its pill no longer holds the way back to the '
       'passage left before it', () async {
