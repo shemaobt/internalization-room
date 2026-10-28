@@ -369,27 +369,32 @@ void main() {
     ]);
   });
 
-  test('sair de «Ouvir tudo» depois da parte 2 conta só as duas', () async {
-    final it = await umEnsaioDeTresPartesGravado();
+  test(
+    'sair de «Ouvir tudo» depois da parte 2 conta as duas e o que soou da terceira',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
 
-    it.sala.ouvirTudo();
-    await ouvirAteOFim(it, partesDoEnsaio[0]);
-    await ouvirAteOFim(it, partesDoEnsaio[1]);
-    await theClipOpens(it.harness);
-    it.sala.sairDoOuvirTudo();
+      it.sala.ouvirTudo();
+      await ouvirAteOFim(it, partesDoEnsaio[0]);
+      await ouvirAteOFim(it, partesDoEnsaio[1]);
+      await theClipOpens(it.harness);
+      it.harness.playback.at = const Duration(seconds: 4);
+      it.sala.sairDoOuvirTudo();
 
-    expect(it.estado.ouvirTudo, OuvirTudo.fora);
-    expect(it.harness.playback.sounding, isFalse);
-    expect(it.harness.room.listeningReports.last, [
-      for (var n = 0; n < 2; n++)
-        _ouvida(
-          it.partes[n].takeId!,
-          0,
-          partesDoEnsaio[n].inMilliseconds,
-          partesDoEnsaio[n].inMilliseconds,
-        ),
-    ]);
-  });
+      expect(it.estado.ouvirTudo, OuvirTudo.fora);
+      expect(it.harness.playback.sounding, isFalse);
+      expect(it.harness.room.listeningReports.last, [
+        for (var n = 0; n < 2; n++)
+          _ouvida(
+            it.partes[n].takeId!,
+            0,
+            partesDoEnsaio[n].inMilliseconds,
+            partesDoEnsaio[n].inMilliseconds,
+          ),
+        _ouvida(it.partes[2].takeId!, 0, 4000, 8000),
+      ]);
+    },
+  );
 
   testWidgets('o app que vai para o fundo manda um relato', (tester) async {
     late Sala it;
