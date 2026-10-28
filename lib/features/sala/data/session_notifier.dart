@@ -9202,7 +9202,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _parteTocando,
         parte.path,
         from: Duration(
-          milliseconds: state.btOuvidoMs - _inicioDaParteMs(_parteTocando),
+          milliseconds: max(
+            0,
+            state.btOuvidoMs - _inicioDaParteMs(_parteTocando),
+          ),
         ),
       ),
       started: false,
