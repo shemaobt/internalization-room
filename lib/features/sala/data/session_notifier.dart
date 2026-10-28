@@ -6896,6 +6896,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _voltarAoEnsaio();
   }
 
+  void ouvirTudo() => _gesture(() => _ouvirTudo());
+
+  void _ouvirTudo() {
+    if (state.station is! Ensaio || !state.canOuvirTudo) return;
+    _silenceTheRoom();
+    state = state.copyWith(ouvirTudo: OuvirTudo.ouvindo);
+    _playAll([
+      for (var parte = 0; parte < state.partes.length; parte++)
+        ..._osSonsDaParte(parte),
+    ], onComplete: _acabouDeOuvirTudo);
+  }
+
+  void _acabouDeOuvirTudo() =>
+      state = state.copyWith(ouvirTudo: OuvirTudo.acabou);
+
+  void sairDoOuvirTudo() => _gesture(() => _sairDoOuvirTudo());
+
+  void _sairDoOuvirTudo() {
+    if (state.ouvirTudo == OuvirTudo.fora) return;
+    _silenceTheRoom();
+    state = state.copyWith(ouvirTudo: OuvirTudo.fora);
+    _relatarAEscuta();
+  }
+
   void playTheRehearsal() => _gesture(() => _playTheRehearsal());
 
   void _playTheRehearsal() {
