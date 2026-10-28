@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
-import 'corner_disc.dart';
 
 class WayBackButton extends ConsumerWidget {
   final SalaStage stage;
@@ -44,7 +44,11 @@ class WayBackButton extends ConsumerWidget {
                 width: 46,
                 height: 46,
                 child: Center(
-                  child: CornerDisc(glyph: LucideIcons.chevronLeft),
+                  child: Icon(
+                    LucideIcons.chevronLeft,
+                    size: 22,
+                    color: ShemaBrand.verdeClaro,
+                  ),
                 ),
               ),
             ),

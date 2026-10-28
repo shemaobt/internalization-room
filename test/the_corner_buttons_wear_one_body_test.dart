@@ -47,8 +47,8 @@ class _Room {
   SalaSessionState get state => container.read(salaSessionProvider);
 }
 
-Future<_Room> _pump(WidgetTester tester, {bool memory = false}) async {
-  final harness = SalaHarness(lingua: 'en', filaEmMemoria: memory);
+Future<_Room> _pump(WidgetTester tester) async {
+  final harness = SalaHarness(lingua: 'en');
   harness.room.passages = _theBook;
   return _Room(await pumpSala(tester, harness));
 }
@@ -180,19 +180,6 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(room.state.stage, SalaStage.escolha);
-  });
-
-  testWidgets('the way out carried in a stage heading wears the same body', (
-    tester,
-  ) async {
-    final room = await _pump(tester, memory: true);
-    await _takeThePassage(tester, room);
-    room.notifier.goEnsaio();
-    await _passTime(tester, 300);
-    await tester.pump(const Duration(seconds: 2));
-
-    expect(room.state.stage, SalaStage.ensaio);
-    _wearsTheBody(tester, _back, LucideIcons.chevronLeft);
   });
 
   testWidgets(
