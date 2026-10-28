@@ -1254,6 +1254,35 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets(
+      'from the tap, while its clip still comes down from the room, as hers',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final (harness, _) = await _seeded(tester, _oneEach);
+        await _openThePlan(tester);
+        harness.room.holdNextClip();
+
+        await tester.tap(_playOn(1));
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(harness.playback.sounding, isFalse);
+        expect(
+          _glyphOn(tester, _playOn(1)),
+          LucideIcons.pause,
+          reason: 'o dela marca tocando no toque, antes do áudio carregar',
+        );
+        expect(_pressedAt(tester, _playOn(1)), Tristate.isTrue);
+
+        harness.room.finishHeldClip();
+        await _theAnswerSettles(tester);
+
+        expect(harness.playback.sounding, isTrue);
+        expect(_glyphOn(tester, _playOn(1)), LucideIcons.pause);
+        expect(_pressedAt(tester, _playOn(1)), Tristate.isTrue);
+        semantics.dispose();
+      },
+    );
+
     testWidgets('and only that row, so a tap on another moves it there', (
       tester,
     ) async {
