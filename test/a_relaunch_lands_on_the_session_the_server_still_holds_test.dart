@@ -136,8 +136,6 @@ Future<void> _intoThePanorama(_Tablet tablet) async {
 
 const _held = 'sessao-guardada';
 
-/// A tablet holding [_held] as its current session, with a resume point on [stage] naming
-/// [takes].
 _Tablet _aTabletHolding(SalaStage stage, {List<KeptTake> takes = const []}) {
   final harness = SalaHarness();
   (harness.currentSession as FakeCurrentSessionLedger).held =
@@ -158,7 +156,6 @@ _Tablet _aTabletHolding(SalaStage stage, {List<KeptTake> takes = const []}) {
   return _Tablet(harness, container);
 }
 
-/// Part one of the rehearsal, still on this tablet.
 KeptTake _aPartHere() {
   final home = Directory.systemTemp.createTempSync('sala-parte-aqui');
   addTearDown(() => home.deleteSync(recursive: true));
