@@ -244,6 +244,44 @@ void main() {
     );
   });
 
+  test('a fail-safe line whose sound fails to load once is downloaded afresh '
+      'for its reload', () async {
+    final harness = SalaHarness();
+    final room = await _onTheCanvas(harness);
+    harness.room
+      ..turnsAreCanned = true
+      ..fixedLine = 'A2';
+    harness.voice.failsToLoad['A2'] = 1;
+
+    await _theTeamSpeaks(room);
+    await _theRoomRests(room);
+
+    expect(
+      harness.voice.fixedLinesFetched.where((line) => line.$1 == 'A2'),
+      hasLength(2),
+    );
+  });
+
+  test('a second «Ouvir de novo» while a replay waits for its reload does '
+      'nothing, and the reply plays once, from its reload', () async {
+    final harness = SalaHarness(soundReload: const Duration(milliseconds: 400));
+    final room = await _onTheCanvas(harness);
+    harness.room.replyUrl = _theReply;
+    await _theTeamSpeaks(room);
+    await _theRoomRests(room);
+    harness.voice.failsToLoad[_theReply] = 1;
+
+    unawaited(room.sala.hearAgain());
+    await waitFor('a repetição falhar', () => room.timesPlayed(_theReply) == 2);
+    await settle();
+    unawaited(room.sala.hearAgain());
+    await settle(const Duration(milliseconds: 600));
+    await _theRoomRests(room);
+
+    expect(room.timesPlayed(_theReply), 3);
+    expect(room.state.needsPerson, isFalse);
+  });
+
   test('after a sign the team cleared, the next reply that fails to load once '
       'is loaded again, with no sign', () async {
     final harness = SalaHarness();

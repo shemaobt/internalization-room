@@ -268,10 +268,18 @@ class FakeVoice implements FacilitatorVoiceService {
     return ready;
   }
 
+  /// Fixed lines brought down; the real service keeps a fixed line's address until it
+  /// is forgotten.
+  final List<(String, String)> fixedLinesFetched = [];
+  final Set<(String, String)> _fixedLinesBroughtDown = {};
+
   @override
   Future<bool> readyFixedLine(String line, String language) async {
     readied.add((line, language));
+    if (_fixedLinesBroughtDown.contains((line, language))) return true;
+    fixedLinesFetched.add((line, language));
     await _fetching?.future;
+    if (succeeds) _fixedLinesBroughtDown.add((line, language));
     return succeeds;
   }
 
@@ -296,7 +304,8 @@ class FakeVoice implements FacilitatorVoiceService {
   }
 
   @override
-  Future<void> forgetFixedLine(String line, String language) async {}
+  Future<void> forgetFixedLine(String line, String language) async =>
+      _fixedLinesBroughtDown.remove((line, language));
 
   @override
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
