@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
@@ -95,6 +96,23 @@ Future<ProviderContainer> aprovadaNaConferida(
     step: () => _passo(tester),
   );
   await tester.tap(byLabel(caminho.pronto));
+  await tester.pump(const Duration(milliseconds: 800));
+  final sala = container.read(salaSessionProvider.notifier);
+  harness.room.readsChecked = true;
+  sala.openTheEnsaioFinal();
+  await waitFor(
+    'a casa da gravação abrir pelo ponto',
+    () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
+    step: () => _passo(tester),
+  );
+  await tester.pump(const Duration(milliseconds: 800));
+  sala.startRetro();
+  await waitFor(
+    'a retrotradução aprovada voltar conferida',
+    () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+    step: () => _passo(tester),
+  );
+  harness.room.readsChecked = false;
   await tester.pump(const Duration(milliseconds: 800));
   return container;
 }

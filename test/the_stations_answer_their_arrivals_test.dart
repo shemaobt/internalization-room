@@ -204,6 +204,16 @@ void main() {
       _expectTheArrival(const Retro(), const TheRoomStartedOver(), isA<Menu>());
     });
 
+    test('both recording screens leave for the conversation, the '
+        'Back-translation as much as the home', () {
+      _expectTheArrival(
+        const Ensaio(),
+        const TheRecordingLeft(),
+        isA<Canvas>(),
+      );
+      _expectTheArrival(const Retro(), const TheRecordingLeft(), isA<Canvas>());
+    });
+
     test('the Closing', () {
       _expectTheArrival(const Fim(), const TheRoomStartedOver(), isA<Menu>());
       _expectTheArrival(const Fim(), const TheChoiceOpened(), isA<Menu>());

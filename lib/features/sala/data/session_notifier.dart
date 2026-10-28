@@ -10578,6 +10578,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void pronto() => _gesture(() {
     if (state.ensaioSalvo == null) return;
     state = state.copyWith(clearEnsaioSalvo: true);
+    _arriveAt(const TheRecordingLeft());
+    _landWhereTheyStopped();
   });
 
   /// The room is already silent — the press silenced it — and the last listening of a
