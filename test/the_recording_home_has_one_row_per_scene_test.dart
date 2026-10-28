@@ -1702,4 +1702,33 @@ void main() {
     await _tocar(tester, _naLinha(1, _parar));
     closeTheRoom(container);
   });
+
+  testWidgets('the grain switch rests while a take is on its way to the room', (
+    tester,
+  ) async {
+    final harness = SalaHarness()..room.holdNextTake(KeptScope.parte(1));
+    final container = await _naCasaDoEnsaio(tester, harness: harness);
+    await tester.pump(const Duration(seconds: 1));
+    var chegou = false;
+    unawaited(harness.room.untilTakeHeld().then((_) => chegou = true));
+
+    await _gravarNaLinha(tester, 1);
+    await waitFor(
+      'a gravação chegar à porta',
+      () => chegou,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+
+    expect(
+      tester
+          .widget<Semantics>(byLabel(_gravarAPassagemInteira))
+          .properties
+          .enabled,
+      isFalse,
+      reason: 'a troca do grão ficava viva com a gravação a caminho da sala',
+    );
+    harness.room.finishHeldTake();
+    await letTheRehearsalReachTheRoom(tester);
+    closeTheRoom(container);
+  });
 }

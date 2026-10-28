@@ -1042,7 +1042,10 @@ class SalaSessionState {
 
   bool get homeBusy => swapping != null;
 
-  bool get nothingStartsNow => ensaio != EnsaioStatus.idle || grainSwitching;
+  bool get nothingStartsNow =>
+      ensaio != EnsaioStatus.idle ||
+      _theTakeInTheAirOf(partTakeKind) != null ||
+      grainSwitching;
 
   /// Each Scene row's plan row and what it offers on the recording home, by number, from
   /// the scene-rehearsal listing the home last read.
