@@ -1356,6 +1356,9 @@ class FakeRoom implements RoomRepository {
   /// hears them: the one knob that lets a resend meet a key still in flight.
   final List<RoomFailure> chunkAnswersFirst = [];
 
+  /// The tablet cannot read the stretch's recording as it goes up.
+  FileSystemException? chunkThrows;
+
   /// The `Idempotency-Key` every stretch told back carried, in order, the ones that
   /// never reached the room included.
   final List<String> chunkKeys = [];
@@ -3127,6 +3130,7 @@ class FakeRoom implements RoomRepository {
     required String idempotencyKey,
   }) async {
     chunkKeys.add(idempotencyKey);
+    if (chunkThrows case final thrown?) throw thrown;
     if (_guard('sendChunk') case final failure?) return failure;
     if (_forgot('sendChunk', sessionId) case final gone?) {
       return gone;

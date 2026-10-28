@@ -23,9 +23,10 @@ const _manifest = 'fila.json';
 
 const takeUploadAttempts = 3;
 
-const retroUploadAttempts = 5;
-
 const sentenceKind = 'frase';
+
+/// The kind an older build gave the Back-translation's stretches in the Outbox.
+const _theBackTranslationsOldKind = 'retro';
 
 const largestTakeTheRoomKeeps = 25 * 1024 * 1024;
 
@@ -151,8 +152,7 @@ class PendingTake {
     this.overTake,
   });
 
-  int get budget =>
-      kind == retroKind ? retroUploadAttempts : takeUploadAttempts;
+  int get budget => takeUploadAttempts;
 
   bool get exhausted => attempts >= budget;
 
@@ -553,8 +553,7 @@ class TakeUploadQueue {
           : unsentParts.values.fold(0, (count, rows) => count + rows.length),
       unsentChunks: written == null
           ? 1
-          : _unsentIn(written, retroKind, sessionId) +
-                _unsentIn(written, sentenceKind, sessionId),
+          : _unsentIn(written, sentenceKind, sessionId),
       unsentParts: unsentParts,
       goneParts: await _gonePartsIn(written, sessionId),
     );
@@ -882,6 +881,7 @@ class TakeUploadQueue {
     _stopped = false;
     final List<PendingTake> rows;
     try {
+      await _sweepTheOldBackTranslations();
       rows = await waiting(withTheCodeless: withTheCodeless);
     } on PathNotFoundException {
       return 0;
@@ -1002,8 +1002,7 @@ class TakeUploadQueue {
             await _deleteTheCopy(entry);
             _sessionsGone.add(entry.sessionId);
             return _Landing.held;
-          case NetworkFailed()
-              when entry.kind == retroKind || entry.origin != null:
+          case NetworkFailed() when entry.origin != null:
             if (_stopped) return await _theTeamStopped(sent);
             _fellOnTheNetwork();
             await _settleWith(
@@ -1244,6 +1243,24 @@ class TakeUploadQueue {
       ];
     });
     return found;
+  }
+
+  /// A Back-translation stretch is never queued: one an older build left is a stale
+  /// translation, and it leaves with its copy before anything is sent.
+  Future<void> _sweepTheOldBackTranslations() async {
+    bool old(PendingTake entry) => entry.kind == _theBackTranslationsOldKind;
+    if (!(await _written() ?? const <PendingTake>[]).any(old)) return;
+    final swept = <PendingTake>[];
+    await _mutate((written) {
+      swept.addAll(written.where(old));
+      return [
+        for (final entry in written)
+          if (!old(entry)) entry,
+      ];
+    });
+    for (final entry in swept) {
+      await _deleteTheCopy(entry);
+    }
   }
 
   Future<void> _deleteTheCopy(PendingTake entry) async {

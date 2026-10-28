@@ -679,10 +679,10 @@ void main() {
       const TheTellingCameBackEmpty(readAgain: true, generation: 4),
     ),
     (
-      'a sent rehearsal met at the frase door reads the list again',
+      'a frase refused because another tablet already sent the scene rehearsal says it went to the voice',
       const RoomRefused(RefusalCode.sceneRehearsalSent),
-      _notATurn(door: Door.sceneFrase),
-      const TheSceneDoorFailed(readAgain: true, generation: 4),
+      _at(const SceneRehearsal(), door: Door.sceneFrase),
+      const TheSceneWentAlready(generation: 4),
     ),
     (
       'a frase refused as out of place reads the list again',
@@ -712,6 +712,48 @@ void main() {
       'a frase refused as forbidden is a frase not understood, never the person sign',
       const RoomRefused(RefusalCode.forbidden),
       _notATurn(door: Door.sceneFrase),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a frase whose wait timed out is a frase not understood, never a silent step',
+      const RoomTimedOut(),
+      _at(const SceneRehearsal(), door: Door.sceneFrase),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a frase the room found nothing for is a frase not understood, never the person sign',
+      const RoomFoundNothing(),
+      _at(const SceneRehearsal(), door: Door.sceneFrase),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a frase answered without a reply is a frase not understood, never the person sign',
+      const RoomAnsweredWithoutAReply(),
+      _at(const SceneRehearsal(), door: Door.sceneFrase),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a telling whose wait timed out is a telling not understood, never a silent step',
+      const RoomTimedOut(),
+      _notATurn(door: Door.telling),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a telling the room found nothing for is a telling not understood, never a halt',
+      const RoomFoundNothing(),
+      _notATurn(door: Door.telling),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a telling answered without a reply is a telling not understood, never a halt',
+      const RoomAnsweredWithoutAReply(),
+      _notATurn(door: Door.telling),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a telling refused for any other reason is a telling not understood, never a silent step',
+      RoomRefused(RefusalCode.unnamed(422)),
+      _notATurn(door: Door.telling),
       const TheTellingCameBackEmpty(generation: 4),
     ),
     (

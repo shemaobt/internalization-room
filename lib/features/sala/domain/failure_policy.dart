@@ -171,7 +171,19 @@ abstract final class FailurePolicy {
           when context.door == Door.sceneFrase &&
               rule == RefusalRule.readsTheListAgain =>
         TheTellingCameBackEmpty(readAgain: true, generation: generation),
-      RoomNetworkFailed() when context.door == Door.sceneFrase =>
+      RoomNetworkFailed() ||
+      RoomTimedOut() ||
+      RoomFoundNothing() ||
+      RoomAnsweredWithoutAReply() when context.door == Door.sceneFrase =>
+        TheTellingCameBackEmpty(generation: generation),
+      RoomRefused(code: RefusalCode.sceneRehearsalSent)
+          when context.door == Door.sceneFrase =>
+        TheSceneWentAlready(generation: generation),
+      RoomNetworkFailed() ||
+      RoomTimedOut() ||
+      RoomFoundNothing() ||
+      RoomAnsweredWithoutAReply() ||
+      RoomRefused() when context.door == Door.telling =>
         TheTellingCameBackEmpty(generation: generation),
       RoomRefused() when turn != null && theAnswerWasLost(result, rule) =>
         TurnGivenUp(turn, sounding: sounding, generation: generation),
@@ -224,8 +236,6 @@ abstract final class FailurePolicy {
           when context.station is SceneRehearsal =>
         TheSceneTurnFoundNothing(generation: generation),
       RoomFoundNothing() || RoomAnsweredWithoutAReply() => halt,
-      RoomNetworkFailed() when context.door == Door.telling =>
-        TheTellingCameBackEmpty(generation: generation),
       RoomNetworkFailed() when rule == RefusalRule.asksAgain =>
         TheCallWasRefused(generation: generation),
       RoomNetworkFailed() => NetworkFailedAt(

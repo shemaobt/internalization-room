@@ -701,7 +701,7 @@ MachineEvent _draw(
       row: 'linha-${random.nextInt(3)}',
       keep: (
         session: _drawASession(random),
-        kind: const ['ensaio', 'cena', 'retro'][random.nextInt(3)],
+        kind: const ['ensaio', 'cena'][random.nextInt(2)],
         scope: 'parte-${random.nextInt(3) + 1}',
         since: DateTime.utc(2026, 10, 22, 9, 0, random.nextInt(60)),
       ),
