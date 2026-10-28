@@ -250,6 +250,24 @@ void main() {
       expect(machine.halt, const NoHalt());
     });
 
+    test('a stretch over a part the room has not named yet is a telling not '
+        'understood, never a halt', () {
+      _decidesOnTheTablet(
+        const TheStretchHasNoPartYet(),
+        _notATurn(door: Door.telling),
+        const TheTellingCameBackEmpty(generation: 4),
+      );
+    });
+
+    test('a stretch whose recording the tablet cannot read is a telling not '
+        'understood, never a halt', () {
+      _decidesOnTheTablet(
+        const TheStretchCannotBeRead(),
+        _notATurn(door: Door.telling),
+        const TheTellingCameBackEmpty(generation: 4),
+      );
+    });
+
     test('the reply\'s sound failing once brings nothing; twice brings the '
         'person sign', () {
       final context = _at(const Canvas(), sounding: const ThePart());
@@ -679,10 +697,10 @@ void main() {
       const TheTellingCameBackEmpty(readAgain: true, generation: 4),
     ),
     (
-      'a sent rehearsal met at the frase door reads the list again',
+      'a frase refused because another tablet already sent the scene rehearsal says it went to the voice',
       const RoomRefused(RefusalCode.sceneRehearsalSent),
-      _notATurn(door: Door.sceneFrase),
-      const TheSceneDoorFailed(readAgain: true, generation: 4),
+      _at(const SceneRehearsal(), door: Door.sceneFrase),
+      const TheSceneWentAlready(generation: 4),
     ),
     (
       'a frase refused as out of place reads the list again',
@@ -713,6 +731,68 @@ void main() {
       const RoomRefused(RefusalCode.forbidden),
       _notATurn(door: Door.sceneFrase),
       const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a frase whose wait timed out is a frase not understood, never a silent step',
+      const RoomTimedOut(),
+      _at(const SceneRehearsal(), door: Door.sceneFrase),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a frase the room found nothing for is a frase not understood, never the person sign',
+      const RoomFoundNothing(),
+      _at(const SceneRehearsal(), door: Door.sceneFrase),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a frase answered without a reply is a frase not understood, never the person sign',
+      const RoomAnsweredWithoutAReply(),
+      _at(const SceneRehearsal(), door: Door.sceneFrase),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a telling whose wait timed out is a telling not understood, never a silent step',
+      const RoomTimedOut(),
+      _notATurn(door: Door.telling),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a telling the room found nothing for is a telling not understood, never a halt',
+      const RoomFoundNothing(),
+      _notATurn(door: Door.telling),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a telling answered without a reply is a telling not understood, never a halt',
+      const RoomAnsweredWithoutAReply(),
+      _notATurn(door: Door.telling),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a telling refused for any other reason is a telling not understood, never a silent step',
+      RoomRefused(RefusalCode.unnamed(422)),
+      _notATurn(door: Door.telling),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
+      'a translation again whose wait timed out is not understood and reads the list',
+      const RoomTimedOut(),
+      _at(
+        const SceneRehearsal(),
+        door: Door.sceneFrase,
+        rule: RefusalRule.readsTheListAgain,
+      ),
+      const TheTellingCameBackEmpty(readAgain: true, generation: 4),
+    ),
+    (
+      'a translation again the room found nothing for is not understood and reads the list',
+      const RoomFoundNothing(),
+      _at(
+        const SceneRehearsal(),
+        door: Door.sceneFrase,
+        rule: RefusalRule.readsTheListAgain,
+      ),
+      const TheTellingCameBackEmpty(readAgain: true, generation: 4),
     ),
     (
       'a call that is not a turn whose session is gone is the session gone',

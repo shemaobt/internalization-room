@@ -71,6 +71,7 @@ class RoundActionButton extends StatelessWidget {
   final BoxBorder? border;
   final List<BoxShadow>? shadows;
   final String semanticLabel;
+  final bool? toggled;
   final VoidCallback? onLongPress;
   final ButtonMood mood;
   final Color halo;
@@ -80,6 +81,7 @@ class RoundActionButton extends StatelessWidget {
     required this.size,
     required this.onTap,
     required this.semanticLabel,
+    this.toggled,
     this.child,
     this.label,
     this.gradient,
@@ -99,6 +101,7 @@ class RoundActionButton extends StatelessWidget {
   Widget _button(double t) => Semantics(
     button: true,
     enabled: _live,
+    toggled: toggled,
     label: semanticLabel,
     child: label == null
         ? _disc(t)

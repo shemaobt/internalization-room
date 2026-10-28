@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint) and 0103 (2026-10-20: a take refused for good is told by its row, not the voice)
+status: accepted, amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint) and 0103 (2026-10-20: a take refused for good is told by its row, not the voice), and 0131 (2026-10-22: a take is confirmed only when the room's list holds it)
 date: 2026-10-16
 amends: 0083, 0025
 ---
@@ -25,6 +25,10 @@ across failures and relaunches. It also kept every row the room had stored, for 
 - **The scene take goes up through the Outbox,** as a row of kind `cena` with its scene
   label, leaving through the scene-rehearsal keep door. The rows of one session leave in
   the order recorded, as a part's do (ADR 0025); a row refused for good holds nothing.
+- **On a pass, the scene takes go first,** in the order recorded, then the parts
+  (ENG-1424, 22 October). A scene take recorded during a pass goes first on the next one;
+  the pass is not re-sorted after each upload. Holding is unchanged: a scene take waits only behind an
+  earlier scene take of its session, and a part never waits behind a scene take.
 - **The confirmation is the keep door's answer with the rehearsal.** The tablet announces
   no size or duration: the room measures the take, checks the bytes it stored, and gives
   the same bytes sent twice the same rehearsal, so a resend after a lost answer never mints

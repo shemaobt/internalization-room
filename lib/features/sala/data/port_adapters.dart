@@ -166,6 +166,9 @@ class ProviderStorePort implements StorePort {
       _ref.read(takeUploadQueueProvider).flush(withTheCodeless: true);
 
   @override
+  void stopTheSend(String row) => _ref.read(takeUploadQueueProvider).stop(row);
+
+  @override
   Future<CurrentSession?> currentSession() =>
       _ref.read(currentSessionLedgerProvider).read();
 
