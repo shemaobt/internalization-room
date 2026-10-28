@@ -2251,28 +2251,35 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _handOff(
-      _openedFromTheChoice(
-        () => goConversa(book: entry.book, pericope: entry.pericope),
+      _gestureThen(
+        () => _openedFromTheChoice(
+          () => _goConversa(book: entry.book, pericope: entry.pericope),
+        ),
       ),
     );
   }
 
   Future<void> _openedFromTheChoice(Future<void> Function() open) async {
-    final opening = open();
+    final opening = open().catchError(
+      (Object error, StackTrace stack) => debugPrint('$error\n$stack'),
+      test: (error) => error is Error && _theOpenBroughtNoSession,
+    );
     final generation = _generation;
     await opening;
     final left = state.passageLeft;
     if (left != null) state = state.copyWith(clearPassageLeft: true);
     if (_generation != generation || state.needsPerson) return;
-    final unopened = switch (state.station) {
-      Canvas() => state.sessionId == null,
-      Panorama() => state.panoramaSessionId == null,
-      _ => false,
-    };
+    final unopened = _theOpenBroughtNoSession;
     if (!unopened) return;
     if (left != null) return _bringBackThePassageLeft(left);
     _arriveAtTheChoice();
   }
+
+  bool get _theOpenBroughtNoSession => switch (state.station) {
+    Canvas() => state.sessionId == null,
+    Panorama() => state.panoramaSessionId == null,
+    _ => false,
+  };
 
   void _arriveAtTheChoice() {
     if (state.station is! Menu) {
