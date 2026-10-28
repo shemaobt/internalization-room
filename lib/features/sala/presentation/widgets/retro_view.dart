@@ -664,18 +664,7 @@ class RetroView extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 24),
-            if (session.approvedDraftDrawn case final aprovado?)
-              Text(
-                retroLabelFor('approvedDraft', language, n: aprovado.version),
-                style: TextStyle(
-                  color: colors.ink,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            if (session.approvedDraftDrawn == null ||
-                session.approvalStillOpen) ...[
-              if (session.approvedDraftDrawn != null) const SizedBox(width: 24),
+            if (session.approvedDraftDrawn == null || session.approvalStillOpen)
               RoundActionButton(
                 size: 60,
                 semanticLabel: retroLabelFor('approve', language),
@@ -686,6 +675,16 @@ class RetroView extends ConsumerWidget {
                   LucideIcons.check,
                   size: 24,
                   color: ShemaBrand.branco,
+                ),
+              ),
+            if (session.approvedDraftDrawn case final aprovado?) ...[
+              if (session.approvalStillOpen) const SizedBox(width: 24),
+              Text(
+                retroLabelFor('approvedDraft', language, n: aprovado.version),
+                style: TextStyle(
+                  color: colors.ink,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],

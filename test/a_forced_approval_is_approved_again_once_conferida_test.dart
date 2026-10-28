@@ -66,6 +66,11 @@ void main() {
       reason:
           'a narração conferida de uma versão forçada não podia ser aprovada',
     );
+    expect(
+      tester.getTopLeft(byLabel(_aprovar)).dx,
+      lessThan(tester.getTopLeft(find.text(_badge(1))).dx),
+      reason: 'o selo vinha antes do botão, e o dela desenha o botão primeiro',
+    );
 
     await _aprovadaDeNovoComoV2(tester, harness);
 
