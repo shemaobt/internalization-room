@@ -20,6 +20,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/part_strips.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/stage_heading.dart';
 import 'package:internalization_room/main.dart';
@@ -176,6 +177,11 @@ Future<Sala> _naTela(
   await tester.pump();
   return it;
 }
+
+Finder _oCirculo() => find.descendant(
+  of: find.byType(RetroView),
+  matching: find.byType(FacilitatorCircle),
+);
 
 Finder _oTitulo(String texto) => find.byWidgetPredicate(
   (widget) =>
@@ -477,7 +483,7 @@ void main() {
   );
 
   testWidgets(
-    'during the first listen there is no terminei and the circle and the part strips do nothing',
+    'during the first listen there is no terminei, no circle, and the part strips do nothing',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _naTela(tester, _juntadaNaCasa);
@@ -491,10 +497,12 @@ void main() {
       final microfones = _microfones(it);
 
       expect(find.text(_terminei), findsNothing);
-      await tester.tap(find.byType(FacilitatorCircle).last);
-      await _ate(tester, () => settle());
-      expect(it.harness.playback.sounding, isTrue);
-      expect(_microfones(it), microfones);
+      expect(
+        _oCirculo(),
+        findsNothing,
+        reason:
+            'o primeiro ouvir desenhava um círculo grande que não fazia nada',
+      );
 
       final faixasDasPartes = find.descendant(
         of: find.byType(PartStrips),
@@ -1634,8 +1642,8 @@ void main() {
   );
 
   testWidgets(
-    'during the listen of a recording no join touched there is no terminei, the '
-    'circle opens no microphone, and her line names the recording, not the passage',
+    'during the listen of a recording no join touched there is no terminei and '
+    'no circle, and her line names the recording, not the passage',
     (tester) async {
       final it = await _naTela(tester, umEnsaioDeTresPartesGravado);
       await _ate(tester, () async {
@@ -1644,14 +1652,11 @@ void main() {
         await theClipOpens(it.harness);
         it.harness.playback.at = const Duration(seconds: 3);
       });
-      final microfones = _microfones(it);
 
-      await tester.tap(find.byType(FacilitatorCircle).last);
-      await _ate(tester, () => settle());
       expect(
-        _microfones(it),
-        microfones,
-        reason: 'o círculo abria o microfone no meio da escuta',
+        _oCirculo(),
+        findsNothing,
+        reason: 'a escuta da gravação sem junção ainda desenhava o círculo',
       );
       expect(it.harness.playback.sounding, isTrue);
       expect(find.text(_terminei), findsNothing);

@@ -116,21 +116,23 @@ class RetroView extends ConsumerWidget {
                     )
                   : null,
             ),
-            const SizedBox(height: 24),
-            FacilitatorCircle(
-              size: herCircleSize(MediaQuery.sizeOf(context), 38, 150),
-              halt: session.halt,
-              voice: voz,
-              tongue: lingua,
-              answersATouch:
-                  session.aBackTranslationGestureActs &&
-                  (!conferida || session.btRegravacao != null),
-              notUnderstood: session.wordlessTelling
-                  ? retroLabelFor('notUnderstood', language)
-                  : null,
-              semanticLabel: _circleLabel(session, language),
-              onTap: notifier.retroTap,
-            ),
+            if (!session.btSoOuvir) ...[
+              const SizedBox(height: 24),
+              FacilitatorCircle(
+                size: herCircleSize(MediaQuery.sizeOf(context), 38, 150),
+                halt: session.halt,
+                voice: voz,
+                tongue: lingua,
+                answersATouch:
+                    session.aBackTranslationGestureActs &&
+                    (!conferida || session.btRegravacao != null),
+                notUnderstood: session.wordlessTelling
+                    ? retroLabelFor('notUnderstood', language)
+                    : null,
+                semanticLabel: _circleLabel(session, language),
+                onTap: notifier.retroTap,
+              ),
+            ],
             if (_traduzindoDeNovo(session) case final n?) ...[
               const SizedBox(height: 12),
               _ManterADeAntes(
@@ -727,12 +729,6 @@ class RetroView extends ConsumerWidget {
   }
 
   String _circleLabel(SalaSessionState session, String language) {
-    if (session.btSoOuvir) {
-      return retroLabelFor(
-        session.btClipRodando ? 'listening' : 'listenOnly',
-        language,
-      );
-    }
     if (session.wordlessTelling) {
       return retroLabelFor('notUnderstood', language);
     }
