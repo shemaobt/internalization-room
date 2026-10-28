@@ -17,9 +17,11 @@ her «Traduzir a gravação» stays disabled until then (`:2545`). ENG-1955 brin
 
 - **No part waits in the Outbox, or the check does not open.** The Rehearsal weighs a third
   fact, every part sent, beside every scene having its part and every part being here, and
-  answers the opening of the Back-translation only when all three hold. The fact is the
-  Outbox's own: no scene row with a take still waiting to go up. It is weighed again each time
-  the Outbox is counted, so a landing opens the way at once.
+  answers the opening of the Back-translation only when all three hold. A part waits while it
+  has no name from the room and the Outbox still lists it: the name is its landing in this
+  visit, and the empty row is the landing of a part sent from an earlier one. It is weighed
+  again each time the Outbox is counted and each time names are taken back, so a landing
+  opens the way at once.
 - **The home shows it.** The advance disc stays dark while a part waits, and «gravem todas as
   partes primeiro» counts only the parts the room holds, as hers counts the server's clips
   (`recordedCount > 0 && !allRecorded`, `:2494`, `:2546`).
