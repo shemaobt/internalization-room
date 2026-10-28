@@ -2084,15 +2084,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> abrirEscolha() => _gestureThen(_abrirEscolha);
 
   Future<void> _abrirEscolha() async {
-    if (state.station is! Menu) {
-      _forgetThePassage();
-    }
-    _leaveTheStepFor(const Menu());
-    _clearAll();
-    _arriveAt(const TheChoiceOpened());
+    _arriveAtTheChoice();
     final generation = _waitOnTheGeneration;
     state = state.copyWith(
-      arrivedAtTheChoice: true,
       awaitingTheGuide: true,
       peerCue: false,
       clearRoda: true,
@@ -2161,15 +2155,42 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _silenceTheRoom();
-    state = state.copyWith(clearLeftEntry: true);
     if (entry.isPanorama) {
       _leaveTheStepFor(Panorama(entry.pericope));
       _clearAll();
       _arriveAt(ThePanoramaChosen(entry.pericope));
-      _handOff(_entrarNoPanorama(entry.pericope));
+      _handOff(_openedFromTheChoice(() => _entrarNoPanorama(entry.pericope)));
       return;
     }
-    _handOff(goConversa(book: entry.book, pericope: entry.pericope));
+    _handOff(
+      _openedFromTheChoice(
+        () => goConversa(book: entry.book, pericope: entry.pericope),
+      ),
+    );
+  }
+
+  Future<void> _openedFromTheChoice(Future<void> Function() open) async {
+    final opening = open();
+    final generation = _generation;
+    await opening;
+    if (_generation != generation || state.needsPerson) return;
+    final unopened = switch (state.station) {
+      Canvas() => state.sessionId == null,
+      Panorama() => state.panoramaSessionId == null,
+      _ => false,
+    };
+    if (!unopened) return;
+    _arriveAtTheChoice();
+  }
+
+  void _arriveAtTheChoice() {
+    if (state.station is! Menu) {
+      _forgetThePassage();
+    }
+    _leaveTheStepFor(const Menu());
+    _clearAll();
+    _arriveAt(const TheChoiceOpened());
+    state = state.copyWith(arrivedAtTheChoice: true);
   }
 
   /// Open the Panorama's session and voice its opening. It has no foreseen end, and
@@ -2202,6 +2223,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     final panorama = state.panoramaSessionId ?? created!.sessionId;
     _dispatch(TheSessionOpened(panorama, generation: generation));
+    state = state.copyWith(clearLeftEntry: true);
     _warmHerLines();
     _openingOwed = true;
     final turnId = _openTurnId ??= _stamp();
@@ -2548,6 +2570,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       pericope: pericope,
       coverage: created?.coverage,
       moment: created?.moment,
+      clearLeftEntry: true,
     );
     _dispatch(TheSessionOpened(sessionId, generation: generation));
     // The scenes are the passage's, asked while the session opens on the network it
@@ -7789,10 +7812,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final partes = doComeco || naoOuvidas.isEmpty
         ? [for (var onde = 0; onde < state.partes.length; onde++) onde]
         : naoOuvidas;
-    state = state.copyWith(
-      btSoOuvir: true,
-      btRecusa: doComeco ? null : CheckRefusal.partUnheard,
-    );
+    state = state.copyWith(btSoOuvir: true);
     _partesDaEscuta = partes;
     await _dizer(
       doComeco ? (juntada ? firstListenLine : startLine) : unheardLine,

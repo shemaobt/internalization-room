@@ -567,7 +567,9 @@ void main() {
     );
   }
 
-  testWidgets('another passage opened drops the way back', (tester) async {
+  testWidgets('a passage that cannot open keeps the way back to the one left', (
+    tester,
+  ) async {
     final room = await _pump(tester, cannotOpen: {'P02'});
     await _takeThePassage(tester, room, 'P01');
     await tester.pump(const Duration(seconds: 1));
@@ -579,7 +581,11 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
 
     expect(room.state.stage, SalaStage.escolha);
-    expect(byLabel(_back), findsNothing);
+    expect(
+      byLabel(_back),
+      findsOneWidget,
+      reason: 'a P02 que não abriu apagava a volta para a P01',
+    );
   });
 
   testWidgets('a leave from the next passage returns to the next passage', (
