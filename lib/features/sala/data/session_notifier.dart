@@ -5958,7 +5958,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(
           scene: state.scene.copyWith(heard: SceneHeard.partly),
         );
-        _play(PartSound(0, take));
+        _play(
+          PartSound(0, take),
+          onComplete: () => state = state.copyWith(
+            scene: state.scene.copyWith(heard: SceneHeard.toTheEnd),
+          ),
+        );
       }
       return;
     }

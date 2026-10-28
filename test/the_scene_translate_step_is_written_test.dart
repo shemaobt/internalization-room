@@ -644,6 +644,50 @@ void main() {
     );
   }
 
+  for (final (language, play, ended, paused) in [
+    (
+      'pt',
+      'Tocar ou pausar a gravação',
+      'fim do ensaio da cena',
+      'pausado — toque no círculo para marcar onde a frase acaba',
+    ),
+    (
+      'en',
+      'Play or pause your recording',
+      'end of the scene rehearsal',
+      'paused — tap the circle to mark where the sentence ends',
+    ),
+  ]) {
+    testWidgets(
+      '$language: a sent scene rehearsal heard to its end writes her ended hint, not the paused one',
+      (tester) async {
+        final (harness, container) = await _inListenMode(tester);
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        await tester.tap(byLabel(play));
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is PartPlaying,
+        );
+        harness.playback.finishPlayback();
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is! PartPlaying,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          find.text(ended),
+          findsOneWidget,
+          reason: 'a escuta ouvida até o fim não dizia que acabou',
+        );
+        expect(byLabel(ended), findsOneWidget);
+        expect(find.text(paused), findsNothing);
+      },
+    );
+  }
+
   testWidgets('a sent scene rehearsal draws her strip', (tester) async {
     await _inListenMode(tester);
 

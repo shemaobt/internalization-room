@@ -443,6 +443,7 @@ class SceneListenMode extends ConsumerWidget {
             hint: (at) => switch ((playing, scene.heard)) {
               (true, _) => sceneListeningLineFor(at, scene.length, language),
               (false, SceneHeard.partly) => said('paused'),
+              (false, SceneHeard.toTheEnd) => said('ended'),
               (false, _) => null,
             },
           ),
