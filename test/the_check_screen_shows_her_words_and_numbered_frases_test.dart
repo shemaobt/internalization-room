@@ -73,6 +73,62 @@ final _apagando = find.byWidgetPredicate(
   },
 );
 
+double _veu(WidgetTester tester, Finder alvo) => tester
+    .widgetList(
+      find.ancestor(
+        of: alvo,
+        matching: find.descendant(
+          of: find.byType(RetroView),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Opacity || widget is FadeTransition,
+          ),
+        ),
+      ),
+    )
+    .fold(
+      1.0,
+      (veu, widget) =>
+          veu *
+          switch (widget) {
+            Opacity(:final opacity) => opacity,
+            FadeTransition(:final opacity) => opacity.value,
+            _ => 1.0,
+          },
+    );
+
+double _piorContraste(WidgetTester tester, String rotulo) {
+  final botao = byLabel(rotulo);
+  final texto = find.descendant(of: botao, matching: find.text(rotulo));
+  final disco = find.descendant(
+    of: botao,
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is Container &&
+          (widget.decoration as BoxDecoration?)?.gradient != null,
+    ),
+  );
+  final papel = Theme.of(tester.element(botao)).scaffoldBackgroundColor;
+  final tinta = tester.widget<Text>(texto).style!.color!;
+  final paradas = (tester.widget<Container>(disco).decoration! as BoxDecoration)
+      .gradient!
+      .colors;
+  final veuDoDisco = _veu(tester, disco);
+  final veuDaTinta = _veu(tester, texto);
+  return paradas
+      .map((parada) {
+        final fundo = Color.alphaBlend(
+          parada.withValues(alpha: veuDoDisco),
+          papel,
+        );
+        final letra = Color.alphaBlend(
+          tinta.withValues(alpha: veuDaTinta),
+          fundo,
+        );
+        return contrastOf(letra, fundo);
+      })
+      .reduce((um, outro) => um < outro ? um : outro);
+}
+
 void _telaAlta(WidgetTester tester) {
   tester.view
     ..physicalSize = const Size(820, 2400)
@@ -1639,9 +1695,9 @@ void main() {
     closeTheRoom(container);
   });
 
-  for (final (look, ink, disc) in [
-    (Brightness.light, const Color(0xFF0A0703), const Color(0xFFCCC0AC)),
-    (Brightness.dark, const Color(0xFFF2EDE1), const Color(0xFF60513B)),
+  for (final (look, ink) in [
+    (Brightness.light, const Color(0xFF0A0703)),
+    (Brightness.dark, const Color(0xFFF2EDE1)),
   ]) {
     testWidgets(
       'in the ${look.name} look a dimmed «terminei» is written in ink at full '
@@ -1659,9 +1715,13 @@ void main() {
           of: byLabel('terminei'),
           matching: find.text('terminei'),
         );
-        final tinta = tester.widget<Text>(rotulo).style!.color!;
         expect(
-          tinta,
+          _piorContraste(tester, 'terminei'),
+          greaterThanOrEqualTo(4.5),
+          reason: 'o rótulo apagado ficava abaixo de 4,5:1 no disco apagado',
+        );
+        expect(
+          tester.widget<Text>(rotulo).style!.color,
           ink,
           reason: 'o terminei apagado escrevia branco num disco claro',
         );
@@ -1675,11 +1735,6 @@ void main() {
           ),
           findsNothing,
           reason: 'a tinta esmaecia junto com o disco, a 35%',
-        );
-        expect(
-          contrastOf(tinta, disc),
-          greaterThanOrEqualTo(4.5),
-          reason: 'o rótulo apagado ficava abaixo de 4,5:1 no disco apagado',
         );
         closeTheRoom(container);
       },
@@ -1756,9 +1811,13 @@ void main() {
           of: byLabel('conferindo…'),
           matching: find.text('conferindo…'),
         );
-        final tinta = tester.widget<Text>(rotulo).style!.color!;
         expect(
-          tinta,
+          _piorContraste(tester, 'conferindo…'),
+          greaterThanOrEqualTo(4.5),
+          reason: 'o conferindo… ficava abaixo de 4,5:1 no disco apagado',
+        );
+        expect(
+          tester.widget<Text>(rotulo).style!.color,
           ink,
           reason: 'o conferindo… escrevia branco no disco apagado',
         );
@@ -1772,7 +1831,6 @@ void main() {
           ),
           findsNothing,
         );
-        expect(contrastOf(tinta, disc), greaterThanOrEqualTo(4.5));
         harness.room.finishHeldVerdict();
         await _passo(tester);
         closeTheRoom(container);
