@@ -125,7 +125,7 @@ class Claquete extends StatelessWidget {
       maxLines: 1,
       style: TextStyle(
         color: SalaColors.of(context).claquete.withValues(alpha: 0.7),
-        fontSize: 11,
+        fontSize: 10.88,
         letterSpacing: 0.66,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),

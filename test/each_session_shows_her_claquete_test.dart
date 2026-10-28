@@ -378,6 +378,25 @@ void main() {
     });
   });
 
+  testWidgets('the claquete is written at her .68rem, not a size of ours', (
+    tester,
+  ) async {
+    await withClock(Clock.fixed(_noon), () async {
+      await _openP05(tester);
+
+      final style = tester
+          .widget<Text>(
+            find.descendant(of: _claquete, matching: find.byType(Text)),
+          )
+          .style!;
+      expect(
+        style.fontSize,
+        10.88,
+        reason: 'a claquete saía em 11; a dela é .68rem de 16 px',
+      );
+    });
+  });
+
   testWidgets('at phone width the claquete keeps clear of the hand', (
     tester,
   ) async {
