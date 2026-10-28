@@ -210,7 +210,7 @@ void main() {
     });
   });
 
-  test('a Guide line that fails twice in a row calls a person', () {
+  test('a Guide line that fails leaves silence, however many times', () {
     final (once, first) = reduce(
       const Machine(channel: GuideSpeaking(_guide1)),
       const PlayerFailed(Source.guide),
@@ -222,8 +222,9 @@ void main() {
 
     expect(first, isNot(contains(const CallForAPerson())));
     expect(once.halt, const NoHalt());
-    expect(second, contains(const CallForAPerson()));
-    expect(twice.halt, isA<Blocking>());
+    expect(second, isNot(contains(const CallForAPerson())));
+    expect(twice.halt, const NoHalt());
+    expect(twice.channel, const Silence());
   });
 
   group(

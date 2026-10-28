@@ -1304,7 +1304,6 @@ void main() {
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _ateAConferida(tester);
-      it.harness.voice.refuses.add('P3');
       it.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
 
       await tester.tap(byLabel(_aprovar));
@@ -1325,15 +1324,10 @@ void main() {
             'segue oferecido',
       );
       await tester.tap(byLabel(_aprovar));
+      it.container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(
-        _estado(it.container).needsPerson,
-        isTrue,
-        reason:
-            'a linha da Guia que falha duas vezes seguidas para a sala para '
-            'uma pessoa — se não parar, não há parada que medir',
-      );
+      expect(_estado(it.container).needsPerson, isTrue);
       await tester.pump(const Duration(milliseconds: 500));
       expect(
         find.bySemanticsLabel(_pronto),
@@ -1409,7 +1403,7 @@ void main() {
     );
   });
 
-  testWidgets('a aprovação conta a vez que não tocou', (tester) async {
+  testWidgets('a aprovação que não toca deixa silêncio', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.voice.refuses.add('P3');
 

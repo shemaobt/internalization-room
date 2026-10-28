@@ -12,13 +12,14 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
+import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
 
 const _raise = 'Deixar uma pergunta para o facilitador';
 const _hearTheAnswer = 'Ouvir a resposta do facilitador';
@@ -34,7 +35,7 @@ final _hand = find.byType(HandButton);
 
 final _handInTheCircle = find.descendant(
   of: find.byType(FacilitatorCircle),
-  matching: find.byIcon(LucideIcons.hand),
+  matching: paintedGlyph(CircleGlyph.hand),
 );
 
 class _Room {
@@ -324,7 +325,7 @@ void main() {
       'o microfone fechar',
       () => room.estado.voice != VoiceState.listening,
     );
-    await room.beat(600);
+    await room.beat(1400);
     nothingIsSaid();
     room.harness.inbox.finishHeldQuestion();
     await room.until(
