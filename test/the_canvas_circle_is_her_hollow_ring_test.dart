@@ -155,8 +155,10 @@ void main() {
         reason: 'o disco telha jogava uma sombra; o anel dela não tem',
       );
       expect(
-        _painted(tester).where((paint) => paint.gradient != null),
-        [ring],
+        _painted(tester)
+            .expand((paint) => paint.gradient?.colors ?? const <Color>[])
+            .where((color) => color.a == 1),
+        isEmpty,
         reason: 'por baixo do anel ainda havia o disco cheio, em ${voice.name}',
       );
     }
@@ -275,5 +277,79 @@ void main() {
       isEmpty,
       reason: 'o anel de 3 px com brilho que ouvia não é dela',
     );
+  });
+
+  testWidgets('while she speaks the circle draws back to .9 over a breathing '
+      'telha glow, not rings rippling out', (tester) async {
+    final glow = find.byWidgetPredicate(
+      (widget) =>
+          widget is Container &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration! as BoxDecoration).gradient ==
+              const RadialGradient(
+                radius: 0.7071,
+                colors: [
+                  Color.fromRGBO(190, 74, 1, .20),
+                  Color.fromRGBO(190, 74, 1, 0),
+                ],
+                stops: [0, .66],
+              ),
+    );
+    double scaleAbove(Finder what) => tester
+        .widgetList<Transform>(
+          find.ancestor(of: what, matching: find.byType(Transform)),
+        )
+        .fold(1.0, (scale, move) => scale * move.transform.storage[0]);
+    double opacityAbove(Finder what) => tester
+        .widgetList<Opacity>(
+          find.ancestor(of: what, matching: find.byType(Opacity)),
+        )
+        .fold(1.0, (opacity, fade) => opacity * fade.opacity);
+    final ring = find.byWidgetPredicate(
+      (widget) =>
+          widget is Container &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration! as BoxDecoration).border != null &&
+          (widget.decoration! as BoxDecoration).gradient != null,
+    );
+
+    await _pumpCircle(tester, VoiceState.speaking);
+    for (final (at, herOpacity, herScale) in [
+      (0, .55, .98),
+      (850, .775, 1.02),
+      (850, 1.0, 1.06),
+    ]) {
+      await tester.pump(Duration(milliseconds: at));
+      expect(
+        glow,
+        findsOneWidget,
+        reason: 'falando, o dela acende o brilho (globals.css:117, :223)',
+      );
+      expect(tester.getSize(glow), const Size.square(_side * 1.12));
+      expect(
+        opacityAbove(glow),
+        closeTo(herOpacity, 0.01),
+        reason: 'o brilho respira de .55 a 1 em 3,4 s (globals.css:225)',
+      );
+      expect(
+        scaleAbove(glow),
+        closeTo(0.9 * herScale, 0.005),
+        reason: 'o brilho vai de .98 a 1.06 dentro do círculo encolhido',
+      );
+      expect(
+        scaleAbove(ring),
+        closeTo(0.9, 0.0001),
+        reason:
+            'o círculo dela encolhe a .9 enquanto ela fala '
+            '(globals.css:220); o nosso crescia a 1.02',
+      );
+      expect(
+        find.byType(Ripple),
+        findsNothing,
+        reason:
+            'as ondas telha para fora não são dela; falando, ela não '
+            'desenha onda',
+      );
+    }
   });
 }

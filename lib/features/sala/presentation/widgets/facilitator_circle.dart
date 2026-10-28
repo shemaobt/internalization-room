@@ -73,6 +73,35 @@ class FacilitatorCircle extends StatelessWidget {
   Widget _circle(BuildContext context, double opacity) {
     final colors = SalaColors.of(context);
     final still = MediaQuery.disableAnimationsOf(context);
+    final drawing = Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        if (!_halted && canvas && voice == VoiceState.listening)
+          ..._herRipples(colors),
+        if (!_halted && canvas && voice == VoiceState.speaking) _herGlow(),
+        _body(colors, still),
+        if (!_halted && !canvas && voice == VoiceState.speaking)
+          ..._ripples(colors),
+        if (!_halted && !canvas && voice == VoiceState.listening)
+          _listenRing(colors),
+        if (!_halted && !canvas && voice == VoiceState.listening)
+          ..._gatheringIn(),
+        if (notUnderstood != null && !_halted)
+          _notUnderstoodMark(notUnderstood!),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 1000),
+          child: _modeGlyph == null
+              ? const SizedBox.shrink()
+              : Icon(
+                  _modeGlyph,
+                  key: ValueKey(_modeGlyph),
+                  size: size * 0.3,
+                  color: ShemaBrand.branco,
+                ),
+        ),
+      ],
+    );
     return AnimatedOpacity(
       opacity: opacity,
       duration: const Duration(milliseconds: 500),
@@ -86,34 +115,12 @@ class FacilitatorCircle extends StatelessWidget {
           child: SizedBox(
             width: size,
             height: size,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                if (!_halted && canvas && voice == VoiceState.listening)
-                  ..._herRipples(colors),
-                _body(colors, still),
-                if (!_halted && voice == VoiceState.speaking)
-                  ..._ripples(colors),
-                if (!_halted && !canvas && voice == VoiceState.listening)
-                  _listenRing(colors),
-                if (!_halted && !canvas && voice == VoiceState.listening)
-                  ..._gatheringIn(),
-                if (notUnderstood != null && !_halted)
-                  _notUnderstoodMark(notUnderstood!),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 1000),
-                  child: _modeGlyph == null
-                      ? const SizedBox.shrink()
-                      : Icon(
-                          _modeGlyph,
-                          key: ValueKey(_modeGlyph),
-                          size: size * 0.3,
-                          color: ShemaBrand.branco,
-                        ),
-                ),
-              ],
-            ),
+            child: canvas
+                ? Transform.scale(
+                    scale: !_halted && voice == VoiceState.speaking ? 0.9 : 1,
+                    child: drawing,
+                  )
+                : drawing,
           ),
         ),
       ),
@@ -391,6 +398,35 @@ class FacilitatorCircle extends StatelessWidget {
     );
     return [ring(0), ring(0.665625), ring(0.33125)];
   }
+
+  Widget _herGlow() => Loop(
+    period: const Duration(milliseconds: 3400),
+    builder: (context, t) => Opacity(
+      opacity: 0.55 + 0.45 * t,
+      child: Transform.scale(
+        scale: 0.98 + 0.08 * t,
+        child: OverflowBox(
+          maxWidth: size * 1.12,
+          maxHeight: size * 1.12,
+          child: Container(
+            width: size * 1.12,
+            height: size * 1.12,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                radius: 0.7071,
+                colors: [
+                  Color.fromRGBO(190, 74, 1, .20),
+                  Color.fromRGBO(190, 74, 1, 0),
+                ],
+                stops: [0, .66],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 
   double _ebb(double t) => t <= 0.8
       ? 0.5 - 0.44 * Curves.easeOut.transform(t / 0.8)
