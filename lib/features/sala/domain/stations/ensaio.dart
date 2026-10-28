@@ -5,7 +5,8 @@ part of '../station.dart';
 enum EnsaioStep { home, plan }
 
 /// The Rehearsal; the Closing is not reached from it, and the Back-translation is opened
-/// from it only once every scene has its part and every part is on the tablet. A reopened passage that had already
+/// from it only once every scene has its part, every part is on the tablet and none waits
+/// in the Outbox. A reopened passage that had already
 /// reached its telling-back resumes it whatever the Rehearsal weighed.
 final class Ensaio extends Station {
   /// Whether every scene of the passage has its part, as the Rehearsal was last weighed.

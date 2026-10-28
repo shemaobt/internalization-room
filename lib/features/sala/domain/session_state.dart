@@ -778,8 +778,9 @@ class SalaSessionState {
       naRoda != null &&
       naRoda!.every((passagem) => passagem.isPanorama);
 
-  /// The advance disc lights: every Scene has its Part and every Part is on the tablet,
-  /// with nothing recorded and waiting and no finding's mark standing.
+  /// The advance disc lights: every Scene has its Part, every Part is on the tablet and
+  /// none waits in the Outbox, with nothing recorded and waiting and no finding's mark
+  /// standing.
   bool get ensaioDone =>
       ensaio == EnsaioStatus.idle &&
       parteARegravar == null &&
