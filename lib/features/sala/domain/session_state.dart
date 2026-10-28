@@ -830,7 +830,10 @@ class SalaSessionState {
   bool get wholeSwitchArms => overAnApprovedDraft || aPartWasJoined;
 
   /// «Ensaio Final: juntar os ensaios das cenas»: only over an empty whole recording, with
-  /// no take on the tablet, in the room or waiting in the Outbox.
+  /// no take on the tablet, in the room or waiting in the Outbox, and only while a plan
+  /// read stands with a scene still to join: a joinable rehearsal chosen for a scene with
+  /// no part and no take held on the tablet. Her `backToJoinOffered` asks the same of the
+  /// join queue (ensaioFinal.ts:252-253).
   bool get offersTheWayBackToTheJoin =>
       recordsTheWhole &&
       partes.isEmpty &&

@@ -177,8 +177,8 @@ void main() {
   );
 
   testWidgets(
-    'a Panorama opened while the room cannot be reached rests silent, and a tap '
-    'opens it',
+    'a Panorama opened while the room cannot be reached rests silent on the '
+    'Choice, and its pill opens it',
     (tester) async {
       final sala = await _theRoom(tester);
       final chosen = _read(
@@ -191,9 +191,13 @@ void main() {
       await _pass(sala);
 
       _restsSilentAtTheInvite(sala, said);
-      expect(_read(sala).stage, SalaStage.panorama);
+      expect(
+        _read(sala).stage,
+        SalaStage.escolha,
+        reason: 'a equipe ficava no Panorama sem sessão',
+      );
 
-      await _theNextTapOpens(sala, _notifier(sala).panoramaTap);
+      await _theNextTapOpens(sala, () => _notifier(sala).openTheEntry(chosen));
       closeTheRoom(sala.container);
     },
   );

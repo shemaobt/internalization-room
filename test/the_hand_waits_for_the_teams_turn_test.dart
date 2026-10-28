@@ -658,7 +658,8 @@ void main() {
   );
 
   testWidgets(
-    'In a Panorama session the room could not open the hand is hidden',
+    'a Panorama the room could not open leaves the team on the Choice, with no '
+    'hand',
     (tester) async {
       final harness = SalaHarness();
       harness.room.passages = [_panorama, ...harness.room.passages];
@@ -671,7 +672,7 @@ void main() {
 
       expect(room.estado.needsPerson, isFalse);
 
-      expect(room.estado.stage, SalaStage.panorama);
+      expect(room.estado.stage, SalaStage.escolha);
       expect(_hand, findsNothing);
       closeTheRoom(container);
     },
