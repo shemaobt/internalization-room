@@ -63,4 +63,19 @@ void main() {
     expect(paused.pausa, closeTo(93, 1e-9));
     expect(playing.playhead, closeTo(150, 1e-9));
   });
+
+  test('a frase of a part recorded again is drawn faint along the strip, '
+      'never as a translated band with its tick', () {
+    final strip = sceneStripOf(
+      width: 300,
+      length: _tenSeconds,
+      stale: [_frase('f1', 0, 4000)],
+    );
+
+    expect(strip.staleBands.map((band) => (band.from, band.to)), [
+      (0.0, 120.0),
+    ]);
+    expect(strip.bands, isEmpty);
+    expect(strip.ticks, isEmpty);
+  });
 }

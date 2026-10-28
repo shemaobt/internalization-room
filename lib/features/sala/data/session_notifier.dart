@@ -464,6 +464,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// and the listening ledger — keyed by the file too — cannot disagree with the ruler
   /// about which recording a length belongs to.
   late Map<String, int> _tamanhoDaParteMs;
+  late Future<void> _partLoudnessReads;
   late Map<String, Envelope?> _envelopes;
   late EscutaDasPartes _escuta;
   late int _desdeMs;
@@ -573,6 +574,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _oQueFaltaOuvir = null;
     _partesDaEscuta = const [];
     _tamanhoDaParteMs = {};
+    _partLoudnessReads = Future<void>.value();
     _envelopes = {};
     _frases = _FraseKeep(_recorder.delete);
     _escuta = EscutaDasPartes();
@@ -8060,6 +8062,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _marcarOFimDaParte(String arquivo, int medido) {
     if (medido <= 0) return;
     _tamanhoDaParteMs[arquivo] = medido;
+    final read = _partLoudnessReads.then(
+      (_) => _readThePartLoudness(arquivo, Duration(milliseconds: medido)),
+    );
+    _partLoudnessReads = read.catchError((Object _) {});
+    _handOff(read);
+  }
+
+  Future<void> _readThePartLoudness(String arquivo, Duration length) async {
+    if (state.partLoudness.containsKey(arquivo)) return;
+    final life = _thisLife;
+    final envelope = await ref.read(sceneEnvelopeReaderProvider)(arquivo);
+    if (_endedSince(life) ||
+        !state.partes.any((take) => take.path == arquivo)) {
+      return;
+    }
+    state = state.copyWith(
+      partLoudness: {
+        ...state.partLoudness,
+        arquivo: (length: length, envelope: envelope),
+      },
+    );
   }
 
   /// How far into this recording the telling-back already got.
