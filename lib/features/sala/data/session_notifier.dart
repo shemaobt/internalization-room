@@ -10948,10 +10948,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _stretchesAt = sent;
           final trechos = _trechosFrom(snapshot.backTranslation.segments);
           if (trechos.isNotEmpty) state = state.copyWith(btTrechos: trechos);
+          final numeros = {
+            for (final regravada in snapshot.backTranslation.stale)
+              regravada.segmentId: regravada.frase,
+          };
           final aguardando = snapshot.backTranslation.awaitingSegmentId;
           state = state.copyWith(
             btFraseQueAguarda: aguardando,
             clearBtFraseQueAguarda: aguardando == null,
+            btTrechosRegravados: [
+              for (final trecho in state.btTrechosRegravados)
+                Trecho(
+                  segmentId: trecho.segmentId,
+                  takeId: trecho.takeId,
+                  retroPath: trecho.retroPath,
+                  parte: trecho.parte,
+                  from: trecho.from,
+                  to: trecho.to,
+                  lugarFrom: trecho.lugarFrom,
+                  lugarTo: trecho.lugarTo,
+                  contado: trecho.contado,
+                  frase: numeros[trecho.segmentId],
+                ),
+            ],
           );
         }
         _applyTheSessionRead(snapshot, sent);

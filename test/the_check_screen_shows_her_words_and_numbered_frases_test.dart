@@ -290,6 +290,75 @@ Future<ProviderContainer> _comUmaFraseRegravada(
   return container;
 }
 
+BackTranslationProgress _umaParteRegravada({
+  required int fresca,
+  required int? regravada,
+}) => BackTranslationProgress(
+  segments: [
+    SegmentView(
+      segmentId: 'trecho-3',
+      takeId: 'gravacao-2',
+      startsMs: 0,
+      endsMs: 6000,
+      frase: fresca,
+    ),
+  ],
+  stale: [
+    SegmentView(
+      segmentId: 'trecho-1',
+      takeId: 'gravacao-velha-1',
+      startsMs: 0,
+      endsMs: 4000,
+      frase: regravada,
+    ),
+  ],
+);
+
+Future<ProviderContainer> _relidaPelaSala(
+  WidgetTester tester,
+  SalaHarness harness, {
+  required ({int fresca, int? regravada}) antes,
+  required ({int fresca, int? regravada}) depois,
+}) async {
+  harness.room.takes.add(
+    const TakeView(
+      takeId: 'gravacao-velha-1',
+      scope: 'parte-1',
+      kind: 'ensaio',
+      ordinal: 1,
+    ),
+  );
+  final container = await _voltaATraducao(
+    tester,
+    harness,
+    juntada: true,
+    _umaParteRegravada(fresca: antes.fresca, regravada: antes.regravada),
+  );
+  await waitFor(
+    'a frase regravada achar a sua parte',
+    () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+    step: () => _passo(tester),
+  );
+  harness.room.retroSoFar = _umaParteRegravada(
+    fresca: depois.fresca,
+    regravada: depois.regravada,
+  );
+  final sala = container.read(salaSessionProvider.notifier);
+  sala.goEnsaio();
+  await tester.pump(const Duration(milliseconds: 300));
+  sala.startRetro();
+  await waitFor(
+    'a sala reler as frases',
+    () =>
+        container.read(salaSessionProvider).stage == SalaStage.retro &&
+        container.read(salaSessionProvider).btTrechos.single.frase ==
+            depois.fresca,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
+  return container;
+}
+
 Finder _oCartao(Finder dentro) => find.ancestor(
   of: dentro,
   matching: find.byWidgetPredicate(
@@ -1659,6 +1728,59 @@ void main() {
       reason:
           'a frase traduzida de novo voltava sem a tradução que a equipe '
           'acabou de gravar',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a «regravada» row drops the number the tablet held when the '
+      'room reads it back with none and renumbers the others', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _relidaPelaSala(
+      tester,
+      harness,
+      antes: (fresca: 2, regravada: 1),
+      depois: (fresca: 1, regravada: null),
+    );
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        'parte 1',
+        'regravada — traduzam de novo',
+        '1',
+        'parte 2',
+      ],
+      reason:
+          'relidas as frases, a regravada seguia com o 1 de antes ao lado da '
+          'frase 1 da sala, e a equipe tinha duas frases 1',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a «regravada» row takes the number the room reads back for it', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _relidaPelaSala(
+      tester,
+      harness,
+      antes: (fresca: 1, regravada: null),
+      depois: (fresca: 2, regravada: 1),
+    );
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        '1',
+        'parte 1',
+        'regravada — traduzam de novo',
+        '2',
+        'parte 2',
+      ],
+      reason:
+          'a sala numerava a frase regravada e a lista não mostrava o número',
     );
     closeTheRoom(container);
   });
