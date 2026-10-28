@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'scenario_helpers.dart' show byLabel;
 import 'the_kept_retellings_are_numbered_buttons_on_the_conversation_test.dart'
@@ -49,7 +51,100 @@ Finder _barsOf(String label) => find.descendant(
   ),
 );
 
+Finder _paintedUnder(String label) => find.descendant(
+  of: byLabel(label),
+  matching: find.byWidgetPredicate((widget) {
+    final decoration = switch (widget) {
+      Container(:final decoration?) => decoration,
+      DecoratedBox(:final decoration) => decoration,
+      _ => null,
+    };
+    return decoration is BoxDecoration &&
+        (decoration.color != null ||
+            decoration.gradient != null ||
+            decoration.boxShadow != null);
+  }),
+);
+
+Future<void> _pumpUntil(WidgetTester tester, bool Function() done) async {
+  for (var beat = 0; beat < 100 && !done(); beat++) {
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+}
+
 void main() {
+  for (final (look, verde) in [
+    ('light', const Color(0xFF3F3E20)),
+    ('dark', const Color(0xFFECEADC)),
+  ]) {
+    testWidgets(
+      'in the $look look hearing again is her bare arrow at 8% and 16%, '
+      'at .42, not a disc',
+      (tester) async {
+        _on(tester, _se, bar: 20);
+        if (look == 'dark') _inTheDark(tester);
+        await atRestAfterATurn(tester, const []);
+        const label = 'Hear that again';
+
+        expect(byLabel(label), findsOneWidget);
+        expect(
+          _paintedUnder(label),
+          findsNothing,
+          reason: 'o ouvir de novo era um disco com sombra',
+        );
+        final arrow = find.descendant(
+          of: byLabel(label),
+          matching: find.byType(Icon),
+        );
+        final icon = tester.widget<Icon>(arrow);
+        expect(icon.icon, LucideIcons.rotateCcw);
+        expect(icon.size, 22);
+        expect(icon.color, verde, reason: 'a seta dela é --verde');
+        expect(
+          _seenOpacity(tester, arrow),
+          closeTo(0.42, 0.001),
+          reason: 'a seta dela fica a .42 quando aparece',
+        );
+        _sits(
+          tester.getRect(byLabel(label)),
+          const Size(44, 44),
+          center: const Offset(375 - 30 - 22, 667 - 106.72 - 22),
+          reason: 'o ouvir de novo ficava a 14 e 18 do canto',
+        );
+      },
+    );
+  }
+
+  testWidgets(
+    'hearing again fades in over her 1.2 s once the line has played',
+    (tester) async {
+      _on(tester, _se, bar: 20);
+      final (harness, container) = await atRestAfterATurn(tester, const []);
+      const label = 'Hear that again';
+      final arrow = find.descendant(
+        of: byLabel(label),
+        matching: find.byType(Icon),
+      );
+
+      harness.voice.holdNextLine();
+      container.read(salaSessionProvider.notifier).hearAgain();
+      await _pumpUntil(tester, () => byLabel(label).evaluate().isEmpty);
+      expect(byLabel(label), findsNothing);
+      harness.voice.finishHeldLine();
+      await _pumpUntil(tester, () => byLabel(label).evaluate().isNotEmpty);
+      expect(byLabel(label), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(
+        _seenOpacity(tester, arrow),
+        closeTo(0.21, 0.02),
+        reason: 'a seta surgia em 700 ms subindo, não no 1,2 s dela',
+      );
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(_seenOpacity(tester, arrow), closeTo(0.42, 0.001));
+    },
+  );
+
   for (final (look, verdeClaro) in [
     ('light', const Color(0xFF777D45)),
     ('dark', const Color(0xFFAAB07E)),

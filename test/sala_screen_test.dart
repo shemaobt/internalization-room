@@ -1095,6 +1095,7 @@ void main() {
             'o caso precisa mesmo estar oferecendo ouvir de novo para '
             'poder olhar para ele',
       );
+      await tester.pump(const Duration(milliseconds: 1200));
 
       final ouvir = find.byType(HearAgainButton);
       final pintado = paintedBy(tester, ouvir);
@@ -1113,11 +1114,11 @@ void main() {
             'de dizer qualquer coisa',
       );
       expect(
-        pintado.any((cor) => sameTone(cor, ShemaBrand.verdeClaro)),
+        pintado.any((cor) => sameTone(cor, SalaColors.light.verde)),
         isTrue,
         reason:
-            'o repetir é verde e periférico: presente para quem procura, '
-            'invisível para quem não está procurando',
+            'o repetir é o verde dela e periférico: presente para quem '
+            'procura, invisível para quem não está procurando',
       );
 
       expect(
@@ -1125,12 +1126,10 @@ void main() {
           markAsSeen(tester, ouvir, SalaColors.light.paper),
           SalaColors.light.paper,
         ),
-        greaterThanOrEqualTo(2.5),
+        closeTo(2.19, 0.02),
         reason:
-            'quieto não é invisível: com o disco fora, a marca ficou em '
-            '1,65:1 sobre o papel, metade da barra que o medidor do microfone '
-            'fixou em 2,5:1 depois de um laranja afinado no fundo escuro sumir '
-            'num tablet ao sol, que é onde esta sala roda',
+            'a seta dela é --verde a .42, 2,19:1 sobre o papel; o disco '
+            'que a erguia acima disso não existe no app dela',
       );
     },
   );

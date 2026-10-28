@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
@@ -150,16 +149,6 @@ void _wearsTheBody(
 }
 
 void main() {
-  testWidgets('the hear-again button wears the corner body', (tester) async {
-    final room = await _pump(tester);
-    await _takeThePanorama(tester, room);
-    final hearAgain = roomLabelFor('hearAgain', 'en');
-
-    expect(byLabel(hearAgain), findsOneWidget);
-    _wearsTheBody(tester, hearAgain, LucideIcons.rotateCcw);
-    _isDrawnInFull(tester, hearAgain);
-  });
-
   testWidgets('the way out carried in a stage heading wears the same body', (
     tester,
   ) async {
@@ -191,30 +180,23 @@ void main() {
     },
   );
 
-  testWidgets('in the dark look the three corner buttons wear the dark body', (
-    tester,
-  ) async {
-    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
-    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
-    final room = await _pump(tester);
-    await _takeThePanorama(tester, room);
-    final hearAgain = roomLabelFor('hearAgain', 'en');
-
-    _wearsTheBody(
-      tester,
-      hearAgain,
-      LucideIcons.rotateCcw,
-      colors: SalaColors.dark,
-    );
-    await _tap(tester, _leave);
-    await tester.pump(const Duration(seconds: 1));
-    _wearsTheBody(
-      tester,
-      _back,
-      LucideIcons.chevronLeft,
-      colors: SalaColors.dark,
-    );
-  });
+  testWidgets(
+    'in the dark look the way back on the Choice wears the dark body',
+    (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final room = await _pump(tester);
+      await _takeThePanorama(tester, room);
+      await _tap(tester, _leave);
+      await tester.pump(const Duration(seconds: 1));
+      _wearsTheBody(
+        tester,
+        _back,
+        LucideIcons.chevronLeft,
+        colors: SalaColors.dark,
+      );
+    },
+  );
 
   testWidgets(
     'the way back is dimmed and takes no tap while the scene rehearsal sends',
