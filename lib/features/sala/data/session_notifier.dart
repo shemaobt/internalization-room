@@ -460,6 +460,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// answer plays them again.
   late List<int> _partesDaEscuta;
 
+  late ({String sessionId, int ordem, ListenedWhole ouvida})? _oQueASalaDisse;
+
+  late int _relatosASala;
+
   /// How long each part of the rehearsal turned out to be, by the file the part is kept
   /// as and never by where the part sits in the row.
   ///
@@ -577,6 +581,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _parteJaTocou = false;
     _oQueFaltaOuvir = null;
     _partesDaEscuta = const [];
+    _oQueASalaDisse = null;
+    _relatosASala = 0;
     _tamanhoDaParteMs = {};
     _partLoudnessReads = Future<void>.value();
     _envelopes = {};
@@ -1118,7 +1124,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     final relato = _escuta.relato(state.partes);
     if (sessionId == null || relato.isEmpty) return;
-    unawaited(_room.reportTheListening(sessionId, playedByTake: relato));
+    unawaited(_relatarASala(sessionId, relato));
+  }
+
+  Future<RoomAnswer<ListenedWhole>> _relatarASala(
+    String sessionId,
+    List<PlayedTake> relato,
+  ) async {
+    final life = _thisLife;
+    final ordem = ++_relatosASala;
+    final resposta = await _room.reportTheListening(
+      sessionId,
+      playedByTake: relato,
+    );
+    if (resposta case Answered(value: final ouvida)
+        when !_endedSince(life) &&
+            ouvida.unheardTakeIds != null &&
+            ordem > (_oQueASalaDisse?.ordem ?? 0)) {
+      _oQueASalaDisse = (sessionId: sessionId, ordem: ordem, ouvida: ouvida);
+    }
+    return resposta;
   }
 
   void _theRunHeard() {
@@ -7869,13 +7894,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<ListenedWhole?> _oQueASalaOuviu(int generation) async {
     final sessionId = state.sessionId;
     if (sessionId == null) return null;
-    final resposta = await _room.reportTheListening(
+    final resposta = await _relatarASala(
       sessionId,
-      playedByTake: _escuta.relato(state.partes),
+      _escuta.relato(state.partes),
     );
     if (resposta case Answered(
       value: final ouvida,
     ) when ouvida.unheardTakeIds != null) {
+      return ouvida;
+    }
+    if (_oQueASalaDisse case (
+      sessionId: final daSessao,
+      ordem: _,
+      :final ouvida,
+    ) when daSessao == sessionId) {
       return ouvida;
     }
     return null;
@@ -7892,9 +7924,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     final life = _thisLife;
-    final resposta = await _room.reportTheListening(
+    final resposta = await _relatarASala(
       sessionId,
-      playedByTake: _escuta.relato(state.partes),
+      _escuta.relato(state.partes),
     );
     if (_abandoned(generation) || _endedSince(life)) return;
     final ouvida = switch (resposta) {
