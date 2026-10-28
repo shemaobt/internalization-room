@@ -1326,7 +1326,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         if (_abandoned(generation)) return;
         if (!played.heard) {
-          return _registerUnplayableTurn(leavesTeamTalk: false);
+          return _registerUnplayableTurn();
         }
         state = state.copyWith(awaitingTheGuide: false);
       },
@@ -1341,7 +1341,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final played = await _sayTheReply(line, asked: true);
     if (_abandoned(generation)) return;
-    if (!played.heard) return _registerUnplayableTurn(leavesTeamTalk: false);
+    if (!played.heard) return _registerUnplayableTurn();
     state = state.copyWith(awaitingTheGuide: false);
     _landTheHeldCoverage();
   }
@@ -1392,13 +1392,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return true;
   }
 
-  void _registerUnplayableTurn({bool leavesTeamTalk = true}) {
+  void _registerUnplayableTurn() {
     _openTurnId = null;
     _openingOwed = false;
-    state = state.copyWith(
-      awaitingTheGuide: false,
-      peerCue: leavesTeamTalk ? false : null,
-    );
+    state = state.copyWith(awaitingTheGuide: false, peerCue: false);
     _landTheHeldCoverage();
   }
 
