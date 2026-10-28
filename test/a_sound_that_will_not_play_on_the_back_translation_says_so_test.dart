@@ -6,11 +6,14 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'fakes.dart';
 import 'machine_generator.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
     show entrarNaTraducao, tocar;
+import 'the_team_re_records_one_whole_sentence_test.dart'
+    show quatroFrasesEmWav;
 import 'the_pause_snaps_to_silence_test.dart'
     show entrarComAFala, ouvirAPausa, pausarAos, s, umaLacunaAos3;
 
@@ -180,6 +183,29 @@ void main() {
 
       expect(find.text(_naoDeuParaConferir), findsOneWidget);
       expect(container.read(salaSessionProvider).needsPerson, isFalse);
+      closeTheRoom(container);
+    });
+
+    testWidgets('the sentence heard before it is recorded again that fails '
+        'writes nothing, and her line to record it comes', (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await quatroFrasesEmWav(tester, harness);
+      await tocar(tester, 'regravar a frase 3');
+      expect(harness.playback.ranges.last, '0-4000');
+
+      harness.playback.failPlayback();
+      await _passo(tester);
+      await tester.pump(const Duration(seconds: 9));
+      await _passo(tester);
+
+      expect(find.text(_naoDeuParaConferir), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(RetroView),
+          matching: find.text('gravem a frase inteira'),
+        ),
+        findsOneWidget,
+      );
       closeTheRoom(container);
     });
   });
