@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +12,9 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/claquete.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/shema_mark.dart';
@@ -54,6 +57,35 @@ Future<void> _elapse(WidgetTester tester, Duration time) async {
   }
 }
 
+Future<List<double>> _markOverOneBreath(WidgetTester tester) async {
+  final seen = <double>[];
+  for (var beat = 0; beat <= 92; beat++) {
+    seen.add(tester.widget<ShemaMark>(_mark).opacity);
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  return seen;
+}
+
+void _breathesAsHers(List<double> seen) {
+  final quietest = seen.indexOf(seen.reduce(min));
+  final fullest = seen.indexOf(seen.reduce(max));
+  expect(
+    seen[quietest],
+    closeTo(0.66, 0.005),
+    reason: 'a marca ficava parada em .72; a dela respira até .66',
+  );
+  expect(
+    seen[fullest],
+    closeTo(0.8, 0.005),
+    reason: 'a marca ficava parada em .72; a dela respira até .8',
+  );
+  expect(
+    (fullest - quietest).abs(),
+    inInclusiveRange(42, 48),
+    reason: 'a respiração dela leva 9 s, 4,5 s de cada lado',
+  );
+}
+
 Future<void> _seconds(WidgetTester tester, int seconds) =>
     _elapse(tester, Duration(seconds: seconds));
 
@@ -73,6 +105,66 @@ Future<(SalaHarness, ProviderContainer)> _openP05(
   await _elapse(tester, const Duration(milliseconds: 300));
   expect(container.read(salaSessionProvider).sessionId, _sessionId);
   return (harness, container);
+}
+
+Future<void> _openP05WhileTheVoiceSpeaks(WidgetTester tester) async {
+  final harness = SalaHarness()
+    ..room.passages = const [Passagem(pericope: 'P05', audioUrl: '/voice/p05')]
+    ..room.nextSessionId = _sessionId;
+  final container = await pumpSala(tester, harness);
+  addTearDown(() => closeTheRoom(container));
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.abrirEscolha();
+  await tester.pump(const Duration(milliseconds: 300));
+  harness.voice.holdNextLine();
+  addTearDown(harness.voice.finishHeldLine);
+  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P05'));
+  for (var beat = 0; beat < 50; beat++) {
+    if (container.read(salaSessionProvider).voice == VoiceState.speaking &&
+        _mark.evaluate().isNotEmpty) {
+      break;
+    }
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
+}
+
+Future<void> _theClaqueteKeepsClearOfTheBottomRowAndTheCircle(
+  WidgetTester tester,
+) async {
+  final (_, container) = await _openP05(tester);
+  for (var beat = 0; beat < 50; beat++) {
+    if (container.read(salaSessionProvider).canHearAgain) break;
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  expect(container.read(salaSessionProvider).canHearAgain, isTrue);
+  expect(_claquete, findsOneWidget);
+
+  final claquete = tester.getRect(_claquete);
+  for (final (what, widget) in [
+    (
+      'o ouvir de novo',
+      find.descendant(
+        of: find.byType(HearAgainButton),
+        matching: find.byType(RoundActionButton),
+      ),
+    ),
+    ('a mão', find.byType(HandButton)),
+    ('o círculo', find.byType(FacilitatorCircle)),
+  ]) {
+    expect(widget, findsWidgets);
+    for (final one in widget.evaluate()) {
+      final box = one.renderObject! as RenderBox;
+      final overlap = claquete.intersect(
+        box.localToGlobal(Offset.zero) & box.size,
+      );
+      expect(
+        overlap.width <= 0 || overlap.height <= 0,
+        isTrue,
+        reason: 'no canto dela a claquete cobria $what',
+      );
+    }
+  }
 }
 
 Future<ProviderContainer> _openThePanorama(WidgetTester tester) async {
@@ -183,10 +275,20 @@ void main() {
 
       expect(_words(tester), 'P05 · 2026-09-30 14:14 · $_herEightCharacters');
 
-      final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
       final rect = tester.getRect(_claquete);
-      expect(rect.right, closeTo(screen.width - 14 - 76 - 8, 0.5));
-      expect(rect.bottom, closeTo(screen.height - 18, 0.5));
+      expect(
+        rect.right,
+        closeTo(780.8, 0.5),
+        reason:
+            'a claquete ficava ao lado do ouvir de novo; a dela fica a 2,4% '
+            'da borda',
+      );
+      expect(
+        rect.bottom,
+        closeTo(584.4, 0.5),
+        reason:
+            'a claquete ficava a 18 px do fundo; a dela fica a 2,6% da altura',
+      );
 
       await _seconds(tester, 19);
       expect(_claquete, findsOneWidget);
@@ -337,12 +439,10 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
       expect(container.read(salaSessionProvider).canHearAgain, isTrue);
-      final button = find
-          .descendant(
-            of: find.byType(HearAgainButton),
-            matching: find.byType(SizedBox),
-          )
-          .first;
+      final button = find.descendant(
+        of: find.byType(HearAgainButton),
+        matching: find.byType(RoundActionButton),
+      );
       expect(_claquete, findsOneWidget);
 
       final overlap = tester
@@ -369,6 +469,120 @@ void main() {
     });
   });
 
+  testWidgets(
+    'the Shema mark on the conversation breathes between .66 and .8, not still at .72',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      await _openP05(tester);
+
+      _breathesAsHers(await _markOverOneBreath(tester));
+    }),
+  );
+
+  testWidgets(
+    'the Shema mark on the Panorama breathes as the conversation does',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      await _openThePanorama(tester);
+
+      _breathesAsHers(await _markOverOneBreath(tester));
+    }),
+  );
+
+  testWidgets(
+    'with reduced motion the Shema mark stays still at .72, not at the bottom of a breath',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      final (_, container) = await _openP05(tester);
+      for (var beat = 0; beat < 50; beat++) {
+        if (container.read(salaSessionProvider).voice != VoiceState.speaking) {
+          break;
+        }
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(
+        container.read(salaSessionProvider).voice,
+        isNot(VoiceState.speaking),
+      );
+
+      final seen = await _markOverOneBreath(tester);
+      expect(seen.toSet(), {
+        0.72,
+      }, reason: 'sem movimento a dela fica em .72, sem a animação');
+    }),
+  );
+
+  testWidgets(
+    'with reduced motion the Shema mark rises to .85 while the voice speaks',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await _openP05WhileTheVoiceSpeaks(tester);
+
+      expect(
+        tester.widget<ShemaMark>(_mark).opacity,
+        0.85,
+        reason: 'enquanto a voz fala a dela sobe para .85',
+      );
+    }),
+  );
+
+  testWidgets(
+    'while the voice speaks the Shema mark keeps breathing, as hers does with motion on',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      await _openP05WhileTheVoiceSpeaks(tester);
+
+      _breathesAsHers(await _markOverOneBreath(tester));
+    }),
+  );
+
+  testWidgets(
+    'on a phone with a home bar the claquete stands above the bar, as hers does in a browser',
+    (tester) async {
+      tester.view
+        ..physicalSize = const Size(393, 852)
+        ..devicePixelRatio = 1
+        ..padding = const FakeViewPadding(bottom: 34)
+        ..viewPadding = const FakeViewPadding(bottom: 34);
+      addTearDown(tester.view.reset);
+      await withClock(Clock.fixed(_noon), () async {
+        await _openP05(tester);
+
+        expect(
+          tester.getRect(_claquete).bottom,
+          lessThanOrEqualTo(852 - 34),
+          reason:
+              'a claquete descia para a faixa da barra; a dela fica acima, '
+              'onde o navegador termina',
+        );
+      });
+    },
+  );
+
+  testWidgets('the claquete is written at her .68rem, not a size of ours', (
+    tester,
+  ) async {
+    await withClock(Clock.fixed(_noon), () async {
+      await _openP05(tester);
+
+      final style = tester
+          .widget<Text>(
+            find.descendant(of: _claquete, matching: find.byType(Text)),
+          )
+          .style!;
+      expect(
+        style.fontSize,
+        10.88,
+        reason: 'a claquete saía em 11; a dela é .68rem de 16 px',
+      );
+    });
+  });
+
   testWidgets('at phone width the claquete keeps clear of the hand', (
     tester,
   ) async {
@@ -382,9 +596,45 @@ void main() {
       final hand = tester.getRect(find.byType(HandButton));
       final claquete = tester.getRect(_claquete);
       expect(claquete.left, greaterThanOrEqualTo(hand.right + 8 - 0.5));
-      expect(claquete.right, closeTo(375 - 14 - 76 - 8, 0.5));
+      expect(claquete.right, closeTo(366, 0.5));
+      expect(claquete.bottom, closeTo(649.658, 0.5));
     });
   });
+
+  testWidgets(
+    'on an SE her corner keeps the claquete clear of the replay, the hand and the circle',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 667);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await withClock(
+        Clock.fixed(_noon),
+        () => _theClaqueteKeepsClearOfTheBottomRowAndTheCircle(tester),
+      );
+    },
+  );
+
+  for (final (screen, size, homeBar) in const [
+    ('an iPad with a home bar', Size(820, 1180), 20.0),
+    ('an iPad with a home button', Size(810, 1080), 0.0),
+    ('a phone with a home bar', Size(393, 852), 34.0),
+  ]) {
+    testWidgets(
+      'on $screen her corner still keeps the claquete off the replay, the hand and the circle',
+      (tester) async {
+        tester.view
+          ..physicalSize = size
+          ..devicePixelRatio = 1
+          ..padding = FakeViewPadding(bottom: homeBar)
+          ..viewPadding = FakeViewPadding(bottom: homeBar);
+        addTearDown(tester.view.reset);
+        await withClock(
+          Clock.fixed(_noon),
+          () => _theClaqueteKeepsClearOfTheBottomRowAndTheCircle(tester),
+        );
+      },
+    );
+  }
 
   testWidgets(
     'a tap on the Shema mark on the Panorama shows the claquete for twenty seconds again',
@@ -468,6 +718,17 @@ void main() {
       await _seconds(tester, 2);
       expect(_claquete, findsNothing);
       expect(_mark, findsOneWidget);
+    }),
+  );
+
+  testWidgets(
+    'the Panorama writes its claquete in her corner, as the conversation does',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      await _openThePanorama(tester);
+
+      final rect = tester.getRect(_claquete);
+      expect(rect.right, closeTo(780.8, 0.5));
+      expect(rect.bottom, closeTo(584.4, 0.5));
     }),
   );
 
