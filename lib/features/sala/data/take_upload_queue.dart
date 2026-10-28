@@ -417,6 +417,7 @@ class TakeUploadQueue {
   /// audio is on the disk again; one whose audio really is gone stays out, so the queue
   /// still empties.
   Future<List<PendingTake>> waiting({bool withTheCodeless = false}) async {
+    final scenes = <PendingTake>[];
     final trying = <PendingTake>[];
     final heldForATap = <String>{};
     for (final entry in await pending()) {
@@ -433,9 +434,10 @@ class TakeUploadQueue {
         continue;
       }
       if (await _reallyGone(entry)) continue;
-      trying.add(entry);
+      (entry.kind == sceneTakeKind ? scenes : trying).add(entry);
     }
     return [
+      ...scenes,
       for (final entry in trying)
         if (_aRowOffersItsTap(entry)) entry,
       for (final entry in trying)
