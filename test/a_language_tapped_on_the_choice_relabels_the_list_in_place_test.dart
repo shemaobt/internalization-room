@@ -248,4 +248,35 @@ void main() {
       expect(it.estado.voice, VoiceState.invite);
     },
   );
+  test(
+    'a passage started in English opens where the team stopped after «EN», even '
+    'before the started passages are read again',
+    () async {
+      final harness = SalaHarness();
+      harness.emAberto.rows['Ruth/P02/en'] = const ResumePoint(
+        sessionId: 'sessao-inglesa',
+        stage: SalaStage.conversa,
+      );
+      final it = await _theListOnScreen(harness);
+      harness.emAberto.startedInFails = const FileSystemException('disco');
+      it.sala.chooseTheLanguage('en');
+      await settle();
+
+      it.sala.openTheEntry(
+        it.estado.naRoda!.firstWhere((entry) => entry.pericope == 'P02'),
+      );
+      await waitFor(
+        'the passage to stand open',
+        () => it.estado.sessionId != null,
+      );
+
+      expect(
+        it.estado.sessionId,
+        'sessao-inglesa',
+        reason:
+            'as marcas portuguesas diziam que a P02 não tinha trabalho, o disco nem '
+            'era lido e a equipe recomeçava do zero',
+      );
+    },
+  );
 }

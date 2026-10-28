@@ -8,9 +8,15 @@ Amended by ENG-1866 (2026-10-28): the second bullet of the Decision. Choosing a 
 a Choice that holds its Wheel no longer reads the Wheel again from the room. As in her app,
 the words change where they stand: the list stays on screen, no thinking circle shows, and
 nothing is asked of the room, offline too. Only the passages started in the language chosen
-are read again, from the tablet, and a read that fails leaves the list as it was. The choice
-is still a machine event that moves the generation, so a read for an earlier choice is never
-applied; the Wheel is read again from the room only while the Choice holds none.
+are read again, from the tablet, and a read that fails leaves the list as it was. Until that
+read lands, or when it fails, the started passages on hand belong to another language, so an
+entry opened meanwhile looks its Resume point up on the disk whatever they say. Nothing else
+the list holds depends on the language: the room answers the same passages in both, each
+with the reference of its map, which the tablet names in the Room language, and the team's
+standing approval, which no language keys; the voiced name it sends per language is never
+played on the tablet. The choice is still a machine event that moves the generation, so a
+read for an earlier choice is never applied; the Wheel is read again from the room only
+while the Choice holds none.
 
 ## Context
 
