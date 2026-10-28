@@ -547,7 +547,7 @@ class SalaSessionState {
 
   /// The loudness of a scene take, once it was read off the UI thread; null for a take
   /// with none to read.
-  final ({String take, Envelope? envelope})? sceneLoudness;
+  final List<({String take, Envelope? envelope})> sceneLoudness;
 
   final Map<String, ({Duration length, Envelope? envelope})> partLoudness;
 
@@ -709,7 +709,7 @@ class SalaSessionState {
     this.externalCheck = const ExternalCheckScreen(),
     this.sceneRehearsals = const [],
     this.sceneTranslationsUnseen = const {},
-    this.sceneLoudness,
+    this.sceneLoudness = const [],
     this.partLoudness = const {},
     this.scenes = const ScenesAwaited(),
     this.scenesOfThePassage,
@@ -845,10 +845,10 @@ class SalaSessionState {
       joined ||
       theRoomJoinedParts.any((number) => !partNumbers.contains(number));
 
-  /// How the orange dot stands on the Conversation: gone while the way out is hidden, any
-  /// voice sounds or a sent note is on its way; bright from the send-off; faint otherwise.
+  /// How the orange dot stands on the Conversation: gone while the way out is hidden or a
+  /// line of the room sounds; bright from the send-off; faint otherwise.
   OrangeDotLook get orangeDotLook {
-    if (wayOutIsHidden || channel is GuideSpeaking || noteOnItsWay != null) {
+    if (wayOutIsHidden || _aLineOfTheRoomPlays) {
       return OrangeDotLook.gone;
     }
     if (endOfThePassage || moment?.at == MomentAt.ensaioFinal) {
@@ -1071,10 +1071,10 @@ class SalaSessionState {
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
   /// The loudness of the take on the scene screen, until it is read or for a take with
   /// none: a pausa then stays at the tap.
-  Envelope? get sceneEnvelope => switch (sceneLoudness) {
-    (take: final take, :final envelope) when take == scene.take => envelope,
-    _ => null,
-  };
+  Envelope? get sceneEnvelope => sceneLoudness
+      .where((loudness) => loudness.take == scene.take)
+      .firstOrNull
+      ?.envelope;
 
   /// The frase being translated again whose pausa the team may move: the last one, on a
   /// take with loudness to read.
@@ -1459,6 +1459,7 @@ class SalaSessionState {
 
   bool get canListenToThePendingStretch =>
       _btNaVez &&
+      everyPartIsHere &&
       !wordlessTelling &&
       (btClipRodando ||
           btContaEscolhida != null ||
@@ -1736,7 +1737,7 @@ class SalaSessionState {
     ExternalCheckScreen? externalCheck,
     List<SceneRehearsalRecord>? sceneRehearsals,
     Map<String, String>? sceneTranslationsUnseen,
-    ({String take, Envelope? envelope})? sceneLoudness,
+    List<({String take, Envelope? envelope})>? sceneLoudness,
     Map<String, ({Duration length, Envelope? envelope})>? partLoudness,
     SceneList? scenes,
     List<Scene>? scenesOfThePassage,

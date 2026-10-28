@@ -209,10 +209,6 @@ enum _Resume {
   /// The station they left, standing again, with the rehearsal under it.
   landed,
 
-  /// The room no longer has one of the parts: the Ensaio stands again with that scene's row
-  /// not recorded and every other row holding its own part.
-  landedShort,
-
   /// Nothing behind this passage to come back to: it opens at the conversa.
   nothingToRestore,
 
@@ -363,6 +359,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The fetch of the parts on their way, which belongs to the passage it started in.
   late Completer<void>? _partesDescendo;
+
+  /// The uncounted floor of a Back-translation resume, which waits for the last part.
+  late void Function()? _whenThePartsAreHere;
 
   /// Whether the Session read of this opening has said where the team stands, which a part
   /// the room lost waits for before it leaves the Rehearsal.
@@ -547,6 +546,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _passadasDaSala = null;
     _goneSessions = {};
     _partesDescendo = null;
+    _whenThePartsAreHere = null;
     _aLeituraDecidiu = false;
     _aLinhaDiz = null;
     _sessionSavedAt = null;
@@ -2565,6 +2565,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _bringBackThePassageLeft(left);
     }
     _partesDescendo = null;
+    _whenThePartsAreHere = null;
     _aLinhaDiz = null;
     state = SalaSessionState(
       machine: state.machine.withNoPassage(_gesturesOnTheirWay.onTheirWay),
@@ -2752,7 +2753,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _resumeFailures.remove(theResume);
         return;
       }
-      if (onde == _Resume.landed || onde == _Resume.landedShort) {
+      if (onde == _Resume.landed) {
         final SessionSnapshot snapshot;
         final int sent;
         if (lida case (final read, final enviada)) {
@@ -3132,8 +3133,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       if (_abandoned(generation)) return _Resume.abandoned;
     }
-    List<KeptTake>? takes = here;
-    var inteiro = true;
+    var takes = here;
     var aBuscar = const <String>{};
     if (faltavam) {
       // Armed per step, not once around the whole fetch: the ceiling is what a single
@@ -3143,42 +3143,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       switch (await _room.takesOf(waiting.sessionId)) {
         case Answered(value: final guardadas):
           if (_abandoned(generation)) return _Resume.abandoned;
-          if (stage is! Retro) {
-            final lidas = _lerAListagem(guardadas, here);
-            takes = lidas.partes;
-            heldByTheRoom = lidas.deLado;
-            aBuscar = lidas.aBuscar;
-            break;
-          }
-          switch (await _asPartesDaSala(
-            waiting.sessionId,
-            guardadas,
-            here,
-            generation,
-          )) {
-            case Answered(:final value?):
-              takes = value.partes;
-              inteiro = value.inteiro;
-              heldByTheRoom = value.deLado;
-              if (!inteiro) {
-                _passadasDaSala = _aindaPorGravar(value.passadas, const {});
-              }
-            case Answered():
-              takes = null;
-            case NetworkFailed():
-              if (_abandoned(generation)) return _Resume.abandoned;
-              return _theResumeFailed(const RoomNetworkFailed(), generation);
-            case final RoomFailure failure:
-              return _theResumeFailed(failure.result, generation);
-          }
+          final lidas = _lerAListagem(guardadas, here);
+          takes = lidas.partes;
+          heldByTheRoom = lidas.deLado;
+          aBuscar = lidas.aBuscar;
         case final RoomFailure failure:
           return _aListaFalhou(failure, generation);
       }
     }
     if (_abandoned(generation)) return _Resume.abandoned;
-    if (takes == null) {
-      return _theResumeFailed(const RoomFoundNothing(), generation);
-    }
     if (!faltavam) {
       _passadasDaSala = _aindaPorGravar(waiting.passesToGoAbove, {
         for (final take in takes) ?KeptScope.numberOf(take.scopeId),
@@ -3187,7 +3160,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // A room holding no rehearsal is not a rehearsal to come back to, and it is not a
     // failure either: the conversa is where a passage with nothing behind it starts —
     // unless the row itself stood on the Ensaio with no part yet.
-    if (takes.isEmpty && inteiro && !anEmptyEnsaio) {
+    if (takes.isEmpty && !anEmptyEnsaio) {
       return _Resume.nothingToRestore;
     }
     if (faltavam) {
@@ -3215,16 +3188,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (faltavam) {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
       if (aBuscar.isEmpty) {
-        _rememberWhereTheyAre(
-          inteiro ? Station.stored(waiting.stage) : const Ensaio(),
-        );
+        _rememberWhereTheyAre(Station.stored(waiting.stage));
       } else {
         _aLeituraDecidiu = false;
         _bringThePartsDown(Station.stored(waiting.stage));
       }
     }
     unawaited(_countUnsent());
-    return inteiro ? _Resume.landed : _Resume.landedShort;
+    return _Resume.landed;
   }
 
   /// The room's current parts, kept on a tablet that no longer holds them.
@@ -3429,6 +3400,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       });
     }
     descem.complete();
+    if (!minha() || state.station is! Retro || !state.everyPartIsHere) return;
+    final toTheFloor = _whenThePartsAreHere;
+    _whenThePartsAreHere = null;
+    toTheFloor?.call();
   }
 
   /// The parts the room lost leave the Rehearsal once its Session read has said the team
@@ -3546,7 +3521,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_lembrarDaFraseGuardada(sessionId));
     }
     if (told.checked) return;
-    unawaited(_ouvirOQueFaltaDepoisDeRegravar(_generation));
+    void toTheFloor() =>
+        unawaited(_ouvirOQueFaltaDepoisDeRegravar(_generation));
+
+    if (state.everyPartIsHere) return toTheFloor();
+    _whenThePartsAreHere = toTheFloor;
   }
 
   Future<void> _voltarAFraseQueAguarda(
@@ -3936,7 +3915,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.station is! Canvas ||
         state.machine.inFlight != null ||
         state.awaitingTheGuide ||
-        state.orangeDotLook == OrangeDotLook.gone) {
+        state.orangeDotLook == OrangeDotLook.gone ||
+        (state.noteOnItsWay != null &&
+            state.channel is Microphone &&
+            !state.noteMode)) {
       return;
     }
     if (state.partes.any((part) => part.origin == null)) {
@@ -5615,15 +5597,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
       sceneRehearsals: _listedWith(rehearsal),
     );
-    if (step == SceneStep.translate) _handOff(_readTheLoudness(here));
+    if (step == SceneStep.translate || step == SceneStep.sent) {
+      _handOff(_readTheLoudness(here));
+    }
   }
 
   Future<void> _readTheLoudness(String take) async {
-    if (state.sceneLoudness?.take == take) return;
+    if (state.sceneLoudness.any((loudness) => loudness.take == take)) return;
     final life = _thisLife;
     final envelope = await ref.read(sceneEnvelopeReaderProvider)(take);
     if (_endedSince(life) || state.scene.take != take) return;
-    state = state.copyWith(sceneLoudness: (take: take, envelope: envelope));
+    state = state.copyWith(
+      sceneLoudness: [
+        (take: take, envelope: envelope),
+        ...state.sceneLoudness
+            .where((loudness) => loudness.take != take)
+            .take(1),
+      ],
+    );
   }
 
   Envelope? _envelopeOf(String path) => _envelopes.putIfAbsent(path, () {
@@ -8508,6 +8499,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _ouvirGravacao() {
     if (state.station is! Retro) return;
+    if (!state.everyPartIsHere) return;
     final conferida = state.btPhase == BtPhase.conferida;
     if (state.btPhase != BtPhase.playing && !conferida) return;
     if (state.needsPerson || !state.aBackTranslationGestureActs) return;
@@ -11311,6 +11303,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _emCurso = null;
     state = state.copyWith(partsAway: const {});
     _partesDescendo = null;
+    _whenThePartsAreHere = null;
     _aLinhaDiz = null;
     _semNome.clear();
     _captureFails = {};

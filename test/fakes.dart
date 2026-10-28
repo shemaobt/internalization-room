@@ -4473,10 +4473,12 @@ class SalaHarness {
 
   void giveTheEnvelope() => _envelopeHeld?.complete();
 
+  final List<String> envelopesRead = [];
   int envelopesBeingRead = 0;
   int mostEnvelopesReadAtOnce = 0;
 
   Future<Envelope?> readTheEnvelope(String path) async {
+    envelopesRead.add(path);
     envelopesBeingRead++;
     mostEnvelopesReadAtOnce = max(mostEnvelopesReadAtOnce, envelopesBeingRead);
     try {
