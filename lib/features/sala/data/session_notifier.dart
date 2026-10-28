@@ -1054,6 +1054,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _ => null,
       };
 
+  void _keepWhereTheTakeStopped(Machine before, Machine after) {
+    final take = _theSceneTakeThatSounds(before);
+    if (take == null || take.part == _theSceneTakeThatSounds(after)?.part) {
+      return;
+    }
+    state = state.copyWith(
+      sceneStoppedAt: take.head ?? _ondeOSomEstaNoArquivo(take.part),
+    );
+  }
+
+  PartPlaying? _theSceneTakeThatSounds(Machine machine) =>
+      switch (machine.channel) {
+        final PartPlaying playing
+            when machine.station is SceneRehearsal &&
+                playing.part.path == state.scene.take =>
+          playing,
+        _ => null,
+      };
+
   Duration _ondeOSomEstaNoArquivo(PartSound som) =>
       som.to == null ? _playback.position : som.from + _playback.position;
 
@@ -1376,10 +1395,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       scene: leavesTheScene ? const SceneScreen() : null,
       sceneRehearsals: leavesTheScene ? const [] : null,
       clearSceneTurn: leavesTheScene,
+      clearSceneStoppedAt: leavesTheScene,
       clearArmedTap: machine.generation != before.generation,
       clearBtRecusa: machine.generation != before.generation,
     );
     _escutarNoEnsaio(before, machine);
+    _keepWhereTheTakeStopped(before, machine);
     _runner.run(effects, micWasOpen: before.channel is Microphone);
     _logTheGuidesSound(event, before, machine);
     _followTheSound(before, machine);
