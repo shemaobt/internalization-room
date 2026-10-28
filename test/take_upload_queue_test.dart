@@ -2386,7 +2386,7 @@ void main() {
       expect(await queue.pending(), isEmpty);
     });
 
-    test('withdrawn unless in the air before its pass claims it is taken off '
+    test('withdrawn even in the air before its pass claims it is taken off '
         'and never sent', () async {
       final room = FakeRoom();
       final queue = queueOn(room);
@@ -2408,19 +2408,19 @@ void main() {
           if (path != copy) return real;
           return _AWatchedCopyThatIgnoresDelete(
             real,
-            whenChecked: () => withdrawn = queue.withdrawUnlessInTheAir(row),
+            whenChecked: () => withdrawn = queue.withdrawEvenInTheAir(row),
           );
         },
       );
 
-      expect(await withdrawn, isTrue);
+      expect(await withdrawn, isFalse);
       expect(room.takesReceivedWhole, isEmpty);
       expect(await queue.pending(), isEmpty);
     });
 
-    test('withdrawn unless in the air once its pass claimed it is left to its '
-        'send, and lands', () async {
-      final room = FakeRoom();
+    test('withdrawn even in the air once its pass claimed it leaves the Outbox '
+        'at once, and its send still lands', () async {
+      final room = FakeRoom()..holdNextTake('parte-2');
       final queue = queueOn(room);
       final row = (await queue.enqueueTheJoin(
         aRehearsal(aWavTake()),
@@ -2433,7 +2433,7 @@ void main() {
       final outside = Zone.current;
       late Future<bool> withdrawn;
 
-      await IOOverrides.runZoned(
+      final flushed = IOOverrides.runZoned(
         queue.flush,
         createFile: (path) {
           final real = outside.run(() => File(path));
@@ -2442,14 +2442,20 @@ void main() {
             real,
             whenMeasured: () => Future.microtask(
               () => Future.microtask(
-                () => withdrawn = queue.withdrawUnlessInTheAir(row),
+                () => withdrawn = queue.withdrawEvenInTheAir(row),
               ),
             ),
           );
         },
       );
+      await room.untilTakeHeld();
 
-      expect(await withdrawn, isFalse);
+      expect(await withdrawn, isTrue);
+      expect(await queue.pending(), isEmpty);
+
+      room.finishHeldTake();
+      await flushed;
+
       expect(room.takesKept, ['ensaio/parte-2']);
     });
 

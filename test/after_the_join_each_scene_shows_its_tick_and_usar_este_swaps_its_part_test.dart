@@ -227,6 +227,15 @@ class _Room {
   Future<void> theHeldTakeArrives() =>
       until('a troca chegar à porta', () => _arrived);
 
+  Future<void> theOutboxLetsGoOf(int n) async {
+    for (var vez = 0; vez < 200; vez++) {
+      final rows = await tester.runAsync(harness.takes.pending);
+      if (!rows!.any((row) => row.origin == idOf(n))) return;
+      await beat(const Duration(milliseconds: 20));
+    }
+    fail('o Outbox ainda guarda a troca');
+  }
+
   bool showsTheHome() =>
       find.text(english ? _homeLineEn : _homeLine).evaluate().isNotEmpty &&
       byLabel(english ? 'Back to recording' : _back).evaluate().isEmpty;
@@ -925,6 +934,32 @@ void main() {
         it.received(2).where((take) => take.origin == it.idOf(s2b)),
         isEmpty,
       );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a swap given up at 70 s leaves the Outbox while its request is still in '
+    'the air, and a relaunch then sends nothing',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+      it.holdTheTake('parte-2');
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+      await it.wait(const Duration(seconds: 71));
+      expect(it.onLine(s2b, find.text(_retry)), findsOneWidget);
+      final asked = it.room.takesAsked.length;
+
+      await it.theOutboxLetsGoOf(s2b);
+      await it.tapThe(byLabel(_back));
+      await it.relaunchOnTheHome();
+      await it.wait(const Duration(seconds: 5));
+
+      expect(it.room.takesAsked.skip(asked), isEmpty);
       semantics.dispose();
     },
   );

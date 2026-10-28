@@ -2893,7 +2893,9 @@ class FakeRoom implements RoomRepository {
       await Zone.root.run(() => Future<void>.delayed(onTheClock));
     }
     if (scope == holdTakeScope) {
-      _reachedTakeHold?.complete();
+      if (_reachedTakeHold case final reached? when !reached.isCompleted) {
+        reached.complete();
+      }
       await _holdingTake?.future;
       final answersAfter = aHeldTakeAnswersAfter;
       if (answersAfter != null) await Future<void>.delayed(answersAfter);
@@ -3841,9 +3843,9 @@ class FakeTakeQueue implements TakeUploadQueue {
   void offerTheTapThrough(bool Function(PendingTake row) aRowOffersItsTap) {}
 
   @override
-  Future<bool> withdrawUnlessInTheAir(PendingTake row) async {
+  Future<bool> withdrawEvenInTheAir(PendingTake row) async {
     await withdraw(row);
-    return true;
+    return false;
   }
 
   @override

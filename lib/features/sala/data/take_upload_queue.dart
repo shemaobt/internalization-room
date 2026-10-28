@@ -1297,34 +1297,34 @@ class TakeUploadQueue {
   /// never be an error either way. Matched by id and kind, the same pair `_replace`
   /// reads a row by.
   Future<void> withdraw(PendingTake row) async {
-    await _takeOff(row, unless: () => false);
+    await _takeOff(row, keepsItsCopy: () => false);
   }
 
-  /// Take [row] off the manifest unless its request is in the air, decided in the same
-  /// step a pass claims a row; false when it is left to its send.
-  Future<bool> withdrawUnlessInTheAir(PendingTake row) async {
-    var leftToItsSend = false;
-    await _takeOff(row, unless: () => leftToItsSend = _isInTheAir(row));
-    return !leftToItsSend;
-  }
+  /// Take [row] off the manifest even while its request is in the air, decided in the
+  /// same step a pass claims a row: no later pass, here or after a relaunch, sends it
+  /// again. A request in the air keeps the copy, and its answer deletes it; true when
+  /// it was in the air.
+  Future<bool> withdrawEvenInTheAir(PendingTake row) =>
+      _takeOff(row, keepsItsCopy: () => _isInTheAir(row));
 
-  /// [row] off the manifest with its copy, in one manifest step, unless [unless] says
-  /// otherwise inside that step; the row removed, if any.
-  Future<PendingTake?> _takeOff(
+  /// [row] off the manifest in one manifest step, with its copy unless [keepsItsCopy]
+  /// says otherwise inside that step; whether it kept the copy.
+  Future<bool> _takeOff(
     PendingTake row, {
-    required bool Function() unless,
+    required bool Function() keepsItsCopy,
   }) async {
     PendingTake? removed;
+    var kept = false;
     await _mutate((written) {
-      if (unless()) return written;
+      kept = keepsItsCopy();
       removed = written.where((entry) => _isTheRow(entry, row)).firstOrNull;
       return [
         for (final entry in written)
           if (!_isTheRow(entry, row)) entry,
       ];
     });
-    if (removed case final entry?) await _deleteTheCopy(entry);
-    return removed;
+    if (removed case final entry? when !kept) await _deleteTheCopy(entry);
+    return kept;
   }
 
   static bool _isTheRow(PendingTake entry, PendingTake row) =>

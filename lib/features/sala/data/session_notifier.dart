@@ -4451,19 +4451,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     TakeUploadQueue queue,
     PendingTake row,
   ) async {
-    final withdrawn = Completer<void>();
-    void withdraw() {
-      if (!withdrawn.isCompleted) withdrawn.complete(queue.withdraw(row));
-    }
-
+    final back = Completer<void>();
     final watch = queue.rowsBack.where((id) => id == row.id).listen((_) {
-      withdraw();
+      if (!back.isCompleted) back.complete();
     });
-    if (await queue.withdrawUnlessInTheAir(row) && !withdrawn.isCompleted) {
-      withdrawn.complete();
-    }
     try {
-      await withdrawn.future;
+      if (await queue.withdrawEvenInTheAir(row)) await back.future;
     } finally {
       await watch.cancel();
     }
