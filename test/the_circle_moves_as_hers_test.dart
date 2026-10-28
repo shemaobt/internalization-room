@@ -76,4 +76,24 @@ void main() {
       );
     }
   });
+
+  testWidgets('a check circle waiting for a tap breathes on her 6 s up to '
+      '1.035, not on 4.6 s up to 1.045', (tester) async {
+    for (final voice in [VoiceState.invite, VoiceState.done]) {
+      await tester.pumpWidget(_circle(voice, canvas: false));
+      expect(_scaleAbove(tester, _ring.first), closeTo(1, 1e-6));
+
+      await tester.pump(const Duration(milliseconds: 3000));
+      expect(
+        _scaleAbove(tester, _ring.first),
+        closeTo(1.035, 1e-6),
+        reason:
+            'o check-circle dela em idle usa o invite em 6 s '
+            '(globals.css:379); o nosso ia a 1.045 em 4,6 s',
+      );
+
+      await tester.pump(const Duration(milliseconds: 3000));
+      expect(_scaleAbove(tester, _ring.first), closeTo(1, 1e-6));
+    }
+  });
 }
