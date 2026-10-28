@@ -521,6 +521,38 @@ void main() {
     },
   );
 
+  testWidgets(
+    'the circle comes back on the telling, once the listen gives way to P1',
+    (tester) async {
+      final it = await _naTela(tester, _juntadaNaCasa);
+      await _ate(tester, () async {
+        _nadaOuvido(it);
+        await _oDisco(it);
+        await _ouvirAte(it, ate: 1);
+      });
+      expect(_oCirculo(), findsNothing);
+
+      await _ate(tester, () async {
+        _tudoOuvido(it);
+        final tocadas = it.harness.playback.played.length;
+        await _ouvirAte(it, desde: 2);
+        await waitFor(
+          'a primeira voltar ao ar',
+          () => it.harness.playback.played.length > tocadas,
+        );
+      });
+
+      expect(it.harness.voice.fixedLines.last, ('P1', testLanguage));
+      expect(it.container.read(salaSessionProvider).btSoOuvir, isFalse);
+      expect(
+        _oCirculo(),
+        findsOneWidget,
+        reason: 'o círculo sumia junto com a escuta e não voltava para contar',
+      );
+      closeTheRoom(it.container);
+    },
+  );
+
   test(
     'the play control pauses and a second tap resumes where it stopped',
     () async {
