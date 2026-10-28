@@ -84,6 +84,17 @@ class _Casa {
     ];
   }
 
+  Future<void> guardarEFalharDeNovo(int n) async {
+    await guardar(n);
+    room.unreachableTake = 'ensaio/parte-$n';
+    await guardar(n);
+  }
+
+  Future<void> perderAGravacao(int n) {
+    final gravacao = estado.partes[estado.partIndexOf(n)!].path;
+    return emTempoReal(() async => File(gravacao).deleteSync());
+  }
+
   Future<void> perderAsCopias() => emTempoReal(() async {
     for (final copia in copias) {
       copia.deleteSync();
@@ -265,6 +276,28 @@ Future<_Casa> _deVoltaParaRegravarAParteQuatro(
   return _naCasa(tester, harness: sala);
 }
 
+Future<_Casa> _comUmaTomadaNaPassagemDeUmaPerdida(
+  WidgetTester tester, {
+  bool aSalaAlcancavel = false,
+}) async {
+  final casa = await _naCasa(tester);
+  await casa.guardarEFalharDeNovo(2);
+  await casa.perderAGravacao(2);
+  final depois = await _relancada(casa);
+  await depois.guardarSemEsperar(2);
+  final aFalhada = (await tester.runAsync(
+    depois.harness.takes.entries,
+  ))!.firstWhere((row) => row.scope == 'parte-2');
+  if (aSalaAlcancavel) depois.room.unreachableTake = null;
+  await depois.emTempoReal(() async {
+    File(aFalhada.path).deleteSync();
+    await depois.harness.takes.flush();
+    await depois.sala.refreshUnsent();
+    await settle();
+  });
+  return depois;
+}
+
 Widget _aCasa(ProviderContainer container) => UncontrolledProviderScope(
   container: container,
   child: MaterialApp(
@@ -310,7 +343,11 @@ Future<_Casa> _naCasa(
       () => casa.estado.sessionId != null && !casa.estado.awaitingTheGuide,
     );
     await settle();
-    if (casa.estado.stage != SalaStage.ensaio) casa.sala.goEnsaio();
+    if (relaunched != null) {
+      casa.sala.openTheEnsaioFinal();
+    } else if (casa.estado.stage != SalaStage.ensaio) {
+      casa.sala.goEnsaio();
+    }
     await waitFor(
       'as cenas chegarem',
       () => casa.estado.sceneRows.length == _cenas.length,
@@ -902,12 +939,9 @@ void main() {
     'a part saved before whose newest recording is gone reads falhou — grave de novo after a relaunch and still plays the room\'s part',
     (tester) async {
       final casa = await _naCasa(tester);
-      await casa.guardar(2);
-      casa.room.unreachableTake = 'ensaio/parte-2';
-      await casa.guardar(2);
-      final gravacao = casa.estado.partes[casa.estado.partIndexOf(2)!].path;
+      await casa.guardarEFalharDeNovo(2);
+      await casa.perderAGravacao(2);
       await casa.perderAsCopias();
-      await casa.emTempoReal(() async => File(gravacao).deleteSync());
 
       final depois = await _relancada(casa);
 
@@ -922,18 +956,47 @@ void main() {
     'a gone part recorded again after a relaunch reads salvo once its take lands',
     (tester) async {
       final casa = await _naCasa(tester);
-      await casa.guardar(2);
-      casa.room.unreachableTake = 'ensaio/parte-2';
-      await casa.guardar(2);
-      final gravacao = casa.estado.partes[casa.estado.partIndexOf(2)!].path;
+      await casa.guardarEFalharDeNovo(2);
+      await casa.perderAGravacao(2);
       await casa.perderAsCopias();
-      await casa.emTempoReal(() async => File(gravacao).deleteSync());
       casa.room.unreachableTake = null;
       final depois = await _relancada(casa);
       expect(depois.naLinha(2, find.text(_perdida)), findsOneWidget);
 
       await depois.guardar(2);
       await depois.ateVer(depois.naLinha(2, find.text(_salvo)));
+
+      expect(depois.naLinha(2, find.text(_salvo)), findsOneWidget);
+      expect(depois.naLinha(2, find.text(_perdida)), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a take still on the tablet at the pass of a gone take keeps its tap after a relaunch',
+    (tester) async {
+      final depois = await _comUmaTomadaNaPassagemDeUmaPerdida(tester);
+
+      await depois.ateVer(depois.naLinha(2, find.text(_falhou)));
+
+      expect(depois.naLinha(2, find.text(_falhou)), findsOneWidget);
+      expect(depois.naLinha(2, find.byType(TextButton)), findsOneWidget);
+      expect(depois.naLinha(2, find.text(_perdida)), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a take that lands at the pass of a gone take reads salvo after a relaunch',
+    (tester) async {
+      final depois = await _comUmaTomadaNaPassagemDeUmaPerdida(
+        tester,
+        aSalaAlcancavel: true,
+      );
+
+      await depois.ateVer(depois.naLinha(2, find.text(_salvo)));
+      await depois.emTempoReal(() async {
+        await depois.sala.refreshUnsent();
+        await settle();
+      });
 
       expect(depois.naLinha(2, find.text(_salvo)), findsOneWidget);
       expect(depois.naLinha(2, find.text(_perdida)), findsNothing);

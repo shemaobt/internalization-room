@@ -48,19 +48,19 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
 - **Only a tap sends a spent take.** A take whose three attempts are gone does not go up
   by itself. One older exception stands: a part take refused with a bare `HTTP_*` code
   gets one more try on the Outbox's retry drain, which asks for the codeless; ENG-1777
-  closes that gap. A spent take still holds the recordings made after it in its part
-  (ADR 0025); a take refused for good does not. A take held behind a spent one is not due
-  either: it arms no retry, reads «falhou — toque para tentar de novo» like the spent one,
-  and waits for the tap that sends the spent one, then it. A tap on a part sends every
-  unsent pass of it, older ones first, each with three attempts, whichever way its newest
-  take took, even one that never reached the Outbox and fails to reach it again; an older
-  pass refused for good is not sent again, while the pass the tap names is sent once more
-  even if it was refused. A part reads as being kept from the moment its keep starts, and a
-  tap on it is refused until the keep ends, so no tap reorders its takes. A keep
-  on the red microphone does the same for the scene takes of its session before it: the
-  room numbers a session's scene rehearsals by arrival (`n` is the session's highest plus
-  one when it is stored; the recording time does not number it), so a newer take that
-  arrived first would take an older one's number.
+  closes that gap. A spent take still holds the recordings made after it in its part (ADR
+  0025); a take refused for good does not, nor one whose recording is gone. A take held
+  behind a spent one is not due either: it arms no retry, reads «falhou — toque para
+  tentar de novo» like the spent one, and waits for the tap that sends the spent one, then
+  it. A tap on a part sends every unsent pass of it, older ones first, each with three
+  attempts, whichever way its newest take took, even one that never reached the Outbox and
+  fails to reach it again; an older pass refused for good is not sent again, while the
+  pass the tap names is sent once more even if it was refused. A part reads as being kept
+  from the moment its keep starts, and a tap on it is refused until the keep ends, so no
+  tap reorders its takes. A keep on the red microphone does the same for the scene takes
+  of its session before it: the room numbers a session's scene rehearsals by arrival (`n`
+  is the session's highest plus one when it is stored; the recording time does not number
+  it), so a newer take that arrived first would take an older one's number.
 - **«parar» after 8 s** of sending, counted from when the first take of the tap or keep
   left in this pass: a part's older passes and a scene take sent ahead of the one the red
   microphone keeps count toward the same 8 s. A tap stops whichever take of that tap or
@@ -76,22 +76,24 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   through `package:clock`) and when it settles; the notifier tells it when a part's keep
   begins and which row it wrote. The machine holds which take is in the air, of which
   session, which parts are being kept, and which rows this visit kept. These are facts of
-  the app run, so they are carried when the team leaves a passage and opens one again,
-  as the held Panorama is; the rows are keyed by session, so nothing of one session reads
-  on another's rows. «parar» is a gesture the machine turns into an effect the runner
-  hands to the Outbox, naming the take. The screens read the take in the air, the parts
-  being kept, and the parts saved, from the machine's Outbox facts. The newest take of a
-  part decides its row: while it is being kept the row reads «enviando…» and offers no
-  tap, whatever it read before; it reads «✓ salvo» only when that take is one the room
-  holds; and it reads «falhou — grave de novo», with no tap, when its recording is gone,
-  whether it reached the Outbox or not, never an older pass's «✓ salvo».
+  the app run, so they are carried when the team leaves a passage and opens one again, as
+  the held Panorama is; the rows are keyed by session, so nothing of one session reads on
+  another's rows. «parar» is a gesture the machine turns into an effect the runner hands
+  to the Outbox, naming the take. The screens read the take in the air, the parts being
+  kept, and the parts saved, from the machine's Outbox facts. The newest take of a part,
+  the highest pass and the last written on a tie, decides its row: while it is being kept
+  the row reads «enviando…» and offers no tap, whatever it read before; it reads «✓ salvo»
+  only when that take is one the room holds; and it reads «falhou — grave de novo», with
+  no tap, when its recording is gone, whether it reached the Outbox or not, never an older
+  pass's «✓ salvo».
 - **A gone recording is final.** A take whose recording is gone can never go up, so it
   offers no tap and the room refuses a re-send of it, as for a final refusal; this holds
   for a part on its row and for a scene take on the red microphone. It also holds after a
   relaunch, and the row offers no «Ouvir» that would play the gone take; the room's own
-  part still plays. Recording again recovers it: a new part take takes its part's gone
-  takes off the Outbox, waits behind any spent older pass, and its tap sends both, older
-  first. The Orchestrator decided this on 23 October; Jonatas may overrule it.
+  part still plays. Recording again recovers it: a new part take, and a part take the room
+  holds, takes its part's gone takes off the Outbox; a new one waits behind any spent
+  older pass whose recording is still on the tablet, and its tap sends both, older first.
+  The Orchestrator decided this on 23 October; Jonatas may overrule it.
 - **A part beyond the last scene has its own row.** Each part beyond the passage's last
   scene that has a take still to send, in the air, being kept or kept this visit shows a
   numbered row after the scenes, with the same words, the same tap and the same rules as

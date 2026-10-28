@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:math';
 
 import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart' as crypto;
@@ -428,7 +427,7 @@ class TakeUploadQueue {
           !(withTheCodeless && entry.refusedWithNoCode)) {
         if (part != null &&
             entry.refusal == null &&
-            !await _reallyGone(entry)) {
+            await File(entry.path).exists()) {
           heldForATap.add(part);
         }
         continue;
@@ -502,22 +501,17 @@ class TakeUploadQueue {
     List<PendingTake>? written,
     String? sessionId,
   ) async {
-    final parts = [
-      for (final entry in written ?? const <PendingTake>[])
-        if (entry.kind == partTakeKind && entry.sessionId == sessionId) entry,
-    ];
-    final newest = <String, int>{};
-    for (final entry in parts) {
-      newest[entry.scope] = max(
-        newest[entry.scope] ?? 0,
-        entry.passNumber ?? 1,
-      );
+    final newest = <String, PendingTake>{};
+    for (final entry in written ?? const <PendingTake>[]) {
+      if (entry.kind != partTakeKind || entry.sessionId != sessionId) continue;
+      final held = newest[entry.scope];
+      if (held == null || (entry.passNumber ?? 1) >= (held.passNumber ?? 1)) {
+        newest[entry.scope] = entry;
+      }
     }
     return {
-      for (final entry in parts)
-        if ((entry.passNumber ?? 1) == newest[entry.scope] &&
-            !await File(entry.path).exists())
-          entry.scope: entry.passNumber ?? 1,
+      for (final MapEntry(key: scope, value: entry) in newest.entries)
+        if (!await File(entry.path).exists()) scope: entry.passNumber ?? 1,
     };
   }
 
@@ -1194,10 +1188,13 @@ class TakeUploadQueue {
 
   Future<void> _confirm(PendingTake entry, String takeId) async {
     _confirmed[entry.id] = takeId;
+    final gone = entry.kind == partTakeKind
+        ? await _goneRowsOf(entry.sessionId, entry.scope)
+        : const <String>{};
     await _mutate(
       (written) => [
         for (final row in written)
-          if (!_sameRow(row, entry)) row,
+          if (!_sameRow(row, entry) && !gone.contains(row.id)) row,
       ],
     );
     await _deleteTheCopy(entry);
