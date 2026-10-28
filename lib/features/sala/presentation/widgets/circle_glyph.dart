@@ -29,6 +29,31 @@ class CircleGlyphPainter extends CustomPainter {
     ..moveTo(22, -40)
     ..arcToPoint(const Offset(22, 40), radius: const Radius.circular(48));
 
+  static final _teamSides = Path()
+    ..addOval(Rect.fromCircle(center: const Offset(-40, -22), radius: 17))
+    ..moveTo(-68, 30)
+    ..relativeArcToPoint(
+      const Offset(56, 0),
+      radius: const Radius.elliptical(28, 24),
+    )
+    ..close()
+    ..addOval(Rect.fromCircle(center: const Offset(40, -22), radius: 17))
+    ..moveTo(12, 30)
+    ..relativeArcToPoint(
+      const Offset(56, 0),
+      radius: const Radius.elliptical(28, 24),
+    )
+    ..close();
+
+  static final _teamMiddle = Path()
+    ..addOval(Rect.fromCircle(center: const Offset(0, -6), radius: 21))
+    ..moveTo(-36, 48)
+    ..relativeArcToPoint(
+      const Offset(72, 0),
+      radius: const Radius.elliptical(36, 30),
+    )
+    ..close();
+
   static const _handBox = Rect.fromLTWH(0, 0, 24, 24);
 
   static final _hand = Path()
@@ -105,7 +130,10 @@ class CircleGlyphPainter extends CustomPainter {
             ..strokeJoin = StrokeJoin.round,
         );
       case CircleGlyph.team:
-        break;
+        _fit(canvas, size, _wideBox);
+        canvas
+          ..drawPath(_teamSides, Paint()..color = const Color(0xFF3F7F76))
+          ..drawPath(_teamMiddle, Paint()..color = const Color(0xFF2F6B62));
     }
     canvas.restore();
   }

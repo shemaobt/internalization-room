@@ -183,7 +183,6 @@ class FacilitatorCircle extends StatelessWidget {
 
   Color _herInk(SalaColors colors) {
     if (noteMode) return colors.azul;
-    if (_teamTalk) return const Color(0xFF3F7F76);
     return colors.telha;
   }
 

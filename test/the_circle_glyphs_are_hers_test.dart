@@ -156,4 +156,47 @@ void main() {
       }
     },
   );
+
+  testWidgets(
+    'a peer cue shows her team glyph in its two greens, not one flat colour '
+    'handed down by the circle',
+    (tester) async {
+      for (final theme in [AppTheme.light, AppTheme.dark]) {
+        await _pumpCircle(
+          tester,
+          VoiceState.invite,
+          peerCue: true,
+          theme: theme,
+        );
+        expect(_painter(tester).glyph, CircleGlyph.team);
+        expect(tester.getSize(_glyph), const Size(120, 120));
+        expect(_veil(tester), 0.92);
+        expect(
+          _glyph,
+          paints
+            ..path(
+              style: PaintingStyle.fill,
+              color: const Color(0xFF3F7F76),
+              includes: const [
+                Offset(-40, -22),
+                Offset(40, -22),
+                Offset(-40, 20),
+                Offset(40, 20),
+              ],
+              excludes: const [Offset(0, -6)],
+            )
+            ..path(
+              style: PaintingStyle.fill,
+              color: const Color(0xFF2F6B62),
+              includes: const [Offset(0, -6), Offset(0, 40)],
+              excludes: const [Offset(-40, -22), Offset(40, -22)],
+            ),
+          reason:
+              '${theme.brightness.name}: as duas figuras dos lados são '
+              '#3F7F76 e a do meio, à frente, #2F6B62 (page.tsx:72-79); o '
+              'nosso era o users do Lucide numa cor só',
+        );
+      }
+    },
+  );
 }

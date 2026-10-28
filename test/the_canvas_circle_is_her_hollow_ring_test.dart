@@ -500,14 +500,6 @@ void main() {
           azul,
           'globals.css:174',
         ),
-        (
-          VoiceState.invite,
-          false,
-          true,
-          CircleGlyph.team,
-          const Color(0xFF3F7F76),
-          'page.tsx:72',
-        ),
       ]) {
         await _pumpCircle(
           tester,
