@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
@@ -98,10 +99,12 @@ void main() {
 
   test('2 (b): the tally says each part\'s fact and when the next try is '
       'due', () async {
-    final room = FakeRoom()..unreachableTake = 'ensaio/parte-1';
+    final room = FakeRoom()
+      ..refuseTake = 'ensaio/parte-1'
+      ..refuseTakeCode = RefusalCode.deviceRevoked;
     final queue = queueOn(room, backoff: const [Duration(seconds: 30)]);
-    await enqueue(queue, 'parte-1');
     await enqueue(queue, 'parte-2');
+    await enqueue(queue, 'parte-1');
     await queue.flush();
     now = now.add(const Duration(seconds: 10));
 
