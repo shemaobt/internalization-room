@@ -531,6 +531,38 @@ void main() {
   );
 
   testWidgets(
+    'a joined row whose only other rehearsal is unsent offers «trocar», and '
+    '«usar este» swaps it in',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s2b], sent: false);
+      await it.joined(
+        listed: const [s1a, s2a, s3a],
+        onTheTablet: const [s1a, s2a, s3a, s2b],
+      );
+      final before = it.received(2).length;
+
+      expect(
+        it.door(2, _swap),
+        findsOneWidget,
+        reason: 'a casa não oferecia trocar pelo ensaio não enviado',
+      );
+      await it.openTheSheet(2, _swap);
+      expect(it.useUnsent(s2b), findsOneWidget);
+      await it.tapThe(it.useUnsent(s2b));
+      await it.wait(const Duration(milliseconds: 700));
+      await it.tapThe(it.useUnsent(s2b));
+      await it.swapLands();
+
+      final sent = it.received(2).skip(before).single;
+      expect(sent.origin, it.idOf(s2b));
+      expect(sent.bytes, _bytesOf(s2b));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     'swapping scene 2 back to its first rehearsal leaves three takes for it',
     (tester) async {
       final semantics = tester.ensureSemantics();

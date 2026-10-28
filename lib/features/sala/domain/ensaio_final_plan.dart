@@ -275,17 +275,13 @@ HomeRow homeRowOf(
   required String? origin,
   required bool held,
 }) {
-  final joinable = (plan?.candidates ?? const []).where((c) => c.joinable);
+  final usable = (plan?.candidates ?? const []).where((c) => c.usable);
   final inUse = read.rehearsals.any((r) => r.rehearsalId == origin)
       ? origin
       : null;
   return (
-    swap:
-        !held && origin != null && joinable.any((c) => c.rehearsalId != origin),
-    useScene:
-        !held &&
-        origin == null &&
-        (plan?.candidates ?? const []).any((c) => c.usable),
+    swap: !held && origin != null && usable.any((c) => c.rehearsalId != origin),
+    useScene: !held && origin == null && usable.isNotEmpty,
     inUse: inUse,
   );
 }
