@@ -73,6 +73,22 @@ void main() {
       expect(machine.channel, const Silence());
     });
 
+    test('the team\'s own translation that fails tells nothing, as her own '
+        'element is silent', () {
+      const own = StretchSound(
+        'traducao-1.m4a',
+        named: 'trecho-1',
+        telling: true,
+      );
+      final (machine, effects) = reduce(
+        const Machine(station: Retro(), channel: StretchPlaying(own)),
+        PlayerFailed(own.source, sound: own),
+      );
+
+      expect(effects, isNot(contains(const TellThePlayFailed())));
+      expect(machine.channel, const Silence());
+    });
+
     test('a part that fails on every other Station tells nothing', () {
       for (final station in _everyOtherStation) {
         final (_, effects) = reduce(
@@ -98,7 +114,8 @@ void main() {
             );
             expect(
               effects.contains(const TellThePlayFailed()),
-              machine.station is Retro,
+              machine.station is Retro &&
+                  !(sound is StretchSound && sound.telling),
               reason:
                   'seed $seed, step $step: ${describeMachine(machine)} | '
                   '${effects.map(describeEffect).join(', ')}',
