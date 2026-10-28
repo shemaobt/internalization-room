@@ -28,7 +28,8 @@ neither.
 
 - **«Pronto» after an approval lands on the passage's conversation at rest**, from the recording
   home and from the Back-translation alike: «Ouvir de novo» is armed, nothing is said or played,
-  and the Opening is never asked.
+  and the Opening is never asked. The line said last was the check's verdict, so it is dropped,
+  and «Ouvir de novo» asks the room for the Guide's last line, as on every landing at rest.
 - **The Back-translation answers the way out of the recording with the conversation**, as the
   recording home already did; the machine's `TheRecordingLeft` carries both.
 - **The orange dot leads back to the recording home**, which draws the approved badge and

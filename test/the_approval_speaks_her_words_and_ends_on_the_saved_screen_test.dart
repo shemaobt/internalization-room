@@ -355,12 +355,15 @@ void main() {
       expect(find.text(_traduzir), findsNothing);
       expect(it.harness.voice.fixedLines, hasLength(falasAntesDoPronto));
 
+      final aberturasAntes = it.harness.room.calls
+          .where((call) => call == 'openSession')
+          .length;
       await tester.tap(byLabel(_ouvirDeNovo));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(
         it.harness.room.calls.where((call) => call == 'openSession'),
-        isNotEmpty,
+        hasLength(aberturasAntes + 1),
         reason:
             'o ouvir de novo da conversa repetia a fala da aprovação, não a '
             'última do Guia',

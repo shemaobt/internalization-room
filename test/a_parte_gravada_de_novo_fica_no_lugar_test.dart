@@ -1348,6 +1348,20 @@ void main() {
         SalaStage.conversa,
         reason: 'e o toque tem de valer, não ser engolido por um botão inerte',
       );
+
+      sala.openTheEnsaioFinal();
+      await tester.pump(const Duration(seconds: 1));
+      sala.startRetro();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.bySemanticsLabel(_voltarParaAGravacao), findsOneWidget);
+      await tester.tap(byLabel(_voltarParaAGravacao));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(
+        _estado(it.container).stage,
+        SalaStage.ensaio,
+        reason: 'e a saída tem de valer, não ser engolida por um botão inerte',
+      );
       semantics.dispose();
     },
   );
