@@ -759,6 +759,41 @@ void main() {
     );
   });
 
+  test('a terminei the room answered with an A line is the line «Ouvir de '
+      'novo» says again on the canvas', () async {
+    final room = await _atRest([_unsentWithFrases()]);
+    int timesSaid() =>
+        room.harness.voice.fixedLines.where((said) => said.$1 == 'A1').length;
+    await _theScreenOpens(room, on: _showing(1, SceneStep.translate));
+    room.harness.room
+      ..turnsAreCanned = true
+      ..fixedLine = 'A1';
+
+    room.sala.sendTheSceneRehearsal();
+    await waitFor(
+      'a linha A tocar na conversa',
+      () =>
+          timesSaid() == 1 &&
+          room.state.stage == SalaStage.conversa &&
+          room.state.voice == VoiceState.invite &&
+          !room.state.awaitingTheGuide,
+    );
+    await settle();
+    final playedBefore = room.harness.voice.played.length;
+
+    await room.sala.hearAgain();
+    await settle();
+
+    expect(
+      timesSaid(),
+      2,
+      reason:
+          'o «Ouvir de novo» depois do terminei devolvia a fala de antes, não '
+          'a linha A que a sala disse',
+    );
+    expect(room.harness.voice.played.skip(playedBefore), isEmpty);
+  });
+
   test('the way back does nothing while the send is in the air', () async {
     final room = await _atRest([_unsentWithFrases()]);
     await _theScreenOpens(room, on: _showing(1, SceneStep.translate));

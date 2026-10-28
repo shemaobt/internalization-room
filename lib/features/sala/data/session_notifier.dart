@@ -535,6 +535,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The outside listener this tablet has in progress, as its Resume point names them.
   late ({int version, int number})? _listenerInProgress;
 
+  late String? _startedReadIn;
+
   void _aNewLife() {
     _timers = {};
     _armHandedOver = null;
@@ -562,6 +564,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _readTheCheckAfterTheUpload = false;
     _emCurso = null;
     _listenerInProgress = null;
+    _startedReadIn = null;
     _faseAntesDeTraduzirDeNovo = null;
     _traducoesGuardadas = {};
     _traducaoNaFila = {};
@@ -1152,10 +1155,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Say a line, and remember it as the one "ouvir de novo" gives back, whether it was
   /// said whole or cut by the team.
   ///
-  /// [remember] is false for a canned line. A fail-safe is what the room says when it could
-  /// not compose an answer, and letting it take the place of the last real line meant the
-  /// replay handed a team "vamos parar um instante aqui" instead of the scene they were
-  /// asking to hear again. The room repeats what it actually told them.
+  /// [remember] is false only for a retro verdict the room could not compose. Every other
+  /// line is kept, fail-safe or not, as her `speak` keeps every clip it plays as the one
+  /// the replay gives back (page.tsx:509).
   Future<Said> _speak(
     String url,
     String fixedLine, {
@@ -1221,11 +1223,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         await _readyToSpeak(line.audioUrl, line.fixedLine);
         if (_abandoned(generation)) return;
         _watchBusyState();
-        final played = await _speak(
-          line.audioUrl,
-          line.fixedLine,
-          remember: !line.usedFailSafe,
-        );
+        final played = await _speak(line.audioUrl, line.fixedLine);
         if (_abandoned(generation)) return;
         if (!played.heard) {
           return _registerUnplayableTurn(leavesTeamTalk: false);
@@ -1283,7 +1281,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final played = await _speak(
       turn.audioUrl,
       turn.fixedLine,
-      remember: !turn.usedFailSafe,
       onSoundStart: onSoundStart,
     );
     if (_abandoned(generation)) return;
@@ -1593,10 +1590,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       moment: reply.moment,
       clearMoment: reply.moment == null,
       endOfThePassage: reply.done ? true : null,
-      lastSpoken: reply.usedFailSafe
-          ? null
-          : SpokenLine(url: reply.audioUrl, fixedLine: reply.fixedLine),
-      roomSaysItAgain: reply.usedFailSafe ? true : null,
+      lastSpoken: SpokenLine(url: reply.audioUrl, fixedLine: reply.fixedLine),
       awaitingTheGuide: false,
     );
   }
@@ -2125,11 +2119,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       for (final book in books) ...await open.startedIn(book, language),
     };
     if (_abandoned(generation)) return;
+    _startedReadIn = language;
     state = state.copyWith(
       naRoda: todas,
       comecadas: comecadas,
       awaitingTheGuide: false,
     );
+  }
+
+  Future<void> _readTheStartedEntriesAgain() async {
+    final generation = _waitOnTheGeneration;
+    final language = _lingua;
+    final open = _emAberto;
+    final comecadas = {
+      for (final book in {for (final entry in state.naRoda!) entry.book})
+        ...await open.startedIn(book, language),
+    };
+    if (_abandoned(generation)) return;
+    _startedReadIn = language;
+    state = state.copyWith(comecadas: comecadas);
   }
 
   void escolhaTap() => _gesture(() => _escolhaTap());
@@ -2523,6 +2531,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             pericope != null &&
             (opened != null ||
                 language != null ||
+                (_startedReadIn ?? speaking) != speaking ||
                 state.comecadas.contains(pericope))
         ? await _emAberto.of(book, pericope, speaking)
         : null;
@@ -11302,6 +11311,8 @@ class _NotifierHost implements StationHost {
     switch (handOff) {
       case OpenTheChoice():
         _notifier._openTheChoice();
+      case ReadTheWheel() when _notifier._current.naRoda != null:
+        _notifier._handOff(_notifier._readTheStartedEntriesAgain());
       case ReadTheWheel():
         _notifier._handOff(_notifier.abrirEscolha());
       case DiscardTheSession():
