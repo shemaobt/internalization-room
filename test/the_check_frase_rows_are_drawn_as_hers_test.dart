@@ -434,4 +434,53 @@ void main() {
     expect(_corDaBarra(tester, 4), ShemaBrand.azul);
     closeTheRoom(container);
   });
+
+  testWidgets('a frase that awaits its translation stays terracotta even when '
+      'the room still names it unclear', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 5000,
+            frase: 2,
+          ),
+        ],
+        findings: [
+          BtFinding(
+            kind: BtFindingKind.unclear,
+            frase: 2,
+            segmentId: 'trecho-2',
+          ),
+        ],
+        awaitingSegmentId: 'trecho-2',
+      ),
+    );
+
+    expect(
+      _borda(tester, 2),
+      ShemaBrand.telha,
+      reason:
+          'a frase que aguarda a tradução ficava azul pelo achado de antes, e o '
+          'telha que diz «traduzam esta frase» sumia',
+    );
+    expect(_corDaBarra(tester, 2), ShemaBrand.telha);
+    expect(
+      _corDaPalavra(tester, 2, 'regravada — traduzam esta frase'),
+      ShemaBrand.telha,
+    );
+    closeTheRoom(container);
+  });
 }
