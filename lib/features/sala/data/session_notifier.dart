@@ -456,7 +456,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// answer plays them again.
   late List<int> _partesDaEscuta;
 
-  late ({String sessionId, ListenedWhole ouvida})? _oQueASalaDisse;
+  late ({String sessionId, int ordem, ListenedWhole ouvida})? _oQueASalaDisse;
+
+  late int _relatosASala;
 
   /// How long each part of the rehearsal turned out to be, by the file the part is kept
   /// as and never by where the part sits in the row.
@@ -575,6 +577,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _oQueFaltaOuvir = null;
     _partesDaEscuta = const [];
     _oQueASalaDisse = null;
+    _relatosASala = 0;
     _tamanhoDaParteMs = {};
     _envelopes = {};
     _frases = _FraseKeep(_recorder.delete);
@@ -1121,14 +1124,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId,
     List<PlayedTake> relato,
   ) async {
+    final ordem = ++_relatosASala;
     final resposta = await _room.reportTheListening(
       sessionId,
       playedByTake: relato,
     );
-    if (resposta case Answered(
-      value: final ouvida,
-    ) when ouvida.unheardTakeIds != null) {
-      _oQueASalaDisse = (sessionId: sessionId, ouvida: ouvida);
+    if (resposta case Answered(value: final ouvida)
+        when ouvida.unheardTakeIds != null &&
+            ordem > (_oQueASalaDisse?.ordem ?? 0)) {
+      _oQueASalaDisse = (sessionId: sessionId, ordem: ordem, ouvida: ouvida);
     }
     return resposta;
   }
@@ -7787,6 +7791,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_oQueASalaDisse case (
       sessionId: final daSessao,
+      ordem: _,
       :final ouvida,
     ) when daSessao == sessionId) {
       return ouvida;

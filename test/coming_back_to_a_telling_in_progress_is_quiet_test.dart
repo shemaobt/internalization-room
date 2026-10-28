@@ -249,6 +249,64 @@ void main() {
     },
   );
 
+  test('an answer the room gave before a newer one never takes its place when '
+      'it arrives late', () async {
+    final it = await _contadaAteOMeioDaSegunda();
+    it.harness.room
+      ..listeningUnheardTakeIds = [it.partes[2].takeId!]
+      ..holdNextListening();
+    final relatos = it.harness.room.listeningReports.length;
+    it.sala.goEnsaio();
+    await waitFor(
+      'o relato da saída partir',
+      () => it.harness.room.listeningReports.length > relatos,
+    );
+    await waitFor(
+      'a equipe voltar ao ensaio',
+      () => it.estado.stage == SalaStage.ensaio,
+    );
+    it.harness.room.listeningUnheardTakeIds = const [];
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução voltar calada',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.btPhase == BtPhase.playing &&
+          !it.estado.awaitingTheGuide,
+    );
+    await settle();
+    it.harness.room.finishHeldListening();
+    await settle();
+    it.harness.room.reachable = false;
+    it.sala.goEnsaio();
+    await waitFor(
+      'a equipe voltar ao ensaio',
+      () => it.estado.stage == SalaStage.ensaio,
+    );
+    await settle();
+    final tocadas = it.harness.playback.played.length;
+    final falas = it.harness.voice.fixedLines.length;
+
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução voltar',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.btPhase == BtPhase.playing &&
+          !it.estado.awaitingTheGuide,
+    );
+    await settle();
+
+    expect(
+      it.harness.voice.fixedLines.skip(falas),
+      isEmpty,
+      reason:
+          'a resposta velha chegava por último e levava a equipe a uma escuta '
+          'que a sala já tinha contado',
+    );
+    expect(it.harness.playback.played.skip(tocadas), isEmpty);
+  });
+
   test('coming back to a telling told to its end opens «terminei» with nothing '
       'played, the told frases covering the recording', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();
