@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
@@ -171,7 +172,7 @@ void main() {
                 parte: null,
                 share: 1,
                 onHear: () {},
-                nuance: true,
+                achado: BtFindingKind.nuance,
               ),
             ],
           ),
