@@ -52,6 +52,7 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
 /// Throwing here instead of returning keeps the failure at the wait: a deadline that
 /// passes in silence surfaces as an unrelated error several lines later.
@@ -1355,6 +1356,9 @@ class FakeRoom implements RoomRepository {
   /// hears them: the one knob that lets a resend meet a key still in flight.
   final List<RoomFailure> chunkAnswersFirst = [];
 
+  /// The tablet cannot read the stretch's recording as it goes up.
+  FileSystemException? chunkThrows;
+
   /// The `Idempotency-Key` every stretch told back carried, in order, the ones that
   /// never reached the room included.
   final List<String> chunkKeys = [];
@@ -1788,6 +1792,15 @@ class FakeRoom implements RoomRepository {
     );
   }
 
+  String? unlistedTake;
+
+  bool _holdTheNextTakesList = false;
+  final List<Completer<void>> _heldTakesLists = [];
+
+  void holdNextTakesList() => _holdTheNextTakesList = true;
+
+  void finishHeldTakesList() => _heldTakesLists.removeAt(0).complete();
+
   @override
   Future<RoomAnswer<List<TakeView>>> takesOf(String sessionId) async =>
       switch (await takesListingOf(sessionId)) {
@@ -1829,8 +1842,13 @@ class FakeRoom implements RoomRepository {
     return current.isEmpty ? null : Grain.whole;
   }
 
-  TakesListing get _listing =>
-      TakesListing(takes: List.of(takes), grain: _grainInForce);
+  TakesListing get _listing => TakesListing(
+    takes: [
+      for (final take in takes)
+        if ('${take.kind}/${take.scope}' != unlistedTake) take,
+    ],
+    grain: _grainInForce,
+  );
 
   Completer<void>? _holdingTheListing;
 
@@ -1848,6 +1866,12 @@ class FakeRoom implements RoomRepository {
   @override
   Future<RoomAnswer<TakesListing>> takesListingOf(String sessionId) async {
     if (_guard('takesOf') case final failure?) return failure;
+    if (_holdTheNextTakesList) {
+      _holdTheNextTakesList = false;
+      final held = Completer<void>();
+      _heldTakesLists.add(held);
+      await held.future;
+    }
     if (_forgot('takesOf', sessionId) case final gone?) {
       return gone;
     }
@@ -2034,6 +2058,7 @@ class FakeRoom implements RoomRepository {
     DateTime? recordedAt,
     int? durationMs,
     String? sha256,
+    Future<void>? abortTrigger,
   }) async {
     if (_guard('keepSceneRehearsal') case final failure?) return failure;
     await _holdingKeepBefore?.future;
@@ -2939,6 +2964,11 @@ class FakeRoom implements RoomRepository {
 
   Duration? aHeldTakeAnswersAfter;
 
+  final List<DateTime> takesSentAt = [];
+
+  /// Every take the room was asked to keep, as `kind/scope`, in the order asked.
+  final List<String> takesAsked = [];
+
   @override
   Future<RoomAnswer<String>> sendTake(
     String sessionId,
@@ -2953,7 +2983,10 @@ class FakeRoom implements RoomRepository {
     String? origin,
     bool reopensTheApprovedDraft = false,
     String? overTake,
+    Future<void>? abortTrigger,
   }) async {
+    takesSentAt.add(DateTime.now());
+    takesAsked.add('$kind/$scope');
     if (_guard('sendTake') case final failure?) return failure;
     if (_forgot('sendTake', sessionId) case final gone?) {
       return gone;
@@ -2965,7 +2998,9 @@ class FakeRoom implements RoomRepository {
       await Zone.root.run(() => Future<void>.delayed(onTheClock));
     }
     if (scope == holdTakeScope) {
-      _reachedTakeHold?.complete();
+      if (_reachedTakeHold case final reached? when !reached.isCompleted) {
+        reached.complete();
+      }
       await _holdingTake?.future;
       final answersAfter = aHeldTakeAnswersAfter;
       if (answersAfter != null) await Future<void>.delayed(answersAfter);
@@ -3095,6 +3130,7 @@ class FakeRoom implements RoomRepository {
     required String idempotencyKey,
   }) async {
     chunkKeys.add(idempotencyKey);
+    if (chunkThrows case final thrown?) throw thrown;
     if (_guard('sendChunk') case final failure?) return failure;
     if (_forgot('sendChunk', sessionId) case final gone?) {
       return gone;
@@ -3926,6 +3962,15 @@ class FakeTakeQueue implements TakeUploadQueue {
   bool movedAway(String row) => false;
 
   @override
+  void offerTheTapThrough(bool Function(PendingTake row) aRowOffersItsTap) {}
+
+  @override
+  Future<bool> withdrawEvenInTheAir(PendingTake row) async {
+    await withdraw(row);
+    return false;
+  }
+
+  @override
   Future<void> withdrawTheJoinsOf(String sessionId, String scope) async =>
       rows.removeWhere(
         (entry) =>
@@ -3936,6 +3981,12 @@ class FakeTakeQueue implements TakeUploadQueue {
 
   @override
   Stream<void> get fallsOnTheNetwork => const Stream.empty();
+
+  @override
+  Stream<TakeLeaving?> get leaving => const Stream.empty();
+
+  @override
+  void stop(String row) {}
 
   final StreamController<String> _sessionsGone =
       StreamController<String>.broadcast(sync: true);
@@ -3979,7 +4030,7 @@ class FakeTakeQueue implements TakeUploadQueue {
         (entry) =>
             entry.kind == sceneTakeKind &&
             !entry.stored &&
-            !entry.exhausted &&
+            entry.refusal == null &&
             entry.sessionId == sessionId,
       )
       .lastOrNull;
@@ -4120,7 +4171,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       unsentChunks: [
         for (final entry in rows)
           if (!entry.stored &&
-              entry.kind == 'retro' &&
+              entry.kind == sentenceKind &&
               entry.sessionId == sessionId)
             entry,
       ].length,
@@ -4138,6 +4189,7 @@ class FakeTakeQueue implements TakeUploadQueue {
                   row,
             ],
       },
+      goneParts: const <String, int>{},
     );
     if (held != null) await held.future;
     return result;
@@ -4189,13 +4241,6 @@ Future<void> theRoomNamesTheParts(
 
 Future<void> theClipOpens(SalaHarness harness) =>
     waitFor('o clipe abrir', () => harness.playback.open);
-
-Future<void> theRoomRefusesTheGuardedCopy(SalaHarness harness) => waitFor(
-  'a sala recusar a cópia de reserva da tradução',
-  () async => (await harness.takes.entries()).any(
-    (entry) => entry.kind == 'retro' && entry.refusal != null,
-  ),
-);
 
 Future<void> confirmarATraducao(ProviderContainer container) =>
     fecharACaptura(container);
@@ -4346,7 +4391,10 @@ class SalaHarness {
               room: room,
               home: () async => takesHome,
               recordings: () => recorder,
+              spacing: takeSpacing,
             ));
+
+  List<Duration> takeSpacing = const [];
 
   List<Override> get overrides => [
     facilitatorVoiceProvider.overrideWithValue(voiceService ?? voice),
@@ -4587,76 +4635,6 @@ class QueueThatDiscardsLate extends TakeUploadQueue {
     final wait = discardsAfter;
     if (wait != null) await Future<void>.delayed(wait);
     await super.discardTheSession(sessionId);
-  }
-}
-
-class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
-  QueueWhoseTranslationLandsLate({
-    required super.room,
-    super.home,
-    required super.recordings,
-  });
-
-  Duration? landsAfter;
-  bool translationLanded = false;
-
-  @override
-  Future<PendingTake> enqueue(
-    File audio, {
-    required String sessionId,
-    required String kind,
-    required String scope,
-    int? passNumber,
-    int? chunkIndex,
-    String? scene,
-  }) async {
-    final wait = landsAfter;
-    if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
-    final row = await super.enqueue(
-      audio,
-      sessionId: sessionId,
-      kind: kind,
-      scope: scope,
-      passNumber: passNumber,
-      chunkIndex: chunkIndex,
-      scene: scene,
-    );
-    if (kind == 'retro') translationLanded = true;
-    return row;
-  }
-}
-
-class QueueThatFinishesLate extends TakeUploadQueue {
-  QueueThatFinishesLate({
-    required super.room,
-    super.home,
-    required super.recordings,
-  });
-
-  Duration? answersAfter;
-
-  @override
-  Future<PendingTake> enqueue(
-    File audio, {
-    required String sessionId,
-    required String kind,
-    required String scope,
-    int? passNumber,
-    int? chunkIndex,
-    String? scene,
-  }) async {
-    final row = await super.enqueue(
-      audio,
-      sessionId: sessionId,
-      kind: kind,
-      scope: scope,
-      passNumber: passNumber,
-      chunkIndex: chunkIndex,
-      scene: scene,
-    );
-    final wait = answersAfter;
-    if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
-    return row;
   }
 }
 
