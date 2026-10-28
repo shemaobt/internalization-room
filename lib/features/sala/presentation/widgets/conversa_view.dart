@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
@@ -123,8 +122,11 @@ class ConversaView extends ConsumerWidget {
           ),
         ),
         Positioned(
-          right: phone ? 7 : 56,
-          top: 118 + MediaQuery.viewPaddingOf(context).top + (phone ? 42 : -7),
+          right: screen.width * 0.06 + (phone ? 0 : 50),
+          top:
+              MediaQuery.viewPaddingOf(context).top +
+              screen.height * 0.05 +
+              (phone ? 40 : -6),
           child: IgnorePointer(
             ignoring: !session.redMicrophoneIsShown,
             child: AnimatedOpacity(
@@ -196,11 +198,62 @@ class _RedMicrophone extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Icon(LucideIcons.mic, size: 22, color: red),
+              child: Center(
+                child: CustomPaint(
+                  size: const Size(26, 26),
+                  painter: _HerMicrophone(red),
+                ),
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _HerMicrophone extends CustomPainter {
+  final Color color;
+
+  const _HerMicrophone(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final unit = size.width / 24;
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2 * unit
+      ..strokeCap = StrokeCap.round;
+    canvas.drawRRect(
+      RRect.fromLTRBR(
+        9 * unit,
+        2.5 * unit,
+        15 * unit,
+        13.5 * unit,
+        Radius.circular(3 * unit),
+      ),
+      Paint()..color = color,
+    );
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(12 * unit, 11 * unit), radius: 6 * unit),
+      pi,
+      -pi,
+      false,
+      stroke,
+    );
+    canvas.drawLine(
+      Offset(12 * unit, 17 * unit),
+      Offset(12 * unit, 21 * unit),
+      stroke,
+    );
+    canvas.drawLine(
+      Offset(9 * unit, 21 * unit),
+      Offset(15 * unit, 21 * unit),
+      stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_HerMicrophone old) => old.color != color;
 }

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -143,6 +145,110 @@ void main() {
           const Size(44, 44),
           center: const Offset(375 - 22.5 - 17, 20 + 33.35 + 17),
           reason: 'o alvo do ponto era de 34 px',
+        );
+      },
+    );
+  }
+
+  for (final (look, red) in [
+    ('light', const Color(0xFFC8321E)),
+    ('dark', const Color(0xFFE9503A)),
+  ]) {
+    testWidgets(
+      'in the $look look the red microphone draws her filled 26 px microphone, '
+      'not an outline',
+      (tester) async {
+        _on(tester, _se, bar: 20);
+        if (look == 'dark') _inTheDark(tester);
+        await atRestAfterATurn(tester, const []);
+        const label = 'scene rehearsal';
+        const unit = 26 / 24;
+        final stroke = Float32List.fromList([2.2 * unit]).single;
+
+        expect(byLabel(label), findsOneWidget);
+        expect(
+          find.descendant(of: byLabel(label), matching: find.byType(Icon)),
+          findsNothing,
+          reason: 'o microfone era o contorno do lucide, sem a cápsula cheia',
+        );
+        final glyph = find.descendant(
+          of: byLabel(label),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is CustomPaint && widget.painter != null,
+          ),
+        );
+        expect(tester.getSize(glyph), const Size(26, 26));
+        expect(
+          glyph,
+          paints
+            ..rrect(
+              rrect: RRect.fromLTRBR(
+                9 * unit,
+                2.5 * unit,
+                15 * unit,
+                13.5 * unit,
+                const Radius.circular(3 * unit),
+              ),
+              color: red,
+              style: PaintingStyle.fill,
+            )
+            ..arc(
+              rect: Rect.fromCircle(
+                center: const Offset(12 * unit, 11 * unit),
+                radius: 6 * unit,
+              ),
+              color: red,
+              strokeWidth: stroke,
+              strokeCap: StrokeCap.round,
+            )
+            ..line(
+              p1: const Offset(12 * unit, 17 * unit),
+              p2: const Offset(12 * unit, 21 * unit),
+              color: red,
+              strokeWidth: stroke,
+            )
+            ..line(
+              p1: const Offset(9 * unit, 21 * unit),
+              p2: const Offset(15 * unit, 21 * unit),
+              color: red,
+              strokeWidth: stroke,
+            ),
+        );
+        expect(
+          glyph,
+          paints..something((method, arguments) {
+            if (method != #drawArc) return false;
+            final sweep = arguments[2] as double;
+            final middle = (arguments[1] as double) + sweep / 2;
+            return (sweep.abs() - pi).abs() < 1e-9 &&
+                (sin(middle) - 1).abs() < 1e-9;
+          }),
+          reason: 'o berço do microfone dela é o arco de baixo',
+        );
+      },
+    );
+  }
+
+  for (final (screen, bar, center) in [
+    (_se, 20.0, const Offset(375 - 22.5 - 24, 20 + 33.35 + 40 + 24)),
+    (
+      const Size(820, 1180),
+      24.0,
+      const Offset(820 - 49.2 - 50 - 24, 24 + 59 - 6 + 24),
+    ),
+  ]) {
+    testWidgets(
+      'on a ${screen.width.toInt()} px screen the red microphone sits where '
+      'hers does',
+      (tester) async {
+        _on(tester, screen, bar: bar);
+        await atRestAfterATurn(tester, const []);
+
+        _sits(
+          tester.getRect(byLabel('scene rehearsal')),
+          const Size(48, 48),
+          center: center,
+          reason: 'o microfone contava a partir do ponto velho, a 118',
         );
       },
     );
