@@ -11031,12 +11031,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// before the room stopped assembling passages looks like afterwards. Which part such a
   /// recording answers for is the one thing the stretches cannot say, so the room's own
   /// list of them is read for it, by the number this tablet gave that part when it sent
-  /// it up. Nothing is fetched: the stretch sits on the part the team recorded and plays
-  /// that part's own audio at the place it sits in.
+  /// it up, and a recording with no number is the whole. Nothing is fetched: the stretch
+  /// sits on the part the team recorded and plays that part's own audio at the place it
+  /// sits in.
   ///
-  /// A recording the room does not number, and a listing that does not answer, leave the
-  /// reading as it was. Neither is a reason to stop the team: the stretch is on the
-  /// server and the telling-back goes on.
+  /// A stale stretch over a whole set aside behind the scenes' parts stays at no part, as
+  /// hers lists every stale frase whatever its clip (`Drafting.tsx:2414-2431` at
+  /// 18fa7c4). A listing that does not answer leaves the reading as it was, and is no
+  /// reason to stop the team: the stretch is on the server and the telling-back goes on.
   ///
   /// The resume row is not written again. Nothing it holds moves here — the stretches it
   /// keeps are the room's, and the recordings, the stage and the pass are all as they
@@ -11084,18 +11086,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         continue;
       }
       final numero = guardada.ordinal;
-      if (numero == null) continue;
       final onde = state.partes.indexWhere(
-        (parte) => parte.scopeId == KeptScope.parte(numero),
+        (parte) =>
+            parte.scopeId ==
+            (numero == null ? KeptScope.whole : KeptScope.parte(numero)),
       );
-      if (onde < 0) continue;
+      if (onde < 0 && numero != null) continue;
       naParte[guardada.takeId] = onde;
     }
     if (naParte.isEmpty) return;
     state = state.copyWith(
       btTrechosRegravados: [
         for (final trecho in _trechosFrom(regravados, naParte: naParte))
-          if (trecho.parte >= 0) trecho,
+          if (trecho.parte >= 0 || naParte.containsKey(trecho.takeId)) trecho,
       ],
     );
     // Only over a row nothing else has touched. This reading is built out of the answer
