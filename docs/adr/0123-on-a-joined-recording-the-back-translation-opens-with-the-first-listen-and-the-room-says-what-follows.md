@@ -51,7 +51,9 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
    4. `automatic_check`: the room's line (N1), then the check, with no tap;
    5. nothing told: her P1, then the telling from the untold ground;
    6. otherwise: quiet, with the circle ready and «terminei» under its own rule;
-   7. no answer: the listen stays and the play control replays the parts it last played (after
+   7. no answer, or an answer that names nothing: the listen stays, «ainda falta ouvir um trecho
+      da gravação» as on hers (`Drafting.tsx:1567`), nothing is said, and the play control
+      replays the parts it last played (after
       rule 7.1, only those the room named).
 8. **The carried frases** are read from the room once before the listen, and stay inert during it.
 9. **It belongs to one visit.** Every exit of rule 7 but 1 and 7 ends it, and so do a new entry,

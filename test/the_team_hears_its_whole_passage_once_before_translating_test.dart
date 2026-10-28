@@ -1392,7 +1392,7 @@ void main() {
   );
 
   testWidgets(
-    'an answer that never comes keeps the listen and the play control plays it again',
+    'an answer that never comes writes that a part is still unheard, says nothing, and the play control plays it again',
     (tester) async {
       final it = await _naTela(tester, _juntadaNaCasa);
       late int linhas;
@@ -1411,6 +1411,12 @@ void main() {
         await settle();
       });
 
+      expect(
+        find.text(_faltaOuvir),
+        findsOneWidget,
+        reason:
+            'o relato sem resposta deixava a escuta muda, só com o tocar para seguir',
+      );
       expect(it.harness.voice.fixedLines.skip(linhas), isEmpty);
       expect(find.text(_soOuvir), findsOneWidget);
       expect(find.text(_terminei), findsNothing);
@@ -1426,6 +1432,62 @@ void main() {
       expect(it.harness.playback.played.last, it.partes[0].path);
       expect(it.harness.playback.playedFrom.last, Duration.zero);
       closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'an English session whose answer never comes reads her English gap line',
+    (tester) async {
+      final it = await _naTela(
+        tester,
+        () => _juntadaNaCasa(numaSala: SalaHarness(lingua: 'en')),
+      );
+      await _ate(tester, () async {
+        _nadaOuvido(it);
+        await _oDisco(it);
+        await _ouvirAte(it, ate: 1);
+        it.harness.room.failListeningWith = const NetworkFailed('sem rede');
+        final relatos = it.harness.room.listeningReports.length;
+        await _ouvirAte(it, desde: 2);
+        await waitFor(
+          'o relato da última',
+          () => it.harness.room.listeningReports.length > relatos,
+        );
+        await settle();
+      });
+
+      expect(
+        find.text('there is still a part of the recording to listen to'),
+        findsOneWidget,
+        reason: 'a sessão em inglês também ficava sem linha nenhuma',
+      );
+      closeTheRoom(it.container);
+    },
+  );
+
+  test(
+    'a room that closes the listen without naming what is unheard still says a part is left',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      it.harness.room.listeningUnheardTakeIds = null;
+      final relatos = it.harness.room.listeningReports.length;
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'o relato da última',
+        () => it.harness.room.listeningReports.length > relatos,
+      );
+      await settle();
+
+      expect(
+        it.estado.btRecusa,
+        CheckRefusal.partUnheard,
+        reason:
+            'uma sala que respondia sem nomear nada deixava a escuta sem linha',
+      );
+      expect(it.estado.btSoOuvir, isTrue);
     },
   );
 
