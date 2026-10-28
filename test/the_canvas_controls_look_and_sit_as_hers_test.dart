@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -10,11 +11,16 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:internalization_room/features/sala/presentation/widgets/claquete.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/shema_mark.dart';
+
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
 import 'the_kept_retellings_are_numbered_buttons_on_the_conversation_test.dart'
-    show atRestAfterATurn;
+    show aKept, atRestAfterATurn;
 
 const _se = Size(375, 667);
 
@@ -100,6 +106,37 @@ Future<void> _atTheSendOff(WidgetTester tester) async {
     container.read(salaSessionProvider).orangeDotLook,
     OrangeDotLook.bright,
   );
+}
+
+Rect _inkOf(Element word) {
+  final paragraph = _paragraphUnder(word);
+  final boxes = paragraph.getBoxesForSelection(
+    TextSelection(
+      baseOffset: 0,
+      extentOffset: paragraph.text.toPlainText().length,
+    ),
+  );
+  var ink = boxes.first.toRect();
+  for (final box in boxes.skip(1)) {
+    ink = ink.expandToInclude(box.toRect());
+  }
+  return MatrixUtils.transformRect(paragraph.getTransformTo(null), ink);
+}
+
+RenderParagraph _paragraphUnder(Element word) {
+  RenderParagraph? found;
+  void look(Element element) {
+    if (found != null) return;
+    final render = element.renderObject;
+    if (render is RenderParagraph) {
+      found = render;
+      return;
+    }
+    element.visitChildren(look);
+  }
+
+  look(word);
+  return found!;
 }
 
 Finder _dotIn(String label) => find.descendant(
@@ -516,5 +553,120 @@ void main() {
         );
       },
     );
+  }
+
+  testWidgets(
+    'under a status bar the moment label still sits below the red microphone '
+    'on a phone, both counted from the bar',
+    (tester) async {
+      _on(tester, const Size(390, 844), bar: 59);
+      await atRestAfterATurn(tester, const []);
+
+      final label = tester.getRect(find.byType(MomentLabel));
+      expect(
+        label.top,
+        closeTo(59 + 136.2, 0.01),
+        reason: 'a etiqueta contava do topo da tela e o microfone da barra',
+      );
+      expect(
+        label.top,
+        greaterThanOrEqualTo(tester.getRect(byLabel('scene rehearsal')).bottom),
+        reason: 'no celular a etiqueta dela fica sempre abaixo do microfone',
+      );
+    },
+  );
+
+  for (final (name, screen, bar, inset) in [
+    ('an SE', _se, 20.0, 0.0),
+    ('an iPad', const Size(820, 1180), 24.0, 20.0),
+  ]) {
+    testWidgets('on $name nothing on her canvas sits on anything else', (
+      tester,
+    ) async {
+      _on(tester, screen, bar: bar, inset: inset);
+      await atRestAfterATurn(tester, [
+        aKept('S1', 2),
+        aKept('S2', 4),
+        aKept('S3', 6),
+      ]);
+
+      final pieces = <String, Rect>{
+        for (final label in [
+          'Choose another passage',
+          'Record your rehearsal',
+          'scene rehearsal',
+          'Leave a question for the facilitator',
+          'Hear that again',
+          'Hear how you told part 1',
+          'Hear how you told part 2',
+          'Hear how you told part 3',
+        ])
+          label: tester.getRect(byLabel(label)),
+        'the circle': tester.getRect(find.byType(FacilitatorCircle)),
+        'the moment': tester.getRect(find.byType(MomentLabel)),
+        'the claquete': tester.getRect(find.byType(Claquete)),
+        'the mark': tester.getRect(
+          find.descendant(
+            of: find.byType(ClaqueteLayer),
+            matching: find.byType(ShemaMark),
+          ),
+        ),
+      };
+      final names = pieces.keys.toList();
+      for (var i = 0; i < names.length; i++) {
+        expect(
+          screen.contains(pieces[names[i]]!.topLeft) &&
+              screen.contains(
+                pieces[names[i]]!.bottomRight - const Offset(1, 1),
+              ),
+          isTrue,
+          reason: '${names[i]} saía da tela',
+        );
+        for (var j = i + 1; j < names.length; j++) {
+          expect(
+            pieces[names[i]]!.overlaps(pieces[names[j]]!),
+            isFalse,
+            reason: '${names[i]} encostava em ${names[j]}',
+          );
+        }
+      }
+    });
+  }
+
+  for (final (name, screen, bar, inset) in [
+    ('an SE', _se, 20.0, 0.0),
+    ('an iPad', const Size(820, 1180), 24.0, 20.0),
+  ]) {
+    for (final (where, opens) in [
+      ('the Choice', 'Choose another passage'),
+      ('the scene rehearsal', 'scene rehearsal'),
+    ]) {
+      testWidgets('on $name the way back on $where sits on no written word', (
+        tester,
+      ) async {
+        _on(tester, screen, bar: bar, inset: inset);
+        await atRestAfterATurn(tester, const []);
+        const label = 'Back to the current passage';
+
+        await tester.tap(byLabel(opens), warnIfMissed: false);
+        await _pumpUntil(tester, () => byLabel(label).evaluate().isNotEmpty);
+        await tester.pump(const Duration(milliseconds: 1500));
+
+        final back = tester.getRect(byLabel(label));
+        final words = find.byType(Text).hitTestable();
+        expect(words, findsWidgets);
+        for (final word in words.evaluate()) {
+          final text = (word.widget as Text).data ?? '';
+          expect(
+            back.overlaps(_inkOf(word)),
+            isFalse,
+            reason: 'a volta encostava em «$text»',
+          );
+        }
+
+        await tester.tap(byLabel(label));
+        await tester.pump(const Duration(seconds: 3));
+      });
+    }
   }
 }

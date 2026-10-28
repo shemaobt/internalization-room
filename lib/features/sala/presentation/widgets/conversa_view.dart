@@ -55,9 +55,14 @@ class ConversaView extends ConsumerWidget {
             Positioned(
               left: 0,
               right: 0,
-              top: phone
-                  ? max(screen.height * 0.08 + 66, screen.height * 0.05 + 94)
-                  : screen.height * 0.08 + 58,
+              top:
+                  MediaQuery.viewPaddingOf(context).top +
+                  (phone
+                      ? max(
+                          screen.height * 0.08 + 66,
+                          screen.height * 0.05 + 94,
+                        )
+                      : screen.height * 0.08 + 58),
               child: Center(
                 child: AnimatedOpacity(
                   opacity: _momentOpacity(session),
