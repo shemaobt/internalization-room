@@ -81,6 +81,8 @@ AnsweringEvent _stampedAnswer(
     generation: generation,
   ),
   TheSceneDiskFailed() => TheSceneDiskFailed(generation: generation),
+  TheSceneWentAlready() => TheSceneWentAlready(generation: generation),
+  TheSceneSendRefused() => TheSceneSendRefused(generation: generation),
   TheCallWasRefused() => TheCallWasRefused(generation: generation),
   TheCallMetAClosedPassage() => TheCallMetAClosedPassage(
     generation: generation,

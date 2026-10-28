@@ -689,13 +689,20 @@ void main() {
     await waitFor('o sinal da pessoa', () => room.state.needsPerson);
   });
 
-  test('a scene rehearsal answered without a reply: back on the Canvas, the '
-      'sign', () async {
+  test('a scene rehearsal answered without a reply keeps its screen; back on '
+      'the Canvas, the sign', () async {
     final harness = SalaHarness();
     final room = await _onTheSceneScreen(harness);
     harness.room.answersTurnsWithoutAReply = true;
 
     await _terminei(room);
+    await _theRoomRests(room);
+    await settle(const Duration(milliseconds: 1600));
+
+    expect(room.state.stage, SalaStage.cena);
+    expect(room.state.needsPerson, isFalse);
+
+    room.sala.leaveTheSceneRehearsal();
     await waitFor(
       'a conversa voltar',
       () => room.state.stage == SalaStage.conversa,

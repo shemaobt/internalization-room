@@ -1604,9 +1604,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(decided(const RoomTimedOut(), _failureContext()));
   }
 
-  void _giveUpOnTheTurn(Turn turn, RoomResult result) => _dispatch(
-    decided(result, _failureContext(turn: turn, rule: RefusalRule.aSpokenTurn)),
-  );
+  void _giveUpOnTheTurn(
+    Turn turn,
+    RoomResult result, {
+    RefusalRule rule = RefusalRule.aSpokenTurn,
+  }) => _dispatch(decided(result, _failureContext(turn: turn, rule: rule)));
 
   void _playTheReplyTheLookFound(Turn turn, TurnResult reply) {
     final awaited = _awaitedReplies.remove(turn);
@@ -1641,8 +1643,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// One turn, sent once. A network failure, the client's 305 s give-up included, is
-  /// looked at once; any other failure goes to [failed]. An answer to a turn the machine
-  /// no longer holds in flight was already given up on, and the look decides it.
+  /// looked at once, and so is a «terminei» answer the tablet cannot read; any other
+  /// failure goes to [failed]. An answer acts only for the call that sent it, on every
+  /// turn: one to a turn the machine no longer holds in flight was already given up on,
+  /// and the look decides it.
   Future<void> _sendATurn(
     Turn turn,
     int generation,
@@ -1650,6 +1654,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     required Future<void> Function(TurnResult reply) play,
     required void Function(RoomFailure failure) failed,
     Kept keeps = const NothingKept(),
+    RefusalRule rule = RefusalRule.aSpokenTurn,
   }) async {
     Future<void> heard(TurnResult reply) async {
       try {
@@ -1664,9 +1669,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ..[turn] = (play: heard, gestures: _chain);
     _dispatch(TurnSent(turn, keeps: keeps));
     final answer = await _theTakeGoes(send);
-    if (_abandoned(generation)) return;
-    if (answer case NetworkFailed() && final fell) {
-      return _giveUpOnTheTurn(turn, fell.result);
+    if (_abandoned(generation) ||
+        !identical(_awaitedReplies[turn]?.play, heard)) {
+      return;
+    }
+    if (answer case final RoomFailure lost
+        when FailurePolicy.theAnswerWasLost(lost.result, rule)) {
+      return _giveUpOnTheTurn(turn, lost.result, rule: rule);
     }
     if (state.machine.inFlight != turn) return;
     _awaitedReplies.remove(turn);
@@ -6373,6 +6382,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theDiskFailed() =>
       state = state.copyWith(sceneLine: SceneLine.diskFailed);
 
+  void _itWentAlready() =>
+      state = state.copyWith(sceneLine: SceneLine.alreadySent);
+
+  void _theSendFailed() => state = state.copyWith(sceneLine: SceneLine.notSent);
+
   void _theDiskWordGoes() {
     if (state.sceneLine != SceneLine.diskFailed) return;
     state = state.copyWith(clearSceneLine: true);
@@ -6651,14 +6665,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         .firstOrNull;
     if (held == null || asked.waiting) return;
     _handOff(_showTheRehearsal(held, asked, _generation));
-    final turn = state.sceneTurn;
-    if (!held.unsent &&
-        state.needsPerson &&
-        turn != null &&
-        turn.rehearsalId == held.rehearsalId) {
-      state = state.copyWith(clearSceneTurn: true);
-      _handOff(_sendTheScene(sessionId, held, turn.turnId));
-    }
   }
 
   void openTheListedSceneRehearsal(String rehearsalId) =>
@@ -6773,6 +6779,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       generation,
       () => _theSceneGoes(sessionId, rehearsal, turnId, generation),
       play: (reply) async {
+        if (_answeredWithNothingToPlay(reply)) return;
         _frases.letGoOf(rehearsal.rehearsalId);
         state = state.copyWith(
           scene: state.scene.copyWith(wentToTheVoice: true),
@@ -6788,9 +6795,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _decideAt(
           failure,
           door: Door.sceneRehearsal,
-          rule: RefusalRule.readsTheListAgain,
+          rule: RefusalRule.sendsTheScene,
         );
       },
+      rule: RefusalRule.sendsTheScene,
     );
   }
 
@@ -11413,6 +11421,12 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheDiskFailed() => _notifier._theDiskFailed();
+
+  @override
+  void hearTheSendFailed() => _notifier._theSendFailed();
+
+  @override
+  void hearItWentAlready() => _notifier._itWentAlready();
 }
 
 final salaSessionProvider =

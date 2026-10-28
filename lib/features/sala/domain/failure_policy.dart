@@ -91,6 +91,11 @@ enum RefusalRule {
 
   /// A scene refusal reads the scene rehearsals again.
   readsTheListAgain,
+
+  /// «terminei» refused: the scene screen says whether it went already or can be sent
+  /// again, forgets the waiting person sign and reads the scene rehearsals again; a closed
+  /// passage closes, and a code that stops the room only reads them again.
+  sendsTheScene,
 }
 
 /// Where the room stood when the result came back. [turn] is set only for a call that
@@ -132,6 +137,16 @@ abstract final class FailurePolicy {
     RefusalCode.fraseOutOfPlace,
   };
 
+  /// A turn's answer that never reached the tablet whole: the room may have acted on it,
+  /// so the one look decides. For «terminei», an answer it could not read is one too.
+  static bool theAnswerWasLost(RoomResult result, RefusalRule rule) =>
+      switch (result) {
+        RoomNetworkFailed() => true,
+        RoomRefused(code: RefusalCode.unreadable) =>
+          rule == RefusalRule.sendsTheScene,
+        _ => false,
+      };
+
   static MachineEvent decide(RoomResult result, FailureContext context) {
     final generation = context.generation;
     final sounding = context.sounding;
@@ -158,6 +173,20 @@ abstract final class FailurePolicy {
         TheTellingCameBackEmpty(readAgain: true, generation: generation),
       RoomNetworkFailed() when context.door == Door.sceneFrase =>
         TheTellingCameBackEmpty(generation: generation),
+      RoomRefused() when turn != null && theAnswerWasLost(result, rule) =>
+        TurnGivenUp(turn, sounding: sounding, generation: generation),
+      RoomRefused(code: RefusalCode.sceneRehearsalSent)
+          when rule == RefusalRule.sendsTheScene =>
+        TheSceneWentAlready(generation: generation),
+      RoomRefused(code: RefusalCode.passageClosed)
+          when rule == RefusalRule.sendsTheScene =>
+        TheCallMetAClosedPassage(generation: generation),
+      RoomRefused(:final code)
+          when rule == RefusalRule.sendsTheScene &&
+              !RefusalCode.stopsTheRoom.contains(code) =>
+        TheSceneSendRefused(generation: generation),
+      RoomRefused() when rule == RefusalRule.sendsTheScene =>
+        TheSceneDoorFailed(readAgain: true, generation: generation),
       RoomRefused(
         code: RefusalCode.sceneRehearsalSent ||
             RefusalCode.restartOutOfOrder ||
@@ -191,7 +220,8 @@ abstract final class FailurePolicy {
       RoomFoundNothing() ||
       RoomAnsweredWithoutAReply() ||
       RoomTimedOut() when overAnOpening => missed,
-      RoomFoundNothing() when context.station is SceneRehearsal =>
+      RoomFoundNothing() || RoomAnsweredWithoutAReply()
+          when context.station is SceneRehearsal =>
         TheSceneTurnFoundNothing(generation: generation),
       RoomFoundNothing() || RoomAnsweredWithoutAReply() => halt,
       RoomNetworkFailed() when context.door == Door.telling =>
