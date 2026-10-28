@@ -5874,7 +5874,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final playing = state.channel is PartPlaying;
     if (step == SceneStep.sent) {
       _silenceTheRoom();
-      if (!playing) _play(PartSound(0, take));
+      if (!playing) {
+        state = state.copyWith(
+          scene: state.scene.copyWith(heard: SceneHeard.partly),
+        );
+        _play(
+          PartSound(0, take),
+          onComplete: () => state = state.copyWith(
+            scene: state.scene.copyWith(heard: SceneHeard.toTheEnd),
+          ),
+        );
+      }
       return;
     }
     if (_theListFirst(_playTheSceneRehearsal)) return;
@@ -6374,6 +6384,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final frase = _theFraseShown(fraseId, on: const {SceneStep.sent});
     if (frase == null || take == null || !frase.placedIn(length)) return;
     _silenceTheRoom();
+    state = state.copyWith(
+      scene: state.scene.copyWith(heard: SceneHeard.partly),
+    );
     _play(
       PartSound(
         0,
