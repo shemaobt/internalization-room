@@ -723,10 +723,10 @@ class _Upper extends StatelessWidget {
     words.toUpperCase(),
     textAlign: TextAlign.center,
     style: TextStyle(
-      color: SalaColors.of(context).mut,
-      fontSize: 14,
+      color: SalaColors.of(context).claquete,
+      fontSize: 0.7 * _rem,
       fontWeight: FontWeight.w600,
-      letterSpacing: 2.4,
+      letterSpacing: 0.18 * 0.7 * _rem,
     ),
   );
 }

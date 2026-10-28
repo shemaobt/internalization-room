@@ -1481,4 +1481,38 @@ void main() {
       },
     );
   }
+  for (final (look, verdeClaro) in [
+    (Brightness.light, const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look the frases heading and the list heading are her small verde-claro capitals, not the 14 point grey',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+
+        for (final heading in [
+          'FRASES TRADUZIDAS',
+          'ENSAIOS DA CENA DESTA SESSÃO',
+        ]) {
+          final style = tester.widget<Text>(find.text(heading)).style;
+          expect(
+            style?.fontSize,
+            closeTo(11.2, 1e-9),
+            reason: 'o cabeçalho tinha 14 pontos; o dela tem .7rem',
+          );
+          expect(style?.color, verdeClaro);
+          expect(style?.fontWeight, FontWeight.w600);
+          expect(style?.letterSpacing, closeTo(2.016, 1e-9));
+        }
+      },
+    );
+  }
 }
