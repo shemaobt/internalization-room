@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
+import '../../domain/bt_finding.dart';
 import '../../domain/facilitator_script.dart';
 import 'bead_styles.dart';
 
@@ -12,7 +13,9 @@ class FraseRow {
   final VoidCallback? onHear;
   final VoidCallback? onRetell;
   final String? mark;
-  final bool nuance;
+  final BtFindingKind? achado;
+  final bool traduzindoDeNovo;
+  final bool regravando;
   final String? regravar;
   final bool regravarDormindo;
   final VoidCallback? onRegravar;
@@ -28,7 +31,9 @@ class FraseRow {
     required this.onHear,
     this.onRetell,
     this.mark,
-    this.nuance = false,
+    this.achado,
+    this.traduzindoDeNovo = false,
+    this.regravando = false,
     this.regravar,
     this.regravarDormindo = false,
     this.onRegravar,
@@ -41,6 +46,7 @@ class FraseRow {
 
 class FraseRevisao {
   final String ouvir;
+  final bool tocando;
   final VoidCallback onOuvir;
   final String gravarDeNovo;
   final VoidCallback onGravarDeNovo;
@@ -49,6 +55,7 @@ class FraseRevisao {
 
   const FraseRevisao({
     required this.ouvir,
+    required this.tocando,
     required this.onOuvir,
     required this.gravarDeNovo,
     required this.onGravarDeNovo,
@@ -147,10 +154,15 @@ class FraseList extends StatelessWidget {
                   RoundActionButton(
                     size: 48,
                     semanticLabel: revisao.ouvir,
+                    toggled: revisao.tocando,
                     background: colors.card,
                     border: Border.all(color: colors.line),
                     onTap: revisao.onOuvir,
-                    child: Icon(LucideIcons.play, size: 20, color: colors.cord),
+                    child: Icon(
+                      revisao.tocando ? LucideIcons.square : LucideIcons.play,
+                      size: 20,
+                      color: colors.cord,
+                    ),
                   ),
                   _Pill(
                     label: revisao.gravarDeNovo,
@@ -237,7 +249,10 @@ class _FraseTile extends StatelessWidget {
     final n = row.n;
     final parte = row.parte;
     final mark = row.mark;
-    final tom = row.nuance
+    final azul = row.achado != null && row.achado != BtFindingKind.addition;
+    final tom = row.traduzindoDeNovo
+        ? colors.telha
+        : azul
         ? ShemaBrand.azul
         : mark == null
         ? colors.cord
@@ -250,8 +265,12 @@ class _FraseTile extends StatelessWidget {
           color: colors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: row.nuance
+            color: row.regravando
+                ? colors.telha
+                : azul
                 ? ShemaBrand.azul
+                : row.traduzindoDeNovo
+                ? colors.telha
                 : mark == null
                 ? colors.line
                 : colors.telha,
@@ -311,11 +330,16 @@ class _FraseTile extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: colors.telha),
+                            border: Border.all(
+                              color: azul ? ShemaBrand.azul : colors.telha,
+                            ),
                           ),
                           child: Text(
                             mark,
-                            style: TextStyle(color: colors.telha, fontSize: 14),
+                            style: TextStyle(
+                              color: azul ? ShemaBrand.azul : colors.telha,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       if (row.regravar case final regravar?)
