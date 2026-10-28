@@ -3873,7 +3873,6 @@ class FakeTakeQueue implements TakeUploadQueue {
 
   Completer<void>? _holdingTheKeep;
 
-  /// Hold the next keep before its row is written, the take still being kept.
   void holdNextKeep() => _holdingTheKeep = Completer<void>();
 
   void finishHeldKeep() {
