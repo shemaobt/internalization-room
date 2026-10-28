@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
 const _side = 217.5;
 
@@ -208,5 +209,71 @@ void main() {
             '(globals.css:168): $scales',
       );
     }
+  });
+
+  testWidgets('while the team speaks her three blue-green rings grow out of '
+      'the circle, not two rings closing in', (tester) async {
+    await _pumpCircle(tester, VoiceState.listening);
+    await tester.pump(const Duration(milliseconds: 2400));
+
+    final rings = [
+      for (final ripple in find.byType(Ripple).evaluate())
+        (
+          tester
+              .widget<Transform>(
+                find.descendant(
+                  of: find.byWidget(ripple.widget),
+                  matching: find.byType(Transform),
+                ),
+              )
+              .transform
+              .storage[0],
+          (tester
+                      .widget<Container>(
+                        find.descendant(
+                          of: find.byWidget(ripple.widget),
+                          matching: find.byType(Container),
+                        ),
+                      )
+                      .decoration!
+                  as BoxDecoration)
+              .border!
+              .top,
+        ),
+    ]..sort((a, b) => a.$1.compareTo(b.$1));
+
+    expect(
+      rings.length,
+      3,
+      reason: 'ouvindo, o dela desenha três ondas (globals.css:199-201)',
+    );
+    for (final ((scale, edge), (herScale, herOpacity)) in [
+      for (final (index, ring) in rings.indexed)
+        (
+          ring,
+          const [(0.7358, 0.4283), (1.1387, 0.1896), (1.4178, 0.063)][index],
+        ),
+    ]) {
+      expect(
+        scale,
+        closeTo(herScale, 0.002),
+        reason:
+            'as ondas iam de 1,46 para 1, para dentro; as dela crescem '
+            'de .62 a 1.5 em 3,2 s, 1,07 s uma da outra (globals.css:202)',
+      );
+      expect(edge.width, 1.2);
+      expect(edge.color.toARGB32() & 0xFFFFFF, 0x89AAA3);
+      expect(
+        edge.color.a,
+        closeTo(herOpacity, 0.002),
+        reason:
+            'a onda some de .5 a .06 aos 80% e a 0 no fim (globals.css:202)',
+      );
+    }
+    expect(
+      _painted(tester).where((paint) => paint.boxShadow != null),
+      isEmpty,
+      reason: 'o anel de 3 px com brilho que ouvia não é dela',
+    );
   });
 }

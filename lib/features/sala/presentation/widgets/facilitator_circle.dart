@@ -90,12 +90,14 @@ class FacilitatorCircle extends StatelessWidget {
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
+                if (!_halted && canvas && voice == VoiceState.listening)
+                  ..._herRipples(colors),
                 _body(colors, still),
                 if (!_halted && voice == VoiceState.speaking)
                   ..._ripples(colors),
-                if (!_halted && voice == VoiceState.listening)
+                if (!_halted && !canvas && voice == VoiceState.listening)
                   _listenRing(colors),
-                if (!_halted && voice == VoiceState.listening)
+                if (!_halted && !canvas && voice == VoiceState.listening)
                   ..._gatheringIn(),
                 if (notUnderstood != null && !_halted)
                   _notUnderstoodMark(notUnderstood!),
@@ -366,6 +368,33 @@ class FacilitatorCircle extends StatelessWidget {
       ),
     ),
   );
+
+  List<Widget> _herRipples(SalaColors colors) {
+    Widget ring(double phase) => Ripple(
+      period: const Duration(milliseconds: 3200),
+      phase: phase,
+      curve: Curves.linear,
+      builder: (context, t) => Transform.scale(
+        scale: 0.62 + 0.88 * Curves.easeOut.transform(t),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: colors.azul.withValues(alpha: _ebb(t)),
+              width: 1.2,
+            ),
+          ),
+        ),
+      ),
+    );
+    return [ring(0), ring(0.665625), ring(0.33125)];
+  }
+
+  double _ebb(double t) => t <= 0.8
+      ? 0.5 - 0.44 * Curves.easeOut.transform(t / 0.8)
+      : 0.06 - 0.06 * Curves.easeOut.transform((t - 0.8) / 0.2);
 
   Color _herEdge(SalaColors colors) {
     if (_herNote) return colors.azul;
