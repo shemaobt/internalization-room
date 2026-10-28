@@ -147,7 +147,7 @@ class EnsaioView extends ConsumerWidget {
                   ],
                   const SizedBox(height: 24),
                   FacilitatorCircle(
-                    size: facilitatorCircleSize,
+                    size: herCircleSize(MediaQuery.sizeOf(context), 46, 180),
                     halt: session.halt,
                     voice: _voice(session),
                     tongue: Tongue.motherTongue,
