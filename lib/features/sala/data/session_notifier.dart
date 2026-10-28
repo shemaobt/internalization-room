@@ -2570,6 +2570,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         generation,
         landed: landed,
         read: (read, sent) => lida = (read, sent),
+        relaunched: opened != null,
       );
       if (_abandoned(generation)) return;
       if (onde == _Resume.failed ||
@@ -2617,7 +2618,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _aLeituraDecidiu = true;
           return;
         }
-        if (onde == _Resume.landed && Station.stored(waiting.stage) is Retro) {
+        if (onde == _Resume.landed &&
+            opened == null &&
+            Station.stored(waiting.stage) is Retro) {
           _pickTheTellingBackUp(snapshot.backTranslation);
           landed();
           unawaited(_countUnsent());
@@ -2634,6 +2637,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _applyTheSessionRead(snapshot, sent);
         _aLeituraDecidiu = true;
         _asPartesPerdidasSaem();
+        if (opened != null) _landWhereTheyStopped();
         return;
       }
       final SessionSnapshot read;
@@ -2659,7 +2663,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (await _landedOnTheApprovedDraft(read, sent, generation, landed)) {
         return;
       }
-      if (Station.stored(waiting.stage) is Retro) {
+      if (opened == null && Station.stored(waiting.stage) is Retro) {
         final told = read.backTranslation;
         // Only when there is a telling-back to land on. A checked answer carrying no
         // stretch contradicts itself — the check is about what was told — and there is
@@ -2717,7 +2721,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (read.approved == null || read.backTranslation.nothingTold) return false;
     final waiting = (await _takes.pending()).any(
       (entry) =>
-          entry.sessionId == read.sessionId && entry.kind != sceneTakeKind,
+          entry.sessionId == read.sessionId &&
+          entry.kind != sceneTakeKind &&
+          !(entry.exhausted && !entry.refusedWithNoCode),
     );
     if (waiting || _abandoned(generation)) return _abandoned(generation);
     _leaveTheStepFor(const Canvas());
@@ -2912,6 +2918,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation, {
     required void Function() landed,
     required void Function(SessionSnapshot read, int sent) read,
+    bool relaunched = false,
   }) async {
     final stage = Station.stored(waiting.stage);
     final anEmptyEnsaio = stage is Ensaio && waiting.takes.isEmpty;
@@ -2938,7 +2945,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
     }
     if (_abandoned(generation)) return _Resume.abandoned;
-    final faltavam = aPartlessRetro || missing;
+    final faltavam = !relaunched && (aPartlessRetro || missing);
     if (stage is Retro && faltavam) {
       final sent = ++_readsSent;
       if (await _room.fetchState(waiting.sessionId) case Answered(
@@ -3019,8 +3026,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ], generation);
     }
     if (_abandoned(generation)) return _Resume.abandoned;
-    _leaveTheStepFor(const Ensaio());
-    _arriveAt(const TheRehearsalOpened());
+    if (!relaunched) {
+      _leaveTheStepFor(const Ensaio());
+      _arriveAt(const TheRehearsalOpened());
+    }
     landed();
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
@@ -4373,9 +4382,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (left.isNotEmpty) {
       await _withinTheJoinWait(_takes.flush());
-      await _countUnsent();
-      if (_left(generation, life)) return;
     }
+    await _countUnsent();
+    if (_left(generation, life)) return;
     await _thePartsTheRoomHolds(sessionId, read, generation, life);
   }
 
