@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-10-28
-amends: 0140 (in part: rule 3's last sentence, a part whose upload has not landed)
+amends: 0140 (coming back to a telling in progress is quiet; in part: rule 3's last sentence, a part whose upload has not landed)
 ---
 
 # The check waits for every part to reach the room
