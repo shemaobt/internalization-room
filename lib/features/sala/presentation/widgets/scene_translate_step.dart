@@ -290,6 +290,8 @@ class SceneRestartControl extends ConsumerWidget {
       SceneLine.restarted => sceneRehearsalLabelFor('restarted', language),
       SceneLine.restartFailed => retroLabelFor('restartFailed', language),
       SceneLine.diskFailed => sceneRehearsalLabelFor('diskFailed', language),
+      SceneLine.notSent => sceneRehearsalLabelFor('notSent', language),
+      SceneLine.alreadySent => sceneRehearsalLabelFor('alreadySent', language),
       _ => null,
     };
     return Column(
