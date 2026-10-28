@@ -8403,6 +8403,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
   }
 
+  void _aParteTocou() {
+    if (state.btRecusa != CheckRefusal.checkUnavailable) return;
+    state = state.copyWith(clearBtRecusa: true);
+  }
+
   void _fimDeParte({required bool seguir}) {
     // The part's own length, not where the player says it stopped. A position read at the
     // moment a clip finishes can come back as nought, and every offset after it — every
@@ -11542,6 +11547,9 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearThePlayFailed() => _notifier._aParteNaoTocou();
+
+  @override
+  void hearThePlayOpened() => _notifier._aParteTocou();
 
   @override
   void hearTheSendFailed() => _notifier._theSendFailed();

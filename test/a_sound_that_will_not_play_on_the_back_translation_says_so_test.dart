@@ -92,6 +92,27 @@ void main() {
       expect(machine.channel, const Silence());
     });
 
+    test('a sound that opens on the Back-translation tells the screen it '
+        'played', () {
+      final (_, effects) = reduce(
+        const Machine(station: Retro(), channel: StretchPlaying(_stretch)),
+        const PlayerOpened(),
+      );
+
+      expect(effects, contains(const TellThePlayOpened()));
+    });
+
+    test('a sound that opens on every other Station tells nothing', () {
+      for (final station in _everyOtherStation) {
+        final (_, effects) = reduce(
+          Machine(station: station, channel: const PartPlaying(_part)),
+          const PlayerOpened(),
+        );
+
+        expect(effects, isNot(contains(const TellThePlayOpened())));
+      }
+    });
+
     test('a part that fails on every other Station tells nothing', () {
       for (final station in _everyOtherStation) {
         final (_, effects) = reduce(
@@ -206,6 +227,25 @@ void main() {
         ),
         findsOneWidget,
       );
+      closeTheRoom(container);
+    });
+
+    testWidgets('«ouvir a pausa» that plays after one that failed takes her '
+        'line away', (tester) async {
+      _telaAlta(tester);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+      await pausarAos(tester, harness, s(4.2));
+      await tocar(tester, ouvirAPausa);
+      harness.playback.failPlayback();
+      await _passo(tester);
+      expect(find.text(_naoDeuParaConferir), findsOneWidget);
+
+      await tocar(tester, ouvirAPausa);
+      await _passo(tester);
+
+      expect(harness.playback.sounding, isTrue);
+      expect(find.text(_naoDeuParaConferir), findsNothing);
       closeTheRoom(container);
     });
   });
