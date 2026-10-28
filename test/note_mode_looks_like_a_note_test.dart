@@ -400,15 +400,15 @@ void main() {
     expect(room.handLabel, 'Ouvir a resposta do facilitador');
   });
 
-  testWidgets('In an English session the hand reads "Leave a question for the '
+  testWidgets('In an English session the hand reads "Leave a question for your '
       'facilitator"', (tester) async {
     final room = await _inConversa(tester, language: 'en');
 
-    expect(room.handLabel, 'Leave a question for the facilitator');
+    expect(room.handLabel, 'Leave a question for your facilitator');
   });
 
   testWidgets('In an English session with a reply waiting the hand reads "Hear '
-      'the facilitator\'s answer"', (tester) async {
+      'your facilitator\'s reply"', (tester) async {
     final room = await _inConversa(
       tester,
       given: SalaHarness(lingua: 'en', replies: const [_reply]),
@@ -416,7 +416,7 @@ void main() {
     );
     await room.until('a resposta chegar', () => room.estado.hasUnheardReply);
 
-    expect(room.handLabel, 'Hear the facilitator\'s answer');
+    expect(room.handLabel, 'Hear your facilitator\'s reply');
   });
 
   for (final (language, words) in [

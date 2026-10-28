@@ -68,11 +68,11 @@ String circleLabelFor(String state, String language) =>
 const handLabels = {
   'hearTheAnswer': {
     'pt': 'Ouvir a resposta do facilitador',
-    'en': 'Hear the facilitator\'s answer',
+    'en': 'Hear your facilitator\'s reply',
   },
   'leaveAQuestion': {
     'pt': 'Deixar uma pergunta para o facilitador',
-    'en': 'Leave a question for the facilitator',
+    'en': 'Leave a question for your facilitator',
   },
 };
 

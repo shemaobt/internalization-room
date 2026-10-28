@@ -624,7 +624,11 @@ void main() {
     container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(byLabel('Leave a question for the facilitator'), findsOneWidget);
+    expect(
+      byLabel('Leave a question for your facilitator'),
+      findsOneWidget,
+      reason: 'a mão dizia «for the facilitator», não as palavras dela',
+    );
     expect(
       byLabel('Deixar uma pergunta para o facilitador'),
       findsNothing,
@@ -650,7 +654,11 @@ void main() {
     container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(byLabel("Hear the facilitator's answer"), findsOneWidget);
+    expect(
+      byLabel("Hear your facilitator's reply"),
+      findsOneWidget,
+      reason: 'a mão dizia «the facilitator\'s answer», não as palavras dela',
+    );
     expect(
       byLabel('Ouvir a resposta do facilitador'),
       findsNothing,
@@ -671,7 +679,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).noteMode, isTrue);
-    expect(byLabel('Leave a question for the facilitator'), findsOneWidget);
+    expect(byLabel('Leave a question for your facilitator'), findsOneWidget);
     expect(
       byLabel('Deixar uma pergunta para o facilitador'),
       findsNothing,
@@ -698,7 +706,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).playingReplyId, 'r1');
-    expect(byLabel('Hear the facilitator\'s answer'), findsOneWidget);
+    expect(byLabel('Hear your facilitator\'s reply'), findsOneWidget);
     expect(
       byLabel('Ouvir a resposta do facilitador'),
       findsNothing,
