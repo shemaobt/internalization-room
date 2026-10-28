@@ -273,6 +273,9 @@ class RetroView extends ConsumerWidget {
             final parte? => KeptScope.numberOf(parte.scopeId),
             null => trecho.parte + 1,
           };
+    bool aguarda(Trecho trecho) =>
+        session.btFraseQueAguarda != null &&
+        trecho.segmentId == session.btFraseQueAguarda;
     final regravadas = [
       for (final (_, trecho)
           in [...session.btTrechosRegravados.indexed]..sort(
@@ -309,19 +312,13 @@ class RetroView extends ConsumerWidget {
                   session.aParteDoTrechoEstaAqui(trecho)
               ? () => notifier.traduzirAFraseDeNovo(onde)
               : null,
-          mark:
-              session.btFraseQueAguarda != null &&
-                  trecho.segmentId == session.btFraseQueAguarda
+          mark: aguarda(trecho)
               ? sceneRehearsalLabelFor('awaiting', language)
               : switch (_markOn(trecho.frase, session)) {
                   null || BtFindingKind.nuance => null,
                   final kind => retroLabelFor(kind.name, language),
                 },
-          achado:
-              session.btFraseQueAguarda != null &&
-                  trecho.segmentId == session.btFraseQueAguarda
-              ? null
-              : _markOn(trecho.frase, session),
+          achado: aguarda(trecho) ? null : _markOn(trecho.frase, session),
           traduzindoDeNovo:
               trecho.segmentId != null &&
               trecho.segmentId == session.btFraseTraduzidaDeNovo?.segmentId,
