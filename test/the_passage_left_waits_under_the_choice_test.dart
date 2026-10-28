@@ -321,4 +321,39 @@ void main() {
     );
     expect(harness.room.calls.skip(asked), isEmpty);
   });
+
+  test('a passage created from the Choice lets the one left before it go, so '
+      'its session going away lands on the Choice', () async {
+    final tablet = await _onTheChoiceFromP01();
+    final harness = tablet.harness;
+    final read = tablet.read;
+    final notifier = tablet.notifier;
+    final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+    notifier.openTheEntry(p02);
+    await waitFor(
+      'P02 to open',
+      () =>
+          read().sessionId != null &&
+          read().sessionId != tablet.p01 &&
+          read().voice == VoiceState.invite,
+    );
+    await settle();
+    harness.room.forgetTheSession(read().sessionId!);
+
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await waitFor(
+      'the Choice to come back',
+      () => read().station is Menu || read().sessionId == tablet.p01,
+    );
+    await settle();
+
+    expect(
+      read().station,
+      isA<Menu>(),
+      reason: 'a P02 criada que a sala perdeu trazia de volta a P01',
+    );
+    expect(read().sessionId, isNull);
+  });
 }
