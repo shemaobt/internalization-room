@@ -256,10 +256,10 @@ class _FraseTile extends StatelessWidget {
           color: colors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: row.traduzindoDeNovo
-                ? colors.telha
-                : azul
+            color: azul
                 ? ShemaBrand.azul
+                : row.traduzindoDeNovo
+                ? colors.telha
                 : mark == null
                 ? colors.line
                 : colors.telha,

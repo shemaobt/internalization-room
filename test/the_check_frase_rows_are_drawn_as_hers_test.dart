@@ -369,4 +369,24 @@ void main() {
     expect(_borda(tester, 3), isNot(ShemaBrand.telha));
     closeTheRoom(container);
   });
+
+  testWidgets('a frase found unclear and being translated again draws a '
+      'terracotta bar inside the finding\'s blue border', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComAchados(tester, harness, const [
+      BtFinding(kind: BtFindingKind.unclear, frase: 4, segmentId: 'trecho-4'),
+    ]);
+
+    await tocar(tester, 'Ouvir esta frase de novo e traduzir de novo — 4');
+
+    expect(_corDaBarra(tester, 4), ShemaBrand.telha);
+    expect(
+      _borda(tester, 4),
+      ShemaBrand.azul,
+      reason:
+          'a frase do achado perdia o azul da borda ao ser traduzida de novo, '
+          'e o achado ainda vale até a tradução nova pousar',
+    );
+    closeTheRoom(container);
+  });
 }
