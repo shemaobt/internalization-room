@@ -9927,6 +9927,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           isAStub(_trechoStart, _cabeca)) {
         return;
       }
+      if (!state.btClipRodando &&
+          !state.btClipPausada &&
+          !state.btParteFronteira &&
+          !state.btClipEnded) {
+        return;
+      }
       _silenceTheRoom(holdTheClip: true);
       final pausa = _aPausaNo(_cabeca);
       if (pausa == null) return;

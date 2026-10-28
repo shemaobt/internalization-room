@@ -78,6 +78,25 @@ void main() {
     },
   );
 
+  test('on a quiet return the circle cuts nothing before anything is heard, '
+      'whatever the player last stood at', () async {
+    final it = await _contadaAteOMeioDaSegunda();
+    await _irAoEnsaioEVoltar(it);
+    it.harness.playback.at = const Duration(seconds: 7);
+
+    it.sala.retroTap();
+    await settle();
+    it.sala.retroTap();
+    await settle();
+
+    expect(
+      it.estado.btPhase,
+      BtPhase.playing,
+      reason: 'o microfone abria sobre um trecho que ninguém ouviu nesta volta',
+    );
+    expect(it.estado.btCortado, isFalse);
+  });
+
   test('coming back to a telling told to its end opens «terminei» with nothing '
       'played, the told frases covering the recording', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();
