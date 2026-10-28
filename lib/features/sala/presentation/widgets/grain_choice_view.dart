@@ -226,7 +226,8 @@ GrainChange _armed(
   final mine = arm?.control == control;
   return GrainChange(
     label: mine ? armed : label,
-    open: !session.grainSwitching && !(mine && arm?.phase == BtRecomeco.armado),
+    open:
+        !session.nothingStartsNow && !(mine && arm?.phase == BtRecomeco.armado),
     onTap: onTap,
   );
 }

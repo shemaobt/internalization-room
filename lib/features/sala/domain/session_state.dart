@@ -1046,6 +1046,7 @@ class SalaSessionState {
       ensaio != EnsaioStatus.idle ||
       _theTakeInTheAirOf(partTakeKind) != null ||
       machine.keeping.keys.any((part) => part.session == sessionId) ||
+      bringingBack != null ||
       grainSwitching;
 
   /// Each Scene row's plan row and what it offers on the recording home, by number, from
