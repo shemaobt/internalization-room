@@ -139,6 +139,56 @@ void main() {
     expect(host.answers, isEmpty);
   });
 
+  group('a reply\'s reload', () {
+    var generation = 3;
+    final answers = <bool>[];
+
+    setUp(() {
+      generation = 3;
+      answers.clear();
+      runner = runnerOver(
+        fakePorts(ASoundPort(), room: ARoomPort(), store: store),
+        host,
+        generation: () => generation,
+      );
+    });
+
+    test('whose generation moved during its wait is not loaded', () {
+      fakeAsync((time) {
+        runner.run([LoadTheReplyAgain(answers.add)]);
+        generation = 4;
+        time.flushTimers();
+
+        expect(answers, [false]);
+      });
+    });
+
+    test('replaced by the next reply\'s reload ends its wait unloaded', () {
+      fakeAsync((time) {
+        final next = <bool>[];
+        runner.run([LoadTheReplyAgain(answers.add)]);
+        runner.run([LoadTheReplyAgain(next.add)]);
+
+        expect(answers, [false]);
+        time.flushTimers();
+        expect(next, [true]);
+      });
+    });
+
+    test(
+      'still waiting when the runner is disposed ends its wait unloaded',
+      () {
+        fakeAsync((time) {
+          runner.run([LoadTheReplyAgain(answers.add)]);
+          runner.dispose();
+          time.flushTimers();
+
+          expect(answers, [false]);
+        });
+      },
+    );
+  });
+
   group('the scene rehearsals read again', () {
     late ARoomPort room;
     var generation = 3;
