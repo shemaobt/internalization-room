@@ -20,7 +20,7 @@ import 'um_ensaio_de_tres_partes.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
-const _sairDaPassagem = 'Escolher outra passagem';
+const _voltarParaAGravacao = 'Voltar para a gravação';
 const _pronto = 'Pronto';
 const micParteLabel = 'voltar e regravar uma parte';
 
@@ -1347,7 +1347,7 @@ void main() {
         findsNothing,
         reason: 'sob o sinal só a lavagem fala (ADR 0107)',
       );
-      expect(find.bySemanticsLabel(_sairDaPassagem), findsNothing);
+      expect(find.bySemanticsLabel(_voltarParaAGravacao), findsNothing);
 
       it.container.read(salaSessionProvider.notifier).teamTapped();
       await tester.pump(const Duration(milliseconds: 600));
@@ -1355,12 +1355,12 @@ void main() {
       expect(find.bySemanticsLabel(_pronto), findsOneWidget);
       await tester.tap(byLabel(_pronto));
       await tester.pump(const Duration(milliseconds: 400));
-      await tester.tap(byLabel(_sairDaPassagem));
+      await tester.tap(byLabel(_voltarParaAGravacao));
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(
         _estado(it.container).stage,
-        SalaStage.escolha,
+        SalaStage.ensaio,
         reason: 'e o toque tem de valer, não ser engolido por um botão inerte',
       );
       semantics.dispose();

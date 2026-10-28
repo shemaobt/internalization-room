@@ -42,7 +42,7 @@ const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _thinking = 'pensando…';
 const _sceneByScene = 'Gravar cena por cena';
 const _how = 'Como vocês querem gravar?';
-final _leavePassage = roomLabelFor('leavePassage', 'pt');
+final _backToPassage = roomLabelFor('backToPassage', 'pt');
 final _personSign = circleLabelFor('needsPerson', 'pt');
 
 const _threeScenes = [
@@ -947,7 +947,7 @@ void main() {
 
       expect(find.text(_homeLine), findsOneWidget);
       expect(find.text(_thinking), findsNothing);
-      expect(byLabel(_leavePassage), findsOneWidget);
+      expect(byLabel(_backToPassage), findsOneWidget);
 
       await tester.pump(const Duration(seconds: 25));
       await _theAnswerSettles(tester);

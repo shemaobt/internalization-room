@@ -5883,7 +5883,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final playing = state.channel is PartPlaying;
     if (step == SceneStep.sent) {
       _silenceTheRoom();
-      if (!playing) _play(PartSound(0, take));
+      if (!playing) {
+        state = state.copyWith(
+          scene: state.scene.copyWith(heard: SceneHeard.partly),
+        );
+        _play(
+          PartSound(0, take),
+          onComplete: () => state = state.copyWith(
+            scene: state.scene.copyWith(heard: SceneHeard.toTheEnd),
+          ),
+        );
+      }
       return;
     }
     if (_theListFirst(_playTheSceneRehearsal)) return;
@@ -6383,6 +6393,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final frase = _theFraseShown(fraseId, on: const {SceneStep.sent});
     if (frase == null || take == null || !frase.placedIn(length)) return;
     _silenceTheRoom();
+    state = state.copyWith(
+      scene: state.scene.copyWith(heard: SceneHeard.partly),
+    );
     _play(
       PartSound(
         0,
@@ -6761,6 +6774,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     _dispatch(const MicDiscarded());
     _arriveAt(const TheSceneRehearsalLeft());
+  }
+
+  void leaveTheRecording() => _gesture(() => _leaveTheRecording());
+
+  void _leaveTheRecording() {
+    if (state.station is! Ensaio) return;
+    _clearAll();
+    _dropThePendingTake();
+    state = state.copyWith(ensaio: EnsaioStatus.idle);
+    _arriveAt(const TheRecordingLeft());
+  }
+
+  void leaveTheBackTranslation() => _gesture(() => _leaveTheBackTranslation());
+
+  void _leaveTheBackTranslation() {
+    if (state.station is! Retro) return;
+    _voltarAoEnsaio();
   }
 
   void playTheRehearsal() => _gesture(() => _playTheRehearsal());
