@@ -818,6 +818,45 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a touch on the dot while a second note records, the first still going '
+    'out, throws the second away and opens the plan',
+    (tester) async {
+      final (harness, container) = await _atRest(tester);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.inbox.holdNextQuestion();
+      await sendANote(tester, container);
+      notifier.handTap();
+      await tester.pump(const Duration(milliseconds: 300));
+      notifier.conversaTap();
+      await _pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).voice == VoiceState.listening,
+      );
+      await tester.pump(const Duration(seconds: 2));
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      final discards = harness.sounds
+          .where((sound) => sound == 'recorder:discard')
+          .length;
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason: 'o toque no ponto não fazia nada com a segunda nota gravando',
+      );
+      expect(
+        harness.sounds.where((sound) => sound == 'recorder:discard').length,
+        greaterThan(discards),
+      );
+      harness.inbox.finishHeldQuestion();
+      await _theAnswerSettles(tester);
+      expect(harness.inbox.questionsSent, hasLength(1));
+    },
+  );
+
   testWidgets('a note whose sending breaks off brings the dot back', (
     tester,
   ) async {
