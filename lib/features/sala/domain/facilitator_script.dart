@@ -54,12 +54,7 @@ const circleLabels = {
     'pt': 'Um momento para uma pessoa',
     'en': 'A moment for someone',
   },
-  'teamTalk': {
-    'pt': 'Conversem entre vocês — tocar quando quiserem me contar',
-    'en': 'Talk among yourselves — tap when you want to tell me',
-  },
-  'listening': {'pt': 'Tocar ao terminar', 'en': 'Tap when you are done'},
-  'default': {'pt': 'Tocar para falar', 'en': 'Tap to speak'},
+  'default': {'pt': 'Toque para falar', 'en': 'Tap to speak'},
 };
 
 String circleLabelFor(String state, String language) =>
@@ -68,11 +63,11 @@ String circleLabelFor(String state, String language) =>
 const handLabels = {
   'hearTheAnswer': {
     'pt': 'Ouvir a resposta do facilitador',
-    'en': 'Hear the facilitator\'s answer',
+    'en': 'Hear your facilitator\'s reply',
   },
   'leaveAQuestion': {
     'pt': 'Deixar uma pergunta para o facilitador',
-    'en': 'Leave a question for the facilitator',
+    'en': 'Leave a question for your facilitator',
   },
 };
 
