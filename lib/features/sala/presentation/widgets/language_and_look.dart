@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -25,7 +27,7 @@ class LanguageAndLook extends ConsumerWidget {
 
     return Positioned(
       right: screen.width * 0.06,
-      top: screen.height * 0.05 + MediaQuery.viewPaddingOf(context).top,
+      top: max(screen.height * 0.05, MediaQuery.viewPaddingOf(context).top),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [

@@ -24,7 +24,7 @@ final _aLongBook = [
     kind: PassagemKind.panorama,
     book: 'Ruth',
   ),
-  for (var n = 1; n <= 60; n++)
+  for (var n = 1; n <= 120; n++)
     Passagem(
       pericope: 'P$n',
       audioUrl: '/voice/p$n',
@@ -49,16 +49,21 @@ Rect _theRing(WidgetTester tester) {
 }
 
 void main() {
-  for (final (code, heading) in [
-    ('PT', 'Escolha a passagem'),
-    ('EN', 'Choose the Passage'),
+  for (final (named, screen, bar) in [
+    ('the iPhone SE', _se, _seBar),
+    ('a 393×852 iPhone', const Size(393, 852), 59.0),
+    ('a 430×932 iPhone', const Size(430, 932), 59.0),
+    ('the iPhone 16 Pro Max', const Size(440, 956), 62.0),
+    ('the iPad', const Size(820, 1180), 24.0),
   ]) {
-    testWidgets(
-      'on the iPhone SE the sun and moon and the $code pill stand clear '
-      'of «$heading» and the mark, not over them',
-      (tester) async {
+    for (final (code, heading) in [
+      ('PT', 'Escolha a passagem'),
+      ('EN', 'Choose the Passage'),
+    ]) {
+      testWidgets('on $named the sun and moon and the $code pill stand clear '
+          'of «$heading» and the mark, not over them', (tester) async {
         await tester.runAsync(withRealLetters);
-        onAScreen(tester, _se, bar: _seBar);
+        onAScreen(tester, screen, bar: bar);
         final container = await pumpSala(
           tester,
           SalaHarness()..room.passages = _aLongBook,
@@ -85,7 +90,7 @@ void main() {
         );
         expect(
           mark.top,
-          closeTo(_se.height * 0.13, 0.1),
+          closeTo(screen.height * 0.13, 0.1),
           reason: 'a lista não enchia a tela e a Escolha ficava no meio',
         );
         expect(
@@ -99,13 +104,13 @@ void main() {
           reason: 'as pílulas cobriam a marca',
         );
         expect(
-          pills.top >= _seBar && pills.right <= _se.width,
+          pills.top >= bar && pills.right <= screen.width,
           isTrue,
           reason: 'as pílulas saíam da tela ou entravam na barra de estado',
         );
         closeTheRoom(container);
-      },
-    );
+      });
+    }
   }
 
   for (final (named, screen) in [
