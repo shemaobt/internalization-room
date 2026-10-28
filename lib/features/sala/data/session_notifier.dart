@@ -464,7 +464,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// and the listening ledger — keyed by the file too — cannot disagree with the ruler
   /// about which recording a length belongs to.
   late Map<String, int> _tamanhoDaParteMs;
-  Future<void> _partLoudnessReads = Future<void>.value();
+  late Future<void> _partLoudnessReads;
   late Map<String, Envelope?> _envelopes;
   late EscutaDasPartes _escuta;
   late int _desdeMs;
@@ -574,6 +574,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _oQueFaltaOuvir = null;
     _partesDaEscuta = const [];
     _tamanhoDaParteMs = {};
+    _partLoudnessReads = Future<void>.value();
     _envelopes = {};
     _frases = _FraseKeep(_recorder.delete);
     _escuta = EscutaDasPartes();
