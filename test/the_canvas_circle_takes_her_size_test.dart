@@ -8,11 +8,15 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show enterThePanorama;
+import 'scenario_helpers.dart' show byLabel, enterThePanorama;
+import 'the_kept_retellings_are_numbered_buttons_on_the_conversation_test.dart'
+    show atRestAfterATurn;
 
 const _panorama = Passagem(
   pericope: 'panorama',
@@ -121,6 +125,61 @@ void main() {
         reason:
             'o relógio ficava a 38,4 da borda de um círculo de 158; o dela '
             'fica em 50% - min(29vw,116px) - 2.4rem (globals.css:78)',
+      );
+    });
+  }
+
+  for (final (width, height) in [
+    (375.0, 667.0),
+    (768.0, 1024.0),
+    (1024.0, 768.0),
+  ]) {
+    testWidgets('on a ${width.toInt()} by ${height.toInt()} screen her ring, '
+        'breathing at its fullest, touches neither the hand, hear-again, the '
+        'moment label nor the mic clock', (tester) async {
+      _onA(tester, width, height);
+      final (_, container) = await atRestAfterATurn(tester, const []);
+      Rect circle() {
+        final drawn = tester.getRect(_circleOn(ConversaView));
+        return Rect.fromCenter(
+          center: drawn.center,
+          width: drawn.width * 1.045,
+          height: drawn.height * 1.045,
+        );
+      }
+
+      for (final (name, around) in [
+        ('a mão', byLabel('Leave a question for the facilitator')),
+        (
+          'o ouvir de novo',
+          find
+              .descendant(
+                of: find.byType(HearAgainButton),
+                matching: find.byType(SizedBox),
+              )
+              .first,
+        ),
+        ('o rótulo do momento', find.byType(MomentLabel)),
+      ]) {
+        expect(around, findsOneWidget, reason: '$name precisa estar na tela');
+        expect(
+          circle().overlaps(tester.getRect(around)),
+          isFalse,
+          reason: 'o círculo dela encostava em $name',
+        );
+      }
+
+      container.read(salaSessionProvider.notifier).conversaTap();
+      await waitFor(
+        'o microfone abrir',
+        () => container.read(salaSessionProvider).voice == VoiceState.listening,
+        step: () => _beat(tester),
+      );
+      await _beat(tester);
+      expect(
+        circle().overlaps(tester.getRect(find.text('0:00'))),
+        isFalse,
+        reason: 'o círculo dela encostava no relógio do microfone',
       );
     });
   }
