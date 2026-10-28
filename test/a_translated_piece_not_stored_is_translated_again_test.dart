@@ -401,5 +401,40 @@ void main() {
         expect(File(p.join(dir.path, 'retro_1.m4a')).existsSync(), isFalse);
       },
     );
+
+    test(
+      'a Back-translation row whose copy the tablet cannot delete still leaves the Outbox, and the part behind it still goes up',
+      () async {
+        final dir = Directory(p.join(home.path, 'guardadas'))
+          ..createSync(recursive: true);
+        Directory(p.join(dir.path, 'retro_1.m4a')).createSync();
+        File(
+          p.join(dir.path, 'retro_1.m4a', 'dentro'),
+        ).writeAsStringSync('o disco não deixa apagar');
+        File(
+          p.join(dir.path, 'ensaio_1.m4a'),
+        ).writeAsStringSync('a equipe contou');
+        File(p.join(dir.path, 'fila.json')).writeAsStringSync(
+          '[{"id":"antiga-retro","path":"${dir.path}/retro_1.m4a",'
+          '"session_id":"sessao-1","kind":"retro","scope":"inteira",'
+          '"stored":false,"attempts":0},'
+          '{"id":"antiga-parte","path":"${dir.path}/ensaio_1.m4a",'
+          '"session_id":"sessao-1","kind":"ensaio","scope":"inteira",'
+          '"stored":false,"attempts":0}]',
+        );
+        final room = FakeRoom();
+        final queue = TakeUploadQueue(
+          room: room,
+          home: () async => home,
+          recordings: FakeRecorder.new,
+          backoff: const [],
+        );
+
+        await queue.flush();
+
+        expect(room.takesKept, ['ensaio/inteira']);
+        expect(await queue.entries(), isEmpty);
+      },
+    );
   });
 }

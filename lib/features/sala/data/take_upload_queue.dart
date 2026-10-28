@@ -5,6 +5,7 @@ import 'dart:isolate';
 
 import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -1258,7 +1259,14 @@ class TakeUploadQueue {
     ];
     if (old.isEmpty) return;
     for (final entry in old) {
-      await _deleteTheCopy(entry);
+      try {
+        await _deleteTheCopy(entry);
+      } on FileSystemException catch (error) {
+        debugPrint(
+          'Uma tradução antiga não pôde ser apagada da fila (${entry.path}): '
+          '$error',
+        );
+      }
     }
     await _mutate(
       (written) => [
