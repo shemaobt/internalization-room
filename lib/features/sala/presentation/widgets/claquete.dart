@@ -13,6 +13,7 @@ import 'motion.dart';
 import 'shema_mark.dart';
 
 const _shownFor = Duration(seconds: 20);
+const _size = 10.88;
 
 class ClaqueteLayer extends ConsumerStatefulWidget {
   const ClaqueteLayer({super.key});
@@ -186,8 +187,8 @@ class Claquete extends StatelessWidget {
       maxLines: 1,
       style: TextStyle(
         color: SalaColors.of(context).claquete.withValues(alpha: 0.7),
-        fontSize: 10.88,
-        letterSpacing: 0.6528,
+        fontSize: _size,
+        letterSpacing: _size * 0.06,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
