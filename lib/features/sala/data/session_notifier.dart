@@ -6544,10 +6544,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       on: const {SceneStep.sent, SceneStep.translate},
     );
     if (frase == null) return;
-    final waiting = shown.asWaiting;
+    final asked = shown.step == SceneStep.sent
+        ? shown.copyWith()
+        : shown.asWaiting;
     _silenceTheRoom();
-    state = state.copyWith(scene: waiting);
-    _handOff(_hearTheFrase(shown.rehearsal!, frase, shown, waiting));
+    state = state.copyWith(scene: asked);
+    _handOff(_hearTheFrase(shown.rehearsal!, frase, shown, asked));
   }
 
   Future<void> _hearTheFrase(
