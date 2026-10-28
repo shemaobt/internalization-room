@@ -72,7 +72,11 @@ offers «trocar» where there is more than one candidate or none is chosen
   live rehearsal of the passage.
 - A row with nothing chosen says «falta o ensaio desta cena» while a Usable rehearsal is
   there, and «este ensaio não pode entrar — ensaiem esta cena de novo» only when none is, as
-  her row does (`ensaioFinal.ts:360`).
+  her row does (`ensaioFinal.ts:361`).
+- The «não enviado» badge belongs to the sheet's line (`candidateLine`,
+  `ensaioFinal.ts:331-332`). A plan row holding an unsent rehearsal writes only its facts,
+  as a row holding a sent one does: hers writes `rowText` there (`ensaioFinal.ts:360`,
+  `EnsaioFinalPlan.tsx:90`).
 
 The recording home's doors still read Joinable. Hers offer an unsent rehearsal there too;
 that is its own follow-up.
