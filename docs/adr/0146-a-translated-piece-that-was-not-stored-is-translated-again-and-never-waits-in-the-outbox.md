@@ -34,6 +34,10 @@ translation could reach the record the team never saw.
 - **A stretch the tablet could not send at all is not stored either:** one over a part the room
   has not named yet, and one whose recording the tablet could not read, read her line the same
   way.
+- **The one exception is a key still in flight.** When the room keeps answering that it is
+  still working on a stretch and the tablet stops asking, the step is let go and the stretch
+  stays pending: the room may yet store it, so asking the team to translate it again could put
+  two translations over one cut.
 - **The Back-translation never uses the Outbox.** A stretch goes to the room at the cut or not at
   all. A Back-translation row an older build left in the Outbox is removed with its copy before
   the Outbox sends anything, and never reaches the room.

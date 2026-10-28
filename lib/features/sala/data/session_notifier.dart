@@ -9342,7 +9342,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     } on FileSystemException {
       if (_abandoned(generation)) return;
-      return _theStretchWasNotStored();
+      return _theStretchWasNotStored(const TheStretchCannotBeRead());
     }
     final TellingAgain told;
     switch (replaced) {
@@ -10163,7 +10163,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     final gravacao = _parteNoAr?.takeId;
     if (gravacao == null) {
-      return _theStretchWasNotStored();
+      return _theStretchWasNotStored(const TheStretchHasNoPartYet());
     }
 
     final RoomAnswer<BackTranslationChunk> sent;
@@ -10182,7 +10182,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     } on FileSystemException {
       if (_abandoned(generation)) return;
-      return _theStretchWasNotStored();
+      return _theStretchWasNotStored(const TheStretchCannotBeRead());
     }
     final int? frase;
     final String? nome;
@@ -10270,12 +10270,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// A stretch that never reached the room leaves her line at the cut, and nothing of
   /// it is kept to go up later.
-  void _theStretchWasNotStored() {
+  void _theStretchWasNotStored(TabletFailure failure) {
     state = state.copyWith(
       btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
     );
     _leaveThinking();
-    _dispatch(TheTellingCameBackEmpty(generation: _generation));
+    _dispatch(decidedOnTheTablet(failure, _failureContext(door: Door.telling)));
   }
 
   void _letThePendingTranslationGo() {

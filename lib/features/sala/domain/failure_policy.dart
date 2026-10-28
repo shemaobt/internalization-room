@@ -72,6 +72,16 @@ final class TheBuildCannotReachTheRoom extends TabletFailure {
   const TheBuildCannotReachTheRoom();
 }
 
+/// A Back-translation stretch told over a part the room has not named yet.
+final class TheStretchHasNoPartYet extends TabletFailure {
+  const TheStretchHasNoPartYet();
+}
+
+/// A Back-translation stretch whose recording the tablet could not read to send.
+final class TheStretchCannotBeRead extends TabletFailure {
+  const TheStretchCannotBeRead();
+}
+
 /// What a door does with a refusal.
 enum RefusalRule {
   /// A turn the team spoke, on the Canvas or the Panorama: a person is called on the spot.
@@ -301,6 +311,8 @@ abstract final class FailurePolicy {
         callsForAPerson: false,
         generation: generation,
       ),
+      TheStretchHasNoPartYet() || TheStretchCannotBeRead() =>
+        TheTellingCameBackEmpty(generation: generation),
     };
   }
 }

@@ -250,6 +250,24 @@ void main() {
       expect(machine.halt, const NoHalt());
     });
 
+    test('a stretch over a part the room has not named yet is a telling not '
+        'understood, never a halt', () {
+      _decidesOnTheTablet(
+        const TheStretchHasNoPartYet(),
+        _notATurn(door: Door.telling),
+        const TheTellingCameBackEmpty(generation: 4),
+      );
+    });
+
+    test('a stretch whose recording the tablet cannot read is a telling not '
+        'understood, never a halt', () {
+      _decidesOnTheTablet(
+        const TheStretchCannotBeRead(),
+        _notATurn(door: Door.telling),
+        const TheTellingCameBackEmpty(generation: 4),
+      );
+    });
+
     test('the reply\'s sound failing once brings nothing; twice brings the '
         'person sign', () {
       final context = _at(const Canvas(), sounding: const ThePart());
