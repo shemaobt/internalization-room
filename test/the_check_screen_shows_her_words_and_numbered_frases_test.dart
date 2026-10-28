@@ -79,18 +79,30 @@ Future<ProviderContainer> _voltaATraducao(
   SalaStage parouEm = SalaStage.retro,
   String lingua = testLanguage,
   bool juntada = false,
+  bool inteira = false,
 }) async {
   _telaAlta(tester);
   final pasta = Directory.systemTemp.createTempSync('sala-1205');
   addTearDown(() => pasta.deleteSync(recursive: true));
   final partes = [
-    for (final n in [1, 2])
+    if (inteira)
       KeptTake(
-        scopeId: KeptScope.parte(n),
-        path: (File('${pasta.path}/p$n.m4a')..writeAsBytesSync([1, 2, 3])).path,
-        takeId: 'gravacao-$n',
-        origin: juntada ? 'ensaio-da-cena-$n' : null,
-      ),
+        scopeId: KeptScope.whole,
+        path: (File(
+          '${pasta.path}/inteira.m4a',
+        )..writeAsBytesSync([1, 2, 3])).path,
+        takeId: 'gravacao-inteira',
+      )
+    else
+      for (final n in [1, 2])
+        KeptTake(
+          scopeId: KeptScope.parte(n),
+          path: (File(
+            '${pasta.path}/p$n.m4a',
+          )..writeAsBytesSync([1, 2, 3])).path,
+          takeId: 'gravacao-$n',
+          origin: juntada ? 'ensaio-da-cena-$n' : null,
+        ),
   ];
   harness.emAberto.rows['Ruth/P01/$lingua'] = ResumePoint(
     sessionId: 'sessao-antiga',
@@ -269,6 +281,43 @@ void main() {
       reason:
           'a tela não tinha número nenhum: a voz dizia «na frase 3» e não '
           'havia nada para apontar',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a passage recorded whole lists its frases by number alone, '
+      'never under a parte the team did not make', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-inteira',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-inteira',
+            startsMs: 4000,
+            endsMs: 9000,
+            frase: 2,
+          ),
+        ],
+      ),
+      inteira: true,
+    );
+
+    expect(
+      _naLista(tester),
+      ['FRASES TRADUZIDAS', '1', '2'],
+      reason:
+          'gravada a passagem de uma vez, cada frase dizia «parte 1», uma '
+          'parte que a equipe nunca fez',
     );
     closeTheRoom(container);
   });

@@ -36,7 +36,8 @@ enum OrangeDotLook { gone, faint, bright }
 enum SceneStep { record, translate, placesUnknown, sent }
 
 /// Her line beside the scene rehearsal's controls: «recomeçar a tradução» answered or
-/// failed, or a moved pause the room refused, one per refusal code.
+/// failed, a moved pause the room refused, one per refusal code, or a «terminei» that
+/// could not be sent, or that the room lists as already sent.
 enum SceneLine {
   restarted,
   restartFailed,
@@ -44,6 +45,8 @@ enum SceneLine {
   pausePastTheEnd,
   pauseCannotStandThere,
   diskFailed,
+  notSent,
+  alreadySent,
 }
 
 /// Her listener's steps on the Checagem externa.
@@ -1040,6 +1043,13 @@ class SalaSessionState {
       stationSessionId != null;
 
   String? get stationSessionId => machine.stationSession;
+
+  bool get aQuestionRecords =>
+      noteMode &&
+      switch (channel) {
+        Microphone(owner: MicOwner.question) => true,
+        _ => false,
+      };
 
   bool get anArmedKnotLapsed =>
       noteMode &&

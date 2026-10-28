@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -22,15 +24,7 @@ class FacilitatorCircle extends StatelessWidget {
   final bool peerCue;
   final bool answersATouch;
   final bool enabled;
-
-  /// What the warning mark says to VoiceOver, or null while the server's last word
-  /// was silence rather than a warning.
-  ///
-  /// The room has no text on screen, so a warning is a small mark beside the disc,
-  /// never a colour drawn over it: the disc keeps saying the voice. Read only while
-  /// neither [halt] blocks nor [voice] is a halted state — a room the team cannot use yet is
-  /// still a stop, whatever the last warning said.
-  final String? warning;
+  final bool canvas;
 
   /// Her line after a telling the room made nothing of, said to VoiceOver by a mark on
   /// the other side of the disc, or null while no telling came back empty.
@@ -50,7 +44,7 @@ class FacilitatorCircle extends StatelessWidget {
     this.peerCue = false,
     this.answersATouch = true,
     this.enabled = true,
-    this.warning,
+    this.canvas = false,
     this.notUnderstood,
     this.halt = const NoHalt(),
     this.opacity = 1,
@@ -97,7 +91,6 @@ class FacilitatorCircle extends StatelessWidget {
                   _listenRing(colors),
                 if (!_halted && voice == VoiceState.listening)
                   ..._gatheringIn(),
-                if (warning != null && !_halted) _warningMark(warning!),
                 if (notUnderstood != null && !_halted)
                   _notUnderstoodMark(notUnderstood!),
                 AnimatedSwitcher(
@@ -155,20 +148,14 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   /// Whether the room is already showing a stop for this voice.
-  ///
-  /// A warning is a lesser thing than any of these — it asks somebody to come and
-  /// look, and refuses nothing — so it never draws over a state that has already
-  /// told the team to stop.
   bool get _halted => halt is Blocking;
 
   IconData? get _modeGlyph {
     if (_halted) return null;
     if (noteMode) return LucideIcons.hand;
     if (_teamTalk) return LucideIcons.users;
-    // A voice that is only the room's own — speaking, inviting, listening, done — draws
-    // no mark: the colour and the breath already say it, and the loudspeaker read as a
-    // control the team could press. Only a mode says itself with a glyph.
-    return null;
+    if (!canvas || voice == VoiceState.thinking) return null;
+    return LucideIcons.volume2;
   }
 
   Widget _body(SalaColors colors, bool still) {
@@ -265,10 +252,35 @@ class FacilitatorCircle extends StatelessWidget {
         painter: GlowPainter(color: colors.telha.withValues(alpha: 0.16)),
       ),
     );
+    final arcs = canvas
+        ? [
+            _arc(
+              const Duration(milliseconds: 1600),
+              1,
+              still,
+              ArcPainter(
+                side: size * 1.14,
+                stroke: 4,
+                top: colors.telha,
+                right: colors.telha.withValues(alpha: 0.35),
+              ),
+            ),
+            _arc(
+              const Duration(milliseconds: 2600),
+              -1,
+              still,
+              ArcPainter(
+                side: size * 1.26,
+                stroke: 2,
+                bottom: colors.telha.withValues(alpha: 0.55),
+              ),
+            ),
+          ]
+        : const <Widget>[];
     Widget over(Widget light) => Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
-      children: [body, light],
+      children: [...arcs, body, light],
     );
     if (still) {
       return Loop(
@@ -290,20 +302,21 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
-  Widget _warningMark(String label) =>
-      _mark(label, right: 0, gradient: BeadStyles.verde);
+  Widget _arc(Duration period, double way, bool still, ArcPainter painter) {
+    final turning = Spin(
+      period: period,
+      builder: (context, t) => Transform.rotate(
+        angle: way * 2 * math.pi * t,
+        child: RepaintBoundary(
+          child: CustomPaint(size: Size.square(size), painter: painter),
+        ),
+      ),
+    );
+    return still ? Opacity(opacity: 0.9, child: turning) : turning;
+  }
 
-  Widget _notUnderstoodMark(String label) =>
-      _mark(label, left: 0, gradient: BeadStyles.azul);
-
-  Widget _mark(
-    String label, {
-    double? left,
-    double? right,
-    required Gradient gradient,
-  }) => Positioned(
-    left: left,
-    right: right,
+  Widget _notUnderstoodMark(String label) => Positioned(
+    left: 0,
     bottom: 0,
     child: Semantics(
       container: true,
@@ -313,7 +326,7 @@ class FacilitatorCircle extends StatelessWidget {
         height: size * 0.22,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: gradient,
+          gradient: BeadStyles.azul,
           boxShadow: BeadStyles.matte,
         ),
       ),
@@ -437,4 +450,48 @@ class GlowPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(GlowPainter old) => old.color != color;
+}
+
+class ArcPainter extends CustomPainter {
+  final double side;
+  final double stroke;
+  final Color? top;
+  final Color? right;
+  final Color? bottom;
+
+  const ArcPainter({
+    required this.side,
+    required this.stroke,
+    this.top,
+    this.right,
+    this.bottom,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ring = Rect.fromCenter(
+      center: size.center(Offset.zero),
+      width: side - stroke,
+      height: side - stroke,
+    );
+    final pen = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+    for (final (color, start) in [
+      (top, -0.75 * math.pi),
+      (right, -0.25 * math.pi),
+      (bottom, 0.25 * math.pi),
+    ]) {
+      if (color == null) continue;
+      canvas.drawArc(ring, start, math.pi / 2, false, pen..color = color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(ArcPainter old) =>
+      old.side != side ||
+      old.stroke != stroke ||
+      old.top != top ||
+      old.right != right ||
+      old.bottom != bottom;
 }

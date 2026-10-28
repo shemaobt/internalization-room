@@ -497,7 +497,7 @@ _Avoid_: retro retomada, resuming from scratch
 ### The room and the people
 
 **Halt**:
-The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the team's tap on the person sign clears it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing (shown once the team is back on the Conversation), the reply's sound failing twice, a tablet that cannot record (a refused start on the Conversation or the Panorama), and the microphone failing to start twice in a row. Outside them, a halt that calls nobody is raised only by the build guard on a broken build (no room address), or by an `Error` in anything the room hands off; the team's tap clears it without reading anything (ADR 0125). A Session read never raises one (ADR 0093).
+The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the team's tap on the person sign clears it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing or answered without a reply (shown once the team is back on the Conversation), the reply's sound failing twice, a tablet that cannot record (a refused start on the Conversation or the Panorama), and the microphone failing to start twice in a row. Outside them, a halt that calls nobody is raised only by the build guard on a broken build (no room address), or by an `Error` in anything the room hands off; the team's tap clears it without reading anything (ADR 0125). A Session read never raises one (ADR 0093).
 _Avoid_: sala parada, stuck room, pause
 
 **Person sign**:
@@ -517,8 +517,8 @@ The mark at the top centre of the Conversation, drawn from the four shapes of Ma
 _Avoid_: logo, watermark, icon
 
 **Warning mark**:
-The small mark beside the Circle while a warning stands, said in words through its own
-VoiceOver label; the Circle's own colour stays the voice, in every state.
+Retired 2026-10-27 (ENG-1831): a standing warning shows nothing on the team's screen, as
+Marcia's does; the Desk lists it. The Circle's own colour stays the voice, in every state.
 _Avoid_: aviso, warning badge, the green disc (retired 2026-09-25)
 
 **Call for a person**:

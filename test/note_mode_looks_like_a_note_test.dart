@@ -255,6 +255,93 @@ void main() {
     await room.nothingReachesTheFacilitator();
   });
 
+  testWidgets('While the question records the hand stays drawn at its note '
+      'look, not hidden as at the team\'s turn', (tester) async {
+    final room = await _inConversa(tester);
+    await room.theKnotRecords();
+    await room.beat(300);
+
+    expect(
+      room._hand,
+      findsOneWidget,
+      reason: 'a mão sumia enquanto a pergunta gravava',
+    );
+    expect(
+      tester.widget<HandButton>(room._hand).noteMode,
+      isTrue,
+      reason: 'a mão voltava ao ar apagado do convite',
+    );
+  });
+
+  testWidgets('While the question records a tap on the hand throws it away: '
+      'the microphone closes, nothing reaches the facilitator and nothing is '
+      'said', (tester) async {
+    final room = await _inConversa(tester);
+    await room.theKnotRecords();
+    await room.beat(300);
+    final said = [...room.harness.voice.played];
+    final lines = [...room.harness.voice.fixedLines];
+
+    await tester.tap(room._hand);
+    await room.until(
+      'o microfone fechar',
+      () => room.estado.voice == VoiceState.invite,
+    );
+    await room.beat(600);
+
+    expect(
+      room.harness.recorder.deleted,
+      [room.harness.recorder.lastPath],
+      reason: 'a pergunta pela metade ficava no aparelho',
+    );
+    expect(room.estado.noteMode, isFalse, reason: 'a mão seguia armada');
+    expect(
+      room.harness.inbox.questionsSent,
+      isEmpty,
+      reason: 'meia pergunta chegava ao facilitador',
+    );
+    expect(room.harness.voice.played, said);
+    expect(room.harness.voice.fixedLines, lines);
+    closeTheRoom(room.container);
+  });
+
+  testWidgets('A reply that arrives while the question records puts its dot on '
+      'the hand, as hers, but does not take the tap: the question is thrown '
+      'away and the reply still waits', (tester) async {
+    final room = await _inConversa(tester);
+    await room.theKnotRecords();
+    room.harness.inbox.replies = const [_reply];
+    room.sala.lookForReplies();
+    await room.until('a resposta chegar', () => room.estado.hasUnheardReply);
+
+    expect(
+      tester.widget<HandButton>(room._hand).hasUnheardReply,
+      isTrue,
+      reason: 'a mão escondia o ponto da resposta que a dela mostra',
+    );
+    expect(room.handLabel, 'Ouvir a resposta do facilitador');
+
+    await tester.tap(room._hand);
+    await room.until(
+      'o microfone fechar',
+      () => room.estado.voice != VoiceState.listening,
+    );
+    await room.beat(600);
+
+    expect(
+      room.harness.voice.played,
+      isNot(contains(_reply.audioUrl)),
+      reason: 'a resposta tocava por cima do microfone aberto',
+    );
+    expect(room.harness.recorder.deleted, [
+      room.harness.recorder.lastPath,
+    ], reason: 'a pergunta seguia gravando');
+    expect(room.estado.noteMode, isFalse);
+    expect(room.estado.hasUnheardReply, isTrue);
+    expect(room.harness.inbox.questionsSent, isEmpty);
+    closeTheRoom(room.container);
+  });
+
   testWidgets('In note mode tapping the menu abandons the question: nothing '
       'reaches the facilitator', (tester) async {
     final room = await _inConversa(tester);

@@ -65,14 +65,6 @@ const circleLabels = {
 String circleLabelFor(String state, String language) =>
     circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
 
-const warningNoticeLabel = {
-  'pt': 'Um aviso pede que alguém venha olhar',
-  'en': 'A warning is asking someone to come watch',
-};
-
-String warningNoticeLabelFor(String language) =>
-    warningNoticeLabel[language] ?? warningNoticeLabel[floorLanguage]!;
-
 const handLabels = {
   'hearTheAnswer': {
     'pt': 'Ouvir a resposta do facilitador',
@@ -291,6 +283,14 @@ const sceneRehearsalLabels = {
   'diskFailed': {
     'pt': 'não deu para guardar o ensaio da cena neste computador',
     'en': 'couldn\'t keep the scene rehearsal on this computer',
+  },
+  'notSent': {
+    'pt': 'não deu para enviar agora — tentem de novo',
+    'en': 'couldn\'t send it now — try again',
+  },
+  'alreadySent': {
+    'pt': 'a tradução deste ensaio da cena já foi para a voz',
+    'en': 'this scene rehearsal\'s translation already went to the voice',
   },
   'tooLarge': {
     'pt': 'grande demais para o servidor — grave em partes menores',
