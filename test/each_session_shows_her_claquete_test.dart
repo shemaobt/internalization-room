@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/claquete.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
@@ -183,10 +184,20 @@ void main() {
 
       expect(_words(tester), 'P05 · 2026-09-30 14:14 · $_herEightCharacters');
 
-      final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
       final rect = tester.getRect(_claquete);
-      expect(rect.right, closeTo(screen.width - 14 - 76 - 8, 0.5));
-      expect(rect.bottom, closeTo(screen.height - 18, 0.5));
+      expect(
+        rect.right,
+        closeTo(780.8, 0.5),
+        reason:
+            'a claquete ficava ao lado do ouvir de novo; a dela fica a 2,4% '
+            'da borda',
+      );
+      expect(
+        rect.bottom,
+        closeTo(584.4, 0.5),
+        reason:
+            'a claquete ficava a 18 px do fundo; a dela fica a 2,6% da altura',
+      );
 
       await _seconds(tester, 19);
       expect(_claquete, findsOneWidget);
@@ -337,12 +348,10 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
       expect(container.read(salaSessionProvider).canHearAgain, isTrue);
-      final button = find
-          .descendant(
-            of: find.byType(HearAgainButton),
-            matching: find.byType(SizedBox),
-          )
-          .first;
+      final button = find.descendant(
+        of: find.byType(HearAgainButton),
+        matching: find.byType(RoundActionButton),
+      );
       expect(_claquete, findsOneWidget);
 
       final overlap = tester
@@ -382,7 +391,8 @@ void main() {
       final hand = tester.getRect(find.byType(HandButton));
       final claquete = tester.getRect(_claquete);
       expect(claquete.left, greaterThanOrEqualTo(hand.right + 8 - 0.5));
-      expect(claquete.right, closeTo(375 - 14 - 76 - 8, 0.5));
+      expect(claquete.right, closeTo(366, 0.5));
+      expect(claquete.bottom, closeTo(649.658, 0.5));
     });
   });
 
@@ -468,6 +478,17 @@ void main() {
       await _seconds(tester, 2);
       expect(_claquete, findsNothing);
       expect(_mark, findsOneWidget);
+    }),
+  );
+
+  testWidgets(
+    'the Panorama writes its claquete in her corner, as the conversation does',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      await _openThePanorama(tester);
+
+      final rect = tester.getRect(_claquete);
+      expect(rect.right, closeTo(780.8, 0.5));
+      expect(rect.bottom, closeTo(584.4, 0.5));
     }),
   );
 
