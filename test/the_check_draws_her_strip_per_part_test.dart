@@ -422,4 +422,49 @@ void main() {
     expect(find.byType(SceneStrip), findsOneWidget);
     closeTheRoom(container);
   });
+
+  testWidgets('the loudness of the parts is read one take at a time, never '
+      'every take at once', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true)..holdTheEnvelope();
+    final container = await entrarNaTraducao(tester, harness);
+    harness.giveTheEnvelope();
+    await waitFor(
+      'as duas partes terem a sua fala lida',
+      () => container.read(salaSessionProvider).partLoudness.length == 2,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+
+    expect(container.read(salaSessionProvider).partLoudness, hasLength(2));
+    expect(
+      harness.mostEnvelopesReadAtOnce,
+      1,
+      reason:
+          'cada parte abria a sua leitura ao mesmo tempo, com o arquivo '
+          'inteiro de cada uma na memória do tablet',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a loudness still being read when the team leaves the passage '
+      'never lands in the next one', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true)..holdTheEnvelope();
+    final container = await entrarNaTraducao(tester, harness);
+    expect(harness.envelopesBeingRead, 1);
+
+    container.read(salaSessionProvider.notifier).leaveThePassage();
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.giveTheEnvelope();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(harness.envelopesBeingRead, 0);
+    expect(
+      container.read(salaSessionProvider).partLoudness,
+      isEmpty,
+      reason:
+          'a leitura que terminava depois da saída deixava a fala de uma '
+          'parte da passagem deixada no estado da próxima',
+    );
+    closeTheRoom(container);
+  });
 }
