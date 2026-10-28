@@ -390,7 +390,11 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
     expect(find.byType(ColarOverlay), findsOneWidget);
     expect(byLabel('Deixar uma pergunta para o facilitador'), findsOneWidget);
-    expect(byLabel('Tocar para falar'), findsOneWidget);
+    expect(
+      byLabel('Toque para falar'),
+      findsOneWidget,
+      reason: 'o círculo dizia «Tocar para falar», não as palavras dela',
+    );
   });
 
   testWidgets('the dev seal shows from the invite on, before any skip exists', (
@@ -558,7 +562,7 @@ void main() {
       byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
       findsOneWidget,
     );
-    expect(byLabel('Tocar para falar'), findsNothing);
+    expect(byLabel('Toque para falar'), findsNothing);
   });
 
   testWidgets(
@@ -572,7 +576,7 @@ void main() {
 
       expect(container.read(salaSessionProvider).voice, VoiceState.done);
       expect(find.byIcon(LucideIcons.users), findsNothing);
-      expect(byLabel('Tocar para falar'), findsOneWidget);
+      expect(byLabel('Toque para falar'), findsOneWidget);
       expect(
         byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
         findsNothing,
@@ -1392,7 +1396,7 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(byLabel('Tocar para falar'));
+    await tester.tap(byLabel('Toque para falar'));
     await tester.pump(const Duration(milliseconds: 200));
 
     final state = container.read(salaSessionProvider);

@@ -59,7 +59,7 @@ const circleLabels = {
     'en': 'Talk among yourselves — tap when you want to tell me',
   },
   'listening': {'pt': 'Tocar ao terminar', 'en': 'Tap when you are done'},
-  'default': {'pt': 'Tocar para falar', 'en': 'Tap to speak'},
+  'default': {'pt': 'Toque para falar', 'en': 'Tap to speak'},
 };
 
 String circleLabelFor(String state, String language) =>

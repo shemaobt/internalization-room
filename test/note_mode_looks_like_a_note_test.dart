@@ -433,7 +433,7 @@ void main() {
   }
 
   for (final (language, words) in [
-    ('pt', 'Tocar para falar'),
+    ('pt', 'Toque para falar'),
     ('en', 'Tap to speak'),
   ]) {
     testWidgets('The Panorama\'s resting circle reads «$words» ($language), '

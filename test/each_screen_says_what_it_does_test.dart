@@ -73,7 +73,7 @@ void main() {
       await _theCircleReadsWhileTheTeamRecords(
         tester,
         lingua: null,
-        resting: 'Tocar para falar',
+        resting: 'Toque para falar',
         recording: 'Tocar ao terminar',
       );
     },
@@ -130,7 +130,7 @@ void main() {
     await raiseTheHand(
       tester,
       lingua: null,
-      question: 'Tocar para falar',
+      question: 'Toque para falar',
       teamTalk: 'Conversem entre vocês — tocar quando quiserem me contar',
     );
   });
