@@ -140,7 +140,7 @@ final class PlanRow {
   bool get canSwap =>
       !joined &&
       !waiting &&
-      (candidates.length > 1 || candidates.any(offersToUse));
+      (candidates.length > 1 || (chosen == null && candidates.isNotEmpty));
 
   /// «usar este» on a [candidate] of the sheet: a usable one the row does not hold.
   bool offersToUse(SceneRehearsalRecord candidate) =>
