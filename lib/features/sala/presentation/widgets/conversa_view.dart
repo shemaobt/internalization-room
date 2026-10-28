@@ -26,7 +26,7 @@ class ConversaView extends ConsumerWidget {
     final dotIsGone = session.orangeDotLook == OrangeDotLook.gone;
     final screen = MediaQuery.sizeOf(context);
     final phone = screen.width <= 520;
-    final circleSize = canvasCircleSize(screen);
+    final circleSize = herCircleSize(screen, 58, 232);
 
     return Stack(
       children: [

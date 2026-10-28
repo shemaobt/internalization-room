@@ -123,7 +123,7 @@ class RetroView extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             FacilitatorCircle(
-              size: facilitatorCircleSize,
+              size: herCircleSize(MediaQuery.sizeOf(context), 38, 150),
               halt: session.halt,
               voice: voz,
               tongue: lingua,

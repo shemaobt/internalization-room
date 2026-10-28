@@ -13,7 +13,8 @@ enum Tongue { guide, motherTongue, bridge }
 
 const facilitatorCircleSize = 160.0;
 
-double canvasCircleSize(Size screen) => math.min(screen.width * 58 / 100, 232);
+double herCircleSize(Size screen, int vw, double most) =>
+    math.min(screen.width * vw / 100, most);
 
 bool isTeamTalk({required bool peerCue, required VoiceState voice}) =>
     peerCue && (voice == VoiceState.invite || voice == VoiceState.done);

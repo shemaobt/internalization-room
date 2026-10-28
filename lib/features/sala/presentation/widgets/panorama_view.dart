@@ -16,7 +16,7 @@ class PanoramaView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
-    final circleSize = canvasCircleSize(MediaQuery.sizeOf(context));
+    final circleSize = herCircleSize(MediaQuery.sizeOf(context), 58, 232);
 
     return Stack(
       children: [
