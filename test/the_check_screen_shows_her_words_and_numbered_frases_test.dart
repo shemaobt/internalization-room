@@ -1855,6 +1855,74 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a «regravada» frase past the end of a part recorded again '
+      'shorter is still offered and told again at its place, as hers', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.playback.measured = const Duration(seconds: 5);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 2,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 7000,
+            endsMs: 9000,
+            frase: 1,
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte e a parte 1 ser medida',
+      () =>
+          container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty &&
+          container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    expect(container.read(salaSessionProvider).btFimDasPartesMs.first, 5000);
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    await tocar(tester, 'Ouvir esta frase de novo e traduzir de novo — 1');
+    await tocar(tester, 'ouvindo a gravação de vocês…');
+    await tocar(tester, 'Tocar ao terminar');
+    await waitFor(
+      'a frase regravada traduzida de novo subir',
+      () => harness.room.replacesAsked.isNotEmpty,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      harness.room.replacesAsked,
+      ['trecho-1@gravacao-1:7000-9000'],
+      reason:
+          'a dela oferece a barra de toda frase regravada e manda o mesmo '
+          'lugar; a nossa não pode calar uma frase que a dela deixa traduzir',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a team that comes back to the check sees the marks its last '
       'check left', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
