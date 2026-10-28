@@ -78,7 +78,7 @@ A line the server composes for this turn, which the room fetches and caches befo
 _Avoid_: linha falada, generated line, TTS, fixed line (hers, by name)
 
 **Fail-safe line**:
-The line the room falls back to when it could not compose an answer. It is said and deliberately never kept, so asking to hear the last thing again never repeats it.
+The line the room falls back to when it could not compose an answer. It is a reply like any other: «Ouvir de novo» says it again (ADR 0140), except a retro verdict the room could not compose, which is not kept and leaves the line before it to be said again.
 _Avoid_: linha de segurança, fallback, fixed line (the mechanism rather than this role)
 
 **Analyst**:
@@ -501,7 +501,7 @@ _Avoid_: retro retomada, resuming from scratch
 ### The room and the people
 
 **Halt**:
-The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the team's tap on the person sign clears it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing or answered without a reply (shown once the team is back on the Conversation), the reply's sound failing twice, a tablet that cannot record (a refused start on the Conversation or the Panorama), and the microphone failing to start twice in a row. Outside them, a halt that calls nobody is raised only by the build guard on a broken build (no room address), or by an `Error` in anything the room hands off; the team's tap clears it without reading anything (ADR 0125). A Session read never raises one (ADR 0093).
+The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the team's tap on the person sign clears it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing or answered without a reply (shown once the team is back on the Conversation), one reply's sound failing to load twice (ADR 0140), a tablet that cannot record (a refused start on the Conversation or the Panorama), and the microphone failing to start twice in a row. Outside them, a halt that calls nobody is raised only by the build guard on a broken build (no room address), or by an `Error` in anything the room hands off; the team's tap clears it without reading anything (ADR 0125). A Session read never raises one (ADR 0093).
 _Avoid_: sala parada, stuck room, pause
 
 **Person sign**:

@@ -693,6 +693,31 @@ void main() {
     );
   });
 
+  test('a line forgotten is fetched again', () async {
+    final voice = service();
+    await voice.clipFor(_clip);
+
+    await voice.forget(_clip);
+    await voice.clipFor(_clip);
+
+    expect(fetched, [_clip, _clip]);
+  });
+
+  test('a fixed line forgotten is fetched again', () async {
+    final voice = FacilitatorVoiceService(
+      lineAt: (line, {required language}) async => const Answered(_clip),
+      open: roomAnswering((_) => _whole([1, 2, 3])),
+      libraryDir: () async => library,
+    );
+    addTearDown(voice.dispose);
+    await voice.readyFixedLine('A2', 'pt');
+
+    await voice.forgetFixedLine('A2', 'pt');
+    await voice.readyFixedLine('A2', 'pt');
+
+    expect(fetched, [_clip, _clip]);
+  });
+
   test(
     'each line keeps its own file, instead of overwriting the last',
     () async {
