@@ -171,7 +171,7 @@ class GrainChange extends StatelessWidget {
       child: Opacity(
         opacity: open ? 1 : 0.4,
         child: GestureDetector(
-          onTap: onTap,
+          onTap: open ? onTap : null,
           behavior: HitTestBehavior.opaque,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

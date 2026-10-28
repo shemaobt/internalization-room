@@ -112,6 +112,23 @@ Future<void> _gravarNaLinha(
   await _confirmarAParte(tester);
 }
 
+Future<(SalaHarness, ProviderContainer)> _comAParte1NoAr(
+  WidgetTester tester,
+) async {
+  final harness = SalaHarness()..room.holdNextTake(KeptScope.parte(1));
+  final container = await _naCasaDoEnsaio(tester, harness: harness);
+  await tester.pump(const Duration(seconds: 1));
+  var chegou = false;
+  unawaited(harness.room.untilTakeHeld().then((_) => chegou = true));
+  await _gravarNaLinha(tester, 1);
+  await waitFor(
+    'a gravação chegar à porta',
+    () => chegou,
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
+  return (harness, container);
+}
+
 bool _discoAceso(WidgetTester tester) =>
     tester.widget<Semantics>(inTheHome(_irParaATraducao)).properties.enabled ==
         true &&
@@ -1706,18 +1723,7 @@ void main() {
   testWidgets('the grain switch rests while a take is on its way to the room', (
     tester,
   ) async {
-    final harness = SalaHarness()..room.holdNextTake(KeptScope.parte(1));
-    final container = await _naCasaDoEnsaio(tester, harness: harness);
-    await tester.pump(const Duration(seconds: 1));
-    var chegou = false;
-    unawaited(harness.room.untilTakeHeld().then((_) => chegou = true));
-
-    await _gravarNaLinha(tester, 1);
-    await waitFor(
-      'a gravação chegar à porta',
-      () => chegou,
-      step: () => letTheRehearsalReachTheRoom(tester),
-    );
+    final (harness, container) = await _comAParte1NoAr(tester);
 
     expect(
       tester
@@ -1731,4 +1737,23 @@ void main() {
     await letTheRehearsalReachTheRoom(tester);
     closeTheRoom(container);
   });
+
+  testWidgets(
+    'a tap on the grain switch while a take is on its way switches nothing',
+    (tester) async {
+      final (harness, container) = await _comAParte1NoAr(tester);
+
+      await _tocar(tester, find.text(_gravarAPassagemInteira));
+      await letTheRehearsalReachTheRoom(tester);
+
+      expect(
+        harness.room.grainSwitches,
+        isEmpty,
+        reason: 'o toque trocava o grão com a gravação ainda no ar',
+      );
+      harness.room.finishHeldTake();
+      await letTheRehearsalReachTheRoom(tester);
+      closeTheRoom(container);
+    },
+  );
 }
