@@ -928,6 +928,7 @@ void main() {
         ..takeAnswersFirst.add(const NetworkFailed('sem rede'))
         ..finishHeldTake();
       await it.settle();
+      await it.theOutboxLetsGoOf(s2b);
       await it.relaunchOnTheHome();
       await it.wait(const Duration(seconds: 5));
       expect(

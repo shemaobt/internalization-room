@@ -2419,7 +2419,8 @@ void main() {
     });
 
     test('withdrawn even in the air once its pass claimed it leaves the Outbox '
-        'at once, and its send still lands', () async {
+        'at once, keeps its copy until its send lands, and that send still '
+        'lands', () async {
       final room = FakeRoom()..holdNextTake('parte-2');
       final queue = queueOn(room);
       final row = (await queue.enqueueTheJoin(
@@ -2432,12 +2433,14 @@ void main() {
       final copy = (await queue.pending()).single.path;
       final outside = Zone.current;
       late Future<bool> withdrawn;
+      var watched = false;
 
       final flushed = IOOverrides.runZoned(
         queue.flush,
         createFile: (path) {
           final real = outside.run(() => File(path));
-          if (path != copy) return real;
+          if (path != copy || watched) return real;
+          watched = true;
           return _AWatchedCopyThatIgnoresDelete(
             real,
             whenMeasured: () => Future.microtask(
@@ -2452,11 +2455,13 @@ void main() {
 
       expect(await withdrawn, isTrue);
       expect(await queue.pending(), isEmpty);
+      expect(File(copy).existsSync(), isTrue);
 
       room.finishHeldTake();
       await flushed;
 
       expect(room.takesKept, ['ensaio/parte-2']);
+      expect(File(copy).existsSync(), isFalse);
     });
 
     test('withdrawn while its pass is under way is given up, and the newer '
