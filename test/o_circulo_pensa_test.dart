@@ -203,7 +203,7 @@ void main() {
   });
 
   testWidgets(
-    'a thinking circle off her canvas paints only the clay disc and its glow',
+    'a thinking circle off her canvas paints only the clay disc, with no glow',
     (tester) async {
       await _pumpCircle(tester, VoiceState.thinking);
 
@@ -220,18 +220,18 @@ void main() {
 
       expect(
         painters,
-        {GlowPainter},
+        isEmpty,
         reason:
-            'os arcos são do canvas dela; um círculo da Retro, da Escolha ou '
-            'do código que pensa não pinta outro CustomPaint além do brilho',
+            'os arcos são do canvas dela e o check-circle dela não tem '
+            'brilho (Drafting.tsx:2406); um círculo da Retro, da Escolha ou '
+            'do código que pensa não pinta CustomPaint nenhum',
       );
     },
   );
 
-  testWidgets('the whole circle breathes fuller on her 2.4 s while it thinks', (
-    tester,
-  ) async {
-    await _pumpCircle(tester, VoiceState.thinking);
+  testWidgets('her whole canvas circle breathes fuller on her 2.4 s while it '
+      'thinks', (tester) async {
+    await _pumpCircle(tester, VoiceState.thinking, canvas: true);
     final breath = find.descendant(
       of: find.byType(FacilitatorCircle),
       matching: find.byType(Loop),
@@ -268,65 +268,10 @@ void main() {
   });
 
   testWidgets(
-    'a terracotta glow warms the clay from inside and pulses on her 2.4 s',
+    'a tablet that asks for less motion still sees a 2.4 s pulse of light '
+    'on her canvas',
     (tester) async {
-      await _pumpCircle(tester, VoiceState.thinking);
-      final glow = find.descendant(
-        of: find.byType(FacilitatorCircle),
-        matching: find.byWidgetPredicate(
-          (widget) => widget is CustomPaint && widget.painter is GlowPainter,
-        ),
-      );
-      double glowing() => tester
-          .widget<Opacity>(
-            find.ancestor(of: glow, matching: find.byType(Opacity)).first,
-          )
-          .opacity;
-
-      expect(
-        (tester.widget<CustomPaint>(glow).painter! as GlowPainter).color,
-        _telha(0.16),
-        reason: '.glow dela no pensar: radial-gradient de rgba(190,74,1,.16)',
-      );
-      expect(
-        glowing(),
-        closeTo(0.45, 1e-6),
-        reason: 'thinkGlow dela abre em opacidade .45',
-      );
-      await tester.pump(const Duration(milliseconds: 1200));
-      expect(
-        glowing(),
-        closeTo(1, 1e-6),
-        reason: 'e acende por inteiro na metade dos 2,4 s',
-      );
-
-      final drawn = find
-          .descendant(
-            of: find.byType(FacilitatorCircle),
-            matching: find.byWidgetPredicate(
-              (widget) =>
-                  (widget is CustomPaint && widget.painter is GlowPainter) ||
-                  (widget is Container &&
-                      (widget.decoration as BoxDecoration?)?.gradient != null),
-            ),
-          )
-          .evaluate()
-          .map((element) => element.widget)
-          .toList();
-      expect(
-        drawn.last,
-        isA<CustomPaint>(),
-        reason:
-            'o disco dela é translúcido e o brilho aparece através dele; o '
-            'nosso barro é opaco, e um brilho pintado por baixo sumiria inteiro',
-      );
-    },
-  );
-
-  testWidgets(
-    'a tablet that asks for less motion still sees a 2.4 s pulse of light',
-    (tester) async {
-      await _pumpCircle(tester, VoiceState.thinking, still: true);
+      await _pumpCircle(tester, VoiceState.thinking, still: true, canvas: true);
       double veil() => tester
           .widgetList<Opacity>(
             find.descendant(

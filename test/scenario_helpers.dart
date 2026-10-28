@@ -9,10 +9,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 
 import 'fakes.dart';
 
@@ -123,18 +123,18 @@ Future<void> traduzirAParteInteira(
   await tester.pump(const Duration(milliseconds: 200));
 }
 
-/// Every stretch a `RetroView`'s bead row is showing, one entry per bead.
-List<String> contas(WidgetTester tester) => [
-  for (final conta
-      in tester
-          .widget<BeadRow>(
-            find.descendant(
-              of: find.byType(RetroView),
-              matching: find.byType(BeadRow),
-            ),
-          )
-          .entries)
-    '${conta.fill.name}${conta.current ? ' com anel' : ''}',
+List<String> faixas(WidgetTester tester) => [
+  for (final faixa in tester.widgetList<SceneStrip>(
+    find.descendant(
+      of: find.byType(RetroView),
+      matching: find.byType(SceneStrip),
+    ),
+  ))
+    [
+      '${faixa.frases.length} contadas',
+      if (faixa.stale.isNotEmpty) '${faixa.stale.length} regravadas',
+      if (faixa.pausa != null) 'pausa',
+    ].join(' · '),
 ];
 
 class _FileThatAnswersAtOnce implements File {
