@@ -80,3 +80,23 @@ offers «trocar» where there is more than one candidate or none is chosen
 
 The recording home's doors still read Joinable. Hers offer an unsent rehearsal there too;
 that is its own follow-up.
+
+## Amendment · 2026-10-28 (ENG-1949)
+
+The recording home now offers what hers offers, and the plan's «trocar» is her rule. Two
+of the rules above change.
+
+- **The recording home's doors read her `homeRow`** (`ensaioFinal.ts:600-607`). «usar o
+  ensaio desta cena» stands on a row with no joined part while a Usable rehearsal of the
+  scene exists, sent or not (her test `ensaioFinalTest.ts:314`). «trocar o ensaio desta
+  cena» stands on a joined row while the scene has any other rehearsal, whatever it is
+  (`:604`, her test `:317`). The home sheet marks «usar este» on each Usable rehearsal
+  the row does not hold (`:617`), so an unsent one swaps in through the same path the
+  plan's join takes. A rehearsal that cannot enter is listed with its note and no
+  «usar este». This closes the follow-up the 2026-10-27 amendment named, and replaces the
+  door rule of ADR 0122.
+- **«trocar o ensaio desta cena» on a plan row is her `canSwap`** (`ensaioFinal.ts:363`):
+  wherever the row has more than one candidate, or none is chosen and one exists, never
+  over a joined part. A row holding its sent rehearsal beside one that cannot enter offers
+  it, and so does a row whose only rehearsal cannot enter. «usar este» still asks for a
+  Usable one, so what can be chosen does not change.
