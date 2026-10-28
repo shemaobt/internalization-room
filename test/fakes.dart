@@ -1796,6 +1796,8 @@ class FakeRoom implements RoomRepository {
 
   void holdNextTakesList() => _holdTheNextTakesList = true;
 
+  bool get aTakesListIsHeld => _heldTakesLists.isNotEmpty;
+
   void finishHeldTakesList() => _heldTakesLists.removeAt(0).complete();
 
   @override

@@ -1046,6 +1046,7 @@ class SalaSessionState {
       ensaio != EnsaioStatus.idle ||
       _theTakeInTheAirOf(partTakeKind) != null ||
       machine.keeping.keys.any((part) => part.session == sessionId) ||
+      joining != null ||
       bringingBack != null ||
       grainSwitching;
 

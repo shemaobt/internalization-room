@@ -1668,6 +1668,37 @@ void main() {
       semantics.dispose();
     },
   );
+
+  testWidgets(
+    'while the join runs, «gravar a passagem inteira de uma vez» on the plan '
+    'rests',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s1a, s2a, s3a]);
+      await it.held(const [s1a, s2a, s3a]);
+      await it.openThePlan();
+      it.room.holdNextTakesList();
+      final join = byLabel(_join);
+      await tester.ensureVisible(join);
+      await tester.pump();
+      await tester.tap(join);
+      await it.until(
+        'a junta perguntar à sala pela cena 1',
+        () => it.room.aTakesListIsHeld,
+      );
+      expect(it.container.read(salaSessionProvider).joining, 1);
+
+      expect(
+        it.enabled(byLabel(_wholeAtOnce)),
+        isFalse,
+        reason: 'a troca do grão ficava viva com a junta no ar',
+      );
+      it.room.finishHeldTakesList();
+      await it.joinEnds();
+      semantics.dispose();
+    },
+  );
 }
 
 List<Object?> _heard(_Room it, int after, String? takeId) => [
