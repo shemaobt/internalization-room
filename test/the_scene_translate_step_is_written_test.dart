@@ -1515,4 +1515,51 @@ void main() {
       },
     );
   }
+  for (final (look, verdeClaro) in [
+    (Brightness.light, const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFFAAB07E)),
+  ]) {
+    for (final (step, row, open)
+        in <(String, String, Future<void> Function(WidgetTester))>[
+          (
+            'told',
+            _bar(1),
+            (tester) => _onTheSceneScreen(
+              tester,
+              rehearsals: [
+                _rehearsal(frases: [_frase('f1', 0, 3000)]),
+              ],
+              until: (state) => state.scene.step == SceneStep.translate,
+            ),
+          ),
+          ('of a sent scene rehearsal', 'frase 1', _inListenMode),
+        ]) {
+      testWidgets(
+        'in the ${look.name} look «frase 1» under the bar of a frase $step is her small verde-claro line, not 16 point ink',
+        (tester) async {
+          tester.platformDispatcher.platformBrightnessTestValue = look;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
+          await open(tester);
+          final style = tester
+              .widget<Text>(
+                find.descendant(
+                  of: byLabel(row),
+                  matching: find.text('frase 1'),
+                ),
+              )
+              .style;
+
+          expect(
+            style?.fontSize,
+            closeTo(11.2, 1e-9),
+            reason: '«frase 1» tinha 16 pontos; o dela tem .7rem',
+          );
+          expect(style?.color, verdeClaro);
+          expect(style?.height, 1.35);
+        },
+      );
+    }
+  }
 }

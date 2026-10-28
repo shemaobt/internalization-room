@@ -172,7 +172,6 @@ class SceneTranslateStep extends ConsumerWidget {
                 hearMine: said('hearMine', i + 1),
                 live: idle,
                 again: frase.fraseId == scene.translatingAgain?.fraseId,
-                style: words,
                 onTap: () => notifier.translateTheFraseAgain(frase.fraseId),
                 onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
               ),
@@ -471,7 +470,6 @@ class SceneListenMode extends ConsumerWidget {
                 hearMine: said('hearMine', i + 1),
                 live: !scene.waiting,
                 again: false,
-                style: TextStyle(color: colors.ink, fontSize: 16),
                 onTap: () => notifier.playTheFrase(frase.fraseId),
                 onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
               ),
@@ -799,7 +797,6 @@ class _FraseBar extends StatelessWidget {
   final String hearMine;
   final bool live;
   final bool again;
-  final TextStyle style;
   final VoidCallback onTap;
   final VoidCallback onHear;
 
@@ -811,7 +808,6 @@ class _FraseBar extends StatelessWidget {
     required this.hearMine,
     required this.live,
     required this.again,
-    required this.style,
     required this.onTap,
     required this.onHear,
   });
@@ -907,7 +903,14 @@ class _FraseBar extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 0.15 * _rem),
-                                  Text(words, style: style),
+                                  Text(
+                                    words,
+                                    style: TextStyle(
+                                      color: colors.claquete,
+                                      fontSize: 0.7 * _rem,
+                                      height: 1.35,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
