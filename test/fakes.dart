@@ -4288,12 +4288,19 @@ class SalaHarness {
 
   void giveTheEnvelope() => _envelopeHeld?.complete();
 
+  int envelopesBeingRead = 0;
+  int mostEnvelopesReadAtOnce = 0;
+
   Future<Envelope?> readTheEnvelope(String path) async {
-    await _envelopeHeld?.future;
+    envelopesBeingRead++;
+    mostEnvelopesReadAtOnce = max(mostEnvelopesReadAtOnce, envelopesBeingRead);
     try {
+      await _envelopeHeld?.future;
       return envelopeOf(File(path).readAsBytesSync());
     } on FileSystemException {
       return null;
+    } finally {
+      envelopesBeingRead--;
     }
   }
 }

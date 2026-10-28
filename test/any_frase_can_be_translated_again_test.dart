@@ -601,20 +601,20 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('after a verdict with findings a bead opens its frase to be '
-      'told again, as it does before a verdict', (tester) async {
+  testWidgets('after a verdict with findings a frase row opens its frase to '
+      'be told again, as it does before a verdict', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _vereditoNaFraseTres(tester, harness);
 
-    await tester.tap(byLabel('frase 5'));
+    await tocar(tester, _barra(5));
     await _passo(tester);
 
     expect(
       container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.frase,
       5,
       reason:
-          'depois do veredito com achado as contas ficavam mudas, e antes '
-          'dele abriam a frase para traduzir de novo',
+          'depois do veredito com achado a frase ficava muda, e antes '
+          'dele abria para traduzir de novo',
     );
     closeTheRoom(container);
   });

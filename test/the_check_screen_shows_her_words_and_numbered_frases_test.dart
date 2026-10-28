@@ -11,7 +11,6 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/pause_adjust_row.dart';
@@ -1257,39 +1256,6 @@ void main() {
       reason:
           'o alto-falante seguia aceso numa sessão sem gravação nenhuma no '
           'aparelho, e respondia com silêncio',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets('a bead says the frase the room numbered, or the parte it lies '
-      'in, never «Trecho»', (tester) async {
-    _telaAlta(tester);
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await entrarNaTraducao(tester, harness);
-    harness.playback.at = cabeca;
-    await tocarNoCirculo(tester);
-    await tocarNoCirculo(tester);
-    harness.room.fraseDaProximaFrase = 7;
-    await tocarNoCirculo(tester);
-    await waitFor(
-      'a frase contada pousar',
-      () => container
-          .read(salaSessionProvider)
-          .btTrechos
-          .any((trecho) => trecho.contado),
-      step: () => _passo(tester),
-    );
-
-    expect(
-      [
-        for (final conta
-            in tester.widget<BeadRow>(find.byType(BeadRow)).entries)
-          conta.semanticLabel,
-      ],
-      ['frase 7', 'parte 1'],
-      reason:
-          'as contas diziam «Trecho N», uma palavra que não é dela e um '
-          'número que não era o da voz',
     );
     closeTheRoom(container);
   });
