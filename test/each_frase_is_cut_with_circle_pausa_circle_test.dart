@@ -398,6 +398,40 @@ void main() {
       },
     );
 
+    test(
+      'a take still being read is not read again when another row is opened and it is opened back',
+      () async {
+        final room = await _onTheTranslateStep(
+          rehearsal: _rehearsal(n: 2),
+          alsoListed: [_rehearsal()],
+          loudnessLate: true,
+        );
+        for (final n in [1, 2]) {
+          room.sala.openTheListedSceneRehearsal('ensaio-da-cena-$n');
+          await waitFor(
+            'o ensaio $n abrir',
+            () =>
+                room.state.scene.rehearsal?.n == n && !room.state.scene.waiting,
+          );
+          await settle();
+        }
+
+        expect(
+          room.harness.mostEnvelopesReadAtOnce,
+          2,
+          reason:
+              'só uma leitura era lembrada, a do último take; voltar ao primeiro '
+              'lia o arquivo inteiro de novo com a primeira leitura ainda no ar',
+        );
+        room.harness.giveTheEnvelope();
+        await waitFor(
+          'o envelope chegar',
+          () => room.state.sceneEnvelope != null,
+        );
+        expect(room.state.sceneEnvelope, isNotNull);
+      },
+    );
+
     test('the take\'s loudness is read off the UI thread', () async {
       final take = File(
         '${Directory.systemTemp.createTempSync('sala-take').path}/cena.wav',
