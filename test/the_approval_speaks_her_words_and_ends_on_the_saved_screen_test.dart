@@ -3,6 +3,7 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
@@ -121,6 +122,7 @@ ButtonMood _humor(WidgetTester tester, String rotulo) => tester
     .mood;
 
 Future<void> _tocar(WidgetTester tester, [String rotulo = _aprovar]) async {
+  await tester.ensureVisible(byLabel(rotulo));
   await tester.tap(byLabel(rotulo));
   await tester.pump(const Duration(milliseconds: 300));
   await tester.pump(const Duration(milliseconds: 300));
@@ -848,6 +850,70 @@ void main() {
       final it = await aCasaConferida(tester, lingua: 'en');
 
       expect(find.text('✓ translated and checked'), findsOneWidget);
+      closeTheRoom(it.container);
+    });
+
+    for (final (lingua, aprovar) in [
+      ('pt', 'Aprovar como rascunho final'),
+      ('en', 'Approve as the final draft'),
+    ]) {
+      testWidgets('the home writes «$aprovar» on its approve button, not a '
+          'second ✓', (tester) async {
+        final it = await aCasaConferida(tester, lingua: lingua);
+
+        expect(
+          find.text(aprovar),
+          findsOneWidget,
+          reason: 'a casa só tinha um ✓ verde mudo ao lado do ✓ de enviar',
+        );
+        expect(
+          tester.widget<Semantics>(byLabel(aprovar)).properties.button,
+          isTrue,
+        );
+        closeTheRoom(it.container);
+      });
+    }
+
+    testWidgets('the approve button is her pill, her light green under her '
+        'white words', (tester) async {
+      final it = await aCasaConferida(tester);
+
+      final pilula = tester.widget<Container>(
+        find
+            .ancestor(of: find.text(_aprovar), matching: find.byType(Container))
+            .first,
+      );
+      final fundo = pilula.decoration! as BoxDecoration;
+      expect(
+        fundo.color,
+        const Color(0xFF777D45),
+        reason: 'o botão dela é verde-claro; o nosso era o degradê do enviar',
+      );
+      expect(fundo.borderRadius, BorderRadius.circular(999));
+      expect(
+        tester.widget<Text>(find.text(_aprovar)).style?.color,
+        const Color(0xFFF6F5EB),
+      );
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('the keep button keeps its round green ✓, and it is the only ✓ '
+        'on the home', (tester) async {
+      final it = await aCasaConferida(tester);
+
+      expect(
+        find.byIcon(LucideIcons.check),
+        findsOneWidget,
+        reason: 'dois ✓ verdes iguais lado a lado, e a equipe tocava o errado',
+      );
+      final enviar = tester.widget<RoundActionButton>(
+        find.ancestor(
+          of: find.byIcon(LucideIcons.check),
+          matching: find.byType(RoundActionButton),
+        ),
+      );
+      expect(enviar.semanticLabel, 'Enviar a gravação');
+      expect(enviar.gradient, BeadStyles.verde);
       closeTheRoom(it.container);
     });
 
