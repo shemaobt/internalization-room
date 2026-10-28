@@ -360,9 +360,9 @@ class FacilitatorCircle extends StatelessWidget {
   );
 
   Widget _liveBreath(SalaColors colors) => Loop(
-    period: const Duration(milliseconds: 4600),
+    period: Duration(milliseconds: canvas ? 6500 : 4600),
     builder: (context, t) => Transform.scale(
-      scale: 1 + 0.045 * t,
+      scale: 1 + (canvas ? 0.035 : 0.045) * t,
       child: canvas ? _herRing(context, colors) : _liveDisc(colors),
     ),
   );
