@@ -19,6 +19,8 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/part_strips.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/stage_heading.dart';
 import 'package:internalization_room/main.dart';
 
@@ -475,7 +477,7 @@ void main() {
   );
 
   testWidgets(
-    'during the first listen there is no terminei and the circle and bars do nothing',
+    'during the first listen there is no terminei and the circle and the part strips do nothing',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _naTela(tester, _juntadaNaCasa);
@@ -494,8 +496,12 @@ void main() {
       expect(it.harness.playback.sounding, isTrue);
       expect(_microfones(it), microfones);
 
-      expect(find.bySemanticsLabel('parte 1'), findsWidgets);
-      await tester.tap(find.bySemanticsLabel('parte 1').first);
+      final faixasDasPartes = find.descendant(
+        of: find.byType(PartStrips),
+        matching: find.byType(SceneStrip),
+      );
+      expect(faixasDasPartes, findsWidgets);
+      await tester.tap(faixasDasPartes.first);
       await _ate(tester, () => settle());
       expect(it.harness.playback.played.length, tocadas);
       expect(it.harness.playback.ranges, isEmpty);
@@ -1534,6 +1540,99 @@ void main() {
     },
   );
 
+  test(
+    'the room that closed the first listen is still heard on a return it can no '
+    'longer answer, so the telling waits quiet instead of playing aloud',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a primeira parte voltar ao ar',
+        () => it.harness.playback.sounding,
+      );
+      it.harness.room.listeningUnheardTakeIds = [it.partes[0].takeId!];
+      await traduzirUmTrecho(it, const Duration(seconds: 4));
+      it.harness.room.reachable = false;
+      it.sala.goEnsaio();
+      await waitFor(
+        'a equipe voltar ao ensaio',
+        () => it.estado.stage == SalaStage.ensaio,
+      );
+      await settle();
+      final tocadas = it.harness.playback.played.length;
+
+      it.sala.startRetro();
+      await waitFor(
+        'a tradução voltar',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            it.estado.btPhase == BtPhase.playing &&
+            !it.estado.awaitingTheGuide,
+      );
+      await settle();
+
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        isEmpty,
+        reason:
+            'sem a sala, a volta esquecia o que ela disse ao fim da primeira '
+            'escuta e tocava a primeira parte em voz alta',
+      );
+    },
+  );
+
+  test(
+    'a stretch the room last named untranslated is still said and played on a '
+    'return it can no longer answer, not left silent',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      final tocadas = it.harness.playback.played.length;
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a primeira voltar ao ar com a P1',
+        () => it.harness.playback.played.length > tocadas,
+      );
+      it.harness.room
+        ..listeningFixedLine = 'N2'
+        ..listeningUntranslated = [
+          UntranslatedPart(
+            takeId: it.partes[1].takeId!,
+            scene: 2,
+            from: const Duration(milliseconds: 3000),
+          ),
+        ];
+      it.sala.goEnsaio();
+      await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
+      await settle();
+      final linhas = it.harness.voice.fixedLines.length;
+
+      it.harness.room.reachable = false;
+      it.sala.startRetro();
+      await settle();
+      await settle();
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('N2', testLanguage)],
+        reason:
+            'sem a sala, a volta esquecia o trecho sem tradução e ficava calada',
+      );
+      expect(it.harness.playback.played.last, it.partes[1].path);
+      expect(
+        it.harness.playback.playedFrom.last,
+        const Duration(milliseconds: 3000),
+      );
+    },
+  );
+
   testWidgets(
     'during the listen of a recording no join touched there is no terminei, the '
     'circle opens no microphone, and her line names the recording, not the passage',
@@ -1907,7 +2006,6 @@ void main() {
     for (final alvo in [
       ouvirAPrimeira,
       find.bySemanticsLabel(RegExp('frase de novo e traduzir de novo — 1')),
-      find.bySemanticsLabel('frase 1'),
     ]) {
       expect(alvo, findsWidgets);
       await tester.ensureVisible(alvo.first);

@@ -78,7 +78,7 @@ A line the server composes for this turn, which the room fetches and caches befo
 _Avoid_: linha falada, generated line, TTS, fixed line (hers, by name)
 
 **Fail-safe line**:
-The line the room falls back to when it could not compose an answer. It is said and deliberately never kept, so asking to hear the last thing again never repeats it.
+The line the room falls back to when it could not compose an answer. It is a reply like any other: «Ouvir de novo» says it again (ADR 0140), except a retro verdict the room could not compose, which is not kept and leaves the line before it to be said again.
 _Avoid_: linha de segurança, fallback, fixed line (the mechanism rather than this role)
 
 **Analyst**:
@@ -255,16 +255,16 @@ One of the pieces the rehearsal recording is divided into, and the unit a stretc
 _Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch, composed passage (retired: the take the server assembled around a mend)
 
 **Necklace**:
-The cord of beads that is the room's progress indicator for the conversation: its twelve beads, of which as many are lit as the room says, show the conversation's coverage. Drawn over the Conversation and the Closing only; the Back-translation and the findings show the Bead row instead, and the Rehearsal its Scene rows.
+The cord of beads that is the room's progress indicator for the conversation: its twelve beads, of which as many are lit as the room says, show the conversation's coverage. Drawn over the Conversation and the Closing only; the Back-translation and the findings show the Part strips instead, and the Rehearsal its Scene rows.
 _Avoid_: colar, progress bar, ghost bead
 
 **Bead** and **element**:
 One of the necklace's twelve, whatever the passage's number of elements. The room says how many are lit (`beads_filled`): the elements engaged over all the elements, times twelve, rounded half up. An **element** is one of the Meaning Map's, and moves through not encountered, surfaced (the Guide said it) and engaged (the team said it); it is not a bead.
-_Avoid_: conta, pearl, item, bead for an element of the Map, part bead or stretch bead (those sit on the Bead row)
+_Avoid_: conta, pearl, item, bead for an element of the Map, part bead or stretch bead (retired with the Bead row)
 
-**Bead row**:
-The row at the top of the Back-translation and the findings, one bead per Stretch: translucent while its recording is open or pending, solid once confirmed, drained while a finding points at it, ringed while it is the current one; a tap selects it and plays it. A dimmed bead is the exception: it does not apply right now, and a tap on it does nothing.
-_Avoid_: cord, band, reading head (the cord, its strokes and its dot, retired on 2026-09-25), contas, bits, progress bar
+**Part strips**:
+The rows at the top of the Back-translation and the findings, one per Part, hers: «parte N» written (or «A passagem inteira» for a whole-passage take) beside the strip of that part's take, its loudness drawn so a silence reads as a valley, each told Stretch a band with a tick at its cut, a stretch of a part recorded again faint and dotted, the pending pausa in telha and the player's line. The strip cannot be tapped (ADR 0141).
+_Avoid_: Bead row (retired on 2026-10-27), cord, reading head (retired on 2026-09-25), contas, bits, progress bar
 
 **Circle**:
 The room's one control, the same size in every station: its colour is the voice (telha the Guide, wood the Mother tongue, azul the Bridge language) and its motion the direction (ring and ripples in while the room listens, ripples out while it sounds); the first tap opens the microphone and the second closes it. On the First listen its tap does nothing.
@@ -501,7 +501,7 @@ _Avoid_: retro retomada, resuming from scratch
 ### The room and the people
 
 **Halt**:
-The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the team's tap on the person sign clears it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing or answered without a reply (shown once the team is back on the Conversation), the reply's sound failing twice, a tablet that cannot record (a refused start on the Conversation or the Panorama), and the microphone failing to start twice in a row. Outside them, a halt that calls nobody is raised only by the build guard on a broken build (no room address), or by an `Error` in anything the room hands off; the team's tap clears it without reading anything (ADR 0125). A Session read never raises one (ADR 0093).
+The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the team's tap on the person sign clears it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing or answered without a reply (shown once the team is back on the Conversation), one reply's sound failing to load twice (ADR 0140), a tablet that cannot record (a refused start on the Conversation or the Panorama), and the microphone failing to start twice in a row. Outside them, a halt that calls nobody is raised only by the build guard on a broken build (no room address), or by an `Error` in anything the room hands off; the team's tap clears it without reading anything (ADR 0125). A Session read never raises one (ADR 0093).
 _Avoid_: sala parada, stuck room, pause
 
 **Person sign**:

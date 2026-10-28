@@ -35,7 +35,7 @@ const _theBook = [
 const _leave = 'Choose another passage';
 const _back = 'Back to the current passage';
 const _backToRecording = 'Back to recording';
-const _hearTheAnswer = "Hear the facilitator's answer";
+const _hearTheAnswer = "Hear your facilitator's reply";
 
 class _Room {
   _Room(this.harness, this.container);

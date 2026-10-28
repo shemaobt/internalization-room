@@ -22,7 +22,7 @@ import 'scenario_helpers.dart';
 
 const _raise = 'Deixar uma pergunta para o facilitador';
 const _hearTheAnswer = 'Ouvir a resposta do facilitador';
-const _tapToSpeak = 'Tocar para falar';
+const _tapToSpeak = 'Toque para falar';
 const _reply = HandReply(id: 'r1', audioUrl: '/resposta/r1');
 const _panorama = Passagem(
   pericope: 'panorama',
@@ -324,7 +324,7 @@ void main() {
       'o microfone fechar',
       () => room.estado.voice != VoiceState.listening,
     );
-    await room.beat(600);
+    await room.beat(1400);
     nothingIsSaid();
     room.harness.inbox.finishHeldQuestion();
     await room.until(

@@ -149,7 +149,7 @@ void main() {
       }
 
       for (final (name, around) in [
-        ('a mão', byLabel('Leave a question for the facilitator')),
+        ('a mão', byLabel('Leave a question for your facilitator')),
         (
           'o ouvir de novo',
           find

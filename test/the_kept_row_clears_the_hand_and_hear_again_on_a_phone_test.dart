@@ -26,7 +26,7 @@ void main() {
       ], parts: 6);
 
       final hand = tester.getRect(
-        byLabel('Leave a question for the facilitator'),
+        byLabel('Leave a question for your facilitator'),
       );
       final hearAgain = tester.getRect(
         find
