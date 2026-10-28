@@ -2129,15 +2129,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _hand.noteTap();
       return;
     }
+    if (state.voice == VoiceState.speaking) return _cutTheVoice();
     if (state.panoramaSaid) {
       switch (state.voice) {
         case VoiceState.invite:
           _startListening('panorama_${_stamp()}');
         case VoiceState.listening:
           _handOff(_finishPanoramaListening());
-        case VoiceState.speaking:
-          _cutTheVoice();
         case VoiceState.thinking:
+        case VoiceState.speaking:
         case VoiceState.done:
           break;
       }
