@@ -135,9 +135,12 @@ final class PlanRow {
 
   bool get partial => chosen?.untranslatedStretch ?? false;
 
-  /// «trocar» opens the Rehearsal sheet only where there is another usable rehearsal
-  /// to choose, and never over a joined part.
-  bool get canSwap => !joined && !waiting && candidates.any(offersToUse);
+  /// Her `canSwap` (ensaioFinal.ts:363): «trocar» opens the Rehearsal sheet where the row
+  /// has more than one candidate, or none chosen and one there, never over a joined part.
+  bool get canSwap =>
+      !joined &&
+      !waiting &&
+      (candidates.length > 1 || (chosen == null && candidates.isNotEmpty));
 
   /// «usar este» on a [candidate] of the sheet: a usable one the row does not hold.
   bool offersToUse(SceneRehearsalRecord candidate) =>
@@ -275,20 +278,22 @@ HomeRow homeRowOf(
   required String? origin,
   required bool held,
 }) {
-  final joinable = (plan?.candidates ?? const []).where((c) => c.joinable);
+  final candidates = plan?.candidates ?? const <SceneRehearsalRecord>[];
   final inUse = read.rehearsals.any((r) => r.rehearsalId == origin)
       ? origin
       : null;
   return (
     swap:
-        !held && origin != null && joinable.any((c) => c.rehearsalId != origin),
-    useScene: !held && origin == null && joinable.isNotEmpty,
+        !held &&
+        origin != null &&
+        candidates.any((c) => c.rehearsalId != origin),
+    useScene: !held && origin == null && candidates.any((c) => c.usable),
     inUse: inUse,
   );
 }
 
 bool offersToSwapIn(HomeRow home, SceneRehearsalRecord rehearsal) =>
-    rehearsal.joinable && rehearsal.rehearsalId != home.inUse;
+    rehearsal.usable && rehearsal.rehearsalId != home.inUse;
 
 String swapControl(String sceneId, SceneRehearsalRecord rehearsal) =>
     'swap:$sceneId:${rehearsal.n}';

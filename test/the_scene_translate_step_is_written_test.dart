@@ -606,18 +606,18 @@ void main() {
     (
       'pt',
       'Tocar ou pausar a gravação',
-      'pausado — toque no círculo para marcar onde a frase acaba',
+      'pausado — toque no círculo para marcar onde a frase acaba — 0:07 / 0:10',
     ),
     (
       'en',
       'Play or pause your recording',
-      'paused — tap the circle to mark where the sentence ends',
+      'paused — tap the circle to mark where the sentence ends — 0:07 / 0:10',
     ),
   ]) {
     testWidgets(
-      '$language: a sent scene rehearsal stopped mid-take writes her paused hint, and nothing before it plays',
+      '$language: a sent scene rehearsal stopped mid-take writes her paused hint with the clock where it stopped, and nothing before it plays',
       (tester) async {
-        final (_, container) = await _inListenMode(tester);
+        final (harness, container) = await _inListenMode(tester);
         container.read(roomLanguageProvider.notifier).choose(language);
         await tester.pump(const Duration(milliseconds: 300));
 
@@ -627,6 +627,7 @@ void main() {
           tester,
           () => container.read(salaSessionProvider).channel is PartPlaying,
         );
+        harness.playback.at = const Duration(seconds: 7);
         await tester.tap(byLabel(play));
         await pumpUntil(
           tester,
@@ -637,7 +638,7 @@ void main() {
         expect(
           find.text(paused),
           findsOneWidget,
-          reason: 'a escuta parada não dizia nada ao lado do play',
+          reason: 'a escuta parada não dizia onde o take parou',
         );
         expect(byLabel(paused), findsOneWidget);
       },
@@ -689,11 +690,11 @@ void main() {
   }
 
   testWidgets(
-    'a frase of a sent scene rehearsal replayed to its end leaves her paused hint, not a blank row',
+    'a frase of a sent scene rehearsal replayed to its end leaves her paused hint at the frase\'s end, not a blank row',
     (tester) async {
       final (harness, container) = await _inListenMode(tester);
       const paused =
-          'pausado — toque no círculo para marcar onde a frase acaba';
+          'pausado — toque no círculo para marcar onde a frase acaba — 0:03 / 0:10';
 
       await tester.tap(byLabel('frase 1'));
       await pumpUntil(
@@ -701,6 +702,7 @@ void main() {
         () => container.read(salaSessionProvider).channel is PartPlaying,
       );
       expect(harness.playback.ranges.last, '0-3000');
+      harness.playback.at = const Duration(seconds: 3);
       harness.playback.finishPlayback();
       await pumpUntil(
         tester,
@@ -711,18 +713,18 @@ void main() {
       expect(
         find.text(paused),
         findsOneWidget,
-        reason: 'a frase ouvida de novo deixava a linha do play em branco',
+        reason: 'a frase ouvida de novo não dizia que o take parou no fim dela',
       );
       expect(find.text('fim do ensaio da cena'), findsNothing);
     },
   );
 
   testWidgets(
-    'the team\'s translation heard over a playing sent scene rehearsal leaves her paused hint once it stops',
+    'the team\'s translation heard over a playing sent scene rehearsal leaves her paused hint with the clock where the take stopped, not where the translation did',
     (tester) async {
       final (harness, container) = await _inListenMode(tester);
       const paused =
-          'pausado — toque no círculo para marcar onde a frase acaba';
+          'pausado — toque no círculo para marcar onde a frase acaba — 0:07 / 0:10';
       final take = container.read(salaSessionProvider).scene.take;
 
       await tester.tap(byLabel('Tocar ou pausar a gravação'));
@@ -730,6 +732,7 @@ void main() {
         tester,
         () => container.read(salaSessionProvider).channel is PartPlaying,
       );
+      harness.playback.at = const Duration(seconds: 7);
       await tester.tap(byLabel('ouvir a minha tradução da frase 1'));
       await pumpUntil(
         tester,
@@ -738,6 +741,7 @@ void main() {
             harness.playback.played.last != take,
       );
       expect(harness.playback.played.last, isNot(take));
+      harness.playback.at = const Duration(seconds: 2);
       harness.playback.finishPlayback();
       await pumpUntil(
         tester,
@@ -748,7 +752,8 @@ void main() {
       expect(
         find.text(paused),
         findsOneWidget,
-        reason: 'a tradução da equipe tocada sobre a escuta apagava a linha',
+        reason:
+            'a tradução da equipe tocada sobre a escuta não dizia onde o take parou',
       );
     },
   );

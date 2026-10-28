@@ -559,6 +559,7 @@ class SalaSessionState {
   /// The turn «terminei» last sent for a scene rehearsal and no reply has played for:
   /// the next «terminei» on that rehearsal goes under it again.
   final ({String rehearsalId, String turnId})? sceneTurn;
+  final Duration? sceneStoppedAt;
 
   /// «recomeçar a tradução» on the scene rehearsal armed by its first tap, kept beside the
   /// screen so its timers never replace the screen a call waits on.
@@ -710,6 +711,7 @@ class SalaSessionState {
     this.scenes = const ScenesAwaited(),
     this.scenesOfThePassage,
     this.sceneTurn,
+    this.sceneStoppedAt,
     this.sceneRestart,
     this.sceneLine,
     this.ensaioFinalPlan,
@@ -1672,6 +1674,8 @@ class SalaSessionState {
     List<Scene>? scenesOfThePassage,
     ({String rehearsalId, String turnId})? sceneTurn,
     bool clearSceneTurn = false,
+    Duration? sceneStoppedAt,
+    bool clearSceneStoppedAt = false,
     BtRecomeco? sceneRestart,
     bool clearSceneRestart = false,
     SceneLine? sceneLine,
@@ -1814,6 +1818,9 @@ class SalaSessionState {
       scenes: scenes ?? this.scenes,
       scenesOfThePassage: scenesOfThePassage ?? this.scenesOfThePassage,
       sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),
+      sceneStoppedAt: clearSceneStoppedAt
+          ? null
+          : (sceneStoppedAt ?? this.sceneStoppedAt),
       sceneRestart: clearSceneRestart
           ? null
           : (sceneRestart ?? this.sceneRestart),

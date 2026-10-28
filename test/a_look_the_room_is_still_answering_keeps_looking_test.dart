@@ -150,7 +150,8 @@ void main() {
   );
 
   test(
-    'a fail-safe Opening the room was still answering rests with «Ouvir de novo» asking the room',
+    'a fail-safe Opening the room was still answering rests with «Ouvir de novo» '
+    'saying that line, not asking the room for it',
     () {
       _anOpeningTheNetworkLoses(
         (room) => room
@@ -164,12 +165,19 @@ void main() {
           expect(it.harness.voice.played, isNot(contains(turnoUrl)));
           expect(it.state.canHearAgain, isTrue);
 
-          final asked = it.room.turnIdsAsked.length;
+          final asked = [...it.room.turnIdsAsked];
           it.room.failTurnsWith = null;
           unawaited(it.sala.hearAgain());
           clock.elapse(const Duration(seconds: 1));
 
-          expect(it.room.turnIdsAsked, hasLength(asked + 1));
+          expect(
+            it.room.turnIdsAsked,
+            asked,
+            reason:
+                'a abertura de segurança que o olhar achou não era guardada, '
+                'e o toque perguntava à sala por ela',
+          );
+          expect(it.replies, 1, reason: 'a abertura toca uma vez, no toque');
         },
       );
     },
