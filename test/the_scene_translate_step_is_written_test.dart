@@ -602,6 +602,48 @@ void main() {
     },
   );
 
+  for (final (language, play, paused) in [
+    (
+      'pt',
+      'Tocar ou pausar a gravação',
+      'pausado — toque no círculo para marcar onde a frase acaba',
+    ),
+    (
+      'en',
+      'Play or pause your recording',
+      'paused — tap the circle to mark where the sentence ends',
+    ),
+  ]) {
+    testWidgets(
+      '$language: a sent scene rehearsal stopped mid-take writes her paused hint, and nothing before it plays',
+      (tester) async {
+        final (_, container) = await _inListenMode(tester);
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.text(paused), findsNothing);
+        await tester.tap(byLabel(play));
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is PartPlaying,
+        );
+        await tester.tap(byLabel(play));
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is! PartPlaying,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          find.text(paused),
+          findsOneWidget,
+          reason: 'a escuta parada não dizia nada ao lado do play',
+        );
+        expect(byLabel(paused), findsOneWidget);
+      },
+    );
+  }
+
   testWidgets('a sent scene rehearsal draws her strip', (tester) async {
     await _inListenMode(tester);
 
