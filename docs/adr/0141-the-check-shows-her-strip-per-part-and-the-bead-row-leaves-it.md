@@ -7,7 +7,7 @@ amends: 0040, 0011
 # The check shows her strip per part, and the Bead row leaves it
 
 This amends ADR 0040 for the Back-translation and the findings, the one screen where its Bead
-row still stood after ADR 0102 took it off the Rehearsal. It adds "amended by 0140" to 0040's
+row still stood after ADR 0102 took it off the Rehearsal. It adds "amended by 0141" to 0040's
 status line and a note to 0011. Nothing else in either is edited. The work is ENG-1882.
 
 ## Context

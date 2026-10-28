@@ -263,7 +263,7 @@ One of the necklace's twelve, whatever the passage's number of elements. The roo
 _Avoid_: conta, pearl, item, bead for an element of the Map, part bead or stretch bead (retired with the Bead row)
 
 **Part strips**:
-The rows at the top of the Back-translation and the findings, one per Part, hers: «parte N» written (or «A passagem inteira» for a whole-passage take) beside the strip of that part's take, its loudness drawn so a silence reads as a valley, each told Stretch a band with a tick at its cut, a stretch of a part recorded again faint and dotted, the pending pausa in telha and the player's line. The strip cannot be tapped (ADR 0140).
+The rows at the top of the Back-translation and the findings, one per Part, hers: «parte N» written (or «A passagem inteira» for a whole-passage take) beside the strip of that part's take, its loudness drawn so a silence reads as a valley, each told Stretch a band with a tick at its cut, a stretch of a part recorded again faint and dotted, the pending pausa in telha and the player's line. The strip cannot be tapped (ADR 0141).
 _Avoid_: Bead row (retired on 2026-10-27), cord, reading head (retired on 2026-09-25), contas, bits, progress bar
 
 **Circle**:
