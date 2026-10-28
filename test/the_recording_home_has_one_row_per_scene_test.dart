@@ -1684,4 +1684,22 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  testWidgets('the grain switch rests while a take records', (tester) async {
+    final container = await _naCasaDoEnsaio(tester);
+    await tester.pump(const Duration(seconds: 1));
+
+    await _tocar(tester, _naLinha(1, _gravar));
+
+    expect(
+      tester
+          .widget<Semantics>(byLabel(_gravarAPassagemInteira))
+          .properties
+          .enabled,
+      isFalse,
+      reason: 'a troca do grão ficava viva com o microfone aberto',
+    );
+    await _tocar(tester, _naLinha(1, _parar));
+    closeTheRoom(container);
+  });
 }

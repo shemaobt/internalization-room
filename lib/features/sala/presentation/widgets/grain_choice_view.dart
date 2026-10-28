@@ -240,7 +240,7 @@ class GrainControls extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
-    final open = !session.grainSwitching;
+    final open = !session.nothingStartsNow;
     return Column(
       children: [
         if (!session.recordsTheWhole)
