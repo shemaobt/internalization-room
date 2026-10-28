@@ -716,6 +716,7 @@ class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
     String? origin,
     bool reopensTheApprovedDraft = false,
     String? overTake,
+    Future<void>? abortTrigger,
   }) {
     if (!stumbled) {
       stumbled = true;
@@ -734,6 +735,7 @@ class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
       origin: origin,
       reopensTheApprovedDraft: reopensTheApprovedDraft,
       overTake: overTake,
+      abortTrigger: abortTrigger,
     );
   }
 }
