@@ -1,10 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'onde_mora_o_erro_test.dart'
+    show harnessDaVez, notifier, pumpToPergunta, terminei, traduzirDeNovo;
 import 'scenario_helpers.dart' show settle;
 import 'tocar_vira_pausar_test.dart' show pumpAoApontado, harnessApontando;
+
+const _oVereditoDeSeguranca =
+    '/api/internalization-room/voice/veredito-de-seguranca';
 
 void main() {
   group('ouvir a resposta de novo', () {
@@ -84,6 +91,56 @@ void main() {
       expect(harness.voice.assets.length, assetsAntes);
       expect(harness.voice.fixedLines.length, fixasAntes);
       expect(harness.playback.ranges, isEmpty);
+    });
+
+    testWidgets('depois de um veredito de fail-safe, o botão repete o veredito '
+        'de antes dele, não o de fail-safe', (tester) async {
+      final container = await pumpToPergunta(tester);
+      final harness = harnessDaVez!;
+      expect(harness.voice.played.last, falaDoVeredito);
+      harness.room
+        ..verdictUsedFailSafe = true
+        ..verdictAudioUrl = _oVereditoDeSeguranca;
+      await traduzirDeNovo(tester, container);
+      await terminei(tester, container);
+      expect(harness.voice.played.last, _oVereditoDeSeguranca);
+      final tocadosAntes = harness.voice.played.length;
+
+      notifier(container).ouvirARespostaDeNovo();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(harness.voice.played.skip(tocadosAntes), [falaDoVeredito]);
+    });
+
+    testWidgets('um veredito de fail-safe que não carrega duas vezes chama a '
+        'pessoa e deixa o botão com o veredito de antes dele', (tester) async {
+      final container = await pumpToPergunta(tester);
+      final harness = harnessDaVez!;
+      SalaSessionState read() => container.read(salaSessionProvider);
+      harness.room
+        ..verdictUsedFailSafe = true
+        ..verdictAudioUrl = _oVereditoDeSeguranca;
+      harness.voice.refuses.add(_oVereditoDeSeguranca);
+      await traduzirDeNovo(tester, container);
+      unawaited(notifier(container).finishBackTranslation());
+      await waitFor(
+        'o sinal da pessoa',
+        () => read().needsPerson,
+        step: () => tester.pump(const Duration(milliseconds: 100)),
+      );
+      expect(
+        harness.voice.played.where((url) => url == _oVereditoDeSeguranca),
+        hasLength(2),
+      );
+
+      notifier(container).teamTapped();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(read().needsPerson, isFalse);
+      final tocadosAntes = harness.voice.played.length;
+      notifier(container).ouvirARespostaDeNovo();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(harness.voice.played.skip(tocadosAntes), [falaDoVeredito]);
     });
   });
 }

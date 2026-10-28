@@ -373,9 +373,14 @@ class RoomRepository {
     String? origin,
     bool reopensTheApprovedDraft = false,
     String? overTake,
+    Future<void>? abortTrigger,
   }) async {
     final request =
-        http.MultipartRequest('POST', _uri('/sessions/$sessionId/takes'))
+        http.AbortableMultipartRequest(
+            'POST',
+            _uri('/sessions/$sessionId/takes'),
+            abortTrigger: abortTrigger,
+          )
           ..headers.addAll(_whoWeAre)
           ..headers['X-Room-Device'] = await _deviceId()
           ..fields['kind'] = kind
@@ -475,11 +480,13 @@ class RoomRepository {
     DateTime? recordedAt,
     int? durationMs,
     String? sha256,
+    Future<void>? abortTrigger,
   }) async {
     final request =
-        http.MultipartRequest(
+        http.AbortableMultipartRequest(
             'POST',
             _uri('/sessions/$sessionId/scene-rehearsals'),
+            abortTrigger: abortTrigger,
           )
           ..headers.addAll(_whoWeAre)
           ..headers['X-Room-Device'] = await _deviceId()

@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0107, 0108, 0125
+status: accepted, amended by 0107, 0108, 0125, 0140
 date: 2026-10-20
 supersedes: 0050 (in part), 0073 (in part)
 amends: 0053, 0074, 0097
