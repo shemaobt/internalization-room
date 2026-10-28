@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0145
 date: 2026-10-27
 amends: 0108 (in part: a way in from the Choice rests on the Choice, not at the invite), 0062 (in part: the way back lasts until the next entry's session opens)
 ---
