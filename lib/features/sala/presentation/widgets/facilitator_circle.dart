@@ -79,6 +79,7 @@ class FacilitatorCircle extends StatelessWidget {
       children: [
         if (!_halted && canvas && !still && voice == VoiceState.listening)
           ..._herRipples(colors),
+        if (canvas && voice == VoiceState.thinking) _herArcs(colors, still),
         if (!_halted && canvas && voice == VoiceState.speaking) _herGlow(still),
         if (canvas)
           AnimatedSwitcher(
@@ -276,56 +277,39 @@ class FacilitatorCircle extends StatelessWidget {
   );
 
   Widget _waiting(BuildContext context, SalaColors colors, bool still) {
-    final body = canvas
-        ? _herRing(context, colors)
-        : _disc(
-            gradient: BeadStyles.clay(colors),
-            shadows: const [
-              BoxShadow(
-                color: Color(0x260A0703),
-                offset: Offset(0, 6),
-                blurRadius: 20,
-              ),
-            ],
-          );
-    final glow = _herLight(.16, .62);
-    final arcs = canvas
-        ? [
-            _arc(
-              const Duration(milliseconds: 1600),
-              1,
-              still,
-              ArcPainter(
-                side: size * 1.14,
-                stroke: 4,
-                top: colors.telha,
-                right: colors.telha.withValues(alpha: 0.35),
-              ),
-            ),
-            _arc(
-              const Duration(milliseconds: 2600),
-              -1,
-              still,
-              ArcPainter(
-                side: size * 1.26,
-                stroke: 2,
-                bottom: colors.telha.withValues(alpha: 0.55),
-              ),
-            ),
-          ]
-        : const <Widget>[];
-    Widget over(Widget light) => Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: canvas ? [...arcs, light, body] : [body],
+    if (canvas) {
+      return _thinkBreath(
+        still,
+        (glowing) => Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            Opacity(opacity: glowing, child: _herLight(.16, .62)),
+            _herRing(context, colors),
+          ],
+        ),
+      );
+    }
+    final clay = _disc(
+      gradient: BeadStyles.clay(colors),
+      shadows: const [
+        BoxShadow(
+          color: Color(0x260A0703),
+          offset: Offset(0, 6),
+          blurRadius: 20,
+        ),
+      ],
     );
-    if (still && !canvas) return body;
+    return still ? clay : _thinkBreath(false, (_) => clay);
+  }
+
+  Widget _thinkBreath(bool still, Widget Function(double glowing) inside) {
     if (still) {
       return Loop(
         period: const Duration(milliseconds: 2400),
         reducible: false,
         builder: (context, t) =>
-            Opacity(opacity: 0.72 + 0.24 * t, child: over(glow)),
+            Opacity(opacity: 0.72 + 0.24 * t, child: inside(1)),
       );
     }
     return Loop(
@@ -334,11 +318,42 @@ class FacilitatorCircle extends StatelessWidget {
         scale: 0.97 + 0.06 * t,
         child: Opacity(
           opacity: 0.82 + 0.18 * t,
-          child: over(Opacity(opacity: 0.45 + 0.55 * t, child: glow)),
+          child: inside(0.45 + 0.55 * t),
         ),
       ),
     );
   }
+
+  Widget _herArcs(SalaColors colors, bool still) => _thinkBreath(
+    still,
+    (_) => Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        _arc(
+          const Duration(milliseconds: 1600),
+          1,
+          still,
+          ArcPainter(
+            side: size * 1.14,
+            stroke: 4,
+            top: colors.telha,
+            right: colors.telha.withValues(alpha: 0.35),
+          ),
+        ),
+        _arc(
+          const Duration(milliseconds: 2600),
+          -1,
+          still,
+          ArcPainter(
+            side: size * 1.26,
+            stroke: 2,
+            bottom: colors.telha.withValues(alpha: 0.55),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _arc(Duration period, double way, bool still, ArcPainter painter) {
     final turning = Spin(

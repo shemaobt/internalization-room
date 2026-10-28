@@ -331,4 +331,51 @@ void main() {
       );
     }
   });
+
+  testWidgets('her thinking arcs come and go at once while the ring under '
+      'them fades', (tester) async {
+    final arcs = find.byWidgetPredicate(
+      (widget) => widget is CustomPaint && widget.painter is ArcPainter,
+    );
+    double fades(Element arc) {
+      var seen = 1.0;
+      arc.visitAncestorElements((above) {
+        final widget = above.widget;
+        if (widget is FadeTransition) seen *= widget.opacity.value;
+        return true;
+      });
+      return seen;
+    }
+
+    const same = ValueKey('o mesmo canvas pensando');
+
+    await tester.pumpWidget(
+      _circle(VoiceState.invite, canvas: true, key: same),
+    );
+    await tester.pumpWidget(
+      _circle(VoiceState.thinking, canvas: true, key: same),
+    );
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(
+      [for (final arc in arcs.evaluate()) fades(arc)],
+      [1.0, 1.0],
+      reason:
+          'os .ripple r1 e r2 dela não têm transition: no pensar ficam '
+          'inteiros de uma vez (globals.css:119,210-213); só o anel troca '
+          'em 1,4 s',
+    );
+    expect(_seen(tester, _edged(const Color(0xFFC5C29F))), lessThan(0.9));
+
+    await tester.pump(const Duration(milliseconds: 1400));
+    await tester.pumpWidget(
+      _circle(VoiceState.invite, canvas: true, key: same),
+    );
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(
+      arcs,
+      findsNothing,
+      reason: 'e somem no mesmo quadro em que o pensar acaba',
+    );
+    expect(_edged(const Color(0xFFC5C29F)), findsOneWidget);
+  });
 }
