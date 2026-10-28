@@ -404,7 +404,7 @@ class TakeUploadQueue {
 
   /// [aRowOffersItsTap] says whether a row on screen can offer a take's tap. A take no row
   /// can show goes up after every take a row can show, and once spent, whatever spent it,
-  /// it is never held for a tap, but for a refused one, which the room would refuse
+  /// it is never held for a tap, except a refused one, which the room would refuse
   /// again.
   void offerTheTapThrough(bool Function(PendingTake row) aRowOffersItsTap) =>
       _aRowOffersItsTap = aRowOffersItsTap;

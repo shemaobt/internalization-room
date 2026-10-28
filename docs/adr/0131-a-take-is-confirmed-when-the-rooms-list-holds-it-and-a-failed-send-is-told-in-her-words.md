@@ -36,8 +36,9 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   more attempts reads as spent.
 - **A take is spent only while a row can offer its tap.** Once the grain is known, a take
   of the open session that no row shows under it, such as a part after a switch to the
-  whole passage, is never held for a tap, whatever spent it but a refusal, which the room
-  would refuse again: it goes up on a later pass, after every take a row can show, and the room sets it aside as ADR 0134 expects. The count that gates the
+  whole passage, is never held for a tap, whatever spent it, except a refused one, which
+  the room would refuse again: it goes up on a later pass, after every take a row can
+  show, and the room sets it aside as ADR 0134 expects. The count that gates the
   approval leaves it out; it stays in the Outbox, untouched. While the grain is not known
   every spent take waits for its tap. The Orchestrator decided this on 27 October.
 - **A join row keeps ADR 0120's window.** A network failure on a row of a join or a swap
