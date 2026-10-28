@@ -1238,11 +1238,11 @@ void main() {
     },
   );
   for (final (look, areia, digit) in [
-    (Brightness.light, const Color(0xFFC5C29F), const Color(0xFFF6F5EB)),
-    (Brightness.dark, const Color(0xFF6E6A57), const Color(0xFF1E1B15)),
+    (Brightness.light, const Color(0xFFC5C29F), const Color(0xFF0A0703)),
+    (Brightness.dark, const Color(0xFF6E6A57), const Color(0xFFF2EDE1)),
   ]) {
     testWidgets(
-      'in the ${look.name} look each frase told carries its number in her areia disc, not a bare digit',
+      'in the ${look.name} look each frase told carries its number in ink on her areia disc, not white',
       (tester) async {
         tester.platformDispatcher.platformBrightnessTestValue = look;
         addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
@@ -1258,7 +1258,7 @@ void main() {
       },
     );
     testWidgets(
-      'in the ${look.name} look each frase of a sent scene rehearsal carries its number in her areia disc',
+      'in the ${look.name} look each frase of a sent scene rehearsal carries its number in ink on her areia disc',
       (tester) async {
         tester.platformDispatcher.platformBrightnessTestValue = look;
         addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
@@ -1621,13 +1621,14 @@ void main() {
       );
     }
   }
-  for (final (look, areia, azul, verdeClaro, digit) in [
+  for (final (look, areia, azul, verdeClaro, digit, ink) in [
     (
       Brightness.light,
       const Color(0xFFC5C29F),
       const Color(0xFF89AAA3),
       const Color(0xFF777D45),
       const Color(0xFFF6F5EB),
+      const Color(0xFF0A0703),
     ),
     (
       Brightness.dark,
@@ -1635,6 +1636,7 @@ void main() {
       const Color(0xFF8FB1A9),
       const Color(0xFFAAB07E),
       const Color(0xFF1E1B15),
+      const Color(0xFFF2EDE1),
     ),
   ]) {
     testWidgets(
@@ -1660,7 +1662,7 @@ void main() {
       },
     );
     testWidgets(
-      'in the ${look.name} look a listed rehearsal neither sent nor on screen is her areia disc, and a sent one on screen stays verde-claro',
+      'in the ${look.name} look a listed rehearsal neither sent nor on screen is her areia disc numbered in ink, and a sent one on screen stays verde-claro',
       (tester) async {
         tester.platformDispatcher.platformBrightnessTestValue = look;
         addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
@@ -1677,7 +1679,7 @@ void main() {
         final list = byLabel('ensaios da cena desta sessão');
 
         _numberedDisc(tester, list, '1', fill: verdeClaro, digit: digit);
-        _numberedDisc(tester, list, '2', fill: areia, digit: digit);
+        _numberedDisc(tester, list, '2', fill: areia, digit: ink);
       },
     );
   }
