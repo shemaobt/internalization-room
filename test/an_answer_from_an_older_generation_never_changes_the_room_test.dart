@@ -55,7 +55,6 @@ AnsweringEvent _stampedAnswer(
   TheSessionIsGone() => TheSessionIsGone(generation: generation),
   ThePassageClosed() => ThePassageClosed(generation: generation),
   WatchFired() => WatchFired(generation: generation),
-  RetryFired() => RetryFired(generation: generation),
   NetworkFailedAt(:final door) => NetworkFailedAt(door, generation: generation),
   TurnGivenUp(:final turn, :final sounding) => TurnGivenUp(
     turn,

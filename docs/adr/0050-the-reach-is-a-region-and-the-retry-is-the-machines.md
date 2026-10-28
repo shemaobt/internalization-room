@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0052, 0071, superseded in part by 0093, amended by ENG-1197 (2026-10-19: a frase whose first telling fails on the network is a frase not understood, never re-sent), amended by ENG-1696 (2026-10-20: a frase told again too), superseded in part by 0108
+status: accepted, amended by 0052, 0071, superseded in part by 0093, amended by ENG-1197 (2026-10-19: a frase whose first telling fails on the network is a frase not understood, never re-sent), amended by ENG-1696 (2026-10-20: a frase told again too), superseded in part by 0108, amended by 0087 (2026-10-28, ENG-1777: the Outbox retry is gone; only a tap sends)
 date: 2026-10-01
 amends: 0046, 0049
 ---

@@ -246,6 +246,15 @@ class _Room {
     );
   }
 
+  Future<void> toTheRecordingHome() async {
+    container.read(salaSessionProvider.notifier).goEnsaio();
+    await until(
+      'as cenas chegarem',
+      () => container.read(salaSessionProvider).sceneRows.length == 3,
+    );
+    await settle();
+  }
+
   Future<void> relaunchOnTheConversation() async {
     late SalaHarness again;
     late ProviderContainer next;
@@ -609,8 +618,9 @@ void main() {
   );
 
   testWidgets(
-    'a join row still in the Outbox at a drop lands by itself after the '
-    'relaunch, with its origin and fingerprint',
+    'a join row that failed on the network sends nothing after the app is '
+    "reopened, and only its scene row's enviar agora sends it, with its origin "
+    'and fingerprint',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _atRest(tester);
@@ -629,12 +639,25 @@ void main() {
         () => it.onRow(2, find.text(_retry)).evaluate().isNotEmpty,
       );
       it.room.unreachableTake = null;
+      final asked = it.room.takesAsked.length;
       await it.relaunchOnTheConversation();
+      await it.wait(const Duration(minutes: 2));
+
+      expect(it.room.takesAsked.skip(asked), isEmpty);
+
+      await it.toTheRecordingHome();
+      final send = it.onRow(2, find.textContaining('enviar agora'));
+      expect(send, findsOneWidget);
+      await tester.tap(send);
       await it.until(
-        'a parte 2 chegar sozinha',
+        'a parte 2 chegar pelo toque',
         () => it.partsReceived.contains('parte-2'),
       );
 
+      expect(
+        it.room.takesReceivedWhole.where((take) => take.scope == 'parte-2'),
+        isNotEmpty,
+      );
       for (final part2 in it.room.takesReceivedWhole.where(
         (take) => take.scope == 'parte-2',
       )) {
@@ -1331,10 +1354,12 @@ void main() {
         'a parte 1 esperar a primeira vez',
         () => tries() > before,
       );
-      await it.wait(const Duration(seconds: 80));
+      await it.wait(const Duration(seconds: 60));
+      final at60 = tries();
+      await it.wait(const Duration(seconds: 20));
 
       expect(it.onRow(1, find.text(_retry)), findsNothing);
-      expect(tries() - before, greaterThan(10));
+      expect(tries(), greaterThan(at60));
       await it.wait(const Duration(seconds: 20));
       await it.until(
         'a linha 1 pedir outra tentativa',

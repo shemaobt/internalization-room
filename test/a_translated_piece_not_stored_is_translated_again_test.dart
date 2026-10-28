@@ -371,7 +371,7 @@ void main() {
     });
 
     test(
-      'a Back-translation row an older build left in the Outbox is removed at launch and never reaches the room',
+      'a Back-translation row an older build left in the Outbox is removed by the first send and never reaches the room',
       () async {
         final dir = Directory(p.join(home.path, 'guardadas'))
           ..createSync(recursive: true);
@@ -391,8 +391,7 @@ void main() {
           room: room,
           home: () async => home,
           recordings: FakeRecorder.new,
-          backoff: const [],
-        );
+        )..tapped('antiga-parte');
 
         await queue.flush();
 
@@ -427,8 +426,7 @@ void main() {
           room: room,
           home: () async => home,
           recordings: FakeRecorder.new,
-          backoff: const [],
-        );
+        )..tapped('antiga-parte');
 
         await queue.flush();
 

@@ -1,0 +1,306 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
+
+import 'fakes.dart';
+import 'scenario_helpers.dart' show byLabel, relaunch, settle;
+
+const _aindaNoComputador =
+    'Uma gravação ainda está neste computador e não foi enviada.';
+const _enviarAgora = 'enviar agora';
+const _falhou = 'falhou — toque para tentar de novo';
+
+const _cenas = [
+  Scene(sceneId: 'S1', title: 'A fome em Belém'),
+  Scene(sceneId: 'S2', title: 'Noemi decide voltar'),
+  Scene(sceneId: 'S3', title: 'Rute fica com Noemi'),
+];
+
+class _Casa {
+  final WidgetTester tester;
+  final SalaHarness harness;
+  final ProviderContainer container;
+
+  _Casa(this.tester, this.harness, this.container);
+
+  SalaSessionNotifier get sala => container.read(salaSessionProvider.notifier);
+
+  SalaSessionState get estado => container.read(salaSessionProvider);
+
+  FakeRoom get room => harness.room;
+
+  int get envios => room.calls.where((call) => call == 'sendTake').length;
+
+  List<File> get copias {
+    final guardadas = Directory('${harness.takesHome.path}/guardadas');
+    if (!guardadas.existsSync()) return const [];
+    return [
+      for (final entry in guardadas.listSync())
+        if (entry is File && !entry.path.contains('fila.json')) entry,
+    ];
+  }
+
+  Finder naLinha(int n, Finder alvo) => find.descendant(
+    of: byLabel('Cena $n — ${_cenas[n - 1].title}'),
+    matching: alvo,
+  );
+
+  Future<void> emTempoReal(Future<void> Function() corpo) async {
+    await tester.runAsync(corpo);
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+
+  Future<void> tocar(Finder alvo) => emTempoReal(() async {
+    await tester.ensureVisible(alvo);
+    await tester.tap(alvo);
+    await settle(const Duration(milliseconds: 400));
+  });
+
+  Future<void> guardar(int n) async {
+    await emTempoReal(() async {
+      sala.gravarACena(n);
+      await waitFor(
+        'a cena $n gravar',
+        () => estado.ensaio == EnsaioStatus.recording,
+      );
+      sala.gravarACena(n);
+      await waitFor(
+        'a gravação da cena $n esperar o visto',
+        () => estado.ensaio == EnsaioStatus.recorded,
+      );
+      final antes = envios;
+      sala.takeKeep();
+      await waitFor('a cena $n subir', () => envios > antes);
+      await settle(const Duration(milliseconds: 300));
+    });
+  }
+
+  /// The team records part [n] and keeps it, and waits for nothing past its copy on the
+  /// disk.
+  Future<void> guardarNoDisco(int n) => emTempoReal(() async {
+    sala.gravarACena(n);
+    await waitFor(
+      'a cena $n gravar',
+      () => estado.ensaio == EnsaioStatus.recording,
+    );
+    sala.gravarACena(n);
+    await waitFor(
+      'a gravação da cena $n esperar o visto',
+      () => estado.ensaio == EnsaioStatus.recorded,
+    );
+    sala.takeKeep();
+    await waitFor('a tomada entrar na fila', () => copias.isNotEmpty);
+    await settle(const Duration(milliseconds: 300));
+  });
+
+  Future<void> quinzeMinutos() async {
+    for (var minuto = 0; minuto < 15; minuto++) {
+      await tester.pump(const Duration(minutes: 1));
+      await emTempoReal(() => settle(const Duration(milliseconds: 100)));
+    }
+  }
+
+  Future<void> entrarDeNovoNaPassagem(String deAntes) => emTempoReal(() async {
+    await waitFor(
+      'a sala levar a equipe para a Escolha',
+      () => estado.stage == SalaStage.escolha,
+    );
+    await settle();
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor(
+      'a passagem abrir numa sessão nova',
+      () =>
+          estado.sessionId != null &&
+          estado.sessionId != deAntes &&
+          !estado.awaitingTheGuide,
+    );
+    await settle();
+    sala.goEnsaio();
+    await waitFor(
+      'as cenas chegarem',
+      () => estado.sceneRows.length == _cenas.length,
+    );
+    await settle();
+  });
+}
+
+Widget _aCasa(ProviderContainer container) => UncontrolledProviderScope(
+  container: container,
+  child: MaterialApp(
+    theme: AppTheme.light,
+    home: const Scaffold(body: EnsaioView()),
+  ),
+);
+
+Future<_Casa> _relancada(_Casa casa) async {
+  await casa.tester.pumpWidget(const SizedBox());
+  final (harness, container) = (await casa.tester.runAsync(
+    () => relaunch(casa.harness, casa.container),
+  ))!;
+  return _naCasa(casa.tester, harness: harness, relaunched: container);
+}
+
+Future<_Casa> _naCasa(
+  WidgetTester tester, {
+  SalaHarness? harness,
+  ProviderContainer? relaunched,
+}) async {
+  tester.view
+    ..physicalSize = const Size(820, 1180)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final sala = harness ?? SalaHarness();
+  if (relaunched == null) {
+    addTearDown(() => sala.takesHome.deleteSync(recursive: true));
+  }
+  sala.room.passageScenes = _cenas;
+  final container = (await tester.runAsync(
+    () async => (relaunched ?? sala.container())..read(salaSessionProvider),
+  ))!;
+  if (relaunched == null) addTearDown(container.dispose);
+  await tester.pumpWidget(_aCasa(container));
+  final casa = _Casa(tester, sala, container);
+  await casa.emTempoReal(() async {
+    await container.read(deviceLinkProvider.notifier).findTheTeam();
+    await casa.sala.refreshUnsent();
+    await casa.sala.openTheRoom();
+    if (relaunched == null) {
+      await casa.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    }
+    await waitFor(
+      'a sessão abrir',
+      () => casa.estado.sessionId != null && !casa.estado.awaitingTheGuide,
+    );
+    await settle();
+    if (relaunched != null) {
+      casa.sala.openTheEnsaioFinal();
+    } else if (casa.estado.stage != SalaStage.ensaio) {
+      casa.sala.goEnsaio();
+    }
+    await waitFor(
+      'as cenas chegarem',
+      () => casa.estado.sceneRows.length == _cenas.length,
+    );
+    await settle();
+  });
+  return casa;
+}
+
+/// The app is closed between the keep and its send: nothing this Outbox is asked to send
+/// leaves.
+class _AnAppClosedBeforeTheSend extends TakeUploadQueue {
+  _AnAppClosedBeforeTheSend({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
+
+  @override
+  Future<int> flush() async => 0;
+}
+
+void main() {
+  testWidgets(
+    'a take recorded then the app closed before any send is offered on the '
+    'next visit with enviar agora, and nothing was sent meanwhile',
+    (tester) async {
+      final casa = await _naCasa(
+        tester,
+        harness: SalaHarness(
+          takesOverride: (room, home, recordings) => _AnAppClosedBeforeTheSend(
+            room: room,
+            home: () async => home,
+            recordings: recordings,
+          ),
+        ),
+      );
+      await casa.guardarNoDisco(2);
+
+      final depois = await _relancada(casa);
+      await depois.emTempoReal(() => settle(const Duration(seconds: 1)));
+
+      expect(depois.envios, 0);
+      expect(find.text(_aindaNoComputador), findsOneWidget);
+      final aOferta = depois.naLinha(2, find.textContaining(_enviarAgora));
+      expect(aOferta, findsOneWidget);
+
+      await depois.tocar(aOferta);
+
+      expect(depois.room.takesKept, ['ensaio/parte-2']);
+    },
+  );
+
+  testWidgets(
+    'a failed take left fifteen minutes with the network back is still '
+    'unsent, and no request leaves the tablet',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.takeAnswersFirst.add(const Refused(RefusalCode.unauthorized));
+      await casa.guardar(2);
+
+      await casa.quinzeMinutos();
+
+      expect(casa.envios, 1);
+      expect(casa.room.takesKept, isEmpty);
+      expect(casa.copias, hasLength(1));
+    },
+  );
+
+  testWidgets(
+    'a waiting take whose session is gone stays on disk, the next visit to '
+    "the passage offers it, and the tap sends it into the passage's current "
+    'session',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      final perdida = casa.estado.sessionId!;
+      casa.room.forgetTheSession(perdida);
+      await casa.guardarNoDisco(2);
+
+      await casa.entrarDeNovoNaPassagem(perdida);
+
+      expect(casa.copias, hasLength(1));
+      expect(find.text(_aindaNoComputador), findsOneWidget);
+      final atual = casa.estado.sessionId!;
+      await casa.tocar(casa.naLinha(2, find.textContaining(_enviarAgora)));
+
+      expect(casa.room.takeSessions.last, atual);
+      expect(casa.room.takesKept, ['ensaio/parte-2']);
+      expect(casa.copias, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'a tap to record a part again over a failed take removes the old copy at '
+    'the tap, before the microphone opens',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+      expect(casa.copias, hasLength(1));
+      casa.harness.recorder.holdNextStart();
+
+      await casa.emTempoReal(() async {
+        casa.sala.gravarACena(2);
+        await settle();
+      });
+
+      expect(casa.copias, isEmpty);
+      expect((await tester.runAsync(casa.harness.takes.entries))!, isEmpty);
+      await casa.emTempoReal(() async {
+        casa.harness.recorder.finishStart();
+        await settle();
+      });
+    },
+  );
+}

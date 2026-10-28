@@ -105,12 +105,6 @@ abstract interface class StationHost {
 
   void hearTheOpeningLetGo();
 
-  /// The Station takes the names the flushed Outbox gave its takes.
-  Future<void> hearTheOutboxFlushed();
-
-  /// The Station counts what the Outbox still holds, after a flush that landed or failed.
-  Future<void> hearTheOutboxCounted();
-
   void hearTheStepLetGo();
 
   void hearThePendingTranslationLetGo();
@@ -168,7 +162,6 @@ class EffectRunner {
   });
 
   Timer? _watch;
-  Timer? _retry;
   Timer? _ladder;
   int _ladderStep = 0;
   Timer? _ceiling;
@@ -235,12 +228,6 @@ class EffectRunner {
           unawaited(sound.resume());
           _armTheCeiling();
           host.hearTheRun();
-        case ArmTheRetry(:final due):
-          _armTheRetry(due);
-        case CancelTheRetry():
-          _cancelTheRetry();
-        case DrainTheOutbox():
-          _drainTheOutbox();
         case StopTheSend(:final row):
           store.stopTheSend(row);
         case DiscardTheSession():
@@ -308,7 +295,6 @@ class EffectRunner {
     _disposed = true;
     endTheWatch();
     unawaited(_micTaken?.cancel());
-    _retry?.cancel();
     _ladder?.cancel();
     _ceiling?.cancel();
     _lookAgain?.cancel();
@@ -420,15 +406,6 @@ class EffectRunner {
     unawaited(sound.stop());
   }
 
-  /// Unawaited and uncaught, so a flush that fails surfaces as an error; the Station counts
-  /// what is unsent whether it landed or not.
-  void _drainTheOutbox() => unawaited(
-    store
-        .flushTheOutbox()
-        .then((_) => _disposed ? null : host.hearTheOutboxFlushed())
-        .whenComplete(() => _disposed ? null : host.hearTheOutboxCounted()),
-  );
-
   /// The gestures that waited on the turn stop waiting: what the look brings back sounds
   /// as the room's own, not as an answer still owed to a tap.
   void _letTheTurnGo(Turn turn) {
@@ -498,19 +475,6 @@ class EffectRunner {
     final answered = _reloadAnswered;
     _reloadAnswered = null;
     answered?.call(false);
-  }
-
-  void _armTheRetry(Duration delay) {
-    _retry?.cancel();
-    _retry = Timer(delay, () {
-      _retry = null;
-      host.answer(RetryFired(generation: generation?.call()));
-    });
-  }
-
-  void _cancelTheRetry() {
-    _retry?.cancel();
-    _retry = null;
   }
 
   final Set<String> _startedTakes = {};

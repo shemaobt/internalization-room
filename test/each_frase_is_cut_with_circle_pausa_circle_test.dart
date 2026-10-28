@@ -1287,6 +1287,34 @@ void main() {
             expect(room.harness.recorder.deleted, contains(path));
           });
 
+          test('at the second tap of recomeçar a tradução with a frase of that '
+              'scene still unsent, and nothing of it is offered later, even '
+              'when the room refuses the restart', () async {
+            final (room, path) = await held();
+            room.harness.room
+              ..holdNextRestart()
+              ..refuseRestartWith = 'CONFLICT';
+
+            room.sala.restartTheSceneTranslation();
+            await waitFor(
+              'o recomeço acordar',
+              () => room.state.sceneRestart == BtRecomeco.pronto,
+            );
+            room.sala.restartTheSceneTranslation();
+            await settle();
+
+            expect(room.harness.recorder.deleted, contains(path));
+            room.harness.room.finishHeldRestart();
+            await settle();
+            final posts = room.harness.room.frasesKept.length;
+            room.sala.sendTheSceneRehearsal();
+            await waitFor(
+              'o ensaio ir para a voz',
+              () => room.harness.room.scenesSent.isNotEmpty,
+            );
+            expect(room.harness.room.frasesKept, hasLength(posts));
+          });
+
           test('when its session is gone', () async {
             final (room, path) = await held();
             room.harness.room.forgetTheSession(_session);

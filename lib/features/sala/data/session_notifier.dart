@@ -2466,7 +2466,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(decided(const RoomSessionGone(), _failureContext()));
   }
 
-  void _letGoOf(String? sessionId, {List<String> kept = const []}) {
+  void _letGoOf(
+    String? sessionId, {
+    List<String> kept = const [],
+    String? passage,
+  }) {
     final life = _thisLife;
     if (sessionId != null) {
       _goneSessions.add(sessionId);
@@ -2481,7 +2485,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     unawaited(
       _mindingThePlace(
-        () => _forgetTheSessionOnDisk(sessionId, kept),
+        () => _forgetTheSessionOnDisk(sessionId, kept, passage),
       ).whenComplete(() => _countUnsentIn(life)),
     );
   }
@@ -2510,23 +2514,40 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _discardTheSession() {
     final sessionId = _sessionId;
-    final kept = [for (final take in state.keptTakes) take.path];
+    final passage = _thePassage;
+    final unsent = {
+      for (final take in (_notQueued[sessionId] ?? const {}).values) take.path,
+    };
+    final kept = [
+      for (final take in state.keptTakes)
+        if (!unsent.contains(take.path)) take.path,
+    ];
     _clearAll();
     _dropThePendingTake();
     _forgetThePassage();
-    _letGoOf(sessionId, kept: kept);
+    _letGoOf(sessionId, kept: kept, passage: passage);
   }
 
+  /// The passage the team is on, as the Outbox and the resume ledger name it.
+  String? get _thePassage => switch (_emCurso) {
+    (:final book, pericope: final pericope?) =>
+      '$book/$pericope/${_sessionLanguage ?? _lingua}',
+    _ => null,
+  };
+
+  /// The session's memory goes; its takes still unsent stay in the Outbox under
+  /// [passage], for the passage's next session.
   Future<void> _forgetTheSessionOnDisk(
     String? sessionId,
     List<String> kept,
+    String? passage,
   ) async {
     final open = _emAberto;
     final queue = _takes;
     final recorder = _recorder;
     if (sessionId != null) {
       _letGoOfTheCurrentSession(only: sessionId);
-      await queue.discardTheSession(sessionId);
+      await queue.letGoOfTheSession(sessionId, passage: passage);
     }
     for (final path in kept) {
       await recorder.delete(path);
@@ -4521,12 +4542,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         !read.rehearsals.any((rehearsal) => rehearsal.sessionId == sessionId)) {
       return;
     }
-    if (left.isNotEmpty) {
-      await _withinTheJoinWait(_takes.flush());
-    }
     await _countUnsent();
     if (_left(generation, life)) return;
     await _thePartsTheRoomHolds(sessionId, read, generation, life);
+  }
+
+  Future<int> _sendTheRow(String row) {
+    _takes.tapped(row);
+    return _takes.flush();
   }
 
   bool get _thePartsMayMove =>
@@ -4955,6 +4978,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         row = await _takes.enqueueTheJoin(
           File(partPath),
           sessionId: sessionId,
+          passage: _thePassage,
           number: number,
           passNumber: pass,
           origin: rehearsal.rehearsalId,
@@ -5106,9 +5130,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       var watched = true;
       final flushed = await _withinTheJoinWait(
         Future.any([
-          _takes.flush().then(
-            (_) => back.isCompleted || !watched ? 0 : _takes.flush(),
-          ),
+          _sendTheRow(
+            rowId,
+          ).then((_) => back.isCompleted || !watched ? 0 : _sendTheRow(rowId)),
           back.future,
         ]),
         from: leaving.future,
@@ -5812,6 +5836,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       row = await queue.enqueue(
         File(path),
         sessionId: sessionId,
+        passage: _thePassage,
         kind: sceneTakeKind,
         scope: sceneTakeKind,
         scene: keeping.label,
@@ -5839,7 +5864,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (_goneSessions.contains(sessionId)) {
-      return queue.discardTheSession(sessionId);
+      return queue.letGoOfTheSession(sessionId, passage: _thePassage);
     }
     await _keepTheRow(NotKept(row: row.id, take: path), keeping, generation);
   }
@@ -5861,17 +5886,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _countUnsentIn(life);
     }
     await _theRoomKept(kept, waiting, keeping, generation, life);
-  }
-
-  Future<void> _theRoomKeptWhatWaited(int generation, int? life) async {
-    if (_abandoned(generation)) return;
-    final asked = state.scene;
-    final waiting = asked.keep;
-    if (waiting is! NotKept) return;
-    final row = waiting.row;
-    final kept = row == null ? null : _takes.keptSceneOf(row);
-    if (kept == null) return;
-    await _theRoomKept(kept, waiting, asked, generation, life);
   }
 
   Future<void> _theRoomKept(
@@ -6638,6 +6652,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     final waiting = shown.asWaiting;
     state = state.copyWith(scene: waiting, clearSceneRestart: true);
+    _frases.letGoOf(shown.rehearsal!.rehearsalId);
     _handOff(_restartTheTranslation(sessionId, shown, waiting));
   }
 
@@ -6659,7 +6674,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (stillShown) state = state.copyWith(scene: shown);
     switch (restarted) {
       case Answered(:final value):
-        _frases.letGoOf(rehearsal.rehearsalId);
         if (stillShown) {
           final fresh = shown.nothingAskedAgain.copyWith(
             listened: false,
@@ -7076,6 +7090,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _abrirOMicrofoneDaCena(int cena) {
     _silenceTheRoom();
+    if (state.unsentParts[cena]?.failure != null) {
+      unawaited(_letGoOfTheFailedTakeOf(cena));
+    }
     state = state.copyWith(
       ensaio: EnsaioStatus.recording,
       cenaDaGravacao: cena,
@@ -7087,6 +7104,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         generation: _generation,
       ),
     );
+  }
+
+  /// Recording a part again over its failed take lets that take go at the tap: the new
+  /// take replaces it.
+  Future<void> _letGoOfTheFailedTakeOf(int cena) async {
+    final queue = _takes;
+    final sessionId = state.sessionId;
+    final passage = _thePassage;
+    for (final row in await queue.pending()) {
+      if (row.kind == partTakeKind &&
+          row.origin == null &&
+          (row.sessionId == null
+              ? row.passage == passage
+              : row.sessionId == sessionId) &&
+          state.rowOf(row.scope) == cena) {
+        await queue.withdrawEvenInTheAir(row);
+      }
+    }
+    await _countUnsent();
   }
 
   EnsaioStatus get _semGravacaoAberta =>
@@ -7340,8 +7376,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) => _apart(() async {
     if (_endedSince(life)) return null;
     final queue = _takes;
-    final sessionId = state.sessionId;
-    if (_goneSessions.contains(sessionId)) return null;
+    final sessionId = _goneSessions.contains(state.sessionId)
+        ? null
+        : state.sessionId;
+    final passage = _thePassage;
     final PartOfASession? keeping = switch (sessionId) {
       final session? when kind == partTakeKind => (
         session: session,
@@ -7358,17 +7396,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return null;
     }
-    if (sessionId == null) {
-      if (!_endedSince(life)) {
-        _notInTheOutbox(path, kind, scope, passNumber, sessionId);
-      }
-      return null;
-    }
     final PendingTake linha;
     try {
       linha = await queue.enqueue(
         audio,
         sessionId: sessionId,
+        passage: passage,
         kind: kind,
         scope: scope,
         passNumber: passNumber,
@@ -7376,7 +7409,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     } on Object {
       if (keeping != null && !_endedSince(life)) _dispatch(AKeepEnded(keeping));
-      if (_endedSince(life) || _goneSessions.contains(sessionId)) return null;
+      if (_endedSince(life)) return null;
       _notInTheOutbox(path, kind, scope, passNumber, sessionId);
       return null;
     }
@@ -7387,8 +7420,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await queue.flush();
       return null;
     }
-    if (_goneSessions.contains(sessionId)) {
-      await queue.discardTheSession(sessionId);
+    if (sessionId != null && _goneSessions.contains(sessionId)) {
+      await queue.letGoOfTheSession(sessionId, passage: passage);
       return null;
     }
     if (kind == partTakeKind) {
@@ -7447,18 +7480,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _ => null,
     };
     final queue = _takes;
-    final tally = await queue.tally(sessionId: sessionId);
+    final tally = await queue.tally(sessionId: sessionId, passage: _thePassage);
     if (_endedSince(life)) return;
     final tapped = {
       for (final row in _theNewestPass(tally.unsentParts)[cena] ?? const [])
         row.id,
     };
+    var joined = false;
     for (final MapEntry(key: scope, value: rows) in tally.unsentParts.entries) {
       if (state.rowOf(scope) != cena) continue;
       for (final row in rows) {
         if (row.id != sent &&
             (tapped.contains(row.id) || row.refusal == null)) {
-          await queue.dueAgain(row.id);
+          joined = joined || row.origin != null;
+          await queue.dueAgain(row.id, intoTheSession: sessionId);
         }
       }
     }
@@ -7466,6 +7501,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await queue.flush();
     await _countUnsentIn(life);
     await _adoptTheNames(queue, life);
+    if (joined && !_endedSince(life)) _readTheRehearsalsAtHome();
   }
 
   /// Take back the names the room gave the rehearsal recordings this tablet made.
@@ -7618,9 +7654,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final counting = ++_newestCount;
     final queue = _takes;
     final sessionId = state.sessionId;
-    final tally = await queue.tally(sessionId: sessionId);
+    final tally = await queue.tally(sessionId: sessionId, passage: _thePassage);
     if (_endedSince(life)) return;
-    _dispatch(OutboxChanged(tally.parts, due: tally.due));
+    _dispatch(OutboxChanged(tally.parts));
     if (_abandoned(generation) || counting != _newestCount) return;
     final speaking = _theNewestPass(tally.unsentParts);
     if (sessionId != null &&
@@ -7697,9 +7733,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       !state.showsNoRow(row.scope);
 
   bool _ofThisVisit(int number, PendingTake newest) =>
-      _rowsOfThisVisit.contains(newest.id) ||
-      state.machine.keptThisVisit.containsKey(newest.id) ||
-      state.machine.beingKept(state.sessionId, state.scopeOfRow(number));
+      newest.sessionId == state.sessionId &&
+      (_rowsOfThisVisit.contains(newest.id) ||
+          state.machine.keptThisVisit.containsKey(newest.id) ||
+          state.machine.beingKept(state.sessionId, state.scopeOfRow(number)));
 
   Map<int, UnsentPart> _unsentPartsOf(
     OutboxTally tally,
@@ -7748,12 +7785,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _aTakeIsLeaving(TakeLeaving? leaving) {
     if (_gone) return;
     if (leaving case (:final take, :final since)) {
+      final session = take.sessionId;
+      if (session == null) return;
       return _dispatch(
         ATakeLeft(
           TakeInTheAir(
             row: take.id,
             keep: (
-              session: take.sessionId,
+              session: session,
               kind: take.kind,
               scope: take.scope,
               since: since,
@@ -9734,6 +9773,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     PendingTake guardada, {
     required bool reabre,
   }) async {
+    final sessionId = guardada.sessionId;
+    if (sessionId == null) return;
     final frase = int.parse(guardada.scope);
     final generation = _waitOnTheGeneration;
     state = state.copyWith(
@@ -9750,13 +9791,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     var nome = _aFrase(frase)?.segmentId;
     if (nome == null) {
-      await _readTheStretchesBack(guardada.sessionId, generation);
+      await _readTheStretchesBack(sessionId, generation);
       if (_abandoned(generation)) return;
       nome = _aFrase(frase)?.segmentId;
     }
     if (nome == null) return _guardarAFrase(frase);
     final resposta = await _room.reRecordTheSentence(
-      guardada.sessionId,
+      sessionId,
       nome,
       File(guardada.path),
       sentenceId: guardada.id,
@@ -9771,13 +9812,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ):
         _largarAFrase(guardada, PassoDaRegravacao.pronta);
       case Answered(value: final laid):
-        await _aFraseNoLugar(guardada, nome, laid.segments, generation);
+        await _aFraseNoLugar(
+          guardada,
+          sessionId,
+          nome,
+          laid.segments,
+          generation,
+        );
         if (reabre && !_abandoned(generation)) {
-          await _readTheStretchesBack(guardada.sessionId, generation);
+          await _readTheStretchesBack(sessionId, generation);
         }
       case Refused(code: RefusalCode.draftApproved):
         _guardarAFrase(frase);
-        await _readTheStretchesBack(guardada.sessionId, generation);
+        await _readTheStretchesBack(sessionId, generation);
       case Refused(
         code: RefusalCode.stretchNoLongerCounts ||
             RefusalCode.partNotWav ||
@@ -9786,10 +9833,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _fraseNaFila = null;
         unawaited(_takes.withdraw(guardada));
         state = state.copyWith(clearBtRegravacao: true);
-        await _readTheStretchesBack(guardada.sessionId, generation);
+        await _readTheStretchesBack(sessionId, generation);
       case Refused(code: RefusalCode.anotherSentenceAwaits):
         _guardarAFrase(frase);
-        await _readTheStretchesBack(guardada.sessionId, generation);
+        await _readTheStretchesBack(sessionId, generation);
         if (_abandoned(generation)) return;
         if (state.btFraseQueAguarda case final aguardando?) {
           await _voltarAFraseQueAguarda(aguardando, generation);
@@ -9802,6 +9849,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _aFraseNoLugar(
     PendingTake guardada,
+    String sessionId,
     String nome,
     List<SegmentView> segments,
     int generation,
@@ -9815,7 +9863,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     var trocada = false;
     if (parte != null && nova.isNotEmpty) {
       trocada = await _aParteComAFrase(
-        guardada.sessionId,
+        sessionId,
         parte,
         nova.first.takeId,
         generation,
@@ -11508,17 +11556,6 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheOpeningLetGo() => _notifier._letTheOpeningGo();
-
-  @override
-  Future<void> hearTheOutboxFlushed() async {
-    final generation = _notifier._waitOnTheGeneration;
-    final life = _notifier._thisLife;
-    await _notifier._adoptTheNames(_notifier._takes, life);
-    await _notifier._theRoomKeptWhatWaited(generation, life);
-  }
-
-  @override
-  Future<void> hearTheOutboxCounted() => _notifier._countUnsent();
 
   @override
   void hearTheStepLetGo() => _notifier._letTheStepGo();

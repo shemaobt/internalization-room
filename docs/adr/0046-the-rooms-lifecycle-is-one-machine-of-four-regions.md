@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0049, 0050, 0067, 0068 and 0107; extended by name by 0106
+status: accepted, amended by 0049, 0050, 0067, 0068 and 0107; extended by name by 0106; invariant 12 replaced by 0087 (2026-10-28, ENG-1777: the Outbox sends nothing of its own)
 date: 2026-09-29
 amends: 0033, 0036, 0044
 ---

@@ -31,14 +31,12 @@ void main() {
 
   var clock = DateTime(2026, 8, 12, 9);
 
-  TakeUploadQueue queueOn(FakeRoom room, {List<Duration> backoff = const []}) =>
-      TakeUploadQueue(
-        room: room,
-        home: () async => home,
-        recordings: () => recorder,
-        backoff: backoff,
-        now: () => clock,
-      );
+  TakeUploadQueue queueOn(FakeRoom room) => TakeUploadQueue(
+    room: room,
+    home: () async => home,
+    recordings: () => recorder,
+    now: () => clock,
+  );
 
   File aTake(String name) {
     final file = File('${home.path}/$name.m4a');
@@ -56,6 +54,14 @@ void main() {
     kind: 'ensaio',
     scope: 'inteira',
   );
+
+  /// The team taps every row still waiting, the only way a row goes up again.
+  Future<int> aTapOnEveryRow(TakeUploadQueue queue) async {
+    for (final row in await queue.pending()) {
+      queue.tapped(row.id);
+    }
+    return queue.flush();
+  }
 
   List<String> inTheFolder() => [
     for (final e in Directory('${home.path}/guardadas').listSync())
@@ -299,7 +305,7 @@ void main() {
       reason: 'a fila é um arquivo em disco, não uma lista na memória',
     );
 
-    expect(await afterRestart.flush(), 1);
+    expect(await aTapOnEveryRow(afterRestart), 1);
     expect(await afterRestart.pending(), isEmpty);
   });
 
@@ -691,13 +697,13 @@ void main() {
       final gravado = audio.readAsBytesSync();
       audio.deleteSync();
       room.reachable = true;
-      await queue.flush();
+      await aTapOnEveryRow(queue);
 
       // E o áudio está de volta no caminho em que a fila procura.
       audio.writeAsBytesSync(gravado);
 
       expect(
-        await queue.flush(),
+        await aTapOnEveryRow(queue),
         1,
         reason:
             'há tablets no campo agora segurando áudio que o app já deu por perdido: '
@@ -768,51 +774,39 @@ void main() {
     expect(atras.exhausted, isTrue);
   });
 
-  test(
-    'inside the window nothing of that part leaves, and past it both land in order',
-    () async {
-      final room = FakeRoom()
-        ..failWith = const Refused(RefusalCode.deviceRevoked);
-      final queue = queueOn(room, backoff: const [Duration(seconds: 5)]);
-      final primeira = await queue.enqueue(
-        aTake('primeira'),
-        sessionId: 'sessao-1',
-        kind: 'ensaio',
-        scope: 'parte-2',
-      );
-      await queue.flush();
-      room.failWith = null;
-      final segunda = await queue.enqueue(
-        aTake('segunda'),
-        sessionId: 'sessao-1',
-        kind: 'ensaio',
-        scope: 'parte-2',
-      );
+  test('a take kept behind a waiting take of its part goes up after it, on its '
+      'own keep', () async {
+    final room = FakeRoom()
+      ..failWith = const Refused(RefusalCode.deviceRevoked);
+    final queue = queueOn(room);
+    final primeira = await queue.enqueue(
+      aTake('primeira'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'parte-2',
+    );
+    await queue.flush();
+    room.failWith = null;
+    final segunda = await queue.enqueue(
+      aTake('segunda'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'parte-2',
+    );
 
-      expect(
-        await queue.flush(),
-        0,
-        reason:
-            'a primeira ainda espera a sua vez, e a segunda não passa na frente dela',
-      );
-      expect(room.takesKept, isEmpty);
-
-      clock = clock.add(const Duration(seconds: 6));
-
-      expect(await queue.flush(), 2);
-      expect(room.takesKept, ['ensaio/parte-2', 'ensaio/parte-2']);
-      expect(
-        [await queue.takeIdOf(primeira.id), await queue.takeIdOf(segunda.id)],
-        [room.takeIds.first, room.takeIds.last],
-        reason:
-            'a gravação que a equipe fez primeiro é a primeira que a sala recebe',
-      );
-    },
-  );
+    expect(await queue.flush(), 2);
+    expect(room.takesKept, ['ensaio/parte-2', 'ensaio/parte-2']);
+    expect(
+      [await queue.takeIdOf(primeira.id), await queue.takeIdOf(segunda.id)],
+      [room.takeIds.first, room.takeIds.last],
+      reason:
+          'a gravação que a equipe fez primeiro é a primeira que a sala recebe',
+    );
+  });
 
   test('a row of another part is not held by one that is waiting', () async {
     final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
-    final queue = queueOn(room, backoff: const [Duration(seconds: 5)]);
+    final queue = queueOn(room);
     await queue.enqueue(
       aTake('parte-dois'),
       sessionId: 'sessao-1',
@@ -912,14 +906,14 @@ void main() {
       File(primeira.path).deleteSync();
 
       expect(
-        await queue.flush(),
+        await aTapOnEveryRow(queue),
         0,
         reason:
             'neste flush a primeira só é dada por perdida, e até aí ela é uma '
             'gravação da parte 2 que ainda não subiu',
       );
 
-      expect(await queue.flush(), 1);
+      expect(await aTapOnEveryRow(queue), 1);
       expect(
         room.takesKept,
         ['ensaio/parte-2'],
@@ -927,26 +921,6 @@ void main() {
       );
     },
   );
-
-  test('the backoff keeps a failed take from being retried at once', () async {
-    final room = FakeRoom()
-      ..failWith = const Refused(RefusalCode.deviceRevoked);
-    final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
-    await queue.enqueue(
-      aTake('tomada'),
-      sessionId: 'sessao-1',
-      kind: 'ensaio',
-      scope: 'inteira',
-    );
-
-    await queue.flush();
-    room.failWith = null;
-    expect(await queue.flush(), 0, reason: 'ainda dentro da espera');
-
-    clock = clock.add(const Duration(minutes: 6));
-    expect(await queue.flush(), 1);
-  });
-
   test('a revocation mid-flush leaves the rest of the queue waiting', () async {
     final room = FakeRoom()
       ..failWith = const Refused(RefusalCode.deviceRevoked);
@@ -960,7 +934,7 @@ void main() {
       );
     }
 
-    await queue.flush();
+    await aTapOnEveryRow(queue);
 
     expect(
       room.calls.where((call) => call == 'sendTake'),
@@ -978,7 +952,7 @@ void main() {
     );
 
     room.failWith = null;
-    await queue.flush();
+    await aTapOnEveryRow(queue);
 
     expect(await queue.waiting(), isEmpty);
   });
@@ -1117,7 +1091,7 @@ void main() {
     final room = FakeRoom();
     final queue = queueOn(room);
 
-    await queue.flush();
+    await aTapOnEveryRow(queue);
 
     expect(
       room.takesKept,
@@ -1146,7 +1120,7 @@ void main() {
 
     expect(waiting, hasLength(1));
     expect(waiting.single.attempts, 0);
-    expect(await queue.flush(), 1);
+    expect(await aTapOnEveryRow(queue), 1);
   });
 
   test(
@@ -1165,7 +1139,7 @@ void main() {
       final afterRestore = queueOn(room);
 
       expect(
-        await afterRestore.flush(),
+        await aTapOnEveryRow(afterRestore),
         1,
         reason:
             'o ensaio está em guardadas/, intacto: a restauração só trocou o prefixo '
@@ -1190,7 +1164,7 @@ void main() {
       theContainerIsRenamed();
       room.reachable = true;
       final afterRestore = queueOn(room);
-      await afterRestore.flush();
+      await aTapOnEveryRow(afterRestore);
 
       expect(
         await afterRestore.waiting(),
@@ -1216,7 +1190,7 @@ void main() {
       final queue = queueOn(FakeRoom());
 
       expect(
-        await queue.flush(),
+        await aTapOnEveryRow(queue),
         1,
         reason:
             'os tablets do piloto já têm fila.json gravado no formato de hoje — '
@@ -1243,7 +1217,7 @@ void main() {
     final room = FakeRoom();
 
     expect(
-      await queueOn(room).flush(),
+      await aTapOnEveryRow(queueOn(room)),
       1,
       reason:
           'é o tablet de piloto real: a resolução de caminho que condenou essa '
@@ -1268,7 +1242,7 @@ void main() {
     final queue = queueOn(room);
 
     // O áudio está lá, então a linha é tentada — e a sala é que não responde.
-    await queue.flush();
+    await aTapOnEveryRow(queue);
 
     expect(
       room.calls.where((call) => call == 'sendTake'),
@@ -1291,7 +1265,7 @@ void main() {
       theContainerIsRenamed();
 
       expect(
-        await queueOn(room).flush(),
+        await aTapOnEveryRow(queueOn(room)),
         1,
         reason:
             'é o tablet de piloto real: manifesto no formato antigo e restauração de '
@@ -1299,130 +1273,6 @@ void main() {
       );
     },
   );
-
-  test('a take still uploads after the tablet clock jumps backwards', () async {
-    final room = FakeRoom()
-      ..failWith = const Refused(RefusalCode.deviceRevoked);
-    final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
-    clock = DateTime(2026, 8, 12, 9);
-    await queue.enqueue(
-      aTake('tomada'),
-      sessionId: 'sessao-1',
-      kind: 'ensaio',
-      scope: 'inteira',
-    );
-    await queue.flush();
-
-    // A correção automática de horário chega justamente quando a rede volta.
-    clock = clock.subtract(const Duration(hours: 1));
-    room.failWith = null;
-
-    expect(
-      await queue.flush(),
-      1,
-      reason:
-          'com o relógio atrás do instante gravado a espera nunca vencia, e a '
-          'linha nunca voltava a ser tentada: cinquenta minutos de rede boa sem um '
-          'envio, e a sala não diz nada, porque só fala de tomada esgotada, perdida '
-          'ou emperrada',
-    );
-    expect(room.takesKept, ['ensaio/inteira']);
-  });
-
-  test('the queue survives a timezone change across a restart', () async {
-    final room = FakeRoom()
-      ..failWith = const Refused(RefusalCode.deviceRevoked);
-    clock = DateTime(2026, 8, 12, 9);
-    final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
-    await queue.enqueue(
-      aTake('tomada'),
-      sessionId: 'sessao-1',
-      kind: 'ensaio',
-      scope: 'inteira',
-    );
-    await queue.flush();
-
-    // O aparelho reabre num fuso atrás do primeiro, e o instante volta do disco
-    // adiante do relógio de agora.
-    clock = clock.subtract(const Duration(hours: 3));
-    room.failWith = null;
-    final afterRestart = queueOn(room, backoff: const [Duration(minutes: 5)]);
-
-    expect(
-      await afterRestart.flush(),
-      1,
-      reason:
-          'o instante atravessa o disco: gravado num fuso e lido noutro, ele '
-          'volta como um horário à frente e prendia a fila para sempre',
-    );
-    expect(room.takesKept, ['ensaio/inteira']);
-  });
-
-  test(
-    'a row written before this change, its stamp now ahead of the clock, is sent',
-    () async {
-      final dir = Directory('${home.path}/guardadas')
-        ..createSync(recursive: true);
-      File(
-        '${dir.path}/ensaio-antiga-1.m4a',
-      ).writeAsStringSync('a equipe contou a passagem');
-      File('${dir.path}/fila.json').writeAsStringSync(
-        '[{"id":"antiga","name":"ensaio-antiga-1.m4a","session_id":"sessao-1",'
-        '"kind":"ensaio","scope":"inteira","pass_number":null,"chunk_index":null,'
-        '"stored":false,"lost":false,"attempts":0,"waits":1,'
-        '"last_try":"2026-08-12T12:00:00.000"}]',
-      );
-      clock = DateTime(2026, 8, 12, 9);
-      final room = FakeRoom();
-      final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
-
-      expect(
-        await queue.flush(),
-        1,
-        reason:
-            'os tablets do piloto já têm fila.json gravado sem fuso nenhum — a '
-            'atualização não pode deixar essas linhas presas',
-      );
-    },
-  );
-
-  test(
-    'a take freed by a backwards jump goes back to waiting its backoff',
-    () async {
-      final room = FakeRoom()
-        ..failWith = const Refused(RefusalCode.deviceRevoked);
-      final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
-      clock = DateTime(2026, 8, 12, 9);
-      await queue.enqueue(
-        aTake('tomada'),
-        sessionId: 'sessao-1',
-        kind: 'ensaio',
-        scope: 'inteira',
-      );
-      await queue.flush();
-
-      clock = clock.subtract(const Duration(hours: 1));
-      await queue.flush();
-
-      room.failWith = null;
-      expect(
-        await queue.flush(),
-        0,
-        reason:
-            'soltar a linha de um carimbo do futuro vale uma tentativa, não todas: '
-            'essa tentativa grava um carimbo são, e a espera volta a valer — senão a '
-            'fila martela a sala a cada flush enquanto o relógio estiver atrás',
-      );
-
-      clock = clock.add(const Duration(minutes: 6));
-      expect(
-        await queue.flush(),
-        1,
-        reason: 'e ela sobe quando a espera vence, contada do relógio de agora',
-      );
-    },
-  );
-
   test(
     'a spent take holding a newer take of its part leaves nothing pending '
     'and sends nothing until the team taps; the tap sends both in order',
@@ -1547,7 +1397,7 @@ void main() {
       await queue.withdraw(nova);
 
       expect(
-        await queue.flush(),
+        await aTapOnEveryRow(queue),
         1,
         reason:
             'a linha do app mais velho ainda é lida e entregue depois de um '
@@ -1583,7 +1433,6 @@ void main() {
         room: room,
         home: () async => home,
         recordings: FakeRecorder.new,
-        backoff: const [Duration(seconds: 5)],
         now: () => clock,
       );
     }
@@ -1673,8 +1522,8 @@ void main() {
       expect(row.waits, 0);
     });
 
-    test('Q2: a take in the air whose own answer is gone, after its session '
-        'was already discarded, still leaves no copy behind', () async {
+    test('a take in the air when its session goes keeps its row and its '
+        'copy', () async {
       final answer = Completer<void>();
       final reached = Completer<void>();
       final room = RoomRepository(
@@ -1700,15 +1549,15 @@ void main() {
       final flushing = queue.flush();
       await reached.future;
 
-      await queue.discardTheSession('sessao-1');
+      await queue.letGoOfTheSession('sessao-1');
       answer.complete();
       await flushing;
 
-      expect(await queue.entries(), isEmpty);
-      expect(File(row.path).existsSync(), isFalse);
+      expect(await queue.entries(), hasLength(1));
+      expect(File(row.path).existsSync(), isTrue);
     });
 
-    test('a take whose session is gone leaves the Outbox with its copy, and '
+    test('a take whose session is gone stays on the tablet with its copy, and '
         'the Outbox says which session went', () async {
       final queue = queueAnswering(404, {
         'detail': 'Internalization room session not found',
@@ -1725,8 +1574,8 @@ void main() {
 
       await queue.flush();
 
-      expect(await queue.entries(), isEmpty);
-      expect(File(row.path).existsSync(), isFalse);
+      expect(await queue.entries(), hasLength(1));
+      expect(File(row.path).existsSync(), isTrue);
       expect(gone, ['sessao-1']);
     });
   });
@@ -1944,10 +1793,7 @@ void main() {
       () async {
         final room = FakeRoom()
           ..failSceneWith = const NetworkFailed('sem rede');
-        final queue = queueOn(
-          room,
-          backoff: const [Duration(seconds: 5), Duration(seconds: 30)],
-        );
+        final queue = queueOn(room);
         await aScene(queue, 'cena-1');
         await queue.flush();
         clock = clock.add(const Duration(seconds: 1));
@@ -2069,7 +1915,7 @@ void main() {
           recordings: () => recorder,
         );
 
-        await again.flush();
+        await aTapOnEveryRow(again);
 
         expect(
           await recorder.heldAs(
@@ -2157,7 +2003,7 @@ void main() {
       () async {
         final room = FakeRoom()
           ..failSceneWith = const NetworkFailed('sem rede');
-        final queue = queueOn(room, backoff: const [Duration(seconds: 5)]);
+        final queue = queueOn(room);
         await aScene(queue, 'outra', sessionId: 'sessao-2');
         await queue.flush();
         clock = clock.add(const Duration(seconds: 1));
@@ -2358,15 +2204,15 @@ void main() {
       kind: 'ensaio',
       scope: 'parte-2',
     );
-    await queue.flush();
+    await aTapOnEveryRow(queue);
     final bytes = File(entry.path).readAsBytesSync();
     File(entry.path).deleteSync();
-    await queue.flush();
+    await aTapOnEveryRow(queue);
     expect((await queue.pending()).single.lost, isTrue);
     File(entry.path).writeAsBytesSync(bytes);
     room.unreachableTake = null;
 
-    await queue.flush();
+    await aTapOnEveryRow(queue);
 
     expect(room.takesKept, ['ensaio/parte-2']);
   });
@@ -2466,11 +2312,11 @@ void main() {
         origin: 'ensaio-2',
       );
       for (var pass = 0; pass < takeUploadAttempts + 1; pass++) {
-        await queue.flush();
+        await aTapOnEveryRow(queue);
       }
       room.unreachableTake = null;
 
-      await queue.flush();
+      await aTapOnEveryRow(queue);
 
       expect(room.takesKept, ['ensaio/parte-2']);
     });
@@ -2638,11 +2484,11 @@ void main() {
         passNumber: 1,
         origin: 'ensaio-2',
       );
-      await queue.flush();
+      await aTapOnEveryRow(queue);
       room.unreachableTake = null;
       clock = DateTime(2026, 8, 12, 9, 4);
 
-      await queue.flush();
+      await aTapOnEveryRow(queue);
 
       expect(room.takesReceivedWhole.single.recordedAt, clock);
     });
@@ -2667,10 +2513,10 @@ void main() {
         origin: 'ensaio-2',
         overTake: 'gravacao-a-mao',
       );
-      await queueOn(room).flush();
+      await aTapOnEveryRow(queueOn(room));
       room.unreachableTake = null;
 
-      await queueOn(room).flush();
+      await aTapOnEveryRow(queueOn(room));
 
       expect(room.takesReceivedWhole.single.overTake, 'gravacao-a-mao');
     });
@@ -2704,6 +2550,162 @@ void main() {
       expect(await queue.unsentOf('ensaio', sessionId: 'sessao-1'), 0);
       expect(File(row.path).existsSync(), isFalse);
       expect(room.calls.where((call) => call == 'sendTake'), hasLength(1));
+    });
+  });
+
+  group('a take stays on the tablet until the room confirms it, and only its '
+      'tap sends it', () {
+    int sends(FakeRoom room) =>
+        room.calls.where((call) => call == 'sendTake').length;
+
+    Future<PendingTake> keepAPart(
+      TakeUploadQueue queue,
+      int part, {
+      String? session = 'sessao-1',
+      String? passage = 'Ruth/P01/pt',
+    }) => queue.enqueue(
+      aTake('parte-$part'),
+      sessionId: session,
+      passage: passage,
+      kind: 'ensaio',
+      scope: 'parte-$part',
+      passNumber: 1,
+      chunkIndex: part,
+    );
+
+    test('a take kept in an earlier life is sent by no flush until its own '
+        'tap', () async {
+      final room = FakeRoom();
+      final row = await keepAPart(queueOn(room), 2);
+      final relaunched = queueOn(room);
+
+      await relaunched.flush();
+
+      expect(sends(room), 0);
+      expect(File(row.path).existsSync(), isTrue);
+
+      await relaunched.dueAgain(row.id);
+      await relaunched.flush();
+
+      expect(room.takesKept, ['ensaio/parte-2']);
+      expect(await relaunched.entries(), isEmpty);
+    });
+
+    test('a tap on one part sends nothing of another part waiting', () async {
+      final room = FakeRoom();
+      final before = queueOn(room);
+      final two = await keepAPart(before, 2);
+      final three = await keepAPart(before, 3);
+      final relaunched = queueOn(room);
+
+      await relaunched.dueAgain(two.id);
+      await relaunched.flush();
+
+      expect(room.takesKept, ['ensaio/parte-2']);
+      expect(
+        [for (final row in await relaunched.entries()) row.id],
+        [three.id],
+      );
+    });
+
+    test('a take the room turned away is sent by no later flush until its own '
+        'tap', () async {
+      final room = FakeRoom()
+        ..takeAnswersFirst.add(const Refused(RefusalCode.unauthorized));
+      final queue = queueOn(room);
+      final row = await keepAPart(queue, 2);
+      await queue.flush();
+
+      await queue.flush();
+
+      expect(sends(room), 1);
+      expect(File(row.path).existsSync(), isTrue);
+    });
+
+    test('a take the server already holds leaves the tablet and its row reads '
+        'saved', () async {
+      final room = FakeRoom();
+      room.heldByFingerprint[crypto.sha256
+              .convert(utf8.encode('a equipe contou a passagem'))
+              .toString()] =
+          'ja-guardada';
+      room.takes.add(
+        const TakeView(takeId: 'ja-guardada', kind: 'ensaio', scope: 'parte-2'),
+      );
+      final queue = queueOn(room);
+      final row = await keepAPart(queue, 2);
+
+      await queue.flush();
+
+      expect(await queue.entries(), isEmpty);
+      expect(File(row.path).existsSync(), isFalse);
+      final tally = await queue.tally(
+        sessionId: 'sessao-1',
+        passage: 'Ruth/P01/pt',
+      );
+      expect(tally.parts[row.id], PartFact.sent);
+      expect(await queue.takeIdOf(row.id), 'ja-guardada');
+    });
+
+    test('a take the server refuses as stale leaves the tablet', () async {
+      final room = FakeRoom()
+        ..refuseTake = 'ensaio/parte-2'
+        ..refuseTakeCode = RefusalCode.takeMoved;
+      final queue = queueOn(room);
+      final row = await keepAPart(queue, 2);
+
+      await queue.flush();
+
+      expect(await queue.entries(), isEmpty);
+      expect(File(row.path).existsSync(), isFalse);
+    });
+
+    test('a take recorded with no open session is on disk and listed in the '
+        'Outbox', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final row = await keepAPart(queue, 2, session: null);
+
+      await queue.flush();
+
+      expect(sends(room), 0);
+      expect(File(row.path).existsSync(), isTrue);
+      final tally = await queue.tally(
+        sessionId: 'sessao-2',
+        passage: 'Ruth/P01/pt',
+      );
+      expect(
+        [for (final listed in tally.unsentParts['parte-2']!) listed.id],
+        [row.id],
+      );
+    });
+
+    test('a take with no session is listed by no other passage', () async {
+      final queue = queueOn(FakeRoom());
+      await keepAPart(queue, 2, session: null);
+
+      final elsewhere = await queue.tally(
+        sessionId: 'sessao-3',
+        passage: 'Ruth/P02/pt',
+      );
+
+      expect(elsewhere.unsentParts, isEmpty);
+    });
+
+    test('a take whose session is gone is sent by its tap into the session '
+        'the tap names', () async {
+      final room = FakeRoom()..forgetTheSession('sessao-1');
+      final queue = queueOn(room);
+      final row = await keepAPart(queue, 2);
+      await queue.flush();
+
+      await queue.dueAgain(row.id, intoTheSession: 'sessao-2');
+      await queue.flush();
+
+      expect(room.takeSessions, ['sessao-1', 'sessao-2']);
+      expect(room.takesKept, ['ensaio/parte-2']);
+      expect(await queue.entries(), isEmpty);
+      expect(File(row.path).existsSync(), isFalse);
     });
   });
 

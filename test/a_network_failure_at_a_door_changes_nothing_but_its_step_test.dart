@@ -144,7 +144,6 @@ void main() {
         room: room,
         home: () async => home,
         recordings: recordings,
-        backoff: _aLadderThatWaits,
       ),
     )..room.unreachableTake = 'ensaio/$_parte1';
     final room = await _conversa(harness);
@@ -160,40 +159,6 @@ void main() {
     expect(room.estado.needsPerson, isFalse);
     expect(room.said, said);
   });
-
-  test('2 (b): with a part pending after a failed try, the part is '
-      'tried again once its backoff passes, with no gesture', () async {
-    const backoff = Duration(milliseconds: 400);
-    final stumbling = _RoomThatCannotReadTheTakeOnce();
-    final harness = SalaHarness(
-      room: stumbling,
-      takesOverride: (room, home, recordings) => TakeUploadQueue(
-        room: room,
-        home: () async => home,
-        recordings: recordings,
-        backoff: [backoff],
-      ),
-    );
-    final room = await _conversa(harness);
-
-    await _keepARehearsalPart(room);
-    await waitFor('a primeira tentativa falhar', () => stumbling.stumbled);
-    final failedAt = DateTime.now();
-
-    await waitFor(
-      'a parte subir sozinha',
-      () => harness.room.takesKept.contains('ensaio/$_parte1'),
-      limit: const Duration(seconds: 3),
-    );
-    expect(
-      DateTime.now().difference(failedAt),
-      greaterThanOrEqualTo(backoff - const Duration(milliseconds: 50)),
-      reason: 'a segunda tentativa espera o tempo da Outbox',
-    );
-    expect(room.estado.needsPerson, isFalse);
-    await waitFor('a contagem zerar', () => room.estado.unsentTakes == 0);
-  });
-
   test('a stretch told back as the network falls is a frase the room did not '
       'understand, and is never sent again once the network is back', () async {
     final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
@@ -606,50 +571,7 @@ void main() {
     expect(room.estado.stage, SalaStage.retro);
   });
 
-  group('11: a take stranded on a refusal with no code gets one more try on '
-      'the Outbox\'s next drain; one with a known code stays stranded', () {
-    Future<_Room> refusedThenTheOutboxDrains(String code) async {
-      final harness = SalaHarness(
-        watchesWithoutAHalt: true,
-        settleDelay: const Duration(milliseconds: 60),
-        retryBackoff: _aLadderThatWaits,
-      );
-      harness.room
-        ..refuseTake = 'ensaio/$_parte1'
-        ..refuseTakeCode = code;
-      final room = await _conversa(harness);
-      await _keepARehearsalPart(room);
-      await waitFor(
-        'a sala recusar a parte',
-        () async => (await harness.takes.pending()).any((row) => row.exhausted),
-      );
-      harness.room.refuseTake = null;
-      await harness.takes.enqueue(
-        harness.recorder.aFile('outra-parte'),
-        sessionId: room.estado.sessionId!,
-        kind: 'ensaio',
-        scope: KeptScope.parte(2),
-      );
-      await room.sala.refreshUnsent();
-      await waitFor(
-        'o tempo da Outbox esvaziá-la do que ela pode mandar',
-        () => harness.room.takesKept.contains('ensaio/${KeptScope.parte(2)}'),
-      );
-      return room;
-    }
-
-    test('a codeless 400 is sent again and lands', () async {
-      final room = await refusedThenTheOutboxDrains('HTTP_400');
-
-      expect(room.harness.room.takesKept, contains('ensaio/$_parte1'));
-    });
-
-    test('a known code stays stranded', () async {
-      final room = await refusedThenTheOutboxDrains('UNKNOWN_REFERENCE');
-
-      expect(room.harness.room.takesKept, isNot(contains('ensaio/$_parte1')));
-    });
-
+  group('11: a take stranded on a refusal', () {
     test('a manifest written before the code was kept still loads', () async {
       final home = Directory.systemTemp.createTempSync('sala-manifesto-antigo');
       addTearDown(() => home.deleteSync(recursive: true));
@@ -682,45 +604,4 @@ void main() {
       expect(await queue.waiting(), isEmpty);
     });
   });
-}
-
-class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
-  bool stumbled = false;
-
-  @override
-  Future<RoomAnswer<String>> sendTake(
-    String sessionId,
-    File audio, {
-    required String kind,
-    required String scope,
-    int? passNumber,
-    int? chunkIndex,
-    DateTime? recordedAt,
-    int? durationMs,
-    String? sha256,
-    String? origin,
-    bool reopensTheApprovedDraft = false,
-    String? overTake,
-    Future<void>? abortTrigger,
-  }) {
-    if (!stumbled) {
-      stumbled = true;
-      throw const FileSystemException('o disco piscou');
-    }
-    return super.sendTake(
-      sessionId,
-      audio,
-      kind: kind,
-      scope: scope,
-      passNumber: passNumber,
-      chunkIndex: chunkIndex,
-      recordedAt: recordedAt,
-      durationMs: durationMs,
-      sha256: sha256,
-      origin: origin,
-      reopensTheApprovedDraft: reopensTheApprovedDraft,
-      overTake: overTake,
-      abortTrigger: abortTrigger,
-    );
-  }
 }
