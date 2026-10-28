@@ -100,10 +100,7 @@ class FacilitatorCircle extends StatelessWidget {
                 size: Size.square(
                   size * (glyph == CircleGlyph.hand ? 0.36 : 0.6),
                 ),
-                painter: CircleGlyphPainter(
-                  glyph: glyph,
-                  ink: canvas ? _herInk(colors) : ShemaBrand.branco,
-                ),
+                painter: CircleGlyphPainter(glyph: glyph, ink: _herInk(colors)),
               ),
             ),
           },
@@ -174,10 +171,10 @@ class FacilitatorCircle extends StatelessWidget {
   bool get _halted => halt is Blocking;
 
   CircleGlyph? get _modeGlyph {
-    if (_halted) return null;
+    if (_halted || !canvas) return null;
     if (noteMode) return CircleGlyph.hand;
     if (_teamTalk) return CircleGlyph.team;
-    if (!canvas || voice == VoiceState.thinking) return null;
+    if (voice == VoiceState.thinking) return null;
     return CircleGlyph.sound;
   }
 

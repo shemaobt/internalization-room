@@ -424,7 +424,12 @@ void main() {
   testWidgets(
     'a question being left to a person shows the hand, never the sound of a voice',
     (tester) async {
-      await _pumpCircle(tester, VoiceState.listening, noteMode: true);
+      await _pumpCircle(
+        tester,
+        VoiceState.listening,
+        noteMode: true,
+        canvas: true,
+      );
 
       expect(
         _glyphs(tester),
@@ -447,6 +452,7 @@ void main() {
         VoiceState.listening,
         noteMode: true,
         inPlace: true,
+        canvas: true,
       );
       expect(_glyphs(tester), [
         CircleGlyph.hand,
@@ -457,6 +463,7 @@ void main() {
         VoiceState.invite,
         peerCue: true,
         inPlace: true,
+        canvas: true,
       );
       await tester.pump(const Duration(milliseconds: 500));
 
@@ -494,6 +501,7 @@ void main() {
             'inteiro virava azul e a telha sumia justo quando ela precisa '
             'achar o círculo de volta',
       );
+      await _pumpCircle(tester, VoiceState.invite, peerCue: true, canvas: true);
       expect(
         _glyphs(tester),
         [CircleGlyph.team],
@@ -507,7 +515,7 @@ void main() {
   testWidgets(
     'a peer cue at done shows the team glyph as it does at the invite',
     (tester) async {
-      await _pumpCircle(tester, VoiceState.done, peerCue: true);
+      await _pumpCircle(tester, VoiceState.done, peerCue: true, canvas: true);
 
       expect(
         _glyphs(tester),

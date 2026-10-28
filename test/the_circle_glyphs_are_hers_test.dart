@@ -199,4 +199,34 @@ void main() {
       }
     },
   );
+
+  testWidgets(
+    'a circle off her canvas draws no glyph in any voice, even when a note '
+    'or a peer cue reaches it',
+    (tester) async {
+      for (final voice in VoiceState.values) {
+        for (final (noteMode, peerCue) in const [
+          (true, false),
+          (false, true),
+        ]) {
+          await _pumpCircle(
+            tester,
+            voice,
+            canvas: false,
+            noteMode: noteMode,
+            peerCue: peerCue,
+          );
+          expect(
+            _glyph,
+            findsNothing,
+            reason:
+                '${voice.name}, nota $noteMode, deixa $peerCue: os círculos de '
+                'checagem dela não têm glifo (Drafting.tsx:2405, '
+                'Rehearsal.tsx:903, ExternalCheck.tsx:426); o nosso desenhava '
+                'a mão e as pessoas se alguém passasse a bandeira',
+          );
+        }
+      }
+    },
+  );
 }
