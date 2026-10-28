@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_final_plan_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/rehearsal_sheet.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_question.dart';
 import 'package:internalization_room/main.dart';
 
@@ -1052,5 +1053,42 @@ void main() {
         },
       );
     }
+  }
+
+  for (final (device, screen, bar) in [
+    ('the SE', const Size(375, 667), 20.0),
+    ('an iPad', const Size(820, 1180), 24.0),
+  ]) {
+    testWidgets(
+      'on $device the title and the rehearsals start under the way back, '
+      'never beneath it',
+      (tester) async {
+        _on(tester, screen, bar: bar);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        final back = tester.getRect(byLabel(_back));
+        expect(
+          tester.getTopLeft(find.text('Cena 1')).dy,
+          greaterThanOrEqualTo(back.bottom),
+          reason: 'o título começava no alto da folha, sob a volta',
+        );
+        expect(
+          tester
+              .getRect(
+                find.descendant(
+                  of: find.byType(RehearsalSheet),
+                  matching: find.byType(Scrollable),
+                ),
+              )
+              .top,
+          greaterThanOrEqualTo(back.bottom),
+          reason: 'as linhas rolavam por baixo da volta',
+        );
+        semantics.dispose();
+      },
+    );
   }
 }

@@ -52,6 +52,7 @@ class RehearsalSheet extends ConsumerWidget {
 
     final sheet = SafeArea(
       bottom: false,
+      minimum: EdgeInsets.only(top: inset + screen.height * 0.12),
       child: SizedBox.expand(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16),
