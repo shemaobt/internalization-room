@@ -114,6 +114,9 @@ String _line(int n, {String language = 'pt'}) => language == 'pt'
     ? 'ensaio $n · ${_clock(_recordedAt)} · 0:06 · 2 frases · enviado'
     : 'rehearsal $n · ${_clock(_recordedAt)} · 0:06 · 2 sentences · sent';
 
+String _unsentLine(int n) =>
+    'ensaio $n · ${_clock(_recordedAt)} · 0:06 · 2 frases · não enviado';
+
 class _Room {
   final WidgetTester tester;
   SalaHarness harness;
@@ -130,18 +133,23 @@ class _Room {
 
   bool get english => identical(scenes, _threeScenesEn);
 
-  SceneRehearsalRecord rehearsal(int n) => SceneRehearsalRecord(
+  SceneRehearsalRecord rehearsal(
+    int n, {
+    bool sent = true,
+    String contentType = 'audio/wav',
+  }) => SceneRehearsalRecord(
     rehearsalId: idOf(n),
     sessionId: sessionId,
     n: n,
     scene: _sceneOf[n],
     recordedAt: _recordedAt,
-    sentAt: '2026-10-22T${_sentAt[n] ?? '10:09'}:00+00:00',
+    sentAt: sent ? '2026-10-22T${_sentAt[n] ?? '10:09'}:00+00:00' : null,
     durationMs: 6000,
     frases: const [
       SceneFrase(fraseId: 'frase-a', startsMs: 0, endsMs: 3000),
       SceneFrase(fraseId: 'frase-b', startsMs: 3000, endsMs: 6000),
     ],
+    contentType: contentType,
     verified: true,
     sha256: _fingerprintOf(_bytesOf(n)),
   );
@@ -184,9 +192,15 @@ class _Room {
     }
   }
 
-  void list(Iterable<int> ns) {
+  void list(
+    Iterable<int> ns, {
+    bool sent = true,
+    String contentType = 'audio/wav',
+  }) {
     for (final n in ns) {
-      room.sceneRehearsals.add(rehearsal(n));
+      room.sceneRehearsals.add(
+        rehearsal(n, sent: sent, contentType: contentType),
+      );
       room.sceneAudioOf[idOf(n)] = _bytesOf(n);
     }
   }
@@ -298,6 +312,8 @@ class _Room {
 
   Finder use(int n, [String label = _useThis]) =>
       byLabel('$label — ${_line(n, language: english ? 'en' : 'pt')}');
+
+  Finder useUnsent(int n) => byLabel('$_useThis — ${_unsentLine(n)}');
 
   bool enabled(Finder target) =>
       tester
@@ -524,6 +540,83 @@ void main() {
       await it.openTheSheet(2, _swap);
       expect(it.onLine(s2b, find.text(_inUse)), findsOneWidget);
       expect(it.use(s2a), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a joined row whose only other rehearsal is unsent offers «trocar», and '
+    '«usar este» swaps it in',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s2b], sent: false);
+      await it.joined(
+        listed: const [s1a, s2a, s3a],
+        onTheTablet: const [s1a, s2a, s3a, s2b],
+      );
+      final before = it.received(2).length;
+
+      expect(
+        it.door(2, _swap),
+        findsOneWidget,
+        reason: 'a casa não oferecia trocar pelo ensaio não enviado',
+      );
+      await it.openTheSheet(2, _swap);
+      expect(it.useUnsent(s2b), findsOneWidget);
+      await it.tapThe(it.useUnsent(s2b));
+      await it.wait(const Duration(milliseconds: 700));
+      await it.tapThe(it.useUnsent(s2b));
+      await it.swapLands();
+
+      final sent = it.received(2).skip(before).single;
+      expect(sent.origin, it.idOf(s2b));
+      expect(sent.bytes, _bytesOf(s2b));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a joined row whose only other rehearsal is no WAV still offers «trocar», '
+    'and its sheet says that one cannot enter',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s2b], contentType: 'audio/mp4');
+      await it.joined(listed: const [s1a, s2a, s3a]);
+
+      expect(
+        it.door(2, _swap),
+        findsOneWidget,
+        reason: 'a dela oferece trocar sempre que a cena tem outro ensaio',
+      );
+      await it.openTheSheet(2, _swap);
+      expect(it.line(s2b), findsOneWidget);
+      expect(it.onLine(s2b, find.text(_cannotEnter)), findsOneWidget);
+      expect(it.use(s2b), findsNothing);
+      expect(it.onLine(s2a, find.text(_inUse)), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'an unsent rehearsal that is no WAV is listed as one that cannot enter, '
+    'not as a silent line',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s2b], sent: false, contentType: 'audio/mp4');
+      await it.joined(listed: const [s1a, s2a, s3a]);
+
+      await it.openTheSheet(2, _swap);
+      final unsent = byLabel(_unsentLine(s2b));
+      expect(unsent, findsOneWidget);
+      expect(
+        find.descendant(of: unsent, matching: find.text(_cannotEnter)),
+        findsOneWidget,
+        reason: 'a linha não enviada que não é WAV não dizia nada',
+      );
+      expect(it.useUnsent(s2b), findsNothing);
       semantics.dispose();
     },
   );
@@ -760,6 +853,37 @@ void main() {
       final sent = it.received(3).single;
       expect(sent.origin, it.idOf(s3b));
       expect(it.takesOf(3).single.pass, 1);
+      expect(it.ticked(3), isTrue);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a row with no part whose only rehearsal is unsent offers «usar o ensaio '
+    'desta cena», and «usar este» sends it as the part',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s3a], sent: false);
+      await it.joined(
+        listed: const [s1a, s2a, s2b],
+        onTheTablet: const [s1a, s2a, s2b, s3a],
+      );
+      expect(it.partPath(3), isNull, reason: 'a cena 3 não entrou na junta');
+
+      expect(
+        it.door(3, _useScene),
+        findsOneWidget,
+        reason: 'a casa não oferecia o ensaio não enviado da cena',
+      );
+      await it.openTheSheet(3, _useScene);
+      expect(it.useUnsent(s3a), findsOneWidget);
+      await it.tapThe(it.useUnsent(s3a));
+      await it.swapLands();
+
+      final sent = it.received(3).single;
+      expect(sent.origin, it.idOf(s3a));
+      expect(sent.bytes, _bytesOf(s3a));
       expect(it.ticked(3), isTrue);
       semantics.dispose();
     },
