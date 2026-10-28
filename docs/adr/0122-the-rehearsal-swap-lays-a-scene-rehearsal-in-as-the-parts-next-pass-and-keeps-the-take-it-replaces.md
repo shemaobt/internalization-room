@@ -32,3 +32,9 @@ The Definer settled the rules on ENG-1407 (Definition of 22 October; answers Q38
 ## Consequences
 
 - Two tablets swapping one scene to two rehearsals both land, at their own passes; the room's order picks the part, and each tablet sees it at its next resume.
+
+## Amendment · 2026-10-28 (ENG-1949)
+
+The doors of the first decision follow hers now (ADR 0118, amendment of 2026-10-28): «trocar
+o ensaio desta cena» stands while the scene has any other rehearsal, and «usar o ensaio
+desta cena» while a Usable one exists, sent or not.

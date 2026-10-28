@@ -79,8 +79,26 @@ class FacilitatorCircle extends StatelessWidget {
       children: [
         if (!_halted && canvas && !still && voice == VoiceState.listening)
           ..._herRipples(colors),
+        if (canvas && voice == VoiceState.thinking)
+          KeyedSubtree(
+            key: const ValueKey(VoiceState.thinking),
+            child: _herArcs(colors, still),
+          ),
         if (!_halted && canvas && voice == VoiceState.speaking) _herGlow(still),
-        _body(context, colors, still),
+        if (canvas)
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 1400),
+            switchInCurve: Curves.ease,
+            switchOutCurve: Curves.ease.flipped,
+            transitionBuilder: (child, fade) =>
+                FadeTransition(opacity: fade, child: child),
+            child: KeyedSubtree(
+              key: ValueKey((voice, _herNote)),
+              child: _body(context, colors, still),
+            ),
+          )
+        else
+          _body(context, colors, still),
         if (!_halted && !canvas && voice == VoiceState.speaking)
           ..._ripples(colors),
         if (!_halted && !canvas && voice == VoiceState.listening)
@@ -104,7 +122,8 @@ class FacilitatorCircle extends StatelessWidget {
     );
     return AnimatedOpacity(
       opacity: opacity,
-      duration: const Duration(milliseconds: 500),
+      duration: Duration(milliseconds: canvas ? 1400 : 500),
+      curve: canvas ? Curves.ease : Curves.linear,
       child: Semantics(
         button: true,
         enabled: enabled ? null : false,
@@ -116,8 +135,10 @@ class FacilitatorCircle extends StatelessWidget {
             width: size,
             height: size,
             child: canvas
-                ? Transform.scale(
+                ? AnimatedScale(
                     scale: !_halted && voice == VoiceState.speaking ? 0.9 : 1,
+                    duration: const Duration(milliseconds: 1400),
+                    curve: Curves.ease,
                     child: drawing,
                   )
                 : drawing,
@@ -260,73 +281,83 @@ class FacilitatorCircle extends StatelessWidget {
   );
 
   Widget _waiting(BuildContext context, SalaColors colors, bool still) {
-    final body = canvas
-        ? _herRing(context, colors)
-        : _disc(
-            gradient: BeadStyles.clay(colors),
-            shadows: const [
-              BoxShadow(
-                color: Color(0x260A0703),
-                offset: Offset(0, 6),
-                blurRadius: 20,
-              ),
-            ],
-          );
-    final glow = RepaintBoundary(
-      child: CustomPaint(
-        size: Size.square(size),
-        painter: GlowPainter(color: colors.telha.withValues(alpha: 0.16)),
-      ),
+    if (canvas) {
+      return _thinkBreath(
+        still,
+        (glowing) => Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            Opacity(opacity: glowing, child: _herLight(.16, .62)),
+            _herRing(context, colors),
+          ],
+        ),
+      );
+    }
+    final clay = _disc(
+      gradient: BeadStyles.clay(colors),
+      shadows: const [
+        BoxShadow(
+          color: Color(0x260A0703),
+          offset: Offset(0, 6),
+          blurRadius: 20,
+        ),
+      ],
     );
-    final arcs = canvas
-        ? [
-            _arc(
-              const Duration(milliseconds: 1600),
-              1,
-              still,
-              ArcPainter(
-                side: size * 1.14,
-                stroke: 4,
-                top: colors.telha,
-                right: colors.telha.withValues(alpha: 0.35),
-              ),
-            ),
-            _arc(
-              const Duration(milliseconds: 2600),
-              -1,
-              still,
-              ArcPainter(
-                side: size * 1.26,
-                stroke: 2,
-                bottom: colors.telha.withValues(alpha: 0.55),
-              ),
-            ),
-          ]
-        : const <Widget>[];
-    Widget over(Widget light) => Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [...arcs, body, light],
-    );
+    return still ? clay : _thinkBreath(false, (_) => clay);
+  }
+
+  Widget _thinkBreath(bool still, Widget Function(double glowing) inside) {
     if (still) {
       return Loop(
         period: const Duration(milliseconds: 2400),
         reducible: false,
         builder: (context, t) =>
-            Opacity(opacity: 0.72 + 0.24 * t, child: over(glow)),
+            Opacity(opacity: 0.72 + 0.24 * t, child: inside(1)),
       );
     }
     return Loop(
-      period: const Duration(milliseconds: 2400),
+      period: Duration(milliseconds: canvas ? 2400 : 4500),
       builder: (context, t) => Transform.scale(
         scale: 0.97 + 0.06 * t,
         child: Opacity(
           opacity: 0.82 + 0.18 * t,
-          child: over(Opacity(opacity: 0.45 + 0.55 * t, child: glow)),
+          child: inside(0.45 + 0.55 * t),
         ),
       ),
     );
   }
+
+  Widget _herArcs(SalaColors colors, bool still) => _thinkBreath(
+    still,
+    (_) => Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        _arc(
+          const Duration(milliseconds: 1600),
+          1,
+          still,
+          ArcPainter(
+            side: size * 1.14,
+            stroke: 4,
+            top: colors.telha,
+            right: colors.telha.withValues(alpha: 0.35),
+          ),
+        ),
+        _arc(
+          const Duration(milliseconds: 2600),
+          -1,
+          still,
+          ArcPainter(
+            side: size * 1.26,
+            stroke: 2,
+            bottom: colors.telha.withValues(alpha: 0.55),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _arc(Duration period, double way, bool still, ArcPainter painter) {
     final turning = Spin(
@@ -360,9 +391,9 @@ class FacilitatorCircle extends StatelessWidget {
   );
 
   Widget _liveBreath(SalaColors colors) => Loop(
-    period: const Duration(milliseconds: 4600),
+    period: Duration(milliseconds: canvas ? 6500 : 6000),
     builder: (context, t) => Transform.scale(
-      scale: 1 + 0.045 * t,
+      scale: 1 + 0.035 * t,
       child: canvas ? _herRing(context, colors) : _liveDisc(colors),
     ),
   );
@@ -410,26 +441,28 @@ class FacilitatorCircle extends StatelessWidget {
     return [ring(0), ring(0.665625), ring(0.33125)];
   }
 
-  Widget _herGlow(bool still) {
-    final light = OverflowBox(
-      maxWidth: size * 1.12,
-      maxHeight: size * 1.12,
-      child: Container(
-        width: size * 1.12,
-        height: size * 1.12,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            radius: 0.7071,
-            colors: [
-              Color.fromRGBO(190, 74, 1, .20),
-              Color.fromRGBO(190, 74, 1, 0),
-            ],
-            stops: [0, .66],
-          ),
+  Widget _herLight(double alpha, double reach) => OverflowBox(
+    maxWidth: size * 1.12,
+    maxHeight: size * 1.12,
+    child: Container(
+      width: size * 1.12,
+      height: size * 1.12,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          radius: 0.7071,
+          colors: [
+            Color.fromRGBO(190, 74, 1, alpha),
+            const Color.fromRGBO(190, 74, 1, 0),
+          ],
+          stops: [0, reach],
         ),
       ),
-    );
+    ),
+  );
+
+  Widget _herGlow(bool still) {
+    final light = _herLight(.20, .66);
     if (still) return light;
     return Loop(
       period: const Duration(milliseconds: 3400),
@@ -611,30 +644,6 @@ class FacilitatorCircle extends StatelessWidget {
     );
     return [ring(0), ring(0.5)];
   }
-}
-
-class GlowPainter extends CustomPainter {
-  final Color color;
-
-  const GlowPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final disc = Rect.fromCircle(
-      center: size.center(Offset.zero),
-      radius: size.shortestSide / 2,
-    );
-    canvas.drawOval(
-      disc,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [color, color.withValues(alpha: 0)],
-        ).createShader(disc),
-    );
-  }
-
-  @override
-  bool shouldRepaint(GlowPainter old) => old.color != color;
 }
 
 class ArcPainter extends CustomPainter {

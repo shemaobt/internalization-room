@@ -49,7 +49,7 @@ void main() {
       () => container.read(salaSessionProvider).hasUnheardReply,
     );
 
-    await tester.tap(byLabel('Hear the facilitator\'s answer'));
+    await tester.tap(byLabel('Hear your facilitator\'s reply'));
     await _pumpUntil(
       tester,
       () => harness.voice.played.contains(_reply.audioUrl),
@@ -72,7 +72,7 @@ void main() {
   ) async {
     final (harness, container) = await _withAKeptTakePlaying(tester);
 
-    await tester.tap(byLabel('Leave a question for the facilitator'));
+    await tester.tap(byLabel('Leave a question for your facilitator'));
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
