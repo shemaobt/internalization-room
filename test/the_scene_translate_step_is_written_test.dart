@@ -1022,6 +1022,13 @@ void main() {
           ),
         ],
       );
+      final fill = find.descendant(
+        of: byLabel('frase 1'),
+        matching: find.byType(FractionallySizedBox),
+      );
+      final track = tester
+          .getSize(find.ancestor(of: fill, matching: find.byType(Align)).first)
+          .width;
       Size bar(int n) => tester.getSize(
         find.descendant(
           of: byLabel('frase $n'),
@@ -1034,8 +1041,8 @@ void main() {
         10,
         reason: 'a barra da frase tinha altura zero e não aparecia',
       );
-      expect(bar(2).width, 200);
-      expect(bar(1).width, 100);
+      expect(bar(2).width, track);
+      expect(bar(1).width, track / 2);
     },
   );
   testWidgets('on a phone her listen line keeps 16 points on each side', (
@@ -1153,6 +1160,13 @@ void main() {
         () => container.read(salaSessionProvider).scene.step == SceneStep.sent,
       );
       await tester.pump(const Duration(milliseconds: 300));
+      final fill = find.descendant(
+        of: byLabel('frase 1'),
+        matching: find.byType(FractionallySizedBox),
+      );
+      final track = tester
+          .getSize(find.ancestor(of: fill, matching: find.byType(Align)).first)
+          .width;
       Size bar(int n) => tester.getSize(
         find.descendant(
           of: byLabel('frase $n'),
@@ -1161,10 +1175,10 @@ void main() {
       );
 
       expect(container.read(salaSessionProvider).scene.length, isNull);
-      expect(bar(2).width, 200);
+      expect(bar(2).width, track);
       expect(
         bar(1).width,
-        100,
+        track / 2,
         reason: 'sem a medida do take toda barra saía cheia, como a mais longa',
       );
     },
@@ -1436,6 +1450,34 @@ void main() {
         expect(fill(1), telha.withValues(alpha: .85));
         expect(border(2), areia);
         expect(fill(2), isNot(telha.withValues(alpha: .85)));
+      },
+    );
+  }
+  for (final (device, width, left, right) in [
+    ('an iPhone SE', 375.0, 16.0, 375.0 - 16),
+    ('an iPad', 820.0, (820.0 - 470) / 2, (820.0 + 470) / 2),
+  ]) {
+    testWidgets(
+      'on $device each frase told and its speaker keep her width, 16 points from the edges and at most 470',
+      (tester) async {
+        await _onTheSceneScreen(
+          tester,
+          view: Size(width, 2400),
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+
+        expect(
+          tester.getRect(byLabel(_bar(1))).left,
+          left,
+          reason: 'a frase tinha a largura do que escrevia, não a dela',
+        );
+        expect(
+          tester.getRect(byLabel('ouvir a minha tradução da frase 1')).right,
+          right,
+        );
       },
     );
   }

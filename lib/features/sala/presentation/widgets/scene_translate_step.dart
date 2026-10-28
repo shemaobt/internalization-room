@@ -820,113 +820,119 @@ class _FraseBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Semantics(
-            button: true,
-            enabled: live,
-            label: name,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: live ? onTap : null,
-              child: ExcludeSemantics(
-                child: Opacity(
-                  opacity: live ? 1 : 0.35,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 0.6 * _rem,
-                      vertical: 0.45 * _rem,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? const Color.fromRGBO(236, 234, 220, .05)
-                          : const Color.fromRGBO(255, 255, 255, .4),
-                      border: Border.all(
-                        color: again ? colors.telha : colors.areia,
-                        width: 1.2,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 0.05 * _rem),
-                          child: SizedBox(
-                            width: 26,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: _Disc(n: n, fill: colors.areia),
-                            ),
-                          ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 470),
+        child: Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                button: true,
+                enabled: live,
+                label: name,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: live ? onTap : null,
+                  child: ExcludeSemantics(
+                    child: Opacity(
+                      opacity: live ? 1 : 0.35,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 0.6 * _rem,
+                          vertical: 0.45 * _rem,
                         ),
-                        const SizedBox(width: 0.55 * _rem),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color.fromRGBO(236, 234, 220, .05)
+                              : const Color.fromRGBO(255, 255, 255, .4),
+                          border: Border.all(
+                            color: again ? colors.telha : colors.areia,
+                            width: 1.2,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 0.3 * _rem),
-                            SizedBox(
-                              width: 200,
-                              height: 10,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: const Color.fromRGBO(
-                                    199,
-                                    194,
-                                    159,
-                                    .28,
-                                  ),
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 0.05 * _rem),
+                              child: SizedBox(
+                                width: 26,
                                 child: Align(
                                   alignment: Alignment.centerLeft,
-                                  child: FractionallySizedBox(
-                                    widthFactor: share > 0
-                                        ? max(0.08, share)
-                                        : 1,
-                                    heightFactor: 1,
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color:
-                                            (again
-                                                    ? colors.telha
-                                                    : colors.claquete)
-                                                .withValues(alpha: .85),
-                                        borderRadius: BorderRadius.circular(5),
-                                      ),
-                                    ),
-                                  ),
+                                  child: _Disc(n: n, fill: colors.areia),
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 0.15 * _rem),
-                            Text(words, style: style),
+                            const SizedBox(width: 0.55 * _rem),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 0.3 * _rem),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 10,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: const Color.fromRGBO(
+                                          199,
+                                          194,
+                                          159,
+                                          .28,
+                                        ),
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: FractionallySizedBox(
+                                          widthFactor: share > 0
+                                              ? max(0.08, share)
+                                              : 1,
+                                          heightFactor: 1,
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  (again
+                                                          ? colors.telha
+                                                          : colors.claquete)
+                                                      .withValues(alpha: .85),
+                                              borderRadius:
+                                                  BorderRadius.circular(5),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 0.15 * _rem),
+                                  Text(words, style: style),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          RoundActionButton(
-            size: 40,
-            mood: live ? ButtonMood.lit : ButtonMood.dimmed,
-            semanticLabel: hearMine,
-            onTap: onHear,
-            child: Icon(
-              LucideIcons.volume2,
-              size: 18,
-              color: colors.vermelhoMic,
+            const SizedBox(width: 0.4 * _rem),
+            RoundActionButton(
+              size: 40,
+              mood: live ? ButtonMood.lit : ButtonMood.dimmed,
+              semanticLabel: hearMine,
+              onTap: onHear,
+              child: Icon(
+                LucideIcons.volume2,
+                size: 18,
+                color: colors.vermelhoMic,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
