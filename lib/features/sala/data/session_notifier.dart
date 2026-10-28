@@ -7669,10 +7669,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final partes = doComeco || naoOuvidas.isEmpty
         ? [for (var onde = 0; onde < state.partes.length; onde++) onde]
         : naoOuvidas;
-    state = state.copyWith(
-      btSoOuvir: true,
-      btRecusa: doComeco ? null : CheckRefusal.partUnheard,
-    );
+    state = state.copyWith(btSoOuvir: true);
     _partesDaEscuta = partes;
     await _dizer(
       doComeco ? (juntada ? firstListenLine : startLine) : unheardLine,
