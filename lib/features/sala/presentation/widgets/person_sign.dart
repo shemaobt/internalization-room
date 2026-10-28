@@ -36,7 +36,9 @@ class _PersonSignState extends ConsumerState<PersonSign>
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(salaSessionProvider.select((session) => session.needsPerson));
+    final shown = ref.watch(
+      salaSessionProvider.select((session) => session.needsPerson),
+    );
     ref.listen(
       salaSessionProvider.select((session) => session.needsPerson),
       (_, now) => now ? _fade.forward() : _fade.reverse(),
@@ -46,7 +48,7 @@ class _PersonSignState extends ConsumerState<PersonSign>
       child: AnimatedBuilder(
         animation: _fade,
         builder: (context, sign) =>
-            IgnorePointer(ignoring: _fade.isDismissed, child: sign),
+            IgnorePointer(ignoring: !shown && _fade.isDismissed, child: sign),
         child: FadeTransition(
           opacity: _opacity,
           child: GestureDetector(
