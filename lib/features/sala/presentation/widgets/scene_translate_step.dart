@@ -63,7 +63,7 @@ class SceneTranslateStep extends ConsumerWidget {
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
     final take = switch (channel) {
-      PartPlaying(:final part) => part,
+      PartPlaying(:final part) when part.path == scene.take => part,
       _ => null,
     };
     final playing = take != null;
@@ -104,7 +104,7 @@ class SceneTranslateStep extends ConsumerWidget {
                   frase,
             ],
             pausa: scene.pausa,
-            playing: playing,
+            playing: channel is PartPlaying,
           ),
           if (adjusts) ...[
             const SizedBox(height: 12),
@@ -423,7 +423,7 @@ class SceneListenMode extends ConsumerWidget {
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
     final take = switch (channel) {
-      PartPlaying(:final part) => part,
+      PartPlaying(:final part) when part.path == scene.take => part,
       _ => null,
     };
     final playing = take != null;
@@ -468,7 +468,7 @@ class SceneListenMode extends ConsumerWidget {
             length: scene.length,
             frases: frases,
             pausa: null,
-            playing: playing,
+            playing: channel is PartPlaying,
           ),
           const SizedBox(height: 16),
           if (frases.isNotEmpty) ...[

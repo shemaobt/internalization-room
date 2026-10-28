@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
@@ -819,6 +820,62 @@ void main() {
       );
     },
   );
+
+  for (final step in [SceneStep.sent, SceneStep.translate]) {
+    testWidgets(
+      '${step.name}: while the team\'s translation plays, the row shows the take paused where it stopped, not «ouvindo o ensaio da cena…» on the translation\'s clock',
+      (tester) async {
+        final (harness, container) = step == SceneStep.sent
+            ? await _inListenMode(tester)
+            : await _onTheSceneScreen(
+                tester,
+                rehearsals: [
+                  _rehearsal(frases: [_frase('f1', 0, 3000)]),
+                ],
+                until: (state) => state.scene.step == SceneStep.translate,
+              );
+        const paused =
+            'pausado — toque no círculo para marcar onde a frase acaba — 0:07 / 0:10';
+        final play = byLabel('Tocar ou pausar a gravação');
+        final take = container.read(salaSessionProvider).scene.take;
+
+        await tester.tap(
+          step == SceneStep.sent
+              ? play
+              : find.text('traduzir o ensaio da cena'),
+        );
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is PartPlaying,
+        );
+        harness.playback.at = const Duration(seconds: 7);
+        await tester.tap(byLabel('ouvir a minha tradução da frase 1'));
+        await pumpUntil(
+          tester,
+          () =>
+              harness.playback.played.last != take &&
+              container.read(salaSessionProvider).channel is PartPlaying,
+        );
+        expect(harness.playback.played.last, isNot(take));
+        expect(container.read(salaSessionProvider).channel, isA<PartPlaying>());
+        harness.playback.at = const Duration(seconds: 2);
+        await tester.pump(const Duration(milliseconds: 1100));
+
+        expect(
+          find.text(paused),
+          findsOneWidget,
+          reason:
+              'a tradução da equipe tocando dizia que o ensaio da cena tocava, no relógio dela',
+        );
+        expect(find.textContaining('ouvindo'), findsNothing);
+        expect(
+          find.descendant(of: play, matching: find.byIcon(LucideIcons.play)),
+          findsOneWidget,
+          reason: 'o play mostrava pausa com o take parado',
+        );
+      },
+    );
+  }
 
   testWidgets(
     'the team\'s translation heard over a playing sent scene rehearsal leaves her paused hint with the clock where the take stopped, not where the translation did',
