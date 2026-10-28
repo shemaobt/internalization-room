@@ -1511,6 +1511,29 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('the loudspeaker of a «regravada» frase plays the translation '
+      'the team told of it before the part was recorded again', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _aParteUmRegravada(tester, harness);
+    final primeira = harness.room.chunkFiles.first;
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    expect(
+      aceso(tester, 'ouvir a minha tradução da frase 1'),
+      isTrue,
+      reason: 'a frase regravada não tinha alto-falante',
+    );
+    await tocar(tester, 'ouvir a minha tradução da frase 1');
+
+    expect(
+      harness.playback.played.last,
+      primeira,
+      reason: 'a tradução de antes da frase regravada não se ouvia mais',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a team that comes back to the check sees the marks its last '
       'check left', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

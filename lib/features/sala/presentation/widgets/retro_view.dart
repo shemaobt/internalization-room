@@ -271,7 +271,7 @@ class RetroView extends ConsumerWidget {
         session.btFraseQueAguarda != null &&
         trecho.segmentId == session.btFraseQueAguarda;
     final regravadas = [
-      for (final (_, trecho)
+      for (final (onde, trecho)
           in [...session.btTrechosRegravados.indexed]..sort(
             (a, b) => a.$2.parte == b.$2.parte
                 ? a.$1.compareTo(b.$1)
@@ -281,7 +281,9 @@ class RetroView extends ConsumerWidget {
           n: trecho.frase,
           parte: parteDe(trecho),
           share: share(trecho),
-          onHear: null,
+          onHear: session.canHearAFrase && trecho.retroPath != null
+              ? () => notifier.ouvirAFraseRegravada(onde)
+              : null,
           mark: retroLabelFor('stale', language),
         ),
     ];

@@ -8519,6 +8519,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
+  void ouvirAFraseRegravada(int indice) =>
+      _gesture(() => _ouvirAFraseRegravada(indice));
+
+  void _ouvirAFraseRegravada(int indice) {
+    if (!state.canHearAFrase) return;
+    final trecho = state.btTrechosRegravados.elementAtOrNull(indice);
+    final traducao = trecho?.retroPath;
+    if (trecho == null || traducao == null) return;
+    final segurada = _tirarAParteDoPlayer();
+    state = state.copyWith(btContaEscolhida: indice);
+    _play(
+      StretchSound(traducao, named: trecho.segmentId, telling: true),
+      onComplete: _calarOQueSeOuvia,
+      onFailed: _calarOQueSeOuvia,
+      beneath: segurada,
+    );
+  }
+
   void ouvirOTrechoPendente() => _gesture(() => _ouvirOTrechoPendente());
 
   void abrirAChecagemExterna() => _gesture(() {
