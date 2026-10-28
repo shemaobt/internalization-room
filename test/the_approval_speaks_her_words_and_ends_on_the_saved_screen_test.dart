@@ -173,6 +173,7 @@ void main() {
 
       expect(find.text(_faltaOuvir), findsNothing);
       final tocadas = it.harness.playback.played.length;
+      await tester.ensureVisible(byLabel(_aprovar));
       await tester.tap(byLabel(_aprovar));
       await tester.runAsync(
         () => waitFor(

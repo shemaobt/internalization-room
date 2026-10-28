@@ -686,6 +686,29 @@ void main() {
     },
   );
 
+  testWidgets(
+    '6. a row holding a sent rehearsal beside one that is no WAV offers '
+    '«trocar», as hers',
+    (tester) async {
+      await _seeded(
+        tester,
+        (s) => [
+          _rehearsal(s, n: 1, scene: 'S2'),
+          _rehearsal(s, n: 2, scene: 'S2', contentType: 'audio/mp4'),
+        ],
+      );
+
+      await _openThePlan(tester);
+
+      expect(_onRow(2, find.text(_facts(1, '0:07', 2))), findsOneWidget);
+      expect(
+        _onRow(2, find.text(_swap)),
+        findsOneWidget,
+        reason: 'a troca pedia um segundo ensaio que pudesse entrar',
+      );
+    },
+  );
+
   group('7. «juntar as cenas e ouvir»', () {
     testWidgets('opens once one scene holds a joinable rehearsal', (
       tester,
@@ -775,6 +798,29 @@ void main() {
       });
     }
   });
+
+  testWidgets(
+    '8. a row whose only rehearsal cannot enter still offers «trocar», as hers',
+    (tester) async {
+      await _seeded(
+        tester,
+        (s) => [
+          _rehearsal(s, n: 1, scene: 'S1'),
+          _rehearsal(s, n: 2, scene: 'S2', contentType: 'audio/mp4'),
+          _rehearsal(s, n: 3, scene: 'S3'),
+        ],
+      );
+
+      await _openThePlan(tester);
+
+      expect(_onRow(2, find.text(_cannotEnter)), findsOneWidget);
+      expect(
+        _onRow(2, find.text(_swap)),
+        findsOneWidget,
+        reason: 'sem nada escolhido, a dela abre a troca para o que existe',
+      );
+    },
+  );
 
   group('8. a scene with no sent rehearsal but an unsent one says it is '
       'missing and offers «trocar», not that it cannot enter', () {

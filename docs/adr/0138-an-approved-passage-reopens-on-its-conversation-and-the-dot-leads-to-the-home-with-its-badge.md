@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (amended by 0141)
 date: 2026-10-27
 amends: 0106 (in part: where an approved draft reopens), 0116 (in part: a relaunch whose row stood on the check), 0136 (in part: the check reopened after a relaunch, and the count of listeners on the home)
 ---
