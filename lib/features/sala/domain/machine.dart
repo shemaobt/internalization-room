@@ -941,6 +941,10 @@ final class TellTheDiskFailed extends Effect {
   const TellTheDiskFailed();
 }
 
+final class TellThePlayFailed extends Effect {
+  const TellThePlayFailed();
+}
+
 final class TellTheSendFailed extends Effect {
   const TellTheSendFailed();
 }
@@ -1271,6 +1275,8 @@ const _watch = ArmTheWatch();
     const [],
   ),
   PlayerEnded() => _ended(machine),
+  PlayerFailed(sound: PartSound()) when machine.station is Retro =>
+    _tellThePlayFailed(machine),
   PlayerFailed() => _failed(machine),
   MicOpened(:final owner, :final take) => _openTheMic(machine, owner, take),
   MicClosed() => _closeTheMic(machine),
@@ -1834,6 +1840,11 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
       },
     ),
   );
+}
+
+(Machine, List<Effect>) _tellThePlayFailed(Machine machine) {
+  final (failed, effects) = _failed(machine);
+  return (failed, [...effects, const TellThePlayFailed()]);
 }
 
 (Machine, List<Effect>) _openTheMic(
