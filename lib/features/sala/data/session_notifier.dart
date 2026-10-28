@@ -59,14 +59,6 @@ import 'work_in_progress.dart';
 
 typedef _Passage = ({String book, String? pericope});
 
-typedef _PassageLeft = ({
-  SalaSessionState state,
-  String session,
-  _Passage passage,
-  String language,
-  ({int version, int number})? listener,
-});
-
 typedef _HeldFrase = ({
   String sessionId,
   String path,
@@ -384,7 +376,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late DateTime? _sessionSavedAt;
   late String? _sessionLanguage;
   late CurrentSession? _landingOn;
-  late _PassageLeft? _theLeftPassage;
 
   /// What plays the reply of the turn the machine holds in flight, and the gestures that
   /// wait on it, until the look the machine asks for comes back (ENG-1444 moves it).
@@ -630,7 +621,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _fraseNaFila = null;
     _regravacoes = 0;
     _regravouNestaVisita = false;
-    _theLeftPassage = null;
   }
 
   @override
@@ -1549,7 +1539,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _refuseThePassage() {
-    if (_theLeftPassage case final left?) return _bringBackThePassageLeft(left);
+    if (state.passageLeft case final left?) {
+      return _bringBackThePassageLeft(left);
+    }
     unawaited(abrirEscolha());
   }
 
@@ -2164,7 +2156,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _openTheEntry(Passagem entry) {
     if (!state.entriesOpen || !state.naRoda!.contains(entry)) return;
     if (state.isTheEntryLeft(entry, language: _lingua)) {
-      _theLeftPassage = null;
+      state = state.copyWith(clearPassageLeft: true);
       _returnToTheLeftEntry();
       return;
     }
@@ -2187,8 +2179,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final opening = open();
     final generation = _generation;
     await opening;
-    final left = _theLeftPassage;
-    _theLeftPassage = null;
+    final left = state.passageLeft;
+    if (left != null) state = state.copyWith(clearPassageLeft: true);
     if (_generation != generation || state.needsPerson) return;
     final unopened = switch (state.station) {
       Canvas() => state.sessionId == null,
@@ -2262,13 +2254,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _leaveThePassage() {
     final left = _whatTheLeaveLeaves();
+    state = state.copyWith(clearPassageLeft: true);
     final passage = _emCurso;
     final session = _sessionId;
     final kept = state.station is Canvas && passage != null && session != null
-        ? (
-            state: state,
+        ? PassageLeft(
+            canvas: state,
             session: session,
-            passage: passage,
+            book: passage.book,
+            pericope: passage.pericope,
             language: _sessionLanguage ?? _lingua,
             listener: _listenerInProgress,
           )
@@ -2276,10 +2270,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     _dropThePendingTake();
     _forgetThePassage();
-    _theLeftPassage = null;
     _openTheChoice();
     if (left != null) state = state.copyWith(leftEntry: left);
-    _theLeftPassage = kept;
+    if (kept != null) state = state.copyWith(passageLeft: kept);
   }
 
   LeftEntry? _whatTheLeaveLeaves() {
@@ -2369,7 +2362,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _enterThePassageLeft(LeftEntry left) async {
-    if (_theLeftPassage case final kept?) return _bringBackThePassageLeft(kept);
+    if (state.passageLeft case final kept?) {
+      return _bringBackThePassageLeft(kept);
+    }
     await goConversa(
       book: left.book!,
       pericope: left.pericope,
@@ -2383,25 +2378,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  void _bringBackThePassageLeft(_PassageLeft left) {
-    _theLeftPassage = null;
+  void _bringBackThePassageLeft(PassageLeft left) {
     if (state.station is! Menu) _forgetThePassage();
     _leaveTheStepFor(const Canvas());
     _clearAll();
     _arriveAt(const PassageChosen());
-    _emCurso = left.passage;
+    _emCurso = (book: left.book, pericope: left.pericope);
     _sessionLanguage = left.language;
     _listenerInProgress = left.listener;
-    state = left.state.copyWith(machine: state.machine);
-    _dispatch(TheLeftPassageReturns(left.session, warned: left.state.warning));
+    state = left.canvas.copyWith(machine: state.machine);
+    _dispatch(TheLeftPassageReturns(left.session, warned: left.canvas.warning));
     _warmHerLines();
-    if (left.passage.pericope case final pericope?) {
-      _holdTheCurrentSession(
-        left.session,
-        left.passage.book,
-        pericope,
-        left.language,
-      );
+    if (left.pericope case final pericope?) {
+      _holdTheCurrentSession(left.session, left.book, pericope, left.language);
     }
   }
 
@@ -2426,7 +2415,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId != null && state.leftEntry?.session == sessionId) {
       state = state.copyWith(clearLeftEntry: true);
     }
-    if (_theLeftPassage?.session == sessionId) _theLeftPassage = null;
+    if (sessionId != null && state.passageLeft?.session == sessionId) {
+      state = state.copyWith(clearPassageLeft: true);
+    }
     unawaited(
       _mindingThePlace(
         () => _forgetTheSessionOnDisk(sessionId, kept),
@@ -2488,7 +2479,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _openTheChoice() {
-    if (_theLeftPassage case final left?) return _bringBackThePassageLeft(left);
+    if (state.passageLeft case final left?) {
+      return _bringBackThePassageLeft(left);
+    }
     _partesDescendo = null;
     _aLinhaDiz = null;
     state = SalaSessionState(

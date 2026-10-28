@@ -187,23 +187,26 @@ void main() {
     },
   );
 
-  test('a passage opened from the Choice lets the one left before it go, so '
+  test('a passage resumed from the Choice lets the one left before it go, so '
       'its session going away lands on the Choice', () async {
-    final tablet = await _onTheChoiceFromP01();
-    final harness = tablet.harness;
+    final harness = SalaHarness();
+    harness.emAberto.rows['Ruth/P02/pt'] = const ResumePoint(
+      sessionId: 'sessao-da-p02',
+      stage: SalaStage.conversa,
+    );
+    final tablet = await _onTheChoiceFromP01(harness);
     final read = tablet.read;
     final notifier = tablet.notifier;
     final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
     notifier.openTheEntry(p02);
     await waitFor(
-      'P02 to open',
+      'P02 to resume',
       () =>
-          read().sessionId != null &&
-          read().sessionId != tablet.p01 &&
+          read().sessionId == 'sessao-da-p02' &&
           read().voice == VoiceState.invite,
     );
     await settle();
-    harness.room.forgetTheSession(read().sessionId!);
+    harness.room.forgetTheSession('sessao-da-p02');
 
     notifier.conversaTap();
     await settle();
@@ -223,17 +226,21 @@ void main() {
     expect(read().sessionId, isNull);
   });
 
-  test('a leave from a passage entered any other way lands on the Choice, '
+  test('a leave from a passage resumed any other way lands on the Choice, '
       'never on the passage left before it', () async {
-    final tablet = await _onTheChoiceFromP01();
+    final harness = SalaHarness();
+    harness.emAberto.rows['Ruth/P02/pt'] = const ResumePoint(
+      sessionId: 'sessao-da-p02',
+      stage: SalaStage.conversa,
+    );
+    final tablet = await _onTheChoiceFromP01(harness);
     final read = tablet.read;
     final notifier = tablet.notifier;
-    await notifier.goConversa(book: 'Ruth', pericope: 'P02');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P02', language: 'pt');
     await waitFor(
-      'P02 to open',
+      'P02 to resume',
       () =>
-          read().sessionId != null &&
-          read().sessionId != tablet.p01 &&
+          read().sessionId == 'sessao-da-p02' &&
           read().voice == VoiceState.invite,
     );
 
