@@ -2132,6 +2132,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
+  Future<void> _readTheStartedEntriesAgain() async {
+    final generation = _waitOnTheGeneration;
+    final language = _lingua;
+    final open = _emAberto;
+    final comecadas = {
+      for (final book in {for (final entry in state.naRoda!) entry.book})
+        ...await open.startedIn(book, language),
+    };
+    if (_abandoned(generation)) return;
+    state = state.copyWith(comecadas: comecadas);
+  }
+
   void escolhaTap() => _gesture(() => _escolhaTap());
 
   void _escolhaTap() {
@@ -11239,6 +11251,8 @@ class _NotifierHost implements StationHost {
     switch (handOff) {
       case OpenTheChoice():
         _notifier._openTheChoice();
+      case ReadTheWheel() when _notifier._current.naRoda != null:
+        _notifier._handOff(_notifier._readTheStartedEntriesAgain());
       case ReadTheWheel():
         _notifier._handOff(_notifier.abrirEscolha());
       case DiscardTheSession():

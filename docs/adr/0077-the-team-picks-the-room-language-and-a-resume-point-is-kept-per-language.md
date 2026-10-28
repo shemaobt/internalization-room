@@ -4,6 +4,14 @@ Supersedes ADR 0015. Amends ADR 0031 (a row created in another language no longe
 
 Superseded in part by ADR 0084: the last bullet of the Decision, on fixed and process lines.
 
+Amended by ENG-1866 (2026-10-28): the second bullet of the Decision. Choosing a language on
+a Choice that holds its Wheel no longer reads the Wheel again from the room. As in her app,
+the words change where they stand: the list stays on screen, no thinking circle shows, and
+nothing is asked of the room, offline too. Only the passages started in the language chosen
+are read again, from the tablet, and a read that fails leaves the list as it was. The choice
+is still a machine event that moves the generation, so a read for an earlier choice is never
+applied; the Wheel is read again from the room only while the Choice holds none.
+
 ## Context
 
 The tablet took its language from the device's settings, falling back to English, and the
