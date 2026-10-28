@@ -131,9 +131,11 @@ Future<void> _standIn(
       )
       ..takeAudio[_gravacao] = Uint8List.fromList([7, 7, 7, 7]);
     await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor('a conversa pousar', () => read().canHearAgain);
+    notifier.openTheEnsaioFinal();
     await waitFor(
-      'o rascunho aprovado aparecer na retrotradução',
-      () => read().approvedDraftDrawn != null,
+      'o rascunho aprovado aparecer na casa da gravação',
+      () => read().approvedOnTheHome != null,
     );
     notifier.abrirAChecagemExterna();
     await waitFor(

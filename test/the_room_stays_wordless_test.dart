@@ -15,6 +15,7 @@ const _herWordsTheTeamReads = {
   'lib/features/sala/presentation/widgets/checagem_externa_view.dart',
   'lib/features/sala/presentation/widgets/ensaio_view.dart',
   'lib/features/sala/presentation/widgets/external_check_button.dart',
+  'lib/features/sala/presentation/widgets/listeners_line.dart',
   'lib/features/sala/presentation/widgets/ensaio_final_plan_view.dart',
   'lib/features/sala/presentation/widgets/rehearsal_sheet.dart',
   'lib/features/sala/presentation/widgets/escolha_view.dart',
