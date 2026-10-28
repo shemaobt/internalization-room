@@ -389,4 +389,49 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('the frase being recorded again wears a terracotta border and '
+      'keeps its bar', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+
+    await tocar(tester, 'regravar a frase 3');
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      _borda(tester, 3),
+      ShemaBrand.telha,
+      reason:
+          'a frase sendo regravada era igual às outras na lista, só o botão '
+          'dizia qual era',
+    );
+    expect(_corDaBarra(tester, 3), _corDaBarra(tester, 1));
+    expect(_corDaBarra(tester, 3), isNot(ShemaBrand.telha));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase found unclear and being recorded again keeps its blue '
+      'bar inside a terracotta border', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComAchados(tester, harness, const [
+      BtFinding(kind: BtFindingKind.unclear, frase: 4, segmentId: 'trecho-4'),
+    ]);
+
+    await tocar(tester, 'regravar a frase 4');
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      _borda(tester, 4),
+      ShemaBrand.telha,
+      reason:
+          'a borda azul do achado escondia que era essa a frase sendo '
+          'regravada',
+    );
+    expect(_corDaBarra(tester, 4), ShemaBrand.azul);
+    closeTheRoom(container);
+  });
 }

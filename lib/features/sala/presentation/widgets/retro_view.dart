@@ -321,6 +321,9 @@ class RetroView extends ConsumerWidget {
           traduzindoDeNovo:
               trecho.segmentId != null &&
               trecho.segmentId == session.btFraseTraduzidaDeNovo?.segmentId,
+          regravando:
+              trecho.frase != null &&
+              session.btRegravacao?.frase == trecho.frase,
           regravar:
               session.fraseRegravavel(trecho) &&
                   (session.btPhase != BtPhase.conferida ||
