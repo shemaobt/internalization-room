@@ -596,6 +596,28 @@ void main() {
   );
 
   testWidgets(
+    'an unsent rehearsal that is no WAV is listed as one that cannot enter, '
+    'not as a silent line',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s2b], sent: false, contentType: 'audio/mp4');
+      await it.joined(listed: const [s1a, s2a, s3a]);
+
+      await it.openTheSheet(2, _swap);
+      final unsent = byLabel(_unsentLine(s2b));
+      expect(unsent, findsOneWidget);
+      expect(
+        find.descendant(of: unsent, matching: find.text(_cannotEnter)),
+        findsOneWidget,
+        reason: 'a linha não enviada que não é WAV não dizia nada',
+      );
+      expect(it.useUnsent(s2b), findsNothing);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     'swapping scene 2 back to its first rehearsal leaves three takes for it',
     (tester) async {
       final semantics = tester.ensureSemantics();
