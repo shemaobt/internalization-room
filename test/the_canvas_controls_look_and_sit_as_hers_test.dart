@@ -1,8 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/moment.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'fakes.dart';
+import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
 import 'the_kept_retellings_are_numbered_buttons_on_the_conversation_test.dart'
     show atRestAfterATurn;
@@ -72,7 +79,91 @@ Future<void> _pumpUntil(WidgetTester tester, bool Function() done) async {
   }
 }
 
+Future<void> _atTheSendOff(WidgetTester tester) async {
+  final harness = SalaHarness(lingua: 'en')
+    ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
+    ..room.nextMoment = const Moment(at: MomentAt.ensaioFinal, parts: 3);
+  final container = await pumpSala(tester, harness);
+  addTearDown(() => closeTheRoom(container));
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.abrirEscolha();
+  await tester.pump(const Duration(milliseconds: 300));
+  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
+  await _pumpUntil(
+    tester,
+    () => container.read(salaSessionProvider).voice == VoiceState.invite,
+  );
+  await tester.pump(const Duration(milliseconds: 1500));
+  expect(
+    container.read(salaSessionProvider).orangeDotLook,
+    OrangeDotLook.bright,
+  );
+}
+
+Finder _dotIn(String label) => find.descendant(
+  of: byLabel(label),
+  matching: find.byWidgetPredicate(
+    (widget) =>
+        widget is DecoratedBox &&
+        widget.decoration is BoxDecoration &&
+        (widget.decoration as BoxDecoration).shape == BoxShape.circle,
+  ),
+);
+
 void main() {
+  for (final (look, telha) in [
+    ('light', const Color(0xFFBE4A01)),
+    ('dark', const Color(0xFFD6612A)),
+  ]) {
+    testWidgets(
+      'in the $look look the orange dot is her 12 px at 5% and 6%, not 15 px '
+      'under the corner',
+      (tester) async {
+        _on(tester, _se, bar: 20);
+        if (look == 'dark') _inTheDark(tester);
+        await atRestAfterATurn(tester, const []);
+        const label = 'Record your rehearsal';
+
+        expect(byLabel(label), findsOneWidget);
+        final dot = _dotIn(label);
+        expect(dot, findsOneWidget);
+        expect(
+          (tester.widget<DecoratedBox>(dot).decoration as BoxDecoration).color,
+          telha,
+        );
+        _sits(
+          tester.getRect(dot),
+          const Size(13 / 24 * 22, 13 / 24 * 22),
+          center: const Offset(375 - 22.5 - 17, 20 + 33.35 + 17),
+          reason: 'o ponto tinha 15 px, a 14 e 118 do canto',
+        );
+        expect(_seenOpacity(tester, dot), closeTo(0.22, 0.001));
+        _sits(
+          tester.getRect(byLabel(label)),
+          const Size(44, 44),
+          center: const Offset(375 - 22.5 - 17, 20 + 33.35 + 17),
+          reason: 'o alvo do ponto era de 34 px',
+        );
+      },
+    );
+  }
+
+  testWidgets('a lit orange dot grows by her quarter, to .85', (tester) async {
+    _on(tester, _se, bar: 20);
+    await _atTheSendOff(tester);
+    final dot = _dotIn('Record your rehearsal');
+
+    expect(_seenOpacity(tester, dot), closeTo(0.85, 0.001));
+    final rect = tester.getRect(dot);
+    expect(
+      rect.width,
+      closeTo(13 / 24 * 22 * 1.25, 0.01),
+      reason: 'o ponto aceso ficava do tamanho do apagado',
+    );
+    expect(rect.center.dx, closeTo(375 - 22.5 - 17, 0.01));
+    expect(rect.center.dy, closeTo(20 + 33.35 + 17, 0.01));
+  });
+
   for (final (look, verde) in [
     ('light', const Color(0xFF3F3E20)),
     ('dark', const Color(0xFFECEADC)),

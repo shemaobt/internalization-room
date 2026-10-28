@@ -75,8 +75,8 @@ class ConversaView extends ConsumerWidget {
               ),
             ),
         Positioned(
-          right: 14,
-          top: 118 + MediaQuery.viewPaddingOf(context).top,
+          right: screen.width * 0.06 - 5,
+          top: MediaQuery.viewPaddingOf(context).top + screen.height * 0.05 - 5,
           child: IgnorePointer(
             ignoring: dotIsGone,
             child: AnimatedOpacity(
@@ -98,15 +98,21 @@ class ConversaView extends ConsumerWidget {
                     onTap: notifier.openTheEnsaioFinal,
                     behavior: HitTestBehavior.opaque,
                     child: SizedBox(
-                      width: 34,
-                      height: 34,
+                      width: 44,
+                      height: 44,
                       child: Center(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: SalaColors.of(context).momentoEf,
-                            shape: BoxShape.circle,
+                        child: AnimatedScale(
+                          scale: session.orangeDotLook == OrangeDotLook.bright
+                              ? 1.25
+                              : 1,
+                          duration: const Duration(milliseconds: 400),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: SalaColors.of(context).momentoEf,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const SizedBox(width: 11.92, height: 11.92),
                           ),
-                          child: const SizedBox(width: 15, height: 15),
                         ),
                       ),
                     ),
