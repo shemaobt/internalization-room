@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
@@ -151,4 +152,38 @@ void main() {
     );
     expect(read().sessionId, isNull);
   });
+
+  test(
+    'a warning the passage left stood under comes back with its canvas',
+    () async {
+      final harness = SalaHarness()
+        ..room.serverStatus = 'needs_person'
+        ..room.serverHalt = HaltKind.warning;
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      await enterThePassage(notifier, read, 'P01');
+      await waitFor(
+        'P01 to stand under the warning',
+        () => read().sessionId != null && read().warning,
+      );
+      notifier.leaveThePassage();
+      await waitFor(
+        'the way back to P01 to be live',
+        () => read().entriesOpen && read().theWayBackIsLive,
+      );
+      harness.room.reachable = false;
+
+      await notifier.returnToTheLeftEntry();
+      await settle();
+
+      expect(read().station, isA<Canvas>());
+      expect(
+        read().warning,
+        isTrue,
+        reason: 'a P01 voltava sem a marca do aviso que ainda estava de pé',
+      );
+    },
+  );
 }
