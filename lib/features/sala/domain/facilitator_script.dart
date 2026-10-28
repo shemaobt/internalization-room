@@ -54,33 +54,20 @@ const circleLabels = {
     'pt': 'Um momento para uma pessoa',
     'en': 'A moment for someone',
   },
-  'teamTalk': {
-    'pt': 'Conversem entre vocês — tocar quando quiserem me contar',
-    'en': 'Talk among yourselves — tap when you want to tell me',
-  },
-  'listening': {'pt': 'Tocar ao terminar', 'en': 'Tap when you are done'},
-  'default': {'pt': 'Tocar para falar', 'en': 'Tap to speak'},
+  'default': {'pt': 'Toque para falar', 'en': 'Tap to speak'},
 };
 
 String circleLabelFor(String state, String language) =>
     circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
 
-const warningNoticeLabel = {
-  'pt': 'Um aviso pede que alguém venha olhar',
-  'en': 'A warning is asking someone to come watch',
-};
-
-String warningNoticeLabelFor(String language) =>
-    warningNoticeLabel[language] ?? warningNoticeLabel[floorLanguage]!;
-
 const handLabels = {
   'hearTheAnswer': {
     'pt': 'Ouvir a resposta do facilitador',
-    'en': 'Hear the facilitator\'s answer',
+    'en': 'Hear your facilitator\'s reply',
   },
   'leaveAQuestion': {
     'pt': 'Deixar uma pergunta para o facilitador',
-    'en': 'Leave a question for the facilitator',
+    'en': 'Leave a question for your facilitator',
   },
 };
 
@@ -88,7 +75,7 @@ String handLabelFor(String state, String language) =>
     handLabels[state]![language] ?? handLabels[state]![floorLanguage]!;
 
 const roomLabels = {
-  'hearAgain': {'pt': 'Ouvir de novo', 'en': 'Hear it again'},
+  'hearAgain': {'pt': 'Ouvir de novo', 'en': 'Hear that again'},
   'leavePassage': {
     'pt': 'Escolher outra passagem',
     'en': 'Choose another passage',
@@ -96,6 +83,10 @@ const roomLabels = {
   'backToPassage': {
     'pt': 'Voltar para a passagem atual',
     'en': 'Back to the current passage',
+  },
+  'backToRecording': {
+    'pt': 'Voltar para a gravação',
+    'en': 'Back to recording',
   },
   'beginAgain': {'pt': 'Começar de novo', 'en': 'Begin again'},
   'recordEnsaio': {
@@ -243,7 +234,7 @@ String sheetLineFor(SceneRehearsalRecord rehearsal, String language) => [
     ensaioFinalPlanLabelFor('partial', language),
 ].join(' · ');
 
-/// Her scene-rehearsal words (strings.ts), read only by VoiceOver.
+/// Her scene-rehearsal words (strings.ts).
 const sceneRehearsalLabels = {
   'enter': {'pt': 'ensaio da cena', 'en': 'scene rehearsal'},
   'record': {
@@ -292,6 +283,14 @@ const sceneRehearsalLabels = {
     'pt': 'não deu para guardar o ensaio da cena neste computador',
     'en': 'couldn\'t keep the scene rehearsal on this computer',
   },
+  'notSent': {
+    'pt': 'não deu para enviar agora — tentem de novo',
+    'en': 'couldn\'t send it now — try again',
+  },
+  'alreadySent': {
+    'pt': 'a tradução deste ensaio da cena já foi para a voz',
+    'en': 'this scene rehearsal\'s translation already went to the voice',
+  },
   'tooLarge': {
     'pt': 'grande demais para o servidor — grave em partes menores',
     'en': 'too large for the server — record in shorter parts',
@@ -299,6 +298,17 @@ const sceneRehearsalLabels = {
   'retry': {
     'pt': 'falhou — toque para tentar de novo',
     'en': 'failed — tap to try again',
+  },
+  'lost': {'pt': 'falhou', 'en': 'failed'},
+  'refused': {
+    'pt': 'não foi aceita — grave de novo',
+    'en': 'not accepted — record it again',
+  },
+  'takeRecording': {'pt': 'gravando', 'en': 'recording'},
+  'stopSending': {'pt': 'parar', 'en': 'stop'},
+  'stopSendingAria': {
+    'pt': 'Parar o envio (a gravação fica neste computador)',
+    'en': 'Stop sending (the recording stays on this computer)',
   },
   'playPause': {
     'pt': 'Tocar ou pausar a gravação',
@@ -413,11 +423,25 @@ String sceneRehearsalLabelFor(String control, String language, {int? n}) =>
         .replaceAll('{n}', '$n');
 
 /// «ouvindo o ensaio da cena…» with her clock, «0:03 / 0:20».
-String sceneListeningLineFor(Duration at, Duration? length, String language) {
+String sceneListeningLineFor(Duration at, Duration? length, String language) =>
+    _sceneClockLineFor('listening', at, length, language);
+
+String scenePausedLineFor(Duration? at, Duration? length, String language) =>
+    switch (at) {
+      final at? => _sceneClockLineFor('paused', at, length, language),
+      null => sceneRehearsalLabelFor('paused', language),
+    };
+
+String _sceneClockLineFor(
+  String control,
+  Duration at,
+  Duration? length,
+  String language,
+) {
   final ofTheTake = length != null && length > Duration.zero
       ? ' / ${minutesAndSecondsOf(length)}'
       : '';
-  return '${sceneRehearsalLabelFor('listening', language)} — '
+  return '${sceneRehearsalLabelFor(control, language)} — '
       '${minutesAndSecondsOf(at)}$ofTheTake';
 }
 
@@ -725,6 +749,23 @@ const recordingHomeLabels = {
     'en': 'failed — tap to try again',
   },
   'retryAria': {'pt': 'Tentar enviar de novo', 'en': 'Try sending again'},
+  'lost': {'pt': 'falhou — grave de novo', 'en': 'failed — record it again'},
+  'recording': {'pt': 'gravando', 'en': 'recording'},
+  'sending': {'pt': 'enviando…', 'en': 'sending…'},
+  'saved': {'pt': 'salvo', 'en': 'saved'},
+  'stopSending': {'pt': 'parar', 'en': 'stop'},
+  'stopSendingAria': {
+    'pt': 'Parar o envio (a gravação fica neste computador)',
+    'en': 'Stop sending (the recording stays on this computer)',
+  },
+  'tooLarge': {
+    'pt': 'grande demais para o servidor — grave em partes menores',
+    'en': 'too large for the server — record in shorter parts',
+  },
+  'refused': {
+    'pt': 'não foi aceita — grave de novo',
+    'en': 'not accepted — record it again',
+  },
   'bringBack': {
     'pt': 'trazer de volta as traduções do ensaio desta cena',
     'en': 'bring back this scene rehearsal\'s translations',

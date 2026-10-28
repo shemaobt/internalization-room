@@ -1,9 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
@@ -13,10 +13,10 @@ Future<void> _pumpCircle(
   double size = 158,
   ThemeData? theme,
   bool still = false,
-  String? warning,
+  bool canvas = false,
 }) => tester.pumpWidget(
   MaterialApp(
-    key: ValueKey('$voice-$size-${theme?.brightness}-$still-$warning'),
+    key: ValueKey('$voice-$size-${theme?.brightness}-$still-$canvas'),
     theme: theme ?? AppTheme.light,
     home: MediaQuery(
       data: MediaQueryData(disableAnimations: still),
@@ -25,7 +25,7 @@ Future<void> _pumpCircle(
           child: FacilitatorCircle(
             size: size,
             voice: voice,
-            warning: warning,
+            canvas: canvas,
             semanticLabel: 'circulo',
             onTap: () {},
           ),
@@ -50,20 +50,142 @@ Iterable<Transform> _transformsInCircle(WidgetTester tester) =>
       ),
     );
 
-Iterable<Gradient> _gradients(WidgetTester tester) => tester
-    .widgetList<Container>(
-      find.descendant(
-        of: find.byType(FacilitatorCircle),
-        matching: find.byType(Container),
-      ),
-    )
-    .map((box) => box.decoration)
-    .whereType<BoxDecoration>()
-    .map((paint) => paint.gradient)
-    .whereType<Gradient>();
+Finder _arcs() => find.descendant(
+  of: find.byType(FacilitatorCircle),
+  matching: find.byWidgetPredicate(
+    (widget) => widget is CustomPaint && widget.painter is ArcPainter,
+  ),
+);
+
+List<ArcPainter> _arcPainters(WidgetTester tester) => tester
+    .widgetList<CustomPaint>(_arcs())
+    .map((paint) => paint.painter! as ArcPainter)
+    .toList();
+
+List<double> _arcTurns(WidgetTester tester) => [
+  for (final element in _arcs().evaluate())
+    () {
+      final matrix = tester
+          .widget<Transform>(
+            find
+                .ancestor(
+                  of: find.byWidget(element.widget),
+                  matching: find.byType(Transform),
+                )
+                .first,
+          )
+          .transform;
+      return math.atan2(matrix.entry(1, 0), matrix.entry(0, 0));
+    }(),
+];
 
 void main() {
-  testWidgets('no voice ever draws a turning transform', (tester) async {
+  testWidgets(
+    'while the voice thinks on the conversation, her two terracotta arcs turn '
+    'round the circle, not the clay breath alone',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.thinking, size: 232, canvas: true);
+
+      final arcs = _arcPainters(tester);
+      expect(
+        arcs,
+        hasLength(2),
+        reason:
+            'o pensar só respirava o barro, e no dia 16/09 a Marcia mediu com '
+            'o Jonas o que isso lê: nada está acontecendo (globals.css:206-212)',
+      );
+      expect(
+        [
+          arcs[0].side,
+          arcs[0].stroke,
+          arcs[0].top,
+          arcs[0].right,
+          arcs[0].bottom,
+        ],
+        [closeTo(264.48, 1e-9), 4, _telha(1), _telha(0.35), null],
+        reason: '.r1 dela: inset -7%, 4px, topo telha e direita a .35',
+      );
+      expect(
+        [
+          arcs[1].side,
+          arcs[1].stroke,
+          arcs[1].top,
+          arcs[1].right,
+          arcs[1].bottom,
+        ],
+        [closeTo(292.32, 1e-9), 2, null, null, _telha(0.55)],
+        reason: '.r2 dela: inset -13%, 2px, só a base a .55',
+      );
+
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        _arcTurns(tester),
+        [closeTo(math.pi / 2, 1e-6), closeTo(-2 * math.pi * 400 / 2600, 1e-6)],
+        reason:
+            'thinkSpin dela: o grosso dá a volta com o relógio em 1,6 s e o '
+            'fino contra o relógio em 2,6 s',
+      );
+    },
+  );
+
+  testWidgets(
+    'on our 158 circle her arcs keep her 4 px and 2 px strokes, not strokes '
+    'scaled down from her 232',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.thinking, canvas: true);
+
+      expect(
+        [for (final arc in _arcPainters(tester)) arc.stroke],
+        [4, 2],
+        reason:
+            '.r1 e .r2 dela têm borda fixa de 4px e 2px (globals.css:210-211); '
+            'só o inset é proporcional ao círculo',
+      );
+    },
+  );
+
+  testWidgets(
+    'a tablet that asks for less motion keeps her arcs standing, a little '
+    'faded, instead of turning them',
+    (tester) async {
+      await _pumpCircle(
+        tester,
+        VoiceState.thinking,
+        size: 232,
+        canvas: true,
+        still: true,
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(
+        _arcTurns(tester),
+        [closeTo(0, 1e-9), closeTo(0, 1e-9)],
+        reason:
+            'no reduced motion dela os arcos ficam, parados (globals.css:245)',
+      );
+      expect(
+        [
+          for (final element in _arcs().evaluate())
+            tester
+                .widget<Opacity>(
+                  find
+                      .ancestor(
+                        of: find.byWidget(element.widget),
+                        matching: find.byType(Opacity),
+                      )
+                      .first,
+                )
+                .opacity,
+        ],
+        [0.9, 0.9],
+        reason: 'e a .9 de opacidade, não inteiros nem sumidos',
+      );
+    },
+  );
+
+  testWidgets('a circle off her canvas draws a turning transform in no voice', (
+    tester,
+  ) async {
     for (final still in [false, true]) {
       for (final voice in VoiceState.values) {
         await _pumpCircle(tester, voice, still: still);
@@ -72,18 +194,16 @@ void main() {
           _transformsInCircle(tester),
           isNot(anyElement(predicate(_rotates))),
           reason:
-              'os arcos giravam sozinhos, sem dizer nada que a respiração e o '
-              'brilho já não dissessem — e nos ~50 s do turno de pensar a sala '
-              'lia como um relógio, não como alguém trabalhando (Henok, '
-              'revertendo o PR #230); em ${voice.name} (still=$still) não pode '
-              'haver nem essa volta',
+              'os círculos de checagem dela pensam só respirando, sem arcos '
+              '(globals.css:384); fora do canvas, em ${voice.name} '
+              '(still=$still), não pode haver nem essa volta',
         );
       }
     }
   });
 
   testWidgets(
-    'the thinking circle paints only the clay disc and its glow, nothing else',
+    'a thinking circle off her canvas paints only the clay disc, with no glow',
     (tester) async {
       await _pumpCircle(tester, VoiceState.thinking);
 
@@ -100,44 +220,18 @@ void main() {
 
       expect(
         painters,
-        {GlowPainter},
+        isEmpty,
         reason:
-            'ArcPainter pintava dois arcos por cima do disco; sem eles não '
-            'sobra nenhum outro CustomPaint além do brilho',
+            'os arcos são do canvas dela e o check-circle dela não tem '
+            'brilho (Drafting.tsx:2406); um círculo da Retro, da Escolha ou '
+            'do código que pensa não pinta CustomPaint nenhum',
       );
     },
   );
 
-  testWidgets(
-    'a warning that arrives during a think leaves the clay disc as it was',
-    (tester) async {
-      final handle = tester.ensureSemantics();
-      await _pumpCircle(
-        tester,
-        VoiceState.thinking,
-        warning: 'Alguém deve vir olhar',
-      );
-
-      expect(
-        _gradients(tester),
-        contains(BeadStyles.clay(SalaColors.light)),
-        reason:
-            'o pensar já tem a sua própria cor de barro; o aviso não é mais '
-            'uma cor do disco, em nenhuma voz',
-      );
-      expect(
-        find.bySemanticsLabel('Alguém deve vir olhar'),
-        findsOneWidget,
-        reason: 'o aviso ainda existe — só que ao lado, nunca por cima',
-      );
-      handle.dispose();
-    },
-  );
-
-  testWidgets('the whole circle breathes fuller on her 2.4 s while it thinks', (
-    tester,
-  ) async {
-    await _pumpCircle(tester, VoiceState.thinking);
+  testWidgets('her whole canvas circle breathes fuller on her 2.4 s while it '
+      'thinks', (tester) async {
+    await _pumpCircle(tester, VoiceState.thinking, canvas: true);
     final breath = find.descendant(
       of: find.byType(FacilitatorCircle),
       matching: find.byType(Loop),
@@ -174,65 +268,10 @@ void main() {
   });
 
   testWidgets(
-    'a terracotta glow warms the clay from inside and pulses on her 2.4 s',
+    'a tablet that asks for less motion still sees a 2.4 s pulse of light '
+    'on her canvas',
     (tester) async {
-      await _pumpCircle(tester, VoiceState.thinking);
-      final glow = find.descendant(
-        of: find.byType(FacilitatorCircle),
-        matching: find.byWidgetPredicate(
-          (widget) => widget is CustomPaint && widget.painter is GlowPainter,
-        ),
-      );
-      double glowing() => tester
-          .widget<Opacity>(
-            find.ancestor(of: glow, matching: find.byType(Opacity)).first,
-          )
-          .opacity;
-
-      expect(
-        (tester.widget<CustomPaint>(glow).painter! as GlowPainter).color,
-        _telha(0.16),
-        reason: '.glow dela no pensar: radial-gradient de rgba(190,74,1,.16)',
-      );
-      expect(
-        glowing(),
-        closeTo(0.45, 1e-6),
-        reason: 'thinkGlow dela abre em opacidade .45',
-      );
-      await tester.pump(const Duration(milliseconds: 1200));
-      expect(
-        glowing(),
-        closeTo(1, 1e-6),
-        reason: 'e acende por inteiro na metade dos 2,4 s',
-      );
-
-      final drawn = find
-          .descendant(
-            of: find.byType(FacilitatorCircle),
-            matching: find.byWidgetPredicate(
-              (widget) =>
-                  (widget is CustomPaint && widget.painter is GlowPainter) ||
-                  (widget is Container &&
-                      (widget.decoration as BoxDecoration?)?.gradient != null),
-            ),
-          )
-          .evaluate()
-          .map((element) => element.widget)
-          .toList();
-      expect(
-        drawn.last,
-        isA<CustomPaint>(),
-        reason:
-            'o disco dela é translúcido e o brilho aparece através dele; o '
-            'nosso barro é opaco, e um brilho pintado por baixo sumiria inteiro',
-      );
-    },
-  );
-
-  testWidgets(
-    'a tablet that asks for less motion still sees a 2.4 s pulse of light',
-    (tester) async {
-      await _pumpCircle(tester, VoiceState.thinking, still: true);
+      await _pumpCircle(tester, VoiceState.thinking, still: true, canvas: true);
       double veil() => tester
           .widgetList<Opacity>(
             find.descendant(

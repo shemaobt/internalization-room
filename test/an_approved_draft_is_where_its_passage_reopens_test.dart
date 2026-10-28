@@ -2,10 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/widgets.dart' show Semantics;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -13,9 +11,10 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
+import 'package:internalization_room/features/sala/domain/refusal_code.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -129,22 +128,27 @@ Finder _theBadge(int version, [String language = testLanguage]) =>
 int _opensAsked(SalaHarness harness) =>
     harness.room.calls.where((call) => call == 'openSession').length;
 
-void _landsOnTheApprovedDraft(_Room room, {int version = 1}) {
+void _landsOnTheConversation(_Room room) {
   final state = _state(room);
-  expect(state.stage, SalaStage.retro);
-  expect(state.btPhase, BtPhase.conferida);
-  expect(_theBadge(version), findsOneWidget);
+  expect(
+    state.station,
+    isA<Canvas>(),
+    reason: 'a passagem aprovada reabria na retrotradução, não na conversa',
+  );
+  expect(state.voice, VoiceState.invite);
+  expect(byLabel(roomLabelFor('hearAgain', testLanguage)), findsOneWidget);
   expect(
     _opensAsked(room.harness),
     0,
     reason: 'a passagem aprovada não é uma conversa a abrir',
   );
+  expect(room.harness.voice.played, isEmpty);
 }
 
 void main() {
   testWidgets(
-    're-entering a passage the room says is approved lands on its translation '
-    'with «✓ aprovado como rascunho final (v1)»',
+    'choosing a passage the room says is approved lands on its conversation at '
+    'rest with «Ouvir de novo», never on its translation',
     (tester) async {
       final harness = _aRoomHolding(approved: _approvedAs(1))
         ..room.createdOpened = true
@@ -152,169 +156,8 @@ void main() {
 
       final room = await _enter(tester, harness);
 
-      _landsOnTheApprovedDraft(room);
-      expect(_state(room).btTrechos, hasLength(2));
+      _landsOnTheConversation(room);
       expect(_state(room).coverage.beadsFilled, 9);
-      expect(harness.voice.played, isNot(contains(turnoUrl)));
-    },
-  );
-
-  testWidgets(
-    'a Watch beat read while the parts come down leaves the badge drawn',
-    (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1), watching: true)
-        ..room.createdOpened = true;
-      int reads() => harness.room.calls.where((c) => c == 'fetchState').length;
-
-      await _enter(
-        tester,
-        harness,
-        by: (notifier) async {
-          await notifier.abrirEscolha();
-          await Future<void>.delayed(const Duration(milliseconds: 200));
-          harness.room.holdNextClip();
-          final entering = notifier.goConversa(book: 'Ruth', pericope: 'P01');
-          final before = reads();
-          await waitFor(
-            'a Watch beat while the part is still coming down',
-            () => reads() > before,
-          );
-          await Future<void>.delayed(const Duration(milliseconds: 50));
-          for (var beat = 0; beat < 40; beat++) {
-            harness.room.holdTheNextRead();
-          }
-          harness.room.finishHeldClip();
-          await entering;
-        },
-      );
-
-      expect(_theBadge(1), findsOneWidget);
-      expect(byLabel(retroLabelFor('approve', testLanguage)), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'a Watch beat that reads the approval gone while the parts come down is '
-    'not undone by the older read the landing came with',
-    (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1), watching: true)
-        ..room.createdOpened = true;
-      int reads() => harness.room.calls.where((c) => c == 'fetchState').length;
-
-      await _enter(
-        tester,
-        harness,
-        by: (notifier) async {
-          await notifier.abrirEscolha();
-          await Future<void>.delayed(const Duration(milliseconds: 200));
-          harness.room.holdNextClip();
-          final entering = notifier.goConversa(book: 'Ruth', pericope: 'P01');
-          final before = reads();
-          await waitFor(
-            'a first Watch beat while the part is still coming down',
-            () => reads() > before,
-          );
-          harness.room.approvedDraft = null;
-          final gone = reads();
-          await waitFor(
-            'a beat that reads the approval gone',
-            () => reads() > gone,
-          );
-          await Future<void>.delayed(const Duration(milliseconds: 50));
-          for (var beat = 0; beat < 40; beat++) {
-            harness.room.holdTheNextRead();
-          }
-          harness.room.finishHeldClip();
-          await entering;
-        },
-      );
-
-      expect(_theBadge(1), findsNothing);
-      expect(byLabel(retroLabelFor('approve', testLanguage)), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'keeping the earlier translation of a frase brings the badge back at once',
-    (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1))
-        ..room.createdOpened = true;
-      final room = await _enter(tester, harness);
-
-      await tester.runAsync(() async {
-        final notifier = room.container.read(salaSessionProvider.notifier)
-          ..traduzirAFraseDeNovo(0);
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-        notifier.manterATraducaoDeAntes();
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-      });
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(_theBadge(1), findsOneWidget);
-      expect(byLabel(retroLabelFor('approve', testLanguage)), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'a passage whose approved landing could not get its parts gets them on the '
-    'next entry, after the approval is gone',
-    (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1))
-        ..room.createdOpened = true
-        ..room.failTakesWith = const NetworkFailed('sem rede');
-      final room = await _enter(tester, harness);
-      _landsOnTheApprovedDraft(room);
-
-      harness.room
-        ..approvedDraft = null
-        ..failTakesWith = null;
-      await tester.runAsync(() async {
-        final notifier = room.container.read(salaSessionProvider.notifier)
-          ..leaveThePassage();
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-        await notifier.abrirEscolha();
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-        await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-        await Future<void>.delayed(const Duration(seconds: 1));
-      });
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(_state(room).stage, SalaStage.retro);
-      expect(_state(room).partes, isNotEmpty);
-    },
-  );
-
-  group(
-    'an approved draft whose parts the room cannot hand over lands on the draft, '
-    'silent, on every entry',
-    () {
-      for (final (why, failure) in [
-        ('the network', const NetworkFailed('sem rede') as RoomFailure),
-        ('a lasting refusal', const Refused(RefusalCode.unreadable)),
-      ]) {
-        testWidgets(why, (tester) async {
-          final harness = _aRoomHolding(approved: _approvedAs(1))
-            ..room.createdOpened = true
-            ..room.failTakesWith = failure;
-          final room = await _enter(tester, harness);
-          _landsOnTheApprovedDraft(room);
-
-          await tester.runAsync(() async {
-            final notifier = room.container.read(salaSessionProvider.notifier)
-              ..leaveThePassage();
-            await Future<void>.delayed(const Duration(milliseconds: 300));
-            await notifier.abrirEscolha();
-            await Future<void>.delayed(const Duration(milliseconds: 200));
-            await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-            await Future<void>.delayed(const Duration(seconds: 1));
-          });
-          await tester.pump(const Duration(milliseconds: 100));
-
-          _landsOnTheApprovedDraft(room);
-          expect(_state(room).needsPerson, isFalse);
-          expect(harness.room.personsAsked, 0);
-        });
-      }
     },
   );
 
@@ -355,7 +198,7 @@ void main() {
     );
 
     testWidgets(
-      'lands on its approved draft with the coverage and the moment of that read',
+      'lands on its conversation with the coverage and the moment of that read',
       (tester) async {
         final harness = _aRoomHolding(approved: _approvedAs(1))
           ..room.nextCoverage = coverage(engaged: 3)
@@ -368,7 +211,7 @@ void main() {
 
         final room = await _enter(tester, harness);
 
-        _landsOnTheApprovedDraft(room);
+        _landsOnTheConversation(room);
         expect(_state(room).coverage.engaged, 3);
         expect(_state(room).moment?.at, MomentAt.articulation);
         expect(_state(room).moment?.part, 2);
@@ -376,75 +219,51 @@ void main() {
     );
 
     testWidgets(
-      'decides and lands on its approved draft from one read of the session',
+      'decides and lands on its conversation from one read of the session',
       (tester) async {
         final harness = _aRoomHolding(approved: _approvedAs(1));
         aPartlessRow(harness);
 
         final room = await _enter(tester, harness);
 
-        _landsOnTheApprovedDraft(room);
+        _landsOnTheConversation(room);
         expect(
           harness.room.calls.where((call) => call == 'fetchState'),
           hasLength(1),
         );
       },
     );
-  });
 
-  testWidgets('tapping a frase of the approved draft plays its part', (
-    tester,
-  ) async {
-    final harness = _aRoomHolding(approved: _approvedAs(1))
-      ..room.createdOpened = true;
-    final room = await _enter(tester, harness);
+    testWidgets(
+      'then the dot opens the recording home with the room\'s part laid in '
+      'under it, not a home with no part',
+      (tester) async {
+        final harness = _aRoomHolding(approved: _approvedAs(1));
+        aPartlessRow(harness);
+        final room = await _enter(tester, harness);
 
-    await tester.runAsync(() async {
-      room.container.read(salaSessionProvider.notifier).ouvirOTrechoContado(1);
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-    });
+        await tester.runAsync(() async {
+          room.container
+              .read(salaSessionProvider.notifier)
+              .openTheEnsaioFinal();
+          await Future<void>.delayed(const Duration(seconds: 1));
+        });
+        await tester.pump(const Duration(milliseconds: 100));
 
-    expect(harness.playback.played, isNotEmpty);
-    expect(
-      File(harness.playback.played.last).readAsBytesSync(),
-      _theRoomsRecording,
-      reason: 'a frase toca a parte que a sala guarda, baixada para o tablet',
+        expect(_state(room).stage, SalaStage.ensaio);
+        expect(_state(room).partes.map((parte) => parte.takeId), [_gravacao]);
+        expect(
+          File(_state(room).partes.single.path).readAsBytesSync(),
+          _theRoomsRecording,
+          reason: 'a casa abria sem a parte que a sala guarda',
+        );
+      },
     );
   });
 
   testWidgets(
-    'an approved draft whose recording the room cannot hand over still lands '
-    'on the draft, with no sign and listening dimmed',
-    (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1))
-        ..room.createdOpened = true
-        ..room.failTakesWith = const NetworkFailed('sem rede');
-
-      final room = await _enter(tester, harness);
-
-      _landsOnTheApprovedDraft(room);
-      final state = _state(room);
-      expect(state.needsPerson, isFalse);
-      expect(harness.room.personsAsked, 0);
-      expect(
-        tester
-            .widget<RoundActionButton>(
-              find.ancestor(
-                of: byLabel(
-                  retroLabelFor('listenToTheRecording', testLanguage),
-                ),
-                matching: find.byType(RoundActionButton),
-              ),
-            )
-            .mood,
-        ButtonMood.dimmed,
-      );
-    },
-  );
-
-  testWidgets(
     'a forced approval over a telling-back never checked, re-entered, lands '
-    'checked with the badge',
+    'on its conversation as any approval does',
     (tester) async {
       final harness = _aRoomHolding(approved: _approvedAs(1))
         ..room.createdOpened = true
@@ -454,48 +273,67 @@ void main() {
 
       final room = await _enter(tester, harness);
 
-      _landsOnTheApprovedDraft(room);
+      _landsOnTheConversation(room);
       expect(harness.playback.played, isEmpty);
     },
   );
 
   testWidgets(
-    'an approved passage the room never opened still lands on its draft, '
-    'never on the Conversation at zero',
+    'an approved passage the room never opened lands on its conversation too, '
+    'and asks no opening',
     (tester) async {
       final harness = _aRoomHolding(approved: _approvedAs(1))
         ..room.createdOpened = false;
 
       final room = await _enter(tester, harness);
 
-      _landsOnTheApprovedDraft(room);
+      _landsOnTheConversation(room);
     },
   );
 
-  group('the badge names the version the room read', () {
-    testWidgets('in Portuguese', (tester) async {
-      await _enter(
-        tester,
-        _aRoomHolding(approved: _approvedAs(3))..room.createdOpened = true,
-      );
+  group(
+    'from that conversation the dot leads to the recording home, with the badge '
+    'naming the version the room read',
+    () {
+      for (final (why, lingua, badge, check) in [
+        (
+          'in Portuguese',
+          'pt',
+          '✓ aprovado como rascunho final (v3)',
+          'Checagem externa',
+        ),
+        (
+          'in English',
+          'en',
+          '✓ approved as the final draft (v3)',
+          'External check',
+        ),
+      ]) {
+        testWidgets(why, (tester) async {
+          final room = await _enter(
+            tester,
+            _aRoomHolding(approved: _approvedAs(3), lingua: lingua)
+              ..room.createdOpened = true,
+          );
 
-      expect(find.text('✓ aprovado como rascunho final (v3)'), findsOneWidget);
-    });
+          await tester.runAsync(() async {
+            room.container
+                .read(salaSessionProvider.notifier)
+                .openTheEnsaioFinal();
+            await Future<void>.delayed(const Duration(seconds: 1));
+          });
+          await tester.pump(const Duration(milliseconds: 100));
 
-    testWidgets('in English', (tester) async {
-      final room = await _enter(
-        tester,
-        _aRoomHolding(approved: _approvedAs(3), lingua: 'en')
-          ..room.createdOpened = true,
-      );
-
-      expect(room.harness.room.languagesSent.last, 'en');
-      expect(find.text('✓ approved as the final draft (v3)'), findsOneWidget);
-    });
-  });
+          expect(_state(room).station, const Ensaio());
+          expect(find.text(badge), findsOneWidget);
+          expect(byLabel(check), findsOneWidget);
+        });
+      }
+    },
+  );
 
   testWidgets(
-    'a relaunch onto an approved current session lands on its draft',
+    'a relaunch onto an approved current session lands on its conversation',
     (tester) async {
       final harness = _aRoomHolding(approved: _approvedAs(1));
       (harness.currentSession as FakeCurrentSessionLedger).held =
@@ -512,14 +350,47 @@ void main() {
         by: (notifier) => notifier.openTheRoom(),
       );
 
-      _landsOnTheApprovedDraft(room);
+      _landsOnTheConversation(room);
       expect(_state(room).sessionId, 'sessao-aprovada');
+    },
+  );
+
+  testWidgets(
+    'after a relaunch onto an approved session the dot leads to the recording '
+    'home, with the badge naming the version the room read',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(2));
+      (harness.currentSession as FakeCurrentSessionLedger).held =
+          const CurrentSession(
+            sessionId: 'sessao-aprovada',
+            book: 'Ruth',
+            pericope: 'P01',
+            language: testLanguage,
+          );
+      final room = await _enter(
+        tester,
+        harness,
+        by: (notifier) => notifier.openTheRoom(),
+      );
+
+      await tester.runAsync(() async {
+        room.container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(_state(room).station, const Ensaio());
+      expect(
+        _theBadge(2),
+        findsOneWidget,
+        reason: 'a casa depois do relançamento perdia o selo da versão',
+      );
     },
   );
 
   group(
     'a tablet still holding a resume point for a draft another tablet approved '
-    'lands on the approved draft',
+    'lands on its conversation, and the point stands there after',
     () {
       for (final stage in [
         SalaStage.ensaio,
@@ -533,16 +404,55 @@ void main() {
 
           final room = await _enter(tester, harness);
 
-          _landsOnTheApprovedDraft(room);
+          _landsOnTheConversation(room);
+          expect(
+            harness.emAberto.rows['Ruth/P01/${harness.lingua}']?.stage,
+            SalaStage.conversa,
+          );
         });
       }
     },
   );
 
   testWidgets(
-    'a take recorded over by a newer recording the room holds keeps nothing '
-    'from the approved draft\'s badge',
+    'an approved passage relaunched on a Rehearsal row goes straight to its '
+    'conversation, never through the recording home',
     (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1));
+      _aRowOn(harness, SalaStage.ensaio);
+      harness.room.openedSessions.add('sessao-antiga');
+      (harness.currentSession as FakeCurrentSessionLedger).held =
+          const CurrentSession(
+            sessionId: 'sessao-antiga',
+            book: 'Ruth',
+            pericope: 'P01',
+            language: testLanguage,
+          );
+      final stood = <SalaStage>[];
+      late ProviderContainer container;
+      await tester.runAsync(() async {
+        container = harness.container();
+        container.listen(
+          salaSessionProvider,
+          (_, next) => stood.add(next.stage),
+        );
+        await container.read(salaSessionProvider.notifier).openTheRoom();
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      addTearDown(() => closeTheRoom(container));
+
+      expect(container.read(salaSessionProvider).station, isA<Canvas>());
+      expect(
+        stood,
+        isNot(contains(SalaStage.ensaio)),
+        reason:
+            'a casa das gravações aparecia por uma leitura antes da conversa',
+      );
+    },
+  );
+
+  group('a take recorded over by a newer recording, refused for good', () {
+    Future<_Room> enterOver(WidgetTester tester, String refusal) async {
       final harness = _aRoomHolding(approved: _approvedAs(1));
       harness.room.takes
         ..clear()
@@ -585,16 +495,42 @@ void main() {
             passNumber: 1,
             chunkIndex: 1,
             attempts: takeUploadAttempts,
-            refusal: 'UNKNOWN_REFERENCE',
+            refusal: refusal,
           ).toJson(),
         ]),
       );
+      return _enter(tester, harness);
+    }
 
-      final room = await _enter(tester, harness);
+    testWidgets(
+      'with a code the room gave never keeps an approved passage off its '
+      'conversation',
+      (tester) async {
+        final room = await enterOver(tester, 'UNKNOWN_REFERENCE');
 
-      _landsOnTheApprovedDraft(room);
-    },
-  );
+        _landsOnTheConversation(room);
+      },
+    );
+
+    testWidgets(
+      'with no code still waits for the team\'s tap, and the passage lands '
+      'where it stood',
+      (tester) async {
+        final room = await enterOver(tester, RefusalCode.unnamed(500));
+
+        expect(
+          _state(room).stage,
+          SalaStage.retro,
+          reason: 'uma gravação que o toque ainda envia mudava o rascunho',
+        );
+        expect(
+          _theBadge(1),
+          findsOneWidget,
+          reason: 'a retrotradução sobre o rascunho aprovado perdia o selo',
+        );
+      },
+    );
+  });
 
   group(
     'a tablet whose Outbox still holds something of the session that changes the '
@@ -656,89 +592,6 @@ void main() {
     },
   );
 
-  testWidgets(
-    'the approved draft shows no warning mark even while the room still holds a '
-    'warning',
-    (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1))
-        ..room.createdOpened = true
-        ..room.serverStatus = 'needs_person'
-        ..room.serverHalt = HaltKind.warning;
-
-      final room = await _enter(tester, harness);
-
-      _landsOnTheApprovedDraft(room);
-      expect(byLabel(warningNoticeLabelFor(testLanguage)), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'translating a frase of the approved draft again leaves the approved draft, '
-    'and the warning mark stands again',
-    (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1))
-        ..room.createdOpened = true
-        ..room.serverStatus = 'needs_person'
-        ..room.serverHalt = HaltKind.warning;
-      final room = await _enter(tester, harness);
-      _landsOnTheApprovedDraft(room);
-
-      await tester.runAsync(() async {
-        room.container
-            .read(salaSessionProvider.notifier)
-            .traduzirAFraseDeNovo(0);
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-      });
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(_theBadge(1), findsNothing);
-      expect(byLabel(warningNoticeLabelFor(testLanguage)), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'the approve button is not offered on an approved draft; the listen button is',
-    (tester) async {
-      await _enter(
-        tester,
-        _aRoomHolding(approved: _approvedAs(1))..room.createdOpened = true,
-      );
-
-      expect(byLabel(retroLabelFor('approve', testLanguage)), findsNothing);
-      expect(
-        byLabel(retroLabelFor('listenToTheRecording', testLanguage)),
-        findsOneWidget,
-      );
-    },
-  );
-
-  testWidgets(
-    'a session read that says the draft is no longer approved takes the badge away',
-    (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1), watching: true)
-        ..room.createdOpened = true;
-      final room = await _enter(tester, harness);
-      _landsOnTheApprovedDraft(room);
-
-      harness.room.approvedDraft = null;
-      final reads = harness.room.calls.where((c) => c == 'fetchState').length;
-      await tester.runAsync(
-        () => waitFor(
-          'a Watch beat to read the session again',
-          () =>
-              harness.room.calls.where((c) => c == 'fetchState').length > reads,
-        ),
-      );
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 100)),
-      );
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(_theBadge(1), findsNothing);
-      expect(byLabel(retroLabelFor('approve', testLanguage)), findsOneWidget);
-    },
-  );
-
   group('a passage with no approval lands as it always did', () {
     testWidgets('a passage with takes lands where it stood', (tester) async {
       final harness = _aRoomHolding();
@@ -764,121 +617,4 @@ void main() {
       expect(_state(room).stage, SalaStage.conversa);
     });
   });
-
-  testWidgets(
-    'an approved draft reopened while its part comes down keeps that part\'s '
-    'frase and the last listening dark and deaf until the part lands',
-    (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1));
-      harness.room
-        ..retroSoFar = const BackTranslationProgress(
-          segments: [
-            SegmentView(
-              segmentId: 'trecho-1',
-              takeId: _gravacao,
-              startsMs: 0,
-              endsMs: 12000,
-              frase: 1,
-            ),
-          ],
-          checked: true,
-        )
-        ..holdNextClip();
-      harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = ResumePoint(
-        sessionId: 'sessao-antiga',
-        stage: SalaStage.ensaio,
-        takes: [
-          KeptTake(
-            scopeId: KeptScope.parte(1),
-            path: '${Directory.systemTemp.path}/ja-nao-esta-aqui-1762.m4a',
-            takeId: _gravacao,
-          ),
-        ],
-      );
-      final room = await _enter(tester, harness);
-
-      ButtonMood mood(String label) => tester
-          .widget<RoundActionButton>(
-            find.ancestor(
-              of: byLabel(label),
-              matching: find.byType(RoundActionButton),
-            ),
-          )
-          .mood;
-      final hear = sceneRehearsalLabelFor('hearMine', testLanguage, n: 1);
-      final retell = sceneRehearsalLabelFor('retellFrase', testLanguage, n: 1);
-      final last = retroLabelFor('listenToTheRecording', testLanguage);
-      bool enabled(String label) =>
-          tester.widget<Semantics>(byLabel(label)).properties.enabled == true;
-
-      expect(_state(room).stage, SalaStage.retro);
-      expect(mood(hear), ButtonMood.dimmed);
-      expect(enabled(retell), isFalse);
-      expect(mood(last), ButtonMood.dimmed);
-      await tester.tap(byLabel(retell));
-      room.container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(harness.playback.played, isEmpty);
-      expect(_theBadge(1), findsOneWidget);
-
-      await tester.runAsync(() async {
-        harness.room.finishHeldClip();
-        await Future<void>.delayed(const Duration(milliseconds: 500));
-      });
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(mood(hear), ButtonMood.lit);
-      expect(enabled(retell), isTrue);
-      expect(mood(last), ButtonMood.lit);
-    },
-  );
-
-  testWidgets(
-    'an approved draft whose part the room no longer has keeps that part\'s '
-    'frase dark',
-    (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1));
-      harness.room
-        ..retroSoFar = const BackTranslationProgress(
-          segments: [
-            SegmentView(
-              segmentId: 'trecho-1',
-              takeId: _gravacao,
-              startsMs: 0,
-              endsMs: 12000,
-              frase: 1,
-            ),
-          ],
-          checked: true,
-        )
-        ..refuseClipOf.add(_gravacao);
-      harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = ResumePoint(
-        sessionId: 'sessao-antiga',
-        stage: SalaStage.retro,
-        takes: [
-          KeptTake(
-            scopeId: KeptScope.parte(1),
-            path: '${Directory.systemTemp.path}/ja-nao-esta-aqui-1762b.m4a',
-            takeId: _gravacao,
-          ),
-        ],
-      );
-      final room = await _enter(tester, harness);
-
-      expect(_state(room).stage, SalaStage.retro);
-      expect(
-        tester
-            .widget<RoundActionButton>(
-              find.ancestor(
-                of: byLabel(
-                  sceneRehearsalLabelFor('hearMine', testLanguage, n: 1),
-                ),
-                matching: find.byType(RoundActionButton),
-              ),
-            )
-            .mood,
-        ButtonMood.dimmed,
-      );
-    },
-  );
 }

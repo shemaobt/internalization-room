@@ -26,6 +26,16 @@ exception, under its own reason, words only the camera reads, so that the field 
 matched to the session. It is also on the Team's screen, so «the only one the Team sees»
 above is not read alone; it is not a control and VoiceOver skips it.
 
+Amended by ENG-1817 and ENG-1819 (2026-10-27): the claquete shows on her canvas: the
+conversation and the Panorama, and nowhere else. In her app the slate and the Shema mark
+live inside `.canvas`, which the Panorama shares with a passage's conversation
+(`app/page.tsx:120`, `:998-1004`; `app/globals.css:67-73`), so the Panorama reads «OV-Ruth ·
+2026-09-30 14:14 · fia-fixt» as a passage reads «P05 · …». The check screen and the
+rehearsals draw neither the claquete nor the mark; the Choice draws the mark alone, nothing
+to tap, as hers does (`app/page.tsx:972`). Its twenty seconds are armed on the
+session of the Station, as hers are on opening or resuming a session (`app/page.tsx:211`,
+`:261-265`), so a session resumed onto another stage spends them unseen, as in hers.
+
 Amended by ENG-1296 (2026-10-15): the Choice shows «PT» and «EN» at its top right, and the
 team taps one to choose the Room language (`widgets/language_and_look.dart`). It is the fourth
 named exception, under its own reason, the words the team picks its language by: the codes
@@ -82,6 +92,15 @@ Amended by ENG-1259 (2026-10-22, ADR 0112): an approval ends on her Saved screen
 (`widgets/saved_screen.dart`): «Ensaio salvo», her approved sentence with its version, and
 «Pronto». It is the eleventh named exception, under the moment label's reason, her words the team
 reads. The check mark is decorative and VoiceOver skips it; «Pronto» is read by its word.
+
+Amended by ENG-1774 (2026-10-22, ADR 0131): the scene rehearsal's record step writes the
+take's state in her words: «gravando», «enviando…», her not-kept, too-large and
+not-accepted lines with «falhou — toque para tentar de novo», «falhou» alone for a take
+whose recording is gone, and «parar». The recording home's Scene rows, with a numbered row
+for each unsent part beyond the last scene, show the same words, «✓ salvo», and «falhou —
+grave de novo» for a part whose recording is gone. It is the twelfth named exception,
+under the moment label's reason, her words the team reads. VoiceOver reads the same words,
+but for «parar», which it reads as her «Parar o envio (a gravação fica neste computador)».
 
 Amended by ENG-1260 (2026-10-22, ADR 0113): the Back-translation of an approved draft shows
 «checagem externa: {n} ouvintes» (or «checagem externa: 1 ouvinte») when the version has

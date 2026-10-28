@@ -21,7 +21,6 @@ void main() {
       'escolhaLabels': escolhaLabels,
       'handLabels': handLabels,
       'roomLabels': roomLabels,
-      'warningNoticeLabel': {'notice': warningNoticeLabel},
       'codigoLabels': codigoLabels,
     };
     for (final MapEntry(key: table, value: states) in tables.entries) {
@@ -47,7 +46,7 @@ void main() {
       expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
       expect(byLabel('Tap to speak'), findsOneWidget);
       expect(
-        byLabel('Tocar para falar'),
+        byLabel('Toque para falar'),
         findsNothing,
         reason:
             'o rótulo do círculo era sempre em português, mesmo com o '

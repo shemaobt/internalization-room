@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
@@ -32,7 +31,6 @@ const _theBook = [
   ),
 ];
 
-const _leave = 'Choose another passage';
 const _back = 'Back to the current passage';
 const _backInPortuguese = 'Voltar para a passagem atual';
 
@@ -61,13 +59,6 @@ Future<void> _readTheWheel(WidgetTester tester, _Room room) async {
   await _passTime(tester, 300);
 }
 
-Future<void> _takeThePanorama(WidgetTester tester, _Room room) async {
-  await _readTheWheel(tester, room);
-  room.notifier.openTheEntry(room.state.naRoda!.first);
-  await _passTime(tester);
-  await tester.pump(const Duration(seconds: 1));
-}
-
 Future<void> _takeThePassage(WidgetTester tester, _Room room) async {
   await _readTheWheel(tester, room);
   room.notifier.openTheEntry(
@@ -76,11 +67,6 @@ Future<void> _takeThePassage(WidgetTester tester, _Room room) async {
   await _passTime(tester);
   await _passTime(tester);
   await tester.pump(const Duration(seconds: 1));
-}
-
-Future<void> _tap(WidgetTester tester, String label) async {
-  await tester.tap(byLabel(label), warnIfMissed: false);
-  await _passTime(tester);
 }
 
 Finder _discOf(String label) => find.descendant(
@@ -105,7 +91,7 @@ Finder _cornerDiscOf(String label) =>
 
 List<double> _opacitiesOver(WidgetTester tester, String label) {
   final glyph = find
-      .descendant(of: _discOf(label).last, matching: find.byType(Icon))
+      .descendant(of: byLabel(label), matching: find.byType(Icon))
       .evaluate()
       .single;
   final labelled = byLabel(label).evaluate().first;
@@ -119,12 +105,6 @@ List<double> _opacitiesOver(WidgetTester tester, String label) {
     return true;
   });
   return over;
-}
-
-void _isDrawnInFull(WidgetTester tester, String label) {
-  final over = _opacitiesOver(tester, label);
-  expect(over.every((opacity) => opacity == 1.0), isTrue, reason: '$over');
-  expect(_glyphOf(tester, label).color!.a, 1.0);
 }
 
 void _wearsTheBody(
@@ -150,38 +130,6 @@ void _wearsTheBody(
 }
 
 void main() {
-  testWidgets('the way out wears the hear-again button\'s body', (
-    tester,
-  ) async {
-    final room = await _pump(tester);
-    await _takeThePanorama(tester, room);
-    final hearAgain = roomLabelFor('hearAgain', 'en');
-
-    expect(byLabel(_leave), findsOneWidget);
-    expect(byLabel(hearAgain), findsOneWidget);
-    _wearsTheBody(tester, _leave, LucideIcons.menu);
-    _wearsTheBody(tester, hearAgain, LucideIcons.rotateCcw);
-    _isDrawnInFull(tester, _leave);
-    _isDrawnInFull(tester, hearAgain);
-  });
-
-  testWidgets('the way out keeps its place and its 46 px target', (
-    tester,
-  ) async {
-    final room = await _pump(tester);
-    await _takeThePanorama(tester, room);
-
-    final rect = tester.getRect(byLabel(_leave));
-    expect(rect.size, const Size(46, 46));
-    expect(rect.left, 14);
-    expect(rect.top, 118);
-
-    await _tap(tester, _leave);
-    await tester.pump(const Duration(seconds: 1));
-
-    expect(room.state.stage, SalaStage.escolha);
-  });
-
   testWidgets('the way out carried in a stage heading wears the same body', (
     tester,
   ) async {
@@ -192,51 +140,7 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
 
     expect(room.state.stage, SalaStage.ensaio);
-    _wearsTheBody(tester, _leave, LucideIcons.menu);
-  });
-
-  testWidgets(
-    'the way back on the Choice wears the same body and is full while live',
-    (tester) async {
-      final room = await _pump(tester);
-      await _takeThePassage(tester, room);
-      await _tap(tester, _leave);
-      await tester.pump(const Duration(seconds: 1));
-
-      _wearsTheBody(tester, _back, LucideIcons.chevronLeft);
-      _isDrawnInFull(tester, _back);
-
-      await _tap(tester, _back);
-      await tester.pump(const Duration(seconds: 1));
-
-      expect(room.state.stage, SalaStage.conversa);
-    },
-  );
-
-  testWidgets('in the dark look the three corner buttons wear the dark body', (
-    tester,
-  ) async {
-    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
-    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
-    final room = await _pump(tester);
-    await _takeThePanorama(tester, room);
-    final hearAgain = roomLabelFor('hearAgain', 'en');
-
-    _wearsTheBody(tester, _leave, LucideIcons.menu, colors: SalaColors.dark);
-    _wearsTheBody(
-      tester,
-      hearAgain,
-      LucideIcons.rotateCcw,
-      colors: SalaColors.dark,
-    );
-    await _tap(tester, _leave);
-    await tester.pump(const Duration(seconds: 1));
-    _wearsTheBody(
-      tester,
-      _back,
-      LucideIcons.chevronLeft,
-      colors: SalaColors.dark,
-    );
+    _wearsTheBody(tester, _back, LucideIcons.chevronLeft);
   });
 
   testWidgets(
@@ -294,7 +198,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(container.read(salaSessionProvider).stage, SalaStage.cena);
-      expect(_cornerDiscOf(_backInPortuguese), findsOneWidget);
+      expect(
+        find.descendant(
+          of: byLabel(_backInPortuguese),
+          matching: find.byIcon(LucideIcons.chevronLeft),
+        ),
+        findsOneWidget,
+      );
       expect(_opacitiesOver(tester, _backInPortuguese), contains(0.2));
       expect(
         tester.widget<Semantics>(byLabel(_backInPortuguese)).properties.enabled,

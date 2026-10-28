@@ -10,8 +10,8 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/part_strips.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
@@ -157,9 +157,18 @@ Future<PendingTake> guardar(FakeTakeQueue fila, String scope) => fila.enqueue(
   scope: scope,
 );
 
+List<Object?> armado(ProviderContainer container) {
+  final estado = container.read(salaSessionProvider);
+  return [
+    estado.btTrechoTraduzidoDeNovo?.segmentId,
+    for (final trecho in estado.btTrechos) trecho.contado,
+  ];
+}
+
 void main() {
-  testWidgets('B1 — a tradução entra tocando, com uma conta pendente e sem '
-      'corda', (tester) async {
+  testWidgets('B1 — a tradução entra tocando, sem nada contado e sem corda', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.takeLandsAfter = const Duration(seconds: 1);
     final container = await entrarNaTraducao(tester, harness);
@@ -170,7 +179,7 @@ void main() {
       reason: 'o ensaio toca sozinho ao entrar',
     );
     expect(harness.playback.playedFrom.last, Duration.zero);
-    expect(contas(tester), ['translucent com anel']);
+    expect(faixas(tester), ['0 contadas', '0 contadas']);
     expect(aceso(tester, pausar), isTrue);
     expect(container.read(salaSessionProvider).canConfirmTranslation, isFalse);
     expect(aceso(tester, conferir), isFalse);
@@ -179,7 +188,7 @@ void main() {
   });
 
   testWidgets('B2 — o primeiro toque no círculo só pausa: para o clipe, não '
-      'abre o microfone, e nasce a conta do resto', (tester) async {
+      'abre o microfone, e a pausa fica na faixa da parte', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
 
@@ -202,7 +211,7 @@ void main() {
       container.read(salaSessionProvider).btPhase,
       isNot(BtPhase.capturing),
     );
-    expect(contas(tester), ['translucent com anel', 'translucent']);
+    expect(faixas(tester), ['0 contadas · pausa', '0 contadas']);
     closeTheRoom(container);
   });
 
@@ -248,7 +257,7 @@ void main() {
     final depois = container.read(salaSessionProvider);
     expect(depois.btChunkFailures, hasLength(1));
     expect(depois.needsPerson, isFalse);
-    expect(contas(tester), ['translucent com anel', 'translucent']);
+    expect(faixas(tester), ['0 contadas · pausa', '0 contadas']);
     expect(container.read(salaSessionProvider).canConfirmTranslation, isTrue);
 
     harness.room.failChunkWith = null;
@@ -263,7 +272,7 @@ void main() {
       capturas + 1,
       reason: 'o toque depois da recusa mandava a mesma gravação de novo',
     );
-    expect(contas(tester), ['solid', 'translucent com anel']);
+    expect(faixas(tester), ['1 contadas', '0 contadas']);
     closeTheRoom(container);
   });
 
@@ -565,7 +574,7 @@ void main() {
     await tocarNoCirculo(tester);
 
     expect(harness.room.chunkSpans, ['0-10000', '0-10000']);
-    expect(contas(tester), ['solid', 'solid']);
+    expect(faixas(tester), ['1 contadas', '1 contadas']);
     expect(aceso(tester, conferir), isTrue);
     await tocar(tester, conferir);
     await tester.pump(const Duration(milliseconds: 300));
@@ -574,7 +583,7 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('B5 — a conferida mostra as contas e aprova', (tester) async {
+  testWidgets('B5 — a conferida mostra as faixas e aprova', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
 
@@ -585,7 +594,7 @@ void main() {
     await tocar(tester, conferir);
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(contas(tester), ['solid', 'solid']);
+    expect(faixas(tester), ['2 contadas']);
     expect(corda(), findsNothing);
     expect(byLabel(aprovar), findsOneWidget);
     expect(byLabel('Ouvir a gravação'), findsOneWidget);
@@ -614,11 +623,11 @@ void main() {
       ..verdictUntoldSegmentId = 'trecho-1';
     await tocar(tester, conferir);
     await tester.pump(const Duration(milliseconds: 600));
-    expect(
-      contas(tester),
-      ['solid com anel', 'solid'],
-      reason: 'uma conta por trecho, e o anel no trecho nomeado, no seu lugar',
-    );
+    expect(armado(container), [
+      'trecho-1',
+      true,
+      true,
+    ], reason: 'o veredito não armava o trecho que nomeou');
     final daChegada = (
       harness.playback.played.last,
       harness.playback.ranges.last,
@@ -631,7 +640,7 @@ void main() {
       daChegada,
       reason: 'ouvir toca a fatia do próprio trecho nomeado',
     );
-    expect(contas(tester), ['solid com anel', 'solid']);
+    expect(armado(container), ['trecho-1', true, true]);
     await tocar(tester, pausar);
 
     harness.room.verdictUntoldSegmentId = null;
@@ -686,7 +695,7 @@ void main() {
 
     harness.room.holdNextReplace();
     await tocarNoCirculo(tester);
-    expect(contas(tester), ['solid com anel', 'solid']);
+    expect(armado(container), ['trecho-1', true, true]);
 
     harness.room.finishHeldReplace();
     await tester.pump(const Duration(milliseconds: 600));
@@ -702,7 +711,7 @@ void main() {
     harness.room.failReplaceWith = const NetworkFailed('sem rede');
     await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
-    expect(contas(tester), ['solid com anel', 'solid']);
+    expect(armado(container), ['trecho-1', true, true]);
 
     harness.room.failReplaceWith = null;
     await tester.pump(const Duration(seconds: 5));
@@ -782,7 +791,7 @@ void main() {
       isFalse,
       reason: 'uma tomada vazia nunca chama a pessoa',
     );
-    expect(contas(tester), ['solid com anel', 'solid']);
+    expect(armado(container), ['trecho-1', true, true]);
 
     harness.recorder.returnsEmpty = false;
     await tocarNoCirculo(tester);
@@ -803,7 +812,7 @@ void main() {
     harness.recorder.returnsNothing = true;
     await tocarNoCirculo(tester);
     await tocar(tester, terminar);
-    expect(contas(tester), ['solid com anel', 'solid']);
+    expect(armado(container), ['trecho-1', true, true]);
 
     harness.recorder.returnsNothing = false;
     await tocarNoCirculo(tester);
@@ -1143,7 +1152,7 @@ void main() {
       hasLength(pedidos),
       reason: 'nada sai sozinho quando a rede volta',
     );
-    expect(contas(tester), ['solid com anel', 'solid'], reason: 'o braço fica');
+    expect(armado(container), ['trecho-1', true, true], reason: 'o braço saía');
 
     await contarOutraVez(tester);
     await confirmarEEsperar(tester);
@@ -1165,10 +1174,11 @@ void main() {
 
     await perderAResposta(tester, harness);
     await contarOutraVez(tester);
-    expect(contas(tester), [
-      'solid com anel',
-      'solid',
-    ], reason: 'armada sobre o trecho');
+    expect(armado(container), [
+      'trecho-1',
+      true,
+      true,
+    ], reason: 'a tradução não ficava armada sobre o trecho');
 
     await confirmarEEsperar(tester);
     final segunda = harness.recorder.lastPath!;
@@ -1295,10 +1305,11 @@ void main() {
       hasLength(pedidos),
       reason: 'a segunda não sai sozinha quando a rede volta',
     );
-    expect(contas(tester), [
-      'solid com anel',
-      'solid',
-    ], reason: 'armada sobre o trecho');
+    expect(armado(container), [
+      'trecho-1',
+      true,
+      true,
+    ], reason: 'a tradução não ficava armada sobre o trecho');
 
     await contarOutraVez(tester);
     await confirmarEEsperar(tester);
@@ -1460,8 +1471,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('B1b — o trecho pendente de uma parte anterior fica no seu '
-      'lugar', (tester) async {
+  testWidgets('B1b — o trecho pendente de uma parte anterior volta para a '
+      'sua parte', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     final primeira = harness.room.takeIds.first;
@@ -1483,7 +1494,9 @@ void main() {
     await tester.tap(byLabel(conferir));
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(contas(tester), ['solid', 'translucent com anel', 'solid']);
+    final estado = container.read(salaSessionProvider);
+    expect((estado.btParte, estado.btCursor), (0, cabeca));
+    expect(faixas(tester), ['1 contadas', '1 contadas']);
     closeTheRoom(container);
   });
 
@@ -1567,7 +1580,7 @@ void main() {
   });
 
   testWidgets('B10 — a tela segue o quadro dela, com o título e a linha acima '
-      'das contas', (tester) async {
+      'das faixas', (tester) async {
     tester.view
       ..physicalSize = const Size(820, 1180)
       ..devicePixelRatio = 1;
@@ -1582,25 +1595,27 @@ void main() {
           .getTopLeft(
             find.descendant(
               of: find.byType(RetroView),
-              matching: find.byType(BeadRow),
+              matching: find.byType(PartStrips),
             ),
           )
           .dy,
       169,
     );
-    expect(tester.getTopLeft(byLabel(ouvindo)), const Offset(330, 297));
+    expect(tester.getTopLeft(byLabel(ouvindo)), const Offset(335, 350));
     expect(
       tester.getTopLeft(byLabel(pausar)),
-      const Offset(380, 473),
+      const Offset(380, 516),
       reason:
           'o botão ficava à esquerda da tesoura e da confirmação, que os três '
           'toques tiraram',
     );
-    expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 589));
+    expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 632));
     closeTheRoom(container);
   });
 
-  testWidgets('B10b — o círculo tem 160 px numa tela menor', (tester) async {
+  testWidgets('B10b — o círculo tem os 150 px do dela numa tela menor', (
+    tester,
+  ) async {
     tester.view
       ..physicalSize = const Size(768, 900)
       ..devicePixelRatio = 1;
@@ -1610,7 +1625,7 @@ void main() {
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
 
-    expect(tester.getRect(byLabel(ouvindo)).size, const Size(160, 160));
+    expect(tester.getRect(byLabel(ouvindo)).size, const Size(150, 150));
     expect(tester.getRect(byLabel(conferir)).size, const Size(78, 78));
     closeTheRoom(container);
   });
@@ -1624,7 +1639,13 @@ void main() {
     expect(byLabel('listening to your recording…'), findsOneWidget);
     expect(byLabel('Pause'), findsOneWidget);
     expect(byLabel('done'), findsOneWidget);
-    expect(byLabel('part 1'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(PartStrips),
+        matching: find.text('part 1'),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(byLabel('Pause'));
     await tester.pump(const Duration(milliseconds: 300));

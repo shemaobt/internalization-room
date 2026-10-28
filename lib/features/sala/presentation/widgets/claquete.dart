@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/session_state.dart';
+import '../../domain/station.dart';
+import 'motion.dart';
 import 'shema_mark.dart';
 
 const _shownFor = Duration(seconds: 20);
@@ -26,16 +28,17 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
   @override
   void initState() {
     super.initState();
-    ref.listenManual(salaSessionProvider.select((state) => state.sessionId), (
-      was,
-      now,
-    ) {
-      if (now == null) {
-        _hide();
-      } else if (now != was) {
-        _show();
-      }
-    }, fireImmediately: true);
+    ref.listenManual(
+      salaSessionProvider.select((state) => state.stationSessionId),
+      (was, now) {
+        if (now == null) {
+          _hide();
+        } else if (now != was) {
+          _show();
+        }
+      },
+      fireImmediately: true,
+    );
   }
 
   @override
@@ -46,8 +49,9 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
 
   void _show() {
     final state = ref.read(salaSessionProvider);
-    final sessionId = state.sessionId;
-    final pericope = state.pericope;
+    final station = state.station;
+    final sessionId = state.stationSessionId;
+    final pericope = station is Panorama ? station.id : state.pericope;
     if (sessionId == null || pericope == null) return;
     final now = clock.now();
     String two(int value) => value.toString().padLeft(2, '0');
@@ -66,25 +70,44 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
 
   @override
   Widget build(BuildContext context) {
-    final inConversa = ref.watch(
-      salaSessionProvider.select((state) => state.stage == SalaStage.conversa),
+    final onHerCanvas = ref.watch(
+      salaSessionProvider.select(
+        (state) =>
+            state.stage == SalaStage.conversa ||
+            state.stage == SalaStage.panorama,
+      ),
+    );
+    final speaking = ref.watch(
+      salaSessionProvider.select((state) => state.voice == VoiceState.speaking),
     );
     final words = _words;
     return Positioned.fill(
       child: Stack(
         children: [
-          if (inConversa)
+          if (onHerCanvas)
             Positioned(
               top: MediaQuery.sizeOf(context).height * 0.08,
               left: 0,
               right: 0,
-              child: Center(child: ShemaMark(onTap: _show)),
+              child: Center(
+                child: Loop(
+                  period: const Duration(seconds: 9),
+                  builder: (context, t) => ShemaMark(
+                    onTap: _show,
+                    opacity: MediaQuery.disableAnimationsOf(context)
+                        ? (speaking ? 0.85 : 0.72)
+                        : 0.66 + 0.14 * t,
+                  ),
+                ),
+              ),
             ),
-          if (inConversa && words != null)
+          if (onHerCanvas && words != null)
             Positioned(
               left: 14 + 76 + 8,
-              right: 14 + 76 + 8,
-              bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
+              right: MediaQuery.sizeOf(context).width * 0.024,
+              bottom:
+                  MediaQuery.viewPaddingOf(context).bottom +
+                  MediaQuery.sizeOf(context).height * 0.026,
               child: IgnorePointer(
                 child: ExcludeSemantics(
                   child: Align(
@@ -116,7 +139,7 @@ class Claquete extends StatelessWidget {
       maxLines: 1,
       style: TextStyle(
         color: SalaColors.of(context).claquete.withValues(alpha: 0.7),
-        fontSize: 11,
+        fontSize: 10.88,
         letterSpacing: 0.66,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),

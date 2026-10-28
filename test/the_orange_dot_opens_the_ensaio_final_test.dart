@@ -42,7 +42,7 @@ const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _thinking = 'pensando…';
 const _sceneByScene = 'Gravar cena por cena';
 const _how = 'Como vocês querem gravar?';
-final _leavePassage = roomLabelFor('leavePassage', 'pt');
+final _backToPassage = roomLabelFor('backToPassage', 'pt');
 final _personSign = circleLabelFor('needsPerson', 'pt');
 
 const _threeScenes = [
@@ -392,6 +392,14 @@ class _Home {
   });
 
   Future<void> relaunchIt() async {
+    await relaunchOnTheConversation();
+    await inRealTime(() async {
+      container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+      await _theRowsStand();
+    });
+  }
+
+  Future<void> relaunchOnTheConversation() async {
     late SalaHarness again;
     late ProviderContainer next;
     await tester.runAsync(() async {
@@ -406,7 +414,11 @@ class _Home {
     await tester.pumpWidget(_theHome(container));
     await inRealTime(() async {
       await _launch(container);
-      await _theRowsStand();
+      await waitFor(
+        'a sala voltar à conversa',
+        () => read.stage == SalaStage.conversa && !read.awaitingTheGuide,
+      );
+      await settle();
     });
   }
 
@@ -935,7 +947,7 @@ void main() {
 
       expect(find.text(_homeLine), findsOneWidget);
       expect(find.text(_thinking), findsNothing);
-      expect(byLabel(_leavePassage), findsOneWidget);
+      expect(byLabel(_backToPassage), findsOneWidget);
 
       await tester.pump(const Duration(seconds: 25));
       await _theAnswerSettles(tester);
@@ -1094,9 +1106,13 @@ void main() {
         final reads = it.takeReads;
         final clips = it.room.clipsFetched.length;
 
-        await it.relaunchIt();
+        await it.relaunchOnTheConversation();
 
         expect(it.takeReads, reads, reason: 'a sala foi lida de novo');
+        await it.inRealTime(() async {
+          it.sala.openTheEnsaioFinal();
+          await it._theRowsStand();
+        });
         expect(it.room.clipsFetched.length, clips);
         it.expectThreeRecordedRows();
       },
@@ -1127,7 +1143,7 @@ void main() {
 
     testWidgets(
       'leaves a row waiting in the Outbox unsent after a relaunch, and '
-      'recording it again goes up at the next pass',
+      'recording it again goes up after it on the team\'s tap',
       (tester) async {
         final it = await _reopenOverTheWholeSetAside(
           tester,
@@ -1145,7 +1161,29 @@ void main() {
         expect(it.onRow(2, byLabel('Gravar')), findsNothing);
 
         it.room.unreachableTake = null;
-        await it.recordAndKeep(2);
+        await it.inRealTime(() async {
+          it.sala.gravarACena(2);
+          await waitFor(
+            'a cena 2 gravar',
+            () => it.read.ensaio == EnsaioStatus.recording,
+          );
+          it.sala.gravarACena(2);
+          await waitFor(
+            'a gravação da cena 2 esperar o visto',
+            () => it.read.ensaio == EnsaioStatus.recorded,
+          );
+          it.sala.takeKeep();
+          await settle(const Duration(milliseconds: 300));
+        });
+        expect(
+          it.onRow(2, find.text('falhou — toque para tentar de novo')),
+          findsOneWidget,
+        );
+        await it.inRealTime(() async {
+          it.sala.enviarACena(2);
+          await waitFor('a cena 2 subir', () => it.passesOfPart(2).contains(3));
+          await settle(const Duration(milliseconds: 300));
+        });
 
         final passes = it.passesOfPart(2);
         expect(passes, contains(3));

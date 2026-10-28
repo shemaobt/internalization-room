@@ -101,8 +101,8 @@ void main() {
     },
   );
 
-  test('a Panorama whose opening fell with the network rests at the invite and '
-      'opens on the next tap', () async {
+  test('a Panorama whose opening fell with the network rests on the Choice and '
+      'opens on the next tap of its pill', () async {
     final harness = SalaHarness()..room.passages = _theBook;
     final container = harness.container();
     addTearDown(container.dispose);
@@ -112,17 +112,18 @@ void main() {
     await theChoiceOffersAPassage(container);
     harness.room.reachable = false;
 
-    notifier.openTheEntry(read().naRoda!.first);
+    final panorama = read().naRoda!.first;
+    notifier.openTheEntry(panorama);
     await waitFor(
       'the opening to be asked',
       () => harness.room.calls.contains('createSession'),
     );
     await waitFor('the opening to be let go', () => !read().awaitingTheGuide);
     await settle();
-    expect(read().station, isA<Panorama>());
+    expect(read().station, isA<Menu>());
     expect(read().voice, VoiceState.invite);
     harness.room.reachable = true;
-    notifier.panoramaTap();
+    notifier.openTheEntry(panorama);
     await waitFor(
       'the opening to be asked',
       () => harness.room.sessionsSpokenTo.isNotEmpty,
@@ -147,12 +148,11 @@ void main() {
 
     await notifier.hearAgain();
     await waitFor(
-      'the line to be lost on the network',
-      () => harness.voice.played.length > played,
+      'the line to be lost on the network twice',
+      () => harness.voice.played.length > played + 1 && read().needsPerson,
     );
     await settle();
 
-    expect(read().needsPerson, isFalse);
     expect(harness.room.sessionsSpokenTo, hasLength(1));
     expect(read().station, isA<Panorama>());
   });

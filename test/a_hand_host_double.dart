@@ -13,6 +13,7 @@ class AHandHost implements HandHost {
   VoiceState voice = VoiceState.invite;
   String? stationSessionId = 'sessao-1';
   bool atTheTeamsIdleTurn = true;
+  bool aQuestionRecords = false;
   int? noteOnItsWay;
 
   final List<String> written = [];
@@ -29,6 +30,7 @@ class AHandHost implements HandHost {
     voice: voice,
     stationSessionId: stationSessionId,
     atTheTeamsIdleTurn: atTheTeamsIdleTurn,
+    aQuestionRecords: aQuestionRecords,
     oldestUnheardReply: replies.where((reply) => reply.offered).firstOrNull,
     noteOnItsWay: noteOnItsWay,
   );

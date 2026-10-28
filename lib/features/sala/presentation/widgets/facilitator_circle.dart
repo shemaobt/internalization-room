@@ -1,15 +1,20 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/halt.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
+import 'circle_glyph.dart';
 import 'motion.dart';
 
 enum Tongue { guide, motherTongue, bridge }
 
 const facilitatorCircleSize = 160.0;
+
+double herCircleSize(Size screen, int vw, double most) =>
+    math.min(screen.width * vw / 100, most);
 
 bool isTeamTalk({required bool peerCue, required VoiceState voice}) =>
     peerCue && (voice == VoiceState.invite || voice == VoiceState.done);
@@ -22,15 +27,7 @@ class FacilitatorCircle extends StatelessWidget {
   final bool peerCue;
   final bool answersATouch;
   final bool enabled;
-
-  /// What the warning mark says to VoiceOver, or null while the server's last word
-  /// was silence rather than a warning.
-  ///
-  /// The room has no text on screen, so a warning is a small mark beside the disc,
-  /// never a colour drawn over it: the disc keeps saying the voice. Read only while
-  /// neither [halt] blocks nor [voice] is a halted state — a room the team cannot use yet is
-  /// still a stop, whatever the last warning said.
-  final String? warning;
+  final bool canvas;
 
   /// Her line after a telling the room made nothing of, said to VoiceOver by a mark on
   /// the other side of the disc, or null while no telling came back empty.
@@ -50,7 +47,7 @@ class FacilitatorCircle extends StatelessWidget {
     this.peerCue = false,
     this.answersATouch = true,
     this.enabled = true,
-    this.warning,
+    this.canvas = false,
     this.notUnderstood,
     this.halt = const NoHalt(),
     this.opacity = 1,
@@ -60,6 +57,9 @@ class FacilitatorCircle extends StatelessWidget {
   bool get _teamTalk => isTeamTalk(peerCue: peerCue, voice: voice);
 
   bool get _noteBlue => noteMode && voice != VoiceState.done;
+
+  bool get _herNote =>
+      noteMode && (voice == VoiceState.invite || voice == VoiceState.listening);
 
   @override
   Widget build(BuildContext context) {
@@ -73,9 +73,62 @@ class FacilitatorCircle extends StatelessWidget {
   Widget _circle(BuildContext context, double opacity) {
     final colors = SalaColors.of(context);
     final still = MediaQuery.disableAnimationsOf(context);
+    final drawing = Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        if (!_halted && canvas && !still && voice == VoiceState.listening)
+          ..._herRipples(colors),
+        if (canvas && voice == VoiceState.thinking)
+          KeyedSubtree(
+            key: const ValueKey(VoiceState.thinking),
+            child: _herArcs(colors, still),
+          ),
+        if (!_halted && canvas && voice == VoiceState.speaking) _herGlow(still),
+        if (canvas)
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 1400),
+            switchInCurve: Curves.ease,
+            switchOutCurve: Curves.ease.flipped,
+            transitionBuilder: (child, fade) =>
+                FadeTransition(opacity: fade, child: child),
+            child: KeyedSubtree(
+              key: ValueKey((voice, _herNote)),
+              child: _body(context, colors, still),
+            ),
+          )
+        else
+          _body(context, colors, still),
+        if (!_halted && !canvas && voice == VoiceState.speaking)
+          ..._ripples(colors),
+        if (!_halted && !canvas && voice == VoiceState.listening)
+          _listenRing(colors),
+        if (!_halted && !canvas && voice == VoiceState.listening)
+          ..._gatheringIn(),
+        if (notUnderstood != null && !_halted)
+          _notUnderstoodMark(notUnderstood!),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 1000),
+          child: switch (_modeGlyph) {
+            null => const SizedBox.shrink(),
+            final glyph => Opacity(
+              key: ValueKey(glyph),
+              opacity: 0.92,
+              child: CustomPaint(
+                size: Size.square(
+                  size * (glyph == CircleGlyph.hand ? 0.36 : 0.6),
+                ),
+                painter: CircleGlyphPainter(glyph: glyph, ink: _herInk(colors)),
+              ),
+            ),
+          },
+        ),
+      ],
+    );
     return AnimatedOpacity(
       opacity: opacity,
-      duration: const Duration(milliseconds: 500),
+      duration: Duration(milliseconds: canvas ? 1400 : 500),
+      curve: canvas ? Curves.ease : Curves.linear,
       child: Semantics(
         button: true,
         enabled: enabled ? null : false,
@@ -86,33 +139,14 @@ class FacilitatorCircle extends StatelessWidget {
           child: SizedBox(
             width: size,
             height: size,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                _body(colors, still),
-                if (!_halted && voice == VoiceState.speaking)
-                  ..._ripples(colors),
-                if (!_halted && voice == VoiceState.listening)
-                  _listenRing(colors),
-                if (!_halted && voice == VoiceState.listening)
-                  ..._gatheringIn(),
-                if (warning != null && !_halted) _warningMark(warning!),
-                if (notUnderstood != null && !_halted)
-                  _notUnderstoodMark(notUnderstood!),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 1000),
-                  child: _modeGlyph == null
-                      ? const SizedBox.shrink()
-                      : Icon(
-                          _modeGlyph,
-                          key: ValueKey(_modeGlyph),
-                          size: size * 0.3,
-                          color: ShemaBrand.branco,
-                        ),
-                ),
-              ],
-            ),
+            child: canvas
+                ? AnimatedScale(
+                    scale: !_halted && voice == VoiceState.speaking ? 0.9 : 1,
+                    duration: const Duration(milliseconds: 1400),
+                    curve: Curves.ease,
+                    child: drawing,
+                  )
+                : drawing,
           ),
         ),
       ),
@@ -155,24 +189,24 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   /// Whether the room is already showing a stop for this voice.
-  ///
-  /// A warning is a lesser thing than any of these — it asks somebody to come and
-  /// look, and refuses nothing — so it never draws over a state that has already
-  /// told the team to stop.
   bool get _halted => halt is Blocking;
 
-  IconData? get _modeGlyph {
-    if (_halted) return null;
-    if (noteMode) return LucideIcons.hand;
-    if (_teamTalk) return LucideIcons.users;
-    // A voice that is only the room's own — speaking, inviting, listening, done — draws
-    // no mark: the colour and the breath already say it, and the loudspeaker read as a
-    // control the team could press. Only a mode says itself with a glyph.
-    return null;
+  CircleGlyph? get _modeGlyph {
+    if (_halted || !canvas) return null;
+    if (noteMode) return CircleGlyph.hand;
+    if (_teamTalk) return CircleGlyph.team;
+    if (voice == VoiceState.thinking) return null;
+    return CircleGlyph.sound;
   }
 
-  Widget _body(SalaColors colors, bool still) {
+  Color _herInk(SalaColors colors) {
+    if (noteMode) return colors.azul;
+    return colors.telha;
+  }
+
+  Widget _body(BuildContext context, SalaColors colors, bool still) {
     if (!answersATouch) return _haltedBody(colors);
+    if (canvas && _herNote) return _herRing(context, colors);
     if (_teamTalk) return _liveBreath(colors);
 
     switch (voice) {
@@ -180,6 +214,7 @@ class FacilitatorCircle extends StatelessWidget {
       case VoiceState.done:
         return _liveBreath(colors);
       case VoiceState.listening:
+        if (canvas) return _herRing(context, colors);
         return _disc(
           gradient: tongue == Tongue.motherTongue
               ? BeadStyles.wood
@@ -197,8 +232,9 @@ class FacilitatorCircle extends StatelessWidget {
           ],
         );
       case VoiceState.thinking:
-        return _waiting(colors, still);
+        return _waiting(context, colors, still);
       case VoiceState.speaking:
+        if (canvas) return _herRing(context, colors);
         return Loop(
           period: const Duration(milliseconds: 3400),
           builder: (context, t) =>
@@ -248,8 +284,21 @@ class FacilitatorCircle extends StatelessWidget {
     ],
   );
 
-  Widget _waiting(SalaColors colors, bool still) {
-    final body = _disc(
+  Widget _waiting(BuildContext context, SalaColors colors, bool still) {
+    if (canvas) {
+      return _thinkBreath(
+        still,
+        (glowing) => Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            Opacity(opacity: glowing, child: _herLight(.16, .62)),
+            _herRing(context, colors),
+          ],
+        ),
+      );
+    }
+    final clay = _disc(
       gradient: BeadStyles.clay(colors),
       shadows: const [
         BoxShadow(
@@ -259,51 +308,76 @@ class FacilitatorCircle extends StatelessWidget {
         ),
       ],
     );
-    final glow = RepaintBoundary(
-      child: CustomPaint(
-        size: Size.square(size),
-        painter: GlowPainter(color: colors.telha.withValues(alpha: 0.16)),
-      ),
-    );
-    Widget over(Widget light) => Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [body, light],
-    );
+    return still ? clay : _thinkBreath(false, (_) => clay);
+  }
+
+  Widget _thinkBreath(bool still, Widget Function(double glowing) inside) {
     if (still) {
       return Loop(
         period: const Duration(milliseconds: 2400),
         reducible: false,
         builder: (context, t) =>
-            Opacity(opacity: 0.72 + 0.24 * t, child: over(glow)),
+            Opacity(opacity: 0.72 + 0.24 * t, child: inside(1)),
       );
     }
     return Loop(
-      period: const Duration(milliseconds: 2400),
+      period: Duration(milliseconds: canvas ? 2400 : 4500),
       builder: (context, t) => Transform.scale(
         scale: 0.97 + 0.06 * t,
         child: Opacity(
           opacity: 0.82 + 0.18 * t,
-          child: over(Opacity(opacity: 0.45 + 0.55 * t, child: glow)),
+          child: inside(0.45 + 0.55 * t),
         ),
       ),
     );
   }
 
-  Widget _warningMark(String label) =>
-      _mark(label, right: 0, gradient: BeadStyles.verde);
+  Widget _herArcs(SalaColors colors, bool still) => _thinkBreath(
+    still,
+    (_) => Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        _arc(
+          const Duration(milliseconds: 1600),
+          1,
+          still,
+          ArcPainter(
+            side: size * 1.14,
+            stroke: 4,
+            top: colors.telha,
+            right: colors.telha.withValues(alpha: 0.35),
+          ),
+        ),
+        _arc(
+          const Duration(milliseconds: 2600),
+          -1,
+          still,
+          ArcPainter(
+            side: size * 1.26,
+            stroke: 2,
+            bottom: colors.telha.withValues(alpha: 0.55),
+          ),
+        ),
+      ],
+    ),
+  );
 
-  Widget _notUnderstoodMark(String label) =>
-      _mark(label, left: 0, gradient: BeadStyles.azul);
+  Widget _arc(Duration period, double way, bool still, ArcPainter painter) {
+    final turning = Spin(
+      period: period,
+      builder: (context, t) => Transform.rotate(
+        angle: way * 2 * math.pi * t,
+        child: RepaintBoundary(
+          child: CustomPaint(size: Size.square(size), painter: painter),
+        ),
+      ),
+    );
+    return still ? Opacity(opacity: 0.9, child: turning) : turning;
+  }
 
-  Widget _mark(
-    String label, {
-    double? left,
-    double? right,
-    required Gradient gradient,
-  }) => Positioned(
-    left: left,
-    right: right,
+  Widget _notUnderstoodMark(String label) => Positioned(
+    left: 0,
     bottom: 0,
     child: Semantics(
       container: true,
@@ -313,7 +387,7 @@ class FacilitatorCircle extends StatelessWidget {
         height: size * 0.22,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: gradient,
+          gradient: BeadStyles.azul,
           boxShadow: BeadStyles.matte,
         ),
       ),
@@ -321,9 +395,170 @@ class FacilitatorCircle extends StatelessWidget {
   );
 
   Widget _liveBreath(SalaColors colors) => Loop(
-    period: const Duration(milliseconds: 4600),
-    builder: (context, t) =>
-        Transform.scale(scale: 1 + 0.045 * t, child: _liveDisc(colors)),
+    period: Duration(milliseconds: canvas ? 6500 : 6000),
+    builder: (context, t) => Transform.scale(
+      scale: 1 + 0.035 * t,
+      child: canvas ? _herRing(context, colors) : _liveDisc(colors),
+    ),
+  );
+
+  Widget _herRing(BuildContext context, SalaColors colors) {
+    final (fill, stops) = _herFill(
+      Theme.of(context).brightness == Brightness.dark,
+    );
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: _herEdge(colors), width: 1.5),
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.08),
+          radius: 0.7359,
+          colors: fill,
+          stops: stops,
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _herRipples(SalaColors colors) {
+    Widget ring(double phase) => Ripple(
+      period: const Duration(milliseconds: 3200),
+      phase: phase,
+      curve: Curves.linear,
+      builder: (context, t) => Transform.scale(
+        scale: 0.62 + 0.88 * Curves.easeOut.transform(t),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: colors.azul.withValues(alpha: _ebb(t)),
+              width: 1.2,
+            ),
+          ),
+        ),
+      ),
+    );
+    return [ring(0), ring(0.665625), ring(0.33125)];
+  }
+
+  Widget _herLight(double alpha, double reach) => OverflowBox(
+    maxWidth: size * 1.12,
+    maxHeight: size * 1.12,
+    child: Container(
+      width: size * 1.12,
+      height: size * 1.12,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          radius: 0.7071,
+          colors: [
+            Color.fromRGBO(190, 74, 1, alpha),
+            const Color.fromRGBO(190, 74, 1, 0),
+          ],
+          stops: [0, reach],
+        ),
+      ),
+    ),
+  );
+
+  Widget _herGlow(bool still) {
+    final light = _herLight(.20, .66);
+    if (still) return light;
+    return Loop(
+      period: const Duration(milliseconds: 3400),
+      builder: (context, t) => Opacity(
+        opacity: 0.55 + 0.45 * t,
+        child: Transform.scale(scale: 0.98 + 0.08 * t, child: light),
+      ),
+    );
+  }
+
+  double _ebb(double t) => t <= 0.8
+      ? 0.5 - 0.44 * Curves.easeOut.transform(t / 0.8)
+      : 0.06 - 0.06 * Curves.easeOut.transform((t - 0.8) / 0.2);
+
+  Color _herEdge(SalaColors colors) {
+    if (_herNote) return colors.azul;
+    if (_teamTalk) return colors.telha;
+    switch (voice) {
+      case VoiceState.invite:
+      case VoiceState.done:
+        return colors.telha;
+      case VoiceState.listening:
+        return colors.azul;
+      case VoiceState.thinking:
+        return colors.areia;
+      case VoiceState.speaking:
+        return const Color.fromRGBO(199, 194, 159, .5);
+    }
+  }
+
+  (List<Color>, List<double>) _herFill(bool dark) {
+    if (_herNote) {
+      return (
+        const [
+          Color.fromRGBO(137, 170, 163, .16),
+          Color.fromRGBO(199, 194, 159, .12),
+          Color.fromRGBO(199, 194, 159, .04),
+        ],
+        const [0, .62, 1],
+      );
+    }
+    if (_teamTalk) return _inviteFill;
+    switch (voice) {
+      case VoiceState.invite:
+        return _inviteFill;
+      case VoiceState.listening:
+        return (
+          const [
+            Color.fromRGBO(137, 170, 163, .14),
+            Color.fromRGBO(199, 194, 159, .12),
+            Color.fromRGBO(199, 194, 159, 0),
+          ],
+          const [0, .64, 1],
+        );
+      case VoiceState.speaking:
+        return (
+          const [
+            Color.fromRGBO(190, 74, 1, .06),
+            Color.fromRGBO(190, 74, 1, 0),
+          ],
+          const [0, .6],
+        );
+      case VoiceState.done:
+      case VoiceState.thinking:
+        if (dark) {
+          return (
+            const [
+              Color.fromRGBO(214, 97, 42, .16),
+              Color.fromRGBO(110, 106, 87, .14),
+              Color.fromRGBO(110, 106, 87, .04),
+            ],
+            const [0, .62, 1],
+          );
+        }
+        return (
+          const [
+            Color.fromRGBO(190, 74, 1, .10),
+            Color.fromRGBO(199, 194, 159, .16),
+            Color.fromRGBO(199, 194, 159, .05),
+          ],
+          const [0, .62, 1],
+        );
+    }
+  }
+
+  static const _inviteFill = (
+    [
+      Color.fromRGBO(190, 74, 1, .14),
+      Color.fromRGBO(199, 194, 159, .18),
+      Color.fromRGBO(199, 194, 159, .04),
+    ],
+    [0.0, .6, 1.0],
   );
 
   /// A circle that answers no touch, and is still running: slower and shallower than an
@@ -415,26 +650,46 @@ class FacilitatorCircle extends StatelessWidget {
   }
 }
 
-class GlowPainter extends CustomPainter {
-  final Color color;
+class ArcPainter extends CustomPainter {
+  final double side;
+  final double stroke;
+  final Color? top;
+  final Color? right;
+  final Color? bottom;
 
-  const GlowPainter({required this.color});
+  const ArcPainter({
+    required this.side,
+    required this.stroke,
+    this.top,
+    this.right,
+    this.bottom,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final disc = Rect.fromCircle(
+    final ring = Rect.fromCenter(
       center: size.center(Offset.zero),
-      radius: size.shortestSide / 2,
+      width: side - stroke,
+      height: side - stroke,
     );
-    canvas.drawOval(
-      disc,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [color, color.withValues(alpha: 0)],
-        ).createShader(disc),
-    );
+    final pen = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+    for (final (color, start) in [
+      (top, -0.75 * math.pi),
+      (right, -0.25 * math.pi),
+      (bottom, 0.25 * math.pi),
+    ]) {
+      if (color == null) continue;
+      canvas.drawArc(ring, start, math.pi / 2, false, pen..color = color);
+    }
   }
 
   @override
-  bool shouldRepaint(GlowPainter old) => old.color != color;
+  bool shouldRepaint(ArcPainter old) =>
+      old.side != side ||
+      old.stroke != stroke ||
+      old.top != top ||
+      old.right != right ||
+      old.bottom != bottom;
 }

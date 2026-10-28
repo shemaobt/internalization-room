@@ -37,11 +37,7 @@ AnsweringEvent _stampedAnswer(
   LineNotSaid(:final line) => LineNotSaid(line, generation: generation),
   PlayerOpened() => PlayerOpened(generation: generation),
   PlayerEnded() => PlayerEnded(generation: generation),
-  PlayerFailed(:final source, :final sounding) => PlayerFailed(
-    source,
-    sounding: sounding,
-    generation: generation,
-  ),
+  PlayerFailed(:final source) => PlayerFailed(source, generation: generation),
   MicOpened(:final owner, :final take) => MicOpened(
     owner,
     take: take,
@@ -85,6 +81,8 @@ AnsweringEvent _stampedAnswer(
     generation: generation,
   ),
   TheSceneDiskFailed() => TheSceneDiskFailed(generation: generation),
+  TheSceneWentAlready() => TheSceneWentAlready(generation: generation),
+  TheSceneSendRefused() => TheSceneSendRefused(generation: generation),
   TheCallWasRefused() => TheCallWasRefused(generation: generation),
   TheCallMetAClosedPassage() => TheCallMetAClosedPassage(
     generation: generation,

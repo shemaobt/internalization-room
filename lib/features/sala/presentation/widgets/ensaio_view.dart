@@ -8,6 +8,7 @@ import '../../domain/bt_finding.dart';
 import '../../domain/ensaio_final_plan.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/kept_take.dart';
+import '../../domain/machine.dart' show TheKeep;
 import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import '../../domain/station.dart';
@@ -16,10 +17,12 @@ import 'ensaio_final_plan_view.dart';
 import 'external_check_button.dart';
 import 'facilitator_circle.dart';
 import 'grain_choice_view.dart';
+import 'listeners_line.dart';
 import 'motion.dart';
 import 'rehearsal_sheet.dart';
 import 'saved_screen.dart';
 import 'stage_heading.dart';
+import 'stop_control.dart';
 
 class EnsaioView extends ConsumerWidget {
   const EnsaioView({super.key});
@@ -119,6 +122,7 @@ class EnsaioView extends ConsumerWidget {
                             onRecord: () => notifier.gravarACena(row.number),
                             onListen: () => notifier.ouvirACena(row.number),
                             onSend: () => notifier.enviarACena(row.number),
+                            onStop: notifier.stopTheSend,
                             onBringBack: () =>
                                 notifier.trazerDeVoltaAsTraducoes(row.number),
                           ),
@@ -146,13 +150,10 @@ class EnsaioView extends ConsumerWidget {
                   ],
                   const SizedBox(height: 24),
                   FacilitatorCircle(
-                    size: facilitatorCircleSize,
+                    size: herCircleSize(MediaQuery.sizeOf(context), 46, 180),
                     halt: session.halt,
                     voice: _voice(session),
                     tongue: Tongue.motherTongue,
-                    warning: session.warning
-                        ? warningNoticeLabelFor(language)
-                        : null,
                     semanticLabel: _circleLabel(session, language),
                     enabled: !frozen,
                     onTap: notifier.ensaioTap,
@@ -230,6 +231,15 @@ class EnsaioView extends ConsumerWidget {
                       style: TextStyle(color: colors.telha, fontSize: 15),
                     ),
                   ],
+                  if (session.btAviso == BtAviso.checagemFalhou &&
+                      session.stage == SalaStage.ensaio) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      retroLabelFor('externalCheckFailed', language),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: colors.telha, fontSize: 15),
+                    ),
+                  ],
                   if (session.approvedOnTheHome case final aprovado?) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -240,6 +250,7 @@ class EnsaioView extends ConsumerWidget {
                       ),
                       style: TextStyle(color: colors.ink, fontSize: 17),
                     ),
+                    ListenersLine(aprovado.listeners),
                     const SizedBox(height: 12),
                     const ExternalCheckButton(),
                   ],
@@ -341,6 +352,7 @@ class _SceneRowView extends StatelessWidget {
   final VoidCallback onRecord;
   final VoidCallback onListen;
   final VoidCallback onSend;
+  final void Function(TheKeep keep) onStop;
   final VoidCallback onBringBack;
 
   const _SceneRowView({
@@ -352,6 +364,7 @@ class _SceneRowView extends StatelessWidget {
     required this.onRecord,
     required this.onListen,
     required this.onSend,
+    required this.onStop,
     required this.onBringBack,
   });
 
@@ -452,7 +465,9 @@ class _SceneRowView extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (recording)
+                if (row.beyondTheScenes)
+                  const SizedBox.shrink()
+                else if (recording)
                   _control(
                     'stop',
                     _glyph(BorderRadius.circular(2)),
@@ -467,17 +482,19 @@ class _SceneRowView extends StatelessWidget {
                     mood,
                   )
                 else ...[
-                  _control(
-                    'listen',
-                    Icon(
-                      playing ? LucideIcons.pause : LucideIcons.play,
-                      size: 18,
-                      color: ShemaBrand.branco,
+                  if (!row.playsTheGoneTake) ...[
+                    _control(
+                      'listen',
+                      Icon(
+                        playing ? LucideIcons.pause : LucideIcons.play,
+                        size: 18,
+                        color: ShemaBrand.branco,
+                      ),
+                      onListen,
+                      listens,
                     ),
-                    onListen,
-                    listens,
-                  ),
-                  const SizedBox(width: 12),
+                    const SizedBox(width: 12),
+                  ],
                   _control(
                     'recordAgain',
                     const Icon(
@@ -491,7 +508,7 @@ class _SceneRowView extends StatelessWidget {
                 ],
               ],
             ),
-            ?_unsentControl(row.unsent, cena, colors),
+            ?_takeState(recording, cena, colors),
             ?_bringBackControl(cena, colors),
             ?_bringBackFailed(colors),
             ?_sheetDoor(cena, colors),
@@ -513,42 +530,81 @@ class _SceneRowView extends StatelessWidget {
     return null;
   }
 
-  Widget? _unsentControl(UnsentPart? unsent, String cena, SalaColors colors) {
-    if (unsent == null) return null;
-    final (visible, aria) = switch (unsent) {
-      UnsentPart(fromAnEarlierVisit: true, :final length) => (
+  Widget? _takeState(bool recording, String cena, SalaColors colors) {
+    String words(String key) => recordingHomeLabelFor(key, language);
+    final inTheAir = row.inTheAir;
+    final said = switch (row.unsent) {
+      _ when recording => _said(words('recording'), colors),
+      _ when inTheAir != null => Row(
+        children: [
+          _said(words('sending'), colors),
+          StopControl(
+            key: ValueKey(inTheAir.row),
+            since: inTheAir.keep.since,
+            label: words('stopSending'),
+            aria: words('stopSendingAria'),
+            color: colors.telha,
+            onStop: () => onStop(inTheAir.keep),
+          ),
+        ],
+      ),
+      UnsentPart(fromAnEarlierVisit: true, :final length) => _tap(
         [
           cena,
           if (length != null) ' · ${minutesAndSecondsOf(length)}',
-          ' — ${recordingHomeLabelFor('sendNow', language)}',
+          ' — ${words('sendNow')}',
         ].join(),
-        recordingHomeLabelFor('sendAria', language),
+        words('sendAria'),
+        onSend,
+        colors,
       ),
-      UnsentPart(failed: true) => (
-        recordingHomeLabelFor('failed', language),
-        recordingHomeLabelFor('retryAria', language),
+      UnsentPart(failure: SendFailure.failed) => _tap(
+        words('failed'),
+        words('retryAria'),
+        onSend,
+        colors,
       ),
-      _ => (null, null),
+      UnsentPart(failure: SendFailure.gone) => _said(words('lost'), colors),
+      UnsentPart(failure: SendFailure.tooLarge) => _said(
+        words('tooLarge'),
+        colors,
+      ),
+      UnsentPart(failure: SendFailure.refused) => _said(
+        words('refused'),
+        colors,
+      ),
+      UnsentPart() => _said(words('sending'), colors),
+      null when row.saved => _said('✓ ${words('saved')}', colors),
+      null => null,
     };
-    if (visible == null || aria == null) return null;
+    if (said == null) return null;
     return Padding(
       padding: const EdgeInsets.only(left: 32, top: 4),
-      child: Semantics(
-        button: true,
-        enabled: session.bringingBack == null ? null : false,
-        label: aria,
-        onTap: onSend,
-        excludeSemantics: true,
-        child: TextButton(
-          onPressed: onSend,
-          child: Text(
-            visible,
-            style: TextStyle(color: colors.telha, fontSize: 15),
-          ),
-        ),
-      ),
+      child: said,
     );
   }
+
+  static Widget _said(String words, SalaColors colors) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    child: Text(words, style: TextStyle(color: colors.telha, fontSize: 15)),
+  );
+
+  Widget _tap(
+    String visible,
+    String aria,
+    VoidCallback onTap,
+    SalaColors colors,
+  ) => Semantics(
+    button: true,
+    enabled: session.bringingBack == null ? null : false,
+    label: aria,
+    onTap: onTap,
+    excludeSemantics: true,
+    child: TextButton(
+      onPressed: onTap,
+      child: Text(visible, style: TextStyle(color: colors.telha, fontSize: 15)),
+    ),
+  );
 
   Widget? _sheetDoor(String cena, SalaColors colors) {
     final home = this.home;

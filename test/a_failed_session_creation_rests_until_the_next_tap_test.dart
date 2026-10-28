@@ -72,7 +72,7 @@ Future<Passagem> _theChoiceOffers(
   return _read(sala).naRoda!.firstWhere(isIt);
 }
 
-Future<void> _chooseP01(_Sala sala, RoomFailure creation) async {
+Future<Passagem> _chooseP01(_Sala sala, RoomFailure creation) async {
   unawaited(sala.notifier.abrirEscolha());
   final chosen = await _theChoiceOffers(
     sala,
@@ -80,6 +80,14 @@ Future<void> _chooseP01(_Sala sala, RoomFailure creation) async {
   );
   sala.harness.room.failCreateOnceWith = creation;
   sala.notifier.openTheEntry(chosen);
+  return chosen;
+}
+
+Future<void> _enterP01Without(_Sala sala, RoomFailure creation) async {
+  unawaited(sala.notifier.abrirEscolha());
+  await _theChoiceOffers(sala, (entry) => entry.pericope == 'P01');
+  sala.harness.room.failCreateOnceWith = creation;
+  unawaited(sala.notifier.goConversa(book: 'Ruth', pericope: 'P01'));
   await _restsAtTheInvite(sala);
 }
 
@@ -112,27 +120,37 @@ void main() {
   setUpAll(() => dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local'));
 
   testWidgets(
-    'a 500 on the session\'s creation rests at the invite and the next tap '
-    'asks again',
+    'a 500 on the session\'s creation from the Choice leaves the team on the '
+    'Choice, and the same pill asks again',
     (tester) async {
       final sala = await _theSala(tester, _aRoomThatWaitsForTheTap());
-      await _chooseP01(
+      final chosen = await _chooseP01(
         sala,
         RoomClient.classify(500, const [], asksForTheSession: false)!,
       );
+      await _until(
+        sala,
+        'the Choice to come back',
+        () => _creates(sala) == 1 && _read(sala).entriesOpen,
+      );
 
-      _restsWithoutAHalt(sala);
-      await _theNextTapOpens(sala, sala.notifier.conversaTap);
+      expect(
+        _read(sala).stage,
+        SalaStage.escolha,
+        reason: 'a equipe ficava no círculo de uma passagem sem sessão',
+      );
+      expect(_read(sala).needsPerson, isFalse);
+      await _theNextTapOpens(sala, () => sala.notifier.openTheEntry(chosen));
       closeTheRoom(sala.container);
     },
   );
 
   testWidgets(
-    'from that rest ≡ and the chevron rest the same way and a tap asks for '
-    'the session',
+    'from a passage entered with no session ≡ and the chevron rest the same '
+    'way and a tap asks for the session',
     (tester) async {
       final sala = await _theSala(tester, _aRoomThatWaitsForTheTap());
-      await _chooseP01(sala, const NetworkFailed('sem rede'));
+      await _enterP01Without(sala, const NetworkFailed('sem rede'));
 
       sala.notifier.leaveThePassage();
       await tester.pump(const Duration(seconds: 2));

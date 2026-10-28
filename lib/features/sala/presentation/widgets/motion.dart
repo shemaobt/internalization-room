@@ -141,6 +141,7 @@ class _LoopState extends State<Loop> {
 class Ripple extends StatefulWidget {
   final Duration period;
   final double phase;
+  final Curve curve;
   final Widget Function(BuildContext context, double t) builder;
 
   const Ripple({
@@ -148,6 +149,7 @@ class Ripple extends StatefulWidget {
     required this.period,
     required this.builder,
     this.phase = 0,
+    this.curve = Curves.easeOut,
   });
 
   @override
@@ -208,7 +210,58 @@ class _RippleState extends State<Ripple> {
     final start = _start ??= now;
     final sweep =
         (_phase + (now - start).inMicroseconds / _period.inMicroseconds) % 1;
-    return widget.builder(context, Curves.easeOut.transform(sweep));
+    return widget.builder(context, widget.curve.transform(sweep));
+  }
+}
+
+class Spin extends StatefulWidget {
+  final Duration period;
+  final Widget Function(BuildContext context, double t) builder;
+
+  const Spin({super.key, required this.period, required this.builder});
+
+  @override
+  State<Spin> createState() => _SpinState();
+}
+
+class _SpinState extends State<Spin> {
+  bool _joined = false;
+  Duration? _start;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final moving = !MediaQuery.disableAnimationsOf(context);
+    if (moving == _joined) return;
+    _joined = moving;
+    _start = null;
+    if (moving) {
+      _ambient.join(_redraw);
+    } else {
+      _ambient.leave(_redraw);
+    }
+  }
+
+  void _redraw() => setState(() {});
+
+  @override
+  void dispose() {
+    if (_joined) _ambient.leave(_redraw);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_joined ||
+        SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
+      return widget.builder(context, 0);
+    }
+    final now = SchedulerBinding.instance.currentFrameTimeStamp;
+    final start = _start ??= now;
+    return widget.builder(
+      context,
+      (now - start).inMicroseconds / widget.period.inMicroseconds % 1,
+    );
   }
 }
 

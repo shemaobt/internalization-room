@@ -3,21 +3,21 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
+import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
 
 const _reply = HandReply(id: 'r1', audioUrl: '/resposta/r1');
 const _panorama = Passagem(
@@ -59,7 +59,7 @@ class _Room {
   String? get handLabel => _labelWithin(_hand);
 
   bool get circleHoldsTheHand => find
-      .descendant(of: _circle, matching: find.byIcon(LucideIcons.hand))
+      .descendant(of: _circle, matching: paintedGlyph(CircleGlyph.hand))
       .evaluate()
       .isNotEmpty;
 
@@ -69,7 +69,11 @@ class _Room {
       )
       .map((box) => box.decoration)
       .whereType<BoxDecoration>()
-      .any((paint) => paint.gradient == BeadStyles.azul);
+      .any(
+        (paint) =>
+            paint.gradient != null &&
+            paint.border?.top.color == const Color(0xFF89AAA3),
+      );
 
   bool isSeen(Finder what) {
     if (what.evaluate().isEmpty) return false;
@@ -255,6 +259,93 @@ void main() {
     await room.nothingReachesTheFacilitator();
   });
 
+  testWidgets('While the question records the hand stays drawn at its note '
+      'look, not hidden as at the team\'s turn', (tester) async {
+    final room = await _inConversa(tester);
+    await room.theKnotRecords();
+    await room.beat(300);
+
+    expect(
+      room._hand,
+      findsOneWidget,
+      reason: 'a mão sumia enquanto a pergunta gravava',
+    );
+    expect(
+      tester.widget<HandButton>(room._hand).noteMode,
+      isTrue,
+      reason: 'a mão voltava ao ar apagado do convite',
+    );
+  });
+
+  testWidgets('While the question records a tap on the hand throws it away: '
+      'the microphone closes, nothing reaches the facilitator and nothing is '
+      'said', (tester) async {
+    final room = await _inConversa(tester);
+    await room.theKnotRecords();
+    await room.beat(300);
+    final said = [...room.harness.voice.played];
+    final lines = [...room.harness.voice.fixedLines];
+
+    await tester.tap(room._hand);
+    await room.until(
+      'o microfone fechar',
+      () => room.estado.voice == VoiceState.invite,
+    );
+    await room.beat(600);
+
+    expect(
+      room.harness.recorder.deleted,
+      [room.harness.recorder.lastPath],
+      reason: 'a pergunta pela metade ficava no aparelho',
+    );
+    expect(room.estado.noteMode, isFalse, reason: 'a mão seguia armada');
+    expect(
+      room.harness.inbox.questionsSent,
+      isEmpty,
+      reason: 'meia pergunta chegava ao facilitador',
+    );
+    expect(room.harness.voice.played, said);
+    expect(room.harness.voice.fixedLines, lines);
+    closeTheRoom(room.container);
+  });
+
+  testWidgets('A reply that arrives while the question records puts its dot on '
+      'the hand, as hers, but does not take the tap: the question is thrown '
+      'away and the reply still waits', (tester) async {
+    final room = await _inConversa(tester);
+    await room.theKnotRecords();
+    room.harness.inbox.replies = const [_reply];
+    room.sala.lookForReplies();
+    await room.until('a resposta chegar', () => room.estado.hasUnheardReply);
+
+    expect(
+      tester.widget<HandButton>(room._hand).hasUnheardReply,
+      isTrue,
+      reason: 'a mão escondia o ponto da resposta que a dela mostra',
+    );
+    expect(room.handLabel, 'Ouvir a resposta do facilitador');
+
+    await tester.tap(room._hand);
+    await room.until(
+      'o microfone fechar',
+      () => room.estado.voice != VoiceState.listening,
+    );
+    await room.beat(600);
+
+    expect(
+      room.harness.voice.played,
+      isNot(contains(_reply.audioUrl)),
+      reason: 'a resposta tocava por cima do microfone aberto',
+    );
+    expect(room.harness.recorder.deleted, [
+      room.harness.recorder.lastPath,
+    ], reason: 'a pergunta seguia gravando');
+    expect(room.estado.noteMode, isFalse);
+    expect(room.estado.hasUnheardReply, isTrue);
+    expect(room.harness.inbox.questionsSent, isEmpty);
+    closeTheRoom(room.container);
+  });
+
   testWidgets('In note mode tapping the menu abandons the question: nothing '
       'reaches the facilitator', (tester) async {
     final room = await _inConversa(tester);
@@ -310,15 +401,15 @@ void main() {
     expect(room.handLabel, 'Ouvir a resposta do facilitador');
   });
 
-  testWidgets('In an English session the hand reads "Leave a question for the '
+  testWidgets('In an English session the hand reads "Leave a question for your '
       'facilitator"', (tester) async {
     final room = await _inConversa(tester, language: 'en');
 
-    expect(room.handLabel, 'Leave a question for the facilitator');
+    expect(room.handLabel, 'Leave a question for your facilitator');
   });
 
   testWidgets('In an English session with a reply waiting the hand reads "Hear '
-      'the facilitator\'s answer"', (tester) async {
+      'your facilitator\'s reply"', (tester) async {
     final room = await _inConversa(
       tester,
       given: SalaHarness(lingua: 'en', replies: const [_reply]),
@@ -326,24 +417,30 @@ void main() {
     );
     await room.until('a resposta chegar', () => room.estado.hasUnheardReply);
 
-    expect(room.handLabel, 'Hear the facilitator\'s answer');
+    expect(room.handLabel, 'Hear your facilitator\'s reply');
   });
 
   for (final (language, words) in [
-    ('pt', 'Tocar ao terminar'),
-    ('en', 'Tap when you are done'),
+    ('pt', 'Toque para falar'),
+    ('en', 'Tap to speak'),
   ]) {
-    testWidgets('While the question records the circle reads «$words» '
-        '($language)', (tester) async {
+    testWidgets('While the question records the circle still reads «$words» '
+        '($language), never a recording line', (tester) async {
       final room = await _inConversa(tester, language: language);
       await room.theKnotRecords();
 
-      expect(byLabel(words), findsOneWidget);
+      expect(
+        onTheCircle(words),
+        findsOneWidget,
+        reason:
+            'o círculo trocava para um rótulo de gravação que o dela não '
+            'tem; o dela diz sempre o mesmo',
+      );
     });
   }
 
   for (final (language, words) in [
-    ('pt', 'Tocar para falar'),
+    ('pt', 'Toque para falar'),
     ('en', 'Tap to speak'),
   ]) {
     testWidgets('The Panorama\'s resting circle reads «$words» ($language), '

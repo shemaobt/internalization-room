@@ -12,17 +12,18 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
+import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
 
 const _raise = 'Deixar uma pergunta para o facilitador';
 const _hearTheAnswer = 'Ouvir a resposta do facilitador';
-const _tapToSpeak = 'Tocar para falar';
+const _tapToSpeak = 'Toque para falar';
 const _reply = HandReply(id: 'r1', audioUrl: '/resposta/r1');
 const _panorama = Passagem(
   pericope: 'panorama',
@@ -34,7 +35,7 @@ final _hand = find.byType(HandButton);
 
 final _handInTheCircle = find.descendant(
   of: find.byType(FacilitatorCircle),
-  matching: find.byIcon(LucideIcons.hand),
+  matching: paintedGlyph(CircleGlyph.hand),
 );
 
 class _Room {
@@ -324,7 +325,7 @@ void main() {
       'o microfone fechar',
       () => room.estado.voice != VoiceState.listening,
     );
-    await room.beat(600);
+    await room.beat(1400);
     nothingIsSaid();
     room.harness.inbox.finishHeldQuestion();
     await room.until(
@@ -658,7 +659,8 @@ void main() {
   );
 
   testWidgets(
-    'In a Panorama session the room could not open the hand is hidden',
+    'a Panorama the room could not open leaves the team on the Choice, with no '
+    'hand',
     (tester) async {
       final harness = SalaHarness();
       harness.room.passages = [_panorama, ...harness.room.passages];
@@ -671,7 +673,7 @@ void main() {
 
       expect(room.estado.needsPerson, isFalse);
 
-      expect(room.estado.stage, SalaStage.panorama);
+      expect(room.estado.stage, SalaStage.escolha);
       expect(_hand, findsNothing);
       closeTheRoom(container);
     },

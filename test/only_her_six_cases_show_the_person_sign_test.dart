@@ -332,16 +332,17 @@ void main() {
     expect(harness.voice.assets.skip(assetsBefore), isEmpty);
   });
 
-  test('a reply sound that fails twice brings the sign; once brings '
+  test('a reply sound that fails to load twice brings the sign; once brings '
       'nothing', () async {
     final harness = SalaHarness();
     final room = await _onTheCanvas(harness);
-    harness.voice.refuses.add(turnoUrl);
+    harness.voice.failsToLoad[turnoUrl] = 1;
 
     await _theTeamSpeaks(room);
     await _theRoomRests(room);
     expect(room.state.needsPerson, isFalse);
 
+    harness.voice.refuses.add(turnoUrl);
     await _theTeamSpeaks(room);
     await waitFor('o sinal da pessoa', () => room.state.needsPerson);
   });
@@ -688,13 +689,20 @@ void main() {
     await waitFor('o sinal da pessoa', () => room.state.needsPerson);
   });
 
-  test('a scene rehearsal answered without a reply: back on the Canvas, the '
-      'sign', () async {
+  test('a scene rehearsal answered without a reply keeps its screen; back on '
+      'the Canvas, the sign', () async {
     final harness = SalaHarness();
     final room = await _onTheSceneScreen(harness);
     harness.room.answersTurnsWithoutAReply = true;
 
     await _terminei(room);
+    await _theRoomRests(room);
+    await settle(const Duration(milliseconds: 1600));
+
+    expect(room.state.stage, SalaStage.cena);
+    expect(room.state.needsPerson, isFalse);
+
+    room.sala.leaveTheSceneRehearsal();
     await waitFor(
       'a conversa voltar',
       () => room.state.stage == SalaStage.conversa,
@@ -865,8 +873,6 @@ void main() {
     harness.voice.refuses.add(turnoUrl);
 
     await _theTeamSpeaks(room);
-    await _theRoomRests(room);
-    await _theTeamSpeaks(room);
     await waitFor('o sinal da pessoa', () => room.state.needsPerson);
 
     expect(logged, contains(allOf(contains('2'), contains('RoomRaisedAHalt'))));
@@ -880,16 +886,18 @@ void main() {
     addTearDown(() => debugPrint = print);
     final harness = SalaHarness();
     final room = await _onTheCanvas(harness);
-    harness.voice.refuses.add(turnoUrl);
-    await _theTeamSpeaks(room);
-    await _theRoomRests(room);
-    harness.voice
-      ..refuses.clear()
-      ..holdNextLine();
+    final playedBefore = harness.voice.played.length;
+    harness.voice.aoFalar = () {
+      if (harness.voice.played.length > playedBefore) {
+        harness.voice
+          ..aoFalar = null
+          ..holdNextLine();
+      }
+    };
     await _theTeamSpeaks(room);
     await waitFor(
       'a resposta tocar',
-      () => harness.voice.played.where((url) => url == turnoUrl).length == 2,
+      () => harness.voice.played.length > playedBefore,
     );
     room.sala.haltForABrokenBuild();
     await waitFor('o sinal', () => room.state.needsPerson);
@@ -900,7 +908,7 @@ void main() {
     await settle();
 
     expect(room.state.needsPerson, isTrue);
-    expect(logged, isNot(contains(contains('(2 seguidas)'))));
+    expect(logged, isNot(contains(contains('o som da fala não carregou'))));
   });
 
   test('a wheel whose read never answers rests at the invite at the busy '

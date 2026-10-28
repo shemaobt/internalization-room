@@ -34,7 +34,8 @@ const _theBook = [
 
 const _leave = 'Choose another passage';
 const _back = 'Back to the current passage';
-const _hearTheAnswer = "Hear the facilitator's answer";
+const _backToRecording = 'Back to recording';
+const _hearTheAnswer = "Hear your facilitator's reply";
 
 class _Room {
   _Room(this.harness, this.container);
@@ -209,62 +210,6 @@ void main() {
   );
 
   testWidgets(
-    'a tap on the passage left, tinted on the menu, brings back its kept take '
-    'paused where it was',
-    (tester) => withDiskThatAnswersAtOnce(() async {
-      final room = await _pump(tester, memory: true);
-      await _takeThePassage(tester, room, 'P01');
-      await _keepAPart(tester, room);
-      room.notifier.playTheRehearsal();
-      await _passTime(tester, 200);
-      const where = Duration(seconds: 3);
-      room.harness.playback.at = where;
-
-      await _tap(tester, _leave);
-      await tester.pump(const Duration(seconds: 1));
-      await tester.tap(find.text('Ruth 1:1–5'));
-      await _passTime(tester);
-      await tester.pump(const Duration(seconds: 1));
-
-      expect(room.state.stage, SalaStage.ensaio);
-      expect(room.state.takePaused, isTrue);
-
-      room.notifier.playTheRehearsal();
-      await _passTime(tester, 200);
-
-      expect(room.harness.playback.playedFrom.last, where);
-    }),
-  );
-
-  testWidgets(
-    'a kept take playing when the team leaves comes back paused where it was',
-    (tester) => withDiskThatAnswersAtOnce(() async {
-      final room = await _pump(tester, memory: true);
-      await _takeThePassage(tester, room, 'P01');
-      await _keepAPart(tester, room);
-      room.notifier.playTheRehearsal();
-      await _passTime(tester, 200);
-      expect(room.state.playPing, isTrue);
-      const where = Duration(seconds: 3);
-      room.harness.playback.at = where;
-
-      await _tap(tester, _leave);
-      await tester.pump(const Duration(seconds: 1));
-      await _tap(tester, _back);
-      await tester.pump(const Duration(seconds: 1));
-
-      expect(room.state.stage, SalaStage.ensaio);
-      expect(room.state.takePaused, isTrue);
-      expect(room.harness.playback.sounding, isFalse);
-
-      room.notifier.playTheRehearsal();
-      await _passTime(tester, 200);
-
-      expect(room.harness.playback.playedFrom.last, where);
-    }),
-  );
-
-  testWidgets(
     'a pending take sounding when the team leaves is dropped with the leave, '
     'and nothing is held on the way back',
     (tester) => withDiskThatAnswersAtOnce(() async {
@@ -281,7 +226,8 @@ void main() {
       expect(room.state.playPing, isTrue);
       room.harness.playback.at = const Duration(seconds: 2);
 
-      await _tap(tester, _leave);
+      room.notifier.leaveThePassage();
+      await _passTime(tester);
       await tester.pump(const Duration(seconds: 1));
       await _tap(tester, _back);
       await tester.pump(const Duration(seconds: 1));
@@ -302,78 +248,6 @@ void main() {
         everyElement(isNot(dropped.single)),
       );
       expect(room.state.needsPerson, isFalse);
-    }),
-  );
-
-  testWidgets(
-    'a chain held when the team leaves is held up to its last kept part',
-    (tester) => withDiskThatAnswersAtOnce(() async {
-      final room = await _pump(tester, memory: true);
-      await _takeThePassage(tester, room, 'P01');
-      await _keepAPart(tester, room);
-      room.notifier.ensaioTap();
-      room.notifier.ensaioTap();
-      await _passTime(tester, 300);
-      room.notifier.playTheRehearsal();
-      await _passTime(tester, 200);
-      room.harness.playback.at = const Duration(seconds: 2);
-
-      await _tap(tester, _leave);
-      await tester.pump(const Duration(seconds: 1));
-      await _tap(tester, _back);
-      await tester.pump(const Duration(seconds: 1));
-      final dropped = room.harness.recorder.deleted.single;
-      final played = room.harness.playback.played.length;
-
-      room.notifier.playTheRehearsal();
-      await _passTime(tester, 200);
-      room.harness.playback.finishPlayback();
-      await _passTime(tester, 400);
-
-      expect(room.state.needsPerson, isFalse);
-      expect(
-        room.harness.playback.played.skip(played),
-        everyElement(isNot(dropped)),
-      );
-    }),
-  );
-
-  testWidgets(
-    'a part whose clip had not opened when the team left comes back at its '
-    'own start',
-    (tester) => withDiskThatAnswersAtOnce(() async {
-      final room = await _pump(tester, memory: true);
-      await _takeThePassage(tester, room, 'P01');
-      await _keepAPart(tester, room);
-      room.notifier.ensaioTap();
-      room.notifier.ensaioTap();
-      await _passTime(tester, 300);
-      room.harness.room.takeLandsAfter = const Duration(seconds: 1);
-      room.notifier.takeKeep();
-      await theRoomNamesTheParts(tester, room.container, parts: 2);
-      expect(
-        room.state.partes.map((part) => part.takeId),
-        everyElement(isNotNull),
-        reason: 'a segunda parte tocava ainda sem o nome que a sala lhe dá',
-      );
-      room.notifier.playTheRehearsal();
-      await _passTime(tester, 200);
-      room.harness.playback.holdNextOpening();
-      room.harness.playback.at = const Duration(seconds: 40);
-      room.harness.playback.finishPlayback();
-      await _passTime(tester, 200);
-
-      await _tap(tester, _leave);
-      await tester.pump(const Duration(seconds: 1));
-      await _tap(tester, _back);
-      await tester.pump(const Duration(seconds: 1));
-
-      expect(room.state.takePaused, isTrue);
-
-      room.notifier.playTheRehearsal();
-      await _passTime(tester, 200);
-
-      expect(room.harness.playback.playedFrom.last, Duration.zero);
     }),
   );
 
@@ -400,22 +274,22 @@ void main() {
   });
 
   testWidgets(
-    '«Choose another passage» is hidden while the team\'s take is recorded',
+    '«Back to the current passage» is hidden while the team\'s take is recorded',
     (tester) async {
       final room = await _pump(tester, memory: true);
       await _takeThePassage(tester, room, 'P01');
       room.notifier.goEnsaio();
       await _passTime(tester, 300);
       await tester.pump(const Duration(seconds: 2));
-      expect(_live(tester, _leave), isTrue);
+      expect(_live(tester, _back), isTrue);
 
       room.notifier.ensaioTap();
       await _passTime(tester, 300);
 
       expect(room.harness.sounds, contains('recorder:start'));
-      expect(_hidden(tester, _leave), isTrue);
+      expect(_hidden(tester, _back), isTrue);
 
-      await tester.tap(byLabel(_leave), warnIfMissed: false);
+      await tester.tap(byLabel(_back), warnIfMissed: false);
       await _passTime(tester, 300);
 
       expect(room.state.stage, SalaStage.ensaio);
@@ -423,25 +297,22 @@ void main() {
     },
   );
 
-  testWidgets(
-    '«Choose another passage» is hidden while the back-translation\'s '
-    'microphone is open',
-    (tester) async {
-      final room = await _pump(tester, memory: true);
-      await _takeThePassage(tester, room, 'P01');
-      await _keepAPart(tester, room);
-      room.notifier.startRetro();
-      await _passTime(tester, 300);
-      room.harness.playback.at = const Duration(seconds: 2);
-      room.notifier.retroTap();
-      room.notifier.retroTap();
-      await _passTime(tester, 300);
+  testWidgets('«Back to recording» is hidden while the back-translation\'s '
+      'microphone is open', (tester) async {
+    final room = await _pump(tester, memory: true);
+    await _takeThePassage(tester, room, 'P01');
+    await _keepAPart(tester, room);
+    room.notifier.startRetro();
+    await _passTime(tester, 300);
+    room.harness.playback.at = const Duration(seconds: 2);
+    room.notifier.retroTap();
+    room.notifier.retroTap();
+    await _passTime(tester, 300);
 
-      expect(room.state.stage, SalaStage.retro);
-      expect(room.state.voice, VoiceState.listening);
-      expect(_hidden(tester, _leave), isTrue);
-    },
-  );
+    expect(room.state.stage, SalaStage.retro);
+    expect(room.state.voice, VoiceState.listening);
+    expect(_hidden(tester, _backToRecording), isTrue);
+  });
 
   testWidgets(
     'a raised-hand note being spoken leaves «Choose another passage» in reach, '
@@ -564,20 +435,31 @@ void main() {
     );
   }
 
-  testWidgets('another passage opened drops the way back', (tester) async {
-    final room = await _pump(tester, cannotOpen: {'P02'});
-    await _takeThePassage(tester, room, 'P01');
-    await tester.pump(const Duration(seconds: 1));
-    await _tap(tester, _leave);
-    await tester.pump(const Duration(seconds: 1));
-    expect(byLabel(_back), findsOneWidget);
+  testWidgets(
+    'a passage that cannot open lays the one left back on its canvas',
+    (tester) async {
+      final room = await _pump(tester, cannotOpen: {'P02'});
+      await _takeThePassage(tester, room, 'P01');
+      await tester.pump(const Duration(seconds: 1));
+      await _tap(tester, _leave);
+      await tester.pump(const Duration(seconds: 1));
+      expect(byLabel(_back), findsOneWidget);
 
-    _open(room, 'P02');
-    await tester.pump(const Duration(seconds: 2));
+      final p01 = room.state.leftEntry?.session;
 
-    expect(room.state.stage, SalaStage.escolha);
-    expect(byLabel(_back), findsNothing);
-  });
+      _open(room, 'P02');
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(
+        room.state.stage,
+        SalaStage.conversa,
+        reason:
+            'a P02 que não abriu deixava a equipe na Escolha, a um toque da P01',
+      );
+      expect(room.state.sessionId, p01);
+      expect(byLabel(_leave), findsOneWidget);
+    },
+  );
 
   testWidgets('a leave from the next passage returns to the next passage', (
     tester,
@@ -659,33 +541,30 @@ void main() {
     expect(room.harness.room.pericopesAsked, hasLength(created));
   });
 
-  testWidgets(
-    'the Saved screen carries no «Choose another passage», and «Done» '
-    'brings it back',
-    (tester) async {
-      final harness = SalaHarness(lingua: 'en', filaEmMemoria: true);
-      harness.room.passages = _theBook;
-      final room = _Room(harness, await pumpSala(tester, harness));
-      await _takeThePassage(tester, room, 'P01');
-      await _keepAPart(tester, room);
-      room.notifier.startRetro();
-      await _passTime(tester, 300);
-      harness.playback.finishPlayback();
-      await _passTime(tester, 300);
-      await room.notifier.finishBackTranslation();
-      await _passTime(tester, 400);
-      await room.notifier.aprovarRascunhoFinal();
-      await tester.pump(const Duration(milliseconds: 800));
-      await tester.pump(const Duration(milliseconds: 400));
+  testWidgets('the Saved screen carries no «Back to recording», and «Done» '
+      'brings it back', (tester) async {
+    final harness = SalaHarness(lingua: 'en', filaEmMemoria: true);
+    harness.room.passages = _theBook;
+    final room = _Room(harness, await pumpSala(tester, harness));
+    await _takeThePassage(tester, room, 'P01');
+    await _keepAPart(tester, room);
+    room.notifier.startRetro();
+    await _passTime(tester, 300);
+    harness.playback.finishPlayback();
+    await _passTime(tester, 300);
+    await room.notifier.finishBackTranslation();
+    await _passTime(tester, 400);
+    await room.notifier.aprovarRascunhoFinal();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 400));
 
-      expect(find.text('Rehearsal saved'), findsOneWidget);
-      expect(byLabel(_leave), findsNothing);
+    expect(find.text('Rehearsal saved'), findsOneWidget);
+    expect(byLabel(_backToRecording), findsNothing);
 
-      await _tap(tester, 'Done');
-      await tester.pump(const Duration(milliseconds: 400));
+    await _tap(tester, 'Done');
+    await tester.pump(const Duration(milliseconds: 400));
 
-      expect(byLabel(_leave), findsOneWidget);
-      closeTheRoom(room.container);
-    },
-  );
+    expect(byLabel(_backToRecording), findsOneWidget);
+    closeTheRoom(room.container);
+  });
 }

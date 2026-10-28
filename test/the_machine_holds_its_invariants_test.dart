@@ -176,6 +176,21 @@ final theMicrophoneOpensOverASoundOnlyAfterAStop = Invariant<Machine>(
   },
 );
 
+final aStopNamesThisSessionsTakeInTheAir = Invariant<Machine>(
+  "a stop names this session's take in the air",
+  (before, event, after, effects, world) {
+    for (final StopTheSend(:row) in effects.whereType<StopTheSend>()) {
+      final inTheAir = before.inTheAir;
+      if (inTheAir == null ||
+          inTheAir.row != row ||
+          inTheAir.keep.session != before.session) {
+        return 'stopped $row with ${inTheAir?.row} in the air';
+      }
+    }
+    return null;
+  },
+);
+
 final aLineOfTheVoiceStopsAPlayingReply = Invariant<Machine>(
   'a line of the voice that arrives over a playing reply stops it',
   (before, event, after, effects, world) {
@@ -343,8 +358,7 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
       TheSceneTurnFoundNothing() ||
       LookEmpty() ||
       LookFailed() => true,
-      PlayerFailed(source: Source.guide) =>
-        before.failing == Source.guide && before.failures >= 1,
+      TheReplyFailedToLoad(:final load) => load >= 2,
       StationEvent() =>
         before.aHaltWaitsForTheCanvas && after.station is Canvas,
       _ => false,
@@ -352,6 +366,24 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
     if (herCase) return null;
     return '${describeEvent(event)} entered the person sign over '
         '${describeHalt(before.halt)}';
+  },
+);
+
+final everyFailedLoadOfAReplyEndsInOneAnswer = Invariant<Machine>(
+  'ADR 0140, every failed load of a reply ends in exactly one answer, a reload '
+  'or a let-go',
+  (before, event, after, effects, world) {
+    if (event is! TheReplyFailedToLoad) return null;
+    final answers = [
+      for (final effect in effects)
+        if (effect
+            case LoadTheReplyAgain(:final answered) ||
+                LetTheReplyGo(:final answered) when answered == event.answered)
+          effect,
+    ];
+    if (answers.length == 1) return null;
+    return '${describeEvent(event)} over ${describeMachine(before)} ended in '
+        '${answers.length} answers: ${effects.map(describeEffect).join(', ')}';
   },
 );
 
@@ -432,6 +464,11 @@ void main() {
     test('ADR invariant 15: the warning the tablet holds is the one the '
         'server told, after every event', () {
       _holds(theWarningIsTheOneTheServerTold(_haltOf));
+    });
+
+    test('ADR 0140: every failed load of a reply ends in exactly one answer, '
+        'a reload or a let-go', () {
+      _holds(everyFailedLoadOfAReplyEndsInOneAnswer);
     });
 
     test('ADR invariant 1: the microphone opens over a sound only after a stop '
@@ -519,6 +556,7 @@ void main() {
           theMicrophoneOpensOverASoundOnlyAfterAStop,
           aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas,
           aLineOfTheVoiceStopsAPlayingReply,
+          aStopNamesThisSessionsTakeInTheAir,
           theHeadNeverReadsAnotherSound,
           theOutboxNeverIdlesWithAPartPending,
           theScreenNeverShowsASoundTheChannelDoesNotHold,

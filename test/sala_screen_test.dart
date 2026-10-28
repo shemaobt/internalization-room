@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
@@ -16,11 +15,12 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/part_strips.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
@@ -35,6 +35,7 @@ import 'fakes.dart';
 import 'retro_findings_exits_test.dart' as achados;
 import 'scenario_helpers.dart'
     show byLabel, offTheRows, onTheCircle, stateReads, inTheHome;
+import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
 
 Set<Color> paintedBy(WidgetTester tester, Finder corner) {
   final colours = <Color>{};
@@ -390,7 +391,11 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
     expect(find.byType(ColarOverlay), findsOneWidget);
     expect(byLabel('Deixar uma pergunta para o facilitador'), findsOneWidget);
-    expect(byLabel('Tocar para falar'), findsOneWidget);
+    expect(
+      byLabel('Toque para falar'),
+      findsOneWidget,
+      reason: 'o círculo dizia «Tocar para falar», não as palavras dela',
+    );
   });
 
   testWidgets('the dev seal shows from the invite on, before any skip exists', (
@@ -524,9 +529,8 @@ void main() {
     },
   );
 
-  testWidgets('a peer cue turns the circle into team-talk mode', (
-    tester,
-  ) async {
+  testWidgets('a peer cue turns the circle into team-talk mode, still read '
+      'as «Toque para falar», not a line of its own', (tester) async {
     final harness = SalaHarness()..room.peerCue = true;
     final container = await pumpSala(tester, harness);
     container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
@@ -534,10 +538,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).peerCue, isTrue);
-    expect(find.byIcon(LucideIcons.users), findsOneWidget);
+    expect(paintedGlyph(CircleGlyph.team), findsOneWidget);
     expect(
-      byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
+      onTheCircle('Toque para falar'),
       findsOneWidget,
+      reason:
+          'o círculo dizia «Conversem entre vocês…», um rótulo que o dela '
+          'não tem; o dela diz sempre o mesmo',
     );
   });
 
@@ -553,12 +560,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).voice, VoiceState.done);
-    expect(find.byIcon(LucideIcons.users), findsOneWidget);
-    expect(
-      byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
-      findsOneWidget,
-    );
-    expect(byLabel('Tocar para falar'), findsNothing);
+    expect(paintedGlyph(CircleGlyph.team), findsOneWidget);
+    expect(onTheCircle('Toque para falar'), findsOneWidget);
   });
 
   testWidgets(
@@ -571,12 +574,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(container.read(salaSessionProvider).voice, VoiceState.done);
-      expect(find.byIcon(LucideIcons.users), findsNothing);
-      expect(byLabel('Tocar para falar'), findsOneWidget);
-      expect(
-        byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
-        findsNothing,
-      );
+      expect(paintedGlyph(CircleGlyph.team), findsNothing);
+      expect(byLabel('Toque para falar'), findsOneWidget);
     },
   );
 
@@ -589,7 +588,11 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(container.read(salaSessionProvider).canHearAgain, isTrue);
-    expect(byLabel('Hear it again'), findsOneWidget);
+    expect(
+      byLabel('Hear that again'),
+      findsOneWidget,
+      reason: 'o botão dizia «Hear it again», e o dela diz «Hear that again»',
+    );
     expect(
       byLabel('Ouvir de novo'),
       findsNothing,
@@ -620,7 +623,11 @@ void main() {
     container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(byLabel('Leave a question for the facilitator'), findsOneWidget);
+    expect(
+      byLabel('Leave a question for your facilitator'),
+      findsOneWidget,
+      reason: 'a mão dizia «for the facilitator», não as palavras dela',
+    );
     expect(
       byLabel('Deixar uma pergunta para o facilitador'),
       findsNothing,
@@ -646,7 +653,11 @@ void main() {
     container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(byLabel("Hear the facilitator's answer"), findsOneWidget);
+    expect(
+      byLabel("Hear your facilitator's reply"),
+      findsOneWidget,
+      reason: 'a mão dizia «the facilitator\'s answer», não as palavras dela',
+    );
     expect(
       byLabel('Ouvir a resposta do facilitador'),
       findsNothing,
@@ -667,7 +678,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).noteMode, isTrue);
-    expect(byLabel('Leave a question for the facilitator'), findsOneWidget);
+    expect(byLabel('Leave a question for your facilitator'), findsOneWidget);
     expect(
       byLabel('Deixar uma pergunta para o facilitador'),
       findsNothing,
@@ -694,7 +705,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).playingReplyId, 'r1');
-    expect(byLabel('Hear the facilitator\'s answer'), findsOneWidget);
+    expect(byLabel('Hear your facilitator\'s reply'), findsOneWidget);
     expect(
       byLabel('Ouvir a resposta do facilitador'),
       findsNothing,
@@ -730,7 +741,7 @@ void main() {
   });
 
   testWidgets(
-    'the retro hangs one bead row and the conversa necklace stays away',
+    'the retro hangs its part strips once and the conversa necklace stays away',
     (tester) async {
       final harness = SalaHarness();
       final container = await pumpSala(tester, harness);
@@ -739,7 +750,7 @@ void main() {
       notifier.goConversa(book: 'Ruth');
       await tester.pump(const Duration(milliseconds: 200));
       expect(find.byType(ColarOverlay), findsOneWidget);
-      expect(find.byType(BeadRow), findsNothing);
+      expect(find.byType(PartStrips), findsNothing);
 
       notifier.goEnsaio();
       notifier.ensaioTap();
@@ -750,7 +761,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 1400));
 
-      expect(find.byType(BeadRow), findsOneWidget);
+      expect(find.byType(PartStrips), findsOneWidget);
       expect(
         find.byType(ColarOverlay),
         findsNothing,
@@ -1091,6 +1102,7 @@ void main() {
             'o caso precisa mesmo estar oferecendo ouvir de novo para '
             'poder olhar para ele',
       );
+      await tester.pump(const Duration(milliseconds: 1200));
 
       final ouvir = find.byType(HearAgainButton);
       final pintado = paintedBy(tester, ouvir);
@@ -1109,11 +1121,11 @@ void main() {
             'de dizer qualquer coisa',
       );
       expect(
-        pintado.any((cor) => sameTone(cor, ShemaBrand.verdeClaro)),
+        pintado.any((cor) => sameTone(cor, SalaColors.light.verde)),
         isTrue,
         reason:
-            'o repetir é verde e periférico: presente para quem procura, '
-            'invisível para quem não está procurando',
+            'o repetir é o verde dela e periférico: presente para quem '
+            'procura, invisível para quem não está procurando',
       );
 
       expect(
@@ -1121,12 +1133,10 @@ void main() {
           markAsSeen(tester, ouvir, SalaColors.light.paper),
           SalaColors.light.paper,
         ),
-        greaterThanOrEqualTo(2.5),
+        closeTo(2.19, 0.02),
         reason:
-            'quieto não é invisível: com o disco fora, a marca ficou em '
-            '1,65:1 sobre o papel, metade da barra que o medidor do microfone '
-            'fixou em 2,5:1 depois de um laranja afinado no fundo escuro sumir '
-            'num tablet ao sol, que é onde esta sala roda',
+            'a seta dela é --verde a .42, 2,19:1 sobre o papel; o disco '
+            'que a erguia acima disso não existe no app dela',
       );
     },
   );
@@ -1380,7 +1390,7 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(byLabel('Tocar para falar'));
+    await tester.tap(byLabel('Toque para falar'));
     await tester.pump(const Duration(milliseconds: 200));
 
     final state = container.read(salaSessionProvider);
@@ -1423,7 +1433,7 @@ void main() {
       expect(byLabel(roomLabelFor('hearAgain', 'pt')), findsOneWidget);
       expect(byLabel(roomLabelFor('leavePassage', 'pt')), findsOneWidget);
       expect(find.byType(ColarOverlay), findsNothing);
-      expect(find.byType(BeadRow), findsNothing);
+      expect(find.byType(PartStrips), findsNothing);
       expect(find.byType(EnsaioView), findsNothing);
       expect(find.byType(MomentLabel), findsNothing);
       expect(byLabel(roomLabelFor('recordEnsaio', 'pt')), findsNothing);

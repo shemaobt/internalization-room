@@ -408,7 +408,6 @@ void main() {
       ...escolhaLabels.values,
       ...handLabels.values,
       ...roomLabels.values,
-      warningNoticeLabel,
       ...codigoLabels.values,
       ...momentLabels.values,
       momentAria,
