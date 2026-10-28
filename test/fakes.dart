@@ -2874,20 +2874,32 @@ class FakeRoom implements RoomRepository {
   }) {
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     final antes = at >= 0 ? segments[at] : null;
-    final regravada = (retroSoFar?.stale ?? const <SegmentView>[]).any(
+    final lida = retroSoFar;
+    final regravada = (lida?.stale ?? const <SegmentView>[]).any(
       (one) => one.segmentId == segmentId,
     );
-    if (antes == null && regravada) {
-      segments.add(
-        SegmentView(
-          segmentId: '$segmentId-v${++_versoes}',
-          takeId: takeId,
-          startsMs: from.inMilliseconds,
-          endsMs: to.inMilliseconds,
-          told: true,
-        ),
+    if (lida != null && antes == null && regravada) {
+      final sucessora = SegmentView(
+        segmentId: '$segmentId-v${++_versoes}',
+        takeId: takeId,
+        startsMs: from.inMilliseconds,
+        endsMs: to.inMilliseconds,
+        told: true,
       );
+      segments.add(sucessora);
       _retired.add(segmentId);
+      retroSoFar = BackTranslationProgress(
+        segments: [...lida.segments, sucessora],
+        checked: lida.checked,
+        findingSegmentId: lida.findingSegmentId,
+        findings: lida.findings,
+        awaitingSegmentId: lida.awaitingSegmentId,
+        stale: [
+          for (final one in lida.stale)
+            if (one.segmentId != segmentId) one,
+        ],
+        bringBack: lida.bringBack,
+      );
     }
     if (antes != null) {
       // The explanation was redone over a recording that did not move, so the stretch
