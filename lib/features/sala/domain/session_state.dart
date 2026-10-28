@@ -845,10 +845,10 @@ class SalaSessionState {
       joined ||
       theRoomJoinedParts.any((number) => !partNumbers.contains(number));
 
-  /// How the orange dot stands on the Conversation: gone while the way out is hidden, any
-  /// voice sounds or a sent note is on its way; bright from the send-off; faint otherwise.
+  /// How the orange dot stands on the Conversation: gone while the way out is hidden or a
+  /// line of the room sounds; bright from the send-off; faint otherwise.
   OrangeDotLook get orangeDotLook {
-    if (wayOutIsHidden || channel is GuideSpeaking || noteOnItsWay != null) {
+    if (wayOutIsHidden || _aLineOfTheRoomPlays) {
       return OrangeDotLook.gone;
     }
     if (endOfThePassage || moment?.at == MomentAt.ensaioFinal) {
