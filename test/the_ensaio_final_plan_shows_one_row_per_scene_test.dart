@@ -666,7 +666,8 @@ void main() {
   );
 
   testWidgets(
-    '6. a row with one joinable rehearsal beside an unsent one offers no «trocar»',
+    '6. a row with one joinable rehearsal beside an unsent one offers «trocar», '
+    'and still holds the sent one',
     (tester) async {
       await _seeded(
         tester,
@@ -679,7 +680,11 @@ void main() {
       await _openThePlan(tester);
 
       expect(_onRow(2, find.text(_facts(1, '0:07', 2))), findsOneWidget);
-      expect(_onRow(2, find.text(_swap)), findsNothing);
+      expect(
+        _onRow(2, find.text(_swap)),
+        findsOneWidget,
+        reason: 'o ensaio não enviado ao lado do enviado não abria a troca',
+      );
     },
   );
 
@@ -731,10 +736,24 @@ void main() {
         (String s) =>
             _rehearsal(s, n: 2, scene: 'S2', contentType: 'audio/mp4'),
       ),
-      ('unsent', (String s) => _rehearsal(s, n: 2, scene: 'S2', sentAt: null)),
       (
         'not verified',
         (String s) => _rehearsal(s, n: 2, scene: 'S2', verified: false),
+      ),
+      (
+        'unsent and audio/mp4',
+        (String s) => _rehearsal(
+          s,
+          n: 2,
+          scene: 'S2',
+          sentAt: null,
+          contentType: 'audio/mp4',
+        ),
+      ),
+      (
+        'unsent and not verified',
+        (String s) =>
+            _rehearsal(s, n: 2, scene: 'S2', sentAt: null, verified: false),
       ),
     ]) {
       testWidgets('when it is $why', (tester) async {
@@ -755,6 +774,46 @@ void main() {
         expect(_playOn(2), findsNothing);
         expect(_enabledAt(tester, _join), Tristate.isTrue);
         semantics.dispose();
+      });
+    }
+  });
+
+  group('8. a scene with no sent rehearsal but an unsent one says it is '
+      'missing and offers «trocar», not that it cannot enter', () {
+    for (final (why, others) in [
+      ('when it is the only one', (String s) => <SceneRehearsalRecord>[]),
+      (
+        'beside one that cannot enter',
+        (String s) => [
+          _rehearsal(s, n: 4, scene: 'S2', contentType: 'audio/mp4'),
+        ],
+      ),
+    ]) {
+      testWidgets(why, (tester) async {
+        await _seeded(
+          tester,
+          (s) => [
+            _rehearsal(s, n: 1, scene: 'S1'),
+            _rehearsal(s, n: 2, scene: 'S2', sentAt: null),
+            _rehearsal(s, n: 3, scene: 'S3'),
+            ...others(s),
+          ],
+        );
+
+        await _openThePlan(tester);
+
+        expect(
+          _onRow(2, find.text(_missing)),
+          findsOneWidget,
+          reason: 'a cena com um ensaio não enviado dizia que não podia entrar',
+        );
+        expect(_onRow(2, find.text(_cannotEnter)), findsNothing);
+        expect(
+          _onRow(2, find.text(_swap)),
+          findsOneWidget,
+          reason: 'o ensaio não enviado não tinha como ser escolhido',
+        );
+        expect(_playOn(2), findsNothing);
       });
     }
   });
@@ -898,7 +957,7 @@ void main() {
 
     final fixed = {
       'Ensaio Final',
-      'Escolher outra passagem',
+      'Voltar para a passagem atual',
       _planLine,
       _sceneByScene,
       'gravar a passagem inteira de uma vez',
