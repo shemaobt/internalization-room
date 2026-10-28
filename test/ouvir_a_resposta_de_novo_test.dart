@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -104,6 +106,37 @@ void main() {
       expect(harness.voice.played.last, _oVereditoDeSeguranca);
       final tocadosAntes = harness.voice.played.length;
 
+      notifier(container).ouvirARespostaDeNovo();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(harness.voice.played.skip(tocadosAntes), [falaDoVeredito]);
+    });
+
+    testWidgets('um veredito de fail-safe que não carrega duas vezes chama a '
+        'pessoa e deixa o botão com o veredito de antes dele', (tester) async {
+      final container = await pumpToPergunta(tester);
+      final harness = harnessDaVez!;
+      SalaSessionState read() => container.read(salaSessionProvider);
+      harness.room
+        ..verdictUsedFailSafe = true
+        ..verdictAudioUrl = _oVereditoDeSeguranca;
+      harness.voice.refuses.add(_oVereditoDeSeguranca);
+      await traduzirDeNovo(tester, container);
+      unawaited(notifier(container).finishBackTranslation());
+      await waitFor(
+        'o sinal da pessoa',
+        () => read().needsPerson,
+        step: () => tester.pump(const Duration(milliseconds: 100)),
+      );
+      expect(
+        harness.voice.played.where((url) => url == _oVereditoDeSeguranca),
+        hasLength(2),
+      );
+
+      notifier(container).teamTapped();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(read().needsPerson, isFalse);
+      final tocadosAntes = harness.voice.played.length;
       notifier(container).ouvirARespostaDeNovo();
       await tester.pump(const Duration(milliseconds: 600));
 
