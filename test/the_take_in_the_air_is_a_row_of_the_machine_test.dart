@@ -118,6 +118,7 @@ void main() {
       host: AStationHost(),
       watchPeriod: () => const Duration(seconds: 30),
       retryDelay: (_) => Duration.zero,
+      reloadAfter: () => Duration.zero,
       partCeiling: () => null,
       clipGrace: () => Duration.zero,
       lookAgainAfter: () => Duration.zero,
