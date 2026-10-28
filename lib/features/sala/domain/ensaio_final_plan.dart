@@ -137,14 +137,11 @@ final class PlanRow {
 
   /// «trocar» opens the Rehearsal sheet only where there is another joinable rehearsal
   /// to choose, and never over a joined part.
-  bool get canSwap =>
-      !joined &&
-      !waiting &&
-      candidates.any((c) => c.usable && c.rehearsalId != chosen?.rehearsalId);
+  bool get canSwap => !joined && !waiting && candidates.any(offersToUse);
 
   /// «usar este» on a [candidate] of the sheet: a joinable one the row does not hold.
   bool offersToUse(SceneRehearsalRecord candidate) =>
-      candidate.joinable && candidate.rehearsalId != chosen?.rehearsalId;
+      candidate.usable && candidate.rehearsalId != chosen?.rehearsalId;
 }
 
 /// The plan's rows in passage order; [choices] maps a scene to the rehearsal the team
@@ -190,7 +187,9 @@ PlanRow _rowOf(
   }
   final joinable = candidates.where((c) => c.joinable).toList();
   final chosen =
-      joinable.where((c) => c.rehearsalId == choice).firstOrNull ??
+      candidates
+          .where((c) => c.usable && c.rehearsalId == choice)
+          .firstOrNull ??
       _theDefault(joinable);
   return PlanRow(
     number: number,
@@ -248,7 +247,7 @@ List<JoinStep> joinQueue(List<PlanRow> rows, {Set<int> held = const {}}) => [
     if (row.chosen case final rehearsal?
         when !row.joined &&
             !held.contains(row.number) &&
-            (row.waiting || rehearsal.joinable))
+            (row.waiting || rehearsal.usable))
       (number: row.number, rehearsal: rehearsal, waiting: row.waiting),
 ];
 

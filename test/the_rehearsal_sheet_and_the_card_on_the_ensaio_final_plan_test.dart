@@ -385,28 +385,39 @@ void main() {
   });
 
   testWidgets(
-    '4. an unsent rehearsal is listed «não enviado» with no «usar este»',
+    '4. an unsent rehearsal is listed «não enviado» with «usar este», and once '
+    'used it holds the row and opens «juntar»',
     (tester) async {
       final semantics = tester.ensureSemantics();
       await _seeded(
         tester,
-        (s) => [
-          _rehearsal(s, n: 3, scene: 'S2', sentAt: _sentAt('10:00')),
-          _rehearsal(s, n: 4, scene: 'S2', sentAt: _sentAt('10:05')),
-          _rehearsal(s, n: 5, scene: 'S2', sentAt: null),
-        ],
+        (s) => [_rehearsal(s, n: 2, scene: 'S2', sentAt: null)],
       );
       await _openThePlan(tester);
+      expect(_enabledAt(tester, _join), Tristate.isFalse);
 
       await _openTheSheetOf(tester, 2);
 
-      final unsent = '${_facts(5)} · não enviado';
+      final unsent = '${_facts(2)} · não enviado';
       expect(find.text(unsent), findsOneWidget);
-      expect(byLabel('$_useThis — $unsent'), findsNothing);
-      expect(_onLine(unsent, find.text(_useThis)), findsNothing);
+      expect(
+        byLabel('$_useThis — $unsent'),
+        findsOneWidget,
+        reason: 'o ensaio não enviado aparecia na folha sem como ser usado',
+      );
       expect(_onLine(unsent, find.text(_inUse)), findsNothing);
       expect(_onLine(unsent, find.text(_cannotEnter)), findsNothing);
-      expect(_onLine(_sent(4), find.text(_inUse)), findsOneWidget);
+
+      await _useThe(tester, unsent);
+
+      expect(find.text(_planLine), findsOneWidget);
+      expect(_onRow(2, find.text(_facts(2))), findsOneWidget);
+      expect(_onRow(2, find.text('falta o ensaio desta cena')), findsNothing);
+      expect(
+        _enabledAt(tester, _join),
+        Tristate.isTrue,
+        reason: 'escolher o ensaio não enviado não abria o juntar',
+      );
       semantics.dispose();
     },
   );
