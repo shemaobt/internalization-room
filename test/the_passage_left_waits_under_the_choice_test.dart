@@ -246,4 +246,35 @@ void main() {
       reason: 'sair da P02 caía na P01 deixada antes dela',
     );
   });
+
+  test('a room rebuilt after a leave keeps nothing of the passage left, so a '
+      'pill that cannot open rests on the Choice', () async {
+    final tablet = await _onTheChoiceFromP01();
+    final harness = tablet.harness;
+    final container = tablet.container;
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    container.invalidate(salaSessionProvider);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.openTheRoom();
+    await waitFor('the Choice to list its entries', () => read().entriesOpen);
+    final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+    final asked = harness.room.calls.length;
+    harness.room.reachable = false;
+
+    notifier.openTheEntry(p02);
+    await waitFor(
+      'the room to be asked for P02',
+      () => harness.room.calls.skip(asked).contains('createSession'),
+    );
+    await settle();
+    await settle();
+
+    expect(
+      read().station,
+      isA<Menu>(),
+      reason: 'a sala refeita trazia de volta a P01 da vida anterior',
+    );
+    expect(read().sessionId, isNull);
+  });
 }

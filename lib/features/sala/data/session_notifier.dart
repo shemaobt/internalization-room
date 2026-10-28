@@ -384,7 +384,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late DateTime? _sessionSavedAt;
   late String? _sessionLanguage;
   late CurrentSession? _landingOn;
-  _PassageLeft? _theLeftPassage;
+  late _PassageLeft? _theLeftPassage;
 
   /// What plays the reply of the turn the machine holds in flight, and the gestures that
   /// wait on it, until the look the machine asks for comes back (ENG-1444 moves it).
@@ -630,6 +630,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _fraseNaFila = null;
     _regravacoes = 0;
     _regravouNestaVisita = false;
+    _theLeftPassage = null;
   }
 
   @override
