@@ -1853,7 +1853,7 @@ class FakeRoom implements RoomRepository {
   final List<RoomFailure> sceneAnswersFirst = [];
 
   /// What the next reads of the scene rehearsals' list answer, one each.
-  final List<RoomFailure> sceneListsAnswerFirst = [];
+  final List<RoomAnswer<List<SceneRehearsalRecord>>> sceneListsAnswerFirst = [];
 
   /// The code a restart is refused with, when it is set.
   String? refuseRestartWith;
@@ -2280,6 +2280,11 @@ class FakeRoom implements RoomRepository {
   /// The codes the next sends are refused with, one per send, in order.
   final List<String> sendRefusalsFirst = [];
 
+  /// While set, every scene send waits on its own completer here: an answer completes
+  /// it as that answer, null lets the room answer as it would.
+  bool holdSceneSends = false;
+  final List<Completer<RoomAnswer<TurnResult>?>> heldSceneSends = [];
+
   @override
   Future<RoomAnswer<TurnResult>> sendTheSceneRehearsal(
     String sessionId,
@@ -2289,6 +2294,14 @@ class FakeRoom implements RoomRepository {
   }) async {
     if (_guard('sendTheSceneRehearsal') case final failure?) return failure;
     scenesSent.add((rehearsalId: rehearsalId, turnId: turnId, closes: closes));
+    if (holdSceneSends) {
+      final held = Completer<RoomAnswer<TurnResult>?>();
+      heldSceneSends.add(held);
+      if (await held.future case final answer?) return answer;
+    }
+    if (_stored[(sessionId, turnId)] case final answered?) {
+      return Answered(answered);
+    }
     if (sendRefusalsFirst.isNotEmpty) {
       return Refused(sendRefusalsFirst.removeAt(0));
     }

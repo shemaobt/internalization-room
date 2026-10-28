@@ -36,7 +36,8 @@ enum OrangeDotLook { gone, faint, bright }
 enum SceneStep { record, translate, placesUnknown, sent }
 
 /// Her line beside the scene rehearsal's controls: «recomeçar a tradução» answered or
-/// failed, or a moved pause the room refused, one per refusal code.
+/// failed, a moved pause the room refused, one per refusal code, or a «terminei» that
+/// could not be sent, or that the room lists as already sent.
 enum SceneLine {
   restarted,
   restartFailed,
@@ -44,6 +45,8 @@ enum SceneLine {
   pausePastTheEnd,
   pauseCannotStandThere,
   diskFailed,
+  notSent,
+  alreadySent,
 }
 
 /// Her listener's steps on the Checagem externa.
@@ -856,7 +859,10 @@ class SalaSessionState {
   bool get wholeSwitchArms => overAnApprovedDraft || aPartWasJoined;
 
   /// «Ensaio Final: juntar os ensaios das cenas»: only over an empty whole recording, with
-  /// no take on the tablet, in the room or waiting in the Outbox.
+  /// no take on the tablet, in the room or waiting in the Outbox, and only while a plan
+  /// read stands with a scene still to join: a joinable rehearsal chosen for a scene with
+  /// no part and no take held on the tablet. Her `backToJoinOffered` asks the same of the
+  /// join queue (ensaioFinal.ts:252-253).
   bool get offersTheWayBackToTheJoin =>
       recordsTheWhole &&
       partes.isEmpty &&

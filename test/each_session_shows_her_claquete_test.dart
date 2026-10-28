@@ -26,7 +26,7 @@ const _herEightCharacters = 'fia-fixt';
 final _noon = DateTime(2026, 9, 30, 14, 14, 5);
 
 const _panorama = Passagem(
-  pericope: 'panorama',
+  pericope: 'OV-Ruth',
   audioUrl: '/voice/panorama',
   kind: PassagemKind.panorama,
 );
@@ -73,6 +73,29 @@ Future<(SalaHarness, ProviderContainer)> _openP05(
   await _elapse(tester, const Duration(milliseconds: 300));
   expect(container.read(salaSessionProvider).sessionId, _sessionId);
   return (harness, container);
+}
+
+Future<ProviderContainer> _openThePanorama(WidgetTester tester) async {
+  final harness = SalaHarness()
+    ..room.passages = const [
+      _panorama,
+      Passagem(pericope: 'P05', audioUrl: '/voice/p05'),
+    ]
+    ..room.nextSessionId = _sessionId;
+  final container = await pumpSala(tester, harness);
+  addTearDown(() => closeTheRoom(container));
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.abrirEscolha();
+  await _elapse(tester, const Duration(seconds: 1));
+  final state = container.read(salaSessionProvider);
+  notifier.openTheEntry(state.naRoda!.firstWhere((entry) => entry.isPanorama));
+  for (var beat = 0; beat < 100; beat++) {
+    if (container.read(salaSessionProvider).stage == SalaStage.panorama) break;
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  await _elapse(tester, const Duration(milliseconds: 500));
+  expect(container.read(salaSessionProvider).stage, SalaStage.panorama);
+  return container;
 }
 
 Iterable<String> _everythingTheScreenReaderCouldSay(WidgetTester tester) sync* {
@@ -363,39 +386,90 @@ void main() {
     });
   });
 
-  testWidgets('the Panorama shows no claquete and no Shema mark', (
-    tester,
-  ) async {
-    await withClock(Clock.fixed(_noon), () async {
-      final harness = SalaHarness()
-        ..room.passages = const [
-          _panorama,
-          Passagem(pericope: 'P05', audioUrl: '/voice/p05'),
-        ]
-        ..room.nextSessionId = _sessionId;
-      final container = await pumpSala(tester, harness);
-      addTearDown(() => closeTheRoom(container));
-      final notifier = container.read(salaSessionProvider.notifier);
+  testWidgets(
+    'a tap on the Shema mark on the Panorama shows the claquete for twenty seconds again',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      await _openThePanorama(tester);
+      await _seconds(tester, 21);
+      expect(_claquete, findsNothing);
 
-      await notifier.abrirEscolha();
+      await tester.tap(_mark);
+      await tester.pump();
+
+      expect(
+        _words(tester),
+        'OV-Ruth · 2026-09-30 14:14 · $_herEightCharacters',
+      );
+      await _seconds(tester, 19);
+      expect(_claquete, findsOneWidget);
+      await _seconds(tester, 2);
+      expect(_claquete, findsNothing);
+    }),
+  );
+
+  testWidgets(
+    'leaving the Panorama takes the claquete and the mark with it, and going back to it shows the claquete again',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      final container = await _openThePanorama(tester);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await _seconds(tester, 5);
+
+      notifier.leaveThePassage();
       await _elapse(tester, const Duration(seconds: 1));
+      expect(container.read(salaSessionProvider).stage, SalaStage.escolha);
+      expect(_claquete, findsNothing);
+      expect(_mark, findsNothing);
+      await _seconds(tester, 21);
+
       final state = container.read(salaSessionProvider);
       notifier.openTheEntry(
         state.naRoda!.firstWhere((entry) => entry.isPanorama),
       );
-      for (var beat = 0; beat < 100; beat++) {
-        if (container.read(salaSessionProvider).stage == SalaStage.panorama) {
-          break;
-        }
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-      await _elapse(tester, const Duration(milliseconds: 500));
+      await _elapse(tester, const Duration(seconds: 1));
 
       expect(container.read(salaSessionProvider).stage, SalaStage.panorama);
-      expect(_claquete, findsNothing);
-      expect(_mark, findsNothing);
+      expect(
+        _words(tester),
+        'OV-Ruth · 2026-09-30 14:14 · $_herEightCharacters',
+      );
+      expect(_mark, findsOneWidget);
+    }),
+  );
+
+  testWidgets('VoiceOver never announces the claquete on the Panorama', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await withClock(Clock.fixed(_noon), () async {
+      await _openThePanorama(tester);
+      expect(_claquete, findsOneWidget);
+
+      final heard = _everythingTheScreenReaderCouldSay(tester).join('\n');
+      expect(heard, isNot(contains('OV-Ruth')));
+      expect(heard, isNot(contains(_herEightCharacters)));
+      expect(heard, isNot(contains('2026-09-30')));
     });
+    handle.dispose();
   });
+
+  testWidgets(
+    'the Panorama shows its claquete for twenty seconds and keeps the Shema mark, as the conversation does',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      await _openThePanorama(tester);
+
+      expect(
+        _words(tester),
+        'OV-Ruth · 2026-09-30 14:14 · $_herEightCharacters',
+      );
+      expect(_mark, findsOneWidget);
+
+      await _seconds(tester, 19);
+      expect(_claquete, findsOneWidget);
+      await _seconds(tester, 2);
+      expect(_claquete, findsNothing);
+      expect(_mark, findsOneWidget);
+    }),
+  );
 
   testWidgets('a session with no pericope shows no claquete', (tester) async {
     await withClock(Clock.fixed(_noon), () async {

@@ -7,6 +7,10 @@ supersedes: 0046 (in part: what it says of the Invitation)
 
 # The Invitation leaves, the Panorama is a Station of its own, and the room starts on the Choice
 
+Amended by ENG-1819 (2026-10-27): "It shows the circle only, with the hand" below also
+leaves out the Shema mark and the claquete, which the Panorama shows as the conversation
+does (ADR 0014).
+
 This amends ADRs 0053 and 0040 without editing them; it adds "amended by 0061" to 0053's
 status line. Henok decided on 6 October, and the Definer settled it on the ticket
 (ENG-1282), that the app opens on the passage choice and always opens the passage the team

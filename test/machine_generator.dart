@@ -282,6 +282,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheSceneDoorFailed(:final readAgain) =>
     'TheSceneDoorFailed(readAgain: $readAgain)',
   TheSceneDiskFailed() => 'TheSceneDiskFailed',
+  TheSceneWentAlready() => 'TheSceneWentAlready',
+  TheSceneSendRefused() => 'TheSceneSendRefused',
   TheCallWasRefused() => 'TheCallWasRefused',
   TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
   LookEmpty(:final turn, :final sounding, :final theWaitRanOut) =>
@@ -432,6 +434,8 @@ enum EventKind {
   theScenesMissed,
   theSceneDoorFailed,
   theSceneDiskFailed,
+  theSceneWentAlready,
+  theSceneSendRefused,
   theSceneRehearsalsListed,
   theCallWasRefused,
   theCallMetAClosedPassage,
@@ -513,6 +517,8 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheScenesMissed() => EventKind.theScenesMissed,
   TheSceneDoorFailed() => EventKind.theSceneDoorFailed,
   TheSceneDiskFailed() => EventKind.theSceneDiskFailed,
+  TheSceneWentAlready() => EventKind.theSceneWentAlready,
+  TheSceneSendRefused() => EventKind.theSceneSendRefused,
   TheSceneRehearsalsListed() => EventKind.theSceneRehearsalsListed,
   TheCallWasRefused() => EventKind.theCallWasRefused,
   TheCallMetAClosedPassage() => EventKind.theCallMetAClosedPassage,
@@ -593,6 +599,8 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theScenesMissed ||
   EventKind.theSceneDoorFailed ||
   EventKind.theSceneDiskFailed ||
+  EventKind.theSceneWentAlready ||
+  EventKind.theSceneSendRefused ||
   EventKind.theSceneRehearsalsListed ||
   EventKind.theCallWasRefused ||
   EventKind.theCallMetAClosedPassage ||
@@ -823,6 +831,8 @@ MachineEvent _draw(
     readAgain: random.nextBool(),
   ),
   EventKind.theSceneDiskFailed => const TheSceneDiskFailed(),
+  EventKind.theSceneWentAlready => const TheSceneWentAlready(),
+  EventKind.theSceneSendRefused => const TheSceneSendRefused(),
   EventKind.theCallWasRefused => const TheCallWasRefused(),
   EventKind.theCallMetAClosedPassage => const TheCallMetAClosedPassage(),
   EventKind.turnFailed => TurnFailed(_drawATurn(random)),
