@@ -535,6 +535,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The outside listener this tablet has in progress, as its Resume point names them.
   late ({int version, int number})? _listenerInProgress;
 
+  late String? _startedReadIn;
+
   void _aNewLife() {
     _timers = {};
     _armHandedOver = null;
@@ -562,6 +564,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _readTheCheckAfterTheUpload = false;
     _emCurso = null;
     _listenerInProgress = null;
+    _startedReadIn = null;
     _faseAntesDeTraduzirDeNovo = null;
     _traducoesGuardadas = {};
     _traducaoNaFila = {};
@@ -2116,11 +2119,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       for (final book in books) ...await open.startedIn(book, language),
     };
     if (_abandoned(generation)) return;
+    _startedReadIn = language;
     state = state.copyWith(
       naRoda: todas,
       comecadas: comecadas,
       awaitingTheGuide: false,
     );
+  }
+
+  Future<void> _readTheStartedEntriesAgain() async {
+    final generation = _waitOnTheGeneration;
+    final language = _lingua;
+    final open = _emAberto;
+    final comecadas = {
+      for (final book in {for (final entry in state.naRoda!) entry.book})
+        ...await open.startedIn(book, language),
+    };
+    if (_abandoned(generation)) return;
+    _startedReadIn = language;
+    state = state.copyWith(comecadas: comecadas);
   }
 
   void escolhaTap() => _gesture(() => _escolhaTap());
@@ -2514,6 +2531,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             pericope != null &&
             (opened != null ||
                 language != null ||
+                (_startedReadIn ?? speaking) != speaking ||
                 state.comecadas.contains(pericope))
         ? await _emAberto.of(book, pericope, speaking)
         : null;
@@ -3403,8 +3421,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _voltarAFraseQueAguarda(
     String aguardando,
-    int generation,
-  ) async {
+    int generation, {
+    bool emVolta = false,
+  }) async {
     await _medirAsPartes(state.partes, generation);
     if (_abandoned(generation)) return;
     state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
@@ -3413,7 +3432,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       fixedLine: (name: sentenceAwaitingLine, language: _inTheSessionsLanguage),
     );
     if (_abandoned(generation)) return;
-    _levarAoTrechoNaoTraduzido(aguardando);
+    _levarAoTrechoNaoTraduzido(aguardando, emVolta: emVolta);
   }
 
   /// A rehearsal picked back up remembers what of it was already told back.
@@ -7692,6 +7711,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final naoOuvidas = nomes == null ? null : _asPartesNomeadas(nomes);
     final deFora = juntada && naoOuvidas != null && nomes!.isNotEmpty;
     if (naoOuvidas == null || naoOuvidas.isEmpty && !deFora) {
+      if (state.btFraseQueAguarda case final aguardando?) {
+        return _voltarAFraseQueAguarda(aguardando, generation);
+      }
       if (ouvida case ListenedWhole(
         stretchUntranslated: true,
       ) when !conferida) {
@@ -7706,8 +7728,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return _dizerComoTraduzir(deixou);
       }
       _sairDaEspera();
-      _tocarDoChaoNaoContado();
+      _tocarDoChaoNaoContado(emSilencio: naoOuvidas != null);
       return;
+    }
+    if (state.btFraseQueAguarda case final aguardando?
+        when nomes!.isNotEmpty &&
+            nomes.every(
+              (nome) => nome == state.trechoChamado(aguardando)?.takeId,
+            ) &&
+            naoOuvidas.every((onde) => state.partes[onde].takeId != null)) {
+      return _voltarAFraseQueAguarda(aguardando, generation, emVolta: true);
     }
     final doComeco = !juntada || naoOuvidas.length == state.partes.length;
     final partes = doComeco || naoOuvidas.isEmpty
@@ -7909,7 +7939,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void _tocarDoChaoNaoContado() {
+  void _tocarDoChaoNaoContado({bool emSilencio = false}) {
     // The row is read again: this runs unawaited, and a part that left it while the player
     // measured would be indexed out of a list that no longer holds it. A row that emptied
     // meanwhile is the same room as one that arrived empty, and gets the same answer.
@@ -7936,6 +7966,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // the rehearsal as heard and land the team back on its first part.
     if (state.needsPerson) {
       _parteTocando = parte;
+      return;
+    }
+    if (emSilencio) {
+      final contadaAte = _chaoExplicadoDe(parte);
+      final medido = _tamanhoDaParteMs[medidas[parte].path];
+      _parteTocando = parte;
+      _trechoStart = _ondeParouNesteArquivo(parte);
+      state = state.copyWith(
+        btOuvidoMs: _pontoNoColar(_trechoStart.inMilliseconds),
+        btClipEnded:
+            contadaAte > Duration.zero &&
+            medido != null &&
+            (contadaAte + folgaDoFimDaParte).inMilliseconds >= medido,
+      );
       return;
     }
     _tocarParteDaRetro(parte);
@@ -9840,6 +9884,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           isAStub(_trechoStart, _cabeca)) {
         return;
       }
+      if (!state.btClipRodando &&
+          !state.btClipPausada &&
+          !state.btParteFronteira &&
+          !state.btClipEnded) {
+        return;
+      }
       _silenceTheRoom(holdTheClip: true);
       final pausa = _aPausaNo(_cabeca);
       if (pausa == null) return;
@@ -10551,7 +10601,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// ordinary way it would be captured at the next position, the named stretch would
   /// still be waiting, and the same gate would stop the passage again the next time they
   /// said they had finished.
-  void _levarAoTrechoNaoTraduzido(String named) {
+  void _levarAoTrechoNaoTraduzido(String named, {bool emVolta = false}) {
     // A sua própria porta. Chegar aqui já calado é uma coincidência do caminho que
     // chama, não uma regra, e a fatia que esta aterragem põe no ar sai por
     // _leadThemToTheTrecho, que não passa por onde uma parte passa.
@@ -10563,6 +10613,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       clearFindingSegment: true,
     );
+    if (emVolta) return _tocarAFraseNova(trecho);
     _leadThemToTheTrecho(trecho);
   }
 
@@ -11260,6 +11311,8 @@ class _NotifierHost implements StationHost {
     switch (handOff) {
       case OpenTheChoice():
         _notifier._openTheChoice();
+      case ReadTheWheel() when _notifier._current.naRoda != null:
+        _notifier._handOff(_notifier._readTheStartedEntriesAgain());
       case ReadTheWheel():
         _notifier._handOff(_notifier.abrirEscolha());
       case DiscardTheSession():

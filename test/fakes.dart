@@ -847,13 +847,18 @@ class FakeWorkInProgress implements WorkInProgress {
   /// what the next opening would have read.
   final List<ResumePoint> written = [];
 
+  Exception? startedInFails;
+
   @override
-  Future<Set<String>> startedIn(String book, String language) async => {
-    for (final MapEntry(:key, :value) in rows.entries)
-      if (key.startsWith('$book/') &&
-          (key.endsWith('/$language') || value.language == language))
-        key.split('/')[1],
-  };
+  Future<Set<String>> startedIn(String book, String language) async {
+    if (startedInFails case final failure?) throw failure;
+    return {
+      for (final MapEntry(:key, :value) in rows.entries)
+        if (key.startsWith('$book/') &&
+            (key.endsWith('/$language') || value.language == language))
+          key.split('/')[1],
+    };
+  }
 
   Completer<void>? _holdingRead;
   Completer<void>? _heldRead;

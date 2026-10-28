@@ -16,12 +16,13 @@ class PanoramaView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
+    final circleSize = herCircleSize(MediaQuery.sizeOf(context), 58, 232);
 
     return Stack(
       children: [
         Center(
           child: FacilitatorCircle(
-            size: facilitatorCircleSize,
+            size: circleSize,
             halt: session.halt,
             voice: session.voice,
             noteMode: session.noteMode,
@@ -33,7 +34,7 @@ class PanoramaView extends ConsumerWidget {
           ),
         ),
         if (session.channel case Microphone(owner: MicOwner.conversation))
-          const MicClock(circleSize: facilitatorCircleSize),
+          MicClock(circleSize: circleSize),
       ],
     );
   }
