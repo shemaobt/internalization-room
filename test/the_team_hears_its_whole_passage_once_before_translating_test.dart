@@ -129,6 +129,26 @@ Future<void> _ouvirAte(Sala it, {int desde = 0, int? ate}) async {
   }
 }
 
+Future<void> _ouvirSoAsDuasPrimeiras(
+  Sala it, {
+  required void Function() antesDoFim,
+}) async {
+  it.harness.room.listeningUnheardTakeIds = [
+    it.partes[0].takeId!,
+    it.partes[1].takeId!,
+  ];
+  await _oDisco(it);
+  await _ouvirAte(it, ate: 0);
+  antesDoFim();
+  final relatos = it.harness.room.listeningReports.length;
+  await _ouvirAte(it, desde: 1, ate: 1);
+  await waitFor(
+    'a sala responder o fim da escuta',
+    () => it.harness.room.listeningReports.length > relatos,
+  );
+  await settle();
+}
+
 int _microfones(Sala it) =>
     it.harness.sounds.where((som) => som == 'recorder:start').length;
 
@@ -1483,6 +1503,107 @@ void main() {
         reason:
             'sem resposta, o play repetia só a parte que a sala tinha nomeado '
             'antes',
+      );
+      expect(it.harness.playback.playedFrom.last, Duration.zero);
+    },
+  );
+
+  test(
+    'after a listen of only the unheard parts the room still counts unheard, play '
+    'starts again at the last of them and runs to the end, not at the first part',
+    () async {
+      final it = await _juntadaNaCasa();
+      await _ouvirSoAsDuasPrimeiras(
+        it,
+        antesDoFim: () =>
+            it.harness.room.listeningUnheardTakeIds = [it.partes[0].takeId!],
+      );
+      final tocadas = it.harness.playback.played.length;
+      final desde = it.harness.playback.playedFrom.length;
+
+      it.sala.ouvirGravacao();
+      await waitFor(
+        'a gravação tocar de novo',
+        () => it.harness.playback.played.length > tocadas,
+      );
+      expect(
+        it.harness.playback.played.last,
+        it.partes[1].path,
+        reason:
+            'o dela retoma a última parte que a escuta tocou e segue a corrente '
+            'até o fim',
+      );
+      await _ouvirAte(it, desde: 1);
+
+      expect(it.harness.playback.played.skip(tocadas), _caminhos(it, [1, 2]));
+      expect(it.harness.playback.playedFrom.skip(desde), [
+        Duration.zero,
+        Duration.zero,
+      ]);
+    },
+  );
+
+  test(
+    'after a listen of only the unheard parts whose answer never comes, play '
+    'starts again at the last of them, as when the room names a part',
+    () async {
+      final it = await _juntadaNaCasa();
+      await _ouvirSoAsDuasPrimeiras(
+        it,
+        antesDoFim: () =>
+            it.harness.room.failListeningWith = const NetworkFailed('sem rede'),
+      );
+      final tocadas = it.harness.playback.played.length;
+
+      it.sala.ouvirGravacao();
+      await waitFor(
+        'a gravação tocar de novo',
+        () => it.harness.playback.played.length > tocadas,
+      );
+
+      expect(
+        it.harness.playback.played.last,
+        it.partes[1].path,
+        reason:
+            'sem resposta, o play voltava à primeira parte da escuta, e o dela '
+            'retoma a última',
+      );
+      expect(it.harness.playback.playedFrom.last, Duration.zero);
+    },
+  );
+
+  test(
+    'once that replay ran to the end and the room still counts a part unheard, '
+    'play starts the recording over from its first part',
+    () async {
+      final it = await _juntadaNaCasa();
+      await _ouvirSoAsDuasPrimeiras(
+        it,
+        antesDoFim: () =>
+            it.harness.room.listeningUnheardTakeIds = [it.partes[0].takeId!],
+      );
+      final relatos = it.harness.room.listeningReports.length;
+      it.sala.ouvirGravacao();
+      await _ouvirAte(it, desde: 1);
+      await waitFor(
+        'a sala responder o fim da segunda escuta',
+        () => it.harness.room.listeningReports.length > relatos,
+      );
+      await settle();
+      final tocadas = it.harness.playback.played.length;
+
+      it.sala.ouvirGravacao();
+      await waitFor(
+        'a gravação tocar de novo',
+        () => it.harness.playback.played.length > tocadas,
+      );
+
+      expect(
+        it.harness.playback.played.last,
+        it.partes[0].path,
+        reason:
+            'a corrente já tinha chegado ao fim, e o play voltava à última parte '
+            'em vez de recomeçar',
       );
       expect(it.harness.playback.playedFrom.last, Duration.zero);
     },

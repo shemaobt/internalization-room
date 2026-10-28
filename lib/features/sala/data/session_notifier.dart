@@ -7991,15 +7991,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _ => null,
     };
     final nomes = ouvida?.unheardTakeIds;
+    final todas = [for (var onde = 0; onde < state.partes.length; onde++) onde];
+    final deNovo = _partesDaEscuta.length == todas.length
+        ? todas
+        : todas.sublist(_partesDaEscuta.last);
+    _partesDaEscuta = todas;
     if (ouvida == null || nomes == null) {
-      _oQueFaltaOuvir = _OQueFaltaOuvir(_partesDaEscuta, paraNaUltima: true);
+      _oQueFaltaOuvir = _OQueFaltaOuvir(deNovo, paraNaUltima: true);
       return;
     }
     final faltam = _asPartesNomeadas(nomes);
     if (nomes.isNotEmpty || faltam.isNotEmpty) {
-      _oQueFaltaOuvir = _OQueFaltaOuvir([
-        for (var onde = 0; onde < state.partes.length; onde++) onde,
-      ], paraNaUltima: true);
+      _oQueFaltaOuvir = _OQueFaltaOuvir(deNovo, paraNaUltima: true);
       state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
       return;
     }

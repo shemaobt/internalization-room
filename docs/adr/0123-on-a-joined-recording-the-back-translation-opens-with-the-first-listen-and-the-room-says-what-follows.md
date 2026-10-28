@@ -43,9 +43,11 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
    report is awaited, and its answer leads:
    1. parts still unheard: the listen stays, «ainda falta ouvir um trecho da gravação», and the
       play control plays the recording again from its first part, every part in passage order,
-      as hers (`chainPlayer.ts` `play()` starts an ended chain over). A part the room has not
-      named yet counts as unheard, as at the entry; a part the room names that this tablet does
-      not hold keeps the listen too;
+      as hers (`chainPlayer.ts` `play()` starts an ended chain over). After a listen of only the
+      unheard parts, hers rests on the last of them instead (`playOnly`), so play starts again
+      at that part and runs on to the end of the recording; the play after that is from the
+      first part. A part the room has not named yet counts as unheard, as at the entry; a part
+      the room names that this tablet does not hold keeps the listen too;
    2. a frase awaiting its translation: back to that frase, as the resume does;
    3. `STRETCH_UNTRANSLATED`: the room's line (N2), then that part from where its untranslated
       ground starts, with the circle open;
