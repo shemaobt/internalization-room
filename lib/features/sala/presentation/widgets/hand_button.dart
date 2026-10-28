@@ -52,7 +52,7 @@ class HandButton extends StatelessWidget {
                   boxShadow: lit
                       ? [
                           BoxShadow(
-                            color: ShemaBrand.azul.withValues(alpha: 0.35),
+                            color: colors.azul.withValues(alpha: 0.35),
                             spreadRadius: 5,
                           ),
                         ]

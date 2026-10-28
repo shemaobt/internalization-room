@@ -600,9 +600,7 @@ class FacilitatorCircle extends StatelessWidget {
 
   Widget _listenRing(SalaColors colors) {
     final ring = _listenColor;
-    final glow = tongue == Tongue.motherTongue
-        ? ShemaBrand.wood
-        : ShemaBrand.azul;
+    final glow = tongue == Tongue.motherTongue ? ShemaBrand.wood : colors.azul;
     return Loop(
       period: const Duration(milliseconds: 3200),
       builder: (context, t) => Container(

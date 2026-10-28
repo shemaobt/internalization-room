@@ -238,7 +238,7 @@ class _FraseTile extends StatelessWidget {
     final parte = row.parte;
     final mark = row.mark;
     final tom = row.nuance
-        ? ShemaBrand.azul
+        ? colors.azul
         : mark == null
         ? colors.cord
         : colors.telha;
@@ -251,7 +251,7 @@ class _FraseTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: row.nuance
-                ? ShemaBrand.azul
+                ? colors.azul
                 : mark == null
                 ? colors.line
                 : colors.telha,

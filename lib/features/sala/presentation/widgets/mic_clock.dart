@@ -38,7 +38,7 @@ class _MicClockState extends State<MicClock> {
                   style: TextStyle(
                     color: elapsed >= _longTake
                         ? SalaColors.of(context).telha.withValues(alpha: 0.95)
-                        : ShemaBrand.azul.withValues(alpha: 0.75),
+                        : SalaColors.of(context).azul.withValues(alpha: 0.75),
                     fontSize: 13.76,
                     letterSpacing: 1.376,
                     fontFeatures: const [FontFeature.tabularFigures()],

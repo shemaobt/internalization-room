@@ -112,7 +112,9 @@ class _Choice extends StatelessWidget {
             constraints: const BoxConstraints(minWidth: 48, minHeight: 44),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: selected ? ShemaBrand.azul : Colors.transparent,
+              color: selected
+                  ? SalaColors.of(context).azul
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(999),
             ),
             child: IconTheme.merge(
