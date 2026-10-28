@@ -47,8 +47,10 @@ class RehearsalSheet extends ConsumerWidget {
     final colors = SalaColors.of(context);
     String said(String control) => ensaioFinalPlanLabelFor(control, language);
     final onRecordAgain = this.onRecordAgain;
+    final screen = MediaQuery.sizeOf(context);
+    final inset = MediaQuery.viewPaddingOf(context).top;
 
-    return SafeArea(
+    final sheet = SafeArea(
       bottom: false,
       child: SizedBox.expand(
         child: SingleChildScrollView(
@@ -59,24 +61,6 @@ class RehearsalSheet extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Semantics(
-                    button: true,
-                    enabled: !busy,
-                    label: said('back'),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: busy ? null : notifier.closeTheRehearsalSheet,
-                      child: SizedBox(
-                        width: 46,
-                        height: 46,
-                        child: Icon(
-                          LucideIcons.chevronLeft,
-                          size: 24,
-                          color: colors.mut,
-                        ),
-                      ),
-                    ),
-                  ),
                   Text(
                     recordingHomeLabelFor('scene', language, n: number),
                     style: TextStyle(
@@ -124,6 +108,38 @@ class RehearsalSheet extends ConsumerWidget {
           ),
         ),
       ),
+    );
+    return Stack(
+      children: [
+        sheet,
+        Positioned(
+          left: screen.width * 0.06 - 2,
+          top: inset + screen.height * 0.05 - 2,
+          child: Semantics(
+            button: true,
+            enabled: !busy,
+            label: said('back'),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: busy ? null : notifier.closeTheRehearsalSheet,
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Opacity(
+                  opacity: 0.6,
+                  child: Center(
+                    child: Icon(
+                      LucideIcons.chevronLeft,
+                      size: 22,
+                      color: colors.claquete,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
