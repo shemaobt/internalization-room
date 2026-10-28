@@ -43,6 +43,9 @@ class SceneRehearsalView extends ConsumerWidget {
             fontSize: 26,
             fontWeight: FontWeight.w500,
           ),
+          top:
+              MediaQuery.viewPaddingOf(context).top +
+              MediaQuery.sizeOf(context).height * 0.09,
         ),
         Expanded(
           child: Center(
