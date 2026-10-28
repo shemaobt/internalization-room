@@ -1491,6 +1491,7 @@ void main() {
     harness.room
       ..verdictChecked = false
       ..verdictUnheardTakeIds = [primeira];
+    await tester.ensureVisible(byLabel(conferir));
     await tester.tap(byLabel(conferir));
     await tester.pump(const Duration(milliseconds: 600));
 
@@ -1601,15 +1602,15 @@ void main() {
           .dy,
       169,
     );
-    expect(tester.getTopLeft(byLabel(ouvindo)), const Offset(335, 350));
+    expect(tester.getTopLeft(byLabel(ouvindo)), const Offset(335, 384.5));
     expect(
       tester.getTopLeft(byLabel(pausar)),
-      const Offset(380, 516),
+      const Offset(380, 585),
       reason:
           'o botão ficava à esquerda da tesoura e da confirmação, que os três '
           'toques tiraram',
     );
-    expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 632));
+    expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 701));
     closeTheRoom(container);
   });
 
@@ -1647,6 +1648,7 @@ void main() {
       findsOneWidget,
     );
 
+    await tester.ensureVisible(byLabel('Pause'));
     await tester.tap(byLabel('Pause'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(byLabel('Listen'), findsOneWidget);

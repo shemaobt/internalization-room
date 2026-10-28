@@ -2,15 +2,23 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/language_and_look.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/pause_adjust_row.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/shema_mark.dart';
+import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show byLabel, settle;
+import 'the_back_translation_is_told_by_beads_test.dart'
+    show cabeca, entrarNaTraducao, passaDoCursor, pausar;
+import 'um_ensaio_de_tres_partes.dart';
 
 final _aLongBook = [
   const Passagem(
@@ -30,6 +38,18 @@ final _aLongBook = [
 
 const _se = Size(375, 667);
 const _seBar = 20.0;
+
+const _tocarOuPausar = 'Tocar ou pausar a gravação';
+
+Rect _theRing(WidgetTester tester) {
+  final circle = tester.getRect(
+    find.descendant(
+      of: find.byType(RetroView),
+      matching: find.byType(FacilitatorCircle),
+    ),
+  );
+  return circle.inflate(circle.width * 0.23);
+}
 
 Future<void> _withRealLetters() async {
   final fonts =
@@ -113,4 +133,85 @@ void main() {
       },
     );
   }
+
+  for (final (named, screen) in [
+    ('the iPhone SE', _se),
+    ('the iPad', const Size(820, 1180)),
+  ]) {
+    testWidgets('on $named the pause button and the three pause controls '
+        'stand outside the check circle\'s ring, not inside it', (
+      tester,
+    ) async {
+      tester.view
+        ..physicalSize = screen
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await entrarNaTraducao(tester, harness);
+      harness.playback.at = cabeca;
+      await tester.pump(passaDoCursor);
+
+      final ring = _theRing(tester);
+      expect(
+        tester.getRect(find.byType(PauseAdjustRow)).bottom,
+        lessThanOrEqualTo(ring.top),
+        reason: 'os três controles da pausa tocavam o anel do círculo',
+      );
+      expect(
+        tester.getRect(byLabel(pausar)).top,
+        greaterThanOrEqualTo(ring.bottom),
+        reason: 'o botão de pausar ficava dentro do anel do círculo',
+      );
+      closeTheRoom(container);
+    });
+  }
+
+  testWidgets('on the iPhone SE the first listen\'s line and its pause button '
+      'start below the check circle\'s ring, not on it', (tester) async {
+    tester.view
+      ..physicalSize = _se
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    late Sala it;
+    await tester.runAsync(() async => it = await umEnsaioDeTresPartesGravado());
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: it.container,
+        child: const SalaApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.runAsync(() async {
+      it.harness.room.listeningUnheardTakeIds = [
+        for (final parte in it.partes) parte.takeId!,
+      ];
+      final tocadas = it.harness.playback.played.length;
+      it.sala.startRetro();
+      await waitFor(
+        'uma parte entrar no ar',
+        () => it.harness.playback.played.length > tocadas,
+      );
+      await theClipOpens(it.harness);
+      it.harness.playback.at = const Duration(seconds: 3);
+    });
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final ring = _theRing(tester);
+    expect(
+      tester
+          .getRect(
+            find.textContaining('ouvindo a gravação de vocês… — parte 1 · '),
+          )
+          .top,
+      greaterThanOrEqualTo(ring.bottom),
+      reason: 'a linha da escuta encostava no anel do círculo',
+    );
+    expect(
+      tester.getRect(byLabel(_tocarOuPausar)).top,
+      greaterThanOrEqualTo(ring.bottom),
+      reason: 'o botão de pausar ficava dentro do anel do círculo',
+    );
+    closeTheRoom(it.container);
+  });
 }
