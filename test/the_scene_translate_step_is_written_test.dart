@@ -717,6 +717,42 @@ void main() {
     },
   );
 
+  testWidgets(
+    'the team\'s translation heard over a playing sent scene rehearsal leaves her paused hint once it stops',
+    (tester) async {
+      final (harness, container) = await _inListenMode(tester);
+      const paused =
+          'pausado — toque no círculo para marcar onde a frase acaba';
+      final take = container.read(salaSessionProvider).scene.take;
+
+      await tester.tap(byLabel('Tocar ou pausar a gravação'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      await tester.tap(byLabel('ouvir a minha tradução da frase 1'));
+      await pumpUntil(
+        tester,
+        () =>
+            harness.playback.played.isNotEmpty &&
+            harness.playback.played.last != take,
+      );
+      expect(harness.playback.played.last, isNot(take));
+      harness.playback.finishPlayback();
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        find.text(paused),
+        findsOneWidget,
+        reason: 'a tradução da equipe tocada sobre a escuta apagava a linha',
+      );
+    },
+  );
+
   testWidgets('a sent scene rehearsal draws her strip', (tester) async {
     await _inListenMode(tester);
 
