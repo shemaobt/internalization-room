@@ -1010,7 +1010,9 @@ class _Disc extends StatelessWidget {
         child: Text(
           '$n',
           style: TextStyle(
-            color: Theme.of(context).brightness == Brightness.dark
+            color: fill == SalaColors.of(context).areia
+                ? SalaColors.of(context).ink
+                : Theme.of(context).brightness == Brightness.dark
                 ? const Color(0xFF1E1B15)
                 : ShemaBrand.branco,
             fontSize: 0.74 * _rem,

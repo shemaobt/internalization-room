@@ -44,6 +44,7 @@ class RehearsalSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(salaSessionProvider.notifier);
+    final listening = ref.watch(salaSessionProvider).planListening;
     final colors = SalaColors.of(context);
     String said(String control) => ensaioFinalPlanLabelFor(control, language);
     final onRecordAgain = this.onRecordAgain;
@@ -100,6 +101,7 @@ class RehearsalSheet extends ConsumerWidget {
                       note: noteOf?.call(candidate) ?? _cannotEnter(candidate),
                       useLabel: useLabelOf?.call(candidate) ?? said('useThis'),
                       waking: wakingOf?.call(candidate) ?? false,
+                      playing: listening?.rehearsalId == candidate.rehearsalId,
                       language: language,
                       busy: busy,
                       onPlay: () =>
@@ -140,6 +142,7 @@ class _SheetLine extends StatelessWidget {
   final String? note;
   final String useLabel;
   final bool waking;
+  final bool playing;
   final String language;
   final bool busy;
   final VoidCallback onPlay;
@@ -152,6 +155,7 @@ class _SheetLine extends StatelessWidget {
     required this.note,
     required this.useLabel,
     required this.waking,
+    required this.playing,
     required this.language,
     required this.busy,
     required this.onPlay,
@@ -176,16 +180,19 @@ class _SheetLine extends StatelessWidget {
         ),
         child: Row(
           children: [
-            RoundActionButton(
-              size: 44,
-              gradient: BeadStyles.wood,
-              mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
-              semanticLabel: '${said('listen')} — $line',
-              onTap: onPlay,
-              child: const Icon(
-                LucideIcons.play,
-                size: 18,
-                color: ShemaBrand.branco,
+            Semantics(
+              selected: playing,
+              child: RoundActionButton(
+                size: 44,
+                gradient: BeadStyles.wood,
+                mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
+                semanticLabel: '${said('listen')} — $line',
+                onTap: onPlay,
+                child: Icon(
+                  playing ? LucideIcons.pause : LucideIcons.play,
+                  size: 18,
+                  color: ShemaBrand.branco,
+                ),
               ),
             ),
             const SizedBox(width: 12),

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
-import 'corner_disc.dart';
 
 class BackToPassageButton extends ConsumerWidget {
   const BackToPassageButton({super.key});
@@ -13,10 +13,11 @@ class BackToPassageButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
     if (!session.theWayBackIsOffered) return const SizedBox.shrink();
+    final screen = MediaQuery.sizeOf(context);
 
     return Positioned(
-      left: 14,
-      top: 118 + MediaQuery.viewPaddingOf(context).top,
+      left: screen.width * 0.06 - 2,
+      top: MediaQuery.viewPaddingOf(context).top + screen.height * 0.05 - 2,
       child: IgnorePointer(
         ignoring: !session.theWayBackIsLive,
         child: Semantics(
@@ -29,12 +30,20 @@ class BackToPassageButton extends ConsumerWidget {
                 : ref.read(salaSessionProvider.notifier).returnToTheLeftEntry,
             behavior: HitTestBehavior.opaque,
             child: SizedBox(
-              width: 46,
-              height: 46,
+              width: 44,
+              height: 44,
               child: Opacity(
-                opacity: session.theWayBackIsLive ? 1 : 0.2,
-                child: const Center(
-                  child: CornerDisc(glyph: LucideIcons.chevronLeft),
+                opacity: !session.theWayBackIsLive
+                    ? 0.2
+                    : session.sceneRehearsalIsOpen
+                    ? 0.6
+                    : 0.5,
+                child: Center(
+                  child: Icon(
+                    LucideIcons.chevronLeft,
+                    size: 22,
+                    color: SalaColors.of(context).verdeClaro,
+                  ),
                 ),
               ),
             ),
