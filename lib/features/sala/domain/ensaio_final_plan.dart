@@ -128,6 +128,7 @@ final class PlanRow {
   PlanNote? get note => switch ((candidates, chosen)) {
     _ when joined || waiting => null,
     ([], _) => PlanNote.missing,
+    (_, null) when candidates.any((c) => c.usable) => PlanNote.missing,
     (_, null) => PlanNote.cannotEnter,
     _ => null,
   };
@@ -137,7 +138,9 @@ final class PlanRow {
   /// «trocar» opens the Rehearsal sheet only where there is another joinable rehearsal
   /// to choose, and never over a joined part.
   bool get canSwap =>
-      !joined && !waiting && candidates.where((c) => c.joinable).length > 1;
+      !joined &&
+      !waiting &&
+      candidates.any((c) => c.usable && c.rehearsalId != chosen?.rehearsalId);
 
   /// «usar este» on a [candidate] of the sheet: a joinable one the row does not hold.
   bool offersToUse(SceneRehearsalRecord candidate) =>
