@@ -15,7 +15,8 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, settle, theChoiceOffersAPassage;
+import 'scenario_helpers.dart'
+    show byLabel, settle, theChoiceOffersAPassage, thePersonSign;
 
 const _aPanorama = Passagem(
   pericope: 'OV-Ruth',
@@ -24,7 +25,7 @@ const _aPanorama = Passagem(
   book: 'Ruth',
 );
 
-final _theSign = byLabel(circleLabelFor('needsPerson', testLanguage));
+final _theSign = thePersonSign;
 final _theChoicesCircle = byLabel(
   escolhaLabelFor('readTheWheel', testLanguage),
 );

@@ -1391,7 +1391,8 @@ void main() {
   });
 
   testWidgets(
-    'a retro under the person sign says so in english to an english room',
+    'a retro in an english room halts under the person sign, which says no '
+    'word, as hers',
     (tester) async {
       final it = await _ateAConferida(
         tester,
@@ -1403,9 +1404,9 @@ void main() {
 
       expect(_circulo(tester).halt, isA<Blocking>());
       expect(
-        byLabel('A moment for someone'),
+        thePersonSign,
         findsOneWidget,
-        reason: 'o sinal da pessoa sobre o retro fala a língua da sala',
+        reason: 'o sinal da pessoa não subia sobre o retro numa sala em inglês',
       );
 
       closeTheRoom(it.container);

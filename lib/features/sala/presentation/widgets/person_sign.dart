@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
-import '../../domain/facilitator_script.dart';
 import 'shema_mark.dart';
 
 class PersonSign extends ConsumerStatefulWidget {
@@ -52,9 +51,6 @@ class _PersonSignState extends ConsumerState<PersonSign>
           opacity: _opacity,
           child: Semantics(
             button: shown,
-            label: shown
-                ? circleLabelFor('needsPerson', ref.watch(roomLanguageProvider))
-                : null,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _tapped,
