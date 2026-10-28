@@ -126,12 +126,13 @@ void main() {
     expect(find.byType(EnsaioView), findsOneWidget);
     expect(find.byType(RetroView), findsOneWidget);
     expect(
-      byLabel('Escolher outra passagem'),
+      byLabel('Voltar para a gravação'),
       findsOneWidget,
       reason:
           'a cópia da tela que saía e a da que chegava desenhavam um botão '
           'cada, a 16 px uma da outra, e as duas esmaeciam juntas',
     );
+    expect(byLabel('Voltar para a passagem atual'), findsNothing);
     closeTheRoom(container);
   });
 }

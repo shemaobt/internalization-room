@@ -602,6 +602,157 @@ void main() {
     },
   );
 
+  for (final (language, play, paused) in [
+    (
+      'pt',
+      'Tocar ou pausar a gravação',
+      'pausado — toque no círculo para marcar onde a frase acaba',
+    ),
+    (
+      'en',
+      'Play or pause your recording',
+      'paused — tap the circle to mark where the sentence ends',
+    ),
+  ]) {
+    testWidgets(
+      '$language: a sent scene rehearsal stopped mid-take writes her paused hint, and nothing before it plays',
+      (tester) async {
+        final (_, container) = await _inListenMode(tester);
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.text(paused), findsNothing);
+        await tester.tap(byLabel(play));
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is PartPlaying,
+        );
+        await tester.tap(byLabel(play));
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is! PartPlaying,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          find.text(paused),
+          findsOneWidget,
+          reason: 'a escuta parada não dizia nada ao lado do play',
+        );
+        expect(byLabel(paused), findsOneWidget);
+      },
+    );
+  }
+
+  for (final (language, play, ended, paused) in [
+    (
+      'pt',
+      'Tocar ou pausar a gravação',
+      'fim do ensaio da cena',
+      'pausado — toque no círculo para marcar onde a frase acaba',
+    ),
+    (
+      'en',
+      'Play or pause your recording',
+      'end of the scene rehearsal',
+      'paused — tap the circle to mark where the sentence ends',
+    ),
+  ]) {
+    testWidgets(
+      '$language: a sent scene rehearsal heard to its end writes her ended hint, not the paused one',
+      (tester) async {
+        final (harness, container) = await _inListenMode(tester);
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        await tester.tap(byLabel(play));
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is PartPlaying,
+        );
+        harness.playback.finishPlayback();
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is! PartPlaying,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          find.text(ended),
+          findsOneWidget,
+          reason: 'a escuta ouvida até o fim não dizia que acabou',
+        );
+        expect(byLabel(ended), findsOneWidget);
+        expect(find.text(paused), findsNothing);
+      },
+    );
+  }
+
+  testWidgets(
+    'a frase of a sent scene rehearsal replayed to its end leaves her paused hint, not a blank row',
+    (tester) async {
+      final (harness, container) = await _inListenMode(tester);
+      const paused =
+          'pausado — toque no círculo para marcar onde a frase acaba';
+
+      await tester.tap(byLabel('frase 1'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      expect(harness.playback.ranges.last, '0-3000');
+      harness.playback.finishPlayback();
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        find.text(paused),
+        findsOneWidget,
+        reason: 'a frase ouvida de novo deixava a linha do play em branco',
+      );
+      expect(find.text('fim do ensaio da cena'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'the team\'s translation heard over a playing sent scene rehearsal leaves her paused hint once it stops',
+    (tester) async {
+      final (harness, container) = await _inListenMode(tester);
+      const paused =
+          'pausado — toque no círculo para marcar onde a frase acaba';
+      final take = container.read(salaSessionProvider).scene.take;
+
+      await tester.tap(byLabel('Tocar ou pausar a gravação'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      await tester.tap(byLabel('ouvir a minha tradução da frase 1'));
+      await pumpUntil(
+        tester,
+        () =>
+            harness.playback.played.isNotEmpty &&
+            harness.playback.played.last != take,
+      );
+      expect(harness.playback.played.last, isNot(take));
+      harness.playback.finishPlayback();
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        find.text(paused),
+        findsOneWidget,
+        reason: 'a tradução da equipe tocada sobre a escuta apagava a linha',
+      );
+    },
+  );
+
   testWidgets('a sent scene rehearsal draws her strip', (tester) async {
     await _inListenMode(tester);
 
