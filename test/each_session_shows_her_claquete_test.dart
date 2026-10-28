@@ -541,6 +541,29 @@ void main() {
     }),
   );
 
+  testWidgets(
+    'on a phone with a home bar the claquete stands above the bar, as hers does in a browser',
+    (tester) async {
+      tester.view
+        ..physicalSize = const Size(393, 852)
+        ..devicePixelRatio = 1
+        ..padding = const FakeViewPadding(bottom: 34)
+        ..viewPadding = const FakeViewPadding(bottom: 34);
+      addTearDown(tester.view.reset);
+      await withClock(Clock.fixed(_noon), () async {
+        await _openP05(tester);
+
+        expect(
+          tester.getRect(_claquete).bottom,
+          lessThanOrEqualTo(852 - 34),
+          reason:
+              'a claquete descia para a faixa da barra; a dela fica acima, '
+              'onde o navegador termina',
+        );
+      });
+    },
+  );
+
   testWidgets('the claquete is written at her .68rem, not a size of ours', (
     tester,
   ) async {
@@ -591,21 +614,27 @@ void main() {
     },
   );
 
-  testWidgets(
-    'on an iPad with a home bar her corner still keeps the claquete off the replay',
-    (tester) async {
-      tester.view
-        ..physicalSize = const Size(820, 1180)
-        ..devicePixelRatio = 1
-        ..padding = const FakeViewPadding(bottom: 20)
-        ..viewPadding = const FakeViewPadding(bottom: 20);
-      addTearDown(tester.view.reset);
-      await withClock(
-        Clock.fixed(_noon),
-        () => _theClaqueteKeepsClearOfTheBottomRowAndTheCircle(tester),
-      );
-    },
-  );
+  for (final (screen, size, homeBar) in const [
+    ('an iPad with a home bar', Size(820, 1180), 20.0),
+    ('an iPad with a home button', Size(810, 1080), 0.0),
+    ('a phone with a home bar', Size(393, 852), 34.0),
+  ]) {
+    testWidgets(
+      'on $screen her corner still keeps the claquete off the replay, the hand and the circle',
+      (tester) async {
+        tester.view
+          ..physicalSize = size
+          ..devicePixelRatio = 1
+          ..padding = FakeViewPadding(bottom: homeBar)
+          ..viewPadding = FakeViewPadding(bottom: homeBar);
+        addTearDown(tester.view.reset);
+        await withClock(
+          Clock.fixed(_noon),
+          () => _theClaqueteKeepsClearOfTheBottomRowAndTheCircle(tester),
+        );
+      },
+    );
+  }
 
   testWidgets(
     'a tap on the Shema mark on the Panorama shows the claquete for twenty seconds again',
