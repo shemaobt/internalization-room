@@ -264,9 +264,11 @@ class _HandLayer extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final notifier = ref.read(salaSessionProvider.notifier);
+    final screen = MediaQuery.sizeOf(context);
     return Positioned(
-      left: 14,
-      bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
+      left: screen.width * 0.08 - 2,
+      bottom:
+          MediaQuery.viewPaddingOf(context).bottom + screen.height * 0.16 - 2,
       child: HandButton(
         noteMode: session.noteMode,
         hasUnheardReply: session.hasUnheardReply,
