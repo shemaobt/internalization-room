@@ -4803,7 +4803,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _silenceThePlan() {
     _silenceTheRoom();
-    state = state.copyWith(clearPlanListening: true);
   }
 
   void joinTheScenes() => _gesture(() {
