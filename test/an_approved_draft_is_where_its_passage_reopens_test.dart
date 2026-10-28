@@ -382,12 +382,19 @@ void main() {
   );
 
   testWidgets(
-    'an approved passage entered on a Rehearsal row goes straight to its '
+    'an approved passage relaunched on a Rehearsal row goes straight to its '
     'conversation, never through the recording home',
     (tester) async {
       final harness = _aRoomHolding(approved: _approvedAs(1));
       _aRowOn(harness, SalaStage.ensaio);
       harness.room.openedSessions.add('sessao-antiga');
+      (harness.currentSession as FakeCurrentSessionLedger).held =
+          const CurrentSession(
+            sessionId: 'sessao-antiga',
+            book: 'Ruth',
+            pericope: 'P01',
+            language: testLanguage,
+          );
       final stood = <SalaStage>[];
       late ProviderContainer container;
       await tester.runAsync(() async {
@@ -396,10 +403,7 @@ void main() {
           salaSessionProvider,
           (_, next) => stood.add(next.stage),
         );
-        final notifier = container.read(salaSessionProvider.notifier);
-        await notifier.abrirEscolha();
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-        await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+        await container.read(salaSessionProvider.notifier).openTheRoom();
         await Future<void>.delayed(const Duration(seconds: 1));
       });
       addTearDown(() => closeTheRoom(container));

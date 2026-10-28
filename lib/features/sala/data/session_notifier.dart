@@ -2983,7 +2983,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_abandoned(generation)) return _Resume.abandoned;
     final faltavam = !relaunched && (aPartlessRetro || missing);
-    if (!relaunched) {
+    if (stage is Retro && faltavam) {
       final sent = ++_readsSent;
       if (await _room.fetchState(waiting.sessionId) case Answered(
         value: final lida,
