@@ -535,6 +535,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The outside listener this tablet has in progress, as its Resume point names them.
   late ({int version, int number})? _listenerInProgress;
 
+  late String? _startedReadIn;
+
   void _aNewLife() {
     _timers = {};
     _armHandedOver = null;
@@ -562,6 +564,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _readTheCheckAfterTheUpload = false;
     _emCurso = null;
     _listenerInProgress = null;
+    _startedReadIn = null;
     _faseAntesDeTraduzirDeNovo = null;
     _traducoesGuardadas = {};
     _traducaoNaFila = {};
@@ -2125,11 +2128,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       for (final book in books) ...await open.startedIn(book, language),
     };
     if (_abandoned(generation)) return;
+    _startedReadIn = language;
     state = state.copyWith(
       naRoda: todas,
       comecadas: comecadas,
       awaitingTheGuide: false,
     );
+  }
+
+  Future<void> _readTheStartedEntriesAgain() async {
+    final generation = _waitOnTheGeneration;
+    final language = _lingua;
+    final open = _emAberto;
+    final comecadas = {
+      for (final book in {for (final entry in state.naRoda!) entry.book})
+        ...await open.startedIn(book, language),
+    };
+    if (_abandoned(generation)) return;
+    _startedReadIn = language;
+    state = state.copyWith(comecadas: comecadas);
   }
 
   void escolhaTap() => _gesture(() => _escolhaTap());
@@ -2523,6 +2540,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             pericope != null &&
             (opened != null ||
                 language != null ||
+                (_startedReadIn ?? speaking) != speaking ||
                 state.comecadas.contains(pericope))
         ? await _emAberto.of(book, pericope, speaking)
         : null;
@@ -11302,6 +11320,8 @@ class _NotifierHost implements StationHost {
     switch (handOff) {
       case OpenTheChoice():
         _notifier._openTheChoice();
+      case ReadTheWheel() when _notifier._current.naRoda != null:
+        _notifier._handOff(_notifier._readTheStartedEntriesAgain());
       case ReadTheWheel():
         _notifier._handOff(_notifier.abrirEscolha());
       case DiscardTheSession():
