@@ -158,6 +158,29 @@ Future<ProviderContainer> inConversa(SalaHarness harness) async {
   return container;
 }
 
+Future<void> _theRoomFallsBackOn(
+  SalaHarness harness,
+  ProviderContainer container, {
+  required String fixedLine,
+}) async {
+  final notifier = container.read(salaSessionProvider.notifier);
+  harness.room.turnsAreCanned = true;
+  harness.room.fixedLine = fixedLine;
+  notifier.conversaTap();
+  await settle();
+  notifier.conversaTap();
+  await waitFor('a sala responder e descansar', () {
+    final state = container.read(salaSessionProvider);
+    return harness.room.turnsSent == 1 &&
+        state.voice == VoiceState.invite &&
+        !state.awaitingTheGuide;
+  });
+  await settle();
+}
+
+int _timesSaid(SalaHarness harness, String line) =>
+    harness.voice.fixedLines.where((said) => said.$1 == line).length;
+
 Future<ProviderContainer> inConversaWithoutPausing(SalaHarness harness) async {
   final container = harness.container();
   await container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
@@ -853,34 +876,137 @@ void main() {
   });
 
   test(
-    'a canned line never takes the place of what the room told them',
+    'an A line the room fell back on is the line «Ouvir de novo» says again, '
+    'not the one before it',
     () async {
       final harness = SalaHarness();
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      final told = container.read(salaSessionProvider).lastSpoken!.url;
+      await _theRoomFallsBackOn(harness, container, fixedLine: 'A1');
+      final playedBefore = harness.voice.played.length;
 
-      harness.room.turnsAreCanned = true;
-      harness.room.fixedLine = 'A0';
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await waitFor(
-        'a sala dizer uma fala fixa',
-        () => harness.voice.fixedLines.isNotEmpty,
-      );
+      await notifier.hearAgain();
       await settle();
 
       expect(
-        container.read(salaSessionProvider).lastSpoken!.url,
-        told,
+        _timesSaid(harness, 'A1'),
+        2,
         reason:
-            'o replay devolvia "vamos parar um instante aqui" no lugar da '
-            'cena que a equipe pediu para ouvir de novo',
+            'o «Ouvir de novo» devolvia a fala de antes, não a linha A que '
+            'a equipe não entendeu',
       );
+      expect(harness.voice.played.skip(playedBefore), isEmpty);
     },
   );
+
+  test('the English A line that names the part is said again as it was said, '
+      'not the line before it', () async {
+    const theLineAboutThePart = '/api/internalization-room/voice/a-parte';
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.room.replyUrl = theLineAboutThePart;
+    await _theRoomFallsBackOn(harness, container, fixedLine: '');
+    final playedBefore = harness.voice.played.length;
+
+    await notifier.hearAgain();
+    await settle();
+
+    expect(
+      harness.voice.played.skip(playedBefore),
+      [theLineAboutThePart],
+      reason:
+          'o «Ouvir de novo» tocava a fala de antes no lugar da linha «— '
+          'this is the part about …»',
+    );
+  });
+
+  test(
+    'a miss answered with D-1 is said again as D-1, not as the line before it',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await _theRoomFallsBackOn(harness, container, fixedLine: 'D0');
+      final playedBefore = harness.voice.played.length;
+
+      await notifier.hearAgain();
+      await settle();
+
+      expect(
+        _timesSaid(harness, 'D0'),
+        2,
+        reason:
+            'quem não ouviu o «podem repetir?» tocava de novo e ouvia a fala '
+            'de antes',
+      );
+      expect(harness.voice.played.skip(playedBefore), isEmpty);
+    },
+  );
+
+  test('a panorama turn the room answered with an A line is said again as that '
+      'line', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await _enterThePanorama(harness, container);
+    harness.room
+      ..turnsAreCanned = true
+      ..fixedLine = 'A1';
+
+    notifier.panoramaTap();
+    await settle();
+    notifier.panoramaTap();
+    await waitFor(
+      'a linha A tocar no panorama',
+      () =>
+          _timesSaid(harness, 'A1') == 1 &&
+          container.read(salaSessionProvider).voice == VoiceState.invite,
+    );
+    await settle();
+    final playedBefore = harness.voice.played.length;
+
+    await notifier.hearAgain();
+    await settle();
+
+    expect(
+      _timesSaid(harness, 'A1'),
+      2,
+      reason: 'o panorama devolvia a fala de antes no lugar da linha A',
+    );
+    expect(harness.voice.played.skip(playedBefore), isEmpty);
+  });
+
+  test('an opening the room fell back on offers «Ouvir de novo», and it says '
+      'that line again', () async {
+    final harness = SalaHarness()
+      ..room.turnsAreCanned = true
+      ..room.fixedLine = 'A1';
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await waitFor(
+      'a abertura ser dita',
+      () =>
+          _timesSaid(harness, 'A1') == 1 &&
+          container.read(salaSessionProvider).voice == VoiceState.invite,
+    );
+
+    expect(
+      container.read(salaSessionProvider).canHearAgain,
+      isTrue,
+      reason: 'a abertura de segurança deixava a sala sem «Ouvir de novo»',
+    );
+
+    await notifier.hearAgain();
+    await settle();
+
+    expect(_timesSaid(harness, 'A1'), 2);
+  });
 
   test('the necklace is strung before the server answers', () async {
     final harness = SalaHarness();

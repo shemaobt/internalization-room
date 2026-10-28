@@ -2980,9 +2980,11 @@ class FakeRoom implements RoomRepository {
   /// Whether a turn is answered with nothing to play: no url and no fixed line.
   bool answersTurnsWithoutAReply = false;
 
+  String replyUrl = turnoUrl;
+
   TurnResult _turn(String sessionId) => TurnResult(
     sessionId: sessionId,
-    audioUrl: answersTurnsWithoutAReply || fixedLine.isNotEmpty ? '' : turnoUrl,
+    audioUrl: answersTurnsWithoutAReply || fixedLine.isNotEmpty ? '' : replyUrl,
     fixedLine: answersTurnsWithoutAReply ? '' : fixedLine,
     transcript: 'a equipe falou',
     peerCue: peerCue,

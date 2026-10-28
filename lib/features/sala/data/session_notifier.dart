@@ -1283,7 +1283,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final played = await _speak(
       turn.audioUrl,
       turn.fixedLine,
-      remember: !turn.usedFailSafe,
       onSoundStart: onSoundStart,
     );
     if (_abandoned(generation)) return;
