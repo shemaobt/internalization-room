@@ -105,9 +105,7 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
             Positioned(
               left: 14 + 76 + 8,
               right: MediaQuery.sizeOf(context).width * 0.024,
-              bottom:
-                  MediaQuery.sizeOf(context).height * 0.026 +
-                  MediaQuery.viewPaddingOf(context).bottom,
+              bottom: MediaQuery.sizeOf(context).height * 0.026,
               child: IgnorePointer(
                 child: ExcludeSemantics(
                   child: Align(

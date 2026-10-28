@@ -129,6 +129,44 @@ Future<void> _openP05WhileTheVoiceSpeaks(WidgetTester tester) async {
   expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
 }
 
+Future<void> _theClaqueteKeepsClearOfTheBottomRowAndTheCircle(
+  WidgetTester tester,
+) async {
+  final (_, container) = await _openP05(tester);
+  for (var beat = 0; beat < 50; beat++) {
+    if (container.read(salaSessionProvider).canHearAgain) break;
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  expect(container.read(salaSessionProvider).canHearAgain, isTrue);
+  expect(_claquete, findsOneWidget);
+
+  final claquete = tester.getRect(_claquete);
+  for (final (what, widget) in [
+    (
+      'o ouvir de novo',
+      find.descendant(
+        of: find.byType(HearAgainButton),
+        matching: find.byType(RoundActionButton),
+      ),
+    ),
+    ('a mão', find.byType(HandButton)),
+    ('o círculo', find.byType(FacilitatorCircle)),
+  ]) {
+    expect(widget, findsWidgets);
+    for (final one in widget.evaluate()) {
+      final box = one.renderObject! as RenderBox;
+      final overlap = claquete.intersect(
+        box.localToGlobal(Offset.zero) & box.size,
+      );
+      expect(
+        overlap.width <= 0 || overlap.height <= 0,
+        isTrue,
+        reason: 'no canto dela a claquete cobria $what',
+      );
+    }
+  }
+}
+
 Future<ProviderContainer> _openThePanorama(WidgetTester tester) async {
   final harness = SalaHarness()
     ..room.passages = const [
@@ -546,41 +584,26 @@ void main() {
       tester.view.physicalSize = const Size(375, 667);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      await withClock(Clock.fixed(_noon), () async {
-        final (_, container) = await _openP05(tester);
-        for (var beat = 0; beat < 50; beat++) {
-          if (container.read(salaSessionProvider).canHearAgain) break;
-          await tester.pump(const Duration(milliseconds: 100));
-        }
-        expect(container.read(salaSessionProvider).canHearAgain, isTrue);
-        expect(_claquete, findsOneWidget);
+      await withClock(
+        Clock.fixed(_noon),
+        () => _theClaqueteKeepsClearOfTheBottomRowAndTheCircle(tester),
+      );
+    },
+  );
 
-        final claquete = tester.getRect(_claquete);
-        for (final (what, widget) in [
-          (
-            'o ouvir de novo',
-            find.descendant(
-              of: find.byType(HearAgainButton),
-              matching: find.byType(RoundActionButton),
-            ),
-          ),
-          ('a mão', find.byType(HandButton)),
-          ('o círculo', find.byType(FacilitatorCircle)),
-        ]) {
-          expect(widget, findsWidgets);
-          for (final one in widget.evaluate()) {
-            final box = one.renderObject! as RenderBox;
-            final overlap = claquete.intersect(
-              box.localToGlobal(Offset.zero) & box.size,
-            );
-            expect(
-              overlap.width <= 0 || overlap.height <= 0,
-              isTrue,
-              reason: 'no canto dela a claquete cobria $what',
-            );
-          }
-        }
-      });
+  testWidgets(
+    'on an iPad with a home bar her corner still keeps the claquete off the replay',
+    (tester) async {
+      tester.view
+        ..physicalSize = const Size(820, 1180)
+        ..devicePixelRatio = 1
+        ..padding = const FakeViewPadding(bottom: 20)
+        ..viewPadding = const FakeViewPadding(bottom: 20);
+      addTearDown(tester.view.reset);
+      await withClock(
+        Clock.fixed(_noon),
+        () => _theClaqueteKeepsClearOfTheBottomRowAndTheCircle(tester),
+      );
     },
   );
 
