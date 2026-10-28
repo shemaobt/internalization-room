@@ -1534,7 +1534,10 @@ class SalaSessionState {
   };
 
   bool regravadaRecontavel(Trecho regravada) {
-    final takeId = partes.elementAtOrNull(regravada.parte)?.takeId;
+    final takeId = switch (regravada.parte) {
+      final at when at >= 0 && at < partes.length => partes[at].takeId,
+      _ => null,
+    };
     return takeId != null &&
         !btTrechos.any(
           (trecho) =>
