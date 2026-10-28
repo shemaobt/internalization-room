@@ -15,6 +15,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/frase_li
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'the_back_translation_is_told_by_beads_test.dart' show tocar;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
 
@@ -343,6 +344,29 @@ void main() {
     expect(_borda(tester, 2), ShemaBrand.telha);
     expect(_corDaBarra(tester, 2), ShemaBrand.telha);
     expect(_corDaPalavra(tester, 2, 'acrescentado'), ShemaBrand.telha);
+    closeTheRoom(container);
+  });
+
+  testWidgets('the frase being translated again wears terracotta on its bar '
+      'and its border, so the team sees which one the circle will tell', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComAchados(tester, harness, const [
+      BtFinding(kind: BtFindingKind.addition, frase: 2, segmentId: 'trecho-2'),
+    ]);
+
+    await tocar(tester, 'Ouvir esta frase de novo e traduzir de novo — 1');
+
+    expect(
+      _borda(tester, 1),
+      ShemaBrand.telha,
+      reason:
+          'a frase sendo traduzida de novo era igual às outras na lista, só o '
+          'aviso dizia qual era',
+    );
+    expect(_corDaBarra(tester, 1), ShemaBrand.telha);
+    expect(_borda(tester, 3), isNot(ShemaBrand.telha));
     closeTheRoom(container);
   });
 }

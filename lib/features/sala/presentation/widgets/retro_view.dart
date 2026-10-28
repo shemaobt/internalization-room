@@ -318,6 +318,9 @@ class RetroView extends ConsumerWidget {
                   final kind => retroLabelFor(kind.name, language),
                 },
           achado: _markOn(trecho.frase, session),
+          traduzindoDeNovo:
+              trecho.segmentId != null &&
+              trecho.segmentId == session.btFraseTraduzidaDeNovo?.segmentId,
           regravar:
               session.fraseRegravavel(trecho) &&
                   (session.btPhase != BtPhase.conferida ||

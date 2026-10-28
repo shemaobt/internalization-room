@@ -14,6 +14,7 @@ class FraseRow {
   final VoidCallback? onRetell;
   final String? mark;
   final BtFindingKind? achado;
+  final bool traduzindoDeNovo;
   final String? regravar;
   final bool regravarDormindo;
   final VoidCallback? onRegravar;
@@ -30,6 +31,7 @@ class FraseRow {
     this.onRetell,
     this.mark,
     this.achado,
+    this.traduzindoDeNovo = false,
     this.regravar,
     this.regravarDormindo = false,
     this.onRegravar,
@@ -239,7 +241,9 @@ class _FraseTile extends StatelessWidget {
     final parte = row.parte;
     final mark = row.mark;
     final azul = row.achado != null && row.achado != BtFindingKind.addition;
-    final tom = azul
+    final tom = row.traduzindoDeNovo
+        ? colors.telha
+        : azul
         ? ShemaBrand.azul
         : mark == null
         ? colors.cord
@@ -252,7 +256,9 @@ class _FraseTile extends StatelessWidget {
           color: colors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: azul
+            color: row.traduzindoDeNovo
+                ? colors.telha
+                : azul
                 ? ShemaBrand.azul
                 : mark == null
                 ? colors.line
