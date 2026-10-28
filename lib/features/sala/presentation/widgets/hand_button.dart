@@ -48,7 +48,7 @@ class HandButton extends StatelessWidget {
                   clipBehavior: Clip.none,
                   children: [
                     Icon(LucideIcons.hand, size: 26, color: colors.verde),
-                    if (hasUnheardReply && !playingReply)
+                    if (hasUnheardReply)
                       Positioned(top: 1, right: 1, child: _replyDot(colors)),
                   ],
                 ),
