@@ -5,8 +5,11 @@ on:
   push:
     branches: [main]
 
+# The suite ran as one 21-minute job, and every merge waits on it. It now runs in six
+# shards side by side on GitHub's free runners for public repositories (same tests, same
+# flags), and `check` still reports one verdict for the whole.
 jobs:
-  check:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -31,9 +34,6 @@ jobs:
       - name: Format
         run: dart format --output=none --set-exit-if-changed lib test tool
 
-      - name: Test
-        run: flutter test --reporter expanded --concurrency=2
-
       # Three skipped tests sat green for weeks, one with an empty body and a reason that
       # had stopped being true. A paused test is a decision, and a decision belongs in a
       # review — not in a suite that reports success.
@@ -55,3 +55,39 @@ jobs:
       # deliberately not here: `--sync` is run by hand, against a checkout, when she has ruled.
       - name: Nothing of Marcia's moved without her word
         run: dart run tool/sync_doctrine.dart --check
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.9
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Provide a .env
+        run: cp .env.example .env
+
+      - name: Test (shard ${{ matrix.shard }} of 6)
+        run: flutter test --reporter expanded --concurrency=2 --total-shards=6 --shard-index=${{ matrix.shard }}
+
+  check:
+    if: always()
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every shard and the lint passed
+        run: |
+          [ "${{ needs.lint.result }}" = success ] && [ "${{ needs.test.result }}" = success ] || {
+            echo "::error::lint=${{ needs.lint.result }} test=${{ needs.test.result }}"; exit 1; }
