@@ -2202,7 +2202,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _openedFromTheChoice(Future<void> Function() open) async {
     final opening = open().catchError(
-      (Object _) {},
+      (Object error, StackTrace stack) => debugPrint('$error\n$stack'),
       test: (error) => error is Error && _theOpenBroughtNoSession,
     );
     final generation = _generation;

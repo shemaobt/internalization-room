@@ -256,6 +256,35 @@ void main() {
     );
 
     test(
+      'a create that throws under a pill is still written to the log once, though nobody sees it',
+      () async {
+        final logged = <String>[];
+        final print = debugPrint;
+        debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+        addTearDown(() => debugPrint = print);
+        final harness = SalaHarness();
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        await notifier.abrirEscolha();
+        await theChoiceOffersAPassage(container);
+        harness.room.throwOn['createSession'] = StateError('a create defect');
+
+        notifier.openTheEntry(
+          container.read(salaSessionProvider).naRoda!.first,
+        );
+        await settle();
+
+        expect(container.read(salaSessionProvider).needsPerson, isFalse);
+        expect(
+          logged.where((line) => line.contains('a create defect')),
+          hasLength(1),
+          reason: 'o erro engolido sumia também do log do operador',
+        );
+      },
+    );
+
+    test(
       'a pill whose session opened before its opening threw still shows the sign, not the Choice',
       () async {
         final harness = SalaHarness();
