@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -376,6 +377,49 @@ void main() {
     expect(harness.sounds.skip(sons), isEmpty);
     expect(depois.btContaEscolhida, isNull);
     expect(depois.btTrechoTraduzidoDeNovo, isNull);
+    closeTheRoom(container);
+  });
+
+  testWidgets('the whole passage is written whole beside its strip on a '
+      'phone, never cut short', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    final container = await _voltaAoConferir(
+      tester,
+      harness,
+      lingua: 'en',
+      inteira: true,
+      contado: const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-inteira',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+        ],
+      ),
+    );
+    tester.view
+      ..physicalSize = const Size(375, 667)
+      ..devicePixelRatio = 1;
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final rotulo = tester.renderObject<RenderParagraph>(
+      find.descendant(
+        of: find.descendant(
+          of: find.byType(PartStrips),
+          matching: find.text('The whole passage'),
+        ),
+        matching: find.byType(RichText),
+      ),
+    );
+    expect(
+      rotulo.didExceedMaxLines,
+      isFalse,
+      reason: 'o rótulo da passagem inteira saía cortado em reticências no SE',
+    );
+    expect(find.byType(SceneStrip), findsOneWidget);
     closeTheRoom(container);
   });
 }

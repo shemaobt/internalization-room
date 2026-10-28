@@ -43,8 +43,8 @@ class PartStrips extends StatelessWidget {
               if (onde > 0) const SizedBox(height: 5),
               Row(
                 children: [
-                  SizedBox(
-                    width: 92,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 92),
                     child: Text(
                       row.label,
                       textAlign: TextAlign.right,
