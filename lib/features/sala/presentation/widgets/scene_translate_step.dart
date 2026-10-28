@@ -639,7 +639,14 @@ class _ListedRow extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Text('${row.n}', style: words),
+                  _Disc(
+                    n: row.n,
+                    fill: !row.unsent
+                        ? colors.claquete
+                        : onScreen
+                        ? colors.azul
+                        : colors.areia,
+                  ),
                   if (scene != null) ...[
                     const SizedBox(width: 10),
                     Text(said('sceneN', scene), style: words),

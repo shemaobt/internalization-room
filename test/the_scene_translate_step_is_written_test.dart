@@ -143,7 +143,7 @@ void _numberedDisc(
   expect(
     disc,
     findsOneWidget,
-    reason: 'o número da frase era um dígito solto, sem o disco dela',
+    reason: 'o número era um dígito solto, sem o disco dela',
   );
   expect(tester.getSize(disc), const Size(22, 22));
   expect(
@@ -1606,5 +1606,65 @@ void main() {
         },
       );
     }
+  }
+  for (final (look, areia, azul, verdeClaro, digit) in [
+    (
+      Brightness.light,
+      const Color(0xFFC5C29F),
+      const Color(0xFF89AAA3),
+      const Color(0xFF777D45),
+      const Color(0xFFF6F5EB),
+    ),
+    (
+      Brightness.dark,
+      const Color(0xFF6E6A57),
+      const Color(0xFF8FB1A9),
+      const Color(0xFFAAB07E),
+      const Color(0xFF1E1B15),
+    ),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look a listed rehearsal carries its number in her disc, azul on the one on screen and verde-claro once sent',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              sentAt: '2026-10-15T14:20:00+00:00',
+              frases: [_frase('f1', 0, 3000)],
+            ),
+            _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+          ],
+          until: (state) => state.scene.rehearsal?.n == 2,
+        );
+        final list = byLabel('ensaios da cena desta sessão');
+
+        _numberedDisc(tester, list, '1', fill: verdeClaro, digit: digit);
+        _numberedDisc(tester, list, '2', fill: azul, digit: digit);
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look a listed rehearsal neither sent nor on screen is her areia disc, and a sent one on screen stays verde-claro',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _inListenMode(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              sentAt: '2026-10-15T14:20:00+00:00',
+              frases: [_frase('f1', 0, 3000)],
+            ),
+            _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+          ],
+        );
+        final list = byLabel('ensaios da cena desta sessão');
+
+        _numberedDisc(tester, list, '1', fill: verdeClaro, digit: digit);
+        _numberedDisc(tester, list, '2', fill: areia, digit: digit);
+      },
+    );
   }
 }
