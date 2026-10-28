@@ -13,6 +13,9 @@ enum Tongue { guide, motherTongue, bridge }
 
 const facilitatorCircleSize = 160.0;
 
+double herCircleSize(Size screen, int vw, double most) =>
+    math.min(screen.width * vw / 100, most);
+
 bool isTeamTalk({required bool peerCue, required VoiceState voice}) =>
     peerCue && (voice == VoiceState.invite || voice == VoiceState.done);
 
@@ -55,6 +58,9 @@ class FacilitatorCircle extends StatelessWidget {
 
   bool get _noteBlue => noteMode && voice != VoiceState.done;
 
+  bool get _herNote =>
+      noteMode && (voice == VoiceState.invite || voice == VoiceState.listening);
+
   @override
   Widget build(BuildContext context) {
     final underTheSign = halt is Blocking;
@@ -67,6 +73,35 @@ class FacilitatorCircle extends StatelessWidget {
   Widget _circle(BuildContext context, double opacity) {
     final colors = SalaColors.of(context);
     final still = MediaQuery.disableAnimationsOf(context);
+    final drawing = Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        if (!_halted && canvas && !still && voice == VoiceState.listening)
+          ..._herRipples(colors),
+        if (!_halted && canvas && voice == VoiceState.speaking) _herGlow(still),
+        _body(context, colors, still),
+        if (!_halted && !canvas && voice == VoiceState.speaking)
+          ..._ripples(colors),
+        if (!_halted && !canvas && voice == VoiceState.listening)
+          _listenRing(colors),
+        if (!_halted && !canvas && voice == VoiceState.listening)
+          ..._gatheringIn(),
+        if (notUnderstood != null && !_halted)
+          _notUnderstoodMark(notUnderstood!),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 1000),
+          child: _modeGlyph == null
+              ? const SizedBox.shrink()
+              : Icon(
+                  _modeGlyph,
+                  key: ValueKey(_modeGlyph),
+                  size: size * 0.3,
+                  color: canvas ? _herInk(colors) : ShemaBrand.branco,
+                ),
+        ),
+      ],
+    );
     return AnimatedOpacity(
       opacity: opacity,
       duration: const Duration(milliseconds: 500),
@@ -80,32 +115,12 @@ class FacilitatorCircle extends StatelessWidget {
           child: SizedBox(
             width: size,
             height: size,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                _body(colors, still),
-                if (!_halted && voice == VoiceState.speaking)
-                  ..._ripples(colors),
-                if (!_halted && voice == VoiceState.listening)
-                  _listenRing(colors),
-                if (!_halted && voice == VoiceState.listening)
-                  ..._gatheringIn(),
-                if (notUnderstood != null && !_halted)
-                  _notUnderstoodMark(notUnderstood!),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 1000),
-                  child: _modeGlyph == null
-                      ? const SizedBox.shrink()
-                      : Icon(
-                          _modeGlyph,
-                          key: ValueKey(_modeGlyph),
-                          size: size * 0.3,
-                          color: ShemaBrand.branco,
-                        ),
-                ),
-              ],
-            ),
+            child: canvas
+                ? Transform.scale(
+                    scale: !_halted && voice == VoiceState.speaking ? 0.9 : 1,
+                    child: drawing,
+                  )
+                : drawing,
           ),
         ),
       ),
@@ -158,8 +173,15 @@ class FacilitatorCircle extends StatelessWidget {
     return LucideIcons.volume2;
   }
 
-  Widget _body(SalaColors colors, bool still) {
+  Color _herInk(SalaColors colors) {
+    if (noteMode) return colors.azul;
+    if (_teamTalk) return const Color(0xFF3F7F76);
+    return colors.telha;
+  }
+
+  Widget _body(BuildContext context, SalaColors colors, bool still) {
     if (!answersATouch) return _haltedBody(colors);
+    if (canvas && _herNote) return _herRing(context, colors);
     if (_teamTalk) return _liveBreath(colors);
 
     switch (voice) {
@@ -167,6 +189,7 @@ class FacilitatorCircle extends StatelessWidget {
       case VoiceState.done:
         return _liveBreath(colors);
       case VoiceState.listening:
+        if (canvas) return _herRing(context, colors);
         return _disc(
           gradient: tongue == Tongue.motherTongue
               ? BeadStyles.wood
@@ -184,8 +207,9 @@ class FacilitatorCircle extends StatelessWidget {
           ],
         );
       case VoiceState.thinking:
-        return _waiting(colors, still);
+        return _waiting(context, colors, still);
       case VoiceState.speaking:
+        if (canvas) return _herRing(context, colors);
         return Loop(
           period: const Duration(milliseconds: 3400),
           builder: (context, t) =>
@@ -235,17 +259,19 @@ class FacilitatorCircle extends StatelessWidget {
     ],
   );
 
-  Widget _waiting(SalaColors colors, bool still) {
-    final body = _disc(
-      gradient: BeadStyles.clay(colors),
-      shadows: const [
-        BoxShadow(
-          color: Color(0x260A0703),
-          offset: Offset(0, 6),
-          blurRadius: 20,
-        ),
-      ],
-    );
+  Widget _waiting(BuildContext context, SalaColors colors, bool still) {
+    final body = canvas
+        ? _herRing(context, colors)
+        : _disc(
+            gradient: BeadStyles.clay(colors),
+            shadows: const [
+              BoxShadow(
+                color: Color(0x260A0703),
+                offset: Offset(0, 6),
+                blurRadius: 20,
+              ),
+            ],
+          );
     final glow = RepaintBoundary(
       child: CustomPaint(
         size: Size.square(size),
@@ -335,8 +361,167 @@ class FacilitatorCircle extends StatelessWidget {
 
   Widget _liveBreath(SalaColors colors) => Loop(
     period: const Duration(milliseconds: 4600),
-    builder: (context, t) =>
-        Transform.scale(scale: 1 + 0.045 * t, child: _liveDisc(colors)),
+    builder: (context, t) => Transform.scale(
+      scale: 1 + 0.045 * t,
+      child: canvas ? _herRing(context, colors) : _liveDisc(colors),
+    ),
+  );
+
+  Widget _herRing(BuildContext context, SalaColors colors) {
+    final (fill, stops) = _herFill(
+      Theme.of(context).brightness == Brightness.dark,
+    );
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: _herEdge(colors), width: 1.5),
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.08),
+          radius: 0.7359,
+          colors: fill,
+          stops: stops,
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _herRipples(SalaColors colors) {
+    Widget ring(double phase) => Ripple(
+      period: const Duration(milliseconds: 3200),
+      phase: phase,
+      curve: Curves.linear,
+      builder: (context, t) => Transform.scale(
+        scale: 0.62 + 0.88 * Curves.easeOut.transform(t),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: colors.azul.withValues(alpha: _ebb(t)),
+              width: 1.2,
+            ),
+          ),
+        ),
+      ),
+    );
+    return [ring(0), ring(0.665625), ring(0.33125)];
+  }
+
+  Widget _herGlow(bool still) {
+    final light = OverflowBox(
+      maxWidth: size * 1.12,
+      maxHeight: size * 1.12,
+      child: Container(
+        width: size * 1.12,
+        height: size * 1.12,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            radius: 0.7071,
+            colors: [
+              Color.fromRGBO(190, 74, 1, .20),
+              Color.fromRGBO(190, 74, 1, 0),
+            ],
+            stops: [0, .66],
+          ),
+        ),
+      ),
+    );
+    if (still) return light;
+    return Loop(
+      period: const Duration(milliseconds: 3400),
+      builder: (context, t) => Opacity(
+        opacity: 0.55 + 0.45 * t,
+        child: Transform.scale(scale: 0.98 + 0.08 * t, child: light),
+      ),
+    );
+  }
+
+  double _ebb(double t) => t <= 0.8
+      ? 0.5 - 0.44 * Curves.easeOut.transform(t / 0.8)
+      : 0.06 - 0.06 * Curves.easeOut.transform((t - 0.8) / 0.2);
+
+  Color _herEdge(SalaColors colors) {
+    if (_herNote) return colors.azul;
+    if (_teamTalk) return colors.telha;
+    switch (voice) {
+      case VoiceState.invite:
+      case VoiceState.done:
+        return colors.telha;
+      case VoiceState.listening:
+        return colors.azul;
+      case VoiceState.thinking:
+        return colors.areia;
+      case VoiceState.speaking:
+        return const Color.fromRGBO(199, 194, 159, .5);
+    }
+  }
+
+  (List<Color>, List<double>) _herFill(bool dark) {
+    if (_herNote) {
+      return (
+        const [
+          Color.fromRGBO(137, 170, 163, .16),
+          Color.fromRGBO(199, 194, 159, .12),
+          Color.fromRGBO(199, 194, 159, .04),
+        ],
+        const [0, .62, 1],
+      );
+    }
+    if (_teamTalk) return _inviteFill;
+    switch (voice) {
+      case VoiceState.invite:
+        return _inviteFill;
+      case VoiceState.listening:
+        return (
+          const [
+            Color.fromRGBO(137, 170, 163, .14),
+            Color.fromRGBO(199, 194, 159, .12),
+            Color.fromRGBO(199, 194, 159, 0),
+          ],
+          const [0, .64, 1],
+        );
+      case VoiceState.speaking:
+        return (
+          const [
+            Color.fromRGBO(190, 74, 1, .06),
+            Color.fromRGBO(190, 74, 1, 0),
+          ],
+          const [0, .6],
+        );
+      case VoiceState.done:
+      case VoiceState.thinking:
+        if (dark) {
+          return (
+            const [
+              Color.fromRGBO(214, 97, 42, .16),
+              Color.fromRGBO(110, 106, 87, .14),
+              Color.fromRGBO(110, 106, 87, .04),
+            ],
+            const [0, .62, 1],
+          );
+        }
+        return (
+          const [
+            Color.fromRGBO(190, 74, 1, .10),
+            Color.fromRGBO(199, 194, 159, .16),
+            Color.fromRGBO(199, 194, 159, .05),
+          ],
+          const [0, .62, 1],
+        );
+    }
+  }
+
+  static const _inviteFill = (
+    [
+      Color.fromRGBO(190, 74, 1, .14),
+      Color.fromRGBO(199, 194, 159, .18),
+      Color.fromRGBO(199, 194, 159, .04),
+    ],
+    [0.0, .6, 1.0],
   );
 
   /// A circle that answers no touch, and is still running: slower and shallower than an

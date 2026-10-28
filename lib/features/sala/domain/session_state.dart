@@ -35,6 +35,8 @@ enum OrangeDotLook { gone, faint, bright }
 /// Where the scene rehearsal's screen is.
 enum SceneStep { record, translate, placesUnknown, sent }
 
+enum SceneHeard { partly, toTheEnd }
+
 /// Her line beside the scene rehearsal's controls: «recomeçar a tradução» answered or
 /// failed, a moved pause the room refused, one per refusal code, or a «terminei» that
 /// could not be sent, or that the room lists as already sent.
@@ -141,6 +143,7 @@ final class SceneScreen {
   final bool notUnderstood;
   final SceneFrase? translatingAgain;
   final bool wentToTheVoice;
+  final SceneHeard? heard;
 
   const SceneScreen({
     this.step = SceneStep.record,
@@ -159,6 +162,7 @@ final class SceneScreen {
     this.notUnderstood = false,
     this.translatingAgain,
     this.wentToTheVoice = false,
+    this.heard,
   });
 
   SceneScreen copyWith({
@@ -181,6 +185,7 @@ final class SceneScreen {
     SceneFrase? translatingAgain,
     bool clearTranslatingAgain = false,
     bool? wentToTheVoice,
+    SceneHeard? heard,
   }) => SceneScreen(
     step: step,
     rehearsal: rehearsal ?? this.rehearsal,
@@ -200,6 +205,7 @@ final class SceneScreen {
         ? null
         : (translatingAgain ?? this.translatingAgain),
     wentToTheVoice: wentToTheVoice ?? this.wentToTheVoice,
+    heard: heard ?? this.heard,
   );
 
   SceneScreen get asWaiting => copyWith(waiting: true);
@@ -831,7 +837,7 @@ class SalaSessionState {
 
   /// «Ensaio Final: juntar os ensaios das cenas»: only over an empty whole recording, with
   /// no take on the tablet, in the room or waiting in the Outbox, and only while a plan
-  /// read stands with a scene still to join: a joinable rehearsal chosen for a scene with
+  /// read stands with a scene still to join: a usable rehearsal chosen for a scene with
   /// no part and no take held on the tablet. Her `backToJoinOffered` asks the same of the
   /// join queue (ensaioFinal.ts:252-253).
   bool get offersTheWayBackToTheJoin =>

@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by the glossary (2026-10-06: the necklace's beads are her twelve, not Meaning Map elements), amended by 0062, amended by 0076, amended by 0102, amended by ENG-1441 (2026-10-21: the Conversation's green check of ADR 0037 is gone; the confirming check on the recording rows stays), amended by 0140
+status: accepted, amended by the glossary (2026-10-06: the necklace's beads are her twelve, not Meaning Map elements), amended by 0062, amended by 0076, amended by 0102, amended by ENG-1441 (2026-10-21: the Conversation's green check of ADR 0037 is gone; the confirming check on the recording rows stays), amended by ENG-1843 (2026-10-27: the circle takes her size per screen and the canvas circle is her hollow ring), amended by 0141
 date: 2026-09-25
 ---
 
@@ -57,3 +57,20 @@ another thing. The translation reaches the server on the check, so a team leavin
 loses a pending translation, as it loses a pending part. The prototype is the Design canvas
 "Sala · controles de gravar e tocar" (rows Fluxo · Ensaio, Fluxo · Tradução, Fluxo · Achados);
 the work is ENG-1112 and its six slices, one owner of each notifier path at a time.
+
+## Amendment · 2026-10-27 (ENG-1843)
+
+Her frozen app is the rule (João, 2026-10-26), so **160 px in every station** no longer
+holds: the circle takes her size on each screen, `min(58vw, 232px)` on the Conversation and
+the Panorama (`app/globals.css:110`), `min(38vw, 150px)` on the Back-translation and the
+external check (`:429`, `:508`), and `min(46vw, 180px)` on the Rehearsal, the size of her
+scene-take record circle (`:603`). The Choice and the claim code keep 160: hers has no circle
+on either.
+
+On the Conversation and the Panorama the circle is her hollow ring, not a coloured disc: a
+1.5 edge over a faint fill, telha at rest, azul while the team speaks, areia while she thinks
+and while she speaks (`:113-116`, `:188-235`). There **the motion is hers**: three azul rings
+grow out of the circle while the team speaks, and while she speaks the circle draws back to
+.9 over a breathing glow, with no ripple. The colour-is-the-voice rule and its inward and
+outward ripples stand on the Back-translation, the Rehearsal and the external check, whose
+circles keep their discs.

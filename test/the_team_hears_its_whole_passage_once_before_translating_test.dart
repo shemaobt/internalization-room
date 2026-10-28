@@ -905,8 +905,16 @@ void main() {
           ),
         ];
       final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
 
-      await _oDisco(it);
+      it.sala.startRetro();
+      await waitFor(
+        'a tradução voltar',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            it.estado.btPhase == BtPhase.playing &&
+            !it.estado.awaitingTheGuide,
+      );
       await settle();
 
       expect(
@@ -915,6 +923,11 @@ void main() {
         reason: 'a N-3 voltava sobre um trecho que a conferência limpa fechou',
       );
       expect(it.estado.btRecusa, isNull);
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        isEmpty,
+        reason: 'a gravação voltava a tocar sobre a conferência limpa',
+      );
     },
   );
 

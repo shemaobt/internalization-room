@@ -24,7 +24,7 @@ const conferir = 'terminei';
 const gravarEstaParteDeNovo = 'Gravar de novo';
 const confirmarAParte = 'Enviar a gravação';
 const irParaATraducao = 'Traduzir a gravação';
-const sairDaPassagem = 'Escolher outra passagem';
+const voltarParaAGravacao = 'Voltar para a gravação';
 
 const rotulosDaGrade = [
   'Ouvir a voz de vocês, na língua materna',
@@ -205,8 +205,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(harness.recorder.deleted, isNot(contains(antiga)));
 
-    await tocar(tester, sairDaPassagem);
+    await tocar(tester, voltarParaAGravacao);
     await tester.pump(const Duration(milliseconds: 300));
+    expect(estadoDe(container).stage, SalaStage.ensaio);
+    container.read(salaSessionProvider.notifier).startRetro();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(estadoDe(container).stage, SalaStage.retro);
 
     expect(harness.recorder.deleted, isNot(contains(antiga)));
     expect(await traducoesGuardadas(tester, harness), guardadas);
@@ -230,8 +234,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, sairDaPassagem);
+    await tocar(tester, voltarParaAGravacao);
     await tester.pump(const Duration(milliseconds: 300));
+    expect(estadoDe(container).stage, SalaStage.ensaio);
+    container.read(salaSessionProvider.notifier).startRetro();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(estadoDe(container).stage, SalaStage.retro);
 
     expect(harness.recorder.deleted, isNot(contains(antiga)));
     expect(await traducoesGuardadas(tester, harness), guardadas);

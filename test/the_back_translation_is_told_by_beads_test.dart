@@ -1601,19 +1601,21 @@ void main() {
           .dy,
       169,
     );
-    expect(tester.getTopLeft(byLabel(ouvindo)), const Offset(330, 350));
+    expect(tester.getTopLeft(byLabel(ouvindo)), const Offset(335, 350));
     expect(
       tester.getTopLeft(byLabel(pausar)),
-      const Offset(380, 526),
+      const Offset(380, 516),
       reason:
           'o botão ficava à esquerda da tesoura e da confirmação, que os três '
           'toques tiraram',
     );
-    expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 642));
+    expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 632));
     closeTheRoom(container);
   });
 
-  testWidgets('B10b — o círculo tem 160 px numa tela menor', (tester) async {
+  testWidgets('B10b — o círculo tem os 150 px do dela numa tela menor', (
+    tester,
+  ) async {
     tester.view
       ..physicalSize = const Size(768, 900)
       ..devicePixelRatio = 1;
@@ -1623,7 +1625,7 @@ void main() {
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
 
-    expect(tester.getRect(byLabel(ouvindo)).size, const Size(160, 160));
+    expect(tester.getRect(byLabel(ouvindo)).size, const Size(150, 150));
     expect(tester.getRect(byLabel(conferir)).size, const Size(78, 78));
     closeTheRoom(container);
   });

@@ -421,7 +421,7 @@ The rehearsal a scene's plan row holds before the team chooses another: the last
 _Avoid_: selected rehearsal, latest take
 
 **Rehearsal sheet**:
-What a plan row's «trocar o ensaio desta cena» opens: one scene's rehearsals of this session, newest first, each with its facts and «enviado» / «não enviado», «✓ em uso» on the one the row holds and «usar este» on the other Joinable ones, and «gravar esta cena de novo» at its foot. «usar este» is the only way the team puts a rehearsal other than the Default rehearsal on the plan.
+What a plan row's «trocar o ensaio desta cena» opens: one scene's rehearsals of this session, newest first, each with its facts and «enviado» / «não enviado», «✓ em uso» on the one the row holds and «usar este» on the other Usable ones, sent or not, and «gravar esta cena de novo» at its foot. «usar este» is the only way the team puts a rehearsal other than the Default rehearsal on the plan.
 _Avoid_: swap sheet (her code's name), picker, modal
 
 **Unlabelled rehearsal**:
@@ -429,8 +429,12 @@ A Scene rehearsal of this session with a translated frase and no Scene label of 
 _Avoid_: unassigned (her code's word), orphan
 
 **Joinable**:
-A Scene rehearsal that can become a Part: sent, confirmed by the room, and a 16 kHz mono WAV.
+A Scene rehearsal that can be the Default rehearsal: sent, confirmed by the room, and a 16 kHz mono WAV.
 _Avoid_: valid, ready
+
+**Usable**:
+A Scene rehearsal the team can put on a plan row and join as a Part: confirmed by the room and a 16 kHz mono WAV, sent or not yet sent. Every Joinable rehearsal is Usable; an unsent one is Usable and never the default.
+_Avoid_: swappable, eligible
 
 ### Findings and mends
 

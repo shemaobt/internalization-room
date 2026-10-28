@@ -19,9 +19,14 @@ const _checkScreen = {
   'en': 'Translate the recording',
 };
 
-const _leave = {
-  'pt': 'Escolher outra passagem',
-  'en': 'Choose another passage',
+const _backToPassage = {
+  'pt': 'Voltar para a passagem atual',
+  'en': 'Back to the current passage',
+};
+
+const _backToRecording = {
+  'pt': 'Voltar para a gravação',
+  'en': 'Back to recording',
 };
 
 Future<void> _withRealLetters() async {
@@ -120,7 +125,7 @@ void main() {
 
         expect(
           tester
-              .getRect(byLabel(_leave[language]!))
+              .getRect(byLabel(_backToPassage[language]!))
               .overlaps(tester.getRect(find.text(_recordingHome[language]!))),
           isFalse,
           reason: 'o botão do canto ficava sobre o título da gravação',
@@ -138,7 +143,7 @@ void main() {
 
         expect(
           tester
-              .getRect(byLabel(_leave[language]!))
+              .getRect(byLabel(_backToRecording[language]!))
               .overlaps(tester.getRect(find.text(_checkScreen[language]!))),
           isFalse,
           reason: 'o botão do canto ficava sobre o título da conferência',
