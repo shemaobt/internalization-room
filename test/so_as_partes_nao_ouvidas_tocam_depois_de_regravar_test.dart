@@ -596,7 +596,8 @@ void main() {
   });
 
   test(
-    'o aviso fica enquanto falta tocar uma parte nomeada e sai depois da última',
+    'the listen of only the unheard parts shows no line left to hear while it '
+    'crosses into the next named part, not before its end',
     () async {
       final it = await umEnsaioContadoInteiro(_cincoPartes);
       await _retomadaJuntada(it, _cincoPartes[4]);
@@ -611,28 +612,55 @@ void main() {
       await ouvirAteOFim(it, _cincoPartes[1]);
       expect(
         it.estado.btRecusa,
-        CheckRefusal.partUnheard,
-        reason: 'ouvir a segunda não ouve a quarta: o aviso fica',
+        isNull,
+        reason:
+            'a escuta ainda não acabou: a dela só diz o que falta depois da '
+            'última parte',
       );
 
       await waitFor(
         'a quarta entrar no ar sem toque',
         () => it.harness.playback.played.last == quarta.path,
       );
-      expect(it.estado.btRecusa, CheckRefusal.partUnheard);
-
-      it.harness.room.listeningUnheardTakeIds = const [];
-      await ouvirAteOFim(it, _cincoPartes[3]);
-      await waitFor(
-        'tocada a última que faltava, o aviso sair',
-        () => it.estado.btRecusa == null,
+      expect(
+        it.estado.btRecusa,
+        isNull,
+        reason: 'a travessia para a quarta mostrava «ainda falta ouvir»',
       );
     },
   );
 
+  test(
+    'a joined entry the room answers with a take this tablet does not hold shows no line left to hear',
+    () async {
+      final it = await umEnsaioContadoInteiro(_cincoPartes);
+      await _retomadaJuntada(it, _cincoPartes[4]);
+      await _regravada(it, 1, _cincoPartes[1]);
+      it.harness.room.listeningUnheardTakeIds = const ['take-de-outro-tablet'];
+      CheckRefusal? naTelaDuranteAFala = CheckRefusal.partUnheard;
+      var falou = false;
+      it.harness.voice.aoFalar = () {
+        falou = true;
+        naTelaDuranteAFala = it.estado.btRecusa;
+      };
+
+      await _entrar(it);
+
+      expect(falou, isTrue, reason: 'a entrada fala antes de tocar');
+      expect(
+        naTelaDuranteAFala,
+        isNull,
+        reason:
+            'a entrada falava com «ainda falta ouvir» na tela; a dela limpa a '
+            'linha em toda entrada',
+      );
+      expect(it.estado.btRecusa, isNull);
+    },
+  );
+
   testWidgets(
-    'a tela mostra «ainda falta ouvir um trecho da gravação» enquanto a P2 '
-    'soa',
+    'entering the listen of only the unheard parts shows no line left to hear '
+    'while P2 sounds, as hers clears it on every entry',
     (tester) async {
       late Sala it;
       await tester.runAsync(() async {
@@ -662,7 +690,10 @@ void main() {
 
       expect(
         find.text('ainda falta ouvir um trecho da gravação'),
-        findsOneWidget,
+        findsNothing,
+        reason:
+            'a entrada já mostrava «ainda falta ouvir» enquanto a P2 soava; a '
+            'dela limpa a linha em toda entrada',
       );
       it.harness.voice.finishHeldLine();
       closeTheRoom(it.container);

@@ -18,6 +18,8 @@ final class Fim extends Station {
     TheBackTranslationOpened() || TheBackTranslationResumed() => const Retro(),
     TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
-    TheExternalCheckOpened() || TheExternalCheckLeft() => this,
+    TheExternalCheckOpened() ||
+    TheExternalCheckLeft() ||
+    TheRecordingLeft() => this,
   };
 }

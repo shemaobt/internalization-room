@@ -420,6 +420,41 @@ void main() {
       expect(find.text(_line), findsOneWidget);
     });
 
+    testWidgets('a minimum raised while a pill cannot open meets the team on '
+        'the Choice it falls back to', (tester) async {
+      final harness = _roomWhoseMinimumIs(_minimum());
+      final container = await _pumpWithBuild(
+        tester,
+        harness,
+        build: 6,
+        opened: [],
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      for (var beat = 0; beat < 10 && !read().entriesOpen; beat++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(read().entriesOpen, isTrue);
+      harness.room.minimumBuildsAnswer = Answered(_minimum(android: 7));
+      harness.room.failCreateOnceWith = const NetworkFailed('HTTP 500');
+
+      notifier.openTheEntry(
+        read().naRoda!.firstWhere((entry) => entry.pericope == 'P01'),
+      );
+      for (var beat = 0; beat < 10; beat++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(read().stage, SalaStage.escolha);
+      expect(
+        find.text(_line),
+        findsOneWidget,
+        reason:
+            'a volta de uma passagem que não abriu deixava a tela de '
+            'atualizar escondida',
+      );
+    });
+
     testWidgets('a resume on the Choice reads the minimum again', (
       tester,
     ) async {

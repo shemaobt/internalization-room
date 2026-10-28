@@ -1840,7 +1840,7 @@ void main() {
         );
         final posicao = tester.state<ScrollableState>(rolagem).position;
         final janela = tester.getRect(rolagem);
-        final botao = byLabel('Escolher outra passagem');
+        final botao = byLabel('Voltar para a gravação');
         expect(botao, findsOneWidget);
         expect(posicao.maxScrollExtent, greaterThan(0));
 
