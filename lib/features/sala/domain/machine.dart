@@ -323,6 +323,13 @@ final class TheWayBackTaken extends MachineEvent {
   const TheWayBackTaken(this.left);
 }
 
+final class TheLeftPassageReturns extends MachineEvent {
+  final String session;
+  final bool warned;
+
+  const TheLeftPassageReturns(this.session, {this.warned = false});
+}
+
 final class TheLanguageChosen extends MachineEvent {
   const TheLanguageChosen();
 }
@@ -1379,6 +1386,13 @@ const _watch = ArmTheWatch();
       _ => (machine, const []),
     },
   TheWayBackTaken(:final left) => _takeTheWayBack(machine, left),
+  TheLeftPassageReturns(:final session, :final warned) => (
+    machine.copyWith(
+      session: session,
+      halt: warned ? const Warning() : const NoHalt(),
+    ),
+    const [_watch],
+  ),
   StationEvent() => _reachTheStation(machine, event),
 };
 
@@ -2053,7 +2067,8 @@ List<Effect> _leavingThePassage(Machine machine) => [
   ThePanoramaAsked() ||
   TheSessionOpened() ||
   TheSessionLetGo() ||
-  TheWayBackTaken() => (halt, const []),
+  TheWayBackTaken() ||
+  TheLeftPassageReturns() => (halt, const []),
 };
 
 /// A read never raises the person sign nor clears it: over none it applies its warning
