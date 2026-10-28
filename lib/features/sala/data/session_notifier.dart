@@ -2274,46 +2274,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       book: passage.book,
       session: session,
       language: _sessionLanguage,
-      held: _theTakeTheLeaveHolds(),
-    );
-  }
-
-  /// A kept take sounding in the Rehearsal, as it will be laid back: paused where it was.
-  /// The place is the channel's head, never the player's position while its clip has not
-  /// opened. The pending take dies with the leave, so neither it nor what follows it is held.
-  Paused? _theTakeTheLeaveHolds() {
-    if (state.station is! Ensaio) return null;
-    final kept = state.partes.length;
-    final pending = _pendingTakePath;
-    bool isKept(Sound sound) =>
-        sound is PartSound && sound.part < kept && sound.path != pending;
-    final PartSound part;
-    final List<Sound> next;
-    final Duration? head;
-    switch (state.channel) {
-      case PartPlaying(
-        part: final playing,
-        next: final following,
-        head: final playingHead,
-      ):
-        (part, next, head) = (playing, following, playingHead);
-      case Paused(
-        what: final PartSound held,
-        next: final following,
-        head: final heldHead,
-      ):
-        (part, next, head) = (held, following, heldHead);
-      default:
-        return null;
-    }
-    if (!isKept(part)) return null;
-    final position = _playback.position;
-    final at = head ?? (part.to == null ? position : part.from + position);
-    return Paused(
-      PartSound(part.part, part.path, from: at, to: part.to),
-      next: next.takeWhile(isKept).toList(),
-      started: false,
-      opened: false,
     );
   }
 
@@ -2344,12 +2304,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       pericope: left.pericope,
       language: left.language,
     );
-    final held = left.held;
-    if (held != null &&
-        state.sessionId == left.session &&
-        state.station is Ensaio) {
-      _dispatch(TheHeldPartReturns(held));
-    }
   }
 
   void _theSessionIsGone([String? sessionId]) =>
