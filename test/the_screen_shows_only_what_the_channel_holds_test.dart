@@ -95,12 +95,14 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('"Tocar ao terminar" shows only once the microphone opened for '
-      'the question', (tester) async {
+  testWidgets('the circle reads «Toque para falar» before and after the '
+      'microphone opens for the question, never a line of its own', (
+    tester,
+  ) async {
     final harness = SalaHarness();
     final container = await _pump(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
-    final enviar = byLabel(circleLabelFor('listening', testLanguage));
+    final circulo = onTheCircle('Toque para falar');
     await sala.goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -108,7 +110,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(container.read(salaSessionProvider).noteMode, isTrue);
-    expect(enviar, findsNothing);
+    expect(circulo, findsOneWidget);
 
     sala.conversaTap();
     await tester.pump(const Duration(milliseconds: 100));
@@ -117,7 +119,7 @@ void main() {
       container.read(salaSessionProvider).channel,
       const Microphone(MicOwner.question),
     );
-    expect(enviar, findsOneWidget);
+    expect(circulo, findsOneWidget);
     closeTheRoom(container);
   });
 }

@@ -461,20 +461,76 @@ void main() {
       expect(harness.room.frasesKept.single.endsMs, 3100);
     });
 
-    testWidgets('paused with no pausa pending says her paused hint', (
-      tester,
-    ) async {
-      final (harness, container) = await translateOnScreen(
-        tester,
-        rehearsal: _rehearsal(),
+    testWidgets(
+      'paused with no pausa pending says her paused hint, with the clock where the take failed',
+      (tester) async {
+        final (harness, container) = await translateOnScreen(
+          tester,
+          rehearsal: _rehearsal(),
+        );
+        await _onScreenPlaying(tester, harness, container);
+        harness.playback.at = _s(2);
+
+        harness.playback.failPlayback();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          byLabel('$_pausedHint — 0:02 / 0:10'),
+          findsOneWidget,
+          reason: 'o take que falhou dizia pausado sem dizer onde parou',
+        );
+      },
+    );
+
+    for (final (language, hearMine, paused) in [
+      (
+        'pt',
+        'ouvir a minha tradução da frase 1',
+        'pausado — toque no círculo para marcar onde a frase acaba — 0:07 / 0:10',
+      ),
+      (
+        'en',
+        'hear my translation of sentence 1',
+        'paused — tap the circle to mark where the sentence ends — 0:07 / 0:10',
+      ),
+    ]) {
+      testWidgets(
+        '$language: a take stopped by the team\'s own translation says her paused hint with the clock where it stopped',
+        (tester) async {
+          final (harness, container) = await translateOnScreen(
+            tester,
+            rehearsal: _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          );
+          final take = container.read(salaSessionProvider).scene.take;
+          await _onScreenPlaying(tester, harness, container);
+          container.read(roomLanguageProvider.notifier).choose(language);
+          harness.playback.at = _s(7);
+          await tester.pump(const Duration(milliseconds: 300));
+
+          await tester.tap(byLabel(hearMine));
+          await pumpUntil(
+            tester,
+            () =>
+                harness.playback.played.last != take &&
+                container.read(salaSessionProvider).channel is PartPlaying,
+          );
+          expect(harness.playback.played.last, isNot(take));
+          harness.playback.finishPlayback();
+          await pumpUntil(
+            tester,
+            () => container.read(salaSessionProvider).channel is! PartPlaying,
+          );
+          await tester.pump(const Duration(milliseconds: 300));
+
+          expect(
+            find.text(paused),
+            findsOneWidget,
+            reason: 'a dica de pausa vinha sem o relógio de onde o take parou',
+          );
+          expect(byLabel(paused), findsOneWidget);
+        },
       );
-      await _onScreenPlaying(tester, harness, container);
-
-      harness.playback.failPlayback();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(byLabel(_pausedHint), findsOneWidget);
-    });
+    }
   });
 
   group('the frase', () {

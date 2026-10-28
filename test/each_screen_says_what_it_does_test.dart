@@ -43,8 +43,7 @@ Future<void> _enterThePanorama(
 Future<void> _theCircleReadsWhileTheTeamRecords(
   WidgetTester tester, {
   required String? lingua,
-  required String resting,
-  required String recording,
+  required String words,
 }) async {
   final harness = SalaHarness(
     lingua: lingua ?? testLanguage,
@@ -53,8 +52,8 @@ Future<void> _theCircleReadsWhileTheTeamRecords(
   final container = await _pump(tester, harness);
   await _enterThePanorama(tester, harness, container);
 
-  expect(byLabel(resting), findsOneWidget);
-  await tester.tap(byLabel(resting));
+  expect(byLabel(words), findsOneWidget);
+  await tester.tap(byLabel(words));
   await tester.pump(const Duration(milliseconds: 200));
 
   expect(
@@ -62,32 +61,36 @@ Future<void> _theCircleReadsWhileTheTeamRecords(
     VoiceState.listening,
     reason: 'o toque depois da abertura grava a resposta da equipe',
   );
-  expect(byLabel(recording), findsOneWidget);
-  expect(byLabel(resting), findsNothing);
+  expect(
+    byLabel(words),
+    findsOneWidget,
+    reason:
+        'o círculo trocava para um rótulo de gravação que o dela não tem; '
+        'o dela diz sempre o mesmo',
+  );
 }
 
 void main() {
   testWidgets(
-    'the Panorama circle reads «Tocar ao terminar» while the team records',
+    'the Panorama circle still reads «Toque para falar» while the team '
+    'records, never a recording line',
     (tester) async {
       await _theCircleReadsWhileTheTeamRecords(
         tester,
         lingua: null,
-        resting: 'Tocar para falar',
-        recording: 'Tocar ao terminar',
+        words: 'Toque para falar',
       );
     },
   );
 
   testWidgets(
-    'an English Panorama circle reads «Tap when you are done» while the team '
-    'records',
+    'an English Panorama circle still reads «Tap to speak» while the team '
+    'records, never a recording line',
     (tester) async {
       await _theCircleReadsWhileTheTeamRecords(
         tester,
         lingua: 'en',
-        resting: 'Tap to speak',
-        recording: 'Tap when you are done',
+        words: 'Tap to speak',
       );
     },
   );
@@ -95,8 +98,7 @@ void main() {
   Future<void> raiseTheHand(
     WidgetTester tester, {
     required String? lingua,
-    required String question,
-    required String teamTalk,
+    required String words,
   }) async {
     final harness = SalaHarness(lingua: lingua ?? testLanguage)
       ..room.peerCue = true;
@@ -105,33 +107,23 @@ void main() {
     notifier.goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
-    expect(byLabel(teamTalk), findsOneWidget);
+    expect(container.read(salaSessionProvider).peerCue, isTrue);
+    expect(onTheCircle(words), findsOneWidget);
 
     notifier.handTap();
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).noteMode, isTrue);
-    expect(byLabel(question), findsOneWidget);
-    expect(byLabel(teamTalk), findsNothing);
+    expect(onTheCircle(words), findsOneWidget);
   }
 
   testWidgets('a raised hand in an English room reads the plain label on the '
       'circle', (tester) async {
-    await raiseTheHand(
-      tester,
-      lingua: 'en',
-      question: 'Tap to speak',
-      teamTalk: 'Talk among yourselves — tap when you want to tell me',
-    );
+    await raiseTheHand(tester, lingua: 'en', words: 'Tap to speak');
   });
 
   testWidgets('a raised hand in a Portuguese room reads the plain label on the '
       'circle', (tester) async {
-    await raiseTheHand(
-      tester,
-      lingua: null,
-      question: 'Tocar para falar',
-      teamTalk: 'Conversem entre vocês — tocar quando quiserem me contar',
-    );
+    await raiseTheHand(tester, lingua: null, words: 'Toque para falar');
   });
 }

@@ -390,7 +390,11 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
     expect(find.byType(ColarOverlay), findsOneWidget);
     expect(byLabel('Deixar uma pergunta para o facilitador'), findsOneWidget);
-    expect(byLabel('Tocar para falar'), findsOneWidget);
+    expect(
+      byLabel('Toque para falar'),
+      findsOneWidget,
+      reason: 'o círculo dizia «Tocar para falar», não as palavras dela',
+    );
   });
 
   testWidgets('the dev seal shows from the invite on, before any skip exists', (
@@ -524,9 +528,8 @@ void main() {
     },
   );
 
-  testWidgets('a peer cue turns the circle into team-talk mode', (
-    tester,
-  ) async {
+  testWidgets('a peer cue turns the circle into team-talk mode, still read '
+      'as «Toque para falar», not a line of its own', (tester) async {
     final harness = SalaHarness()..room.peerCue = true;
     final container = await pumpSala(tester, harness);
     container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
@@ -536,8 +539,11 @@ void main() {
     expect(container.read(salaSessionProvider).peerCue, isTrue);
     expect(find.byIcon(LucideIcons.users), findsOneWidget);
     expect(
-      byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
+      onTheCircle('Toque para falar'),
       findsOneWidget,
+      reason:
+          'o círculo dizia «Conversem entre vocês…», um rótulo que o dela '
+          'não tem; o dela diz sempre o mesmo',
     );
   });
 
@@ -554,11 +560,7 @@ void main() {
 
     expect(container.read(salaSessionProvider).voice, VoiceState.done);
     expect(find.byIcon(LucideIcons.users), findsOneWidget);
-    expect(
-      byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
-      findsOneWidget,
-    );
-    expect(byLabel('Tocar para falar'), findsNothing);
+    expect(onTheCircle('Toque para falar'), findsOneWidget);
   });
 
   testWidgets(
@@ -572,11 +574,7 @@ void main() {
 
       expect(container.read(salaSessionProvider).voice, VoiceState.done);
       expect(find.byIcon(LucideIcons.users), findsNothing);
-      expect(byLabel('Tocar para falar'), findsOneWidget);
-      expect(
-        byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
-        findsNothing,
-      );
+      expect(byLabel('Toque para falar'), findsOneWidget);
     },
   );
 
@@ -624,7 +622,11 @@ void main() {
     container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(byLabel('Leave a question for the facilitator'), findsOneWidget);
+    expect(
+      byLabel('Leave a question for your facilitator'),
+      findsOneWidget,
+      reason: 'a mão dizia «for the facilitator», não as palavras dela',
+    );
     expect(
       byLabel('Deixar uma pergunta para o facilitador'),
       findsNothing,
@@ -650,7 +652,11 @@ void main() {
     container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(byLabel("Hear the facilitator's answer"), findsOneWidget);
+    expect(
+      byLabel("Hear your facilitator's reply"),
+      findsOneWidget,
+      reason: 'a mão dizia «the facilitator\'s answer», não as palavras dela',
+    );
     expect(
       byLabel('Ouvir a resposta do facilitador'),
       findsNothing,
@@ -671,7 +677,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).noteMode, isTrue);
-    expect(byLabel('Leave a question for the facilitator'), findsOneWidget);
+    expect(byLabel('Leave a question for your facilitator'), findsOneWidget);
     expect(
       byLabel('Deixar uma pergunta para o facilitador'),
       findsNothing,
@@ -698,7 +704,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).playingReplyId, 'r1');
-    expect(byLabel('Hear the facilitator\'s answer'), findsOneWidget);
+    expect(byLabel('Hear your facilitator\'s reply'), findsOneWidget);
     expect(
       byLabel('Ouvir a resposta do facilitador'),
       findsNothing,
@@ -1384,7 +1390,7 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(byLabel('Tocar para falar'));
+    await tester.tap(byLabel('Toque para falar'));
     await tester.pump(const Duration(milliseconds: 200));
 
     final state = container.read(salaSessionProvider);
