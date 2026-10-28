@@ -7477,6 +7477,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// recorded again shares its scope with the recording it replaced, and the row is what
   /// tells the two apart.
   Future<void> _adoptTheNames(TakeUploadQueue queue, int? life) async {
+    if (state.sessionId case final sessionId? when !_endedSince(life)) {
+      for (final take in state.keptTakes) {
+        if (take.takeId != null) continue;
+        final id = queue.takeIdOfThePart(sessionId, take);
+        if (id == null) continue;
+        state = state.copyWith(
+          keptTakes: [
+            for (final kept in state.keptTakes)
+              if (kept.path == take.path) kept.withTakeId(id) else kept,
+          ],
+        );
+      }
+    }
     for (final linha in _semNome.keys.toList()) {
       final id = await queue.takeIdOf(linha);
       if (_endedSince(life)) return;
