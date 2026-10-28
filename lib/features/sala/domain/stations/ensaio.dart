@@ -14,11 +14,14 @@ final class Ensaio extends Station {
   /// Whether every part is on the tablet, as the Rehearsal was last weighed.
   final bool everyPartIsHere;
 
+  final bool everyPartIsSent;
+
   final EnsaioStep step;
 
   const Ensaio({
     this.everySceneHasItsPart = false,
     this.everyPartIsHere = true,
+    this.everyPartIsSent = true,
     this.step = EnsaioStep.home,
   });
 
@@ -46,7 +49,10 @@ final class Ensaio extends Station {
             )
           : this,
     TheBackTranslationOpened() =>
-      everySceneHasItsPart && everyPartIsHere && step == EnsaioStep.home
+      everySceneHasItsPart &&
+              everyPartIsHere &&
+              everyPartIsSent &&
+              step == EnsaioStep.home
           ? const Retro()
           : this,
     TheBackTranslationResumed() => const Retro(),

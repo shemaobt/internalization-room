@@ -339,10 +339,12 @@ final class TheLanguageChosen extends MachineEvent {
 final class TheRehearsalWeighed extends MachineEvent {
   final bool everySceneHasItsPart;
   final bool everyPartIsHere;
+  final bool everyPartIsSent;
 
   const TheRehearsalWeighed({
     required this.everySceneHasItsPart,
     required this.everyPartIsHere,
+    this.everyPartIsSent = true,
   });
 }
 
@@ -1371,13 +1373,18 @@ const _watch = ArmTheWatch();
     ),
     _ => (machine, const []),
   },
-  TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsHere) =>
+  TheRehearsalWeighed(
+    :final everySceneHasItsPart,
+    :final everyPartIsHere,
+    :final everyPartIsSent,
+  ) =>
     switch (machine.station) {
       Ensaio(:final step) => (
         machine.copyWith(
           station: Ensaio(
             everySceneHasItsPart: everySceneHasItsPart,
             everyPartIsHere: everyPartIsHere,
+            everyPartIsSent: everyPartIsSent,
             step: step,
           ),
         ),

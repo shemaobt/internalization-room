@@ -781,10 +781,13 @@ class SalaSessionState {
       ensaio == EnsaioStatus.idle &&
       parteARegravar == null &&
       everySceneHasItsPart &&
-      everyPartIsHere;
+      everyPartIsHere &&
+      everyPartIsSent;
 
   /// Whether no Part on its way is still to come down.
   bool get everyPartIsHere => partsAway.isEmpty;
+
+  bool get everyPartIsSent => unsentParts.isEmpty;
 
   /// Whether every Scene has its Part. A passage the room answered with no scenes needs
   /// one part; a scene list still awaited or missing is never covered.

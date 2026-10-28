@@ -5335,13 +5335,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// is weighed again whenever its parts or its scene list change.
   void _weighTheRehearsal() {
     if (state.station
-        case Ensaio(:final everySceneHasItsPart, :final everyPartIsHere)
+        case Ensaio(
+          :final everySceneHasItsPart,
+          :final everyPartIsHere,
+          :final everyPartIsSent,
+        )
         when everySceneHasItsPart != state.everySceneHasItsPart ||
-            everyPartIsHere != state.everyPartIsHere) {
+            everyPartIsHere != state.everyPartIsHere ||
+            everyPartIsSent != state.everyPartIsSent) {
       _dispatch(
         TheRehearsalWeighed(
           everySceneHasItsPart: state.everySceneHasItsPart,
           everyPartIsHere: state.everyPartIsHere,
+          everyPartIsSent: state.everyPartIsSent,
         ),
       );
     }
@@ -7546,6 +7552,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (rows.any((row) => row.origin == null)) ?KeptScope.numberOf(scope),
       },
     );
+    _weighTheRehearsal();
     if (sessionId != null) {
       state = state.copyWith(
         unsentTakes: _unsentTakesOf(tally, speaking),
