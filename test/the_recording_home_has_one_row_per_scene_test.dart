@@ -1756,4 +1756,29 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  testWidgets(
+    'the grain switch rests while a take is being kept on the tablet',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _naCasaDoEnsaio(tester, harness: harness);
+      await tester.pump(const Duration(seconds: 1));
+      (harness.takes as FakeTakeQueue).holdNextKeep();
+
+      await _gravarNaLinha(tester, 1);
+
+      expect(
+        tester
+            .widget<Semantics>(byLabel(_gravarAPassagemInteira))
+            .properties
+            .enabled,
+        isFalse,
+        reason:
+            'a troca do grão ficava viva com a gravação ainda sendo guardada',
+      );
+      (harness.takes as FakeTakeQueue).finishHeldKeep();
+      await letTheRehearsalReachTheRoom(tester);
+      closeTheRoom(container);
+    },
+  );
 }

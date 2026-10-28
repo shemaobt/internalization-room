@@ -3869,6 +3869,16 @@ class FakeTakeQueue implements TakeUploadQueue {
   /// The disk refuses the next keep, before any row is written.
   bool refusesTheNextKeep = false;
 
+  Completer<void>? _holdingTheKeep;
+
+  /// Hold the next keep before its row is written, the take still being kept.
+  void holdNextKeep() => _holdingTheKeep = Completer<void>();
+
+  void finishHeldKeep() {
+    _holdingTheKeep?.complete();
+    _holdingTheKeep = null;
+  }
+
   bool _lifeEnded = false;
   bool sweepFails = false;
 
@@ -3899,6 +3909,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       refusesTheNextKeep = false;
       throw const FileSystemException('o disco está cheio');
     }
+    await _holdingTheKeep?.future;
     final entry = PendingTake(
       id: '${_minted++}',
       path: audio.path,
