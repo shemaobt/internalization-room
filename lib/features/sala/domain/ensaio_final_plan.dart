@@ -275,13 +275,16 @@ HomeRow homeRowOf(
   required String? origin,
   required bool held,
 }) {
-  final usable = (plan?.candidates ?? const []).where((c) => c.usable);
+  final candidates = plan?.candidates ?? const <SceneRehearsalRecord>[];
   final inUse = read.rehearsals.any((r) => r.rehearsalId == origin)
       ? origin
       : null;
   return (
-    swap: !held && origin != null && usable.any((c) => c.rehearsalId != origin),
-    useScene: !held && origin == null && usable.isNotEmpty,
+    swap:
+        !held &&
+        origin != null &&
+        candidates.any((c) => c.rehearsalId != origin),
+    useScene: !held && origin == null && candidates.any((c) => c.usable),
     inUse: inUse,
   );
 }

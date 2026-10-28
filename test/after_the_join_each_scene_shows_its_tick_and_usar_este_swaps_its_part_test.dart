@@ -133,22 +133,26 @@ class _Room {
 
   bool get english => identical(scenes, _threeScenesEn);
 
-  SceneRehearsalRecord rehearsal(int n, {bool sent = true}) =>
-      SceneRehearsalRecord(
-        rehearsalId: idOf(n),
-        sessionId: sessionId,
-        n: n,
-        scene: _sceneOf[n],
-        recordedAt: _recordedAt,
-        sentAt: sent ? '2026-10-22T${_sentAt[n] ?? '10:09'}:00+00:00' : null,
-        durationMs: 6000,
-        frases: const [
-          SceneFrase(fraseId: 'frase-a', startsMs: 0, endsMs: 3000),
-          SceneFrase(fraseId: 'frase-b', startsMs: 3000, endsMs: 6000),
-        ],
-        verified: true,
-        sha256: _fingerprintOf(_bytesOf(n)),
-      );
+  SceneRehearsalRecord rehearsal(
+    int n, {
+    bool sent = true,
+    String contentType = 'audio/wav',
+  }) => SceneRehearsalRecord(
+    rehearsalId: idOf(n),
+    sessionId: sessionId,
+    n: n,
+    scene: _sceneOf[n],
+    recordedAt: _recordedAt,
+    sentAt: sent ? '2026-10-22T${_sentAt[n] ?? '10:09'}:00+00:00' : null,
+    durationMs: 6000,
+    frases: const [
+      SceneFrase(fraseId: 'frase-a', startsMs: 0, endsMs: 3000),
+      SceneFrase(fraseId: 'frase-b', startsMs: 3000, endsMs: 6000),
+    ],
+    contentType: contentType,
+    verified: true,
+    sha256: _fingerprintOf(_bytesOf(n)),
+  );
 
   Future<void> beat([Duration ahead = Duration.zero]) async {
     await tester.runAsync(
@@ -188,9 +192,15 @@ class _Room {
     }
   }
 
-  void list(Iterable<int> ns, {bool sent = true}) {
+  void list(
+    Iterable<int> ns, {
+    bool sent = true,
+    String contentType = 'audio/wav',
+  }) {
     for (final n in ns) {
-      room.sceneRehearsals.add(rehearsal(n, sent: sent));
+      room.sceneRehearsals.add(
+        rehearsal(n, sent: sent, contentType: contentType),
+      );
       room.sceneAudioOf[idOf(n)] = _bytesOf(n);
     }
   }
@@ -558,6 +568,29 @@ void main() {
       final sent = it.received(2).skip(before).single;
       expect(sent.origin, it.idOf(s2b));
       expect(sent.bytes, _bytesOf(s2b));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a joined row whose only other rehearsal is no WAV still offers «trocar», '
+    'and its sheet says that one cannot enter',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s2b], contentType: 'audio/mp4');
+      await it.joined(listed: const [s1a, s2a, s3a]);
+
+      expect(
+        it.door(2, _swap),
+        findsOneWidget,
+        reason: 'a dela oferece trocar sempre que a cena tem outro ensaio',
+      );
+      await it.openTheSheet(2, _swap);
+      expect(it.line(s2b), findsOneWidget);
+      expect(it.onLine(s2b, find.text(_cannotEnter)), findsOneWidget);
+      expect(it.use(s2b), findsNothing);
+      expect(it.onLine(s2a, find.text(_inUse)), findsOneWidget);
       semantics.dispose();
     },
   );
