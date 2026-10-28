@@ -1315,4 +1315,72 @@ void main() {
       );
     }
   }
+  for (final (look, verdeClaro) in [
+    (Brightness.light, const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look a frase bar is her verde-claro fill along a pale track, not a red stroke on nothing',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              frases: [_frase('f1', 0, 2000), _frase('f2', 2000, 6000)],
+            ),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+
+        for (final (n, share) in [(1, 0.5), (2, 1.0)]) {
+          final fill = find.descendant(
+            of: byLabel(_bar(n)),
+            matching: find.byType(FractionallySizedBox),
+          );
+          final track = find.ancestor(
+            of: fill,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is DecoratedBox &&
+                  widget.decoration is BoxDecoration &&
+                  (widget.decoration as BoxDecoration).color ==
+                      const Color.fromRGBO(199, 194, 159, .28),
+            ),
+          );
+
+          expect(
+            track,
+            findsOneWidget,
+            reason: 'a barra não tinha trilho; só a parte cheia aparecia',
+          );
+          expect(
+            (tester.widget<DecoratedBox>(track).decoration as BoxDecoration)
+                .borderRadius,
+            BorderRadius.circular(5),
+          );
+          expect(tester.getSize(track).height, 10);
+          expect(
+            (tester
+                        .widget<DecoratedBox>(
+                          find.descendant(
+                            of: fill,
+                            matching: find.byType(DecoratedBox),
+                          ),
+                        )
+                        .decoration
+                    as BoxDecoration)
+                .color,
+            verdeClaro.withValues(alpha: .85),
+            reason: 'a parte cheia era o vermelho do microfone a .6',
+          );
+          expect(
+            tester.getSize(fill).width / tester.getSize(track).width,
+            share,
+          );
+        }
+      },
+    );
+  }
 }

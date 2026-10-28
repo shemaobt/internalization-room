@@ -865,17 +865,30 @@ class _FraseBar extends StatelessWidget {
                             SizedBox(
                               width: 200,
                               height: 10,
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: FractionallySizedBox(
-                                  widthFactor: share > 0 ? max(0.08, share) : 1,
-                                  heightFactor: 1,
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      color: colors.vermelhoMic.withValues(
-                                        alpha: 0.6,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: const Color.fromRGBO(
+                                    199,
+                                    194,
+                                    159,
+                                    .28,
+                                  ),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: FractionallySizedBox(
+                                    widthFactor: share > 0
+                                        ? max(0.08, share)
+                                        : 1,
+                                    heightFactor: 1,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: colors.claquete.withValues(
+                                          alpha: .85,
+                                        ),
+                                        borderRadius: BorderRadius.circular(5),
                                       ),
-                                      borderRadius: BorderRadius.circular(5),
                                     ),
                                   ),
                                 ),
