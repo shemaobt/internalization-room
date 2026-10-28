@@ -10875,14 +10875,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             parte.scopeId ==
             (numero == null ? KeptScope.whole : KeptScope.parte(numero)),
       );
-      if (onde < 0) continue;
+      if (onde < 0 && numero != null) continue;
       naParte[guardada.takeId] = onde;
     }
     if (naParte.isEmpty) return;
     state = state.copyWith(
       btTrechosRegravados: [
         for (final trecho in _trechosFrom(regravados, naParte: naParte))
-          if (trecho.parte >= 0) trecho,
+          if (trecho.parte >= 0 || naParte.containsKey(trecho.takeId)) trecho,
       ],
     );
     // Only over a row nothing else has touched. This reading is built out of the answer
