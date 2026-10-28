@@ -80,7 +80,7 @@ class FacilitatorCircle extends StatelessWidget {
         if (!_halted && canvas && !still && voice == VoiceState.listening)
           ..._herRipples(colors),
         if (!_halted && canvas && voice == VoiceState.speaking) _herGlow(still),
-        _body(colors, still),
+        _body(context, colors, still),
         if (!_halted && !canvas && voice == VoiceState.speaking)
           ..._ripples(colors),
         if (!_halted && !canvas && voice == VoiceState.listening)
@@ -173,9 +173,9 @@ class FacilitatorCircle extends StatelessWidget {
     return LucideIcons.volume2;
   }
 
-  Widget _body(SalaColors colors, bool still) {
+  Widget _body(BuildContext context, SalaColors colors, bool still) {
     if (!answersATouch) return _haltedBody(colors);
-    if (canvas && _herNote) return _herRing(colors);
+    if (canvas && _herNote) return _herRing(context, colors);
     if (_teamTalk) return _liveBreath(colors);
 
     switch (voice) {
@@ -183,7 +183,7 @@ class FacilitatorCircle extends StatelessWidget {
       case VoiceState.done:
         return _liveBreath(colors);
       case VoiceState.listening:
-        if (canvas) return _herRing(colors);
+        if (canvas) return _herRing(context, colors);
         return _disc(
           gradient: tongue == Tongue.motherTongue
               ? BeadStyles.wood
@@ -201,9 +201,9 @@ class FacilitatorCircle extends StatelessWidget {
           ],
         );
       case VoiceState.thinking:
-        return _waiting(colors, still);
+        return _waiting(context, colors, still);
       case VoiceState.speaking:
-        if (canvas) return _herRing(colors);
+        if (canvas) return _herRing(context, colors);
         return Loop(
           period: const Duration(milliseconds: 3400),
           builder: (context, t) =>
@@ -253,9 +253,9 @@ class FacilitatorCircle extends StatelessWidget {
     ],
   );
 
-  Widget _waiting(SalaColors colors, bool still) {
+  Widget _waiting(BuildContext context, SalaColors colors, bool still) {
     final body = canvas
-        ? _herRing(colors)
+        ? _herRing(context, colors)
         : _disc(
             gradient: BeadStyles.clay(colors),
             shadows: const [
@@ -357,24 +357,29 @@ class FacilitatorCircle extends StatelessWidget {
     period: const Duration(milliseconds: 4600),
     builder: (context, t) => Transform.scale(
       scale: 1 + 0.045 * t,
-      child: canvas ? _herRing(colors) : _liveDisc(colors),
+      child: canvas ? _herRing(context, colors) : _liveDisc(colors),
     ),
   );
 
-  Widget _herRing(SalaColors colors) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      border: Border.all(color: _herEdge(colors), width: 1.5),
-      gradient: RadialGradient(
-        center: const Alignment(0, -0.08),
-        radius: 0.7359,
-        colors: _herFill.$1,
-        stops: _herFill.$2,
+  Widget _herRing(BuildContext context, SalaColors colors) {
+    final (fill, stops) = _herFill(
+      Theme.of(context).brightness == Brightness.dark,
+    );
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: _herEdge(colors), width: 1.5),
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.08),
+          radius: 0.7359,
+          colors: fill,
+          stops: stops,
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   List<Widget> _herRipples(SalaColors colors) {
     Widget ring(double phase) => Ripple(
@@ -449,7 +454,7 @@ class FacilitatorCircle extends StatelessWidget {
     }
   }
 
-  (List<Color>, List<double>) get _herFill {
+  (List<Color>, List<double>) _herFill(bool dark) {
     if (_herNote) {
       return (
         const [
@@ -483,6 +488,16 @@ class FacilitatorCircle extends StatelessWidget {
         );
       case VoiceState.done:
       case VoiceState.thinking:
+        if (dark) {
+          return (
+            const [
+              Color.fromRGBO(214, 97, 42, .16),
+              Color.fromRGBO(110, 106, 87, .14),
+              Color.fromRGBO(110, 106, 87, .04),
+            ],
+            const [0, .62, 1],
+          );
+        }
         return (
           const [
             Color.fromRGBO(190, 74, 1, .10),

@@ -402,4 +402,62 @@ void main() {
       );
     }
   });
+
+  testWidgets('on the dark ground the ring takes her dark edges, and only the '
+      'thinking and finished rings take her dark fill', (tester) async {
+    final darkCore = _fill(
+      [
+        Color.fromRGBO(214, 97, 42, .16),
+        Color.fromRGBO(110, 106, 87, .14),
+        Color.fromRGBO(110, 106, 87, .04),
+      ],
+      [0, .62, 1],
+    );
+    final noteFill = _fill(
+      [
+        Color.fromRGBO(137, 170, 163, .16),
+        Color.fromRGBO(199, 194, 159, .12),
+        Color.fromRGBO(199, 194, 159, .04),
+      ],
+      [0, .62, 1],
+    );
+    for (final (voice, noteMode, edge, fill) in [
+      (VoiceState.invite, false, const Color(0xFFD6612A), _inviteFill),
+      (VoiceState.invite, true, const Color(0xFF8FB1A9), noteFill),
+      (VoiceState.done, false, const Color(0xFFD6612A), darkCore),
+      (VoiceState.listening, false, const Color(0xFF8FB1A9), _listeningFill),
+      (VoiceState.thinking, false, const Color(0xFF6E6A57), darkCore),
+      (
+        VoiceState.speaking,
+        false,
+        Color.fromRGBO(199, 194, 159, .5),
+        _speakingFill,
+      ),
+    ]) {
+      await _pumpCircle(
+        tester,
+        voice,
+        noteMode: noteMode,
+        theme: AppTheme.dark,
+      );
+      await tester.pump(const Duration(milliseconds: 80));
+
+      expect(_rings(tester), hasLength(1));
+      final ring = _rings(tester).single;
+      expect(
+        ring.border,
+        Border.all(color: edge, width: 1.5),
+        reason:
+            'no escuro, as bordas dela vêm de --telha, --azul e --areia '
+            'escuros (globals.css:19-21), em ${voice.name}',
+      );
+      expect(
+        ring.gradient,
+        fill,
+        reason:
+            'o fundo escuro dela (globals.css:29) só vence onde a fase '
+            'não pinta o seu; em ${voice.name}',
+      );
+    }
+  });
 }
