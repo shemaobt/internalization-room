@@ -342,6 +342,9 @@ void main() {
         false,
       ]);
       expect(harness.playback.played, isEmpty);
+      it.sala.ouvirGravacao();
+      await settle();
+      expect(harness.playback.played, isEmpty);
 
       harness.room.finishHeldClip();
       await waitFor('as partes chegarem', () => it.estado.everyPartIsHere);
@@ -376,11 +379,14 @@ void main() {
       );
       await settle(const Duration(milliseconds: 300));
 
+      it.sala.ouvirGravacao();
+      await settle();
       it.sala.retroTap();
       await settle();
       it.sala.retroTap();
       await settle();
 
+      expect(it.estado.canListenToThePendingStretch, isFalse);
       expect(it.estado.btPhase, BtPhase.playing);
       expect(harness.playback.played, isEmpty);
     },

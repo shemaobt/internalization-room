@@ -8485,6 +8485,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _ouvirGravacao() {
     if (state.station is! Retro) return;
+    if (!state.everyPartIsHere) return;
     final conferida = state.btPhase == BtPhase.conferida;
     if (state.btPhase != BtPhase.playing && !conferida) return;
     if (state.needsPerson || !state.aBackTranslationGestureActs) return;
@@ -10097,7 +10098,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     switch (state.btPhase) {
       case BtPhase.playing:
-        if (!state.everyPartIsHere) return;
         _abrirACaptura();
       case BtPhase.capturing:
         // Held, not stopped: the stretch the team has just told ends inside the part

@@ -1454,6 +1454,7 @@ class SalaSessionState {
 
   bool get canListenToThePendingStretch =>
       _btNaVez &&
+      everyPartIsHere &&
       !wordlessTelling &&
       (btClipRodando ||
           btContaEscolhida != null ||
