@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/left_entry.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
@@ -95,5 +96,28 @@ void main() {
 
     expect(effects, const [EnterThePassageLeft(left)]);
     expect(machine.station, const Menu());
+  });
+
+  test('The passage left comes back on its Canvas with its session and the '
+      'warning it stood under, and arms the Watch', () {
+    final (machine, effects) = reduce(
+      const Machine(station: Canvas(), generation: 4),
+      const TheLeftPassageReturns('s2', warned: true),
+    );
+
+    expect(machine.session, 's2');
+    expect(machine.halt, isA<Warning>());
+    expect(machine.station, const Canvas());
+    expect(effects, contains(const ArmTheWatch()));
+  });
+
+  test('The passage left with no warning comes back with none', () {
+    final (machine, _) = reduce(
+      const Machine(station: Canvas(), generation: 4),
+      const TheLeftPassageReturns('s2'),
+    );
+
+    expect(machine.session, 's2');
+    expect(machine.halt, isA<NoHalt>());
   });
 }

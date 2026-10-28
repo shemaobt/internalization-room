@@ -2392,10 +2392,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _emCurso = left.passage;
     _sessionLanguage = left.language;
     _listenerInProgress = left.listener;
-    state = left.state.copyWith(
-      machine: state.machine.copyWith(halt: left.state.machine.halt),
-    );
-    _dispatch(TheSessionOpened(left.session, generation: _generation));
+    state = left.state.copyWith(machine: state.machine);
+    _dispatch(TheLeftPassageReturns(left.session, warned: left.state.warning));
     _warmHerLines();
     if (left.passage.pericope case final pericope?) {
       _holdTheCurrentSession(
