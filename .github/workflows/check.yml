@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+# The one Flutter version CI verifies (AGENTS.md); both jobs read it from here.
+env:
+  FLUTTER_VERSION: 3.44.9
+
 # The suite ran as one 21-minute job, and every merge waits on it. It now runs in six
 # shards side by side on GitHub's free runners for public repositories (same tests, same
 # flags), and `check` still reports one verdict for the whole.
@@ -18,7 +22,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.44.9
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
 
@@ -69,7 +73,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.44.9
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
 
