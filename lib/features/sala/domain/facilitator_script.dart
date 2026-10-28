@@ -54,11 +54,6 @@ const circleLabels = {
     'pt': 'Um momento para uma pessoa',
     'en': 'A moment for someone',
   },
-  'teamTalk': {
-    'pt': 'Conversem entre vocês — tocar quando quiserem me contar',
-    'en': 'Talk among yourselves — tap when you want to tell me',
-  },
-  'listening': {'pt': 'Tocar ao terminar', 'en': 'Tap when you are done'},
   'default': {'pt': 'Toque para falar', 'en': 'Tap to speak'},
 };
 

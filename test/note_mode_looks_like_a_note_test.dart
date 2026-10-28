@@ -420,15 +420,21 @@ void main() {
   });
 
   for (final (language, words) in [
-    ('pt', 'Tocar ao terminar'),
-    ('en', 'Tap when you are done'),
+    ('pt', 'Toque para falar'),
+    ('en', 'Tap to speak'),
   ]) {
-    testWidgets('While the question records the circle reads «$words» '
-        '($language)', (tester) async {
+    testWidgets('While the question records the circle still reads «$words» '
+        '($language), never a recording line', (tester) async {
       final room = await _inConversa(tester, language: language);
       await room.theKnotRecords();
 
-      expect(byLabel(words), findsOneWidget);
+      expect(
+        onTheCircle(words),
+        findsOneWidget,
+        reason:
+            'o círculo trocava para um rótulo de gravação que o dela não '
+            'tem; o dela diz sempre o mesmo',
+      );
     });
   }
 

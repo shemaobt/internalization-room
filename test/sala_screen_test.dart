@@ -528,9 +528,8 @@ void main() {
     },
   );
 
-  testWidgets('a peer cue turns the circle into team-talk mode', (
-    tester,
-  ) async {
+  testWidgets('a peer cue turns the circle into team-talk mode, still read '
+      'as «Toque para falar», not a line of its own', (tester) async {
     final harness = SalaHarness()..room.peerCue = true;
     final container = await pumpSala(tester, harness);
     container.read(salaSessionProvider.notifier).goConversa(book: 'Ruth');
@@ -540,8 +539,11 @@ void main() {
     expect(container.read(salaSessionProvider).peerCue, isTrue);
     expect(find.byIcon(LucideIcons.users), findsOneWidget);
     expect(
-      byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
+      onTheCircle('Toque para falar'),
       findsOneWidget,
+      reason:
+          'o círculo dizia «Conversem entre vocês…», um rótulo que o dela '
+          'não tem; o dela diz sempre o mesmo',
     );
   });
 
@@ -558,11 +560,7 @@ void main() {
 
     expect(container.read(salaSessionProvider).voice, VoiceState.done);
     expect(find.byIcon(LucideIcons.users), findsOneWidget);
-    expect(
-      byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
-      findsOneWidget,
-    );
-    expect(byLabel('Toque para falar'), findsNothing);
+    expect(onTheCircle('Toque para falar'), findsOneWidget);
   });
 
   testWidgets(
@@ -577,10 +575,6 @@ void main() {
       expect(container.read(salaSessionProvider).voice, VoiceState.done);
       expect(find.byIcon(LucideIcons.users), findsNothing);
       expect(byLabel('Toque para falar'), findsOneWidget);
-      expect(
-        byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
-        findsNothing,
-      );
     },
   );
 
