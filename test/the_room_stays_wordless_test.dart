@@ -31,6 +31,11 @@ const _herWordsTheTeamReads = {
   'lib/features/sala/presentation/widgets/scene_translate_step.dart',
 };
 
+const _herWordsOnASendingTake = {
+  'lib/features/sala/presentation/widgets/scene_take_state.dart',
+  'lib/features/sala/presentation/widgets/stop_control.dart',
+};
+
 const _wordsOnlyTheCameraReads = {
   'lib/features/sala/presentation/widgets/claquete.dart',
 };
@@ -54,6 +59,7 @@ const _digitsTheTakeIsTimedBy = {
 const _wordyExceptions = {
   ..._screensTheTeamNeverReads,
   ..._herWordsTheTeamReads,
+  ..._herWordsOnASendingTake,
   ..._wordsOnlyTheCameraReads,
   ..._wordsTheTeamPicksItsLanguageBy,
   ..._numeralsThePartsAreCalledBy,

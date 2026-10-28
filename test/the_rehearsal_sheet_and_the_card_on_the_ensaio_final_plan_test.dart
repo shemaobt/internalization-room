@@ -4,6 +4,7 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -143,6 +144,18 @@ String _sent(int n, {String dur = '0:07', int k = 2}) =>
     '${_facts(n, dur: dur, k: k)} · enviado';
 
 String _sceneButton(int n) => 'cena $n ${_threeScenes[n - 1].title}';
+
+IconData _glyphOn(WidgetTester tester, String label) => tester
+    .widget<Icon>(
+      find.descendant(of: byLabel(label), matching: find.byType(Icon)),
+    )
+    .icon!;
+
+Tristate _pressedAt(WidgetTester tester, String label) => tester
+    .getSemantics(byLabel(label))
+    .getSemanticsData()
+    .flagsCollection
+    .isSelected;
 
 Tristate _enabledAt(WidgetTester tester, String label) => tester
     .getSemantics(byLabel(label))
@@ -972,6 +985,68 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       expect(harness.room.labelsSent, isEmpty);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'the card\'s play shows her pause while its rehearsal plays, and the play '
+    'again after a second tap',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(tester, _twoUnlabelled);
+      await _openThePlan(tester);
+      final play = 'Ouvir — ${_facts(4)}';
+      expect(_glyphOn(tester, play), LucideIcons.play);
+
+      await _tapLabel(tester, play);
+
+      expect(harness.playback.sounding, isTrue);
+      expect(
+        _glyphOn(tester, play),
+        LucideIcons.pause,
+        reason: 'o ensaio do cartão tocava e o botão ainda mostrava tocar',
+      );
+      expect(_pressedAt(tester, play), Tristate.isTrue);
+
+      await _tapLabel(tester, play);
+
+      expect(harness.playback.sounding, isFalse);
+      expect(_glyphOn(tester, play), LucideIcons.play);
+      expect(_pressedAt(tester, play), Tristate.isFalse);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'the sheet\'s line that plays shows her pause, the others the play, and a '
+    'second tap gives it back',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(tester, _threeOnSceneOne);
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 1);
+      final play = 'Ouvir — ${_sent(3)}';
+
+      await _tapLabel(tester, play);
+
+      expect(harness.playback.sounding, isTrue);
+      expect(
+        _glyphOn(tester, play),
+        LucideIcons.pause,
+        reason: 'o ensaio da folha tocava e o botão ainda mostrava tocar',
+      );
+      expect(_pressedAt(tester, play), Tristate.isTrue);
+      for (final n in [1, 2]) {
+        expect(_glyphOn(tester, 'Ouvir — ${_sent(n)}'), LucideIcons.play);
+        expect(_pressedAt(tester, 'Ouvir — ${_sent(n)}'), Tristate.isFalse);
+      }
+
+      await _tapLabel(tester, play);
+
+      expect(harness.playback.sounding, isFalse);
+      expect(_glyphOn(tester, play), LucideIcons.play);
+      expect(_pressedAt(tester, play), Tristate.isFalse);
       semantics.dispose();
     },
   );

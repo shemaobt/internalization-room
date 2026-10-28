@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
@@ -56,9 +55,14 @@ class ConversaView extends ConsumerWidget {
             Positioned(
               left: 0,
               right: 0,
-              top: phone
-                  ? max(screen.height * 0.08 + 66, screen.height * 0.05 + 94)
-                  : screen.height * 0.08 + 58,
+              top:
+                  MediaQuery.viewPaddingOf(context).top +
+                  (phone
+                      ? max(
+                          screen.height * 0.08 + 66,
+                          screen.height * 0.05 + 94,
+                        )
+                      : screen.height * 0.08 + 58),
               child: Center(
                 child: AnimatedOpacity(
                   opacity: _momentOpacity(session),
@@ -75,8 +79,8 @@ class ConversaView extends ConsumerWidget {
               ),
             ),
         Positioned(
-          right: 14,
-          top: 118 + MediaQuery.viewPaddingOf(context).top,
+          right: screen.width * 0.06 - 5,
+          top: MediaQuery.viewPaddingOf(context).top + screen.height * 0.05 - 5,
           child: IgnorePointer(
             ignoring: dotIsGone,
             child: AnimatedOpacity(
@@ -98,15 +102,21 @@ class ConversaView extends ConsumerWidget {
                     onTap: notifier.openTheEnsaioFinal,
                     behavior: HitTestBehavior.opaque,
                     child: SizedBox(
-                      width: 34,
-                      height: 34,
+                      width: 44,
+                      height: 44,
                       child: Center(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: SalaColors.of(context).momentoEf,
-                            shape: BoxShape.circle,
+                        child: AnimatedScale(
+                          scale: session.orangeDotLook == OrangeDotLook.bright
+                              ? 1.25
+                              : 1,
+                          duration: const Duration(milliseconds: 400),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: SalaColors.of(context).momentoEf,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const SizedBox(width: 11.92, height: 11.92),
                           ),
-                          child: const SizedBox(width: 15, height: 15),
                         ),
                       ),
                     ),
@@ -117,8 +127,11 @@ class ConversaView extends ConsumerWidget {
           ),
         ),
         Positioned(
-          right: phone ? 7 : 56,
-          top: 118 + MediaQuery.viewPaddingOf(context).top + (phone ? 42 : -7),
+          right: screen.width * 0.06 + (phone ? 0 : 50),
+          top:
+              MediaQuery.viewPaddingOf(context).top +
+              screen.height * 0.05 +
+              (phone ? 40 : -6),
           child: IgnorePointer(
             ignoring: !session.redMicrophoneIsShown,
             child: AnimatedOpacity(
@@ -179,11 +192,62 @@ class _RedMicrophone extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Icon(LucideIcons.mic, size: 22, color: red),
+              child: Center(
+                child: CustomPaint(
+                  size: const Size(26, 26),
+                  painter: _HerMicrophone(red),
+                ),
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _HerMicrophone extends CustomPainter {
+  final Color color;
+
+  const _HerMicrophone(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final unit = size.width / 24;
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2 * unit
+      ..strokeCap = StrokeCap.round;
+    canvas.drawRRect(
+      RRect.fromLTRBR(
+        9 * unit,
+        2.5 * unit,
+        15 * unit,
+        13.5 * unit,
+        Radius.circular(3 * unit),
+      ),
+      Paint()..color = color,
+    );
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(12 * unit, 11 * unit), radius: 6 * unit),
+      pi,
+      -pi,
+      false,
+      stroke,
+    );
+    canvas.drawLine(
+      Offset(12 * unit, 17 * unit),
+      Offset(12 * unit, 21 * unit),
+      stroke,
+    );
+    canvas.drawLine(
+      Offset(9 * unit, 21 * unit),
+      Offset(15 * unit, 21 * unit),
+      stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_HerMicrophone old) => old.color != color;
 }
