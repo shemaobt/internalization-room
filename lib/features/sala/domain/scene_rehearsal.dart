@@ -139,10 +139,12 @@ final class SceneRehearsalRecord {
 
   /// Joinable: sent, confirmed by the room, and a WAV, the server's own `is_wav`; a WAV
   /// this tablet records is always 16 kHz mono.
-  bool get joinable =>
-      receivedAt != null &&
-      verified &&
-      contentType.toLowerCase().contains('wav');
+  bool get joinable => receivedAt != null && _aConfirmedWav;
+
+  bool get usable => (unsent || receivedAt != null) && _aConfirmedWav;
+
+  bool get _aConfirmedWav =>
+      verified && contentType.toLowerCase().contains('wav');
 
   /// Whether the current frases leave a stretch of [untranslatedAtLeast] or more of the
   /// take uncovered, inside it or at its tail.

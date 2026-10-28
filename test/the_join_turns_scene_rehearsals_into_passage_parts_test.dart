@@ -1191,6 +1191,51 @@ void main() {
   );
 
   testWidgets(
+    'an unsent rehearsal the team chose joins as its scene\'s part, with its '
+    'own bytes',
+    (tester) async {
+      final it = await _atRest(tester);
+      it.seed([1, 3]);
+      final unsent = SceneRehearsalRecord(
+        rehearsalId: _idOf(it.sessionId, 2),
+        sessionId: it.sessionId,
+        n: 2,
+        scene: 'S2',
+        recordedAt: DateTime.utc(2026, 10, 22, 13, 7),
+        durationMs: 6000,
+        frases: const [
+          SceneFrase(fraseId: 'frase-a', startsMs: 0, endsMs: 6000),
+        ],
+        verified: true,
+        sha256: _fingerprintOf(_bytesOf(2)),
+      );
+      it.room.sceneRehearsals.add(unsent);
+      it.room.sceneAudioOf[unsent.rehearsalId] = _bytesOf(2);
+      await it.openThePlan();
+      final notifier = it.container.read(salaSessionProvider.notifier);
+      notifier.swapTheRehearsal('S2');
+      await it.settle();
+      notifier.useThisRehearsal(unsent.rehearsalId);
+      await it.settle();
+
+      await it.tapJoin();
+      await _theJoinEnds(it);
+
+      final part2 = [
+        for (final take in it.room.takesReceivedWhole)
+          if (take.chunkIndex == 2) take,
+      ];
+      expect(
+        [for (final take in part2) take.origin],
+        [it.idOf(2)],
+        reason: 'a junta pulava o ensaio não enviado que a equipe escolheu',
+      );
+      expect(part2.single.bytes, _bytesOf(2));
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
     'a scene whose waiting join the room then refused for good offers its '
     'other rehearsal again',
     (tester) async {

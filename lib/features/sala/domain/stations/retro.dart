@@ -19,6 +19,6 @@ final class Retro extends Station {
     TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => const Fim(),
     TheExternalCheckOpened(:final version) => ChecagemExterna(version),
-    TheExternalCheckLeft() => this,
+    TheExternalCheckLeft() || TheRecordingLeft() => this,
   };
 }
