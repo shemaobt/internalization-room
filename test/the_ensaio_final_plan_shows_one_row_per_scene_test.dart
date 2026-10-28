@@ -173,11 +173,17 @@ Future<(SalaHarness, ProviderContainer)> _atRest(
   WidgetTester tester, {
   String lingua = 'pt',
   List<Scene> scenes = _threeScenes,
+  Duration? playbackCeiling,
 }) async {
-  final harness = SalaHarness(lingua: lingua, filaEmMemoria: true)
-    ..room.passages = const [_thePassage]
-    ..room.nextMoment = _midConversation
-    ..room.passageScenes = scenes;
+  final harness =
+      SalaHarness(
+          lingua: lingua,
+          filaEmMemoria: true,
+          playbackCeiling: playbackCeiling,
+        )
+        ..room.passages = const [_thePassage]
+        ..room.nextMoment = _midConversation
+        ..room.passageScenes = scenes;
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final notifier = container.read(salaSessionProvider.notifier);
@@ -199,11 +205,13 @@ Future<(SalaHarness, ProviderContainer)> _seeded(
   List<SceneRehearsalRecord> Function(String session) seed, {
   String lingua = 'pt',
   List<Scene> scenes = _threeScenes,
+  Duration? playbackCeiling,
 }) async {
   final (harness, container) = await _atRest(
     tester,
     lingua: lingua,
     scenes: scenes,
+    playbackCeiling: playbackCeiling,
   );
   harness.room.sceneRehearsals.addAll(
     seed(container.read(salaSessionProvider).sessionId!),
@@ -1336,6 +1344,38 @@ void main() {
         reason: 'a parada calou o ensaio e a linha voltou em pausa',
       );
       expect(_pressedAt(tester, _playOn(1)), Tristate.isFalse);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a rehearsal whose clip opens only after the ceiling ended it stays '
+    'silent, not sounding under the play',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(
+        tester,
+        _oneEach,
+        playbackCeiling: const Duration(seconds: 2),
+      );
+      await _openThePlan(tester);
+      harness.playback.holdNextOpening();
+      await tester.tap(_playOn(1));
+      await _theAnswerSettles(tester);
+      expect(_pressedAt(tester, _playOn(1)), Tristate.isTrue);
+
+      await tester.pump(const Duration(seconds: 2));
+      harness.playback.finishHeldOpening();
+      await _theAnswerSettles(tester);
+
+      expect(_pressedAt(tester, _playOn(1)), Tristate.isFalse);
+      expect(
+        harness.playback.sounding,
+        isFalse,
+        reason:
+            'o teto terminava a parte sem parar o som, e o clipe que abria '
+            'depois tocava inteiro com o botão já de volta em tocar',
+      );
       semantics.dispose();
     },
   );
