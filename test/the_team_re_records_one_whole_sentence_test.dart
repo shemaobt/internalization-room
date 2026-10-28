@@ -824,6 +824,90 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('picking a telling back up with every part heard and nothing '
+      'awaiting plays nothing and says nothing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.listeningUnheardTakeIds = const [];
+    final container = await _voltaATraducao(tester, harness);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.playback.played,
+      isEmpty,
+      reason: 'a gravação voltava a tocar debaixo da equipe na retomada',
+    );
+    expect(harness.voice.fixedLines, isEmpty);
+    closeTheRoom(container);
+  });
+
+  Future<void> deVoltaDoEnsaio(
+    WidgetTester tester,
+    ProviderContainer container,
+  ) async {
+    final sala = container.read(salaSessionProvider.notifier);
+    sala.goEnsaio();
+    await _passo(tester);
+    sala.startRetro();
+    await waitFor('a tradução voltar', () {
+      final agora = container.read(salaSessionProvider);
+      return agora.stage == SalaStage.retro && !agora.awaitingTheGuide;
+    }, step: () => _passo(tester));
+    await _passo(tester);
+    await _passo(tester);
+  }
+
+  testWidgets('coming back from the rehearsal to a frase that awaits its '
+      'translation, every part heard, the voice says so and that frase opens '
+      'at its own span', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarAFrase(tester, harness, 2);
+    harness.room.listeningUnheardTakeIds = const [];
+    harness.voice.fixedLines.clear();
+
+    await deVoltaDoEnsaio(tester, container);
+
+    expect(
+      harness.voice.fixedLines,
+      [('N5', 'pt')],
+      reason:
+          'a equipe voltava do ensaio e ninguém lembrava da frase regravada',
+    );
+    expect(harness.playback.ranges.last, '4000-7200');
+    final aqui = container.read(salaSessionProvider);
+    expect(aqui.btFraseQueAguarda, 'trecho-2');
+    expect(aqui.btTrechoTraduzidoDeNovo?.segmentId, 'trecho-2');
+    closeTheRoom(container);
+  });
+
+  testWidgets('coming back from the rehearsal when only the re-recorded '
+      'sentence is unheard, the voice says the frase awaits and the sentence '
+      'plays with what surrounds it, not the listen', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarAFrase(tester, harness, 2);
+    harness.room.listeningUnheardTakeIds = [harness.room.takes.last.takeId];
+    harness.voice.fixedLines.clear();
+
+    await deVoltaDoEnsaio(tester, container);
+
+    expect(
+      harness.voice.fixedLines,
+      [('N5', 'pt')],
+      reason: 'a volta tocava a escuta em vez da frase que espera',
+    );
+    expect(
+      harness.playback.ranges.last,
+      '2500-8700',
+      reason: 'a frase nova não tocava no lugar dela, com o que vem em volta',
+    );
+    final aqui = container.read(salaSessionProvider);
+    expect(aqui.btSoOuvir, isFalse);
+    expect(aqui.btTrechoTraduzidoDeNovo?.segmentId, 'trecho-2');
+    closeTheRoom(container);
+  });
+
   testWidgets('the new sentence played in its place counts as heard on the '
       'new take, and the check is told so', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
