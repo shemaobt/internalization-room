@@ -7412,6 +7412,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ],
       );
     }
+    _weighTheRehearsal();
   }
 
   Future<void> refreshUnsent() => _countUnsent();
