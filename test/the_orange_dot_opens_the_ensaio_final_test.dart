@@ -301,6 +301,27 @@ Future<void> _theNextReplyPlays(
   expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
 }
 
+Future<void> _theHandReplyPlays(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  await _pumpUntil(
+    tester,
+    () => container.read(salaSessionProvider).hasUnheardReply,
+    beats: 200,
+  );
+  harness.voice.holdNextLine();
+  container.read(salaSessionProvider.notifier).handTap();
+  await _pumpUntil(
+    tester,
+    () => harness.voice.played.contains(_handReply.audioUrl),
+  );
+  await tester.pump(const Duration(milliseconds: 500));
+  expect(harness.voice.played, contains(_handReply.audioUrl));
+  expect(container.read(salaSessionProvider).playingReplyId, _handReply.id);
+}
+
 Future<void> _theReplyEnds(
   WidgetTester tester,
   SalaHarness harness,
@@ -668,41 +689,65 @@ void main() {
   );
 
   testWidgets(
-    'while the raised hand\'s reply plays there is no dot, and a tap where it '
-    'stood never stops it',
+    'while the raised hand\'s reply plays the dot stays faint, keeps its name '
+    'and takes a touch',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final (harness, container) = await _atRest(
         tester,
         replies: const [_handReply],
       );
-      final notifier = container.read(salaSessionProvider.notifier);
-      await _pumpUntil(
-        tester,
-        () => container.read(salaSessionProvider).hasUnheardReply,
-        beats: 200,
+      await _theHandReplyPlays(tester, harness, container);
+
+      expect(
+        _dotOpacity(tester),
+        closeTo(0.22, 0.001),
+        reason: 'o ponto sumia enquanto a resposta do facilitador tocava',
       );
-      harness.voice.holdNextLine();
-      notifier.handTap();
-      await _pumpUntil(
-        tester,
-        () => harness.voice.played.contains(_handReply.audioUrl),
+      expect(_dotIsDeaf(tester), isFalse);
+      expect(
+        tester.getSemantics(_dot),
+        isSemantics(label: _recordEnsaio, hasTapAction: true),
       );
-      await tester.pump(const Duration(milliseconds: 500));
-      final stops = harness.voice.stops;
-
-      expect(_dotOpacity(tester), 0.0);
-      expect(_dotIsDeaf(tester), isTrue);
-      expect(find.semantics.byLabel(_recordEnsaio), findsNothing);
-
-      notifier.openTheEnsaioFinal();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(harness.voice.stops, stops, reason: 'o toque calou a resposta');
-      expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
       harness.voice.finishHeldLine();
       await _theAnswerSettles(tester);
       semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a touch on the dot while the raised hand\'s reply plays stops the reply, '
+    'leaves it unheard on the hand, and opens the plan',
+    (tester) async {
+      final (harness, container) = await _atRest(
+        tester,
+        replies: const [_handReply],
+      );
+      await _theHandReplyPlays(tester, harness, container);
+      final stops = harness.voice.stops;
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(
+        harness.voice.stops,
+        greaterThan(stops),
+        reason: 'a resposta seguia tocando por cima do plano',
+      );
+      expect(find.text(_planLine), findsOneWidget);
+      harness.voice.finishHeldLine();
+      await _theAnswerSettles(tester);
+      expect(
+        harness.inbox.heard,
+        isEmpty,
+        reason: 'a resposta cortada pelo ponto foi marcada ouvida na mesa',
+      );
+      expect(
+        container.read(salaSessionProvider).hasUnheardReply,
+        isTrue,
+        reason: 'a resposta cortada saiu da mão',
+      );
+      expect(container.read(salaSessionProvider).playingReplyId, isNull);
     },
   );
 
