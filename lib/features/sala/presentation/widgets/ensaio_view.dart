@@ -471,17 +471,19 @@ class _SceneRowView extends StatelessWidget {
                     mood,
                   )
                 else ...[
-                  _control(
-                    'listen',
-                    Icon(
-                      playing ? LucideIcons.pause : LucideIcons.play,
-                      size: 18,
-                      color: ShemaBrand.branco,
+                  if (row.unsent?.failure != SendFailure.gone) ...[
+                    _control(
+                      'listen',
+                      Icon(
+                        playing ? LucideIcons.pause : LucideIcons.play,
+                        size: 18,
+                        color: ShemaBrand.branco,
+                      ),
+                      onListen,
+                      listens,
                     ),
-                    onListen,
-                    listens,
-                  ),
-                  const SizedBox(width: 12),
+                    const SizedBox(width: 12),
+                  ],
                   _control(
                     'recordAgain',
                     const Icon(

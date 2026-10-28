@@ -7644,11 +7644,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final MapEntry(key: scope, value: rows) in outbox.entries) {
       final number = state.rowOf(scope);
       if (number == null) continue;
-      final held = switch (state.partIndexOf(number)) {
-        final index? => state.partes[index].pass,
-        null => 0,
-      };
-      final newest = rows.map((row) => row.passNumber ?? 1).fold(held, max);
+      final newest = rows
+          .map((row) => row.passNumber ?? 1)
+          .fold(_heldPassOf(number), max);
       final current = [
         for (final row in rows)
           if ((row.passNumber ?? 1) == newest) row,
@@ -7657,6 +7655,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     return speaking;
   }
+
+  int _heldPassOf(int number) => switch (state.partIndexOf(number)) {
+    final index? => state.partes[index].pass,
+    null => 0,
+  };
 
   int _unsentTakesOf(OutboxTally tally, Map<int, List<PendingTake>> speaking) {
     var behindANewerPass = 0;
@@ -7705,6 +7708,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         number: UnsentPart(
           fromAnEarlierVisit: false,
           failure: gone ? SendFailure.gone : SendFailure.failed,
+        ),
+    for (final MapEntry(key: scope, value: pass) in tally.goneParts.entries)
+      if (state.rowOf(scope) case final number?
+          when pass >= _heldPassOf(number))
+        number: const UnsentPart(
+          fromAnEarlierVisit: false,
+          failure: SendFailure.gone,
         ),
   };
 

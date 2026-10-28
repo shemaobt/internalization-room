@@ -21,7 +21,7 @@ import 'package:internalization_room/main.dart';
 
 import 'a_scene_room.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, settle;
+import 'scenario_helpers.dart' show byLabel, relaunch, settle;
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
 const _falhou = 'falhou — toque para tentar de novo';
@@ -83,6 +83,14 @@ class _Casa {
         if (entry is File && !entry.path.contains('fila.json')) entry,
     ];
   }
+
+  Future<void> perderAsCopias() => emTempoReal(() async {
+    for (final copia in copias) {
+      copia.deleteSync();
+    }
+    await sala.refreshUnsent();
+    await settle();
+  });
 
   Finder linha(int n) => byLabel('Cena $n — ${_cenas[n - 1].title}');
 
@@ -265,7 +273,19 @@ Widget _aCasa(ProviderContainer container) => UncontrolledProviderScope(
   ),
 );
 
-Future<_Casa> _naCasa(WidgetTester tester, {SalaHarness? harness}) async {
+Future<_Casa> _relancada(_Casa casa) async {
+  await casa.deixarATela();
+  final (harness, container) = (await casa.tester.runAsync(
+    () => relaunch(casa.harness, casa.container),
+  ))!;
+  return _naCasa(casa.tester, harness: harness, relaunched: container);
+}
+
+Future<_Casa> _naCasa(
+  WidgetTester tester, {
+  SalaHarness? harness,
+  ProviderContainer? relaunched,
+}) async {
   tester.view
     ..physicalSize = const Size(820, 1180)
     ..devicePixelRatio = 1;
@@ -273,16 +293,18 @@ Future<_Casa> _naCasa(WidgetTester tester, {SalaHarness? harness}) async {
   final sala = harness ?? SalaHarness();
   sala.room.passageScenes = _cenas;
   final container = (await tester.runAsync(
-    () async => sala.container()..read(salaSessionProvider),
+    () async => (relaunched ?? sala.container())..read(salaSessionProvider),
   ))!;
-  addTearDown(container.dispose);
+  if (relaunched == null) addTearDown(container.dispose);
   await tester.pumpWidget(_aCasa(container));
   final casa = _Casa(tester, sala, container);
   await casa.emTempoReal(() async {
     await container.read(deviceLinkProvider.notifier).findTheTeam();
     await casa.sala.refreshUnsent();
     await casa.sala.openTheRoom();
-    await casa.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    if (relaunched == null) {
+      await casa.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    }
     await waitFor(
       'a sessão abrir',
       () => casa.estado.sessionId != null && !casa.estado.awaitingTheGuide,
@@ -857,6 +879,55 @@ void main() {
       expect(casa.naLinha(2, find.text(_perdida)), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'a part whose newest take is gone still reads falhou — grave de novo after a relaunch, with nothing to play',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+      await casa.perderAsCopias();
+      expect(casa.naLinha(2, find.text(_perdida)), findsOneWidget);
+
+      final depois = await _relancada(casa);
+
+      expect(depois.naLinha(2, find.text(_perdida)), findsOneWidget);
+      expect(depois.naLinha(2, find.byType(TextButton)), findsNothing);
+      expect(depois.naLinha(2, byLabel(_ouvirNaLinha)), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a part saved before whose newest take is gone still reads falhou — grave de novo after a relaunch',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      await casa.guardar(2);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      await casa.perderAsCopias();
+
+      final depois = await _relancada(casa);
+
+      expect(depois.naLinha(2, find.text(_perdida)), findsOneWidget);
+      expect(depois.naLinha(2, find.byType(TextButton)), findsNothing);
+      expect(depois.naLinha(2, byLabel(_ouvirNaLinha)), findsNothing);
+      expect(find.text(_salvo), findsNothing);
+    },
+  );
+
+  testWidgets('a part whose newest take is gone offers nothing to play', (
+    tester,
+  ) async {
+    final casa = await _naCasa(tester);
+    casa.room.unreachableTake = 'ensaio/parte-2';
+    await casa.guardar(2);
+    await casa.perderAsCopias();
+
+    expect(casa.naLinha(2, find.text(_perdida)), findsOneWidget);
+    expect(casa.naLinha(2, byLabel(_ouvirNaLinha)), findsNothing);
+    expect(casa.naLinha(2, byLabel(_gravarDeNovoNaLinha)), findsOneWidget);
+  });
 
   testWidgets('a tap on a row whose take is being sent sends nothing', (
     tester,

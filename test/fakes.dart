@@ -4080,6 +4080,7 @@ class FakeTakeQueue implements TakeUploadQueue {
                   row,
             ],
       },
+      goneParts: const <String, int>{},
     );
     if (held != null) await held.future;
     return result;
