@@ -256,7 +256,8 @@ class RetroView extends ConsumerWidget {
           (maior, trecho) =>
               trecho.to - trecho.from > maior ? trecho.to - trecho.from : maior,
         );
-    double share(Trecho trecho) => maior > Duration.zero
+    double share(Trecho trecho) =>
+        maior > Duration.zero && trecho.to > trecho.from
         ? max(
             0.08,
             (trecho.to - trecho.from).inMicroseconds / maior.inMicroseconds,
