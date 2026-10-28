@@ -2758,7 +2758,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (read.approved == null || read.backTranslation.nothingTold) return false;
     final waiting = (await _takes.pending()).any(
       (entry) =>
-          entry.sessionId == read.sessionId && entry.kind != sceneTakeKind,
+          entry.sessionId == read.sessionId &&
+          entry.kind != sceneTakeKind &&
+          !(entry.exhausted && !entry.refusedWithNoCode),
     );
     if (waiting || _abandoned(generation)) return _abandoned(generation);
     _leaveTheStepFor(const Canvas());
@@ -2981,7 +2983,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_abandoned(generation)) return _Resume.abandoned;
     final faltavam = !relaunched && (aPartlessRetro || missing);
-    if (stage is Retro && faltavam) {
+    if (!relaunched) {
       final sent = ++_readsSent;
       if (await _room.fetchState(waiting.sessionId) case Answered(
         value: final lida,

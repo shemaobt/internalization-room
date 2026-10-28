@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
+import 'package:internalization_room/features/sala/domain/refusal_code.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
@@ -142,18 +143,6 @@ void _landsOnTheConversation(_Room room) {
     reason: 'a passagem aprovada não é uma conversa a abrir',
   );
   expect(room.harness.voice.played, isEmpty);
-}
-
-void _landsOnTheApprovedDraft(_Room room, {int version = 1}) {
-  final state = _state(room);
-  expect(state.stage, SalaStage.retro);
-  expect(state.btPhase, BtPhase.conferida);
-  expect(_theBadge(version), findsOneWidget);
-  expect(
-    _opensAsked(room.harness),
-    0,
-    reason: 'a passagem aprovada não é uma conversa a abrir',
-  );
 }
 
 void main() {
@@ -393,9 +382,40 @@ void main() {
   );
 
   testWidgets(
-    'a take recorded over by a newer recording the room holds keeps nothing '
-    'from the approved draft\'s badge',
+    'an approved passage entered on a Rehearsal row goes straight to its '
+    'conversation, never through the recording home',
     (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1));
+      _aRowOn(harness, SalaStage.ensaio);
+      harness.room.openedSessions.add('sessao-antiga');
+      final stood = <SalaStage>[];
+      late ProviderContainer container;
+      await tester.runAsync(() async {
+        container = harness.container();
+        container.listen(
+          salaSessionProvider,
+          (_, next) => stood.add(next.stage),
+        );
+        final notifier = container.read(salaSessionProvider.notifier);
+        await notifier.abrirEscolha();
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      addTearDown(() => closeTheRoom(container));
+
+      expect(container.read(salaSessionProvider).station, isA<Canvas>());
+      expect(
+        stood,
+        isNot(contains(SalaStage.ensaio)),
+        reason:
+            'a casa das gravações aparecia por uma leitura antes da conversa',
+      );
+    },
+  );
+
+  group('a take recorded over by a newer recording, refused for good', () {
+    Future<_Room> enterOver(WidgetTester tester, String refusal) async {
       final harness = _aRoomHolding(approved: _approvedAs(1));
       harness.room.takes
         ..clear()
@@ -438,16 +458,37 @@ void main() {
             passNumber: 1,
             chunkIndex: 1,
             attempts: takeUploadAttempts,
-            refusal: 'UNKNOWN_REFERENCE',
+            refusal: refusal,
           ).toJson(),
         ]),
       );
+      return _enter(tester, harness);
+    }
 
-      final room = await _enter(tester, harness);
+    testWidgets(
+      'with a code the room gave never keeps an approved passage off its '
+      'conversation',
+      (tester) async {
+        final room = await enterOver(tester, 'UNKNOWN_REFERENCE');
 
-      _landsOnTheApprovedDraft(room);
-    },
-  );
+        _landsOnTheConversation(room);
+      },
+    );
+
+    testWidgets(
+      'with no code still waits for the team\'s tap, and the passage lands '
+      'where it stood',
+      (tester) async {
+        final room = await enterOver(tester, RefusalCode.unnamed(500));
+
+        expect(
+          _state(room).stage,
+          SalaStage.retro,
+          reason: 'uma gravação que o toque ainda envia mudava o rascunho',
+        );
+      },
+    );
+  });
 
   group(
     'a tablet whose Outbox still holds something of the session that changes the '
