@@ -589,7 +589,11 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(container.read(salaSessionProvider).canHearAgain, isTrue);
-    expect(byLabel('Hear it again'), findsOneWidget);
+    expect(
+      byLabel('Hear that again'),
+      findsOneWidget,
+      reason: 'o botão dizia «Hear it again», e o dela diz «Hear that again»',
+    );
     expect(
       byLabel('Ouvir de novo'),
       findsNothing,
