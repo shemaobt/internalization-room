@@ -277,4 +277,41 @@ void main() {
     );
     expect(read().sessionId, isNull);
   });
+
+  test('«hear again» on the passage laid back with no network plays its last '
+      'line again, asking the room for nothing', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePassage(notifier, read, 'P01');
+    await waitFor(
+      'P01 to speak its opening',
+      () =>
+          read().voice == VoiceState.invite && harness.voice.played.isNotEmpty,
+    );
+    final opening = harness.voice.played.last;
+    notifier.leaveThePassage();
+    await waitFor(
+      'the way back to P01 to be live',
+      () => read().entriesOpen && read().theWayBackIsLive,
+    );
+    harness.room.reachable = false;
+    await notifier.returnToTheLeftEntry();
+    await settle();
+    final heard = harness.voice.played.length;
+    final asked = harness.room.calls.length;
+
+    await notifier.hearAgain();
+    await settle();
+
+    expect(
+      harness.voice.played.skip(heard),
+      [opening],
+      reason:
+          'a P01 voltava sem a sua última fala e pedia à sala para repeti-la',
+    );
+    expect(harness.room.calls.skip(asked), isEmpty);
+  });
 }
