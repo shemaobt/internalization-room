@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint) and 0103 (2026-10-20: a take refused for good is told by its row, not the voice)
+status: accepted, amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint) and 0103 (2026-10-20: a take refused for good is told by its row, not the voice), and 0131 (2026-10-22: a take is confirmed only when the room's list holds it)
 date: 2026-10-16
 amends: 0083, 0025
 ---

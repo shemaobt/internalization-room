@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
 void main() {
   late Directory home;
@@ -37,6 +38,7 @@ void main() {
   RoomRepository roomOnTheWire() {
     final room = RoomRepository(
       client: MockClient((request) async {
+        if (request.method == 'GET') return _theRoomsList(request);
         requests.add(request);
         return answer(request);
       }),
@@ -120,16 +122,20 @@ void main() {
         test(name, () async {
           final bytes = wavOf(const Duration(seconds: 3));
           final queue = queueAt(() => clock);
-          await keep(queue, recorded('parte', bytes, extension: 'wav'));
+          final row = await keep(
+            queue,
+            recorded('parte', bytes, extension: 'wav'),
+          );
           answer = (_) => failure();
           await queue.flush();
           answer = (_) async =>
               http.Response(jsonEncode({'take_id': 'gravacao-1'}), 200);
           clock = clock.add(const Duration(minutes: 30));
 
+          await queue.dueAgain(row.id);
           await queue.flush();
 
-          expect(requests, hasLength(2));
+          expect(requests, hasLength(4));
           expect(_fields(requests.last), _fields(requests.first));
           expect(
             _fields(requests.last),
@@ -392,6 +398,23 @@ void main() {
     });
   });
 }
+
+http.Response _theRoomsList(http.Request request) =>
+    request.url.path.endsWith('/scene-rehearsals')
+    ? http.Response(
+        jsonEncode({
+          'scene_rehearsals': [_sceneRehearsal],
+        }),
+        200,
+      )
+    : http.Response(
+        jsonEncode({
+          'takes': [
+            {'take_id': 'gravacao-1', 'kind': 'ensaio', 'scope': 'inteira'},
+          ],
+        }),
+        200,
+      );
 
 const _sceneRehearsal = {
   'rehearsal_id': 'ensaio-da-cena-1',
