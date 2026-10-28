@@ -32,14 +32,22 @@ decision in a44568c2.
      with what surrounds it, and no listen. This is her Q2 (`awaitingOnlyUnheard`,
      `app/lib/sentenceRerecord.ts:271-274`). A part whose upload has not landed has no take
      for the room to name and counts as unheard, so it keeps the listen first.
-4. **No answer, or an older room**, stays on today's path, with one exception: a frase
+4. **A room out of reach is answered by what it last said** (ENG-1942). When the read fails,
+   the return reads the room's last answer on this passage, in this Life, and goes where
+   that answer would send it: quiet, the listen, or the untranslated stretch. Hers falls back
+   to the passage it last held (`Drafting.tsx:1084`), which every heard report keeps up to
+   date (`:422`). Every report keeps its answer, and an answer older than the one held never
+   replaces it. A held answer is not "no answer".
+5. **No answer held, or an older room**, stays on today's path, with one exception: a frase
    awaiting its translation still comes first, unpadded. The tablet already knows which frase
    it is, a relaunch already goes to it without asking the room, and hers reads it from the
-   passage it holds when the read fails (`Drafting.tsx:1082`).
+   passage it holds when the read fails (`Drafting.tsx:1082`). A Life that has not yet had
+   an answer to a report holds none: the resume read carries no unheard list.
 
 ## Consequences
 
-- ADR 0123 rule 1's last case now reads: none unheard → this ADR; no answer or an older room
-  → today's path, unless a frase awaits its translation (rule 4).
+- ADR 0123 rule 1's last case now reads: none unheard → this ADR; the room out of reach →
+  its last answer on the passage (rule 4); no answer held or an older room → today's path,
+  unless a frase awaits its translation (rule 5).
 - A relaunch with a frase awaiting still goes straight to it, without asking the room first.
   Hers asks the room on a relaunch too; that difference is a follow-up.
