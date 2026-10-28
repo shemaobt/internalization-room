@@ -524,6 +524,8 @@ class SalaSessionState {
   /// with none to read.
   final ({String take, Envelope? envelope})? sceneLoudness;
 
+  final Map<String, ({Duration length, Envelope? envelope})> partLoudness;
+
   /// The passage's scenes as the screen knows them now: the scene rehearsal's open waits
   /// on a fresh ask.
   final SceneList scenes;
@@ -681,6 +683,7 @@ class SalaSessionState {
     this.sceneRehearsals = const [],
     this.sceneTranslationsUnseen = const {},
     this.sceneLoudness,
+    this.partLoudness = const {},
     this.scenes = const ScenesAwaited(),
     this.scenesOfThePassage,
     this.sceneTurn,
@@ -1637,6 +1640,7 @@ class SalaSessionState {
     List<SceneRehearsalRecord>? sceneRehearsals,
     Map<String, String>? sceneTranslationsUnseen,
     ({String take, Envelope? envelope})? sceneLoudness,
+    Map<String, ({Duration length, Envelope? envelope})>? partLoudness,
     SceneList? scenes,
     List<Scene>? scenesOfThePassage,
     ({String rehearsalId, String turnId})? sceneTurn,
@@ -1779,6 +1783,7 @@ class SalaSessionState {
       sceneTranslationsUnseen:
           sceneTranslationsUnseen ?? this.sceneTranslationsUnseen,
       sceneLoudness: sceneLoudness ?? this.sceneLoudness,
+      partLoudness: partLoudness ?? this.partLoudness,
       scenes: scenes ?? this.scenes,
       scenesOfThePassage: scenesOfThePassage ?? this.scenesOfThePassage,
       sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),

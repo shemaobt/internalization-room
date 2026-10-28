@@ -4,8 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'fakes.dart';
 import 'resto_da_historia_test.dart' show aHistoriaSemOFim;
@@ -37,21 +35,9 @@ const rotulosDaGrade = [
   'Ouvir e traduzir a gravação de novo',
 ];
 
-List<String> contasEm(WidgetTester tester, Type tela) => [
-  for (final conta
-      in tester
-          .widget<BeadRow>(
-            find.descendant(
-              of: find.byType(tela),
-              matching: find.byType(BeadRow),
-            ),
-          )
-          .entries)
-    [
-      conta.fill.name,
-      if (conta.current) 'com anel',
-      if (conta.dimmed) 'apagada',
-    ].join(' '),
+List<bool> contados(ProviderContainer container) => [
+  for (final trecho in container.read(salaSessionProvider).btTrechos)
+    trecho.contado,
 ];
 
 SalaSessionState estadoDe(ProviderContainer container) =>
@@ -154,11 +140,10 @@ void main() {
     expect(chegada.stage, SalaStage.retro);
     expect(chegada.btPhase, BtPhase.playing);
     expect(harness.recorder.captures, capturas);
-    expect(contasEm(tester, RetroView), [
-      'drained com anel',
-      'solid apagada',
-      'solid apagada',
-    ]);
+    expect(chegada.btFindingTrecho?.segmentId, 'trecho-1');
+    expect(chegada.btTrechoTraduzidoDeNovo?.segmentId, 'trecho-1');
+    expect(chegada.btContaEscolhida, isNull);
+    expect(contados(container), [true, true, true]);
     expect(aceso(tester, conferir), isFalse);
     expect(harness.room.replacesAsked, isEmpty);
 
@@ -169,11 +154,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     await tocar(tester, gravarATraducaoDeNovo);
-    expect(contasEm(tester, RetroView), [
-      'translucent com anel',
-      'solid apagada',
-      'solid apagada',
-    ]);
+    expect(estadoDe(container).btPhase, BtPhase.capturing);
+    expect(estadoDe(container).btTrechoTraduzidoDeNovo?.segmentId, 'trecho-1');
     harness.room.verdictChecked = true;
     await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 300));
@@ -196,7 +178,8 @@ void main() {
 
     expect(harness.room.playedByTakeSent.length, vereditos + 1);
     expect(estadoDe(container).btPhase, BtPhase.conferida);
-    expect(contasEm(tester, RetroView), ['solid', 'solid', 'solid']);
+    expect(estadoDe(container).btFindingTrecho, isNull);
+    expect(contados(container), [true, true, true]);
     closeTheRoom(container);
   });
 
@@ -267,7 +250,9 @@ void main() {
     expect(estadoDe(container).btPhase, BtPhase.playing);
     expect(estadoDe(container).btVeredito, isTrue);
 
-    expect(contasEm(tester, RetroView), ['solid', 'solid', 'solid']);
+    expect(estadoDe(container).btFindingTrecho, isNull);
+    expect(estadoDe(container).btTrechoTraduzidoDeNovo, isNull);
+    expect(contados(container), [true, true, true]);
     expect(await olhar(tester), 'telha parado');
     for (final rotulo in [...rotulosDaGrade, tesoura]) {
       expect(byLabel(rotulo), findsNothing, reason: rotulo);
@@ -287,7 +272,7 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('F5 — a conta apontada, drenada no achado, volta sólida depois '
+  testWidgets('F5 — o trecho apontado no achado deixa de estar apontado depois '
       'do conserto', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aHistoriaSemOFim(
@@ -296,7 +281,7 @@ void main() {
       ondeFalta: 'trecho-2',
     );
     await abrirOAchado(tester);
-    expect(contasEm(tester, RetroView)[1], 'drained');
+    expect(estadoDe(container).btFindingTrecho?.segmentId, 'trecho-2');
 
     traduzirOApontadoDeNovo(container);
     await tester.pump(const Duration(milliseconds: 200));
@@ -309,7 +294,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked, hasLength(1));
-    expect(contasEm(tester, RetroView), ['solid', 'solid', 'solid']);
+    expect(
+      estadoDe(container).btFindingTrecho,
+      isNull,
+      reason: 'o achado seguia apontando um trecho depois do conserto',
+    );
+    expect(contados(container), [true, true, true]);
     closeTheRoom(container);
   });
 

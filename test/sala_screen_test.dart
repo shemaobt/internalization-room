@@ -16,11 +16,11 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/part_strips.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
@@ -730,7 +730,7 @@ void main() {
   });
 
   testWidgets(
-    'the retro hangs one bead row and the conversa necklace stays away',
+    'the retro hangs its part strips once and the conversa necklace stays away',
     (tester) async {
       final harness = SalaHarness();
       final container = await pumpSala(tester, harness);
@@ -739,7 +739,7 @@ void main() {
       notifier.goConversa(book: 'Ruth');
       await tester.pump(const Duration(milliseconds: 200));
       expect(find.byType(ColarOverlay), findsOneWidget);
-      expect(find.byType(BeadRow), findsNothing);
+      expect(find.byType(PartStrips), findsNothing);
 
       notifier.goEnsaio();
       notifier.ensaioTap();
@@ -750,7 +750,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 1400));
 
-      expect(find.byType(BeadRow), findsOneWidget);
+      expect(find.byType(PartStrips), findsOneWidget);
       expect(
         find.byType(ColarOverlay),
         findsNothing,
@@ -1423,7 +1423,7 @@ void main() {
       expect(byLabel(roomLabelFor('hearAgain', 'pt')), findsOneWidget);
       expect(byLabel(roomLabelFor('leavePassage', 'pt')), findsOneWidget);
       expect(find.byType(ColarOverlay), findsNothing);
-      expect(find.byType(BeadRow), findsNothing);
+      expect(find.byType(PartStrips), findsNothing);
       expect(find.byType(EnsaioView), findsNothing);
       expect(find.byType(MomentLabel), findsNothing);
       expect(byLabel(roomLabelFor('recordEnsaio', 'pt')), findsNothing);

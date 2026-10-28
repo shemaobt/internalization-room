@@ -8040,6 +8040,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _marcarOFimDaParte(String arquivo, int medido) {
     if (medido <= 0) return;
     _tamanhoDaParteMs[arquivo] = medido;
+    _handOff(_readThePartLoudness(arquivo, Duration(milliseconds: medido)));
+  }
+
+  Future<void> _readThePartLoudness(String arquivo, Duration length) async {
+    if (state.partLoudness.containsKey(arquivo)) return;
+    final life = _thisLife;
+    final envelope = await ref.read(sceneEnvelopeReaderProvider)(arquivo);
+    if (_endedSince(life)) return;
+    state = state.copyWith(
+      partLoudness: {
+        ...state.partLoudness,
+        arquivo: (length: length, envelope: envelope),
+      },
+    );
   }
 
   /// How far into this recording the telling-back already got.

@@ -1,0 +1,85 @@
+import 'package:flutter/material.dart';
+
+import '../../../../core/theme/sala_colors.dart';
+import '../../domain/pausa.dart';
+import '../../domain/scene_rehearsal.dart';
+import 'scene_strip.dart';
+
+final class PartStripRow {
+  final String label;
+  final Duration? length;
+  final Envelope? envelope;
+  final List<SceneFrase> told;
+  final List<SceneFrase> stale;
+  final Duration? pausa;
+  final bool playing;
+
+  const PartStripRow({
+    required this.label,
+    this.length,
+    this.envelope,
+    this.told = const [],
+    this.stale = const [],
+    this.pausa,
+    this.playing = false,
+  });
+}
+
+class PartStrips extends StatelessWidget {
+  final List<PartStripRow> rows;
+
+  const PartStrips({super.key, required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 470),
+        child: Column(
+          children: [
+            for (final (onde, row) in rows.indexed) ...[
+              if (onde > 0) const SizedBox(height: 5),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 92,
+                    child: Text(
+                      row.label,
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: colors.mut, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SizedBox(
+                      height: SceneStrip.height,
+                      child: switch (row.length) {
+                        final length? => LayoutBuilder(
+                          builder: (context, constraints) => SceneStrip(
+                            envelope: row.envelope,
+                            length: length,
+                            frases: row.told,
+                            stale: row.stale,
+                            pausa: row.pausa,
+                            playing: row.playing,
+                            width: constraints.maxWidth,
+                          ),
+                        ),
+                        null => null,
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
