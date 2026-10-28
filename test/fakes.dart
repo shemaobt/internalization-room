@@ -4288,7 +4288,10 @@ class SalaHarness {
 
   void giveTheEnvelope() => _envelopeHeld?.complete();
 
+  final List<String> envelopesRead = [];
+
   Future<Envelope?> readTheEnvelope(String path) async {
+    envelopesRead.add(path);
     await _envelopeHeld?.future;
     try {
       return envelopeOf(File(path).readAsBytesSync());

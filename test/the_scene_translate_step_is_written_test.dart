@@ -830,6 +830,49 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'a rehearsal being translated, left for a sent one in the list and opened again, keeps its loudness without reading the take again',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-27T10:00:00+00:00',
+            frases: [_frase('f1', 0, 3000)],
+          ),
+          _rehearsal(n: 2, frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) =>
+            state.scene.step == SceneStep.translate &&
+            state.sceneEnvelope != null,
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.openTheListedSceneRehearsal('ensaio-da-cena-1');
+      await pumpUntil(
+        tester,
+        () =>
+            container.read(salaSessionProvider).scene.step == SceneStep.sent &&
+            container.read(salaSessionProvider).sceneEnvelope != null,
+      );
+      notifier.openTheListedSceneRehearsal('ensaio-da-cena-2');
+      await pumpUntil(
+        tester,
+        () =>
+            container.read(salaSessionProvider).scene.step ==
+            SceneStep.translate,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        harness.envelopesRead,
+        hasLength(2),
+        reason: 'o take do ensaio reaberto era lido inteiro de novo',
+      );
+      expect(container.read(salaSessionProvider).sceneEnvelope, isNotNull);
+    },
+  );
   testWidgets(
     'a sent scene rehearsal heads its frases «frases traduzidas» and writes each as its number, a bar and «frase N», beside its speaker',
     (tester) async {
