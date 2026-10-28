@@ -129,8 +129,10 @@ class FacilitatorCircle extends StatelessWidget {
             width: size,
             height: size,
             child: canvas
-                ? Transform.scale(
+                ? AnimatedScale(
                     scale: !_halted && voice == VoiceState.speaking ? 0.9 : 1,
+                    duration: const Duration(milliseconds: 1400),
+                    curve: Curves.ease,
                     child: drawing,
                   )
                 : drawing,

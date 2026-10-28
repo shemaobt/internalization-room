@@ -155,4 +155,31 @@ void main() {
       );
     }
   });
+
+  testWidgets('when she starts to speak her canvas circle draws back to .9 '
+      'over 1.4 s, not in one frame', (tester) async {
+    final speakingEdge = _edged(const Color.fromRGBO(199, 194, 159, .5));
+    for (final still in [false, true]) {
+      final same = ValueKey('o mesmo canvas falando $still');
+      await tester.pumpWidget(
+        _circle(VoiceState.invite, canvas: true, still: still, key: same),
+      );
+      await tester.pumpWidget(
+        _circle(VoiceState.speaking, canvas: true, still: still, key: same),
+      );
+
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(
+        _scaleAbove(tester, speakingEdge),
+        closeTo(0.920, 0.002),
+        reason:
+            'o transform dela anda em 1,4 s com ease (globals.css:112,220): '
+            'na metade já percorreu 80% do caminho até .9; o nosso pulava '
+            'para .9 no mesmo quadro',
+      );
+
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(_scaleAbove(tester, speakingEdge), closeTo(0.9, 1e-6));
+    }
+  });
 }
