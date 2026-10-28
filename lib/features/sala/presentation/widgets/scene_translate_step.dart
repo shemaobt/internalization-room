@@ -64,7 +64,6 @@ class SceneTranslateStep extends ConsumerWidget {
     final telling = channel is Microphone;
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
     final idle = !sending && !scene.waiting && !telling;
-    final words = TextStyle(color: colors.ink, fontSize: 16);
     final longest = frases.fold(
       1,
       (longest, frase) => max(longest, frase.spanIn(scene.length)),
@@ -75,7 +74,7 @@ class SceneTranslateStep extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _Written(said('subTranslate'), style: words),
+          _Sub(said('subTranslate')),
           const SizedBox(height: 12),
           _PlayRow(
             mood: idle && scene.listened ? ButtonMood.lit : ButtonMood.dimmed,
@@ -413,7 +412,6 @@ class SceneListenMode extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(salaSessionProvider.notifier);
-    final colors = SalaColors.of(context);
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
     final playing = channel is PartPlaying;
@@ -429,12 +427,11 @@ class SceneListenMode extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _Written(
+            child: _Sub(
               said('listen'),
               heard: line == SceneLine.diskFailed
                   ? '${said('listen')} — ${said('diskFailed')}'
                   : null,
-              style: TextStyle(color: colors.ink, fontSize: 16),
             ),
           ),
           const SizedBox(height: 12),
@@ -696,6 +693,37 @@ class _Written extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _Sub extends StatelessWidget {
+  final String words;
+  final String? heard;
+
+  const _Sub(this.words, {this.heard});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      color: SalaColors.of(context).claquete,
+      fontSize: 0.92 * _rem,
+    );
+    final zero = TextPainter(
+      text: TextSpan(
+        text: '0',
+        style: DefaultTextStyle.of(
+          context,
+        ).style.merge(style).copyWith(letterSpacing: 0),
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final ch = zero.width;
+    zero.dispose();
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: 36 * ch),
+      child: _Written(words, heard: heard, style: style),
+    );
+  }
 }
 
 class _Heading extends StatelessWidget {

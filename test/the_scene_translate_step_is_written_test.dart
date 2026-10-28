@@ -1562,4 +1562,49 @@ void main() {
       );
     }
   }
+  for (final (look, verdeClaro) in [
+    (Brightness.light, const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFFAAB07E)),
+  ]) {
+    for (final (step, line, open)
+        in <(String, String, Future<void> Function(WidgetTester))>[
+          (
+            'translate step',
+            'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase '
+                'acaba, e de novo para traduzir só aquela frase.',
+            (tester) => _onTheSceneScreen(
+              tester,
+              rehearsals: [
+                _rehearsal(frases: [_frase('f1', 0, 3000)]),
+              ],
+              until: (state) => state.scene.step == SceneStep.translate,
+            ),
+          ),
+          ('listen mode', _listenLine, _inListenMode),
+        ]) {
+      testWidgets(
+        'in the ${look.name} look the $step sub line is her .92rem verde-claro, at most 36 characters wide',
+        (tester) async {
+          tester.platformDispatcher.platformBrightnessTestValue = look;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
+          await open(tester);
+          final style = tester.widget<Text>(find.text(line)).style;
+
+          expect(
+            style?.fontSize,
+            closeTo(14.72, 1e-9),
+            reason: 'a linha de baixo do título tinha 16 pontos em tinta',
+          );
+          expect(style?.color, verdeClaro);
+          expect(
+            tester.getSize(find.text(line)).width,
+            lessThanOrEqualTo(36 * 14.72 + .01),
+            reason: 'a linha corria a 560 pontos; a dela para em 36ch',
+          );
+        },
+      );
+    }
+  }
 }
