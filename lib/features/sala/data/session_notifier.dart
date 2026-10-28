@@ -2270,6 +2270,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     _dropThePendingTake();
     _forgetThePassage();
+    _theLeftPassage = null;
     _openTheChoice();
     if (left != null) state = state.copyWith(leftEntry: left);
     _theLeftPassage = kept;
@@ -2418,6 +2419,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId != null && state.leftEntry?.session == sessionId) {
       state = state.copyWith(clearLeftEntry: true);
     }
+    if (_theLeftPassage?.session == sessionId) _theLeftPassage = null;
     unawaited(
       _mindingThePlace(
         () => _forgetTheSessionOnDisk(sessionId, kept),
@@ -2479,6 +2481,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _openTheChoice() {
+    if (_theLeftPassage case final left?) return _bringBackThePassageLeft(left);
     _partesDescendo = null;
     _aLinhaDiz = null;
     state = SalaSessionState(
