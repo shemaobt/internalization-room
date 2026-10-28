@@ -1540,6 +1540,99 @@ void main() {
     },
   );
 
+  test(
+    'the room that closed the first listen is still heard on a return it can no '
+    'longer answer, so the telling waits quiet instead of playing aloud',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a primeira parte voltar ao ar',
+        () => it.harness.playback.sounding,
+      );
+      it.harness.room.listeningUnheardTakeIds = [it.partes[0].takeId!];
+      await traduzirUmTrecho(it, const Duration(seconds: 4));
+      it.harness.room.reachable = false;
+      it.sala.goEnsaio();
+      await waitFor(
+        'a equipe voltar ao ensaio',
+        () => it.estado.stage == SalaStage.ensaio,
+      );
+      await settle();
+      final tocadas = it.harness.playback.played.length;
+
+      it.sala.startRetro();
+      await waitFor(
+        'a tradução voltar',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            it.estado.btPhase == BtPhase.playing &&
+            !it.estado.awaitingTheGuide,
+      );
+      await settle();
+
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        isEmpty,
+        reason:
+            'sem a sala, a volta esquecia o que ela disse ao fim da primeira '
+            'escuta e tocava a primeira parte em voz alta',
+      );
+    },
+  );
+
+  test(
+    'a stretch the room last named untranslated is still said and played on a '
+    'return it can no longer answer, not left silent',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      final tocadas = it.harness.playback.played.length;
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a primeira voltar ao ar com a P1',
+        () => it.harness.playback.played.length > tocadas,
+      );
+      it.harness.room
+        ..listeningFixedLine = 'N2'
+        ..listeningUntranslated = [
+          UntranslatedPart(
+            takeId: it.partes[1].takeId!,
+            scene: 2,
+            from: const Duration(milliseconds: 3000),
+          ),
+        ];
+      it.sala.goEnsaio();
+      await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
+      await settle();
+      final linhas = it.harness.voice.fixedLines.length;
+
+      it.harness.room.reachable = false;
+      it.sala.startRetro();
+      await settle();
+      await settle();
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('N2', testLanguage)],
+        reason:
+            'sem a sala, a volta esquecia o trecho sem tradução e ficava calada',
+      );
+      expect(it.harness.playback.played.last, it.partes[1].path);
+      expect(
+        it.harness.playback.playedFrom.last,
+        const Duration(milliseconds: 3000),
+      );
+    },
+  );
+
   testWidgets(
     'during the listen of a recording no join touched there is no terminei, the '
     'circle opens no microphone, and her line names the recording, not the passage',

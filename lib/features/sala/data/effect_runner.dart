@@ -241,6 +241,8 @@ class EffectRunner {
           _cancelTheRetry();
         case DrainTheOutbox():
           _drainTheOutbox();
+        case StopTheSend(:final row):
+          store.stopTheSend(row);
         case DiscardTheSession():
           host.handOver(effect);
         case OpenTheChoice():
