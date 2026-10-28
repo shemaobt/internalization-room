@@ -2084,15 +2084,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> abrirEscolha() => _gestureThen(_abrirEscolha);
 
   Future<void> _abrirEscolha() async {
-    if (state.station is! Menu) {
-      _forgetThePassage();
-    }
-    _leaveTheStepFor(const Menu());
-    _clearAll();
-    _arriveAt(const TheChoiceOpened());
+    _arriveAtTheChoice();
     final generation = _waitOnTheGeneration;
     state = state.copyWith(
-      arrivedAtTheChoice: true,
       awaitingTheGuide: true,
       peerCue: false,
       clearRoda: true,
@@ -2186,10 +2180,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _ => false,
     };
     if (!unopened) return;
-    _forgetThePassage();
+    _arriveAtTheChoice();
+  }
+
+  void _arriveAtTheChoice() {
+    if (state.station is! Menu) {
+      _forgetThePassage();
+    }
     _leaveTheStepFor(const Menu());
     _clearAll();
     _arriveAt(const TheChoiceOpened());
+    state = state.copyWith(arrivedAtTheChoice: true);
   }
 
   /// Open the Panorama's session and voice its opening. It has no foreseen end, and
