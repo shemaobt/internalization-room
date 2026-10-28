@@ -99,6 +99,54 @@ Future<void> _onTheCheck(WidgetTester tester) async {
   expect(container.read(salaSessionProvider).stage, SalaStage.retro);
 }
 
+Finder _chevronOf(String back) =>
+    find.descendant(of: byLabel(back), matching: find.byType(CustomPaint));
+
+double _opacityOver(WidgetTester tester, String back) {
+  final labelled = byLabel(back).evaluate().single;
+  var opacity = 1.0;
+  _chevronOf(back).evaluate().single.visitAncestorElements((ancestor) {
+    if (ancestor == labelled) return false;
+    final widget = ancestor.widget;
+    if (widget is Opacity) opacity *= widget.opacity;
+    if (widget is FadeTransition) opacity *= widget.opacity.value;
+    return true;
+  });
+  return opacity;
+}
+
+void _isHerChevron(WidgetTester tester, String back, Color verdeClaro) {
+  expect(_chevronOf(back), findsOneWidget);
+  expect(tester.getSize(_chevronOf(back)), const Size(22, 22));
+  expect(
+    _chevronOf(back),
+    paints..path(
+      color: verdeClaro,
+      style: PaintingStyle.stroke,
+      includes: const [Offset(8.6, 12), Offset(14.6, 5.8), Offset(14.6, 18.2)],
+      excludes: const [Offset(7.6, 12), Offset(15.4, 12), Offset(13, 6)],
+    ),
+    reason:
+        'o chevron era o chevronLeft do Lucide em traço 2, com 12 de altura; '
+        'o dela é M15 5l-7 7 7 7 em traço 1,6',
+  );
+  expect(
+    _chevronOf(back),
+    paints..something((method, arguments) {
+      if (method != #drawPath) return false;
+      final paint = arguments[1] as Paint;
+      return (paint.strokeWidth - 1.6).abs() < 1e-6 &&
+          paint.strokeCap == StrokeCap.round &&
+          paint.strokeJoin == StrokeJoin.round;
+    }),
+  );
+  expect(
+    _opacityOver(tester, back),
+    closeTo(0.6, 0.001),
+    reason: 'o .draft-close dela fica a .6',
+  );
+}
+
 void main() {
   for (final (screen, reach, back) in [
     ('recording home', _onTheHome, _backToPassage),
@@ -119,4 +167,29 @@ void main() {
       );
     });
   }
+
+  for (final (screen, reach, back) in [
+    ('recording home', _onTheHome, _backToPassage),
+    ('plan', _onThePlan, _backToPassage),
+    ('check', _onTheCheck, _backToRecording),
+  ]) {
+    testWidgets(
+      'the way back on the $screen paints her chevron, not Lucide\'s',
+      (tester) async {
+        await reach(tester);
+
+        _isHerChevron(tester, back, const Color(0xFF777D45));
+      },
+    );
+  }
+
+  testWidgets('in the dark look the way back paints her dark verde-claro', (
+    tester,
+  ) async {
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    await _onTheHome(tester);
+
+    _isHerChevron(tester, _backToPassage, const Color(0xFFAAB07E));
+  });
 }
