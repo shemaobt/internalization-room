@@ -63,7 +63,7 @@ class SceneTranslateStep extends ConsumerWidget {
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
     final take = switch (channel) {
-      PartPlaying(:final part) when part.path == scene.take => part,
+      final PartPlaying playing when playing.part.path == scene.take => playing,
       _ => null,
     };
     final playing = take != null;
@@ -423,7 +423,7 @@ class SceneListenMode extends ConsumerWidget {
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
     final take = switch (channel) {
-      PartPlaying(:final part) when part.path == scene.take => part,
+      final PartPlaying playing when playing.part.path == scene.take => playing,
       _ => null,
     };
     final playing = take != null;
@@ -502,7 +502,7 @@ class SceneListenMode extends ConsumerWidget {
 
 class _PlayRow extends ConsumerWidget {
   final ButtonMood mood;
-  final PartSound? take;
+  final PartPlaying? take;
   final String label;
   final String? Function(Duration at) hint;
 
@@ -518,10 +518,6 @@ class _PlayRow extends ConsumerWidget {
     final playback = ref.read(playbackRepositoryProvider);
     final colors = SalaColors.of(context);
     final playing = take != null;
-    Duration inTheTake() => switch (take) {
-      PartSound(:final from, to: Duration()) => from + playback.position,
-      _ => playback.position,
-    };
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 60),
       child: Row(
@@ -545,7 +541,9 @@ class _PlayRow extends ConsumerWidget {
               period: const Duration(seconds: 1),
               animate: playing,
               reducible: false,
-              builder: (context, _) => switch (hint(inTheTake())) {
+              builder: (context, _) => switch (hint(
+                take?.inTheFile(playback.position) ?? playback.position,
+              )) {
                 final words? => _Written(
                   words,
                   style: TextStyle(color: colors.mut, fontSize: 16),

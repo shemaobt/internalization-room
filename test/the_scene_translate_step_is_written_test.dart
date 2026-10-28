@@ -786,6 +786,43 @@ void main() {
   );
 
   testWidgets(
+    'a frase of a sent scene rehearsal still opening shows her clock at the frase\'s start, not the clip before it added on',
+    (tester) async {
+      final (harness, container) = await _inListenMode(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-27T10:00:00+00:00',
+            frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+          ),
+        ],
+      );
+      const line = 'ouvindo o ensaio da cena… — 0:04 / 0:10';
+
+      harness.playback.holdNextOpening();
+      await tester.tap(byLabel('frase 2'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      expect(
+        container.read(salaSessionProvider).channel,
+        isA<PartPlaying>().having((part) => part.opened, 'opened', isFalse),
+      );
+      harness.playback.at = const Duration(seconds: 8);
+      await tester.pump(const Duration(milliseconds: 1100));
+
+      expect(
+        find.text(line),
+        findsOneWidget,
+        reason:
+            'a frase 2 ainda abrindo somava o começo dela ao lugar do clipe anterior — 0:12 / 0:10',
+      );
+      harness.playback.finishHeldOpening();
+    },
+  );
+
+  testWidgets(
     'a frase translated again counts her clock from the take\'s start, not from the frase\'s',
     (tester) async {
       final (harness, container) = await _onTheSceneScreen(
