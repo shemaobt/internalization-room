@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -355,5 +357,28 @@ void main() {
       reason: 'a P02 criada que a sala perdeu trazia de volta a P01',
     );
     expect(read().sessionId, isNull);
+  });
+
+  test('The passage left comes back on its Canvas with its session and the '
+      'warning it stood under, and arms the Watch', () {
+    final (machine, effects) = reduce(
+      const Machine(station: Canvas(), generation: 4),
+      const TheLeftPassageReturns('s2', warned: true),
+    );
+
+    expect(machine.session, 's2');
+    expect(machine.halt, isA<Warning>());
+    expect(machine.station, const Canvas());
+    expect(effects, contains(const ArmTheWatch()));
+  });
+
+  test('The passage left with no warning comes back with none', () {
+    final (machine, _) = reduce(
+      const Machine(station: Canvas(), generation: 4),
+      const TheLeftPassageReturns('s2'),
+    );
+
+    expect(machine.session, 's2');
+    expect(machine.halt, isA<NoHalt>());
   });
 }
