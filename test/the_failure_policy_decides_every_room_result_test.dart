@@ -150,6 +150,106 @@ void main() {
       );
     });
 
+    test('a scene rehearsal answered without a reply to play is decided as one '
+        'whose look found nothing', () {
+      _decides(
+        const RoomAnsweredWithoutAReply(),
+        _at(const SceneRehearsal(), turn: _turn),
+        const TheSceneTurnFoundNothing(generation: 4),
+      );
+    });
+
+    MachineEvent decidedForTerminei(String code) => FailurePolicy.decide(
+      RoomRefused(code),
+      _at(
+        const SceneRehearsal(),
+        door: Door.sceneRehearsal,
+        rule: RefusalRule.sendsTheScene,
+      ),
+    );
+
+    const theSignWaits = Machine(
+      station: SceneRehearsal(),
+      aHaltWaitsForTheCanvas: true,
+    );
+
+    test('a «terminei» again in the air keeps the sign waiting', () {
+      final (machine, _) = reduce(theSignWaits, const TurnSent(_turn));
+
+      expect(machine.aHaltWaitsForTheCanvas, isTrue);
+    });
+
+    test('a «terminei» refused as already sent tells the scene screen it went, '
+        'reads the list again and forgets the waiting sign', () {
+      final (machine, effects) = reduce(
+        theSignWaits,
+        decidedForTerminei(RefusalCode.sceneRehearsalSent),
+      );
+
+      expect(effects, contains(const TellItWentAlready()));
+      expect(effects, contains(const ReadTheSceneRehearsals()));
+      expect(machine.aHaltWaitsForTheCanvas, isFalse);
+      expect(machine.halt, const NoHalt());
+    });
+
+    for (final code in [
+      RefusalCode.notFound,
+      RefusalCode.unnamed(422),
+      RefusalCode.sceneRehearsalSending,
+    ]) {
+      test('a «terminei» refused with $code tells the scene screen the send '
+          'failed, reads the list again and forgets the waiting sign', () {
+        final (machine, effects) = reduce(
+          theSignWaits,
+          decidedForTerminei(code),
+        );
+
+        expect(effects, contains(const TellTheSendFailed()));
+        expect(effects, contains(const ReadTheSceneRehearsals()));
+        expect(machine.aHaltWaitsForTheCanvas, isFalse);
+        expect(machine.halt, const NoHalt());
+      });
+    }
+
+    test(
+      'a «terminei» refused because the passage closed closes the passage',
+      () {
+        final (_, effects) = reduce(
+          theSignWaits,
+          decidedForTerminei(RefusalCode.passageClosed),
+        );
+
+        expect(effects, contains(const CloseThePassage()));
+        expect(effects, isNot(contains(const TellTheSendFailed())));
+      },
+    );
+
+    for (final code in RefusalCode.stopsTheRoom) {
+      test('a «terminei» refused with $code says nothing on the scene screen, '
+          'reads the list again and leaves the sign waiting', () {
+        final (machine, effects) = reduce(
+          theSignWaits,
+          decidedForTerminei(code),
+        );
+
+        expect(effects, contains(const ReadTheSceneRehearsals()));
+        expect(effects, isNot(contains(const TellTheSendFailed())));
+        expect(machine.aHaltWaitsForTheCanvas, isTrue);
+      });
+    }
+
+    test('on the scene rehearsal the machine tells the screen the send failed, '
+        'reads the list again and raises no halt', () {
+      final (machine, effects) = reduce(
+        const Machine(station: SceneRehearsal()),
+        const TheSceneTurnFoundNothing(),
+      );
+
+      expect(effects, contains(const TellTheSendFailed()));
+      expect(effects, contains(const ReadTheSceneRehearsals()));
+      expect(machine.halt, const NoHalt());
+    });
+
     test('the reply\'s sound failing once brings nothing; twice brings the '
         'person sign', () {
       final context = _at(const Canvas(), sounding: const ThePart());

@@ -169,6 +169,8 @@ const _whatOnlyThePolicyDecides = [
   'TheStepFailed',
   'TheResumeFailed',
   'TheSceneTurnFoundNothing',
+  'TheSceneWentAlready',
+  'TheSceneSendRefused',
 ];
 
 final _comment = RegExp(r'//.*$', multiLine: true);

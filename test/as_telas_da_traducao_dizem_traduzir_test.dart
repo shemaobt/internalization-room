@@ -43,6 +43,7 @@ const _rotulosDeTraduzir = {
   'regravada — traduzam de novo',
   'enviando a tradução do ensaio da cena para a voz…',
   'a tradução do ensaio da cena foi para a voz',
+  'a tradução deste ensaio da cena já foi para a voz',
   'Traduzir a gravação',
   'trazer de volta as traduções do ensaio desta cena',
   'toquem de novo: as traduções do ensaio voltam; as que vocês fizeram aqui para esta cena ficam guardadas',

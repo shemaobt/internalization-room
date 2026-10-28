@@ -18,6 +18,7 @@ typedef HandView = ({
   VoiceState voice,
   String? stationSessionId,
   bool atTheTeamsIdleTurn,
+  bool aQuestionRecords,
   HandReply? oldestUnheardReply,
   int? noteOnItsWay,
 });
@@ -134,6 +135,7 @@ class RaisedHand {
   }
 
   void tap() {
+    if (_state.aQuestionRecords) return cancelQuestion();
     if (!_state.atTheTeamsIdleTurn) return;
     if (_state.playingReplyId != null || _state.channel is PartPlaying) {
       host.silenceTheRoom();

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -40,6 +41,54 @@ Future<void> _regravarACena(
   await _passo(tester);
 }
 
+Future<ProviderContainer> _oInteiroContado(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  tester.view
+    ..physicalSize = const Size(820, 2400)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  harness.playback
+    ..measured = parte
+    ..length = parte;
+  final container = harness.container();
+  addTearDown(container.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: const SalaApp()),
+  );
+  await _passo(tester);
+  final sala = container.read(salaSessionProvider.notifier);
+  await sala.goConversa(book: 'Ruth');
+  await tester.pump(const Duration(milliseconds: 200));
+  await _naCasa(tester, container);
+  sala.recordTheWholePassageInstead();
+  await tester.pump(const Duration(milliseconds: 300));
+  await letTheRehearsalReachTheRoom(tester);
+  sala.ensaioTap();
+  sala.ensaioTap();
+  await _passo(tester);
+  sala.takeKeep();
+  await theRoomNamesTheParts(tester, container, parts: 1);
+  sala.startRetro();
+  await tester.pump(const Duration(milliseconds: 300));
+  harness.playback.at = cabeca;
+  for (var toque = 0; toque < 3; toque++) {
+    await tocarNoCirculo(tester);
+  }
+  await waitFor(
+    'uma frase da passagem inteira ficar contada',
+    () => container
+        .read(salaSessionProvider)
+        .btTrechos
+        .any((trecho) => trecho.contado),
+    step: () => _passo(tester),
+  );
+  await _naCasa(tester, container);
+  await _regravarACena(tester, container, 1);
+  return container;
+}
+
 void main() {
   testWidgets('a scene recorded again after its frases were told says '
       '«$_deNovo» on its own row, not on the other', (tester) async {
@@ -68,49 +117,10 @@ void main() {
 
   testWidgets('the whole recording made again after its frases were told '
       'says «$_deNovo» on its one row', (tester) async {
-    tester.view
-      ..physicalSize = const Size(820, 2400)
-      ..devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final harness = SalaHarness(filaEmMemoria: true);
-    harness.playback
-      ..measured = parte
-      ..length = parte;
-    final container = harness.container();
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SalaApp()),
+    final container = await _oInteiroContado(
+      tester,
+      SalaHarness(filaEmMemoria: true),
     );
-    await _passo(tester);
-    final sala = container.read(salaSessionProvider.notifier);
-    await sala.goConversa(book: 'Ruth');
-    await tester.pump(const Duration(milliseconds: 200));
-    await _naCasa(tester, container);
-    sala.recordTheWholePassageInstead();
-    await tester.pump(const Duration(milliseconds: 300));
-    await letTheRehearsalReachTheRoom(tester);
-    sala.ensaioTap();
-    sala.ensaioTap();
-    await _passo(tester);
-    sala.takeKeep();
-    await theRoomNamesTheParts(tester, container, parts: 1);
-    sala.startRetro();
-    await tester.pump(const Duration(milliseconds: 300));
-    harness.playback.at = cabeca;
-    for (var toque = 0; toque < 3; toque++) {
-      await tocarNoCirculo(tester);
-    }
-    await waitFor(
-      'uma frase da passagem inteira ficar contada',
-      () => container
-          .read(salaSessionProvider)
-          .btTrechos
-          .any((trecho) => trecho.contado),
-      step: () => _passo(tester),
-    );
-    await _naCasa(tester, container);
-
-    await _regravarACena(tester, container, 1);
 
     expect(container.read(salaSessionProvider).btTrechosRegravados, isNotEmpty);
     expect(
@@ -120,6 +130,34 @@ void main() {
       ),
       findsOneWidget,
       reason: 'a passagem regravada inteira não dizia que a tradução caducou',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('on the check, the whole recording made again lists its stale '
+      'frase with no part, as the team never made one', (tester) async {
+    final container = await _oInteiroContado(
+      tester,
+      SalaHarness(filaEmMemoria: true, lingua: 'en'),
+    );
+    container.read(salaSessionProvider.notifier).startRetro();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _passo(tester);
+
+    expect(
+      [
+        for (final texto in tester.widgetList<Text>(
+          find.descendant(
+            of: find.byType(FraseList),
+            matching: find.byType(Text),
+          ),
+        ))
+          texto.data,
+      ],
+      ['TRANSLATED SENTENCES', 're-recorded — translate again'],
+      reason:
+          'a frase da passagem regravada inteira dizia «part 1», uma parte '
+          'que a equipe nunca fez',
     );
     closeTheRoom(container);
   });
