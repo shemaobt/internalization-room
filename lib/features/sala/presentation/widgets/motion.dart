@@ -141,6 +141,7 @@ class _LoopState extends State<Loop> {
 class Ripple extends StatefulWidget {
   final Duration period;
   final double phase;
+  final Curve curve;
   final Widget Function(BuildContext context, double t) builder;
 
   const Ripple({
@@ -148,6 +149,7 @@ class Ripple extends StatefulWidget {
     required this.period,
     required this.builder,
     this.phase = 0,
+    this.curve = Curves.easeOut,
   });
 
   @override
@@ -208,7 +210,7 @@ class _RippleState extends State<Ripple> {
     final start = _start ??= now;
     final sweep =
         (_phase + (now - start).inMicroseconds / _period.inMicroseconds) % 1;
-    return widget.builder(context, Curves.easeOut.transform(sweep));
+    return widget.builder(context, widget.curve.transform(sweep));
   }
 }
 
