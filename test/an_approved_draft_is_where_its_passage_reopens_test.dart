@@ -244,6 +244,32 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'then the dot opens the recording home with the room\'s part laid in '
+      'under it, not a home with no part',
+      (tester) async {
+        final harness = _aRoomHolding(approved: _approvedAs(1));
+        aPartlessRow(harness);
+        final room = await _enter(tester, harness);
+
+        await tester.runAsync(() async {
+          room.container
+              .read(salaSessionProvider.notifier)
+              .openTheEnsaioFinal();
+          await Future<void>.delayed(const Duration(seconds: 1));
+        });
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(_state(room).stage, SalaStage.ensaio);
+        expect(_state(room).partes.map((parte) => parte.takeId), [_gravacao]);
+        expect(
+          File(_state(room).partes.single.path).readAsBytesSync(),
+          _theRoomsRecording,
+          reason: 'a casa abria sem a parte que a sala guarda',
+        );
+      },
+    );
   });
 
   testWidgets(
