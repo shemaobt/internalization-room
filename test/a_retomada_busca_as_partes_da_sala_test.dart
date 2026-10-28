@@ -357,6 +357,35 @@ void main() {
     },
   );
 
+  test(
+    'numa retro reaberta com uma parte perdida o circulo nao abre o microfone '
+    'por mais que a equipe toque',
+    () async {
+      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-3');
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1, 2]),
+      );
+      await waitFor(
+        'as tres partes serem tentadas',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            harness.room.clipsFetched.length == 3,
+      );
+      await settle(const Duration(milliseconds: 300));
+
+      it.sala.retroTap();
+      await settle();
+      it.sala.retroTap();
+      await settle();
+
+      expect(it.estado.btPhase, BtPhase.playing);
+      expect(harness.playback.played, isEmpty);
+    },
+  );
+
   test('numa retro reaberta o chao comeca quando chega a parte que falhou e a '
       'equipe buscou de novo ao toque', () async {
     final harness = SalaHarness()

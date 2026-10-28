@@ -9858,6 +9858,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     switch (state.btPhase) {
       case BtPhase.playing:
+        if (!state.everyPartIsHere) return;
         _abrirACaptura();
       case BtPhase.capturing:
         // Held, not stopped: the stretch the team has just told ends inside the part
