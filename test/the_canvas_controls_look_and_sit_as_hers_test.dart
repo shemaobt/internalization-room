@@ -254,6 +254,62 @@ void main() {
     );
   }
 
+  for (final (look, verdeClaro) in [
+    ('light', const Color(0xFF777D45)),
+    ('dark', const Color(0xFFAAB07E)),
+  ]) {
+    for (final (where, opens, seen) in [
+      ('the Choice', 'Choose another passage', 0.5),
+      ('the scene rehearsal', 'scene rehearsal', 0.6),
+    ]) {
+      testWidgets(
+        'in the $look look the way back on $where is her bare chevron at 5% '
+        'and 6%, at $seen',
+        (tester) async {
+          _on(tester, _se, bar: 20);
+          if (look == 'dark') _inTheDark(tester);
+          final (_, container) = await atRestAfterATurn(tester, const []);
+          const label = 'Back to the current passage';
+
+          await tester.tap(byLabel(opens), warnIfMissed: false);
+          await _pumpUntil(tester, () => byLabel(label).evaluate().isNotEmpty);
+          await tester.pump(const Duration(milliseconds: 1500));
+
+          expect(container.read(salaSessionProvider).theWayBackIsLive, isTrue);
+          expect(byLabel(label), findsOneWidget);
+          expect(
+            _paintedUnder(label),
+            findsNothing,
+            reason: 'a volta era um disco de 44 px com sombra',
+          );
+          final chevron = find.descendant(
+            of: byLabel(label),
+            matching: find.byType(Icon),
+          );
+          final icon = tester.widget<Icon>(chevron);
+          expect(icon.icon, LucideIcons.chevronLeft);
+          expect(icon.size, 22);
+          expect(icon.color, verdeClaro);
+          expect(
+            _seenOpacity(tester, chevron),
+            closeTo(seen, 0.001),
+            reason: 'a volta dela é discreta, não desenhada por inteiro',
+          );
+          _sits(
+            tester.getRect(byLabel(label)),
+            const Size(44, 44),
+            center: const Offset(22.5 + 20, 20 + 33.35 + 20),
+            reason: 'a volta flutuava a 14 e 118, sobre o conteúdo',
+          );
+
+          await tester.tap(byLabel(label));
+          await tester.pump(const Duration(seconds: 3));
+          expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+        },
+      );
+    }
+  }
+
   testWidgets('a lit orange dot grows by her quarter, to .85', (tester) async {
     _on(tester, _se, bar: 20);
     await _atTheSendOff(tester);

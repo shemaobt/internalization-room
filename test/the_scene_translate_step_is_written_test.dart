@@ -1061,10 +1061,10 @@ void main() {
         reason: 'no iPhone SE o relógio passava da borda da tela',
       );
       expect(
-        tester.getRect(byLabel('Play or pause your recording')).left,
-        greaterThanOrEqualTo(
-          tester.getRect(byLabel('Back to the current passage')).right,
-        ),
+        tester
+            .getRect(byLabel('Play or pause your recording'))
+            .overlaps(tester.getRect(byLabel('Back to the current passage'))),
+        isFalse,
         reason:
             'no iPhone SE o relógio empurrava o play para baixo do voltar, '
             'que flutua à esquerda',
@@ -1168,10 +1168,10 @@ void main() {
         lessThanOrEqualTo(420 - 16),
       );
       expect(
-        tester.getRect(byLabel('Play or pause your recording')).left,
-        greaterThanOrEqualTo(
-          tester.getRect(byLabel('Back to the current passage')).right,
-        ),
+        tester
+            .getRect(byLabel('Play or pause your recording'))
+            .overlaps(tester.getRect(byLabel('Back to the current passage'))),
+        isFalse,
       );
     },
   );
