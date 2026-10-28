@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
@@ -11,6 +12,7 @@ Widget _circle(
   required bool canvas,
   bool peerCue = false,
   bool still = false,
+  Halt halt = const NoHalt(),
   Key? key,
 }) => MaterialApp(
   key: key ?? ValueKey('$voice-$canvas-$peerCue-$still'),
@@ -24,6 +26,7 @@ Widget _circle(
           voice: voice,
           peerCue: peerCue,
           canvas: canvas,
+          halt: halt,
           semanticLabel: 'circulo',
           onTap: () {},
         ),
@@ -181,5 +184,34 @@ void main() {
       await tester.pump(const Duration(milliseconds: 700));
       expect(_scaleAbove(tester, speakingEdge), closeTo(0.9, 1e-6));
     }
+  });
+
+  testWidgets('when the person sign comes up her canvas circle fades out over '
+      '1.4 s, not over half a second', (tester) async {
+    const same = ValueKey('o mesmo canvas parado');
+    await tester.pumpWidget(
+      _circle(VoiceState.invite, canvas: true, still: true, key: same),
+    );
+    await tester.pumpWidget(
+      _circle(
+        VoiceState.invite,
+        canvas: true,
+        still: true,
+        halt: const Blocking(),
+        key: same,
+      ),
+    );
+
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(
+      _seen(tester, _ring.first),
+      closeTo(0.198, 0.01),
+      reason:
+          'a opacidade do .target dela anda em 1,4 s com ease '
+          '(globals.css:112,233); o nosso sumia em meio segundo',
+    );
+
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(_seen(tester, _ring.first), closeTo(0, 1e-6));
   });
 }

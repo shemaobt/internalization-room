@@ -117,7 +117,8 @@ class FacilitatorCircle extends StatelessWidget {
     );
     return AnimatedOpacity(
       opacity: opacity,
-      duration: const Duration(milliseconds: 500),
+      duration: Duration(milliseconds: canvas ? 1400 : 500),
+      curve: canvas ? Curves.ease : Curves.linear,
       child: Semantics(
         button: true,
         enabled: enabled ? null : false,
