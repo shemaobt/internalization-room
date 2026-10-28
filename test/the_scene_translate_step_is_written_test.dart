@@ -1667,4 +1667,60 @@ void main() {
       },
     );
   }
+  for (final (look, verdeClaro, verde, telha) in [
+    (
+      Brightness.light,
+      const Color(0xFF777D45),
+      const Color(0xFF3F3E20),
+      const Color(0xFFBE4A01),
+    ),
+    (
+      Brightness.dark,
+      const Color(0xFFAAB07E),
+      const Color(0xFFECEADC),
+      const Color(0xFFD6612A),
+    ),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look a listed rehearsal is written at her .8rem in verde-claro, verde on the one on screen, not 14 point grey and ink',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              sentAt: '2026-10-15T14:20:00+00:00',
+              frases: [_frase('f1', 0, 3000)],
+            ),
+            _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+          ],
+          until: (state) => state.scene.rehearsal?.n == 2,
+        );
+        TextStyle? style(String row, String words) => tester
+            .widget<Text>(
+              find.descendant(of: byLabel(row), matching: find.text(words)),
+            )
+            .style;
+        const sentRow =
+            'ouvir o ensaio da cena 1, 1 · frases traduzidas, enviado';
+        const rowOnScreen =
+            'Ensaio da cena 2, 1 · frases traduzidas, não enviado';
+
+        for (final (row, words, color) in [
+          (sentRow, '1 · frases traduzidas', verdeClaro),
+          (sentRow, 'enviado', verdeClaro),
+          (rowOnScreen, '1 · frases traduzidas', verde),
+          (rowOnScreen, 'não enviado', telha),
+        ]) {
+          expect(
+            style(row, words)?.fontSize,
+            closeTo(12.8, 1e-9),
+            reason: 'a linha da lista tinha 14 pontos; a dela tem .8rem',
+          );
+          expect(style(row, words)?.color, color);
+        }
+      },
+    );
+  }
 }

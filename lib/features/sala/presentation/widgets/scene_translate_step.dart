@@ -615,8 +615,8 @@ class _ListedRow extends StatelessWidget {
     final scene = row.sceneNumber;
     final at = row.recordedAt;
     final words = TextStyle(
-      color: onScreen ? colors.ink : colors.mut,
-      fontSize: 14,
+      color: onScreen ? colors.momentoInk : colors.claquete,
+      fontSize: 0.8 * _rem,
     );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
@@ -668,8 +668,8 @@ class _ListedRow extends StatelessWidget {
                   Text(
                     said(row.unsent ? 'listUnsent' : 'listSent'),
                     style: TextStyle(
-                      color: row.unsent ? colors.telha : colors.mut,
-                      fontSize: 14,
+                      color: row.unsent ? colors.telha : colors.claquete,
+                      fontSize: 0.8 * _rem,
                     ),
                   ),
                 ],
