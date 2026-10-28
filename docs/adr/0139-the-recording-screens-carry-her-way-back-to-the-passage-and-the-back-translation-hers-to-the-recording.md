@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0142
 date: 2026-10-27
 amends: 0062 (in part: the ≡ is no longer on the recording screens nor on the Back-translation)
 ---
