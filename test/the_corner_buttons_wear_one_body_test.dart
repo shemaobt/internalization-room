@@ -192,7 +192,7 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
 
     expect(room.state.stage, SalaStage.ensaio);
-    _wearsTheBody(tester, _leave, LucideIcons.menu);
+    _wearsTheBody(tester, _back, LucideIcons.chevronLeft);
   });
 
   testWidgets(

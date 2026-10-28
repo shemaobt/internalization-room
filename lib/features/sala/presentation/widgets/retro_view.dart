@@ -18,6 +18,7 @@ import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'frase_list.dart';
 import 'external_check_button.dart';
+import 'listeners_line.dart';
 import 'motion.dart';
 import 'pause_adjust_row.dart';
 import 'saved_screen.dart';
@@ -123,7 +124,7 @@ class RetroView extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             FacilitatorCircle(
-              size: facilitatorCircleSize,
+              size: herCircleSize(MediaQuery.sizeOf(context), 38, 150),
               halt: session.halt,
               voice: voz,
               tongue: lingua,
@@ -194,20 +195,7 @@ class RetroView extends ConsumerWidget {
               ),
             ],
             if (session.approvedDraftDrawn case final aprovado?) ...[
-              if (aprovado.listeners > 0) ...[
-                const SizedBox(height: 12),
-                Text(
-                  aprovado.listeners == 1
-                      ? retroLabelFor('listenersOne', language)
-                      : retroLabelFor(
-                          'listeners',
-                          language,
-                          n: aprovado.listeners,
-                        ),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.mut, fontSize: 15),
-                ),
-              ],
+              ListenersLine(aprovado.listeners),
               const SizedBox(height: 12),
               const ExternalCheckButton(),
             ],

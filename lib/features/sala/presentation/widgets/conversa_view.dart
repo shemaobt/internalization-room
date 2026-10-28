@@ -15,8 +15,6 @@ import 'mic_clock.dart';
 import 'moment_label.dart';
 import 'motion.dart';
 
-const _circleSize = 158.0;
-
 class ConversaView extends ConsumerWidget {
   const ConversaView({super.key});
 
@@ -28,12 +26,13 @@ class ConversaView extends ConsumerWidget {
     final dotIsGone = session.orangeDotLook == OrangeDotLook.gone;
     final screen = MediaQuery.sizeOf(context);
     final phone = screen.width <= 520;
+    final circleSize = herCircleSize(screen, 58, 232);
 
     return Stack(
       children: [
         Center(
           child: FacilitatorCircle(
-            size: _circleSize,
+            size: circleSize,
             halt: session.halt,
             voice: session.voice,
             noteMode: session.noteMode,
@@ -44,7 +43,7 @@ class ConversaView extends ConsumerWidget {
           ),
         ),
         if (session.channel case Microphone(owner: MicOwner.conversation))
-          const MicClock(circleSize: _circleSize),
+          MicClock(circleSize: circleSize),
         if (session.partsToReplay.isNotEmpty)
           KeptRetellingButtons(
             parts: session.partsToReplay,

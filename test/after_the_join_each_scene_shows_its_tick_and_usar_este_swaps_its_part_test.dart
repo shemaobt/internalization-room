@@ -363,13 +363,14 @@ class _Room {
       if (take.kind == 'ensaio' && take.ordinal == n) take,
   ];
 
-  Future<void> relaunchOnTheHome() =>
-      relaunchOn(showsTheHome, what: 'a casa voltar depois do relançamento');
+  Future<void> relaunchOnTheHome() async {
+    await relaunchOnTheConversation();
+    container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+    await until('a casa voltar depois do relançamento', showsTheHome);
+    await settle();
+  }
 
-  Future<void> relaunchOn(
-    bool Function() landed, {
-    String what = 'o relançamento chegar',
-  }) async {
+  Future<void> relaunchOnTheConversation() async {
     late SalaHarness again;
     late ProviderContainer next;
     await tester.runAsync(() async {
@@ -382,7 +383,10 @@ class _Room {
     await tester.pumpWidget(
       UncontrolledProviderScope(container: next, child: const SalaApp()),
     );
-    await until(what, landed);
+    await until('a conversa voltar depois do relançamento', () {
+      final state = container.read(salaSessionProvider);
+      return state.station is Canvas && !state.awaitingTheGuide;
+    });
     await settle();
   }
 
@@ -579,9 +583,13 @@ void main() {
       it.room.retroSoFar = BackTranslationProgress(segments: told);
       await it.tapThe(byLabel(_listenAndCheck));
       await it.settle();
-      await it.relaunchOn(
+      await it.relaunchOnTheHome();
+      await it.tapThe(byLabel(_listenAndCheck));
+      await it.until(
+        'a retrotradução voltar',
         () => it.container.read(salaSessionProvider).station is Retro,
       );
+      await it.settle();
       for (final n in [1, 2, 3]) {
         expect(it.toldFrase(n), findsOneWidget, reason: 'a frase $n contada');
       }
@@ -747,7 +755,10 @@ void main() {
 
       it.list(const [s3b]);
       await it.held(const [s3b]);
-      await it.relaunchOnTheHome();
+      await it.relaunchOnTheConversation();
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await it.until('a casa voltar', it.showsTheHome);
+      await it.settle();
 
       expect(it.door(3, _useScene), findsOneWidget);
       await it.openTheSheet(3, _useScene);
@@ -1177,39 +1188,39 @@ void main() {
     },
   );
 
-  testWidgets(
-    'a swap the tablet was closed on lands as the part when it opens again',
-    (tester) async {
-      final semantics = tester.ensureSemantics();
-      final it = await _atRest(tester);
-      await it.joined();
+  testWidgets('a swap the tablet was closed on, landed behind the relaunch\'s '
+      'conversation, is the part when the dot opens the home', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    await it.joined();
 
-      await it.openTheSheet(2, _swap);
-      it.holdTheTake('parte-2');
-      await it.swapIn(s2b);
-      await it.theHeldTakeArrives();
-      it.room
-        ..unreachableTake = 'ensaio/parte-2'
-        ..finishHeldTake();
-      await it.settle();
-      await it.relaunchOnTheHome();
-      it.room.unreachableTake = null;
-      await it.within(
-        const Duration(seconds: 30),
-        'a troca chegar à sala',
-        () => it.takesOf(2).length == 2,
-      );
-      await it.within(
-        const Duration(seconds: 10),
-        'a casa pedir a escuta da cena nova',
-        () => find.text(_hearNew).evaluate().isNotEmpty,
-      );
+    await it.openTheSheet(2, _swap);
+    it.holdTheTake('parte-2');
+    await it.swapIn(s2b);
+    await it.theHeldTakeArrives();
+    it.room
+      ..unreachableTake = 'ensaio/parte-2'
+      ..finishHeldTake();
+    await it.settle();
+    await it.relaunchOnTheConversation();
+    it.room.unreachableTake = null;
+    await it.within(
+      const Duration(seconds: 30),
+      'a troca chegar à sala',
+      () => it.takesOf(2).length == 2,
+    );
+    it.container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+    await it.until('a casa voltar', it.showsTheHome);
+    await it.within(
+      const Duration(seconds: 10),
+      'a casa pedir a escuta da cena nova',
+      () => find.text(_hearNew).evaluate().isNotEmpty,
+    );
 
-      await it.openTheSheet(2, _swap);
-      expect(it.onLine(s2b, find.text(_inUse)), findsOneWidget);
-      semantics.dispose();
-    },
-  );
+    await it.openTheSheet(2, _swap);
+    expect(it.onLine(s2b, find.text(_inUse)), findsOneWidget);
+    semantics.dispose();
+  });
 
   testWidgets(
     'a swap another tablet made becomes the part on the next arrival at the '

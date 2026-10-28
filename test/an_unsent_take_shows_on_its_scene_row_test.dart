@@ -138,6 +138,11 @@ class _Casa {
     await emTempoReal(() async {
       await _lancar(container);
       await waitFor(
+        'a sala voltar à conversa',
+        () => estado.stage == SalaStage.conversa && !estado.awaitingTheGuide,
+      );
+      container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+      await waitFor(
         'a sala voltar à casa do ensaio',
         () =>
             estado.stage == SalaStage.ensaio &&

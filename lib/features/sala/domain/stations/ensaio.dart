@@ -58,5 +58,6 @@ final class Ensaio extends Station {
       fromTheHome: true,
     ),
     TheExternalCheckLeft() => this,
+    TheRecordingLeft() => const Canvas(),
   };
 }

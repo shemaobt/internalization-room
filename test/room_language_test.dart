@@ -61,12 +61,11 @@ Future<void> _leftForTheChoice(Sala it) async {
 }
 
 Future<void> _choose(Sala it, String language) async {
-  final asked = it.harness.room.languagesAsked.length;
   it.sala.chooseTheLanguage(language);
   await waitFor(
-    'the Wheel to be read in the language chosen',
+    'the Wheel to stand in the language chosen',
     () =>
-        it.harness.room.languagesAsked.length > asked &&
+        it.container.read(roomLanguageProvider) == language &&
         it.estado.naRoda != null &&
         it.estado.voice == VoiceState.invite,
   );

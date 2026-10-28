@@ -104,6 +104,7 @@ class SceneRehearsalView extends ConsumerWidget {
                 line: session.sceneLine,
                 restartShown: session.sceneRestartShown,
                 restart: session.sceneRestart,
+                stoppedAt: session.sceneStoppedAt,
               ),
               SceneStep.placesUnknown => ScenePlacesUnknown(
                 scene: scene,
@@ -121,6 +122,7 @@ class SceneRehearsalView extends ConsumerWidget {
                 language: language,
                 sending: sending,
                 line: session.sceneLine,
+                stoppedAt: session.sceneStoppedAt,
               ),
             },
           ),
