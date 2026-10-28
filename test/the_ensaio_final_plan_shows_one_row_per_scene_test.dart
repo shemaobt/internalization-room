@@ -1280,4 +1280,34 @@ void main() {
       semantics.dispose();
     });
   });
+
+  testWidgets(
+    'a halt over a row that plays leaves it on the play when the team comes '
+    'back',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, container) = await _seeded(tester, _oneEach);
+      await _openThePlan(tester);
+      await tester.tap(_playOn(1));
+      await _theAnswerSettles(tester);
+      expect(_glyphOn(tester, _playOn(1)), LucideIcons.pause);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.haltForABrokenBuild();
+      await _theAnswerSettles(tester);
+      expect(byLabel(_personSign), findsOneWidget);
+      expect(harness.playback.sounding, isFalse);
+      notifier.teamTapped();
+      await _theAnswerSettles(tester);
+
+      expect(byLabel(_personSign), findsNothing);
+      expect(
+        _glyphOn(tester, _playOn(1)),
+        LucideIcons.play,
+        reason: 'a parada calou o ensaio e a linha voltou em pausa',
+      );
+      expect(_pressedAt(tester, _playOn(1)), Tristate.isFalse);
+      semantics.dispose();
+    },
+  );
 }

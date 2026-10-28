@@ -1643,6 +1643,43 @@ void main() {
       semantics.dispose();
     },
   );
+
+  testWidgets(
+    'the home\'s sheet closed while its rehearsal plays opens again on the '
+    'play, and one tap plays it',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+      await it.tapThe(it.listen(s2b));
+      await it.until('o ensaio tocar', () => it.harness.playback.sounding);
+
+      await it.tapThe(byLabel(_back));
+      await it.until('a casa voltar', it.showsTheHome);
+      expect(it.harness.playback.sounding, isFalse);
+      await it.openTheSheet(2, _swap);
+
+      expect(
+        it.glyphOn(it.listen(s2b)),
+        LucideIcons.play,
+        reason: 'a folha fechou o som e reabriu em pausa sobre o silêncio',
+      );
+      expect(it.pressed(it.listen(s2b)), Tristate.isFalse);
+
+      final played = it.harness.playback.played.length;
+      await it.tapThe(it.listen(s2b));
+      await it.until('o ensaio tocar', () => it.harness.playback.sounding);
+
+      expect(
+        it.harness.playback.played.length,
+        played + 1,
+        reason: 'o toque depois de fechar a folha só limpava, sem tocar',
+      );
+      expect(it.glyphOn(it.listen(s2b)), LucideIcons.pause);
+      semantics.dispose();
+    },
+  );
 }
 
 List<Object?> _heard(_Room it, int after, String? takeId) => [
