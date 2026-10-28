@@ -52,8 +52,10 @@ tablet keeps, so a kept part still in the Outbox would be missing from the home 
 
 ## Consequences
 
-- ADR 0062's held take (the pause that comes back on the Choice's way back) is reached from no screen of
-  the recording step any more.
+- ADR 0062's held take (the pause that comes back on the Choice's way back) is reached by nothing any
+  more. `leaveThePassage`, its only way in, is now tapped only on the Conversation and the Panorama,
+  where no take is ever held, and her app holds nothing across a leave. It stays in the code until a
+  follow-up removes it with 0062's held-take clause.
 - A relaunch after the way back still lands where the last stored point says, the recording home.
 - Opening the Back-translation again after leaving it plays from the untold ground, as any opening from
   the home does; hers restores the verdict.
