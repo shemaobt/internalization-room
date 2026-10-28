@@ -830,38 +830,63 @@ class _FraseBar extends StatelessWidget {
               child: ExcludeSemantics(
                 child: Opacity(
                   opacity: live ? 1 : 0.35,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 26,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: _Disc(n: n, fill: colors.areia),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 200,
-                        height: 10,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: FractionallySizedBox(
-                            widthFactor: share > 0 ? max(0.08, share) : 1,
-                            heightFactor: 1,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: colors.vermelhoMic.withValues(
-                                  alpha: 0.6,
-                                ),
-                                borderRadius: BorderRadius.circular(5),
-                              ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 0.6 * _rem,
+                      vertical: 0.45 * _rem,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color.fromRGBO(236, 234, 220, .05)
+                          : const Color.fromRGBO(255, 255, 255, .4),
+                      border: Border.all(color: colors.areia, width: 1.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 0.05 * _rem),
+                          child: SizedBox(
+                            width: 26,
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: _Disc(n: n, fill: colors.areia),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(words, style: style),
-                    ],
+                        const SizedBox(width: 0.55 * _rem),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 0.3 * _rem),
+                            SizedBox(
+                              width: 200,
+                              height: 10,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: FractionallySizedBox(
+                                  widthFactor: share > 0 ? max(0.08, share) : 1,
+                                  heightFactor: 1,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: colors.vermelhoMic.withValues(
+                                        alpha: 0.6,
+                                      ),
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 0.15 * _rem),
+                            Text(words, style: style),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

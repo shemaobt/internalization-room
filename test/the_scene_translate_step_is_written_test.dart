@@ -1246,4 +1246,73 @@ void main() {
       },
     );
   }
+  for (final (look, areia, wash) in [
+    (
+      Brightness.light,
+      const Color(0xFFC5C29F),
+      const Color.fromRGBO(255, 255, 255, .4),
+    ),
+    (
+      Brightness.dark,
+      const Color(0xFF6E6A57),
+      const Color.fromRGBO(236, 234, 220, .05),
+    ),
+  ]) {
+    for (final (step, row, open)
+        in <(String, String, Future<void> Function(WidgetTester))>[
+          (
+            'told',
+            _bar(1),
+            (tester) => _onTheSceneScreen(
+              tester,
+              rehearsals: [
+                _rehearsal(frases: [_frase('f1', 0, 3000)]),
+              ],
+              until: (state) => state.scene.step == SceneStep.translate,
+            ),
+          ),
+          ('of a sent scene rehearsal', 'frase 1', _inListenMode),
+        ]) {
+      testWidgets(
+        'in the ${look.name} look each frase $step is her bordered card, its bar over «frase 1», not a flat line',
+        (tester) async {
+          tester.platformDispatcher.platformBrightnessTestValue = look;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
+          await open(tester);
+          Rect at(Finder finder) => tester.getRect(
+            find.descendant(of: byLabel(row), matching: finder),
+          );
+          final card = find.descendant(
+            of: byLabel(row),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is DecoratedBox &&
+                  widget.decoration is BoxDecoration &&
+                  (widget.decoration as BoxDecoration).border != null,
+            ),
+          );
+          final bar = at(find.byType(FractionallySizedBox));
+          final words = at(find.text('frase 1'));
+
+          expect(
+            bar.bottom,
+            lessThanOrEqualTo(words.top),
+            reason: 'a barra corria ao lado de «frase 1», não sobre ela',
+          );
+          expect(words.left, bar.left);
+          expect(bar.left, greaterThan(at(find.text('1')).right));
+          expect(card, findsOneWidget, reason: 'a frase era uma linha solta');
+          final decoration =
+              tester.widget<DecoratedBox>(card).decoration as BoxDecoration;
+          expect(decoration.border, Border.all(color: areia, width: 1.2));
+          expect(decoration.borderRadius, BorderRadius.circular(12));
+          expect(decoration.color, wash);
+          expect(tester.getRect(card).contains(bar.center), isTrue);
+          expect(tester.getRect(card).contains(words.center), isTrue);
+        },
+      );
+    }
+  }
 }
