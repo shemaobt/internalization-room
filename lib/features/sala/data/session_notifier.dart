@@ -7997,8 +7997,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final faltam = _asPartesNomeadas(nomes);
     if (nomes.isNotEmpty || faltam.isNotEmpty) {
-      if (faltam.isNotEmpty) _partesDaEscuta = faltam;
-      _oQueFaltaOuvir = _OQueFaltaOuvir(_partesDaEscuta, paraNaUltima: true);
+      _oQueFaltaOuvir = _OQueFaltaOuvir([
+        for (var onde = 0; onde < state.partes.length; onde++) onde,
+      ], paraNaUltima: true);
       state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
       return;
     }

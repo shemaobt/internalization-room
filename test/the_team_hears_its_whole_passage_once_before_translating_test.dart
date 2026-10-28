@@ -1227,7 +1227,8 @@ void main() {
   );
 
   testWidgets(
-    'a part the room still counts unheard after the listen keeps the listen',
+    'a part the room still counts unheard after the listen keeps the listen, '
+    'and play replays the recording from its first part, not that part alone',
     (tester) async {
       final it = await _naTela(tester, _juntadaNaCasa);
       await _ate(tester, () async {
@@ -1254,21 +1255,36 @@ void main() {
       });
       expect(pedidas, 0, reason: 'ainda só ouvir: nenhuma conferência');
       final tocadas = it.harness.playback.played.length;
+      final desde = it.harness.playback.playedFrom.length;
       await tester.tap(byLabel(_tocarOuPausar));
       await _ate(
         tester,
         () => waitFor(
-          'a segunda tocar de novo',
+          'a gravação tocar de novo',
           () => it.harness.playback.played.length > tocadas,
         ),
       );
-      expect(it.harness.playback.played.last, it.partes[1].path);
+      expect(
+        it.harness.playback.played.last,
+        it.partes[0].path,
+        reason: 'o play tocava só a parte que a sala nomeou, fora do contexto',
+      );
       expect(it.harness.playback.playedFrom.last, Duration.zero);
       expect(
-        find.textContaining('ouvindo a gravação de vocês… — parte 2 · '),
+        find.textContaining('ouvindo a gravação de vocês… — parte 1 · '),
         findsOneWidget,
         reason: 'a linha de posição fica sob o aviso',
       );
+      await _ate(tester, () => _ouvirAte(it));
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        _caminhos(it, [0, 1, 2]),
+      );
+      expect(it.harness.playback.playedFrom.skip(desde), [
+        Duration.zero,
+        Duration.zero,
+        Duration.zero,
+      ]);
       closeTheRoom(it.container);
     },
   );
@@ -1430,7 +1446,8 @@ void main() {
   );
 
   test(
-    'after the room names one part unheard, an answer that never comes plays only that part again',
+    'after the room names one part unheard, an answer that never comes replays '
+    'the recording from its first part, not that part alone',
     () async {
       final it = await _juntadaNaCasa();
       _nadaOuvido(it);
@@ -1446,7 +1463,7 @@ void main() {
       await settle();
       it.harness.room.failListeningWith = const NetworkFailed('sem rede');
       it.sala.ouvirGravacao();
-      await _ouvirAte(it, desde: 1, ate: 1);
+      await _ouvirAte(it);
       await waitFor(
         'o relato perdido',
         () => it.harness.room.listeningReports.length > relatos + 1,
@@ -1460,7 +1477,13 @@ void main() {
         () => it.harness.playback.played.length > tocadas,
       );
 
-      expect(it.harness.playback.played.last, it.partes[1].path);
+      expect(
+        it.harness.playback.played.last,
+        it.partes[0].path,
+        reason:
+            'sem resposta, o play repetia só a parte que a sala tinha nomeado '
+            'antes',
+      );
       expect(it.harness.playback.playedFrom.last, Duration.zero);
     },
   );
