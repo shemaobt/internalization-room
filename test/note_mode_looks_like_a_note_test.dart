@@ -346,6 +346,64 @@ void main() {
     closeTheRoom(room.container);
   });
 
+  testWidgets('A reply that arrives while the question is armed does not take '
+      'the tap, as hers: the hand backs out of note mode and plays '
+      'nothing', (tester) async {
+    final room = await _inConversa(tester);
+    await room.raisesTheHand();
+    room.harness.inbox.replies = const [_reply];
+    room.sala.lookForReplies();
+    await room.until('a resposta chegar', () => room.estado.hasUnheardReply);
+    expect(room.estado.noteMode, isTrue);
+
+    await tester.tap(room._hand);
+    await room.beat(600);
+
+    expect(
+      room.estado.noteMode,
+      isFalse,
+      reason: 'a mão tocava a resposta e deixava a pergunta armada',
+    );
+    expect(
+      room.harness.voice.played,
+      isNot(contains(_reply.audioUrl)),
+      reason: 'o toque que sai do modo de nota tocava a resposta',
+    );
+    expect(room.estado.hasUnheardReply, isTrue);
+    closeTheRoom(room.container);
+  });
+
+  testWidgets('After the hand backs out of note mode, the next tap plays the '
+      'reply that arrived, as hers', (tester) async {
+    final room = await _inConversa(tester);
+    await room.raisesTheHand();
+    room.harness.inbox.replies = const [_reply];
+    room.sala.lookForReplies();
+    await room.until('a resposta chegar', () => room.estado.hasUnheardReply);
+    await tester.tap(room._hand);
+    await room.beat(600);
+    expect(room.harness.voice.played, isNot(contains(_reply.audioUrl)));
+
+    await tester.tap(room._hand);
+    await room.until(
+      'a resposta ser ouvida',
+      () => !room.estado.hasUnheardReply,
+    );
+
+    expect(
+      room.harness.voice.played.where((url) => url == _reply.audioUrl),
+      hasLength(1),
+      reason: 'a resposta que chegou com a pergunta armada nunca era ouvida',
+    );
+    expect(room.estado.hasUnheardReply, isFalse);
+    expect(
+      room.estado.noteMode,
+      isFalse,
+      reason: 'o toque que toca a resposta armava a pergunta de novo',
+    );
+    closeTheRoom(room.container);
+  });
+
   testWidgets('In note mode tapping the menu abandons the question: nothing '
       'reaches the facilitator', (tester) async {
     final room = await _inConversa(tester);

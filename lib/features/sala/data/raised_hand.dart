@@ -140,14 +140,14 @@ class RaisedHand {
     if (_state.playingReplyId != null || _state.channel is PartPlaying) {
       host.silenceTheRoom();
     }
+    if (_state.noteMode) {
+      cancelQuestion();
+      return;
+    }
     final unheard = _state.oldestUnheardReply;
     if (unheard != null) {
       host.markPlaying(unheard.id);
       host.handOff(_playReply(unheard));
-      return;
-    }
-    if (_state.noteMode) {
-      cancelQuestion();
       return;
     }
     host.enterNoteMode();
