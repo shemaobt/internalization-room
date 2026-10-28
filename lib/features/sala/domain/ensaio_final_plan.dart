@@ -282,13 +282,16 @@ HomeRow homeRowOf(
   return (
     swap:
         !held && origin != null && joinable.any((c) => c.rehearsalId != origin),
-    useScene: !held && origin == null && joinable.isNotEmpty,
+    useScene:
+        !held &&
+        origin == null &&
+        (plan?.candidates ?? const []).any((c) => c.usable),
     inUse: inUse,
   );
 }
 
 bool offersToSwapIn(HomeRow home, SceneRehearsalRecord rehearsal) =>
-    rehearsal.joinable && rehearsal.rehearsalId != home.inUse;
+    rehearsal.usable && rehearsal.rehearsalId != home.inUse;
 
 String swapControl(String sceneId, SceneRehearsalRecord rehearsal) =>
     'swap:$sceneId:${rehearsal.n}';

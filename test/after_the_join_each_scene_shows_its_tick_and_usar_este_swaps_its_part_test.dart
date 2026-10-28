@@ -114,6 +114,9 @@ String _line(int n, {String language = 'pt'}) => language == 'pt'
     ? 'ensaio $n · ${_clock(_recordedAt)} · 0:06 · 2 frases · enviado'
     : 'rehearsal $n · ${_clock(_recordedAt)} · 0:06 · 2 sentences · sent';
 
+String _unsentLine(int n) =>
+    'ensaio $n · ${_clock(_recordedAt)} · 0:06 · 2 frases · não enviado';
+
 class _Room {
   final WidgetTester tester;
   SalaHarness harness;
@@ -130,21 +133,22 @@ class _Room {
 
   bool get english => identical(scenes, _threeScenesEn);
 
-  SceneRehearsalRecord rehearsal(int n) => SceneRehearsalRecord(
-    rehearsalId: idOf(n),
-    sessionId: sessionId,
-    n: n,
-    scene: _sceneOf[n],
-    recordedAt: _recordedAt,
-    sentAt: '2026-10-22T${_sentAt[n] ?? '10:09'}:00+00:00',
-    durationMs: 6000,
-    frases: const [
-      SceneFrase(fraseId: 'frase-a', startsMs: 0, endsMs: 3000),
-      SceneFrase(fraseId: 'frase-b', startsMs: 3000, endsMs: 6000),
-    ],
-    verified: true,
-    sha256: _fingerprintOf(_bytesOf(n)),
-  );
+  SceneRehearsalRecord rehearsal(int n, {bool sent = true}) =>
+      SceneRehearsalRecord(
+        rehearsalId: idOf(n),
+        sessionId: sessionId,
+        n: n,
+        scene: _sceneOf[n],
+        recordedAt: _recordedAt,
+        sentAt: sent ? '2026-10-22T${_sentAt[n] ?? '10:09'}:00+00:00' : null,
+        durationMs: 6000,
+        frases: const [
+          SceneFrase(fraseId: 'frase-a', startsMs: 0, endsMs: 3000),
+          SceneFrase(fraseId: 'frase-b', startsMs: 3000, endsMs: 6000),
+        ],
+        verified: true,
+        sha256: _fingerprintOf(_bytesOf(n)),
+      );
 
   Future<void> beat([Duration ahead = Duration.zero]) async {
     await tester.runAsync(
@@ -184,9 +188,9 @@ class _Room {
     }
   }
 
-  void list(Iterable<int> ns) {
+  void list(Iterable<int> ns, {bool sent = true}) {
     for (final n in ns) {
-      room.sceneRehearsals.add(rehearsal(n));
+      room.sceneRehearsals.add(rehearsal(n, sent: sent));
       room.sceneAudioOf[idOf(n)] = _bytesOf(n);
     }
   }
@@ -298,6 +302,8 @@ class _Room {
 
   Finder use(int n, [String label = _useThis]) =>
       byLabel('$label — ${_line(n, language: english ? 'en' : 'pt')}');
+
+  Finder useUnsent(int n) => byLabel('$_useThis — ${_unsentLine(n)}');
 
   bool enabled(Finder target) =>
       tester
@@ -749,6 +755,37 @@ void main() {
       final sent = it.received(3).single;
       expect(sent.origin, it.idOf(s3b));
       expect(it.takesOf(3).single.pass, 1);
+      expect(it.ticked(3), isTrue);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a row with no part whose only rehearsal is unsent offers «usar o ensaio '
+    'desta cena», and «usar este» sends it as the part',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s3a], sent: false);
+      await it.joined(
+        listed: const [s1a, s2a, s2b],
+        onTheTablet: const [s1a, s2a, s2b, s3a],
+      );
+      expect(it.partPath(3), isNull, reason: 'a cena 3 não entrou na junta');
+
+      expect(
+        it.door(3, _useScene),
+        findsOneWidget,
+        reason: 'a casa não oferecia o ensaio não enviado da cena',
+      );
+      await it.openTheSheet(3, _useScene);
+      expect(it.useUnsent(s3a), findsOneWidget);
+      await it.tapThe(it.useUnsent(s3a));
+      await it.swapLands();
+
+      final sent = it.received(3).single;
+      expect(sent.origin, it.idOf(s3a));
+      expect(sent.bytes, _bytesOf(s3a));
       expect(it.ticked(3), isTrue);
       semantics.dispose();
     },
