@@ -16,7 +16,8 @@ session (`:786`), and the Panorama goes through the same open (`:980-981`).
 - **An `Error` thrown by a pill's open before its session opens is an open that brought no
   session.** The passage pill and the Panorama pill both rest on the Choice as ADR 0137
   decided for every other failure: the entries live, nothing said, no sign, and the next tap
-  on the same pill asks again.
+  on the same pill asks again. With a passage left waiting under the Choice, it is laid back
+  as ADR 0143 decided, asking the room for nothing more.
 - **It still reaches the operator's log, once.** The team sees and hears nothing of it; the
   error and its stack are written as ADR 0125's report writes them.
 - **Once the session is held, an `Error` raises the sign as before.** ADR 0137's «a thrown

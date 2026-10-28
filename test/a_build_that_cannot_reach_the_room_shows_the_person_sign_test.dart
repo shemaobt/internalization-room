@@ -17,7 +17,8 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, settle, theChoiceOffersAPassage;
+import 'scenario_helpers.dart'
+    show byLabel, enterThePassage, settle, theChoiceOffersAPassage;
 
 const _aPanorama = Passagem(
   pericope: 'OV-Ruth',
@@ -281,6 +282,49 @@ void main() {
           hasLength(1),
           reason: 'o erro engolido sumia também do log do operador',
         );
+      },
+    );
+
+    test(
+      'a pill whose create throws lays back the passage left, not the sign, asking the room nothing more',
+      () async {
+        final harness = SalaHarness();
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        SalaSessionState read() => container.read(salaSessionProvider);
+        await enterThePassage(notifier, read, 'P01');
+        await waitFor(
+          'P01 to open',
+          () => read().sessionId != null && read().voice == VoiceState.invite,
+        );
+        final p01 = read().sessionId;
+        notifier.leaveThePassage();
+        await waitFor(
+          'the way back to P01 to be live',
+          () => read().entriesOpen && read().theWayBackIsLive,
+        );
+        final asked = harness.room.calls.length;
+        harness.room.throwOn['createSession'] = StateError('x');
+
+        notifier.openTheEntry(
+          read().naRoda!.firstWhere((entry) => entry.pericope == 'P02'),
+        );
+        await settle();
+        await settle();
+
+        expect(
+          read().needsPerson,
+          isFalse,
+          reason: 'o create que lançava um erro levantava o sinal da pessoa',
+        );
+        expect(
+          read().station,
+          isA<Canvas>(),
+          reason: 'a passagem deixada não voltava depois do erro do create',
+        );
+        expect(read().sessionId, p01);
+        expect(harness.room.calls.skip(asked), ['createSession']);
       },
     );
 
