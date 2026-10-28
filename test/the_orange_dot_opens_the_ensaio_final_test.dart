@@ -392,6 +392,14 @@ class _Home {
   });
 
   Future<void> relaunchIt() async {
+    await relaunchOnTheConversation();
+    await inRealTime(() async {
+      container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+      await _theRowsStand();
+    });
+  }
+
+  Future<void> relaunchOnTheConversation() async {
     late SalaHarness again;
     late ProviderContainer next;
     await tester.runAsync(() async {
@@ -406,7 +414,11 @@ class _Home {
     await tester.pumpWidget(_theHome(container));
     await inRealTime(() async {
       await _launch(container);
-      await _theRowsStand();
+      await waitFor(
+        'a sala voltar à conversa',
+        () => read.stage == SalaStage.conversa && !read.awaitingTheGuide,
+      );
+      await settle();
     });
   }
 
@@ -1094,9 +1106,13 @@ void main() {
         final reads = it.takeReads;
         final clips = it.room.clipsFetched.length;
 
-        await it.relaunchIt();
+        await it.relaunchOnTheConversation();
 
         expect(it.takeReads, reads, reason: 'a sala foi lida de novo');
+        await it.inRealTime(() async {
+          it.sala.openTheEnsaioFinal();
+          await it._theRowsStand();
+        });
         expect(it.room.clipsFetched.length, clips);
         it.expectThreeRecordedRows();
       },

@@ -380,6 +380,24 @@ class Trecho {
   });
 }
 
+class PassageLeft {
+  final SalaSessionState canvas;
+  final String session;
+  final String book;
+  final String? pericope;
+  final String language;
+  final ({int version, int number})? listener;
+
+  const PassageLeft({
+    required this.canvas,
+    required this.session,
+    required this.book,
+    this.pericope,
+    required this.language,
+    this.listener,
+  });
+}
+
 class SalaSessionState {
   final bool awaitingTheGuide;
 
@@ -389,6 +407,7 @@ class SalaSessionState {
 
   /// The entry the team last left by the way out, for the Choice to offer the way back.
   final LeftEntry? leftEntry;
+  final PassageLeft? passageLeft;
   final bool endOfThePassage;
 
   /// Whether the Panorama's line was said on this visit to its Station; from then on the
@@ -540,6 +559,7 @@ class SalaSessionState {
   /// The turn «terminei» last sent for a scene rehearsal and no reply has played for:
   /// the next «terminei» on that rehearsal goes under it again.
   final ({String rehearsalId, String turnId})? sceneTurn;
+  final Duration? sceneStoppedAt;
 
   /// «recomeçar a tradução» on the scene rehearsal armed by its first tap, kept beside the
   /// screen so its timers never replace the screen a call waits on.
@@ -618,6 +638,7 @@ class SalaSessionState {
     this.awaitingTheGuide = false,
     this.arrivedAtTheChoice = false,
     this.leftEntry,
+    this.passageLeft,
     this.endOfThePassage = false,
     this.panoramaSaid = false,
     this.pericope,
@@ -690,6 +711,7 @@ class SalaSessionState {
     this.scenes = const ScenesAwaited(),
     this.scenesOfThePassage,
     this.sceneTurn,
+    this.sceneStoppedAt,
     this.sceneRestart,
     this.sceneLine,
     this.ensaioFinalPlan,
@@ -1555,6 +1577,8 @@ class SalaSessionState {
     bool? arrivedAtTheChoice,
     LeftEntry? leftEntry,
     bool clearLeftEntry = false,
+    PassageLeft? passageLeft,
+    bool clearPassageLeft = false,
     bool? endOfThePassage,
     bool? panoramaSaid,
     String? pericope,
@@ -1650,6 +1674,8 @@ class SalaSessionState {
     List<Scene>? scenesOfThePassage,
     ({String rehearsalId, String turnId})? sceneTurn,
     bool clearSceneTurn = false,
+    Duration? sceneStoppedAt,
+    bool clearSceneStoppedAt = false,
     BtRecomeco? sceneRestart,
     bool clearSceneRestart = false,
     SceneLine? sceneLine,
@@ -1688,6 +1714,7 @@ class SalaSessionState {
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
       arrivedAtTheChoice: arrivedAtTheChoice ?? this.arrivedAtTheChoice,
       leftEntry: clearLeftEntry ? null : (leftEntry ?? this.leftEntry),
+      passageLeft: clearPassageLeft ? null : (passageLeft ?? this.passageLeft),
       endOfThePassage: endOfThePassage ?? this.endOfThePassage,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
       pericope: pericope ?? this.pericope,
@@ -1791,6 +1818,9 @@ class SalaSessionState {
       scenes: scenes ?? this.scenes,
       scenesOfThePassage: scenesOfThePassage ?? this.scenesOfThePassage,
       sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),
+      sceneStoppedAt: clearSceneStoppedAt
+          ? null
+          : (sceneStoppedAt ?? this.sceneStoppedAt),
       sceneRestart: clearSceneRestart
           ? null
           : (sceneRestart ?? this.sceneRestart),

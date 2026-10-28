@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/left_entry.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
@@ -85,7 +84,6 @@ void main() {
       pericope: 'P01',
       session: 's2',
       language: 'en',
-      held: Paused(PartSound(0, 'parte-0.m4a')),
     );
 
     final (machine, effects) = reduce(

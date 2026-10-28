@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0091, amended by 0106
+status: accepted, amended by 0091, amended by 0106, amended by 0141
 date: 2026-10-07
 amends: 0061 (in part: the room starts on the Choice), 0051 (in part: what a gone session takes from the tablet)
 ---
