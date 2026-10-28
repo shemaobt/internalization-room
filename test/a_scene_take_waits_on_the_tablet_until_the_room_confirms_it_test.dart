@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -23,6 +24,17 @@ const _saveFailed = 'não deu para guardar o ensaio da cena — gravem de novo';
 const _tooLarge = 'grande demais para o servidor — grave em partes menores';
 const _retry = 'falhou — toque para tentar de novo';
 const _offline = NetworkFailed('sem rede');
+const _turnedAway = Refused(RefusalCode.unauthorized);
+const _aLadder = [Duration(seconds: 1)];
+
+SalaHarness _onALadder() => SalaHarness(
+  takesOverride: (room, home, recordings) => TakeUploadQueue(
+    room: room,
+    home: () async => home,
+    recordings: recordings,
+    backoff: _aLadder,
+  ),
+);
 
 Uint8List _aTake(int seed) =>
     Uint8List.fromList([for (var i = 0; i < 1200; i++) (i * seed) % 251]);
@@ -85,8 +97,8 @@ void main() {
       });
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(byLabel(_saveFailed), findsOneWidget);
-      expect(byLabel(_retry), findsOneWidget);
+      expect(find.text(_saveFailed), findsOneWidget);
+      expect(find.text(_retry), findsOneWidget);
       expect(
         tester
             .widgetList<Text>(
@@ -96,10 +108,10 @@ void main() {
               ),
             )
             .map((text) => text.data),
-        ['Ensaio da cena'],
+        ['Ensaio da cena', _saveFailed, _retry],
         reason:
-            'só o título é escrito; a falha e o «tentar de novo» são só do '
-            'VoiceOver',
+            'só o título e o estado da gravação são escritos (ADR 0131); o '
+            'resto é só do VoiceOver',
       );
     },
   );
@@ -184,8 +196,8 @@ void main() {
       0,
       reason: 'a sala recusaria acima de 25 MiB; nada sobe',
     );
-    expect(byLabel(_tooLarge), findsOneWidget);
-    expect(byLabel(_retry), findsOneWidget);
+    expect(find.text(_tooLarge), findsOneWidget);
+    expect(find.text(_retry), findsOneWidget);
   });
 
   test(
@@ -407,9 +419,9 @@ void main() {
   test(
     'a take the house retry lands while it shows not kept opens on translate',
     () async {
-      final room = await atRest();
+      final room = await atRest(_onALadder());
       await theScreenOpens(room);
-      room.harness.room.failSceneWith = _offline;
+      room.harness.room.failSceneWith = _turnedAway;
       await _recordAScene(room);
       await _notKept(room);
 
@@ -431,11 +443,12 @@ void main() {
                 room: room,
                 home: () async => home,
                 recordings: recordings,
+                backoff: _aLadder,
               ),
         ),
       );
       await theScreenOpens(room);
-      room.harness.room.failSceneWith = _offline;
+      room.harness.room.failSceneWith = _turnedAway;
       await _recordAScene(room);
       await _notKept(room);
 
@@ -459,11 +472,12 @@ void main() {
                 room: room,
                 home: () async => home,
                 recordings: recordings,
+                backoff: _aLadder,
               ),
         ),
       );
       await theScreenOpens(room);
-      room.harness.room.failSceneWith = _offline;
+      room.harness.room.failSceneWith = _turnedAway;
       await _recordAScene(room);
       await _notKept(room);
 
@@ -540,9 +554,9 @@ void main() {
 
   test('a take confirmed after the team left is renamed, and reopens without a '
       'download', () async {
-    final room = await atRest();
+    final room = await atRest(_onALadder());
     await theScreenOpens(room);
-    room.harness.room.failSceneWith = _offline;
+    room.harness.room.failSceneWith = _turnedAway;
     await _recordAScene(room);
     await _notKept(room);
     room.sala.leaveTheSceneRehearsal();
@@ -631,7 +645,7 @@ void main() {
       await _notKept(room);
       final waiting = room.state.scene.keep! as NotKept;
 
-      expect(waiting.tooLarge, isFalse);
+      expect(waiting.why, SendFailure.failed);
       expect(waiting.take, room.harness.recorder.lastPath);
 
       disk.full = false;
@@ -842,6 +856,7 @@ class _CountsHeldAfterTheKeep extends TakeUploadQueue {
     required FakeRoom room,
     super.home,
     required super.recordings,
+    super.backoff,
   }) : _room = room,
        super(room: room);
 
@@ -865,6 +880,7 @@ class _ConfirmsHeldBeforeTheRoomHears extends TakeUploadQueue {
     required super.room,
     super.home,
     required super.recordings,
+    super.backoff,
   });
 
   bool _armed = false;

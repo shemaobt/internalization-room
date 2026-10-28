@@ -176,6 +176,32 @@ void main() {
   );
 
   testWidgets(
+    'the dot stays on the hand while the reply plays, and leaves only once it '
+    'is heard',
+    (tester) async {
+      final room = await _withAReplyWaiting(tester);
+      expect(room.theDotShows, isTrue);
+
+      await room.theReplyIsPlaying();
+      await room.beat(300);
+
+      expect(room.estado.playingReplyId, _reply.id);
+      expect(
+        room.theDotShows,
+        isTrue,
+        reason: 'o ponto sumia ao tocar a resposta; o dela fica até ser ouvida',
+      );
+
+      room.harness.voice.finishHeldLine();
+      await room.until(
+        'a resposta ser ouvida',
+        () => !room.estado.hasUnheardReply,
+      );
+      expect(room.theDotShows, isFalse);
+    },
+  );
+
+  testWidgets(
     'The room looks for replies again every 15 seconds while it is open in the '
     'foreground',
     (tester) async {
@@ -436,7 +462,11 @@ void main() {
       await room.beat(300);
 
       expect(room.harness.inbox.heard, isEmpty, reason: 'nada marcado ainda');
-      expect(room.theDotShows, isFalse, reason: 'a resposta segue tocando');
+      expect(
+        room.theDotShows,
+        isTrue,
+        reason: 'a resposta segue tocando, e o ponto segue até ser ouvida',
+      );
 
       room.harness.voice.finishHeldLine();
       await room.until(

@@ -28,13 +28,13 @@ and a new recording of it went up at a pass already used.
 ## Decision
 
 - **The dot has three looks, decided in one place:** gone (unseen, deaf, out of a screen
-  reader's reach) while the way out is hidden, while any voice sounds (the raised hand's
-  reply included) and while a sent note is on its way; bright from the send-off, the completion floor
-  or the Ensaio Final moment; faint otherwise. It is never drawn on a Panorama. Its name is
+  reader's reach) while the way out is hidden and while any voice sounds; bright from the
+  send-off, the completion floor or the Ensaio Final moment; faint otherwise. It is never drawn on a Panorama. Its name is
   «Gravar o ensaio de vocês», and «Abrir o Ensaio Final» once a current part came from a
   join, part by part: the tablet's take where it holds one, the room's listing otherwise.
 - **The tap refuses whenever the dot is gone**, and with a turn in flight, as the red
-  microphone does. A tap on the dot still discards a raised-hand note, as hers does.
+  microphone does, and while a sent note's microphone is still closing, so the note is never
+  lost on its way out. A tap on the dot still discards a raised-hand note, as hers does.
 - **Where the tap goes:** a passage with a take the tablet holds opens the recording home at
   once. Otherwise the **Ensaio Final plan** opens, a Step of the Rehearsal showing «pensando…»
   while the Outbox is read and the room is asked for the passage's takes, scene rehearsals
