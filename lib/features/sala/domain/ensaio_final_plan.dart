@@ -128,24 +128,24 @@ final class PlanRow {
   PlanNote? get note => switch ((candidates, chosen)) {
     _ when joined || waiting => null,
     ([], _) => PlanNote.missing,
+    (_, null) when candidates.any((c) => c.usable) => PlanNote.missing,
     (_, null) => PlanNote.cannotEnter,
     _ => null,
   };
 
   bool get partial => chosen?.untranslatedStretch ?? false;
 
-  /// «trocar» opens the Rehearsal sheet only where there is another joinable rehearsal
+  /// «trocar» opens the Rehearsal sheet only where there is another usable rehearsal
   /// to choose, and never over a joined part.
-  bool get canSwap =>
-      !joined && !waiting && candidates.where((c) => c.joinable).length > 1;
+  bool get canSwap => !joined && !waiting && candidates.any(offersToUse);
 
-  /// «usar este» on a [candidate] of the sheet: a joinable one the row does not hold.
+  /// «usar este» on a [candidate] of the sheet: a usable one the row does not hold.
   bool offersToUse(SceneRehearsalRecord candidate) =>
-      candidate.joinable && candidate.rehearsalId != chosen?.rehearsalId;
+      candidate.usable && candidate.rehearsalId != chosen?.rehearsalId;
 }
 
 /// The plan's rows in passage order; [choices] maps a scene to the rehearsal the team
-/// chose for it, which stands while it is still a joinable candidate.
+/// chose for it, which stands while it is still a usable candidate.
 List<PlanRow> planRowsOf(
   PlanRead read,
   String sessionId,
@@ -187,7 +187,9 @@ PlanRow _rowOf(
   }
   final joinable = candidates.where((c) => c.joinable).toList();
   final chosen =
-      joinable.where((c) => c.rehearsalId == choice).firstOrNull ??
+      candidates
+          .where((c) => c.usable && c.rehearsalId == choice)
+          .firstOrNull ??
       _theDefault(joinable);
   return PlanRow(
     number: number,
@@ -232,24 +234,24 @@ bool rehearsalsElsewhere(List<SceneRehearsalRecord> listed, String sessionId) =>
     !listed.any((r) => r.sessionId == sessionId && r.translatedFrases > 0) &&
     listed.any((r) => r.sessionId != sessionId && !r.unsent);
 
-/// Her `canJoin`: some scene has a joinable rehearsal chosen, or is already joined.
+/// Her `canJoin`: some scene has a usable rehearsal chosen, or is already joined.
 bool canJoin(List<PlanRow> rows, {Set<int> held = const {}}) => rows.any(
   (row) => row.joined || (row.chosen != null && !held.contains(row.number)),
 );
 
 /// Her `joinQueue`: what «juntar» does, in passage order — the joined part still on its
 /// way watched to its landing, and each scene with no part whose chosen rehearsal is
-/// Joinable joined.
+/// Usable joined.
 List<JoinStep> joinQueue(List<PlanRow> rows, {Set<int> held = const {}}) => [
   for (final row in rows)
     if (row.chosen case final rehearsal?
         when !row.joined &&
             !held.contains(row.number) &&
-            (row.waiting || rehearsal.joinable))
+            (row.waiting || rehearsal.usable))
       (number: row.number, rehearsal: rehearsal, waiting: row.waiting),
 ];
 
-/// Some scene with no part still has a Joinable rehearsal chosen.
+/// Some scene with no part still has a Usable rehearsal chosen.
 bool stillToJoin(
   PlanRead read,
   String sessionId,

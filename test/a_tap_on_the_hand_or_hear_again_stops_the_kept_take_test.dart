@@ -93,7 +93,7 @@ void main() {
     final (harness, _) = await _withAKeptTakePlaying(tester);
     final said = harness.voice.played.length;
 
-    await tester.tap(byLabel('Hear it again'));
+    await tester.tap(byLabel('Hear that again'));
     await _pumpUntil(tester, () => harness.voice.played.length > said);
 
     expect(
