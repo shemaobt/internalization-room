@@ -153,7 +153,7 @@ class ChecagemExternaView extends ConsumerWidget {
       ),
       const SizedBox(height: 28),
       FacilitatorCircle(
-        size: facilitatorCircleSize,
+        size: herCircleSize(MediaQuery.sizeOf(context), 38, 150),
         halt: session.halt,
         voice: session.voice,
         answersATouch: open,
