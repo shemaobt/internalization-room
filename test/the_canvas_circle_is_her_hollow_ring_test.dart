@@ -352,4 +352,54 @@ void main() {
       );
     }
   });
+
+  testWidgets('a tablet that asks for less motion sees no ring while the team '
+      'speaks, and her still glow under a .9 circle while she speaks', (
+    tester,
+  ) async {
+    double above<T extends Widget>(
+      Finder what,
+      double Function(T widget) value,
+    ) => tester
+        .widgetList<T>(find.ancestor(of: what, matching: find.byType(T)))
+        .fold(1.0, (product, widget) => product * value(widget));
+    final glow = find.byWidgetPredicate(
+      (widget) =>
+          widget is Container &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration! as BoxDecoration).border == null &&
+          (widget.decoration! as BoxDecoration).gradient != null,
+    );
+
+    await _pumpCircle(tester, VoiceState.listening, still: true);
+    for (var frame = 0; frame < 10; frame++) {
+      await tester.pump(const Duration(milliseconds: 320));
+      expect(
+        _painted(tester)
+            .where((paint) => paint.border != null && paint.gradient == null)
+            .map((paint) => paint.border!.top.color.a)
+            .where((alpha) => alpha > 0),
+        isEmpty,
+        reason:
+            'sem movimento, as ondas dela não aparecem (globals.css:238); '
+            'as nossas ficavam paradas a .5',
+      );
+    }
+
+    await _pumpCircle(tester, VoiceState.speaking, still: true);
+    for (var frame = 0; frame < 10; frame++) {
+      await tester.pump(const Duration(milliseconds: 340));
+      expect(glow, findsOneWidget);
+      expect(
+        above<Opacity>(glow, (fade) => fade.opacity),
+        1,
+        reason: 'parado, o brilho dela fica aceso, não em .55',
+      );
+      expect(
+        above<Transform>(glow, (move) => move.transform.storage[0]),
+        closeTo(0.9, 0.0001),
+        reason: 'parado, o círculo fica em .9 e o brilho em 1',
+      );
+    }
+  });
 }

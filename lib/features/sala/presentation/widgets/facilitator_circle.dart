@@ -77,9 +77,9 @@ class FacilitatorCircle extends StatelessWidget {
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
-        if (!_halted && canvas && voice == VoiceState.listening)
+        if (!_halted && canvas && !still && voice == VoiceState.listening)
           ..._herRipples(colors),
-        if (!_halted && canvas && voice == VoiceState.speaking) _herGlow(),
+        if (!_halted && canvas && voice == VoiceState.speaking) _herGlow(still),
         _body(colors, still),
         if (!_halted && !canvas && voice == VoiceState.speaking)
           ..._ripples(colors),
@@ -399,34 +399,35 @@ class FacilitatorCircle extends StatelessWidget {
     return [ring(0), ring(0.665625), ring(0.33125)];
   }
 
-  Widget _herGlow() => Loop(
-    period: const Duration(milliseconds: 3400),
-    builder: (context, t) => Opacity(
-      opacity: 0.55 + 0.45 * t,
-      child: Transform.scale(
-        scale: 0.98 + 0.08 * t,
-        child: OverflowBox(
-          maxWidth: size * 1.12,
-          maxHeight: size * 1.12,
-          child: Container(
-            width: size * 1.12,
-            height: size * 1.12,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                radius: 0.7071,
-                colors: [
-                  Color.fromRGBO(190, 74, 1, .20),
-                  Color.fromRGBO(190, 74, 1, 0),
-                ],
-                stops: [0, .66],
-              ),
-            ),
+  Widget _herGlow(bool still) {
+    final light = OverflowBox(
+      maxWidth: size * 1.12,
+      maxHeight: size * 1.12,
+      child: Container(
+        width: size * 1.12,
+        height: size * 1.12,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            radius: 0.7071,
+            colors: [
+              Color.fromRGBO(190, 74, 1, .20),
+              Color.fromRGBO(190, 74, 1, 0),
+            ],
+            stops: [0, .66],
           ),
         ),
       ),
-    ),
-  );
+    );
+    if (still) return light;
+    return Loop(
+      period: const Duration(milliseconds: 3400),
+      builder: (context, t) => Opacity(
+        opacity: 0.55 + 0.45 * t,
+        child: Transform.scale(scale: 0.98 + 0.08 * t, child: light),
+      ),
+    );
+  }
 
   double _ebb(double t) => t <= 0.8
       ? 0.5 - 0.44 * Curves.easeOut.transform(t / 0.8)
