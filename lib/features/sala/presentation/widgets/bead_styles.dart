@@ -65,6 +65,7 @@ class RoundActionButton extends StatelessWidget {
   final double size;
   final VoidCallback onTap;
   final Widget? child;
+  final Widget? label;
   final Gradient? gradient;
   final Color? background;
   final BoxBorder? border;
@@ -80,6 +81,7 @@ class RoundActionButton extends StatelessWidget {
     required this.onTap,
     required this.semanticLabel,
     this.child,
+    this.label,
     this.gradient,
     this.background,
     this.border,
@@ -98,32 +100,47 @@ class RoundActionButton extends StatelessWidget {
     button: true,
     enabled: _live,
     label: semanticLabel,
-    child: AnimatedOpacity(
-      opacity: mood == ButtonMood.dimmed ? 0.35 : 1,
-      duration: const Duration(milliseconds: 300),
-      child: GestureDetector(
-        onTap: _live ? onTap : null,
-        onLongPress: _live ? onLongPress : null,
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: gradient,
-            color: background,
-            border: border,
-            boxShadow: _pulses
-                ? [
-                    ...?shadows,
-                    BoxShadow(
-                      color: halo.withValues(alpha: 0.35 * (1 - t)),
-                      spreadRadius: 12 * t,
-                    ),
-                  ]
-                : shadows,
+    child: label == null
+        ? _disc(t)
+        : Stack(
+            alignment: Alignment.center,
+            children: [
+              _disc(t),
+              IgnorePointer(
+                child: SizedBox.square(
+                  dimension: size,
+                  child: Center(child: label),
+                ),
+              ),
+            ],
           ),
-          child: child == null ? null : Center(child: child),
+  );
+
+  Widget _disc(double t) => AnimatedOpacity(
+    opacity: mood == ButtonMood.dimmed ? 0.35 : 1,
+    duration: const Duration(milliseconds: 300),
+    child: GestureDetector(
+      onTap: _live ? onTap : null,
+      onLongPress: _live ? onLongPress : null,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: gradient,
+          color: background,
+          border: border,
+          boxShadow: _pulses
+              ? [
+                  ...?shadows,
+                  BoxShadow(
+                    color: halo.withValues(alpha: 0.35 * (1 - t)),
+                    spreadRadius: 12 * t,
+                  ),
+                ]
+              : shadows,
         ),
+        child: child == null ? null : Center(child: child),
       ),
     ),
   );
