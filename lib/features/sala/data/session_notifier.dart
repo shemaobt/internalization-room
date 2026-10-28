@@ -3530,7 +3530,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_lembrarDaFraseGuardada(sessionId));
     }
     if (told.checked) {
-      unawaited(_medirAsPartes(state.partes, _generation));
+      final generation = _generation;
+      unawaited(
+        _medirAsPartes(state.partes, generation).then((_) {
+          if (_abandoned(generation)) return;
+          state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+        }),
+      );
       return;
     }
     if (told.awaitingSegmentId case final aguardando?) {

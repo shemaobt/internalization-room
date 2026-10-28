@@ -227,6 +227,33 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a checked passage picked back up knows where each part ends, '
+      'as one checked in a single sitting does', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAoConferir(
+      tester,
+      harness,
+      contado: const BackTranslationProgress(
+        segments: _duasFrasesNaParteUm,
+        checked: true,
+      ),
+    );
+    await waitFor(
+      'o fim das duas partes ficar conhecido',
+      () => container.read(salaSessionProvider).btFimDasPartesMs.length == 2,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+
+    expect(
+      container.read(salaSessionProvider).btFimDasPartesMs,
+      [10000, 20000],
+      reason:
+          'a passagem conferida reaberta media as partes mas a régua da tela '
+          'ficava vazia, e o começo de cada parte era lido de dois jeitos',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a checked passage picked back up reads its parts one take at '
       'a time, never every take at once', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)..holdTheEnvelope();
