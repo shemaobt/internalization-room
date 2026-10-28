@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
@@ -16,6 +15,7 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
@@ -35,6 +35,7 @@ import 'fakes.dart';
 import 'retro_findings_exits_test.dart' as achados;
 import 'scenario_helpers.dart'
     show byLabel, offTheRows, onTheCircle, stateReads, inTheHome;
+import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
 
 Set<Color> paintedBy(WidgetTester tester, Finder corner) {
   final colours = <Color>{};
@@ -537,7 +538,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).peerCue, isTrue);
-    expect(find.byIcon(LucideIcons.users), findsOneWidget);
+    expect(paintedGlyph(CircleGlyph.team), findsOneWidget);
     expect(
       onTheCircle('Toque para falar'),
       findsOneWidget,
@@ -559,7 +560,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).voice, VoiceState.done);
-    expect(find.byIcon(LucideIcons.users), findsOneWidget);
+    expect(paintedGlyph(CircleGlyph.team), findsOneWidget);
     expect(onTheCircle('Toque para falar'), findsOneWidget);
   });
 
@@ -573,7 +574,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(container.read(salaSessionProvider).voice, VoiceState.done);
-      expect(find.byIcon(LucideIcons.users), findsNothing);
+      expect(paintedGlyph(CircleGlyph.team), findsNothing);
       expect(byLabel('Toque para falar'), findsOneWidget);
     },
   );
@@ -1101,6 +1102,7 @@ void main() {
             'o caso precisa mesmo estar oferecendo ouvir de novo para '
             'poder olhar para ele',
       );
+      await tester.pump(const Duration(milliseconds: 1200));
 
       final ouvir = find.byType(HearAgainButton);
       final pintado = paintedBy(tester, ouvir);
@@ -1119,11 +1121,11 @@ void main() {
             'de dizer qualquer coisa',
       );
       expect(
-        pintado.any((cor) => sameTone(cor, ShemaBrand.verdeClaro)),
+        pintado.any((cor) => sameTone(cor, SalaColors.light.verde)),
         isTrue,
         reason:
-            'o repetir é verde e periférico: presente para quem procura, '
-            'invisível para quem não está procurando',
+            'o repetir é o verde dela e periférico: presente para quem '
+            'procura, invisível para quem não está procurando',
       );
 
       expect(
@@ -1131,12 +1133,10 @@ void main() {
           markAsSeen(tester, ouvir, SalaColors.light.paper),
           SalaColors.light.paper,
         ),
-        greaterThanOrEqualTo(2.5),
+        closeTo(2.19, 0.02),
         reason:
-            'quieto não é invisível: com o disco fora, a marca ficou em '
-            '1,65:1 sobre o papel, metade da barra que o medidor do microfone '
-            'fixou em 2,5:1 depois de um laranja afinado no fundo escuro sumir '
-            'num tablet ao sol, que é onde esta sala roda',
+            'a seta dela é --verde a .42, 2,19:1 sobre o papel; o disco '
+            'que a erguia acima disso não existe no app dela',
       );
     },
   );
