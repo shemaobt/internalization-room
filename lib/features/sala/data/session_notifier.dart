@@ -1124,13 +1124,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId,
     List<PlayedTake> relato,
   ) async {
+    final life = _thisLife;
     final ordem = ++_relatosASala;
     final resposta = await _room.reportTheListening(
       sessionId,
       playedByTake: relato,
     );
     if (resposta case Answered(value: final ouvida)
-        when ouvida.unheardTakeIds != null &&
+        when !_endedSince(life) &&
+            ouvida.unheardTakeIds != null &&
             ordem > (_oQueASalaDisse?.ordem ?? 0)) {
       _oQueASalaDisse = (sessionId: sessionId, ordem: ordem, ouvida: ouvida);
     }

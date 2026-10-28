@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -305,6 +306,46 @@ void main() {
           'que a sala já tinha contado',
     );
     expect(it.harness.playback.played.skip(tocadas), isEmpty);
+  });
+
+  test('a report that lands after its life has ended is never the next life\'s '
+      'word from the room', () async {
+    final it = await _contadaAteOMeioDaSegunda();
+    it.harness.room
+      ..listeningUnheardTakeIds = const []
+      ..holdNextListening();
+    final relatos = it.harness.room.listeningReports.length;
+    it.sala.goEnsaio();
+    await waitFor(
+      'o relato da saída partir',
+      () => it.harness.room.listeningReports.length > relatos,
+    );
+    it.container.invalidate(salaSessionProvider);
+    it.container.read(salaSessionProvider);
+    await it.sala.abrirEscolha();
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor(
+      'a mesma sessão voltar',
+      () => it.estado.stage == SalaStage.ensaio && it.partes.length == 3,
+    );
+    it.harness.room.finishHeldListening();
+    await settle();
+    it.harness.room.reachable = false;
+    final tocadas = it.harness.playback.played.length;
+    final falas = it.harness.voice.fixedLines.length;
+
+    it.sala.startRetro();
+    await settle();
+    await settle();
+
+    expect(
+      it.harness.voice.fixedLines.skip(falas),
+      isEmpty,
+      reason:
+          'o relato da vida que acabou enchia a lembrança da seguinte, e a volta '
+          'sem a sala pulava a gravação',
+    );
+    expect(it.harness.playback.played.skip(tocadas), [it.partes[1].path]);
   });
 
   test('coming back to a telling told to its end opens «terminei» with nothing '
