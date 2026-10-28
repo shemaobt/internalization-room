@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
@@ -69,7 +68,11 @@ class _Room {
       )
       .map((box) => box.decoration)
       .whereType<BoxDecoration>()
-      .any((paint) => paint.gradient == BeadStyles.azul);
+      .any(
+        (paint) =>
+            paint.gradient != null &&
+            paint.border?.top.color == const Color(0xFF89AAA3),
+      );
 
   bool isSeen(Finder what) {
     if (what.evaluate().isEmpty) return false;
