@@ -123,4 +123,38 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('a frase of two seconds beside one of nine draws 22% of the '
+      'bar, a whole percent as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 9000,
+            frase: 1,
+          ),
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 2000,
+            frase: 2,
+          ),
+        ],
+      ),
+    );
+
+    expect(
+      _barra(tester, 2),
+      0.22,
+      reason: 'a barra media 22,2%, uma fração que a dela arredonda',
+    );
+    closeTheRoom(container);
+  });
 }
