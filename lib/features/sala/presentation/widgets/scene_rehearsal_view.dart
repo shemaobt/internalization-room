@@ -52,46 +52,48 @@ class SceneRehearsalView extends ConsumerWidget {
             child: switch (scene.step) {
               SceneStep.record => switch (session.scenes) {
                 ScenesAwaited() => const SizedBox.shrink(),
-                final scenes => _TheRecordStep(
-                  recording: switch (session.channel) {
-                    Microphone(owner: MicOwner.scene) => true,
-                    _ => false,
-                  },
-                  keep: scene.keep,
-                  inTheAir: session.sceneTakeInTheAir,
-                  diskFailed: session.sceneLine == SceneLine.diskFailed,
-                  label: said,
-                  onTap: notifier.sceneTap,
-                  onRetry: notifier.sendTheSceneTakeAgain,
-                  onStop: notifier.stopTheSend,
-                  question: session.sceneQuestionShown
-                      ? SceneQuestion(
-                          scenes: scenes.scenes,
-                          highlighted: session.sceneHighlighted,
-                          language: language,
-                          onPick: notifier.pickTheScene,
-                        )
-                      : null,
-                  chip: !session.sceneChipShown
-                      ? null
-                      : switch (scenes.numberOf(scene.picked)) {
-                          final n? => SceneChip(
-                            words: sceneChipTextFor(
-                              n,
-                              scenes.scenes[n - 1].title,
-                              language,
+                final scenes => SingleChildScrollView(
+                  child: _TheRecordStep(
+                    recording: switch (session.channel) {
+                      Microphone(owner: MicOwner.scene) => true,
+                      _ => false,
+                    },
+                    keep: scene.keep,
+                    inTheAir: session.sceneTakeInTheAir,
+                    diskFailed: session.sceneLine == SceneLine.diskFailed,
+                    label: said,
+                    onTap: notifier.sceneTap,
+                    onRetry: notifier.sendTheSceneTakeAgain,
+                    onStop: notifier.stopTheSend,
+                    question: session.sceneQuestionShown
+                        ? SceneQuestion(
+                            scenes: scenes.scenes,
+                            highlighted: session.sceneHighlighted,
+                            language: language,
+                            onPick: notifier.pickTheScene,
+                          )
+                        : null,
+                    chip: !session.sceneChipShown
+                        ? null
+                        : switch (scenes.numberOf(scene.picked)) {
+                            final n? => SceneChip(
+                              words: sceneChipTextFor(
+                                n,
+                                scenes.scenes[n - 1].title,
+                                language,
+                              ),
+                              label: sceneChipLabelFor(
+                                n,
+                                scenes.scenes[n - 1].title,
+                                language,
+                              ),
+                              live: session.sceneChipLive,
+                              onTap: notifier.backToTheSceneQuestion,
                             ),
-                            label: sceneChipLabelFor(
-                              n,
-                              scenes.scenes[n - 1].title,
-                              language,
-                            ),
-                            live: session.sceneChipLive,
-                            onTap: notifier.backToTheSceneQuestion,
-                          ),
-                          null => null,
-                        },
-                  focused: scene.picked != null,
+                            null => null,
+                          },
+                    focused: scene.picked != null,
+                  ),
                 ),
               },
               SceneStep.translate => SceneTranslateStep(

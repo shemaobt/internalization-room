@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/back_to_passage_button.dart';
@@ -32,13 +34,14 @@ final _frases = [
     ),
 ];
 
-SceneRehearsalRecord _rehearsal({String? sentAt}) => SceneRehearsalRecord(
-  rehearsalId: 'ensaio-da-cena-1',
-  sessionId: 'sessao-1',
-  n: 1,
-  sentAt: sentAt,
-  frases: _frases,
-);
+SceneRehearsalRecord _rehearsal({int n = 1, String? sentAt}) =>
+    SceneRehearsalRecord(
+      rehearsalId: 'ensaio-da-cena-$n',
+      sessionId: 'sessao-1',
+      n: n,
+      sentAt: sentAt,
+      frases: _frases,
+    );
 
 Future<void> _withRealLetters() async {
   final fonts =
@@ -59,16 +62,23 @@ Future<ProviderContainer> _onTheStep(
   required Size screen,
   required double bar,
   required SceneStep step,
+  int listed = 1,
+  List<Scene> scenes = const [],
 }) async {
   await tester.runAsync(_withRealLetters);
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
-    ..room.nextMoment = articulation;
-  harness.room.sceneRehearsals.add(
-    _rehearsal(
-      sentAt: step == SceneStep.translate ? null : '2026-10-27T10:00:00+00:00',
-    ),
-  );
+    ..room.nextMoment = articulation
+    ..room.passageScenes = scenes;
+  harness.room.sceneRehearsals.addAll([
+    for (var n = 1; n <= listed; n++)
+      _rehearsal(
+        n: n,
+        sentAt: step == SceneStep.translate
+            ? null
+            : '2026-10-27T10:00:00+00:00',
+      ),
+  ]);
   harness.room.sceneAudio = aSpokenWav(length: const Duration(seconds: 10));
   harness.playback.measured = const Duration(seconds: 10);
   tester.view
@@ -212,4 +222,39 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'on the iPhone SE a scene being recorded under its chip and over a long '
+    'session list scrolls, instead of overflowing under the heading',
+    (tester) async {
+      final container = await _onTheStep(
+        tester,
+        screen: _se.size,
+        bar: _se.bar,
+        step: SceneStep.record,
+        listed: 8,
+        scenes: const [
+          Scene(sceneId: 'S1', title: 'A fome em Belém'),
+          Scene(sceneId: 'S2', title: 'Noemi decide voltar'),
+        ],
+      );
+      await tester.tap(byLabel('cena 1 A fome em Belém'));
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.tap(byLabel('Gravar o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is Microphone,
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(container.read(salaSessionProvider).channel, isA<Microphone>());
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'o círculo, a pílula da cena e o estado do take estouravam a '
+            'coluna quando o título desceu para os 9vh dela',
+      );
+    },
+  );
 }
