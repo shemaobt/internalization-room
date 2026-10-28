@@ -355,7 +355,7 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
 );
 
 final everyFailedLoadOfAReplyEndsInOneAnswer = Invariant<Machine>(
-  'ADR 0137, every failed load of a reply ends in exactly one answer, a reload '
+  'ADR 0140, every failed load of a reply ends in exactly one answer, a reload '
   'or a let-go',
   (before, event, after, effects, world) {
     if (event is! TheReplyFailedToLoad) return null;
@@ -451,7 +451,7 @@ void main() {
       _holds(theWarningIsTheOneTheServerTold(_haltOf));
     });
 
-    test('ADR 0137: every failed load of a reply ends in exactly one answer, '
+    test('ADR 0140: every failed load of a reply ends in exactly one answer, '
         'a reload or a let-go', () {
       _holds(everyFailedLoadOfAReplyEndsInOneAnswer);
     });
