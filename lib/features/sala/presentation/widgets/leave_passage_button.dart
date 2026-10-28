@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
-import 'corner_disc.dart';
 
 class LeavePassageButton extends ConsumerWidget {
   const LeavePassageButton({super.key});
@@ -17,14 +16,16 @@ class LeavePassageButton extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     if (!_floating.contains(session.stage)) return const SizedBox.shrink();
     final away = session.wayOutIsHidden;
+    final screen = MediaQuery.sizeOf(context);
+    final bar = SalaColors.of(context).verdeClaro;
 
     return Positioned(
-      left: 14,
-      top: 118 + MediaQuery.viewPaddingOf(context).top,
+      left: screen.width * 0.06 - 7,
+      top: MediaQuery.viewPaddingOf(context).top + screen.height * 0.05 - 11,
       child: IgnorePointer(
         ignoring: away,
         child: AnimatedOpacity(
-          opacity: away ? 0 : 1,
+          opacity: away ? 0 : 0.22,
           duration: const Duration(milliseconds: 400),
           child: Semantics(
             button: true,
@@ -36,9 +37,29 @@ class LeavePassageButton extends ConsumerWidget {
               onTap: ref.read(salaSessionProvider.notifier).leaveThePassage,
               behavior: HitTestBehavior.opaque,
               child: SizedBox(
-                width: 46,
-                height: 46,
-                child: Center(child: CornerDisc(glyph: LucideIcons.menu)),
+                width: 44,
+                height: 44,
+                child: Center(
+                  child: Container(
+                    width: 30,
+                    height: 22,
+                    padding: const EdgeInsets.all(3),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0; i < 3; i++)
+                          Container(
+                            height: 2,
+                            decoration: BoxDecoration(
+                              color: bar,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
