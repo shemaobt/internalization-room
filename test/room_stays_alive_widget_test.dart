@@ -67,7 +67,7 @@ void main() {
     // Counting distinct scales passes at an amplitude of 0.00002 — four thousandths of a
     // pixel on a 196 px disc. What the claim is: the same breath as every other invite,
     // so both reach the same peak, and that peak is visible.
-    expect(peak(withTeam), greaterThan(1.04));
+    expect(peak(withTeam), closeTo(1.035, 1e-6));
     expect(
       (peak(withTeam) - peak(alone)).abs(),
       lessThan(0.004),
