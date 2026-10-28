@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -123,6 +124,7 @@ Future<ProviderContainer> _voltaATraducao(
   SalaHarness harness, {
   String? aguardando,
   List<SegmentView> regravadas = const [],
+  Grain? grao,
 }) async {
   tester.view
     ..physicalSize = const Size(820, 2400)
@@ -144,8 +146,10 @@ Future<ProviderContainer> _voltaATraducao(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: partes,
+    grain: grao,
   );
   harness.room
+    ..grain = grao
     ..segments.addAll(_daSala)
     ..takes.addAll([
       for (final n in [1, 2])
@@ -821,6 +825,82 @@ void main() {
     expect(aqui.btFraseQueAguarda, 'trecho-3');
     expect(aqui.btTrechoTraduzidoDeNovo?.segmentId, 'trecho-3');
     expect(naLinha('regravada — traduzam esta frase'), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a relaunch with a frase awaiting and another take unheard plays '
+      'the listen first, not the frase', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.listeningUnheardTakeIds = const ['gravacao-1'];
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      aguardando: 'trecho-3',
+    );
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.voice.fixedLines,
+      [('P0', 'pt')],
+      reason:
+          'a retomada abria a frase que espera sem ouvir a parte que '
+          'ninguém ouviu',
+    );
+    final aqui = container.read(salaSessionProvider);
+    expect(harness.playback.played, [aqui.partes[0].path]);
+    expect(aqui.btSoOuvir, isTrue);
+    expect(aqui.btTrechoTraduzidoDeNovo, isNull);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a relaunch where only the awaiting frase\'s take is unheard '
+      'says the frase awaits and plays the sentence with what surrounds it', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.listeningUnheardTakeIds = const ['gravacao-2'];
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      aguardando: 'trecho-3',
+    );
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(harness.voice.fixedLines, [('N5', 'pt')]);
+    expect(
+      harness.playback.ranges.last,
+      '0-5500',
+      reason:
+          'a retomada tocava só a frase, sem o que vem em volta, e a sala '
+          'não a contava como ouvida',
+    );
+    final aqui = container.read(salaSessionProvider);
+    expect(aqui.btSoOuvir, isFalse);
+    expect(aqui.btTrechoTraduzidoDeNovo?.segmentId, 'trecho-3');
+    closeTheRoom(container);
+  });
+
+  testWidgets('a relaunch with a frase awaiting and no part of the rehearsal '
+      'on the tablet says nothing, not a frase it cannot open', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.listeningUnheardTakeIds = const [];
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      aguardando: 'trecho-3',
+      grao: Grain.whole,
+    );
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(container.read(salaSessionProvider).partes, isEmpty);
+    expect(
+      harness.voice.fixedLines,
+      isEmpty,
+      reason: 'a voz pedia a frase que espera sem nada para abrir',
+    );
     closeTheRoom(container);
   });
 
