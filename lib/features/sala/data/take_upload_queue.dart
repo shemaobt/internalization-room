@@ -973,6 +973,7 @@ class TakeUploadQueue {
           case Refused(code: RefusalCode.takeMoved):
             _moved.add(entry.id);
             await withdraw(entry);
+            await _deleteTheCopy(entry);
             return _Landing.givenUp;
           case Refused(
             code: RefusalCode.deviceRevoked || RefusalCode.unauthorized,
@@ -1357,9 +1358,8 @@ class TakeUploadQueue {
         if (!entry.stored &&
             entry.origin != null &&
             entry.sessionId == sessionId &&
-            entry.scope == scope &&
-            !_isInTheAir(entry)) {
-          removed.add(entry);
+            entry.scope == scope) {
+          if (!_isInTheAir(entry)) removed.add(entry);
           continue;
         }
         kept.add(entry);
