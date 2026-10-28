@@ -583,6 +583,28 @@ void main() {
     });
   });
 
+  testWidgets(
+    'the claquete is spaced at her .06em, not the 0.66 left from the 11 px size',
+    (tester) async {
+      await withClock(Clock.fixed(_noon), () async {
+        await _openP05(tester);
+
+        final style = tester
+            .widget<Text>(
+              find.descendant(of: _claquete, matching: find.byType(Text)),
+            )
+            .style!;
+        expect(
+          style.letterSpacing,
+          closeTo(0.653, 0.0005),
+          reason:
+              'o espaçamento ficou em 0.66 da época de 11 px; o dela é '
+              '.06em de .68rem',
+        );
+      });
+    },
+  );
+
   testWidgets('at phone width the claquete keeps clear of the hand', (
     tester,
   ) async {

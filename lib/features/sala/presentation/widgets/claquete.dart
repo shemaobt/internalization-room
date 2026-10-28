@@ -140,7 +140,7 @@ class Claquete extends StatelessWidget {
       style: TextStyle(
         color: SalaColors.of(context).claquete.withValues(alpha: 0.7),
         fontSize: 10.88,
-        letterSpacing: 0.66,
+        letterSpacing: 0.6528,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
