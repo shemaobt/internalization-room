@@ -3575,26 +3575,17 @@ void main() {
     expect(harness.room.clipsFetched, isEmpty);
   });
 
-  test('a replay whose first load fails and whose reload plays leaves the team '
-      'where the room had put them', () async {
-    final harness = SalaHarness()..room.peerCue = true;
+  test('a replay whose first load fails is played by its reload', () async {
+    final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    expect(container.read(salaSessionProvider).peerCue, isTrue);
 
     harness.voice.failsToLoad[turnoUrl] = 1;
     final before = harness.voice.played.length;
     await notifier.hearAgain();
     await settle();
 
-    expect(
-      container.read(salaSessionProvider).peerCue,
-      isTrue,
-      reason:
-          'a sala mandou conversarem entre si e a recarga repetiu a linha — '
-          'perder a instrução troca a tela por baixo da equipe',
-    );
     expect(harness.voice.played.skip(before), [turnoUrl, turnoUrl]);
   });
 

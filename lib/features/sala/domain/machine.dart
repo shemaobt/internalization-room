@@ -408,7 +408,9 @@ final class LookEmpty extends AnsweringEvent {
 
 /// The [load]th load of one reply failed; [answered] hears whether the reply is loaded
 /// again.
-final class TheReplyFailedToLoad extends AnsweringEvent {
+///
+/// It is told under the generation it happened in, so it is never stale (ADR 0137).
+final class TheReplyFailedToLoad extends MachineEvent {
   final int load;
   final RoomResult? because;
   final Kept sounding;
@@ -416,14 +418,13 @@ final class TheReplyFailedToLoad extends AnsweringEvent {
 
   const TheReplyFailedToLoad(
     this.load, {
+    required this.answered,
     this.because,
     this.sounding = const NothingKept(),
-    this.answered = _unheard,
-    super.generation,
   });
-}
 
-void _unheard(bool loadAgain) {}
+  TheSoundFailed get failure => TheSoundFailed(load, because: because);
+}
 
 final class LookFailed extends AnsweringEvent {
   final Turn turn;
@@ -777,6 +778,13 @@ final class LoadTheReplyAgain extends Effect {
   final void Function(bool loadAgain) answered;
 
   const LoadTheReplyAgain(this.answered);
+
+  @override
+  bool operator ==(Object other) =>
+      other is LoadTheReplyAgain && other.answered == answered;
+
+  @override
+  int get hashCode => answered.hashCode;
 }
 
 final class LetTheReplyGo extends Effect {
@@ -784,6 +792,15 @@ final class LetTheReplyGo extends Effect {
   final MachineEvent decided;
 
   const LetTheReplyGo(this.answered, {required this.decided});
+
+  @override
+  bool operator ==(Object other) =>
+      other is LetTheReplyGo &&
+      other.answered == answered &&
+      other.decided == decided;
+
+  @override
+  int get hashCode => Object.hash(answered, decided);
 }
 
 final class StopLooking extends Effect {
@@ -1564,7 +1581,7 @@ Paused? _openedUnder(Paused? paused) => switch (paused) {
   Machine machine,
   TheReplyFailedToLoad failed,
 ) => switch (FailurePolicy.decideOnTheTablet(
-  TheSoundFailed(failed.load, because: failed.because),
+  failed.failure,
   FailureContext(
     station: machine.station,
     generation: machine.generation,

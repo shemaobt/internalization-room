@@ -197,9 +197,24 @@ class FakeVoice implements FacilitatorVoiceService {
   /// Lines this tablet does not have yet, by url.
   final Set<String> missing = {};
 
+  Completer<void>? _looking;
+
+  void holdNextLook() => _looking = Completer<void>();
+
+  bool aLookIsPending = false;
+
+  void finishHeldLook() {
+    _looking?.complete();
+    _looking = null;
+  }
+
   @override
-  Future<bool> holds(String url) async =>
-      url.isNotEmpty && !missing.contains(url);
+  Future<bool> holds(String url) async {
+    aLookIsPending = true;
+    await _looking?.future;
+    aLookIsPending = false;
+    return url.isNotEmpty && !missing.contains(url);
+  }
 
   Completer<void>? _fetching;
 
@@ -231,8 +246,20 @@ class FakeVoice implements FacilitatorVoiceService {
     return true;
   }
 
+  /// Lines already brought down, by url; the real service keeps a clip once it has it,
+  /// so a line is fetched again only after it is forgotten.
+  final Set<String> _broughtDown = {};
+
   @override
-  Future<bool> ready(String url) => fetch(url);
+  Future<bool> ready(String url) async {
+    if (_broughtDown.contains(url) && !missing.contains(url)) return true;
+    final ready = await fetch(url);
+    if (ready) {
+      _broughtDown.add(url);
+      missing.remove(url);
+    }
+    return ready;
+  }
 
   @override
   Future<bool> readyFixedLine(String line, String language) async {
@@ -241,8 +268,25 @@ class FakeVoice implements FacilitatorVoiceService {
     return succeeds;
   }
 
+  Completer<void>? _forgetting;
+
+  void holdNextForget() => _forgetting = Completer<void>();
+
+  bool aForgetIsPending = false;
+
+  void finishHeldForget() {
+    _forgetting?.complete();
+    _forgetting = null;
+  }
+
   @override
-  Future<void> forget(String url) async {}
+  Future<void> forget(String url) async {
+    aForgetIsPending = true;
+    await _forgetting?.future;
+    aForgetIsPending = false;
+    _broughtDown.remove(url);
+    missing.add(url);
+  }
 
   @override
   Future<void> forgetFixedLine(String line, String language) async {}

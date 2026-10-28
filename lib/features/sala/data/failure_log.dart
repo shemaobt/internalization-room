@@ -34,7 +34,7 @@ void logTheReplysSound(TheReplyFailedToLoad failed, List<Effect> effects) {
   ].join();
   debugPrint(
     'Falha do tablet decidida: '
-    '${_whatFailed(TheSoundFailed(failed.load, because: failed.because))} → '
+    '${_whatFailed(failed.failure)} → '
     '$decided',
   );
 }

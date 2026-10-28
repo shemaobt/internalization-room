@@ -281,8 +281,9 @@ String describeEvent(MachineEvent event) => switch (event) {
     'LookFailed(${turn.turnId}, ${result.runtimeType}, '
         '${describeKept(sounding)})',
   TheOpeningMissed() => 'TheOpeningMissed',
-  TheReplyFailedToLoad(:final because, :final sounding) =>
-    'TheReplyFailedToLoad(${because.runtimeType}, ${describeKept(sounding)})',
+  TheReplyFailedToLoad(:final load, :final because, :final sounding) =>
+    'TheReplyFailedToLoad(load $load, ${because.runtimeType}, '
+        '${describeKept(sounding)})',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
   TheTellingCameBackEmpty(:final readAgain) =>
     'TheTellingCameBackEmpty(readAgain: $readAgain)',
@@ -754,6 +755,7 @@ MachineEvent _draw(
   EventKind.theOpeningMissed => const TheOpeningMissed(),
   EventKind.theReplyFailedToLoad => TheReplyFailedToLoad(
     1 + random.nextInt(2),
+    answered: _unheard,
     because: random.nextBool() ? null : const RoomNetworkFailed(),
     sounding: _drawKept(random),
   ),
@@ -854,3 +856,5 @@ MachineEvent drawAnEvent(World world, Random random) {
   assert(kindOf(event) == kind);
   return event;
 }
+
+void _unheard(bool loadAgain) {}

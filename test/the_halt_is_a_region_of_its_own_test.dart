@@ -119,12 +119,15 @@ void main() {
       () {
         final (once, reload) = reduce(
           const Machine(),
-          const TheReplyFailedToLoad(1),
+          const TheReplyFailedToLoad(1, answered: _unheard),
         );
         expect(once.halt, isNot(isA<Blocking>()));
         expect(reload, contains(isA<LoadTheReplyAgain>()));
 
-        final (twice, letGo) = reduce(once, const TheReplyFailedToLoad(2));
+        final (twice, letGo) = reduce(
+          once,
+          const TheReplyFailedToLoad(2, answered: _unheard),
+        );
         expect(twice.halt, isA<Blocking>());
         expect(letGo, contains(isA<LetTheReplyGo>()));
       },
@@ -134,13 +137,13 @@ void main() {
         'after the last reply\'s reload was abandoned', () {
       final (afterTheFirst, _) = reduce(
         const Machine(),
-        const TheReplyFailedToLoad(1),
+        const TheReplyFailedToLoad(1, answered: _unheard),
       );
       final moved = moveTheGeneration(afterTheFirst);
 
       final (afterTheNext, reload) = reduce(
         moved,
-        TheReplyFailedToLoad(1, generation: moved.generation),
+        const TheReplyFailedToLoad(1, answered: _unheard),
       );
 
       expect(afterTheNext.halt, isNot(isA<Blocking>()));
@@ -425,3 +428,5 @@ void main() {
     });
   });
 }
+
+void _unheard(bool loadAgain) {}

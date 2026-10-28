@@ -1134,8 +1134,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// `thinking` is there to cover a download, and a replay has nothing to download: the
   /// circle went clay and then orange for a line that starts the instant it is asked for.
-  Future<bool> _readyToRepeat(String url, String fixedLine) async {
+  Future<bool> _readyToRepeat(
+    String url,
+    String fixedLine,
+    int generation,
+  ) async {
     if (fixedLine.isNotEmpty || await _voice.holds(url)) return true;
+    if (_abandoned(generation)) return false;
     return _readyToSpeak(url, fixedLine);
   }
 
@@ -1192,7 +1197,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     void Function()? onSoundStart,
   }) async {
     final ready = await (asked
-        ? _readyToRepeat(line.url, line.fixedLine)
+        ? _readyToRepeat(line.url, line.fixedLine, generation)
         : _readyToSpeak(line.url, line.fixedLine));
     if (_abandoned(generation)) return Said.unsaid;
     if (!ready) return Said.failed;
@@ -1216,7 +1221,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         because: because?.result,
         sounding: _whatIsSounding(),
         answered: loadAgain.complete,
-        generation: _generation,
       ),
     );
     if (state.needsPerson) state = state.copyWith(lastSpoken: line);
@@ -1224,7 +1228,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await (line.fixedLine.isEmpty
         ? _voice.forget(line.url)
         : _voice.forgetFixedLine(line.fixedLine, _inTheSessionsLanguage));
-    return true;
+    return !_abandoned(generation);
   }
 
   /// Say a line, and remember it as the one "ouvir de novo" gives back, whether it was

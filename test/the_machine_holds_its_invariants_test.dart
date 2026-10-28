@@ -354,6 +354,24 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
   },
 );
 
+final everyFailedLoadOfAReplyEndsInOneAnswer = Invariant<Machine>(
+  'ADR 0137, every failed load of a reply ends in exactly one answer, a reload '
+  'or a let-go',
+  (before, event, after, effects, world) {
+    if (event is! TheReplyFailedToLoad) return null;
+    final answers = [
+      for (final effect in effects)
+        if (effect
+            case LoadTheReplyAgain(:final answered) ||
+                LetTheReplyGo(:final answered) when answered == event.answered)
+          effect,
+    ];
+    if (answers.length == 1) return null;
+    return '${describeEvent(event)} over ${describeMachine(before)} ended in '
+        '${answers.length} answers: ${effects.map(describeEffect).join(', ')}';
+  },
+);
+
 final aStationsSessionNeverOpensWithoutTheWatch = Invariant<Machine>(
   'ADR 0092, a Station\'s session never opens without the Watch',
   (before, event, after, effects, world) {
@@ -431,6 +449,11 @@ void main() {
     test('ADR invariant 15: the warning the tablet holds is the one the '
         'server told, after every event', () {
       _holds(theWarningIsTheOneTheServerTold(_haltOf));
+    });
+
+    test('ADR 0137: every failed load of a reply ends in exactly one answer, '
+        'a reload or a let-go', () {
+      _holds(everyFailedLoadOfAReplyEndsInOneAnswer);
     });
 
     test('ADR invariant 1: the microphone opens over a sound only after a stop '

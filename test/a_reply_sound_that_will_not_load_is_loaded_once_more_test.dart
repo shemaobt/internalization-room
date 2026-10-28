@@ -314,6 +314,52 @@ void main() {
     expect(room.state.needsPerson, isFalse);
   });
 
+  test('a reload the room left while its old copy was being forgotten never '
+      'plays, and leaves the room not thinking', () async {
+    final harness = SalaHarness();
+    final room = await _onTheCanvas(harness);
+    harness.room.replyUrl = _theReply;
+    harness.voice
+      ..failsToLoad[_theReply] = 1
+      ..holdNextForget();
+    await _theTeamSpeaks(room);
+    await waitFor('a cópia velha sendo apagada', () {
+      return harness.voice.aForgetIsPending;
+    });
+
+    room.sala.leaveThePassage();
+    await settle();
+    harness.voice.finishHeldForget();
+    await settle();
+
+    expect(room.state.awaitingTheGuide, isFalse);
+    expect(room.timesPlayed(_theReply), 1);
+  });
+
+  test('a replay the room left while it looked for its copy never plays, and '
+      'leaves the room not thinking', () async {
+    final harness = SalaHarness();
+    final room = await _onTheCanvas(harness);
+    harness.room.replyUrl = _theReply;
+    await _theTeamSpeaks(room);
+    await _theRoomRests(room);
+    harness.voice
+      ..missing.add(_theReply)
+      ..holdNextLook();
+
+    unawaited(room.sala.hearAgain());
+    await waitFor('a sala procurar a cópia', () {
+      return harness.voice.aLookIsPending;
+    });
+    room.sala.leaveThePassage();
+    await settle();
+    harness.voice.finishHeldLook();
+    await settle();
+
+    expect(room.state.awaitingTheGuide, isFalse);
+    expect(room.timesPlayed(_theReply), 1);
+  });
+
   test('a replay whose reload the room left behind ends its wait', () async {
     final harness = SalaHarness(soundReload: const Duration(milliseconds: 400));
     final room = await _onTheCanvas(harness);
