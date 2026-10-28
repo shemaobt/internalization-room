@@ -313,6 +313,8 @@ String describeEvent(MachineEvent event) => switch (event) {
     'ThePanoramaAsked($id, $language)',
   TheSessionOpened(:final session, :final generation) =>
     'TheSessionOpened($session, generation: $generation)',
+  ThePanoramaFound(:final session, :final opened, :final generation) =>
+    'ThePanoramaFound($session, opened: $opened, generation: $generation)',
   TheSessionLetGo(:final session) => 'TheSessionLetGo($session)',
   TheWayBackTaken(:final left) =>
     'TheWayBackTaken(${left.panorama ? 'Panorama' : 'passage'} ${left.pericope}, '
@@ -449,6 +451,7 @@ enum EventKind {
   theLanguageChosen,
   thePanoramaAsked,
   theSessionOpened,
+  thePanoramaFound,
   theSessionLetGo,
   theWayBackTaken,
   theRehearsalWeighed,
@@ -530,6 +533,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheLanguageChosen() => EventKind.theLanguageChosen,
   ThePanoramaAsked() => EventKind.thePanoramaAsked,
   TheSessionOpened() => EventKind.theSessionOpened,
+  ThePanoramaFound() => EventKind.thePanoramaFound,
   TheSessionLetGo() => EventKind.theSessionLetGo,
   TheWayBackTaken() => EventKind.theWayBackTaken,
   TheLeftPassageReturns() => EventKind.theLeftPassageReturns,
@@ -610,6 +614,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theLanguageChosen ||
   EventKind.thePanoramaAsked ||
   EventKind.theSessionOpened ||
+  EventKind.thePanoramaFound ||
   EventKind.theSessionLetGo ||
   EventKind.theWayBackTaken ||
   EventKind.theRehearsalWeighed ||
@@ -828,6 +833,11 @@ MachineEvent _draw(
   ),
   EventKind.theSessionOpened => TheSessionOpened(
     _drawASession(random),
+    generation: random.nextInt(4) == 0 ? theOlderGeneration : null,
+  ),
+  EventKind.thePanoramaFound => ThePanoramaFound(
+    _drawASession(random),
+    opened: random.nextBool(),
     generation: random.nextInt(4) == 0 ? theOlderGeneration : null,
   ),
   EventKind.theSessionLetGo => TheSessionLetGo(_drawASession(random)),
