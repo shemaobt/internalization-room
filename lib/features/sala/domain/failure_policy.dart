@@ -45,9 +45,10 @@ sealed class TabletFailure {
 }
 
 final class TheSoundFailed extends TabletFailure {
-  final int inARow;
+  final int loads;
+  final RoomResult? because;
 
-  const TheSoundFailed(this.inARow);
+  const TheSoundFailed(this.loads, {this.because});
 }
 
 final class TheMicFailedToStart extends TabletFailure {
@@ -269,8 +270,12 @@ abstract final class FailurePolicy {
     final halt = RoomRaisedAHalt(generation: generation);
     final passed = TheRefusalPassed(generation: generation);
     return switch (failure) {
-      TheSoundFailed(:final inARow) =>
-        inARow >= soundFailuresBeforeAPerson ? halt : passed,
+      TheSoundFailed(:final loads) when loads < soundFailuresBeforeAPerson =>
+        passed,
+      TheSoundFailed() when context.sounding is TheOpening => TheOpeningMissed(
+        generation: generation,
+      ),
+      TheSoundFailed() => halt,
       TheMicFailedToStart(:final owner) || TheTabletCannotRecord(:final owner)
           when !_onTheSessionScreen(owner, context.station) =>
         passed,

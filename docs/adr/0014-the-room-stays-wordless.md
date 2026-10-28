@@ -93,6 +93,15 @@ Amended by ENG-1259 (2026-10-22, ADR 0112): an approval ends on her Saved screen
 «Pronto». It is the eleventh named exception, under the moment label's reason, her words the team
 reads. The check mark is decorative and VoiceOver skips it; «Pronto» is read by its word.
 
+Amended by ENG-1774 (2026-10-22, ADR 0131): the scene rehearsal's record step writes the
+take's state in her words: «gravando», «enviando…», her not-kept, too-large and
+not-accepted lines with «falhou — toque para tentar de novo», «falhou» alone for a take
+whose recording is gone, and «parar». The recording home's Scene rows, with a numbered row
+for each unsent part beyond the last scene, show the same words, «✓ salvo», and «falhou —
+grave de novo» for a part whose recording is gone. It is the twelfth named exception,
+under the moment label's reason, her words the team reads. VoiceOver reads the same words,
+but for «parar», which it reads as her «Parar o envio (a gravação fica neste computador)».
+
 Amended by ENG-1260 (2026-10-22, ADR 0113): the Back-translation of an approved draft shows
 «checagem externa: {n} ouvintes» (or «checagem externa: 1 ouvinte») when the version has
 listeners, and the «Checagem externa» button; an armed control over an approved draft reads

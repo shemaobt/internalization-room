@@ -225,6 +225,15 @@ String describeEvent(MachineEvent event) => switch (event) {
   WatchFired() => 'WatchFired',
   NetworkFailedAt(:final door) => 'NetworkFailedAt(${door.name})',
   RetryFired() => 'RetryFired',
+  ATakeLeft(:final take) =>
+    'ATakeLeft(${take.row}, ${take.keep.kind}, ${take.keep.session}, '
+        '${take.keep.scope})',
+  ATakeSettled(:final row) => 'ATakeSettled($row)',
+  AKeepBegan(:final part) => 'AKeepBegan(${part.session}, ${part.scope})',
+  AKeepEnded(:final part, :final row) =>
+    'AKeepEnded(${part.session}, ${part.scope}, $row)',
+  StopTapped(:final keep) =>
+    'StopTapped(${keep.session}, ${keep.kind}, ${keep.scope})',
   TheRoomAnswered() => 'TheRoomAnswered',
   OutboxChanged(:final parts, :final due) =>
     'OutboxChanged(${parts.entries.map((part) => '${part.key}: ${part.value.name}').join(', ')}, '
@@ -232,8 +241,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   LineArrived(:final line) => 'LineArrived(${describeLine(line)})',
   PlayerOpened() => 'PlayerOpened',
   PlayerEnded() => 'PlayerEnded',
-  PlayerFailed(:final source, :final sounding) =>
-    'PlayerFailed(${source.key}, ${describeKept(sounding)})',
+  PlayerFailed(:final source) => 'PlayerFailed(${source.key})',
   MicOpened(:final owner) => 'MicOpened(${owner.name})',
   MicClosed() => 'MicClosed',
   MicAnswered(:final answer) => 'MicAnswered(${answer.name})',
@@ -284,6 +292,9 @@ String describeEvent(MachineEvent event) => switch (event) {
     'LookFailed(${turn.turnId}, ${result.runtimeType}, '
         '${describeKept(sounding)})',
   TheOpeningMissed() => 'TheOpeningMissed',
+  TheReplyFailedToLoad(:final load, :final because, :final sounding) =>
+    'TheReplyFailedToLoad(load $load, ${because.runtimeType}, '
+        '${describeKept(sounding)})',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
   TheTellingCameBackEmpty(:final readAgain) =>
     'TheTellingCameBackEmpty(readAgain: $readAgain)',
@@ -380,6 +391,11 @@ enum EventKind {
   watchFired,
   networkFailedAt,
   retryFired,
+  aTakeLeft,
+  aTakeSettled,
+  aKeepBegan,
+  aKeepEnded,
+  stopTapped,
   theRoomAnswered,
   outboxChanged,
   lineArrived,
@@ -409,6 +425,7 @@ enum EventKind {
   lookFailed,
   lookPending,
   theOpeningMissed,
+  theReplyFailedToLoad,
   thePassageCannotOpen,
   theTellingCameBackEmpty,
   theStepFailed,
@@ -460,6 +477,11 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   WatchFired() => EventKind.watchFired,
   NetworkFailedAt() => EventKind.networkFailedAt,
   RetryFired() => EventKind.retryFired,
+  ATakeLeft() => EventKind.aTakeLeft,
+  ATakeSettled() => EventKind.aTakeSettled,
+  AKeepBegan() => EventKind.aKeepBegan,
+  AKeepEnded() => EventKind.aKeepEnded,
+  StopTapped() => EventKind.stopTapped,
   TheRoomAnswered() => EventKind.theRoomAnswered,
   OutboxChanged() => EventKind.outboxChanged,
   LineArrived() => EventKind.lineArrived,
@@ -489,6 +511,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   LookFailed() => EventKind.lookFailed,
   LookPending() => EventKind.lookPending,
   TheOpeningMissed() => EventKind.theOpeningMissed,
+  TheReplyFailedToLoad() => EventKind.theReplyFailedToLoad,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
   TheTellingCameBackEmpty() => EventKind.theTellingCameBackEmpty,
   TheStepFailed() => EventKind.theStepFailed,
@@ -551,6 +574,11 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.networkFailedAt ||
   EventKind.theRoomAnswered ||
   EventKind.outboxChanged ||
+  EventKind.aTakeLeft ||
+  EventKind.aTakeSettled ||
+  EventKind.aKeepBegan ||
+  EventKind.aKeepEnded ||
+  EventKind.stopTapped ||
   EventKind.lineArrived ||
   EventKind.micOpened ||
   EventKind.micDiscarded ||
@@ -568,6 +596,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.passageClosed ||
   EventKind.turnGivenUp ||
   EventKind.theOpeningMissed ||
+  EventKind.theReplyFailedToLoad ||
   EventKind.thePassageCannotOpen ||
   EventKind.theTellingCameBackEmpty ||
   EventKind.theStepFailed ||
@@ -667,6 +696,32 @@ MachineEvent _draw(
     Door.values[random.nextInt(Door.values.length)],
   ),
   EventKind.retryFired => const RetryFired(),
+  EventKind.aTakeLeft => ATakeLeft(
+    TakeInTheAir(
+      row: 'linha-${random.nextInt(3)}',
+      keep: (
+        session: _drawASession(random),
+        kind: const ['ensaio', 'cena', 'retro'][random.nextInt(3)],
+        scope: 'parte-${random.nextInt(3) + 1}',
+        since: DateTime.utc(2026, 10, 22, 9, 0, random.nextInt(60)),
+      ),
+    ),
+  ),
+  EventKind.aTakeSettled => ATakeSettled('linha-${random.nextInt(3)}'),
+  EventKind.aKeepBegan => AKeepBegan((
+    session: _drawASession(random),
+    scope: _drawAScope(random),
+  )),
+  EventKind.aKeepEnded => AKeepEnded((
+    session: _drawASession(random),
+    scope: _drawAScope(random),
+  ), row: random.nextBool() ? 'linha-${random.nextInt(3)}' : null),
+  EventKind.stopTapped => StopTapped((
+    session: _drawASession(random),
+    kind: const ['ensaio', 'cena'][random.nextInt(2)],
+    scope: 'parte-${random.nextInt(3) + 1}',
+    since: DateTime.utc(2026, 10, 22, 9, 0, random.nextInt(60)),
+  )),
   EventKind.theRoomAnswered => const TheRoomAnswered(),
   EventKind.outboxChanged => OutboxChanged({
     for (var part = 0, parts = random.nextInt(3); part < parts; part++)
@@ -681,10 +736,7 @@ MachineEvent _draw(
   ),
   EventKind.playerOpened => const PlayerOpened(),
   EventKind.playerEnded => const PlayerEnded(),
-  EventKind.playerFailed => PlayerFailed(
-    _drawASource(random),
-    sounding: _drawKept(random),
-  ),
+  EventKind.playerFailed => PlayerFailed(_drawASource(random)),
   EventKind.micOpened => MicOpened(
     MicOwner.values[random.nextInt(MicOwner.values.length)],
   ),
@@ -768,6 +820,12 @@ MachineEvent _draw(
     sounding: _drawKept(random),
   ),
   EventKind.theOpeningMissed => const TheOpeningMissed(),
+  EventKind.theReplyFailedToLoad => TheReplyFailedToLoad(
+    1 + random.nextInt(2),
+    answered: _unheard,
+    because: random.nextBool() ? null : const RoomNetworkFailed(),
+    sounding: _drawKept(random),
+  ),
   EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
   EventKind.theTellingCameBackEmpty => TheTellingCameBackEmpty(
     readAgain: random.nextBool(),
@@ -843,6 +901,11 @@ String _drawALanguage(Random random) => random.nextBool() ? 'pt' : 'en';
 
 String _drawASession(Random random) => 'sessao-${random.nextInt(3)}';
 
+String _drawAScope(Random random) => switch (random.nextInt(4)) {
+  0 => 'passagem-inteira',
+  final n => 'parte-$n',
+};
+
 /// A Panorama left said or unsaid, on a session the machine may or may not still hold,
 /// or a passage left.
 LeftEntry _drawAnEntryLeft(Random random) => random.nextBool()
@@ -872,3 +935,5 @@ MachineEvent drawAnEvent(World world, Random random) {
   assert(kindOf(event) == kind);
   return event;
 }
+
+void _unheard(bool loadAgain) {}
