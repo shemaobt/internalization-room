@@ -116,7 +116,11 @@ void _naLinha(
   );
 }
 
-Future<_Tablet> _abrir(WidgetTester tester, SalaHarness harness) async {
+Future<_Tablet> _abrir(
+  WidgetTester tester,
+  SalaHarness harness, {
+  bool pelaBolinha = true,
+}) async {
   tester.view
     ..physicalSize = const Size(820, 2400)
     ..devicePixelRatio = 1;
@@ -129,6 +133,8 @@ Future<_Tablet> _abrir(WidgetTester tester, SalaHarness harness) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await Future<void>.delayed(const Duration(seconds: 1));
+    if (pelaBolinha) notifier.openTheEnsaioFinal();
+    await Future<void>.delayed(const Duration(milliseconds: 500));
   });
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
@@ -138,7 +144,11 @@ Future<_Tablet> _abrir(WidgetTester tester, SalaHarness harness) async {
 }
 
 /// Kill the tablet and launch it again over the same disk and the same room.
-Future<_Tablet> _relancar(WidgetTester tester, _Tablet tablet) async {
+Future<_Tablet> _relancar(
+  WidgetTester tester,
+  _Tablet tablet, {
+  bool pelaBolinha = true,
+}) async {
   await tester.pumpWidget(const SizedBox());
   tablet.container.dispose();
   final again = _umTablet(
@@ -146,7 +156,7 @@ Future<_Tablet> _relancar(WidgetTester tester, _Tablet tablet) async {
     disco: tablet.harness.emAbertoNoDisco ?? tablet.harness.emAberto,
     lingua: tablet.harness.lingua!,
   );
-  final next = await _abrir(tester, again);
+  final next = await _abrir(tester, again, pelaBolinha: pelaBolinha);
   addTearDown(next.container.dispose);
   return next;
 }
@@ -281,7 +291,7 @@ void main() {
   });
 
   testWidgets('«Terminar a checagem» after three listeners shows «checagem '
-      'externa: 3 ouvintes» on the Back-translation', (tester) async {
+      'externa: 3 ouvintes» on the recording home', (tester) async {
     final harness = _aprovadaNaSala();
     final tablet = await _noAgradecimento(tester, harness);
     for (var i = 0; i < 2; i++) {
@@ -293,8 +303,12 @@ void main() {
 
     await _tocar(tester, _terminarAChecagem);
 
-    expect(_sala(tablet).stage, SalaStage.retro);
-    expect(find.text('checagem externa: 3 ouvintes'), findsOneWidget);
+    expect(_sala(tablet).stage, SalaStage.ensaio);
+    expect(
+      find.text('checagem externa: 3 ouvintes'),
+      findsOneWidget,
+      reason: 'a casa da gravação não contava os ouvintes, só a retrotradução',
+    );
   });
 
   testWidgets('a finish the room never got is sent again by «Outro ouvinte», '
@@ -327,7 +341,7 @@ void main() {
       (version: 1, number: 1, completed: true),
       (version: 1, number: 1, completed: true),
     ]);
-    expect(_sala(tablet).stage, SalaStage.retro);
+    expect(_sala(tablet).stage, SalaStage.ensaio);
   });
 
   testWidgets('taps on the end screen while the finish is in the air send '
@@ -383,6 +397,7 @@ void main() {
     await _tocar(tester, _novoOuvinte);
 
     final again = await _relancar(tester, first);
+    await _tocar(tester, _checagem);
 
     expect(_sala(again).stage, SalaStage.checagem);
     expect(find.text('ouvinte 1'), findsOneWidget);
@@ -394,6 +409,35 @@ void main() {
     expect(_gravacoes(again.harness), 1);
   });
 
+  testWidgets('a relaunch inside the check lands on the conversation, and '
+      '«Checagem externa» from the home comes back to the same listener', (
+    tester,
+  ) async {
+    final first = await _aberta(tester, _aprovadaNaSala());
+    await _tocar(tester, _checagem);
+    await _tocar(tester, _novoOuvinte);
+
+    final again = await _relancar(tester, first, pelaBolinha: false);
+
+    expect(
+      _sala(again).stage,
+      SalaStage.conversa,
+      reason: 'a checagem reabria sozinha no relançamento, fora da conversa',
+    );
+    expect(byLabel('Ouvir de novo'), findsOneWidget);
+    await tester.runAsync(() async {
+      again.container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    });
+    await _passar(tester);
+    await _tocar(tester, _checagem);
+
+    expect(_sala(again).stage, SalaStage.checagem);
+    expect(find.text('ouvinte 1'), findsOneWidget);
+    expect(again.harness.room.listenersRead, [1]);
+    expect(again.harness.room.listenersAsked, hasLength(1));
+  });
+
   testWidgets('a relaunch inside the check leaves it to the recording home', (
     tester,
   ) async {
@@ -402,6 +446,7 @@ void main() {
     await _tocar(tester, _novoOuvinte);
 
     final again = await _relancar(tester, first);
+    await _tocar(tester, _checagem);
     await _tocar(tester, _voltar);
 
     expect(_sala(again).stage, SalaStage.ensaio);
@@ -419,6 +464,7 @@ void main() {
     final first = await _noAgradecimento(tester, harness);
 
     final again = await _relancar(tester, first);
+    await _tocar(tester, _checagem);
 
     _oAgradecimento();
     expect(_falasX(again.harness), isEmpty);
@@ -442,6 +488,7 @@ void main() {
     expect(find.text(_contem), findsOneWidget);
 
     await _relancar(tester, first);
+    await _tocar(tester, _checagem);
 
     _oAgradecimento();
     expect(harness.room.listenerRecordings, hasLength(1));
@@ -456,6 +503,7 @@ void main() {
     final finishes = harness.room.listenersFinished.length;
 
     final again = await _relancar(tester, first);
+    await _tocar(tester, _checagem);
 
     _oAgradecimento();
     expect(harness.room.listenersRead, [1]);
@@ -547,7 +595,7 @@ void main() {
     );
     harness.room.approvedDraft = const ApprovedDraft(version: 2);
     final tablet = await _aberta(tester, harness);
-    expect(_sala(tablet).stage, SalaStage.retro);
+    expect(_sala(tablet).stage, SalaStage.ensaio);
 
     await _tocar(tester, _checagem);
 
@@ -559,7 +607,7 @@ void main() {
   });
 
   testWidgets('a listener the room cannot read leaves the team on the '
-      'Back-translation with her words, and the next tap tries again', (
+      'recording home with her words, and the next tap tries again', (
     tester,
   ) async {
     final harness = _aprovadaNaSala();
@@ -567,9 +615,14 @@ void main() {
     harness.room.failNextListenerReadWith = const NetworkFailed('sem rede');
 
     final again = await _relancar(tester, first);
+    await _tocar(tester, _checagem);
 
-    expect(_sala(again).stage, SalaStage.retro);
-    expect(find.text(_naoAbriu), findsOneWidget);
+    expect(_sala(again).stage, SalaStage.ensaio);
+    expect(
+      find.text(_naoAbriu),
+      findsOneWidget,
+      reason: 'a casa calava a checagem que não abriu',
+    );
     expect(_sala(again).needsPerson, isFalse);
     await _tocar(tester, _checagem);
     expect(find.text('ouvinte 1'), findsOneWidget);
@@ -584,25 +637,29 @@ void main() {
     );
 
     final tablet = await _aberta(tester, harness);
+    await _tocar(tester, _checagem);
 
     expect(_sala(tablet).stage, SalaStage.escolha);
     expect(harness.emAberto.rows['$_linha/pt']?.listener, isNull);
   });
 
   testWidgets('a session zeroed on the Desk sends the team to the Choice from '
-      'the resume, and the row no longer names the listener', (tester) async {
+      'the check opened again, and the row no longer names the listener', (
+    tester,
+  ) async {
     final harness = _aprovadaNaSala();
     final first = await _noReconto(tester, harness);
     harness.room.failNextListenerReadWith = const SessionGone();
 
     final again = await _relancar(tester, first);
+    await _tocar(tester, _checagem);
 
     expect(_sala(again).stage, SalaStage.escolha);
     expect(harness.room.listenersRead, [1]);
     expect(harness.emAberto.rows['$_linha/pt'], isNull);
   });
 
-  testWidgets('a resume that goes on to the check counts as a resume that '
+  testWidgets('a resume onto the approved draft counts as a resume that '
       'landed, so two refusals around it do not forget the row', (
     tester,
   ) async {
@@ -613,7 +670,7 @@ void main() {
     harness.room.failStateOnceWith = recusa;
     await _entrarDeNovo(tester, tablet);
     await _entrarDeNovo(tester, tablet);
-    expect(_sala(tablet).stage, SalaStage.checagem);
+    expect(_sala(tablet).stage, SalaStage.conversa);
     harness.room.failStateOnceWith = recusa;
     await _entrarDeNovo(tester, tablet);
 
@@ -650,7 +707,7 @@ void main() {
 
     final again = await _relancar(tester, first);
 
-    expect(_sala(again).stage, SalaStage.retro);
+    expect(_sala(again).stage, SalaStage.ensaio);
     await _tocar(tester, _checagem);
     expect(byLabel(_novoOuvinte), findsOneWidget);
     expect(harness.room.listenersRead, isEmpty);
