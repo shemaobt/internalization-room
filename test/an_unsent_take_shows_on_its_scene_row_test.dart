@@ -1111,6 +1111,44 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'after a relaunch, a part from the earlier visit still in the Outbox keeps '
+    'the check closed until it lands, and then the check opens',
+    (tester) async {
+      final casa = await _comAQuartaNaFila(tester);
+      await casa.relancar();
+      expect(casa.estado.unsentParts.keys, [4]);
+
+      await casa.emTempoReal(() async {
+        casa.sala.startRetro();
+        await settle(const Duration(milliseconds: 400));
+      });
+      expect(
+        casa.estado.stage,
+        SalaStage.ensaio,
+        reason: 'depois de relançar, a conferência abria com a cena 4 na fila',
+      );
+
+      casa.room.unreachableTake = null;
+      await casa.emTempoReal(() async {
+        await casa.harness.takes.flush();
+        await casa.sala.refreshUnsent();
+        await waitFor('a cena 4 chegar', () => casa.estado.everyPartIsSent);
+        await settle();
+        casa.sala.startRetro();
+        await settle(const Duration(milliseconds: 400));
+      });
+
+      expect(
+        casa.estado.stage,
+        SalaStage.retro,
+        reason:
+            'a cena 4 chegou à sala sem o tablet saber o nome dela, e a '
+            'conferência ficava fechada a visita toda',
+      );
+    },
+  );
 }
 
 class _QueueThatRefusesOnce extends TakeUploadQueue {
