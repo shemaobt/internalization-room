@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -12,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/checagem_externa_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
@@ -25,6 +25,7 @@ import 'fakes.dart' show SalaHarness, closeTheRoom;
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart' show entrarNaTraducao;
+import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
 
 Finder _drawnOn(Type screen, bool Function(Widget widget) drawn) =>
     find.descendant(
@@ -35,7 +36,8 @@ Finder _drawnOn(Type screen, bool Function(Widget widget) drawn) =>
 bool _anArc(Widget widget) =>
     widget is CustomPaint && widget.painter is ArcPainter;
 
-bool _aGlyph(Widget widget) => widget is Icon;
+bool _aGlyph(Widget widget) =>
+    widget is CustomPaint && widget.painter is CircleGlyphPainter;
 
 Finder _theCircleOn(Type screen) => find.descendant(
   of: find.byType(screen),
@@ -52,7 +54,7 @@ void _noLoudspeakerInVoiceTime(WidgetTester tester, Type screen, String hers) {
   expect(
     find.descendant(
       of: _theCircleOn(screen),
-      matching: find.byIcon(LucideIcons.volume2),
+      matching: paintedGlyph(CircleGlyph.sound),
     ),
     findsNothing,
     reason:
