@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
@@ -55,6 +56,35 @@ Future<void> _elapse(WidgetTester tester, Duration time) async {
   }
 }
 
+Future<List<double>> _markOverOneBreath(WidgetTester tester) async {
+  final seen = <double>[];
+  for (var beat = 0; beat <= 92; beat++) {
+    seen.add(tester.widget<ShemaMark>(_mark).opacity);
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  return seen;
+}
+
+void _breathesAsHers(List<double> seen) {
+  final quietest = seen.indexOf(seen.reduce(min));
+  final fullest = seen.indexOf(seen.reduce(max));
+  expect(
+    seen[quietest],
+    closeTo(0.66, 0.005),
+    reason: 'a marca ficava parada em .72; a dela respira até .66',
+  );
+  expect(
+    seen[fullest],
+    closeTo(0.8, 0.005),
+    reason: 'a marca ficava parada em .72; a dela respira até .8',
+  );
+  expect(
+    (fullest - quietest).abs(),
+    inInclusiveRange(42, 48),
+    reason: 'a respiração dela leva 9 s, 4,5 s de cada lado',
+  );
+}
+
 Future<void> _seconds(WidgetTester tester, int seconds) =>
     _elapse(tester, Duration(seconds: seconds));
 
@@ -74,6 +104,28 @@ Future<(SalaHarness, ProviderContainer)> _openP05(
   await _elapse(tester, const Duration(milliseconds: 300));
   expect(container.read(salaSessionProvider).sessionId, _sessionId);
   return (harness, container);
+}
+
+Future<void> _openP05WhileTheVoiceSpeaks(WidgetTester tester) async {
+  final harness = SalaHarness()
+    ..room.passages = const [Passagem(pericope: 'P05', audioUrl: '/voice/p05')]
+    ..room.nextSessionId = _sessionId;
+  final container = await pumpSala(tester, harness);
+  addTearDown(() => closeTheRoom(container));
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.abrirEscolha();
+  await tester.pump(const Duration(milliseconds: 300));
+  harness.voice.holdNextLine();
+  addTearDown(harness.voice.finishHeldLine);
+  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P05'));
+  for (var beat = 0; beat < 50; beat++) {
+    if (container.read(salaSessionProvider).voice == VoiceState.speaking &&
+        _mark.evaluate().isNotEmpty) {
+      break;
+    }
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
 }
 
 Future<ProviderContainer> _openThePanorama(WidgetTester tester) async {
@@ -377,6 +429,78 @@ void main() {
       expect(style.color, const Color(0xFFAAB07E).withValues(alpha: 0.7));
     });
   });
+
+  testWidgets(
+    'the Shema mark on the conversation breathes between .66 and .8, not still at .72',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      await _openP05(tester);
+
+      _breathesAsHers(await _markOverOneBreath(tester));
+    }),
+  );
+
+  testWidgets(
+    'the Shema mark on the Panorama breathes as the conversation does',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      await _openThePanorama(tester);
+
+      _breathesAsHers(await _markOverOneBreath(tester));
+    }),
+  );
+
+  testWidgets(
+    'with reduced motion the Shema mark stays still at .72, not at the bottom of a breath',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      final (_, container) = await _openP05(tester);
+      for (var beat = 0; beat < 50; beat++) {
+        if (container.read(salaSessionProvider).voice != VoiceState.speaking) {
+          break;
+        }
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(
+        container.read(salaSessionProvider).voice,
+        isNot(VoiceState.speaking),
+      );
+
+      final seen = await _markOverOneBreath(tester);
+      expect(seen.toSet(), {
+        0.72,
+      }, reason: 'sem movimento a dela fica em .72, sem a animação');
+    }),
+  );
+
+  testWidgets(
+    'with reduced motion the Shema mark rises to .85 while the voice speaks',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await _openP05WhileTheVoiceSpeaks(tester);
+
+      expect(
+        tester.widget<ShemaMark>(_mark).opacity,
+        0.85,
+        reason: 'enquanto a voz fala a dela sobe para .85',
+      );
+    }),
+  );
+
+  testWidgets(
+    'while the voice speaks the Shema mark keeps breathing, as hers does with motion on',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      await _openP05WhileTheVoiceSpeaks(tester);
+
+      _breathesAsHers(await _markOverOneBreath(tester));
+    }),
+  );
 
   testWidgets('the claquete is written at her .68rem, not a size of ours', (
     tester,

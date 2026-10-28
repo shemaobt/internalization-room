@@ -9,6 +9,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/session_state.dart';
 import '../../domain/station.dart';
+import 'motion.dart';
 import 'shema_mark.dart';
 
 const _shownFor = Duration(seconds: 20);
@@ -76,6 +77,9 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
             state.stage == SalaStage.panorama,
       ),
     );
+    final speaking = ref.watch(
+      salaSessionProvider.select((state) => state.voice == VoiceState.speaking),
+    );
     final words = _words;
     return Positioned.fill(
       child: Stack(
@@ -85,7 +89,17 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
               top: MediaQuery.sizeOf(context).height * 0.08,
               left: 0,
               right: 0,
-              child: Center(child: ShemaMark(onTap: _show)),
+              child: Center(
+                child: Loop(
+                  period: const Duration(seconds: 9),
+                  builder: (context, t) => ShemaMark(
+                    onTap: _show,
+                    opacity: MediaQuery.disableAnimationsOf(context)
+                        ? (speaking ? 0.85 : 0.72)
+                        : 0.66 + 0.14 * t,
+                  ),
+                ),
+              ),
             ),
           if (onHerCanvas && words != null)
             Positioned(
