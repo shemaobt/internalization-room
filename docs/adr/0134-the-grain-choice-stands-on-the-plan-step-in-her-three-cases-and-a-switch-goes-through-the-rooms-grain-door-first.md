@@ -47,6 +47,11 @@ aside from a current one.
 - **A switch calls the door before any recording at the new grain:** the new grain's home
   opens only once the door answered. While it is in the air every grain control is dimmed and
   a second tap does nothing.
+- **The recording home always draws its grain switch,** scene rows or not, as hers does
+  (Drafting.tsx:2565-2569). Every grain control, on the home and on the plan, is dimmed and
+  takes no tap while a take records, is being kept or is on its way to the room, while a join
+  or a bring-back runs, and while a switch is in the air (hers: `busy || grainBusy`,
+  Drafting.tsx:2132-2137, :2274, :2566). A take whose send failed holds nothing.
 - **The door's answer is applied in one place:** the other grain's takes leave the tablet's
   parts (the Outbox keeps every row; the room sets a late one aside on arrival), the
   telling-back starts over silently, and the Resume point is rewritten.
