@@ -146,8 +146,8 @@ class _GrainButton extends StatelessWidget {
   }
 }
 
-/// One of her `grain-change` controls: her text, dimmed while a switch is in the air or
-/// while its own arm has not woken yet.
+/// One of her `grain-change` controls: her text, dimmed and taking no tap while nothing
+/// may start on the home (`nothingStartsNow`) or while its own arm has not woken yet.
 class GrainChange extends StatelessWidget {
   final String label;
   final bool open;
