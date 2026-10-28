@@ -24,7 +24,6 @@ class HandButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
-    final lit = noteMode || playingReply;
 
     return Semantics(
       button: true,
@@ -35,38 +34,26 @@ class HandButton extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
-          width: 76,
-          height: 76,
-          child: Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.card,
-                  border: Border.all(color: colors.line, width: 1.5),
-                  boxShadow: lit
-                      ? [
-                          BoxShadow(
-                            color: ShemaBrand.azul.withValues(alpha: 0.35),
-                            spreadRadius: 5,
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Icon(
-                  LucideIcons.hand,
-                  size: 26,
-                  color: lit ? ShemaBrand.azulInk : colors.mut,
+          width: 44,
+          height: 44,
+          child: Center(
+            child: AnimatedOpacity(
+              opacity: noteMode ? 0.8 : 0.35,
+              duration: const Duration(milliseconds: 1200),
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(LucideIcons.hand, size: 26, color: colors.verde),
+                    if (hasUnheardReply && !playingReply)
+                      Positioned(top: 1, right: 1, child: _replyDot(colors)),
+                  ],
                 ),
               ),
-              if (hasUnheardReply && !playingReply)
-                Positioned(top: 10, right: 10, child: _replyDot(colors)),
-            ],
+            ),
           ),
         ),
       ),

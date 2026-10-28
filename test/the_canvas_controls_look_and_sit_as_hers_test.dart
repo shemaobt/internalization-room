@@ -115,6 +115,82 @@ void main() {
     );
   }
 
+  for (final (look, verde) in [
+    ('light', const Color(0xFF3F3E20)),
+    ('dark', const Color(0xFFECEADC)),
+  ]) {
+    testWidgets(
+      'in the $look look the hand is her bare glyph at 8% and 16%, at .35, '
+      'not a card',
+      (tester) async {
+        _on(tester, _se, bar: 20);
+        if (look == 'dark') _inTheDark(tester);
+        await atRestAfterATurn(tester, const []);
+        const label = 'Leave a question for the facilitator';
+
+        expect(byLabel(label), findsOneWidget);
+        expect(
+          _paintedUnder(label),
+          findsNothing,
+          reason: 'a mão era um cartão de 60 px com borda',
+        );
+        final glyph = find.descendant(
+          of: byLabel(label),
+          matching: find.byType(Icon),
+        );
+        final icon = tester.widget<Icon>(glyph);
+        expect(icon.icon, LucideIcons.hand);
+        expect(icon.size, 26);
+        expect(icon.color, verde, reason: 'a mão dela é --verde');
+        expect(
+          _seenOpacity(tester, glyph),
+          closeTo(0.35, 0.001),
+          reason: 'a mão dela fica a .35 na vez da equipe',
+        );
+        _sits(
+          tester.getRect(byLabel(label)),
+          const Size(44, 44),
+          center: const Offset(30 + 20, 667 - 106.72 - 20),
+          reason: 'a mão ficava a 14 e 18 do canto',
+        );
+      },
+    );
+  }
+
+  testWidgets(
+    'in note mode the hand stands at her .8, green, with no blue glow',
+    (tester) async {
+      _on(tester, _se, bar: 20);
+      final (_, container) = await atRestAfterATurn(tester, const []);
+      const label = 'Leave a question for the facilitator';
+
+      container.read(salaSessionProvider.notifier).handTap();
+      await _pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).noteMode,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1300));
+
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      final glyph = find.descendant(
+        of: byLabel(label),
+        matching: find.byType(Icon),
+      );
+      expect(
+        _paintedUnder(label),
+        findsNothing,
+        reason: 'a mão acendia um halo azul no modo de recado',
+      );
+      expect(tester.widget<Icon>(glyph).color, const Color(0xFF3F3E20));
+      expect(
+        _seenOpacity(tester, glyph),
+        closeTo(0.8, 0.001),
+        reason: 'no recado a mão dela sobe para .8',
+      );
+    },
+  );
+
   testWidgets(
     'hearing again fades in over her 1.2 s once the line has played',
     (tester) async {
