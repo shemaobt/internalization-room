@@ -2192,14 +2192,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _handOff(
-      _openedFromTheChoice(
-        () => goConversa(book: entry.book, pericope: entry.pericope),
+      _gestureThen(
+        () => _openedFromTheChoice(
+          () => _goConversa(book: entry.book, pericope: entry.pericope),
+        ),
       ),
     );
   }
 
   Future<void> _openedFromTheChoice(Future<void> Function() open) async {
-    final opening = open();
+    final opening = open().catchError(
+      (Object _) {},
+      test: (error) => error is Error,
+    );
     final generation = _generation;
     await opening;
     if (_generation != generation || state.needsPerson) return;

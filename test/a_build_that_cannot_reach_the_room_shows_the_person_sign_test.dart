@@ -12,6 +12,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/book_names.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -163,25 +165,93 @@ void main() {
     );
 
     test(
-      'a hand-off that is no gesture of its own and throws a StateError shows the sign',
+      'a Panorama pill whose create throws leaves the team on the Choice, not on the sign, and its pill asks again',
       () async {
         final harness = SalaHarness()..room.passages = const [_aPanorama];
         final container = harness.container();
         addTearDown(container.dispose);
         final notifier = container.read(salaSessionProvider.notifier);
+        SalaSessionState read() => container.read(salaSessionProvider);
+        int said() =>
+            harness.voice.played.length +
+            harness.voice.assets.length +
+            harness.voice.fixedLines.length;
         await notifier.abrirEscolha();
         await theChoiceOffersAPassage(container);
+        final quiet = said();
         harness.room.throwOn['createSession'] = StateError('x');
 
-        notifier.openTheEntry(
-          container.read(salaSessionProvider).naRoda!.first,
-        );
+        notifier.openTheEntry(read().naRoda!.first);
         await settle();
 
-        final state = container.read(salaSessionProvider);
-        expect(state.needsPerson, isTrue);
-        expect(state.awaitingTheGuide, isFalse);
+        expect(
+          read().needsPerson,
+          isFalse,
+          reason: 'o create do Panorama que lançava um erro levantava o sinal',
+        );
+        expect(
+          read().station,
+          isA<Menu>(),
+          reason: 'a equipe ficava no Panorama sem sessão',
+        );
+        expect(read().entriesOpen, isTrue);
+        expect(read().awaitingTheGuide, isFalse);
+        expect(said(), quiet);
         expect(harness.room.personsAsked, 0);
+
+        harness.room.throwOn.remove('createSession');
+        notifier.openTheEntry(read().naRoda!.first);
+        await waitFor(
+          'the Panorama to open',
+          () => read().panoramaSessionId != null,
+        );
+
+        expect(read().station, isA<Panorama>());
+      },
+    );
+
+    test(
+      'a passage pill whose create throws leaves the team on the Choice, not on the sign, and its pill asks again',
+      () async {
+        final harness = SalaHarness();
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        SalaSessionState read() => container.read(salaSessionProvider);
+        int said() =>
+            harness.voice.played.length +
+            harness.voice.assets.length +
+            harness.voice.fixedLines.length;
+        await notifier.abrirEscolha();
+        await theChoiceOffersAPassage(container);
+        final p01 = read().naRoda!.firstWhere(
+          (entry) => entry.pericope == 'P01',
+        );
+        final quiet = said();
+        harness.room.throwOn['createSession'] = StateError('x');
+
+        notifier.openTheEntry(p01);
+        await settle();
+
+        expect(
+          read().needsPerson,
+          isFalse,
+          reason: 'o create que lançava um erro levantava o sinal da pessoa',
+        );
+        expect(
+          read().station,
+          isA<Menu>(),
+          reason: 'a equipe ficava na tela de uma passagem sem sessão',
+        );
+        expect(read().entriesOpen, isTrue);
+        expect(read().awaitingTheGuide, isFalse);
+        expect(said(), quiet);
+
+        harness.room.throwOn.remove('createSession');
+        notifier.openTheEntry(p01);
+        await waitFor('P01 to open', () => read().sessionId != null);
+
+        expect(read().station, isA<Canvas>());
       },
     );
 
