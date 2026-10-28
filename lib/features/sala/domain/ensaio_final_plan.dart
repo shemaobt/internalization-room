@@ -137,7 +137,10 @@ final class PlanRow {
 
   /// «trocar» opens the Rehearsal sheet only where there is another usable rehearsal
   /// to choose, and never over a joined part.
-  bool get canSwap => !joined && !waiting && candidates.any(offersToUse);
+  bool get canSwap =>
+      !joined &&
+      !waiting &&
+      (candidates.length > 1 || candidates.any(offersToUse));
 
   /// «usar este» on a [candidate] of the sheet: a usable one the row does not hold.
   bool offersToUse(SceneRehearsalRecord candidate) =>

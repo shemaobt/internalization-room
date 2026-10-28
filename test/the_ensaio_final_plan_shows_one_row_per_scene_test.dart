@@ -688,6 +688,29 @@ void main() {
     },
   );
 
+  testWidgets(
+    '6. a row holding a sent rehearsal beside one that is no WAV offers '
+    '«trocar», as hers',
+    (tester) async {
+      await _seeded(
+        tester,
+        (s) => [
+          _rehearsal(s, n: 1, scene: 'S2'),
+          _rehearsal(s, n: 2, scene: 'S2', contentType: 'audio/mp4'),
+        ],
+      );
+
+      await _openThePlan(tester);
+
+      expect(_onRow(2, find.text(_facts(1, '0:07', 2))), findsOneWidget);
+      expect(
+        _onRow(2, find.text(_swap)),
+        findsOneWidget,
+        reason: 'a troca pedia um segundo ensaio que pudesse entrar',
+      );
+    },
+  );
+
   group('7. «juntar as cenas e ouvir»', () {
     testWidgets('opens once one scene holds a joinable rehearsal', (
       tester,
