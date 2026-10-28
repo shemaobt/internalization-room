@@ -3888,7 +3888,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           bringBackFailed: (cena: cena, cannotEnter: cannotEnter),
         );
         _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
-        unawaited(_readWhatComesBack(laidOn: cena));
+        unawaited(_readWhatComesBack(laidOn: cannotEnter ? null : cena));
     }
   }
 

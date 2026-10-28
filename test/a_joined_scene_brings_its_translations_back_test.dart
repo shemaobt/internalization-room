@@ -693,6 +693,98 @@ void main() {
   );
 
   testWidgets(
+    'the rehearse-again line stays on its row after the room stops offering '
+    'the bring-back, as hers',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _onTheHome(tester);
+      it.room.failBringBackWith = const Refused(RefusalCode.nothingToBringBack);
+
+      await it.tapThe(it.control(2, _bringBack));
+      await it.wait(const Duration(milliseconds: 700));
+      it.room.retroSoFar = const BackTranslationProgress();
+      await it.tapThe(it.control(2, _bringBackArmed));
+      await it.settle();
+
+      expect(it.control(2, _bringBack), findsNothing);
+      expect(
+        it.onRow(2, find.text(_cannotEnter)),
+        findsOneWidget,
+        reason:
+            'a nova leitura da sessão já não oferecia a parte e apagava o '
+            'aviso: a linha sumia junto com o botão',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a bring-back lost on the network still asks for another tap, not for '
+    'another rehearsal',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _onTheHome(tester);
+      it.room.failBringBackWith = const NetworkFailed('a rede caiu');
+
+      await _bringBackTwice(it, 2);
+      await it.settle();
+
+      expect(
+        it.onRow(2, find.text(_failed)),
+        findsOneWidget,
+        reason: 'uma falha de passagem não pede para ensaiar a cena de novo',
+      );
+      expect(find.text(_cannotEnter), findsNothing);
+      expect(it.control(2, _bringBack), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a refusal the tablet does not know as final still asks for another tap',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _onTheHome(tester);
+      it.room.failBringBackWith = const Refused(RefusalCode.unreadable);
+
+      await _bringBackTwice(it, 2);
+      await it.settle();
+
+      expect(
+        it.onRow(2, find.text(_failed)),
+        findsOneWidget,
+        reason: 'só a recusa que diz que nada volta é para ensaiar de novo',
+      );
+      expect(find.text(_cannotEnter), findsNothing);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('a bring-back that can never come back says nothing out loud', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _onTheHome(tester);
+    it.room.failBringBackWith = const Refused(RefusalCode.nothingToBringBack);
+
+    await it.tapThe(it.control(2, _bringBack));
+    await it.wait(const Duration(milliseconds: 700));
+    final played = [...it.harness.voice.played];
+    final fixedLines = [...it.harness.voice.fixedLines];
+    await it.tapThe(it.control(2, _bringBackArmed));
+    await it.settle();
+
+    expect(it.onRow(2, find.text(_cannotEnter)), findsOneWidget);
+    expect(it.harness.voice.played, played);
+    expect(
+      it.harness.voice.fixedLines,
+      fixedLines,
+      reason: 'a linha da recusa é escrita, nunca falada',
+    );
+    semantics.dispose();
+  });
+
+  testWidgets(
     'over an approved draft the bring-back keeps its own armed text',
     (tester) async {
       final semantics = tester.ensureSemantics();
