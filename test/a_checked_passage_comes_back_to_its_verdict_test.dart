@@ -80,6 +80,24 @@ void main() {
     },
   );
 
+  test('a passage the room no longer counts as checked when the team comes '
+      'back gets no verdict restored', () async {
+    final it = await _conferidaEDeixadaPelaVolta();
+    it.harness.room
+      ..listeningUnheardTakeIds = const []
+      ..retroSoFar = BackTranslationProgress(
+        segments: [...it.harness.room.segments],
+      );
+
+    await _traduzirAGravacao(it);
+
+    expect(
+      it.estado.btPhase,
+      BtPhase.playing,
+      reason: 'o veredito voltava sobre uma passagem que a sala já não conta',
+    );
+  });
+
   test('an approved passage opened from the home lands on its verdict with its '
       'badge and its frases, never the parts played again', () async {
     final harness = SalaHarness()

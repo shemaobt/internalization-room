@@ -897,7 +897,11 @@ void main() {
             scene: 2,
             from: const Duration(milliseconds: 3000),
           ),
-        ];
+        ]
+        ..retroSoFar = BackTranslationProgress(
+          segments: [...it.harness.room.segments],
+          checked: true,
+        );
       final linhas = it.harness.voice.fixedLines.length;
       final tocadas = it.harness.playback.played.length;
 
