@@ -607,7 +607,9 @@ void main() {
   });
 
   testWidgets('a listener the room cannot read leaves the team on the '
-      'recording home, and the next tap tries again', (tester) async {
+      'recording home with her words, and the next tap tries again', (
+    tester,
+  ) async {
     final harness = _aprovadaNaSala();
     final first = await _noReconto(tester, harness);
     harness.room.failNextListenerReadWith = const NetworkFailed('sem rede');
@@ -616,6 +618,11 @@ void main() {
     await _tocar(tester, _checagem);
 
     expect(_sala(again).stage, SalaStage.ensaio);
+    expect(
+      find.text(_naoAbriu),
+      findsOneWidget,
+      reason: 'a casa calava a checagem que não abriu',
+    );
     expect(_sala(again).needsPerson, isFalse);
     await _tocar(tester, _checagem);
     expect(find.text('ouvinte 1'), findsOneWidget);

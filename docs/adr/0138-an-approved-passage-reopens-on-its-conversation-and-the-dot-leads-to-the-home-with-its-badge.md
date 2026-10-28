@@ -34,7 +34,9 @@ when the check is entered again (`app/components/ExternalCheck.tsx:388-395`).
   applied Session read (ADR 0136).
 - **A relaunch whose row stood on the check lands on the conversation too.** The listener stays in
   the Resume point, and «Checagem externa» tapped on the home asks the room for them and lands where
-  ADR 0116 says, silent.
+  ADR 0116 says, silent. A read or an open that fails leaves the team on the home with her
+  open-failed words, «não deu para abrir a checagem externa — tentem de novo»
+  (`app/components/Drafting.tsx:1634`), and the next tap tries again.
 - **The recording home draws the count of listeners** between the badge and «Checagem externa»,
   with the Back-translation's words, and the check that leaves to the home reads the session again
   so the count is the room's.
