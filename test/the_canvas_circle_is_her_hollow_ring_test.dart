@@ -211,6 +211,13 @@ void main() {
             'o recado respirava como o convite; o dela fica parado '
             '(globals.css:168): $scales',
       );
+      expect(
+        find.byType(Ripple),
+        voice == VoiceState.listening ? findsNWidgets(3) : findsNothing,
+        reason:
+            'enquanto o recado grava, o anel dela solta as três ondas '
+            '(globals.css:171-173); parado, nenhuma',
+      );
     }
   });
 
