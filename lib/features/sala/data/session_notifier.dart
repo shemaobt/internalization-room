@@ -974,7 +974,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _silenceTheRoom({bool holdTheClip = false}) {
     _quietTheRoom(holdTheClip: holdTheClip);
     _dispatch(GestureSilenced(keepingTheHold: holdTheClip));
-    state = state.copyWith(clearContaEscolhida: true);
+    state = state.copyWith(clearContaEscolhida: true, clearPlanListening: true);
   }
 
   void _quietTheRoom({bool holdTheClip = false}) {
@@ -1493,7 +1493,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _silenceTheHaltedRoom() {
     _openTurnId = null;
     _quietTheRoom();
-    state = state.copyWith(clearContaEscolhida: true);
+    state = state.copyWith(clearContaEscolhida: true, clearPlanListening: true);
     _leaveThinking();
     state = state.copyWith(awaitingTheGuide: false, peerCue: false);
   }
@@ -4799,7 +4799,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _silenceThePlan() {
     _silenceTheRoom();
-    state = state.copyWith(clearPlanListening: true);
   }
 
   void joinTheScenes() => _gesture(() {
