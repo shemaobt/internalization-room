@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -24,9 +25,10 @@ Future<void> _passo(WidgetTester tester) =>
 Future<void> _naCasa(
   WidgetTester tester,
   SalaHarness harness,
-  ProviderContainer container,
-) async {
-  harness.room.retroSoFar = const BackTranslationProgress(checked: true);
+  ProviderContainer container, {
+  bool checked = true,
+}) async {
+  harness.room.retroSoFar = BackTranslationProgress(checked: checked);
   container.read(salaSessionProvider.notifier).goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
   await tester.pump(const Duration(seconds: 2));
@@ -51,7 +53,9 @@ Future<void> _aprovadaDeNovoComoV2(
 
 void main() {
   testWidgets('a forced draft whose telling is conferida offers «$_aprovar» '
-      'beside its badge, and the press approves it as v2', (tester) async {
+      'with its badge under it, and the press approves it as v2', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aprovadaNaConferida(
       tester,
@@ -67,9 +71,9 @@ void main() {
           'a narração conferida de uma versão forçada não podia ser aprovada',
     );
     expect(
-      tester.getTopLeft(byLabel(_aprovar)).dx,
-      lessThan(tester.getTopLeft(find.text(_badge(1))).dx),
-      reason: 'o selo vinha antes do botão, e o dela desenha o botão primeiro',
+      tester.getBottomLeft(byLabel(_aprovar)).dy,
+      lessThanOrEqualTo(tester.getTopLeft(find.text(_badge(1))).dy),
+      reason: 'o selo não vinha debaixo do botão, como o dela',
     );
 
     await _aprovadaDeNovoComoV2(tester, harness);
@@ -77,6 +81,52 @@ void main() {
     expect(harness.room.releasesAsked, hasLength(2));
     expect(find.text(_badge(2)), findsOneWidget);
     expect(byLabel(_aprovar), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('on a phone as narrow as the iPhone SE the forced draft\'s '
+      'checked phase draws «$_aprovar» and its badge, and nothing overflows', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaConferida(
+      tester,
+      harness,
+      approved: _forcada,
+    );
+    tester.view
+      ..physicalSize = const Size(375, 667)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _passo(tester);
+
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: 'a fileira do botão e do selo transbordava no iPhone SE',
+    );
+    expect(byLabel(_aprovar), findsOneWidget);
+    expect(find.text(_badge(1)), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a forced draft the room never called checked is never offered '
+      '«$_aprovar»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaConferida(
+      tester,
+      harness,
+      approved: _forcada,
+    );
+
+    await _naCasa(tester, harness, container, checked: false);
+
+    expect(find.text(_badge(1)), findsOneWidget);
+    expect(
+      byLabel(_aprovar),
+      findsNothing,
+      reason: 'uma versão forçada sem conferência oferecia aprovar de novo',
+    );
     closeTheRoom(container);
   });
 

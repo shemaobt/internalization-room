@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-10-28
-amends: 0106 (in part: over a forced version the approve button stands beside the badge), 0136 (in part: the recording home offers the approval over a forced version too)
+amends: 0106 (in part: over a forced version the approve button stands, with the badge under it), 0136 (in part: the recording home offers the approval over a forced version too)
 ---
 
 # A forced approval is offered again once the telling is conferida
@@ -23,10 +23,12 @@ passage the team did check. The room hid the button over any approved draft, for
 - **The approved draft carries `forced`**, read from the Session read, and false when the room
   does not say it.
 - **Over a forced version the approval stays open.** The recording home offers it when the room
-  calls the passage checked, and the Back-translation draws the approve button beside the badge
+  calls the passage checked, and the Back-translation draws the approve button over the badge
   at its checked phase, which only the room's clean verdict or its read of `checked` enters. The
-  badge, the listeners and «Checagem externa» stay as they were, as her badge stays beside her
-  button. A version nobody forced never offers the button again.
+  button keeps the place it holds when no approval stands, and the badge goes under it, as hers
+  draws the button and then the badge, so the row stays as narrow as before on a phone. The
+  listeners and «Checagem externa» stay as they were. A version nobody forced never offers the
+  button again.
 - **The press is the approval it always was.** The room mints the next version, the Saved screen
   shows it, and the read after it brings a version nobody forced, so the button goes.
 - **An answer naming the forced version itself approved nothing.** The room keeps a forced version

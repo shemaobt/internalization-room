@@ -178,6 +178,22 @@ class RetroView extends ConsumerWidget {
               height: 60,
               child: _actions(session, notifier, language, colors),
             ),
+            if (session.approvedDraftDrawn case final aprovado?
+                when session.approvalStillOpen) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  retroLabelFor('approvedDraft', language, n: aprovado.version),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colors.ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
             if (session.offersTheVerdictAgain) ...[
               const SizedBox(height: 12),
               _botaoEscrito(
@@ -664,7 +680,17 @@ class RetroView extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 24),
-            if (session.approvedDraftDrawn == null || session.approvalStillOpen)
+            if (session.approvedDraftDrawn case final aprovado?
+                when !session.approvalStillOpen)
+              Text(
+                retroLabelFor('approvedDraft', language, n: aprovado.version),
+                style: TextStyle(
+                  color: colors.ink,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w500,
+                ),
+              )
+            else
               RoundActionButton(
                 size: 60,
                 semanticLabel: retroLabelFor('approve', language),
@@ -677,17 +703,6 @@ class RetroView extends ConsumerWidget {
                   color: ShemaBrand.branco,
                 ),
               ),
-            if (session.approvedDraftDrawn case final aprovado?) ...[
-              if (session.approvalStillOpen) const SizedBox(width: 24),
-              Text(
-                retroLabelFor('approvedDraft', language, n: aprovado.version),
-                style: TextStyle(
-                  color: colors.ink,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
           ],
         ),
       );

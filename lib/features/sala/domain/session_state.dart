@@ -1558,7 +1558,7 @@ class SalaSessionState {
   bool get microphoneOpen => channel is Microphone;
 
   /// The approval drawn on the checked telling-back, in place of the approve button and the
-  /// Warning mark, or beside the button while the approval is still open: only while nothing
+  /// Warning mark, or under the button while the approval is still open: only while nothing
   /// of this session waits in the Outbox (ADR 0106, 0150).
   ApprovedDraft? get approvedDraftDrawn =>
       stage == SalaStage.retro &&
@@ -1603,7 +1603,8 @@ class SalaSessionState {
       nothingWaitsInTheOutbox &&
       aBackTranslationGestureActs;
 
-  /// The approval drawn on the recording home, in place of the approve button.
+  /// The approval drawn on the recording home: in place of the approve button, or under it
+  /// while the approval is still open (ADR 0150).
   ApprovedDraft? get approvedOnTheHome =>
       stage == SalaStage.ensaio &&
           ensaio == EnsaioStatus.idle &&
