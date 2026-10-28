@@ -1610,6 +1610,59 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a «regravada» frase told again leaves the stale list and is '
+      'listed once, with the telling just recorded', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.segments.add(
+      const SegmentView(
+        segmentId: 'trecho-3',
+        takeId: 'gravacao-2',
+        startsMs: 0,
+        endsMs: 6000,
+        frase: 2,
+      ),
+    );
+    final container = await _comUmaFraseRegravada(tester, harness);
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    await tocar(tester, 'Ouvir esta frase de novo e traduzir de novo — 1');
+    await tocar(tester, 'ouvindo a gravação de vocês…');
+    await tocar(tester, 'Tocar ao terminar');
+    await waitFor(
+      'a frase regravada traduzida de novo pousar',
+      () => harness.room.replacesAsked.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await waitFor(
+      'a resposta da sala chegar à lista',
+      () => container.read(salaSessionProvider).btTrechoTraduzidoDeNovo == null,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      isNot(contains('regravada — traduzam de novo')),
+      reason:
+          'traduzida de novo, a frase seguia marcada como regravada ao lado '
+          'da nova',
+    );
+    expect(
+      [
+        for (final trecho in container.read(salaSessionProvider).btTrechos)
+          if (trecho.takeId == 'gravacao-1')
+            '${trecho.lugarFrom.inMilliseconds}-'
+                '${trecho.lugarTo.inMilliseconds}:${trecho.retroPath}',
+      ],
+      ['0-4000:${harness.room.replacesComArquivo.single}'],
+      reason:
+          'a frase traduzida de novo voltava sem a tradução que a equipe '
+          'acabou de gravar',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a team that comes back to the check sees the marks its last '
       'check left', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

@@ -2812,7 +2812,7 @@ class FakeRoom implements RoomRepository {
           '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
         );
         replacesComArquivo.add(audio.path);
-        _tellAgain(segmentId, to);
+        _tellAgain(segmentId, to, takeId: takeId, from: from);
       };
       return later;
     }
@@ -2829,7 +2829,7 @@ class FakeRoom implements RoomRepository {
       serverStatus = 'needs_person';
       serverHalt = HaltKind.warning;
     }
-    _tellAgain(segmentId, to);
+    _tellAgain(segmentId, to, takeId: takeId, from: from);
     final told = Answered(
       TellingAgain(segments: _numbered, needsPerson: needsPerson),
     );
@@ -2844,9 +2844,29 @@ class FakeRoom implements RoomRepository {
 
   Answered<TellingAgain>? _answerLost;
 
-  void _tellAgain(String segmentId, Duration to) {
+  void _tellAgain(
+    String segmentId,
+    Duration to, {
+    required String takeId,
+    required Duration from,
+  }) {
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     final antes = at >= 0 ? segments[at] : null;
+    final regravada = (retroSoFar?.stale ?? const <SegmentView>[]).any(
+      (one) => one.segmentId == segmentId,
+    );
+    if (antes == null && regravada) {
+      segments.add(
+        SegmentView(
+          segmentId: '$segmentId-v${++_versoes}',
+          takeId: takeId,
+          startsMs: from.inMilliseconds,
+          endsMs: to.inMilliseconds,
+          told: true,
+        ),
+      );
+      _retired.add(segmentId);
+    }
     if (antes != null) {
       // The explanation was redone over a recording that did not move, so the stretch
       // keeps its take and its slice and is told again.

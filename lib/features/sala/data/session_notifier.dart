@@ -9548,9 +9548,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // The telling just recorded is this stretch's own. Only a first telling used to keep
     // its file, so from the first correction on the blue voice played back the very
     // explanation the analyst had refused.
+    final regravada = state.btTrechosRegravados.any(
+      (trecho) => trecho.segmentId == alvo.segmentId,
+    );
     final trechos = _trechosFrom(
       segments,
-      lugar: lugar,
+      lugar: regravada
+          ? segments.indexWhere(
+              (segment) =>
+                  segment.takeId == alvo.takeId &&
+                  segment.startsMs == alvo.from.inMilliseconds,
+            )
+          : lugar,
       noLugarDe: alvo,
       contadoEm: path,
     );
@@ -9562,6 +9571,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.playing,
       awaitingTheGuide: false,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
+      btTrechosRegravados: [
+        for (final trecho in state.btTrechosRegravados)
+          if (trecho.segmentId != alvo.segmentId) trecho,
+      ],
       clearTraducaoPendente: true,
       clearBtFraseQueAguarda:
           alvo.segmentId != null && alvo.segmentId == state.btFraseQueAguarda,
