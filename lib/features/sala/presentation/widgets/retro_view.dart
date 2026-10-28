@@ -672,8 +672,10 @@ class RetroView extends ConsumerWidget {
                   fontSize: 17,
                   fontWeight: FontWeight.w500,
                 ),
-              )
-            else
+              ),
+            if (session.approvedDraftDrawn == null ||
+                session.approvalStillOpen) ...[
+              if (session.approvedDraftDrawn != null) const SizedBox(width: 24),
               RoundActionButton(
                 size: 60,
                 semanticLabel: retroLabelFor('approve', language),
@@ -686,6 +688,7 @@ class RetroView extends ConsumerWidget {
                   color: ShemaBrand.branco,
                 ),
               ),
+            ],
           ],
         ),
       );

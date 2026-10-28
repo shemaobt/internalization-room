@@ -10502,9 +10502,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     try {
       final ApprovalAnswer resposta;
+      final standing = state.btRascunhoAprovado;
       switch (await _room.approveRelease(sessionId)) {
         case Answered(value: final answer):
-          resposta = answer;
+          resposta = answer.over(standing);
         case final RoomFailure failure:
           if (!_abandoned(generation)) _saysWhy(CheckRefusal.checkUnavailable);
           return failed(failure);
