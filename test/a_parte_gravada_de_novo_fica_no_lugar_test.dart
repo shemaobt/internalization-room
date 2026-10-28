@@ -9,8 +9,6 @@ import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -1271,22 +1269,11 @@ void main() {
       reason: 'nenhuma faixa sobre a parte 2: o chão dela está por contar',
     );
     expect(
-      [
-        for (final conta
-            in tester
-                .widget<BeadRow>(
-                  find.descendant(
-                    of: find.byType(RetroView),
-                    matching: find.byType(BeadRow),
-                  ),
-                )
-                .entries)
-          conta.fill,
-      ],
-      isNot(contains(BeadFill.drained)),
+      estado.btFindingTrecho,
+      isNull,
       reason:
-          'e nenhuma faixa vazia: vazia quer dizer à espera de conserto, '
-          'e este chão não espera conserto nenhum, espera ser contado',
+          'o achado seguia apontando um trecho à espera de conserto, e este '
+          'chão não esperava conserto nenhum, esperava ser contado',
     );
     expect(
       harness.playback.played.last,
@@ -1317,7 +1304,6 @@ void main() {
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _ateAConferida(tester);
-      it.harness.voice.refuses.add('P3');
       it.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
 
       await tester.tap(byLabel(_aprovar));
@@ -1332,15 +1318,10 @@ void main() {
             'segue oferecido',
       );
       await tester.tap(byLabel(_aprovar));
+      it.container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(
-        _estado(it.container).needsPerson,
-        isTrue,
-        reason:
-            'a linha da Guia que falha duas vezes seguidas para a sala para '
-            'uma pessoa — se não parar, não há parada que medir',
-      );
+      expect(_estado(it.container).needsPerson, isTrue);
       await tester.pump(const Duration(milliseconds: 500));
       expect(
         find.bySemanticsLabel(_pronto),
@@ -1418,7 +1399,7 @@ void main() {
     );
   });
 
-  testWidgets('a aprovação conta a vez que não tocou', (tester) async {
+  testWidgets('a aprovação que não toca deixa silêncio', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.voice.refuses.add('P3');
 

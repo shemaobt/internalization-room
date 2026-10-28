@@ -111,12 +111,43 @@ void main() {
         );
       }
       expect(machine.halt, isNot(isA<Blocking>()));
+    });
 
-      var guide = const Machine();
-      for (var failure = 0; failure < 2; failure++) {
-        (guide, _) = reduce(guide, const PlayerFailed(Source.guide));
-      }
-      expect(guide.halt, isA<Blocking>());
+    test(
+      'a reply whose sound fails to load is loaded once more, and its second '
+      'failed load brings the sign',
+      () {
+        final (once, reload) = reduce(
+          const Machine(),
+          const TheReplyFailedToLoad(1, answered: _unheard),
+        );
+        expect(once.halt, isNot(isA<Blocking>()));
+        expect(reload, contains(isA<LoadTheReplyAgain>()));
+
+        final (twice, letGo) = reduce(
+          once,
+          const TheReplyFailedToLoad(2, answered: _unheard),
+        );
+        expect(twice.halt, isA<Blocking>());
+        expect(letGo, contains(isA<LetTheReplyGo>()));
+      },
+    );
+
+    test('the first failed load of the next reply is loaded once more, even '
+        'after the last reply\'s reload was abandoned', () {
+      final (afterTheFirst, _) = reduce(
+        const Machine(),
+        const TheReplyFailedToLoad(1, answered: _unheard),
+      );
+      final moved = moveTheGeneration(afterTheFirst);
+
+      final (afterTheNext, reload) = reduce(
+        moved,
+        const TheReplyFailedToLoad(1, answered: _unheard),
+      );
+
+      expect(afterTheNext.halt, isNot(isA<Blocking>()));
+      expect(reload, contains(isA<LoadTheReplyAgain>()));
     });
 
     test('a raised halt calls for a person and arms the Watch', () {
@@ -397,3 +428,5 @@ void main() {
     });
   });
 }
+
+void _unheard(bool loadAgain) {}

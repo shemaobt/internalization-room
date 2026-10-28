@@ -33,6 +33,7 @@ void main() {
       partCeiling: () => null,
       clipGrace: () => Duration.zero,
       lookAgainAfter: () => Duration.zero,
+      reloadAfter: () => Duration.zero,
       generation: () => machine.generation,
     );
   });
