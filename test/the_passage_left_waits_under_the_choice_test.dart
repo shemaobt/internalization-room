@@ -186,4 +186,64 @@ void main() {
       );
     },
   );
+
+  test('a passage opened from the Choice lets the one left before it go, so '
+      'its session going away lands on the Choice', () async {
+    final tablet = await _onTheChoiceFromP01();
+    final harness = tablet.harness;
+    final read = tablet.read;
+    final notifier = tablet.notifier;
+    final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+    notifier.openTheEntry(p02);
+    await waitFor(
+      'P02 to open',
+      () =>
+          read().sessionId != null &&
+          read().sessionId != tablet.p01 &&
+          read().voice == VoiceState.invite,
+    );
+    await settle();
+    harness.room.forgetTheSession(read().sessionId!);
+
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await waitFor(
+      'the Choice to come back',
+      () => read().station is Menu || read().sessionId == tablet.p01,
+    );
+    await settle();
+
+    expect(
+      read().station,
+      isA<Menu>(),
+      reason:
+          'a P02 que a sala perdeu trazia de volta a P01 deixada antes dela',
+    );
+    expect(read().sessionId, isNull);
+  });
+
+  test('a leave from a passage entered any other way lands on the Choice, '
+      'never on the passage left before it', () async {
+    final tablet = await _onTheChoiceFromP01();
+    final read = tablet.read;
+    final notifier = tablet.notifier;
+    await notifier.goConversa(book: 'Ruth', pericope: 'P02');
+    await waitFor(
+      'P02 to open',
+      () =>
+          read().sessionId != null &&
+          read().sessionId != tablet.p01 &&
+          read().voice == VoiceState.invite,
+    );
+
+    notifier.leaveThePassage();
+    await settle();
+
+    expect(
+      read().station,
+      isA<Menu>(),
+      reason: 'sair da P02 caía na P01 deixada antes dela',
+    );
+  });
 }

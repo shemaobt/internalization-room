@@ -2186,6 +2186,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final opening = open();
     final generation = _generation;
     await opening;
+    final left = _theLeftPassage;
+    _theLeftPassage = null;
     if (_generation != generation || state.needsPerson) return;
     final unopened = switch (state.station) {
       Canvas() => state.sessionId == null,
@@ -2193,7 +2195,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _ => false,
     };
     if (!unopened) return;
-    if (_theLeftPassage case final left?) return _bringBackThePassageLeft(left);
+    if (left != null) return _bringBackThePassageLeft(left);
     _arriveAtTheChoice();
   }
 
