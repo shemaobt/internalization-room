@@ -435,26 +435,31 @@ void main() {
     );
   }
 
-  testWidgets('a passage that cannot open keeps the way back to the one left', (
-    tester,
-  ) async {
-    final room = await _pump(tester, cannotOpen: {'P02'});
-    await _takeThePassage(tester, room, 'P01');
-    await tester.pump(const Duration(seconds: 1));
-    await _tap(tester, _leave);
-    await tester.pump(const Duration(seconds: 1));
-    expect(byLabel(_back), findsOneWidget);
+  testWidgets(
+    'a passage that cannot open lays the one left back on its canvas',
+    (tester) async {
+      final room = await _pump(tester, cannotOpen: {'P02'});
+      await _takeThePassage(tester, room, 'P01');
+      await tester.pump(const Duration(seconds: 1));
+      await _tap(tester, _leave);
+      await tester.pump(const Duration(seconds: 1));
+      expect(byLabel(_back), findsOneWidget);
 
-    _open(room, 'P02');
-    await tester.pump(const Duration(seconds: 2));
+      final p01 = room.state.leftEntry?.session;
 
-    expect(room.state.stage, SalaStage.escolha);
-    expect(
-      byLabel(_back),
-      findsOneWidget,
-      reason: 'a P02 que não abriu apagava a volta para a P01',
-    );
-  });
+      _open(room, 'P02');
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(
+        room.state.stage,
+        SalaStage.conversa,
+        reason:
+            'a P02 que não abriu deixava a equipe na Escolha, a um toque da P01',
+      );
+      expect(room.state.sessionId, p01);
+      expect(byLabel(_leave), findsOneWidget);
+    },
+  );
 
   testWidgets('a leave from the next passage returns to the next passage', (
     tester,
