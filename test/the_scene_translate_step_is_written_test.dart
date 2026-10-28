@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -770,6 +771,65 @@ void main() {
       reason: 'a escuta desenhava uma faixa lisa, não a dela',
     );
   });
+
+  testWidgets(
+    'a sent scene rehearsal opened from the list draws its strip with the take\'s loudness',
+    (tester) async {
+      await _inListenMode(tester);
+
+      final strip = tester.widget<SceneStrip>(
+        find.descendant(
+          of: find.byType(SceneRehearsalView),
+          matching: find.byType(SceneStrip),
+        ),
+      );
+      expect(
+        strip.envelope?.length,
+        const Duration(seconds: 10),
+        reason:
+            'a escuta aberta da lista desenhava a faixa sem o volume do take',
+      );
+    },
+  );
+
+  testWidgets(
+    'a scene rehearsal whose frase places cannot be read, answered as already sent, draws its sent strip with the take\'s loudness',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      harness.room
+        ..sendRefusalsFirst.add(RefusalCode.sceneRehearsalSent)
+        ..sceneRehearsals[0] = _rehearsal(
+          sentAt: '2026-10-27T10:00:00+00:00',
+          frases: [_frase('f1', 0, 12000)],
+        );
+
+      await tester.tap(byLabel('terminei'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).scene.step == SceneStep.sent,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final strip = tester.widget<SceneStrip>(
+        find.descendant(
+          of: find.byType(SceneRehearsalView),
+          matching: find.byType(SceneStrip),
+        ),
+      );
+      expect(
+        strip.envelope?.length,
+        const Duration(seconds: 10),
+        reason:
+            'o ensaio que já tinha ido para a voz desenhava a faixa sem o volume do take',
+      );
+    },
+  );
   testWidgets(
     'a sent scene rehearsal heads its frases «frases traduzidas» and writes each as its number, a bar and «frase N», beside its speaker',
     (tester) async {
