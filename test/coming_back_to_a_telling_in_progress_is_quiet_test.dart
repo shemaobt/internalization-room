@@ -97,6 +97,158 @@ void main() {
     expect(it.estado.btCortado, isFalse);
   });
 
+  test(
+    'a room out of reach on the way back still answers with what it last said, '
+    'so the return stays quiet instead of playing the next part aloud',
+    () async {
+      final it = await _contadaAteOMeioDaSegunda();
+      it.harness.room.listeningUnheardTakeIds = const [];
+      it.sala.goEnsaio();
+      await waitFor(
+        'a equipe voltar ao ensaio',
+        () => it.estado.stage == SalaStage.ensaio,
+      );
+      await settle();
+      final tocadas = it.harness.playback.played.length;
+      final falas = it.harness.voice.fixedLines.length;
+
+      it.harness.room.reachable = false;
+      it.sala.startRetro();
+      await waitFor(
+        'a tradução voltar',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            it.estado.btPhase == BtPhase.playing &&
+            !it.estado.awaitingTheGuide,
+      );
+      await settle();
+
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        isEmpty,
+        reason:
+            'sem a sala, a volta tocava a segunda parte em voz alta debaixo da '
+            'equipe',
+      );
+      expect(it.harness.voice.fixedLines.skip(falas), isEmpty);
+      expect(it.estado.canListenToThePendingStretch, isTrue);
+
+      it.sala.ouvirGravacao();
+      await waitFor(
+        'a gravação tocar depois do toque',
+        () => it.harness.playback.played.length > tocadas,
+      );
+      expect(it.harness.playback.played.last, it.partes[1].path);
+      expect(it.harness.playback.playedFrom.last, _ateOndeASegundaFoiContada);
+    },
+  );
+
+  test('what the room answered on a quiet return is still its word on the next '
+      'return, when it can no longer be reached', () async {
+    final it = await _contadaAteOMeioDaSegunda();
+    await _irAoEnsaioEVoltar(it);
+    it.harness.room.reachable = false;
+    it.sala.goEnsaio();
+    await waitFor(
+      'a equipe voltar ao ensaio',
+      () => it.estado.stage == SalaStage.ensaio,
+    );
+    await settle();
+    final tocadas = it.harness.playback.played.length;
+
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução voltar',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.btPhase == BtPhase.playing &&
+          !it.estado.awaitingTheGuide,
+    );
+    await settle();
+
+    expect(
+      it.harness.playback.played.skip(tocadas),
+      isEmpty,
+      reason:
+          'a resposta da volta anterior se perdia, e a segunda volta sem a '
+          'sala tocava em voz alta',
+    );
+  });
+
+  test('a room out of reach that last named a part unheard sends the return to '
+      'the listen it would answer with, not to the told end', () async {
+    final it = await _contadaAteOMeioDaSegunda();
+    it.harness.room.listeningUnheardTakeIds = [it.partes[2].takeId!];
+    it.sala.goEnsaio();
+    await waitFor(
+      'a equipe voltar ao ensaio',
+      () => it.estado.stage == SalaStage.ensaio,
+    );
+    await settle();
+    final tocadas = it.harness.playback.played.length;
+    final falas = it.harness.voice.fixedLines.length;
+
+    it.harness.room.reachable = false;
+    it.sala.startRetro();
+    await waitFor(
+      'a escuta voltar ao ar',
+      () => it.harness.playback.played.length > tocadas,
+    );
+
+    expect(it.harness.voice.fixedLines.skip(falas).map((linha) => linha.$1), [
+      'P0',
+    ]);
+    expect(
+      it.harness.playback.played.skip(tocadas).first,
+      it.partes[0].path,
+      reason:
+          'sem a sala, a volta tocava a segunda parte do fim contado, e não a '
+          'escuta que a sala pediu',
+    );
+  });
+
+  test(
+    'what the room said of one passage is never its word on the next, so a '
+    'room out of reach still plays the new rehearsal from the start',
+    () async {
+      final it = await _contadaAteOMeioDaSegunda();
+      final primeira = it.estado.sessionId;
+      it.harness.room.listeningUnheardTakeIds = const [];
+      it.sala.leaveThePassage();
+      await settle();
+      await it.sala.goConversa(book: 'Ruth', pericope: 'P02');
+      await waitFor(
+        'a outra passagem abrir',
+        () => it.estado.sessionId != null && it.estado.sessionId != primeira,
+      );
+      it.sala.goEnsaio();
+      for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
+        await gravarUmaParteDoEnsaio(it);
+      }
+      for (final (onde, parte) in it.partes.indexed) {
+        it.harness.playback.lengths[parte.path] = partesDoEnsaio[onde];
+      }
+      final tocadas = it.harness.playback.played.length;
+      final falas = it.harness.voice.fixedLines.length;
+
+      it.harness.room.reachable = false;
+      it.sala.startRetro();
+      await waitFor(
+        'a nova gravação entrar no ar',
+        () => it.harness.playback.played.length > tocadas,
+      );
+
+      expect(
+        it.harness.voice.fixedLines.skip(falas),
+        isEmpty,
+        reason:
+            'a passagem nova herdava o que a sala disse da anterior e pulava a '
+            'escuta',
+      );
+      expect(it.harness.playback.played.skip(tocadas).first, it.partes[0].path);
+    },
+  );
+
   test('coming back to a telling told to its end opens «terminei» with nothing '
       'played, the told frases covering the recording', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();
