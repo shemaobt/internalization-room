@@ -1,7 +1,4 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -15,7 +12,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, settle;
+import 'scenario_helpers.dart' show byLabel, onAScreen, settle, withRealLetters;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show cabeca, entrarNaTraducao, passaDoCursor, pausar;
 import 'um_ensaio_de_tres_partes.dart';
@@ -51,29 +48,6 @@ Rect _theRing(WidgetTester tester) {
   return circle.inflate(circle.width * 0.23);
 }
 
-Future<void> _withRealLetters() async {
-  final fonts =
-      '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts';
-  final roboto = FontLoader('Roboto');
-  for (final weight in ['Regular', 'Medium', 'Bold']) {
-    roboto.addFont(
-      File(
-        '$fonts/Roboto-$weight.ttf',
-      ).readAsBytes().then(ByteData.sublistView),
-    );
-  }
-  await roboto.load();
-}
-
-void _on(WidgetTester tester, Size screen, double bar) {
-  tester.view
-    ..physicalSize = screen
-    ..devicePixelRatio = 1
-    ..padding = FakeViewPadding(top: bar)
-    ..viewPadding = FakeViewPadding(top: bar);
-  addTearDown(tester.view.reset);
-}
-
 void main() {
   for (final (code, heading) in [
     ('PT', 'Escolha a passagem'),
@@ -83,8 +57,8 @@ void main() {
       'on the iPhone SE the sun and moon and the $code pill stand clear '
       'of «$heading» and the mark, not over them',
       (tester) async {
-        await tester.runAsync(_withRealLetters);
-        _on(tester, _se, _seBar);
+        await tester.runAsync(withRealLetters);
+        onAScreen(tester, _se, bar: _seBar);
         final container = await pumpSala(
           tester,
           SalaHarness()..room.passages = _aLongBook,
