@@ -45,5 +45,4 @@ when the check is entered again (`app/components/ExternalCheck.tsx:388-395`).
 
 - The Back-translation over an approved draft is reached from the home, through the parts again,
   never straight from a reopen; the badge and the count it draws are unchanged.
-- `TheExternalCheckOpened.relaunched` is no longer sent true by anything.
 - The Station a relaunch without an approval lands on is still the row's (ADR 0064); that is ENG-1896.
