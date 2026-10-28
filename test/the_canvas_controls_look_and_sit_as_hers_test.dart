@@ -416,7 +416,7 @@ void main() {
         _on(tester, _se, bar: 20);
         if (look == 'dark') _inTheDark(tester);
         await atRestAfterATurn(tester, const []);
-        const label = 'Leave a question for the facilitator';
+        const label = 'Leave a question for your facilitator';
 
         expect(byLabel(label), findsOneWidget);
         expect(
@@ -452,7 +452,7 @@ void main() {
     (tester) async {
       _on(tester, _se, bar: 20);
       final (_, container) = await atRestAfterATurn(tester, const []);
-      const label = 'Leave a question for the facilitator';
+      const label = 'Leave a question for your facilitator';
 
       container.read(salaSessionProvider.notifier).handTap();
       await _pumpUntil(
@@ -569,11 +569,11 @@ void main() {
         final floor = screen.height - inset - screen.height * 0.16;
 
         final handTarget = tester.getRect(
-          byLabel('Leave a question for the facilitator'),
+          byLabel('Leave a question for your facilitator'),
         );
         final handBox = tester.getRect(
           find.descendant(
-            of: byLabel('Leave a question for the facilitator'),
+            of: byLabel('Leave a question for your facilitator'),
             matching: find.byWidgetPredicate(
               (widget) =>
                   widget is SizedBox &&
@@ -645,7 +645,7 @@ void main() {
           'Choose another passage',
           'Record your rehearsal',
           'scene rehearsal',
-          'Leave a question for the facilitator',
+          'Leave a question for your facilitator',
           'Hear that again',
           'Hear how you told part 1',
           'Hear how you told part 2',
