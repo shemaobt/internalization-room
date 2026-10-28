@@ -58,6 +58,9 @@ class FacilitatorCircle extends StatelessWidget {
 
   bool get _noteBlue => noteMode && voice != VoiceState.done;
 
+  bool get _herNote =>
+      noteMode && (voice == VoiceState.invite || voice == VoiceState.listening);
+
   @override
   Widget build(BuildContext context) {
     final underTheSign = halt is Blocking;
@@ -163,6 +166,7 @@ class FacilitatorCircle extends StatelessWidget {
 
   Widget _body(SalaColors colors, bool still) {
     if (!answersATouch) return _haltedBody(colors);
+    if (canvas && _herNote) return _herRing(colors);
     if (_teamTalk) return _liveBreath(colors);
 
     switch (voice) {
@@ -170,6 +174,7 @@ class FacilitatorCircle extends StatelessWidget {
       case VoiceState.done:
         return _liveBreath(colors);
       case VoiceState.listening:
+        if (canvas) return _herRing(colors);
         return _disc(
           gradient: tongue == Tongue.motherTongue
               ? BeadStyles.wood
@@ -189,6 +194,7 @@ class FacilitatorCircle extends StatelessWidget {
       case VoiceState.thinking:
         return _waiting(colors, still);
       case VoiceState.speaking:
+        if (canvas) return _herRing(colors);
         return Loop(
           period: const Duration(milliseconds: 3400),
           builder: (context, t) =>
@@ -239,16 +245,18 @@ class FacilitatorCircle extends StatelessWidget {
   );
 
   Widget _waiting(SalaColors colors, bool still) {
-    final body = _disc(
-      gradient: BeadStyles.clay(colors),
-      shadows: const [
-        BoxShadow(
-          color: Color(0x260A0703),
-          offset: Offset(0, 6),
-          blurRadius: 20,
-        ),
-      ],
-    );
+    final body = canvas
+        ? _herRing(colors)
+        : _disc(
+            gradient: BeadStyles.clay(colors),
+            shadows: const [
+              BoxShadow(
+                color: Color(0x260A0703),
+                offset: Offset(0, 6),
+                blurRadius: 20,
+              ),
+            ],
+          );
     final glow = RepaintBoundary(
       child: CustomPaint(
         size: Size.square(size),
@@ -338,8 +346,95 @@ class FacilitatorCircle extends StatelessWidget {
 
   Widget _liveBreath(SalaColors colors) => Loop(
     period: const Duration(milliseconds: 4600),
-    builder: (context, t) =>
-        Transform.scale(scale: 1 + 0.045 * t, child: _liveDisc(colors)),
+    builder: (context, t) => Transform.scale(
+      scale: 1 + 0.045 * t,
+      child: canvas ? _herRing(colors) : _liveDisc(colors),
+    ),
+  );
+
+  Widget _herRing(SalaColors colors) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      border: Border.all(color: _herEdge(colors), width: 1.5),
+      gradient: RadialGradient(
+        center: const Alignment(0, -0.08),
+        radius: 0.7359,
+        colors: _herFill.$1,
+        stops: _herFill.$2,
+      ),
+    ),
+  );
+
+  Color _herEdge(SalaColors colors) {
+    if (_herNote) return colors.azul;
+    if (_teamTalk) return colors.telha;
+    switch (voice) {
+      case VoiceState.invite:
+      case VoiceState.done:
+        return colors.telha;
+      case VoiceState.listening:
+        return colors.azul;
+      case VoiceState.thinking:
+        return colors.areia;
+      case VoiceState.speaking:
+        return const Color.fromRGBO(199, 194, 159, .5);
+    }
+  }
+
+  (List<Color>, List<double>) get _herFill {
+    if (_herNote) {
+      return (
+        const [
+          Color.fromRGBO(137, 170, 163, .16),
+          Color.fromRGBO(199, 194, 159, .12),
+          Color.fromRGBO(199, 194, 159, .04),
+        ],
+        const [0, .62, 1],
+      );
+    }
+    if (_teamTalk) return _inviteFill;
+    switch (voice) {
+      case VoiceState.invite:
+        return _inviteFill;
+      case VoiceState.listening:
+        return (
+          const [
+            Color.fromRGBO(137, 170, 163, .14),
+            Color.fromRGBO(199, 194, 159, .12),
+            Color.fromRGBO(199, 194, 159, 0),
+          ],
+          const [0, .64, 1],
+        );
+      case VoiceState.speaking:
+        return (
+          const [
+            Color.fromRGBO(190, 74, 1, .06),
+            Color.fromRGBO(190, 74, 1, 0),
+          ],
+          const [0, .6],
+        );
+      case VoiceState.done:
+      case VoiceState.thinking:
+        return (
+          const [
+            Color.fromRGBO(190, 74, 1, .10),
+            Color.fromRGBO(199, 194, 159, .16),
+            Color.fromRGBO(199, 194, 159, .05),
+          ],
+          const [0, .62, 1],
+        );
+    }
+  }
+
+  static const _inviteFill = (
+    [
+      Color.fromRGBO(190, 74, 1, .14),
+      Color.fromRGBO(199, 194, 159, .18),
+      Color.fromRGBO(199, 194, 159, .04),
+    ],
+    [0.0, .6, 1.0],
   );
 
   /// A circle that answers no touch, and is still running: slower and shallower than an
