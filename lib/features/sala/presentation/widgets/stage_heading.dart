@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/session_state.dart';
-import 'leave_passage_button.dart';
+import 'way_back_button.dart';
 
 class StageHeading extends StatelessWidget {
   final SalaStage? stage;
@@ -49,8 +49,7 @@ class StageHeading extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(_flank, 24, _flank, 0),
                   child: heading,
                 ),
-                if (stage != null)
-                  LeavePassageButton(carried: (stage: stage, top: 8)),
+                if (stage != null) WayBackButton(stage: stage, top: 8),
               ],
             ),
           );
@@ -62,8 +61,7 @@ class StageHeading extends StatelessWidget {
               height: 46,
               child: Stack(
                 children: [
-                  if (stage != null)
-                    LeavePassageButton(carried: (stage: stage, top: 0)),
+                  if (stage != null) WayBackButton(stage: stage, top: 0),
                 ],
               ),
             ),

@@ -291,6 +291,10 @@ final class TheExternalCheckLeft extends StationEvent {
   const TheExternalCheckLeft();
 }
 
+final class TheRecordingLeft extends StationEvent {
+  const TheRecordingLeft();
+}
+
 /// The team asks for a Panorama in a language: the same one keeps the session the machine
 /// holds for it, any other lets that session go.
 final class ThePanoramaAsked extends MachineEvent {
