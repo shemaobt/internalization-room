@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
+import '../../domain/bt_finding.dart';
 import '../../domain/facilitator_script.dart';
 import 'bead_styles.dart';
 
@@ -12,7 +13,9 @@ class FraseRow {
   final VoidCallback? onHear;
   final VoidCallback? onRetell;
   final String? mark;
-  final bool nuance;
+  final BtFindingKind? achado;
+  final bool traduzindoDeNovo;
+  final bool regravando;
   final String? regravar;
   final bool regravarDormindo;
   final VoidCallback? onRegravar;
@@ -28,7 +31,9 @@ class FraseRow {
     required this.onHear,
     this.onRetell,
     this.mark,
-    this.nuance = false,
+    this.achado,
+    this.traduzindoDeNovo = false,
+    this.regravando = false,
     this.regravar,
     this.regravarDormindo = false,
     this.onRegravar,
@@ -237,7 +242,10 @@ class _FraseTile extends StatelessWidget {
     final n = row.n;
     final parte = row.parte;
     final mark = row.mark;
-    final tom = row.nuance
+    final azul = row.achado != null && row.achado != BtFindingKind.addition;
+    final tom = row.traduzindoDeNovo
+        ? colors.telha
+        : azul
         ? ShemaBrand.azul
         : mark == null
         ? colors.cord
@@ -250,8 +258,12 @@ class _FraseTile extends StatelessWidget {
           color: colors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: row.nuance
+            color: row.regravando
+                ? colors.telha
+                : azul
                 ? ShemaBrand.azul
+                : row.traduzindoDeNovo
+                ? colors.telha
                 : mark == null
                 ? colors.line
                 : colors.telha,
@@ -311,11 +323,16 @@ class _FraseTile extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: colors.telha),
+                            border: Border.all(
+                              color: azul ? ShemaBrand.azul : colors.telha,
+                            ),
                           ),
                           child: Text(
                             mark,
-                            style: TextStyle(color: colors.telha, fontSize: 14),
+                            style: TextStyle(
+                              color: azul ? ShemaBrand.azul : colors.telha,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       if (row.regravar case final regravar?)
