@@ -2190,6 +2190,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _ => false,
     };
     if (!unopened) return;
+    if (_theLeftPassage case final left?) return _bringBackThePassageLeft(left);
     _arriveAtTheChoice();
   }
 
