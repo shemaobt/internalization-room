@@ -122,6 +122,40 @@ Future<(SalaHarness, ProviderContainer)> _inListenMode(
   return (harness, container);
 }
 
+void _numberedDisc(
+  WidgetTester tester,
+  Finder row,
+  String n, {
+  required Color fill,
+  required Color digit,
+}) {
+  final number = find.descendant(of: row, matching: find.text(n));
+  final disc = find.ancestor(
+    of: number,
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is DecoratedBox &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration as BoxDecoration).shape == BoxShape.circle,
+    ),
+  );
+
+  expect(
+    disc,
+    findsOneWidget,
+    reason: 'o número era um dígito solto, sem o disco dela',
+  );
+  expect(tester.getSize(disc), const Size(22, 22));
+  expect(
+    (tester.widget<DecoratedBox>(disc).decoration as BoxDecoration).color,
+    fill,
+  );
+  final style = tester.widget<Text>(number).style;
+  expect(style?.color, digit);
+  expect(style?.fontSize, 11.84);
+  expect(style?.fontWeight, FontWeight.w600);
+}
+
 void main() {
   testWidgets(
     'the scene screen is headed «Ensaio da cena» while its scenes are still on their way, and on the record step after',
@@ -993,10 +1027,17 @@ void main() {
           ),
         ],
       );
+      final fill = find.descendant(
+        of: byLabel('frase 1'),
+        matching: find.byType(FractionallySizedBox),
+      );
+      final track = tester
+          .getSize(find.ancestor(of: fill, matching: find.byType(Align)).first)
+          .width;
       Size bar(int n) => tester.getSize(
         find.descendant(
           of: byLabel('frase $n'),
-          matching: find.byType(DecoratedBox),
+          matching: find.byType(FractionallySizedBox),
         ),
       );
 
@@ -1005,8 +1046,8 @@ void main() {
         10,
         reason: 'a barra da frase tinha altura zero e não aparecia',
       );
-      expect(bar(2).width, 200);
-      expect(bar(1).width, 100);
+      expect(bar(2).width, track);
+      expect(bar(1).width, track / 2);
     },
   );
   testWidgets('on a phone her listen line keeps 16 points on each side', (
@@ -1128,18 +1169,25 @@ void main() {
         () => container.read(salaSessionProvider).scene.step == SceneStep.sent,
       );
       await tester.pump(const Duration(milliseconds: 300));
+      final fill = find.descendant(
+        of: byLabel('frase 1'),
+        matching: find.byType(FractionallySizedBox),
+      );
+      final track = tester
+          .getSize(find.ancestor(of: fill, matching: find.byType(Align)).first)
+          .width;
       Size bar(int n) => tester.getSize(
         find.descendant(
           of: byLabel('frase $n'),
-          matching: find.byType(DecoratedBox),
+          matching: find.byType(FractionallySizedBox),
         ),
       );
 
       expect(container.read(salaSessionProvider).scene.length, isNull);
-      expect(bar(2).width, 200);
+      expect(bar(2).width, track);
       expect(
         bar(1).width,
-        100,
+        track / 2,
         reason: 'sem a medida do take toda barra saía cheia, como a mais longa',
       );
     },
@@ -1189,4 +1237,504 @@ void main() {
       );
     },
   );
+  for (final (look, areia, digit) in [
+    (Brightness.light, const Color(0xFFC5C29F), const Color(0xFFF6F5EB)),
+    (Brightness.dark, const Color(0xFF6E6A57), const Color(0xFF1E1B15)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look each frase told carries its number in her areia disc, not a bare digit',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+
+        _numberedDisc(tester, byLabel(_bar(1)), '1', fill: areia, digit: digit);
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look each frase of a sent scene rehearsal carries its number in her areia disc',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _inListenMode(tester);
+
+        _numberedDisc(
+          tester,
+          byLabel('frase 1'),
+          '1',
+          fill: areia,
+          digit: digit,
+        );
+      },
+    );
+  }
+  for (final (look, areia, wash) in [
+    (
+      Brightness.light,
+      const Color(0xFFC5C29F),
+      const Color.fromRGBO(255, 255, 255, .4),
+    ),
+    (
+      Brightness.dark,
+      const Color(0xFF6E6A57),
+      const Color.fromRGBO(236, 234, 220, .05),
+    ),
+  ]) {
+    for (final (step, row, open)
+        in <(String, String, Future<void> Function(WidgetTester))>[
+          (
+            'told',
+            _bar(1),
+            (tester) => _onTheSceneScreen(
+              tester,
+              rehearsals: [
+                _rehearsal(frases: [_frase('f1', 0, 3000)]),
+              ],
+              until: (state) => state.scene.step == SceneStep.translate,
+            ),
+          ),
+          ('of a sent scene rehearsal', 'frase 1', _inListenMode),
+        ]) {
+      testWidgets(
+        'in the ${look.name} look each frase $step is her bordered card, its bar over «frase 1», not a flat line',
+        (tester) async {
+          tester.platformDispatcher.platformBrightnessTestValue = look;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
+          await open(tester);
+          Rect at(Finder finder) => tester.getRect(
+            find.descendant(of: byLabel(row), matching: finder),
+          );
+          final card = find.descendant(
+            of: byLabel(row),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is DecoratedBox &&
+                  widget.decoration is BoxDecoration &&
+                  (widget.decoration as BoxDecoration).border != null,
+            ),
+          );
+          final bar = at(find.byType(FractionallySizedBox));
+          final words = at(find.text('frase 1'));
+
+          expect(
+            bar.bottom,
+            lessThanOrEqualTo(words.top),
+            reason: 'a barra corria ao lado de «frase 1», não sobre ela',
+          );
+          expect(words.left, bar.left);
+          expect(bar.left, greaterThan(at(find.text('1')).right));
+          expect(card, findsOneWidget, reason: 'a frase era uma linha solta');
+          final decoration =
+              tester.widget<DecoratedBox>(card).decoration as BoxDecoration;
+          expect(decoration.border, Border.all(color: areia, width: 1.2));
+          expect(decoration.borderRadius, BorderRadius.circular(12));
+          expect(decoration.color, wash);
+          expect(tester.getRect(card).contains(bar.center), isTrue);
+          expect(tester.getRect(card).contains(words.center), isTrue);
+        },
+      );
+    }
+  }
+  for (final (look, verdeClaro) in [
+    (Brightness.light, const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look a frase bar is her verde-claro fill along a pale track, not a red stroke on nothing',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              frases: [_frase('f1', 0, 2000), _frase('f2', 2000, 6000)],
+            ),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+
+        for (final (n, share) in [(1, 0.5), (2, 1.0)]) {
+          final fill = find.descendant(
+            of: byLabel(_bar(n)),
+            matching: find.byType(FractionallySizedBox),
+          );
+          final track = find.ancestor(
+            of: fill,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is DecoratedBox &&
+                  widget.decoration is BoxDecoration &&
+                  (widget.decoration as BoxDecoration).color ==
+                      const Color.fromRGBO(199, 194, 159, .28),
+            ),
+          );
+
+          expect(
+            track,
+            findsOneWidget,
+            reason: 'a barra não tinha trilho; só a parte cheia aparecia',
+          );
+          expect(
+            (tester.widget<DecoratedBox>(track).decoration as BoxDecoration)
+                .borderRadius,
+            BorderRadius.circular(5),
+          );
+          expect(tester.getSize(track).height, 10);
+          expect(
+            (tester
+                        .widget<DecoratedBox>(
+                          find.descendant(
+                            of: fill,
+                            matching: find.byType(DecoratedBox),
+                          ),
+                        )
+                        .decoration
+                    as BoxDecoration)
+                .color,
+            verdeClaro.withValues(alpha: .85),
+            reason: 'a parte cheia era o vermelho do microfone a .6',
+          );
+          expect(
+            tester.getSize(fill).width / tester.getSize(track).width,
+            share,
+          );
+        }
+      },
+    );
+  }
+  for (final (look, telha, areia) in [
+    (Brightness.light, const Color(0xFFBE4A01), const Color(0xFFC5C29F)),
+    (Brightness.dark, const Color(0xFFD6612A), const Color(0xFF6E6A57)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look the frase being translated again wears telha on its bar and its border, and the others keep theirs',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        final (_, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              frases: [_frase('f1', 0, 3000), _frase('f2', 3000, 6000)],
+            ),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+        await tester.tap(byLabel(_bar(1)));
+        await tester.pump(const Duration(milliseconds: 300));
+        BoxDecoration paint(int n, bool Function(BoxDecoration) which) => tester
+            .widgetList<DecoratedBox>(
+              find.descendant(
+                of: byLabel(_bar(n)),
+                matching: find.byType(DecoratedBox),
+              ),
+            )
+            .map((box) => box.decoration)
+            .whereType<BoxDecoration>()
+            .singleWhere(which);
+        Color? border(int n) =>
+            (paint(n, (box) => box.border != null).border as Border?)
+                ?.top
+                .color;
+        Color? fill(int n) => paint(
+          n,
+          (box) =>
+              box.borderRadius == BorderRadius.circular(5) &&
+              box.color != const Color.fromRGBO(199, 194, 159, .28),
+        ).color;
+
+        expect(
+          container.read(salaSessionProvider).scene.translatingAgain?.fraseId,
+          'f1',
+        );
+        expect(
+          border(1),
+          telha,
+          reason: 'a frase traduzida de novo não se distinguia das outras',
+        );
+        expect(fill(1), telha.withValues(alpha: .85));
+        expect(border(2), areia);
+        expect(fill(2), isNot(telha.withValues(alpha: .85)));
+      },
+    );
+  }
+  for (final (device, width, left, right) in [
+    ('an iPhone SE', 375.0, 16.0, 375.0 - 16),
+    ('an iPad', 820.0, (820.0 - 470) / 2, (820.0 + 470) / 2),
+  ]) {
+    testWidgets(
+      'on $device each frase told and its speaker keep her width, 16 points from the edges and at most 470',
+      (tester) async {
+        await _onTheSceneScreen(
+          tester,
+          view: Size(width, 2400),
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+
+        expect(
+          tester.getRect(byLabel(_bar(1))).left,
+          left,
+          reason: 'a frase tinha a largura do que escrevia, não a dela',
+        );
+        expect(
+          tester.getRect(byLabel('ouvir a minha tradução da frase 1')).right,
+          right,
+        );
+      },
+    );
+  }
+  for (final (look, verdeClaro) in [
+    (Brightness.light, const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look the frases heading and the list heading are her small verde-claro capitals, not the 14 point grey',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+
+        for (final heading in [
+          'FRASES TRADUZIDAS',
+          'ENSAIOS DA CENA DESTA SESSÃO',
+        ]) {
+          final style = tester.widget<Text>(find.text(heading)).style;
+          expect(
+            style?.fontSize,
+            closeTo(11.2, 1e-9),
+            reason: 'o cabeçalho tinha 14 pontos; o dela tem .7rem',
+          );
+          expect(style?.color, verdeClaro);
+          expect(style?.fontWeight, FontWeight.w600);
+          expect(style?.letterSpacing, closeTo(2.016, 1e-9));
+        }
+      },
+    );
+  }
+  for (final (look, verdeClaro) in [
+    (Brightness.light, const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFFAAB07E)),
+  ]) {
+    for (final (step, row, open)
+        in <(String, String, Future<void> Function(WidgetTester))>[
+          (
+            'told',
+            _bar(1),
+            (tester) => _onTheSceneScreen(
+              tester,
+              rehearsals: [
+                _rehearsal(frases: [_frase('f1', 0, 3000)]),
+              ],
+              until: (state) => state.scene.step == SceneStep.translate,
+            ),
+          ),
+          ('of a sent scene rehearsal', 'frase 1', _inListenMode),
+        ]) {
+      testWidgets(
+        'in the ${look.name} look «frase 1» under the bar of a frase $step is her small verde-claro line, not 16 point ink',
+        (tester) async {
+          tester.platformDispatcher.platformBrightnessTestValue = look;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
+          await open(tester);
+          final style = tester
+              .widget<Text>(
+                find.descendant(
+                  of: byLabel(row),
+                  matching: find.text('frase 1'),
+                ),
+              )
+              .style;
+
+          expect(
+            style?.fontSize,
+            closeTo(11.2, 1e-9),
+            reason: '«frase 1» tinha 16 pontos; o dela tem .7rem',
+          );
+          expect(style?.color, verdeClaro);
+          expect(style?.height, 1.35);
+        },
+      );
+    }
+  }
+  for (final (look, verdeClaro) in [
+    (Brightness.light, const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFFAAB07E)),
+  ]) {
+    for (final (step, line, open)
+        in <(String, String, Future<void> Function(WidgetTester))>[
+          (
+            'translate step',
+            'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase '
+                'acaba, e de novo para traduzir só aquela frase.',
+            (tester) => _onTheSceneScreen(
+              tester,
+              rehearsals: [
+                _rehearsal(frases: [_frase('f1', 0, 3000)]),
+              ],
+              until: (state) => state.scene.step == SceneStep.translate,
+            ),
+          ),
+          ('listen mode', _listenLine, _inListenMode),
+        ]) {
+      testWidgets(
+        'in the ${look.name} look the $step sub line is her .92rem verde-claro, at most 36 characters wide',
+        (tester) async {
+          tester.platformDispatcher.platformBrightnessTestValue = look;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
+          await open(tester);
+          final style = tester.widget<Text>(find.text(line)).style;
+
+          expect(
+            style?.fontSize,
+            closeTo(14.72, 1e-9),
+            reason: 'a linha de baixo do título tinha 16 pontos em tinta',
+          );
+          expect(style?.color, verdeClaro);
+          expect(
+            tester.getSize(find.text(line)).width,
+            lessThanOrEqualTo(36 * 14.72 + .01),
+            reason: 'a linha corria a 560 pontos; a dela para em 36ch',
+          );
+        },
+      );
+    }
+  }
+  for (final (look, areia, azul, verdeClaro, digit) in [
+    (
+      Brightness.light,
+      const Color(0xFFC5C29F),
+      const Color(0xFF89AAA3),
+      const Color(0xFF777D45),
+      const Color(0xFFF6F5EB),
+    ),
+    (
+      Brightness.dark,
+      const Color(0xFF6E6A57),
+      const Color(0xFF8FB1A9),
+      const Color(0xFFAAB07E),
+      const Color(0xFF1E1B15),
+    ),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look a listed rehearsal carries its number in her disc, azul on the one on screen and verde-claro once sent',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              sentAt: '2026-10-15T14:20:00+00:00',
+              frases: [_frase('f1', 0, 3000)],
+            ),
+            _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+          ],
+          until: (state) => state.scene.rehearsal?.n == 2,
+        );
+        final list = byLabel('ensaios da cena desta sessão');
+
+        _numberedDisc(tester, list, '1', fill: verdeClaro, digit: digit);
+        _numberedDisc(tester, list, '2', fill: azul, digit: digit);
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look a listed rehearsal neither sent nor on screen is her areia disc, and a sent one on screen stays verde-claro',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _inListenMode(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              sentAt: '2026-10-15T14:20:00+00:00',
+              frases: [_frase('f1', 0, 3000)],
+            ),
+            _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+          ],
+        );
+        final list = byLabel('ensaios da cena desta sessão');
+
+        _numberedDisc(tester, list, '1', fill: verdeClaro, digit: digit);
+        _numberedDisc(tester, list, '2', fill: areia, digit: digit);
+      },
+    );
+  }
+  for (final (look, verdeClaro, verde, telha) in [
+    (
+      Brightness.light,
+      const Color(0xFF777D45),
+      const Color(0xFF3F3E20),
+      const Color(0xFFBE4A01),
+    ),
+    (
+      Brightness.dark,
+      const Color(0xFFAAB07E),
+      const Color(0xFFECEADC),
+      const Color(0xFFD6612A),
+    ),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look a listed rehearsal is written at her .8rem in verde-claro, verde on the one on screen, not 14 point grey and ink',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              sentAt: '2026-10-15T14:20:00+00:00',
+              frases: [_frase('f1', 0, 3000)],
+            ),
+            _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+          ],
+          until: (state) => state.scene.rehearsal?.n == 2,
+        );
+        TextStyle? style(String row, String words) => tester
+            .widget<Text>(
+              find.descendant(of: byLabel(row), matching: find.text(words)),
+            )
+            .style;
+        const sentRow =
+            'ouvir o ensaio da cena 1, 1 · frases traduzidas, enviado';
+        const rowOnScreen =
+            'Ensaio da cena 2, 1 · frases traduzidas, não enviado';
+
+        for (final (row, words, color) in [
+          (sentRow, '1 · frases traduzidas', verdeClaro),
+          (sentRow, 'enviado', verdeClaro),
+          (rowOnScreen, '1 · frases traduzidas', verde),
+          (rowOnScreen, 'não enviado', telha),
+        ]) {
+          expect(
+            style(row, words)?.fontSize,
+            closeTo(12.8, 1e-9),
+            reason: 'a linha da lista tinha 14 pontos; a dela tem .8rem',
+          );
+          expect(style(row, words)?.color, color);
+        }
+      },
+    );
+  }
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -585,13 +586,13 @@ void main() {
   test('one take that will not go does not block the rest forever', () async {
     final room = FakeRoom()..reachable = false;
     final queue = queueOn(room);
-    await queue.enqueue(
+    final primeira = await queue.enqueue(
       aTake('primeira'),
       sessionId: 'sessao-1',
       kind: 'ensaio',
       scope: 'inteira',
     );
-    await queue.enqueue(
+    final segunda = await queue.enqueue(
       aTake('segunda'),
       sessionId: 'sessao-1',
       kind: 'retro',
@@ -600,6 +601,8 @@ void main() {
 
     expect(await queue.flush(), 0);
     room.reachable = true;
+    await queue.dueAgain(primeira.id);
+    await queue.dueAgain(segunda.id);
 
     expect(await queue.flush(), 2);
     expect(room.takesKept, ['ensaio/inteira', 'retro/P03']);
@@ -768,7 +771,8 @@ void main() {
   test(
     'inside the window nothing of that part leaves, and past it both land in order',
     () async {
-      final room = FakeRoom()..reachable = false;
+      final room = FakeRoom()
+        ..failWith = const Refused(RefusalCode.deviceRevoked);
       final queue = queueOn(room, backoff: const [Duration(seconds: 5)]);
       final primeira = await queue.enqueue(
         aTake('primeira'),
@@ -777,7 +781,7 @@ void main() {
         scope: 'parte-2',
       );
       await queue.flush();
-      room.reachable = true;
+      room.failWith = null;
       final segunda = await queue.enqueue(
         aTake('segunda'),
         sessionId: 'sessao-1',
@@ -949,7 +953,8 @@ void main() {
   );
 
   test('the backoff keeps a failed take from being retried at once', () async {
-    final room = FakeRoom()..reachable = false;
+    final room = FakeRoom()
+      ..failWith = const Refused(RefusalCode.deviceRevoked);
     final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
     await queue.enqueue(
       aTake('tomada'),
@@ -959,7 +964,7 @@ void main() {
     );
 
     await queue.flush();
-    room.reachable = true;
+    room.failWith = null;
     expect(await queue.flush(), 0, reason: 'ainda dentro da espera');
 
     clock = clock.add(const Duration(minutes: 6));
@@ -1051,38 +1056,35 @@ void main() {
     );
   });
 
-  test('a room it never reached is paced, never abandoned', () async {
+  test('a room it never reached spends three attempts in one pass and keeps '
+      'the take for a tap', () async {
     final room = FakeRoom()..reachable = false;
     final queue = queueOn(room);
-    await queue.enqueue(
+    final entry = await queue.enqueue(
       aTake('tomada'),
       sessionId: 'sessao-1',
       kind: 'ensaio',
       scope: 'inteira',
     );
 
-    for (var attempt = 0; attempt < takeUploadAttempts + 4; attempt++) {
+    for (var pass = 0; pass < 4; pass++) {
       clock = clock.add(const Duration(minutes: 20));
       await queue.flush();
     }
 
     expect(
-      await queue.waiting(),
-      hasLength(1),
-      reason:
-          'um timeout não é uma recusa: num link ruim as cinco tentativas eram '
-          'gastas em cinco esperas e a gravação era abandonada de vez',
+      room.calls.where((call) => call == 'sendTake'),
+      hasLength(3),
+      reason: 'uma falha de rede gasta uma tentativa, e nada sobe sem um toque',
     );
-    expect(
-      (await queue.pending()).single.attempts,
-      0,
-      reason: 'nenhuma espera pode gastar o orçamento de recusas',
-    );
+    expect(await queue.waiting(), isEmpty);
+    expect(await queue.pending(), hasLength(1));
+    expect(File(entry.path).existsSync(), isTrue);
 
     room.reachable = true;
-    clock = clock.add(const Duration(minutes: 20));
+    await queue.dueAgain(entry.id);
 
-    expect(await queue.flush(), 1, reason: 'e ela sobe assim que a sala volta');
+    expect(await queue.flush(), 1, reason: 'o toque devolve as tentativas');
   });
 
   test('a manifest it cannot read never claims the audio is safe', () async {
@@ -1293,9 +1295,14 @@ void main() {
     await queue.flush();
 
     expect(
-      await queue.waiting(),
+      room.calls.where((call) => call == 'sendTake'),
+      hasLength(3),
+      reason: 'ela é tentada',
+    );
+    expect(
+      await queue.pending(),
       hasLength(1),
-      reason: 'e ela continua na fila, sendo tentada',
+      reason: 'e ela continua na fila, à espera de um toque',
     );
   });
 
@@ -1318,7 +1325,8 @@ void main() {
   );
 
   test('a take still uploads after the tablet clock jumps backwards', () async {
-    final room = FakeRoom()..reachable = false;
+    final room = FakeRoom()
+      ..failWith = const Refused(RefusalCode.deviceRevoked);
     final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
     clock = DateTime(2026, 8, 12, 9);
     await queue.enqueue(
@@ -1331,7 +1339,7 @@ void main() {
 
     // A correção automática de horário chega justamente quando a rede volta.
     clock = clock.subtract(const Duration(hours: 1));
-    room.reachable = true;
+    room.failWith = null;
 
     expect(
       await queue.flush(),
@@ -1346,7 +1354,8 @@ void main() {
   });
 
   test('the queue survives a timezone change across a restart', () async {
-    final room = FakeRoom()..reachable = false;
+    final room = FakeRoom()
+      ..failWith = const Refused(RefusalCode.deviceRevoked);
     clock = DateTime(2026, 8, 12, 9);
     final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
     await queue.enqueue(
@@ -1360,7 +1369,7 @@ void main() {
     // O aparelho reabre num fuso atrás do primeiro, e o instante volta do disco
     // adiante do relógio de agora.
     clock = clock.subtract(const Duration(hours: 3));
-    room.reachable = true;
+    room.failWith = null;
     final afterRestart = queueOn(room, backoff: const [Duration(minutes: 5)]);
 
     expect(
@@ -1404,7 +1413,8 @@ void main() {
   test(
     'a take freed by a backwards jump goes back to waiting its backoff',
     () async {
-      final room = FakeRoom()..reachable = false;
+      final room = FakeRoom()
+        ..failWith = const Refused(RefusalCode.deviceRevoked);
       final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
       clock = DateTime(2026, 8, 12, 9);
       await queue.enqueue(
@@ -1418,7 +1428,7 @@ void main() {
       clock = clock.subtract(const Duration(hours: 1));
       await queue.flush();
 
-      room.reachable = true;
+      room.failWith = null;
       expect(
         await queue.flush(),
         0,
@@ -1434,6 +1444,43 @@ void main() {
         1,
         reason: 'e ela sobe quando a espera vence, contada do relógio de agora',
       );
+    },
+  );
+
+  test(
+    'a spent take holding a newer take of its part leaves nothing pending '
+    'and sends nothing until the team taps; the tap sends both in order',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      final primeira = await queue.enqueue(
+        aTake('primeira'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'parte-3',
+        passNumber: 1,
+      );
+      await queue.flush();
+      room.reachable = true;
+      final segunda = await queue.enqueue(
+        aTake('segunda'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'parte-3',
+        passNumber: 2,
+      );
+
+      await queue.flush();
+
+      final tally = await queue.tally(sessionId: 'sessao-1');
+      expect(tally.parts.values, isNot(contains(PartFact.pending)));
+      expect(room.takesKept, isEmpty);
+
+      await queue.dueAgain(primeira.id);
+      await queue.dueAgain(segunda.id);
+      await queue.flush();
+
+      expect(room.takePasses, [1, 2]);
     },
   );
 
@@ -1596,7 +1643,8 @@ void main() {
     );
 
     test(
-      'a take the room fails on with a 500 waits and never gives up',
+      'a take the room fails on with a 500 spends three attempts and stays on '
+      'the tablet',
       () async {
         final queue = queueAnswering(500, {
           'detail': 'boom',
@@ -1611,9 +1659,9 @@ void main() {
 
         await flushTwelveTimes(queue);
 
-        expect(asked, greaterThan(1));
-        expect(await queue.waiting(), hasLength(1));
-        expect((await queue.pending()).single.attempts, 0);
+        expect(asked, 3);
+        expect(await queue.waiting(), isEmpty);
+        expect(await queue.pending(), hasLength(1));
       },
     );
 
@@ -1752,11 +1800,50 @@ void main() {
 
         expect(
           room.calls.where((call) => call == 'keepSceneRehearsal'),
-          hasLength(1),
+          hasLength(3),
           reason:
-              'o ensaio de depois chegaria antes e levaria o número do de antes',
+              'só as tentativas do primeiro: o ensaio de depois chegaria antes e '
+              'levaria o número do de antes',
         );
       });
+
+      test(
+        'behind one whose attempts are spent, until the team keeps it',
+        () async {
+          final room = FakeRoom()
+            ..failSceneWith = const NetworkFailed('sem rede');
+          final queue = queueOn(room);
+          await queue.enqueue(
+            aTake('cena-1'),
+            sessionId: 'sessao-1',
+            kind: 'cena',
+            scope: 'cena',
+          );
+          await queue.flush();
+          room.failSceneWith = null;
+          final segunda = await queue.enqueue(
+            aTake('cena-2'),
+            sessionId: 'sessao-1',
+            kind: 'cena',
+            scope: 'cena',
+          );
+
+          await queue.flush();
+
+          expect(
+            room.sceneTakesSent,
+            isEmpty,
+            reason: 'a de trás não passa na frente da que espera um toque',
+          );
+
+          await queue.keepTheScene(segunda.id);
+
+          expect(room.sceneTakesSent, [
+            File('${home.path}/cena-1.m4a').readAsBytesSync(),
+            File('${home.path}/cena-2.m4a').readAsBytesSync(),
+          ]);
+        },
+      );
 
       test('not behind one refused for good', () async {
         final room = FakeRoom()
@@ -1925,36 +2012,38 @@ void main() {
       },
     );
 
-    test(
-      'a retry tapped while the same row is in the air keeps its reset',
-      () async {
-        final room = FakeRoom()
-          ..failSceneWith = const NetworkFailed('sem rede');
-        final queue = queueOn(room, backoff: const [Duration(seconds: 5)]);
-        final row = await aScene(queue, 'cena-1');
-        await queue.flush();
-        clock = clock.add(const Duration(seconds: 6));
-        room.holdNextKeepBeforeTheRoomActs();
-        final inTheAir = queue.flush();
-        await waitFor(
-          'a tomada estar no ar',
-          () => room.calls.where((c) => c == 'keepSceneRehearsal').length == 2,
-        );
+    test('a retry tapped while the same row is in the air gives it its three '
+        'attempts back', () async {
+      final room = FakeRoom();
+      int keeps() => room.calls.where((c) => c == 'keepSceneRehearsal').length;
+      final queue = queueOn(room);
+      final row = await aScene(queue, 'cena-1');
+      room.holdNextKeepBeforeTheRoomActs();
+      final inTheAir = queue.flush();
+      await waitFor('a primeira tentativa estar no ar', () => keeps() == 1);
+      room.sceneAnswersFirst.add(const NetworkFailed('sem rede'));
+      room
+        ..finishHeldKeep()
+        ..holdNextKeepBeforeTheRoomActs();
+      await waitFor('a segunda tentativa estar no ar', () => keeps() == 2);
 
-        await queue.dueAgain(row.id);
-        room.finishHeldKeep();
-        await inTheAir;
-        room.failSceneWith = null;
-        await queue.flush();
+      await queue.dueAgain(row.id);
+      room.sceneAnswersFirst.addAll(const [
+        NetworkFailed('sem rede'),
+        NetworkFailed('sem rede'),
+        NetworkFailed('sem rede'),
+      ]);
+      room.finishHeldKeep();
+      await inTheAir;
 
-        expect(
-          room.scenesKept,
-          hasLength(1),
-          reason:
-              'o toque da equipe pulou a espera; a falha em voo não a devolve',
-        );
-      },
-    );
+      expect(
+        room.scenesKept,
+        hasLength(1),
+        reason:
+            'o toque da equipe devolveu as três tentativas; a falha em voo não '
+            'as gasta',
+      );
+    });
 
     test('a copy gone mid-keep answers not kept, never an error', () async {
       final room = FakeRoom();
@@ -2108,6 +2197,59 @@ void main() {
     );
   });
 
+  test('a take a row can show goes up before every take no row can show, '
+      'each part still in its order', () async {
+    final room = FakeRoom();
+    final queue = queueOn(room)
+      ..offerTheTapThrough((row) => row.scope != 'parte-2');
+    for (final (name, scope, pass) in [
+      ('parte-2-a', 'parte-2', 1),
+      ('parte-2-b', 'parte-2', 2),
+      ('inteira', 'passagem-inteira', 3),
+    ]) {
+      await queue.enqueue(
+        aTake(name),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: scope,
+        passNumber: pass,
+      );
+    }
+
+    await queue.flush();
+
+    expect(room.takesAsked, [
+      'ensaio/passagem-inteira',
+      'ensaio/parte-2',
+      'ensaio/parte-2',
+    ]);
+    expect(room.takePasses, [3, 1, 2]);
+  });
+
+  test('a spent take no row can show goes up once its lost audio is found '
+      'again', () async {
+    final room = FakeRoom()..unreachableTake = 'ensaio/parte-2';
+    final queue = queueOn(room)
+      ..offerTheTapThrough((row) => row.scope != 'parte-2');
+    final entry = await queue.enqueue(
+      aTake('parte-2'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'parte-2',
+    );
+    await queue.flush();
+    final bytes = File(entry.path).readAsBytesSync();
+    File(entry.path).deleteSync();
+    await queue.flush();
+    expect((await queue.pending()).single.lost, isTrue);
+    File(entry.path).writeAsBytesSync(bytes);
+    room.unreachableTake = null;
+
+    await queue.flush();
+
+    expect(room.takesKept, ['ensaio/parte-2']);
+  });
+
   group('a join row', () {
     File aRehearsal(List<int> bytes) =>
         File('${home.path}/parte-2-junta-ensaio-2.wav')
@@ -2189,6 +2331,177 @@ void main() {
       expect(sent.reopens, isTrue);
       expect(sent.sha256, fingerprintOf(bytes));
       expect(sent.bytes, bytes);
+    });
+
+    test('is never spent by network failures: it goes up on the next pass '
+        'once the network returns', () async {
+      final room = FakeRoom()..unreachableTake = 'ensaio/parte-2';
+      final queue = queueOn(room);
+      await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      );
+      for (var pass = 0; pass < takeUploadAttempts + 1; pass++) {
+        await queue.flush();
+      }
+      room.unreachableTake = null;
+
+      await queue.flush();
+
+      expect(room.takesKept, ['ensaio/parte-2']);
+    });
+
+    test('withdrawn after its pass found it and before it is sent stays '
+        'unsent, and the room never receives it', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final copy = (await queue.pending()).single.path;
+      final outside = Zone.current;
+
+      await IOOverrides.runZoned(
+        queue.flush,
+        createFile: (path) {
+          final real = outside.run(() => File(path));
+          if (path != copy) return real;
+          return _AWatchedCopyThatIgnoresDelete(
+            real,
+            whenChecked: () {
+              if (!queue.inTheAir(row.id)) unawaited(queue.withdraw(row));
+            },
+          );
+        },
+      );
+
+      expect(room.takesReceivedWhole, isEmpty);
+      expect(await queue.pending(), isEmpty);
+    });
+
+    test('withdrawn even in the air before its pass claims it is taken off '
+        'and never sent', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final copy = (await queue.pending()).single.path;
+      final outside = Zone.current;
+      late Future<bool> withdrawn;
+
+      await IOOverrides.runZoned(
+        queue.flush,
+        createFile: (path) {
+          final real = outside.run(() => File(path));
+          if (path != copy) return real;
+          return _AWatchedCopyThatIgnoresDelete(
+            real,
+            whenChecked: () => withdrawn = queue.withdrawEvenInTheAir(row),
+          );
+        },
+      );
+
+      expect(await withdrawn, isFalse);
+      expect(room.takesReceivedWhole, isEmpty);
+      expect(await queue.pending(), isEmpty);
+    });
+
+    test('withdrawn even in the air once its pass claimed it leaves the Outbox '
+        'at once, keeps its copy until its send lands, and that send still '
+        'lands', () async {
+      final room = FakeRoom()..holdNextTake('parte-2');
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final copy = (await queue.pending()).single.path;
+      final outside = Zone.current;
+      late Future<bool> withdrawn;
+      var watched = false;
+
+      final flushed = IOOverrides.runZoned(
+        queue.flush,
+        createFile: (path) {
+          final real = outside.run(() => File(path));
+          if (path != copy || watched) return real;
+          watched = true;
+          return _AWatchedCopyThatIgnoresDelete(
+            real,
+            whenMeasured: () => Future.microtask(
+              () => Future.microtask(
+                () => withdrawn = queue.withdrawEvenInTheAir(row),
+              ),
+            ),
+          );
+        },
+      );
+      await room.untilTakeHeld();
+
+      expect(await withdrawn, isTrue);
+      expect(await queue.pending(), isEmpty);
+      expect(File(copy).existsSync(), isTrue);
+
+      room.finishHeldTake();
+      await flushed;
+
+      expect(room.takesKept, ['ensaio/parte-2']);
+      expect(File(copy).existsSync(), isFalse);
+    });
+
+    test('withdrawn while its pass is under way is given up, and the newer '
+        'take of its part goes up in the same pass', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final join = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      await queue.enqueue(
+        aTake('a-mao'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'parte-2',
+        passNumber: 2,
+      );
+      final copy = (await queue.pending()).first.path;
+      final outside = Zone.current;
+
+      await IOOverrides.runZoned(
+        queue.flush,
+        createFile: (path) {
+          final real = outside.run(() => File(path));
+          if (path != copy) return real;
+          return _AWatchedCopyThatIgnoresDelete(
+            real,
+            whenChecked: () {
+              real.deleteSync();
+              unawaited(queue.withdraw(join));
+            },
+          );
+        },
+      );
+
+      expect(room.takePasses, [2]);
+      expect(await queue.pending(), isEmpty);
     });
 
     test('sends the moment of each try as its Recording time', () async {
@@ -2354,4 +2667,56 @@ class _ADiskThatThrowsOnTheRename extends FakeRecorder {
   @override
   Future<String?> heldAs(String fileName) async =>
       throw StateError('o contêiner já foi descartado');
+}
+
+class _AWatchedCopyThatIgnoresDelete implements File {
+  final File _real;
+  final void Function() whenChecked;
+  final void Function() whenMeasured;
+
+  _AWatchedCopyThatIgnoresDelete(
+    this._real, {
+    this.whenChecked = _nothing,
+    this.whenMeasured = _nothing,
+  });
+
+  static void _nothing() {}
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<bool> exists() {
+    whenChecked();
+    return _real.exists();
+  }
+
+  @override
+  bool existsSync() => _real.existsSync();
+
+  @override
+  Future<int> length() async {
+    final length = await _real.length();
+    whenMeasured();
+    return length;
+  }
+
+  @override
+  int lengthSync() => _real.lengthSync();
+
+  @override
+  Uint8List readAsBytesSync() => _real.readAsBytesSync();
+
+  @override
+  Future<Uint8List> readAsBytes() => _real.readAsBytes();
+
+  @override
+  Stream<List<int>> openRead([int? start, int? end]) =>
+      _real.openRead(start, end);
+
+  @override
+  Future<FileSystemEntity> delete({bool recursive = false}) async => this;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
