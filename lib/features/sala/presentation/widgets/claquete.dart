@@ -92,12 +92,13 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
               child: Center(
                 child: Loop(
                   period: const Duration(seconds: 9),
-                  builder: (context, t) => ShemaMark(
-                    onTap: _show,
-                    opacity: MediaQuery.disableAnimationsOf(context)
-                        ? (speaking ? 0.85 : 0.72)
-                        : 0.66 + 0.14 * t,
-                  ),
+                  builder: (context, t) =>
+                      MediaQuery.disableAnimationsOf(context)
+                      ? _StillMark(
+                          onTap: _show,
+                          opacity: speaking ? 0.85 : 0.72,
+                        )
+                      : ShemaMark(onTap: _show, opacity: 0.66 + 0.14 * t),
                 ),
               ),
             ),
@@ -123,6 +124,52 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _StillMark extends StatefulWidget {
+  final VoidCallback onTap;
+  final double opacity;
+
+  const _StillMark({required this.onTap, required this.opacity});
+
+  @override
+  State<_StillMark> createState() => _StillMarkState();
+}
+
+class _StillMarkState extends State<_StillMark>
+    with SingleTickerProviderStateMixin {
+  late final _ease = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+    animationBehavior: AnimationBehavior.preserve,
+  );
+  late Animation<double> _opacity = AlwaysStoppedAnimation(widget.opacity);
+
+  @override
+  void didUpdateWidget(_StillMark oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.opacity == oldWidget.opacity) return;
+    _opacity = Tween(
+      begin: _opacity.value,
+      end: widget.opacity,
+    ).chain(CurveTween(curve: Curves.ease)).animate(_ease);
+    _ease.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _ease.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ease,
+      builder: (context, _) =>
+          ShemaMark(onTap: widget.onTap, opacity: _opacity.value),
     );
   }
 }
