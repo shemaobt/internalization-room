@@ -122,6 +122,40 @@ Future<(SalaHarness, ProviderContainer)> _inListenMode(
   return (harness, container);
 }
 
+void _numberedDisc(
+  WidgetTester tester,
+  Finder row,
+  String n, {
+  required Color fill,
+  required Color digit,
+}) {
+  final number = find.descendant(of: row, matching: find.text(n));
+  final disc = find.ancestor(
+    of: number,
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is DecoratedBox &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration as BoxDecoration).shape == BoxShape.circle,
+    ),
+  );
+
+  expect(
+    disc,
+    findsOneWidget,
+    reason: 'o número da frase era um dígito solto, sem o disco dela',
+  );
+  expect(tester.getSize(disc), const Size(22, 22));
+  expect(
+    (tester.widget<DecoratedBox>(disc).decoration as BoxDecoration).color,
+    fill,
+  );
+  final style = tester.widget<Text>(number).style;
+  expect(style?.color, digit);
+  expect(style?.fontSize, 11.84);
+  expect(style?.fontWeight, FontWeight.w600);
+}
+
 void main() {
   testWidgets(
     'the scene screen is headed «Ensaio da cena» while its scenes are still on their way, and on the record step after',
@@ -991,7 +1025,7 @@ void main() {
       Size bar(int n) => tester.getSize(
         find.descendant(
           of: byLabel('frase $n'),
-          matching: find.byType(DecoratedBox),
+          matching: find.byType(FractionallySizedBox),
         ),
       );
 
@@ -1122,7 +1156,7 @@ void main() {
       Size bar(int n) => tester.getSize(
         find.descendant(
           of: byLabel('frase $n'),
-          matching: find.byType(DecoratedBox),
+          matching: find.byType(FractionallySizedBox),
         ),
       );
 
@@ -1175,4 +1209,41 @@ void main() {
       );
     },
   );
+  for (final (look, areia, digit) in [
+    (Brightness.light, const Color(0xFFC5C29F), const Color(0xFFF6F5EB)),
+    (Brightness.dark, const Color(0xFF6E6A57), const Color(0xFF1E1B15)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look each frase told carries its number in her areia disc, not a bare digit',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+
+        _numberedDisc(tester, byLabel(_bar(1)), '1', fill: areia, digit: digit);
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look each frase of a sent scene rehearsal carries its number in her areia disc',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _inListenMode(tester);
+
+        _numberedDisc(
+          tester,
+          byLabel('frase 1'),
+          '1',
+          fill: areia,
+          digit: digit,
+        );
+      },
+    );
+  }
 }

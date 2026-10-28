@@ -17,6 +17,8 @@ import 'motion.dart';
 import 'pause_adjust_row.dart';
 import 'scene_strip.dart';
 
+const _rem = 16.0;
+
 /// The translate step, in her order: the instruction, the play control and the hint, the
 /// strip, her adjust row under a pending pausa, «traduzir o ensaio da cena» until the
 /// team listens, the circle, her message under it and «manter a tradução de antes» while
@@ -831,7 +833,13 @@ class _FraseBar extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(width: 24, child: Text('$n', style: style)),
+                      SizedBox(
+                        width: 26,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: _Disc(n: n, fill: colors.areia),
+                        ),
+                      ),
                       SizedBox(
                         width: 200,
                         height: 10,
@@ -875,4 +883,31 @@ class _FraseBar extends StatelessWidget {
       ),
     );
   }
+}
+
+class _Disc extends StatelessWidget {
+  final int n;
+  final Color fill;
+
+  const _Disc({required this.n, required this.fill});
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: 22,
+    child: DecoratedBox(
+      decoration: BoxDecoration(shape: BoxShape.circle, color: fill),
+      child: Center(
+        child: Text(
+          '$n',
+          style: TextStyle(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF1E1B15)
+                : ShemaBrand.branco,
+            fontSize: 0.74 * _rem,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ),
+  );
 }
