@@ -740,6 +740,21 @@ void main() {
         'not verified',
         (String s) => _rehearsal(s, n: 2, scene: 'S2', verified: false),
       ),
+      (
+        'unsent and audio/mp4',
+        (String s) => _rehearsal(
+          s,
+          n: 2,
+          scene: 'S2',
+          sentAt: null,
+          contentType: 'audio/mp4',
+        ),
+      ),
+      (
+        'unsent and not verified',
+        (String s) =>
+            _rehearsal(s, n: 2, scene: 'S2', sentAt: null, verified: false),
+      ),
     ]) {
       testWidgets('when it is $why', (tester) async {
         final semantics = tester.ensureSemantics();
