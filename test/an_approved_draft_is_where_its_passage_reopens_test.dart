@@ -355,6 +355,39 @@ void main() {
     },
   );
 
+  testWidgets(
+    'after a relaunch onto an approved session the dot leads to the recording '
+    'home, with the badge naming the version the room read',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(2));
+      (harness.currentSession as FakeCurrentSessionLedger).held =
+          const CurrentSession(
+            sessionId: 'sessao-aprovada',
+            book: 'Ruth',
+            pericope: 'P01',
+            language: testLanguage,
+          );
+      final room = await _enter(
+        tester,
+        harness,
+        by: (notifier) => notifier.openTheRoom(),
+      );
+
+      await tester.runAsync(() async {
+        room.container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(_state(room).station, const Ensaio());
+      expect(
+        _theBadge(2),
+        findsOneWidget,
+        reason: 'a casa depois do relançamento perdia o selo da versão',
+      );
+    },
+  );
+
   group(
     'a tablet still holding a resume point for a draft another tablet approved '
     'lands on its conversation, and the point stands there after',
@@ -489,6 +522,11 @@ void main() {
           _state(room).stage,
           SalaStage.retro,
           reason: 'uma gravação que o toque ainda envia mudava o rascunho',
+        );
+        expect(
+          _theBadge(1),
+          findsOneWidget,
+          reason: 'a retrotradução sobre o rascunho aprovado perdia o selo',
         );
       },
     );
