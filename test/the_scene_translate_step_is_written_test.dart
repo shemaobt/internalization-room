@@ -754,6 +754,73 @@ void main() {
   );
 
   testWidgets(
+    'a frase of a sent scene rehearsal replayed counts her clock from the take\'s start, not from the frase\'s',
+    (tester) async {
+      final (harness, container) = await _inListenMode(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-27T10:00:00+00:00',
+            frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+          ),
+        ],
+      );
+      const line = 'ouvindo o ensaio da cena… — 0:05 / 0:10';
+
+      await tester.tap(byLabel('frase 2'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      expect(harness.playback.ranges.last, '4000-8000');
+      harness.playback.at = const Duration(seconds: 1);
+      await tester.pump(const Duration(milliseconds: 1100));
+
+      expect(
+        find.text(line),
+        findsOneWidget,
+        reason: 'a frase 2 ouvida de novo dizia 0:01, contado do começo dela',
+      );
+    },
+  );
+
+  testWidgets(
+    'a frase translated again counts her clock from the take\'s start, not from the frase\'s',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            frases: [
+              _frase('f1', 0, 4000),
+              _frase('f2', 4000, 8000),
+              _frase('f3', 8000, 10000),
+            ],
+          ),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const line = 'ouvindo o ensaio da cena… — 0:05 / 0:10';
+
+      await tester.tap(byLabel(_bar(2)));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      expect(harness.playback.ranges.last, '4000-8000');
+      harness.playback.at = const Duration(seconds: 1);
+      await tester.pump(const Duration(milliseconds: 1100));
+
+      expect(
+        find.text(line),
+        findsOneWidget,
+        reason:
+            'a frase 2 traduzida de novo dizia 0:01, contado do começo dela',
+      );
+    },
+  );
+
+  testWidgets(
     'the team\'s translation heard over a playing sent scene rehearsal leaves her paused hint with the clock where the take stopped, not where the translation did',
     (tester) async {
       final (harness, container) = await _inListenMode(tester);

@@ -62,7 +62,11 @@ class SceneTranslateStep extends ConsumerWidget {
     final colors = SalaColors.of(context);
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
-    final playing = channel is PartPlaying;
+    final take = switch (channel) {
+      PartPlaying(:final part) => part,
+      _ => null,
+    };
+    final playing = take != null;
     final telling = channel is Microphone;
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
     final idle = !sending && !scene.waiting && !telling;
@@ -80,7 +84,7 @@ class SceneTranslateStep extends ConsumerWidget {
           const SizedBox(height: 12),
           _PlayRow(
             mood: idle && scene.listened ? ButtonMood.lit : ButtonMood.dimmed,
-            playing: playing,
+            take: take,
             label: said('playPause'),
             hint: (at) => _hintOf(playing: playing, at: at),
           ),
@@ -418,7 +422,11 @@ class SceneListenMode extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
-    final playing = channel is PartPlaying;
+    final take = switch (channel) {
+      PartPlaying(:final part) => part,
+      _ => null,
+    };
+    final playing = take != null;
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
     int span(SceneFrase frase) => switch ((frase.startsMs, frase.endsMs)) {
       (final int starts, final int ends) => max(0, ends - starts),
@@ -441,7 +449,7 @@ class SceneListenMode extends ConsumerWidget {
           const SizedBox(height: 12),
           _PlayRow(
             mood: sending || scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
-            playing: playing,
+            take: take,
             label: said('playPause'),
             hint: (at) => switch ((playing, scene.heard)) {
               (true, _) => sceneListeningLineFor(at, scene.length, language),
@@ -494,13 +502,13 @@ class SceneListenMode extends ConsumerWidget {
 
 class _PlayRow extends ConsumerWidget {
   final ButtonMood mood;
-  final bool playing;
+  final PartSound? take;
   final String label;
   final String? Function(Duration at) hint;
 
   const _PlayRow({
     required this.mood,
-    required this.playing,
+    required this.take,
     required this.label,
     required this.hint,
   });
@@ -509,6 +517,11 @@ class _PlayRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final playback = ref.read(playbackRepositoryProvider);
     final colors = SalaColors.of(context);
+    final playing = take != null;
+    Duration inTheTake() => switch (take) {
+      PartSound(:final from, to: Duration()) => from + playback.position,
+      _ => playback.position,
+    };
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 60),
       child: Row(
@@ -532,7 +545,7 @@ class _PlayRow extends ConsumerWidget {
               period: const Duration(seconds: 1),
               animate: playing,
               reducible: false,
-              builder: (context, _) => switch (hint(playback.position)) {
+              builder: (context, _) => switch (hint(inTheTake())) {
                 final words? => _Written(
                   words,
                   style: TextStyle(color: colors.mut, fontSize: 16),
