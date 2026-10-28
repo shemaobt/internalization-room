@@ -287,7 +287,7 @@ class RetroView extends ConsumerWidget {
           onRetell:
               session.canRetellAFrase &&
                   trecho.segmentId != null &&
-                  session.partes.elementAtOrNull(trecho.parte)?.takeId != null
+                  session.regravadaRecontavel(trecho)
               ? () => notifier.traduzirAFraseRegravadaDeNovo(onde)
               : null,
           mark: retroLabelFor('stale', language),

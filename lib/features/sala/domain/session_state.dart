@@ -1474,6 +1474,17 @@ class SalaSessionState {
     _ => null,
   };
 
+  bool regravadaRecontavel(Trecho regravada) {
+    final takeId = partes.elementAtOrNull(regravada.parte)?.takeId;
+    return takeId != null &&
+        !btTrechos.any(
+          (trecho) =>
+              trecho.takeId == takeId &&
+              trecho.from < regravada.lugarTo &&
+              regravada.lugarFrom < trecho.to,
+        );
+  }
+
   bool fraseRegravavel(Trecho trecho) =>
       !btSoOuvir &&
       aBackTranslationGestureActs &&

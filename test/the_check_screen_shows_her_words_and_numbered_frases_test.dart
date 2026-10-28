@@ -1663,6 +1663,76 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a «regravada» frase is not offered to be told again where a '
+      'frase of the new recording already stands, only beside one', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-1',
+        scope: 'parte-1',
+        kind: 'ensaio',
+        ordinal: 1,
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-5',
+            takeId: 'gravacao-1',
+            startsMs: 3000,
+            endsMs: 7000,
+            frase: 3,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-velha-1',
+            startsMs: 7000,
+            endsMs: 9000,
+            frase: 2,
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'as frases regravadas acharem a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.length == 2,
+      step: () => _passo(tester),
+    );
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    expect(
+      [
+        for (final n in [1, 2])
+          tester
+              .widget<Semantics>(
+                byLabel('Ouvir esta frase de novo e traduzir de novo — $n'),
+              )
+              .properties
+              .enabled,
+      ],
+      [false, true],
+      reason:
+          'a barra oferecia traduzir de novo onde a sala recusa, e a equipe '
+          'ficava com uma falha sem palavra',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a team that comes back to the check sees the marks its last '
       'check left', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
