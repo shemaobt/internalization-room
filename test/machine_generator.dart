@@ -303,6 +303,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheSceneRehearsalLeft() => 'TheSceneRehearsalLeft',
   TheExternalCheckOpened(:final version) => 'TheExternalCheckOpened($version)',
   TheExternalCheckLeft() => 'TheExternalCheckLeft',
+  TheRecordingLeft() => 'TheRecordingLeft',
   TheLanguageChosen() => 'TheLanguageChosen',
   ThePanoramaAsked(:final id, :final language) =>
     'ThePanoramaAsked($id, $language)',
@@ -435,6 +436,7 @@ enum EventKind {
   theSceneRehearsalLeft,
   theExternalCheckOpened,
   theExternalCheckLeft,
+  theRecordingLeft,
   theLanguageChosen,
   thePanoramaAsked,
   theSessionOpened,
@@ -511,6 +513,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheSceneRehearsalLeft() => EventKind.theSceneRehearsalLeft,
   TheExternalCheckOpened() => EventKind.theExternalCheckOpened,
   TheExternalCheckLeft() => EventKind.theExternalCheckLeft,
+  TheRecordingLeft() => EventKind.theRecordingLeft,
   TheLanguageChosen() => EventKind.theLanguageChosen,
   ThePanoramaAsked() => EventKind.thePanoramaAsked,
   TheSessionOpened() => EventKind.theSessionOpened,
@@ -585,7 +588,8 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theSceneRehearsalOpened ||
   EventKind.theSceneRehearsalLeft ||
   EventKind.theExternalCheckOpened ||
-  EventKind.theExternalCheckLeft => true,
+  EventKind.theExternalCheckLeft ||
+  EventKind.theRecordingLeft => true,
   EventKind.theLanguageChosen ||
   EventKind.thePanoramaAsked ||
   EventKind.theSessionOpened ||
@@ -793,6 +797,7 @@ MachineEvent _draw(
     1 + random.nextInt(3),
   ),
   EventKind.theExternalCheckLeft => const TheExternalCheckLeft(),
+  EventKind.theRecordingLeft => const TheRecordingLeft(),
   EventKind.theLanguageChosen => const TheLanguageChosen(),
   EventKind.thePanoramaAsked => ThePanoramaAsked(
     _drawAPanorama(random),

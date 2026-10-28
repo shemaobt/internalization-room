@@ -34,6 +34,7 @@ const _theBook = [
 
 const _leave = 'Choose another passage';
 const _back = 'Back to the current passage';
+const _backToRecording = 'Back to recording';
 const _hearTheAnswer = "Hear the facilitator's answer";
 
 class _Room {
@@ -220,7 +221,8 @@ void main() {
       const where = Duration(seconds: 3);
       room.harness.playback.at = where;
 
-      await _tap(tester, _leave);
+      room.notifier.leaveThePassage();
+      await _passTime(tester);
       await tester.pump(const Duration(seconds: 1));
       await tester.tap(find.text('Ruth 1:1–5'));
       await _passTime(tester);
@@ -248,7 +250,8 @@ void main() {
       const where = Duration(seconds: 3);
       room.harness.playback.at = where;
 
-      await _tap(tester, _leave);
+      room.notifier.leaveThePassage();
+      await _passTime(tester);
       await tester.pump(const Duration(seconds: 1));
       await _tap(tester, _back);
       await tester.pump(const Duration(seconds: 1));
@@ -281,7 +284,8 @@ void main() {
       expect(room.state.playPing, isTrue);
       room.harness.playback.at = const Duration(seconds: 2);
 
-      await _tap(tester, _leave);
+      room.notifier.leaveThePassage();
+      await _passTime(tester);
       await tester.pump(const Duration(seconds: 1));
       await _tap(tester, _back);
       await tester.pump(const Duration(seconds: 1));
@@ -318,7 +322,8 @@ void main() {
       await _passTime(tester, 200);
       room.harness.playback.at = const Duration(seconds: 2);
 
-      await _tap(tester, _leave);
+      room.notifier.leaveThePassage();
+      await _passTime(tester);
       await tester.pump(const Duration(seconds: 1));
       await _tap(tester, _back);
       await tester.pump(const Duration(seconds: 1));
@@ -363,7 +368,8 @@ void main() {
       room.harness.playback.finishPlayback();
       await _passTime(tester, 200);
 
-      await _tap(tester, _leave);
+      room.notifier.leaveThePassage();
+      await _passTime(tester);
       await tester.pump(const Duration(seconds: 1));
       await _tap(tester, _back);
       await tester.pump(const Duration(seconds: 1));
@@ -400,22 +406,22 @@ void main() {
   });
 
   testWidgets(
-    '«Choose another passage» is hidden while the team\'s take is recorded',
+    '«Back to the current passage» is hidden while the team\'s take is recorded',
     (tester) async {
       final room = await _pump(tester, memory: true);
       await _takeThePassage(tester, room, 'P01');
       room.notifier.goEnsaio();
       await _passTime(tester, 300);
       await tester.pump(const Duration(seconds: 2));
-      expect(_live(tester, _leave), isTrue);
+      expect(_live(tester, _back), isTrue);
 
       room.notifier.ensaioTap();
       await _passTime(tester, 300);
 
       expect(room.harness.sounds, contains('recorder:start'));
-      expect(_hidden(tester, _leave), isTrue);
+      expect(_hidden(tester, _back), isTrue);
 
-      await tester.tap(byLabel(_leave), warnIfMissed: false);
+      await tester.tap(byLabel(_back), warnIfMissed: false);
       await _passTime(tester, 300);
 
       expect(room.state.stage, SalaStage.ensaio);
@@ -423,25 +429,22 @@ void main() {
     },
   );
 
-  testWidgets(
-    '«Choose another passage» is hidden while the back-translation\'s '
-    'microphone is open',
-    (tester) async {
-      final room = await _pump(tester, memory: true);
-      await _takeThePassage(tester, room, 'P01');
-      await _keepAPart(tester, room);
-      room.notifier.startRetro();
-      await _passTime(tester, 300);
-      room.harness.playback.at = const Duration(seconds: 2);
-      room.notifier.retroTap();
-      room.notifier.retroTap();
-      await _passTime(tester, 300);
+  testWidgets('«Back to recording» is hidden while the back-translation\'s '
+      'microphone is open', (tester) async {
+    final room = await _pump(tester, memory: true);
+    await _takeThePassage(tester, room, 'P01');
+    await _keepAPart(tester, room);
+    room.notifier.startRetro();
+    await _passTime(tester, 300);
+    room.harness.playback.at = const Duration(seconds: 2);
+    room.notifier.retroTap();
+    room.notifier.retroTap();
+    await _passTime(tester, 300);
 
-      expect(room.state.stage, SalaStage.retro);
-      expect(room.state.voice, VoiceState.listening);
-      expect(_hidden(tester, _leave), isTrue);
-    },
-  );
+    expect(room.state.stage, SalaStage.retro);
+    expect(room.state.voice, VoiceState.listening);
+    expect(_hidden(tester, _backToRecording), isTrue);
+  });
 
   testWidgets(
     'a raised-hand note being spoken leaves «Choose another passage» in reach, '
@@ -659,33 +662,30 @@ void main() {
     expect(room.harness.room.pericopesAsked, hasLength(created));
   });
 
-  testWidgets(
-    'the Saved screen carries no «Choose another passage», and «Done» '
-    'brings it back',
-    (tester) async {
-      final harness = SalaHarness(lingua: 'en', filaEmMemoria: true);
-      harness.room.passages = _theBook;
-      final room = _Room(harness, await pumpSala(tester, harness));
-      await _takeThePassage(tester, room, 'P01');
-      await _keepAPart(tester, room);
-      room.notifier.startRetro();
-      await _passTime(tester, 300);
-      harness.playback.finishPlayback();
-      await _passTime(tester, 300);
-      await room.notifier.finishBackTranslation();
-      await _passTime(tester, 400);
-      await room.notifier.aprovarRascunhoFinal();
-      await tester.pump(const Duration(milliseconds: 800));
-      await tester.pump(const Duration(milliseconds: 400));
+  testWidgets('the Saved screen carries no «Back to recording», and «Done» '
+      'brings it back', (tester) async {
+    final harness = SalaHarness(lingua: 'en', filaEmMemoria: true);
+    harness.room.passages = _theBook;
+    final room = _Room(harness, await pumpSala(tester, harness));
+    await _takeThePassage(tester, room, 'P01');
+    await _keepAPart(tester, room);
+    room.notifier.startRetro();
+    await _passTime(tester, 300);
+    harness.playback.finishPlayback();
+    await _passTime(tester, 300);
+    await room.notifier.finishBackTranslation();
+    await _passTime(tester, 400);
+    await room.notifier.aprovarRascunhoFinal();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 400));
 
-      expect(find.text('Rehearsal saved'), findsOneWidget);
-      expect(byLabel(_leave), findsNothing);
+    expect(find.text('Rehearsal saved'), findsOneWidget);
+    expect(byLabel(_backToRecording), findsNothing);
 
-      await _tap(tester, 'Done');
-      await tester.pump(const Duration(milliseconds: 400));
+    await _tap(tester, 'Done');
+    await tester.pump(const Duration(milliseconds: 400));
 
-      expect(byLabel(_leave), findsOneWidget);
-      closeTheRoom(room.container);
-    },
-  );
+    expect(byLabel(_backToRecording), findsOneWidget);
+    closeTheRoom(room.container);
+  });
 }

@@ -20,6 +20,6 @@ final class Retro extends Station {
     TheNecklaceClosed() => const Fim(),
     TheExternalCheckOpened(:final version, :final relaunched) =>
       ChecagemExterna(version, fromTheHome: relaunched),
-    TheExternalCheckLeft() => this,
+    TheExternalCheckLeft() || TheRecordingLeft() => this,
   };
 }
