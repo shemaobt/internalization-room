@@ -1091,4 +1091,39 @@ void main() {
       },
     );
   }
+
+  for (final (device, screen) in [
+    ('the SE', const Size(375, 667)),
+    ('an iPad', const Size(820, 1180)),
+  ]) {
+    testWidgets(
+      'on $device «✓ em uso» and every «usar este» sit on their own line '
+      'under the facts, starting where the facts start',
+      (tester) async {
+        _on(tester, screen, bar: 20);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        for (final (n, action) in [(3, _useThis), (2, _inUse), (1, _useThis)]) {
+          final facts = tester.getRect(find.text(_sent(n)));
+          final said = tester.getRect(_onLine(_sent(n), find.text(action)));
+          expect(
+            said.left,
+            closeTo(facts.left, 0.01),
+            reason:
+                'no iPad «usar este» ficava no meio da linha e «✓ em uso» na '
+                'borda direita: $action do ensaio $n',
+          );
+          expect(
+            said.top,
+            greaterThanOrEqualTo(facts.bottom),
+            reason: '$action do ensaio $n dividia a linha com os fatos',
+          );
+        }
+        semantics.dispose();
+      },
+    );
+  }
 }

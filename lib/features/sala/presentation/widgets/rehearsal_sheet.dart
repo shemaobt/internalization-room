@@ -224,35 +224,33 @@ class _SheetLine extends StatelessWidget {
                         style: TextStyle(color: colors.telha, fontSize: 14),
                       ),
                     ),
+                  if (inUse)
+                    Text(
+                      '✓ ${said('inUse')}',
+                      style: TextStyle(color: colors.mut, fontSize: 15),
+                    )
+                  else if (offersToUse)
+                    Semantics(
+                      button: true,
+                      enabled: usable,
+                      label: '$useLabel — $line',
+                      onTap: usable ? onUse : null,
+                      excludeSemantics: true,
+                      child: Opacity(
+                        opacity: waking ? 0.5 : 1,
+                        child: TextButton(
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                          onPressed: usable ? onUse : null,
+                          child: Text(
+                            useLabel,
+                            style: TextStyle(color: colors.telha, fontSize: 15),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
-            if (inUse)
-              Text(
-                '✓ ${said('inUse')}',
-                style: TextStyle(color: colors.mut, fontSize: 15),
-              )
-            else if (offersToUse)
-              Flexible(
-                child: Semantics(
-                  button: true,
-                  enabled: usable,
-                  label: '$useLabel — $line',
-                  onTap: usable ? onUse : null,
-                  excludeSemantics: true,
-                  child: Opacity(
-                    opacity: waking ? 0.5 : 1,
-                    child: TextButton(
-                      onPressed: usable ? onUse : null,
-                      child: Text(
-                        useLabel,
-                        textAlign: TextAlign.end,
-                        style: TextStyle(color: colors.telha, fontSize: 15),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
