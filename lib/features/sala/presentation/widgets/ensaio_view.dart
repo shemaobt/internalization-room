@@ -16,6 +16,7 @@ import 'ensaio_final_plan_view.dart';
 import 'external_check_button.dart';
 import 'facilitator_circle.dart';
 import 'grain_choice_view.dart';
+import 'listeners_line.dart';
 import 'motion.dart';
 import 'rehearsal_sheet.dart';
 import 'saved_screen.dart';
@@ -227,6 +228,15 @@ class EnsaioView extends ConsumerWidget {
                       style: TextStyle(color: colors.telha, fontSize: 15),
                     ),
                   ],
+                  if (session.btAviso == BtAviso.checagemFalhou &&
+                      session.stage == SalaStage.ensaio) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      retroLabelFor('externalCheckFailed', language),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: colors.telha, fontSize: 15),
+                    ),
+                  ],
                   if (session.approvedOnTheHome case final aprovado?) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -237,6 +247,7 @@ class EnsaioView extends ConsumerWidget {
                       ),
                       style: TextStyle(color: colors.ink, fontSize: 17),
                     ),
+                    ListenersLine(aprovado.listeners),
                     const SizedBox(height: 12),
                     const ExternalCheckButton(),
                   ],
