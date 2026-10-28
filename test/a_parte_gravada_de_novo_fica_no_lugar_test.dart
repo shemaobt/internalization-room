@@ -9,8 +9,6 @@ import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -1271,22 +1269,11 @@ void main() {
       reason: 'nenhuma faixa sobre a parte 2: o chão dela está por contar',
     );
     expect(
-      [
-        for (final conta
-            in tester
-                .widget<BeadRow>(
-                  find.descendant(
-                    of: find.byType(RetroView),
-                    matching: find.byType(BeadRow),
-                  ),
-                )
-                .entries)
-          conta.fill,
-      ],
-      isNot(contains(BeadFill.drained)),
+      estado.btFindingTrecho,
+      isNull,
       reason:
-          'e nenhuma faixa vazia: vazia quer dizer à espera de conserto, '
-          'e este chão não espera conserto nenhum, espera ser contado',
+          'o achado seguia apontando um trecho à espera de conserto, e este '
+          'chão não esperava conserto nenhum, esperava ser contado',
     );
     expect(
       harness.playback.played.last,

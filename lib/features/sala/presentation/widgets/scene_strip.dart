@@ -15,6 +15,7 @@ import 'motion.dart';
 final class SceneStripDrawing {
   final List<double> columns;
   final List<({double from, double to})> bands;
+  final List<({double from, double to})> staleBands;
   final List<double> ticks;
   final double? playhead;
   final double? pausa;
@@ -22,6 +23,7 @@ final class SceneStripDrawing {
   const SceneStripDrawing({
     required this.columns,
     required this.bands,
+    this.staleBands = const [],
     required this.ticks,
     required this.playhead,
     required this.pausa,
@@ -35,6 +37,7 @@ SceneStripDrawing sceneStripOf({
   required Duration? length,
   Envelope? envelope,
   List<SceneFrase> frases = const [],
+  List<SceneFrase> stale = const [],
   Duration? playhead,
   Duration? pausa,
 }) {
@@ -42,16 +45,18 @@ SceneStripDrawing sceneStripOf({
   double? xOf(Duration? at) => at == null || whole <= 0
       ? null
       : (at.inMicroseconds / whole * width).clamp(0, width).toDouble();
-  final bands = [
+  List<({double from, double to})> bandsOf(List<SceneFrase> frases) => [
     for (final frase in frases.where((frase) => frase.placedIn(length)))
       (
         from: xOf(Duration(milliseconds: frase.startsMs!))!,
         to: xOf(Duration(milliseconds: frase.endsMs!))!,
       ),
   ];
+  final bands = bandsOf(frases);
   return SceneStripDrawing(
     columns: envelope == null ? const [] : _columnsOf(envelope, width.floor()),
     bands: bands,
+    staleBands: bandsOf(stale),
     ticks: [for (final band in bands) band.to],
     playhead: xOf(playhead),
     pausa: xOf(pausa),
@@ -84,22 +89,26 @@ List<double> _columnsOf(Envelope envelope, int width) {
 /// The scene rehearsal's wordless picture of its take while translating: a silence reads
 /// as a valley. It carries no words and cannot be tapped.
 class SceneStrip extends ConsumerWidget {
-  static const width = 292.0;
+  static const fullWidth = 292.0;
   static const height = 44.0;
 
   final Envelope? envelope;
   final Duration? length;
   final List<SceneFrase> frases;
+  final List<SceneFrase> stale;
   final Duration? pausa;
   final bool playing;
+  final double width;
 
   const SceneStrip({
     super.key,
     required this.envelope,
     required this.length,
     required this.frases,
+    this.stale = const [],
     required this.pausa,
     required this.playing,
+    this.width = SceneStrip.fullWidth,
   });
 
   @override
@@ -112,13 +121,14 @@ class SceneStrip extends ConsumerWidget {
         animate: playing,
         reducible: false,
         builder: (context, _) => CustomPaint(
-          size: const Size(width, height),
+          size: Size(width, height),
           painter: _StripPainter(
             sceneStripOf(
               width: width,
               length: length,
               envelope: envelope,
               frases: frases,
+              stale: stale,
               playhead: playing ? playback.position : null,
               pausa: pausa,
             ),
@@ -158,6 +168,18 @@ class _StripPainter extends CustomPainter {
         silhouette..close(),
         Paint()..color = colors.mut.withValues(alpha: 0.6),
       );
+    }
+    for (final band in drawing.staleBands) {
+      canvas.drawRect(
+        Rect.fromLTRB(band.from, 0, max(band.from + 1, band.to), h),
+        Paint()..color = colors.line.withValues(alpha: 0.18),
+      );
+      final dot = Paint()
+        ..color = colors.line.withValues(alpha: 0.9)
+        ..strokeWidth = 1.5;
+      for (var x = band.from; x < band.to; x += 5) {
+        canvas.drawLine(Offset(x, 2), Offset(min(x + 2, band.to), 2), dot);
+      }
     }
     for (final band in drawing.bands) {
       canvas.drawRect(
