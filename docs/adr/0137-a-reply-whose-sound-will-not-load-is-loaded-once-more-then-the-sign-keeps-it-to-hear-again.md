@@ -33,7 +33,21 @@ sound failed.
 - **«Ouvir de novo» says the last reply as it was meant**, a fail-safe line included. As in
   her app, it is not offered under the sign; it is lit once the team's tap clears it.
 
+- **The reload answers the waiting reply by callback, an exception to AGENTS.md.** Every
+  other answer comes back as an event stamped with the generation. Here the reply that
+  failed is awaited by the gesture that said it (a turn, the Panorama, the verdict, a line
+  said again), and that gesture finishes on the reply's outcome. An answer that came back
+  as an event would reach the notifier only through state, and resuming the gesture's wait
+  would take a completer parked on the notifier, which AGENTS.md forbids. So the failed
+  load carries its answer with it, the effect runner stamps the 1.5 s wait with the
+  generation, and an abandoned or replaced wait answers "do not load again". The failed
+  load is told in the generation it happened in and is never stale, so the machine always
+  answers it, exactly once.
+
 ## Considered Options
+
+**The reload's due time as a stamped event.** Rejected: see the exception above. It needs
+a new notifier field to resume the gesture that awaits the reply.
 
 **«Ouvir de novo» lit over the sign.** Rejected (Jonatas, 23 October: as in her app): her
 replay waits for the sign to clear, and the sign takes every tap.
