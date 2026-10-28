@@ -336,6 +336,7 @@ class RetroView extends ConsumerWidget {
                     language,
                     n: trecho.frase,
                   ),
+                  tocando: session.btFraseGravadaTocando,
                   onOuvir: notifier.ouvirAFraseGravada,
                   gravarDeNovo: sceneRehearsalLabelFor('recordAgain', language),
                   onGravarDeNovo: notifier.gravarAFraseDeNovo,

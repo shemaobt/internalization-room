@@ -20,6 +20,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/facilita
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
@@ -1160,6 +1161,45 @@ void main() {
       0,
       reason: 'a gravação que a equipe largou voltava como frase guardada',
     );
+    closeTheRoom(container);
+  });
+
+  Finder oGlifo(IconData glifo) =>
+      find.descendant(of: _naLista('Ouvir — 3'), matching: find.byIcon(glifo));
+
+  bool apertado(WidgetTester tester) => isSemantics(
+    hasToggledState: true,
+    isToggled: true,
+  ).matches(tester.getSemantics(_naLista('Ouvir — 3')), {});
+
+  testWidgets('the sentence just recorded shows a stop and is pressed while '
+      'it plays, still named «Ouvir — N»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+
+    expect(oGlifo(LucideIcons.play), findsOneWidget);
+    expect(apertado(tester), isFalse);
+
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(
+      oGlifo(LucideIcons.square),
+      findsOneWidget,
+      reason: 'o botão desenhava o play com a frase tocando',
+    );
+    expect(
+      apertado(tester),
+      isTrue,
+      reason: 'o VoiceOver não sabia que a frase estava tocando',
+    );
+    expect(oGlifo(LucideIcons.play), findsNothing);
+
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    expect(oGlifo(LucideIcons.play), findsOneWidget);
+    expect(apertado(tester), isFalse);
     closeTheRoom(container);
   });
 

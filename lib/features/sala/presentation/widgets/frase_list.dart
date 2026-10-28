@@ -41,6 +41,7 @@ class FraseRow {
 
 class FraseRevisao {
   final String ouvir;
+  final bool tocando;
   final VoidCallback onOuvir;
   final String gravarDeNovo;
   final VoidCallback onGravarDeNovo;
@@ -49,6 +50,7 @@ class FraseRevisao {
 
   const FraseRevisao({
     required this.ouvir,
+    required this.tocando,
     required this.onOuvir,
     required this.gravarDeNovo,
     required this.onGravarDeNovo,
@@ -147,10 +149,15 @@ class FraseList extends StatelessWidget {
                   RoundActionButton(
                     size: 48,
                     semanticLabel: revisao.ouvir,
+                    toggled: revisao.tocando,
                     background: colors.card,
                     border: Border.all(color: colors.line),
                     onTap: revisao.onOuvir,
-                    child: Icon(LucideIcons.play, size: 20, color: colors.cord),
+                    child: Icon(
+                      revisao.tocando ? LucideIcons.square : LucideIcons.play,
+                      size: 20,
+                      color: colors.cord,
+                    ),
                   ),
                   _Pill(
                     label: revisao.gravarDeNovo,

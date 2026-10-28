@@ -1201,6 +1201,11 @@ class SalaSessionState {
     _ => false,
   };
 
+  bool get btFraseGravadaTocando => switch (channel) {
+    StretchPlaying(:final stretch) => stretch.path == btRegravacao?.path,
+    _ => false,
+  };
+
   Channel get _paused => switch (channel) {
     GuideSpeaking(held: final Paused held) => held,
     _ => channel,
