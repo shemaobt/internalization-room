@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
@@ -19,7 +20,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, relaunch, thePersonSign;
+import 'scenario_helpers.dart' show byLabel, relaunch;
 
 const _recordEnsaio = 'Gravar o ensaio de vocês';
 const _recordEnsaioEn = 'Record your rehearsal';
@@ -42,6 +43,7 @@ const _elsewhere =
 const _elsewhereEn =
     'This passage\'s rehearsals were recorded with the app in the other '
     'language. Switch back to that language to open the Final Rehearsal.';
+final _personSign = circleLabelFor('needsPerson', 'pt');
 
 const _threeScenes = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -905,7 +907,7 @@ void main() {
 
       expect(find.text(_how), findsOneWidget);
       expect(find.text(_facts(1, '0:07', 2)), findsNothing);
-      expect(thePersonSign, findsNothing);
+      expect(byLabel(_personSign), findsNothing);
     });
 
     testWidgets('that fails opens the grain choice, with no sign', (
@@ -918,7 +920,7 @@ void main() {
 
       expect(find.text(_how), findsOneWidget);
       expect(find.text(_facts(1, '0:07', 2)), findsNothing);
-      expect(thePersonSign, findsNothing);
+      expect(byLabel(_personSign), findsNothing);
     });
   });
 

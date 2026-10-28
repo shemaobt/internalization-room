@@ -8,7 +8,7 @@ import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
     show aprovadaNaConferida, tocarNaLista, tocarOCirculo;
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, thePersonSign;
+import 'scenario_helpers.dart' show byLabel;
 
 const _checagem = 'Checagem externa';
 const _conferida = '✓ traduzida e conferida';
@@ -133,7 +133,7 @@ void main() {
 
     expect(find.text(_naoDeu), findsOneWidget);
     expect(find.text(_sinal), findsNothing);
-    expect(thePersonSign, findsNothing);
+    expect(byLabel(_sinal), findsNothing);
     closeTheRoom(container);
   });
 

@@ -16,6 +16,8 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
 
+const _theSign = 'Um momento para uma pessoa';
+
 const _aBookWithItsPanorama = [
   Passagem(
     pericope: 'panorama',
@@ -67,7 +69,7 @@ Future<_Sala> _theRoom(WidgetTester tester) async {
 
 void _restsSilentAtTheInvite(_Sala sala, int said) {
   expect(_said(sala), said, reason: 'nothing is said');
-  expect(thePersonSign, findsNothing);
+  expect(byLabel(_theSign), findsNothing);
   expect(_read(sala).needsPerson, isFalse);
   expect(_read(sala).voice, VoiceState.invite);
 }
@@ -160,7 +162,7 @@ void main() {
 
       expect(_read(sala).naRoda, isNull);
       expect(_said(sala), 0, reason: 'nothing is said');
-      expect(thePersonSign, findsNothing);
+      expect(byLabel(_theSign), findsNothing);
       expect(_read(sala).needsPerson, isFalse);
 
       sala.harness.room.reachable = true;

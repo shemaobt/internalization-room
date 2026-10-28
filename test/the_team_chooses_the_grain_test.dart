@@ -7,6 +7,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -19,7 +20,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, relaunch, thePersonSign;
+import 'scenario_helpers.dart' show byLabel, relaunch;
 
 const _how = 'Como vocês querem gravar?';
 const _whole = 'A passagem inteira';
@@ -45,6 +46,7 @@ const _thinking = 'pensando…';
 const _elsewhere =
     'Os ensaios desta passagem foram gravados com o aplicativo na outra '
     'língua. Voltem para aquela língua para abrir o Ensaio Final.';
+final _personSign = circleLabelFor('needsPerson', 'pt');
 
 const _recordEnsaio = 'Gravar o ensaio de vocês';
 const _openEnsaioFinal = 'Abrir o Ensaio Final';
@@ -631,7 +633,7 @@ void main() {
       ]);
       expect(byLabel(_recordAgain), findsNWidgets(3));
       expect(find.text(_wholeAtOnce), findsOneWidget);
-      expect(thePersonSign, findsNothing);
+      expect(byLabel(_personSign), findsNothing);
 
       await _tap(tester, _wholeAtOnce);
 
@@ -686,7 +688,7 @@ void main() {
       expect(harness.room.grainSwitches, hasLength(1));
       expect(find.text(_homeLine), findsOneWidget);
       expect(find.text(_whole), findsOneWidget);
-      expect(thePersonSign, findsNothing);
+      expect(byLabel(_personSign), findsNothing);
     },
   );
 
@@ -925,7 +927,7 @@ void main() {
     expect(find.text(_homeLine), findsNothing);
     expect(_enabled(tester, _wholeChoice), isTrue);
     expect(_enabled(tester, _sceneChoice), isTrue);
-    expect(thePersonSign, findsNothing);
+    expect(byLabel(_personSign), findsNothing);
     expect(harness.voice.played, hasLength(played));
     expect(harness.voice.fixedLines, hasLength(lines));
 

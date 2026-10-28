@@ -687,7 +687,7 @@ void main() {
   Future<void> esperarAParada(WidgetTester tester) async {
     await waitFor(
       'a tela da parada aparecer',
-      () => thePersonSign.evaluate().isNotEmpty,
+      () => byLabel('Um momento para uma pessoa').evaluate().isNotEmpty,
       limit: const Duration(seconds: 3),
       step: () async {
         await tester.pump(const Duration(seconds: 1));
@@ -737,7 +737,7 @@ void main() {
 
     await pararPorUmaPessoa(tester, container);
 
-    expect(thePersonSign, findsOneWidget);
+    expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
     expect(_circuloApagado(tester), isTrue);
     closeTheRoom(container);
   });
@@ -757,7 +757,7 @@ void main() {
 
     await pararPorUmaPessoa(tester, container);
 
-    expect(thePersonSign, findsOneWidget);
+    expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
     expect(_circuloApagado(tester), isTrue);
     closeTheRoom(container);
   });
@@ -817,8 +817,9 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R6 — a halt in an english back-translation raises the sign, '
-      'which says no word', (tester) async {
+  testWidgets('R6 — a halt in the back-translation speaks the rooms language', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await entrarNaTraducao(tester, harness);
 
@@ -829,7 +830,7 @@ void main() {
     container.read(salaSessionProvider.notifier).haltForABrokenBuild();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(thePersonSign, findsOneWidget);
+    expect(byLabel(circleLabelFor('needsPerson', 'en')), findsOneWidget);
     closeTheRoom(container);
   });
 

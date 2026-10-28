@@ -12,7 +12,6 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/person_sign.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'fakes.dart';
@@ -26,13 +25,6 @@ Finder byLabel(String label) => find.byWidgetPredicate(
 Finder onTheCircle(String label) => find.descendant(
   of: find.byType(FacilitatorCircle),
   matching: byLabel(label),
-);
-
-final thePersonSign = find.descendant(
-  of: find.byType(PersonSign),
-  matching: find.byWidgetPredicate(
-    (widget) => widget is Semantics && widget.properties.button == true,
-  ),
 );
 
 Finder inTheHome(String label) =>

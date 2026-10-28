@@ -18,6 +18,7 @@ import 'um_ensaio_de_tres_partes.dart';
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
 const _traduzir = 'Traduzir a gravação';
+const _sinal = 'Um momento para uma pessoa';
 
 const _faltaOuvir = 'ainda falta ouvir um trecho da gravação';
 const _precisaConferida = 'para aprovar, a tradução precisa estar conferida';
@@ -186,7 +187,7 @@ void main() {
 
       expect(find.text(_faltaOuvir), findsOneWidget);
       expect(it.harness.playback.played.last, segunda.path);
-      expect(thePersonSign, findsNothing);
+      expect(byLabel(_sinal), findsNothing);
       closeTheRoom(it.container);
     },
   );
@@ -208,7 +209,7 @@ void main() {
         await _tocar(tester);
 
         expect(find.text(_precisaConferida), findsOneWidget);
-        expect(thePersonSign, findsNothing);
+        expect(byLabel(_sinal), findsNothing);
         closeTheRoom(it.container);
       },
     );
@@ -221,7 +222,7 @@ void main() {
     await _tocar(tester);
 
     expect(find.text(_naoDeu), findsOneWidget);
-    expect(thePersonSign, findsNothing);
+    expect(byLabel(_sinal), findsNothing);
     expect(byLabel(_aprovar), findsOneWidget);
     closeTheRoom(it.container);
   });
@@ -252,7 +253,7 @@ void main() {
     await _tocar(tester);
 
     expect(find.text(_naoDeu), findsOneWidget);
-    expect(thePersonSign, findsNothing);
+    expect(byLabel(_sinal), findsNothing);
 
     await tester.pump(const Duration(minutes: 2));
 

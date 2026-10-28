@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
@@ -205,7 +206,7 @@ void main() {
     }
 
     expect(container.read(salaSessionProvider).needsPerson, isFalse);
-    expect(thePersonSign, findsNothing);
+    expect(rotuloDoCirculo(tester), isNot(circleLabelFor('needsPerson', 'pt')));
     expect(byLabel(linha), findsWidgets);
 
     await tocarOCirculo(tester);
@@ -323,7 +324,7 @@ void main() {
     await aSalaParaDeVez(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
-    expect(thePersonSign, findsOneWidget);
+    expect(byLabel(circleLabelFor('needsPerson', 'pt')), findsOneWidget);
     closeTheRoom(container);
   });
 
