@@ -7639,10 +7639,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     var onNoRow = 0;
     for (final MapEntry(key: scope, value: rows) in tally.unsentParts.entries) {
       final number = state.rowOf(scope);
-      if (number == null) {
-        if (state.grainInForce != null) onNoRow += rows.length;
-        continue;
-      }
+      if (state.showsNoRow(scope)) onNoRow += rows.length;
+      if (number == null) continue;
       behindANewerPass += rows.length - (speaking[number]?.length ?? 0);
     }
     final notQueued = [
@@ -7656,8 +7654,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gone ||
       row.kind != partTakeKind ||
       row.sessionId != state.sessionId ||
-      state.grainInForce == null ||
-      state.rowOf(row.scope) != null;
+      !state.showsNoRow(row.scope);
 
   bool _ofThisVisit(int number, PendingTake newest) =>
       _rowsOfThisVisit.contains(newest.id) ||

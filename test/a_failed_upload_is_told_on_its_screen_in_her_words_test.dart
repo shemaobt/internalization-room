@@ -413,8 +413,9 @@ void main() {
   );
 
   testWidgets(
-    'a part take spent before a switch to the whole passage goes up on the '
-    'next pass, and once it lands the approval is offered',
+    'after a switch to the whole passage the approval is offered while a part '
+    'take spent before it is still on its way, and that take still reaches '
+    'the room',
     (tester) async {
       final casa = await _naCasa(tester);
       casa.room
@@ -422,20 +423,36 @@ void main() {
         ..unreachableTake = 'ensaio/parte-2';
       await casa.guardar(2);
       expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
-      casa.room.unreachableTake = null;
 
       await casa.gravarAPassagemInteira();
       await casa.guardar(1);
       await casa.ateVer(_aprovar);
 
-      expect(casa.room.takesKept, contains('ensaio/parte-2'));
-      expect(_aprovar, findsOneWidget);
+      final aprovacoes = _aprovar.evaluate().length;
+      final naSala = [...casa.room.takesKept];
+
+      expect(aprovacoes, 1);
+      expect(naSala, ['ensaio/${KeptScope.whole}']);
+
+      casa.room.unreachableTake = null;
+      await casa.emTempoReal(
+        () => waitFor(
+          'a parte 2 chegar à sala',
+          () => casa.room.takesKept.length == 2,
+        ),
+      );
+
+      expect(casa.room.takesKept, [
+        'ensaio/${KeptScope.whole}',
+        'ensaio/parte-2',
+      ]);
     },
   );
 
   testWidgets(
-    'a whole-passage take spent before a switch to scene by scene goes up on '
-    'the next pass, and once it lands the approval is offered',
+    'after a switch to scene by scene the approval is offered while a whole '
+    'take spent before it is still on its way, and that take still reaches '
+    'the room',
     (tester) async {
       final casa = await _naCasa(tester);
       casa.room.retroSoFar = const BackTranslationProgress(checked: true);
@@ -443,7 +460,6 @@ void main() {
       casa.room.unreachableTake = 'ensaio/${KeptScope.whole}';
       await casa.guardar(1);
       expect(find.text(_falhou), findsOneWidget);
-      casa.room.unreachableTake = null;
 
       await casa.gravarCenaPorCena();
       for (final n in [1, 2, 3]) {
@@ -451,8 +467,21 @@ void main() {
       }
       await casa.ateVer(_aprovar);
 
-      expect(casa.room.takesKept, contains('ensaio/${KeptScope.whole}'));
-      expect(_aprovar, findsOneWidget);
+      final aprovacoes = _aprovar.evaluate().length;
+      final naSala = [...casa.room.takesKept];
+
+      expect(aprovacoes, 1);
+      expect(naSala, ['ensaio/parte-1', 'ensaio/parte-2', 'ensaio/parte-3']);
+
+      casa.room.unreachableTake = null;
+      await casa.emTempoReal(
+        () => waitFor(
+          'a inteira chegar à sala',
+          () => casa.room.takesKept.length == 4,
+        ),
+      );
+
+      expect(casa.room.takesKept.last, 'ensaio/${KeptScope.whole}');
     },
   );
 

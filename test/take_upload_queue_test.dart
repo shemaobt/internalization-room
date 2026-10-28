@@ -2226,6 +2226,30 @@ void main() {
     expect(room.takePasses, [3, 1, 2]);
   });
 
+  test('a spent take no row can show goes up once its lost audio is found '
+      'again', () async {
+    final room = FakeRoom()..unreachableTake = 'ensaio/parte-2';
+    final queue = queueOn(room)
+      ..offerTheTapThrough((row) => row.scope != 'parte-2');
+    final entry = await queue.enqueue(
+      aTake('parte-2'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'parte-2',
+    );
+    await queue.flush();
+    final bytes = File(entry.path).readAsBytesSync();
+    File(entry.path).deleteSync();
+    await queue.flush();
+    expect((await queue.pending()).single.lost, isTrue);
+    File(entry.path).writeAsBytesSync(bytes);
+    room.unreachableTake = null;
+
+    await queue.flush();
+
+    expect(room.takesKept, ['ensaio/parte-2']);
+  });
+
   group('a join row', () {
     File aRehearsal(List<int> bytes) =>
         File('${home.path}/parte-2-junta-ensaio-2.wav')
@@ -2349,7 +2373,7 @@ void main() {
         createFile: (path) {
           final real = outside.run(() => File(path));
           if (path != copy) return real;
-          return _ACopyThatOutlivesItsDelete(
+          return _AWatchedCopyThatIgnoresDelete(
             real,
             whenChecked: () {
               if (!queue.inTheAir(row.id)) unawaited(queue.withdraw(row));
@@ -2382,7 +2406,7 @@ void main() {
         createFile: (path) {
           final real = outside.run(() => File(path));
           if (path != copy) return real;
-          return _ACopyThatOutlivesItsDelete(
+          return _AWatchedCopyThatIgnoresDelete(
             real,
             whenChecked: () => withdrawn = queue.withdrawUnlessInTheAir(row),
           );
@@ -2414,7 +2438,7 @@ void main() {
         createFile: (path) {
           final real = outside.run(() => File(path));
           if (path != copy) return real;
-          return _ACopyThatOutlivesItsDelete(
+          return _AWatchedCopyThatIgnoresDelete(
             real,
             whenMeasured: () => Future.microtask(
               () => Future.microtask(
@@ -2455,7 +2479,7 @@ void main() {
         createFile: (path) {
           final real = outside.run(() => File(path));
           if (path != copy) return real;
-          return _ACopyThatOutlivesItsDelete(
+          return _AWatchedCopyThatIgnoresDelete(
             real,
             whenChecked: () {
               real.deleteSync();
@@ -2634,12 +2658,12 @@ class _ADiskThatThrowsOnTheRename extends FakeRecorder {
       throw StateError('o contêiner já foi descartado');
 }
 
-class _ACopyThatOutlivesItsDelete implements File {
+class _AWatchedCopyThatIgnoresDelete implements File {
   final File _real;
   final void Function() whenChecked;
   final void Function() whenMeasured;
 
-  _ACopyThatOutlivesItsDelete(
+  _AWatchedCopyThatIgnoresDelete(
     this._real, {
     this.whenChecked = _nothing,
     this.whenMeasured = _nothing,

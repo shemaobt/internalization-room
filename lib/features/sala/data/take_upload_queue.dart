@@ -403,14 +403,14 @@ class TakeUploadQueue {
   bool Function(PendingTake row) _aRowOffersItsTap = (_) => true;
 
   /// [aRowOffersItsTap] says whether a row on screen can offer a take's tap. A take no row
-  /// can show goes up after every take a row can show, and once spent it is never held
-  /// for a tap.
+  /// can show goes up after every take a row can show, and once spent, whatever spent it,
+  /// it is never held for a tap, but for a refused one, which the room would refuse
+  /// again.
   void offerTheTapThrough(bool Function(PendingTake row) aRowOffersItsTap) =>
       _aRowOffersItsTap = aRowOffersItsTap;
 
   bool _spentForATap(PendingTake entry) =>
-      entry.exhausted &&
-      (entry.refusal != null || entry.lost || _aRowOffersItsTap(entry));
+      entry.exhausted && (entry.refusal != null || _aRowOffersItsTap(entry));
 
   /// The rows a flush will try. A written-off row is back among them the moment its
   /// audio is on the disk again; one whose audio really is gone stays out, so the queue
@@ -1297,27 +1297,26 @@ class TakeUploadQueue {
   /// never be an error either way. Matched by id and kind, the same pair `_replace`
   /// reads a row by.
   Future<void> withdraw(PendingTake row) async {
-    PendingTake? removed;
-    await _mutate((written) {
-      removed = written.where((entry) => _isTheRow(entry, row)).firstOrNull;
-      return [
-        for (final entry in written)
-          if (!_isTheRow(entry, row)) entry,
-      ];
-    });
-    if (removed case final entry?) await _deleteTheCopy(entry);
+    await _takeOff(row, unless: () => false);
   }
 
   /// Take [row] off the manifest unless its request is in the air, decided in the same
   /// step a pass claims a row; false when it is left to its send.
   Future<bool> withdrawUnlessInTheAir(PendingTake row) async {
-    PendingTake? removed;
     var leftToItsSend = false;
+    await _takeOff(row, unless: () => leftToItsSend = _isInTheAir(row));
+    return !leftToItsSend;
+  }
+
+  /// [row] off the manifest with its copy, in one manifest step, unless [unless] says
+  /// otherwise inside that step; the row removed, if any.
+  Future<PendingTake?> _takeOff(
+    PendingTake row, {
+    required bool Function() unless,
+  }) async {
+    PendingTake? removed;
     await _mutate((written) {
-      if (_isInTheAir(row)) {
-        leftToItsSend = true;
-        return written;
-      }
+      if (unless()) return written;
       removed = written.where((entry) => _isTheRow(entry, row)).firstOrNull;
       return [
         for (final entry in written)
@@ -1325,7 +1324,7 @@ class TakeUploadQueue {
       ];
     });
     if (removed case final entry?) await _deleteTheCopy(entry);
-    return !leftToItsSend;
+    return removed;
   }
 
   static bool _isTheRow(PendingTake entry, PendingTake row) =>

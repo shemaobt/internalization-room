@@ -843,6 +843,10 @@ class SalaSessionState {
       ? (scopeId == KeptScope.whole ? 1 : null)
       : KeptScope.numberOf(scopeId);
 
+  /// Whether the grain in force is known and gives a recording of [scopeId] no row.
+  bool showsNoRow(String scopeId) =>
+      grainInForce != null && rowOf(scopeId) == null;
+
   /// The scope a recording on row [number] is kept under, at the grain in force.
   String scopeOfRow(int number) =>
       recordsTheWhole ? KeptScope.whole : KeptScope.parte(number);
