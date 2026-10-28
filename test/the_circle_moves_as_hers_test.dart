@@ -378,4 +378,43 @@ void main() {
     );
     expect(_edged(const Color(0xFFC5C29F)), findsOneWidget);
   });
+
+  testWidgets('arcs that follow her speaking breathe with the ring from its '
+      'first breath, not from where the speaking glow had got to', (
+    tester,
+  ) async {
+    final arc = find
+        .byWidgetPredicate(
+          (widget) => widget is CustomPaint && widget.painter is ArcPainter,
+        )
+        .first;
+    final ring = _edged(const Color(0xFFC5C29F));
+    double veil(Finder what) => tester
+        .widgetList<Opacity>(
+          find.ancestor(of: what, matching: find.byType(Opacity)),
+        )
+        .fold(1.0, (seen, veil) => seen * veil.opacity);
+    const same = ValueKey('o mesmo canvas falando e pensando');
+
+    await tester.pumpWidget(
+      _circle(VoiceState.speaking, canvas: true, key: same),
+    );
+    await tester.pump(const Duration(milliseconds: 1000));
+    await tester.pumpWidget(
+      _circle(VoiceState.thinking, canvas: true, key: same),
+    );
+
+    expect(
+      [veil(arc), veil(ring)],
+      [closeTo(0.82, 1e-6), closeTo(0.82, 1e-6)],
+      reason:
+          'o thinkBreath dela abre em opacidade .82 para o .target inteiro, '
+          'arcos e anel juntos (globals.css:208-209); os arcos herdavam a '
+          'fase do brilho da fala',
+    );
+    for (var frame = 0; frame < 6; frame++) {
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(veil(arc), closeTo(veil(ring), 1e-6));
+    }
+  });
 }
