@@ -45,7 +45,7 @@ Rect _theRing(WidgetTester tester) {
       matching: find.byType(FacilitatorCircle),
     ),
   );
-  return circle.inflate(circle.width * 0.23);
+  return circle.inflate(circle.width * facilitatorRippleGrowth / 2);
 }
 
 void main() {

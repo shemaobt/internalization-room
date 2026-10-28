@@ -62,7 +62,7 @@ class RetroView extends ConsumerWidget {
         : null;
     final veredito = session.btVeredito || session.btFindings.isNotEmpty;
     final circulo = herCircleSize(MediaQuery.sizeOf(context), 38, 150);
-    final anel = circulo * 0.23;
+    final anel = circulo * facilitatorRippleGrowth / 2;
     final scrolling = SizedBox.expand(
       child: SingleChildScrollView(
         child: Column(
