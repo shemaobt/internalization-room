@@ -36,6 +36,7 @@ class _PersonSignState extends ConsumerState<PersonSign>
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(salaSessionProvider.select((session) => session.needsPerson));
     ref.listen(
       salaSessionProvider.select((session) => session.needsPerson),
       (_, now) => now ? _fade.forward() : _fade.reverse(),
