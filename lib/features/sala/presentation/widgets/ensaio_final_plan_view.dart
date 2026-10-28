@@ -14,6 +14,7 @@ import 'grain_choice_view.dart';
 import 'rehearsal_sheet.dart';
 import 'scene_question.dart';
 import 'stage_heading.dart';
+import 'way_back_button.dart';
 
 /// Her Ensaio Final plan: «pensando…» while the room is read, then her heading and line,
 /// a row per scene, the card of the Unlabelled rehearsals, «juntar as cenas e ouvir» and
@@ -33,12 +34,25 @@ class EnsaioFinalPlanView extends ConsumerWidget {
       return GrainChoiceView(elsewhere: elsewhere);
     }
     if (read is! PlanRead || sessionId == null) {
-      return Center(
-        child: Semantics(
-          liveRegion: true,
-          child: Text(
-            ensaioFinalPlanLabelFor('thinking', language),
-            style: TextStyle(color: colors.mut, fontSize: 15),
+      return SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SizedBox.expand(
+            child: Stack(
+              children: [
+                Center(
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      ensaioFinalPlanLabelFor('thinking', language),
+                      style: TextStyle(color: colors.mut, fontSize: 15),
+                    ),
+                  ),
+                ),
+                const WayBackButton(stage: SalaStage.ensaio, top: 8),
+              ],
+            ),
           ),
         ),
       );
