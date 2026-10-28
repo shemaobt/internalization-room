@@ -97,6 +97,9 @@ abstract interface class StationHost {
   /// The Station waits again on a look the team's tap resumed.
   void hearTheWaitResumed();
 
+  /// The Station waits on a reply that is loaded again.
+  void hearTheReplyWaitingToLoad();
+
   /// The Station takes the hand-offs the sign held back, once the team's tap cleared it.
   void hearTheSignCleared();
 
@@ -261,6 +264,7 @@ class EffectRunner {
         case LetTheLineGo():
           host.hearTheLineLetGo();
         case LoadTheReplyAgain(:final answered):
+          host.hearTheReplyWaitingToLoad();
           _armTheReload(answered);
         case LetTheReplyGo(:final answered):
           answered(false);

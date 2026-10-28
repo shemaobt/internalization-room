@@ -1226,10 +1226,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
     );
     if (state.needsPerson) state = state.copyWith(lastSpoken: line);
-    if (!loadAgain.isCompleted) {
-      state = state.copyWith(awaitingTheGuide: true);
-      _watchBusyState();
-    }
     if (!await loadAgain.future || _abandoned(generation)) return false;
     await (line.fixedLine.isEmpty
         ? _voice.forget(line.url)
@@ -1638,7 +1634,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void _waitOnTheLookAgain() {
+  void _waitOnTheGuide() {
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
   }
@@ -11386,7 +11382,10 @@ class _NotifierHost implements StationHost {
   void hearTheLineLetGo() => _notifier._letTheLineGo();
 
   @override
-  void hearTheWaitResumed() => _notifier._waitOnTheLookAgain();
+  void hearTheWaitResumed() => _notifier._waitOnTheGuide();
+
+  @override
+  void hearTheReplyWaitingToLoad() => _notifier._waitOnTheGuide();
 
   @override
   void hearTheSignCleared() => _notifier._theSignCleared();

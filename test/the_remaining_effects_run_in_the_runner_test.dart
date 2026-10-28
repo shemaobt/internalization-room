@@ -153,6 +153,15 @@ void main() {
       );
     });
 
+    test('is waited on by the Station', () {
+      fakeAsync((time) {
+        runner.run([LoadTheReplyAgain(answers.add)]);
+
+        expect(host.asked, ['hearTheReplyWaitingToLoad']);
+        expect(answers, isEmpty);
+      });
+    });
+
     test('whose generation moved during its wait is not loaded', () {
       fakeAsync((time) {
         runner.run([LoadTheReplyAgain(answers.add)]);
