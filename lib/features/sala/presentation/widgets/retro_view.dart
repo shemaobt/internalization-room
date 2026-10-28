@@ -9,17 +9,18 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/playback_repository.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/kept_take.dart';
+import '../../domain/scene_rehearsal.dart';
 import '../../domain/bt_finding.dart';
 import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
-import 'bead_row.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'frase_list.dart';
 import 'external_check_button.dart';
 import 'listeners_line.dart';
 import 'motion.dart';
+import 'part_strips.dart';
 import 'pause_adjust_row.dart';
 import 'saved_screen.dart';
 import 'stage_heading.dart';
@@ -44,7 +45,6 @@ class RetroView extends ConsumerWidget {
     final conferida = _conferida(session);
 
     final avanca = session.btPhase != BtPhase.conferida && !session.btSoOuvir;
-    final contas = _contas(session, notifier, language);
     final (voz, lingua) = _voz(session, conferida);
     final colors = SalaColors.of(context);
     final titulo = session.joined
@@ -102,13 +102,7 @@ class RetroView extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              height: 40,
-              child: BeadRow(
-                entries: [for (final conta in contas) conta.$1],
-                onTap: (onde) => contas[onde].$2?.call(),
-              ),
-            ),
+            PartStrips(rows: _faixas(session, language)),
             const SizedBox(height: 16),
             SizedBox(
               height: 48,
@@ -578,87 +572,37 @@ class RetroView extends ConsumerWidget {
     return (VoiceState.invite, null);
   }
 
-  List<(BeadRowEntry, VoidCallback?)> _contas(
-    SalaSessionState session,
-    SalaSessionNotifier notifier,
-    String language,
-  ) {
-    final aberta = session.btPhase != BtPhase.conferida;
-    final nomeado = aberta ? session.btTrechoTraduzidoDeNovo : null;
-    final escolhida = aberta ? session.btContaEscolhida : null;
-    final apontado = nomeado?.segmentId == session.btFindingSegmentId
-        ? nomeado?.segmentId
-        : null;
-    String parte(int onde) => '${retroLabelFor('part', language)} ${onde + 1}';
-    String nome(Trecho trecho) => switch (trecho.frase) {
-      final n? => sceneRehearsalLabelFor('frase', language, n: n),
-      null => parte(trecho.parte),
-    };
-    final contas = <(BeadFill, bool, bool, VoidCallback?, String)>[
-      for (final (onde, trecho) in session.btTrechos.indexed)
-        if (nomeado != null && trecho.segmentId == nomeado.segmentId)
-          (
-            _fillOf(trecho, session),
-            escolhida == null,
-            false,
-            notifier.ouvirOTrechoPendente,
-            nome(trecho),
-          )
-        else
-          (
-            _fillOf(trecho, session),
-            escolhida == onde,
-            apontado != null,
-            aberta && trecho.contado ? () => notifier.ouvirAConta(onde) : null,
-            nome(trecho),
-          ),
-    ];
-    if (aberta && nomeado == null && !session.btContadaInteira) {
-      final lugar = session.btTrechos
-          .where(
-            (trecho) =>
-                trecho.parte < session.btParte ||
-                (trecho.parte == session.btParte &&
-                    trecho.lugarFrom < session.btCursor),
-          )
-          .length;
-      contas.insertAll(lugar, [
-        (
-          BeadFill.translucent,
-          escolhida == null,
-          false,
-          session.btSoOuvir ? null : notifier.ouvirOTrechoPendente,
-          parte(session.btParte),
-        ),
-        if (session.btRestoDepoisDoCorte)
-          (BeadFill.translucent, false, false, null, parte(session.btParte)),
-      ]);
-    }
-    return [
-      for (final (fill, current, dimmed, onTap, label) in contas)
-        (
-          BeadRowEntry(
-            fill: fill,
-            current: current,
-            dimmed: dimmed,
-            semanticLabel: label,
-          ),
-          onTap,
-        ),
-    ];
-  }
+  List<PartStripRow> _faixas(SalaSessionState session, String language) => [
+    for (final (onde, parte) in session.partes.indexed)
+      PartStripRow(
+        label: parte.scopeId == KeptScope.whole
+            ? recordingHomeLabelFor('wholePassage', language)
+            : '${retroLabelFor('part', language)} ${onde + 1}',
+        length: session.partLoudness[parte.path]?.length,
+        envelope: session.partLoudness[parte.path]?.envelope,
+        told: [
+          for (final trecho in session.btTrechos)
+            if (trecho.contado && trecho.parte == onde) _naFaixa(trecho),
+        ],
+        stale: [
+          for (final trecho in session.btTrechosRegravados)
+            if (trecho.parte == onde) _naFaixa(trecho),
+        ],
+        pausa: session.btCortado && session.btParte == onde
+            ? session.btCorte
+            : null,
+        playing: switch (session.channel) {
+          PartPlaying(:final part) => part.part == onde,
+          _ => false,
+        },
+      ),
+  ];
 
-  BeadFill _fillOf(Trecho trecho, SalaSessionState session) {
-    if (trecho.segmentId != null &&
-        trecho.segmentId == session.btFindingSegmentId) {
-      final regravando =
-          session.btPhase == BtPhase.capturing ||
-          (session.btTraducaoPendente != null &&
-              !session.btTraducaoPendenteEmprestada);
-      return regravando ? BeadFill.translucent : BeadFill.drained;
-    }
-    return trecho.contado ? BeadFill.solid : BeadFill.translucent;
-  }
+  SceneFrase _naFaixa(Trecho trecho) => SceneFrase(
+    fraseId: trecho.segmentId ?? trecho.takeId,
+    startsMs: trecho.lugarFrom.inMilliseconds,
+    endsMs: trecho.lugarTo.inMilliseconds,
+  );
 
   IconData _listenGlyph(SalaSessionState session) {
     if (session.btClipRodando ||

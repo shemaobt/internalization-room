@@ -258,25 +258,44 @@ void main() {
     expect(room.harness.room.turnIdsAsked, hasLength(1));
   });
 
-  test('an opening whose sound fails, then a reply whose sound fails, brings '
-      'the person sign, and the team\'s tap clears it', () async {
+  test('an opening whose sound fails to load twice rests at the invite with no '
+      'person sign', () async {
     final harness = SalaHarness();
     harness.voice.refuses.add(turnoUrl);
     final room = await _enterP01(harness);
     await waitFor(
-      'the opening to be tried',
-      () => harness.voice.played.contains(turnoUrl),
+      'the opening to be loaded again',
+      () => harness.voice.played.where((url) => url == turnoUrl).length == 2,
     );
     await _theRoomRests(room);
+    await settle(const Duration(milliseconds: 300));
+
+    expect(harness.voice.played.where((url) => url == turnoUrl), hasLength(2));
     expect(room.read().needsPerson, isFalse);
-
-    await _theTeamSpeaks(room);
-    await waitFor('a person to be called', () => room.read().needsPerson);
-
-    room.notifier.teamTapped();
-    await waitFor('the sign to clear', () => !room.read().needsPerson);
-    expect(room.read().voice, VoiceState.invite);
   });
+
+  test(
+    'after an opening whose sound would not load, a reply whose sound will '
+    'not load brings the person sign, and the team\'s tap clears it',
+    () async {
+      final harness = SalaHarness();
+      harness.voice.refuses.add(turnoUrl);
+      final room = await _enterP01(harness);
+      await waitFor(
+        'the opening to be tried',
+        () => harness.voice.played.contains(turnoUrl),
+      );
+      await _theRoomRests(room);
+      expect(room.read().needsPerson, isFalse);
+
+      await _theTeamSpeaks(room);
+      await waitFor('a person to be called', () => room.read().needsPerson);
+
+      room.notifier.teamTapped();
+      await waitFor('the sign to clear', () => !room.read().needsPerson);
+      expect(room.read().voice, VoiceState.invite);
+    },
+  );
 
   test('an opening the busy watchdog gave up on while its sound was being '
       'readied leaves the next team turn an ordinary one: refused, it calls a '

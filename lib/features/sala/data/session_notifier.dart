@@ -258,6 +258,10 @@ final clipGraceProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 10),
 );
 
+final soundReloadDelayProvider = Provider<Duration>(
+  (ref) => const Duration(milliseconds: 1500),
+);
+
 final sentenceGraceProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 4),
 );
@@ -464,6 +468,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// and the listening ledger — keyed by the file too — cannot disagree with the ruler
   /// about which recording a length belongs to.
   late Map<String, int> _tamanhoDaParteMs;
+  late Future<void> _partLoudnessReads;
   late Map<String, Envelope?> _envelopes;
   late EscutaDasPartes _escuta;
   late int _desdeMs;
@@ -573,6 +578,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _oQueFaltaOuvir = null;
     _partesDaEscuta = const [];
     _tamanhoDaParteMs = {};
+    _partLoudnessReads = Future<void>.value();
     _envelopes = {};
     _frases = _FraseKeep(_recorder.delete);
     _escuta = EscutaDasPartes();
@@ -650,6 +656,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       partCeiling: () => ref.read(playbackCeilingProvider),
       clipGrace: () => ref.read(clipGraceProvider),
       lookAgainAfter: () => ref.read(lookAgainIntervalProvider),
+      reloadAfter: () => ref.read(soundReloadDelayProvider),
       generation: () => _generation,
     );
     ref.onDispose(() {
@@ -1151,9 +1158,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// `thinking` is there to cover a download, and a replay has nothing to download: the
   /// circle went clay and then orange for a line that starts the instant it is asked for.
-  Future<void> _readyToRepeat(String url, String fixedLine) async {
-    if (fixedLine.isNotEmpty || await _voice.holds(url)) return;
-    await _readyToSpeak(url, fixedLine);
+  Future<bool> _readyToRepeat(
+    String url,
+    String fixedLine,
+    int generation,
+  ) async {
+    if (fixedLine.isNotEmpty || await _voice.holds(url)) return true;
+    if (_abandoned(generation)) return false;
+    return _readyToSpeak(url, fixedLine);
   }
 
   /// Bring the line down first, then let the circle show it speaking.
@@ -1163,30 +1175,108 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// talking while nothing came out. `thinking` is what this actually is, and it is also
   /// what makes the screen refuse a touch that would start a second line on top of this
   /// one.
-  Future<void> _readyToSpeak(String url, String fixedLine) async {
+  Future<bool> _readyToSpeak(String url, String fixedLine) {
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
-    await (fixedLine.isEmpty
+    return fixedLine.isEmpty
         ? _voice.ready(url)
-        : _voice.readyFixedLine(fixedLine, _inTheSessionsLanguage));
+        : _voice.readyFixedLine(fixedLine, _inTheSessionsLanguage);
+  }
+
+  /// Say a reply, loading it once more when the machine asks after a failed load
+  /// (ADR 0140).
+  ///
+  /// [asked] is a replay, which goes straight to speaking for a line already held.
+  /// [remember] is false only for a retro verdict the room could not compose. Every
+  /// other reply is kept, fail-safe or not, as her `speak` keeps every clip it plays as
+  /// the one the replay gives back (page.tsx:509).
+  Future<Said> _sayTheReply(
+    SpokenLine line, {
+    bool asked = false,
+    bool remember = true,
+    void Function()? loaded,
+    void Function()? onSoundStart,
+  }) async {
+    final generation = _waitOnTheGeneration;
+    for (var load = 1; ; load++) {
+      final Said said;
+      try {
+        said = await _loadTheReply(
+          line,
+          generation,
+          asked: asked,
+          remember: remember,
+          loaded: loaded,
+          onSoundStart: onSoundStart,
+        );
+      } on RoomFailure catch (failure) {
+        if (await _loadAgain(line, load, generation, remember, failure)) {
+          continue;
+        }
+        return Said.failed;
+      }
+      if (said != Said.failed) return said;
+      if (!await _loadAgain(line, load, generation, remember)) return said;
+    }
+  }
+
+  Future<Said> _loadTheReply(
+    SpokenLine line,
+    int generation, {
+    required bool asked,
+    required bool remember,
+    void Function()? loaded,
+    void Function()? onSoundStart,
+  }) async {
+    final ready = await (asked
+        ? _readyToRepeat(line.url, line.fixedLine, generation)
+        : _readyToSpeak(line.url, line.fixedLine));
+    if (_abandoned(generation)) return Said.unsaid;
+    if (!ready) return Said.failed;
+    loaded?.call();
+    _watchBusyState();
+    return _speak(line, remember: remember, onSoundStart: onSoundStart);
+  }
+
+  /// While the reload waits the room is thinking, so nothing offers to say the reply
+  /// again; under the sign the reply that would not load stays the one «Ouvir de novo»
+  /// says, unless it is not [remember]ed.
+  Future<bool> _loadAgain(
+    SpokenLine line,
+    int load,
+    int generation,
+    bool remember, [
+    RoomFailure? because,
+  ]) async {
+    if (_abandoned(generation)) return false;
+    final loadAgain = Completer<bool>();
+    _dispatch(
+      TheReplyFailedToLoad(
+        load,
+        because: because?.result,
+        sounding: _whatIsSounding(),
+        answered: loadAgain.complete,
+      ),
+    );
+    if (state.needsPerson && remember) state = state.copyWith(lastSpoken: line);
+    if (!await loadAgain.future || _abandoned(generation)) return false;
+    await (line.fixedLine.isEmpty
+        ? _voice.forget(line.url)
+        : _voice.forgetFixedLine(line.fixedLine, _inTheSessionsLanguage));
+    return !_abandoned(generation);
   }
 
   /// Say a line, and remember it as the one "ouvir de novo" gives back, whether it was
   /// said whole or cut by the team.
-  ///
-  /// [remember] is false only for a retro verdict the room could not compose. Every other
-  /// line is kept, fail-safe or not, as her `speak` keeps every clip it plays as the one
-  /// the replay gives back (page.tsx:509).
   Future<Said> _speak(
-    String url,
-    String fixedLine, {
-    bool remember = true,
+    SpokenLine line, {
+    required bool remember,
     void Function()? onSoundStart,
-    String? checkAt,
   }) async {
     final generation = _waitOnTheGeneration;
     final room = _room;
     final session = state.sessionId;
+    final SpokenLine(:url, :fixedLine, :checkAt) = line;
     final said = await _sayTheLine(
       LineKind.guide,
       url: fixedLine.isEmpty ? url : null,
@@ -1196,13 +1286,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       onSoundStart: onSoundStart,
     );
     if (said.heard && remember && !_abandoned(generation)) {
-      state = state.copyWith(
-        lastSpoken: SpokenLine(
-          url: url,
-          fixedLine: fixedLine,
-          checkAt: checkAt,
-        ),
-      );
+      state = state.copyWith(lastSpoken: line);
     }
     if ((said, checkAt, session) case (
       Said.said,
@@ -1239,13 +1323,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       keeps: const TheLineSaidAgain(),
       play: (line) async {
         if (_abandoned(generation)) return;
-        await _readyToSpeak(line.audioUrl, line.fixedLine);
-        if (_abandoned(generation)) return;
-        _watchBusyState();
-        final played = await _speak(line.audioUrl, line.fixedLine);
+        final played = await _sayTheReply(
+          SpokenLine(url: line.audioUrl, fixedLine: line.fixedLine),
+        );
         if (_abandoned(generation)) return;
         if (!played.heard) {
-          return _registerUnplayableTurn(leavesTeamTalk: false);
+          return _registerUnplayableTurn();
         }
         state = state.copyWith(awaitingTheGuide: false);
       },
@@ -1258,23 +1341,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _repeatLastSpoken(SpokenLine line) async {
     final generation = _waitOnTheGeneration;
-    await _readyToRepeat(line.url, line.fixedLine);
+    final played = await _sayTheReply(line, asked: true);
     if (_abandoned(generation)) return;
-    _watchBusyState();
-    try {
-      final played = await _speak(
-        line.url,
-        line.fixedLine,
-        checkAt: line.checkAt,
-      );
-      if (_abandoned(generation)) return;
-      if (!played.heard) return _registerUnplayableTurn(leavesTeamTalk: false);
-      state = state.copyWith(awaitingTheGuide: false);
-      _landTheHeldCoverage();
-    } on RoomFailure catch (failure) {
-      if (_abandoned(generation)) return;
-      _decideTheFailure(failure);
-    }
+    if (!played.heard) return _registerUnplayableTurn();
+    state = state.copyWith(awaitingTheGuide: false);
+    _landTheHeldCoverage();
   }
 
   Future<void> _voiceTurn(
@@ -1292,14 +1363,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     clock?.mark('answer');
     _awaitCoverageSettle(turn, clock: clock);
     _scheduleInboxPoll();
-    await _readyToSpeak(turn.audioUrl, turn.fixedLine);
-    if (_abandoned(generation)) return;
-    clock?.mark('clip');
     if (_answeredWithNothingToPlay(turn)) return;
-    _watchBusyState();
-    final played = await _speak(
-      turn.audioUrl,
-      turn.fixedLine,
+    final played = await _sayTheReply(
+      SpokenLine(url: turn.audioUrl, fixedLine: turn.fixedLine),
+      loaded: () => clock?.mark('clip'),
       onSoundStart: onSoundStart,
     );
     if (_abandoned(generation)) return;
@@ -1327,13 +1394,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return true;
   }
 
-  void _registerUnplayableTurn({bool leavesTeamTalk = true}) {
+  void _registerUnplayableTurn() {
     _openTurnId = null;
     _openingOwed = false;
-    state = state.copyWith(
-      awaitingTheGuide: false,
-      peerCue: leavesTeamTalk ? false : null,
-    );
+    state = state.copyWith(awaitingTheGuide: false, peerCue: false);
     _landTheHeldCoverage();
   }
 
@@ -1354,17 +1418,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     haltForABrokenBuild();
   }
 
-  void _logTheGuidesSound(MachineEvent event, Machine before, Machine after) {
-    if (event is! PlayerFailed ||
-        event.source != Source.guide ||
-        identical(before, after) ||
-        after.failing != Source.guide) {
-      return;
-    }
-    decidedOnTheTablet(TheSoundFailed(after.failures), _failureContext());
-  }
-
-  Kept _whatIsSounding({bool theOpening = true}) {
+  Kept _whatIsSounding() {
     if (state.machine.keptInFlight case final TheLineSaidAgain line) {
       return line;
     }
@@ -1372,7 +1426,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         (state.channel is Playing || !_parteJaTocou)) {
       return const ThePart();
     }
-    if (theOpening && _openingOwed && _openTurnId != null) {
+    if (_openingOwed && _openTurnId != null) {
       return const TheOpening();
     }
     return const NothingKept();
@@ -1381,6 +1435,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _dispatch(MachineEvent event) {
     final before = state.machine;
     final (machine, effects) = reduce(before, event);
+    if (event is TheReplyFailedToLoad) logTheReplysSound(event, effects);
     final leavesTheScene =
         before.station is SceneRehearsal && machine.station is! SceneRehearsal;
     if (machine.halt is Blocking && before.halt is! Blocking) {
@@ -1399,7 +1454,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _escutarNoEnsaio(before, machine);
     _keepWhereTheTakeStopped(before, machine);
     _runner.run(effects, micWasOpen: before.channel is Microphone);
-    _logTheGuidesSound(event, before, machine);
     _followTheSound(before, machine);
     _followTheMicrophone(before, machine);
     _followTheListener(before, machine);
@@ -1621,7 +1675,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void _waitOnTheLookAgain() {
+  void _waitOnTheGuide() {
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
   }
@@ -2020,11 +2074,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _voicePanorama(TurnResult turn) async {
     final generation = _waitOnTheGeneration;
-    await _readyToSpeak(turn.audioUrl, turn.fixedLine);
-    if (_abandoned(generation)) return;
     if (_answeredWithNothingToPlay(turn)) return;
-    _watchBusyState();
-    final played = await _speak(turn.audioUrl, turn.fixedLine);
+    final played = await _sayTheReply(
+      SpokenLine(url: turn.audioUrl, fixedLine: turn.fixedLine),
+    );
     if (_abandoned(generation)) return;
     if (!played.heard) {
       _registerUnplayableTurn();
@@ -8067,6 +8120,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _marcarOFimDaParte(String arquivo, int medido) {
     if (medido <= 0) return;
     _tamanhoDaParteMs[arquivo] = medido;
+    final read = _partLoudnessReads.then(
+      (_) => _readThePartLoudness(arquivo, Duration(milliseconds: medido)),
+    );
+    _partLoudnessReads = read.catchError((Object _) {});
+    _handOff(read);
+  }
+
+  Future<void> _readThePartLoudness(String arquivo, Duration length) async {
+    if (state.partLoudness.containsKey(arquivo)) return;
+    final life = _thisLife;
+    final envelope = await ref.read(sceneEnvelopeReaderProvider)(arquivo);
+    if (_endedSince(life) ||
+        !state.partes.any((take) => take.path == arquivo)) {
+      return;
+    }
+    state = state.copyWith(
+      partLoudness: {
+        ...state.partLoudness,
+        arquivo: (length: length, envelope: envelope),
+      },
+    );
   }
 
   /// How far into this recording the telling-back already got.
@@ -10284,27 +10358,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     }
     try {
-      await _readyToSpeak(verdict.audioUrl, verdict.fixedLine);
-      if (_abandoned(generation)) return;
-      _watchBusyState();
-      final spoke = await _speak(
-        verdict.audioUrl,
-        verdict.fixedLine,
+      final spoke = await _sayTheReply(
+        SpokenLine(
+          url: verdict.audioUrl,
+          fixedLine: verdict.fixedLine,
+          checkAt: verdict.checkAt,
+        ),
         remember: !verdict.usedFailSafe,
-        checkAt: verdict.checkAt,
       );
       if (_abandoned(generation)) return;
-      // It returns, as all five of its siblings do. Registering and carrying on was the
-      // other option and it is not one: on the third rung the halt fires, the room says
-      // out loud that a person is needed and the desk is called — and then the lines
-      // below overwrite that with the closing screen, so the team hears the call and is
-      // shown a finished passage.
+      // It returns, as all five of its siblings do: when the halt fires, the lines below
+      // would overwrite the call for a person with the closing screen.
       //
       // Leaving `thinking` is not decoration. The five siblings never speak from inside
       // it, so the invitation they hand back is already a gesture; this one does, and
       // `thinking` takes no tap and holds the finish button down — the team would be left
-      // watching "um instante" with nothing to touch. The third rung escapes only because
-      // the halt leaves it on the way past. Same door, not a new one.
+      // watching "um instante" with nothing to touch.
       if (!spoke.heard) {
         _leaveThinking();
         return _registerUnplayableTurn();
@@ -11326,9 +11395,6 @@ class _NotifierHost implements StationHost {
   bool keepsTheStart(MicOwner owner) => _notifier._keepsTheStart(owner);
 
   @override
-  Kept get sounding => _notifier._whatIsSounding(theOpening: false);
-
-  @override
   void answer(MachineEvent event) =>
       _notifier._apart(() => _notifier._dispatch(event));
 
@@ -11392,7 +11458,10 @@ class _NotifierHost implements StationHost {
   void hearTheLineLetGo() => _notifier._letTheLineGo();
 
   @override
-  void hearTheWaitResumed() => _notifier._waitOnTheLookAgain();
+  void hearTheWaitResumed() => _notifier._waitOnTheGuide();
+
+  @override
+  void hearTheReplyWaitingToLoad() => _notifier._waitOnTheGuide();
 
   @override
   void hearTheSignCleared() => _notifier._theSignCleared();

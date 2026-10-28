@@ -168,6 +168,22 @@ class FacilitatorVoiceService {
     }
   }
 
+  Future<void> forget(String url) async {
+    if (url.isEmpty) return;
+    if (_arriving.remove(url) case final arriving?) await _settled(arriving);
+    try {
+      final file = await _fileFor(url);
+      if (file.existsSync()) await file.delete();
+    } on Exception {
+      return;
+    }
+  }
+
+  Future<void> forgetFixedLine(String line, String language) async {
+    final address = _addresses.remove((line, language));
+    if (address != null) await forget(address);
+  }
+
   /// Whether this line is already on the tablet, so nothing has to be waited for.
   ///
   /// A replay is not the room thinking — it already holds the words. Passing through the
