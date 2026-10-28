@@ -8006,6 +8006,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
       return;
     }
+    state = state.copyWith(clearBtRecusa: true);
     bool deixou() => _abandoned(generation) || _endedSince(life);
     if (state.btFraseQueAguarda case final aguardando?) {
       await _voltarAFraseQueAguarda(aguardando, generation);
@@ -8440,7 +8441,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btClipEnded: ultima || ouvidas,
       btParteFronteira:
           faltaOutra || (!ultima && !(ouvidas && falta.paraNaUltima)),
-      clearBtRecusa: ouvidas,
+      clearBtRecusa: ouvidas && !state.btSoOuvir,
       btFimDasPartesMs: _fimDaParteMs,
       btParteNoArMs: 0,
     );

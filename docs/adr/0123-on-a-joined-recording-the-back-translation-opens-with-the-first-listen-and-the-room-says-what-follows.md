@@ -41,8 +41,9 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
 6. **It counts.** Every part is reported as it ends, and a pause closes the span (ADR 0105).
 7. **Translating opens only once the room counts every part heard.** The last listed part's
    report is awaited, and its answer leads:
-   1. parts still unheard: the listen stays, «ainda falta ouvir um trecho da gravação», and the
-      play control plays the recording again from its first part, every part in passage order,
+   1. parts still unheard: the listen stays, «ainda falta ouvir um trecho da gravação» stays
+      through the replay and until the room counts every part heard, and the play control
+      plays the recording again from its first part, every part in passage order,
       as hers (`chainPlayer.ts` `play()` starts an ended chain over). After a listen of only the
       unheard parts, hers rests on the last of them instead (`playOnly`), so play starts again
       at that part and runs on to the end of the recording; the play after that is from the
