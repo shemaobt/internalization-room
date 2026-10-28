@@ -80,7 +80,7 @@ String handLabelFor(String state, String language) =>
     handLabels[state]![language] ?? handLabels[state]![floorLanguage]!;
 
 const roomLabels = {
-  'hearAgain': {'pt': 'Ouvir de novo', 'en': 'Hear it again'},
+  'hearAgain': {'pt': 'Ouvir de novo', 'en': 'Hear that again'},
   'leavePassage': {
     'pt': 'Escolher outra passagem',
     'en': 'Choose another passage',
@@ -417,11 +417,25 @@ String sceneRehearsalLabelFor(String control, String language, {int? n}) =>
         .replaceAll('{n}', '$n');
 
 /// «ouvindo o ensaio da cena…» with her clock, «0:03 / 0:20».
-String sceneListeningLineFor(Duration at, Duration? length, String language) {
+String sceneListeningLineFor(Duration at, Duration? length, String language) =>
+    _sceneClockLineFor('listening', at, length, language);
+
+String scenePausedLineFor(Duration? at, Duration? length, String language) =>
+    switch (at) {
+      final at? => _sceneClockLineFor('paused', at, length, language),
+      null => sceneRehearsalLabelFor('paused', language),
+    };
+
+String _sceneClockLineFor(
+  String control,
+  Duration at,
+  Duration? length,
+  String language,
+) {
   final ofTheTake = length != null && length > Duration.zero
       ? ' / ${minutesAndSecondsOf(length)}'
       : '';
-  return '${sceneRehearsalLabelFor('listening', language)} — '
+  return '${sceneRehearsalLabelFor(control, language)} — '
       '${minutesAndSecondsOf(at)}$ofTheTake';
 }
 

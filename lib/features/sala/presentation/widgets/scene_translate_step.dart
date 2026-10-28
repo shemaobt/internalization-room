@@ -35,6 +35,7 @@ class SceneTranslateStep extends ConsumerWidget {
   final SceneLine? line;
   final bool restartShown;
   final BtRecomeco? restart;
+  final Duration? stoppedAt;
 
   const SceneTranslateStep({
     super.key,
@@ -50,6 +51,7 @@ class SceneTranslateStep extends ConsumerWidget {
     required this.line,
     required this.restartShown,
     required this.restart,
+    required this.stoppedAt,
   });
 
   @override
@@ -258,7 +260,7 @@ class SceneTranslateStep extends ConsumerWidget {
     }
     if (playing) return sceneListeningLineFor(at, scene.length, language);
     if (!scene.moreToTell) return sceneRehearsalLabelFor('ended', language);
-    return sceneRehearsalLabelFor('paused', language);
+    return scenePausedLineFor(stoppedAt, scene.length, language);
   }
 }
 
@@ -397,6 +399,7 @@ class SceneListenMode extends ConsumerWidget {
   final String language;
   final bool sending;
   final SceneLine? line;
+  final Duration? stoppedAt;
 
   const SceneListenMode({
     super.key,
@@ -406,6 +409,7 @@ class SceneListenMode extends ConsumerWidget {
     required this.language,
     required this.sending,
     required this.line,
+    required this.stoppedAt,
   });
 
   @override
@@ -440,9 +444,16 @@ class SceneListenMode extends ConsumerWidget {
             mood: sending || scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
             playing: playing,
             label: said('playPause'),
-            hint: (at) => playing
-                ? sceneListeningLineFor(at, scene.length, language)
-                : null,
+            hint: (at) => switch ((playing, scene.heard)) {
+              (true, _) => sceneListeningLineFor(at, scene.length, language),
+              (false, SceneHeard.partly) => scenePausedLineFor(
+                stoppedAt,
+                scene.length,
+                language,
+              ),
+              (false, SceneHeard.toTheEnd) => said('ended'),
+              (false, _) => null,
+            },
           ),
           const SizedBox(height: 12),
           SceneStrip(

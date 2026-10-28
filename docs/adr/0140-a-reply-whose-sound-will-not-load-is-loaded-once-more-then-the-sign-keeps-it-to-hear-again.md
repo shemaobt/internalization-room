@@ -32,6 +32,11 @@ sound failed.
   does (ADR 0063): the quiet invite, with no sign.
 - **«Ouvir de novo» says the last reply as it was meant**, a fail-safe line included. As in
   her app, it is not offered under the sign; it is lit once the team's tap clears it.
+- **Except a retro verdict the room could not compose**, which is not kept, so «Ouvir de
+  novo» says the line before it. This is the rule main merged in ENG-1880, after ENG-1370
+  was defined, as her app's; this ADR keeps it rather than reverse a teammate's merged
+  rule. Under the sign, such a verdict does not take the place of the line before it
+  either.
 
 - **While the reload waits, the room is thinking** («pensando»), as it already is for a
   turn's reply, so nothing offers to say the reply again: a second «Ouvir de novo» in the

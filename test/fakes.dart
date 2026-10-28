@@ -925,13 +925,18 @@ class FakeWorkInProgress implements WorkInProgress {
   /// what the next opening would have read.
   final List<ResumePoint> written = [];
 
+  Exception? startedInFails;
+
   @override
-  Future<Set<String>> startedIn(String book, String language) async => {
-    for (final MapEntry(:key, :value) in rows.entries)
-      if (key.startsWith('$book/') &&
-          (key.endsWith('/$language') || value.language == language))
-        key.split('/')[1],
-  };
+  Future<Set<String>> startedIn(String book, String language) async {
+    if (startedInFails case final failure?) throw failure;
+    return {
+      for (final MapEntry(:key, :value) in rows.entries)
+        if (key.startsWith('$book/') &&
+            (key.endsWith('/$language') || value.language == language))
+          key.split('/')[1],
+    };
+  }
 
   Completer<void>? _holdingRead;
   Completer<void>? _heldRead;
@@ -1399,6 +1404,9 @@ class FakeRoom implements RoomRepository {
   /// twin of [turnsAreCanned] for the turn that closes a telling-back, and the only way a
   /// test can make the findings screen open with nothing worth repeating.
   bool verdictUsedFailSafe = false;
+
+  /// The verdict's own clip, when a test needs one verdict told apart from another.
+  String? verdictAudioUrl;
 
   /// What the room answers about the telling-back, when a test wants to state it rather
   /// than build it up by telling stretches back.
@@ -3210,7 +3218,7 @@ class FakeRoom implements RoomRepository {
     } else if (verdictUnheardTakeIds.isNotEmpty) {
       linha = falaDaParteNaoOuvida;
     } else {
-      linha = falaDoVeredito;
+      linha = verdictAudioUrl ?? falaDoVeredito;
     }
     return Answered(
       BackTranslationVerdict(

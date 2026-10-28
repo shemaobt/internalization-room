@@ -263,8 +263,8 @@ void main() {
     expect(read().needsPerson, isFalse);
   });
 
-  test('a fail-safe the room said again is kept as the last line, and the next '
-      '«Ouvir de novo» says it without asking the room', () async {
+  test('a fail-safe the room said again is kept as the last line, so the next '
+      '«Ouvir de novo» says it again without asking the room', () async {
     final harness = SalaHarness()..room.turnsAreCanned = true;
     _aCanvasRow(harness, opened: true);
     final container = harness.container();
@@ -280,12 +280,16 @@ void main() {
       () => read().voice == VoiceState.invite && read().canHearAgain,
     );
     await notifier.hearAgain();
-    await waitFor(
-      'the line to be said again',
-      () => harness.voice.played.where((url) => url == deNovoUrl).length == 2,
-    );
+    await settle();
 
-    expect(harness.room.sessionsSaidAgain, hasLength(1));
+    expect(
+      harness.room.sessionsSaidAgain,
+      [_rememberedSession],
+      reason:
+          'a linha de segurança dita de novo não era guardada, e o toque '
+          'seguinte perguntava à sala outra vez',
+    );
+    expect(harness.voice.played.where((url) => url == deNovoUrl), hasLength(2));
   });
 
   test(
