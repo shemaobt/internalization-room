@@ -138,6 +138,9 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                         language: language,
                         outcome: session.joinRows[row.number],
                         idle: idle,
+                        playing:
+                            session.planListening?.rehearsalId ==
+                            row.chosen?.rehearsalId,
                         onPlay: () =>
                             notifier.playThePlanRow(row.scene.sceneId),
                         onSwap: () =>
@@ -201,6 +204,7 @@ class _PlanRowView extends StatelessWidget {
   final String language;
   final JoinRow? outcome;
   final bool idle;
+  final bool playing;
   final VoidCallback onPlay;
   final VoidCallback onSwap;
   final VoidCallback onRetry;
@@ -210,6 +214,7 @@ class _PlanRowView extends StatelessWidget {
     required this.language,
     required this.outcome,
     required this.idle,
+    required this.playing,
     required this.onPlay,
     required this.onSwap,
     required this.onRetry,
@@ -295,17 +300,20 @@ class _PlanRowView extends StatelessWidget {
                   ),
                 ),
                 if (facts != null)
-                  RoundActionButton(
-                    size: 44,
-                    gradient: BeadStyles.wood,
-                    semanticLabel:
-                        '${ensaioFinalPlanLabelFor('listen', language)} — $facts',
-                    mood: idle ? ButtonMood.lit : ButtonMood.dimmed,
-                    onTap: onPlay,
-                    child: const Icon(
-                      LucideIcons.play,
-                      size: 18,
-                      color: ShemaBrand.branco,
+                  Semantics(
+                    selected: playing,
+                    child: RoundActionButton(
+                      size: 44,
+                      gradient: BeadStyles.wood,
+                      semanticLabel:
+                          '${ensaioFinalPlanLabelFor('listen', language)} — $facts',
+                      mood: idle ? ButtonMood.lit : ButtonMood.dimmed,
+                      onTap: onPlay,
+                      child: Icon(
+                        playing ? LucideIcons.pause : LucideIcons.play,
+                        size: 18,
+                        color: ShemaBrand.branco,
+                      ),
                     ),
                   ),
               ],
