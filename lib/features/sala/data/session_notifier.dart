@@ -2135,8 +2135,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _startListening('panorama_${_stamp()}');
         case VoiceState.listening:
           _handOff(_finishPanoramaListening());
-        case VoiceState.thinking:
         case VoiceState.speaking:
+          _cutTheVoice();
+        case VoiceState.thinking:
         case VoiceState.done:
           break;
       }
@@ -2150,7 +2151,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishPanoramaListening() async {
     final generation = _waitOnTheGeneration;
-    final path = (await _closeTheMicrophone()).take;
+    final closed = await _closeTheMicrophone();
+    final path = closed.take;
     if (_abandoned(generation)) return;
     final panorama = state.panoramaSessionId!;
     if (path == null || !_hasAudio(path)) {
@@ -2158,14 +2160,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (path != null) unawaited(_recorder.delete(path));
       return;
     }
-    await _sendThePanoramaTurn(panorama, path, _stamp());
+    await _sendThePanoramaTurn(panorama, path, _stamp(), cut: closed.cut);
   }
 
   Future<void> _sendThePanoramaTurn(
     String panorama,
     String path,
-    String turnId,
-  ) async {
+    String turnId, {
+    CutPoint? cut,
+  }) async {
     final generation = _waitOnTheGeneration;
     _sayImThinking();
     state = state.copyWith(awaitingTheGuide: true);
@@ -2178,7 +2181,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _sendATurn(
       Turn(panorama, turnId),
       generation,
-      () => _room.sendTurn(panorama, File(path), turnId: turnId),
+      () => _room.sendTurn(panorama, File(path), turnId: turnId, cut: cut),
       play: (turn) => _voicePanorama(turn),
       failed: failed,
     );

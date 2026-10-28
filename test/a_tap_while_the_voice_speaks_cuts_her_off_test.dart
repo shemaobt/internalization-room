@@ -26,8 +26,9 @@ const _panorama = Passagem(
 class _Room {
   final SalaHarness harness;
   final ProviderContainer container;
+  final bool onThePanorama;
 
-  _Room(this.harness, this.container);
+  _Room(this.harness, this.container, {this.onThePanorama = false});
 
   SalaSessionNotifier get notifier =>
       container.read(salaSessionProvider.notifier);
@@ -37,7 +38,11 @@ class _Room {
   CutPoint? get lastCut => harness.room.cutsSent.last;
 
   Future<void> tap() async {
-    notifier.conversaTap();
+    if (onThePanorama) {
+      notifier.panoramaTap();
+    } else {
+      notifier.conversaTap();
+    }
     await settle();
   }
 
@@ -71,6 +76,17 @@ Future<_Room> _inConversa({SalaHarness? harness}) async {
   final container = await inConversa(room);
   addTearDown(container.dispose);
   return _Room(room, container);
+}
+
+Future<_Room> _onThePanorama() async {
+  final harness = SalaHarness();
+  harness.room.passages = [_panorama, ...harness.room.passages];
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final room = _Room(harness, container, onThePanorama: true);
+  await enterThePanorama(room.notifier, () => room.state);
+  await waitFor('o panorama ser dito', () => room.state.panoramaSaid);
+  return room;
 }
 
 Future<_Room> _cutWhileSheSpeaks({
@@ -393,6 +409,50 @@ void main() {
       expect(room.lastCut?.of, isNull);
     },
   );
+
+  test('a tap on the Panorama\'s circle while her reply speaks stops her and '
+      'opens the microphone, as on the conversation', () async {
+    final room = await _onThePanorama();
+    await room.aReplySpeaking();
+    final stops = room.harness.voice.stops;
+    final captures = room.harness.recorder.captures;
+
+    await room.tap();
+
+    expect(
+      room.harness.voice.stops,
+      greaterThan(stops),
+      reason: 'no Panorama o toque com ela falando era ignorado',
+    );
+    expect(room.state.voice, VoiceState.listening);
+    expect(room.harness.recorder.captures, captures + 1);
+  });
+
+  test('the Panorama\'s next take tells the room it followed an interruption, '
+      'and where, and the take after it tells nothing', () async {
+    final room = await _cutWhileSheSpeaks(on: await _onThePanorama());
+
+    await room.tap();
+    await waitFor(
+      'a vez cortada chegar à sala',
+      () => room.harness.room.cutsSent.length == 2,
+    );
+
+    expect(
+      room.lastCut,
+      const CutPoint(_at, of: _of),
+      reason:
+          'a vez do Panorama depois do corte saía sem dizer onde foi cortada',
+    );
+
+    await waitFor('a sala voltar ao convite', () {
+      return room.state.voice == VoiceState.invite;
+    });
+    await room.aRealTake();
+
+    expect(room.harness.room.cutsSent, hasLength(3));
+    expect(room.lastCut, isNull);
+  });
 
   group('a tap while the voice speaks is ignored', () {
     test('by the Panorama\'s circle', () async {
