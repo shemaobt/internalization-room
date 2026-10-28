@@ -205,6 +205,54 @@ void main() {
     );
 
     testWidgets(
+      'in the $look look the mark a finding leaves on its frase is written and edged in her $look azul',
+      (tester) async {
+        await _pump(
+          tester,
+          look,
+          FraseList(
+            language: 'pt',
+            rows: [
+              FraseRow(
+                n: 1,
+                parte: null,
+                share: 1,
+                onHear: () {},
+                mark: 'nuance',
+                achado: BtFindingKind.nuance,
+              ),
+            ],
+          ),
+        );
+
+        expect(
+          tester.widget<Text>(find.text('nuance')).style?.color,
+          azul,
+          reason: 'no escuro a marca do achado era escrita no azul claro',
+        );
+        expect(
+          ((tester
+                              .widget<Container>(
+                                find
+                                    .ancestor(
+                                      of: find.text('nuance'),
+                                      matching: find.byType(Container),
+                                    )
+                                    .first,
+                              )
+                              .decoration
+                          as BoxDecoration)
+                      .border
+                  as Border)
+              .top
+              .color,
+          azul,
+          reason: 'no escuro a marca do achado tinha a borda azul clara',
+        );
+      },
+    );
+
+    testWidgets(
       'in the $look look the circle listening for the bridge language glows in her $look azul',
       (tester) async {
         await _pump(

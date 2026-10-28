@@ -324,13 +324,13 @@ class _FraseTile extends StatelessWidget {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: azul ? ShemaBrand.azul : colors.telha,
+                              color: azul ? colors.azul : colors.telha,
                             ),
                           ),
                           child: Text(
                             mark,
                             style: TextStyle(
-                              color: azul ? ShemaBrand.azul : colors.telha,
+                              color: azul ? colors.azul : colors.telha,
                               fontSize: 14,
                             ),
                           ),
