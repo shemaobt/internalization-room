@@ -188,6 +188,22 @@ void main() {
     },
   );
 
+  test('a verdict whose first load fails and whose reload plays is reported '
+      'heard once', () async {
+    final harness = SalaHarness();
+    harness.voice.failsToLoad[falaDoVeredito] = 1;
+    final (_, notifier) = await _inConversa(harness);
+
+    await _toTheVerdict(harness, notifier);
+    await settle(const Duration(milliseconds: 100));
+
+    expect(
+      harness.voice.played.where((url) => url == falaDoVeredito),
+      hasLength(2),
+    );
+    expect(harness.room.heardStamps, [_stamp]);
+  });
+
   test('a verdict the player fails on is never reported heard', () async {
     final harness = SalaHarness()..voice.refuses.add(falaDoVeredito);
     final (_, notifier) = await _inConversa(harness);
@@ -202,22 +218,21 @@ void main() {
     );
   });
 
-  test(
-    'a verdict cut by a lost connection mid-stream is never reported heard',
-    () async {
-      final harness = SalaHarness();
-      final (_, notifier) = await _inConversa(harness);
-      await _whileTheVerdictPlays(harness, notifier);
+  test('a verdict cut by a lost connection mid-stream, and lost again on its '
+      'reload, is never reported heard', () async {
+    final harness = SalaHarness();
+    final (_, notifier) = await _inConversa(harness);
+    await _whileTheVerdictPlays(harness, notifier);
 
-      harness.voice.failHeldLine(const NetworkFailed('fala cortada'));
-      await settle();
+    harness.voice
+      ..roomFailsWith = const NetworkFailed('fala cortada')
+      ..failHeldLine(const NetworkFailed('fala cortada'));
+    await settle();
 
-      expect(
-        harness.room.heardStamps,
-        isEmpty,
-        reason:
-            'a conexão caiu no meio do veredito e a nuance contava como dita',
-      );
-    },
-  );
+    expect(
+      harness.room.heardStamps,
+      isEmpty,
+      reason: 'a conexão caiu no meio do veredito e a nuance contava como dita',
+    );
+  });
 }

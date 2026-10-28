@@ -16,16 +16,6 @@ Future<ProviderContainer> _inConversa(SalaHarness harness) async {
   return container;
 }
 
-/// Two lines the room tried to say and could not — the ladder, two rungs up.
-Future<void> _oneThatWouldNotPlay(
-  SalaHarness harness,
-  SalaSessionNotifier notifier,
-) async {
-  harness.voice.succeeds = false;
-  await notifier.hearAgain();
-  harness.voice.succeeds = true;
-}
-
 /// Tell the passage back and ask the room for its verdict.
 Future<void> _toTheVerdict(
   SalaHarness harness,
@@ -45,20 +35,18 @@ Future<void> _toTheVerdict(
 }
 
 void main() {
-  test('a verdict that cannot be spoken leaves the room where any unspoken '
-      'turn leaves it', () async {
+  test('a verdict that cannot be spoken leaves the room, once the sign is '
+      'cleared, where any unspoken turn leaves it', () async {
     final harness = SalaHarness()..voice.refuses.add(_verdictUrl);
     final container = await _inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
     await _toTheVerdict(harness, notifier);
+    notifier.teamTapped();
+    await settle();
 
-    expect(
-      read().needsPerson,
-      isFalse,
-      reason: 'um degrau não é a escada toda',
-    );
+    expect(read().needsPerson, isFalse);
     expect(
       read().btPhase,
       isNot(BtPhase.conferida),
@@ -76,47 +64,47 @@ void main() {
     );
   });
 
-  test(
-    'a verdict that could not be said leaves the team a live gesture',
-    () async {
-      final harness = SalaHarness()..voice.refuses.add(_verdictUrl);
-      final container = await _inConversa(harness);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-
-      await _toTheVerdict(harness, notifier);
-
-      expect(read().needsPerson, isFalse, reason: 'este é o primeiro degrau');
-      expect(
-        read().btPhase,
-        isNot(BtPhase.thinking),
-        reason:
-            'thinking não aceita toque e não devolve o botão de terminar: a '
-            'equipe ficaria olhando "um instante" sem nada para tocar',
-      );
-      expect(
-        read().canFinishBackTranslation,
-        isTrue,
-        reason:
-            'o convite tem de vir com um gesto — os cinco irmãos nunca falam '
-            'de dentro de thinking, então voice: invite bastava para eles e aqui '
-            'não basta; a equipe precisa poder pedir o veredito de novo',
-      );
-    },
-  );
-
-  test('two that could not be spoken, the second of them the verdict, call a '
-      'person', () async {
+  test('a verdict that could not be said leaves the team a live gesture once the '
+      'sign is cleared', () async {
     final harness = SalaHarness()..voice.refuses.add(_verdictUrl);
     final container = await _inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _oneThatWouldNotPlay(harness, notifier);
+    await _toTheVerdict(harness, notifier);
+    notifier.teamTapped();
+    await settle();
+
     expect(read().needsPerson, isFalse);
+    expect(
+      read().btPhase,
+      isNot(BtPhase.thinking),
+      reason:
+          'thinking não aceita toque e não devolve o botão de terminar: a '
+          'equipe ficaria olhando "um instante" sem nada para tocar',
+    );
+    expect(
+      read().canFinishBackTranslation,
+      isTrue,
+      reason:
+          'o convite tem de vir com um gesto — os cinco irmãos nunca falam '
+          'de dentro de thinking, então voice: invite bastava para eles e aqui '
+          'não basta; a equipe precisa poder pedir o veredito de novo',
+    );
+  });
+
+  test('a verdict whose sound fails to load twice calls a person', () async {
+    final harness = SalaHarness()..voice.refuses.add(_verdictUrl);
+    final container = await _inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
 
     await _toTheVerdict(harness, notifier);
 
+    expect(
+      harness.voice.played.where((url) => url == _verdictUrl),
+      hasLength(2),
+    );
     expect(
       read().needsPerson,
       isTrue,
