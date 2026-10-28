@@ -471,7 +471,7 @@ class _SceneRowView extends StatelessWidget {
                     mood,
                   )
                 else ...[
-                  if (row.unsent?.failure != SendFailure.gone) ...[
+                  if (!row.playsTheGoneTake) ...[
                     _control(
                       'listen',
                       Icon(

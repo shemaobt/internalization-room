@@ -1912,4 +1912,9 @@ class SceneRow {
     required this.dimmed,
     required this.current,
   });
+
+  /// Whether «Ouvir» would play the take that is gone: the room's own part, which carries
+  /// the room's id, still plays.
+  bool get playsTheGoneTake =>
+      unsent?.failure == SendFailure.gone && part?.takeId == null;
 }

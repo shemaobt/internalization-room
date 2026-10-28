@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math';
 
 import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart' as crypto;
@@ -501,17 +502,33 @@ class TakeUploadQueue {
     List<PendingTake>? written,
     String? sessionId,
   ) async {
-    final newest = <String, PendingTake>{
+    final parts = [
       for (final entry in written ?? const <PendingTake>[])
-        if (entry.kind == partTakeKind && entry.sessionId == sessionId)
-          entry.scope: entry,
-    };
+        if (entry.kind == partTakeKind && entry.sessionId == sessionId) entry,
+    ];
+    final newest = <String, int>{};
+    for (final entry in parts) {
+      newest[entry.scope] = max(
+        newest[entry.scope] ?? 0,
+        entry.passNumber ?? 1,
+      );
+    }
     return {
-      for (final MapEntry(key: scope, value: entry) in newest.entries)
-        if (!entry.stored && !await File(entry.path).exists())
-          scope: entry.passNumber ?? 1,
+      for (final entry in parts)
+        if ((entry.passNumber ?? 1) == newest[entry.scope] &&
+            !await File(entry.path).exists())
+          entry.scope: entry.passNumber ?? 1,
     };
   }
+
+  Future<Set<String>> _goneRowsOf(String sessionId, String scope) async => {
+    for (final entry in await entries())
+      if (entry.kind == partTakeKind &&
+          entry.sessionId == sessionId &&
+          entry.scope == scope &&
+          !await File(entry.path).exists())
+        entry.id,
+  };
 
   Future<OutboxTally> tally({required String? sessionId}) async {
     final written = await _written();
@@ -737,7 +754,18 @@ class TakeUploadQueue {
       reopensTheApprovedDraft: reopensTheApprovedDraft,
       overTake: overTake,
     );
-    await _mutate((written) => _lifeEnded ? written : [...written, entry]);
+    final gone = kind == partTakeKind
+        ? await _goneRowsOf(sessionId, scope)
+        : const <String>{};
+    await _mutate(
+      (written) => _lifeEnded
+          ? written
+          : [
+              for (final row in written)
+                if (!gone.contains(row.id)) row,
+              entry,
+            ],
+    );
     if (_lifeEnded) {
       await _deleteTheCopy(entry);
       if (await audio.exists()) await audio.delete();

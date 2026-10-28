@@ -899,20 +899,44 @@ void main() {
   );
 
   testWidgets(
-    'a part saved before whose newest take is gone still reads falhou — grave de novo after a relaunch',
+    'a part saved before whose newest recording is gone reads falhou — grave de novo after a relaunch and still plays the room\'s part',
     (tester) async {
       final casa = await _naCasa(tester);
       await casa.guardar(2);
       casa.room.unreachableTake = 'ensaio/parte-2';
       await casa.guardar(2);
+      final gravacao = casa.estado.partes[casa.estado.partIndexOf(2)!].path;
       await casa.perderAsCopias();
+      await casa.emTempoReal(() async => File(gravacao).deleteSync());
 
       final depois = await _relancada(casa);
 
       expect(depois.naLinha(2, find.text(_perdida)), findsOneWidget);
       expect(depois.naLinha(2, find.byType(TextButton)), findsNothing);
-      expect(depois.naLinha(2, byLabel(_ouvirNaLinha)), findsNothing);
+      expect(depois.naLinha(2, byLabel(_ouvirNaLinha)), findsOneWidget);
       expect(find.text(_salvo), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a gone part recorded again after a relaunch reads salvo once its take lands',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      await casa.guardar(2);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      final gravacao = casa.estado.partes[casa.estado.partIndexOf(2)!].path;
+      await casa.perderAsCopias();
+      await casa.emTempoReal(() async => File(gravacao).deleteSync());
+      casa.room.unreachableTake = null;
+      final depois = await _relancada(casa);
+      expect(depois.naLinha(2, find.text(_perdida)), findsOneWidget);
+
+      await depois.guardar(2);
+      await depois.ateVer(depois.naLinha(2, find.text(_salvo)));
+
+      expect(depois.naLinha(2, find.text(_salvo)), findsOneWidget);
+      expect(depois.naLinha(2, find.text(_perdida)), findsNothing);
     },
   );
 

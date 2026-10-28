@@ -88,9 +88,10 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
 - **A gone recording is final.** A take whose recording is gone can never go up, so it
   offers no tap and the room refuses a re-send of it, as for a final refusal; this holds
   for a part on its row and for a scene take on the red microphone. It also holds after a
-  relaunch, and the row offers no «Ouvir» for the gone take. Recording again
-  recovers it: a new part take waits behind any spent older pass, and its tap sends both,
-  older first. The Orchestrator decided this on 23 October; Jonatas may overrule it.
+  relaunch, and the row offers no «Ouvir» that would play the gone take; the room's own
+  part still plays. Recording again recovers it: a new part take takes its part's gone
+  takes off the Outbox, waits behind any spent older pass, and its tap sends both, older
+  first. The Orchestrator decided this on 23 October; Jonatas may overrule it.
 - **A part beyond the last scene has its own row.** Each part beyond the passage's last
   scene that has a take still to send, in the air, being kept or kept this visit shows a
   numbered row after the scenes, with the same words, the same tap and the same rules as
