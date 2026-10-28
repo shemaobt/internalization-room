@@ -1,5 +1,3 @@
-import 'channel.dart';
-
 class LeftEntry {
   final String? pericope;
   final String? book;
@@ -7,7 +5,6 @@ class LeftEntry {
   final String? session;
   final String? language;
   final bool said;
-  final Paused? held;
 
   const LeftEntry({
     this.pericope,
@@ -16,7 +13,6 @@ class LeftEntry {
     this.session,
     this.language,
     this.said = false,
-    this.held,
   });
 
   @override
@@ -27,10 +23,9 @@ class LeftEntry {
       other.panorama == panorama &&
       other.session == session &&
       other.language == language &&
-      other.said == said &&
-      other.held == held;
+      other.said == said;
 
   @override
   int get hashCode =>
-      Object.hash(pericope, book, panorama, session, language, said, held);
+      Object.hash(pericope, book, panorama, session, language, said);
 }
