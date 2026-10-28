@@ -856,4 +856,43 @@ void main() {
       expect(it.estado.btParteFronteira, isFalse);
     },
   );
+
+  test(
+    'a part whose upload has not landed keeps the listen before a frase that '
+    'awaits, even when the room names only that frase\'s take',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      final daPrimeira = it.estado.btTrechos.firstWhere(
+        (trecho) => trecho.parte == 0,
+      );
+      it.harness.room
+        ..awaitingSegmentId = daPrimeira.segmentId
+        ..verdictChecked = false
+        ..verdictRefusal = CheckRefusal.fraseAwaiting
+        ..verdictUntoldSegmentId = daPrimeira.segmentId;
+      await pedirOVeredito(it);
+      it.harness.room
+        ..verdictRefusal = null
+        ..verdictUntoldSegmentId = null;
+      await _regravada(it, 1, partesDoEnsaio[1], semNome: true);
+      expect(it.estado.btFraseQueAguarda, daPrimeira.segmentId);
+      expect(it.partes[1].takeId, isNull);
+      it.harness.room.listeningUnheardTakeIds = [it.partes[0].takeId!];
+      final linhas = it.harness.voice.fixedLines.length;
+
+      it.sala.startRetro();
+      await waitFor(
+        'a voz dizer o que vem',
+        () => it.harness.voice.fixedLines.length > linhas,
+      );
+
+      expect(
+        _linhas(it, linhas).first,
+        'P0',
+        reason:
+            'a volta pulava a escuta da parte que ainda subia e abria a '
+            'frase que espera',
+      );
+    },
+  );
 }

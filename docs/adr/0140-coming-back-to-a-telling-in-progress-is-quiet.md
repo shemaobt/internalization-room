@@ -30,12 +30,16 @@ decision in a44568c2.
    - with every part heard: her N5, then that frase's retell at its own span;
    - when the room names only the awaiting frase's take unheard: her N5, then the sentence
      with what surrounds it, and no listen. This is her Q2 (`awaitingOnlyUnheard`,
-     `app/lib/sentenceRerecord.ts:271-274`).
-4. **No answer, or an older room**, stays on today's path.
+     `app/lib/sentenceRerecord.ts:271-274`). A part whose upload has not landed has no take
+     for the room to name and counts as unheard, so it keeps the listen first.
+4. **No answer, or an older room**, stays on today's path, with one exception: a frase
+   awaiting its translation still comes first, unpadded. The tablet already knows which frase
+   it is, a relaunch already goes to it without asking the room, and hers reads it from the
+   passage it holds when the read fails (`Drafting.tsx:1082`).
 
 ## Consequences
 
 - ADR 0123 rule 1's last case now reads: none unheard → this ADR; no answer or an older room
-  → today's path.
+  → today's path, unless a frase awaits its translation (rule 4).
 - A relaunch with a frase awaiting still goes straight to it, without asking the room first.
   Hers asks the room on a relaunch too; that difference is a follow-up.

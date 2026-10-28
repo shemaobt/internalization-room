@@ -881,6 +881,28 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('coming back from the rehearsal to a frase that awaits its '
+      'translation, with no answer from the room, still opens that frase', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarAFrase(tester, harness, 2);
+    harness.room.listeningUnheardTakeIds = null;
+    harness.voice.fixedLines.clear();
+
+    await deVoltaDoEnsaio(tester, container);
+
+    expect(
+      harness.voice.fixedLines,
+      [('N5', 'pt')],
+      reason:
+          'sem resposta da sala, a volta tocava a gravação sobre a frase que espera',
+    );
+    expect(harness.playback.ranges.last, '4000-7200');
+    closeTheRoom(container);
+  });
+
   testWidgets('coming back from the rehearsal when only the re-recorded '
       'sentence is unheard, the voice says the frase awaits and the sentence '
       'plays with what surrounds it, not the listen', (tester) async {

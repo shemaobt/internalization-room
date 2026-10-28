@@ -7776,7 +7776,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         when nomes!.isNotEmpty &&
             nomes.every(
               (nome) => nome == state.trechoChamado(aguardando)?.takeId,
-            )) {
+            ) &&
+            naoOuvidas.every((onde) => state.partes[onde].takeId != null)) {
       return _voltarAFraseQueAguarda(aguardando, generation, emVolta: true);
     }
     final doComeco = !juntada || naoOuvidas.length == state.partes.length;
