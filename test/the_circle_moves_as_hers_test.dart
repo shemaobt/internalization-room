@@ -42,6 +42,28 @@ final _ring = find.byWidgetPredicate(
           (widget.decoration! as BoxDecoration).boxShadow != null),
 );
 
+Finder _edged(Color edge) => find.byWidgetPredicate(
+  (widget) =>
+      widget is Container &&
+      widget.decoration is BoxDecoration &&
+      (widget.decoration! as BoxDecoration).border?.top.color == edge,
+);
+
+double _seen(WidgetTester tester, Finder what) =>
+    tester
+        .widgetList<FadeTransition>(
+          find.ancestor(of: what, matching: find.byType(FadeTransition)),
+        )
+        .fold(1.0, (seen, fade) => seen * fade.opacity.value) *
+    tester
+        .widgetList<Opacity>(
+          find.ancestor(of: what, matching: find.byType(Opacity)),
+        )
+        .fold(1.0, (seen, veil) => seen * veil.opacity);
+
+const _telha = Color(0xFFBE4A01);
+const _azul = Color(0xFF89AAA3);
+
 double _scaleAbove(WidgetTester tester, Finder what) => tester
     .widgetList<Transform>(
       find.ancestor(of: what, matching: find.byType(Transform)),
@@ -94,6 +116,43 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 3000));
       expect(_scaleAbove(tester, _ring.first), closeTo(1, 1e-6));
+    }
+  });
+
+  testWidgets('on her canvas the invite ring fades into the listening ring '
+      'over 1.4 s, even for a tablet that asks for less motion', (
+    tester,
+  ) async {
+    for (final still in [false, true]) {
+      final same = ValueKey('o mesmo canvas $still');
+      await tester.pumpWidget(
+        _circle(VoiceState.invite, canvas: true, still: still, key: same),
+      );
+      await tester.pumpWidget(
+        _circle(VoiceState.listening, canvas: true, still: still, key: same),
+      );
+
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(
+        _edged(_telha),
+        findsOneWidget,
+        reason: 'na metade da troca o anel do convite ainda se apaga',
+      );
+      expect(
+        [_seen(tester, _edged(_telha)), _seen(tester, _edged(_azul))],
+        [closeTo(0.198, 0.01), closeTo(0.802, 0.01)],
+        reason:
+            'o dela troca borda e fundo em 1,4 s com ease '
+            '(globals.css:112,116), que passa de 80% na metade; o nosso '
+            'trocava o anel inteiro de um quadro para o outro',
+      );
+
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(
+        [_seen(tester, _edged(_telha)), _seen(tester, _edged(_azul))],
+        [closeTo(0, 1e-6), closeTo(1, 1e-6)],
+        reason: 'em 1,4 s a troca dela está completa',
+      );
     }
   });
 }

@@ -324,7 +324,7 @@ void main() {
       'o microfone fechar',
       () => room.estado.voice != VoiceState.listening,
     );
-    await room.beat(600);
+    await room.beat(1400);
     nothingIsSaid();
     room.harness.inbox.finishHeldQuestion();
     await room.until(

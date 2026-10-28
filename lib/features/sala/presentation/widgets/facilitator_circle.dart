@@ -80,7 +80,20 @@ class FacilitatorCircle extends StatelessWidget {
         if (!_halted && canvas && !still && voice == VoiceState.listening)
           ..._herRipples(colors),
         if (!_halted && canvas && voice == VoiceState.speaking) _herGlow(still),
-        _body(context, colors, still),
+        if (canvas)
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 1400),
+            switchInCurve: Curves.ease,
+            switchOutCurve: Curves.ease.flipped,
+            transitionBuilder: (child, fade) =>
+                FadeTransition(opacity: fade, child: child),
+            child: KeyedSubtree(
+              key: ValueKey((voice, _herNote)),
+              child: _body(context, colors, still),
+            ),
+          )
+        else
+          _body(context, colors, still),
         if (!_halted && !canvas && voice == VoiceState.speaking)
           ..._ripples(colors),
         if (!_halted && !canvas && voice == VoiceState.listening)
