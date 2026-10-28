@@ -6464,6 +6464,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final frase = _theFraseShown(fraseId, on: const {SceneStep.sent});
     if (frase == null || take == null || !frase.placedIn(length)) return;
     _silenceTheRoom();
+    state = state.copyWith(
+      scene: state.scene.copyWith(heard: SceneHeard.partly),
+    );
     _play(
       PartSound(
         0,

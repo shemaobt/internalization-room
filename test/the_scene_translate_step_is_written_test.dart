@@ -688,6 +688,35 @@ void main() {
     );
   }
 
+  testWidgets(
+    'a frase of a sent scene rehearsal replayed to its end leaves her paused hint, not a blank row',
+    (tester) async {
+      final (harness, container) = await _inListenMode(tester);
+      const paused =
+          'pausado — toque no círculo para marcar onde a frase acaba';
+
+      await tester.tap(byLabel('frase 1'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      expect(harness.playback.ranges.last, '0-3000');
+      harness.playback.finishPlayback();
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        find.text(paused),
+        findsOneWidget,
+        reason: 'a frase ouvida de novo deixava a linha do play em branco',
+      );
+      expect(find.text('fim do ensaio da cena'), findsNothing);
+    },
+  );
+
   testWidgets('a sent scene rehearsal draws her strip', (tester) async {
     await _inListenMode(tester);
 
