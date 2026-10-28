@@ -7691,7 +7691,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final life = _thisLife;
     if (!await _medirAsPartesDaRetro(generation)) return;
     final juntada = state.joined;
-    if (juntada && state.sessionId != null) {
+    if ((juntada || conferida) && state.sessionId != null) {
       await _readTheStretchesBack(state.sessionId!, generation);
       if (_abandoned(generation) || _endedSince(life)) return;
     }
