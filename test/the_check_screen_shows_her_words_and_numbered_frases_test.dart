@@ -380,6 +380,105 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a passage recorded whole and picked back up lists the stale '
+      'frase of its old recording after the current one, under no parte', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-inteira-velha',
+        scope: KeptScope.whole,
+        kind: 'ensaio',
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-inteira',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-inteira-velha',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+      inteira: true,
+    );
+    await waitFor(
+      'a frase regravada voltar',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      ['FRASES TRADUZIDAS', '1', 'regravada — traduzam de novo'],
+      reason:
+          'reaberta, a passagem gravada inteira perdia a frase regravada: a '
+          'gravação velha não tinha número e a frase não achava lugar',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a passage recorded whole and picked back up on the rehearsal '
+      'marks its one row as re-recorded', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-inteira-velha',
+        scope: KeptScope.whole,
+        kind: 'ensaio',
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-inteira-velha',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+      parouEm: SalaStage.ensaio,
+      inteira: true,
+    );
+    await waitFor(
+      'a frase regravada voltar',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      find.descendant(
+        of: byLabel('A passagem inteira'),
+        matching: find.text('regravada — traduzam de novo'),
+      ),
+      findsOneWidget,
+      reason:
+          'reaberta no ensaio, a passagem gravada inteira não dizia que a '
+          'tradução caducou',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a session picked back up on the rehearsal still lists its '
       'stale frases when the team comes to the check', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
