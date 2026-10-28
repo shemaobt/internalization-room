@@ -1152,10 +1152,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Say a line, and remember it as the one "ouvir de novo" gives back, whether it was
   /// said whole or cut by the team.
   ///
-  /// [remember] is false for a canned line. A fail-safe is what the room says when it could
-  /// not compose an answer, and letting it take the place of the last real line meant the
-  /// replay handed a team "vamos parar um instante aqui" instead of the scene they were
-  /// asking to hear again. The room repeats what it actually told them.
+  /// [remember] is false only for a retro verdict the room could not compose. Every other
+  /// line is kept, fail-safe or not, as her `speak` keeps every clip it plays as the one
+  /// the replay gives back (page.tsx:509).
   Future<Said> _speak(
     String url,
     String fixedLine, {
