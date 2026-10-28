@@ -2368,12 +2368,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
     final held = state.panoramaSessionId;
+    final sent = ++_readsSent;
     final found = held == null
         ? await _room.createSession(pericope: id, language: _lingua)
         : await _room.fetchState(held);
     if (_abandoned(generation)) return;
     switch (found) {
       case Answered(value: final session):
+        _applyTheSessionRead(session, sent);
         _dispatch(
           ThePanoramaFound(
             session.sessionId,

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
@@ -184,5 +185,26 @@ void main() {
       isEmpty,
     );
     expect(harness.voice.played.skip(playedBefore), isEmpty);
+  });
+
+  test('a Panorama chosen again under the room\'s warning rests with that '
+      'warning showing, not after the next look', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await _theSaidPanoramaLeftForAPassage(notifier, read);
+    harness.room.serverHalt = HaltKind.warning;
+
+    await _theTeamChoosesItAgain(notifier, read);
+
+    expect(
+      read().warning,
+      isTrue,
+      reason:
+          'a leitura do Panorama trazia o aviso da sala e ele só aparecia '
+          'na próxima olhada, trinta segundos depois',
+    );
   });
 }
