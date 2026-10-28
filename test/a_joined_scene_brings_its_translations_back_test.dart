@@ -32,11 +32,14 @@ const _bringBackArmed =
     'toquem de novo: as traduções do ensaio voltam; as que vocês fizeram aqui '
     'para esta cena ficam guardadas';
 const _failed = 'não deu para juntar esta cena — toquem para tentar de novo';
+const _cannotEnter = 'este ensaio não pode entrar — ensaiem esta cena de novo';
 const _bringBackEn = 'bring back this scene rehearsal\'s translations';
 const _bringBackArmedEn =
     'tap again: the rehearsal\'s translations come back; the ones you made '
     'here for this scene are kept';
 const _failedEn = 'this scene could not be joined — tap to try again';
+const _cannotEnterEn =
+    'this rehearsal cannot be used — rehearse this scene again';
 const _reopenArmed = 'toquem de novo: isto abre de novo o rascunho aprovado';
 const _ouvir = 'Ouvir';
 const _theSign = 'Um momento para uma pessoa';
@@ -664,22 +667,30 @@ void main() {
     },
   );
 
-  testWidgets('a refused bring-back says so on its row and stays offered', (
-    tester,
-  ) async {
-    final semantics = tester.ensureSemantics();
-    final it = await _onTheHome(tester);
-    it.room.failBringBackWith = const Refused(RefusalCode.nothingToBringBack);
+  testWidgets(
+    'a bring-back the room says can never come back tells the team to '
+    'rehearse the scene again, not to tap again',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _onTheHome(tester);
+      it.room.failBringBackWith = const Refused(RefusalCode.nothingToBringBack);
 
-    await _bringBackTwice(it, 2);
-    await it.settle();
+      await _bringBackTwice(it, 2);
+      await it.settle();
 
-    expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
-    expect(it.onRow(2, find.text(_failed)), findsOneWidget);
-    expect(it.control(2, _bringBack), findsOneWidget);
-    expect(byLabel(_theSign), findsNothing);
-    semantics.dispose();
-  });
+      expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
+      expect(
+        it.onRow(2, find.text(_cannotEnter)),
+        findsOneWidget,
+        reason:
+            'a recusa que nunca muda virava «toquem para tentar de novo», e a '
+            'equipe tocava em vão',
+      );
+      expect(find.text(_failed), findsNothing);
+      expect(byLabel(_theSign), findsNothing);
+      semantics.dispose();
+    },
+  );
 
   testWidgets(
     'over an approved draft the bring-back keeps its own armed text',
@@ -716,7 +727,12 @@ void main() {
     await it.tapThe(it.control(2, _bringBackArmedEn));
     await it.settle();
 
-    expect(it.onRow(2, find.text(_failedEn)), findsOneWidget);
+    expect(
+      it.onRow(2, find.text(_cannotEnterEn)),
+      findsOneWidget,
+      reason: 'a sala em inglês também mandava tocar de novo o que nunca entra',
+    );
+    expect(find.text(_failedEn), findsNothing);
     semantics.dispose();
   });
 }

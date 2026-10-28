@@ -609,7 +609,7 @@ class SalaSessionState {
   final Set<int> theRoomJoinedParts;
   final List<int> toBringBack;
   final int? bringingBack;
-  final int? bringBackFailed;
+  final ({int cena, bool cannotEnter})? bringBackFailed;
 
   /// The takes of a whole rehearsal set aside behind the scenes' parts that only the room
   /// holds.
@@ -1774,7 +1774,7 @@ class SalaSessionState {
     List<int>? toBringBack,
     int? bringingBack,
     bool clearBringingBack = false,
-    int? bringBackFailed,
+    ({int cena, bool cannotEnter})? bringBackFailed,
     bool clearBringBackFailed = false,
     Set<String>? wholeHeldByTheRoom,
     Map<String, PartAway>? partsAway,
