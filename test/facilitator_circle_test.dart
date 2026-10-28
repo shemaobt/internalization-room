@@ -72,12 +72,13 @@ Future<void> _pumpStillCircle(
   WidgetTester tester,
   VoiceState voice, {
   bool inPlace = false,
+  bool canvas = false,
   Halt halt = const NoHalt(),
 }) => tester.pumpWidget(
   MaterialApp(
     key: inPlace
         ? const ValueKey('o mesmo círculo parado')
-        : ValueKey('parado-$voice-$halt'),
+        : ValueKey('parado-$voice-$halt-$canvas'),
     theme: AppTheme.light,
     home: MediaQuery(
       data: const MediaQueryData(disableAnimations: true),
@@ -87,6 +88,7 @@ Future<void> _pumpStillCircle(
             halt: halt,
             size: 158,
             voice: voice,
+            canvas: canvas,
             semanticLabel: 'circulo',
             onTap: () {},
           ),
@@ -168,9 +170,10 @@ void main() {
   );
 
   testWidgets(
-    'the long wait keeps one slow breath of light, and still does not move',
+    'the long wait on her canvas keeps one slow breath of light, and still '
+    'does not move',
     (tester) async {
-      await _pumpStillCircle(tester, VoiceState.thinking);
+      await _pumpStillCircle(tester, VoiceState.thinking, canvas: true);
       final drawn = await _overAMinuteOfFrames(tester);
 
       expect(
@@ -237,7 +240,7 @@ void main() {
   ) async {
     const tempos = {
       VoiceState.listening: Duration(milliseconds: 3200),
-      VoiceState.thinking: Duration(milliseconds: 2400),
+      VoiceState.thinking: Duration(milliseconds: 4500),
       VoiceState.speaking: Duration(milliseconds: 3400),
     };
 
@@ -267,7 +270,7 @@ void main() {
     'a breath lands back where it started after her period, at its peak halfway there',
     (tester) async {
       const halves = {
-        VoiceState.thinking: Duration(milliseconds: 1200),
+        VoiceState.thinking: Duration(milliseconds: 2250),
         VoiceState.speaking: Duration(milliseconds: 1700),
       };
       const peaks = {VoiceState.thinking: 1.03, VoiceState.speaking: 1.02};
@@ -531,9 +534,19 @@ void main() {
   testWidgets(
     'a circle that changes voice under less motion is as still as one that opened there',
     (tester) async {
-      await _pumpStillCircle(tester, VoiceState.thinking, inPlace: true);
+      await _pumpStillCircle(
+        tester,
+        VoiceState.thinking,
+        inPlace: true,
+        canvas: true,
+      );
       await tester.pump(const Duration(milliseconds: 400));
-      await _pumpStillCircle(tester, VoiceState.invite, inPlace: true);
+      await _pumpStillCircle(
+        tester,
+        VoiceState.invite,
+        inPlace: true,
+        canvas: true,
+      );
       final depois = await _overAMinuteOfFrames(tester);
 
       expect(
@@ -546,7 +559,12 @@ void main() {
             'primeiro quadro da sessão e em nenhum outro',
       );
 
-      await _pumpStillCircle(tester, VoiceState.thinking, inPlace: true);
+      await _pumpStillCircle(
+        tester,
+        VoiceState.thinking,
+        inPlace: true,
+        canvas: true,
+      );
       final voltando = await _overAMinuteOfFrames(tester);
 
       expect(

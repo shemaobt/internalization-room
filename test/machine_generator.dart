@@ -232,8 +232,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   LineArrived(:final line) => 'LineArrived(${describeLine(line)})',
   PlayerOpened() => 'PlayerOpened',
   PlayerEnded() => 'PlayerEnded',
-  PlayerFailed(:final source, :final sounding) =>
-    'PlayerFailed(${source.key}, ${describeKept(sounding)})',
+  PlayerFailed(:final source) => 'PlayerFailed(${source.key})',
   MicOpened(:final owner) => 'MicOpened(${owner.name})',
   MicClosed() => 'MicClosed',
   MicAnswered(:final answer) => 'MicAnswered(${answer.name})',
@@ -284,6 +283,9 @@ String describeEvent(MachineEvent event) => switch (event) {
     'LookFailed(${turn.turnId}, ${result.runtimeType}, '
         '${describeKept(sounding)})',
   TheOpeningMissed() => 'TheOpeningMissed',
+  TheReplyFailedToLoad(:final load, :final because, :final sounding) =>
+    'TheReplyFailedToLoad(load $load, ${because.runtimeType}, '
+        '${describeKept(sounding)})',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
   TheTellingCameBackEmpty(:final readAgain) =>
     'TheTellingCameBackEmpty(readAgain: $readAgain)',
@@ -317,6 +319,8 @@ String describeEvent(MachineEvent event) => switch (event) {
         'session: ${left.session}, said: ${left.said})',
   TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsHere) =>
     'TheRehearsalWeighed($everySceneHasItsPart, $everyPartIsHere)',
+  TheLeftPassageReturns(:final session, :final warned) =>
+    'TheLeftPassageReturns($session, warned: $warned)',
 };
 
 String describeLine(Line line) => '${line.kind.name}#${line.id}';
@@ -407,6 +411,7 @@ enum EventKind {
   lookFailed,
   lookPending,
   theOpeningMissed,
+  theReplyFailedToLoad,
   thePassageCannotOpen,
   theTellingCameBackEmpty,
   theStepFailed,
@@ -447,6 +452,7 @@ enum EventKind {
   theSessionLetGo,
   theWayBackTaken,
   theRehearsalWeighed,
+  theLeftPassageReturns,
 }
 
 EventKind kindOf(MachineEvent event) => switch (event) {
@@ -486,6 +492,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   LookFailed() => EventKind.lookFailed,
   LookPending() => EventKind.lookPending,
   TheOpeningMissed() => EventKind.theOpeningMissed,
+  TheReplyFailedToLoad() => EventKind.theReplyFailedToLoad,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
   TheTellingCameBackEmpty() => EventKind.theTellingCameBackEmpty,
   TheStepFailed() => EventKind.theStepFailed,
@@ -525,6 +532,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheSessionOpened() => EventKind.theSessionOpened,
   TheSessionLetGo() => EventKind.theSessionLetGo,
   TheWayBackTaken() => EventKind.theWayBackTaken,
+  TheLeftPassageReturns() => EventKind.theLeftPassageReturns,
   TheRehearsalWeighed() => EventKind.theRehearsalWeighed,
 };
 
@@ -564,6 +572,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.passageClosed ||
   EventKind.turnGivenUp ||
   EventKind.theOpeningMissed ||
+  EventKind.theReplyFailedToLoad ||
   EventKind.thePassageCannotOpen ||
   EventKind.theTellingCameBackEmpty ||
   EventKind.theStepFailed ||
@@ -603,7 +612,8 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theSessionOpened ||
   EventKind.theSessionLetGo ||
   EventKind.theWayBackTaken ||
-  EventKind.theRehearsalWeighed => true,
+  EventKind.theRehearsalWeighed ||
+  EventKind.theLeftPassageReturns => true,
 };
 
 Source _drawASource(Random random) => switch (random.nextInt(4)) {
@@ -676,10 +686,7 @@ MachineEvent _draw(
   ),
   EventKind.playerOpened => const PlayerOpened(),
   EventKind.playerEnded => const PlayerEnded(),
-  EventKind.playerFailed => PlayerFailed(
-    _drawASource(random),
-    sounding: _drawKept(random),
-  ),
+  EventKind.playerFailed => PlayerFailed(_drawASource(random)),
   EventKind.micOpened => MicOpened(
     MicOwner.values[random.nextInt(MicOwner.values.length)],
   ),
@@ -763,6 +770,12 @@ MachineEvent _draw(
     sounding: _drawKept(random),
   ),
   EventKind.theOpeningMissed => const TheOpeningMissed(),
+  EventKind.theReplyFailedToLoad => TheReplyFailedToLoad(
+    1 + random.nextInt(2),
+    answered: _unheard,
+    because: random.nextBool() ? null : const RoomNetworkFailed(),
+    sounding: _drawKept(random),
+  ),
   EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
   EventKind.theTellingCameBackEmpty => TheTellingCameBackEmpty(
     readAgain: random.nextBool(),
@@ -819,6 +832,10 @@ MachineEvent _draw(
   ),
   EventKind.theSessionLetGo => TheSessionLetGo(_drawASession(random)),
   EventKind.theWayBackTaken => TheWayBackTaken(_drawAnEntryLeft(random)),
+  EventKind.theLeftPassageReturns => TheLeftPassageReturns(
+    _drawASession(random),
+    warned: world.serverHoldsAWarning,
+  ),
   EventKind.theRehearsalWeighed => TheRehearsalWeighed(
     everySceneHasItsPart: random.nextBool(),
     everyPartIsHere: random.nextBool(),
@@ -863,3 +880,5 @@ MachineEvent drawAnEvent(World world, Random random) {
   assert(kindOf(event) == kind);
   return event;
 }
+
+void _unheard(bool loadAgain) {}
