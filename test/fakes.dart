@@ -3257,6 +3257,16 @@ class FakeRoom implements RoomRepository {
 
   RoomFailure? failListeningWith;
 
+  Completer<void>? _holdingListening;
+  Completer<void>? _heldListening;
+
+  void holdNextListening() => _holdingListening = Completer<void>();
+
+  void finishHeldListening() {
+    _heldListening?.complete();
+    _heldListening = null;
+  }
+
   @override
   Future<RoomAnswer<ListenedWhole>> reportTheListening(
     String sessionId, {
@@ -3266,7 +3276,7 @@ class FakeRoom implements RoomRepository {
     final falha = failListeningWith;
     if (falha != null) return falha;
     if (!reachable) return const NetworkFailed('sem rede');
-    return Answered(
+    final resposta = Answered(
       ListenedWhole(
         unheardTakeIds: listeningUnheardTakeIds,
         automaticCheck: listeningAutomaticCheck,
@@ -3276,6 +3286,12 @@ class FakeRoom implements RoomRepository {
         untranslated: listeningUntranslated,
       ),
     );
+    if (_holdingListening case final segura?) {
+      _holdingListening = null;
+      _heldListening = segura;
+      await segura.future;
+    }
+    return resposta;
   }
 
   final List<String> heardStamps = [];
