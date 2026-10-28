@@ -1221,11 +1221,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         await _readyToSpeak(line.audioUrl, line.fixedLine);
         if (_abandoned(generation)) return;
         _watchBusyState();
-        final played = await _speak(
-          line.audioUrl,
-          line.fixedLine,
-          remember: !line.usedFailSafe,
-        );
+        final played = await _speak(line.audioUrl, line.fixedLine);
         if (_abandoned(generation)) return;
         if (!played.heard) {
           return _registerUnplayableTurn(leavesTeamTalk: false);
