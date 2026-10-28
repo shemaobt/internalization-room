@@ -11458,6 +11458,10 @@ class _NotifierHost implements StationHost {
         _notifier._openTheChoice();
       case ReadTheWheel() when _notifier._current.naRoda != null:
         _notifier._handOff(_notifier._readTheStartedEntriesAgain());
+      case ReadTheWheel()
+          when _notifier._current.arrivedAtTheChoice &&
+              !_notifier._current.awaitingTheGuide:
+        break;
       case ReadTheWheel():
         _notifier._handOff(_notifier.abrirEscolha());
       case DiscardTheSession():

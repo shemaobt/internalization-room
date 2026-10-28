@@ -2202,6 +2202,151 @@ void main() {
     expect(room.takePasses, [3, 1, 2]);
   });
 
+  group('a session\'s scene takes go up before its parts', () {
+    Future<PendingTake> aSceneTake(TakeUploadQueue queue, String scene) =>
+        queue.enqueue(
+          File('${home.path}/$scene.m4a')..writeAsStringSync(scene),
+          sessionId: 'sessao-1',
+          kind: 'cena',
+          scope: 'cena',
+          scene: scene,
+        );
+
+    Future<PendingTake> aPartTake(
+      TakeUploadQueue queue,
+      String name,
+      String scope, {
+      int? pass,
+    }) => queue.enqueue(
+      aTake(name),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: scope,
+      passNumber: pass,
+    );
+
+    List<String> uploads(FakeRoom room) => [
+      for (final call in room.calls)
+        if (call == 'keepSceneRehearsal' || call == 'sendTake') call,
+    ];
+
+    Future<void> spentWhileTheRoomIsOut(
+      FakeRoom room,
+      TakeUploadQueue queue,
+    ) async {
+      room.reachable = false;
+      for (var pass = 0; pass < 4; pass++) {
+        clock = clock.add(const Duration(minutes: 20));
+        await queue.flush();
+      }
+      room
+        ..reachable = true
+        ..calls.clear();
+    }
+
+    test('a scene take recorded after a part goes up before it in the same '
+        'pass', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      await aPartTake(queue, 'parte-1', 'parte-1');
+      await aSceneTake(queue, 'cena-1');
+
+      await queue.flush();
+
+      expect(uploads(room), ['keepSceneRehearsal', 'sendTake']);
+    });
+
+    test('a session\'s scene takes go up in the order recorded, all before '
+        'its parts, and each part keeps its own order', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      await aPartTake(queue, 'parte-1-a', 'parte-1', pass: 1);
+      await aSceneTake(queue, 'cena-1');
+      await aPartTake(queue, 'parte-2', 'parte-2', pass: 1);
+      await aPartTake(queue, 'parte-1-b', 'parte-1', pass: 2);
+      await aSceneTake(queue, 'cena-2');
+
+      await queue.flush();
+
+      expect(uploads(room), [
+        'keepSceneRehearsal',
+        'keepSceneRehearsal',
+        'sendTake',
+        'sendTake',
+        'sendTake',
+      ]);
+      expect(room.sceneLabels, ['cena-1', 'cena-2']);
+      expect(room.takesAsked, [
+        'ensaio/parte-1',
+        'ensaio/parte-2',
+        'ensaio/parte-1',
+      ]);
+      expect(room.takePasses, [1, 1, 2]);
+    });
+
+    test('a part no row can show still goes up after the scene takes and '
+        'after the parts a row can show', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room)
+        ..offerTheTapThrough((row) => row.scope != 'parte-2');
+      await aPartTake(queue, 'parte-2', 'parte-2');
+      await aPartTake(queue, 'parte-1', 'parte-1');
+      await aSceneTake(queue, 'cena-1');
+
+      await queue.flush();
+
+      expect(uploads(room), ['keepSceneRehearsal', 'sendTake', 'sendTake']);
+      expect(room.takesAsked, ['ensaio/parte-1', 'ensaio/parte-2']);
+    });
+
+    test('a scene take never waits behind a part held for a tap, and the '
+        'held part does not go up', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      await aPartTake(queue, 'parte-1-a', 'parte-1');
+      await spentWhileTheRoomIsOut(room, queue);
+      await aPartTake(queue, 'parte-1-b', 'parte-1');
+      await aSceneTake(queue, 'cena-1');
+
+      await queue.flush();
+
+      expect(uploads(room), ['keepSceneRehearsal']);
+    });
+
+    test('a part never waits behind a scene take held for a tap', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      await aSceneTake(queue, 'cena-1');
+      await spentWhileTheRoomIsOut(room, queue);
+      await aSceneTake(queue, 'cena-2');
+      await aPartTake(queue, 'parte-1', 'parte-1');
+
+      await queue.flush();
+
+      expect(uploads(room), ['sendTake']);
+    });
+
+    test('a join row goes up after the session\'s scene takes', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final bytes = aWavTake();
+      await queue.enqueueTheJoin(
+        File('${home.path}/parte-2-junta-ensaio-2.wav')
+          ..writeAsBytesSync(bytes),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+        fingerprint: crypto.sha256.convert(bytes).toString(),
+      );
+      await aSceneTake(queue, 'cena-1');
+
+      await queue.flush();
+
+      expect(uploads(room), ['keepSceneRehearsal', 'sendTake']);
+    });
+  });
+
   test('a spent take no row can show goes up once its lost audio is found '
       'again', () async {
     final room = FakeRoom()..unreachableTake = 'ensaio/parte-2';
