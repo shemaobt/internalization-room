@@ -357,6 +357,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The fetch of the parts on their way, which belongs to the passage it started in.
   late Completer<void>? _partesDescendo;
 
+  /// The uncounted floor of a Back-translation resume, which waits for the last part.
+  late void Function()? _whenThePartsAreHere;
+
   /// Whether the Session read of this opening has said where the team stands, which a part
   /// the room lost waits for before it leaves the Rehearsal.
   late bool _aLeituraDecidiu;
@@ -3325,10 +3328,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       });
     }
     descem.complete();
-    if (!minha()) return;
+    if (!minha() || state.station is! Retro || !state.everyPartIsHere) return;
     final toTheFloor = _whenThePartsAreHere;
     _whenThePartsAreHere = null;
-    if (state.station is Retro && state.everyPartIsHere) toTheFloor?.call();
+    toTheFloor?.call();
   }
 
   /// The parts the room lost leave the Rehearsal once its Session read has said the team
@@ -3367,8 +3370,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _rememberWhereTheyAre(const Ensaio());
     return true;
   }
-
-  late void Function()? _whenThePartsAreHere;
 
   bool _aindaACaminho(String sessionId, KeptTake parte) =>
       state.sessionId == sessionId &&
@@ -9857,7 +9858,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     switch (state.btPhase) {
       case BtPhase.playing:
-        if (!state.everyPartIsHere) return;
         _abrirACaptura();
       case BtPhase.capturing:
         // Held, not stopped: the stretch the team has just told ends inside the part

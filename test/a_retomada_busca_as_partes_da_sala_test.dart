@@ -357,6 +357,31 @@ void main() {
     },
   );
 
+  test('numa retro reaberta o chao comeca quando chega a parte que falhou e a '
+      'equipe buscou de novo ao toque', () async {
+    final harness = SalaHarness()
+      ..room.failClipOf['gravacao-1'] = const NetworkFailed('a rede caiu');
+
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1]),
+    );
+    await waitFor(
+      'as tres partes serem tentadas',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          harness.room.clipsFetched.length == 3,
+    );
+    await settle(const Duration(milliseconds: 300));
+    expect(harness.playback.played, isEmpty);
+
+    harness.room.failClipOf.clear();
+    it.sala.ouvirOTrechoContado(0);
+    await waitFor('a parte chegar', () => it.estado.everyPartIsHere);
+    await waitFor('o chao tocar', () => harness.playback.played.isNotEmpty);
+  });
+
   test(
     'numa retro reaberta a parte que a sala nao tem mais deixa as suas '
     'frases apagadas na visita, sem mandar a equipe gravar de novo',
@@ -956,15 +981,19 @@ void main() {
             'uma espera sem turno no ar que passa do teto é solta, e '
             'ninguém é chamado',
       );
+      expect(
+        it.estado.aParteDoTrechoEstaAqui(it.estado.btTrechos.first),
+        isFalse,
+      );
 
       it.harness.room.finishHeldClip();
       await settle(const Duration(milliseconds: 500));
 
       expect(it.estado.needsPerson, isFalse);
       expect(
-        it.estado.everyPartIsHere,
+        it.estado.aParteDoTrechoEstaAqui(it.estado.btTrechos.first),
         isTrue,
-        reason: 'a parte que chega atrás do pouso acende as suas frases',
+        reason: 'a parte que chega atrás do pouso acende a sua frase',
       );
     },
   );
