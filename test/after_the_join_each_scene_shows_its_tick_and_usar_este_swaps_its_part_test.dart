@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -314,6 +315,20 @@ class _Room {
       byLabel('$label — ${_line(n, language: english ? 'en' : 'pt')}');
 
   Finder useUnsent(int n) => byLabel('$_useThis — ${_unsentLine(n)}');
+
+  Finder listen(int n) => byLabel(
+    '${english ? 'Listen' : 'Ouvir'} — ${_line(n, language: english ? 'en' : 'pt')}',
+  );
+
+  IconData glyphOn(Finder control) => tester
+      .widget<Icon>(find.descendant(of: control, matching: find.byType(Icon)))
+      .icon!;
+
+  Tristate pressed(Finder control) => tester
+      .getSemantics(control)
+      .getSemanticsData()
+      .flagsCollection
+      .isSelected;
 
   bool enabled(Finder target) =>
       tester
@@ -1597,6 +1612,37 @@ void main() {
     );
     semantics.dispose();
   });
+
+  testWidgets(
+    'on the home\'s sheet the line that plays shows her pause, and a second '
+    'tap gives the play back',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+
+      await it.tapThe(it.listen(s2b));
+      await it.until('o ensaio tocar', () => it.harness.playback.sounding);
+
+      expect(
+        it.glyphOn(it.listen(s2b)),
+        LucideIcons.pause,
+        reason: 'o ensaio da folha da casa tocava e o botão mostrava tocar',
+      );
+      expect(it.pressed(it.listen(s2b)), Tristate.isTrue);
+      expect(it.glyphOn(it.listen(s2a)), LucideIcons.play);
+      expect(it.pressed(it.listen(s2a)), Tristate.isFalse);
+
+      await it.tapThe(it.listen(s2b));
+      await it.settle();
+
+      expect(it.harness.playback.sounding, isFalse);
+      expect(it.glyphOn(it.listen(s2b)), LucideIcons.play);
+      expect(it.pressed(it.listen(s2b)), Tristate.isFalse);
+      semantics.dispose();
+    },
+  );
 }
 
 List<Object?> _heard(_Room it, int after, String? takeId) => [

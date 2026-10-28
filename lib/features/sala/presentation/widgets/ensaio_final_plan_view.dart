@@ -156,6 +156,9 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                   scenes: read.scenes,
                   language: language,
                   busy: session.planBusy,
+                  playing:
+                      session.planListening?.rehearsalId ==
+                      unlabelled.rehearsalId,
                   failed: session.labelLine,
                 ),
               if (planHoldsARehearsal(read, sessionId)) ...[
@@ -366,6 +369,7 @@ class _UnlabelledCard extends ConsumerWidget {
   final List<Scene> scenes;
   final String language;
   final bool busy;
+  final bool playing;
   final bool failed;
 
   const _UnlabelledCard({
@@ -373,6 +377,7 @@ class _UnlabelledCard extends ConsumerWidget {
     required this.scenes,
     required this.language,
     required this.busy,
+    required this.playing,
     required this.failed,
   });
 
@@ -410,16 +415,19 @@ class _UnlabelledCard extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                RoundActionButton(
-                  size: 44,
-                  gradient: BeadStyles.wood,
-                  mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
-                  semanticLabel: '${said('listen')} — $facts',
-                  onTap: () => notifier.playARehearsal(rehearsal.rehearsalId),
-                  child: const Icon(
-                    LucideIcons.play,
-                    size: 18,
-                    color: ShemaBrand.branco,
+                Semantics(
+                  selected: playing,
+                  child: RoundActionButton(
+                    size: 44,
+                    gradient: BeadStyles.wood,
+                    mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
+                    semanticLabel: '${said('listen')} — $facts',
+                    onTap: () => notifier.playARehearsal(rehearsal.rehearsalId),
+                    child: Icon(
+                      playing ? LucideIcons.pause : LucideIcons.play,
+                      size: 18,
+                      color: ShemaBrand.branco,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
