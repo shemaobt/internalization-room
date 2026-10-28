@@ -278,7 +278,7 @@ class RetroView extends ConsumerWidget {
                 : a.$2.parte.compareTo(b.$2.parte),
           ))
         FraseRow(
-          n: null,
+          n: trecho.frase,
           parte: parteDe(trecho),
           share: share(trecho),
           onHear: null,

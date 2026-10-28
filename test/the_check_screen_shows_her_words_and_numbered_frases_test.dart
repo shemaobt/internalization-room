@@ -211,6 +211,51 @@ Future<void> _traduzirAFraseApontadaDeNovo(
   await _passo(tester);
 }
 
+Future<ProviderContainer> _aParteUmRegravada(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  final container = await _quatroFrasesConferidas(tester, harness, const [
+    BtFinding(kind: BtFindingKind.addition, frase: 2, segmentId: 'trecho-2'),
+  ]);
+  await tocar(tester, 'voltar e regravar uma parte');
+  await waitFor(
+    'o ensaio abrir na parte 1',
+    () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
+    step: () => _passo(tester),
+  );
+  for (final gesto in ['Gravar de novo', 'Parar', 'Enviar a gravação']) {
+    await tocar(tester, gesto);
+  }
+  await waitFor(
+    'a parte 1 regravada ficar no lugar',
+    () => container
+        .read(salaSessionProvider)
+        .btTrechos
+        .every((trecho) => trecho.parte != 0),
+    step: () => _passo(tester),
+  );
+  container.read(salaSessionProvider.notifier).startRetro();
+  await waitFor(
+    'a volta à tradução',
+    () => container.read(salaSessionProvider).stage == SalaStage.retro,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
+  return container;
+}
+
+Finder _oCartao(Finder dentro) => find.ancestor(
+  of: dentro,
+  matching: find.byWidgetPredicate(
+    (widget) =>
+        widget is Container &&
+        widget.decoration is BoxDecoration &&
+        (widget.decoration as BoxDecoration).borderRadius ==
+            BorderRadius.circular(16),
+  ),
+);
+
 List<String> _naLista(WidgetTester tester) => [
   for (final texto in tester.widgetList<Text>(
     find.descendant(of: find.byType(FraseList), matching: find.byType(Text)),
@@ -1408,44 +1453,19 @@ void main() {
   });
 
   testWidgets('a part recorded again keeps its frases listed in its place, '
-      'marked «regravada — traduzam de novo», with no number and out of the '
-      'check', (tester) async {
+      'marked «regravada — traduzam de novo», with their numbers and out of '
+      'the check', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _quatroFrasesConferidas(tester, harness, const [
-      BtFinding(kind: BtFindingKind.addition, frase: 2, segmentId: 'trecho-2'),
-    ]);
-
-    await tocar(tester, 'voltar e regravar uma parte');
-    await waitFor(
-      'o ensaio abrir na parte 1',
-      () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
-      step: () => _passo(tester),
-    );
-    for (final gesto in ['Gravar de novo', 'Parar', 'Enviar a gravação']) {
-      await tocar(tester, gesto);
-    }
-    await waitFor(
-      'a parte 1 regravada ficar no lugar',
-      () => container
-          .read(salaSessionProvider)
-          .btTrechos
-          .every((trecho) => trecho.parte != 0),
-      step: () => _passo(tester),
-    );
-    container.read(salaSessionProvider.notifier).startRetro();
-    await waitFor(
-      'a volta à tradução',
-      () => container.read(salaSessionProvider).stage == SalaStage.retro,
-      step: () => _passo(tester),
-    );
-    await _passo(tester);
+    final container = await _aParteUmRegravada(tester, harness);
 
     expect(
       _naLista(tester),
       [
         'FRASES TRADUZIDAS',
+        '1',
         'parte 1',
         'regravada — traduzam de novo',
+        '2',
         'parte 1',
         'regravada — traduzam de novo',
         '3',
@@ -1465,6 +1485,29 @@ void main() {
       {1},
       reason: 'uma frase regravada fica fora da conferência',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a «regravada» card lines up with the other frase cards, on '
+      'the iPhone SE as on the iPad', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _aParteUmRegravada(tester, harness);
+
+    for (final largura in [820.0, 375.0]) {
+      tester.view.physicalSize = Size(largura, 2400);
+      await _passo(tester);
+      final regravada = tester.getRect(
+        _oCartao(find.text('regravada — traduzam de novo')).first,
+      );
+      final fresca = tester.getRect(_oCartao(find.text('3')).first);
+      expect(
+        [regravada.left, regravada.width],
+        [fresca.left, fresca.width],
+        reason:
+            'o cartão regravado ficava uns 50 px à direita no iPad e na '
+            'largura toda no SE',
+      );
+    }
     closeTheRoom(container);
   });
 
