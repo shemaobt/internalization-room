@@ -27,37 +27,38 @@ void main() {
     final turnsBefore = harness.room.turnsSent;
     final soundsBefore = harness.recorder.sounds.length;
 
-    await withClock(Clock.fixed(DateTime(2026, 10, 9)), () async {
+    var now = DateTime(2026, 10, 9);
+    await withClock(Clock(() => now), () async {
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
       await settle();
+
+      expect(harness.voice.assets, isEmpty);
+      expect(harness.voice.fixedLines, isEmpty);
+      expect(harness.room.calls.length, callsBefore);
+      expect(
+        harness.recorder.sounds.sublist(soundsBefore),
+        isNot(contains('recorder:discard')),
+        reason: 'o segundo toque rápido jogava a gravação fora em silêncio',
+      );
+      expect(
+        container.read(salaSessionProvider).voice,
+        VoiceState.listening,
+        reason: 'o círculo voltava a descansar com a equipe ainda falando',
+      );
+      expect(container.read(salaSessionProvider).needsPerson, isFalse);
+
+      now = now.add(_longEnough);
+      notifier.conversaTap();
+      await settle();
+
+      expect(
+        harness.room.turnsSent,
+        turnsBefore + 1,
+        reason: 'a gravação que seguiu é a que o toque seguinte manda',
+      );
     });
-
-    expect(harness.voice.assets, isEmpty);
-    expect(harness.voice.fixedLines, isEmpty);
-    expect(harness.room.calls.length, callsBefore);
-    expect(
-      harness.recorder.sounds.sublist(soundsBefore),
-      isNot(contains('recorder:discard')),
-      reason: 'o segundo toque rápido jogava a gravação fora em silêncio',
-    );
-    expect(
-      container.read(salaSessionProvider).voice,
-      VoiceState.listening,
-      reason: 'o círculo voltava a descansar com a equipe ainda falando',
-    );
-    expect(container.read(salaSessionProvider).needsPerson, isFalse);
-
-    await settle(_longEnough);
-    notifier.conversaTap();
-    await settle();
-
-    expect(
-      harness.room.turnsSent,
-      turnsBefore + 1,
-      reason: 'a gravação que seguiu é a que o toque seguinte manda',
-    );
   });
 
   test('a stop past the window still reaches the room, as before', () async {
