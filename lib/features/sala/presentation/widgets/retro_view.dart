@@ -317,7 +317,7 @@ class RetroView extends ConsumerWidget {
                   null || BtFindingKind.nuance => null,
                   final kind => retroLabelFor(kind.name, language),
                 },
-          nuance: _markOn(trecho.frase, session) == BtFindingKind.nuance,
+          achado: _markOn(trecho.frase, session),
           regravar:
               session.fraseRegravavel(trecho) &&
                   (session.btPhase != BtPhase.conferida ||

@@ -4,8 +4,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -13,6 +15,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/frase_li
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'the_team_re_records_one_whole_sentence_test.dart'
+    show quatroFrasesEmWav;
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
@@ -86,6 +90,59 @@ double _barra(WidgetTester tester, int n) => tester
       ),
     )
     .widthFactor!;
+
+Color _borda(WidgetTester tester, int n) =>
+    ((tester.widget<Container>(_aFrase(n).first).decoration as BoxDecoration)
+                .border!
+            as Border)
+        .top
+        .color;
+
+Color? _corDaBarra(WidgetTester tester, int n) =>
+    (tester
+                .widget<Container>(
+                  find.descendant(
+                    of: find.descendant(
+                      of: _aFrase(n).first,
+                      matching: find.byType(FractionallySizedBox),
+                    ),
+                    matching: find.byType(Container),
+                  ),
+                )
+                .decoration
+            as BoxDecoration)
+        .color;
+
+Color? _corDaPalavra(WidgetTester tester, int n, String palavra) => tester
+    .widget<Text>(
+      find.descendant(of: _aFrase(n).first, matching: find.text(palavra)),
+    )
+    .style
+    ?.color;
+
+Future<ProviderContainer> _quatroFrasesComAchados(
+  WidgetTester tester,
+  SalaHarness harness,
+  List<BtFinding> achados,
+) async {
+  final container = await quatroFrasesEmWav(tester, harness);
+  harness.room
+    ..verdictChecked = false
+    ..verdictFindingPlace = 1
+    ..verdictFindings = achados;
+  unawaited(
+    container.read(salaSessionProvider.notifier).finishBackTranslation(),
+  );
+  await waitFor(
+    'o veredito chegar com os achados',
+    () =>
+        container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+        container.read(salaSessionProvider).btVeredito,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
+  return container;
+}
 
 List<String> _naLista(WidgetTester tester) => [
   for (final texto in tester.widgetList<Text>(
@@ -257,6 +314,35 @@ void main() {
           'a frase regravada da parte 3 dizia «parte 2», o lugar da parte na '
           'lista',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase the check found missing or unclear wears her blue on '
+      'its bar, its border and its word, and an addition stays terracotta', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComAchados(tester, harness, const [
+      BtFinding(kind: BtFindingKind.addition, frase: 2, segmentId: 'trecho-2'),
+      BtFinding(kind: BtFindingKind.missing, frase: 3, segmentId: 'trecho-3'),
+      BtFinding(kind: BtFindingKind.unclear, frase: 4, segmentId: 'trecho-4'),
+    ]);
+
+    for (final (n, palavra) in [
+      (3, 'faltou depois desta'),
+      (4, 'não ficou claro'),
+    ]) {
+      expect(
+        _borda(tester, n),
+        ShemaBrand.azul,
+        reason: 'todo achado vinha em telha, onde o dela é azul',
+      );
+      expect(_corDaBarra(tester, n), ShemaBrand.azul);
+      expect(_corDaPalavra(tester, n, palavra), ShemaBrand.azul);
+    }
+    expect(_borda(tester, 2), ShemaBrand.telha);
+    expect(_corDaBarra(tester, 2), ShemaBrand.telha);
+    expect(_corDaPalavra(tester, 2, 'acrescentado'), ShemaBrand.telha);
     closeTheRoom(container);
   });
 }
