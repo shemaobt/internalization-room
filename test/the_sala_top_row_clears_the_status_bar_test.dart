@@ -94,21 +94,20 @@ void main() {
       closeTheRoom(container);
     });
 
-    testWidgets(
-      'the corner button stays where the conversa always carried it, 118 px '
-      'under the status bar, on a ${width.toInt()} px screen',
-      (tester) async {
-        _onAPhone(tester, width: width, bar: bar);
-        final container = await _inTheConversa(tester);
+    testWidgets('the way out counts her 5% from under the status bar, on a '
+        '${width.toInt()} px screen', (tester) async {
+      _onAPhone(tester, width: width, bar: bar);
+      final container = await _inTheConversa(tester);
 
-        expect(
-          tester.getTopLeft(byLabel('Escolher outra passagem')),
-          Offset(14, 118 + bar),
-          reason: 'o botão do canto andou de onde a conversa o deixava',
-        );
-        closeTheRoom(container);
-      },
-    );
+      final corner = tester.getTopLeft(byLabel('Escolher outra passagem'));
+      expect(corner.dx, closeTo(width * 0.06 - 7, 0.01));
+      expect(
+        corner.dy,
+        closeTo(bar + 844 * 0.05 - 11, 0.01),
+        reason: 'o canto contava do topo da tela, sob o relógio',
+      );
+      closeTheRoom(container);
+    });
   }
 
   testWidgets('while the recording home fades into the check screen one corner '

@@ -150,36 +150,14 @@ void _wearsTheBody(
 }
 
 void main() {
-  testWidgets('the way out wears the hear-again button\'s body', (
-    tester,
-  ) async {
+  testWidgets('the hear-again button wears the corner body', (tester) async {
     final room = await _pump(tester);
     await _takeThePanorama(tester, room);
     final hearAgain = roomLabelFor('hearAgain', 'en');
 
-    expect(byLabel(_leave), findsOneWidget);
     expect(byLabel(hearAgain), findsOneWidget);
-    _wearsTheBody(tester, _leave, LucideIcons.menu);
     _wearsTheBody(tester, hearAgain, LucideIcons.rotateCcw);
-    _isDrawnInFull(tester, _leave);
     _isDrawnInFull(tester, hearAgain);
-  });
-
-  testWidgets('the way out keeps its place and its 46 px target', (
-    tester,
-  ) async {
-    final room = await _pump(tester);
-    await _takeThePanorama(tester, room);
-
-    final rect = tester.getRect(byLabel(_leave));
-    expect(rect.size, const Size(46, 46));
-    expect(rect.left, 14);
-    expect(rect.top, 118);
-
-    await _tap(tester, _leave);
-    await tester.pump(const Duration(seconds: 1));
-
-    expect(room.state.stage, SalaStage.escolha);
   });
 
   testWidgets('the way out carried in a stage heading wears the same body', (
@@ -222,7 +200,6 @@ void main() {
     await _takeThePanorama(tester, room);
     final hearAgain = roomLabelFor('hearAgain', 'en');
 
-    _wearsTheBody(tester, _leave, LucideIcons.menu, colors: SalaColors.dark);
     _wearsTheBody(
       tester,
       hearAgain,
