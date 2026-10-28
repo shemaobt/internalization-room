@@ -176,8 +176,8 @@ void main() {
     );
   });
 
-  test('a passage the room refuses keeps the way back to the passage the team '
-      'left', () async {
+  test('a passage the room refuses lays the passage the team left back on its '
+      'canvas, without reading the wheel again', () async {
     final harness = SalaHarness()..room.passages = _theBook;
     final container = harness.container();
     addTearDown(container.dispose);
@@ -196,6 +196,7 @@ void main() {
     );
     final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
     harness.room.passagesThatCannotOpen = {'P02'};
+    final before = harness.room.calls.length;
 
     notifier.openTheEntry(p02);
     await waitFor(
@@ -204,15 +205,18 @@ void main() {
           harness.room.calls.where((call) => call == 'createSession').length ==
           2,
     );
-    await waitFor('the Choice to come back', () => read().entriesOpen);
+    await settle();
+    await settle();
 
-    expect(read().station, isA<Menu>());
     expect(
-      read().theWayBackIsLive,
-      isTrue,
-      reason: 'a recusa da P02 apagava o caminho de volta para a P01',
+      read().station,
+      isA<Canvas>(),
+      reason: 'a recusa da P02 deixava a equipe na Escolha, a um toque da P01',
     );
-    expect(read().leftEntry?.session, p01);
+    expect(read().sessionId, p01);
+    expect(harness.room.calls.skip(before), [
+      'createSession',
+    ], reason: 'a recusa lia a roda de novo');
   });
 
   test('a passage that cannot open goes back to the Choice saying nothing and '

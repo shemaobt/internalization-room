@@ -1547,7 +1547,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(awaitingTheGuide: false, peerCue: false);
   }
 
-  void _refuseThePassage() => unawaited(abrirEscolha());
+  void _refuseThePassage() {
+    if (_theLeftPassage case final left?) return _bringBackThePassageLeft(left);
+    unawaited(abrirEscolha());
+  }
 
   void _watchBusyState() {
     final ceiling = ref.read(busyStateCeilingProvider);
