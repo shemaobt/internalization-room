@@ -399,6 +399,7 @@ class SceneListenMode extends ConsumerWidget {
   final String language;
   final bool sending;
   final SceneLine? line;
+  final Duration? stoppedAt;
 
   const SceneListenMode({
     super.key,
@@ -408,6 +409,7 @@ class SceneListenMode extends ConsumerWidget {
     required this.language,
     required this.sending,
     required this.line,
+    required this.stoppedAt,
   });
 
   @override
@@ -444,7 +446,11 @@ class SceneListenMode extends ConsumerWidget {
             label: said('playPause'),
             hint: (at) => switch ((playing, scene.heard)) {
               (true, _) => sceneListeningLineFor(at, scene.length, language),
-              (false, SceneHeard.partly) => said('paused'),
+              (false, SceneHeard.partly) => scenePausedLineFor(
+                stoppedAt,
+                scene.length,
+                language,
+              ),
               (false, SceneHeard.toTheEnd) => said('ended'),
               (false, _) => null,
             },

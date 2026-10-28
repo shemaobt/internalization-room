@@ -117,6 +117,7 @@ class SceneRehearsalView extends ConsumerWidget {
                 language: language,
                 sending: sending,
                 line: session.sceneLine,
+                stoppedAt: session.sceneStoppedAt,
               ),
             },
           ),
