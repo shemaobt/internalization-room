@@ -316,6 +316,136 @@ void main() {
     },
   );
 
+  test(
+    'a retro reaberta pousa com as frases antes de as partes chegarem, todas '
+    'apagadas, e cada uma acende ao chegar a sua parte',
+    () async {
+      final harness = SalaHarness()..room.holdNextClip();
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1, 2]),
+      );
+      await waitFor(
+        'as frases na tela com a primeira parte ainda no ar',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            it.estado.btTrechos.length == 2 &&
+            harness.room.clipsFetched.isNotEmpty,
+      );
+      await settle();
+
+      expect(it.estado.everyPartIsHere, isFalse);
+      expect(it.estado.btTrechos.map(it.estado.aParteDoTrechoEstaAqui), [
+        false,
+        false,
+      ]);
+      expect(harness.playback.played, isEmpty);
+      it.sala.ouvirGravacao();
+      await settle();
+      expect(harness.playback.played, isEmpty);
+
+      harness.room.finishHeldClip();
+      await waitFor('as partes chegarem', () => it.estado.everyPartIsHere);
+      expect(it.estado.btTrechos.map(it.estado.aParteDoTrechoEstaAqui), [
+        true,
+        true,
+      ]);
+      it.sala.ouvirOTrechoContado(0);
+      await waitFor(
+        'a frase tocar',
+        () => harness.playback.played.contains(it.estado.partes.first.path),
+      );
+    },
+  );
+
+  test(
+    'numa retro reaberta com uma parte perdida o circulo nao abre o microfone '
+    'por mais que a equipe toque',
+    () async {
+      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-3');
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1, 2]),
+      );
+      await waitFor(
+        'as tres partes serem tentadas',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            harness.room.clipsFetched.length == 3,
+      );
+      await settle(const Duration(milliseconds: 300));
+
+      it.sala.ouvirGravacao();
+      await settle();
+      it.sala.retroTap();
+      await settle();
+      it.sala.retroTap();
+      await settle();
+
+      expect(it.estado.canListenToThePendingStretch, isFalse);
+      expect(it.estado.btPhase, BtPhase.playing);
+      expect(harness.playback.played, isEmpty);
+    },
+  );
+
+  test('numa retro reaberta o chao comeca quando chega a parte que falhou e a '
+      'equipe buscou de novo ao toque', () async {
+    final harness = SalaHarness()
+      ..room.failClipOf['gravacao-1'] = const NetworkFailed('a rede caiu');
+
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1]),
+    );
+    await waitFor(
+      'as tres partes serem tentadas',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          harness.room.clipsFetched.length == 3,
+    );
+    await settle(const Duration(milliseconds: 300));
+    expect(harness.playback.played, isEmpty);
+
+    harness.room.failClipOf.clear();
+    it.sala.ouvirOTrechoContado(0);
+    await waitFor('a parte chegar', () => it.estado.everyPartIsHere);
+    await waitFor('o chao tocar', () => harness.playback.played.isNotEmpty);
+  });
+
+  test(
+    'numa retro reaberta a parte que a sala nao tem mais deixa as suas '
+    'frases apagadas na visita, sem mandar a equipe gravar de novo',
+    () async {
+      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1, 2, 3]),
+      );
+      await waitFor(
+        'as tres partes serem tentadas',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            harness.room.clipsFetched.length == 3,
+      );
+      await settle(const Duration(milliseconds: 300));
+      it.sala.ouvirOTrechoContado(1);
+      await settle();
+
+      expect(it.estado.stage, SalaStage.retro);
+      expect(it.estado.partes, hasLength(3));
+      expect(it.estado.partsAway['gravacao-2'], PartAway.lost);
+      expect(it.estado.aParteDoTrechoEstaAqui(it.estado.btTrechos[1]), isFalse);
+      expect(harness.room.clipsFetched, hasLength(3));
+    },
+  );
+
   test('uma passagem conferida reabre na aprovacao com audio', () async {
     final harness = SalaHarness();
 
@@ -506,15 +636,6 @@ void main() {
       expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-3']);
     });
 
-    test(
-      'numa retomada da retro abre o ensaio, com as outras linhas',
-      () async {
-        final it = await semAParteDois(SalaHarness(), parouEm: SalaStage.retro);
-
-        expect(numerosDasPartes(it), [1, 3]);
-      },
-    );
-
     test('guarda a linha uma vez como o que a equipe tem, no ensaio', () async {
       final it = await semAParteDois(SalaHarness());
       await settle();
@@ -678,8 +799,8 @@ void main() {
     expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-2', 'gravacao-3']);
   });
 
-  test('uma parte que a sala recusa por outro motivo volta a escolha e guarda '
-      'a linha da retro', () async {
+  test('uma parte que a sala recusa por outro motivo deixa a retro de pe com '
+      'as frases dela apagadas', () async {
     final harness = SalaHarness()
       ..room.failClipWith = const Refused(RefusalCode.forbidden);
 
@@ -688,10 +809,20 @@ void main() {
       parouEm: SalaStage.retro,
       contado: _contado([1]),
     );
-    await _deVoltaAEscolha(it);
+    await waitFor(
+      'as tres partes serem tentadas',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.harness.room.clipsFetched.length == 3,
+    );
+    await settle();
 
+    expect(it.estado.stage, SalaStage.retro);
     expect(it.estado.needsPerson, isFalse);
-    expect(it.linhaAgora, it.linhaAntes);
+    expect(
+      it.estado.aParteDoTrechoEstaAqui(it.estado.btTrechos.first),
+      isFalse,
+    );
   });
 
   test(
@@ -705,7 +836,11 @@ void main() {
         parouEm: SalaStage.retro,
         contado: _contado([1, 2]),
       );
-      await _deVoltaAEscolha(parada);
+      await waitFor(
+        'as partes serem tentadas sem rede',
+        () => parada.harness.room.clipsFetched.length == 3,
+      );
+      await settle();
 
       harness.room.failClipWith = null;
       final volta = await _reabrirDeNovo(parada);
@@ -881,17 +1016,19 @@ void main() {
             'uma espera sem turno no ar que passa do teto é solta, e '
             'ninguém é chamado',
       );
+      expect(
+        it.estado.aParteDoTrechoEstaAqui(it.estado.btTrechos.first),
+        isFalse,
+      );
 
       it.harness.room.finishHeldClip();
       await settle(const Duration(milliseconds: 500));
 
       expect(it.estado.needsPerson, isFalse);
       expect(
-        it.linhaAgora,
-        it.linhaAntes,
-        reason:
-            'e a linha não é reescrita por uma busca que ninguém esperava '
-            'mais',
+        it.estado.aParteDoTrechoEstaAqui(it.estado.btTrechos.first),
+        isTrue,
+        reason: 'a parte que chega atrás do pouso acende a sua frase',
       );
     },
   );
@@ -917,6 +1054,9 @@ void main() {
         'a retomada assentar',
         () => falha == _Falha.nenhuma
             ? it.estado.partes.length == 3
+            : falha == _Falha.umaParte
+            ? it.estado.stage == SalaStage.retro &&
+                  it.harness.room.clipsFetched.length == 3
             : it.harness.room.calls.contains('takesOf') &&
                   it.estado.stage == SalaStage.escolha,
       );
