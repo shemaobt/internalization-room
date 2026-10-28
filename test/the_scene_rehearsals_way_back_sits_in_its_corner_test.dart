@@ -183,4 +183,33 @@ void main() {
       );
     }
   }
+
+  for (final step in [SceneStep.record, SceneStep.translate, SceneStep.sent]) {
+    testWidgets(
+      'on the iPhone SE the ${step.name} step stands her 1.6rem above the '
+      'session list, not flush on its heading',
+      (tester) async {
+        await _onTheStep(tester, screen: _se.size, bar: _se.bar, step: step);
+        final area = tester.getRect(
+          find
+              .descendant(
+                of: find.byType(SceneRehearsalView),
+                matching: find.byType(Expanded),
+              )
+              .first,
+        );
+        final heading = tester.getRect(
+          find.text('ENSAIOS DA CENA DESTA SESSÃO'),
+        );
+
+        expect(
+          heading.top - area.bottom,
+          closeTo(1.6 * 16, 0.01),
+          reason:
+              'a frase cortada na borda da rolagem encostava em «ENSAIOS DA '
+              'CENA DESTA SESSÃO»',
+        );
+      },
+    );
+  }
 }

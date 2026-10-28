@@ -132,7 +132,7 @@ class SceneRehearsalView extends ConsumerWidget {
         ),
         if (session.sceneRehearsals.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: 32),
+            padding: const EdgeInsets.only(top: 25.6, bottom: 32),
             child: SceneRehearsalList(
               rows: session.sceneRehearsals,
               onScreen: scene.rehearsal?.rehearsalId,
