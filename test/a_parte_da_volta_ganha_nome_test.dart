@@ -6,7 +6,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'resto_da_historia_test.dart' show aRetomadaNoEnsaio, gravarMaisUmaParte;
-import 'scenario_helpers.dart' show settle, umaParteInteira;
+import 'scenario_helpers.dart' show relaunch, settle, umaParteInteira;
 
 /// Record one part over the real outbox and keep it, without waiting for the room to
 /// name it. Two of these back to back are what a team recording two parts on the way
@@ -178,20 +178,43 @@ void main() {
   });
 
   test('corte antes do nome não quebra a sala', () async {
-    final harness = SalaHarness();
-    final container = await aRetomadaNoEnsaio(
-      harness,
+    final antes = SalaHarness();
+    final daVolta = await aRetomadaNoEnsaio(
+      antes,
       traduzidasAte: [30000, 30000],
     );
+
+    final t3take = await gravarMaisUmaParte(daVolta);
+
+    antes.room.unreachableTake = 'ensaio/${KeptScope.parte(4)}';
+    await gravarSemEsperarNome(daVolta);
+    await settle();
+    final (harness, container) = await relaunch(antes, daVolta);
     final notifier = container.read(salaSessionProvider.notifier);
-
-    final t3take = await gravarMaisUmaParte(container);
-
-    // Grava a parte 4, mas a sala nunca confirma o upload — o time corta o trecho
-    // antes do nome chegar.
-    harness.room.holdNextTake(KeptScope.parte(4));
-    await gravarSemEsperarNome(container);
-    await harness.room.untilTakeHeld();
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor(
+      'a volta ao ensaio com as quatro partes',
+      () =>
+          container.read(salaSessionProvider).stage == SalaStage.ensaio &&
+          container.read(salaSessionProvider).keptTakes.length == 4,
+    );
+    harness.room.unreachableTake = null;
+    await harness.takes.flush();
+    await notifier.refreshUnsent();
+    await waitFor(
+      'a parte 4 chegar à sala',
+      () => container.read(salaSessionProvider).everyPartIsSent,
+    );
+    expect(
+      container.read(salaSessionProvider).keptTakes[3].takeId,
+      isNull,
+      reason:
+          'o cenário é o da parte que chegou à sala sem o tablet saber o nome '
+          'dela',
+    );
+    harness.playback.length = umaParteInteira;
 
     notifier.startRetro();
     await waitFor(
@@ -244,12 +267,6 @@ void main() {
       depoisDoCorte.btPhase,
       BtPhase.playing,
       reason: 'a sala segue viva; a equipe pode continuar',
-    );
-
-    harness.room.finishHeldTake();
-    await waitFor(
-      'a parte 4 ser nomeada',
-      () => container.read(salaSessionProvider).keptTakes[3].takeId != null,
     );
   });
 
