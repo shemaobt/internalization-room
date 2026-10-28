@@ -214,4 +214,62 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
     expect(_seen(tester, _ring.first), closeTo(0, 1e-6));
   });
+
+  testWidgets('while the voice thinks her terracotta glow lies under the '
+      'canvas ring and reaches 6% past it', (tester) async {
+    final glow = find.byWidgetPredicate(
+      (widget) =>
+          widget is Container &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration! as BoxDecoration).gradient ==
+              const RadialGradient(
+                radius: 0.7071,
+                colors: [
+                  Color.fromRGBO(190, 74, 1, .16),
+                  Color.fromRGBO(190, 74, 1, 0),
+                ],
+                stops: [0, .62],
+              ),
+    );
+    final ring = _edged(const Color(0xFFC5C29F));
+    await tester.pumpWidget(_circle(VoiceState.thinking, canvas: true));
+
+    expect(
+      glow,
+      findsOneWidget,
+      reason:
+          'o .glow dela no pensar é radial-gradient(circle, '
+          'rgba(190,74,1,.16), transparent 62%) (globals.css:214)',
+    );
+    expect(
+      tester.getSize(glow),
+      const Size.square(_side * 1.12),
+      reason: 'inset:-6% (globals.css:117); o nosso tinha o tamanho do anel',
+    );
+    final drawn = find
+        .byWidgetPredicate((widget) => widget is Container)
+        .evaluate()
+        .map((element) => element.widget)
+        .toList();
+    expect(
+      drawn.indexOf(tester.widget(glow)),
+      lessThan(drawn.indexOf(tester.widget(ring))),
+      reason:
+          'o span .glow vem antes do .core (page.tsx:1030-1031) e o anel '
+          'translúcido deixa o brilho aparecer; o nosso pintava por cima',
+    );
+
+    double glowing() => tester
+        .widget<Opacity>(
+          find.ancestor(of: glow, matching: find.byType(Opacity)).first,
+        )
+        .opacity;
+    expect(glowing(), closeTo(0.45, 1e-6));
+    await tester.pump(const Duration(milliseconds: 1200));
+    expect(
+      glowing(),
+      closeTo(1, 1e-6),
+      reason: 'e continua a acender de .45 a 1 em 2,4 s (globals.css:216)',
+    );
+  });
 }

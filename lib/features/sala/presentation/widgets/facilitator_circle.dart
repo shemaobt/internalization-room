@@ -288,12 +288,14 @@ class FacilitatorCircle extends StatelessWidget {
               ),
             ],
           );
-    final glow = RepaintBoundary(
-      child: CustomPaint(
-        size: Size.square(size),
-        painter: GlowPainter(color: colors.telha.withValues(alpha: 0.16)),
-      ),
-    );
+    final glow = canvas
+        ? _herLight(.16, .62)
+        : RepaintBoundary(
+            child: CustomPaint(
+              size: Size.square(size),
+              painter: GlowPainter(color: colors.telha.withValues(alpha: 0.16)),
+            ),
+          );
     final arcs = canvas
         ? [
             _arc(
@@ -322,7 +324,7 @@ class FacilitatorCircle extends StatelessWidget {
     Widget over(Widget light) => Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
-      children: [...arcs, body, light],
+      children: canvas ? [...arcs, light, body] : [body, light],
     );
     if (still) {
       return Loop(
@@ -426,26 +428,28 @@ class FacilitatorCircle extends StatelessWidget {
     return [ring(0), ring(0.665625), ring(0.33125)];
   }
 
-  Widget _herGlow(bool still) {
-    final light = OverflowBox(
-      maxWidth: size * 1.12,
-      maxHeight: size * 1.12,
-      child: Container(
-        width: size * 1.12,
-        height: size * 1.12,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            radius: 0.7071,
-            colors: [
-              Color.fromRGBO(190, 74, 1, .20),
-              Color.fromRGBO(190, 74, 1, 0),
-            ],
-            stops: [0, .66],
-          ),
+  Widget _herLight(double alpha, double reach) => OverflowBox(
+    maxWidth: size * 1.12,
+    maxHeight: size * 1.12,
+    child: Container(
+      width: size * 1.12,
+      height: size * 1.12,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          radius: 0.7071,
+          colors: [
+            Color.fromRGBO(190, 74, 1, alpha),
+            const Color.fromRGBO(190, 74, 1, 0),
+          ],
+          stops: [0, reach],
         ),
       ),
-    );
+    ),
+  );
+
+  Widget _herGlow(bool still) {
+    final light = _herLight(.20, .66);
     if (still) return light;
     return Loop(
       period: const Duration(milliseconds: 3400),
