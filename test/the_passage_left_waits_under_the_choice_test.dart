@@ -71,8 +71,8 @@ void main() {
     );
     expect(read().sessionId, tablet.p01);
     expect(read().pericope, 'P01');
-    expect(read().coverage?.engaged, 2);
-    expect(read().coverage?.surfaced, 3);
+    expect(read().coverage.engaged, 2);
+    expect(read().coverage.surfaced, 3);
     expect(read().moment?.at, MomentAt.internalization);
     expect(read().moment?.part, 1);
     expect(read().moment?.parts, 3);
@@ -114,7 +114,7 @@ void main() {
     );
     expect(read().sessionId, tablet.p01);
     expect(read().pericope, 'P01');
-    expect(read().coverage?.engaged, 2);
+    expect(read().coverage.engaged, 2);
   });
 
   test('a passage left whose session the room lets go is not laid back by a '
