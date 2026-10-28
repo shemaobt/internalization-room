@@ -355,6 +355,49 @@ void main() {
       },
     );
 
+    test(
+      'a take whose loudness is still being read is not read again when the room lists it anew',
+      () async {
+        final room = await atRest(
+          SalaHarness(filaEmMemoria: true, restartWake: Duration.zero),
+        );
+        room.harness.holdTheEnvelope();
+        room.harness.room
+          ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 3000)]))
+          ..sceneAudio = aSpokenWav(gaps: [(_s(3.0), _s(3.2))])
+          ..refuseRestartWith = RefusalCode.restartOutOfOrder;
+        room.harness.playback.measured = const Duration(seconds: 10);
+        room.sala.openTheSceneRehearsal();
+        await translateOpens(room);
+        await settle();
+        final listed = room.asked('sceneRehearsalsOf');
+
+        await restartTheTranslationInTwoTaps(room);
+        await waitFor(
+          'a sala listar os ensaios de novo',
+          () =>
+              room.asked('sceneRehearsalsOf') > listed &&
+              !room.state.scene.waiting,
+        );
+        await settle();
+
+        expect(room.asked('sceneRehearsalsOf'), greaterThan(listed));
+        expect(
+          room.harness.mostEnvelopesReadAtOnce,
+          1,
+          reason:
+              'a lista relida mostrava o mesmo take de novo, e o arquivo inteiro era '
+              'lido outra vez enquanto a primeira leitura ainda corria',
+        );
+        room.harness.giveTheEnvelope();
+        await waitFor(
+          'o envelope chegar',
+          () => room.state.sceneEnvelope != null,
+        );
+        expect(room.state.sceneEnvelope, isNotNull);
+      },
+    );
+
     test('the take\'s loudness is read off the UI thread', () async {
       final take = File(
         '${Directory.systemTemp.createTempSync('sala-take').path}/cena.wav',

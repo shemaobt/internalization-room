@@ -474,6 +474,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late Map<String, int> _tamanhoDaParteMs;
   late Future<void> _partLoudnessReads;
   late Map<String, Envelope?> _envelopes;
+  late ({String take, Future<Envelope?> read})? _sceneLoudnessRead;
   late EscutaDasPartes _escuta;
   late int _desdeMs;
 
@@ -587,6 +588,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _tamanhoDaParteMs = {};
     _partLoudnessReads = Future<void>.value();
     _envelopes = {};
+    _sceneLoudnessRead = null;
     _frases = _FraseKeep(_recorder.delete);
     _escuta = EscutaDasPartes();
     _desdeMs = 0;
@@ -5614,7 +5616,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _readTheLoudness(String take) async {
     if (state.sceneLoudness?.take == take) return;
     final life = _thisLife;
-    final envelope = await ref.read(sceneEnvelopeReaderProvider)(take);
+    final read = switch (_sceneLoudnessRead) {
+      (take: final reading, :final read) when reading == take => read,
+      _ => ref.read(sceneEnvelopeReaderProvider)(take),
+    };
+    _sceneLoudnessRead = (take: take, read: read);
+    final envelope = await read;
     if (_endedSince(life) || state.scene.take != take) return;
     state = state.copyWith(sceneLoudness: (take: take, envelope: envelope));
   }
