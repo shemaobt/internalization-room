@@ -718,7 +718,10 @@ void main() {
       sala.recomecarATraducao();
       await tester.pump(const Duration(milliseconds: 300));
       expect(it.harness.room.restartsAsked, isEmpty);
-      expect(_humor(tester, _aprovar), ButtonMood.dimmed);
+      expect(
+        tester.widget<Semantics>(byLabel(_aprovar)).properties.enabled,
+        isFalse,
+      );
 
       it.harness.room.finishHeldState();
       await tester.pump(const Duration(milliseconds: 400));
@@ -796,6 +799,39 @@ void main() {
 
     expect(_recomecoArmado(), findsOneWidget);
     await tester.pump(const Duration(seconds: 7));
+    closeTheRoom(it.container);
+  });
+
+  for (final (lingua, aprovar) in [
+    ('pt', 'Aprovar como rascunho final'),
+    ('en', 'Approve as the final draft'),
+  ]) {
+    testWidgets('the check screen writes «$aprovar» on its approve button, '
+        'not a ✓', (tester) async {
+      final it = await _ateAConferida(tester, lingua: lingua, aprovar: aprovar);
+
+      expect(
+        find.text(aprovar),
+        findsOneWidget,
+        reason: 'a tela de conferir só tinha um ✓ verde mudo ao lado do ouvir',
+      );
+      expect(
+        tester.widget<Semantics>(byLabel(aprovar)).properties.button,
+        isTrue,
+      );
+      closeTheRoom(it.container);
+    });
+  }
+
+  testWidgets('with approve on its own line, the listen button sits at the '
+      'middle of the check screen', (tester) async {
+    final it = await _ateAConferida(tester);
+
+    expect(
+      tester.getCenter(byLabel(_ouvir)).dx,
+      400,
+      reason: 'o espaço do botão que saiu empurrava o ouvir para a esquerda',
+    );
     closeTheRoom(it.container);
   });
 
