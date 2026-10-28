@@ -398,7 +398,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// A kept take drops the room's checked read; it is asked for again once the take is up.
   late bool _readTheCheckAfterTheUpload;
-  late bool _theCanvasWasDone;
   late _Passage? _emCurso;
   Trecho? get _trechoTraduzidoDeNovo => state.btTrechoTraduzidoDeNovo;
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
@@ -563,7 +562,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _listenerAttempt = null;
     _listenerLineAwaited = false;
     _readTheCheckAfterTheUpload = false;
-    _theCanvasWasDone = false;
     _emCurso = null;
     _listenerInProgress = null;
     _startedReadIn = null;
@@ -790,8 +788,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is Retro) {
       _relatarAEscuta();
     }
-    if (state.station is Canvas) _theCanvasWasDone = state.endOfThePassage;
-    _dispatch(const StepLeft());
+    _dispatch(StepLeft(ended: state.endOfThePassage));
     state = state.copyWith(awaitingTheGuide: false, endOfThePassage: false);
   }
 
@@ -6775,7 +6772,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dropThePendingTake();
     state = state.copyWith(ensaio: EnsaioStatus.idle);
     _arriveAt(const TheRecordingLeft());
-    state = state.copyWith(endOfThePassage: _theCanvasWasDone);
+    state = state.copyWith(endOfThePassage: state.machine.theCanvasEnded);
   }
 
   void leaveTheBackTranslation() => _gesture(() => _leaveTheBackTranslation());
