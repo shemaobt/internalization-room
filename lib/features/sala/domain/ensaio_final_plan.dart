@@ -135,8 +135,8 @@ final class PlanRow {
 
   bool get partial => chosen?.untranslatedStretch ?? false;
 
-  /// «trocar» opens the Rehearsal sheet only where there is another usable rehearsal
-  /// to choose, and never over a joined part.
+  /// Her `canSwap` (ensaioFinal.ts:363): «trocar» opens the Rehearsal sheet where the row
+  /// has more than one candidate, or none chosen and one there, never over a joined part.
   bool get canSwap =>
       !joined &&
       !waiting &&
