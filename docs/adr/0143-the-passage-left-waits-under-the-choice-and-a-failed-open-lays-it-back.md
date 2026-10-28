@@ -19,6 +19,9 @@ the chevron only shows it again (`:408`), and an open that answers no session fa
 - **The chevron lays it back and asks the room for nothing.** No wheel, no session read, no
   scenes, no inbox: the watch is armed as on any opened Canvas and the session is held on disk
   again, so a relaunch lands where it did before the leave. Offline it works the same.
+  The return is the machine's own event, `TheLeftPassageReturns`, which brings back its
+  session and the warning it stood under (ADR 0046); the kept Canvas lives in the room's
+  state beside the entry left, not in the notifier.
 - **An open from the Choice that brings no session lays it back too.** A pill the room cannot
   be reached for, a refused pill, a resume whose read fails and a session the room turns out
   to have lost during the open all land on the passage left, as hers does. With no passage

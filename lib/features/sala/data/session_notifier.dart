@@ -2341,7 +2341,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The way back to the entry the team left: a return, not a new entry. The Panorama
-  /// comes back silent once its line was said; a passage comes back through the resume.
+  /// comes back silent once its line was said; a passage comes back as it was left, and
+  /// through the resume only when it was left with no session.
   Future<void> returnToTheLeftEntry() async => _gesture(_returnToTheLeftEntry);
 
   void _returnToTheLeftEntry() {
