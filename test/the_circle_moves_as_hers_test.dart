@@ -313,4 +313,22 @@ void main() {
       );
     }
   });
+
+  testWidgets('a tablet that asks for less motion sees a thinking check '
+      'circle hold still, whole and lit', (tester) async {
+    await tester.pumpWidget(
+      _circle(VoiceState.thinking, canvas: false, still: true),
+    );
+    for (var frame = 0; frame < 12; frame++) {
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        [_scaleAbove(tester, _ring.first), _seen(tester, _ring.first)],
+        [closeTo(1, 1e-6), closeTo(1, 1e-6)],
+        reason:
+            'sem movimento todo animation dela vira none e só o .target do '
+            'canvas guarda o pulso de luz (globals.css:238,241); o '
+            'check-circle fica parado no seu tamanho e cor',
+      );
+    }
+  });
 }

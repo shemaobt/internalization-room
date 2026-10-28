@@ -319,6 +319,7 @@ class FacilitatorCircle extends StatelessWidget {
       alignment: Alignment.center,
       children: canvas ? [...arcs, light, body] : [body],
     );
+    if (still && !canvas) return body;
     if (still) {
       return Loop(
         period: const Duration(milliseconds: 2400),

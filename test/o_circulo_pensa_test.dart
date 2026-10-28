@@ -268,9 +268,10 @@ void main() {
   });
 
   testWidgets(
-    'a tablet that asks for less motion still sees a 2.4 s pulse of light',
+    'a tablet that asks for less motion still sees a 2.4 s pulse of light '
+    'on her canvas',
     (tester) async {
-      await _pumpCircle(tester, VoiceState.thinking, still: true);
+      await _pumpCircle(tester, VoiceState.thinking, still: true, canvas: true);
       double veil() => tester
           .widgetList<Opacity>(
             find.descendant(
