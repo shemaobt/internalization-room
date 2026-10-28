@@ -835,6 +835,39 @@ void main() {
     closeTheRoom(it.container);
   });
 
+  for (final (lingua, aprovar) in [
+    ('pt', 'Aprovar como rascunho final'),
+    ('en', 'Approve as the final draft'),
+  ]) {
+    testWidgets('on a screen as small as the iPhone SE the $lingua approve '
+        'button keeps its margins, on the check screen and on the home', (
+      tester,
+    ) async {
+      tester.view
+        ..physicalSize = const Size(375, 667)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final it = await _ateAConferida(tester, lingua: lingua, aprovar: aprovar);
+
+      void nasMargens(String tela) {
+        final pilula = tester.getRect(byLabel(aprovar));
+        expect(
+          pilula.left,
+          greaterThanOrEqualTo(16),
+          reason: 'na $tela a pílula encostava na borda da tela',
+        );
+        expect(pilula.right, lessThanOrEqualTo(359), reason: tela);
+      }
+
+      nasMargens('tela de conferir');
+      it.harness.room.retroSoFar = const BackTranslationProgress(checked: true);
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await _assentar(tester);
+      nasMargens('casa');
+      closeTheRoom(it.container);
+    });
+  }
+
   group('the recording home', () {
     Future<_Sala> aCasaConferida(
       WidgetTester tester, {
