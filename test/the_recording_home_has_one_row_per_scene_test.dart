@@ -53,6 +53,7 @@ const _gravarDeNovo = 'Gravar de novo';
 const _parar = 'Parar';
 const _enviarAGravacao = 'Enviar a gravação';
 const _irParaATraducao = 'Traduzir a gravação';
+const _gravarAPassagemInteira = 'Gravar a passagem inteira';
 
 const _sessao = 'sessao-antiga';
 
@@ -1664,6 +1665,23 @@ void main() {
       expect(it.harness.room.grainSwitches, hasLength(1));
       expect(it.estado.sceneRows, hasLength(2));
       expect([for (final t in it.estado.btTrechos) t.segmentId], contados);
+    },
+  );
+
+  testWidgets(
+    'the grain switch stands on a home whose scene list never answered',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..room.failScenesWith = const NetworkFailed('sem rede');
+      final container = await _naCasaDoEnsaio(tester, harness: harness);
+      await tester.pump(const Duration(seconds: 12));
+
+      expect(
+        find.text(_gravarAPassagemInteira),
+        findsOneWidget,
+        reason: 'sem a lista das cenas a casa escondia a troca do grão',
+      );
+      closeTheRoom(container);
     },
   );
 }
