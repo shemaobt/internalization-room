@@ -1102,12 +1102,16 @@ final class Machine {
     return newest == null ? null : parts[newest];
   }
 
-  Set<String> savedParts(String? session) => {
-    for (final kept in keptThisVisit.values)
-      if (!beingKept(session, kept.scope) &&
-          newestKeptFact(session, kept.scope) == PartFact.sent)
-        kept.scope,
-  };
+  Set<String> savedParts(String? session) {
+    final newest = <String, String>{};
+    for (final MapEntry(key: row, value: kept) in keptThisVisit.entries) {
+      if (kept.session == session) newest[kept.scope] = row;
+    }
+    return {
+      for (final MapEntry(key: scope, value: row) in newest.entries)
+        if (!beingKept(session, scope) && parts[row] == PartFact.sent) scope,
+    };
+  }
 
   Machine withNoPassage(Set<int> onTheirWay) => Machine(
     onTheirWay: onTheirWay,

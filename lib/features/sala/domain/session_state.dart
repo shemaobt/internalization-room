@@ -938,6 +938,7 @@ class SalaSessionState {
     };
     final playing = parteDoEnsaioTocando;
     final again = parteARegravar;
+    final saved = machine.savedParts(sessionId);
     return [
       for (final (number, title, beyondTheScenes) in numbered)
         SceneRow(
@@ -952,7 +953,7 @@ class SalaSessionState {
               ? const UnsentPart(fromAnEarlierVisit: false)
               : unsentParts[number] ?? _unsentByTheNewestKeptTake(number),
           inTheAir: partInTheAir(number),
-          saved: machine.savedParts(sessionId).contains(scopeOfRow(number)),
+          saved: saved.contains(scopeOfRow(number)),
           away: switch (partIndexOf(number)) {
             final index? => partsAway[partes[index].takeId],
             null => null,
