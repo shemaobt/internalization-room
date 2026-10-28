@@ -555,6 +555,56 @@ void main() {
     );
   }
 
+  for (final (name, screen, inset) in [
+    ('an SE', _se, 0.0),
+    ('an iPad', const Size(820, 1180), 20.0),
+  ]) {
+    testWidgets(
+      'on $name the hand and the replay each stand their own box on her 8% '
+      'and 16%, the finger\'s square centred on it',
+      (tester) async {
+        _on(tester, screen, bar: 20, inset: inset);
+        await atRestAfterATurn(tester, const []);
+        final side = screen.width * 0.08;
+        final floor = screen.height - inset - screen.height * 0.16;
+
+        final handTarget = tester.getRect(
+          byLabel('Leave a question for the facilitator'),
+        );
+        final handBox = tester.getRect(
+          find.descendant(
+            of: byLabel('Leave a question for the facilitator'),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is SizedBox &&
+                  widget.width == 40 &&
+                  widget.height == 40,
+            ),
+          ),
+        );
+        final replayBox = tester.getRect(byLabel('Hear that again'));
+
+        expect(
+          handBox.left,
+          closeTo(side, 0.01),
+          reason: 'a .hand dela é 40 px a 8%',
+        );
+        expect(handBox.bottom, closeTo(floor, 0.01));
+        expect(
+          replayBox.right,
+          closeTo(screen.width - side, 0.01),
+          reason: 'a .replay dela é 44 px a 8%',
+        );
+        expect(replayBox.bottom, closeTo(floor, 0.01));
+        expect(replayBox.size, const Size(44, 44));
+        expect(handTarget.width, greaterThanOrEqualTo(44));
+        expect(handTarget.height, greaterThanOrEqualTo(44));
+        expect(handTarget.center.dx, closeTo(handBox.center.dx, 0.01));
+        expect(handTarget.center.dy, closeTo(handBox.center.dy, 0.01));
+      },
+    );
+  }
+
   testWidgets(
     'under a status bar the moment label still sits below the red microphone '
     'on a phone, both counted from the bar',
