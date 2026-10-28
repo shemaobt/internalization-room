@@ -90,9 +90,10 @@ record of it, tries three times 1 s then 3 s apart, and offers «parar» after 8
   offers no tap and the room refuses a re-send of it, as for a final refusal; this holds
   for a part on its row and for a scene take on the red microphone. It also holds after a
   relaunch, and the row offers no «Ouvir» that would play the gone take; the room's own
-  part still plays. Recording again recovers it: a new part take, and a part take the room
-  holds, takes its part's gone takes off the Outbox; a new one waits behind any spent
-  older pass whose recording is still on the tablet, and its tap sends both, older first.
+  part still plays. Recording again recovers it: a new part take takes its part's gone
+  takes off the Outbox, and a part take the room holds takes those at or below its own
+  pass, so a newer gone take is still told; a new one waits behind any spent older pass
+  whose recording is still on the tablet, and its tap sends both, older first.
   The Orchestrator decided this on 23 October; Jonatas may overrule it.
 - **A part beyond the last scene has its own row.** Each part beyond the passage's last
   scene that has a take still to send, in the air, being kept or kept this visit shows a

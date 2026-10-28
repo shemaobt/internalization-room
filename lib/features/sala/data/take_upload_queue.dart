@@ -515,11 +515,16 @@ class TakeUploadQueue {
     };
   }
 
-  Future<Set<String>> _goneRowsOf(String sessionId, String scope) async => {
+  Future<Set<String>> _goneRowsOf(
+    String sessionId,
+    String scope, {
+    int? upToPass,
+  }) async => {
     for (final entry in await entries())
       if (entry.kind == partTakeKind &&
           entry.sessionId == sessionId &&
           entry.scope == scope &&
+          (upToPass == null || (entry.passNumber ?? 1) <= upToPass) &&
           !await File(entry.path).exists())
         entry.id,
   };
@@ -1189,7 +1194,11 @@ class TakeUploadQueue {
   Future<void> _confirm(PendingTake entry, String takeId) async {
     _confirmed[entry.id] = takeId;
     final gone = entry.kind == partTakeKind
-        ? await _goneRowsOf(entry.sessionId, entry.scope)
+        ? await _goneRowsOf(
+            entry.sessionId,
+            entry.scope,
+            upToPass: entry.passNumber ?? 1,
+          )
         : const <String>{};
     await _mutate(
       (written) => [

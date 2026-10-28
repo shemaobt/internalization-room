@@ -1003,6 +1003,41 @@ void main() {
     },
   );
 
+  testWidgets(
+    'an older pass that lands keeps telling its part\'s newer gone take, '
+    'also after a relaunch',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.holdNextTake('parte-2');
+      await casa.guardarSemEsperar(2);
+      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.guardarSemEsperar(2);
+      final aNova = (await tester.runAsync(
+        casa.harness.takes.entries,
+      ))!.lastWhere((row) => row.scope == 'parte-2');
+      await casa.emTempoReal(() async {
+        File(aNova.path).deleteSync();
+        await casa.sala.refreshUnsent();
+        await settle();
+      });
+
+      await casa.emTempoReal(() async {
+        casa.room.finishHeldTake();
+        await waitFor(
+          'a passagem 1 subir',
+          () => casa.room.takesKept.isNotEmpty,
+        );
+        await settle(const Duration(milliseconds: 400));
+      });
+
+      expect(casa.naLinha(2, find.text(_perdida)), findsOneWidget);
+      expect(find.text(_salvo), findsNothing);
+      final depois = await _relancada(casa);
+      expect(depois.naLinha(2, find.text(_perdida)), findsOneWidget);
+      expect(find.text(_salvo), findsNothing);
+    },
+  );
+
   testWidgets('a part whose newest take is gone offers nothing to play', (
     tester,
   ) async {
