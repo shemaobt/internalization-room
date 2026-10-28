@@ -11498,6 +11498,7 @@ class _NotifierHost implements StationHost {
       case RestOnThePanorama():
         _notifier._landWhereTheyStopped();
         _notifier._returnToThePanorama();
+        _notifier._warmHerLines();
       case EnterThePassageLeft(:final left):
         _notifier._handOff(_notifier._enterThePassageLeft(left));
     }

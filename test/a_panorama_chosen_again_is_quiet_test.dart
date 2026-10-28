@@ -207,4 +207,25 @@ void main() {
           'na próxima olhada, trinta segundos depois',
     );
   });
+
+  test('the first Panorama of a launch that rests readies her quick '
+      'acknowledgements before the team speaks', () async {
+    final harness = SalaHarness()
+      ..room.passages = _theBook
+      ..room.createdOpened = true;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await _theTeamChoosesItAgain(notifier, read);
+
+    expect(
+      harness.voice.readied,
+      containsAll(const [('F0', 'pt'), ('F1', 'pt'), ('F2', 'pt')]),
+      reason:
+          'o primeiro «estou pensando» depois do Panorama em repouso era '
+          'buscado na hora, e numa conexão ruim não era dito',
+    );
+  });
 }
