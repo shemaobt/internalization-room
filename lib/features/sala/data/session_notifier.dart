@@ -9892,7 +9892,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void ouvirAFraseGravada() => _gesture(() {
     final path = state.btRegravacao?.path;
     if (path == null || !state.aBackTranslationGestureActs) return;
+    final tocava = state.btFraseGravadaTocando;
     _silenceTheRoom();
+    if (tocava) return;
     void quiet() => unawaited(_playback.stop());
     _play(StretchSound(path), onComplete: quiet, onFailed: quiet);
   });

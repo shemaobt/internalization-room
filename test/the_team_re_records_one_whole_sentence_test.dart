@@ -1203,6 +1203,36 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a tap on the sentence while it plays stops it, and the next '
+      'tap plays it from the start instead of going on', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    final gravada = harness.recorder.lastPath;
+    await tocar(tester, 'Ouvir — 3');
+    final tocadas = harness.playback.played.length;
+    final paradas = harness.playback.stops;
+
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(
+      harness.playback.played.length,
+      tocadas,
+      reason: 'o segundo toque recomeçava a frase em vez de parar',
+    );
+    expect(harness.playback.stops, greaterThan(paradas));
+    expect(oGlifo(LucideIcons.play), findsOneWidget);
+    expect(apertado(tester), isFalse);
+
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(harness.playback.played.length, tocadas + 1);
+    expect(harness.playback.played.last, gravada);
+    expect(harness.playback.playedFrom.last, Duration.zero);
+    expect(oGlifo(LucideIcons.square), findsOneWidget);
+    closeTheRoom(container);
+  });
+
   testWidgets(
     'a new recording of a held sentence takes the held one\'s place',
     (tester) async {
