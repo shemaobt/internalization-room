@@ -35,6 +35,7 @@ class SceneTranslateStep extends ConsumerWidget {
   final SceneLine? line;
   final bool restartShown;
   final BtRecomeco? restart;
+  final Duration? stoppedAt;
 
   const SceneTranslateStep({
     super.key,
@@ -50,6 +51,7 @@ class SceneTranslateStep extends ConsumerWidget {
     required this.line,
     required this.restartShown,
     required this.restart,
+    required this.stoppedAt,
   });
 
   @override
@@ -258,7 +260,7 @@ class SceneTranslateStep extends ConsumerWidget {
     }
     if (playing) return sceneListeningLineFor(at, scene.length, language);
     if (!scene.moreToTell) return sceneRehearsalLabelFor('ended', language);
-    return sceneRehearsalLabelFor('paused', language);
+    return scenePausedLineFor(stoppedAt, scene.length, language);
   }
 }
 
