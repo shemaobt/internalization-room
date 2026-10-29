@@ -204,6 +204,12 @@ the room keeps a told stretch. With them goes the answer they keep, `_oQueASalaD
 its order, `_relatosASala`, two private fields of `SalaSessionNotifier`. No Station opens or
 resumes differently.
 
+Extended by name (ENG-2057, 2026-10-29), same end date: four more of those reports, one for
+each other change of the passage's frases: a stretch told again, a scene's translations
+brought back, the translation started over and a re-recorded sentence laid in (ADR 0140
+rule 4). They keep the same answer in the same two fields; no field is added, and no Station
+opens or resumes differently.
+
 Extended by name (ENG-2054, 2026-10-29), same end date: `btOuvidaInteira`, the room's newest
 answer to a listening report (every part heard, a part unheard, or no list), which the check's
 «terminei» and the line under it read; and `btRestoPorOuvir`, a telling picked back up whose

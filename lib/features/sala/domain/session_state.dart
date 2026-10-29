@@ -370,6 +370,7 @@ class Trecho {
   /// made: it is a unit the room counts and nobody has told back.
   final bool contado;
   final int? frase;
+  final String? bridgeTakeId;
 
   const Trecho({
     required this.segmentId,
@@ -382,6 +383,7 @@ class Trecho {
     required this.lugarFrom,
     required this.lugarTo,
     this.frase,
+    this.bridgeTakeId,
   });
 }
 
@@ -458,6 +460,8 @@ class SalaSessionState {
   final Set<String> comecadas;
   final List<Trecho> btTrechos;
   final List<Trecho> btTrechosRegravados;
+  final List<String> btNaoOuvidas;
+  final int? btParteQueTocou;
   final List<BtFinding> btFindings;
   final bool btConferindo;
   final bool btVeredito;
@@ -656,6 +660,8 @@ class SalaSessionState {
     this.comecadas = const {},
     this.btTrechos = const [],
     this.btTrechosRegravados = const [],
+    this.btNaoOuvidas = const [],
+    this.btParteQueTocou,
     this.btFindings = const [],
     this.btConferindo = false,
     this.btVeredito = false,
@@ -878,18 +884,23 @@ class SalaSessionState {
   bool get recordsTheWhole => grain == Grain.whole;
 
   /// The row a recording of [scopeId] stands on: the whole is the one row while the
-  /// passage is recorded whole, and no row otherwise.
+  /// passage is recorded whole, row 0 while the room names no grain, and no row otherwise.
   int? rowOf(String scopeId) => recordsTheWhole
       ? (scopeId == KeptScope.whole ? 1 : null)
+      : scopeId == KeptScope.whole && grainInForce == null
+      ? 0
       : KeptScope.numberOf(scopeId);
 
   /// Whether the grain in force is known and gives a recording of [scopeId] no row.
   bool showsNoRow(String scopeId) =>
       grainInForce != null && rowOf(scopeId) == null;
 
-  /// The scope a recording on row [number] is kept under, at the grain in force.
-  String scopeOfRow(int number) =>
-      recordsTheWhole ? KeptScope.whole : KeptScope.parte(number);
+  /// The scope a recording on row [number] is kept under: the whole while the passage is
+  /// recorded whole and on row 0, where the whole stands while no grain is in force; the
+  /// part numbered [number] otherwise.
+  String scopeOfRow(int number) => recordsTheWhole || number == 0
+      ? KeptScope.whole
+      : KeptScope.parte(number);
 
   /// «gravar a passagem inteira de uma vez» takes the Armed tap only when it would leave
   /// something behind: an approved draft, or a part that came from a join.
@@ -1805,6 +1816,9 @@ class SalaSessionState {
     bool clearRoda = false,
     List<Trecho>? btTrechos,
     List<Trecho>? btTrechosRegravados,
+    List<String>? btNaoOuvidas,
+    int? btParteQueTocou,
+    bool clearBtParteQueTocou = false,
     List<BtFinding>? btFindings,
     bool? btConferindo,
     bool? btVeredito,
@@ -1947,6 +1961,10 @@ class SalaSessionState {
       comecadas: comecadas ?? this.comecadas,
       btTrechos: btTrechos ?? this.btTrechos,
       btTrechosRegravados: btTrechosRegravados ?? this.btTrechosRegravados,
+      btNaoOuvidas: btNaoOuvidas ?? this.btNaoOuvidas,
+      btParteQueTocou: clearBtParteQueTocou
+          ? null
+          : (btParteQueTocou ?? this.btParteQueTocou),
       btFindings: btFindings ?? this.btFindings,
       btConferindo: btConferindo ?? this.btConferindo,
       btVeredito: btVeredito ?? this.btVeredito,
