@@ -197,7 +197,7 @@ class SceneTranslateStep extends ConsumerWidget {
           const SizedBox(height: 16),
           _WrittenButton(
             said(sending ? 'sending' : 'send'),
-            live: sendable && !sending,
+            live: sendable && idle,
             onTap: notifier.sendTheSceneRehearsal,
             large: true,
           ),
@@ -216,7 +216,7 @@ class SceneTranslateStep extends ConsumerWidget {
         const SizedBox(height: 8),
         _WrittenButton(
           said('again'),
-          live: !sending && !scene.waiting,
+          live: idle,
           onTap: notifier.recordTheSceneAgain,
           bare: true,
         ),

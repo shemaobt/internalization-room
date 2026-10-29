@@ -40,6 +40,7 @@ const _listenMode =
     'ouvir o ensaio naquela parte, e no alto-falante para ouvir a tradução de '
     'vocês.';
 const _terminei = 'terminei';
+const _recordAgain = 'gravar o ensaio da cena de novo';
 const _restart = 'recomeçar a tradução';
 const _restarted = 'tradução recomeçada — o ensaio da cena ficou';
 const _restartFailed = 'não deu para recomeçar agora — tentem de novo';
@@ -903,6 +904,36 @@ void main() {
         expect(screen.state.channel, isA<PartPlaying>());
         expect(screen.playback.playedFrom.last, _s(9.0));
         expect(screen.theFraseMicrophoneIsOpen, isFalse);
+      },
+    );
+  });
+
+  group('a frase\'s microphone open', () {
+    testWidgets(
+      '«terminei» and «gravar o ensaio da cena de novo» are drawn out, and «gravar» leaves the microphone open',
+      (tester) async {
+        final screen = await _onScreen(tester, rehearsal: _twoFrases);
+        await screen.listens();
+        await screen.marksThePausaAt(9.5);
+        await screen.tap(_tell);
+        await screen.until(() => screen.theFraseMicrophoneIsOpen);
+        expect(screen.theFraseMicrophoneIsOpen, isTrue);
+
+        expect(
+          screen.lit(_terminei),
+          isFalse,
+          reason: '«terminei» parecia aceso com o microfone aberto',
+        );
+        expect(screen.faded(_terminei), isTrue);
+        expect(
+          screen.lit(_recordAgain),
+          isFalse,
+          reason: '«gravar de novo» jogava fora a gravação aberta',
+        );
+        expect(screen.faded(_recordAgain), isTrue);
+        await screen.tap(_recordAgain);
+        expect(screen.theFraseMicrophoneIsOpen, isTrue);
+        expect(screen.state.scene.step, SceneStep.translate);
       },
     );
   });
