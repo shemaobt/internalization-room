@@ -15,7 +15,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, voiceOverTap;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         aceso,
@@ -793,6 +793,43 @@ void main() {
       reason: 'o botão repetia o veredito da conferência anterior',
     );
     closeTheRoom(container);
+  });
+
+  testWidgets('a VoiceOver double-tap on «ouvir a resposta de novo» plays the '
+      'verdict again, and the resting button offers no tap', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    harness.room
+      ..verdictChecked = true
+      ..verdictFindings = const []
+      ..verdictNamedNuance = const BtFinding(
+        kind: BtFindingKind.nuance,
+        frase: 4,
+        segmentId: 'trecho-4',
+      );
+    await _terminei(tester, container, BtPhase.conferida);
+    final faladas = harness.voice.played.length;
+
+    harness.voice.holdNextLine();
+    voiceOverTap(tester, 'ouvir a resposta de novo');
+    await _passo(tester);
+    expect(
+      harness.voice.played,
+      hasLength(faladas + 1),
+      reason:
+          'o VoiceOver anunciava o botão e o toque duplo não repetia a resposta',
+    );
+    expect(
+      tester.getSemantics(byLabel('ouvir a resposta de novo')),
+      isSemantics(hasTapAction: false),
+      reason: 'com a resposta soando o botão apagado ainda aceitava o toque',
+    );
+    harness.voice.finishHeldLine();
+    await _passo(tester);
+    await _passo(tester);
+    closeTheRoom(container);
+    semantics.dispose();
   });
 
   testWidgets('«ouvir a resposta de novo» rests while the verdict sounds and '

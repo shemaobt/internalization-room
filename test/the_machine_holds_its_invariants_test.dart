@@ -356,7 +356,7 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
       LookFailed() => true,
       TheReplyFailedToLoad(:final load) => load >= 2,
       StationEvent() =>
-        before.aHaltWaitsForTheCanvas && after.station is Canvas,
+        before.aHaltWaitsForTheCanvas != null && after.station is Canvas,
       _ => false,
     };
     if (herCase) return null;
@@ -365,12 +365,14 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
   },
 );
 
-final noHaltIsEnteredOverTheSceneOrTheCheck = Invariant<Machine>(
-  'ADR 0159, no halt is entered over the scene rehearsal or the external '
-  'check; it waits for the Canvas',
+final noHaltIsEnteredOffTheCanvasWhereHersNeverShowsIt = Invariant<Machine>(
+  'ADRs 0159 and 0160, no halt is entered over the scene rehearsal, the '
+  'external check or the back-translation; it waits for the Canvas',
   (before, event, after, effects, world) {
     if (before.halt is Blocking || after.halt is! Blocking) return null;
-    if (after.station is! SceneRehearsal && after.station is! ChecagemExterna) {
+    if (after.station is! SceneRehearsal &&
+        after.station is! ChecagemExterna &&
+        after.station is! Retro) {
       return null;
     }
     return '${describeEvent(event)} entered the person sign over '
@@ -642,9 +644,9 @@ void main() {
     _holds(nothingButHerSixCasesEntersThePersonSign);
   });
 
-  test('generator invariant: no halt is entered over the scene rehearsal or '
-      'the external check', () {
-    _holds(noHaltIsEnteredOverTheSceneOrTheCheck);
+  test('generator invariant: no halt is entered over the scene rehearsal, '
+      'the external check or the back-translation', () {
+    _holds(noHaltIsEnteredOffTheCanvasWhereHersNeverShowsIt);
   });
 
   test('generator invariant: only a step left from the Canvas moves the end '

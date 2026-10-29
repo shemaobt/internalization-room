@@ -494,6 +494,7 @@ class RetroView extends ConsumerWidget {
       button: true,
       enabled: !dormindo,
       label: rotulo,
+      onTap: dormindo ? null : notifier.recomecarATraducao,
       child: Opacity(
         opacity: dormindo ? 0.4 : 1,
         child: ExcludeSemantics(
@@ -522,6 +523,7 @@ class RetroView extends ConsumerWidget {
       button: true,
       enabled: onTap != null,
       label: rotulo,
+      onTap: onTap,
       child: Opacity(
         opacity: onTap != null ? 1 : 0.4,
         child: ExcludeSemantics(

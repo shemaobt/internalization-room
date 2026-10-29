@@ -16,7 +16,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/frase_li
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, settle;
+import 'scenario_helpers.dart' show byLabel, settle, voiceOverTap;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         aprovar,
@@ -220,6 +220,50 @@ void main() {
       expect(harness.room.restartsAsked, isEmpty);
       expect(container.read(salaSessionProvider).btTrechos, hasLength(4));
       closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a VoiceOver double-tap on «$_recomecar» arms it, as a finger does',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+
+      voiceOverTap(tester, _recomecar);
+      await _passo(tester);
+
+      expect(
+        byLabel(_armado),
+        findsOneWidget,
+        reason: 'o VoiceOver anunciava o botão e o toque duplo não armava nada',
+      );
+      expect(harness.room.restartsAsked, isEmpty);
+      await tester.pump(const Duration(seconds: 7));
+      closeTheRoom(container);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'the armed button offers VoiceOver no tap while it is still asleep',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        tester.getSemantics(byLabel(_armado)),
+        isSemantics(hasTapAction: false),
+        reason:
+            'o leitor de tela oferecia o toque num botão que ainda o ignorava',
+      );
+      await tester.pump(const Duration(seconds: 7));
+      closeTheRoom(container);
+      semantics.dispose();
     },
   );
 

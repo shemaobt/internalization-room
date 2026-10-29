@@ -112,6 +112,7 @@ class _GrainButton extends StatelessWidget {
       button: true,
       enabled: open,
       label: size.isEmpty ? name : '$name, $size',
+      onTap: open ? onTap : null,
       excludeSemantics: true,
       child: Opacity(
         opacity: open ? 1 : 0.4,
@@ -171,6 +172,7 @@ class GrainChange extends StatelessWidget {
       button: true,
       enabled: open,
       label: label,
+      onTap: open ? onTap : null,
       excludeSemantics: true,
       child: Opacity(
         opacity: open ? 1 : 0.4,

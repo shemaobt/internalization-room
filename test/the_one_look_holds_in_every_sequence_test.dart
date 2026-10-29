@@ -72,7 +72,7 @@ final _anEmptyLookShowsThePersonSign = Invariant<_Room>(
       if (after.machine.halt is Blocking && before.machine.halt is! Blocking) {
         return 'an empty look on the scene screen showed the sign there';
       }
-      if (!after.machine.aHaltWaitsForTheCanvas) {
+      if (after.machine.aHaltWaitsForTheCanvas == null) {
         return 'an empty look on the scene screen held no sign for the Canvas';
       }
       return null;

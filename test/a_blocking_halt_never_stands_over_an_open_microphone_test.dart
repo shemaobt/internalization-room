@@ -1,42 +1,12 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/main.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'session_notifier_test.dart' show inConversa;
-
-Future<ProviderContainer> _reopensIntoRetro(SalaHarness harness) async {
-  final gravada = File(
-    '${Directory.systemTemp.createTempSync('sala-1168').path}/p1.m4a',
-  )..writeAsBytesSync([1, 2, 3]);
-  addTearDown(() => gravada.parent.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      KeptTake(
-        scopeId: KeptScope.parte(1),
-        path: gravada.path,
-        takeId: 'gravacao-1',
-      ),
-    ],
-  );
-  final container = harness.container();
-  addTearDown(container.dispose);
-  final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-  await settle();
-  return container;
-}
 
 void _expectTheMicrophoneClosedAndDiscarded(
   SalaHarness harness,
@@ -95,31 +65,6 @@ void main() {
         isNot(EnsaioStatus.recording),
         reason: 'o ensaio não diz que grava',
       );
-    },
-  );
-
-  test(
-    'a blocking halt closes and discards the capture\'s microphone',
-    () async {
-      final harness = SalaHarness();
-      final container = await _reopensIntoRetro(harness);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-
-      harness.playback.at = const Duration(seconds: 2);
-      notifier.retroTap();
-      notifier.retroTap();
-      await waitFor(
-        'a captura abrir',
-        () => read().btPhase == BtPhase.capturing,
-      );
-      await waitFor('o microfone abrir', () => harness.recorder.captures == 1);
-
-      notifier.haltForABrokenBuild();
-      await settle();
-
-      _expectTheMicrophoneClosedAndDiscarded(harness, read());
-      expect(read().btPhase, isNot(BtPhase.capturing));
     },
   );
 

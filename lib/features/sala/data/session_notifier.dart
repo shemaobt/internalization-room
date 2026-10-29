@@ -1266,8 +1266,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// While the reload waits the room is thinking, so nothing offers to say the reply
-  /// again; under the sign the reply that would not load stays the one «Ouvir de novo»
-  /// says, unless it is not [remember]ed.
+  /// again; under the sign, or on the back-translation once the reply is let go, the
+  /// reply that would not load stays the one «Ouvir de novo» says, unless it is not
+  /// [remember]ed.
   Future<bool> _loadAgain(
     SpokenLine line,
     int load,
@@ -1285,7 +1286,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         answered: loadAgain.complete,
       ),
     );
-    if (state.needsPerson && remember) state = state.copyWith(lastSpoken: line);
+    final letGo = state.station is Retro && loadAgain.isCompleted;
+    if ((state.needsPerson || letGo) && remember) {
+      state = state.copyWith(lastSpoken: line);
+    }
     if (!await loadAgain.future || _abandoned(generation)) return false;
     await (line.fixedLine.isEmpty
         ? _voice.forget(line.url)

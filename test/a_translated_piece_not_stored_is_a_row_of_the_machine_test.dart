@@ -44,7 +44,7 @@ void main() {
 
     expect(effects, const [AskTheFraseAgain()]);
     expect(machine.halt, const NoHalt());
-    expect(machine.aHaltWaitsForTheCanvas, isFalse);
+    expect(machine.aHaltWaitsForTheCanvas, isNull);
   });
 
   for (final (door, station) in [
@@ -60,7 +60,7 @@ void main() {
         }
 
         expect(machine.halt, const NoHalt(), reason: '$result');
-        expect(machine.aHaltWaitsForTheCanvas, isFalse, reason: '$result');
+        expect(machine.aHaltWaitsForTheCanvas, isNull, reason: '$result');
       }
     });
   }

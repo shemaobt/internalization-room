@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -593,83 +592,56 @@ void main() {
     return container;
   }
 
-  Future<void> esperarAParada(WidgetTester tester) async {
-    await waitFor(
-      'a tela da parada aparecer',
-      () => thePersonSign.evaluate().isNotEmpty,
-      limit: const Duration(seconds: 3),
-      step: () async {
-        await tester.pump(const Duration(seconds: 1));
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
-        );
-      },
-    );
-  }
-
-  Future<void> pararPorUmaPessoa(
+  Future<void> levantarUmaParada(
     WidgetTester tester,
     ProviderContainer container,
   ) async {
     container.read(salaSessionProvider.notifier).haltForABrokenBuild();
-    await esperarAParada(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 2));
   }
 
+  testWidgets('R2 — uma parada com o clipe tocando não cobre a madeira, como o '
+      'dela', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await retomarComAviso(tester, harness);
+
+    await levantarUmaParada(tester, container);
+
+    expect(
+      thePersonSign,
+      findsNothing,
+      reason: 'o sinal cobria a retro, e o Drafting dela nunca o mostra',
+    );
+    expect(_circuloApagado(tester), isFalse);
+    closeTheRoom(container);
+  });
+
   testWidgets(
-    'waiting for the halt screen fails at its deadline when the room never '
-    'stops, not in silence',
+    'R2 — uma parada com uma tradução tocando não cala o azul, como o '
+    'dela',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
-      final container = harness.container();
-      addTearDown(container.dispose);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(container: container, child: const SalaApp()),
-      );
-      await tester.pump(const Duration(milliseconds: 100));
+      final container = await retomarComAviso(tester, harness);
+      await tester.runAsync(() => theClipOpens(harness));
+      harness.playback.at = const Duration(seconds: 7);
+      await tocarNoCirculo(tester);
+      await gravarATraducao(tester, harness);
+      await tocar(tester, pausar);
+      await tocar(tester, sceneRehearsalLabelFor('hearMine', 'pt', n: 1));
+      expect(harness.playback.sounding, isTrue);
 
-      await expectLater(
-        () => esperarAParada(tester),
-        throwsA(isA<TimeoutException>()),
-        reason:
-            'a espera devolvia depois de trinta segundos sem a parada ter '
-            'aparecido, e o caso seguia como se ela tivesse aparecido',
+      await levantarUmaParada(tester, container);
+
+      expect(thePersonSign, findsNothing);
+      expect(
+        harness.playback.sounding,
+        isTrue,
+        reason: 'a parada calava a tradução que tocava',
       );
       closeTheRoom(container);
     },
   );
-
-  testWidgets('R2 — uma parada com o clipe tocando vence a madeira', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await retomarComAviso(tester, harness);
-
-    await pararPorUmaPessoa(tester, container);
-
-    expect(thePersonSign, findsOneWidget);
-    expect(_circuloApagado(tester), isTrue);
-    closeTheRoom(container);
-  });
-
-  testWidgets('R2 — uma parada com uma tradução tocando vence o azul', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await retomarComAviso(tester, harness);
-    await tester.runAsync(() => theClipOpens(harness));
-    harness.playback.at = const Duration(seconds: 7);
-    await tocarNoCirculo(tester);
-    await gravarATraducao(tester, harness);
-    await tocar(tester, pausar);
-    await tocar(tester, sceneRehearsalLabelFor('hearMine', 'pt', n: 1));
-    expect(harness.playback.sounding, isTrue);
-
-    await pararPorUmaPessoa(tester, container);
-
-    expect(thePersonSign, findsOneWidget);
-    expect(_circuloApagado(tester), isTrue);
-    closeTheRoom(container);
-  });
 
   testWidgets('R2b — a standing warning draws no mark beside the circle', (
     tester,
@@ -728,8 +700,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R6 — a halt in an english back-translation raises the sign, '
-      'which says no word', (tester) async {
+  testWidgets('R6 — a halt in an english back-translation draws no sign, as '
+      'hers', (tester) async {
     final handle = tester.ensureSemantics();
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await entrarNaTraducao(tester, harness);
@@ -738,12 +710,14 @@ void main() {
     await tocarNoCirculo(tester);
     await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
     await tocar(tester, retroLabelFor('recording', 'en'));
-    container.read(salaSessionProvider.notifier).haltForABrokenBuild();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(seconds: 2));
+    await levantarUmaParada(tester, container);
 
-    expect(thePersonSign, findsOneWidget);
-    expect(find.bySemanticsLabel('A moment for someone'), findsNothing);
+    expect(
+      thePersonSign,
+      findsNothing,
+      reason:
+          'o sinal cobria a retro em inglês, e o Drafting dela nunca o mostra',
+    );
     handle.dispose();
     closeTheRoom(container);
   });

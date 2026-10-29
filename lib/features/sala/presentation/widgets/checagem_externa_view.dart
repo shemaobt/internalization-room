@@ -200,6 +200,7 @@ class _Control extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: label,
+      onTap: enabled ? onTap : null,
       child: ExcludeSemantics(
         child: GestureDetector(
           onTap: enabled ? onTap : null,

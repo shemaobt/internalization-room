@@ -208,7 +208,9 @@ void main() {
     'the circle is drawn out while the screen waits, while «terminei» is in the air and under the person sign',
     (tester) async {
       final (_, container) = await _theLastFraseTranslatedAgain(tester);
-      expect(_lit(tester, _tell), isTrue);
+      bool? enabled() =>
+          tester.widget<Semantics>(byLabel(_tell)).properties.enabled;
+      expect(enabled(), isNot(isFalse));
 
       for (final refusal in [
         _Refusal.waiting,
@@ -220,7 +222,7 @@ void main() {
           container,
           refusal,
           () => expect(
-            _lit(tester, _tell),
+            enabled(),
             isFalse,
             reason:
                 'com ${refusal.name}, o círculo ficava aceso e o toque não '

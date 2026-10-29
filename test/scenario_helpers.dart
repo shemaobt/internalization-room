@@ -24,6 +24,15 @@ Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
 );
 
+void voiceOverTap(WidgetTester tester, String label) =>
+    tester.binding.performSemanticsAction(
+      SemanticsActionEvent(
+        type: SemanticsAction.tap,
+        viewId: tester.view.viewId,
+        nodeId: tester.getSemantics(byLabel(label)).id,
+      ),
+    );
+
 List<String> labelsHeard(WidgetTester tester) {
   final labels = <String>[];
   bool visit(SemanticsNode node) {

@@ -170,13 +170,13 @@ void main() {
 
     const theSignWaits = Machine(
       station: SceneRehearsal(),
-      aHaltWaitsForTheCanvas: true,
+      aHaltWaitsForTheCanvas: RoomRaisedAHalt(),
     );
 
     test('a «terminei» again in the air keeps the sign waiting', () {
       final (machine, _) = reduce(theSignWaits, const TurnSent(_turn));
 
-      expect(machine.aHaltWaitsForTheCanvas, isTrue);
+      expect(machine.aHaltWaitsForTheCanvas, isNotNull);
     });
 
     test('a «terminei» refused as already sent tells the scene screen it went, '
@@ -188,7 +188,7 @@ void main() {
 
       expect(effects, contains(const TellItWentAlready()));
       expect(effects, contains(const ReadTheSceneRehearsals()));
-      expect(machine.aHaltWaitsForTheCanvas, isFalse);
+      expect(machine.aHaltWaitsForTheCanvas, isNull);
       expect(machine.halt, const NoHalt());
     });
 
@@ -206,7 +206,7 @@ void main() {
 
         expect(effects, contains(const TellTheSendFailed()));
         expect(effects, contains(const ReadTheSceneRehearsals()));
-        expect(machine.aHaltWaitsForTheCanvas, isFalse);
+        expect(machine.aHaltWaitsForTheCanvas, isNull);
         expect(machine.halt, const NoHalt());
       });
     }
@@ -234,7 +234,7 @@ void main() {
 
         expect(effects, contains(const ReadTheSceneRehearsals()));
         expect(effects, isNot(contains(const TellTheSendFailed())));
-        expect(machine.aHaltWaitsForTheCanvas, isTrue);
+        expect(machine.aHaltWaitsForTheCanvas, isNotNull);
       });
     }
 
