@@ -9402,7 +9402,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(value: final segmentos):
         _clearAll();
         _theTellingStartsOver(_trechosFrom(segmentos));
-        state = state.copyWith(btRecomecada: true);
+        state = state.copyWith(btRecomecada: true, btChecked: false);
         _dispatch(const TheTranslationStartedOver());
 
         _after(
@@ -9893,6 +9893,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: BtPhase.playing,
       awaitingTheGuide: false,
+      btChecked: false,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       btTrechosRegravados: [
         for (final trecho in state.btTrechosRegravados)
@@ -10151,6 +10152,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btFraseQueAguarda: nome,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       btPhase: BtPhase.playing,
+      btChecked: false,
       clearFindingSegment: true,
       btFindings: [
         for (final finding in state.btFindings)
@@ -10867,20 +10869,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The team makes what it recorded its final draft.
   ///
   /// A passage the room called checked stays on screen until somebody presses, and an
-  /// approval ends on the Saved screen over it, never on the Choice. The phase never leaves
-  /// [BtPhase.conferida] while the request is out, which is what keeps the affordance
-  /// alive under a transport failure — [_leaveThinking] has nothing to undo there.
+  /// approval ends on the Saved screen over it, never on the Choice. The press is taken only
+  /// at [BtPhase.playing] or [BtPhase.conferida] and the phase never moves while the request
+  /// is out, nor after a refusal, which is what keeps the affordance alive under a transport
+  /// failure — [_leaveThinking] has nothing to undo there.
   Future<void> aprovarRascunhoFinal() =>
       _gestureThen(() => _aprovarRascunhoFinal());
 
   Future<void> _aprovarRascunhoFinal() async {
     final fromTheHome = state.approveOffered;
     if (!fromTheHome &&
-        (state.station is! Retro || state.btPhase != BtPhase.conferida)) {
+        (state.station is! Retro || !state.approveActsOnTheCheck)) {
       return;
     }
     if (state.needsPerson) return;
     if (!state.canApprove || state.ensaioSalvo != null) return;
+    final cortaAEscuta =
+        state.btPhase == BtPhase.conferida && state.btClipRodando;
     _silenceTheRoom();
     final sessionId = state.sessionId;
     if (sessionId == null) return;
@@ -10893,7 +10898,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     void failed(RoomFailure failure) {
       if (_abandoned(generation)) return;
-      if (failure case Refused()) _backToBeforeTerminei();
+      if (failure case Refused()) {
+        fromTheHome
+            ? _backToBeforeTerminei()
+            : _aEscutaCortadaAcaba(cortaAEscuta);
+      }
       _decideTheFailure(failure);
     }
 
@@ -10918,7 +10927,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       if (!resposta.minted) {
         _saysWhy(_recusaDaCasa(resposta.blockers));
-        _backToBeforeTerminei();
+        _aEscutaCortadaAcaba(cortaAEscuta);
         return;
       }
       state = state.copyWith(btAprovadoAgora: resposta.version);
@@ -10989,6 +10998,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     btClipEnded: true,
     awaitingTheGuide: false,
   );
+
+  void _aEscutaCortadaAcaba(bool cortada) {
+    if (cortada) state = state.copyWith(btClipEnded: true);
+  }
 
   void _esperarQueFalteOuvir(String sessionId, int generation) {
     final armadas = _OQueFaltaOuvir([
