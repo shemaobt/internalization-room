@@ -22,7 +22,7 @@ import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, offTheRows;
+import 'scenario_helpers.dart' show byLabel, offTheRows, thePersonSign;
 
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _homeLineEn =
@@ -39,7 +39,6 @@ const _bringBackArmedEn =
 const _failedEn = 'this scene could not be joined — tap to try again';
 const _reopenArmed = 'toquem de novo: isto abre de novo o rascunho aprovado';
 const _ouvir = 'Ouvir';
-const _theSign = 'Um momento para uma pessoa';
 const _gravarDeNovo = 'Gravar de novo';
 const _tentarDeNovo = 'Tentar enviar de novo';
 const _enviarAGravacao = 'Enviar a gravação';
@@ -659,7 +658,7 @@ void main() {
       expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
       expect(it.control(2, _bringBack), findsNothing);
       expect(find.text(_failed), findsNothing);
-      expect(byLabel(_theSign), findsNothing);
+      expect(thePersonSign, findsNothing);
       semantics.dispose();
     },
   );
@@ -677,7 +676,7 @@ void main() {
     expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
     expect(it.onRow(2, find.text(_failed)), findsOneWidget);
     expect(it.control(2, _bringBack), findsOneWidget);
-    expect(byLabel(_theSign), findsNothing);
+    expect(thePersonSign, findsNothing);
     semantics.dispose();
   });
 

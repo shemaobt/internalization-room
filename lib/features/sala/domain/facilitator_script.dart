@@ -50,10 +50,6 @@ int acknowledgementAfter(int last, Random random) =>
     instantAckLines.length;
 
 const circleLabels = {
-  'needsPerson': {
-    'pt': 'Um momento para uma pessoa',
-    'en': 'A moment for someone',
-  },
   'default': {'pt': 'Toque para falar', 'en': 'Tap to speak'},
 };
 

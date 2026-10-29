@@ -3646,7 +3646,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _listen(MachineEvent opening) {
     _recordingStarting = true;
     _listeningSince = clock.now();
-    state = state.copyWith(peerCue: false);
+    state = state.copyWith(peerCue: false, clearRecorderStartedAt: true);
     _dispatch(opening);
     if (state.channel is! Microphone) {
       _recordingStarting = false;
@@ -5420,13 +5420,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// is weighed again whenever its parts or its scene list change.
   void _weighTheRehearsal() {
     if (state.station
-        case Ensaio(:final everySceneHasItsPart, :final everyPartIsHere)
+        case Ensaio(
+          :final everySceneHasItsPart,
+          :final everyPartIsHere,
+          :final everyPartIsSent,
+        )
         when everySceneHasItsPart != state.everySceneHasItsPart ||
-            everyPartIsHere != state.everyPartIsHere) {
+            everyPartIsHere != state.everyPartIsHere ||
+            everyPartIsSent != state.everyPartIsSent) {
       _dispatch(
         TheRehearsalWeighed(
           everySceneHasItsPart: state.everySceneHasItsPart,
           everyPartIsHere: state.everyPartIsHere,
+          everyPartIsSent: state.everyPartIsSent,
         ),
       );
     }
@@ -7550,6 +7556,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ],
       );
     }
+    _weighTheRehearsal();
   }
 
   Future<void> refreshUnsent() => _countUnsent();
@@ -7577,6 +7584,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     switch (heard.answer) {
       case MicAnswer.started:
+        state = state.copyWith(recorderStartedAt: clock.now());
         _captureFails.remove(heard.owner);
         ref.read(micPermissionProvider.notifier).heard();
       case MicAnswer.refused:
@@ -7692,6 +7700,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (rows.any((row) => row.origin == null)) ?KeptScope.numberOf(scope),
       },
     );
+    _weighTheRehearsal();
     if (sessionId != null) {
       state = state.copyWith(
         unsentTakes: _unsentTakesOf(tally, speaking),
@@ -8058,6 +8067,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _aEscutaRecomecaEm = 0;
     if (ouvida == null || nomes == null) {
       _oQueFaltaOuvir = _OQueFaltaOuvir(deNovo, paraNaUltima: true);
+      state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
       return;
     }
     final faltam = _asPartesNomeadas(nomes);
@@ -10587,9 +10597,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     try {
       final ApprovalAnswer resposta;
+      final standing = state.btRascunhoAprovado;
       switch (await _room.approveRelease(sessionId)) {
         case Answered(value: final answer):
-          resposta = answer;
+          resposta = answer.over(standing);
         case final RoomFailure failure:
           if (!_abandoned(generation)) _saysWhy(CheckRefusal.checkUnavailable);
           return failed(failure);
