@@ -1322,12 +1322,12 @@ void main() {
 
       notifier.haltForABrokenBuild();
       await _theAnswerSettles(tester);
-      expect(byLabel(_personSign), findsOneWidget);
+      expect(thePersonSign, findsOneWidget);
       expect(harness.playback.sounding, isFalse);
       notifier.teamTapped();
       await _theAnswerSettles(tester);
 
-      expect(byLabel(_personSign), findsNothing);
+      expect(thePersonSign, findsNothing);
       expect(
         _glyphOn(tester, _playOn(1)),
         LucideIcons.play,
