@@ -1001,9 +1001,7 @@ void main() {
     int timesSaid() =>
         room.harness.voice.fixedLines.where((said) => said.$1 == 'A1').length;
     await _theScreenOpens(room, on: _showing(1, SceneStep.translate));
-    room.harness.room
-      ..turnsAreCanned = true
-      ..fixedLine = 'A1';
+    room.harness.room.fixedLine = 'A1';
 
     room.sala.sendTheSceneRehearsal();
     await waitFor(

@@ -1414,15 +1414,13 @@ class FakeRoom implements RoomRepository {
   final List<String> replacesComArquivo = [];
   int _versoes = 0;
 
-  bool turnsAreCanned = false;
   bool turnsAreDegraded = false;
   bool silentAboutCoverage = false;
   bool verdictChecked = true;
   bool readsChecked = false;
 
-  /// Whether the verdict itself is a canned line the room could not compose — the wire
-  /// twin of [turnsAreCanned] for the turn that closes a telling-back, and the only way a
-  /// test can make the findings screen open with nothing worth repeating.
+  /// Whether the verdict itself is a canned line the room could not compose — the only
+  /// way a test can make the findings screen open with nothing worth repeating.
   bool verdictUsedFailSafe = false;
 
   /// The verdict's own clip, when a test needs one verdict told apart from another.
@@ -2624,7 +2622,6 @@ class FakeRoom implements RoomRepository {
           fixedLine: '',
           transcript: '',
           peerCue: false,
-          usedFailSafe: turnsAreCanned,
           degraded: false,
           coverage: silentAboutCoverage ? null : nextCoverage,
           done: done,
@@ -3192,7 +3189,6 @@ class FakeRoom implements RoomRepository {
     fixedLine: answersTurnsWithoutAReply ? '' : fixedLine,
     transcript: 'a equipe falou',
     peerCue: peerCue,
-    usedFailSafe: turnsAreCanned,
     degraded: turnsAreDegraded,
     coverage: silentAboutCoverage ? null : nextCoverage,
     done: done,
