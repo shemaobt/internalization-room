@@ -753,6 +753,49 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('under a person call the held sentence rests, and a tap on its '
+      'line sends nothing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final pasta = Directory.systemTemp.createTempSync('sala-2067');
+    addTearDown(() => pasta.deleteSync(recursive: true));
+    await harness.takes.enqueue(
+      File('${pasta.path}/frase.wav')
+        ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
+      sessionId: 'sessao-antiga',
+      kind: 'frase',
+      scope: '3',
+    );
+    final container = await _voltaATraducao(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.goEnsaio();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _passo(tester);
+    notifier.haltForABrokenBuild();
+    await _passo(tester);
+    notifier.startRetro();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _passo(tester);
+    await _passo(tester);
+    expect(container.read(salaSessionProvider).stage, SalaStage.retro);
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    expect(
+      _acesa(tester, falhou),
+      isFalse,
+      reason: 'a linha da frase guardada seguia acesa com a pessoa chamada',
+    );
+    await tocar(tester, falhou);
+    await _passo(tester);
+
+    expect(
+      harness.room.sentencesSent,
+      isEmpty,
+      reason: 'um toque na frase guardada a enviava com a pessoa chamada',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a sentence held from a gone session is offered in the '
       "passage's next session and sent into that session at its tap", (
     tester,
