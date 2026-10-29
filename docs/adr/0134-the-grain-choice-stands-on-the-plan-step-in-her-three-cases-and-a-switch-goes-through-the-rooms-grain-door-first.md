@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered)
 date: 2026-10-23
 amends: 0014, 0039, 0102, 0117, 0118
 ---
@@ -110,3 +110,18 @@ aside from a current one.
   from the team's screen. Her app does the same.
 - An app with this change against a room without the grain door: the door answers 404 and the
   team stays on the screen it was on; nothing is set aside.
+
+## Amendment · 2026-10-29 (ENG-1862)
+
+Her frozen app is the rule (João, 2026-10-26). Hers draws «Como vocês querem gravar?» whenever
+the plan and the draft both went unread, whatever grain the team chose before
+(`todaysScreen(null)`, ensaioFinal.ts:43,76 at 18fa7c4), and a draft she did read takes her to
+that grain's screen. The first case changes: **a plan read that fails or runs out at 6 seconds
+with the room's listing unread shows the grain choice even with a grain in force.** With the
+listing read, a grain in force still opens that grain's home, and a listing that answers after
+the choice stood still takes the team to the grain it names.
+
+**A tap on the choice always calls the door,** also on the grain already in force, as her
+`chooseGrain` always sends its PUT; the room answers a switch to the grain it holds without
+changing anything. A door that fails changes nothing and says nothing, as above. The plan's and
+the home's grain controls still go straight to a grain already in force.
