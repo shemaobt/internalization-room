@@ -324,15 +324,14 @@ final roomRetryBackoffProvider = Provider<List<Duration>>(
   ],
 );
 
-/// The holes a refused approval names that this room has somewhere to take the team.
+/// The holes a refused approval names, which choose the one of her texts it writes.
 ///
-/// Declared in the order the room opens them — the one place that order lives — which is
-/// not the order the gate raises them in: the gate lists the check's own errand before the
-/// holes that have ground to stand on, and a team sent to ask for the verdict again over
-/// a part nobody told back is sent to be refused again.
+/// Declared in the order the room reads them — the one place that order lives — which is
+/// not the order the gate raises them in: the gate lists the check's own errand first, and
+/// a part nobody heard is what the team reads over it, unless something is still untold.
 ///
-/// A code no arm of [_portaDaRecusa] names has no door, and the switch's own default sends
-/// it to a person.
+/// A code no arm of [_portaDaRecusa] names has no door, and the switch's own default writes
+/// her third text: nobody is called.
 enum _PortaDaRecusa { trecho, parteNaoContada, parteNaoOuvida, conferir }
 
 _PortaDaRecusa? _portaDaRecusa(String blocker) => switch (blocker) {
@@ -10687,12 +10686,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
       }
       if (!resposta.minted) {
-        final failure = await _levarAoBuracoQueARecusaNomeia(
-          resposta,
-          sessionId,
-          generation,
-        );
-        if (failure != null) failed(failure);
+        _saysWhy(_recusaDaCasa(resposta.blockers));
+        _backToBeforeTerminei();
         return;
       }
       state = state.copyWith(btAprovadoAgora: resposta.version);
@@ -10734,75 +10729,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _saysWhy(CheckRefusal recusa) =>
       state = state.copyWith(btRecusa: recusa);
-
-  /// Take the team to the first hole the refusal names that this room has a door for.
-  ///
-  /// Which hole is first is [_PortaDaRecusa]'s own order and never the order the codes
-  /// arrived in: a refusal naming the check and a part nobody told back names the check
-  /// first, and opening that door hands the team back the very button that was refused. A
-  /// hole with no door, a code this tablet does not know, a named hole whose ground never
-  /// came, and an answer that is neither a version nor a refusal are the same thing from
-  /// here — nothing the team can do from this screen — and they end where a refused
-  /// approval has always ended.
-  Future<RoomFailure?> _levarAoBuracoQueARecusaNomeia(
-    ApprovalAnswer resposta,
-    String sessionId,
-    int generation,
-  ) async {
-    _PortaDaRecusa? aberta;
-    for (final blocker in resposta.blockers) {
-      final porta = _portaDaRecusa(blocker);
-      if (porta == null) continue;
-      if (aberta == null || porta.index < aberta.index) aberta = porta;
-    }
-    switch (aberta) {
-      case _PortaDaRecusa.trecho:
-        _saysWhy(CheckRefusal.notConferida);
-        final trecho = resposta.untoldSegmentId;
-        if (trecho == null) {
-          _backToBeforeTerminei();
-          return null;
-        }
-        // The verdict's read of the names was refused off the network, so the passage
-        // landed on conferida holding only the stretches this tablet cut, and the name the
-        // refusal gives matches none of them: this read resolves it.
-        final failure = await _readTheStretchesBack(sessionId, generation);
-        if (failure != null) return failure;
-        if (_abandoned(generation) || state.needsPerson) return null;
-        _levarAoTrechoNaoTraduzido(trecho);
-      case _PortaDaRecusa.parteNaoContada:
-        _saysWhy(CheckRefusal.notConferida);
-        final gravacoes = resposta.untoldTakeIds;
-        if (gravacoes.isEmpty) {
-          _backToBeforeTerminei();
-          return null;
-        }
-        await _levarAsPartesApontadasPelaRecusa(
-          [gravacoes.first],
-          generation,
-          semChaoTraduzido: true,
-        );
-      case _PortaDaRecusa.parteNaoOuvida:
-        _saysWhy(CheckRefusal.partUnheard);
-        final gravacoes = resposta.unheardTakeIds;
-        if (gravacoes.isEmpty) {
-          _backToBeforeTerminei();
-          return null;
-        }
-        await _levarAsPartesApontadasPelaRecusa(
-          gravacoes,
-          generation,
-          semChaoTraduzido: false,
-        );
-      case _PortaDaRecusa.conferir:
-        _saysWhy(CheckRefusal.notConferida);
-        _backToBeforeTerminei();
-      case null:
-        _saysWhy(CheckRefusal.checkUnavailable);
-        _backToBeforeTerminei();
-    }
-    return null;
-  }
 
   /// One Session read after a mint, so the badge comes from a read (ADR 0106); a read that
   /// fails leaves the approve button, and the next press asks the room again.
@@ -10955,8 +10881,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// It answers the failure of a read that did not happen, and whether that is survivable
   /// is the caller's to say: the verdict ignores it, because it already holds its answer
-  /// and only the pointer is lost; the approval's refusal does not, because the name is
-  /// the whole of what it has.
+  /// and only the pointer is lost.
   Future<RoomFailure?> _readTheStretchesBack(
     String sessionId,
     int generation,
