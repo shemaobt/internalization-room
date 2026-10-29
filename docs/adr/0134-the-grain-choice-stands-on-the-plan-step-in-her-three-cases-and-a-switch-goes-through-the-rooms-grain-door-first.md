@@ -150,3 +150,11 @@ on the choice sends `reopens_the_approved_draft`, as the plain one-tap switches 
 never refuses it `DRAFT_APPROVED`. The arm after a refused switch now belongs to the controls
 alone: «gravar a passagem inteira de uma vez» and «Ensaio Final: juntar os ensaios das cenas»
 on the home, the plan and the check keep their armed text.
+
+The choice still stands over an approved draft when the room's listing went unread, so the
+re-open is still needed there. **On the grain the room already holds, the re-open changes
+nothing:** shema-api's `switch_the_grain` returns before it reads the approval
+(`app/services/internalization_room/sessions.py:1554-1557`), so the approval and the parts stay
+and the amendment above still holds. The flag is not left off there: with the listing unread, the
+grain the tablet remembers may not be the room's, and a re-open withheld by that memory would be
+refused on every tap of that button.
