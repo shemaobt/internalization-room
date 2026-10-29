@@ -35,7 +35,7 @@ void main() {
       isA<NoHalt>(),
       reason: 'a parada cobria a checagem, e o dela só fica sobre a conversa',
     );
-    expect(waiting.aHaltWaitsForTheCanvas, isTrue);
+    expect(waiting.aHaltWaitsForTheCanvas, isNotNull);
     expect(effects, isEmpty);
   });
 
@@ -51,7 +51,7 @@ void main() {
       isA<NoHalt>(),
       reason: 'a parada cobria a retro, e o Drafting dela nunca mostra o sinal',
     );
-    expect(waiting.aHaltWaitsForTheCanvas, isTrue);
+    expect(waiting.aHaltWaitsForTheCanvas, isNotNull);
     expect(effects, isEmpty);
   });
 
@@ -69,6 +69,43 @@ void main() {
     expect(effects, contains(const CallForAPerson()));
   });
 
+  test('a build guard halt waiting from the back-translation rises on the '
+      'conversation calling nobody, as it would have there', () {
+    final (waiting, _) = reduce(
+      const Machine(station: Retro()),
+      const RoomRaisedAHalt(callsForAPerson: false),
+    );
+
+    final (onTheCanvas, effects) = reduce(waiting, const TheRecordingLeft());
+
+    expect(
+      onTheCanvas.halt,
+      isA<Blocking>().having((halt) => halt.callsNobody, 'callsNobody', true),
+    );
+    expect(
+      effects,
+      isNot(contains(const CallForAPerson())),
+      reason: 'a espera esquecia que a parada do build não chama ninguém',
+    );
+  });
+
+  test('a waiting halt that calls nobody does not quiet one that calls, in '
+      'either order', () {
+    const callsNobody = RoomRaisedAHalt(callsForAPerson: false);
+    const calls = RoomRaisedAHalt();
+    for (final (first, second) in [
+      (callsNobody, calls),
+      (calls, callsNobody),
+    ]) {
+      final (once, _) = reduce(const Machine(station: Retro()), first);
+      final (twice, _) = reduce(once, second);
+
+      final (_, effects) = reduce(twice, const TheRecordingLeft());
+
+      expect(effects, contains(const CallForAPerson()));
+    }
+  });
+
   test('a halt waiting from the back-translation is dropped on the way to the '
       'ensaio or the check, not carried to a later conversation', () {
     final (waiting, _) = reduce(
@@ -82,7 +119,7 @@ void main() {
 
     expect(onTheEnsaio.halt, isA<NoHalt>());
     expect(onTheCheck.halt, isA<NoHalt>());
-    expect(onTheCheck.aHaltWaitsForTheCanvas, isFalse);
+    expect(onTheCheck.aHaltWaitsForTheCanvas, isNull);
     expect(
       laterOnTheCanvas.halt,
       isA<NoHalt>(),
