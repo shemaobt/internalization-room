@@ -1224,9 +1224,17 @@ void main() {
       it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
       await _tocar(tester);
       await _prontoEDeVoltaPeloPonto(tester);
+      await tester.ensureVisible(byLabel('Checagem externa'));
       await tester.tap(byLabel('Checagem externa'));
       await tester.pump(const Duration(milliseconds: 300));
       await _assentar(tester);
+      expect(
+        it.harness.room.externalChecksOpened,
+        hasLength(1),
+        reason:
+            'o toque caía abaixo da janela e o teste passava pelas chamadas '
+            'ao notifier depois dele',
+      );
 
       it.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
       it.container.read(salaSessionProvider.notifier).leaveTheExternalCheck();
@@ -1234,8 +1242,9 @@ void main() {
 
       expect(
         it.harness.room.failStateOnceWith,
-        isNotNull,
-        reason: 'the home reads no telling-back on the way out',
+        isNull,
+        reason:
+            'a saída para a casa não relia a sessão, e a dela relê no exitExt',
       );
       expect(it.container.read(salaSessionProvider).stage, SalaStage.ensaio);
       expect(it.harness.emAberto.rows['Ruth/P01/pt']?.stage, SalaStage.ensaio);
