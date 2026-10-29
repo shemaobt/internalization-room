@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
+import '../../domain/channel.dart';
 import '../../domain/pausa.dart';
 import '../../domain/scene_rehearsal.dart';
 import 'scene_strip.dart';
@@ -13,6 +14,7 @@ final class PartStripRow {
   final List<SceneFrase> stale;
   final Duration? pausa;
   final bool playing;
+  final Paused? paused;
 
   const PartStripRow({
     required this.label,
@@ -22,6 +24,7 @@ final class PartStripRow {
     this.stale = const [],
     this.pausa,
     this.playing = false,
+    this.paused,
   });
 }
 
@@ -67,6 +70,7 @@ class PartStrips extends StatelessWidget {
                             stale: row.stale,
                             pausa: row.pausa,
                             playing: row.playing,
+                            paused: row.paused,
                             width: constraints.maxWidth,
                           ),
                         ),
