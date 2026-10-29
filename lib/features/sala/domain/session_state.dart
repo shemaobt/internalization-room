@@ -1456,7 +1456,6 @@ class SalaSessionState {
   bool get canAdvanceToTheVerdict =>
       canFinishBackTranslation &&
       btContadaInteira &&
-      btContaEscolhida == null &&
       btFraseQueAguarda == null &&
       btRegravacao == null &&
       channel is! GuideSpeaking &&

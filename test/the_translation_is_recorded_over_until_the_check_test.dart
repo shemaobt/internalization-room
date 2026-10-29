@@ -520,10 +520,11 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — o disco de avanço se apaga enquanto a tradução de uma '
-      'frase toca', (tester) async {
+  testWidgets('R3 — o disco de avanço fica aceso enquanto a tradução de uma '
+      'frase toca, com a sala contando tudo ouvido', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
-      ..room.chunksAnswerWithNoName = true;
+      ..room.chunksAnswerWithNoName = true
+      ..room.listeningUnheardTakeIds = const [];
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
@@ -540,7 +541,13 @@ void main() {
 
     await tocar(tester, sceneRehearsalLabelFor('hearMine', 'pt', n: 1));
     expect(harness.playback.sounding, isTrue);
-    expect(aceso(tester, conferir), isFalse);
+    expect(
+      aceso(tester, conferir),
+      isTrue,
+      reason:
+          'o terminei apagava enquanto a tradução da frase tocava; no dela a '
+          'tradução ouvida de novo não fecha nada',
+    );
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
