@@ -48,17 +48,6 @@ void main() {
 
     final estado = container.read(salaSessionProvider);
     expect(
-      [for (final row in estado.sceneRows) row.current],
-      [false, false],
-      reason:
-          'a linha antiga abria com a parte 1 escolhida para gravar de novo',
-    );
-    expect(
-      estado.sceneForTheCircle,
-      isNull,
-      reason: 'o círculo gravava por cima da parte 1 com as duas cenas cheias',
-    );
-    expect(
       estado.ensaioDone,
       isTrue,
       reason: 'a marca da linha antiga deixava o disco de avançar apagado',

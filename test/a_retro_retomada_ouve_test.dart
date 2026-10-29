@@ -106,7 +106,7 @@ void main() {
       reason: 'uma leitura nunca levanta o sinal da pessoa',
     );
 
-    container.read(salaSessionProvider.notifier).ensaioTap();
+    container.read(salaSessionProvider.notifier).gravarACena(2);
     await settle();
 
     expect(harness.recorder.captures, 1);

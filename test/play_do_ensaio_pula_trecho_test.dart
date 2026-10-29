@@ -54,7 +54,7 @@ Future<Sala> _seisPartesSeisTrechos() async {
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
   for (var i = 0; i < 6; i++) {
-    await gravarUmaParteDoEnsaio(it);
+    await gravarUmaParteDoEnsaio(it, i + 1);
   }
   for (final parte in it.estado.keptTakes) {
     harness.playback.lengths[parte.path] = _parteLen;

@@ -11,8 +11,6 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -402,33 +400,6 @@ void main() {
       expect(_acesa(tester, inTheHome(_irParaATraducao)), isTrue);
     },
   );
-
-  testWidgets('the circle never records over a part on its way', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    harness.room.holdNextClip();
-    await _retomar(tester, harness, cenas: _quatroCenas);
-
-    await _tocar(
-      tester,
-      find.descendant(
-        of: find.byType(EnsaioView),
-        matching: find.byType(FacilitatorCircle),
-      ),
-    );
-    expect(_naLinha(4, _parar), findsOneWidget);
-    for (var n = 1; n <= 3; n++) {
-      expect(_naLinha(n, _parar), findsNothing);
-    }
-    await _tocar(tester, _naLinha(4, _parar));
-    await _tocar(tester, offTheRows(_enviarAGravacao));
-    await letTheRehearsalReachTheRoom(tester);
-    expect(harness.room.takesReceived.last.scope, 'parte-4');
-
-    await _chegamTodas(tester, harness);
-  });
-
   testWidgets(
     'recording a scene again while its part comes down goes above the room '
     'pass, and the room copy never replaces it',

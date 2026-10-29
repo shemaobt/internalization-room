@@ -1,22 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show onTheCircle, settle;
-
-Future<void> _openTheMicrophone(
-  WidgetTester tester,
-  SalaSessionNotifier notifier,
-) async {
-  notifier.goEnsaio();
-  await tester.pump(const Duration(milliseconds: 120));
-  notifier.ensaioTap();
-  await tester.pump(const Duration(milliseconds: 200));
-}
+import 'scenario_helpers.dart' show settle;
 
 void main() {
   test(
@@ -27,8 +14,11 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
+      await notifier.goConversa(book: 'Ruth');
+      await settle();
       notifier.goEnsaio();
-      notifier.ensaioTap();
+      await settle();
+      notifier.gravarACena(1);
       await settle();
       expect(
         container.read(salaSessionProvider).ensaio,
@@ -59,77 +49,4 @@ void main() {
       );
     },
   );
-
-  testWidgets(
-    'the circle stops listening while another app holds the microphone',
-    (tester) async {
-      final harness = SalaHarness();
-      final container = await pumpSala(tester, harness);
-      await _openTheMicrophone(
-        tester,
-        container.read(salaSessionProvider.notifier),
-      );
-      VoiceState voz() => tester
-          .widget<FacilitatorCircle>(
-            find.descendant(
-              of: find.byType(EnsaioView),
-              matching: find.byType(FacilitatorCircle),
-            ),
-          )
-          .voice;
-
-      expect(voz(), VoiceState.listening);
-
-      harness.recorder.takeTheMicrophone();
-      await tester.pump(const Duration(milliseconds: 200));
-
-      expect(
-        voz(),
-        isNot(VoiceState.listening),
-        reason:
-            'o anel e as ondas para dentro são o sinal mais forte de "o '
-            'microfone está ligado" na tela do ensaio, e seguiriam sobre um '
-            'gravador parado',
-      );
-
-      harness.recorder.giveTheMicrophoneBack();
-      await tester.pump(const Duration(milliseconds: 200));
-
-      expect(
-        voz(),
-        VoiceState.listening,
-        reason:
-            'a captura volta quando a ligação acaba, e a tela tem de voltar '
-            'com ela',
-      );
-    },
-  );
-
-  testWidgets('the record circle does not invite a recording that is already '
-      'open', (tester) async {
-    final harness = SalaHarness();
-    final container = await pumpSala(tester, harness);
-    await _openTheMicrophone(
-      tester,
-      container.read(salaSessionProvider.notifier),
-    );
-
-    harness.recorder.takeTheMicrophone();
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(
-      onTheCircle('Parar'),
-      findsOneWidget,
-      reason:
-          'a tomada continua aberta durante a ligação — o toque ainda é o '
-          'que a encerra',
-    );
-    expect(
-      onTheCircle('Gravar'),
-      findsNothing,
-      reason:
-          'apagar o halo pelo mesmo sinalizador que escolhe o rótulo '
-          'convidaria a equipe a começar uma gravação que já está correndo',
-    );
-  });
 }

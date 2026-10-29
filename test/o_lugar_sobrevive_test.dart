@@ -38,8 +38,8 @@ Future<Sala> _aSalaNaPergunta({required int apontado}) async {
   await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
-  await gravarUmaParteDoEnsaio(it);
-  await gravarUmaParteDoEnsaio(it);
+  await gravarUmaParteDoEnsaio(it, 1);
+  await gravarUmaParteDoEnsaio(it, 2);
   // Measured one by one, because the mend records a file of its own and it is longer
   // than the parts it corrects.
   for (final parte in it.estado.keptTakes) {

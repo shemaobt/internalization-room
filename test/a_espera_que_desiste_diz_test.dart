@@ -98,7 +98,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       notifier.goEnsaio();
       await tester.pump(const Duration(milliseconds: 100));
-      await gravarUmaParte(tester, container);
+      await gravarUmaParte(tester, container, 1);
 
       expect(
         container.read(salaSessionProvider).partes.single.takeId,
@@ -124,7 +124,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       await expectLater(
-        () => gravarUmaParte(tester, container),
+        () => gravarUmaParte(tester, container, 1),
         throwsA(isA<TimeoutException>()),
         reason:
             'a guarda caía quando a gravação não chegava, e a espera lia a '
@@ -146,7 +146,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       notifier.goEnsaio();
       await tester.pump(const Duration(milliseconds: 100));
-      await gravarUmaParte(tester, container);
+      await gravarUmaParte(tester, container, 1);
       await theRoomNamesTheParts(tester, container, parts: 1);
 
       await expectLater(

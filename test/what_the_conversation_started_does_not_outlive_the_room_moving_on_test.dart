@@ -66,7 +66,7 @@ void main() {
       expect(read().voice, VoiceState.listening);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
       expect(read().ensaio, EnsaioStatus.recording);
 

@@ -49,8 +49,8 @@ Future<_Room> _conversa(SalaHarness harness) async {
 
 Future<void> _keepARehearsalPart(_Room room) async {
   room.sala.goEnsaio();
-  room.sala.ensaioTap();
-  room.sala.ensaioTap();
+  room.sala.gravarACena(1);
+  room.sala.gravarACena(1);
   await settle();
   room.sala.takeKeep();
 }

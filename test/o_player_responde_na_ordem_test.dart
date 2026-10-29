@@ -27,8 +27,8 @@ _ensaioDeDuasPartes() async {
   final sala = container.read(salaSessionProvider.notifier);
 
   sala.goEnsaio();
-  await gravaParte(container, sala);
-  await gravaParte(container, sala);
+  await gravaParte(container, sala, 1);
+  await gravaParte(container, sala, 2);
 
   return (container: container, harness: harness, sala: sala);
 }

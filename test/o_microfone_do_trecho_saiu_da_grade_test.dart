@@ -43,7 +43,7 @@ Future<ProviderContainer> aPerguntaSobreAParteDois(
   sala.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
   for (var parte = 0; parte < 3; parte++) {
-    await gravarUmaParte(tester, container);
+    await gravarUmaParte(tester, container, parte + 1);
   }
   sala.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
@@ -178,7 +178,7 @@ void main() {
       await tester.tap(daLinhaDois);
       await tester.pump(const Duration(milliseconds: 200));
       final notifier = container.read(salaSessionProvider.notifier);
-      notifier.ensaioTap();
+      notifier.gravarACena(2);
       await waitFor(
         'a parte 2 gravada de novo chegar',
         () =>

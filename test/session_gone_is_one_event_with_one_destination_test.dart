@@ -66,8 +66,8 @@ Future<void> _naEscolha(ProviderContainer container) => waitFor(
 Future<void> _gravarEGuardarUmaParte(ProviderContainer container) async {
   final sala = container.read(salaSessionProvider.notifier);
   sala.goEnsaio();
-  sala.ensaioTap();
-  sala.ensaioTap();
+  sala.gravarACena(1);
+  sala.gravarACena(1);
   await waitFor(
     'a gravação da parte terminar',
     () => _estado(container).ensaio == EnsaioStatus.recorded,

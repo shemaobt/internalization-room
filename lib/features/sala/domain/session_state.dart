@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'bt_finding.dart';
 import 'channel.dart';
 import 'halt.dart';
@@ -932,22 +930,6 @@ class SalaSessionState {
     return index < 0 ? null : index;
   }
 
-  /// The Scene the circle records: the first Scene with no part, else none. A passage
-  /// the room answered with no scenes takes the lowest number free. With no scene list
-  /// answered it never goes past the parts already held: only a number missing below the
-  /// highest, or the first part.
-  int? get sceneForTheCircle {
-    if (recordsTheWhole) return partes.isEmpty ? 1 : null;
-    final numbers = partNumbers;
-    final free = KeptScope.firstFree(numbers);
-    return switch (scenes) {
-      ScenesHad(scenes: final had) when had.isNotEmpty =>
-        free <= had.length ? free : null,
-      ScenesHad() => free,
-      _ => free <= numbers.fold(1, max) ? free : null,
-    };
-  }
-
   bool get aTakeFromAnEarlierVisitWaits =>
       sceneRows.any((row) => row.unsent?.fromAnEarlierVisit ?? false);
 
@@ -996,7 +978,7 @@ class SalaSessionState {
             null => null,
           },
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
-          current: _numberAt(playing) == number,
+          playing: _numberAt(playing) == number,
         ),
     ];
   }
@@ -2116,7 +2098,7 @@ class SceneRow {
   final bool recording;
 
   /// The part in the air, playing or held.
-  final bool current;
+  final bool playing;
 
   const SceneRow({
     required this.number,
@@ -2128,7 +2110,7 @@ class SceneRow {
     required this.saved,
     required this.away,
     required this.recording,
-    required this.current,
+    required this.playing,
   });
 
   /// Whether «Ouvir» would play the take that is gone: the room's own part, which carries

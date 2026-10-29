@@ -236,7 +236,7 @@ void main() {
       );
       it.sala.goEnsaio();
       for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-        await gravarUmaParteDoEnsaio(it);
+        await gravarUmaParteDoEnsaio(it, onde + 1);
       }
       for (final (onde, parte) in it.partes.indexed) {
         it.harness.playback.lengths[parte.path] = partesDoEnsaio[onde];
