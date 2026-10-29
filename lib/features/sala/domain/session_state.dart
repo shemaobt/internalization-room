@@ -1745,6 +1745,10 @@ class SalaSessionState {
       btRegravacao == null &&
       (btPhase == BtPhase.playing || btPhase == BtPhase.conferida);
 
+  bool get theFraseListIsIdle =>
+      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
+      channel is! GuideSpeaking;
+
   SalaSessionState copyWith({
     bool? awaitingTheGuide,
     bool? arrivedAtTheChoice,
