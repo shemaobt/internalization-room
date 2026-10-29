@@ -4007,6 +4007,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           btTrechos: _trechosFrom(segmentos),
           toBringBack: [...state.toBringBack]..remove(cena),
         );
+        unawaited(_relatarASala(sessionId, const []));
       case final SessionGone gone:
         _decideAt(gone, door: Door.stretches);
       case final RoomFailure failure:

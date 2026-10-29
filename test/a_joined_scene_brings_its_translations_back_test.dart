@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -443,6 +444,68 @@ void main() {
       await it.settle();
 
       expect(byLabel(_heldFailed), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a scene brought back asks the room what is left, so a return out of its '
+    'reach says the stretch the room names now, not nothing',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _inTheBackTranslation(tester);
+      final laid = [
+        for (final n in [1, 2, 3]) ..._theRehearsalsFrases(n),
+      ];
+      it.room.segments
+        ..clear()
+        ..addAll(laid);
+      it.room.retroSoFar = BackTranslationProgress(
+        segments: laid,
+        bringBack: const [2],
+      );
+      it.notifier.goEnsaio();
+      await it.until('a casa de gravação abrir', () => it.showsTheHome);
+      await it.settle();
+      it.room
+        ..listeningUnheardTakeIds = const []
+        ..listeningFixedLine = 'N2'
+        ..listeningUntranslated = const [
+          UntranslatedPart(
+            takeId: 'gravacao-junta-2',
+            scene: 2,
+            from: Duration(milliseconds: 3000),
+          ),
+        ];
+      await _bringBackTwice(it, 2);
+      await it.settle();
+      expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
+      it.room.reachable = false;
+      final linhas = it.harness.voice.fixedLines.length;
+
+      await it.tapThe(byLabel(_conferir));
+      await it.until(
+        'a tradução abrir',
+        () => it.container.read(salaSessionProvider).stage == SalaStage.retro,
+      );
+      await it.settle();
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('N2', 'pt')],
+        reason:
+            'a cena trazida de volta não perguntava nada à sala, e a volta sem '
+            'rede ficava calada sobre o trecho que a sala contava sem tradução',
+      );
+      expect(
+        it.harness.playback.played.last,
+        it.container.read(salaSessionProvider).partes[1].path,
+      );
+      expect(
+        it.harness.playback.playedFrom.last,
+        const Duration(milliseconds: 3000),
+      );
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
