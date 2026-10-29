@@ -742,10 +742,12 @@ void main() {
       tester,
       'the pause is at your tap — tap the circle to translate',
     );
-    harness.room.failChunkWith = const Refused('BAD_REQUEST');
+    harness.room.chunkAnswersFirst.addAll(
+      List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
+    );
     await tocar(tester, 'Tap when you finish');
     await waitFor(
-      'a sala recusar a frase',
+      'a chave da frase seguir em voo',
       () => container.read(salaSessionProvider).btChunkFailures.isNotEmpty,
       step: () => tester.pump(const Duration(milliseconds: 100)),
     );

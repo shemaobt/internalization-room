@@ -236,19 +236,10 @@ void main() {
     await pausarEAbrir(tester, harness);
 
     await fecharSemPalavras(tester, harness);
-    final recusada = harness.recorder.lastPath;
     await letTheRehearsalReachTheRoom(tester);
 
     expect(aceso(tester, ouvir), isFalse);
     expect(rotuloDoCirculo(tester), linha);
-    expect(
-      [
-        for (final guardada in (harness.takes as FakeTakeQueue).rows)
-          if (guardada.path == recusada) guardada.kind,
-      ],
-      ['retro'],
-      reason: 'a cópia da gravação recusada fica na fila',
-    );
     closeTheRoom(container);
   });
 

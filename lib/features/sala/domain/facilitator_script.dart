@@ -690,6 +690,15 @@ String savedScreenLabelFor(String key, String language) =>
 /// Her recording home's words, byte for byte from her app (`strings.ts` at 18fa7c4); the
 /// playing cue VoiceOver reads is the room's own.
 const recordingHomeLabels = {
+  'listenAll': {'pt': 'Ouvir tudo', 'en': 'Hear it all'},
+  'listenAllAria': {
+    'pt': 'Ouvir a gravação inteira',
+    'en': 'Hear the whole recording',
+  },
+  'listenAllTitle': {
+    'pt': 'A gravação de vocês inteira, parte por parte.',
+    'en': 'Your whole recording, part by part.',
+  },
   'title': {'pt': 'Gravem o ensaio de vocês', 'en': 'Record your rehearsal'},
   'how': {
     'pt': 'Como vocês querem gravar?',

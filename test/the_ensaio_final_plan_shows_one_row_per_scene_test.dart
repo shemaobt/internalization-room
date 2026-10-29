@@ -6,6 +6,7 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -141,6 +142,13 @@ Finder _playOn(int n, [List<Scene> scenes = _threeScenes]) => _onRow(
 
 String _facts(int n, String dur, int k) =>
     'ensaio $n · ${_clock(_recordedAt)} · $dur · $k frases';
+
+IconData _glyphOn(WidgetTester tester, Finder control) => tester
+    .widget<Icon>(find.descendant(of: control, matching: find.byType(Icon)))
+    .icon!;
+
+Tristate _pressedAt(WidgetTester tester, Finder control) =>
+    tester.getSemantics(control).getSemanticsData().flagsCollection.isSelected;
 
 Tristate _enabledAt(WidgetTester tester, String label) => tester
     .getSemantics(byLabel(label))
@@ -1191,4 +1199,142 @@ void main() {
       expect(find.text(_elsewhereEn), findsOneWidget);
     });
   });
+
+  group('the play of the row that plays shows her pause', () {
+    testWidgets('and a second tap stops it and gives the play back', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(tester, _oneEach);
+      await _openThePlan(tester);
+
+      expect(_glyphOn(tester, _playOn(1)), LucideIcons.play);
+
+      await tester.tap(_playOn(1));
+      await _theAnswerSettles(tester);
+
+      expect(harness.playback.sounding, isTrue);
+      expect(
+        _glyphOn(tester, _playOn(1)),
+        LucideIcons.pause,
+        reason: 'o ensaio tocava e o botão ainda mostrava tocar',
+      );
+      expect(_pressedAt(tester, _playOn(1)), Tristate.isTrue);
+
+      await tester.tap(_playOn(1));
+      await _theAnswerSettles(tester);
+
+      expect(harness.playback.sounding, isFalse);
+      expect(_glyphOn(tester, _playOn(1)), LucideIcons.play);
+      expect(_pressedAt(tester, _playOn(1)), Tristate.isFalse);
+      semantics.dispose();
+    });
+
+    testWidgets('and a clip that ends by itself gives the play back', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(tester, _oneEach);
+      await _openThePlan(tester);
+      await tester.tap(_playOn(1));
+      await _theAnswerSettles(tester);
+      expect(_glyphOn(tester, _playOn(1)), LucideIcons.pause);
+
+      harness.playback.finishPlayback();
+      await _theAnswerSettles(tester);
+
+      expect(
+        _glyphOn(tester, _playOn(1)),
+        LucideIcons.play,
+        reason: 'o ensaio acabou e o botão ficou em pausa sobre o silêncio',
+      );
+      expect(_pressedAt(tester, _playOn(1)), Tristate.isFalse);
+      semantics.dispose();
+    });
+
+    testWidgets(
+      'from the tap, while its clip still comes down from the room, as hers',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final (harness, _) = await _seeded(tester, _oneEach);
+        await _openThePlan(tester);
+        harness.room.holdNextClip();
+
+        await tester.tap(_playOn(1));
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(harness.playback.sounding, isFalse);
+        expect(
+          _glyphOn(tester, _playOn(1)),
+          LucideIcons.pause,
+          reason: 'o dela marca tocando no toque, antes do áudio carregar',
+        );
+        expect(_pressedAt(tester, _playOn(1)), Tristate.isTrue);
+
+        harness.room.finishHeldClip();
+        await _theAnswerSettles(tester);
+
+        expect(harness.playback.sounding, isTrue);
+        expect(_glyphOn(tester, _playOn(1)), LucideIcons.pause);
+        expect(_pressedAt(tester, _playOn(1)), Tristate.isTrue);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets('and only that row, so a tap on another moves it there', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(tester, _oneEach);
+      await _openThePlan(tester);
+
+      await tester.tap(_playOn(1));
+      await _theAnswerSettles(tester);
+      await tester.tap(_playOn(2));
+      await _theAnswerSettles(tester);
+
+      expect(harness.playback.sounding, isTrue);
+      expect(_glyphOn(tester, _playOn(2)), LucideIcons.pause);
+      expect(_pressedAt(tester, _playOn(2)), Tristate.isTrue);
+      for (final n in [1, 3]) {
+        expect(
+          _glyphOn(tester, _playOn(n)),
+          LucideIcons.play,
+          reason: 'a linha $n mostrava pausa sem tocar',
+        );
+        expect(_pressedAt(tester, _playOn(n)), Tristate.isFalse);
+      }
+      semantics.dispose();
+    });
+  });
+
+  testWidgets(
+    'a halt over a row that plays leaves it on the play when the team comes '
+    'back',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, container) = await _seeded(tester, _oneEach);
+      await _openThePlan(tester);
+      await tester.tap(_playOn(1));
+      await _theAnswerSettles(tester);
+      expect(_glyphOn(tester, _playOn(1)), LucideIcons.pause);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.haltForABrokenBuild();
+      await _theAnswerSettles(tester);
+      expect(byLabel(_personSign), findsOneWidget);
+      expect(harness.playback.sounding, isFalse);
+      notifier.teamTapped();
+      await _theAnswerSettles(tester);
+
+      expect(byLabel(_personSign), findsNothing);
+      expect(
+        _glyphOn(tester, _playOn(1)),
+        LucideIcons.play,
+        reason: 'a parada calou o ensaio e a linha voltou em pausa',
+      );
+      expect(_pressedAt(tester, _playOn(1)), Tristate.isFalse);
+      semantics.dispose();
+    },
+  );
 }

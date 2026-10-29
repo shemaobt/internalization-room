@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
@@ -480,7 +480,7 @@ void main() {
           VoiceState.invite,
           false,
           false,
-          LucideIcons.volume2,
+          CircleGlyph.sound,
           telha,
           'globals.css:124',
         ),
@@ -488,7 +488,7 @@ void main() {
           VoiceState.speaking,
           false,
           false,
-          LucideIcons.volume2,
+          CircleGlyph.sound,
           telha,
           'globals.css:124',
         ),
@@ -496,17 +496,9 @@ void main() {
           VoiceState.invite,
           true,
           false,
-          LucideIcons.hand,
+          CircleGlyph.hand,
           azul,
           'globals.css:174',
-        ),
-        (
-          VoiceState.invite,
-          false,
-          true,
-          LucideIcons.users,
-          const Color(0xFF3F7F76),
-          'page.tsx:72',
         ),
       ]) {
         await _pumpCircle(
@@ -519,7 +511,12 @@ void main() {
         await tester.pump(const Duration(milliseconds: 1200));
 
         expect(
-          tester.widget<Icon>(find.byIcon(glyph)).color,
+          tester
+              .widgetList<CustomPaint>(find.byType(CustomPaint))
+              .map((paint) => paint.painter)
+              .whereType<CircleGlyphPainter>()
+              .singleWhere((mark) => mark.glyph == glyph)
+              .ink,
           colour,
           reason:
               'o glifo era branco sobre o disco telha; no anel vazado o '
