@@ -9661,6 +9661,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       path: path,
       needsPerson: told.needsPerson,
     );
+    unawaited(_relatarASala(sessionId, const []));
   }
 
   void _theCorrectionFailed(RoomFailure failure) {
