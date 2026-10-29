@@ -71,8 +71,9 @@ app; the Orchestrator settled the two open points the same day.
 - **A take leaves the tablet on six exits only:** the room confirms it; the team taps to
   record that part again over a failed take, at the tap; the room already holds it (the
   same bytes answer the take already kept); a newer take of the part was confirmed; the
-  room refuses it as stale; the second tap of «recomeçar a tradução» drops that scene's
-  unsent frases. A revocation still ends the life and sweeps its takes (ADR 0135).
+  room refuses it as stale; the room restarts a scene's translation at the second tap of
+  «recomeçar a tradução», which drops that scene's unsent frases. A restart the room
+  refuses or never answers drops nothing. A revocation still ends the life and sweeps its takes (ADR 0135).
 - **A gone session never deletes a take.** Its rows keep their copies and drop the session
   for their passage; «enviar agora» on the next visit sends them into the passage's session
   then. A row an older app wrote with no passage that the tablet cannot name keeps its gone

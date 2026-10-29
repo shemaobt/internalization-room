@@ -6782,7 +6782,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     final waiting = shown.asWaiting;
     state = state.copyWith(scene: waiting, clearSceneRestart: true);
-    _frases.letGoOf(shown.rehearsal!.rehearsalId);
     _handOff(_restartTheTranslation(sessionId, shown, waiting));
   }
 
@@ -6804,6 +6803,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (stillShown) state = state.copyWith(scene: shown);
     switch (restarted) {
       case Answered(:final value):
+        _frases.letGoOf(rehearsal.rehearsalId);
         if (stillShown) {
           final fresh = shown.nothingAskedAgain.copyWith(
             listened: false,
