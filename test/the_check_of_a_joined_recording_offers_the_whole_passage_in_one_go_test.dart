@@ -532,6 +532,26 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a tap that reaches the room while a part sounds never arms '
+      'the switch, even before the screen dims it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.ouvirOTrechoContado(0);
+    notifier.recordTheWholePassage();
+    await _passo(tester);
+    expect(harness.playback.sounding, isTrue);
+
+    expect(
+      container.read(salaSessionProvider).armedTap,
+      isNull,
+      reason: 'o toque que chegava antes de a tela apagar o botão ainda armava',
+    );
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+  });
+
   test('a switch to the whole from the check reports what was heard before '
       'the room\'s grain door, never after it', () async {
     final it = await umEnsaioDeTresPartesGravado();
