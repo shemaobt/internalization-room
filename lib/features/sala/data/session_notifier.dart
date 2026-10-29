@@ -8899,15 +8899,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     final life = _thisLife;
-    final clip = await _room.fetchClip(
-      RoomRepository.takeAudioUrl(sessionId, contada),
-    );
-    if (_endedSince(life)) return;
-    if (clip case Answered(:final value) when value.isNotEmpty) {
-      final traducao = await _recorder.keepBytes(value, 'contada-$contada');
-      if (_endedSince(life) || !state.canHearAFrase) return;
-      _tocarATraducao(indice, trecho, traducao);
-    }
+    final nome = 'contada-$contada';
+    final traducao =
+        await _heldOnTheTablet(nome) ??
+        switch (await _room.fetchClip(
+          RoomRepository.takeAudioUrl(sessionId, contada),
+        )) {
+          Answered(:final value) when value.isNotEmpty =>
+            await _recorder.keepBytes(value, nome),
+          _ => null,
+        };
+    if (traducao == null || _endedSince(life) || !state.canHearAFrase) return;
+    _tocarATraducao(indice, trecho, traducao);
   }
 
   void _tocarATraducao(int indice, Trecho trecho, String traducao) {

@@ -244,6 +244,76 @@ void main() {
     },
   );
 
+  test('a tradução trazida uma vez toca de novo do tablet, sem pedi-la outra '
+      'vez à sala', () async {
+    final harness = SalaHarness();
+    harness.room.takeAudio['retro-1'] = _aTraducao;
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1, 2, 3], comATraducao: true),
+    );
+    await waitFor(
+      'as partes chegarem na retro',
+      () => it.estado.stage == SalaStage.retro && it.estado.everyPartIsHere,
+    );
+    it.sala.ouvirOTrechoContado(0);
+    await waitFor('a tradução tocar', () => it.estado.btRetroTocando);
+    harness.playback.finishPlayback();
+    await waitFor('a tradução acabar', () => !it.estado.btRetroTocando);
+
+    it.sala.ouvirOTrechoContado(0);
+    await waitFor('a tradução tocar de novo', () => it.estado.btRetroTocando);
+
+    expect(
+      harness.room.clipsFetched.where(
+        (url) => url == RoomRepository.takeAudioUrl(_sessao, 'retro-1'),
+      ),
+      hasLength(1),
+      reason: 'cada toque baixava a tradução inteira de novo',
+    );
+    expect(File(harness.playback.played.last).readAsBytesSync(), _aTraducao);
+  });
+
+  test('a tradução que a sala não entrega não toca nada e deixa a frase como '
+      'estava, sem cair na língua materna', () async {
+    final harness = SalaHarness()
+      ..room.failClipOf['retro-1'] = const NetworkFailed('a rede caiu');
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1, 2, 3], comATraducao: true),
+    );
+    await waitFor(
+      'as partes chegarem na retro',
+      () => it.estado.stage == SalaStage.retro && it.estado.everyPartIsHere,
+    );
+    await settle();
+    final tocadas = harness.playback.played.length;
+
+    it.sala.ouvirOTrechoContado(0);
+    await waitFor(
+      'a tradução ser pedida à sala',
+      () => harness.room.clipsFetched.contains(
+        RoomRepository.takeAudioUrl(_sessao, 'retro-1'),
+      ),
+    );
+    await settle();
+
+    expect(
+      harness.playback.played,
+      hasLength(tocadas),
+      reason:
+          'sem a tradução, o alto-falante tocava a fatia da parte no lugar '
+          'dela',
+    );
+    expect(it.estado.btRetroTocando, isFalse);
+    expect(it.estado.btTrechoTocando, isFalse);
+    expect(it.estado.btContaEscolhida, isNull);
+    expect(it.estado.btTrechos.first.retroPath, isNull);
+    expect(it.estado.btTrechos.first.bridgeTakeId, 'retro-1');
+  });
+
   test('uma frase regravada contada numa visita anterior toca a sua tradução, '
       'buscada pela gravação que a sala nomeia', () async {
     final harness = SalaHarness();
