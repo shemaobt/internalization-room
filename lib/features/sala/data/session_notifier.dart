@@ -11333,9 +11333,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (trecho.parte >= 0 || naParte.containsKey(trecho.takeId)) trecho,
       ],
     );
-    // Only over a row nothing else has touched. This reading is built out of the answer
-    // the resume came in with, so writing it over a row that moved meanwhile would take
-    // the stretch the team just told back off the screen.
     if (faltando.isEmpty) return;
     if (!identical(state.btTrechos, eram)) {
       state = state.copyWith(
@@ -11349,6 +11346,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       return;
     }
+    // Only over a row nothing else has touched. This reading is built out of the answer
+    // the resume came in with, so writing it over a row that moved meanwhile would take
+    // the stretch the team just told back off the screen.
     state = state.copyWith(btTrechos: _trechosFrom(segments, naParte: naParte));
   }
 
