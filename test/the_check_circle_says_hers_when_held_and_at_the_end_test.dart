@@ -632,6 +632,7 @@ Future<ProviderContainer> deVoltaAParteContadaAteOFim(
   harness.room
     ..verdictChecked = false
     ..verdictUnheardTakeIds = [primeira];
+  await tester.ensureVisible(byLabel(conferir));
   await tester.tap(byLabel(conferir));
   await tester.pump(const Duration(milliseconds: 600));
   return container;
