@@ -370,6 +370,12 @@ void main() {
       expect(_estado(it.container).stage, SalaStage.retro);
       expect(_estado(it.container).canFinishBackTranslation, isTrue);
       expect(
+        _estado(it.container).btPhase,
+        BtPhase.playing,
+        reason:
+            'a recusa que deixasse a equipe na conferida passava, porque lá o terminei também acende',
+      );
+      expect(
         byLabel('terminei'),
         findsOneWidget,
         reason: 'a equipe volta a ter o terminei para conferir de novo',
@@ -1011,6 +1017,12 @@ void main() {
     );
     expect(it.harness.room.personsAsked, 0);
     expect(_estado(it.container).canFinishBackTranslation, isTrue);
+    expect(
+      _estado(it.container).btPhase,
+      BtPhase.playing,
+      reason:
+          'a recusa que deixasse a equipe na conferida passava, porque lá o terminei também acende',
+    );
     expect(byLabel('terminei'), findsOneWidget);
 
     closeTheRoom(it.container);
@@ -1033,6 +1045,12 @@ void main() {
     );
     expect(it.harness.room.personsAsked, 0);
     expect(_estado(it.container).canFinishBackTranslation, isTrue);
+    expect(
+      _estado(it.container).btPhase,
+      BtPhase.playing,
+      reason:
+          'a recusa que deixasse a equipe na conferida passava, porque lá o terminei também acende',
+    );
     expect(byLabel('terminei'), findsOneWidget);
 
     closeTheRoom(it.container);
@@ -1052,6 +1070,12 @@ void main() {
     );
     expect(it.harness.room.personsAsked, 0);
     expect(_estado(it.container).canFinishBackTranslation, isTrue);
+    expect(
+      _estado(it.container).btPhase,
+      BtPhase.playing,
+      reason:
+          'a recusa que deixasse a equipe na conferida passava, porque lá o terminei também acende',
+    );
     expect(byLabel('terminei'), findsOneWidget);
 
     closeTheRoom(it.container);
@@ -1078,6 +1102,12 @@ void main() {
           'a passagem por cima de nada',
     );
     expect(_estado(it.container).canFinishBackTranslation, isTrue);
+    expect(
+      _estado(it.container).btPhase,
+      BtPhase.playing,
+      reason:
+          'a recusa que deixasse a equipe na conferida passava, porque lá o terminei também acende',
+    );
 
     closeTheRoom(it.container);
   });
@@ -1178,6 +1208,12 @@ void main() {
       reason:
           'o cenário só mede alguma coisa se a porta devolver o '
           'terminei à equipe',
+    );
+    expect(
+      it.estado.btPhase,
+      BtPhase.playing,
+      reason:
+          'a recusa que deixasse a equipe na conferida passava, porque lá o terminei também acende',
     );
 
     it.harness.room.releaseBlockers = const [];
