@@ -17,7 +17,6 @@ import 'scenario_helpers.dart';
 const _gravar = 'Gravar';
 const _terminar = 'Parar';
 const _confirmar = 'Enviar a gravação';
-const _gravarDeNovo = 'Gravar de novo';
 
 Future<void> _tocar(WidgetTester tester, String label) async {
   await tester.ensureVisible(offTheRows(label));
@@ -93,47 +92,8 @@ Future<ProviderContainer> _ensaioDeTresPartes(
   return container;
 }
 
-/// A team standing on a finding the analyst addressed to the one part recorded, on the
-/// rehearsal screen with the microphone inviting a re-record.
-Future<(ProviderContainer, SalaHarness)> _achadoNaParteUm(
-  WidgetTester tester,
-) async {
-  final harness = SalaHarness(filaEmMemoria: true)
-    ..room.verdictChecked = false
-    ..room.verdictHasFinding = true
-    ..room.verdictFindingPlace = 0
-    ..room.takeLandsAfter = const Duration(seconds: 1);
-  final container = await pumpSala(tester, harness);
-  final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa(book: 'Ruth');
-  await tester.pump(const Duration(milliseconds: 200));
-  notifier.goEnsaio();
-  await tester.pump(const Duration(milliseconds: 100));
-  notifier.gravarACena(1);
-  notifier.gravarACena(1);
-  await tester.pump(const Duration(milliseconds: 100));
-  notifier.takeKeep();
-  await theRoomNamesTheParts(tester, container, parts: 1);
-  notifier.startRetro();
-  await tester.pump(const Duration(milliseconds: 200));
-  harness.playback.at = const Duration(seconds: 10);
-  notifier.retroTap();
-  notifier.retroTap();
-  await tester.pump(const Duration(milliseconds: 200));
-  notifier.retroTap();
-  await tester.pump(const Duration(milliseconds: 300));
-  await tester.pump(const Duration(milliseconds: 600));
-  harness.playback.finishPlayback();
-  await tester.pump(const Duration(milliseconds: 200));
-  await notifier.finishBackTranslation();
-  await tester.pump(const Duration(milliseconds: 300));
-  notifier.gravarAParteDeNovo();
-  await tester.pump(const Duration(milliseconds: 200));
-  return (container, harness);
-}
-
 /// A team standing on a finding addressed to part 2 of a three-part rehearsal, every part
-/// already told back whole, with the record-again for part 2 open and nothing recorded yet.
+/// already told back whole, back on the rehearsal with nothing recorded yet.
 Future<Sala> _achadoNaParteDois() async {
   final it = await umEnsaioDeTresPartesContadoInteiro();
   it.harness.room
@@ -141,7 +101,7 @@ Future<Sala> _achadoNaParteDois() async {
     ..verdictHasFinding = true
     ..verdictFindingPlace = 1;
   await pedirOVeredito(it);
-  it.sala.gravarAParteDeNovo();
+  it.sala.leaveTheBackTranslation();
   return it;
 }
 
@@ -211,7 +171,7 @@ Future<ProviderContainer> _achadoNaParteDoisNaTela(
   }
   await notifier.finishBackTranslation();
   await tester.pump(const Duration(milliseconds: 300));
-  notifier.gravarAParteDeNovo();
+  notifier.leaveTheBackTranslation();
   await tester.pump(const Duration(milliseconds: 200));
   return container;
 }
@@ -416,18 +376,6 @@ void main() {
   });
 
   testWidgets(
-    'a linha de uma parte devolvida por um achado diz o texto da placa',
-    (tester) async {
-      await _achadoNaParteUm(tester);
-
-      expect(
-        find.descendant(of: linhaDoEnsaio(1), matching: byLabel(_gravarDeNovo)),
-        findsOneWidget,
-      );
-    },
-  );
-
-  testWidgets(
     'o play começa na parte 1 mesmo com uma gravação pendente na parte nova',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
@@ -533,23 +481,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
     },
   );
-
-  test('com uma gravação pendente, os beads tocam como de costume', () async {
-    final it = await _achadoNaParteDois();
-    await _regravarAParteSemConfirmar(it);
-
-    it.sala.ouvirACena(1);
-    await waitFor('a parte 1 tocar', () => it.harness.playback.sounding);
-
-    expect(it.harness.playback.played.last, it.partes[0].path);
-    expect(
-      it.estado.parteDoEnsaioTocando,
-      0,
-      reason:
-          'pendente a confirmação, a equipe pode ouvir qualquer parte, '
-          'inclusive a esmaecida',
-    );
-  });
 
   testWidgets('gravar de novo depois de pausar um bead não seleciona linha', (
     tester,

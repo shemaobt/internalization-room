@@ -172,7 +172,7 @@ Future<void> _regravarAParteDois(_Retomada it) async {
   );
 
   final antiga = it.estado.partes[1].path;
-  it.sala.gravarAParteDeNovo();
+  it.sala.leaveTheBackTranslation();
   await waitFor(
     'a equipe voltar ao ensaio',
     () => it.estado.stage == SalaStage.ensaio,

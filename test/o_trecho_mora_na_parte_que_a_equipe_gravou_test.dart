@@ -11,7 +11,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle, ouvirOApontado;
+import 'scenario_helpers.dart' show settle, traduzirOApontadoDeNovo;
 
 const _parteLen = Duration(seconds: 10);
 
@@ -241,7 +241,7 @@ void main() {
         () => it.estado.btPhase == BtPhase.playing && it.estado.btVeredito,
       );
 
-      ouvirOApontado(it.container);
+      traduzirOApontadoDeNovo(it.container);
       await waitFor('o trecho apontado tocar', () => it.estado.btTrechoTocando);
 
       expect(

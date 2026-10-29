@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -104,7 +102,7 @@ Future<void> _contarUmTrecho(Sala it, Duration quanto) async {
   );
 }
 
-/// Record the part, leave it pending, and record it over: the circle's third and fourth
+/// Record the part, leave it pending, and record it over: its row's third and fourth
 /// taps. Answers the file left pending, after checking the one it replaced left the tablet.
 Future<String> _gravarPorCima(Sala it) async {
   it.sala.gravarACena(2);
@@ -194,7 +192,7 @@ void main() {
     final antes = it.partes;
     final enviadas = it.harness.room.takes.length;
 
-    it.sala.gravarAParteDeNovo();
+    it.sala.leaveTheBackTranslation();
     final porCima = await _gravarPorCima(it);
     it.sala.takeKeep();
     await waitFor(
@@ -277,7 +275,7 @@ void main() {
             'gravação de cada uma',
       );
 
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await regravarAParte(it, 1);
       await waitFor(
         'a segunda gravação da parte 2 chegar à sala',
@@ -286,7 +284,7 @@ void main() {
       expect(it.harness.room.takePasses.last, 2);
 
       await _oAchadoOutraVezNaParteDois(it);
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await regravarAParte(it, 1);
       await waitFor(
         'a terceira gravação da parte 2 chegar à sala',
@@ -314,7 +312,7 @@ void main() {
   test('a linha do lugar guarda a gravação em que cada parte está', () async {
     final it = await _oAchadoNaParteDois();
 
-    it.sala.gravarAParteDeNovo();
+    it.sala.leaveTheBackTranslation();
     await regravarAParte(it, 1);
     await waitFor('o lugar da equipe ser escrito com o arquivo novo', () {
       final ponto = it.harness.emAberto.rows['Ruth/P01/pt'];
@@ -336,50 +334,6 @@ void main() {
     );
   });
 
-  test('after a verdict, a bead on a frase the room has not named yet plays '
-      'its piece of the recording instead of doing nothing', () async {
-    final it = await _oAchadoNaParteDois();
-    it.sala.gravarAParteDeNovo();
-    await regravarAParte(it, 1);
-    await waitFor(
-      'a sala nomear a parte gravada de novo',
-      () => it.partes[1].takeId != null,
-    );
-    it.harness.playback.lengths[it.partes[1].path] = partesDoEnsaio[1];
-    it.sala.startRetro();
-    await waitFor(
-      'a tradução recomeçar na parte gravada de novo',
-      () =>
-          it.estado.stage == SalaStage.retro &&
-          it.estado.btPhase == BtPhase.playing,
-    );
-    it.harness.room.chunksAnswerWithNoName = true;
-    await _contarUmTrecho(it, partesDoEnsaio[1]);
-    final onde = it.estado.btTrechos.indexWhere(
-      (trecho) => trecho.parte == 1 && trecho.contado,
-    );
-    expect(it.estado.btTrechos[onde].segmentId, isNull);
-    expect(it.estado.canRetellAFrase, isTrue);
-    final tocadas = it.harness.playback.played.length;
-    final trechos = it.harness.playback.ranges.length;
-
-    it.sala.ouvirAConta(onde);
-    await settle();
-
-    expect(
-      it.harness.playback.played.skip(tocadas),
-      [it.partes[1].path],
-      reason:
-          'a conta abria a frase sem nome para traduzir de novo, e a frase '
-          'sem nome não abre: o toque não fazia nada',
-    );
-    expect(it.harness.playback.ranges.skip(trechos), [
-      '0-${partesDoEnsaio[1].inMilliseconds}',
-    ]);
-    expect(it.estado.btTrechoTraduzidoDeNovo, isNull);
-    closeTheRoom(it.container);
-  });
-
   test(
     'a parte regravada cuja linha ainda não pousou deixa a conferência '
     'fechada, e depois de pousar o trecho contado sobre ela sobe nomeado',
@@ -387,7 +341,7 @@ void main() {
       final it = await _oAchadoNaParteDois();
       it.harness.room.holdNextTake(KeptScope.parte(2));
 
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await regravarAParte(it, 1);
       await it.harness.room.untilTakeHeld();
       expect(
@@ -452,7 +406,7 @@ void main() {
     final it = await _oAchadoNaParteDois();
     final antiga = it.partes[1].takeId;
 
-    it.sala.gravarAParteDeNovo();
+    it.sala.leaveTheBackTranslation();
     await regravarAParte(it, 1);
     await waitFor(
       'a sala nomear a parte nova',
@@ -486,7 +440,7 @@ void main() {
       final antes = [for (final parte in it.partes) parte.takeId];
 
       it.harness.room.holdNextTake(KeptScope.parte(2));
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await regravarAParte(it, 1);
       await it.harness.room.untilTakeHeld();
 
@@ -518,7 +472,7 @@ void main() {
       final antes = it.estado.btTrechos;
       expect(antes, hasLength(3));
 
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await regravarAParte(it, 1);
 
       final agora = it.estado.btTrechos;
@@ -552,7 +506,7 @@ void main() {
       final it = await _oAchadoNaParteDois();
       final antiga = it.partes[1].takeId;
 
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await regravarAParte(it, 1);
       await waitFor(
         'a sala nomear a parte nova',
@@ -606,7 +560,7 @@ void main() {
   test('a próxima tradução começa na parte gravada de novo', () async {
     final it = await _oAchadoNaParteDois();
 
-    it.sala.gravarAParteDeNovo();
+    it.sala.leaveTheBackTranslation();
     await regravarAParte(it, 1);
     final nova = it.partes[1].path;
     final tocadas = it.harness.playback.played.length;
@@ -630,7 +584,7 @@ void main() {
     final it = await _oAchadoNaParteDois();
     final antes = it.partes;
 
-    it.sala.gravarAParteDeNovo();
+    it.sala.leaveTheBackTranslation();
     await regravarAParte(it, 1);
     await waitFor(
       'a sala nomear a parte nova',
@@ -681,7 +635,7 @@ void main() {
     final it = await _oAchadoNaParteDois();
     final antes = it.partes;
 
-    it.sala.gravarAParteDeNovo();
+    it.sala.leaveTheBackTranslation();
     final pendente = await _gravarPorCima(it);
 
     expect(
@@ -712,7 +666,7 @@ void main() {
     final antes = it.partes;
     final enviadas = it.harness.room.takes.length;
 
-    it.sala.gravarAParteDeNovo();
+    it.sala.leaveTheBackTranslation();
     await _gravarPorCima(it);
     it.sala.gravarACena(2);
     await waitFor(
@@ -751,7 +705,7 @@ void main() {
   test('depois da troca, guardar outra vez volta a acrescentar', () async {
     final it = await _oAchadoNaParteDois();
 
-    it.sala.gravarAParteDeNovo();
+    it.sala.leaveTheBackTranslation();
     await regravarAParte(it, 1);
     await gravarUmaParteDoEnsaio(it, 4);
 
@@ -764,137 +718,6 @@ void main() {
     );
     expect(it.partes.last.scopeId, KeptScope.parte(4));
     expect(it.estado.partes.length, 4);
-  });
-
-  test(
-    'sair do ensaio sem gravar solta a parte que a equipe veio refazer',
-    () async {
-      final it = await _oAchadoNaParteDois();
-      final antes = it.partes;
-
-      it.sala.gravarAParteDeNovo();
-      await settle();
-      it.sala.startRetro();
-      await waitFor(
-        'a tradução voltar ao ar',
-        () => it.estado.stage == SalaStage.retro,
-      );
-      it.harness.room
-        ..verdictChecked = false
-        ..verdictHasFinding = true
-        ..verdictFindingSegmentId = null
-        ..verdictFindingPlace = null;
-      await pedirOVeredito(it);
-      it.sala.goEnsaio();
-      await gravarUmaParteDoEnsaio(it, 4);
-
-      expect(
-        it.partes,
-        hasLength(4),
-        reason:
-            'a equipe mudou de ideia e foi traduzir: a parte que ela vinha '
-            'refazer deixou de ser a parte que a próxima gravação ocupa',
-      );
-      expect([for (final parte in it.partes) parte.path].sublist(0, 3), [
-        for (final parte in antes) parte.path,
-      ]);
-    },
-  );
-
-  test('um achado sobre gravação que o tablet não tem deixa a equipe na retro, '
-      'sem chamar ninguém', () async {
-    final harness = SalaHarness();
-    final home = Directory.systemTemp.createTempSync('sala-parte-fantasma');
-    addTearDown(() => home.deleteSync(recursive: true));
-    final gravadas = [
-      for (var parte = 1; parte <= 1; parte++)
-        KeptTake(
-          scopeId: KeptScope.parte(parte),
-          path: (File(
-            '${home.path}/p$parte.m4a',
-          )..writeAsBytesSync([1, 2, 3])).path,
-          takeId: 'antiga-$parte',
-        ),
-    ];
-    await harness.emAberto.remember(
-      'Ruth',
-      'P01',
-      'pt',
-      ResumePoint(
-        sessionId: 'sessao-antiga',
-        stage: SalaStage.retro,
-        takes: gravadas,
-      ),
-    );
-    // A stretch on a recording this tablet is not holding: the room keeps it, and the
-    // tablet can say which part it sits in for none of them.
-    harness.room
-      ..retroSoFar = const BackTranslationProgress(
-        segments: [
-          SegmentView(
-            segmentId: 'trecho-fantasma',
-            takeId: 'gravacao-que-nao-esta-aqui',
-            startsMs: 0,
-            endsMs: 9000,
-          ),
-        ],
-      )
-      ..verdictChecked = false
-      ..verdictHasFinding = true
-      ..verdictFindingSegmentId = 'trecho-fantasma';
-    harness.playback.length = umaParteInteira;
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final it = Sala(harness, container);
-    await it.sala.abrirEscolha();
-    await waitFor(
-      'a roda dizer que há trabalho parado',
-      () => it.estado.comecadas.contains('P01'),
-    );
-    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
-    await waitFor(
-      'a tradução ser retomada com a parte no ar',
-      () => it.estado.stage == SalaStage.retro && harness.playback.sounding,
-    );
-    harness.playback.finishPlayback();
-    await waitFor('o ensaio acabar de tocar', () => it.estado.btClipEnded);
-    await pedirOVeredito(it);
-    expect(
-      it.estado.btFindingTrecho?.parte,
-      -1,
-      reason:
-          'o cenário é justamente o do achado que não cai em parte '
-          'nenhuma deste tablet',
-    );
-    final enviadas = List.of(it.harness.room.takesKept);
-
-    it.sala.gravarAParteDeNovo();
-    await settle();
-
-    expect(
-      it.estado.needsPerson,
-      isFalse,
-      reason:
-          'não há parte que gravar de novo, e isso não é um dos seis casos '
-          'do sinal da pessoa',
-    );
-    expect(
-      it.estado.stage,
-      SalaStage.retro,
-      reason:
-          'e a equipe fica onde está, e não no ensaio à espera de gravar '
-          'uma parte que a sala não vai saber onde pôr',
-    );
-
-    it.sala.gravarACena(2);
-    await settle();
-    expect(
-      it.harness.room.takesKept,
-      enviadas,
-      reason:
-          'nada pode subir sob parte-0: a sala guardaria uma gravação '
-          'que não é parte de ensaio nenhum',
-    );
   });
 
   testWidgets('o microfone de madeira do achado leva à casa, e a linha da '

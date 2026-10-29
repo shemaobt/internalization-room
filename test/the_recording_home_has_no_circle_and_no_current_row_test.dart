@@ -33,6 +33,7 @@ const _ouvir = 'Ouvir';
 const _tocando = 'tocando';
 const _enviarAGravacao = 'Enviar a gravação';
 const _irParaATraducao = 'Traduzir a gravação';
+const _voltarERegravar = 'voltar e regravar uma parte';
 
 void _umIpadEmPe(WidgetTester tester) {
   tester.view
@@ -167,7 +168,8 @@ Future<ProviderContainer> _devoltaPeloAchadoNaParteDois(
   }
   await notifier.finishBackTranslation();
   await tester.pump(const Duration(milliseconds: 300));
-  notifier.gravarAParteDeNovo();
+  await tester.ensureVisible(byLabel(_voltarERegravar));
+  await tester.tap(byLabel(_voltarERegravar));
   await tester.pump(const Duration(milliseconds: 400));
   expect(
     _estado(container).stage,

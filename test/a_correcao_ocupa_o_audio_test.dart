@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
-import 'scenario_helpers.dart' show ouvirOApontado, traduzirOApontadoDeNovo;
+import 'scenario_helpers.dart' show traduzirOApontadoDeNovo;
 import 'fakes.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
@@ -69,7 +69,7 @@ void main() {
         final trecho = it.estado.btFindingTrecho!;
         final caminhoDaParte = it.estado.partes[trecho.parte].path;
 
-        ouvirOApontado(it.container);
+        traduzirOApontadoDeNovo(it.container);
         await waitFor(
           'o trecho apontado estar tocando',
           () => it.estado.btTrechoTocando,
@@ -111,7 +111,7 @@ void main() {
       expect(depois.to, antes.to);
 
       it.harness.playback.played.clear();
-      ouvirOApontado(it.container);
+      traduzirOApontadoDeNovo(it.container);
       await waitFor(
         'o trecho apontado estar tocando',
         () => it.estado.btTrechoTocando,

@@ -1166,7 +1166,7 @@ void main() {
       );
       await _umAchadoEm(it, 'trecho-inteiro');
 
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await waitFor(
         'o ensaio abrir',
         () => it.estado.stage == SalaStage.ensaio,
@@ -1223,7 +1223,7 @@ void main() {
         ],
       );
       await _umAchadoEm(it, 'trecho-inteiro');
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await waitFor(
         'o ensaio abrir',
         () => it.estado.stage == SalaStage.ensaio,
@@ -1300,7 +1300,7 @@ void main() {
       );
       await _umAchadoEm(it, 'trecho-inteiro');
 
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await settle();
 
       expect(
@@ -1584,7 +1584,7 @@ void main() {
         ],
       );
       await _umAchadoEm(it, 'trecho-1');
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await waitFor(
         'o ensaio abrir',
         () => it.estado.stage == SalaStage.ensaio,

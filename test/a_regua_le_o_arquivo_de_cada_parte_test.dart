@@ -26,7 +26,7 @@ Future<void> _regravarASegundaParte(
   Sala it, {
   void Function(String arquivo)? antesDeGuardar,
 }) async {
-  it.sala.gravarAParteDeNovo();
+  it.sala.leaveTheBackTranslation();
   await waitFor(
     'a sala voltar ao ensaio',
     () => it.estado.stage == SalaStage.ensaio,

@@ -3,10 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
-import 'scenario_helpers.dart' show ouvirOApontado, traduzirOApontadoDeNovo;
+import 'scenario_helpers.dart' show traduzirOApontadoDeNovo;
 import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa;
 import 'playback_ceiling_test.dart' show gravaParte;
@@ -152,7 +151,7 @@ Future<_Cena> _nosAchados() async {
 /// gesture of the findings is really made in.
 Future<_Cena> _nosAchadosComOTrechoNoAr() async {
   final cena = await _nosAchados();
-  ouvirOApontado(cena.container);
+  traduzirOApontadoDeNovo(cena.container);
   await waitFor(
     'o trecho apontado tocar',
     () => _estado(cena).btTrechoTocando && cena.harness.playback.sounding,
@@ -269,8 +268,7 @@ const _matrizDaRetro = [
   'a parte não ouvida',
   'o trecho não contado',
   'deixar a passagem',
-  'gravar a parte de novo',
-  'gravar a parte de novo, sem parte',
+  'voltar e regravar uma parte',
 ];
 
 const _matrizDoEnsaio = [
@@ -469,55 +467,15 @@ void main() {
         () => _estado(cena).stage == SalaStage.escolha,
       );
     }),
-    _linha('gravar a parte de novo', _nosAchadosComOTrechoNoAr, (cena) async {
-      cena.sala.gravarAParteDeNovo();
+    _linha('voltar e regravar uma parte', _nosAchadosComOTrechoNoAr, (
+      cena,
+    ) async {
+      cena.sala.leaveTheBackTranslation();
       await waitFor(
         'a equipe voltar ao ensaio',
         () => _estado(cena).stage == SalaStage.ensaio,
       );
     }),
-    _linha(
-      'gravar a parte de novo, sem parte',
-      () async {
-        final cena = await _prontoParaTerminei();
-        // Um trecho numa gravação que este tablet não tem: não há parte para gravar
-        // de novo, e a sala só se cala, sem chamar ninguém.
-        cena.harness.room
-          ..verdictChecked = false
-          ..verdictFindingSegmentId = 'trecho-de-outro-tablet'
-          ..segments.clear()
-          ..segments.add(
-            const SegmentView(
-              segmentId: 'trecho-de-outro-tablet',
-              takeId: 'gravacao-de-outro-tablet',
-              startsMs: 0,
-              endsMs: 40,
-            ),
-          );
-        await cena.sala.finishBackTranslation();
-        await waitFor(
-          'o achado abrir',
-          () =>
-              _estado(cena).btPhase == BtPhase.playing &&
-              _estado(cena).btVeredito,
-        );
-        expect(
-          _estado(cena).btFindingTrecho?.parte,
-          -1,
-          reason:
-              'o arranjo só vale se o trecho apontado não tiver parte '
-              'neste tablet — senão a linha mede o caminho comum',
-        );
-        return cena;
-      },
-      (cena) async {
-        cena.sala.gravarAParteDeNovo();
-        await waitFor('a sala se calar', () => !cena.harness.playback.sounding);
-        expect(_estado(cena).needsPerson, isFalse);
-        expect(_estado(cena).btPhase, BtPhase.playing);
-        expect(_estado(cena).btVeredito, isTrue);
-      },
-    ),
   ], _matrizDaRetro);
 
   _rodaATabela('o ensaio se cala antes de mudar', [

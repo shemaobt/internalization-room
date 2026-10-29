@@ -26,7 +26,7 @@ void main() {
       final it = await _oAchadoNaParteDois();
       final capturesBefore = it.harness.recorder.captures;
 
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       it.sala.gravarACena(2);
       await waitFor(
         'a gravação da parte começar',

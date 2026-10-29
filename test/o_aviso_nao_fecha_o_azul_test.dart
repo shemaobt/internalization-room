@@ -224,18 +224,18 @@ void main() {
     },
   );
 
-  test('gravar a parte de novo também não é fechado pelo aviso', () async {
+  test('voltar e regravar uma parte também não é fechado pelo aviso', () async {
     final harness = SalaHarness();
     final container = await achadoComAvisoAtivo(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.gravarAParteDeNovo();
+    notifier.leaveTheBackTranslation();
 
     expect(
       container.read(salaSessionProvider).stage,
       SalaStage.ensaio,
       reason:
-          'gravar a parte de novo não tem a guarda de needsPerson: o aviso '
+          'voltar e regravar uma parte não tem a guarda de needsPerson: o aviso '
           'pede uma pessoa e não fecha saída nenhuma da pergunta',
     );
   });

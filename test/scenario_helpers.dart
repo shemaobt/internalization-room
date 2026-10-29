@@ -140,13 +140,6 @@ Future<void> settle([
   await Future<void>.delayed(delay);
 }
 
-void ouvirOApontado(ProviderContainer container) {
-  final estado = container.read(salaSessionProvider);
-  container
-      .read(salaSessionProvider.notifier)
-      .ouvirAConta(estado.btTrechos.indexOf(estado.btFindingTrecho!));
-}
-
 void traduzirOApontadoDeNovo(ProviderContainer container) {
   final estado = container.read(salaSessionProvider);
   container

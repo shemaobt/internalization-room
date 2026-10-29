@@ -178,7 +178,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(naTela('fim da gravação'), findsOneWidget);
 
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
 
     final state = container.read(salaSessionProvider);

@@ -8807,15 +8807,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void ouvirOTrechoContado(int indice) =>
       _gesture(() => _ouvirOTrechoContado(indice));
 
-  void ouvirAConta(int indice) => _gesture(
-    () =>
-        state.canRetellAFrase &&
-            state.btTrechos.elementAtOrNull(indice)?.segmentId != null
-        ? _traduzirAFraseDeNovo(indice)
-        : _ouvirOTrechoContado(indice, naGravacao: true),
-  );
-
-  void _ouvirOTrechoContado(int indice, {bool naGravacao = false}) {
+  void _ouvirOTrechoContado(int indice) {
     if (!state.canHearAFrase) return;
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
@@ -8829,7 +8821,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
-    final traducao = naGravacao ? null : trecho.retroPath;
+    final traducao = trecho.retroPath;
     final materna = _ondeTocar(trecho);
     if (traducao == null && materna == null) return;
     final segurada = _tirarAParteDoPlayer();
@@ -8866,8 +8858,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       beneath: segurada,
     );
   }
-
-  void ouvirOTrechoPendente() => _gesture(() => _ouvirOTrechoPendente());
 
   void abrirAChecagemExterna() => _gesture(() {
     final sessionId = state.sessionId;
@@ -9423,14 +9413,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btClipEnded: false,
       clearBtRecusa: true,
     );
-  }
-
-  void _ouvirOTrechoPendente() {
-    if (state.btContaEscolhida != null) {
-      _silenceTheRoom();
-      return;
-    }
-    ouvirGravacao();
   }
 
   Paused? _tirarAParteDoPlayer() {
@@ -11465,28 +11447,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: _faseAntesDeTraduzirDeNovo ?? BtPhase.playing,
     );
-  }
-
-  /// Back to the rehearsal to record one part again, in the place that part already has.
-  void gravarAParteDeNovo() => _gesture(() => _gravarAParteDeNovo());
-
-  void _gravarAParteDeNovo() {
-    if (state.btPhase != BtPhase.playing) return;
-    final trecho = state.btFindingTrecho;
-    if (trecho == null) return;
-    // Read before the way back clears the pointer, which is the only place the part is
-    // written down at all.
-    final parte = trecho.parte;
-    if (parte < 0 || parte >= state.partes.length) {
-      // A stretch on a recording this tablet is not holding has no part to record again.
-      // Carried on, the keep would send a recording up under a part number the rehearsal
-      // does not have, and the team would have recorded for nothing.
-      _silenceTheRoom();
-      return;
-    }
-    _voltarAoEnsaio();
-    _asPartesPerdidasSaem();
-    _rememberWhereTheyAre(const Ensaio());
   }
 
   /// The first scene part sets the whole rehearsal aside: what was told over it leaves the

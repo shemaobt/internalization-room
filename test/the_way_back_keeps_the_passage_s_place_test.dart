@@ -235,32 +235,4 @@ void main() {
           'sem o trazer de volta que a sala acendera',
     );
   });
-
-  test('going back to record a part again from a finding reads the room again '
-      'too, not only the way back', () async {
-    final it = await umEnsaioDeTresPartesContadoInteiro();
-    it.harness.room
-      ..verdictChecked = false
-      ..verdictHasFinding = true
-      ..verdictFindingPlace = 1;
-    await pedirOVeredito(it);
-    expect(it.estado.btFindingTrecho, isNotNull);
-    expect(it.estado.toBringBack, isEmpty);
-    it.harness.room.retroSoFar = const BackTranslationProgress(
-      segments: [],
-      bringBack: [3],
-    );
-
-    it.sala.gravarAParteDeNovo();
-    await settle();
-
-    expect(it.estado.station, const Ensaio());
-    expect(
-      it.estado.toBringBack,
-      [3],
-      reason:
-          'regravar uma parte voltava à casa sem ler a sala, como a volta '
-          'pelo canto fazia',
-    );
-  });
 }
