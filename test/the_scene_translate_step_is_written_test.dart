@@ -596,6 +596,89 @@ void main() {
   );
 
   testWidgets(
+    'a scene rehearsal whose frase places cannot be read draws its strip with the take\'s loudness under the play control, with no frase band and no player',
+    (tester) async {
+      await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      final strip = find.byType(SceneStrip);
+      SceneStripDrawing? drawing() => strip.evaluate().isEmpty
+          ? null
+          : (tester
+                        .widget<CustomPaint>(
+                          find.descendant(
+                            of: strip,
+                            matching: find.byType(CustomPaint),
+                          ),
+                        )
+                        .painter!
+                    as SceneStripPainter)
+                .drawing;
+      await pumpUntil(tester, () => drawing()?.columns.isNotEmpty ?? false);
+
+      expect(
+        strip,
+        findsOneWidget,
+        reason: 'a tela de lugares desconhecidos não desenhava a faixa',
+      );
+      expect(
+        drawing()!.columns,
+        isNotEmpty,
+        reason: 'o dela busca o volume da gravação também nessa retomada',
+      );
+      expect(drawing()!.bands, isEmpty);
+      expect(drawing()!.playhead, isNull);
+      expect(
+        tester.getTopLeft(strip).dy,
+        greaterThan(
+          tester.getTopLeft(byLabel('Tocar ou pausar a gravação')).dy,
+        ),
+      );
+      expect(
+        tester.getTopLeft(strip).dy,
+        lessThan(
+          tester
+              .getTopLeft(
+                find.textContaining('as frases já traduzidas não estão'),
+              )
+              .dy,
+        ),
+      );
+    },
+  );
+
+  testWidgets(
+    'a tap on the strip of a scene rehearsal whose frase places cannot be read plays nothing, as on the translate step',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      final played = harness.playback.played.length;
+
+      await tester.tap(find.byType(SceneStrip));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        harness.playback.played,
+        hasLength(played),
+        reason: 'a faixa dela não se toca, e sem os lugares nada toca',
+      );
+      expect(
+        container.read(salaSessionProvider).channel,
+        isNot(isA<PartPlaying>()),
+      );
+    },
+  );
+
+  testWidgets(
     'on a phone her places-unknown line keeps 16 points on each side',
     (tester) async {
       await _onTheSceneScreen(

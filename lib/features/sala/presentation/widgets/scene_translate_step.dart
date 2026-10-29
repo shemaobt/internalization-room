@@ -345,6 +345,7 @@ class SceneRestartControl extends ConsumerWidget {
 
 class ScenePlacesUnknown extends ConsumerWidget {
   final SceneScreen scene;
+  final Envelope? envelope;
   final String language;
   final bool sending;
   final bool sendable;
@@ -355,6 +356,7 @@ class ScenePlacesUnknown extends ConsumerWidget {
   const ScenePlacesUnknown({
     super.key,
     required this.scene,
+    required this.envelope,
     required this.language,
     required this.sending,
     required this.sendable,
@@ -378,6 +380,14 @@ class ScenePlacesUnknown extends ConsumerWidget {
           take: null,
           label: said('playPause'),
           hint: (_) => null,
+        ),
+        const SizedBox(height: 12),
+        SceneStrip(
+          envelope: envelope,
+          length: scene.length,
+          frases: const [],
+          pausa: null,
+          playing: false,
         ),
         const SizedBox(height: 12),
         Padding(

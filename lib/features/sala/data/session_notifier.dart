@@ -5633,9 +5633,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       sceneRehearsals: _listedWith(rehearsal),
       clearSceneStoppedAt: !listened,
     );
-    if (step == SceneStep.translate || step == SceneStep.sent) {
-      _handOff(_readTheLoudness(here));
-    }
+    _handOff(_readTheLoudness(here));
   }
 
   Future<void> _readTheLoudness(String take) async {

@@ -116,6 +116,7 @@ class SceneRehearsalView extends ConsumerWidget {
               SceneStep.placesUnknown => SingleChildScrollView(
                 child: ScenePlacesUnknown(
                   scene: scene,
+                  envelope: session.sceneEnvelope,
                   language: language,
                   sending: sending,
                   sendable: sendable,
