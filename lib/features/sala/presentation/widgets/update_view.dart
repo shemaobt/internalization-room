@@ -49,7 +49,7 @@ class UpdateView extends ConsumerWidget {
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(width: 1.5, color: ShemaBrand.azul),
+                    border: Border.all(width: 1.5, color: colors.azul),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(

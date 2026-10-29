@@ -68,24 +68,25 @@ void main() {
   );
 
   testWidgets(
-    'a voice speaking draws its rings sixty times a second, not at the panel rate',
+    'a team being heard draws its rings sixty times a second, not at the panel rate',
     (tester) async {
-      await _pumpCircle(tester, VoiceState.speaking);
+      await _pumpCircle(tester, VoiceState.listening);
 
       expect(
         await _redrawsOverASecondAt120Hz(tester),
         inInclusiveRange(59, 61),
         reason:
-            'enquanto o Guia falava, o disco e os dois anéis andavam cada '
-            'um no seu vsync, a 120 quadros por segundo',
+            'os dois anéis que crescem enquanto a equipe fala '
+            '(globals.css:381-382) andavam cada um no seu vsync, a 120 '
+            'quadros por segundo',
       );
     },
   );
 
   testWidgets(
-    'a voice that stops speaking lets the circle slow back to thirty, not stay at sixty',
+    'a team that stops being heard lets the circle slow back to thirty, not stay at sixty',
     (tester) async {
-      await _pumpCircle(tester, VoiceState.speaking);
+      await _pumpCircle(tester, VoiceState.listening);
       await tester.pump(const Duration(seconds: 1));
       await _pumpCircle(tester, VoiceState.invite);
 
@@ -158,36 +159,30 @@ void main() {
   );
 
   testWidgets(
-    'a ring that crosses from listening into speaking answers to her new pace, not the one it woke up with',
+    'a ring whose pace changes answers to the new pace, not the one it woke up with',
     (tester) async {
-      await _pumpCircle(tester, VoiceState.listening);
-      await _pumpCircle(tester, VoiceState.speaking);
+      double? drawn;
+      Future<void> ring(int period, double phase) => tester.pumpWidget(
+        Ripple(
+          period: Duration(milliseconds: period),
+          phase: phase,
+          curve: Curves.linear,
+          builder: (context, t) {
+            drawn = t;
+            return const SizedBox.shrink();
+          },
+        ),
+      );
+
+      await ring(3200, 0.5);
+      await ring(3400, 0.65);
       await tester.pump(const Duration(milliseconds: 1190));
 
-      final secondRing = tester
-          .widgetList<Ripple>(
-            find.descendant(
-              of: find.byType(FacilitatorCircle),
-              matching: find.byType(Ripple),
-            ),
-          )
-          .firstWhere((ring) => ring.phase == 0.65);
-
-      final scale = tester
-          .widget<Transform>(
-            find.descendant(
-              of: find.byWidget(secondRing),
-              matching: find.byType(Transform),
-            ),
-          )
-          .transform
-          .getMaxScaleOnAxis();
-
       expect(
-        scale,
-        closeTo(1.0, 1e-9),
+        drawn,
+        closeTo(0, 1e-9),
         reason:
-            'o anel ainda estava na fase 0,5 dos 3200 ms de quando ouvia — '
+            'o anel ainda estava na fase 0,5 dos 3200 ms de quando nasceu — '
             '1190 ms depois da troca ele devia ter voltado ao começo do '
             'laço novo (3400 ms, fase 0,65), não seguir a 0,87 do laço velho',
       );
@@ -197,38 +192,29 @@ void main() {
   testWidgets(
     'a rebuild that keeps her pace does not reopen the ring from the start',
     (tester) async {
-      await _pumpCircle(tester, VoiceState.speaking);
+      await _pumpCircle(tester, VoiceState.listening);
       await tester.pump(const Duration(milliseconds: 850));
-      await _pumpCircle(tester, VoiceState.speaking);
-      await tester.pump(const Duration(milliseconds: 2550));
+      await _pumpCircle(tester, VoiceState.listening);
+      await tester.pump(const Duration(milliseconds: 2150));
 
-      final firstRing = tester
-          .widgetList<Ripple>(
+      final scales = tester
+          .widgetList<Transform>(
             find.descendant(
-              of: find.byType(FacilitatorCircle),
-              matching: find.byType(Ripple),
-            ),
-          )
-          .firstWhere((ring) => ring.phase == 0);
-
-      final scale = tester
-          .widget<Transform>(
-            find.descendant(
-              of: find.byWidget(firstRing),
+              of: find.byType(Ripple),
               matching: find.byType(Transform),
             ),
           )
-          .transform
-          .getMaxScaleOnAxis();
+          .map((moved) => moved.transform.storage[0]);
 
       expect(
-        scale,
-        closeTo(1.0, 1e-9),
+        scales,
+        contains(closeTo(.62, 1e-9)),
         reason:
             'nada em period ou phase mudou entre as duas reconstruções — só '
-            'o laço de 3400 ms inteiro, medido desde o primeiro quadro, '
-            'devia fechar de volta ao começo; reabrir a cada reconstrução '
-            'deixaria o anel a 0,75 do laço, não de volta a zero',
+            'o laço de 3 s inteiro dela, medido desde o primeiro quadro, '
+            'devia fechar de volta ao .62 em que o anel nasce '
+            '(globals.css:202); reabrir a cada reconstrução deixaria o anel '
+            'a 0,72 do laço',
       );
     },
   );
