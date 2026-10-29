@@ -1114,6 +1114,36 @@ void main() {
     },
   );
 
+  testWidgets(
+    'on the grain choice a take only on the tablet is offered under her '
+    'notice too',
+    (tester) async {
+      await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        scenes: const [],
+        before: (harness) {
+          _partOneWaitsInTheOutbox(harness);
+          harness.playback.measured = const Duration(seconds: 48);
+        },
+      );
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text('A passagem inteira'), findsOneWidget);
+      expect(find.text('Cena por cena'), findsOneWidget);
+      expect(
+        find.text(_pendingNotice),
+        findsOneWidget,
+        reason:
+            'a escolha do jeito de gravar não dizia que uma gravação '
+            'ficou no tablet',
+      );
+      expect(find.text(_sendSceneOne), findsOneWidget);
+    },
+  );
+
   testWidgets('a plan read that takes 6 seconds opens the grain choice', (
     tester,
   ) async {
