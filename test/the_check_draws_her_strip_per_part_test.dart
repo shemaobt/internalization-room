@@ -110,6 +110,16 @@ List<String> _rotulos(WidgetTester tester) => [
     texto.data ?? '',
 ];
 
+List<double> _brilhos(WidgetTester tester) => [
+  for (final linha in tester.widgetList<Opacity>(
+    find.descendant(
+      of: find.byType(PartStrips),
+      matching: find.byType(Opacity),
+    ),
+  ))
+    linha.opacity,
+];
+
 List<SceneStrip> _faixas(WidgetTester tester) => [
   ...tester.widgetList<SceneStrip>(
     find.descendant(
@@ -593,6 +603,21 @@ void main() {
       reason:
           'a leitura que terminava depois da saída deixava a fala de uma '
           'parte da passagem deixada no estado da próxima',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the row of the part in the player is drawn whole, and every '
+      'other row is drawn faint', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+
+    expect(
+      _brilhos(tester),
+      [1.0, 0.7],
+      reason:
+          'todas as fileiras ficavam iguais, e nada dizia de que parte era '
+          'o que estava tocando',
     );
     closeTheRoom(container);
   });

@@ -41,40 +41,43 @@ class PartStrips extends StatelessWidget {
           children: [
             for (final (onde, row) in rows.indexed) ...[
               if (onde > 0) const SizedBox(height: 5),
-              Row(
-                children: [
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 92),
-                    child: Text(
-                      row.label,
-                      textAlign: TextAlign.right,
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: colors.mut, fontSize: 12),
+              Opacity(
+                opacity: row.playing ? 1 : .7,
+                child: Row(
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 92),
+                      child: Text(
+                        row.label,
+                        textAlign: TextAlign.right,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: colors.mut, fontSize: 12),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: SizedBox(
-                      height: SceneStrip.height,
-                      child: switch (row.length) {
-                        final length? => LayoutBuilder(
-                          builder: (context, constraints) => SceneStrip(
-                            envelope: row.envelope,
-                            length: length,
-                            frases: row.told,
-                            stale: row.stale,
-                            pausa: row.pausa,
-                            playing: row.playing,
-                            width: constraints.maxWidth,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SizedBox(
+                        height: SceneStrip.height,
+                        child: switch (row.length) {
+                          final length? => LayoutBuilder(
+                            builder: (context, constraints) => SceneStrip(
+                              envelope: row.envelope,
+                              length: length,
+                              frases: row.told,
+                              stale: row.stale,
+                              pausa: row.pausa,
+                              playing: row.playing,
+                              width: constraints.maxWidth,
+                            ),
                           ),
-                        ),
-                        null => null,
-                      },
+                          null => null,
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ],
