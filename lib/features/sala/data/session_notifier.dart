@@ -6121,7 +6121,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state = state.copyWith(scene: shown.copyWith(notUnderstood: false));
           _startListening('frase_${_stamp()}', owner: MicOwner.frase);
         }
-      case PartPlaying():
+      case PartPlaying(:final part) when part.path == shown.take:
         _markThePausa();
       default:
         _translateOnFrom(shown.rehearsal!.frontier);
@@ -6148,15 +6148,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal == null) {
       return;
     }
-    final playing = state.channel is PartPlaying;
+    final playing = _theSceneTakeThatSounds(state.machine) != null;
     if (step == SceneStep.sent) {
       _silenceTheRoom();
       if (!playing) {
+        final from = state.scene.heard == SceneHeard.toTheEnd
+            ? Duration.zero
+            : state.sceneStoppedAt ?? Duration.zero;
         state = state.copyWith(
           scene: state.scene.copyWith(heard: SceneHeard.partly),
         );
         _play(
-          PartSound(0, take),
+          PartSound(0, take, from: from),
           onComplete: () => state = state.copyWith(
             scene: state.scene.copyWith(heard: SceneHeard.toTheEnd),
           ),
@@ -6756,7 +6759,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _recordTheSceneAgain() {
     if (state.station is! SceneRehearsal ||
         state.theSceneIsSending ||
-        (state.scene.step == SceneStep.translate && state.scene.waiting)) {
+        (state.scene.step == SceneStep.translate && state.scene.waiting) ||
+        (state.scene.step == SceneStep.sent && state.scene.waiting)) {
       return;
     }
     if (state.channel is Microphone) _dispatch(const MicDiscarded());
