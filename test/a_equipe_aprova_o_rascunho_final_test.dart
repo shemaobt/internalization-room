@@ -346,8 +346,8 @@ void main() {
     'comprehension_needs_more_work',
     'no_telling_back',
   ]) {
-    testWidgets('a recusa por $codigo devolve a equipe à tradução como '
-        'antes do terminei, sem chamar ninguém', (tester) async {
+    testWidgets('a recusa por $codigo só escreve o motivo e deixa a '
+        'conferida com o terminei, sem chamar ninguém', (tester) async {
       final it = await _ateAConferida(tester);
       final falasAntes = it.harness.voice.fixedLines.length;
       it.harness.room.releaseBlockers = [codigo];
@@ -372,14 +372,15 @@ void main() {
       expect(_estado(it.container).canFinishBackTranslation, isTrue);
       expect(
         _estado(it.container).btPhase,
-        BtPhase.playing,
+        BtPhase.conferida,
         reason:
-            'a recusa que deixasse a equipe na conferida passava, porque lá o terminei também acende',
+            'a recusa devolvia a tradução para antes do terminei; a dela só '
+            'escreve o motivo e deixa a conferida como estava',
       );
       expect(
         byLabel('terminei'),
         findsOneWidget,
-        reason: 'a equipe volta a ter o terminei para conferir de novo',
+        reason: 'a equipe segue com o terminei para conferir de novo',
       );
 
       closeTheRoom(it.container);
@@ -741,8 +742,8 @@ void main() {
     'untold_part',
     'playback_did_not_cover_the_clip',
   ]) {
-    test('a recusa por $codigo devolve a equipe à tradução como antes do '
-        'terminei, não a uma parte tocando', () async {
+    test('a recusa por $codigo só escreve o motivo e deixa a conferida, '
+        'não uma parte tocando', () async {
       final it = await _tresPartesAteAConferida();
       final segunda = it.partes[1];
       final falasAntes = it.harness.voice.fixedLines.length;
@@ -756,8 +757,10 @@ void main() {
       expect(it.estado.needsPerson, isFalse);
       expect(
         it.estado.btPhase,
-        BtPhase.playing,
-        reason: 'sair da conferida é o que devolve o toque à equipe',
+        BtPhase.conferida,
+        reason:
+            'a recusa devolvia a tradução para antes do terminei; a dela só '
+            'escreve o motivo e deixa a conferida como estava',
       );
       expect(
         it.estado.canFinishBackTranslation,
@@ -783,18 +786,16 @@ void main() {
 
       expect(
         it.harness.room.releasesAsked,
-        hasLength(pedidos),
+        hasLength(pedidos + 1),
         reason:
-            'e o gesto ficou para trás com a fase: daqui a equipe confere de '
-            'novo, não aperta o mesmo botão outra vez',
+            'o botão saía com a fase; o dela fica aceso, e um segundo aperto '
+            'pergunta à sala de novo',
       );
     });
   }
 
-  testWidgets('a recusa por trecho não contado devolve a equipe à tradução '
-      'como antes do terminei, não ao trecho que a sala nomeou', (
-    tester,
-  ) async {
+  testWidgets('a recusa por trecho não contado deixa a equipe na conferida '
+      'com o terminei, não no trecho que a sala nomeou', (tester) async {
     final it = await _ateAConferida(tester);
 
     expect(
@@ -886,8 +887,8 @@ void main() {
     'telling_back_not_checked',
     'telling_back_never_analysed',
   ]) {
-    testWidgets('a recusa por $codigo devolve a fase de tocar com '
-        'o terminei de pé', (tester) async {
+    testWidgets('a recusa por $codigo deixa a conferida com o terminei '
+        'de pé, mesmo cortando a última audição', (tester) async {
       final it = await _ateAConferida(tester);
       await tester.tap(byLabel(_ouvir));
       await tester.pump(const Duration(milliseconds: 300));
@@ -910,7 +911,7 @@ void main() {
       await _aprovarEEsperar(tester);
 
       expect(_estado(it.container).needsPerson, isFalse);
-      expect(_estado(it.container).btPhase, BtPhase.playing);
+      expect(_estado(it.container).btPhase, BtPhase.conferida);
       expect(
         it.harness.playback.sounding,
         isFalse,
@@ -938,8 +939,8 @@ void main() {
     });
   }
 
-  testWidgets('um código que este tablet não conhece devolve a equipe à '
-      'tradução como antes do terminei, sem chamar ninguém', (tester) async {
+  testWidgets('um código que este tablet não conhece só escreve o motivo e '
+      'deixa a conferida, sem chamar ninguém', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.releaseBlockers = const ['something_new'];
 
@@ -957,17 +958,18 @@ void main() {
     expect(_estado(it.container).canFinishBackTranslation, isTrue);
     expect(
       _estado(it.container).btPhase,
-      BtPhase.playing,
+      BtPhase.conferida,
       reason:
-          'a recusa que deixasse a equipe na conferida passava, porque lá o terminei também acende',
+          'a recusa devolvia a tradução para antes do terminei; a dela só '
+          'escreve o motivo e deixa a conferida como estava',
     );
     expect(byLabel('terminei'), findsOneWidget);
 
     closeTheRoom(it.container);
   });
 
-  testWidgets('um trecho não contado sem o trecho nomeado devolve a equipe à '
-      'tradução como antes do terminei, sem chamar ninguém', (tester) async {
+  testWidgets('um trecho não contado sem o trecho nomeado só escreve o motivo '
+      'e deixa a conferida, sem chamar ninguém', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.releaseBlockers = const ['untold_stretch'];
 
@@ -985,17 +987,18 @@ void main() {
     expect(_estado(it.container).canFinishBackTranslation, isTrue);
     expect(
       _estado(it.container).btPhase,
-      BtPhase.playing,
+      BtPhase.conferida,
       reason:
-          'a recusa que deixasse a equipe na conferida passava, porque lá o terminei também acende',
+          'a recusa devolvia a tradução para antes do terminei; a dela só '
+          'escreve o motivo e deixa a conferida como estava',
     );
     expect(byLabel('terminei'), findsOneWidget);
 
     closeTheRoom(it.container);
   });
 
-  testWidgets('uma parte não contada sem a gravação nomeada devolve a equipe à '
-      'tradução como antes do terminei, sem chamar ninguém', (tester) async {
+  testWidgets('uma parte não contada sem a gravação nomeada só escreve o '
+      'motivo e deixa a conferida, sem chamar ninguém', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.releaseBlockers = const ['untold_part'];
 
@@ -1010,9 +1013,10 @@ void main() {
     expect(_estado(it.container).canFinishBackTranslation, isTrue);
     expect(
       _estado(it.container).btPhase,
-      BtPhase.playing,
+      BtPhase.conferida,
       reason:
-          'a recusa que deixasse a equipe na conferida passava, porque lá o terminei também acende',
+          'a recusa devolvia a tradução para antes do terminei; a dela só '
+          'escreve o motivo e deixa a conferida como estava',
     );
     expect(byLabel('terminei'), findsOneWidget);
 
@@ -1020,7 +1024,7 @@ void main() {
   });
 
   testWidgets('uma resposta sem versão e sem buracos não fecha a passagem, '
-      'devolve a equipe à tradução e não chama ninguém', (tester) async {
+      'deixa a conferida e não chama ninguém', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.release = const ApprovalAnswer();
 
@@ -1042,9 +1046,10 @@ void main() {
     expect(_estado(it.container).canFinishBackTranslation, isTrue);
     expect(
       _estado(it.container).btPhase,
-      BtPhase.playing,
+      BtPhase.conferida,
       reason:
-          'a recusa que deixasse a equipe na conferida passava, porque lá o terminei também acende',
+          'a recusa devolvia a tradução para antes do terminei; a dela só '
+          'escreve o motivo e deixa a conferida como estava',
     );
 
     closeTheRoom(it.container);
@@ -1143,9 +1148,10 @@ void main() {
     );
     expect(
       it.estado.btPhase,
-      BtPhase.playing,
+      BtPhase.conferida,
       reason:
-          'a recusa que deixasse a equipe na conferida passava, porque lá o terminei também acende',
+          'a recusa devolvia a tradução para antes do terminei; a dela só '
+          'escreve o motivo e deixa a conferida como estava',
     );
 
     it.harness.room.releaseBlockers = const [];
