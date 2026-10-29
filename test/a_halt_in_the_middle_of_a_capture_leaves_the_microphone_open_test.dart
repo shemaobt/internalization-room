@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,14 +59,9 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
   return (container, notifier, read);
 }
 
-/// The person sign lands over the capture: the build guard's, which calls nobody, so a
-/// long press hands the room back.
-Future<void> _haltLandsBlocking(
-  SalaSessionNotifier notifier,
-  SalaSessionState Function() read,
-) async {
+Future<void> _aHaltIsRaised(SalaSessionNotifier notifier) async {
   notifier.haltForABrokenBuild();
-  await waitFor('a sala parar', () => read().needsPerson);
+  await settle();
 }
 
 /// Record one part and wait for the room to have named it, the way `retro_segments_test`
@@ -101,111 +95,39 @@ Future<ProviderContainer> _inRetro(SalaHarness harness) async {
 }
 
 void main() {
-  test('a blocking halt landing while capturing closes the microphone and '
-      'undoes the listening', () async {
-    final harness = SalaHarness();
-    final (container, notifier, read) = await _capturingWithAWarningArmed(
-      harness,
-    );
-    final captureIndex = harness.sounds.lastIndexOf('recorder:start');
+  test(
+    'a halt raised while capturing on the back-translation leaves the '
+    'microphone open, and the circle\'s tap sends the take, as hers',
+    () async {
+      final harness = SalaHarness();
+      final (container, notifier, read) = await _capturingWithAWarningArmed(
+        harness,
+      );
+      final captureIndex = harness.sounds.lastIndexOf('recorder:start');
 
-    await _haltLandsBlocking(notifier, read);
+      await _aHaltIsRaised(notifier);
 
-    expect(read().needsPerson, isTrue);
-    expect(read().voice, isNot(VoiceState.listening));
-    expect(
-      harness.sounds.sublist(captureIndex + 1),
-      contains('recorder:discard'),
-      reason:
-          'o gravador tem de ser descartado depois de ter sido aberto — o '
-          'testemunho que a nota do harness pede',
-    );
-    expect(
-      harness.recorder.deleted,
-      isNotEmpty,
-      reason: 'a peça que estava sendo escrita se foi',
-    );
-    expect(
-      read().btPhase,
-      BtPhase.playing,
-      reason: 'a fase volta para a que a captura interrompeu',
-    );
-    expect(
-      read().btClipRodando,
-      isFalse,
-      reason: 'o halo do clipe para junto com o microfone',
-    );
-    expect(
-      harness.room.calls,
-      isNot(contains('sendChunk')),
-      reason: 'a captura fechada não vira um trecho enviado',
-    );
-  });
+      expect(read().needsPerson, isFalse);
+      expect(
+        read().btPhase,
+        BtPhase.capturing,
+        reason: 'a parada fechava a captura, e o Drafting dela nunca a toca',
+      );
+      expect(
+        harness.sounds.sublist(captureIndex + 1),
+        isNot(contains('recorder:discard')),
+        reason: 'o gravador era descartado no meio da frase da equipe',
+      );
 
-  test('after the tap, the circle opens a fresh capture', () async {
-    final harness = SalaHarness();
-    final (container, notifier, read) = await _capturingWithAWarningArmed(
-      harness,
-    );
-    await _haltLandsBlocking(notifier, read);
-    notifier.teamTapped();
-    await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
+      notifier.retroTap();
+      await waitFor(
+        'o trecho seguir para a sala',
+        () => harness.room.calls.contains('sendChunk'),
+      );
 
-    harness.playback.at = const Duration(seconds: 2);
-    notifier.retroTap();
-    await waitFor(
-      'uma nova captura abrir',
-      () => read().btPhase == BtPhase.capturing,
-    );
-
-    expect(
-      harness.sounds.where((s) => s == 'recorder:start').length,
-      2,
-      reason: 'o círculo abre um microfone novo, do zero',
-    );
-  });
-
-  test('a recording already in the outbox is still delivered while the halt '
-      'stands', () async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final (container, notifier, read) = await _capturingWithAWarningArmed(
-      harness,
-    );
-    final fila = harness.takes as FakeTakeQueue;
-    final sessionId = read().sessionId!;
-    final segunda = File(
-      '${Directory.systemTemp.createTempSync('sala-963-fila').path}/p2.m4a',
-    )..writeAsBytesSync([4, 5, 6]);
-    addTearDown(() => segunda.parent.deleteSync(recursive: true));
-
-    harness.room.holdNextTake(KeptScope.parte(2));
-    await fila.enqueue(
-      segunda,
-      sessionId: sessionId,
-      kind: 'ensaio',
-      scope: KeptScope.parte(2),
-    );
-    unawaited(fila.flush());
-    await harness.room.untilTakeHeld();
-
-    await _haltLandsBlocking(notifier, read);
-    expect(
-      fila.rows.single.stored,
-      isFalse,
-      reason: 'ainda presa no envio quando a parada pousa',
-    );
-
-    harness.room.finishHeldTake();
-    await waitFor('a gravação em fila chegar', () => fila.rows.single.stored);
-
-    expect(
-      read().needsPerson,
-      isTrue,
-      reason:
-          'a parada é sobre a equipe, não sobre a rede: a fila entrega o '
-          'que já tinha, sem esperar o atendimento',
-    );
-  });
+      expect(harness.room.calls, contains('sendChunk'));
+    },
+  );
 
   test('a warning changes nothing', () async {
     final harness = SalaHarness();
@@ -263,7 +185,7 @@ void main() {
     expect(read().btPhase, BtPhase.playing);
   });
 
-  test('a halt landing while the start is still in the air leaves nothing '
+  test('a halt raised while the microphone is still starting lets the capture '
       'open once it lands', () async {
     final harness = SalaHarness();
     harness.recorder.holdNextStart();
@@ -271,8 +193,7 @@ void main() {
       harness,
     );
 
-    await _haltLandsBlocking(notifier, read);
-    expect(read().btPhase, BtPhase.playing);
+    await _aHaltIsRaised(notifier);
     final discardsBeforeStart = harness.sounds
         .where((s) => s == 'recorder:discard')
         .length;
@@ -280,13 +201,15 @@ void main() {
     harness.recorder.finishStart();
     await settle();
 
+    expect(read().needsPerson, isFalse);
+    expect(
+      read().btPhase,
+      BtPhase.capturing,
+      reason: 'a parada desistia do microfone que ainda estava abrindo',
+    );
     expect(
       harness.sounds.where((s) => s == 'recorder:discard').length,
-      greaterThan(discardsBeforeStart),
-      reason:
-          'o gravador só respondeu depois de a parada já ter desistido '
-          'dele; nada mais o fecharia',
+      discardsBeforeStart,
     );
-    expect(read().btPhase, BtPhase.playing);
   });
 }
