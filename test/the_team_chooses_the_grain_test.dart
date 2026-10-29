@@ -38,6 +38,7 @@ const _failed = 'falhou — toque para tentar de novo';
 const _wholeInstead = 'Gravar a passagem inteira';
 const _theArmLapses = Duration(seconds: 8);
 const _record = 'Gravar';
+const _backToPassage = 'Voltar para a passagem atual';
 
 const _planLine = 'Estes são os ensaios das cenas que vocês me enviaram.';
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
@@ -453,6 +454,31 @@ void main() {
   );
 
   testWidgets(
+    'a hand take still on the tablet does not hide the other language\'s line, '
+    'the choice stands under it',
+    (tester) async {
+      final (harness, container) = await _atRest(
+        tester,
+        seed: (_) => [_rehearsal('outra-sessao')],
+      );
+      await _aHandTakeHeld(tester, harness, container, scene: 1);
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(
+        find.text(_elsewhere),
+        findsOneWidget,
+        reason:
+            'a gravação que só estava no tablet escondia a linha da outra '
+            'língua',
+      );
+      expect(find.text(_whole), findsOneWidget);
+      expect(find.text(_sceneByScene), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     '5. with a grain in force, the 6 s cut opens that grain\'s home, never the '
     'choice',
     (tester) async {
@@ -469,6 +495,98 @@ void main() {
       expect(find.text('Cena 1'), findsNothing);
       expect(find.text(_how), findsNothing);
       harness.room.finishHeldSceneList();
+    },
+  );
+
+  testWidgets(
+    'with a grain only in memory, the 6 s cut with no listing read shows the '
+    'choice, not that grain\'s home',
+    (tester) async {
+      final (harness, _) = await _onTheEmptyWholeHome(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room
+        ..holdNextTakesList()
+        ..holdNextSceneList();
+
+      await _tapTheDot(tester);
+      await tester.pump(const Duration(milliseconds: 6000));
+      await _settles(tester);
+
+      expect(
+        find.text(_how),
+        findsOneWidget,
+        reason:
+            'sem a listagem da sala, o tablet abria a casa do grão que lembrava, '
+            'e o dela mostra a escolha',
+      );
+      expect(find.text(_homeLine), findsNothing);
+      harness.room
+        ..finishHeldTakesList()
+        ..finishHeldSceneList();
+    },
+  );
+
+  testWidgets(
+    'with a grain only in memory, a listing that fails shows the choice, not '
+    'that grain\'s home',
+    (tester) async {
+      final (harness, _) = await _onTheEmptyWholeHome(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room.failTakesWith = const NetworkFailed('sem rede');
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(
+        find.text(_how),
+        findsOneWidget,
+        reason:
+            'a listagem que falhou abria a casa do grão lembrado, e o dela, sem '
+            'o rascunho lido, mostra a escolha',
+      );
+      expect(find.text(_homeLine), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'on the choice over a grain in memory, a tap on that grain the room does not '
+    'answer stays on the choice and says nothing',
+    (tester) async {
+      final (harness, _) = await _onTheEmptyWholeHome(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room.failTakesWith = const NetworkFailed('sem rede');
+      await _tapTheDot(tester);
+      await _settles(tester);
+      harness.room.grainAnswersFirst.add(const NetworkFailed('sem rede'));
+      final switches = harness.room.grainSwitches.length;
+      final played = harness.voice.played.length;
+      final lines = harness.voice.fixedLines.length;
+
+      await _tap(tester, _whole);
+      await _settles(tester);
+
+      expect(
+        harness.room.grainSwitches.skip(switches),
+        [(grain: Grain.whole, reopens: false)],
+        reason: 'o grão lembrado abria a casa sem perguntar à sala',
+      );
+      expect(find.text(_how), findsOneWidget);
+      expect(find.text(_homeLine), findsNothing);
+      expect(_enabled(tester, _wholeChoice), isTrue);
+      expect(_enabled(tester, _sceneChoice), isTrue);
+      expect(thePersonSign, findsNothing);
+      expect(harness.voice.played, hasLength(played));
+      expect(harness.voice.fixedLines, hasLength(lines));
+
+      harness.room.failTakesWith = null;
+      await _tap(tester, _whole);
+      await _settles(tester);
+
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_whole), findsOneWidget);
     },
   );
 
@@ -587,6 +705,65 @@ void main() {
       expect(find.text(_homeLine), findsOneWidget);
       expect(find.text(_whole), findsOneWidget);
       expect(harness.room.grainSwitches, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'an empty whole recording with no scene rehearsal of the session opens the '
+    'whole-passage home, not the plan',
+    (tester) async {
+      final (harness, _) = await _atRest(tester);
+      harness.room.grain = Grain.whole;
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsNothing,
+        reason:
+            'o ponto abria o plano vazio sobre a passagem inteira, onde o dela '
+            'abre a tela de gravar a passagem inteira',
+      );
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_whole), findsOneWidget);
+      expect(harness.room.grainSwitches, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'an empty whole recording with only an unsent scene rehearsal of the session '
+    'still opens the plan',
+    (tester) async {
+      final (harness, _) = await _atRest(
+        tester,
+        seed: (session) => [
+          SceneRehearsalRecord(
+            rehearsalId: '$session-ensaio-1',
+            sessionId: session,
+            n: 1,
+            scene: 'S1',
+            recordedAt: DateTime.utc(2026, 10, 22, 13, 7),
+            durationMs: 7000,
+            frases: const [
+              SceneFrase(fraseId: 'frase-0', startsMs: 0, endsMs: 3500),
+            ],
+            contentType: 'audio/wav',
+            verified: true,
+          ),
+        ],
+      );
+      harness.room.grain = Grain.whole;
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason: 'um ensaio da cena ainda não enviado não contava como ensaio',
+      );
+      expect(find.text(_homeLine), findsNothing);
     },
   );
 
@@ -752,7 +929,10 @@ void main() {
     'a join row of the earlier grain still in the Outbox is no scene\'s join on '
     'the plan over an empty whole recording',
     (tester) async {
-      final (harness, container) = await _atRest(tester);
+      final (harness, container) = await _atRest(
+        tester,
+        seed: (session) => [_rehearsal(session)],
+      );
       harness.room
         ..grain = Grain.whole
         ..unreachableTake = 'ensaio/${KeptScope.parte(1)}';
@@ -772,7 +952,42 @@ void main() {
       await _settles(tester);
 
       expect(find.text(_planLine), findsOneWidget);
-      expect(find.text(_missing), findsNWidgets(3));
+      expect(find.text(_missing), findsNWidgets(2));
+    },
+  );
+
+  testWidgets(
+    'a join row of the earlier grain still in the Outbox does not hold the plan '
+    'over an empty whole recording with no scene rehearsal',
+    (tester) async {
+      final (harness, container) = await _atRest(tester);
+      harness.room
+        ..grain = Grain.whole
+        ..unreachableTake = 'ensaio/${KeptScope.parte(1)}';
+      (harness.takes as FakeTakeQueue).rows.add(
+        PendingTake(
+          id: 'juntada-1',
+          path: '/nao/existe/parte-1.m4a',
+          sessionId: container.read(salaSessionProvider).sessionId!,
+          kind: 'ensaio',
+          scope: KeptScope.parte(1),
+          passNumber: 1,
+          origin: 'cena-1',
+        ),
+      );
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsNothing,
+        reason:
+            'a linha da junta do grão anterior deixava o plano vazio de pé sobre '
+            'a passagem inteira',
+      );
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_whole), findsOneWidget);
     },
   );
 

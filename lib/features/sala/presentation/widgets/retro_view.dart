@@ -18,6 +18,7 @@ import 'approve_button.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'frase_list.dart';
+import 'grain_choice_view.dart';
 import 'external_check_button.dart';
 import 'listeners_line.dart';
 import 'motion.dart';
@@ -60,6 +61,13 @@ class RetroView extends ConsumerWidget {
         : null;
     final linha = estado == null && nota == null
         ? _linha(session, language)
+        : null;
+    final dica = retroLabelFor('stretchUntranslated', language);
+    final debaixo = session.btAindaFaltaOuvir
+        ? retroLabelFor('partUnheard', language)
+        : session.btFaltaTraduzirUmTrecho &&
+              !(estado?.startsWith(dica) ?? false)
+        ? dica
         : null;
     final veredito = session.btVeredito || session.btFindings.isNotEmpty;
     final circulo = herCircleSize(MediaQuery.sizeOf(context), 38, 150);
@@ -166,7 +174,11 @@ class RetroView extends ConsumerWidget {
             StatusLines(line: estado, note: nota),
             if (session.btSoOuvir) ...[
               const SizedBox(height: 12),
-              _APosicaoDaEscuta(session: session, language: language),
+              _ALinhaDaEscuta(
+                session: session,
+                language: language,
+                linha: session.btClipRodando ? 'listening' : null,
+              ),
             ],
             if (linha != null) ...[
               const SizedBox(height: 12),
@@ -180,9 +192,12 @@ class RetroView extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 16),
-            SizedBox(
-              height: 60,
-              child: _actions(session, notifier, language, colors),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 60),
+                child: _actions(session, notifier, language, colors),
+              ),
             ),
             if (session.btPhase == BtPhase.conferida &&
                 (session.approvedDraftDrawn == null ||
@@ -239,10 +254,18 @@ class RetroView extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 24),
-            SizedBox(
-              height: 78,
-              child: _disc(session, colors, notifier, language, avanca),
-            ),
+            if (avanca) _pilula(session, colors, notifier, language),
+            if (avanca && debaixo != null) ...[
+              const SizedBox(height: 17.6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  debaixo,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.telha, fontSize: 12.8),
+                ),
+              ),
+            ],
             if (avanca && session.btVeredito) ...[
               const SizedBox(height: 16),
               _botaoEscrito(
@@ -252,6 +275,15 @@ class RetroView extends ConsumerWidget {
                         session.btPhase == BtPhase.playing
                     ? notifier.gravarAParteDeNovo
                     : null,
+              ),
+            ],
+            if (session.joined && !session.btSoOuvir) ...[
+              const SizedBox(height: 8),
+              wholeAtOnce(
+                session,
+                language,
+                notifier.recordTheWholePassage,
+                open: session.wholeSwitchActsOnTheCheck,
               ),
             ],
             const SizedBox(height: 48),
@@ -551,9 +583,6 @@ class RetroView extends ConsumerWidget {
         case PassoDaRegravacao.pronta || PassoDaRegravacao.gravando) {
       return sceneRehearsalLabelFor('respeakHint', language);
     }
-    if (_conferida(session)) {
-      return '✓ ${retroLabelFor('translated', language)}';
-    }
     return null;
   }
 
@@ -577,43 +606,57 @@ class RetroView extends ConsumerWidget {
     return null;
   }
 
-  Widget? _disc(
+  Widget _pilula(
     SalaSessionState session,
     SalaColors colors,
     SalaSessionNotifier notifier,
     String language,
-    bool avanca,
   ) {
-    if (!avanca) return null;
     final terminei = retroLabelFor(
       session.btConferindo ? 'checking' : 'advance',
       language,
     );
+    final acesa = session.canAdvanceToTheVerdict;
     return FadeUp(
-      child: RoundActionButton(
-        size: 78,
-        semanticLabel: terminei,
-        gradient: BeadStyles.wood,
-        shadows: RoundActionButton.dropShadow,
-        mood: session.canAdvanceToTheVerdict
-            ? ButtonMood.beckoning
-            : ButtonMood.dimmed,
-        onTap: () => unawaited(notifier.finishBackTranslation()),
-        label: ExcludeSemantics(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                terminei,
-                style: TextStyle(
-                  color: session.canAdvanceToTheVerdict
-                      ? ShemaBrand.branco
-                      : colors.ink,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+      child: Semantics(
+        button: true,
+        enabled: acesa,
+        label: terminei,
+        child: GestureDetector(
+          onTap: acesa
+              ? () => unawaited(notifier.finishBackTranslation())
+              : null,
+          child: ExcludeSemantics(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned.fill(
+                  child: AnimatedOpacity(
+                    opacity: acesa ? 1 : 0.35,
+                    duration: const Duration(milliseconds: 200),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: colors.telha,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 35.2,
+                    vertical: 12.8,
+                  ),
+                  child: Text(
+                    terminei,
+                    style: TextStyle(
+                      color: acesa ? colors.paper : colors.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -762,9 +805,36 @@ class RetroView extends ConsumerWidget {
               color: ShemaBrand.branco,
             ),
           ),
+          if (_aEscuta(session) case final linha?) ...[
+            const SizedBox(width: 11.2),
+            Flexible(
+              child: _ALinhaDaEscuta(
+                session: session,
+                language: language,
+                linha: linha,
+                textAlign: TextAlign.start,
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  String? _aEscuta(SalaSessionState session) {
+    if (session.btSoOuvir) return null;
+    if (session.btTrechoTraduzidoDeNovo != null ||
+        session.btRegravacao != null) {
+      return session.btTrechoTocando ? 'listening' : null;
+    }
+    if (session.btClipEnded && !session.btParteFronteira) {
+      return 'endOfTheRecording';
+    }
+    if (session.btCortado) {
+      return session.btPausaAjustavel ? 'pauseHint' : 'pauseAtTheTap';
+    }
+    if (session.btClipRodando || session.btTrechoTocando) return 'listening';
+    return 'paused';
   }
 
   String _circleLabel(SalaSessionState session, String language) {
@@ -822,44 +892,64 @@ class RetroView extends ConsumerWidget {
   }
 }
 
-/// «ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10» while a part sounds, the place
-/// alone while it is held.
-class _APosicaoDaEscuta extends ConsumerWidget {
+/// «ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10»: her line, then the place while
+/// a part sounds or is held; either alone when the other is missing.
+class _ALinhaDaEscuta extends ConsumerWidget {
   final SalaSessionState session;
   final String language;
+  final String? linha;
+  final TextAlign textAlign;
 
-  const _APosicaoDaEscuta({required this.session, required this.language});
+  const _ALinhaDaEscuta({
+    required this.session,
+    required this.language,
+    required this.linha,
+    this.textAlign = TextAlign.center,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final (parte, soando) = switch (session.channel) {
-      PartPlaying(:final part) => (part.part, true),
-      Paused(what: final PartSound part) => (part.part, false),
-      _ => (null, false),
-    };
-    if (parte == null) return const SizedBox.shrink();
+    final parte = _parteNoAr(session);
+    if (parte == null && linha == null) return const SizedBox.shrink();
     final playback = ref.read(playbackRepositoryProvider);
     final colors = SalaColors.of(context);
     return Loop(
       period: const Duration(seconds: 1),
-      animate: soando,
+      animate: session.channel is PartPlaying,
       reducible: false,
       builder: (context, _) {
-        final lugar = firstListenPositionFor(
-          parte + 1,
-          playback.position,
-          playback.playingLength,
-          language,
-        );
+        final lugar = switch (parte) {
+          null => null,
+          final parte
+              when session.partes.elementAtOrNull(parte)?.scopeId ==
+                  KeptScope.whole =>
+            sceneClockOf(playback.position, playback.playingLength),
+          final parte => firstListenPositionFor(
+            parte + 1,
+            playback.position,
+            playback.playingLength,
+            language,
+          ),
+        };
         return Text(
-          soando ? '${retroLabelFor('listening', language)} — $lugar' : lugar,
-          textAlign: TextAlign.center,
+          [
+            if (linha case final linha?) retroLabelFor(linha, language),
+            ?lugar,
+          ].join(' — '),
+          textAlign: textAlign,
           style: TextStyle(color: colors.telha, fontSize: 15),
         );
       },
     );
   }
 }
+
+int? _parteNoAr(SalaSessionState session) => switch (session.channel) {
+  PartPlaying(:final part) => part.part,
+  Paused(what: final PartSound part) ||
+  Microphone(held: Paused(what: final PartSound part)) => part.part,
+  _ => null,
+};
 
 class _ManterADeAntes extends StatelessWidget {
   final String label;

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/main.dart';
 
@@ -24,6 +25,7 @@ typedef _Words = ({
   String conferida,
   String badge,
   String checagem,
+  String ponto,
 });
 
 String _sentencePt(int v) =>
@@ -43,6 +45,7 @@ _Words _pt(int v) => (
   conferida: '✓ traduzida e conferida',
   badge: '✓ aprovado como rascunho final (v$v)',
   checagem: 'Checagem externa',
+  ponto: 'Gravar o ensaio de vocês',
 );
 
 _Words _en(int v) => (
@@ -54,6 +57,7 @@ _Words _en(int v) => (
   conferida: '✓ translated and checked',
   badge: '✓ approved as the final draft (v$v)',
   checagem: 'External check',
+  ponto: 'Record your rehearsal',
 );
 
 const _p3Pt = ('P3', 'pt');
@@ -130,6 +134,16 @@ Future<void> _finishP3(WidgetTester tester, SalaHarness harness) async {
   await tester.pump(const Duration(milliseconds: 300));
 }
 
+Future<void> _prontoEDeVoltaPeloPonto(
+  WidgetTester tester,
+  SalaHarness harness,
+  _Words w,
+) async {
+  harness.room.readsChecked = true;
+  await _tapAndSettle(tester, w.pronto);
+  await _tapAndSettle(tester, w.ponto);
+}
+
 void _expectTheButtonStands(WidgetTester tester, _Words w) {
   expect(find.text(w.badge), findsOneWidget);
   expect(byLabel(w.checagem), findsOneWidget);
@@ -140,7 +154,7 @@ void _expectTheButtonStands(WidgetTester tester, _Words w) {
 void main() {
   testWidgets(
     'approved from the check screen: the sentence, P3 once, «Ensaio salvo», '
-    'and «Pronto» lands on the Back-translation with «Checagem externa»',
+    'and «Pronto», then the dot, lands on the home with «Checagem externa»',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await _ateAConferida(tester, harness);
@@ -161,13 +175,16 @@ void main() {
       expect(byLabel(w.checagem), findsNothing);
 
       final sonsAntesDoPronto = List.of(harness.sounds);
-      await tester.tap(byLabel(w.pronto));
-      await tester.pump(const Duration(milliseconds: 300));
+      harness.room.readsChecked = true;
+      await _tapAndSettle(tester, w.pronto);
 
       expect(find.text(w.salvo), findsNothing);
+      expect(harness.sounds, sonsAntesDoPronto);
+
+      await _tapAndSettle(tester, w.ponto);
+
       expect(find.text(w.conferida), findsOneWidget);
       _expectTheButtonStands(tester, w);
-      expect(harness.sounds, sonsAntesDoPronto);
       expect(harness.room.releasesAsked, hasLength(1));
       expect(harness.voice.fixedLines.skip(antes), [_p3Pt]);
 
@@ -186,6 +203,14 @@ void main() {
     final w = _en(1);
     final antes = harness.voice.fixedLines.length;
 
+    expect(byLabel(w.aprovar), findsOneWidget);
+    expect(
+      find.text(w.conferida),
+      findsNothing,
+      reason:
+          'a tela da checagem em inglês escrevia «✓ translated and checked»',
+    );
+
     await _approveWithP3Held(tester, harness, w);
 
     expect(find.text(w.approvedSentence), findsOneWidget);
@@ -197,8 +222,7 @@ void main() {
     expect(find.text(w.approvedSentence), findsOneWidget);
     expect(byLabel(w.pronto), findsOneWidget);
 
-    await tester.tap(byLabel(w.pronto));
-    await tester.pump(const Duration(milliseconds: 300));
+    await _prontoEDeVoltaPeloPonto(tester, harness, w);
 
     expect(find.text(w.conferida), findsOneWidget);
     _expectTheButtonStands(tester, w);
@@ -220,8 +244,7 @@ void main() {
     expect(_habilitado(tester, w.checagem), isFalse);
 
     await _finishP3(tester, harness);
-    await tester.tap(byLabel(w.pronto));
-    await tester.pump(const Duration(milliseconds: 300));
+    await _prontoEDeVoltaPeloPonto(tester, harness, w);
 
     expect(_habilitado(tester, w.checagem), isTrue);
     closeTheRoom(container);
@@ -234,8 +257,7 @@ void main() {
     final w = _pt(1);
     await _approveWithP3Held(tester, harness, w);
     await _finishP3(tester, harness);
-    await tester.tap(byLabel(w.pronto));
-    await tester.pump(const Duration(milliseconds: 300));
+    await _prontoEDeVoltaPeloPonto(tester, harness, w);
     final falas = List.of(harness.voice.fixedLines);
 
     await _tapAndSettle(tester, w.checagem);
@@ -269,9 +291,16 @@ void main() {
       () => find.text(w1.salvo).evaluate().isNotEmpty,
       step: () => _passo(tester),
     );
-    await tester.tap(byLabel(w1.pronto));
-    await tester.pump(const Duration(milliseconds: 800));
+    await _prontoEDeVoltaPeloPonto(tester, harness, w1);
     _expectTheButtonStands(tester, w1);
+    container.read(salaSessionProvider.notifier).startRetro();
+    await waitFor(
+      'a retrotradução aprovada voltar conferida',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      step: () => _passo(tester),
+    );
+    harness.room.readsChecked = false;
+    await tester.pump(const Duration(milliseconds: 800));
 
     await tocarNaLista(tester, 'regravar a frase 2');
     await tester.pump(const Duration(seconds: 2));
@@ -295,6 +324,18 @@ void main() {
     await tocarOCirculo(tester);
     await _passo(tester);
     await _passo(tester);
+    await waitFor(
+      'a gravação ouvida até o fim',
+      () => container.read(salaSessionProvider).btClipEnded,
+      step: () async {
+        if (container.read(salaSessionProvider).btClipRodando) {
+          harness.playback.finishPlayback();
+        } else {
+          container.read(salaSessionProvider.notifier).ouvirGravacao();
+        }
+        await _passo(tester);
+      },
+    );
     await tocar(tester, w1.terminei);
     await waitFor(
       'a sala conferir de novo',
@@ -318,15 +359,14 @@ void main() {
     expect(find.text(w2.salvo), findsOneWidget);
     expect(find.text(w2.approvedSentence), findsOneWidget);
 
-    await tester.tap(byLabel(w2.pronto));
-    await tester.pump(const Duration(milliseconds: 300));
+    await _prontoEDeVoltaPeloPonto(tester, harness, w2);
 
     _expectTheButtonStands(tester, w2);
     closeTheRoom(container);
   });
 
   testWidgets('an approval line not heard whole still ends on «Ensaio salvo», '
-      'and «Pronto» lands on «Checagem externa»', (tester) async {
+      'and the home after «Pronto» shows «Checagem externa»', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _ateAConferida(tester, harness);
     final w = _pt(1);
@@ -340,8 +380,7 @@ void main() {
     expect(find.text(w.approvedSentence), findsOneWidget);
     expect(byLabel(w.pronto), findsOneWidget);
 
-    await tester.tap(byLabel(w.pronto));
-    await tester.pump(const Duration(milliseconds: 300));
+    await _prontoEDeVoltaPeloPonto(tester, harness, w);
 
     _expectTheButtonStands(tester, w);
     expect(harness.room.releasesAsked, hasLength(1));
@@ -366,8 +405,7 @@ void main() {
     expect(find.text(w.salvo), findsOneWidget);
     expect(harness.room.externalChecksOpened, isEmpty);
 
-    await tester.tap(byLabel(w.pronto));
-    await tester.pump(const Duration(milliseconds: 300));
+    await _prontoEDeVoltaPeloPonto(tester, harness, w);
 
     _expectTheButtonStands(tester, w);
     expect(harness.room.releasesAsked, hasLength(1));
@@ -385,8 +423,7 @@ void main() {
       expect(find.textContaining('Refine'), findsNothing);
       await _finishP3(tester, harness);
       expect(find.textContaining('Refine'), findsNothing);
-      await tester.tap(byLabel(w.pronto));
-      await tester.pump(const Duration(milliseconds: 300));
+      await _prontoEDeVoltaPeloPonto(tester, harness, w);
       expect(find.textContaining('Refine'), findsNothing);
       closeTheRoom(container);
     });

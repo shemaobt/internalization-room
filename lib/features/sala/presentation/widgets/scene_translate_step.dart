@@ -76,142 +76,130 @@ class SceneTranslateStep extends ConsumerWidget {
     );
     final message = _messageOf(frases);
 
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SceneSub(said('subTranslate')),
-          const SizedBox(height: 12),
-          _PlayRow(
-            mood: idle && scene.listened ? ButtonMood.lit : ButtonMood.dimmed,
-            take: take,
-            label: said('playPause'),
-            hint: (at) => _hintOf(playing: playing, at: at),
-          ),
-          const SizedBox(height: 12),
-          SceneStrip(
-            envelope: envelope,
-            length: scene.length,
-            frases: [
-              for (final frase in frases)
-                if (moving && frase.fraseId == scene.translatingAgain?.fraseId)
-                  SceneFrase(
-                    fraseId: frase.fraseId,
-                    startsMs: frase.startsMs,
-                    endsMs: scene.pausa?.inMilliseconds ?? frase.endsMs,
-                  )
-                else
-                  frase,
-            ],
-            pausa: scene.pausa,
-            playing: playing,
-            take: take,
-            stoppedAt: stoppedAt,
-          ),
-          if (adjusts) ...[
-            const SizedBox(height: 12),
-            PauseAdjustRow(
-              lit: idle,
-              language: language,
-              onEarlier: notifier.pauseEarlier,
-              onHear: notifier.hearThePause,
-              onLater: notifier.pauseLater,
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SceneSub(said('subTranslate')),
+        const SizedBox(height: 12),
+        _PlayRow(
+          mood: idle && scene.listened ? ButtonMood.lit : ButtonMood.dimmed,
+          take: take,
+          label: said('playPause'),
+          hint: (at) => _hintOf(playing: playing, at: at),
+        ),
+        const SizedBox(height: 12),
+        SceneStrip(
+          envelope: envelope,
+          length: scene.length,
+          frases: [
+            for (final frase in frases)
+              if (moving && frase.fraseId == scene.translatingAgain?.fraseId)
+                SceneFrase(
+                  fraseId: frase.fraseId,
+                  startsMs: frase.startsMs,
+                  endsMs: scene.pausa?.inMilliseconds ?? frase.endsMs,
+                )
+              else
+                frase,
           ],
-          if (!scene.listened) ...[
-            const SizedBox(height: 12),
-            _WrittenButton(
-              said('translate'),
-              live: idle,
-              onTap: notifier.playTheSceneRehearsal,
-            ),
-          ],
+          pausa: scene.pausa,
+          playing: playing,
+          take: take,
+          stoppedAt: stoppedAt,
+        ),
+        if (adjusts) ...[
           const SizedBox(height: 12),
-          RoundActionButton(
-            size: 180,
-            mood: telling
-                ? ButtonMood.beckoning
-                : scene.waiting
-                ? ButtonMood.waiting
-                : sending || !scene.listened
-                ? ButtonMood.dimmed
-                : ButtonMood.lit,
-            halo: colors.vermelhoMic,
-            semanticLabel: said('tell'),
-            onTap: notifier.tapTheTranslateCircle,
-            background: colors.vermelhoMic.withValues(alpha: 0.10),
-            border: Border.all(color: colors.vermelhoMic, width: 2),
-            child: Icon(
-              telling ? LucideIcons.square : LucideIcons.mic,
-              size: 56,
-              color: colors.vermelhoMic,
+          PauseAdjustRow(
+            lit: idle,
+            language: language,
+            onEarlier: notifier.pauseEarlier,
+            onHear: notifier.hearThePause,
+            onLater: notifier.pauseLater,
+          ),
+        ],
+        if (!scene.listened) ...[
+          const SizedBox(height: 12),
+          _WrittenButton(
+            said('translate'),
+            live: idle,
+            onTap: notifier.playTheSceneRehearsal,
+          ),
+        ],
+        const SizedBox(height: 12),
+        _TellCircle(
+          mood: telling
+              ? ButtonMood.beckoning
+              : scene.waiting
+              ? ButtonMood.waiting
+              : sending || !scene.listened
+              ? ButtonMood.dimmed
+              : ButtonMood.lit,
+          label: said('tell'),
+        ),
+        if (message != null) ...[
+          const SizedBox(height: 12),
+          Semantics(
+            liveRegion: true,
+            child: _Written(
+              message,
+              style: TextStyle(color: colors.mut, fontSize: 16),
             ),
           ),
-          if (message != null) ...[
-            const SizedBox(height: 12),
-            Semantics(
-              liveRegion: true,
-              child: _Written(
-                message,
-                style: TextStyle(color: colors.mut, fontSize: 16),
-              ),
-            ),
-          ],
-          if (scene.translatingAgain != null && !unseen) ...[
-            const SizedBox(height: 8),
-            _WrittenButton(
-              said('keepTheEarlier'),
-              live: !scene.waiting && !telling,
-              onTap: notifier.keepTheEarlierTranslation,
-              bare: true,
-            ),
-          ],
-          if (frases.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _Heading(said('frases')),
-            const SizedBox(height: 8),
-            for (final (i, frase) in frases.indexed)
-              _FraseBar(
-                n: i + 1,
-                share: frase.spanIn(scene.length) / longest,
-                words: said('frase', i + 1),
-                name: said('retellFrase', i + 1),
-                hearMine: said('hearMine', i + 1),
-                live: idle,
-                again: frase.fraseId == scene.translatingAgain?.fraseId,
-                onTap: () => notifier.translateTheFraseAgain(frase.fraseId),
-                onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
-              ),
-          ],
-          if (!scene.wentToTheVoice) ...[
-            const SizedBox(height: 16),
-            _WrittenButton(
-              said(sending ? 'sending' : 'send'),
-              live: sendable && !sending,
-              onTap: notifier.sendTheSceneRehearsal,
-              large: true,
-            ),
-          ],
-          if (restartShown || line != null) ...[
-            const SizedBox(height: 12),
-            SceneRestartControl(
-              shown: restartShown,
-              armed: restart,
-              n: scene.rehearsal?.translatedFrases ?? 0,
-              line: line,
-              live: idle,
-              language: language,
-            ),
-          ],
+        ],
+        if (scene.translatingAgain != null && !unseen) ...[
           const SizedBox(height: 8),
           _WrittenButton(
-            said('again'),
-            live: !sending && !scene.waiting,
-            onTap: notifier.recordTheSceneAgain,
+            said('keepTheEarlier'),
+            live: !scene.waiting && !telling,
+            onTap: notifier.keepTheEarlierTranslation,
             bare: true,
           ),
         ],
-      ),
+        if (frases.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _Heading(said('frases')),
+          const SizedBox(height: 8),
+          for (final (i, frase) in frases.indexed)
+            _FraseBar(
+              n: i + 1,
+              share: frase.spanIn(scene.length) / longest,
+              words: said('frase', i + 1),
+              name: said('retellFrase', i + 1),
+              hearMine: said('hearMine', i + 1),
+              live: idle,
+              again: frase.fraseId == scene.translatingAgain?.fraseId,
+              onTap: () => notifier.translateTheFraseAgain(frase.fraseId),
+              onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
+            ),
+        ],
+        if (!scene.wentToTheVoice) ...[
+          const SizedBox(height: 16),
+          _WrittenButton(
+            said(sending ? 'sending' : 'send'),
+            live: sendable && !sending,
+            onTap: notifier.sendTheSceneRehearsal,
+            large: true,
+          ),
+        ],
+        if (restartShown || line != null) ...[
+          const SizedBox(height: 12),
+          SceneRestartControl(
+            shown: restartShown,
+            armed: restart,
+            n: scene.rehearsal?.translatedFrases ?? 0,
+            line: line,
+            live: idle,
+            language: language,
+          ),
+        ],
+        const SizedBox(height: 8),
+        _WrittenButton(
+          said('again'),
+          live: !sending && !scene.waiting,
+          onTap: notifier.recordTheSceneAgain,
+          bare: true,
+        ),
+      ],
     );
   }
 
@@ -250,13 +238,19 @@ class SceneTranslateStep extends ConsumerWidget {
     _ => null,
   };
 
-  /// Her hint: a frase translated again, listening or her clock alone; else the pausa
-  /// waiting, the take playing with her clock, the end of the take, or the take paused;
-  /// nothing before the team listens.
+  /// Her hint: «enviando…» while «terminei» is in the air; a frase translated again,
+  /// listening or her clock alone; else the pausa waiting, the take playing with her
+  /// clock, the end of the take, or the take paused; nothing before the team listens.
   String? _hintOf({required bool playing, required Duration at}) {
     final end = scene.takeEnd;
     final pausa = scene.pausa;
     final clock = playing ? at : stoppedAt;
+    if (sending && !scene.wentToTheVoice) {
+      final words = sceneRehearsalLabelFor('sending', language);
+      return clock == null || (end != null && clock >= end)
+          ? words
+          : '$words — ${sceneClockOf(clock, scene.length)}';
+    }
     if (!scene.listened) return null;
     if (scene.translatingAgain != null) {
       if (playing) return sceneListeningLineFor(at, scene.length, language);
@@ -345,6 +339,7 @@ class SceneRestartControl extends ConsumerWidget {
 
 class ScenePlacesUnknown extends ConsumerWidget {
   final SceneScreen scene;
+  final Envelope? envelope;
   final String language;
   final bool sending;
   final bool sendable;
@@ -355,6 +350,7 @@ class ScenePlacesUnknown extends ConsumerWidget {
   const ScenePlacesUnknown({
     super.key,
     required this.scene,
+    required this.envelope,
     required this.language,
     required this.sending,
     required this.sendable,
@@ -371,6 +367,28 @@ class ScenePlacesUnknown extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        SceneSub(said('subTranslate')),
+        const SizedBox(height: 12),
+        _PlayRow(
+          mood: ButtonMood.dimmed,
+          take: null,
+          label: said('playPause'),
+          hint: (_) => null,
+        ),
+        const SizedBox(height: 12),
+        SceneStrip(
+          envelope: envelope,
+          length: scene.length,
+          frases: const [],
+          pausa: null,
+          playing: false,
+        ),
+        const SizedBox(height: 12),
+        _TellCircle(
+          mood: scene.waiting ? ButtonMood.waiting : ButtonMood.dimmed,
+          label: said('tell'),
+        ),
+        const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _Written(
@@ -444,70 +462,94 @@ class SceneListenMode extends ConsumerWidget {
       _ => 0,
     };
     final longest = frases.map(span).fold(1, max);
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SceneSub(
-              said('listen'),
-              heard: line == SceneLine.diskFailed
-                  ? '${said('listen')} — ${said('diskFailed')}'
-                  : null,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SceneSub(
+            said('listen'),
+            heard: line == SceneLine.diskFailed
+                ? '${said('listen')} — ${said('diskFailed')}'
+                : null,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _PlayRow(
+          mood: sending || scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
+          take: take,
+          label: said('playPause'),
+          hint: (at) => switch ((playing, scene.heard)) {
+            (true, _) => sceneListeningLineFor(at, scene.length, language),
+            (false, SceneHeard.partly) => scenePausedLineFor(
+              stoppedAt,
+              scene.length,
+              language,
             ),
-          ),
-          const SizedBox(height: 12),
-          _PlayRow(
-            mood: sending || scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
-            take: take,
-            label: said('playPause'),
-            hint: (at) => switch ((playing, scene.heard)) {
-              (true, _) => sceneListeningLineFor(at, scene.length, language),
-              (false, SceneHeard.partly) => scenePausedLineFor(
-                stoppedAt,
-                scene.length,
-                language,
-              ),
-              (false, SceneHeard.toTheEnd) => said('ended'),
-              (false, _) => null,
-            },
-          ),
-          const SizedBox(height: 12),
-          SceneStrip(
-            envelope: envelope,
-            length: scene.length,
-            frases: frases,
-            pausa: null,
-            playing: playing,
-            take: take,
-            stoppedAt: stoppedAt,
-          ),
-          const SizedBox(height: 16),
-          if (frases.isNotEmpty) ...[
-            _Heading(said('frases')),
-            const SizedBox(height: 8),
-            for (final (i, frase) in frases.indexed)
-              _FraseBar(
-                n: i + 1,
-                share: span(frase) / longest,
-                words: said('frase', i + 1),
-                name: said('frase', i + 1),
-                hearMine: said('hearMine', i + 1),
-                live: !scene.waiting,
-                again: false,
-                onTap: () => notifier.playTheFrase(frase.fraseId),
-                onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
-              ),
-          ],
-          const SizedBox(height: 16),
-          _WrittenButton(
-            said('again'),
-            live: !sending,
-            onTap: notifier.recordTheSceneAgain,
-            bare: true,
-          ),
+            (false, SceneHeard.toTheEnd) => said('ended'),
+            (false, _) => null,
+          },
+        ),
+        const SizedBox(height: 12),
+        SceneStrip(
+          envelope: envelope,
+          length: scene.length,
+          frases: frases,
+          pausa: null,
+          playing: playing,
+          take: take,
+          stoppedAt: stoppedAt,
+        ),
+        const SizedBox(height: 16),
+        if (frases.isNotEmpty) ...[
+          _Heading(said('frases')),
+          const SizedBox(height: 8),
+          for (final (i, frase) in frases.indexed)
+            _FraseBar(
+              n: i + 1,
+              share: span(frase) / longest,
+              words: said('frase', i + 1),
+              name: said('frase', i + 1),
+              hearMine: said('hearMine', i + 1),
+              live: !scene.waiting,
+              again: false,
+              onTap: () => notifier.playTheFrase(frase.fraseId),
+              onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
+            ),
         ],
+        const SizedBox(height: 16),
+        _WrittenButton(
+          said('again'),
+          live: !sending,
+          onTap: notifier.recordTheSceneAgain,
+          bare: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _TellCircle extends ConsumerWidget {
+  final ButtonMood mood;
+  final String label;
+
+  const _TellCircle({required this.mood, required this.label});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = SalaColors.of(context);
+    return RoundActionButton(
+      size: 180,
+      mood: mood,
+      halo: colors.vermelhoMic,
+      semanticLabel: label,
+      onTap: ref.read(salaSessionProvider.notifier).tapTheTranslateCircle,
+      background: colors.vermelhoMic.withValues(alpha: 0.10),
+      border: Border.all(color: colors.vermelhoMic, width: 2),
+      child: Icon(
+        mood == ButtonMood.beckoning ? LucideIcons.square : LucideIcons.mic,
+        size: 56,
+        color: colors.vermelhoMic,
       ),
     );
   }
@@ -592,30 +634,25 @@ class SceneRehearsalList extends ConsumerWidget {
         sceneRehearsalLabelFor(control, language, n: n);
     return Semantics(
       label: said('list'),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 470,
-          maxHeight: MediaQuery.sizeOf(context).height / 3,
-        ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ExcludeSemantics(child: _Upper(said('list'))),
-                const SizedBox(height: 8),
-                for (final row in rows)
-                  _ListedRow(
-                    row: row,
-                    onScreen: row.rehearsalId == onScreen,
-                    still: still,
-                    language: language,
-                    onTap: () =>
-                        notifier.openTheListedSceneRehearsal(row.rehearsalId),
-                  ),
-              ],
-            ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 470),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ExcludeSemantics(child: _Upper(said('list'))),
+              const SizedBox(height: 8),
+              for (final row in rows)
+                _ListedRow(
+                  row: row,
+                  onScreen: row.rehearsalId == onScreen,
+                  still: still,
+                  language: language,
+                  onTap: () =>
+                      notifier.openTheListedSceneRehearsal(row.rehearsalId),
+                ),
+            ],
           ),
         ),
       ),
@@ -651,7 +688,7 @@ class _ListedRow extends StatelessWidget {
       fontSize: 0.8 * _rem,
     );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 0.15 * _rem),
       child: Semantics(
         button: true,
         enabled: live,
@@ -664,7 +701,7 @@ class _ListedRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: onScreen ? colors.azul : colors.line,
+                  color: onScreen ? colors.azul : colors.areia,
                   width: 1.2,
                 ),
                 borderRadius: BorderRadius.circular(12),
@@ -761,6 +798,7 @@ class SceneSub extends StatelessWidget {
     final style = TextStyle(
       color: SalaColors.of(context).claquete,
       fontSize: 0.92 * _rem,
+      letterSpacing: 0,
     );
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: 36 * chOf(context, style)),
@@ -818,6 +856,9 @@ class _WrittenButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
+    final outline = bare
+        ? null
+        : Border.all(color: colors.vermelhoMic, width: 1.5);
     return Semantics(
       button: true,
       enabled: live,
@@ -826,30 +867,41 @@ class _WrittenButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: live ? onTap : null,
         child: ExcludeSemantics(
-          child: Opacity(
-            opacity: live ? 1 : 0.35,
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: large ? 32 : 20,
-                vertical: large ? 14 : 10,
-              ),
-              decoration: bare
-                  ? null
-                  : BoxDecoration(
-                      color: large ? colors.vermelhoMic : null,
-                      border: Border.all(color: colors.vermelhoMic, width: 1.5),
-                      borderRadius: BorderRadius.circular(999),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (outline != null)
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: live ? 1 : 0.35,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: large ? colors.vermelhoMic : null,
+                        border: outline,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
-              child: Text(
-                words,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: large ? colors.paper : colors.ink,
-                  fontSize: large ? 18 : 14,
-                  decoration: bare ? TextDecoration.underline : null,
+                  ),
+                ),
+              Opacity(
+                opacity: live || large ? 1 : 0.35,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: large ? 32 : 20,
+                    vertical: large ? 14 : 10,
+                  ).add(outline?.dimensions ?? EdgeInsets.zero),
+                  child: Text(
+                    words,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: large && live ? colors.paper : colors.ink,
+                      fontSize: large ? 18 : 14,
+                      decoration: bare ? TextDecoration.underline : null,
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -887,7 +939,10 @@ class _FraseBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 0.15 * _rem,
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 470),
         child: Row(
@@ -901,92 +956,90 @@ class _FraseBar extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: live ? onTap : null,
                   child: ExcludeSemantics(
-                    child: Opacity(
-                      opacity: live ? 1 : 0.35,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 0.6 * _rem,
-                          vertical: 0.45 * _rem,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 0.6 * _rem,
+                        vertical: 0.45 * _rem,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color.fromRGBO(236, 234, 220, .05)
+                            : const Color.fromRGBO(255, 255, 255, .4),
+                        border: Border.all(
+                          color: again ? colors.telha : colors.areia,
+                          width: 1.2,
                         ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? const Color.fromRGBO(236, 234, 220, .05)
-                              : const Color.fromRGBO(255, 255, 255, .4),
-                          border: Border.all(
-                            color: again ? colors.telha : colors.areia,
-                            width: 1.2,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 0.05 * _rem),
-                              child: SizedBox(
-                                width: 26,
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: _Disc(n: n, fill: colors.areia),
-                                ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 0.05 * _rem),
+                            child: SizedBox(
+                              width: 26,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: _Disc(n: n, fill: colors.areia),
                               ),
                             ),
-                            const SizedBox(width: 0.55 * _rem),
-                            Expanded(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const SizedBox(height: 0.3 * _rem),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 10,
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: const Color.fromRGBO(
-                                          199,
-                                          194,
-                                          159,
-                                          .28,
-                                        ),
-                                        borderRadius: BorderRadius.circular(5),
+                          ),
+                          const SizedBox(width: 0.55 * _rem),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 0.3 * _rem),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 10,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: const Color.fromRGBO(
+                                        199,
+                                        194,
+                                        159,
+                                        .28,
                                       ),
-                                      child: Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: FractionallySizedBox(
-                                          widthFactor: share > 0
-                                              ? max(0.08, share)
-                                              : 1,
-                                          heightFactor: 1,
-                                          child: DecoratedBox(
-                                            decoration: BoxDecoration(
-                                              color:
-                                                  (again
-                                                          ? colors.telha
-                                                          : colors.claquete)
-                                                      .withValues(alpha: .85),
-                                              borderRadius:
-                                                  BorderRadius.circular(5),
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: FractionallySizedBox(
+                                        widthFactor: share > 0
+                                            ? max(0.08, share)
+                                            : 1,
+                                        heightFactor: 1,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color:
+                                                (again
+                                                        ? colors.telha
+                                                        : colors.claquete)
+                                                    .withValues(alpha: .85),
+                                            borderRadius: BorderRadius.circular(
+                                              5,
                                             ),
                                           ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 0.15 * _rem),
-                                  Text(
-                                    words,
-                                    style: TextStyle(
-                                      color: colors.claquete,
-                                      fontSize: 0.7 * _rem,
-                                      height: 1.35,
-                                    ),
+                                ),
+                                const SizedBox(height: 0.15 * _rem),
+                                Text(
+                                  words,
+                                  style: TextStyle(
+                                    color: colors.claquete,
+                                    fontSize: 0.7 * _rem,
+                                    height: 1.35,
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -995,14 +1048,15 @@ class _FraseBar extends StatelessWidget {
             ),
             const SizedBox(width: 0.4 * _rem),
             RoundActionButton(
-              size: 40,
+              size: 38,
               mood: live ? ButtonMood.lit : ButtonMood.dimmed,
               semanticLabel: hearMine,
               onTap: onHear,
+              border: Border.all(color: colors.areia, width: 1.3),
               child: Icon(
                 LucideIcons.volume2,
                 size: 18,
-                color: colors.vermelhoMic,
+                color: colors.claquete,
               ),
             ),
           ],

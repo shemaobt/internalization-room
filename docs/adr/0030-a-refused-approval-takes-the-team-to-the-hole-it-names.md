@@ -3,6 +3,31 @@
 Amended by ADR 0112: the landing now shows one of her three texts on the status line, so "the
 approval's landing says nothing" below holds for the voice only, not for the screen.
 
+Amended by ENG-1853 (2026-10-29, João's rule of 26 October: Marcia's frozen app 18fa7c4
+wins): a refused approval no longer takes the team to the hole it names. Hers writes the
+reason and waits; nothing plays, nothing is said and nothing is read again (`Drafting.tsx`
+`finalize` :709-718, `approve` :1598-1612). The room's order now only chooses which of her
+three texts is written (ADR 0112), and every refusal ends where the check's own door
+ended: the Back-translation as it stood before *terminei*, with *terminei* back. The untold
+stretch is not read back by name, and no part or stretch goes in the air on its own.
+Wherever this record says the team is taken to a part or a stretch, read that the team is
+shown the reason and left before *terminei*; the person's remainder, the version race and
+"by the field that is there" stand.
+
+Amended by ENG-1878 (2026-10-29, the same rule): *terminei* is not a button the room can
+simply hand back. Hers cannot be pressed until the telling is complete (`Drafting.tsx`
+`canCheck` :2340-2341, `.draft-save` :2466): a frase told, every part heard as the room
+counts it, no frase awaiting, no sentence re-recorded or splice open, no voice speaking and
+no microphone open, and on a joined recording a fresh frase on every part (`ensaioFinal.ts`
+`everyClipTold` :419). Ours is dimmed and takes no tap outside that gate: a part the
+room counts unheard keeps the check in the First listen (ADR 0123), a frase's
+microphone takes the check off *playing* before it opens, the sentence's microphone and
+its resend run under the open re-recording, ours has no splice to resume, and a guide
+line on the channel and an untold part of a joined recording are terms of the gate. So
+the check's door opens on a complete telling; a refusal that still comes back is a race,
+and where it leaves the team is ENG-1852's. Wherever this record says *terminei* comes
+back, read that it comes back under that gate.
+
 ## Context
 
 The **Approval** had one outcome the room knew how to draw. The server answered a refusal

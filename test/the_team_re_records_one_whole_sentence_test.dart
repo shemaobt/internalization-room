@@ -733,6 +733,34 @@ void main() {
     },
   );
 
+  testWidgets('a bead heard while a re-recorded frase awaits writes «ouvindo a '
+      'gravação de vocês…» beside play, not the end of the recording', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarAFrase(tester, harness, 2);
+    expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-2');
+
+    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    await _passo(tester);
+
+    final aqui = container.read(salaSessionProvider);
+    expect(aqui.canRetellAFrase, isFalse);
+    expect(aqui.btTrechoTocando, isTrue);
+    expect(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.text('ouvindo a gravação de vocês…'),
+      ),
+      findsOneWidget,
+      reason:
+          'a conta tocando a gravação com uma frase à espera se dizia o fim '
+          'da gravação',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a re-recorded frase that awaits its translation offers no way '
       'to keep the translation it had before', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -1136,7 +1164,8 @@ void main() {
   }
 
   testWidgets('at conferida the frase whose nuance the verdict named starts '
-      'its re-record, and the circle records it', (tester) async {
+      'its re-record, the circle records it, and the screen still asks for '
+      'the whole sentence', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await quatroFrasesEmWav(tester, harness);
     harness.room
@@ -1172,6 +1201,14 @@ void main() {
           'tradução em português',
     );
     expect(circulo.semanticLabel, 'gravem a frase inteira');
+    expect(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.text('gravem a frase inteira'),
+      ),
+      findsOneWidget,
+      reason: 'na tradução conferida a regravação perdia a pista escrita',
+    );
     closeTheRoom(container);
   });
 

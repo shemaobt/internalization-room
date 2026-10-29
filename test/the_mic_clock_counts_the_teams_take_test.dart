@@ -59,13 +59,18 @@ class _Room {
   bool get anyClock =>
       find.textContaining(RegExp(r'^\d+:\d\d$')).evaluate().isNotEmpty;
 
+  bool get circleListens =>
+      tester.widget<FacilitatorCircle>(circle).voice == VoiceState.listening;
+
   Text? clock(String digits) => switch (find.text(digits).evaluate()) {
     final found when found.isEmpty => null,
     final found => found.single.widget as Text,
   };
 
+  void tap() => view == PanoramaView ? sala.panoramaTap() : sala.conversaTap();
+
   Future<void> theTeamOpensItsTake() async {
-    view == PanoramaView ? sala.panoramaTap() : sala.conversaTap();
+    tap();
     await until(
       'o microfone abrir',
       () => estado.voice == VoiceState.listening,
@@ -276,6 +281,135 @@ void main() {
           reason: 'o gravador não começou e o relógio apareceu',
         );
         closeTheRoom(room.container);
+      },
+    );
+  }
+
+  for (final (screen, enter) in [
+    ('conversation', _inConversa),
+    ('Panorama', _inThePanorama),
+  ]) {
+    testWidgets(
+      'a recorder that starts late leaves the circle on the $screen at rest '
+      'until it answers, then it listens',
+      (tester) async {
+        final room = await enter(tester);
+        room.harness.recorder.holdNextStart();
+        await room.theTeamOpensItsTake();
+        await room.waits(const Duration(seconds: 2));
+        expect(
+          room.circleListens,
+          isFalse,
+          reason: 'o círculo ouvia antes de o gravador dizer que começou',
+        );
+
+        room.harness.recorder.finishStart();
+        await room.beat();
+        expect(
+          room.circleListens,
+          isTrue,
+          reason: 'o gravador começou e o círculo não ouvia',
+        );
+      },
+    );
+
+    for (final (how, breaks) in [
+      (
+        'fails to start',
+        (FakeRecorder recorder) => recorder.startThrows = true,
+      ),
+      ('is refused', (FakeRecorder recorder) => recorder.permitted = false),
+    ]) {
+      testWidgets(
+        'a recorder that $how never turns the circle on the $screen to '
+        'listening, not even while the tablet waits for its answer',
+        (tester) async {
+          final room = await enter(tester);
+          room.harness.recorder.holdNextStart();
+          await room.theTeamOpensItsTake();
+          breaks(room.harness.recorder);
+
+          await room.waits(const Duration(seconds: 2));
+          expect(
+            room.circleListens,
+            isFalse,
+            reason: 'o círculo ouvia com o gravador ainda sem responder',
+          );
+
+          room.harness.recorder.finishStart();
+          await room.beat(300);
+          expect(
+            room.circleListens,
+            isFalse,
+            reason: 'o gravador não começou e o círculo ouvia',
+          );
+          closeTheRoom(room.container);
+        },
+      );
+    }
+
+    testWidgets(
+      'a microphone another app takes leaves the circle on the $screen at '
+      'rest with no clock, and both come back with the microphone',
+      (tester) async {
+        final room = await enter(tester);
+        await room.theTeamOpensItsTake();
+        await room.waits(const Duration(seconds: 2));
+        expect(room.circleListens, isTrue);
+        expect(room.clock('0:02'), isNotNull);
+
+        room.harness.recorder.takeTheMicrophone();
+        await room.beat();
+        expect(
+          room.circleListens,
+          isFalse,
+          reason: 'outro app tomou o microfone e o círculo seguia ouvindo',
+        );
+        expect(
+          room.anyClock,
+          isFalse,
+          reason: 'outro app tomou o microfone e o relógio seguia contando',
+        );
+
+        await room.waits(const Duration(seconds: 3));
+        room.harness.recorder.giveTheMicrophoneBack();
+        await room.beat();
+        expect(
+          room.circleListens,
+          isTrue,
+          reason: 'o microfone voltou e o círculo não ouvia',
+        );
+        expect(
+          room.clock('0:05'),
+          isNotNull,
+          reason: 'o relógio não contava desde que o gravador começou',
+        );
+      },
+    );
+
+    testWidgets(
+      'a stop the recorder fails leaves the circle on the $screen at rest '
+      'with no clock, not listening over a take that is over',
+      (tester) async {
+        final room = await enter(tester);
+        await room.theTeamOpensItsTake();
+        await room.waits(const Duration(seconds: 2));
+        expect(room.circleListens, isTrue);
+
+        room.harness.recorder.stopThrows = true;
+        room.tap();
+        await room.beat(300);
+        expect(room.estado.channel, isA<Microphone>());
+        expect(
+          room.circleListens,
+          isFalse,
+          reason: 'o gravador falhou ao parar e o círculo seguia ouvindo',
+        );
+        expect(
+          room.anyClock,
+          isFalse,
+          reason: 'o gravador falhou ao parar e o relógio seguia contando',
+        );
       },
     );
   }

@@ -617,7 +617,7 @@ class SalaSessionState {
   final Set<int> theRoomJoinedParts;
   final List<int> toBringBack;
   final int? bringingBack;
-  final int? bringBackFailed;
+  final ({int cena, bool cannotEnter})? bringBackFailed;
 
   /// The takes of a whole rehearsal set aside behind the scenes' parts that only the room
   /// holds.
@@ -1266,6 +1266,19 @@ class SalaSessionState {
     };
   }
 
+  DateTime? get takeRecordingSince => switch (channel) {
+    Microphone(owner: MicOwner.conversation)
+        when !micTaken && machine.lastMic?.because == null =>
+      recorderStartedAt,
+    _ => null,
+  };
+
+  VoiceState get circleVoice => switch (channel) {
+    Microphone(owner: MicOwner.conversation) when takeRecordingSince == null =>
+      _resting,
+    _ => voice,
+  };
+
   VoiceState get _resting {
     if (awaitingTheGuide) return VoiceState.thinking;
     if (endOfThePassage ||
@@ -1432,7 +1445,25 @@ class SalaSessionState {
       btContaEscolhida == null &&
       btFraseQueAguarda == null &&
       btRegravacao == null &&
+      channel is! GuideSpeaking &&
+      (!joined ||
+          partes.indexed.every(
+            (parte) => btTrechos.any(
+              (trecho) => trecho.contado && trecho.parte == parte.$1,
+            ),
+          )) &&
       btTrechos.any((trecho) => trecho.contado);
+
+  bool get _btDebaixoDoTerminei =>
+      voice == VoiceState.invite && btTrechos.any((trecho) => trecho.contado);
+
+  bool get btAindaFaltaOuvir =>
+      _btDebaixoDoTerminei &&
+      btRecusa != CheckRefusal.stretchUntranslated &&
+      !(btClipEnded && _btParteContada);
+
+  bool get btFaltaTraduzirUmTrecho =>
+      _btDebaixoDoTerminei && btRecusa == CheckRefusal.stretchUntranslated;
 
   bool get btRestoDepoisDoCorte {
     if (!btCortado) return false;
@@ -1685,6 +1716,16 @@ class SalaSessionState {
       btFraseQueAguarda == null &&
       (btPhase == BtPhase.conferida || btPhase == BtPhase.playing);
 
+  bool get wholeSwitchActsOnTheCheck =>
+      joined &&
+      !btSoOuvir &&
+      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
+      channel is! Playing &&
+      channel is! GuideSpeaking &&
+      btRegravacao == null &&
+      aBackTranslationGestureActs &&
+      !needsPerson;
+
   bool get canHearAFrase =>
       stage == SalaStage.retro &&
       !btSoOuvir &&
@@ -1831,7 +1872,7 @@ class SalaSessionState {
     List<int>? toBringBack,
     int? bringingBack,
     bool clearBringingBack = false,
-    int? bringBackFailed,
+    ({int cena, bool cannotEnter})? bringBackFailed,
     bool clearBringBackFailed = false,
     Set<String>? wholeHeldByTheRoom,
     Map<String, PartAway>? partsAway,

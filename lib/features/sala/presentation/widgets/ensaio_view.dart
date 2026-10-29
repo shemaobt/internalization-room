@@ -537,6 +537,10 @@ class _SceneRowView extends StatelessWidget {
   Widget? _takeState(bool recording, String cena, SalaColors colors) {
     String words(String key) => recordingHomeLabelFor(key, language);
     final inTheAir = row.inTheAir;
+    final sendNow = switch (row.unsent) {
+      final unsent? => sendNowLabelFor(unsent, cena, language),
+      null => null,
+    };
     final said = switch (row.unsent) {
       _ when recording => _said(words('recording'), colors),
       _ when inTheAir != null => Row(
@@ -552,12 +556,8 @@ class _SceneRowView extends StatelessWidget {
           ),
         ],
       ),
-      UnsentPart(fromAnEarlierVisit: true, :final length) => _tap(
-        [
-          cena,
-          if (length != null) ' · ${minutesAndSecondsOf(length)}',
-          ' — ${words('sendNow')}',
-        ].join(),
+      _ when sendNow != null => _tap(
+        sendNow,
         words('sendAria'),
         onSend,
         colors,
@@ -677,13 +677,16 @@ class _SceneRowView extends StatelessWidget {
   }
 
   Widget? _bringBackFailed(SalaColors colors) {
-    if (session.bringBackFailed != row.number) return null;
+    final failed = session.bringBackFailed;
+    if (failed == null || failed.cena != row.number) return null;
     return Padding(
       padding: const EdgeInsets.only(left: 32, top: 4),
       child: Semantics(
         liveRegion: true,
         child: Text(
-          recordingHomeLabelFor('bringBackFailed', language),
+          failed.cannotEnter
+              ? ensaioFinalPlanLabelFor('cannotEnter', language)
+              : recordingHomeLabelFor('bringBackFailed', language),
           style: TextStyle(color: colors.telha, fontSize: 15),
         ),
       ),

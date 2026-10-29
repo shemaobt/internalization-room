@@ -73,12 +73,12 @@ final _apagando = find.byWidgetPredicate(
   },
 );
 
-double _veu(WidgetTester tester, Finder alvo) => tester
+double _veu(WidgetTester tester, Finder alvo, {Type tela = RetroView}) => tester
     .widgetList(
       find.ancestor(
         of: alvo,
         matching: find.descendant(
-          of: find.byType(RetroView),
+          of: find.byType(tela),
           matching: find.byWidgetPredicate(
             (widget) => widget is Opacity || widget is FadeTransition,
           ),
@@ -96,24 +96,25 @@ double _veu(WidgetTester tester, Finder alvo) => tester
           },
     );
 
-double _piorContraste(WidgetTester tester, String rotulo) {
+double piorContraste(
+  WidgetTester tester,
+  String rotulo, {
+  Type tela = RetroView,
+}) {
   final botao = byLabel(rotulo);
   final texto = find.descendant(of: botao, matching: find.text(rotulo));
   final disco = find.descendant(
     of: botao,
     matching: find.byWidgetPredicate(
-      (widget) =>
-          widget is Container &&
-          (widget.decoration as BoxDecoration?)?.gradient != null,
+      (widget) => widget is Container && widget.decoration is BoxDecoration,
     ),
   );
   final papel = Theme.of(tester.element(botao)).scaffoldBackgroundColor;
   final tinta = tester.widget<Text>(texto).style!.color!;
-  final paradas = (tester.widget<Container>(disco).decoration! as BoxDecoration)
-      .gradient!
-      .colors;
-  final veuDoDisco = _veu(tester, disco);
-  final veuDaTinta = _veu(tester, texto);
+  final pintura = tester.widget<Container>(disco).decoration! as BoxDecoration;
+  final paradas = pintura.gradient?.colors ?? [pintura.color!];
+  final veuDoDisco = _veu(tester, disco, tela: tela);
+  final veuDaTinta = _veu(tester, texto, tela: tela);
   return paradas
       .map((parada) {
         final fundo = Color.alphaBlend(
@@ -127,6 +128,65 @@ double _piorContraste(WidgetTester tester, String rotulo) {
         return contrastOf(letra, fundo);
       })
       .reduce((um, outro) => um < outro ? um : outro);
+}
+
+const _rem = 16.0;
+
+Future<ProviderContainer> _comOTermineiAceso(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  final container = await entrarNaTraducao(tester, harness, partes: 1);
+  harness.playback.at = cabeca;
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
+  await contarAteOFimDaParte(tester, harness);
+  await waitFor(
+    'o terminei acender',
+    () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
+    step: () => _passo(tester),
+  );
+  await tester.pump(const Duration(seconds: 1));
+  return container;
+}
+
+void _pilulaTelha(
+  WidgetTester tester,
+  String rotulo,
+  Color telha, {
+  required double veu,
+}) {
+  final botao = byLabel(rotulo);
+  final fundo = find.descendant(
+    of: botao,
+    matching: find.byWidgetPredicate(
+      (widget) => widget is Container && widget.decoration is BoxDecoration,
+    ),
+  );
+  final decoracao =
+      tester.widget<Container>(fundo).decoration! as BoxDecoration;
+  expect(
+    decoracao.color,
+    telha,
+    reason: 'o terminei era um disco de madeira, não a pílula telha dela',
+  );
+  expect(decoracao.borderRadius, BorderRadius.circular(999));
+  expect(decoracao.boxShadow, isNull, reason: 'a pílula dela não tem sombra');
+  final pilula = tester.getRect(botao);
+  final letra = tester.getRect(
+    find.descendant(of: botao, matching: find.text(rotulo)),
+  );
+  expect(letra.left - pilula.left, closeTo(2.2 * _rem, 0.01));
+  expect(pilula.right - letra.right, closeTo(2.2 * _rem, 0.01));
+  expect(letra.top - pilula.top, closeTo(0.8 * _rem, 0.01));
+  expect(pilula.bottom - letra.bottom, closeTo(0.8 * _rem, 0.01));
+  final estilo = tester
+      .widget<Text>(find.descendant(of: botao, matching: find.text(rotulo)))
+      .style!;
+  expect(estilo.fontSize, 1 * _rem);
+  expect(estilo.fontWeight, FontWeight.w600);
+  expect(_veu(tester, fundo), closeTo(veu, 0.001));
 }
 
 void _telaAlta(WidgetTester tester) {
@@ -2361,7 +2421,7 @@ void main() {
   ]) {
     testWidgets(
       'in the ${look.name} look a dimmed «terminei» is written in ink at full '
-      'strength, not in white fading with its disc',
+      'strength, not in white fading with its pill',
       (tester) async {
         tester.platformDispatcher.platformBrightnessTestValue = look;
         addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
@@ -2376,7 +2436,7 @@ void main() {
           matching: find.text('terminei'),
         );
         expect(
-          _piorContraste(tester, 'terminei'),
+          piorContraste(tester, 'terminei'),
           greaterThanOrEqualTo(4.5),
           reason: 'o rótulo apagado ficava abaixo de 4,5:1 no disco apagado',
         );
@@ -2400,51 +2460,7 @@ void main() {
       },
     );
     testWidgets(
-      'in the ${look.name} look a lit «terminei» keeps its white label on a '
-      'disc at full strength, not the ink of the dimmed one',
-      (tester) async {
-        tester.platformDispatcher.platformBrightnessTestValue = look;
-        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
-        _telaAlta(tester);
-        final harness = SalaHarness(filaEmMemoria: true);
-        final container = await entrarNaTraducao(tester, harness, partes: 1);
-        harness.playback.at = cabeca;
-        await tocarNoCirculo(tester);
-        await tocarNoCirculo(tester);
-        await tocarNoCirculo(tester);
-        await contarAteOFimDaParte(tester, harness);
-        await waitFor(
-          'o terminei acender',
-          () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
-          step: () => _passo(tester),
-        );
-        await tester.pump(const Duration(seconds: 1));
-
-        expect(aceso(tester, 'terminei'), isTrue);
-        final rotulo = find.descendant(
-          of: byLabel('terminei'),
-          matching: find.text('terminei'),
-        );
-        expect(
-          tester.widget<Text>(rotulo).style!.color,
-          const Color(0xFFF6F5EB),
-          reason: 'o terminei aceso perdia o branco que tinha',
-        );
-        expect(
-          find.ancestor(
-            of: rotulo,
-            matching: find.descendant(
-              of: find.byType(RetroView),
-              matching: _apagando,
-            ),
-          ),
-          findsNothing,
-        );
-        closeTheRoom(container);
-      },
-    );
-    testWidgets(
-      'in the ${look.name} look «conferindo…» on the dimmed disc is written in '
+      'in the ${look.name} look «conferindo…» on the dimmed pill is written in '
       'ink at full strength, as the dimmed «terminei», not in white',
       (tester) async {
         tester.platformDispatcher.platformBrightnessTestValue = look;
@@ -2472,7 +2488,7 @@ void main() {
           matching: find.text('conferindo…'),
         );
         expect(
-          _piorContraste(tester, 'conferindo…'),
+          piorContraste(tester, 'conferindo…'),
           greaterThanOrEqualTo(4.5),
           reason: 'o conferindo… ficava abaixo de 4,5:1 no disco apagado',
         );
@@ -2493,6 +2509,81 @@ void main() {
         );
         harness.room.finishHeldVerdict();
         await _passo(tester);
+        closeTheRoom(container);
+      },
+    );
+  }
+
+  for (final (look, telha, papel) in [
+    (Brightness.light, const Color(0xFFBE4A01), const Color(0xFFF6F5EB)),
+    (Brightness.dark, const Color(0xFFD6612A), const Color(0xFF1A150E)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look a lit «terminei» writes the paper on her telha '
+      'at 4.6:1 or better, not white on a light disc',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        _telaAlta(tester);
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await _comOTermineiAceso(tester, harness);
+
+        expect(aceso(tester, 'terminei'), isTrue);
+        expect(
+          piorContraste(tester, 'terminei'),
+          greaterThanOrEqualTo(4.6),
+          reason:
+              'o terminei aceso escrevia branco no disco de madeira, a 1,58:1',
+        );
+        final rotulo = find.descendant(
+          of: byLabel('terminei'),
+          matching: find.text('terminei'),
+        );
+        expect(tester.widget<Text>(rotulo).style!.color, papel);
+        expect(
+          find.ancestor(
+            of: rotulo,
+            matching: find.descendant(
+              of: find.byType(RetroView),
+              matching: _apagando,
+            ),
+          ),
+          findsNothing,
+        );
+        closeTheRoom(container);
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look a dimmed «terminei» is her telha pill faded to '
+      'a third, not a wood disc',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        _telaAlta(tester);
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await entrarNaTraducao(tester, harness, partes: 1);
+        await tester.pump(const Duration(seconds: 1));
+
+        expect(aceso(tester, 'terminei'), isFalse);
+        _pilulaTelha(tester, 'terminei', telha, veu: 0.35);
+        closeTheRoom(container);
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look a lit «terminei» is her telha pill at full '
+      'strength, still and without a halo, not a beckoning wood disc',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        _telaAlta(tester);
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await _comOTermineiAceso(tester, harness);
+
+        expect(aceso(tester, 'terminei'), isTrue);
+        for (var quadro = 0; quadro < 4; quadro++) {
+          _pilulaTelha(tester, 'terminei', telha, veu: 1);
+          await tester.pump(const Duration(milliseconds: 600));
+        }
         closeTheRoom(container);
       },
     );
@@ -2560,8 +2651,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a clean check shows «✓ traduzida e conferida», and the circle '
-      'says it too', (tester) async {
+  testWidgets('a clean check writes no «✓ traduzida e conferida» on the check '
+      'screen, only the circle names it', (tester) async {
     _telaAlta(tester);
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
@@ -2581,8 +2672,9 @@ void main() {
 
     expect(
       find.text('✓ traduzida e conferida'),
-      findsOneWidget,
-      reason: 'a passagem conferida não dizia na tela que estava conferida',
+      findsNothing,
+      reason:
+          'a tela da checagem escrevia a linha que a dela só escreve na casa',
     );
     expect(
       tester
