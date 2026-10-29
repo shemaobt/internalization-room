@@ -115,10 +115,7 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
                   child: Align(
                     alignment: Alignment.centerRight,
                     heightFactor: 1,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Claquete(words: words),
-                    ),
+                    child: Claquete(words: words),
                   ),
                 ),
               ),

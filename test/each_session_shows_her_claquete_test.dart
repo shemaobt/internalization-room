@@ -22,10 +22,11 @@ import 'package:internalization_room/main.dart' show SalaApp;
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show relaunch;
+import 'scenario_helpers.dart' show relaunch, withRealLetters;
 
 const _sessionId = 'fia-fixture-0001';
 const _herEightCharacters = 'fia-fixt';
+const _aLongPassageId = 'a-long-passage-id-from-the-room';
 final _noon = DateTime(2026, 9, 30, 14, 14, 5);
 
 const _panorama = Passagem(
@@ -660,6 +661,37 @@ void main() {
           reason:
               'o espaçamento ficou em 0.66 da época de 11 px; o dela é '
               '.06em de .68rem',
+        );
+      });
+    },
+  );
+
+  testWidgets(
+    'on an SE a long passage id is still drawn at her .68rem, never shrunk to fit',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 667);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.runAsync(withRealLetters);
+      await withClock(Clock.fixed(_noon), () async {
+        await _openP05(tester, pericope: _aLongPassageId);
+        expect(_claquete, findsOneWidget);
+
+        final style = tester
+            .widget<Text>(
+              find.descendant(of: _claquete, matching: find.byType(Text)),
+            )
+            .style!;
+        final drawn =
+            style.fontSize! *
+            tester.getRect(_claquete).height /
+            tester.getSize(_claquete).height;
+        expect(
+          drawn,
+          closeTo(10.88, 0.01),
+          reason:
+              'uma passagem longa num SE encolhia a claquete abaixo do '
+              '.68rem dela',
         );
       });
     },
