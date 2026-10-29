@@ -1364,7 +1364,10 @@ void main() {
       await it.wait(const Duration(seconds: 20));
 
       expect(it.onRow(1, find.text(_retry)), findsNothing);
-      expect(tries(), greaterThan(at60));
+      await it.until(
+        'a parte 1 ser enviada de novo depois dos 60 s',
+        () => tries() > at60,
+      );
       await it.wait(const Duration(seconds: 20));
       await it.until(
         'a linha 1 pedir outra tentativa',
