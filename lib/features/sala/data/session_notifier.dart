@@ -4105,6 +4105,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           grain,
           reopens: state.overAnApprovedDraft,
           then: () => _toTheGrainsHome(grain, sessionId),
+          fromTheChoice: true,
         ),
       ),
     );
@@ -4192,10 +4193,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     Grain grain, {
     required bool reopens,
     required void Function() then,
+    bool fromTheChoice = false,
   }) async {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
-    if (state.grainInForce == grain) return then();
+    if (!fromTheChoice && state.grainInForce == grain) return then();
     final generation = _waitOnTheGeneration;
     state = state.copyWith(grainSwitching: true);
     final answer = await _room.switchTheGrain(

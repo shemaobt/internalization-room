@@ -526,6 +526,46 @@ void main() {
   );
 
   testWidgets(
+    'on the choice over a grain in memory, a tap on that grain the room does not '
+    'answer stays on the choice and says nothing',
+    (tester) async {
+      final (harness, _) = await _onTheEmptyWholeHome(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room.failTakesWith = const NetworkFailed('sem rede');
+      await _tapTheDot(tester);
+      await _settles(tester);
+      harness.room.grainAnswersFirst.add(const NetworkFailed('sem rede'));
+      final switches = harness.room.grainSwitches.length;
+      final played = harness.voice.played.length;
+      final lines = harness.voice.fixedLines.length;
+
+      await _tap(tester, _whole);
+      await _settles(tester);
+
+      expect(
+        harness.room.grainSwitches.skip(switches),
+        [(grain: Grain.whole, reopens: false)],
+        reason: 'o grão lembrado abria a casa sem perguntar à sala',
+      );
+      expect(find.text(_how), findsOneWidget);
+      expect(find.text(_homeLine), findsNothing);
+      expect(_enabled(tester, _wholeChoice), isTrue);
+      expect(_enabled(tester, _sceneChoice), isTrue);
+      expect(thePersonSign, findsNothing);
+      expect(harness.voice.played, hasLength(played));
+      expect(harness.voice.fixedLines, hasLength(lines));
+
+      harness.room.failTakesWith = null;
+      await _tap(tester, _whole);
+      await _settles(tester);
+
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_whole), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     '6. after a join, «gravar a passagem inteira de uma vez» arms with her text '
     'and a second tap 2 s later calls the grain door; the parts are no longer '
     'shown',
