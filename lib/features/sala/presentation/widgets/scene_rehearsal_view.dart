@@ -212,7 +212,6 @@ class _TheRecordStep extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         circle,
-        const SizedBox(height: 24),
         SceneTakeState(
           recording: recording,
           keep: keep,

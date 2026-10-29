@@ -31,15 +31,17 @@ class SceneRecordHint extends StatelessWidget {
     );
     Widget written(String words) =>
         Text(words, textAlign: TextAlign.center, style: style);
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: 36 * chOf(context, style)),
-      child: recording
-          ? _TakeClock(
-              line: (elapsed) => written(
-                '${label('takeRecording')} · ${minutesAndSecondsOf(elapsed)}',
-              ),
-            )
-          : written(label(keeping ? 'saving' : 'recording')),
+    return ExcludeSemantics(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 36 * chOf(context, style)),
+        child: recording
+            ? _TakeClock(
+                line: (elapsed) => written(
+                  '${label('takeRecording')} · ${minutesAndSecondsOf(elapsed)}',
+                ),
+              )
+            : written(label(keeping ? 'saving' : 'recording')),
+      ),
     );
   }
 }
@@ -104,6 +106,7 @@ class SceneTakeState extends StatelessWidget {
             ),
         ],
         NotKept(:final why) => [
+          const SizedBox(height: 24),
           said(switch (why) {
             SendFailure.failed || SendFailure.gone => 'saveFailed',
             SendFailure.tooLarge => 'tooLarge',

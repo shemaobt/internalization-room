@@ -18,6 +18,7 @@ import 'fakes.dart';
 const _instruction =
     'Toquem no círculo para gravar o ensaio da cena; toquem de novo para parar.';
 const _hint = 'gravem o ensaio da cena na língua materna; toquem para parar';
+const _retryWords = 'falhou — toque para tentar de novo';
 
 Future<void> _pumpTheRoom(WidgetTester tester, SceneRoom room) async {
   await tester.pumpWidget(
@@ -87,6 +88,71 @@ void main() {
   );
 
   testWidgets(
+    'while the team records, the step ends at the clock line, with no blank '
+    'kept under it for words that are not there',
+    (tester) async {
+      late SceneRoom room;
+      await tester.runAsync(() async {
+        room = await atRest();
+        await theScreenOpens(room);
+        await theSceneMicrophoneOpens(room);
+      });
+      await _pumpTheRoom(tester, room);
+
+      final step = find
+          .descendant(
+            of: find.byType(SceneRehearsalView),
+            matching: find.byType(SingleChildScrollView),
+          )
+          .first;
+      final content = find
+          .descendant(of: step, matching: find.byType(Column))
+          .first;
+      expect(
+        tester.getRect(content).bottom,
+        closeTo(tester.getRect(find.text('gravando · 0:00')).bottom, 0.5),
+        reason:
+            'um espaço de 24 pontos ficava embaixo do relógio, separando-o de '
+            'nada',
+      );
+    },
+  );
+
+  testWidgets(
+    'while the take is kept VoiceOver hears «guardando o ensaio da cena…» '
+    'once, from the circle, not again from the line under it',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      late SceneRoom room;
+      await tester.runAsync(() async {
+        room = await atRest();
+        await theScreenOpens(room);
+        room.harness.room.holdNextKeepBeforeTheRoomActs();
+        room.harness.recorder.rehearsalSpeaks = Uint8List.fromList([
+          for (var i = 0; i < 1200; i++) (i * 7) % 251,
+        ]);
+        await theSceneMicrophoneOpens(room);
+        room.sala.sceneTap();
+        await waitFor(
+          'o take chegar à sala',
+          () => room.asked('keepSceneRehearsal') > 0,
+        );
+      });
+      await _pumpTheRoom(tester, room);
+
+      expect(find.text('guardando o ensaio da cena…'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('guardando o ensaio da cena…'),
+        findsOneWidget,
+        reason:
+            'o VoiceOver lia «guardando…» duas vezes, no nome do círculo e na '
+            'linha escrita embaixo',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     'in English the record step writes her English instruction and hint, '
     'not the Portuguese ones',
     (tester) async {
@@ -144,7 +210,7 @@ void main() {
   for (final language in ['pt', 'en']) {
     testWidgets(
       'on a phone, in $language, a failed take under a picked scene and the '
-      "session's list fits the screen, nothing cut at its edges",
+      "session's list scrolls, and every written line comes on screen whole",
       (tester) async {
         tester.view
           ..physicalSize = const Size(375, 667)
@@ -202,19 +268,42 @@ void main() {
         expect(find.byType(SceneChip), findsOneWidget);
         expect(tester.takeException(), isNull, reason: 'a tela transbordava');
         const screen = Rect.fromLTWH(0, 0, 375, 667);
-        for (final text
-            in find
-                .descendant(
-                  of: find.byType(SceneRehearsalView),
-                  matching: find.byType(Text),
-                )
-                .evaluate()) {
-          final box = text.renderObject! as RenderBox;
-          final rect = box.localToGlobal(Offset.zero) & box.size;
+        final written = tester
+            .widgetList<Text>(
+              find.descendant(
+                of: find.byType(SceneRehearsalView),
+                matching: find.byType(Text),
+              ),
+            )
+            .toList();
+        expect(
+          written.map((text) => text.data),
+          contains(
+            language == 'pt' ? _retryWords : 'failed — tap to try again',
+          ),
+        );
+        for (final text in written) {
+          final line = find.byWidget(text);
+          await tester.ensureVisible(line);
+          await tester.pump(const Duration(milliseconds: 100));
+          final rect = tester.getRect(line);
+          final paragraph = tester.renderObject(line);
           expect(
-            rect.left >= 0 && rect.right <= screen.right,
+            rect.left >= 0 &&
+                rect.right <= screen.right &&
+                rect.top >= 0 &&
+                rect.bottom <= screen.bottom,
             isTrue,
-            reason: 'uma linha escrita saía da tela: $rect',
+            reason: 'uma linha escrita saía da tela: ${text.data} $rect',
+          );
+          expect(
+            tester
+                .hitTestOnBinding(rect.center)
+                .path
+                .any((entry) => entry.target == paragraph),
+            isTrue,
+            reason:
+                'uma linha escrita ficava cortada ou coberta: ${text.data} $rect',
           );
         }
       },
