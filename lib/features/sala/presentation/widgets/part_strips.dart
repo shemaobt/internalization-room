@@ -13,6 +13,7 @@ final class PartStripRow {
   final List<SceneFrase> stale;
   final Duration? pausa;
   final bool playing;
+  final bool now;
 
   const PartStripRow({
     required this.label,
@@ -22,6 +23,7 @@ final class PartStripRow {
     this.stale = const [],
     this.pausa,
     this.playing = false,
+    this.now = false,
   });
 }
 
@@ -42,7 +44,7 @@ class PartStrips extends StatelessWidget {
             for (final (onde, row) in rows.indexed) ...[
               if (onde > 0) const SizedBox(height: 5),
               Opacity(
-                opacity: row.playing ? 1 : .7,
+                opacity: row.now ? 1 : .7,
                 child: Row(
                   children: [
                     ConstrainedBox(

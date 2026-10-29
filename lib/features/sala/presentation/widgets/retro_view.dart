@@ -720,6 +720,15 @@ class RetroView extends ConsumerWidget {
           PartPlaying(:final part) => part.part == onde,
           _ => false,
         },
+        now: switch (session.channel) {
+          PartPlaying(:final part) ||
+          Paused(what: final PartSound part) ||
+          GuideSpeaking(held: Paused(what: final PartSound part)) ||
+          Microphone(
+            held: Paused(what: final PartSound part),
+          ) => part.part == onde,
+          _ => false,
+        },
       ),
   ];
 

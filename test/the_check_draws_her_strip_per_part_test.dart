@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -618,6 +619,58 @@ void main() {
       reason:
           'todas as fileiras ficavam iguais, e nada dizia de que parte era '
           'o que estava tocando',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a part paused in the player, or held under the microphone, '
+      'keeps its row whole instead of fading with the rest', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+
+    harness.playback.at = const Duration(seconds: 3);
+    await tester.pump(passaDoCursor);
+    await tocarNoCirculo(tester);
+
+    expect(container.read(salaSessionProvider).channel, isA<Paused>());
+    expect(
+      _brilhos(tester),
+      [1.0, 0.7],
+      reason:
+          'a parte pausada no meio da frase apagava junto com as outras, e '
+          'a equipe perdia de vista a parte em que estava',
+    );
+
+    final sala = container.read(salaSessionProvider.notifier);
+    final pausada = sala.state.channel as Paused;
+    sala.state = sala.state.copyWith(
+      machine: sala.state.machine.copyWith(
+        channel: GuideSpeaking(const Line(LineKind.guide, 1), held: pausada),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      _brilhos(tester),
+      [1.0, 0.7],
+      reason:
+          'a voz falando por cima da parte pausada apagava a fileira da '
+          'parte que esperava a equipe',
+    );
+
+    sala.state = sala.state.copyWith(
+      machine: sala.state.machine.copyWith(channel: pausada),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    await tocarNoCirculo(tester);
+
+    expect(container.read(salaSessionProvider).channel, isA<Microphone>());
+    expect(
+      _brilhos(tester),
+      [1.0, 0.7],
+      reason:
+          'com o microfone aberto sobre a parte, nenhuma fileira dizia qual '
+          'parte estava sendo traduzida',
     );
     closeTheRoom(container);
   });
