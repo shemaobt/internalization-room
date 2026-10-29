@@ -8400,12 +8400,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _aParteNaoTocou() {
     if (state.btRegravacao != null) return;
-    state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
+    state = state.copyWith(btAviso: BtAviso.tocarFalhou);
   }
 
   void _aParteTocou() {
-    if (state.btRecusa != CheckRefusal.checkUnavailable) return;
-    state = state.copyWith(clearBtRecusa: true);
+    if (state.btAviso != BtAviso.tocarFalhou) return;
+    state = state.copyWith(clearAviso: true);
   }
 
   void _fimDeParte({required bool seguir}) {

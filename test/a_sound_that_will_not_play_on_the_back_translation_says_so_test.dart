@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
@@ -11,7 +12,14 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 import 'fakes.dart';
 import 'machine_generator.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show entrarNaTraducao, tocar;
+    show
+        cabeca,
+        conferir,
+        contarAteOFimDaParte,
+        entrarNaTraducao,
+        gravarATraducao,
+        tocar,
+        tocarNoCirculo;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
 import 'the_pause_snaps_to_silence_test.dart'
@@ -246,6 +254,47 @@ void main() {
 
       expect(harness.playback.sounding, isTrue);
       expect(find.text(_naoDeuParaConferir), findsNothing);
+      closeTheRoom(container);
+    });
+
+    testWidgets('a check that could not run keeps her line over a sentence '
+        'played after it', (tester) async {
+      _telaAlta(tester);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await entrarNaTraducao(tester, harness, partes: 1);
+      harness.playback.at = cabeca;
+      await tocarNoCirculo(tester);
+      await gravarATraducao(tester);
+      await contarAteOFimDaParte(tester, harness);
+      await waitFor(
+        'o terminei acender',
+        () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
+        step: () => _passo(tester),
+      );
+      harness.room.verdictRefusal = CheckRefusal.checkUnavailable;
+      await tocar(tester, conferir);
+      await waitFor(
+        'a conferência voltar sem conferir',
+        () =>
+            container.read(salaSessionProvider).btRecusa ==
+            CheckRefusal.checkUnavailable,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+      expect(find.text(_naoDeuParaConferir), findsOneWidget);
+      final tocadas = harness.playback.played.length;
+
+      await tocar(tester, 'Ouvir esta frase de novo e traduzir de novo — 1');
+      await waitFor(
+        'a frase tocar',
+        () =>
+            harness.playback.played.length > tocadas &&
+            harness.playback.sounding,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+
+      expect(find.text(_naoDeuParaConferir), findsOneWidget);
       closeTheRoom(container);
     });
   });
