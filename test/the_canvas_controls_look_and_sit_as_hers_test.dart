@@ -19,7 +19,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/shema_ma
 import 'every_way_back_is_her_bare_chevron_test.dart' show expectHerChevron;
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, withRealLetters;
 import 'the_kept_retellings_are_numbered_buttons_on_the_conversation_test.dart'
     show aKept, atRestAfterATurn;
 
@@ -632,6 +632,7 @@ void main() {
       tester,
     ) async {
       _on(tester, screen, bar: bar, inset: inset);
+      await tester.runAsync(withRealLetters);
       await atRestAfterATurn(tester, [
         aKept('S1', 2),
         aKept('S2', 4),
