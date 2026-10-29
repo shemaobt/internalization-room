@@ -936,6 +936,40 @@ void main() {
   }
 
   testWidgets(
+    'the line in use is announced as the selected one, and no other line is',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _seeded(tester, _threeOnSceneOne);
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 1);
+
+      expect(
+        _pressedAt(tester, _sent(2)),
+        Tristate.isTrue,
+        reason: 'a linha em uso só dizia «✓ em uso» em texto, sem o estado',
+      );
+      for (final n in [3, 1]) {
+        expect(_pressedAt(tester, _sent(n)), isNot(Tristate.isTrue));
+      }
+      await _tapLabel(tester, 'Ouvir — ${_sent(3)}');
+      expect(_pressedAt(tester, 'Ouvir — ${_sent(3)}'), Tristate.isTrue);
+      expect(
+        _pressedAt(tester, _sent(3)),
+        isNot(Tristate.isTrue),
+        reason: 'a linha que toca não é a linha em uso',
+      );
+      await _tapLabel(tester, 'Ouvir — ${_sent(3)}');
+
+      await _useThe(tester, _sent(1));
+      await _openTheSheetOf(tester, 1);
+
+      expect(_pressedAt(tester, _sent(1)), Tristate.isTrue);
+      expect(_pressedAt(tester, _sent(2)), isNot(Tristate.isTrue));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     '6. a rehearsal with an untranslated stretch reads «tradução incompleta» '
     'on its line and can still be used',
     (tester) async {

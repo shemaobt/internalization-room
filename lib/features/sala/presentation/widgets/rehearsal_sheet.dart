@@ -226,6 +226,7 @@ class _SheetLine extends StatelessWidget {
 
     return Semantics(
       container: true,
+      selected: inUse,
       label: line,
       child: Container(
         padding: const EdgeInsets.symmetric(
