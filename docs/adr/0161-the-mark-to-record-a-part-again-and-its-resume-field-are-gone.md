@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1872 (2026-10-29: the recording home has no circle)
 date: 2026-10-29
 amends: 0026 (the mark is gone), 0045 (the resume row carries no part), 0158 (a row written before it no longer restores its part)
 ---
@@ -42,3 +42,8 @@ dimmed, the circle recording over a full scene and the advance disc dark.
 - To record a part again the team taps that part's row on the home, as on hers (ADR 0158).
 - A part past the last scene can no longer be recorded again: only the mark reached it.
 - ADR 0026 and ADR 0045 describe a mark and a field that no longer exist.
+
+## Amendment · 2026-10-29 (ENG-1872)
+
+The recording home has no circle (ADR 0040's amendment of the same day), so «the circle
+records the first scene with no part» no longer holds: each Scene row records its own scene.

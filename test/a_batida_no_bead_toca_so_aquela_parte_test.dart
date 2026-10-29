@@ -251,7 +251,10 @@ void main() {
   testWidgets(
     'o ensaio inteiro toca uma parte de cada vez, sem selecionar linha',
     (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true);
+      final harness = SalaHarness(
+        filaEmMemoria: true,
+        takesHome: aTempHome('sala-1872'),
+      );
       final container = await _ensaioDeTresPartes(tester, harness: harness);
       final notifier = container.read(salaSessionProvider.notifier);
       final semLinhaSelecionada = [false, false, false, false];

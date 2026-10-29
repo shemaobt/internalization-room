@@ -484,6 +484,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late TurnClock? _coverageClock;
 
   late String? _pendingTakePath;
+
+  /// The room's latest grain told while a take of the recording home was open, for the
+  /// session it was told for: it lands once that take is over, so the take is stopped,
+  /// checked and kept under the grain it was opened at.
+  late (String, TakesListing)? _theGrainToldDuringATake;
   late StreamSubscription<void> _outboxFalls;
   late StreamSubscription<String> _outboxGone;
   late StreamSubscription<TakeLeaving?> _outboxLeaving;
@@ -594,6 +599,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _pendingClock = null;
     _coverageClock = null;
     _pendingTakePath = null;
+    _theGrainToldDuringATake = null;
     _outboxFalls = _apart(
       () => ref
           .read(takeUploadQueueProvider)
@@ -651,8 +657,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_recorder.sweepTheRecordingsLeftBehind());
     }
     unawaited(_takes.sweepTheCopiesLeftBehind());
-    listenSelf((_, now) {
+    listenSelf((before, now) {
       if (now.anArmedKnotLapsed) state = now.copyWith(noteMode: false);
+      if (before?.ensaio != EnsaioStatus.idle &&
+          now.ensaio == EnsaioStatus.idle &&
+          _theGrainToldDuringATake != null) {
+        scheduleMicrotask(() => _apart(_theGrainToldDuringATakeLands));
+      }
       _highestGeneration = max(_highestGeneration, now.machine.generation);
     });
     _runner = EffectRunner(
@@ -4352,6 +4363,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theRoomsGrainHeard(TakesListing listing) {
     final grain = listing.grain;
     if (grain == null) return;
+    if (state.ensaio != EnsaioStatus.idle) {
+      if (state.sessionId case final sessionId?) {
+        _theGrainToldDuringATake = (sessionId, listing);
+      }
+      return;
+    }
     final newGrain = state.grain != grain;
     state = state.copyWith(grainInForce: grain);
     if (!newGrain) return;
@@ -4373,6 +4390,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _weighTheRehearsal();
     unawaited(_countUnsent());
     if (state.station is Ensaio) _rememberWhereTheyAre(state.station);
+  }
+
+  void _theGrainToldDuringATakeLands() {
+    final told = _theGrainToldDuringATake;
+    if (_gone || told == null || state.ensaio != EnsaioStatus.idle) return;
+    _theGrainToldDuringATake = null;
+    final (sessionId, listing) = told;
+    if (state.sessionId == sessionId) _theRoomsGrainHeard(listing);
   }
 
   /// The plan's read and this session, or null off the plan.

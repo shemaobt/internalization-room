@@ -314,7 +314,7 @@ class _Casa {
 }
 
 Future<_Casa> _comAsQuatroPartesNaSala(WidgetTester tester) {
-  final sala = SalaHarness();
+  final sala = SalaHarness(takesHome: aTempHome('sala-1872'));
   sala.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.ensaio,

@@ -34,6 +34,7 @@ const _tocando = 'tocando';
 const _enviarAGravacao = 'Enviar a gravação';
 const _irParaATraducao = 'Traduzir a gravação';
 const _voltarERegravar = 'voltar e regravar uma parte';
+const _aPassagemInteira = 'A passagem inteira';
 
 void _umIpadEmPe(WidgetTester tester) {
   tester.view
@@ -76,6 +77,35 @@ Finder _linha(int n) => find.descendant(
 
 Finder _naLinha(int n, String controle) =>
     find.descendant(of: _linha(n), matching: byLabel(controle));
+
+Finder get _aLinhaInteira => find.descendant(
+  of: find.byType(EnsaioView),
+  matching: byLabel(_aPassagemInteira),
+);
+
+Finder _naLinhaInteira(String controle) =>
+    find.descendant(of: _aLinhaInteira, matching: byLabel(controle));
+
+List<String> _escoposNaSala(SalaHarness harness) => [
+  for (final take in harness.room.takesReceived) take.scope,
+];
+
+/// The grain the team asked for, held at the room's grain door until the test lets it
+/// answer, at whatever grain the room then holds.
+void _pedirOutroGraoSegurado(
+  SalaHarness harness,
+  ProviderContainer container,
+  void Function(SalaSessionNotifier notifier) pedido,
+) {
+  harness.room.holdTheGrainSwitch();
+  pedido(container.read(salaSessionProvider.notifier));
+}
+
+Future<void> _aSalaResponde(WidgetTester tester, SalaHarness harness) async {
+  harness.room.finishTheGrainSwitch();
+  await letTheRehearsalReachTheRoom(tester);
+  await tester.pump(const Duration(milliseconds: 200));
+}
 
 Finder get _circuloNaCasa => find.descendant(
   of: find.byType(EnsaioView),
@@ -468,5 +498,92 @@ void main() {
       expect(_humor(tester, _naLinha(n, _gravarDeNovo)), ButtonMood.lit);
     }
     expect(_discoAceso(tester), isTrue);
+  });
+
+  testWidgets(
+    'a whole grain the room tells while scene 3 records waits for the '
+    'keep: the take is kept as part 3, then the home is the whole',
+    (tester) async {
+      final harness = _umaSala();
+      final container = await _naCasaDoEnsaio(tester, harness);
+      _pedirOutroGraoSegurado(
+        harness,
+        container,
+        (sala) => sala.recordTheWholePassageInstead(),
+      );
+      await _tocar(tester, _naLinha(3, _gravar));
+      expect(_estado(container).ensaio, EnsaioStatus.recording);
+
+      await _aSalaResponde(tester, harness);
+
+      expect(_naLinha(3, _parar), findsOneWidget);
+      expect(_aLinhaInteira, findsNothing);
+      await _tocar(tester, _naLinha(3, _parar));
+      await _tocar(tester, offTheRows(_enviarAGravacao));
+      await letTheRehearsalReachTheRoom(tester);
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(_escoposNaSala(harness), contains(KeptScope.parte(3)));
+      expect(_escoposNaSala(harness), isNot(contains(KeptScope.whole)));
+      expect(_aLinhaInteira, findsOneWidget);
+      expect(_linha(1), findsNothing);
+    },
+  );
+
+  testWidgets('a scene grain the room tells while the whole passage records '
+      'waits for the keep: the take is kept as the whole, then the home is '
+      'the scenes', (tester) async {
+    final harness = _umaSala();
+    final container = await _naCasaDoEnsaio(tester, harness);
+    container.read(salaSessionProvider.notifier).recordTheWholePassageInstead();
+    await letTheRehearsalReachTheRoom(tester);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(_aLinhaInteira, findsOneWidget);
+    _pedirOutroGraoSegurado(
+      harness,
+      container,
+      (sala) => sala.recordSceneByScene(),
+    );
+    await _tocar(tester, _naLinhaInteira(_gravar));
+    expect(_estado(container).ensaio, EnsaioStatus.recording);
+
+    await _aSalaResponde(tester, harness);
+
+    expect(_naLinhaInteira(_parar), findsOneWidget);
+    expect(_linha(1), findsNothing);
+    await _tocar(tester, _naLinhaInteira(_parar));
+    await _tocar(tester, offTheRows(_enviarAGravacao));
+    await letTheRehearsalReachTheRoom(tester);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(_escoposNaSala(harness), contains(KeptScope.whole));
+    expect(_escoposNaSala(harness), isNot(contains(KeptScope.parte(1))));
+    expect(_linha(1), findsOneWidget);
+    expect(_aLinhaInteira, findsNothing);
+  });
+
+  testWidgets('a microphone that fails after the room told a new grain leaves '
+      'the home at the new grain', (tester) async {
+    final harness = _umaSala();
+    final container = await _naCasaDoEnsaio(tester, harness);
+    _pedirOutroGraoSegurado(
+      harness,
+      container,
+      (sala) => sala.recordTheWholePassageInstead(),
+    );
+    harness.recorder
+      ..startThrows = true
+      ..holdNextStart();
+    await _tocar(tester, _naLinha(3, _gravar));
+    expect(_estado(container).ensaio, EnsaioStatus.recording);
+
+    await _aSalaResponde(tester, harness);
+    harness.recorder.finishStart();
+    await letTheRehearsalReachTheRoom(tester);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(_estado(container).ensaio, EnsaioStatus.idle);
+    expect(_aLinhaInteira, findsOneWidget);
+    expect(_linha(1), findsNothing);
   });
 }
