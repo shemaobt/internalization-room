@@ -737,6 +737,49 @@ void main() {
     );
   });
 
+  List<(String?, int?)> asContadasNaTela(_Retomada it) => [
+    for (final trecho in it.estado.btTrechos)
+      (
+        trecho.segmentId,
+        switch (it.estado.partes.elementAtOrNull(trecho.parte)) {
+          final parte? => KeptScope.numberOf(parte.scopeId),
+          null => null,
+        },
+      ),
+  ];
+
+  test('gravar a parte 2 depois das partes 1 e 3 deixa a frase contada da '
+      'parte 3 na parte 3', () async {
+    final harness = SalaHarness();
+    harness.room
+      ..passageScenes = tresCenas
+      ..refuseClipOf.add('gravacao-2');
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.ensaio,
+      naSala: salaComPassadas([1, 2, 1]),
+      contado: _contado([1, 3]),
+    );
+    await waitFor(
+      'as frases contadas acharem as suas partes',
+      () => it.estado.btTrechos.length == 2,
+    );
+    await oEnsaioAbre(it);
+    expect(numerosDasPartes(it), [1, 3]);
+    expect(asContadasNaTela(it), [('trecho-1', 1), ('trecho-3', 3)]);
+
+    await gravarACena(it, 2);
+
+    expect(numerosDasPartes(it), [1, 2, 3]);
+    expect(
+      asContadasNaTela(it),
+      [('trecho-1', 1), ('trecho-3', 3)],
+      reason:
+          'a parte 2 entrava antes da 3 e a frase contada da parte 3 ficava '
+          'no lugar dela, lendo «parte 2» e pousando na faixa da parte 2',
+    );
+  });
+
   group('uma parte que a sala nao tem mais', () {
     test('deixa a linha dela nao gravada e as outras com as suas', () async {
       final it = await semAParteDois(SalaHarness());
