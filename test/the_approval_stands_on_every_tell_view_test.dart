@@ -7,7 +7,9 @@ import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 
+import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
@@ -18,8 +20,11 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         contarAteOFimDaParte,
         entrarNaTraducao,
         gravarATraducao,
+        terminar,
         tocar,
         tocarNoCirculo;
+import 'the_team_re_records_one_whole_sentence_test.dart'
+    show quatroFrasesEmWav;
 
 Future<ProviderContainer> _conferidaPelaSala(
   WidgetTester tester,
@@ -353,6 +358,112 @@ void main() {
     );
     harness.room.finishHeldVerdict();
     await tester.pump(const Duration(milliseconds: 600));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase told again over a checked telling takes the approve '
+      'button away until the room checks it again', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _conferidaPelaSala(tester, harness);
+
+    _sala(container).traduzirAFraseDeNovo(0);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tocarNoCirculo(tester);
+    await tocar(tester, terminar);
+    await waitFor(
+      'a frase traduzida de novo assentar',
+      () =>
+          harness.room.replacesAsked.isNotEmpty &&
+          container.read(salaSessionProvider).btPhase == BtPhase.playing,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(harness.room.replacesAsked, hasLength(1));
+    expect(
+      byLabel(aprovar),
+      findsNothing,
+      reason:
+          'o botão ficava sobre uma tradução que a sala ainda não conferiu; '
+          'a dela deixa de ser conferida quando a frase é traduzida de novo',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence recorded again over a checked telling takes the '
+      'approve button away once it lands', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    harness.room
+      ..readsChecked = true
+      ..verdictNamedNuance = BtFinding(
+        kind: BtFindingKind.nuance,
+        frase: 3,
+        segmentId: 'trecho-3',
+      );
+    await _sala(container).finishBackTranslation();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    expect(byLabel(aprovar), findsOneWidget);
+
+    await tocar(tester, 'regravar a frase 3');
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tocarNoCirculo(tester);
+    harness.recorder.rehearsalSpeaks = aSpokenWav(
+      length: const Duration(seconds: 2),
+    );
+    await tocarNoCirculo(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(FraseList),
+        matching: find.text('usar esta'),
+      ),
+    );
+    await waitFor(
+      'a frase regravada assentar',
+      () =>
+          harness.room.sentencesSent.isNotEmpty &&
+          container.read(salaSessionProvider).btRegravacao == null,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      byLabel(aprovar),
+      findsNothing,
+      reason:
+          'o botão ficava sobre uma frase nova que a sala ainda não '
+          'conferiu; a dela deixa de ser conferida quando a frase assenta',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a telling started over from a checked passage takes the '
+      'approve button away', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _conferidaPelaSala(tester, harness);
+
+    _sala(container).recomecarATraducao();
+    await tester.pump(const Duration(milliseconds: 700));
+    _sala(container).recomecarATraducao();
+    await waitFor(
+      'a tradução recomeçar',
+      () =>
+          harness.room.restartsAsked.isNotEmpty &&
+          container.read(salaSessionProvider).btPhase == BtPhase.playing,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      byLabel(aprovar),
+      findsNothing,
+      reason:
+          'o botão ficava sobre uma tradução apagada; a dela lê a passagem '
+          'de novo, e uma tradução recomeçada não é conferida',
+    );
     closeTheRoom(container);
   });
 }

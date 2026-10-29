@@ -9398,7 +9398,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(value: final segmentos):
         _clearAll();
         _theTellingStartsOver(_trechosFrom(segmentos));
-        state = state.copyWith(btRecomecada: true);
+        state = state.copyWith(btRecomecada: true, btChecked: false);
         _dispatch(const TheTranslationStartedOver());
 
         _after(
@@ -9889,6 +9889,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: BtPhase.playing,
       awaitingTheGuide: false,
+      btChecked: false,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       btTrechosRegravados: [
         for (final trecho in state.btTrechosRegravados)
@@ -10147,6 +10148,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btFraseQueAguarda: nome,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       btPhase: BtPhase.playing,
+      btChecked: false,
       clearFindingSegment: true,
       btFindings: [
         for (final finding in state.btFindings)
