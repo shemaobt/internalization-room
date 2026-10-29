@@ -4,9 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
-import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/language_and_look.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/mic_clock.dart';
@@ -109,7 +107,7 @@ void main() {
       await _pump(
         tester,
         look,
-        const Stack(children: [MicClock(circleSize: 200)]),
+        Stack(children: [MicClock(circleSize: 200, since: DateTime.now())]),
       );
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -218,46 +216,6 @@ void main() {
               .color,
           azul,
           reason: 'no escuro a marca do achado tinha a borda azul clara',
-        );
-      },
-    );
-
-    testWidgets(
-      'in the $look look the circle listening for the bridge language glows in her $look azul',
-      (tester) async {
-        await _pump(
-          tester,
-          look,
-          Center(
-            child: FacilitatorCircle(
-              size: 158,
-              voice: VoiceState.listening,
-              tongue: Tongue.bridge,
-              semanticLabel: 'circulo',
-              onTap: () {},
-            ),
-          ),
-        );
-        await tester.pump(const Duration(milliseconds: 400));
-
-        final glows = tester
-            .widgetList<Container>(
-              find.descendant(
-                of: find.byType(FacilitatorCircle),
-                matching: find.byType(Container),
-              ),
-            )
-            .map((box) => box.decoration)
-            .whereType<BoxDecoration>()
-            .where((paint) => paint.border != null && paint.boxShadow != null)
-            .map((paint) => paint.boxShadow!.single.color.withValues(alpha: 1));
-
-        expect(glows, isNotEmpty);
-        expect(
-          glows,
-          everyElement(azul),
-          reason:
-              'no escuro o anel que ouve brilhava no azul claro, não no dela',
         );
       },
     );

@@ -116,36 +116,51 @@ void main() {
         ),
       );
 
-      List<BoxDecoration> painted() => tester
-          .widgetList<Container>(find.byType(Container))
-          .map((box) => box.decoration)
-          .whereType<BoxDecoration>()
-          .toList();
+      Future<({double smallest, double faintest})> overABreath() async {
+        var smallest = double.infinity;
+        var faintest = double.infinity;
+        for (var frame = 0; frame < 90; frame++) {
+          await tester.pump(const Duration(milliseconds: 80));
+          final ring = find.byWidgetPredicate(
+            (widget) =>
+                widget is Container &&
+                (widget.decoration as BoxDecoration?)?.border != null,
+          );
+          for (final moved in tester.widgetList<Transform>(
+            find.ancestor(of: ring, matching: find.byType(Transform)),
+          )) {
+            smallest = math.min(smallest, moved.transform.entry(0, 0));
+          }
+          for (final veil in tester.widgetList<Opacity>(
+            find.ancestor(of: ring, matching: find.byType(Opacity)),
+          )) {
+            faintest = math.min(faintest, veil.opacity);
+          }
+        }
+        return (smallest: smallest, faintest: faintest);
+      }
 
       await pumpCircle(VoiceState.invite);
-      await tester.pump(const Duration(milliseconds: 80));
-      expect(
-        painted().where((d) => d.border != null),
-        isEmpty,
-        reason: 'esperando, o círculo é só o disco — nada em volta dele',
-      );
-
+      final waiting = await overABreath();
       await pumpCircle(VoiceState.speaking);
-      for (var frame = 0; frame < 20; frame++) {
-        await tester.pump(const Duration(milliseconds: 80));
-        final decorations = painted();
-        final disc = decorations.indexWhere((d) => d.gradient != null);
-        final ring = decorations.indexWhere((d) => d.border != null);
+      final speaking = await overABreath();
 
-        expect(
-          ring,
-          greaterThan(disc),
-          reason:
-              'os dois estados desenham exatamente o mesmo disco, então o anel é a '
-              'única coisa que diz quem está falando — e ele passava por baixo, onde o '
-              'halo do próprio disco, telha a 0,32 com 34 de blur, o cobria',
-        );
-      }
+      expect(
+        [waiting.smallest, waiting.faintest],
+        [greaterThanOrEqualTo(1), 1],
+        reason:
+            'esperando, o anel dela só cresce até 1.035 e nunca esmaece '
+            '(invite, globals.css:195, :379)',
+      );
+      expect(
+        [speaking.smallest, speaking.faintest],
+        [lessThan(.975), lessThan(.83)],
+        reason:
+            'os dois estados têm a mesma borda telha (globals.css:379, :383), '
+            'então é a respiração que diz quem está falando: o thinkBreath '
+            'desce a .97 e esmaece a .82; sem ela falar e esperar se '
+            'confundiam',
+      );
     },
   );
 }

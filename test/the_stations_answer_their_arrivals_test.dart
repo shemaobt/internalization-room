@@ -281,6 +281,7 @@ void main() {
       const TheRehearsalWeighed(
         everySceneHasItsPart: true,
         everyPartIsHere: false,
+        everyPartIsSent: true,
       ),
     );
 
@@ -290,12 +291,33 @@ void main() {
     );
   });
 
+  test('the Rehearsal weighed with a part still in the Outbox does not open '
+      'the Back-translation, as hers', () {
+    final (weighed, _) = reduce(
+      _at(const Ensaio()),
+      const TheRehearsalWeighed(
+        everySceneHasItsPart: true,
+        everyPartIsHere: true,
+        everyPartIsSent: false,
+      ),
+    );
+
+    expect(
+      reduce(weighed, const TheBackTranslationOpened()).$1.station,
+      isA<Ensaio>(),
+      reason:
+          'a tradução abria com uma parte ainda na fila de envio, e a dela '
+          'espera a sala ter todas',
+    );
+  });
+
   test('the Rehearsal weighed keeps its Station and its generation', () {
     final (weighed, effects) = reduce(
       _at(const Ensaio()),
       const TheRehearsalWeighed(
         everySceneHasItsPart: true,
         everyPartIsHere: true,
+        everyPartIsSent: true,
       ),
     );
 

@@ -5,6 +5,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../domain/bt_finding.dart';
 import '../../domain/facilitator_script.dart';
 import 'bead_styles.dart';
+import 'listen_glyph.dart';
 
 class FraseRow {
   final int? n;
@@ -158,10 +159,14 @@ class FraseList extends StatelessWidget {
                     background: colors.card,
                     border: Border.all(color: colors.line),
                     onTap: revisao.onOuvir,
-                    child: Icon(
-                      revisao.tocando ? LucideIcons.square : LucideIcons.play,
-                      size: 20,
-                      color: colors.cord,
+                    child: CustomPaint(
+                      size: const Size.square(20),
+                      painter: ListenGlyphPainter(
+                        glyph: revisao.tocando
+                            ? ListenGlyph.stop
+                            : ListenGlyph.play,
+                        ink: colors.verde,
+                      ),
                     ),
                   ),
                   _Pill(

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
+import 'way_back_chevron.dart';
 
 class BackToPassageButton extends ConsumerWidget {
   const BackToPassageButton({super.key});
@@ -38,13 +37,7 @@ class BackToPassageButton extends ConsumerWidget {
                     : session.sceneRehearsalIsOpen
                     ? 0.6
                     : 0.5,
-                child: Center(
-                  child: Icon(
-                    LucideIcons.chevronLeft,
-                    size: 22,
-                    color: SalaColors.of(context).verdeClaro,
-                  ),
-                ),
+                child: const Center(child: WayBackChevron()),
               ),
             ),
           ),

@@ -17,7 +17,6 @@ import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
 import 'session_notifier_test.dart' show inConversa;
 
-const _theSign = 'Um momento para uma pessoa';
 const _hearAgain = 'Ouvir de novo';
 
 typedef _Sala = ({
@@ -123,7 +122,7 @@ void main() {
       await _until(sala, 'the person sign', () => _read(sala).needsPerson);
       await _pass(sala, 10);
 
-      expect(byLabel(_theSign), findsOneWidget);
+      expect(thePersonSign, findsOneWidget);
       expect(find.byType(ConversaView), findsOneWidget);
       expect(_said(sala), said);
       closeTheRoom(sala.container);
@@ -173,7 +172,7 @@ void main() {
       expect(_read(sala).voice, VoiceState.speaking);
       expect(harness.voice.stops, stops);
       expect(harness.sounds.where((s) => s == 'recorder:start').length, starts);
-      expect(byLabel(_theSign), findsNothing);
+      expect(thePersonSign, findsNothing);
       harness.voice.finishHeldLine();
       await _pass(sala);
       closeTheRoom(sala.container);
@@ -217,7 +216,7 @@ void main() {
       final played = sala.harness.voice.played.length;
       await _pass(sala, 10);
 
-      expect(byLabel(_theSign), findsNothing);
+      expect(thePersonSign, findsNothing);
       expect(_read(sala).voice, VoiceState.invite);
       expect(_hitTestable(_hearAgain), isTrue);
       expect(
@@ -245,7 +244,7 @@ void main() {
       final sala = await _atRestInTheConversation(tester);
       sala.harness.recorder.startThrows = true;
       await _tapTheCircle(sala);
-      expect(byLabel(_theSign), findsNothing);
+      expect(thePersonSign, findsNothing);
 
       sala.harness.recorder.startThrows = false;
       await _tapTheCircle(sala);
@@ -263,7 +262,7 @@ void main() {
       await _tapTheCircle(sala);
       await _pass(sala, 10);
 
-      expect(byLabel(_theSign), findsNothing);
+      expect(thePersonSign, findsNothing);
       expect(_read(sala).needsPerson, isFalse);
       closeTheRoom(sala.container);
     },
@@ -281,7 +280,7 @@ void main() {
     await _until(sala, 'the person sign', () => _read(sala).needsPerson);
     await _pass(sala, 10);
 
-    expect(byLabel(_theSign), findsOneWidget);
+    expect(thePersonSign, findsOneWidget);
     expect(_said(sala), said);
     closeTheRoom(sala.container);
   });
@@ -291,13 +290,13 @@ void main() {
   ) async {
     final sala = await _atRestInTheConversation(tester);
     await _anInterruptWhoseMicrophoneFails(sala);
-    expect(byLabel(_theSign), findsNothing);
+    expect(thePersonSign, findsNothing);
 
     await _tapTheCircle(sala);
     await _until(sala, 'the person sign', () => _read(sala).needsPerson);
     await _pass(sala, 10);
 
-    expect(byLabel(_theSign), findsOneWidget);
+    expect(thePersonSign, findsOneWidget);
     closeTheRoom(sala.container);
   });
 
