@@ -1292,7 +1292,8 @@ class SalaSessionState {
   bool get btClipRodando => stage == SalaStage.retro && channel is PartPlaying;
 
   bool get btTrechoTocando => switch (channel) {
-    StretchPlaying(stretch: StretchSound(telling: false)) => true,
+    StretchPlaying(stretch: StretchSound(telling: false, :final path)) =>
+      path != btRegravacao?.path,
     _ => false,
   };
 
@@ -1312,7 +1313,8 @@ class SalaSessionState {
   };
 
   bool get btTrechoPausada => switch (_paused) {
-    Paused(what: StretchSound(telling: false)) => true,
+    Paused(what: StretchSound(telling: false, :final path)) =>
+      path != btRegravacao?.path,
     _ => false,
   };
 
@@ -1696,6 +1698,15 @@ class SalaSessionState {
 
   /// Whether the approve button acts: never while a sentence's re-record is open.
   bool get canApprove => aBackTranslationGestureActs && btRegravacao == null;
+
+  bool get canGoBackToRecordAPart =>
+      btRegravacao == null &&
+      aBackTranslationGestureActs &&
+      switch (channel) {
+        GuideSpeaking(line: Line(fixedLine: null)) => false,
+        GuideSpeaking() => true,
+        _ => btPhase == BtPhase.playing || btPhase == BtPhase.conferida,
+      };
 
   /// Whether the part the stretch [trecho] sits on is on the tablet.
   bool aParteDoTrechoEstaAqui(Trecho trecho) => aParteDoTrecho(trecho) == null;

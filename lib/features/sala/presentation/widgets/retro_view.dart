@@ -267,14 +267,13 @@ class RetroView extends ConsumerWidget {
                 ),
               ),
             ],
-            if (avanca && session.btVeredito) ...[
+            if (!session.btSoOuvir) ...[
               const SizedBox(height: 16),
               _botaoEscrito(
                 findingLabelFor('recordThePart', language),
                 colors,
-                session.btFindingTrecho != null &&
-                        session.btPhase == BtPhase.playing
-                    ? notifier.gravarAParteDeNovo
+                session.canGoBackToRecordAPart
+                    ? notifier.leaveTheBackTranslation
                     : null,
               ),
             ],
@@ -861,7 +860,9 @@ class RetroView extends ConsumerWidget {
       return retroLabelFor('notUnderstood', language);
     }
     if (session.btRegravacao?.passo
-        case PassoDaRegravacao.pronta || PassoDaRegravacao.gravando) {
+        case PassoDaRegravacao.pronta ||
+            PassoDaRegravacao.gravando ||
+            PassoDaRegravacao.revendo) {
       return sceneRehearsalLabelFor('respeakHint', language);
     }
     switch (session.btPhase) {
