@@ -51,7 +51,8 @@ class _Fila extends QueueThatFlushesLate {
   @override
   Future<PendingTake> enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     int? passNumber,
@@ -65,6 +66,7 @@ class _Fila extends QueueThatFlushesLate {
     return super.enqueue(
       audio,
       sessionId: sessionId,
+      passage: passage,
       kind: kind,
       scope: scope,
       passNumber: passNumber,
@@ -74,9 +76,9 @@ class _Fila extends QueueThatFlushesLate {
   }
 
   @override
-  Future<void> discardTheSession(String sessionId) {
+  Future<void> letGoOfTheSession(String sessionId, {String? passage}) {
     discarded.add(sessionId);
-    return super.discardTheSession(sessionId);
+    return super.letGoOfTheSession(sessionId, passage: passage);
   }
 
   @override
@@ -665,7 +667,6 @@ Map<String, Object?> _oQueAFilaDeu(SalaSessionState estado) => {
   'keeping': estado.machine.keeping,
   'keptThisVisit': estado.machine.keptThisVisit,
   'parts': estado.machine.parts,
-  'draining': estado.machine.draining,
   'unsentParts': {
     for (final MapEntry(key: parte, value: unsent)
         in estado.unsentParts.entries)

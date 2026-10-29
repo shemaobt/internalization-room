@@ -24,34 +24,24 @@ Future<void> _aTakeIsQueued(SalaHarness harness) async {
 void main() {
   setUp(() => dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local'));
 
-  testWidgets(
-    'a relaunch with a queued take sends it with the credential after the link '
-    'is read',
-    (tester) async {
-      final harness = SalaHarness(
-        linkedAs: const RememberedLink(
-          deviceId: 'aparelho-1',
-          team: TeamLink(projectId: 'equipe-1'),
-          credential: 'credencial-1',
-        ),
-        filaEmMemoria: true,
-      );
-      await _aTakeIsQueued(harness);
+  testWidgets('a relaunch with a queued take sends nothing of it', (
+    tester,
+  ) async {
+    final harness = SalaHarness(
+      linkedAs: const RememberedLink(
+        deviceId: 'aparelho-1',
+        team: TeamLink(projectId: 'equipe-1'),
+        credential: 'credencial-1',
+      ),
+      filaEmMemoria: true,
+    );
+    await _aTakeIsQueued(harness);
 
-      await pumpSala(tester, harness);
-      await tester.pump(const Duration(milliseconds: 200));
+    await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 200));
 
-      final sent = harness.room.calls.indexOf('sendTake');
-      expect(sent, isNonNegative, reason: 'a parte guardada tem de sair');
-      expect(
-        harness.room.presentedOnEachCall[sent],
-        'credencial-1',
-        reason:
-            'sem a chave compartilhada, uma parte mandada antes de o vínculo ser '
-            'lido é recusada e dada por perdida',
-      );
-    },
-  );
+    expect(harness.room.calls, isNot(contains('sendTake')));
+  });
 
   testWidgets('a relaunch with no link sends no queued take', (tester) async {
     final harness = SalaHarness(
@@ -72,42 +62,6 @@ void main() {
     );
     expect(find.byType(CodigoView), findsOneWidget);
   });
-
-  test('a credential presented after launch sends the waiting takes', () async {
-    final harness = SalaHarness(
-      linkedAs: const RememberedLink(
-        deviceId: 'aparelho-1',
-        team: TeamLink(projectId: 'equipe-1'),
-      ),
-      linkPoll: const Duration(milliseconds: 20),
-      filaEmMemoria: true,
-    );
-    harness.room
-      ..linkedTo = const TeamLink(projectId: 'equipe-1')
-      ..refuseCredentialWith = const Refused(RefusalCode.credentialNotYet);
-    await _aTakeIsQueued(harness);
-    final container = harness.container();
-    addTearDown(container.dispose);
-
-    await container.read(deviceLinkProvider.notifier).findTheTeam();
-    await settle();
-    expect(harness.room.calls, isNot(contains('sendTake')));
-
-    harness.room.refuseCredentialWith = null;
-    await waitFor(
-      'a parte guardada sair',
-      () => harness.room.calls.contains('sendTake'),
-    );
-
-    expect(
-      harness.room.presentedOnEachCall[harness.room.calls.indexOf('sendTake')],
-      'credencial-1',
-      reason:
-          'a credencial que chegou depois da abertura é a que abre a porta '
-          'para as partes que esperavam',
-    );
-  });
-
   test('a relink sends nothing of the revoked life', () async {
     final harness = SalaHarness(
       linkedAs: const RememberedLink(
@@ -148,32 +102,6 @@ void main() {
       reason:
           'a parte da vida revogada subiria com a credencial de uma equipe '
           'que talvez não seja a dela',
-    );
-  });
-
-  testWidgets('the launch tally counts the takes the launch flush already sent', (
-    tester,
-  ) async {
-    final harness = SalaHarness(
-      linkedAs: const RememberedLink(
-        deviceId: 'aparelho-1',
-        team: TeamLink(projectId: 'equipe-1'),
-        credential: 'credencial-1',
-      ),
-      filaEmMemoria: true,
-    );
-    harness.room.takeLandsAfter = const Duration(milliseconds: 50);
-    await _aTakeIsQueued(harness);
-
-    await pumpSala(tester, harness);
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(
-      (harness.takes as FakeTakeQueue).unsentAtEachTally.first,
-      0,
-      reason:
-          'contada antes de a descarga voltar, a parte que já saiu aparece como '
-          'pendente até a próxima contagem',
     );
   });
 }

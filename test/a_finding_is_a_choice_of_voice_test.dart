@@ -58,9 +58,8 @@ Future<void> abrirOAchado(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('F2 — o microfone de madeira leva ao ensaio, na parte 2', (
-    tester,
-  ) async {
+  testWidgets('F2 — o microfone de madeira leva à casa, e a linha da parte 2 '
+      'a grava de novo', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aHistoriaSemOFim(
       tester,
@@ -74,14 +73,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(estadoDe(container).stage, SalaStage.ensaio);
-    expect(naLinhaDoEnsaio(tester, 'Gravar de novo'), [
-      false,
-      true,
-      false,
-      null,
-    ]);
+    expect(naLinhaDoEnsaio(tester, 'Gravar de novo'), [true, true, true, null]);
 
-    await tocar(tester, gravarEstaParteDeNovo);
+    final daLinhaDois = find.descendant(
+      of: linhaDoEnsaio(2),
+      matching: byLabel(gravarEstaParteDeNovo),
+    );
+    await tester.ensureVisible(daLinhaDois);
+    await tester.tap(daLinhaDois);
+    await tester.pump(const Duration(milliseconds: 300));
     await tocar(tester, pararAGravacao);
     expect(
       naLinhaDoEnsaio(tester, 'Ouvir'),
@@ -246,7 +246,7 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('F4 — a falta sem endereço não leva ao ensaio, e nada se grava '
+  testWidgets('F4 — a falta sem endereço não aponta trecho, e nada se grava '
       'depois da última frase', (tester) async {
     tester.view
       ..physicalSize = const Size(820, 1180)
@@ -267,7 +267,7 @@ void main() {
     }
     expect(
       tester.widget<Semantics>(byLabel(microfoneDeMadeira)).properties.enabled,
-      isFalse,
+      isTrue,
     );
     expect(
       byLabel(continuarOEnsaio),

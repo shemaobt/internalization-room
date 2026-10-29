@@ -1292,7 +1292,8 @@ class SalaSessionState {
   bool get btClipRodando => stage == SalaStage.retro && channel is PartPlaying;
 
   bool get btTrechoTocando => switch (channel) {
-    StretchPlaying(stretch: StretchSound(telling: false)) => true,
+    StretchPlaying(stretch: StretchSound(telling: false, :final path)) =>
+      path != btRegravacao?.path,
     _ => false,
   };
 
@@ -1312,7 +1313,8 @@ class SalaSessionState {
   };
 
   bool get btTrechoPausada => switch (_paused) {
-    Paused(what: StretchSound(telling: false)) => true,
+    Paused(what: StretchSound(telling: false, :final path)) =>
+      path != btRegravacao?.path,
     _ => false,
   };
 
@@ -1405,9 +1407,10 @@ class SalaSessionState {
 
   bool get canFinishBackTranslation =>
       stage == SalaStage.retro &&
-      btPhase == BtPhase.playing &&
+      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
       btClipEnded &&
-      !btSoOuvir;
+      !btSoOuvir &&
+      aBackTranslationGestureActs;
 
   bool get _btNaVez =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && !needsPerson;
@@ -1453,6 +1456,17 @@ class SalaSessionState {
             ),
           )) &&
       btTrechos.any((trecho) => trecho.contado);
+
+  bool get _btDebaixoDoTerminei =>
+      voice == VoiceState.invite && btTrechos.any((trecho) => trecho.contado);
+
+  bool get btAindaFaltaOuvir =>
+      _btDebaixoDoTerminei &&
+      btRecusa != CheckRefusal.stretchUntranslated &&
+      !(btClipEnded && _btParteContada);
+
+  bool get btFaltaTraduzirUmTrecho =>
+      _btDebaixoDoTerminei && btRecusa == CheckRefusal.stretchUntranslated;
 
   bool get btRestoDepoisDoCorte {
     if (!btCortado) return false;
@@ -1690,6 +1704,15 @@ class SalaSessionState {
   /// Whether the approve button acts: never while a sentence's re-record is open.
   bool get canApprove => aBackTranslationGestureActs && btRegravacao == null;
 
+  bool get canGoBackToRecordAPart =>
+      btRegravacao == null &&
+      aBackTranslationGestureActs &&
+      switch (channel) {
+        GuideSpeaking(line: Line(fixedLine: null)) => false,
+        GuideSpeaking() => true,
+        _ => btPhase == BtPhase.playing || btPhase == BtPhase.conferida,
+      };
+
   /// Whether the part the stretch [trecho] sits on is on the tablet.
   bool aParteDoTrechoEstaAqui(Trecho trecho) => aParteDoTrecho(trecho) == null;
 
@@ -1728,6 +1751,10 @@ class SalaSessionState {
       aBackTranslationGestureActs &&
       btRegravacao == null &&
       (btPhase == BtPhase.playing || btPhase == BtPhase.conferida);
+
+  bool get theFraseListIsIdle =>
+      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
+      channel is! GuideSpeaking;
 
   SalaSessionState copyWith({
     bool? awaitingTheGuide,

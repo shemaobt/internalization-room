@@ -40,6 +40,7 @@ const _listenMode =
     'ouvir o ensaio naquela parte, e no alto-falante para ouvir a tradução de '
     'vocês.';
 const _terminei = 'terminei';
+const _recordAgain = 'gravar o ensaio da cena de novo';
 const _restart = 'recomeçar a tradução';
 const _restarted = 'tradução recomeçada — o ensaio da cena ficou';
 const _restartFailed = 'não deu para recomeçar agora — tentem de novo';
@@ -103,6 +104,12 @@ final class _Screen {
   bool lit(String words) => byLabel(words).evaluate().any(
     (element) => (element.widget as Semantics).properties.enabled ?? false,
   );
+
+  bool faded(String words) => tester
+      .widgetList<Opacity>(
+        find.descendant(of: byLabel(words), matching: find.byType(Opacity)),
+      )
+      .any((opacity) => opacity.opacity < 1);
 
   int asked(String call) => room.calls.where((asked) => asked == call).length;
 
@@ -358,6 +365,21 @@ void main() {
     );
 
     testWidgets(
+      'under the circle «manter a tradução de antes» comes before her line, not after it',
+      (tester) async {
+        await _theLastBarTapped(tester);
+        double top(String label) => tester.getTopLeft(byLabel(label)).dy;
+
+        expect(top(_tell), lessThan(top(_keepTheEarlier)));
+        expect(
+          top(_keepTheEarlier),
+          lessThan(top(_lastFraseLine(2))),
+          reason: '«manter» vinha depois da linha dela',
+        );
+      },
+    );
+
+    testWidgets(
       'moving the last pause later and saving changes the frase\'s span and the take goes on from the new end',
       (tester) async {
         final screen = await _theLastBarTapped(tester);
@@ -447,23 +469,111 @@ void main() {
     );
 
     testWidgets(
-      'play during the last frase\'s move drops the move and goes on from where the translation stopped',
+      'play during the last frase\'s move plays the take on from the moved pause, and the move, its line and «manter» stay',
       (tester) async {
         final screen = await _theLastBarTapped(tester);
         await screen.tap(_later);
 
         await screen.tap(_playPause);
 
-        expect(screen.playback.playedFrom.last, _s(9.0));
-        expect(screen.shows(_earlier), isFalse);
-        expect(screen.shows(_lastFraseLine(2)), isFalse);
-        await screen.marksThePausaAt(12.0);
+        expect(
+          screen.playback.playedFrom.last,
+          _s(10.0),
+          reason: 'o play largava a frase e seguia de onde a tradução parou',
+        );
+        expect(screen.state.channel, isA<PartPlaying>());
+        expect(screen.shows(_earlier), isTrue);
+        expect(screen.shows(_lastFraseLine(2)), isTrue);
+        expect(screen.shows(_keepTheEarlier), isTrue);
         await screen.tellsTheFrase();
         final sent = screen.room.frasesKept.single;
         expect(
           (sent.startsMs, sent.endsMs, sent.replaces),
-          (9000, 12000, null),
+          (4000, 10000, 'f2'),
         );
+      },
+    );
+
+    testWidgets(
+      'play while the last frase plays on the move only pauses it, and the move and its line stay',
+      (tester) async {
+        final screen = await _theLastBarTapped(tester);
+        final plays = screen.playback.playedFrom.length;
+
+        await screen.tap(_playPause);
+
+        expect(
+          screen.playback.sounding,
+          isFalse,
+          reason: 'o play tocava de novo em vez de só pausar',
+        );
+        expect(screen.playback.playedFrom, hasLength(plays));
+        expect(screen.state.scene.pausa, _s(9.0));
+        expect(screen.shows(_earlier), isTrue);
+        expect(screen.shows(_lastFraseLine(2)), isTrue);
+        expect(screen.shows(_keepTheEarlier), isTrue);
+      },
+    );
+
+    testWidgets(
+      'play with the last frase\'s pause on the move at the take\'s end plays «ouvir a pausa»',
+      (tester) async {
+        final screen = await _onScreen(
+          tester,
+          rehearsal: _rehearsal([
+            _frase('f1', 0, 4000),
+            _frase('f2', 4000, 10000),
+          ]),
+        );
+        await screen.listens();
+        await screen.tap(_bar(2));
+        screen.playback.finishPlayback();
+        await screen.beat();
+        final plays = screen.playback.playedFrom.length;
+
+        await screen.tap(_playPause);
+
+        expect(
+          screen.playback.ranges.last,
+          '8500-10000',
+          reason: 'o play tocava do fim da gravação e não se ouvia nada',
+        );
+        expect(screen.playback.playedFrom, hasLength(plays));
+        expect(screen.shows(_lastFraseLine(2)), isTrue);
+      },
+    );
+
+    testWidgets(
+      'a failed restart\'s line stays when play hears the moving pause at the take\'s end, as it stays anywhere earlier',
+      (tester) async {
+        final screen = await _onScreen(
+          tester,
+          rehearsal: _rehearsal([
+            _frase('f1', 0, 4000),
+            _frase('f2', 4000, 10000),
+          ]),
+        );
+        await screen.listens();
+        await screen.tap(_bar(2));
+        screen.playback.finishPlayback();
+        await screen.beat();
+        await screen.tap(_restart);
+        await screen.beat(700);
+        screen.room.failSceneWith = const NetworkFailed('sem rede');
+        await screen.tap(_armed(2));
+        await screen.until(() => screen.shows(_restartFailed));
+        expect(screen.shows(_lastFraseLine(2)), isTrue);
+
+        await screen.tap(_playPause);
+
+        expect(screen.playback.ranges.last, '8500-10000');
+        expect(
+          screen.shows(_restartFailed),
+          isTrue,
+          reason: 'o play no fim da gravação apagava a linha do recomeço',
+        );
+        expect(screen.shows(_lastFraseLine(2)), isTrue);
+        await screen.beat(6000);
       },
     );
 
@@ -694,6 +804,48 @@ void main() {
       },
     );
 
+    testWidgets(
+      'the restart\'s line sits under the circle, above the frases told and «terminei», not under «recomeçar»',
+      (tester) async {
+        final screen = await _onScreen(tester, rehearsal: _twoFrases);
+        await screen.tap(_restart);
+        await screen.beat(700);
+        screen.room.failSceneWith = const NetworkFailed('sem rede');
+        await screen.tap(_armed(2));
+        await screen.until(() => screen.shows(_restartFailed));
+        double top(String label) => tester.getTopLeft(byLabel(label)).dy;
+
+        expect(top(_tell), lessThan(top(_restartFailed)));
+        expect(
+          top(_restartFailed),
+          lessThan(top('frases traduzidas')),
+          reason:
+              'a linha dela ficava embaixo de «recomeçar», depois das frases',
+        );
+        expect(top(_restartFailed), lessThan(top(_terminei)));
+      },
+    );
+
+    testWidgets(
+      'an armed «recomeçar» is drawn out and cannot be tapped for its 600 ms, then wakes',
+      (tester) async {
+        final screen = await _onScreen(tester, rehearsal: _twoFrases);
+
+        await screen.tap(_restart);
+
+        expect(
+          screen.lit(_armed(2)),
+          isFalse,
+          reason: '«recomeçar» parecia aceso nos 600 ms e ignorava o toque',
+        );
+        expect(screen.faded(_armed(2)), isTrue);
+        await screen.beat(400);
+        expect(screen.lit(_armed(2)), isTrue);
+        expect(screen.faded(_armed(2)), isFalse);
+        await screen.beat(6000);
+      },
+    );
+
     testWidgets('a double tap only arms', (tester) async {
       final screen = await _onScreen(tester, rehearsal: _twoFrases);
 
@@ -774,5 +926,72 @@ void main() {
       expect(screen.shows(_translate), isTrue);
       expect(screen.shows(_restart), isFalse);
     });
+  });
+
+  group('before the team listens', () {
+    testWidgets(
+      'play is lit and plays the take from where the translation stopped, not only «traduzir»',
+      (tester) async {
+        final screen = await _onScreen(tester, rehearsal: _twoFrases);
+
+        expect(
+          screen.lit(_playPause),
+          isTrue,
+          reason: 'o play ficava apagado até «traduzir o ensaio da cena»',
+        );
+        await screen.tap(_playPause);
+
+        expect(screen.state.channel, isA<PartPlaying>());
+        expect(screen.playback.playedFrom.last, _s(9.0));
+      },
+    );
+
+    testWidgets(
+      'the circle is lit and plays the take from where the translation stopped, opening no microphone',
+      (tester) async {
+        final screen = await _onScreen(tester, rehearsal: _twoFrases);
+
+        expect(
+          screen.lit(_tell),
+          isTrue,
+          reason: 'o círculo ficava apagado até «traduzir o ensaio da cena»',
+        );
+        await screen.tap(_tell);
+
+        expect(screen.state.channel, isA<PartPlaying>());
+        expect(screen.playback.playedFrom.last, _s(9.0));
+        expect(screen.theFraseMicrophoneIsOpen, isFalse);
+      },
+    );
+  });
+
+  group('a frase\'s microphone open', () {
+    testWidgets(
+      '«terminei» and «gravar o ensaio da cena de novo» are drawn out, and «gravar» leaves the microphone open',
+      (tester) async {
+        final screen = await _onScreen(tester, rehearsal: _twoFrases);
+        await screen.listens();
+        await screen.marksThePausaAt(9.5);
+        await screen.tap(_tell);
+        await screen.until(() => screen.theFraseMicrophoneIsOpen);
+        expect(screen.theFraseMicrophoneIsOpen, isTrue);
+
+        expect(
+          screen.lit(_terminei),
+          isFalse,
+          reason: '«terminei» parecia aceso com o microfone aberto',
+        );
+        expect(screen.faded(_terminei), isTrue);
+        expect(
+          screen.lit(_recordAgain),
+          isFalse,
+          reason: '«gravar de novo» jogava fora a gravação aberta',
+        );
+        expect(screen.faded(_recordAgain), isTrue);
+        await screen.tap(_recordAgain);
+        expect(screen.theFraseMicrophoneIsOpen, isTrue);
+        expect(screen.state.scene.step, SceneStep.translate);
+      },
+    );
   });
 }

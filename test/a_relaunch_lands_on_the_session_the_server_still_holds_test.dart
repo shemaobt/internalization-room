@@ -7,11 +7,13 @@ import 'package:internalization_room/features/sala/data/device_link_notifier.dar
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/ensaio_final_plan.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -459,6 +461,33 @@ void main() {
       expect(row?.takes.map((take) => take.path), [part.path]);
     },
   );
+
+  test('after a relaunch a part the room never received does not open the '
+      'recording home, the room listing nothing opens the plan', () async {
+    final here = _aPartHere();
+    final unsent = KeptTake(scopeId: here.scopeId, path: here.path);
+    final tablet = _aTabletHolding(SalaStage.ensaio, takes: [unsent]);
+    tablet.harness.room.passageScenes = const [
+      Scene(sceneId: 'S1', title: 'A fome em Belém'),
+    ];
+    await tablet.notifier.openTheRoom();
+    await _landsOn(tablet, _held);
+
+    tablet.notifier.openTheEnsaioFinal();
+    await waitFor(
+      'the plan to be read',
+      () => tablet.state.ensaioFinalPlan is! PlanAwaited,
+    );
+
+    expect(
+      tablet.state.station,
+      const Ensaio(step: EnsaioStep.plan),
+      reason:
+          'a parte que só o tablet guardava abria a casa de gravação de '
+          'uma vez, e a dela abre o plano',
+    );
+    expect(tablet.state.ensaioFinalPlan, isA<PlanRead>());
+  });
 
   group('a relaunch into a session the room no longer knows', () {
     late _Tablet again;

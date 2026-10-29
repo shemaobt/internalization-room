@@ -12,6 +12,8 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/ensaio_final_plan.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -156,6 +158,13 @@ class _Casa {
         () => estado.stage == SalaStage.conversa && !estado.awaitingTheGuide,
       );
       container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+      await waitFor(
+        'o ponto laranja decidir a tela',
+        () =>
+            estado.ensaioFinalPlan is PlanRead ||
+            estado.station == const Ensaio(),
+      );
+      container.read(salaSessionProvider.notifier).recordSceneByScene();
       await waitFor(
         'a sala voltar à casa do ensaio',
         () =>
@@ -616,8 +625,8 @@ void main() {
   });
 
   testWidgets(
-    'a scene recorded again while both recordings wait sends both in the '
-    'order recorded, so the room keeps the newer',
+    'a scene recorded again over its failed take sends only the newer: the '
+    'failed one left at the tap to record again',
     (tester) async {
       final casa = await _naCasa(tester);
       casa.room.unreachableTake = 'ensaio/parte-2';
@@ -630,7 +639,7 @@ void main() {
       expect(
         casa.naLinha(2, find.text(_falhou)),
         findsOneWidget,
-        reason: 'a nova espera atrás da que falhou, até um toque',
+        reason: 'a nova também não chegou',
       );
       await casa.relancar();
       expect(casa.naSala, isNot(contains('ensaio/parte-2')));
@@ -638,10 +647,7 @@ void main() {
       casa.room.unreachableTake = null;
       await casa.tocar(casa.naLinha(2, find.textContaining('enviar agora')));
 
-      expect(casa.room.takePasses.sublist(casa.room.takePasses.length - 2), [
-        1,
-        2,
-      ]);
+      expect(casa.room.takePasses, [2]);
     },
   );
 
@@ -1227,7 +1233,8 @@ class _QueueThatRefusesOnce extends TakeUploadQueue {
   @override
   Future<PendingTake> enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     int? passNumber,
@@ -1241,6 +1248,7 @@ class _QueueThatRefusesOnce extends TakeUploadQueue {
     return super.enqueue(
       audio,
       sessionId: sessionId,
+      passage: passage,
       kind: kind,
       scope: scope,
       passNumber: passNumber,
@@ -1265,7 +1273,8 @@ class _QueueThatRefusesWhenLetGo extends TakeUploadQueue {
   @override
   Future<PendingTake> enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     int? passNumber,
@@ -1293,7 +1302,8 @@ class _QueueHeldAfterWriting extends TakeUploadQueue {
   @override
   Future<PendingTake> enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     int? passNumber,
@@ -1303,6 +1313,7 @@ class _QueueHeldAfterWriting extends TakeUploadQueue {
     final row = await super.enqueue(
       audio,
       sessionId: sessionId,
+      passage: passage,
       kind: kind,
       scope: scope,
       passNumber: passNumber,
@@ -1330,7 +1341,8 @@ class _QueueHeldPerKeep extends TakeUploadQueue {
   @override
   Future<PendingTake> enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     int? passNumber,
@@ -1342,6 +1354,7 @@ class _QueueHeldPerKeep extends TakeUploadQueue {
     final row = await super.enqueue(
       audio,
       sessionId: sessionId,
+      passage: passage,
       kind: kind,
       scope: scope,
       passNumber: passNumber,

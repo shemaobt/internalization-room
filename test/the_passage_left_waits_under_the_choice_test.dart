@@ -239,7 +239,7 @@ void main() {
     final tablet = await _onTheChoiceFromP01();
     final harness = tablet.harness;
     final read = tablet.read;
-    await harness.takes.enqueue(
+    final row = await harness.takes.enqueue(
       harness.recorder.aFile('parte-da-p01'),
       sessionId: tablet.p01,
       kind: 'ensaio',
@@ -248,7 +248,8 @@ void main() {
       chunkIndex: 1,
     );
     harness.room.forgetTheSession(tablet.p01);
-    await tablet.notifier.refreshUnsent();
+    await harness.takes.dueAgain(row.id);
+    await harness.takes.flush();
     await waitFor('the room to let P01 go', () => read().leftEntry == null);
     final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
     final asked = harness.room.calls.length;

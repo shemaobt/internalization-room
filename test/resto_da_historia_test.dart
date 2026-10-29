@@ -124,6 +124,7 @@ Future<ProviderContainer> aHistoriaSemOFim(
   WidgetTester tester,
   SalaHarness harness, {
   String? ondeFalta,
+  String? pericope,
 }) async {
   harness.room
     ..verdictChecked = false
@@ -139,7 +140,7 @@ Future<ProviderContainer> aHistoriaSemOFim(
   await tester.pump(const Duration(milliseconds: 100));
 
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa(book: 'Ruth');
+  await notifier.goConversa(book: 'Ruth', pericope: pericope);
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));

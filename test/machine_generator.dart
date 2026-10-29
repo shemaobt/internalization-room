@@ -17,8 +17,6 @@ class World {
   final bool serverHoldsAWarning;
   final bool playerBusy;
   final bool micOpen;
-  final bool retryArmed;
-  final bool draining;
   final bool looking;
 
   const World({
@@ -27,8 +25,6 @@ class World {
     this.serverHoldsAWarning = false,
     this.playerBusy = false,
     this.micOpen = false,
-    this.retryArmed = false,
-    this.draining = false,
     this.looking = false,
   });
 
@@ -48,8 +44,6 @@ class World {
             event.generation != theOlderGeneration &&
             event.answer != MicAnswer.started &&
             event.because == null);
-    var retry = retryArmed && event is! RetryFired;
-    var drains = draining && event is! OutboxChanged;
     var looks =
         looking &&
         event is! LookFound &&
@@ -72,12 +66,6 @@ class World {
           mic = true;
         case CloseAndDiscardTheMic():
           mic = false;
-        case ArmTheRetry():
-          retry = true;
-        case CancelTheRetry():
-          retry = false;
-        case DrainTheOutbox():
-          drains = true;
         case LookAtTheSession() || LookAgain():
           looks = true;
         default:
@@ -89,8 +77,6 @@ class World {
       callOutstanding: calling,
       playerBusy: busy,
       micOpen: mic,
-      retryArmed: retry,
-      draining: drains,
       looking: looks,
       serverHoldsAWarning: switch (event) {
         TheAnswerWarned() => true,
@@ -224,7 +210,6 @@ String describeEvent(MachineEvent event) => switch (event) {
   TeamTapped() => 'TeamTapped',
   WatchFired() => 'WatchFired',
   NetworkFailedAt(:final door) => 'NetworkFailedAt(${door.name})',
-  RetryFired() => 'RetryFired',
   ATakeLeft(:final take) =>
     'ATakeLeft(${take.row}, ${take.keep.kind}, ${take.keep.session}, '
         '${take.keep.scope})',
@@ -235,9 +220,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   StopTapped(:final keep) =>
     'StopTapped(${keep.session}, ${keep.kind}, ${keep.scope})',
   TheRoomAnswered() => 'TheRoomAnswered',
-  OutboxChanged(:final parts, :final due) =>
-    'OutboxChanged(${parts.entries.map((part) => '${part.key}: ${part.value.name}').join(', ')}, '
-        'due: ${due.inSeconds}s)',
+  OutboxChanged(:final parts) =>
+    'OutboxChanged(${parts.entries.map((part) => '${part.key}: ${part.value.name}').join(', ')})',
   LineArrived(:final line) => 'LineArrived(${describeLine(line)})',
   PlayerOpened() => 'PlayerOpened',
   PlayerEnded() => 'PlayerEnded',
@@ -360,15 +344,13 @@ String describeChannel(Channel channel) => switch (channel) {
 String describeMachine(Machine machine) =>
     '${describeHalt(machine.halt)} / ${describeChannel(machine.channel)} / '
     'queue [${machine.queue.map(describeLine).join(', ')}] / '
-    '${machine.somethingPending ? 'a part pending' : 'nothing pending'}'
-    '${machine.draining ? ', draining' : ''}';
+    '${machine.somethingPending ? 'a part pending' : 'nothing pending'}';
 
 String describeEffect(Effect effect) => switch (effect) {
   PlayLine(:final line) => 'PlayLine(${describeLine(line)})',
   PlayPart(:final part) => 'PlayPart(${describeSound(part)})',
   PlayStretch(:final stretch) => 'PlayStretch(${describeSound(stretch)})',
   OpenTheMic(:final owner) => 'OpenTheMic(${owner.name})',
-  ArmTheRetry(:final due) => 'ArmTheRetry(due ${due.inSeconds}s)',
   _ => effect.runtimeType.toString(),
 };
 
@@ -397,7 +379,6 @@ enum EventKind {
   teamTapped,
   watchFired,
   networkFailedAt,
-  retryFired,
   aTakeLeft,
   aTakeSettled,
   aKeepBegan,
@@ -484,7 +465,6 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TeamTapped() => EventKind.teamTapped,
   WatchFired() => EventKind.watchFired,
   NetworkFailedAt() => EventKind.networkFailedAt,
-  RetryFired() => EventKind.retryFired,
   ATakeLeft() => EventKind.aTakeLeft,
   ATakeSettled() => EventKind.aTakeSettled,
   AKeepBegan() => EventKind.aKeepBegan,
@@ -566,7 +546,6 @@ EventKind kindOf(MachineEvent event) => switch (event) {
 
 bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.watchFired => world.watchArmed,
-  EventKind.retryFired => world.retryArmed,
   EventKind.playerOpened ||
   EventKind.playerEnded ||
   EventKind.playerFailed => world.playerBusy,
@@ -705,7 +684,6 @@ MachineEvent _draw(
   EventKind.networkFailedAt => NetworkFailedAt(
     Door.values[random.nextInt(Door.values.length)],
   ),
-  EventKind.retryFired => const RetryFired(),
   EventKind.aTakeLeft => ATakeLeft(
     TakeInTheAir(
       row: 'linha-${random.nextInt(3)}',
@@ -736,7 +714,7 @@ MachineEvent _draw(
   EventKind.outboxChanged => OutboxChanged({
     for (var part = 0, parts = random.nextInt(3); part < parts; part++)
       'parte-$part': PartFact.values[random.nextInt(PartFact.values.length)],
-  }, due: Duration(seconds: random.nextInt(3) * 30)),
+  }),
   EventKind.lineArrived => LineArrived(
     Line(
       LineKind.values[random.nextInt(LineKind.values.length)],
