@@ -157,4 +157,20 @@ void main() {
       );
     });
   }
+
+  for (final (look, verdeClaro) in [
+    ('light', const Color(0xFF777D45)),
+    ('dark', const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets('in the $look look a frase names its part in her verde-claro, '
+        'not the muted grey', (tester) async {
+      await _pump(tester, look, [_aFrase(parte: 2)]);
+
+      expect(
+        tester.widget<Text>(find.text('parte 2')).style?.color,
+        verdeClaro,
+        reason: 'a parte era escrita no mut, não no verde-claro dela',
+      );
+    });
+  }
 }

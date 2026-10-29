@@ -334,7 +334,10 @@ class _FraseTile extends StatelessWidget {
                       if (parte != null)
                         Text(
                           '${retroLabelFor('part', language)} $parte',
-                          style: TextStyle(color: colors.mut, fontSize: 14),
+                          style: TextStyle(
+                            color: colors.verdeClaro,
+                            fontSize: 14,
+                          ),
                         ),
                       if (mark != null)
                         Container(
