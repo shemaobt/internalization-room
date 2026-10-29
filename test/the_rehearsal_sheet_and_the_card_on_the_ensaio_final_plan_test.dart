@@ -922,18 +922,57 @@ void main() {
         final style = tester.widget<Text>(word).style!;
         expect(style.fontSize, closeTo(13.44, 0.001));
         expect(style.color, verdeClaro);
+        final frame = tester.getRect(
+          find
+              .descendant(of: button, matching: find.byType(DecoratedBox))
+              .first,
+        );
         expect(
-          tester.getRect(word).left - tester.getRect(button).left,
+          tester.getRect(word).left - frame.left,
           closeTo(1.4 + 17.6, 0.01),
         );
-        expect(
-          tester.getRect(word).top - tester.getRect(button).top,
-          closeTo(1.4 + 8, 0.01),
-        );
+        expect(tester.getRect(word).top - frame.top, closeTo(1.4 + 8, 0.01));
         semantics.dispose();
       },
     );
   }
+
+  testWidgets(
+    'on the SE «usar este» takes a finger over 44 high while its frame stays '
+    'her size',
+    (tester) async {
+      _on(tester, const Size(375, 667), bar: 20);
+      final semantics = tester.ensureSemantics();
+      await _seeded(tester, _threeOnSceneOne);
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 1);
+
+      final button = byLabel('$_useThis — ${_sent(3)}');
+      await tester.ensureVisible(button);
+      await tester.pump();
+      final hit = tester.getRect(button);
+      final frame = tester.getRect(
+        find.descendant(of: button, matching: find.byType(DecoratedBox)).first,
+      );
+      expect(
+        hit.height,
+        greaterThanOrEqualTo(44),
+        reason: 'a pílula só aceitava o dedo dentro da moldura, abaixo de 44',
+      );
+      expect(frame.height, lessThan(44));
+
+      await tester.tapAt(Offset(frame.center.dx, hit.top + 1));
+      await _theAnswerSettles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason: 'um toque logo acima da moldura não usava o ensaio',
+      );
+      expect(_onRow(1, find.text(_facts(3))), findsOneWidget);
+      semantics.dispose();
+    },
+  );
 
   for (final (look, verdeClaro) in [
     ('light', const Color(0xFF777D45)),

@@ -325,24 +325,32 @@ class _SheetLine extends StatelessWidget {
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: usable ? onUse : null,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 0.5 * _rem,
-                            horizontal: 1.1 * _rem,
-                          ),
-                          decoration: BoxDecoration(
-                            color: armed ? colors.telha : null,
-                            border: Border.all(
-                              color: armed ? colors.telha : colors.areia,
-                              width: 1.4,
-                            ),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            useLabel,
-                            style: TextStyle(
-                              color: armed ? colors.paper : colors.verdeClaro,
-                              fontSize: 0.84 * _rem,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 44),
+                          child: Align(
+                            widthFactor: 1,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 0.5 * _rem,
+                                horizontal: 1.1 * _rem,
+                              ),
+                              decoration: BoxDecoration(
+                                color: armed ? colors.telha : null,
+                                border: Border.all(
+                                  color: armed ? colors.telha : colors.areia,
+                                  width: 1.4,
+                                ),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                useLabel,
+                                style: TextStyle(
+                                  color: armed
+                                      ? colors.paper
+                                      : colors.verdeClaro,
+                                  fontSize: 0.84 * _rem,
+                                ),
+                              ),
                             ),
                           ),
                         ),
