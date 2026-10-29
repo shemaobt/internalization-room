@@ -514,6 +514,40 @@ void main() {
   );
 
   testWidgets(
+    'a part the room refused is not offered under the plan\'s notice, where '
+    'the home asks to record it again',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room
+        ..refuseTake = 'ensaio/parte-2'
+        ..refuseTakeCode = 'BAD_REQUEST';
+      await casa.guardar(2);
+      expect(casa.naLinha(2, find.text(_naoFoiAceita)), findsOneWidget);
+
+      await casa.emTempoReal(() async {
+        casa.sala.leaveTheRecording();
+        await settle();
+        casa.sala.openTheEnsaioFinal();
+        await _esperar(
+          'o plano ser lido',
+          () => casa.estado.ensaioFinalPlan is PlanRead,
+        );
+        await settle();
+      });
+
+      expect(casa.estado.station, const Ensaio(step: EnsaioStep.plan));
+      expect(casa.estado.unsentParts[2]?.failure, SendFailure.refused);
+      expect(
+        find.textContaining('enviar agora'),
+        findsNothing,
+        reason:
+            'o plano oferecia enviar de novo uma gravação que a sala recusou, '
+            'e a casa pede para gravar de novo',
+      );
+    },
+  );
+
+  testWidgets(
     'a send past eight seconds shows parar and its tap keeps the take reading '
     'falhou',
     (tester) async {

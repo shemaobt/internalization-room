@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/facilitator_script.dart';
-import '../../domain/kept_take.dart';
 import '../../domain/session_state.dart';
 
 class UnsentNotice extends StatelessWidget {
@@ -20,9 +19,16 @@ class UnsentNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unsent = [
-      for (final entry in session.unsentParts.entries)
-        if (entry.value.failure != SendFailure.gone) entry,
-    ]..sort((a, b) => a.key.compareTo(b.key));
+      for (final MapEntry(key: scene, value: part)
+          in session.unsentParts.entries)
+        if (sendNowLabelFor(
+              part,
+              recordingHomeLabelFor('scene', language, n: scene),
+              language,
+            )
+            case final label?)
+          (scene, label),
+    ]..sort((a, b) => a.$1.compareTo(b.$1));
     if (unsent.isEmpty) return const SizedBox.shrink();
     final colors = SalaColors.of(context);
     String words(String key) => recordingHomeLabelFor(key, language);
@@ -40,7 +46,7 @@ class UnsentNotice extends StatelessWidget {
                 style: TextStyle(color: colors.telha, fontSize: 15),
               ),
             ),
-            for (final MapEntry(key: scene, value: part) in unsent)
+            for (final (scene, label) in unsent)
               Semantics(
                 button: true,
                 label: words('sendAria'),
@@ -49,12 +55,7 @@ class UnsentNotice extends StatelessWidget {
                 child: TextButton(
                   onPressed: () => onSend(scene),
                   child: Text(
-                    [
-                      recordingHomeLabelFor('scene', language, n: scene),
-                      if (part.length case final length?)
-                        ' · ${minutesAndSecondsOf(length)}',
-                      ' — ${words('sendNow')}',
-                    ].join(),
+                    label,
                     textAlign: TextAlign.center,
                     style: TextStyle(color: colors.telha, fontSize: 15),
                   ),
