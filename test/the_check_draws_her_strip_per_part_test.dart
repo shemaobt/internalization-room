@@ -24,7 +24,13 @@ import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
     show cabeca, entrarNaTraducao, passaDoCursor, tocar, tocarNoCirculo;
 import 'the_pause_snaps_to_silence_test.dart'
-    show entrarComAFala, ouvirAPausa, pausarAos, s, umaLacunaAos3;
+    show
+        entrarComAFala,
+        ouvirAPausa,
+        pausarAos,
+        s,
+        tocarOCirculo,
+        umaLacunaAos3;
 
 const _duasFrasesNaParteUm = [
   SegmentView(
@@ -527,6 +533,29 @@ void main() {
       reason:
           'ouvir a pausa apagava a linha do tocador do lugar onde a gravação '
           'tinha parado',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the player stays where the take stopped while the team tells '
+      'the frase into the microphone', (tester) async {
+    tester.view
+      ..physicalSize = const Size(820, 2400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+    await pausarAos(tester, harness, s(4.2));
+
+    await tocarOCirculo(tester);
+
+    expect(container.read(salaSessionProvider).channel, isA<Microphone>());
+    expect(
+      _ondeOTocadorEsta(tester),
+      [closeTo(0.42, 1e-9)],
+      reason:
+          'o microfone aberto apagava a linha do tocador, e a equipe perdia '
+          'onde a gravação tinha parado',
     );
     closeTheRoom(container);
   });
