@@ -1791,6 +1791,58 @@ void main() {
       },
     );
   }
+  testWidgets(
+    'a frase that cannot be tapped while a translation comes down keeps its card at full strength, and only its speaker dims',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const speaker = 'ouvir a minha tradução da frase 1';
+
+      harness.room.holdNextClip();
+      await tester.tap(byLabel(speaker));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).scene.waiting,
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(container.read(salaSessionProvider).scene.waiting, isTrue);
+      expect(
+        tester.widget<Semantics>(byLabel(_bar(1))).properties.enabled,
+        isFalse,
+      );
+      expect(
+        tester
+            .widgetList<Opacity>(
+              find.descendant(
+                of: byLabel(_bar(1)),
+                matching: find.byType(Opacity),
+              ),
+            )
+            .map((opacity) => opacity.opacity),
+        everyElement(1.0),
+        reason: 'a frase que não se toca agora vinha apagada; a dela não',
+      );
+      expect(
+        tester
+            .widget<AnimatedOpacity>(
+              find.descendant(
+                of: byLabel(speaker),
+                matching: find.byType(AnimatedOpacity),
+              ),
+            )
+            .opacity,
+        0.35,
+      );
+      harness.room.finishHeldClip();
+      await tester.pump(const Duration(milliseconds: 500));
+    },
+  );
   for (final (look, areia, verdeClaro) in [
     (Brightness.light, const Color(0xFFC5C29F), const Color(0xFF777D45)),
     (Brightness.dark, const Color(0xFF6E6A57), const Color(0xFFAAB07E)),
