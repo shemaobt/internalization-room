@@ -1464,13 +1464,43 @@ void main() {
     await _passo(tester);
     await _passo(tester);
 
-    expect(harness.voice.fixedLines, [('N4', 'pt')]);
+    expect(
+      harness.voice.fixedLines,
+      isEmpty,
+      reason: 'a voz dizia que a frase nova estava no lugar sem a parte nova',
+    );
     expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-2');
     expect(
       harness.playback.ranges.skip(tocadas),
       isEmpty,
       reason: 'a parte velha tocava no lugar da frase nova',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a new part the room will not hand over says nothing and plays '
+      'nothing, instead of announcing a sentence that is not there', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 2);
+    harness.room.failClipOf['gravacao-${harness.room.takeIds.length + 1}'] =
+        const NetworkFailed('sem rede');
+    harness.voice.fixedLines.clear();
+    final tocadas = harness.playback.ranges.length;
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.voice.fixedLines,
+      isEmpty,
+      reason: 'a voz dizia «a frase nova já está no lugar» e nada tocava',
+    );
+    expect(harness.playback.ranges.skip(tocadas), isEmpty);
     closeTheRoom(container);
   });
 

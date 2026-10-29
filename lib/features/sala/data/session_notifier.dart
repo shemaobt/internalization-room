@@ -9926,7 +9926,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final frase = int.parse(guardada.scope);
     final parte = state.trechoChamado(nome)?.parte;
     final nova = segments.where((segment) => segment.segmentId == nome);
-    var trocada = false;
+    bool? trocada;
     if (parte != null && nova.isNotEmpty) {
       trocada = await _aParteComAFrase(
         guardada.sessionId,
@@ -9949,13 +9949,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ],
     );
     _rememberWhereTheyAre(const Retro());
+    if (trocada == false) return;
     await _sayALine(
       LineKind.guide,
       fixedLine: (name: sentenceInPlaceLine, language: _inTheSessionsLanguage),
     );
     if (_abandoned(generation)) return;
     final trecho = _armarOTrecho(state.trechoChamado(nome));
-    if (trecho != null && trocada) _tocarAFraseNova(trecho);
+    if (trecho != null && trocada == true) _tocarAFraseNova(trecho);
   }
 
   Future<bool> _aParteComAFrase(
