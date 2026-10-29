@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1852 (2026-10-29: after her P2 at «terminei» nothing plays until the team presses play, as hers)
 date: 2026-10-20
 ---
 
@@ -38,10 +38,10 @@ the ticket (ENG-1419) on 19 and 20 October.
   both, the screen says «ainda falta ouvir um trecho da gravação» until the last of those
   parts has played, a stretch told back meanwhile included. No answer, or a room too old to
   name the parts: today's path.
-- **A refusal for unheard parts** plays every part it names in row order, crossing from one
-  to the next. After the last, the crossing into the following part stays offered, as it
-  did after a single landing: an existing test pins that crossing, and the ticket does not
-  ask to close it; only the replay after a part recorded again stops there.
+- **A refusal for unheard parts** (`PART_UNHEARD`, her P2) plays nothing: see the
+  amendment below. A verdict that names unheard parts with no refusal, which only a room
+  older than 19 October sends, still plays every part it names in row order, crossing from
+  one to the next, with the crossing after the last left offered.
 - The replay has no rule for a blocking halt: under ADR 0093 none of her six cases can land
   while it plays, and a Session read saying `needs_person` changes nothing.
 - The reports, the mark and the replay's list live in the notifier beside the Retro screen's
@@ -66,3 +66,23 @@ reported, and a second tablet on the session would not see a ledger kept on the 
 - One small request per part end. It is never awaited.
 - Against a room without ADR 0074 the reports replace each other, so the app must reach
   production after it.
+
+## Amendment · 2026-10-29 (ENG-1852)
+
+Her frozen app is the rule (João, 2026-10-26), and hers plays nothing after the refusal: it
+writes «ainda falta ouvir um trecho da gravação», says P2, reads the passage again, once more
+1.5 s later when the first read is not complete, and clears the line once the room counts
+every part heard (`Drafting.tsx:1515-1527`, at 18fa7c4). «terminei» stays dark meanwhile,
+because her check needs the passage heard (`Drafting.tsx:2340`).
+
+So after a `PART_UNHEARD` refusal at «terminei» nothing plays. The line stays, under
+«terminei» too, and «terminei» is dark. The play control then replays the recording from its
+first part, every part in passage order, whichever part the room named and whether or not
+this tablet holds it, as ADR 0123 rule 7.1 does after an incomplete listen. When the last part
+ends the line clears and «terminei» lights. Right after the refusal the listen door is asked
+once with nothing to report, and once more after 1.5 s if a part is still named; an answer
+naming none clears the line and lights «terminei» with nothing played. An answer that comes
+back after the team has pressed play changes nothing: the replay's last part clears the line.
+
+The refusal's replay keeps living in the notifier beside the Retro screen's other fields,
+under ADR 0046's written exception.
