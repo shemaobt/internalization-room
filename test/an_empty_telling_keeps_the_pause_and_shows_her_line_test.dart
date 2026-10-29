@@ -303,9 +303,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
-  testWidgets('under a person sign the circle says the sign, not her line', (
-    tester,
-  ) async {
+  testWidgets('a halt raised over her line draws no sign, and the circle still '
+      'says her line, as hers', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     await ateACapturaVazia(tester, harness);
@@ -313,12 +312,17 @@ void main() {
 
     await aSalaParaDeVez(tester, container);
 
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
-    expect(thePersonSign, findsOneWidget);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    expect(
+      thePersonSign,
+      findsNothing,
+      reason: 'o sinal cobria a retro, e o Drafting dela nunca o mostra',
+    );
+    expect(byLabel(linha), findsWidgets);
     closeTheRoom(container);
   });
 
-  testWidgets('a blocking halt hides her mark', (tester) async {
+  testWidgets('a halt raised over her line keeps her mark', (tester) async {
     final herMark = find.byWidgetPredicate(
       (widget) =>
           widget is Semantics &&
@@ -332,8 +336,12 @@ void main() {
 
     await aSalaParaDeVez(tester, container);
 
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
-    expect(herMark, findsNothing);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    expect(
+      herMark,
+      findsOneWidget,
+      reason: 'a parada escondia a marca dela na retro',
+    );
     closeTheRoom(container);
   });
 

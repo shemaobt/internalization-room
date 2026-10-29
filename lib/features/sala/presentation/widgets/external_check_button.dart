@@ -24,6 +24,7 @@ class ExternalCheckButton extends ConsumerWidget {
       button: true,
       enabled: abre,
       label: rotulo,
+      onTap: abre ? notifier.abrirAChecagemExterna : null,
       child: Opacity(
         opacity: abre ? 1 : 0.4,
         child: ExcludeSemantics(

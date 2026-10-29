@@ -92,15 +92,17 @@ void main() {
     expect(effects, isEmpty);
   });
 
-  test('A halt does not clear her line, raised or tapped away.', () {
-    final (halted, _) = reduce(_afterAnEmptyTelling(), const RoomRaisedAHalt());
-    expect(halted.halt, isA<Blocking>());
-    expect(halted.wordlessTelling, isTrue);
-
-    final (lifted, _) = reduce(halted, const TeamTapped());
-    expect(lifted.halt, isA<NoHalt>());
-    expect(lifted.wordlessTelling, isTrue);
-  });
+  test(
+    'A halt raised there does not clear her line, and no sign covers it.',
+    () {
+      final (halted, _) = reduce(
+        _afterAnEmptyTelling(),
+        const RoomRaisedAHalt(),
+      );
+      expect(halted.halt, isA<NoHalt>());
+      expect(halted.wordlessTelling, isTrue);
+    },
+  );
 
   test('Leaving the Back-translation clears her line.', () {
     final (machine, _) = reduce(

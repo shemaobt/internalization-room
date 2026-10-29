@@ -580,7 +580,7 @@ void main() {
         'again is in the air', (tester) async {
       final (harness, container, _) = await theEarlierRefusalLate(tester);
 
-      expect(_state(container).machine.aHaltWaitsForTheCanvas, isTrue);
+      expect(_state(container).machine.aHaltWaitsForTheCanvas, isNotNull);
       expect(_says(_notSent), findsNothing);
 
       harness.room.heldSceneSends[1].complete(null);

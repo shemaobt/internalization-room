@@ -18,7 +18,6 @@ import 'um_ensaio_de_tres_partes.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
-const _voltarParaAGravacao = 'Voltar para a gravação';
 const _pronto = 'Pronto';
 const micParteLabel = 'voltar e regravar uma parte';
 
@@ -1292,8 +1291,8 @@ void main() {
   });
 
   testWidgets(
-    'com a leitura depois da aprovação perdida, sob parada nem o pronto nem a '
-    'saída estão na tela, e voltam com o toque no sinal',
+    'com a leitura depois da aprovação perdida, uma parada ali deixa o pronto na '
+    'tela, e sobe na conversa depois do pronto',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _ateAConferida(tester);
@@ -1319,42 +1318,26 @@ void main() {
       await pressTheApproval(tester, _aprovar);
       it.container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 400));
-
-      expect(_estado(it.container).needsPerson, isTrue);
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(
-        find.bySemanticsLabel(_pronto),
-        findsNothing,
-        reason: 'sob o sinal só a lavagem fala (ADR 0107)',
-      );
-      expect(find.bySemanticsLabel(_voltarParaAGravacao), findsNothing);
-
-      it.container.read(salaSessionProvider.notifier).teamTapped();
       await tester.pump(const Duration(milliseconds: 600));
       await tester.pump(const Duration(seconds: 2));
-      expect(find.bySemanticsLabel(_pronto), findsOneWidget);
+
+      expect(_estado(it.container).needsPerson, isFalse);
+      expect(
+        find.bySemanticsLabel(_pronto),
+        findsOneWidget,
+        reason: 'o sinal cobria a retro e escondia o pronto',
+      );
+
       await tester.tap(byLabel(_pronto));
       await tester.pump(const Duration(milliseconds: 400));
 
+      expect(_estado(it.container).stage, SalaStage.conversa);
       expect(
-        _estado(it.container).stage,
-        SalaStage.conversa,
-        reason: 'e o toque tem de valer, não ser engolido por um botão inerte',
+        _estado(it.container).needsPerson,
+        isTrue,
+        reason: 'a parada que esperava sobe quando o pronto leva à conversa',
       );
-
-      sala.openTheEnsaioFinal();
-      await tester.pump(const Duration(seconds: 1));
-      sala.startRetro();
-      await tester.pump(const Duration(seconds: 1));
-      expect(find.bySemanticsLabel(_voltarParaAGravacao), findsOneWidget);
-      await tester.tap(byLabel(_voltarParaAGravacao));
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(
-        _estado(it.container).stage,
-        SalaStage.ensaio,
-        reason: 'e a saída tem de valer, não ser engolida por um botão inerte',
-      );
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
