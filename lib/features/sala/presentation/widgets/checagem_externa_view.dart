@@ -151,7 +151,6 @@ class ChecagemExternaView extends ConsumerWidget {
         size: herCircleSize(MediaQuery.sizeOf(context), 38, 150),
         halt: session.halt,
         voice: session.voice,
-        answersATouch: open,
         semanticLabel: externalCheckLabelFor('retellAria', language),
         onTap: open ? notifier.listenerTap : null,
       ),

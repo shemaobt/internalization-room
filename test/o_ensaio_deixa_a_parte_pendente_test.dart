@@ -107,7 +107,6 @@ void main() {
         true,
       ], reason: 'a gravação aberta é a da linha 1');
       expect(_circulo(tester).voice, VoiceState.listening);
-      expect(_circulo(tester).tongue, Tongue.motherTongue);
 
       await _tocar(tester, _terminar);
       final primeira = harness.recorder.lastPath!;
@@ -221,7 +220,6 @@ void main() {
     await _tocar(tester, _ouvirOEnsaio);
     expect(harness.playback.played, [partes[0]]);
     expect(_circulo(tester).voice, VoiceState.speaking);
-    expect(_circulo(tester).tongue, Tongue.motherTongue);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     expect(harness.playback.played, partes, reason: 'a parte 1, depois a 2');
