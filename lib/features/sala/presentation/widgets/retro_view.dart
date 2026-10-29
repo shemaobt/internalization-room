@@ -248,6 +248,17 @@ class RetroView extends ConsumerWidget {
             ],
             const SizedBox(height: 24),
             if (avanca) _pilula(session, colors, notifier, language),
+            if (avanca && session.btAindaFaltaOuvir) ...[
+              const SizedBox(height: 17.6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  retroLabelFor('partUnheard', language),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.telha, fontSize: 12.8),
+                ),
+              ),
+            ],
             if (avanca && session.btVeredito) ...[
               const SizedBox(height: 16),
               _botaoEscrito(

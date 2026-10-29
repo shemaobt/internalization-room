@@ -2050,6 +2050,71 @@ void main() {
     },
   );
 
+  test(
+    'a joined recording whose untranslated stretch the room names says the '
+    'hint, never the line of a part still to hear under terminei too',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a primeira parte voltar ao ar',
+        () => it.harness.playback.sounding,
+      );
+      final antes = it.estado.btTrechos.length;
+      await theClipOpens(it.harness);
+      it.harness.playback.at = const Duration(seconds: 4);
+      it.sala.retroTap();
+      it.sala.retroTap();
+      await waitFor(
+        'o microfone abrir no trecho',
+        () => it.estado.btPhase == BtPhase.capturing,
+      );
+      it.harness.room
+        ..listeningFixedLine = 'N2'
+        ..listeningUntranslated = [
+          UntranslatedPart(
+            takeId: it.partes[0].takeId!,
+            scene: 1,
+            from: const Duration(seconds: 4),
+          ),
+        ];
+      await confirmarATraducao(it.container);
+      await waitFor(
+        'o trecho contado entrar no colar',
+        () => it.estado.btTrechos.length == antes + 1,
+      );
+      await settle();
+      it.harness.room.reachable = false;
+      it.sala.goEnsaio();
+      await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
+      await settle();
+
+      it.sala.startRetro();
+      await waitFor(
+        'o trecho sem tradução voltar ao ar',
+        () =>
+            it.estado.btRecusa == CheckRefusal.stretchUntranslated &&
+            it.harness.playback.sounding,
+      );
+
+      expect(it.estado.btRecusa, CheckRefusal.stretchUntranslated);
+      expect(it.estado.btTrechos.where((trecho) => trecho.contado), isNotEmpty);
+      expect(it.estado.voice, VoiceState.invite);
+      expect(it.estado.canAdvanceToTheVerdict, isFalse);
+      expect(
+        it.estado.btAindaFaltaOuvir,
+        isFalse,
+        reason:
+            'com o trecho sem tradução nomeado, a linha da parte não ouvida '
+            'aparecia junto com a dica dela',
+      );
+    },
+  );
+
   testWidgets(
     'during the listen of a recording no join touched there is no terminei and '
     'no circle, and her line names the recording, not the passage',

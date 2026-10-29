@@ -7,6 +7,7 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/status_lines.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
@@ -214,7 +215,10 @@ void main() {
     await _recusado(tester, container);
 
     expect(
-      find.text('ainda falta ouvir um trecho da gravação'),
+      find.descendant(
+        of: find.byType(StatusLines),
+        matching: find.text('ainda falta ouvir um trecho da gravação'),
+      ),
       findsOneWidget,
       reason: 'a parte não ouvida tinha a fala dela e nada na tela',
     );
@@ -225,6 +229,35 @@ void main() {
     );
     expect(harness.playback.played.last, aParte.path);
     expect(harness.playback.playedFrom.last, Duration.zero);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a part refused as unheard writes her line under terminei too, '
+      'as hers, not only in the status above', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _duasFrasesNoTerminei(tester, harness);
+    harness.room
+      ..verdictRefusal = CheckRefusal.partUnheard
+      ..verdictFixedLine = 'P2'
+      ..verdictUnheardTakeIds = [
+        container.read(salaSessionProvider).partes.single.takeId!,
+      ];
+
+    await _recusado(tester, container);
+    await _passo(tester);
+
+    final linhas = find.text('ainda falta ouvir um trecho da gravação');
+    expect(
+      linhas,
+      findsNWidgets(2),
+      reason:
+          'a recusa dizia a parte não ouvida só lá em cima, e ela diz '
+          'também debaixo do terminei',
+    );
+    expect(
+      tester.getRect(linhas.last).top,
+      greaterThanOrEqualTo(tester.getRect(byLabel(conferir)).bottom),
+    );
     closeTheRoom(container);
   });
 
@@ -489,7 +522,12 @@ void main() {
     expect(find.text('couldn\'t check right now — try again'), findsOneWidget);
     await recusadoCom(CheckRefusal.partUnheard);
     expect(
-      find.text('there is still a part of the recording to listen to'),
+      find.descendant(
+        of: find.byType(StatusLines),
+        matching: find.text(
+          'there is still a part of the recording to listen to',
+        ),
+      ),
       findsOneWidget,
       reason: 'a sessão em inglês mostrava as linhas dela em português',
     );
