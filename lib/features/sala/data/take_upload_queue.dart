@@ -493,12 +493,15 @@ class TakeUploadQueue {
   static int _unsentIn(
     List<PendingTake>? written,
     String kind,
-    String? sessionId,
-  ) {
+    String? sessionId, {
+    String? passage,
+  }) {
     if (written == null) return 1;
     return [
       for (final entry in written)
-        if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
+        if (!entry.stored &&
+            entry.kind == kind &&
+            _ofTheVisit(entry, sessionId, passage))
           entry,
     ].length;
   }
@@ -619,7 +622,7 @@ class TakeUploadQueue {
           : unsentParts.values.fold(0, (count, rows) => count + rows.length),
       unsentChunks: written == null
           ? 1
-          : _unsentIn(written, sentenceKind, sessionId),
+          : _unsentIn(written, sentenceKind, sessionId, passage: passage),
       unsentParts: unsentParts,
       goneParts: await _gonePartsIn(written, sessionId, passage),
     );

@@ -523,6 +523,43 @@ void main() {
   );
 
   testWidgets(
+    'a sentence held from a gone session keeps the approval from being '
+    'offered until it is sent',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.retroSoFar = const BackTranslationProgress(checked: true);
+      final frase = (await _semPrender(
+        tester,
+        () => casa.harness.takes.enqueue(
+          casa.harness.recorder.aFile('frase-de-outra-visita'),
+          sessionId: null,
+          passage: 'Ruth/P01/pt',
+          kind: sentenceKind,
+          scope: '3',
+        ),
+      ))!;
+      for (final n in [1, 2, 3]) {
+        await casa.guardar(n);
+      }
+      await casa.emTempoReal(() async {
+        await casa.sala.refreshUnsent();
+        await settle();
+      });
+
+      expect(_aprovar, findsNothing);
+
+      await casa.emTempoReal(() async {
+        await casa.harness.takes.withdraw(frase);
+        await casa.sala.refreshUnsent();
+        await settle();
+      });
+      await casa.ateVer(_aprovar);
+
+      expect(_aprovar, findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'after a switch to the whole passage the approval is offered while a part '
     'take spent before it is still on its way, and that take goes up with the '
     "team's next tap",
