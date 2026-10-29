@@ -6200,7 +6200,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final end = state.scene.takeEnd;
       if (playing) {
         _silenceTheRoom();
-      } else if (end != null && pausa >= end) {
+      } else if (end != null && isAtTheEnd(pausa, end)) {
         _silenceTheRoom();
         _play(
           PartSound(
