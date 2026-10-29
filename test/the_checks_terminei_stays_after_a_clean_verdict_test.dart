@@ -73,4 +73,27 @@ void main() {
     expect(byLabel(conferir), findsOneWidget);
     closeTheRoom(container);
   });
+
+  testWidgets('while an approval is in the air the terminei is dimmed, and a '
+      'tap on it asks for no check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _ateAConferida(tester, harness);
+    harness.room.holdNextRelease();
+    await tocar(tester, aprovar);
+
+    expect(
+      aceso(tester, conferir),
+      isFalse,
+      reason: 'com a aprovação no ar o terminei ficava aceso',
+    );
+    await tocar(tester, conferir);
+    expect(
+      harness.room.playedByTakeSent,
+      hasLength(1),
+      reason: 'o terminei pedia a conferência por cima da aprovação',
+    );
+    harness.room.finishHeldRelease();
+    await tester.pump(const Duration(milliseconds: 600));
+    closeTheRoom(container);
+  });
 }
