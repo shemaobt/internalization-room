@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0049, 0050, 0067, 0068 and 0107; extended by name by 0106
+status: accepted, amended by 0049, 0050, 0067, 0068 and 0107; extended by name by 0106; invariant 12 replaced by 0087 (2026-10-28, ENG-1777: the Outbox sends nothing of its own)
 date: 2026-09-29
 amends: 0033, 0036, 0044
 ---
@@ -93,7 +93,7 @@ every step:
 10. A told stretch always has a playable telling.
 11. An accepted gesture never vanishes in silence: it moves the room, or shows it is
     waiting, or its control was already dimmed.
-12. The Outbox never idles online with a part pending.
+12. The Outbox sends nothing of its own: a part pending waits for the team's tap (0087, amended 28 October, ENG-1777).
 13. The screen never shows a sound the Channel does not hold.
 14. Reopening from the same slice always lands in the same place.
 15. A warning is the same on the tablet, on the server and on the Desk.

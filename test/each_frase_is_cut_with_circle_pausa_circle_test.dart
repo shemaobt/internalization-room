@@ -442,9 +442,8 @@ void main() {
     );
 
     test('the take\'s loudness is read off the UI thread', () async {
-      final take = File(
-        '${Directory.systemTemp.createTempSync('sala-take').path}/cena.wav',
-      )..writeAsBytesSync(aSpokenWav(gaps: [(_s(3.0), _s(5.0))]));
+      final take = File('${aTempHome('sala-take').path}/cena.wav')
+        ..writeAsBytesSync(aSpokenWav(gaps: [(_s(3.0), _s(5.0))]));
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -1412,6 +1411,22 @@ void main() {
             expect(room.harness.recorder.deleted, contains(path));
           });
 
+          test('when the room restarts the translation at the second tap of '
+              'recomeçar a tradução', () async {
+            final (room, path) = await held();
+
+            room.sala.restartTheSceneTranslation();
+            await waitFor(
+              'o recomeço acordar',
+              () => room.state.sceneRestart == BtRecomeco.pronto,
+            );
+            room.sala.restartTheSceneTranslation();
+            await waitFor(
+              'a sala recomeçar',
+              () => room.harness.recorder.deleted.contains(path),
+            );
+          });
+
           test('when its session is gone', () async {
             final (room, path) = await held();
             room.harness.room.forgetTheSession(_session);
@@ -1452,6 +1467,53 @@ void main() {
         });
       },
     );
+
+    for (final (how, RoomFailure answer) in [
+      ('refuses', const Refused('CONFLICT')),
+      ('never answers', const NetworkFailed('sem rede')),
+    ]) {
+      test('a sentence whose restart the room $how stays on the tablet and is '
+          'offered again', () async {
+        final room = await _onTheTranslateStep(
+          rehearsal: _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        );
+        await _listening(room);
+        await _aFraseWhoseAnswerIsLost(
+          room,
+          const Refused(RefusalCode.sceneRehearsalSending),
+          keptBefore: false,
+        );
+        final path = room.harness.recorder.lastPath;
+        room.harness.room
+          ..holdNextRestart()
+          ..failSceneWith = answer;
+
+        room.sala.restartTheSceneTranslation();
+        await waitFor(
+          'o recomeço acordar',
+          () => room.state.sceneRestart == BtRecomeco.pronto,
+        );
+        room.sala.restartTheSceneTranslation();
+        await settle();
+
+        expect(room.harness.recorder.deleted, isNot(contains(path)));
+
+        room.harness.room.finishHeldRestart();
+        await waitFor(
+          'a sala não recomeçar',
+          () => room.state.sceneLine == SceneLine.restartFailed,
+        );
+        room.harness.room.failSceneWith = null;
+        await settle();
+
+        expect(room.harness.recorder.deleted, isNot(contains(path)));
+        final posts = room.harness.room.frasesKept.length;
+
+        await _theTeamTellsItAgain(room);
+
+        expect(room.harness.room.frasesKept, hasLength(posts + 1));
+      });
+    }
 
     test(
       'a frase held after a lost answer whose rehearsal the room no longer has is let go, and the room is not asked for its list again and again',

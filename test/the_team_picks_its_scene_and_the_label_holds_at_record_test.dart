@@ -154,15 +154,18 @@ String _rowOf(WidgetTester tester, int n) => _labelsOnScreen(tester).firstWhere(
   return (words: chip.words, live: chip.live);
 }
 
-/// A scene take recorded earlier that still waits in the Outbox for this session.
-Future<void> _aTakeWaits(SalaHarness harness, {required String? scene}) =>
-    harness.takes.enqueue(
-      harness.recorder.aFile('cena-que-espera'),
-      sessionId: _session,
-      kind: 'cena',
-      scope: 'cena',
-      scene: scene,
-    );
+/// A scene take recorded earlier whose one send failed, so it still waits in the Outbox
+/// for this session.
+Future<void> _aTakeWaits(SalaHarness harness, {required String? scene}) async {
+  await harness.takes.enqueue(
+    harness.recorder.aFile('cena-que-espera'),
+    sessionId: _session,
+    kind: 'cena',
+    scope: 'cena',
+    scene: scene,
+  );
+  await harness.takes.flush();
+}
 
 bool _theCircleShows() =>
     _shows(_record) || _shows(_recording) || _shows(_saving);

@@ -8,7 +8,6 @@ import 'a_station_host_double.dart';
 import 'fakes.dart';
 
 const _beat = Duration(seconds: 30);
-const _retry = Duration(seconds: 5);
 
 void main() {
   test('a generation that moves bumps the count by one each time', () {
@@ -20,33 +19,27 @@ void main() {
     expect(twice.generation, 2);
   });
 
-  test('the Watch and the retry armed before a generation moves still fire '
-      'and the machine takes their answers', () {
+  test('the Watch armed before a generation moves still fires and the '
+      'machine takes its answer', () {
     final container = ProviderContainer(overrides: SalaHarness().overrides);
     addTearDown(container.dispose);
     final host = AStationHost();
-    var machine = const Machine(
-      station: Canvas(),
-      parts: {'parte-1': PartFact.pending},
-    );
+    var machine = const Machine(station: Canvas());
     final runner = runnerOver(
       portsOf(container),
       host,
       watchPeriod: _beat,
-      retryDelay: _retry,
       generation: () => machine.generation,
     );
 
     fakeAsync((time) {
-      runner.run(const [ArmTheWatch(), ArmTheRetry(due: _retry)]);
+      runner.run(const [ArmTheWatch()]);
       machine = moveTheGeneration(machine);
 
       time.elapse(_beat);
 
       final watch = host.answers.whereType<WatchFired>().single;
-      final retry = host.answers.whereType<RetryFired>().single;
       expect(reduce(machine, watch).$2, const [ReadTheState(), ArmTheWatch()]);
-      expect(reduce(machine, retry).$2, const [DrainTheOutbox()]);
     });
   });
 }
