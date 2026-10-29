@@ -108,13 +108,6 @@ List<String> _rotulos(WidgetTester tester) => [
   for (final texto in tester.widgetList<Text>(
     find.descendant(of: find.byType(PartStrips), matching: find.byType(Text)),
   ))
-    texto.data ?? '',
-];
-
-List<String> _rotulosComAMarca(WidgetTester tester) => [
-  for (final texto in tester.widgetList<Text>(
-    find.descendant(of: find.byType(PartStrips), matching: find.byType(Text)),
-  ))
     texto.textSpan?.toPlainText() ?? texto.data ?? '',
 ];
 
@@ -708,7 +701,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
-      _rotulosComAMarca(tester),
+      _rotulos(tester),
       ['parte 1', 'parte 2 ·'],
       reason:
           'nada na fileira dizia que a sala ainda não tinha ouvido a parte '
@@ -727,7 +720,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
-      _rotulosComAMarca(tester),
+      _rotulos(tester),
       ['parte 1', 'parte 2'],
       reason:
           'a marca ficava depois que a sala dizia que já não faltava ouvir '
@@ -882,7 +875,7 @@ void main() {
 
     expect(container.read(salaSessionProvider).partes[1].takeId, isNull);
     expect(
-      _rotulosComAMarca(tester),
+      _rotulos(tester),
       ['parte 1', 'parte 2 ·'],
       reason:
           'a parte que ainda subia era a que a sala mandava ouvir, e a '
