@@ -542,6 +542,60 @@ void main() {
   }
 
   testWidgets(
+    'a scene rehearsal whose frase places cannot be read shows the play control dimmed under the instruction, and a tap on it plays nothing',
+    (tester) async {
+      final (harness, _) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      final play = byLabel('Tocar ou pausar a gravação');
+      final played = harness.playback.played.length;
+
+      expect(
+        play,
+        findsOneWidget,
+        reason: 'a tela de lugares desconhecidos não tinha o controle de tocar',
+      );
+      expect(tester.widget<Semantics>(play).properties.enabled, isFalse);
+      expect(
+        tester.getTopLeft(play).dy,
+        greaterThan(
+          tester
+              .getTopLeft(
+                find.textContaining(
+                  'Ouçam o ensaio da cena; toquem no círculo',
+                ),
+              )
+              .dy,
+        ),
+      );
+      expect(
+        tester.getTopLeft(play).dy,
+        lessThan(
+          tester
+              .getTopLeft(
+                find.textContaining('as frases já traduzidas não estão'),
+              )
+              .dy,
+        ),
+      );
+
+      await tester.tap(play);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        harness.playback.played,
+        hasLength(played),
+        reason: 'no dela, com os lugares desconhecidos, nada toca',
+      );
+      expect(find.textContaining(RegExp(r'\d:\d\d')), findsNothing);
+    },
+  );
+
+  testWidgets(
     'on a phone her places-unknown line keeps 16 points on each side',
     (tester) async {
       await _onTheSceneScreen(

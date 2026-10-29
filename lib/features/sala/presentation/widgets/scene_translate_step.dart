@@ -373,6 +373,13 @@ class ScenePlacesUnknown extends ConsumerWidget {
       children: [
         SceneSub(said('subTranslate')),
         const SizedBox(height: 12),
+        _PlayRow(
+          mood: ButtonMood.dimmed,
+          take: null,
+          label: said('playPause'),
+          hint: (_) => null,
+        ),
+        const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _Written(
