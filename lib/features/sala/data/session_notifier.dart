@@ -9173,13 +9173,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (segurada != null) return segurada;
     final parte = _parteNoAr;
     if (parte == null) return null;
+    final ondeParou = state.btOuvidoMs - _inicioDaParteMs(_parteTocando);
+    final tamanho = _oTamanhoDa(parte)?.inMilliseconds ?? ondeParou;
     return Paused(
       PartSound(
         _parteTocando,
         parte.path,
-        from: Duration(
-          milliseconds: state.btOuvidoMs - _inicioDaParteMs(_parteTocando),
-        ),
+        from: Duration(milliseconds: max(0, min(ondeParou, tamanho))),
       ),
       started: false,
     );
