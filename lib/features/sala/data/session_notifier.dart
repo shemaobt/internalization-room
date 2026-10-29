@@ -10778,11 +10778,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// «Pronto» drops the Saved screen and nothing else: the Station, the checked Step and
-  /// the Resume point stay where the approval left them.
+  /// «Pronto» drops the Saved screen and leaves the recording, the home and the
+  /// Back-translation alike, for the conversation at rest, as hers does (`Drafting.tsx:2196`
+  /// calls `onExit`, `exitDrafting` at `page.tsx:413`). The checked Step and the Resume point
+  /// stay where the approval left them.
   void pronto() => _gesture(() {
     if (state.ensaioSalvo == null) return;
-    state = state.copyWith(clearEnsaioSalvo: true);
+    state = state.copyWith(clearEnsaioSalvo: true, clearLastSpoken: true);
+    _arriveAt(const TheRecordingLeft());
+    _landWhereTheyStopped(done: state.machine.theCanvasEnded);
   });
 
   /// The room is already silent — the press silenced it — and the last listening of a
