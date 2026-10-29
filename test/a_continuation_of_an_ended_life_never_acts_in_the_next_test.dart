@@ -8,6 +8,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -730,12 +731,12 @@ void main() {
     caso.container.invalidate(salaSessionProvider);
     caso.container.read(salaSessionProvider);
     await caso.sala.refreshUnsent();
-    expect(caso.estado.machine.somethingPending, isTrue);
+    expect(caso.estado.machine.parts.containsValue(PartFact.pending), isTrue);
 
     await waitFor('a Fila terminar', () => caso.fila.flushing == 0);
     await waitFor(
       'a próxima sala contar a tomada como enviada',
-      () => !caso.estado.machine.somethingPending,
+      () => !caso.estado.machine.parts.containsValue(PartFact.pending),
     );
   });
 
