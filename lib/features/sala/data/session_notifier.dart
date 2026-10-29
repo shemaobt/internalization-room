@@ -10875,6 +10875,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.needsPerson) return;
     if (!state.canApprove || state.ensaioSalvo != null) return;
+    final cortaAEscuta =
+        state.btPhase == BtPhase.conferida && state.btClipRodando;
     _silenceTheRoom();
     final sessionId = state.sessionId;
     if (sessionId == null) return;
@@ -10888,7 +10890,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     void failed(RoomFailure failure) {
       if (_abandoned(generation)) return;
       if (failure case Refused()) {
-        fromTheHome ? _backToBeforeTerminei() : _theListeningThePressCutEnds();
+        fromTheHome
+            ? _backToBeforeTerminei()
+            : _aEscutaCortadaAcaba(cortaAEscuta);
       }
       _decideTheFailure(failure);
     }
@@ -10914,7 +10918,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       if (!resposta.minted) {
         _saysWhy(_recusaDaCasa(resposta.blockers));
-        _theListeningThePressCutEnds();
+        _aEscutaCortadaAcaba(cortaAEscuta);
         return;
       }
       state = state.copyWith(btAprovadoAgora: resposta.version);
@@ -10986,10 +10990,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     awaitingTheGuide: false,
   );
 
-  void _theListeningThePressCutEnds() {
-    if (state.btPhase == BtPhase.conferida) {
-      state = state.copyWith(btClipEnded: true);
-    }
+  void _aEscutaCortadaAcaba(bool cortada) {
+    if (cortada) state = state.copyWith(btClipEnded: true);
   }
 
   void _esperarQueFalteOuvir(String sessionId, int generation) {

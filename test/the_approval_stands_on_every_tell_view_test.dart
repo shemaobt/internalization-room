@@ -14,6 +14,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
+        aceso,
         aprovar,
         cabeca,
         conferir,
@@ -268,6 +269,11 @@ void main() {
     final container = await _conferidaPelaSala(tester, harness);
     await _conferidaDeNovoComUmaParteNaoOuvida(tester, harness, container);
     harness.room.releaseBlockers = ['playback_did_not_cover_the_clip'];
+    if (!container.read(salaSessionProvider).btClipRodando) {
+      _sala(container).ouvirGravacao();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(container.read(salaSessionProvider).btClipRodando, isTrue);
 
     await pressTheApproval(tester, aprovar);
     await tester.pump(const Duration(milliseconds: 600));
@@ -464,6 +470,43 @@ void main() {
           'o botão ficava sobre uma tradução apagada; a dela lê a passagem '
           'de novo, e uma tradução recomeçada não é conferida',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a refused approval on a checked passage picked back up gives '
+      'nothing back: a recording nobody heard to its end stays unheard', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _conferidaPelaSala(tester, harness);
+    _sala(container).leaveTheBackTranslation();
+    await tester.pump(const Duration(milliseconds: 300));
+    _sala(container).startRetro();
+    await waitFor(
+      'a conferida voltar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(container.read(salaSessionProvider).btClipEnded, isFalse);
+    expect(container.read(salaSessionProvider).btClipRodando, isFalse);
+    harness.room.releaseBlockers = ['telling_back_not_checked'];
+
+    await pressTheApproval(tester, aprovar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      container.read(salaSessionProvider).btClipEnded,
+      isFalse,
+      reason:
+          'a recusa dava a gravação por ouvida até o fim sem o aperto ter '
+          'cortado escuta nenhuma',
+    );
+    expect(
+      container.read(salaSessionProvider).canFinishBackTranslation,
+      isFalse,
+    );
+    expect(aceso(tester, conferir), isFalse);
     closeTheRoom(container);
   });
 }
