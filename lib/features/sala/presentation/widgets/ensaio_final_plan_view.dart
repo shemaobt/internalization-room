@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,11 +22,20 @@ import 'way_back_button.dart';
 /// Her Ensaio Final plan: «pensando…» while the room is read, then her heading and line,
 /// a row per scene, the card of the Unlabelled rehearsals, «juntar as cenas e ouvir» and
 /// «Gravar cena por cena» at the foot; or the Rehearsal sheet of one scene.
-class EnsaioFinalPlanView extends ConsumerWidget {
+class EnsaioFinalPlanView extends ConsumerStatefulWidget {
   const EnsaioFinalPlanView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EnsaioFinalPlanView> createState() =>
+      _EnsaioFinalPlanViewState();
+}
+
+class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
+  int _cardAt = 0;
+  String? _lastLabelled;
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
@@ -77,7 +88,11 @@ class EnsaioFinalPlanView extends ConsumerWidget {
         onRecordAgain: notifier.rehearseThisSceneAgain,
       );
     }
-    final unlabelled = unlabelledRehearsalsOf(read, sessionId).firstOrNull;
+    final unlabelledOnes = unlabelledRehearsalsOf(read, sessionId);
+    final at = unlabelledOnes.isEmpty
+        ? 0
+        : min(_cardAt, unlabelledOnes.length - 1);
+    final unlabelled = unlabelledOnes.isEmpty ? null : unlabelledOnes[at];
     return SafeArea(
       bottom: false,
       child: SizedBox.expand(
@@ -165,7 +180,19 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                   playing:
                       session.planListening?.rehearsalId ==
                       unlabelled.rehearsalId,
-                  failed: session.labelLine,
+                  failed:
+                      session.labelLine &&
+                      _lastLabelled == unlabelled.rehearsalId,
+                  previous: at > 0 ? unlabelledOnes[at - 1] : null,
+                  next: at + 1 < unlabelledOnes.length
+                      ? unlabelledOnes[at + 1]
+                      : null,
+                  onLabel: (sceneId) {
+                    _lastLabelled = unlabelled.rehearsalId;
+                    notifier.labelTheRehearsal(unlabelled.rehearsalId, sceneId);
+                  },
+                  onPrevious: () => setState(() => _cardAt = at - 1),
+                  onNext: () => setState(() => _cardAt = at + 1),
                 ),
               if (planHoldsARehearsal(read, sessionId)) ...[
                 const SizedBox(height: 24),
@@ -370,8 +397,8 @@ class _PlanRowView extends StatelessWidget {
   }
 }
 
-/// Her card «De que cena é este ensaio?»: the oldest Unlabelled rehearsal, its play and
-/// facts, and one scene button per scene of the passage, none highlighted.
+/// Her card «De que cena é este ensaio?»: one of the Unlabelled rehearsals, with previous
+/// and next to step to its neighbours, its play and facts, and one scene button per scene of the passage, none highlighted.
 class _UnlabelledCard extends ConsumerWidget {
   final SceneRehearsalRecord rehearsal;
   final List<Scene> scenes;
@@ -379,6 +406,11 @@ class _UnlabelledCard extends ConsumerWidget {
   final bool busy;
   final bool playing;
   final bool failed;
+  final SceneRehearsalRecord? previous;
+  final SceneRehearsalRecord? next;
+  final void Function(String sceneId) onLabel;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
 
   const _UnlabelledCard({
     required this.rehearsal,
@@ -387,6 +419,11 @@ class _UnlabelledCard extends ConsumerWidget {
     required this.busy,
     required this.playing,
     required this.failed,
+    required this.previous,
+    required this.next,
+    required this.onLabel,
+    required this.onPrevious,
+    required this.onNext,
   });
 
   @override
@@ -426,6 +463,16 @@ class _UnlabelledCard extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                if (previous case final neighbour?) ...[
+                  _StepControl(
+                    toward: neighbour,
+                    language: language,
+                    busy: busy,
+                    forward: false,
+                    onTap: onPrevious,
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 Semantics(
                   selected: playing,
                   child: RoundActionButton(
@@ -444,7 +491,22 @@ class _UnlabelledCard extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(facts, style: TextStyle(color: colors.mut, fontSize: 14)),
+                Flexible(
+                  child: Text(
+                    facts,
+                    style: TextStyle(color: colors.mut, fontSize: 14),
+                  ),
+                ),
+                if (next case final neighbour?) ...[
+                  const SizedBox(width: 12),
+                  _StepControl(
+                    toward: neighbour,
+                    language: language,
+                    busy: busy,
+                    forward: true,
+                    onTap: onNext,
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 12),
@@ -459,10 +521,7 @@ class _UnlabelledCard extends ConsumerWidget {
                       label: sceneButtonLabelFor(i + 1, scene.title, language),
                       number: i + 1,
                       highlighted: false,
-                      onTap: () => notifier.labelTheRehearsal(
-                        rehearsal.rehearsalId,
-                        scene.sceneId,
-                      ),
+                      onTap: () => onLabel(scene.sceneId),
                     ),
                   ),
                 ),
@@ -481,4 +540,92 @@ class _UnlabelledCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Her 40 px `.ctl` circle on the card: a chevron named by the row text of the rehearsal
+/// it steps to.
+class _StepControl extends StatelessWidget {
+  final SceneRehearsalRecord toward;
+  final String language;
+  final bool busy;
+  final bool forward;
+  final VoidCallback onTap;
+
+  const _StepControl({
+    required this.toward,
+    required this.language,
+    required this.busy,
+    required this.forward,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    return Semantics(
+      button: true,
+      enabled: !busy,
+      label: planRowFactsFor(toward, language),
+      onTap: busy ? null : onTap,
+      excludeSemantics: true,
+      child: Opacity(
+        opacity: busy ? 0.5 : 1,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: busy ? null : onTap,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: colors.areia.withValues(alpha: 0.25),
+            ),
+            child: Center(
+              child: CustomPaint(
+                size: const Size.square(20),
+                painter: _StepChevronPainter(
+                  forward: forward,
+                  ink: colors.verde,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StepChevronPainter extends CustomPainter {
+  final bool forward;
+  final Color ink;
+
+  const _StepChevronPainter({required this.forward, required this.ink});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final unit = size.width / 24;
+    final path = forward
+        ? (Path()
+            ..moveTo(9 * unit, 5 * unit)
+            ..relativeLineTo(7 * unit, 7 * unit)
+            ..relativeLineTo(-7 * unit, 7 * unit))
+        : (Path()
+            ..moveTo(15 * unit, 5 * unit)
+            ..relativeLineTo(-7 * unit, 7 * unit)
+            ..relativeLineTo(7 * unit, 7 * unit));
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6 * unit
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_StepChevronPainter old) =>
+      old.forward != forward || old.ink != ink;
 }
