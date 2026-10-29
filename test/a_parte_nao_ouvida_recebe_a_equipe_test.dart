@@ -50,6 +50,7 @@ void main() {
       'findings_remaining': 0,
     };
     final tocadas = it.harness.playback.played.length;
+    final falasAntes = it.harness.voice.played.length;
 
     await pedirOVeredito(it);
     await settle();
@@ -62,6 +63,19 @@ void main() {
           'sala manda desde 19 de outubro; a dela recusa e não toca nada',
     );
     expect(it.estado.btClipRodando, isFalse);
+    expect(
+      it.harness.voice.played.skip(falasAntes),
+      contains(falaDoVeredito),
+      reason: 'o veredito é dito como qualquer outro veredito',
+    );
+    expect(
+      it.estado.btVeredito,
+      isTrue,
+      reason:
+          'o veredito é lido como o veredito que é: a fase dos achados abre, '
+          'em vez de a sala deixá-lo cair e ficar no giro',
+    );
+    expect(it.estado.btPhase, BtPhase.playing);
   });
 
   test('um veredito que nomeia uma parte não contada não põe parte nenhuma '
@@ -78,6 +92,7 @@ void main() {
       'findings_remaining': 0,
     };
     final tocadas = it.harness.playback.played.length;
+    final falasAntes = it.harness.voice.played.length;
 
     await pedirOVeredito(it);
     await settle();
@@ -90,6 +105,19 @@ void main() {
           'sala aposentou em 19 de outubro e que a dela nunca teve',
     );
     expect(it.estado.btClipRodando, isFalse);
+    expect(
+      it.harness.voice.played.skip(falasAntes),
+      contains(falaDoVeredito),
+      reason: 'o veredito é dito como qualquer outro veredito',
+    );
+    expect(
+      it.estado.btVeredito,
+      isTrue,
+      reason:
+          'o veredito é lido como o veredito que é: a fase dos achados abre, '
+          'em vez de a sala deixá-lo cair e ficar no giro',
+    );
+    expect(it.estado.btPhase, BtPhase.playing);
   });
 
   test(
@@ -234,29 +262,34 @@ void main() {
     final it = await umEnsaioDeTresPartesContadoInteiro(
       tetoDaEspera: const Duration(seconds: 2),
     );
-    final terceira = it.partes[2];
+    final terceira = it.partes[2].takeId!;
     final tocadas = it.harness.playback.played.length;
 
     it.harness.room
-      ..verdictChecked = false
-      ..verdictUnheardTakeIds = [terceira.takeId!];
-    it.harness.voice.holdNextFetch();
+      ..verdictRefusal = CheckRefusal.partUnheard
+      ..verdictFixedLine = 'P2'
+      ..verdictUnheardTakeIds = [terceira]
+      ..listeningUnheardTakeIds = [terceira]
+      ..holdNextVerdict();
 
     final aperto = it.sala.finishBackTranslation();
     await waitFor(
       'a sala desistir da espera',
       () => it.estado.btPhase != BtPhase.thinking,
     );
-    it.harness.voice.finishHeldFetch();
+    final relatos = it.harness.room.listeningReports.length;
+    it.harness.room.finishHeldVerdict();
     await aperto;
+    await settle();
 
     expect(
-      it.harness.playback.played.length,
-      tocadas,
+      it.harness.room.listeningReports,
+      hasLength(relatos),
       reason:
           'a sala já desistiu desta espera: a resposta que chega depois é de '
           'uma pergunta que não está mais de pé',
     );
+    expect(it.harness.playback.played.length, tocadas);
     expect(
       it.estado.needsPerson,
       isFalse,
