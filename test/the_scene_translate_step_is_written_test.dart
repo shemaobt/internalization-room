@@ -1791,6 +1791,24 @@ void main() {
       },
     );
   }
+  testWidgets('two frases told stand her .3rem apart, not 6 points', (
+    tester,
+  ) async {
+    await _onTheSceneScreen(
+      tester,
+      rehearsals: [
+        _rehearsal(frases: [_frase('f1', 0, 3000), _frase('f2', 3000, 6000)]),
+      ],
+      until: (state) => state.scene.step == SceneStep.translate,
+    );
+
+    expect(
+      tester.getRect(byLabel(_bar(2))).top -
+          tester.getRect(byLabel(_bar(1))).bottom,
+      closeTo(4.8, 1e-9),
+      reason: 'as frases ficavam a 6 pontos uma da outra; as dela a .3rem',
+    );
+  });
   testWidgets(
     'a frase that cannot be tapped while a translation comes down keeps its card at full strength, and only its speaker dims',
     (tester) async {

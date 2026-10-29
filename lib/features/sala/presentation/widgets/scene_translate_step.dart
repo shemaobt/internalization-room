@@ -874,7 +874,10 @@ class _FraseBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 0.15 * _rem,
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 470),
         child: Row(
