@@ -244,6 +244,56 @@ void main() {
     },
   );
 
+  test('uma frase regravada contada numa visita anterior toca a sua tradução, '
+      'buscada pela gravação que a sala nomeia', () async {
+    final harness = SalaHarness();
+    harness.room.takeAudio['retro-velho-1'] = _aTraducao;
+
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      naSala: [
+        ..._naSala(3),
+        TakeView(
+          takeId: 'gravacao-velha-1',
+          kind: 'ensaio',
+          scope: KeptScope.parte(1),
+          ordinal: 1,
+        ),
+      ],
+      contado: BackTranslationProgress(
+        segments: _contado([1]).segments,
+        stale: const [
+          SegmentView(
+            segmentId: 'trecho-velho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+            bridgeTakeId: 'retro-velho-1',
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte, com as partes na retro',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.everyPartIsHere &&
+          it.estado.btTrechosRegravados.length == 1,
+    );
+    it.sala.ouvirAFraseRegravada(0);
+    await waitFor('a tradução tocar', () => it.estado.btRetroTocando);
+
+    expect(
+      harness.room.clipsFetched,
+      contains(RoomRepository.takeAudioUrl(_sessao, 'retro-velho-1')),
+      reason:
+          'a frase regravada sem cópia no tablet não tocava nada, e o '
+          'alto-falante dela ficava apagado',
+    );
+    expect(File(harness.playback.played.last).readAsBytesSync(), _aTraducao);
+  });
+
   test(
     'uma linha do ensaio sem os arquivos reabre no ensaio com as partes da sala',
     () async {

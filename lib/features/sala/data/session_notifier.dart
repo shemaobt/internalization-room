@@ -8927,16 +8927,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _ouvirAFraseRegravada(int indice) {
     if (!state.canHearAFrase) return;
     final trecho = state.btTrechosRegravados.elementAtOrNull(indice);
-    final traducao = trecho?.retroPath;
-    if (trecho == null || traducao == null) return;
-    final segurada = _tirarAParteDoPlayer();
-    state = state.copyWith(btContaEscolhida: indice);
-    _play(
-      StretchSound(traducao, named: trecho.segmentId, telling: true),
-      onComplete: _calarOQueSeOuvia,
-      onFailed: _calarOQueSeOuvia,
-      beneath: segurada,
-    );
+    if (trecho == null) return;
+    final traducao = trecho.retroPath;
+    if (traducao == null) {
+      if (trecho.bridgeTakeId case final contada?) {
+        _handOff(_ouvirATraducaoDaSala(indice, trecho, contada));
+      }
+      return;
+    }
+    _tocarATraducao(indice, trecho, traducao);
   }
 
   void ouvirOTrechoPendente() => _gesture(() => _ouvirOTrechoPendente());
