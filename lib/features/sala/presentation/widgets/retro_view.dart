@@ -240,7 +240,8 @@ class RetroView extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 24),
-            if (avanca) _pilula(session, colors, notifier, language),
+            if (!session.btSoOuvir)
+              _pilula(session, colors, notifier, language),
             if (avanca && session.btVeredito) ...[
               const SizedBox(height: 16),
               _botaoEscrito(
