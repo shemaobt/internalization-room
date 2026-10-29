@@ -157,4 +157,25 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('a press on the approve button away from the verdict approves, '
+      'instead of doing nothing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _conferidaPelaSala(tester, harness);
+    _sala(container).traduzirAFraseDeNovo(0);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+    expect(_aprovarAceso(tester), isTrue);
+
+    await pressTheApproval(tester, aprovar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      harness.room.releasesAsked,
+      hasLength(1),
+      reason: 'o botão aceso fora da conferida não pedia a soltura à sala',
+    );
+    expect(container.read(salaSessionProvider).ensaioSalvo, 1);
+    closeTheRoom(container);
+  });
 }
