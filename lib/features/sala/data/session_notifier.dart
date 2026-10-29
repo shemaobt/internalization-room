@@ -10516,6 +10516,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state = state.copyWith(btPhase: pressedFrom);
           return;
         }
+        state = state.copyWith(btPhase: pressedFrom);
         _decideTheFailure(failure);
         return;
     }

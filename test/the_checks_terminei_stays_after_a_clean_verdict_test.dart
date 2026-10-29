@@ -199,4 +199,22 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('a check the room refuses over a checked telling leaves the team '
+      'on the approval, not back on the telling', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _ateAConferida(tester, harness);
+    harness.room.failFinishWith = const Refused('BAD_REQUEST');
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.conferida,
+      reason:
+          'a recusa da sala ao segundo terminei devolvia a equipe à tradução',
+    );
+    expect(byLabel(aprovar), findsOneWidget);
+    closeTheRoom(container);
+  });
 }
