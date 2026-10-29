@@ -467,6 +467,7 @@ class SalaSessionState {
 
   final bool btClipEnded;
   final bool? btOuvidaInteira;
+  final bool btRestoPorOuvir;
   final bool btParteFronteira;
 
   final List<int> btFimDasPartesMs;
@@ -683,6 +684,7 @@ class SalaSessionState {
     this.btFindingSegmentId,
     this.btClipEnded = false,
     this.btOuvidaInteira,
+    this.btRestoPorOuvir = false,
     this.btParteFronteira = false,
     this.btFimDasPartesMs = const [],
     this.btParteNoArMs = 0,
@@ -1449,8 +1451,11 @@ class SalaSessionState {
     return (btCursor + folgaDoFimDaParte).inMilliseconds >= parte;
   }
 
+  bool get _btOuvidaCoberta =>
+      (btOuvidaInteira ?? (btClipEnded && _btParteContada)) && !btRestoPorOuvir;
+
   bool get btContadaInteira =>
-      (btOuvidaInteira ?? (btClipEnded && _btParteContada)) &&
+      _btOuvidaCoberta &&
       (btTraducaoPendente == null || btTraducaoPendenteEmprestada);
 
   bool get canAdvanceToTheVerdict =>
@@ -1474,7 +1479,7 @@ class SalaSessionState {
   bool get btAindaFaltaOuvir =>
       _btDebaixoDoTerminei &&
       btRecusa != CheckRefusal.stretchUntranslated &&
-      !(btOuvidaInteira ?? (btClipEnded && _btParteContada));
+      !_btOuvidaCoberta;
 
   bool get btFaltaTraduzirUmTrecho =>
       _btDebaixoDoTerminei && btRecusa == CheckRefusal.stretchUntranslated;
@@ -1837,6 +1842,7 @@ class SalaSessionState {
     bool clearFindingSegment = false,
     bool? btClipEnded,
     bool? btOuvidaInteira,
+    bool? btRestoPorOuvir,
     bool? btParteFronteira,
     List<int>? btFimDasPartesMs,
     int? btParteNoArMs,
@@ -1980,6 +1986,7 @@ class SalaSessionState {
           : (btFindingSegmentId ?? this.btFindingSegmentId),
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btOuvidaInteira: btOuvidaInteira ?? this.btOuvidaInteira,
+      btRestoPorOuvir: btRestoPorOuvir ?? this.btRestoPorOuvir,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btFimDasPartesMs: btFimDasPartesMs ?? this.btFimDasPartesMs,
       btParteNoArMs: btParteNoArMs ?? this.btParteNoArMs,

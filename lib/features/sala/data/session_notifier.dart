@@ -8130,6 +8130,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.playing,
       btChunkFailures: const [],
       btClipEnded: false,
+      btRestoPorOuvir: false,
       btPass: 1,
       peerCue: false,
       hearNewScene: false,
@@ -8480,12 +8481,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final medido = _tamanhoDaParteMs[medidas[parte].path];
       _parteTocando = parte;
       _trechoStart = _ondeParouNesteArquivo(parte);
+      final contadaAoFim =
+          contadaAte > Duration.zero &&
+          medido != null &&
+          (contadaAte + folgaDoFimDaParte).inMilliseconds >= medido;
       state = state.copyWith(
         btOuvidoMs: _pontoNoColar(_trechoStart.inMilliseconds),
-        btClipEnded:
-            contadaAte > Duration.zero &&
-            medido != null &&
-            (contadaAte + folgaDoFimDaParte).inMilliseconds >= medido,
+        btClipEnded: contadaAoFim,
+        btRestoPorOuvir: !contadaAoFim,
       );
       return;
     }
@@ -8755,6 +8758,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (ouvidas) _oQueFaltaOuvir = null;
     state = state.copyWith(
       btClipEnded: ultima || ouvidas,
+      btRestoPorOuvir: state.btRestoPorOuvir && !(ultima || ouvidas),
       btParteFronteira:
           faltaOutra || (!ultima && !(ouvidas && falta.paraNaUltima)),
       clearBtRecusa: ouvidas && !state.btSoOuvir,
