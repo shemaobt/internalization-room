@@ -33,11 +33,19 @@ aside from a current one.
 - **The whole-passage home** is the recording home with one row, «A passagem inteira». Its take
   goes up as `scope=passagem-inteira` with no `chunk_index`; recording it again replaces it at
   the next pass.
-- **«gravar a passagem inteira de uma vez»** (on the plan, and on a scene home over a joined
-  recording) takes one tap when nothing would be lost and ENG-1260's Armed tap otherwise:
+- **«gravar a passagem inteira de uma vez»** (on the plan, on a scene home over a joined
+  recording, and on the check screen of a joined recording) takes one tap when nothing would
+  be lost and ENG-1260's Armed tap otherwise:
   «toquem de novo: isto abre de novo o rascunho aprovado» over an approved draft, else «toquem
   de novo: as cenas e as traduções ficam guardadas». On a scene home with no join, her plain
   «Gravar a passagem inteira» takes one tap.
+- **On the check screen** (ENG-1876, hers at Drafting.tsx:2465-2471) it stands under «voltar e
+  regravar uma parte» through the whole telling step, never on the first listen and never over
+  a recording no join touched. It is dimmed and takes no tap while a part or a line sounds,
+  while the telling is recorded, sent or checked, while a sentence re-record is open, while an
+  approval or an open of the Checagem externa is in the air, and while a switch is. Its second
+  tap first reports what was heard on the check, then goes through the grain door, and opens
+  the whole-passage home once the door answered.
 - **«Gravar cena por cena»** is always offered, on the plan and on the whole-passage home, one
   tap. The plain one-tap switches send `reopens_the_approved_draft`, since changing the
   recording form takes one tap even over an approved draft (ENG-1260).
