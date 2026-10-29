@@ -33,6 +33,8 @@ class SceneTranslateStep extends ConsumerWidget {
   final bool sendable;
   final bool unseen;
   final bool adjusts;
+  final bool person;
+  final bool held;
   final bool moving;
   final SceneLine? line;
   final bool restartShown;
@@ -49,6 +51,8 @@ class SceneTranslateStep extends ConsumerWidget {
     required this.sendable,
     required this.unseen,
     required this.adjusts,
+    required this.person,
+    required this.held,
     required this.moving,
     required this.line,
     required this.restartShown,
@@ -110,7 +114,7 @@ class SceneTranslateStep extends ConsumerWidget {
         if (adjusts) ...[
           const SizedBox(height: 12),
           PauseAdjustRow(
-            lit: idle,
+            lit: idle && !person && !held,
             language: language,
             onEarlier: notifier.pauseEarlier,
             onHear: notifier.hearThePause,
@@ -131,7 +135,7 @@ class SceneTranslateStep extends ConsumerWidget {
               ? ButtonMood.beckoning
               : scene.waiting
               ? ButtonMood.waiting
-              : sending
+              : sending || person
               ? ButtonMood.dimmed
               : ButtonMood.lit,
           label: said('tell'),
@@ -140,7 +144,7 @@ class SceneTranslateStep extends ConsumerWidget {
           const SizedBox(height: 8),
           _WrittenButton(
             said('keepTheEarlier'),
-            live: !scene.waiting && !telling,
+            live: idle,
             onTap: notifier.keepTheEarlierTranslation,
             bare: true,
           ),
@@ -161,6 +165,7 @@ class SceneTranslateStep extends ConsumerWidget {
               words: said('frase', i + 1),
               name: said('retellFrase', i + 1),
               hearMine: said('hearMine', i + 1),
+              retells: idle && !held,
               live: idle,
               again: frase.fraseId == scene.translatingAgain?.fraseId,
               onTap: () => notifier.translateTheFraseAgain(frase.fraseId),
@@ -181,7 +186,7 @@ class SceneTranslateStep extends ConsumerWidget {
           SceneRestartControl(
             armed: restart,
             n: scene.rehearsal?.translatedFrases ?? 0,
-            live: idle,
+            live: idle && !person,
             language: language,
           ),
         ],
@@ -497,6 +502,7 @@ class SceneListenMode extends ConsumerWidget {
               words: said('frase', i + 1),
               name: said('frase', i + 1),
               hearMine: said('hearMine', i + 1),
+              retells: !scene.waiting,
               live: !scene.waiting,
               again: false,
               onTap: () => notifier.playTheFrase(frase.fraseId),
@@ -904,6 +910,7 @@ class _FraseBar extends StatelessWidget {
   final String words;
   final String name;
   final String hearMine;
+  final bool retells;
   final bool live;
   final bool again;
   final VoidCallback onTap;
@@ -915,6 +922,7 @@ class _FraseBar extends StatelessWidget {
     required this.words,
     required this.name,
     required this.hearMine,
+    required this.retells,
     required this.live,
     required this.again,
     required this.onTap,
@@ -936,11 +944,11 @@ class _FraseBar extends StatelessWidget {
             Expanded(
               child: Semantics(
                 button: true,
-                enabled: live,
+                enabled: retells,
                 label: name,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: live ? onTap : null,
+                  onTap: retells ? onTap : null,
                   child: ExcludeSemantics(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
