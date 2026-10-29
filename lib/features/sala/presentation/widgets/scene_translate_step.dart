@@ -21,8 +21,8 @@ const _rem = 16.0;
 
 /// The translate step, in her order: the instruction, the play control and the hint, the
 /// strip, her adjust row under a pending pausa, «traduzir o ensaio da cena» until the
-/// team listens, the circle, her message under it and «manter a tradução de antes» while
-/// a frase is translated again, the frases told, «terminei», «recomeçar a tradução», and
+/// team listens, the circle, «manter a tradução de antes» while a frase is translated
+/// again and her message under them, the frases told, «terminei», «recomeçar a tradução», and
 /// «gravar o ensaio da cena de novo» under them.
 class SceneTranslateStep extends ConsumerWidget {
   final SceneScreen scene;
@@ -146,6 +146,15 @@ class SceneTranslateStep extends ConsumerWidget {
             color: colors.vermelhoMic,
           ),
         ),
+        if (scene.translatingAgain != null && !unseen) ...[
+          const SizedBox(height: 8),
+          _WrittenButton(
+            said('keepTheEarlier'),
+            live: !scene.waiting && !telling,
+            onTap: notifier.keepTheEarlierTranslation,
+            bare: true,
+          ),
+        ],
         if (message != null) ...[
           const SizedBox(height: 12),
           Semantics(
@@ -154,15 +163,6 @@ class SceneTranslateStep extends ConsumerWidget {
               message,
               style: TextStyle(color: colors.mut, fontSize: 16),
             ),
-          ),
-        ],
-        if (scene.translatingAgain != null && !unseen) ...[
-          const SizedBox(height: 8),
-          _WrittenButton(
-            said('keepTheEarlier'),
-            live: !scene.waiting && !telling,
-            onTap: notifier.keepTheEarlierTranslation,
-            bare: true,
           ),
         ],
         if (frases.isNotEmpty) ...[

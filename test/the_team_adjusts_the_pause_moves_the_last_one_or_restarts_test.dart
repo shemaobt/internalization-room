@@ -335,6 +335,21 @@ void main() {
     );
 
     testWidgets(
+      'under the circle «manter a tradução de antes» comes before her line, not after it',
+      (tester) async {
+        final screen = await _theLastBarTapped(tester);
+        double top(String label) => tester.getTopLeft(byLabel(label)).dy;
+
+        expect(top(_tell), lessThan(top(_keepTheEarlier)));
+        expect(
+          top(_keepTheEarlier),
+          lessThan(top(_lastFraseLine(2))),
+          reason: '«manter» vinha depois da linha dela',
+        );
+      },
+    );
+
+    testWidgets(
       'moving the last pause later and saving changes the frase\'s span and the take goes on from the new end',
       (tester) async {
         final screen = await _theLastBarTapped(tester);
