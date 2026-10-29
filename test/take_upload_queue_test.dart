@@ -2585,6 +2585,99 @@ void main() {
       expect(File(copy).existsSync(), isFalse);
     });
 
+    test('given way to a hand take while its failing request is in the air, '
+        'it never goes up again', () async {
+      final room = FakeRoom()
+        ..holdNextTake('parte-2')
+        ..unreachableTake = 'ensaio/parte-2';
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final flushed = queue.flush();
+      await room.untilTakeHeld();
+
+      await queue.withdrawTheJoinsOf('sessao-1', 'parte-2');
+      room.finishHeldTake();
+      await flushed;
+      room.unreachableTake = null;
+      await queue.flush();
+
+      expect(
+        room.takesReceivedWhole,
+        isEmpty,
+        reason:
+            'a junta no ar escapava da retirada e subia depois por cima da '
+            'gravação à mão',
+      );
+      expect(await queue.pending(), isEmpty);
+      expect(File(row.path).existsSync(), isFalse);
+    });
+
+    test('given way to a hand take while in the air, a room that finds the '
+        'part moved still takes its copy away', () async {
+      final room = FakeRoom()
+        ..holdNextTake('parte-2')
+        ..refuseTake = 'ensaio/parte-2'
+        ..refuseTakeCode = RefusalCode.takeMoved;
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final flushed = queue.flush();
+      await room.untilTakeHeld();
+
+      await queue.withdrawTheJoinsOf('sessao-1', 'parte-2');
+      room.finishHeldTake();
+      await flushed;
+
+      expect(await queue.pending(), isEmpty);
+      expect(
+        File(row.path).existsSync(),
+        isFalse,
+        reason: 'a cópia da junta retirada no ar ficava na pasta sem linha',
+      );
+    });
+
+    test('given way to a hand take while in the air, a refusal leaves no row '
+        'behind to stand for the part', () async {
+      final room = FakeRoom()
+        ..holdNextTake('parte-2')
+        ..refuseTake = 'ensaio/parte-2'
+        ..refuseTakeCode = 'HTTP_500';
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final flushed = queue.flush();
+      await room.untilTakeHeld();
+
+      await queue.withdrawTheJoinsOf('sessao-1', 'parte-2');
+      room.finishHeldTake();
+      await flushed;
+
+      expect(
+        await queue.pending(),
+        isEmpty,
+        reason:
+            'a junta recusada ficava na Outbox e a sua recusa aparecia na '
+            'cena gravada à mão',
+      );
+      expect(File(row.path).existsSync(), isFalse);
+    });
+
     test('withdrawn while its pass is under way is given up, and the newer '
         'take of its part goes up in the same pass', () async {
       final room = FakeRoom();

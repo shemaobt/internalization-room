@@ -1061,9 +1061,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (take == null || take.part == _theSceneTakeThatSounds(after)?.part) {
       return;
     }
-    state = state.copyWith(
-      sceneStoppedAt: take.head ?? _ondeOSomEstaNoArquivo(take.part),
-    );
+    state = state.copyWith(sceneStoppedAt: take.inTheFile(_playback.position));
   }
 
   PartPlaying? _theSceneTakeThatSounds(Machine machine) =>
@@ -1076,7 +1074,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       };
 
   Duration _ondeOSomEstaNoArquivo(PartSound som) =>
-      som.to == null ? _playback.position : som.from + _playback.position;
+      som.inTheFile(_playback.position);
 
   void _escutarOFimNoEnsaio() {
     final soa = _aParteDoEnsaioQueSoa(state.machine);
