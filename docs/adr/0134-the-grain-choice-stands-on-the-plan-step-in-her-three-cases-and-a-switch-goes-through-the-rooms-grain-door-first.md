@@ -22,8 +22,9 @@ aside from a current one.
 - **Her three cases:** «Como vocês querem gravar?» appears when the plan cannot be read within
   6 seconds or its read fails, when the room answers the passage with no scenes (as soon as it
   answers), or when the rehearsals sit in the other language's session (under her line) — and
-  only while no grain is in force. With a grain in force those cases open that grain's
-  recording home. Every other case is ENG-1382's.
+  only while the room names no grain. With the room's grain those cases open that grain's
+  recording home; a grain read off takes an earlier visit left on the tablet never decides
+  them, as her draft alone does (ENG-2078). Every other case is ENG-1382's.
 - **The choice is a value of the plan, not a Station:** it is drawn on the plan Step, never a
   resume point. «A passagem inteira» switches to `whole` and opens the whole-passage home;
   «Cena por cena» switches to `scene` and reads the plan again.
