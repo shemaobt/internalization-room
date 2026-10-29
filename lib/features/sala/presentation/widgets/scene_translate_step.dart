@@ -664,7 +664,7 @@ class _ListedRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: onScreen ? ShemaBrand.azul : colors.line,
+                  color: onScreen ? colors.azul : colors.line,
                   width: 1.2,
                 ),
                 borderRadius: BorderRadius.circular(12),
