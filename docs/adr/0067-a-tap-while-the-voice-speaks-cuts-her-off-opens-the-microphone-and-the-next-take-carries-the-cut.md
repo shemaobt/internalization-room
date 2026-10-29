@@ -23,10 +23,14 @@ read the Canvas and the Panorama; the thinking voice and the note still ignore t
 Amended by ENG-2039 (2026-10-29, the same rule): the capture guard this record leans on
 is hers, `MIN_TAKE_MS = 700` (`app/page.tsx:24` at 18fa7c4). Its window counts from the
 recorder's start, not from the tap: a stop tap under 700 ms of recorded time is ignored
-and the take goes on (`:896`), and a take shorter than the window, or empty, is a ghost:
-nothing is sent and the circle returns to its rest (`:812`). It holds on every canvas
-take, the Panorama's included, and on the take a cut opens; a tap while the recorder is
-still starting does nothing, because nothing has been recorded yet.
+and the take goes on (`:896`), and a take shorter than the window is a ghost: nothing is
+sent and the circle returns to its rest (`:812`). Hers also drops an empty take; this
+room drops any take under 800 bytes, the floor ADR 0046 keeps, so a long take lighter
+than that is thrown away here and sent in hers. Both hold on the conversation's and the
+Panorama's takes, and on the take a cut opens; a tap while the recorder is still
+starting does nothing, because nothing has been recorded yet. The raised hand's question
+is not one of them: it keeps counting from the tap, because its second tap always ends
+it and is never ignored.
 
 This amends ADRs 0053, 0013, 0024 and 0046 without editing their decisions; it adds
 "amended by 0067" to the status lines of 0053 and 0046 and a note under the titles of 0013
