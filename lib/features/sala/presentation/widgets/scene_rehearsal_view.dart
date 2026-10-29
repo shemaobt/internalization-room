@@ -6,16 +6,19 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
+import '../../domain/machine.dart' show TakeInTheAir, TheKeep;
 import '../../domain/scene_question.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'scene_question.dart';
 import 'scene_translate_step.dart';
+import 'scene_take_state.dart';
 import 'stage_heading.dart';
 
 /// The scene rehearsal's screen; her title and this session's list are written on every
-/// step, the translate, places-unknown and sent steps write her words (ADR 0014), and the
-/// record step's other words reach the team only through VoiceOver.
+/// step, the translate, places-unknown and sent steps write her words (ADR 0014), the
+/// record step writes the take's state (ADR 0131), and its other words reach the team
+/// only through VoiceOver.
 class SceneRehearsalView extends ConsumerWidget {
   const SceneRehearsalView({super.key});
 
@@ -52,10 +55,12 @@ class SceneRehearsalView extends ConsumerWidget {
                     _ => false,
                   },
                   keep: scene.keep,
+                  inTheAir: session.sceneTakeInTheAir,
                   diskFailed: session.sceneLine == SceneLine.diskFailed,
                   label: said,
                   onTap: notifier.sceneTap,
                   onRetry: notifier.sendTheSceneTakeAgain,
+                  onStop: notifier.stopTheSend,
                   question: session.sceneQuestionShown
                       ? SceneQuestion(
                           scenes: scenes.scenes,
@@ -142,8 +147,10 @@ class _TheRecordStep extends StatelessWidget {
   final SceneKeep? keep;
   final bool diskFailed;
   final String Function(String control) label;
+  final TakeInTheAir? inTheAir;
   final VoidCallback onTap;
   final VoidCallback onRetry;
+  final void Function(TheKeep keep) onStop;
   final Widget? question;
   final Widget? chip;
   final bool focused;
@@ -151,10 +158,12 @@ class _TheRecordStep extends StatelessWidget {
   const _TheRecordStep({
     required this.recording,
     required this.keep,
+    required this.inTheAir,
     required this.diskFailed,
     required this.label,
     required this.onTap,
     required this.onRetry,
+    required this.onStop,
     required this.question,
     required this.chip,
     required this.focused,
@@ -180,36 +189,28 @@ class _TheRecordStep extends StatelessWidget {
             ),
           ],
         );
-    final waiting = keep;
-    if (recording) return circle;
-    if (waiting is! NotKept) {
-      if (!diskFailed || waiting is Keeping) return circle;
+    if (!recording && keep == null) {
+      if (!diskFailed) return circle;
       return Semantics(
         label: label('diskFailed'),
         liveRegion: true,
         child: circle,
       );
     }
-    final colors = SalaColors.of(context);
-    return Semantics(
-      label: label(waiting.tooLarge ? 'tooLarge' : 'saveFailed'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          circle,
-          const SizedBox(height: 32),
-          RoundActionButton(
-            size: 52,
-            semanticLabel: label('retry'),
-            onTap: onRetry,
-            child: Icon(
-              LucideIcons.rotateCw,
-              size: 22,
-              color: colors.vermelhoMic,
-            ),
-          ),
-        ],
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        circle,
+        const SizedBox(height: 24),
+        SceneTakeState(
+          recording: recording,
+          keep: keep,
+          inTheAir: inTheAir,
+          label: label,
+          onRetry: onRetry,
+          onStop: onStop,
+        ),
+      ],
     );
   }
 }

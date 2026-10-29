@@ -210,7 +210,7 @@ class RetroView extends ConsumerWidget {
             const SizedBox(height: 24),
             SizedBox(
               height: 78,
-              child: _disc(session, notifier, language, avanca),
+              child: _disc(session, colors, notifier, language, avanca),
             ),
             if (avanca && session.btVeredito) ...[
               const SizedBox(height: 16),
@@ -250,18 +250,26 @@ class RetroView extends ConsumerWidget {
           (maior, trecho) =>
               trecho.to - trecho.from > maior ? trecho.to - trecho.from : maior,
         );
-    double share(Trecho trecho) => maior > Duration.zero
+    double share(Trecho trecho) =>
+        maior > Duration.zero && trecho.to > trecho.from
         ? max(
-            0.08,
-            (trecho.to - trecho.from).inMicroseconds / maior.inMicroseconds,
-          )
+                8,
+                ((trecho.to - trecho.from).inMicroseconds /
+                        maior.inMicroseconds *
+                        100)
+                    .round(),
+              ) /
+              100
         : 1;
-    int? parteDe(Trecho trecho) =>
-        trecho.parte < 0 ||
-            session.partes.elementAtOrNull(trecho.parte)?.scopeId ==
-                KeptScope.whole
+    int? parteDe(Trecho trecho) => trecho.parte < 0
         ? null
-        : trecho.parte + 1;
+        : switch (session.partes.elementAtOrNull(trecho.parte)) {
+            final parte? => KeptScope.numberOf(parte.scopeId),
+            null => trecho.parte + 1,
+          };
+    bool aguarda(Trecho trecho) =>
+        session.btFraseQueAguarda != null &&
+        trecho.segmentId == session.btFraseQueAguarda;
     final regravadas = [
       for (final (_, trecho)
           in [...session.btTrechosRegravados.indexed]..sort(
@@ -298,15 +306,19 @@ class RetroView extends ConsumerWidget {
                   session.aParteDoTrechoEstaAqui(trecho)
               ? () => notifier.traduzirAFraseDeNovo(onde)
               : null,
-          mark:
-              session.btFraseQueAguarda != null &&
-                  trecho.segmentId == session.btFraseQueAguarda
+          mark: aguarda(trecho)
               ? sceneRehearsalLabelFor('awaiting', language)
               : switch (_markOn(trecho.frase, session)) {
                   null || BtFindingKind.nuance => null,
                   final kind => retroLabelFor(kind.name, language),
                 },
-          nuance: _markOn(trecho.frase, session) == BtFindingKind.nuance,
+          achado: aguarda(trecho) ? null : _markOn(trecho.frase, session),
+          traduzindoDeNovo:
+              trecho.segmentId != null &&
+              trecho.segmentId == session.btFraseTraduzidaDeNovo?.segmentId,
+          regravando:
+              trecho.frase != null &&
+              session.btRegravacao?.frase == trecho.frase,
           regravar:
               session.fraseRegravavel(trecho) &&
                   (session.btPhase != BtPhase.conferida ||
@@ -336,6 +348,7 @@ class RetroView extends ConsumerWidget {
                     language,
                     n: trecho.frase,
                   ),
+                  tocando: session.btFraseGravadaTocando,
                   onOuvir: notifier.ouvirAFraseGravada,
                   gravarDeNovo: sceneRehearsalLabelFor('recordAgain', language),
                   onGravarDeNovo: notifier.gravarAFraseDeNovo,
@@ -517,6 +530,7 @@ class RetroView extends ConsumerWidget {
 
   Widget? _disc(
     SalaSessionState session,
+    SalaColors colors,
     SalaSessionNotifier notifier,
     String language,
     bool avanca,
@@ -536,15 +550,17 @@ class RetroView extends ConsumerWidget {
             ? ButtonMood.beckoning
             : ButtonMood.dimmed,
         onTap: () => unawaited(notifier.finishBackTranslation()),
-        child: ExcludeSemantics(
+        label: ExcludeSemantics(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
                 terminei,
-                style: const TextStyle(
-                  color: ShemaBrand.branco,
+                style: TextStyle(
+                  color: session.canAdvanceToTheVerdict
+                      ? ShemaBrand.branco
+                      : colors.ink,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),

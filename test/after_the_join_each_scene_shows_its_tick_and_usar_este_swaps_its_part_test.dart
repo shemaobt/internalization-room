@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -241,6 +242,15 @@ class _Room {
   Future<void> theHeldTakeArrives() =>
       until('a troca chegar à porta', () => _arrived);
 
+  Future<void> theOutboxLetsGoOf(int n) async {
+    for (var vez = 0; vez < 200; vez++) {
+      final rows = await tester.runAsync(harness.takes.pending);
+      if (!rows!.any((row) => row.origin == idOf(n))) return;
+      await beat(const Duration(milliseconds: 20));
+    }
+    fail('o Outbox ainda guarda a troca');
+  }
+
   bool showsTheHome() =>
       find.text(english ? _homeLineEn : _homeLine).evaluate().isNotEmpty &&
       byLabel(english ? 'Back to recording' : _back).evaluate().isEmpty;
@@ -314,6 +324,20 @@ class _Room {
       byLabel('$label — ${_line(n, language: english ? 'en' : 'pt')}');
 
   Finder useUnsent(int n) => byLabel('$_useThis — ${_unsentLine(n)}');
+
+  Finder listen(int n) => byLabel(
+    '${english ? 'Listen' : 'Ouvir'} — ${_line(n, language: english ? 'en' : 'pt')}',
+  );
+
+  IconData glyphOn(Finder control) => tester
+      .widget<Icon>(find.descendant(of: control, matching: find.byType(Icon)))
+      .icon!;
+
+  Tristate pressed(Finder control) => tester
+      .getSemantics(control)
+      .getSemanticsData()
+      .flagsCollection
+      .isSelected;
 
   bool enabled(Finder target) =>
       tester
@@ -1054,12 +1078,39 @@ void main() {
         ..takeAnswersFirst.add(const NetworkFailed('sem rede'))
         ..finishHeldTake();
       await it.settle();
+      await it.theOutboxLetsGoOf(s2b);
       await it.relaunchOnTheHome();
       await it.wait(const Duration(seconds: 5));
       expect(
         it.received(2).where((take) => take.origin == it.idOf(s2b)),
         isEmpty,
       );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a swap given up at 70 s leaves the Outbox while its request is still in '
+    'the air, and a relaunch then sends nothing',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+      it.holdTheTake('parte-2');
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+      await it.wait(const Duration(seconds: 71));
+      expect(it.onLine(s2b, find.text(_retry)), findsOneWidget);
+      final asked = it.room.takesAsked.length;
+
+      await it.theOutboxLetsGoOf(s2b);
+      await it.tapThe(byLabel(_back));
+      await it.relaunchOnTheHome();
+      await it.wait(const Duration(seconds: 5));
+
+      expect(it.room.takesAsked.skip(asked), isEmpty);
       semantics.dispose();
     },
   );
@@ -1287,10 +1338,11 @@ void main() {
     await it.swapIn(s2b);
     await it.theHeldTakeArrives();
     it.room
-      ..takeAnswersFirst.add(const NetworkFailed('sem rede'))
+      ..unreachableTake = 'ensaio/parte-2'
       ..finishHeldTake();
     await it.settle();
     await it.relaunchOnTheConversation();
+    it.room.unreachableTake = null;
     await it.within(
       const Duration(seconds: 30),
       'a troca chegar à sala',
@@ -1597,6 +1649,74 @@ void main() {
     );
     semantics.dispose();
   });
+
+  testWidgets(
+    'on the home\'s sheet the line that plays shows her pause, and a second '
+    'tap gives the play back',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+
+      await it.tapThe(it.listen(s2b));
+      await it.until('o ensaio tocar', () => it.harness.playback.sounding);
+
+      expect(
+        it.glyphOn(it.listen(s2b)),
+        LucideIcons.pause,
+        reason: 'o ensaio da folha da casa tocava e o botão mostrava tocar',
+      );
+      expect(it.pressed(it.listen(s2b)), Tristate.isTrue);
+      expect(it.glyphOn(it.listen(s2a)), LucideIcons.play);
+      expect(it.pressed(it.listen(s2a)), Tristate.isFalse);
+
+      await it.tapThe(it.listen(s2b));
+      await it.settle();
+
+      expect(it.harness.playback.sounding, isFalse);
+      expect(it.glyphOn(it.listen(s2b)), LucideIcons.play);
+      expect(it.pressed(it.listen(s2b)), Tristate.isFalse);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'the home\'s sheet closed while its rehearsal plays opens again on the '
+    'play, and one tap plays it',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+      await it.tapThe(it.listen(s2b));
+      await it.until('o ensaio tocar', () => it.harness.playback.sounding);
+
+      await it.tapThe(byLabel(_back));
+      await it.until('a casa voltar', it.showsTheHome);
+      expect(it.harness.playback.sounding, isFalse);
+      await it.openTheSheet(2, _swap);
+
+      expect(
+        it.glyphOn(it.listen(s2b)),
+        LucideIcons.play,
+        reason: 'a folha fechou o som e reabriu em pausa sobre o silêncio',
+      );
+      expect(it.pressed(it.listen(s2b)), Tristate.isFalse);
+
+      final played = it.harness.playback.played.length;
+      await it.tapThe(it.listen(s2b));
+      await it.until('o ensaio tocar', () => it.harness.playback.sounding);
+
+      expect(
+        it.harness.playback.played.length,
+        played + 1,
+        reason: 'o toque depois de fechar a folha só limpava, sem tocar',
+      );
+      expect(it.glyphOn(it.listen(s2b)), LucideIcons.pause);
+      semantics.dispose();
+    },
+  );
 }
 
 List<Object?> _heard(_Room it, int after, String? takeId) => [

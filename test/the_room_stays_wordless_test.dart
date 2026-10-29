@@ -20,6 +20,7 @@ const _herWordsTheTeamReads = {
   'lib/features/sala/presentation/widgets/rehearsal_sheet.dart',
   'lib/features/sala/presentation/widgets/escolha_view.dart',
   'lib/features/sala/presentation/widgets/moment_label.dart',
+  'lib/features/sala/presentation/widgets/ouvir_tudo_view.dart',
   'lib/features/sala/presentation/widgets/scene_question.dart',
   'lib/features/sala/presentation/widgets/frase_list.dart',
   'lib/features/sala/presentation/widgets/part_strips.dart',
@@ -29,6 +30,11 @@ const _herWordsTheTeamReads = {
   'lib/features/sala/presentation/widgets/stage_heading.dart',
   'lib/features/sala/presentation/widgets/status_lines.dart',
   'lib/features/sala/presentation/widgets/scene_translate_step.dart',
+};
+
+const _herWordsOnASendingTake = {
+  'lib/features/sala/presentation/widgets/scene_take_state.dart',
+  'lib/features/sala/presentation/widgets/stop_control.dart',
 };
 
 const _wordsOnlyTheCameraReads = {
@@ -54,6 +60,7 @@ const _digitsTheTakeIsTimedBy = {
 const _wordyExceptions = {
   ..._screensTheTeamNeverReads,
   ..._herWordsTheTeamReads,
+  ..._herWordsOnASendingTake,
   ..._wordsOnlyTheCameraReads,
   ..._wordsTheTeamPicksItsLanguageBy,
   ..._numeralsThePartsAreCalledBy,

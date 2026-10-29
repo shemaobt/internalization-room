@@ -234,7 +234,7 @@ String sheetLineFor(SceneRehearsalRecord rehearsal, String language) => [
     ensaioFinalPlanLabelFor('partial', language),
 ].join(' · ');
 
-/// Her scene-rehearsal words (strings.ts), read only by VoiceOver.
+/// Her scene-rehearsal words (strings.ts).
 const sceneRehearsalLabels = {
   'enter': {'pt': 'ensaio da cena', 'en': 'scene rehearsal'},
   'record': {
@@ -298,6 +298,17 @@ const sceneRehearsalLabels = {
   'retry': {
     'pt': 'falhou — toque para tentar de novo',
     'en': 'failed — tap to try again',
+  },
+  'lost': {'pt': 'falhou', 'en': 'failed'},
+  'refused': {
+    'pt': 'não foi aceita — grave de novo',
+    'en': 'not accepted — record it again',
+  },
+  'takeRecording': {'pt': 'gravando', 'en': 'recording'},
+  'stopSending': {'pt': 'parar', 'en': 'stop'},
+  'stopSendingAria': {
+    'pt': 'Parar o envio (a gravação fica neste computador)',
+    'en': 'Stop sending (the recording stays on this computer)',
   },
   'playPause': {
     'pt': 'Tocar ou pausar a gravação',
@@ -683,6 +694,15 @@ String savedScreenLabelFor(String key, String language) =>
 /// Her recording home's words, byte for byte from her app (`strings.ts` at 18fa7c4); the
 /// playing cue VoiceOver reads is the room's own.
 const recordingHomeLabels = {
+  'listenAll': {'pt': 'Ouvir tudo', 'en': 'Hear it all'},
+  'listenAllAria': {
+    'pt': 'Ouvir a gravação inteira',
+    'en': 'Hear the whole recording',
+  },
+  'listenAllTitle': {
+    'pt': 'A gravação de vocês inteira, parte por parte.',
+    'en': 'Your whole recording, part by part.',
+  },
   'title': {'pt': 'Gravem o ensaio de vocês', 'en': 'Record your rehearsal'},
   'how': {
     'pt': 'Como vocês querem gravar?',
@@ -738,6 +758,23 @@ const recordingHomeLabels = {
     'en': 'failed — tap to try again',
   },
   'retryAria': {'pt': 'Tentar enviar de novo', 'en': 'Try sending again'},
+  'lost': {'pt': 'falhou — grave de novo', 'en': 'failed — record it again'},
+  'recording': {'pt': 'gravando', 'en': 'recording'},
+  'sending': {'pt': 'enviando…', 'en': 'sending…'},
+  'saved': {'pt': 'salvo', 'en': 'saved'},
+  'stopSending': {'pt': 'parar', 'en': 'stop'},
+  'stopSendingAria': {
+    'pt': 'Parar o envio (a gravação fica neste computador)',
+    'en': 'Stop sending (the recording stays on this computer)',
+  },
+  'tooLarge': {
+    'pt': 'grande demais para o servidor — grave em partes menores',
+    'en': 'too large for the server — record in shorter parts',
+  },
+  'refused': {
+    'pt': 'não foi aceita — grave de novo',
+    'en': 'not accepted — record it again',
+  },
   'bringBack': {
     'pt': 'trazer de volta as traduções do ensaio desta cena',
     'en': 'bring back this scene rehearsal\'s translations',
