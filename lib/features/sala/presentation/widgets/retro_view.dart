@@ -856,6 +856,7 @@ class RetroView extends ConsumerWidget {
       return session.btPausaAjustavel ? 'pauseHint' : 'pauseAtTheTap';
     }
     if (session.btClipRodando || session.btTrechoTocando) return 'listening';
+    if (session.btParteFronteira) return null;
     return 'paused';
   }
 

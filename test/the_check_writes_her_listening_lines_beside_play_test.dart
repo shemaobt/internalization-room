@@ -1,6 +1,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
@@ -13,7 +14,7 @@ import 'the_check_circle_says_hers_when_held_and_at_the_end_test.dart'
 import 'the_check_frase_rows_are_drawn_as_hers_test.dart' show voltaATraducao;
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show contarAteOFimDaParte, passaDoCursor, pausar, tocar;
+    show contarAteOFimDaParte, entrarNaTraducao, passaDoCursor, pausar, tocar;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
 import 'the_pause_snaps_to_silence_test.dart'
@@ -377,6 +378,32 @@ void main() {
       reason:
           'a parte que a sala numera 3 se dizia «parte 2», o lugar dela na '
           'fileira',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a boundary standing between two parts writes no «pausado» '
+      'beside play, where hers runs straight on', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+    harness.playback.at = const Duration(milliseconds: 600);
+    await tester.pump(passaDoCursor);
+    await tocar(tester, pausar);
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btParteFronteira, isTrue);
+    expect(state.channel, const Silence());
+    expect(state.btCortado, isFalse);
+    expect(state.btClipEnded, isFalse);
+    expect(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.textContaining('pausado'),
+      ),
+      findsNothing,
+      reason: 'a fronteira entre as partes se dizia pausada',
     );
     closeTheRoom(container);
   });
