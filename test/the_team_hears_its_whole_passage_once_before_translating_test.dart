@@ -64,7 +64,6 @@ void _juntadas(Sala it) {
       ],
       savedAt: value.savedAt,
       language: value.language,
-      partBeingRecordedAgain: value.partBeingRecordedAgain,
       passesToGoAbove: value.passesToGoAbove,
     );
   }
@@ -2457,7 +2456,7 @@ void main() {
       final microfones = _microfones(it);
 
       it.sala.traduzirAFraseDeNovo(0);
-      it.sala.ouvirAConta(0);
+      it.sala.ouvirOTrechoContado(0);
       await settle();
 
       expect(it.harness.playback.played.length, noAr);

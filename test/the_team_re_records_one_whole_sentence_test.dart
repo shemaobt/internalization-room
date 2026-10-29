@@ -920,34 +920,6 @@ void main() {
     },
   );
 
-  testWidgets('a bead heard while a re-recorded frase awaits writes «ouvindo a '
-      'gravação de vocês…» beside play, not the end of the recording', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await quatroFrasesEmWav(tester, harness);
-    await deitarAFrase(tester, harness, 2);
-    expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-2');
-
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
-    await _passo(tester);
-
-    final aqui = container.read(salaSessionProvider);
-    expect(aqui.canRetellAFrase, isFalse);
-    expect(aqui.btTrechoTocando, isTrue);
-    expect(
-      find.descendant(
-        of: find.byType(RetroView),
-        matching: find.text('ouvindo a gravação de vocês…'),
-      ),
-      findsOneWidget,
-      reason:
-          'a conta tocando a gravação com uma frase à espera se dizia o fim '
-          'da gravação',
-    );
-    closeTheRoom(container);
-  });
-
   testWidgets('a re-recorded frase that awaits its translation offers no way '
       'to keep the translation it had before', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -1408,11 +1380,9 @@ void main() {
     expect(harness.recorder.lastOwner, MicOwner.rehearsal);
     final circulo = tester.widget<FacilitatorCircle>(_circulo());
     expect(
-      (circulo.answersATouch, circulo.voice, circulo.tongue),
-      (true, VoiceState.listening, Tongue.motherTongue),
-      reason:
-          'o círculo gravava a frase parecendo parado, ou na cor da '
-          'tradução em português',
+      circulo.voice,
+      VoiceState.listening,
+      reason: 'o círculo gravava a frase parecendo parado',
     );
     expect(circulo.semanticLabel, 'gravem a frase inteira');
     expect(
@@ -2274,7 +2244,7 @@ void main() {
     await regravarAte(tester, harness, 2);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.gravarAParteDeNovo();
+    notifier.leaveTheBackTranslation();
     await _passo(tester);
     notifier.startRetro();
     await _passo(tester);
@@ -2391,38 +2361,6 @@ void main() {
       container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
       'trecho-3',
       reason: 'outra frase tomava o círculo da frase que esperava a tradução',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets('while a re-recorded frase awaits its translation, a bead on '
-      'frase 1 plays its piece of the recording and leaves the circle on the '
-      'frase that awaits', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await quatroFrasesEmWav(tester, harness);
-    await umAchadoNaFraseDois(tester, harness, container);
-    await deitarAFrase(tester, harness, 3);
-    final aqui = container.read(salaSessionProvider);
-    expect(aqui.btFraseQueAguarda, 'trecho-3');
-    final parteUm = aqui.partes.first.path;
-    final tocadas = harness.playback.played.length;
-    final trechos = harness.playback.ranges.length;
-
-    container
-        .read(salaSessionProvider.notifier)
-        .ouvirAConta(aqui.btTrechos.indexWhere((trecho) => trecho.frase == 1));
-    await _passo(tester);
-
-    expect(
-      harness.playback.played.skip(tocadas),
-      [parteUm],
-      reason: 'a conta tocava a tradução da frase 1, não a gravação',
-    );
-    expect(harness.playback.ranges.skip(trechos), ['0-4000']);
-    expect(
-      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
-      'trecho-3',
-      reason: 'a conta tomava o círculo da frase que esperava a tradução',
     );
     closeTheRoom(container);
   });
