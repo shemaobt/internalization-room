@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/playback_repository.dart';
+import '../../domain/channel.dart';
 import '../../domain/pausa.dart';
 import '../../domain/scene_rehearsal.dart';
 import 'motion.dart';
@@ -98,6 +99,7 @@ class SceneStrip extends ConsumerWidget {
   final List<SceneFrase> stale;
   final Duration? pausa;
   final bool playing;
+  final PartPlaying? take;
   final Duration? stoppedAt;
   final double width;
 
@@ -109,6 +111,7 @@ class SceneStrip extends ConsumerWidget {
     this.stale = const [],
     required this.pausa,
     required this.playing,
+    this.take,
     this.stoppedAt,
     this.width = SceneStrip.fullWidth,
   });
@@ -131,7 +134,9 @@ class SceneStrip extends ConsumerWidget {
               envelope: envelope,
               frases: frases,
               stale: stale,
-              playhead: playing ? playback.position : stoppedAt,
+              playhead: playing
+                  ? take?.inTheFile(playback.position) ?? playback.position
+                  : stoppedAt,
               pausa: pausa,
             ),
             colors,

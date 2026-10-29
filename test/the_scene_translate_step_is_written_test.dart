@@ -874,6 +874,53 @@ void main() {
 
   for (final step in [SceneStep.sent, SceneStep.translate]) {
     testWidgets(
+      '${step.name}: a frase 2 replayed draws the strip\'s playhead at the take\'s own time, not counted from the frase\'s start',
+      (tester) async {
+        final frases = [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)];
+        final (harness, container) = step == SceneStep.sent
+            ? await _inListenMode(
+                tester,
+                rehearsals: [
+                  _rehearsal(
+                    sentAt: '2026-10-27T10:00:00+00:00',
+                    frases: frases,
+                  ),
+                ],
+              )
+            : await _onTheSceneScreen(
+                tester,
+                rehearsals: [_rehearsal(frases: frases)],
+                until: (state) => state.scene.step == SceneStep.translate,
+              );
+
+        await tester.tap(byLabel(step == SceneStep.sent ? 'frase 2' : _bar(2)));
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is PartPlaying,
+        );
+        expect(harness.playback.ranges.last, '4000-8000');
+        await pumpUntil(
+          tester,
+          () => switch (container.read(salaSessionProvider).channel) {
+            PartPlaying(:final opened) => opened,
+            _ => false,
+          },
+        );
+        harness.playback.at = const Duration(seconds: 1);
+        await tester.pump(const Duration(milliseconds: 1100));
+
+        expect(
+          _playhead(tester),
+          closeTo(146, 0.01),
+          reason:
+              'a frase 2 desenhava o marcador em 0:01, contado do começo dela',
+        );
+      },
+    );
+  }
+
+  for (final step in [SceneStep.sent, SceneStep.translate]) {
+    testWidgets(
       '${step.name}: while the team\'s translation plays, the row shows the take paused where it stopped, not «ouvindo o ensaio da cena…» on the translation\'s clock',
       (tester) async {
         final (harness, container) = step == SceneStep.sent
