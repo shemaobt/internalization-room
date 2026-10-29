@@ -54,6 +54,15 @@ Future<Uint8List> _recordAScene(SceneRoom room, {Uint8List? take}) async {
 Future<void> _notKept(SceneRoom room) =>
     waitFor('o ensaio ficar esperando', () => room.state.scene.keep is NotKept);
 
+Future<void> _theOutboxLetsGo(SceneRoom room) {
+  final session = room.state.sessionId!;
+  return waitFor(
+    'o tablet guardar o take que a sala confirmou',
+    () async => await room.harness.takes.sceneWaitingIn(session) == null,
+    limit: const Duration(seconds: 30),
+  );
+}
+
 Future<void> _theRetry(SceneRoom room) async {
   room.sala.sendTheSceneTakeAgain();
   await settle();
@@ -362,7 +371,7 @@ void main() {
 
     room.sala.leaveTheSceneRehearsal();
     room.harness.room.finishHeldKeep();
-    await settle();
+    await _theOutboxLetsGo(room);
 
     expect(room.state.stage, SalaStage.conversa);
     expect(room.state.scene.step, SceneStep.record);
