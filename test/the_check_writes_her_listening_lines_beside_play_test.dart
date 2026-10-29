@@ -219,4 +219,30 @@ void main() {
     }
     closeTheRoom(container);
   });
+
+  testWidgets('the english room writes her english lines beside play, '
+      'not the portuguese ones', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+
+    expect(
+      naTela('listening to your recording… — part 1 · 0:02 / 0:10'),
+      findsOneWidget,
+      reason: 'a sala em inglês escrevia a escuta em português',
+    );
+
+    await tocar(tester, 'Pause');
+
+    expect(
+      naTela(
+        'paused — tap the circle to mark where the sentence ends — '
+        'part 1 · 0:02 / 0:10',
+      ),
+      findsOneWidget,
+      reason: 'a sala em inglês escrevia a pausa em português',
+    );
+    closeTheRoom(container);
+  });
 }
