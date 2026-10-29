@@ -164,7 +164,6 @@ Future<void> _theRoomFallsBackOn(
   required String fixedLine,
 }) async {
   final notifier = container.read(salaSessionProvider.notifier);
-  harness.room.turnsAreCanned = true;
   harness.room.fixedLine = fixedLine;
   notifier.conversaTap();
   await settle();
@@ -950,9 +949,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     await _enterThePanorama(harness, container);
-    harness.room
-      ..turnsAreCanned = true
-      ..fixedLine = 'A1';
+    harness.room.fixedLine = 'A1';
 
     notifier.panoramaTap();
     await settle();
@@ -979,9 +976,7 @@ void main() {
 
   test('an opening the room fell back on offers «Ouvir de novo», and it says '
       'that line again', () async {
-    final harness = SalaHarness()
-      ..room.turnsAreCanned = true
-      ..room.fixedLine = 'A1';
+    final harness = SalaHarness()..room.fixedLine = 'A1';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
