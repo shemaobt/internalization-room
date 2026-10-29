@@ -73,14 +73,18 @@ typedef _HeldFrase = ({
 /// comes last of its letting go and the landing of its last post.
 final class _FraseKeep {
   final Future<void> Function(String path) _delete;
+  final void Function(Set<String> held) _shown;
   final Map<String, _HeldFrase> _held = {};
   final Map<String, int> _flying = {};
 
-  _FraseKeep(this._delete);
+  _FraseKeep(this._delete, this._shown);
 
   _HeldFrase? of(String rehearsalId) => _held[rehearsalId];
 
-  void hold(String rehearsalId, _HeldFrase frase) => _held[rehearsalId] = frase;
+  void hold(String rehearsalId, _HeldFrase frase) {
+    _held[rehearsalId] = frase;
+    _shown({..._held.keys});
+  }
 
   void takeOff(String path) =>
       _flying.update(path, (posts) => posts + 1, ifAbsent: () => 1);
@@ -94,11 +98,14 @@ final class _FraseKeep {
   /// An answer lets go of the frase it answers, never of another one its rehearsal
   /// holds since; its landing deletes the file.
   void letGo(String rehearsalId, _HeldFrase frase) {
-    if (_held[rehearsalId] == frase) _held.remove(rehearsalId);
+    if (_held[rehearsalId] != frase) return;
+    _held.remove(rehearsalId);
+    _shown({..._held.keys});
   }
 
   void letGoOf(String rehearsalId) {
     if (_held.remove(rehearsalId) case final frase?) {
+      _shown({..._held.keys});
       _deleteOnceIdle(frase.path);
     }
   }
@@ -577,7 +584,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _partLoudnessReads = Future<void>.value();
     _envelopes = {};
     _sceneLoudnessReads = {};
-    _frases = _FraseKeep(_recorder.delete);
+    _frases = _FraseKeep(_recorder.delete, (held) {
+      if (!_gone) state = state.copyWith(sceneFrasesHeld: held);
+    });
     _escuta = EscutaDasPartes();
     _desdeMs = 0;
     _openTurnId = null;
