@@ -6079,6 +6079,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (_theListFirst(_playTheSceneRehearsal)) return;
+    if (translatingAgain != null && pausa != null) {
+      _silenceTheRoom();
+      _play(PartSound(0, take, from: pausa));
+      return;
+    }
     _theRefusalLineGoes();
     final shown = state.scene.nothingAskedAgain;
     state = state.copyWith(scene: shown);

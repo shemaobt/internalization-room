@@ -424,22 +424,27 @@ void main() {
     );
 
     testWidgets(
-      'play during the last frase\'s move drops the move and goes on from where the translation stopped',
+      'play during the last frase\'s move plays the take on from the moved pause, and the move, its line and «manter» stay',
       (tester) async {
         final screen = await _theLastBarTapped(tester);
         await screen.tap(_later);
 
         await screen.tap(_playPause);
 
-        expect(screen.playback.playedFrom.last, _s(9.0));
-        expect(screen.shows(_earlier), isFalse);
-        expect(screen.shows(_lastFraseLine(2)), isFalse);
-        await screen.marksThePausaAt(12.0);
+        expect(
+          screen.playback.playedFrom.last,
+          _s(10.0),
+          reason: 'o play largava a frase e seguia de onde a tradução parou',
+        );
+        expect(screen.state.channel, isA<PartPlaying>());
+        expect(screen.shows(_earlier), isTrue);
+        expect(screen.shows(_lastFraseLine(2)), isTrue);
+        expect(screen.shows(_keepTheEarlier), isTrue);
         await screen.tellsTheFrase();
         final sent = screen.room.frasesKept.single;
         expect(
           (sent.startsMs, sent.endsMs, sent.replaces),
-          (9000, 12000, null),
+          (4000, 10000, 'f2'),
         );
       },
     );
