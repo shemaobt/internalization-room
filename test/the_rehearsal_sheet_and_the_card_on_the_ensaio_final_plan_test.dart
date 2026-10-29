@@ -4,7 +4,6 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -13,6 +12,7 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_final_plan_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/rehearsal_sheet.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_question.dart';
 import 'package:internalization_room/main.dart';
@@ -147,11 +147,33 @@ String _sent(int n, {String dur = '0:07', int k = 2}) =>
 
 String _sceneButton(int n) => 'cena $n ${_threeScenes[n - 1].title}';
 
-IconData _glyphOn(WidgetTester tester, String label) => tester
-    .widget<Icon>(
-      find.descendant(of: byLabel(label), matching: find.byType(Icon)),
-    )
-    .icon!;
+Finder _paintedOn(String label) => find.descendant(
+  of: byLabel(label),
+  matching: find.byWidgetPredicate(
+    (widget) => widget is CustomPaint && widget.painter is ListenGlyphPainter,
+  ),
+);
+
+ListenGlyph _glyphOn(WidgetTester tester, String label) =>
+    (tester.widget<CustomPaint>(_paintedOn(label)).painter!
+            as ListenGlyphPainter)
+        .glyph;
+
+const _herPlay = (
+  includes: [Offset(10, 12), Offset(9, 7), Offset(9, 17)],
+  excludes: [Offset(7, 12), Offset(16, 8), Offset(16, 16)],
+);
+
+const _herPause = (
+  includes: [Offset(8, 12), Offset(16, 12), Offset(7, 6), Offset(17, 18)],
+  excludes: [
+    Offset(12, 12),
+    Offset(8, 4),
+    Offset(16, 20),
+    Offset(6.1, 5.1),
+    Offset(17.9, 18.9),
+  ],
+);
 
 Tristate _pressedAt(WidgetTester tester, String label) => tester
     .getSemantics(byLabel(label))
@@ -1140,14 +1162,14 @@ void main() {
       final (harness, _) = await _seeded(tester, _twoUnlabelled);
       await _openThePlan(tester);
       final play = 'Ouvir — ${_facts(4)}';
-      expect(_glyphOn(tester, play), LucideIcons.play);
+      expect(_glyphOn(tester, play), ListenGlyph.play);
 
       await _tapLabel(tester, play);
 
       expect(harness.playback.sounding, isTrue);
       expect(
         _glyphOn(tester, play),
-        LucideIcons.pause,
+        ListenGlyph.pause,
         reason: 'o ensaio do cartão tocava e o botão ainda mostrava tocar',
       );
       expect(_pressedAt(tester, play), Tristate.isTrue);
@@ -1155,7 +1177,7 @@ void main() {
       await _tapLabel(tester, play);
 
       expect(harness.playback.sounding, isFalse);
-      expect(_glyphOn(tester, play), LucideIcons.play);
+      expect(_glyphOn(tester, play), ListenGlyph.play);
       expect(_pressedAt(tester, play), Tristate.isFalse);
       semantics.dispose();
     },
@@ -1176,21 +1198,98 @@ void main() {
       expect(harness.playback.sounding, isTrue);
       expect(
         _glyphOn(tester, play),
-        LucideIcons.pause,
+        ListenGlyph.pause,
         reason: 'o ensaio da folha tocava e o botão ainda mostrava tocar',
       );
       expect(_pressedAt(tester, play), Tristate.isTrue);
       for (final n in [1, 2]) {
-        expect(_glyphOn(tester, 'Ouvir — ${_sent(n)}'), LucideIcons.play);
+        expect(_glyphOn(tester, 'Ouvir — ${_sent(n)}'), ListenGlyph.play);
         expect(_pressedAt(tester, 'Ouvir — ${_sent(n)}'), Tristate.isFalse);
       }
 
       await _tapLabel(tester, play);
 
       expect(harness.playback.sounding, isFalse);
-      expect(_glyphOn(tester, play), LucideIcons.play);
+      expect(_glyphOn(tester, play), ListenGlyph.play);
       expect(_pressedAt(tester, play), Tristate.isFalse);
       semantics.dispose();
     },
   );
+
+  testWidgets('the card offers its rehearsal as her filled triangle and '
+      'pauses it with her two filled bars, not lucide outlines', (
+    tester,
+  ) async {
+    await _seeded(tester, _twoUnlabelled);
+    await _openThePlan(tester);
+    final play = 'Ouvir — ${_facts(4)}';
+
+    expect(
+      find.descendant(of: byLabel(play), matching: find.byType(Icon)),
+      findsNothing,
+      reason: 'o cartão desenhava o play vazado do Lucide',
+    );
+    expect(
+      _paintedOn(play),
+      paints..path(
+        style: PaintingStyle.fill,
+        includes: _herPlay.includes,
+        excludes: _herPlay.excludes,
+      ),
+      reason: 'o play dela é «M8 6l10 6-10 6z» (EnsaioFinalPlan.tsx:24)',
+    );
+
+    await _tapLabel(tester, play);
+
+    expect(
+      _paintedOn(play),
+      paints..path(
+        style: PaintingStyle.fill,
+        includes: _herPause.includes,
+        excludes: _herPause.excludes,
+      ),
+      reason:
+          'a pausa dela são duas barras cheias com rx 1 '
+          '(EnsaioFinalPlan.tsx:25)',
+    );
+  });
+
+  testWidgets('a line of the plan\'s sheet is offered as her filled triangle '
+      'and pauses with her two filled bars, not lucide outlines', (
+    tester,
+  ) async {
+    await _seeded(tester, _threeOnSceneOne);
+    await _openThePlan(tester);
+    await _openTheSheetOf(tester, 1);
+    final play = 'Ouvir — ${_sent(3)}';
+
+    expect(
+      find.descendant(of: byLabel(play), matching: find.byType(Icon)),
+      findsNothing,
+      reason: 'a folha do plano desenhava o play vazado do Lucide',
+    );
+    expect(
+      _paintedOn(play),
+      paints..path(
+        style: PaintingStyle.fill,
+        includes: _herPlay.includes,
+        excludes: _herPlay.excludes,
+      ),
+      reason: 'o play dela é «M8 6l10 6-10 6z» (EnsaioFinalSheet.tsx:19)',
+    );
+
+    await _tapLabel(tester, play);
+
+    expect(
+      _paintedOn(play),
+      paints..path(
+        style: PaintingStyle.fill,
+        includes: _herPause.includes,
+        excludes: _herPause.excludes,
+      ),
+      reason:
+          'a pausa dela são duas barras cheias com rx 1 '
+          '(EnsaioFinalSheet.tsx:20)',
+    );
+  });
 }
