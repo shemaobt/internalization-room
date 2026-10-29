@@ -718,6 +718,26 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a new last sentence plays to the end of its take, never past '
+      'it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    harness.room.sentenceLaysInAs = const Duration(seconds: 6);
+    await gravarAFrase(tester, harness, 4);
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.playback.ranges.last,
+      '2500-10000',
+      reason: 'a última frase nova tocava até 11500 numa gravação de 10 s',
+    );
+    closeTheRoom(container);
+  });
+
   Future<void> deitarAFrase(
     WidgetTester tester,
     SalaHarness harness,
@@ -1093,6 +1113,33 @@ void main() {
       reason:
           'a frase nova tocada no lugar não contava como ouvida, e a sala '
           'recusava o terminei',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a new last sentence heard in its place is reported up to the '
+      'end of its take, never past it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    harness.room.sentenceLaysInAs = const Duration(seconds: 6);
+    await deitarAFrase(tester, harness, 4);
+    final nova = harness.room.takes.last.takeId;
+
+    await _traduzirDeNovo(tester);
+    await _passo(tester);
+    await _passo(tester);
+    await tocar(tester, 'terminei');
+    await _passo(tester);
+
+    final relato = harness.room.playedByTakeSent.last;
+    expect(
+      [
+        for (final parte in relato)
+          if (parte['take_id'] == nova)
+            '${parte['played_ranges']} em ${parte['clip_duration_ms']}',
+      ],
+      ['[[2500, 10000]] em 10000'],
+      reason: 'a sala recebia 2500-11500 ouvidos numa gravação de 10 s',
     );
     closeTheRoom(container);
   });

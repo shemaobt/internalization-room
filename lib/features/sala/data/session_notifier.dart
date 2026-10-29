@@ -10218,7 +10218,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final de = from > emVoltaDaFraseNova
         ? from - emVoltaDaFraseNova
         : Duration.zero;
-    final ate = to + emVoltaDaFraseNova;
+    final ate = switch (_tamanhoDaParteMs[path]) {
+      final medido?
+          when to + emVoltaDaFraseNova > Duration(milliseconds: medido) =>
+        Duration(milliseconds: medido),
+      _ => to + emVoltaDaFraseNova,
+    };
     void quiet() => unawaited(_playback.stop());
     _play(
       StretchSound(path, named: trecho.segmentId, from: de, to: ate),
