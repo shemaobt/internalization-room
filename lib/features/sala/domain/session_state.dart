@@ -1451,7 +1451,7 @@ class SalaSessionState {
 
   bool get btContadaInteira =>
       (btOuvidaInteira ?? (btClipEnded && _btParteContada)) &&
-      btTraducaoPendente == null;
+      (btTraducaoPendente == null || btTraducaoPendenteEmprestada);
 
   bool get canAdvanceToTheVerdict =>
       canFinishBackTranslation &&

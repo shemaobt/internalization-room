@@ -10751,6 +10751,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishBackTranslation() async {
     if (!state.canFinishBackTranslation) return;
+    if (state.btTraducaoPendenteEmprestada) _manterATraducaoDeAntes();
     _dispatch(const TheVerdictAsked());
     state = state.copyWith(clearAviso: true);
     _silenceTheRoom();
