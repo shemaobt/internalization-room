@@ -299,15 +299,21 @@ class _FraseTile extends StatelessWidget {
               child: n == null
                   ? null
                   : DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: row.aguardando ? colors.telha : colors.areia,
-                      ),
+                      decoration: row.regravada
+                          ? DashedEdge(color: colors.areia, radius: 14)
+                          : BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: row.aguardando
+                                  ? colors.telha
+                                  : colors.areia,
+                            ),
                       child: Center(
                         child: Text(
                           '$n',
                           style: TextStyle(
-                            color: !row.aguardando
+                            color: row.regravada
+                                ? colors.verdeClaro
+                                : !row.aguardando
                                 ? colors.ink
                                 : Theme.of(context).brightness ==
                                       Brightness.dark

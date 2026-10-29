@@ -2857,4 +2857,34 @@ void main() {
       closeTheRoom(container);
     });
   }
+
+  for (final (look, areia, verdeClaro) in [
+    (Brightness.light, const Color(0xFFC5C29F), const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFF6E6A57), const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets('in the ${look.name} look a «regravada» frase numbers itself '
+        'in a hollow dashed ring, not on a filled disc', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = look;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _comUmaFraseRegravada(tester, harness);
+      final cartao = _oCartao(find.text('regravada — traduzam de novo')).first;
+      final numero = find.descendant(of: cartao, matching: find.text('1'));
+      final disco = tester.widget<DecoratedBox>(
+        find.ancestor(of: numero, matching: find.byType(DecoratedBox)).first,
+      );
+
+      expect(
+        disco.decoration,
+        isA<DashedEdge>().having((anel) => anel.color, 'color', areia),
+        reason: 'o disco regravado era cheio, não o anel tracejado de areia',
+      );
+      expect(
+        tester.widget<Text>(numero).style?.color,
+        verdeClaro,
+        reason: 'no anel vazio o número dela é verde-claro',
+      );
+      closeTheRoom(container);
+    });
+  }
 }
