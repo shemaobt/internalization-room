@@ -800,6 +800,43 @@ void main() {
   );
 
   testWidgets(
+    'a frase of a sent scene rehearsal left to play never reads past its own end, as a clip of the take answers',
+    (tester) async {
+      final (harness, container) = await _inListenMode(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-27T10:00:00+00:00',
+            frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+          ),
+        ],
+      );
+      const line = 'ouvindo o ensaio da cena… — 0:08 / 0:10';
+      harness.playback.walkWhilePlaying();
+
+      await tester.tap(byLabel('frase 2'));
+      await pumpUntil(
+        tester,
+        () => switch (container.read(salaSessionProvider).channel) {
+          PartPlaying(:final opened) => opened,
+          _ => false,
+        },
+      );
+      expect(harness.playback.ranges.last, '4000-8000');
+      for (var second = 0; second < 6; second++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+
+      expect(
+        find.text(line),
+        findsOneWidget,
+        reason:
+            'o clipe da frase 2 andava até o comprimento do arquivo — 0:10 / 0:10',
+      );
+    },
+  );
+
+  testWidgets(
     'a frase of a sent scene rehearsal still opening shows her clock at the frase\'s start, not the clip before it added on',
     (tester) async {
       final (harness, container) = await _inListenMode(
