@@ -41,6 +41,7 @@ const _everyOtherStation = [
   Panorama('panorama'),
   Ensaio(),
   ChecagemExterna(1),
+  SceneRehearsal(),
   Fim(),
 ];
 
