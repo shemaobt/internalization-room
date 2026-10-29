@@ -10137,6 +10137,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (_abandoned(generation)) return;
       }
     }
+    unawaited(_relatarASala(sessionId, const []));
     final trechos = _trechosFrom(segments);
     state = state.copyWith(
       clearBtRegravacao: true,
