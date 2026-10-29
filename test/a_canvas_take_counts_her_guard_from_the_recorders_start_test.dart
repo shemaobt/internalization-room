@@ -193,4 +193,36 @@ void main() {
       expect(room.state.awaitingTheGuide, isFalse);
     });
   });
+
+  test('a question whose recorder answered late is measured from its start, '
+      'so 0.4 s of it reaches nobody', () async {
+    await _onAClock((later) async {
+      final room = await _inConversa(SalaHarness(captureGuard: _herGuard));
+      room.notifier.handTap();
+      await settle();
+      expect(room.state.noteMode, isTrue);
+      room.harness.recorder.holdNextStart();
+
+      await room.tap();
+      later(const Duration(milliseconds: 500));
+      room.harness.recorder.finishStart();
+      await settle();
+      later(const Duration(milliseconds: 400));
+      await room.tap();
+      await waitFor(
+        'o microfone fechar',
+        () => room.harness.recorder.lastPath != null,
+      );
+      await settle();
+
+      expect(
+        room.harness.inbox.questionsSent,
+        isEmpty,
+        reason:
+            'a pergunta contava do toque, e o atraso do gravador entrava na '
+            'duração dela',
+      );
+      expect(room.harness.recorder.deleted, [room.harness.recorder.lastPath]);
+    });
+  });
 }
