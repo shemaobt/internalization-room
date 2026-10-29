@@ -10133,13 +10133,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final nova = segments.where((segment) => segment.segmentId == nome);
     bool? trocada;
     if (parte != null && nova.isNotEmpty) {
-      trocada = await _aParteComAFrase(
-        sessionId,
-        parte,
-        nova.first.takeId,
-        generation,
-      );
-      if (_abandoned(generation)) return;
+      for (var vez = 0; vez < 2 && trocada != true; vez++) {
+        trocada = await _aParteComAFrase(
+          sessionId,
+          parte,
+          nova.first.takeId,
+          generation,
+        );
+        if (_abandoned(generation)) return;
+      }
     }
     final trechos = _trechosFrom(segments);
     state = state.copyWith(

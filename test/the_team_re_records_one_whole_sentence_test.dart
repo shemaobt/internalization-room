@@ -1899,6 +1899,23 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('the new part is asked for twice before the sentence is left '
+      'owed, not given up on after one failed read', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+
+    final nova = await deitarSemAParte(tester, harness, 2);
+
+    expect(
+      harness.room.clipsFetched.where(
+        (url) => url.endsWith('/takes/$nova/audio'),
+      ),
+      hasLength(2),
+      reason: 'uma leitura só que falhava já deixava a frase sem a parte',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('while a new part is owed no row offers «regravar», not even '
       'the row of the sentence that waits for it', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
