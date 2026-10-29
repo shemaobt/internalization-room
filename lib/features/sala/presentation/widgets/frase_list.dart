@@ -5,6 +5,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../domain/bt_finding.dart';
 import '../../domain/facilitator_script.dart';
 import 'bead_styles.dart';
+import 'listen_glyph.dart';
 
 class FraseRow {
   final int? n;
@@ -46,6 +47,7 @@ class FraseRow {
 
 class FraseRevisao {
   final String ouvir;
+  final bool tocando;
   final VoidCallback onOuvir;
   final String gravarDeNovo;
   final VoidCallback onGravarDeNovo;
@@ -54,6 +56,7 @@ class FraseRevisao {
 
   const FraseRevisao({
     required this.ouvir,
+    required this.tocando,
     required this.onOuvir,
     required this.gravarDeNovo,
     required this.onGravarDeNovo,
@@ -152,10 +155,19 @@ class FraseList extends StatelessWidget {
                   RoundActionButton(
                     size: 48,
                     semanticLabel: revisao.ouvir,
+                    toggled: revisao.tocando,
                     background: colors.card,
                     border: Border.all(color: colors.line),
                     onTap: revisao.onOuvir,
-                    child: Icon(LucideIcons.play, size: 20, color: colors.cord),
+                    child: CustomPaint(
+                      size: const Size.square(20),
+                      painter: ListenGlyphPainter(
+                        glyph: revisao.tocando
+                            ? ListenGlyph.stop
+                            : ListenGlyph.play,
+                        ink: colors.verde,
+                      ),
+                    ),
                   ),
                   _Pill(
                     label: revisao.gravarDeNovo,

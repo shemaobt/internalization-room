@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_question.dart';
 import 'package:internalization_room/main.dart';
 
@@ -50,6 +51,7 @@ const _recordAgain = 'gravar esta cena de novo';
 const _question = 'Qual cena vocês vão ensaiar?';
 const _houseBack = 'Voltar para a passagem atual';
 const _bringBack = 'trazer de volta as traduções do ensaio desta cena';
+const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _bringBackArmed =
     'toquem de novo: as traduções do ensaio voltam; as que vocês fizeram aqui '
     'para esta cena ficam guardadas';
@@ -323,6 +325,28 @@ class _Room {
       byLabel('$label — ${_line(n, language: english ? 'en' : 'pt')}');
 
   Finder useUnsent(int n) => byLabel('$_useThis — ${_unsentLine(n)}');
+
+  Finder listen(int n) => byLabel(
+    '${english ? 'Listen' : 'Ouvir'} — ${_line(n, language: english ? 'en' : 'pt')}',
+  );
+
+  Finder paintedOn(Finder control) => find.descendant(
+    of: control,
+    matching: find.byWidgetPredicate(
+      (widget) => widget is CustomPaint && widget.painter is ListenGlyphPainter,
+    ),
+  );
+
+  ListenGlyph glyphOn(Finder control) =>
+      (tester.widget<CustomPaint>(paintedOn(control)).painter!
+              as ListenGlyphPainter)
+          .glyph;
+
+  Tristate pressed(Finder control) => tester
+      .getSemantics(control)
+      .getSemanticsData()
+      .flagsCollection
+      .isSelected;
 
   bool enabled(Finder target) =>
       tester
@@ -699,9 +723,19 @@ void main() {
 
       expect(it.toldFrase(1), findsOneWidget);
       expect(
-        it.toldFrase(2),
-        findsNothing,
+        [
+          for (final trecho in it.container.read(salaSessionProvider).btTrechos)
+            trecho.segmentId,
+        ],
+        isNot(contains('trecho-2')),
         reason: 'a frase da gravação trocada',
+      );
+      expect(
+        find.text('regravada — traduzam de novo'),
+        findsOneWidget,
+        reason:
+            'a frase da gravação trocada fica na lista marcada como regravada, '
+            'como na dela',
       );
       expect(it.toldFrase(3), findsOneWidget);
       semantics.dispose();
@@ -1036,6 +1070,47 @@ void main() {
       expect(it.received(2), hasLength(before));
       await it.tapThe(byLabel(_back));
       expect(find.text(_hearNew), findsNothing);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'the answer to the last try is said after «usar este», on the actions '
+    'line, not under the facts',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+      it.holdTheTake('parte-2');
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+      await it.wait(const Duration(seconds: 71));
+
+      final said = it.onLine(s2b, find.text(_retry));
+      expect(said, findsOneWidget);
+      final answer = tester.getRect(said);
+      final pill = tester.getRect(it.use(s2b));
+      expect(
+        answer.top,
+        greaterThanOrEqualTo(tester.getRect(it.listen(s2b)).bottom),
+        reason: 'a resposta da troca vinha sob os fatos, longe do botão',
+      );
+      expect(
+        answer.top >= pill.bottom || answer.left >= pill.right,
+        isTrue,
+        reason: 'a resposta vinha antes de «usar este»',
+      );
+      expect(
+        tester
+            .getSemantics(said)
+            .getSemanticsData()
+            .flagsCollection
+            .isLiveRegion,
+        isTrue,
+      );
+      it.room.finishHeldTake();
       semantics.dispose();
     },
   );
@@ -1395,6 +1470,130 @@ void main() {
     },
   );
 
+  testWidgets(
+    'in the dark look an armed «usar este» writes the room\'s dark paper on '
+    'her dark telha, never white on it',
+    (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined(listed: const [s1a, s2a, s3a, s2b, s2c]);
+      await it.openTheSheet(2, _swap);
+
+      await it.tapThe(it.use(s2b));
+
+      const telha = Color(0xFFD6612A);
+      final pill =
+          tester
+                  .widget<DecoratedBox>(
+                    find
+                        .descendant(
+                          of: it.use(s2b),
+                          matching: find.byType(DecoratedBox),
+                        )
+                        .first,
+                  )
+                  .decoration
+              as BoxDecoration;
+      expect(pill.color, telha);
+      final word = tester
+          .widget<Text>(
+            find.descendant(of: it.use(s2b), matching: find.text(_useThis)),
+          )
+          .style!
+          .color!;
+      expect(
+        word,
+        const Color(0xFF1A150E),
+        reason: 'no escuro a palavra armada não seguia o papel escuro da sala',
+      );
+      expect(
+        (telha.computeLuminance() + 0.05) / (word.computeLuminance() + 0.05),
+        greaterThanOrEqualTo(4.5),
+      );
+      await it.wait(const Duration(seconds: 7));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'an armed «usar este» fills with her telha, waking it shows at .55, and '
+    'while a swap runs the others rest at .35',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined(listed: const [s1a, s2a, s3a, s2b, s2c]);
+      await it.openTheSheet(2, _swap);
+      BoxDecoration pillOf(int n) =>
+          tester
+                  .widget<DecoratedBox>(
+                    find
+                        .descendant(
+                          of: it.use(n),
+                          matching: find.byType(DecoratedBox),
+                        )
+                        .first,
+                  )
+                  .decoration
+              as BoxDecoration;
+      double seen(int n) {
+        var opacity = 1.0;
+        find
+            .descendant(of: it.use(n), matching: find.text(_useThis))
+            .evaluate()
+            .first
+            .visitAncestorElements((ancestor) {
+              if (ancestor.widget case final Opacity dim) {
+                opacity *= dim.opacity;
+              }
+              return true;
+            });
+        return opacity;
+      }
+
+      const telha = Color(0xFFBE4A01);
+      await it.tapThe(it.use(s2b));
+      expect(
+        pillOf(s2b).color,
+        telha,
+        reason: 'armada, «usar este» só esmaecia, sem o telha dela',
+      );
+      expect(pillOf(s2b).border, Border.all(color: telha, width: 1.4));
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(of: it.use(s2b), matching: find.text(_useThis)),
+            )
+            .style!
+            .color,
+        const Color(0xFFF6F5EB),
+      );
+      expect(
+        seen(s2b),
+        closeTo(0.55, 0.001),
+        reason: 'acordando, ela mostra a .55, não a .5',
+      );
+      expect(pillOf(s2c).color, isNull);
+
+      await it.wait(const Duration(milliseconds: 700));
+      expect(pillOf(s2b).color, telha);
+      expect(seen(s2b), closeTo(1, 0.001));
+
+      it.holdTheTake('parte-2');
+      await it.tapThe(it.use(s2b));
+      await it.theHeldTakeArrives();
+      expect(
+        seen(s2c),
+        closeTo(0.35, 0.001),
+        reason: 'com a troca no ar, «usar este» seguia aceso',
+      );
+      it.room.finishHeldTake();
+      await it.swapLands();
+      semantics.dispose();
+    },
+  );
+
   testWidgets('while a swap runs nothing else starts', (tester) async {
     final semantics = tester.ensureSemantics();
     final it = await _atRest(tester);
@@ -1634,6 +1833,188 @@ void main() {
     );
     semantics.dispose();
   });
+
+  testWidgets(
+    'on the home\'s sheet the line that plays shows her pause, and a second '
+    'tap gives the play back',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+
+      await it.tapThe(it.listen(s2b));
+      await it.until('o ensaio tocar', () => it.harness.playback.sounding);
+
+      expect(
+        it.glyphOn(it.listen(s2b)),
+        ListenGlyph.pause,
+        reason: 'o ensaio da folha da casa tocava e o botão mostrava tocar',
+      );
+      expect(it.pressed(it.listen(s2b)), Tristate.isTrue);
+      expect(it.glyphOn(it.listen(s2a)), ListenGlyph.play);
+      expect(it.pressed(it.listen(s2a)), Tristate.isFalse);
+
+      await it.tapThe(it.listen(s2b));
+      await it.settle();
+
+      expect(it.harness.playback.sounding, isFalse);
+      expect(it.glyphOn(it.listen(s2b)), ListenGlyph.play);
+      expect(it.pressed(it.listen(s2b)), Tristate.isFalse);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'the home\'s sheet closed while its rehearsal plays opens again on the '
+    'play, and one tap plays it',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+      await it.tapThe(it.listen(s2b));
+      await it.until('o ensaio tocar', () => it.harness.playback.sounding);
+
+      await it.tapThe(byLabel(_back));
+      await it.until('a casa voltar', it.showsTheHome);
+      expect(it.harness.playback.sounding, isFalse);
+      await it.openTheSheet(2, _swap);
+
+      expect(
+        it.glyphOn(it.listen(s2b)),
+        ListenGlyph.play,
+        reason: 'a folha fechou o som e reabriu em pausa sobre o silêncio',
+      );
+      expect(it.pressed(it.listen(s2b)), Tristate.isFalse);
+
+      final played = it.harness.playback.played.length;
+      await it.tapThe(it.listen(s2b));
+      await it.until('o ensaio tocar', () => it.harness.playback.sounding);
+
+      expect(
+        it.harness.playback.played.length,
+        played + 1,
+        reason: 'o toque depois de fechar a folha só limpava, sem tocar',
+      );
+      expect(it.glyphOn(it.listen(s2b)), ListenGlyph.pause);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('on the home\'s sheet a line is offered as her filled triangle '
+      'and pauses with her two filled bars, not lucide outlines', (
+    tester,
+  ) async {
+    final it = await _atRest(tester);
+    await it.joined();
+    await it.openTheSheet(2, _swap);
+
+    expect(
+      find.descendant(of: it.listen(s2b), matching: find.byType(Icon)),
+      findsNothing,
+      reason: 'a folha da casa desenhava o play vazado do Lucide',
+    );
+    expect(
+      it.paintedOn(it.listen(s2b)),
+      paints..path(
+        style: PaintingStyle.fill,
+        includes: const [Offset(10, 12), Offset(9, 7), Offset(9, 17)],
+        excludes: const [Offset(7, 12), Offset(16, 8), Offset(16, 16)],
+      ),
+      reason: 'o play dela é «M8 6l10 6-10 6z» (EnsaioFinalSheet.tsx:19)',
+    );
+
+    await it.tapThe(it.listen(s2b));
+    await it.until('o ensaio tocar', () => it.harness.playback.sounding);
+
+    expect(
+      it.paintedOn(it.listen(s2b)),
+      paints..path(
+        style: PaintingStyle.fill,
+        includes: const [
+          Offset(8, 12),
+          Offset(16, 12),
+          Offset(7, 6),
+          Offset(17, 18),
+        ],
+        excludes: const [
+          Offset(12, 12),
+          Offset(8, 4),
+          Offset(16, 20),
+          Offset(6.1, 5.1),
+          Offset(17.9, 18.9),
+        ],
+      ),
+      reason:
+          'a pausa dela são duas barras cheias com rx 1 '
+          '(EnsaioFinalSheet.tsx:20)',
+    );
+  });
+
+  testWidgets(
+    'while a bring-back runs, «gravar a passagem inteira de uma vez» on the '
+    'home rests',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      it.room.retroSoFar = const BackTranslationProgress(bringBack: [2]);
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await it.until(
+        'a casa oferecer a volta das traduções',
+        () => it.door(2, _bringBack).evaluate().isNotEmpty,
+      );
+      it.room.holdBringBack();
+      await it.tapThe(it.door(2, _bringBack));
+      await it.wait(const Duration(milliseconds: 700));
+      await it.tapThe(it.door(2, _bringBackArmed));
+      await it.until(
+        'a volta das traduções ficar no ar',
+        () => it.container.read(salaSessionProvider).bringingBack == 2,
+      );
+
+      expect(
+        it.enabled(byLabel(_wholeAtOnce)),
+        isFalse,
+        reason: 'a troca do grão ficava viva com a volta das traduções no ar',
+      );
+      it.room.finishHeldBringBack();
+      await it.settle();
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'while the join runs, «gravar a passagem inteira de uma vez» on the plan '
+    'rests',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s1a, s2a, s3a]);
+      await it.held(const [s1a, s2a, s3a]);
+      await it.openThePlan();
+      it.room.holdNextTakesList();
+      final join = byLabel(_join);
+      await tester.ensureVisible(join);
+      await tester.pump();
+      await tester.tap(join);
+      await it.until(
+        'a junta perguntar à sala pela cena 1',
+        () => it.room.aTakesListIsHeld,
+      );
+      expect(it.container.read(salaSessionProvider).joining, 1);
+
+      expect(
+        it.enabled(byLabel(_wholeAtOnce)),
+        isFalse,
+        reason: 'a troca do grão ficava viva com a junta no ar',
+      );
+      it.room.finishHeldTakesList();
+      await it.joinEnds();
+      semantics.dispose();
+    },
+  );
 }
 
 List<Object?> _heard(_Room it, int after, String? takeId) => [

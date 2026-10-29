@@ -12,7 +12,6 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
 
-const _theSign = 'Um momento para uma pessoa';
 const _hearAgain = 'Ouvir de novo';
 const _theRetryFaces = ['Tocar para tentar de novo', 'Tap to try again'];
 
@@ -81,7 +80,7 @@ void main() {
       await _until(sala, 'the person sign', () => _read(sala).needsPerson);
       await _pass(sala, 30);
 
-      expect(byLabel(_theSign), findsOneWidget);
+      expect(thePersonSign, findsOneWidget);
       expect(sala.harness.voice.played, hasLength(played));
       expect(sala.harness.voice.assets, hasLength(assets));
       expect(
@@ -118,7 +117,7 @@ void main() {
       await _pass(sala, 20);
 
       expect(sala.harness.voice.played.last, turnoUrl);
-      expect(byLabel(_theSign), findsNothing);
+      expect(thePersonSign, findsNothing);
       expect(byLabel(_hearAgain).hitTestable(), findsOneWidget);
       expect(find.byType(Text).evaluate().length, texts);
       closeTheRoom(sala.container);

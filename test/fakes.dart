@@ -1356,6 +1356,9 @@ class FakeRoom implements RoomRepository {
   /// hears them: the one knob that lets a resend meet a key still in flight.
   final List<RoomFailure> chunkAnswersFirst = [];
 
+  /// The tablet cannot read the stretch's recording as it goes up.
+  FileSystemException? chunkThrows;
+
   /// The `Idempotency-Key` every stretch told back carried, in order, the ones that
   /// never reached the room included.
   final List<String> chunkKeys = [];
@@ -1508,6 +1511,10 @@ class FakeRoom implements RoomRepository {
   /// Whether the session `createSession` hands back is one the team already talked in,
   /// the way another tablet or a lost row leaves it.
   bool createdOpened = false;
+
+  bool resumesTheLatest = false;
+
+  final Map<String, String> latestSessions = {};
 
   final List<String> turnIdsSent = [];
 
@@ -1795,6 +1802,8 @@ class FakeRoom implements RoomRepository {
   final List<Completer<void>> _heldTakesLists = [];
 
   void holdNextTakesList() => _holdTheNextTakesList = true;
+
+  bool get aTakesListIsHeld => _heldTakesLists.isNotEmpty;
 
   void finishHeldTakesList() => _heldTakesLists.removeAt(0).complete();
 
@@ -2448,8 +2457,14 @@ class FakeRoom implements RoomRepository {
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
     languagesSent.add(language);
-    final sessionId = nextSessionId ?? 'sessao-${sessionIds.length + 1}';
-    sessionIds.add(sessionId);
+    final key = '$pericope/$language';
+    final latest = resumesTheLatest ? latestSessions[key] : null;
+    final resumed = latest != null && !forgottenSessions.contains(latest);
+    final sessionId = resumed
+        ? latest
+        : nextSessionId ?? 'sessao-${sessionIds.length + 1}';
+    if (!resumed) sessionIds.add(sessionId);
+    if (resumesTheLatest) latestSessions[key] = sessionId;
     return Answered(
       SessionSnapshot(
         sessionId: sessionId,
@@ -2458,7 +2473,8 @@ class FakeRoom implements RoomRepository {
         coverage: nextCoverage,
         done: false,
         halt: serverHalt,
-        opened: createdOpened,
+        opened:
+            createdOpened || (resumed && openedSessions.contains(sessionId)),
         moment: nextMoment,
         backTranslation: retroSoFar ?? const BackTranslationProgress(),
         approved: approvedDraft,
@@ -2834,7 +2850,7 @@ class FakeRoom implements RoomRepository {
           '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
         );
         replacesComArquivo.add(audio.path);
-        _tellAgain(segmentId, to);
+        _tellAgain(segmentId, to, takeId: takeId, from: from);
       };
       return later;
     }
@@ -2851,7 +2867,7 @@ class FakeRoom implements RoomRepository {
       serverStatus = 'needs_person';
       serverHalt = HaltKind.warning;
     }
-    _tellAgain(segmentId, to);
+    _tellAgain(segmentId, to, takeId: takeId, from: from);
     final told = Answered(
       TellingAgain(segments: _numbered, needsPerson: needsPerson),
     );
@@ -2866,9 +2882,41 @@ class FakeRoom implements RoomRepository {
 
   Answered<TellingAgain>? _answerLost;
 
-  void _tellAgain(String segmentId, Duration to) {
+  void _tellAgain(
+    String segmentId,
+    Duration to, {
+    required String takeId,
+    required Duration from,
+  }) {
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     final antes = at >= 0 ? segments[at] : null;
+    final lida = retroSoFar;
+    final regravada = (lida?.stale ?? const <SegmentView>[]).any(
+      (one) => one.segmentId == segmentId,
+    );
+    if (lida != null && antes == null && regravada) {
+      final sucessora = SegmentView(
+        segmentId: '$segmentId-v${++_versoes}',
+        takeId: takeId,
+        startsMs: from.inMilliseconds,
+        endsMs: to.inMilliseconds,
+        told: true,
+      );
+      segments.add(sucessora);
+      _retired.add(segmentId);
+      retroSoFar = BackTranslationProgress(
+        segments: [...lida.segments, sucessora],
+        checked: lida.checked,
+        findingSegmentId: lida.findingSegmentId,
+        findings: lida.findings,
+        awaitingSegmentId: lida.awaitingSegmentId,
+        stale: [
+          for (final one in lida.stale)
+            if (one.segmentId != segmentId) one,
+        ],
+        bringBack: lida.bringBack,
+      );
+    }
     if (antes != null) {
       // The explanation was redone over a recording that did not move, so the stretch
       // keeps its take and its slice and is told again.
@@ -2948,6 +2996,8 @@ class FakeRoom implements RoomRepository {
 
   /// Waits until the held scope's sendTake is the one actually blocking, not just asked.
   Future<void> untilTakeHeld() async => _reachedTakeHold?.future;
+
+  bool get takeHeld => _reachedTakeHold?.isCompleted ?? false;
 
   void finishHeldTake() {
     _holdingTake?.complete();
@@ -3127,6 +3177,7 @@ class FakeRoom implements RoomRepository {
     required String idempotencyKey,
   }) async {
     chunkKeys.add(idempotencyKey);
+    if (chunkThrows case final thrown?) throw thrown;
     if (_guard('sendChunk') case final failure?) return failure;
     if (_forgot('sendChunk', sessionId) case final gone?) {
       return gone;
@@ -3869,6 +3920,15 @@ class FakeTakeQueue implements TakeUploadQueue {
   /// The disk refuses the next keep, before any row is written.
   bool refusesTheNextKeep = false;
 
+  Completer<void>? _holdingTheKeep;
+
+  void holdNextKeep() => _holdingTheKeep = Completer<void>();
+
+  void finishHeldKeep() {
+    _holdingTheKeep?.complete();
+    _holdingTheKeep = null;
+  }
+
   bool _lifeEnded = false;
   bool sweepFails = false;
 
@@ -3899,6 +3959,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       refusesTheNextKeep = false;
       throw const FileSystemException('o disco está cheio');
     }
+    await _holdingTheKeep?.future;
     final entry = PendingTake(
       id: '${_minted++}',
       path: audio.path,
@@ -4167,7 +4228,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       unsentChunks: [
         for (final entry in rows)
           if (!entry.stored &&
-              entry.kind == 'retro' &&
+              entry.kind == sentenceKind &&
               entry.sessionId == sessionId)
             entry,
       ].length,
@@ -4237,13 +4298,6 @@ Future<void> theRoomNamesTheParts(
 
 Future<void> theClipOpens(SalaHarness harness) =>
     waitFor('o clipe abrir', () => harness.playback.open);
-
-Future<void> theRoomRefusesTheGuardedCopy(SalaHarness harness) => waitFor(
-  'a sala recusar a cópia de reserva da tradução',
-  () async => (await harness.takes.entries()).any(
-    (entry) => entry.kind == 'retro' && entry.refusal != null,
-  ),
-);
 
 Future<void> confirmarATraducao(ProviderContainer container) =>
     fecharACaptura(container);
@@ -4444,10 +4498,12 @@ class SalaHarness {
 
   void giveTheEnvelope() => _envelopeHeld?.complete();
 
+  final List<String> envelopesRead = [];
   int envelopesBeingRead = 0;
   int mostEnvelopesReadAtOnce = 0;
 
   Future<Envelope?> readTheEnvelope(String path) async {
+    envelopesRead.add(path);
     envelopesBeingRead++;
     mostEnvelopesReadAtOnce = max(mostEnvelopesReadAtOnce, envelopesBeingRead);
     try {
@@ -4636,76 +4692,6 @@ class QueueThatDiscardsLate extends TakeUploadQueue {
     final wait = discardsAfter;
     if (wait != null) await Future<void>.delayed(wait);
     await super.discardTheSession(sessionId);
-  }
-}
-
-class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
-  QueueWhoseTranslationLandsLate({
-    required super.room,
-    super.home,
-    required super.recordings,
-  });
-
-  Duration? landsAfter;
-  bool translationLanded = false;
-
-  @override
-  Future<PendingTake> enqueue(
-    File audio, {
-    required String sessionId,
-    required String kind,
-    required String scope,
-    int? passNumber,
-    int? chunkIndex,
-    String? scene,
-  }) async {
-    final wait = landsAfter;
-    if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
-    final row = await super.enqueue(
-      audio,
-      sessionId: sessionId,
-      kind: kind,
-      scope: scope,
-      passNumber: passNumber,
-      chunkIndex: chunkIndex,
-      scene: scene,
-    );
-    if (kind == 'retro') translationLanded = true;
-    return row;
-  }
-}
-
-class QueueThatFinishesLate extends TakeUploadQueue {
-  QueueThatFinishesLate({
-    required super.room,
-    super.home,
-    required super.recordings,
-  });
-
-  Duration? answersAfter;
-
-  @override
-  Future<PendingTake> enqueue(
-    File audio, {
-    required String sessionId,
-    required String kind,
-    required String scope,
-    int? passNumber,
-    int? chunkIndex,
-    String? scene,
-  }) async {
-    final row = await super.enqueue(
-      audio,
-      sessionId: sessionId,
-      kind: kind,
-      scope: scope,
-      passNumber: passNumber,
-      chunkIndex: chunkIndex,
-      scene: scene,
-    );
-    final wait = answersAfter;
-    if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
-    return row;
   }
 }
 

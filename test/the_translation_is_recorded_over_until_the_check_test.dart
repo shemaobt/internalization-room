@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -59,19 +58,12 @@ bool aceso(WidgetTester tester, String label) {
   return enabled;
 }
 
-Iterable<BoxDecoration> _pinturas(Finder dentro) => find
-    .descendant(of: dentro, matching: find.byType(Container))
-    .evaluate()
-    .map((element) => (element.widget as Container).decoration)
-    .whereType<BoxDecoration>();
-
-String _cor(Gradient? tinta) {
-  if (tinta == BeadStyles.wood) return 'wood';
-  if (tinta == BeadStyles.azul) return 'azul';
-  if (tinta == BeadStyles.telha(SalaColors.light)) return 'telha';
-  if (tinta == BeadStyles.clay(SalaColors.light)) return 'clay';
-  return '$tinta';
-}
+String _cor(Color borda) => switch (borda.toARGB32()) {
+  0xFFBE4A01 => 'telha',
+  0xFF89AAA3 => 'azul',
+  0xFFC5C29F => 'areia',
+  _ => '$borda',
+};
 
 Finder _circulo() => find.descendant(
   of: find.byType(RetroView),
@@ -87,7 +79,7 @@ double? _escalaDaOnda(WidgetTester tester) {
       )
       .first
       .transform
-      .getMaxScaleOnAxis();
+      .storage[0];
 }
 
 bool _circuloApagado(WidgetTester tester) =>
@@ -105,26 +97,40 @@ bool _circuloApagado(WidgetTester tester) =>
 
 Future<String> olhar(WidgetTester tester) async {
   final circulo = _circulo();
-  final tinta = _pinturas(
-    circulo,
-  ).map((pintura) => pintura.gradient).whereType<Gradient>().first;
-  final anel = _pinturas(
-    circulo,
-  ).any((pintura) => pintura.boxShadow != null && pintura.border != null);
+  final borda =
+      (tester
+                  .widget<AnimatedContainer>(
+                    find.descendant(
+                      of: circulo,
+                      matching: find.byType(AnimatedContainer),
+                    ),
+                  )
+                  .decoration!
+              as BoxDecoration)
+          .border!
+          .top
+          .color;
+  final folego = [
+    for (final laco in tester.widgetList<Loop>(
+      find.descendant(of: circulo, matching: find.byType(Loop)),
+    ))
+      if (laco.animate) laco.period,
+  ];
   final antes = _escalaDaOnda(tester);
   await tester.pump(const Duration(milliseconds: 120));
   final depois = _escalaDaOnda(tester);
   final String movimento;
-  if (antes == null || depois == null) {
-    movimento = 'parado';
-  } else if (anel && depois < antes) {
+  if (antes != null && depois != null && depois > antes) {
     movimento = 'ouvindo';
-  } else if (!anel && depois > antes) {
+  } else if (antes == null &&
+      folego.contains(const Duration(milliseconds: 3400))) {
     movimento = 'soando';
+  } else if (antes == null) {
+    movimento = 'parado';
   } else {
-    movimento = 'anel $anel, ondas de $antes para $depois';
+    movimento = 'ondas de $antes para $depois';
   }
-  return '${_cor(tinta)} $movimento';
+  return '${_cor(borda)} $movimento';
 }
 
 Future<void> ouvirNaGravacao(
@@ -216,7 +222,13 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
 
-    expect(await olhar(tester), 'wood soando', reason: 'a língua materna toca');
+    expect(
+      await olhar(tester),
+      'telha soando',
+      reason:
+          'a língua materna toca, e o .cdot dela soando é telha em qualquer '
+          'língua (globals.css:383)',
+    );
 
     harness.playback.at = cabeca;
     await tocar(tester, pausar);
@@ -227,7 +239,7 @@ void main() {
     expect(await olhar(tester), 'azul ouvindo');
 
     await tocar(tester, terminar);
-    expect(await olhar(tester), 'wood soando');
+    expect(await olhar(tester), 'telha soando');
     closeTheRoom(container);
   });
 
@@ -356,7 +368,7 @@ void main() {
 
     expect(harness.playback.played.lastOrNull, gravada.path);
     expect(harness.playback.ranges.lastOrNull, '0-4000');
-    expect(await olhar(tester), 'wood soando');
+    expect(await olhar(tester), 'telha soando');
     expect(
       container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
       'trecho-1',
@@ -625,7 +637,7 @@ void main() {
   Future<void> esperarAParada(WidgetTester tester) async {
     await waitFor(
       'a tela da parada aparecer',
-      () => byLabel('Um momento para uma pessoa').evaluate().isNotEmpty,
+      () => thePersonSign.evaluate().isNotEmpty,
       limit: const Duration(seconds: 3),
       step: () async {
         await tester.pump(const Duration(seconds: 1));
@@ -675,7 +687,7 @@ void main() {
 
     await pararPorUmaPessoa(tester, container);
 
-    expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
+    expect(thePersonSign, findsOneWidget);
     expect(_circuloApagado(tester), isTrue);
     closeTheRoom(container);
   });
@@ -695,7 +707,7 @@ void main() {
 
     await pararPorUmaPessoa(tester, container);
 
-    expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
+    expect(thePersonSign, findsOneWidget);
     expect(_circuloApagado(tester), isTrue);
     closeTheRoom(container);
   });
@@ -742,10 +754,12 @@ void main() {
       tester,
       'the pause is at your tap — tap the circle to translate',
     );
-    harness.room.failChunkWith = const Refused('BAD_REQUEST');
+    harness.room.chunkAnswersFirst.addAll(
+      List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
+    );
     await tocar(tester, 'Tap when you finish');
     await waitFor(
-      'a sala recusar a frase',
+      'a chave da frase seguir em voo',
       () => container.read(salaSessionProvider).btChunkFailures.isNotEmpty,
       step: () => tester.pump(const Duration(milliseconds: 100)),
     );
@@ -755,9 +769,9 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R6 — a halt in the back-translation speaks the rooms language', (
-    tester,
-  ) async {
+  testWidgets('R6 — a halt in an english back-translation raises the sign, '
+      'which says no word', (tester) async {
+    final handle = tester.ensureSemantics();
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await entrarNaTraducao(tester, harness);
 
@@ -767,8 +781,11 @@ void main() {
     await tocar(tester, retroLabelFor('recording', 'en'));
     container.read(salaSessionProvider.notifier).haltForABrokenBuild();
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 2));
 
-    expect(byLabel(circleLabelFor('needsPerson', 'en')), findsOneWidget);
+    expect(thePersonSign, findsOneWidget);
+    expect(find.bySemanticsLabel('A moment for someone'), findsNothing);
+    handle.dispose();
     closeTheRoom(container);
   });
 

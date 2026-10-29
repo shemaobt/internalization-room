@@ -2,18 +2,14 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
-import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -21,7 +17,6 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -29,7 +24,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, relaunch, settle;
+import 'scenario_helpers.dart' show byLabel, relaunch, settle, thePersonSign;
 import 'um_ensaio_de_tres_partes.dart' show Sala;
 
 const _recordEnsaio = 'Gravar o ensaio de vocês';
@@ -43,7 +38,6 @@ const _thinking = 'pensando…';
 const _sceneByScene = 'Gravar cena por cena';
 const _how = 'Como vocês querem gravar?';
 final _backToPassage = roomLabelFor('backToPassage', 'pt');
-final _personSign = circleLabelFor('needsPerson', 'pt');
 
 const _threeScenes = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -299,6 +293,27 @@ Future<void> _theNextReplyPlays(
   );
   await tester.pump(const Duration(milliseconds: 500));
   expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
+}
+
+Future<void> _theHandReplyPlays(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  await _pumpUntil(
+    tester,
+    () => container.read(salaSessionProvider).hasUnheardReply,
+    beats: 200,
+  );
+  harness.voice.holdNextLine();
+  container.read(salaSessionProvider.notifier).handTap();
+  await _pumpUntil(
+    tester,
+    () => harness.voice.played.contains(_handReply.audioUrl),
+  );
+  await tester.pump(const Duration(milliseconds: 500));
+  expect(harness.voice.played, contains(_handReply.audioUrl));
+  expect(container.read(salaSessionProvider).playingReplyId, _handReply.id);
 }
 
 Future<void> _theReplyEnds(
@@ -668,38 +683,26 @@ void main() {
   );
 
   testWidgets(
-    'while the raised hand\'s reply plays there is no dot, and a tap where it '
-    'stood never stops it',
+    'while the raised hand\'s reply plays the dot stays faint, keeps its name '
+    'and takes a touch',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final (harness, container) = await _atRest(
         tester,
         replies: const [_handReply],
       );
-      final notifier = container.read(salaSessionProvider.notifier);
-      await _pumpUntil(
-        tester,
-        () => container.read(salaSessionProvider).hasUnheardReply,
-        beats: 200,
+      await _theHandReplyPlays(tester, harness, container);
+
+      expect(
+        _dotOpacity(tester),
+        closeTo(0.22, 0.001),
+        reason: 'o ponto sumia enquanto a resposta do facilitador tocava',
       );
-      harness.voice.holdNextLine();
-      notifier.handTap();
-      await _pumpUntil(
-        tester,
-        () => harness.voice.played.contains(_handReply.audioUrl),
+      expect(_dotIsDeaf(tester), isFalse);
+      expect(
+        tester.getSemantics(_dot),
+        isSemantics(label: _recordEnsaio, hasTapAction: true),
       );
-      await tester.pump(const Duration(milliseconds: 500));
-      final stops = harness.voice.stops;
-
-      expect(_dotOpacity(tester), 0.0);
-      expect(_dotIsDeaf(tester), isTrue);
-      expect(find.semantics.byLabel(_recordEnsaio), findsNothing);
-
-      notifier.openTheEnsaioFinal();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(harness.voice.stops, stops, reason: 'o toque calou a resposta');
-      expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
       harness.voice.finishHeldLine();
       await _theAnswerSettles(tester);
       semantics.dispose();
@@ -707,33 +710,38 @@ void main() {
   );
 
   testWidgets(
-    'while a sent note goes out there is no dot, and a tap where it stood '
-    'never keeps it from the facilitator',
+    'a touch on the dot while the raised hand\'s reply plays stops the reply, '
+    'leaves it unheard on the hand, and opens the plan',
     (tester) async {
-      final (harness, container) = await _atRest(tester);
-      final notifier = container.read(salaSessionProvider.notifier);
-      notifier.handTap();
-      await tester.pump(const Duration(milliseconds: 300));
-      notifier.conversaTap();
-      await _pumpUntil(
+      final (harness, container) = await _atRest(
         tester,
-        () => container.read(salaSessionProvider).voice == VoiceState.listening,
+        replies: const [_handReply],
       );
-      await tester.pump(const Duration(seconds: 2));
-      harness.inbox.holdNextQuestion();
-      notifier.conversaTap();
-      await tester.pump(const Duration(milliseconds: 300));
+      await _theHandReplyPlays(tester, harness, container);
+      final stops = harness.voice.stops;
 
-      expect(_dotOpacity(tester), 0.0);
-      expect(_dotIsDeaf(tester), isTrue);
-
-      notifier.openTheEnsaioFinal();
-      await tester.pump(const Duration(milliseconds: 300));
-      harness.inbox.finishHeldQuestion();
+      await _tapTheDot(tester);
       await _theAnswerSettles(tester);
 
-      expect(harness.inbox.questionsSent, isNotEmpty);
-      expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+      expect(
+        harness.voice.stops,
+        greaterThan(stops),
+        reason: 'a resposta seguia tocando por cima do plano',
+      );
+      expect(find.text(_planLine), findsOneWidget);
+      harness.voice.finishHeldLine();
+      await _theAnswerSettles(tester);
+      expect(
+        harness.inbox.heard,
+        isEmpty,
+        reason: 'a resposta cortada pelo ponto foi marcada ouvida na mesa',
+      );
+      expect(
+        container.read(salaSessionProvider).hasUnheardReply,
+        isTrue,
+        reason: 'a resposta cortada saiu da mão',
+      );
+      expect(container.read(salaSessionProvider).playingReplyId, isNull);
     },
   );
 
@@ -755,125 +763,137 @@ void main() {
   }
 
   testWidgets(
-    'a note sent while an earlier one goes out keeps the dot away until it '
-    'is out itself',
+    'while a sent note goes out the dot stays faint and takes a touch, and the '
+    'touch opens the plan with the note still on its way to the facilitator',
     (tester) async {
       final (harness, container) = await _atRest(tester);
-      harness.inbox
-        ..holdNextQuestion()
-        ..holdNextQuestion();
+      harness.inbox.holdNextQuestion();
       await sendANote(tester, container);
-      await sendANote(tester, container);
+      expect(harness.inbox.questionsSent, isEmpty);
+
+      expect(
+        _dotOpacity(tester),
+        closeTo(0.22, 0.001),
+        reason: 'o ponto sumia depois de cada pergunta enviada',
+      );
+      expect(_dotIsDeaf(tester), isFalse);
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      expect(find.text(_planLine), findsOneWidget);
 
       harness.inbox.finishHeldQuestion();
       await _theAnswerSettles(tester);
 
-      expect(_dotOpacity(tester), 0.0, reason: 'a segunda nota ainda sai');
-
-      harness.inbox.finishHeldQuestion();
-      await _theAnswerSettles(tester);
-
-      expect(harness.inbox.questionsSent, hasLength(2));
-      expect(_dotOpacity(tester), closeTo(0.22, 0.001));
+      expect(
+        harness.inbox.questionsSent,
+        hasLength(1),
+        reason: 'o toque no ponto segurou a pergunta longe do facilitador',
+      );
     },
   );
 
   testWidgets(
-    'a note from the passage the team left, ending after a note of the new '
-    'session went out, keeps the dot away until the new note is out',
+    'a touch on the dot while a sent note\'s microphone still closes does '
+    'nothing, and the note reaches the facilitator',
+    (tester) async {
+      final (harness, container) = await _atRest(tester);
+      harness.recorder.holdNextStop();
+      await sendANote(tester, container);
+      expect(harness.inbox.questionsSent, isEmpty);
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+      harness.recorder.finishStop();
+      await _theAnswerSettles(tester);
+      expect(
+        harness.inbox.questionsSent,
+        hasLength(1),
+        reason:
+            'o toque no ponto enquanto o microfone fechava perdia a pergunta',
+      );
+    },
+  );
+
+  testWidgets(
+    'a touch on the dot while a second note records, the first still going '
+    'out, throws the second away and opens the plan',
     (tester) async {
       final (harness, container) = await _atRest(tester);
       final notifier = container.read(salaSessionProvider.notifier);
-      harness.inbox
-        ..holdNextQuestion()
-        ..holdNextQuestion();
+      harness.inbox.holdNextQuestion();
       await sendANote(tester, container);
-      notifier.leaveThePassage();
+      notifier.handTap();
       await tester.pump(const Duration(milliseconds: 300));
-      unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
-      await _arriveAtRest(tester, container);
-      await sendANote(tester, container);
+      notifier.conversaTap();
+      await _pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).voice == VoiceState.listening,
+      );
+      await tester.pump(const Duration(seconds: 2));
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      final discards = harness.sounds
+          .where((sound) => sound == 'recorder:discard')
+          .length;
 
-      harness.inbox.finishHeldQuestion();
+      await _tapTheDot(tester);
       await _theAnswerSettles(tester);
 
       expect(
-        _dotOpacity(tester),
-        0.0,
-        reason: 'a nota da sessão nova ainda sai',
+        find.text(_planLine),
+        findsOneWidget,
+        reason: 'o toque no ponto não fazia nada com a segunda nota gravando',
       );
-
+      expect(
+        harness.sounds.where((sound) => sound == 'recorder:discard').length,
+        greaterThan(discards),
+      );
       harness.inbox.finishHeldQuestion();
       await _theAnswerSettles(tester);
-
-      expect(_dotOpacity(tester), closeTo(0.22, 0.001));
+      expect(harness.inbox.questionsSent, hasLength(1));
     },
   );
 
   testWidgets(
-    'a note from before the Desk took the link back, ending after a note of '
-    'the relinked room went out, keeps the dot away until the new note is out',
+    'an earlier note that reaches the facilitator while a later one\'s '
+    'microphone still closes does not free the dot\'s touch, and the later '
+    'note still goes out',
     (tester) async {
-      dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
-      final harness = SalaHarness(
-        linkedAs: const RememberedLink(
-          deviceId: 'aparelho-1',
-          team: TeamLink(projectId: 'equipe-1'),
-          credential: 'credencial-1',
-        ),
-        linkPoll: const Duration(milliseconds: 50),
-        filaEmMemoria: true,
-      )..room.nextMoment = _midConversation;
-      final container = await pumpSala(tester, harness);
-      addTearDown(() => closeTheRoom(container));
-      Future<void> enterP01() async {
-        await _pumpUntil(
-          tester,
-          () => container.read(salaSessionProvider).naRoda != null,
-        );
-        container
-            .read(salaSessionProvider.notifier)
-            .openTheEntry(
-              container
-                  .read(salaSessionProvider)
-                  .naRoda!
-                  .firstWhere((entry) => entry.pericope == 'P01'),
-            );
-        await _arriveAtRest(tester, container);
-      }
-
-      await enterP01();
+      final (harness, container) = await _atRest(tester);
       harness.inbox
         ..holdNextQuestion()
         ..holdNextQuestion();
       await sendANote(tester, container);
-
-      harness.room.failWith = const Refused(RefusalCode.deviceRevoked);
-      await container.read(roomRepositoryProvider).fetchState('sessao-1');
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(find.byType(CodigoView), findsOneWidget);
-      harness.room
-        ..failWith = null
-        ..linkedTo = const TeamLink(projectId: 'equipe-2');
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byType(CodigoView), findsNothing);
-      await enterP01();
+      harness.recorder.holdNextStop();
       await sendANote(tester, container);
-
       harness.inbox.finishHeldQuestion();
+      await _theAnswerSettles(tester);
+      expect(harness.inbox.questionsSent, hasLength(1));
+
+      await _tapTheDot(tester);
       await _theAnswerSettles(tester);
 
       expect(
-        _dotOpacity(tester),
-        0.0,
-        reason: 'a nota da sala revinculada ainda sai',
+        container.read(salaSessionProvider).stage,
+        SalaStage.conversa,
+        reason:
+            'a primeira nota, ao chegar, soltava o toque enquanto o microfone '
+            'da segunda fechava',
       );
-
+      harness.recorder.finishStop();
+      await _theAnswerSettles(tester);
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      expect(find.text(_planLine), findsOneWidget);
       harness.inbox.finishHeldQuestion();
       await _theAnswerSettles(tester);
-
-      expect(_dotOpacity(tester), closeTo(0.22, 0.001));
+      expect(
+        harness.inbox.questionsSent,
+        hasLength(2),
+        reason: 'a segunda nota se perdeu no toque do ponto',
+      );
     },
   );
 
@@ -1066,7 +1086,7 @@ void main() {
 
     expect(find.text(_how), findsOneWidget);
     expect(find.text(_planLine), findsNothing);
-    expect(byLabel(_personSign), findsNothing);
+    expect(thePersonSign, findsNothing);
     expect(container.read(salaSessionProvider).needsPerson, isFalse);
   });
 
@@ -1352,7 +1372,7 @@ void main() {
 
     expect(find.text(_how), findsOneWidget);
     expect(find.text(_planLine), findsNothing);
-    expect(byLabel(_personSign), findsNothing);
+    expect(thePersonSign, findsNothing);
     expect(container.read(salaSessionProvider).needsPerson, isFalse);
   });
 

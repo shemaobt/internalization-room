@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
@@ -206,7 +205,7 @@ void main() {
     }
 
     expect(container.read(salaSessionProvider).needsPerson, isFalse);
-    expect(rotuloDoCirculo(tester), isNot(circleLabelFor('needsPerson', 'pt')));
+    expect(thePersonSign, findsNothing);
     expect(byLabel(linha), findsWidgets);
 
     await tocarOCirculo(tester);
@@ -237,19 +236,10 @@ void main() {
     await pausarEAbrir(tester, harness);
 
     await fecharSemPalavras(tester, harness);
-    final recusada = harness.recorder.lastPath;
     await letTheRehearsalReachTheRoom(tester);
 
     expect(aceso(tester, ouvir), isFalse);
     expect(rotuloDoCirculo(tester), linha);
-    expect(
-      [
-        for (final guardada in (harness.takes as FakeTakeQueue).rows)
-          if (guardada.path == recusada) guardada.kind,
-      ],
-      ['retro'],
-      reason: 'a cópia da gravação recusada fica na fila',
-    );
     closeTheRoom(container);
   });
 
@@ -324,7 +314,7 @@ void main() {
     await aSalaParaDeVez(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
-    expect(byLabel(circleLabelFor('needsPerson', 'pt')), findsOneWidget);
+    expect(thePersonSign, findsOneWidget);
     closeTheRoom(container);
   });
 

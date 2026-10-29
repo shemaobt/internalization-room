@@ -355,7 +355,7 @@ void main() {
     expect(container.read(salaSessionProvider).btClipEnded, isTrue);
     expect(
       rotuloDoCirculo(tester),
-      'Tocar para gravar a tradução de novo',
+      'não entendi — traduzam de novo esse pedaço',
       reason: 'a gravação feita no fim passava a dizer que a gravação acabou',
     );
     closeTheRoom(container);
@@ -632,6 +632,7 @@ Future<ProviderContainer> deVoltaAParteContadaAteOFim(
   harness.room
     ..verdictChecked = false
     ..verdictUnheardTakeIds = [primeira];
+  await tester.ensureVisible(byLabel(conferir));
   await tester.tap(byLabel(conferir));
   await tester.pump(const Duration(milliseconds: 600));
   return container;

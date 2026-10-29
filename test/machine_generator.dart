@@ -260,7 +260,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   GestureStarted(:final gesture) => 'GestureStarted($gesture)',
   GestureEnded(:final gesture) => 'GestureEnded($gesture)',
   LineNotSaid(:final line) => 'LineNotSaid(${describeLine(line)})',
-  StepLeft() => 'StepLeft',
+  StepLeft(:final ended) => 'StepLeft(ended: $ended)',
   LeftThePassage() => 'LeftThePassage',
   TheSessionIsGone() => 'TheSessionIsGone',
   ThePassageClosed() => 'ThePassageClosed',
@@ -322,12 +322,19 @@ String describeEvent(MachineEvent event) => switch (event) {
     'ThePanoramaAsked($id, $language)',
   TheSessionOpened(:final session, :final generation) =>
     'TheSessionOpened($session, generation: $generation)',
+  ThePanoramaFound(:final session, :final opened, :final generation) =>
+    'ThePanoramaFound($session, opened: $opened, generation: $generation)',
   TheSessionLetGo(:final session) => 'TheSessionLetGo($session)',
   TheWayBackTaken(:final left) =>
     'TheWayBackTaken(${left.panorama ? 'Panorama' : 'passage'} ${left.pericope}, '
         'session: ${left.session}, said: ${left.said})',
-  TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsHere) =>
-    'TheRehearsalWeighed($everySceneHasItsPart, $everyPartIsHere)',
+  TheRehearsalWeighed(
+    :final everySceneHasItsPart,
+    :final everyPartIsHere,
+    :final everyPartIsSent,
+  ) =>
+    'TheRehearsalWeighed($everySceneHasItsPart, $everyPartIsHere, '
+        '$everyPartIsSent)',
   TheLeftPassageReturns(:final session, :final warned) =>
     'TheLeftPassageReturns($session, warned: $warned)',
 };
@@ -463,6 +470,7 @@ enum EventKind {
   theLanguageChosen,
   thePanoramaAsked,
   theSessionOpened,
+  thePanoramaFound,
   theSessionLetGo,
   theWayBackTaken,
   theRehearsalWeighed,
@@ -549,6 +557,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheLanguageChosen() => EventKind.theLanguageChosen,
   ThePanoramaAsked() => EventKind.thePanoramaAsked,
   TheSessionOpened() => EventKind.theSessionOpened,
+  ThePanoramaFound() => EventKind.thePanoramaFound,
   TheSessionLetGo() => EventKind.theSessionLetGo,
   TheWayBackTaken() => EventKind.theWayBackTaken,
   TheLeftPassageReturns() => EventKind.theLeftPassageReturns,
@@ -634,6 +643,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theLanguageChosen ||
   EventKind.thePanoramaAsked ||
   EventKind.theSessionOpened ||
+  EventKind.thePanoramaFound ||
   EventKind.theSessionLetGo ||
   EventKind.theWayBackTaken ||
   EventKind.theRehearsalWeighed ||
@@ -701,7 +711,7 @@ MachineEvent _draw(
       row: 'linha-${random.nextInt(3)}',
       keep: (
         session: _drawASession(random),
-        kind: const ['ensaio', 'cena', 'retro'][random.nextInt(3)],
+        kind: const ['ensaio', 'cena'][random.nextInt(2)],
         scope: 'parte-${random.nextInt(3) + 1}',
         since: DateTime.utc(2026, 10, 22, 9, 0, random.nextInt(60)),
       ),
@@ -780,7 +790,7 @@ MachineEvent _draw(
       source: _drawASource(random),
     ),
   ),
-  EventKind.stepLeft => const StepLeft(),
+  EventKind.stepLeft => StepLeft(ended: random.nextBool()),
   EventKind.leftThePassage => const LeftThePassage(),
   EventKind.sessionGone => const TheSessionIsGone(),
   EventKind.passageClosed => const ThePassageClosed(),
@@ -880,6 +890,11 @@ MachineEvent _draw(
     _drawASession(random),
     generation: random.nextInt(4) == 0 ? theOlderGeneration : null,
   ),
+  EventKind.thePanoramaFound => ThePanoramaFound(
+    _drawASession(random),
+    opened: random.nextBool(),
+    generation: random.nextInt(4) == 0 ? theOlderGeneration : null,
+  ),
   EventKind.theSessionLetGo => TheSessionLetGo(_drawASession(random)),
   EventKind.theWayBackTaken => TheWayBackTaken(_drawAnEntryLeft(random)),
   EventKind.theLeftPassageReturns => TheLeftPassageReturns(
@@ -889,6 +904,7 @@ MachineEvent _draw(
   EventKind.theRehearsalWeighed => TheRehearsalWeighed(
     everySceneHasItsPart: random.nextBool(),
     everyPartIsHere: random.nextBool(),
+    everyPartIsSent: random.nextBool(),
   ),
 };
 

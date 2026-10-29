@@ -121,7 +121,7 @@ Future<void> _approveWithP3Held(
   _Words w,
 ) async {
   harness.voice.holdNextLine();
-  await tester.tap(byLabel(w.aprovar));
+  await pressTheApproval(tester, w.aprovar);
   await tester.pump(const Duration(milliseconds: 300));
 }
 
@@ -332,7 +332,7 @@ void main() {
     final w = _pt(1);
     harness.voice.refuses.add('P3');
 
-    await tester.tap(byLabel(w.aprovar));
+    await pressTheApproval(tester, w.aprovar);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 

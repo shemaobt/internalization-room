@@ -52,6 +52,41 @@ Finder _naQuarta(Finder alvo) => find.descendant(of: _aQuarta, matching: alvo);
 
 final _grandeDemaisParaASala = Uint8List(largestTakeTheRoomKeeps + 1);
 
+const _presaDemais = Duration(minutes: 2);
+
+Future<T?> _semPrender<T>(WidgetTester tester, Future<T> Function() corpo) =>
+    tester.runAsync(() => corpo().timeout(_presaDemais));
+
+Future<void> _esperar(String what, FutureOr<bool> Function() ready) =>
+    waitFor(what, ready, limit: const Duration(seconds: 30));
+
+Future<void> _batida(WidgetTester tester) async {
+  await _semPrender(
+    tester,
+    () => Future<void>.delayed(const Duration(milliseconds: 15)),
+  );
+  await tester.pump();
+}
+
+Future<void> _ate(
+  WidgetTester tester,
+  String what,
+  bool Function() done,
+) async {
+  final waited = Stopwatch()..start();
+  for (
+    var vez = 0;
+    !done() && (vez < 200 || waited.elapsed < const Duration(seconds: 30));
+    vez++
+  ) {
+    await _batida(tester);
+  }
+  expect(done(), isTrue, reason: what);
+}
+
+Future<void> _ateVer(WidgetTester tester, Finder alvo) =>
+    _ate(tester, 'ver $alvo', () => alvo.evaluate().isNotEmpty);
+
 class _Casa {
   final WidgetTester tester;
   final SalaHarness harness;
@@ -109,19 +144,37 @@ class _Casa {
       find.descendant(of: linha(n), matching: alvo);
 
   Future<void> emTempoReal(Future<void> Function() corpo) async {
-    await tester.runAsync(corpo);
+    await _semPrender(tester, corpo);
     await tester.pump(const Duration(milliseconds: 100));
   }
+
+  Future<void> ate(String what, bool Function() done) =>
+      _ate(tester, what, done);
+
+  SceneRow linhaDe(int n) =>
+      estado.sceneRows.firstWhere((row) => row.number == n);
+
+  bool assentou(int n) {
+    final row = linhaDe(n);
+    final unsent = row.unsent;
+    return row.inTheAir == null &&
+        (unsent == null ? row.saved : unsent.failure != null);
+  }
+
+  Future<void> ve(Finder alvo) => _ateVer(tester, alvo);
+
+  bool sendoGuardada(int n) =>
+      estado.machine.beingKept(estado.sessionId, estado.scopeOfRow(n));
 
   Future<void> abrirAPassagem(String pericope) => emTempoReal(() async {
     final antes = estado.sessionId;
     sala.leaveThePassage();
-    await waitFor(
+    await _esperar(
       'a sala abrir a Escolha',
       () => estado.stage == SalaStage.escolha && estado.naRoda != null,
     );
     await sala.goConversa(book: 'Ruth', pericope: pericope);
-    await waitFor(
+    await _esperar(
       'a passagem $pericope abrir',
       () =>
           estado.sessionId != null &&
@@ -130,7 +183,7 @@ class _Casa {
     );
     await settle();
     sala.goEnsaio();
-    await waitFor(
+    await _esperar(
       'as cenas chegarem',
       () => estado.sceneRows.length == _cenas.length,
     );
@@ -140,12 +193,12 @@ class _Casa {
   Future<void> voltarAPassagem(String pericope) => emTempoReal(() async {
     final antes = estado.sessionId;
     sala.leaveThePassage();
-    await waitFor(
+    await _esperar(
       'a sala abrir a Escolha',
       () => estado.stage == SalaStage.escolha && estado.naRoda != null,
     );
     await sala.goConversa(book: 'Ruth', pericope: pericope);
-    await waitFor(
+    await _esperar(
       'a passagem $pericope abrir',
       () =>
           estado.sessionId != null &&
@@ -168,7 +221,7 @@ class _Casa {
 
   Future<void> comecarAGravar(int n) => emTempoReal(() async {
     sala.gravarACena(n);
-    await waitFor(
+    await _esperar(
       'a cena $n gravar',
       () => estado.ensaio == EnsaioStatus.recording,
     );
@@ -178,7 +231,7 @@ class _Casa {
     await comecarAGravar(n);
     await emTempoReal(() async {
       sala.gravarACena(n);
-      await waitFor(
+      await _esperar(
         'a gravação da cena $n esperar o visto',
         () => estado.ensaio == EnsaioStatus.recorded,
       );
@@ -190,28 +243,37 @@ class _Casa {
     await emTempoReal(() async {
       final antes = envios;
       sala.takeKeep();
-      await waitFor('a cena $n subir', () => envios > antes);
-      await settle(const Duration(milliseconds: 300));
+      await _esperar('a cena $n subir', () => envios > antes);
     });
+    await ate('a cena $n assentar', () => assentou(n));
   }
 
   Future<void> ateVer(Finder alvo) async {
-    for (var i = 0; i < 100 && alvo.evaluate().isEmpty; i++) {
+    final waited = Stopwatch()..start();
+    for (
+      var vez = 0;
+      alvo.evaluate().isEmpty &&
+          (vez < 100 || waited.elapsed < const Duration(seconds: 30));
+      vez++
+    ) {
       await emTempoReal(() => settle(const Duration(milliseconds: 100)));
     }
+    expect(alvo.evaluate(), isNotEmpty, reason: 'ver $alvo');
   }
 
   Future<void> guardarSemEsperar(int n) async {
     await gravar(n);
-    await emTempoReal(() async {
-      sala.takeKeep();
-      await settle(const Duration(milliseconds: 300));
+    await emTempoReal(() async => sala.takeKeep());
+    await ate('a cena $n entrar na fila', () {
+      final row = linhaDe(n);
+      return !sendoGuardada(n) &&
+          (row.unsent != null || row.inTheAir != null || row.saved);
     });
   }
 
   Future<void> gravarAPassagemInteira() => emTempoReal(() async {
     sala.recordTheWholePassageInstead();
-    await waitFor(
+    await _esperar(
       'a passagem inteira ser a linha',
       () => estado.recordsTheWhole && estado.sceneRows.length == 1,
     );
@@ -220,7 +282,7 @@ class _Casa {
 
   Future<void> gravarCenaPorCena() => emTempoReal(() async {
     sala.recordSceneByScene();
-    await waitFor(
+    await _esperar(
       'as cenas voltarem a ser as linhas',
       () => !estado.recordsTheWhole && estado.sceneRows.length == _cenas.length,
     );
@@ -229,12 +291,12 @@ class _Casa {
 
   Future<void> gravarPeloCirculo() => emTempoReal(() async {
     sala.ensaioTap();
-    await waitFor(
+    await _esperar(
       'o círculo gravar',
       () => estado.ensaio == EnsaioStatus.recording,
     );
     sala.ensaioTap();
-    await waitFor(
+    await _esperar(
       'a gravação do círculo esperar o visto',
       () => estado.ensaio == EnsaioStatus.recorded,
     );
@@ -285,7 +347,8 @@ Future<_Casa> _comUmaTomadaNaPassagemDeUmaPerdida(
   await casa.perderAGravacao(2);
   final depois = await _relancada(casa);
   await depois.guardarSemEsperar(2);
-  final aFalhada = (await tester.runAsync(
+  final aFalhada = (await _semPrender(
+    tester,
     depois.harness.takes.entries,
   ))!.firstWhere((row) => row.scope == 'parte-2');
   if (aSalaAlcancavel) depois.room.unreachableTake = null;
@@ -308,7 +371,8 @@ Widget _aCasa(ProviderContainer container) => UncontrolledProviderScope(
 
 Future<_Casa> _relancada(_Casa casa) async {
   await casa.deixarATela();
-  final (harness, container) = (await casa.tester.runAsync(
+  final (harness, container) = (await _semPrender(
+    casa.tester,
     () => relaunch(casa.harness, casa.container),
   ))!;
   return _naCasa(casa.tester, harness: harness, relaunched: container);
@@ -325,7 +389,8 @@ Future<_Casa> _naCasa(
   addTearDown(tester.view.reset);
   final sala = harness ?? SalaHarness();
   sala.room.passageScenes = _cenas;
-  final container = (await tester.runAsync(
+  final container = (await _semPrender(
+    tester,
     () async => (relaunched ?? sala.container())..read(salaSessionProvider),
   ))!;
   if (relaunched == null) addTearDown(container.dispose);
@@ -338,7 +403,7 @@ Future<_Casa> _naCasa(
     if (relaunched == null) {
       await casa.sala.goConversa(book: 'Ruth', pericope: 'P01');
     }
-    await waitFor(
+    await _esperar(
       'a sessão abrir',
       () => casa.estado.sessionId != null && !casa.estado.awaitingTheGuide,
     );
@@ -348,7 +413,7 @@ Future<_Casa> _naCasa(
     } else if (casa.estado.stage != SalaStage.ensaio) {
       casa.sala.goEnsaio();
     }
-    await waitFor(
+    await _esperar(
       'as cenas chegarem',
       () => casa.estado.sceneRows.length == _cenas.length,
     );
@@ -362,7 +427,7 @@ Future<void> _recordAScene(SceneRoom room, {Uint8List? take}) async {
       take ?? Uint8List.fromList([for (var i = 0; i < 1200; i++) i % 251]);
   await theSceneMicrophoneOpens(room);
   room.sala.sceneTap();
-  await waitFor(
+  await _esperar(
     'o microfone da cena fechar',
     () => room.state.channel is! Microphone,
   );
@@ -391,6 +456,7 @@ void main() {
 
       casa.room.unreachableTake = null;
       await casa.tocar(casa.naLinha(2, find.text(_falhou)));
+      await casa.ve(casa.naLinha(2, find.text(_salvo)));
 
       expect(casa.room.takesKept, ['ensaio/parte-2']);
       expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
@@ -438,7 +504,7 @@ void main() {
       final casa = await _naCasa(tester);
       casa.room.holdNextTake('parte-2');
       await casa.guardarSemEsperar(2);
-      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
 
       await tester.pump(const Duration(seconds: 7));
       expect(find.text(_parar), findsNothing);
@@ -446,6 +512,7 @@ void main() {
       expect(casa.naLinha(2, find.text(_parar)), findsOneWidget);
 
       await casa.tocar(casa.naLinha(2, find.text(_parar)));
+      await casa.ve(casa.naLinha(2, find.text(_falhou)));
 
       expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
       expect(find.text(_parar), findsNothing);
@@ -462,7 +529,7 @@ void main() {
       await casa.gravarAPassagemInteira();
       casa.room.holdNextTake(KeptScope.whole);
       await casa.guardarSemEsperar(1);
-      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
 
       await tester.pump(const Duration(seconds: 8));
 
@@ -495,7 +562,7 @@ void main() {
 
       casa.room.unreachableTake = null;
       await casa.emTempoReal(
-        () => waitFor(
+        () => _esperar(
           'a parte 2 chegar à sala',
           () => casa.room.takesKept.length == 2,
         ),
@@ -534,7 +601,7 @@ void main() {
 
       casa.room.unreachableTake = null;
       await casa.emTempoReal(
-        () => waitFor(
+        () => _esperar(
           'a inteira chegar à sala',
           () => casa.room.takesKept.length == 4,
         ),
@@ -609,9 +676,13 @@ void main() {
       await casa.gravarAPassagemInteira();
       casa.room.holdNextTake(KeptScope.whole);
       await casa.guardarSemEsperar(1);
-      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
 
       await casa.gravarCenaPorCena();
+      await casa.ate('a cena 1 ficar vazia', () {
+        final row = casa.linhaDe(1);
+        return row.unsent == null && row.inTheAir == null;
+      });
       await tester.pump(const Duration(seconds: 8));
 
       expect(casa.naLinha(1, find.text(_enviando)), findsNothing);
@@ -659,7 +730,7 @@ void main() {
     final casa = await _naCasa(tester);
     casa.room.holdNextTake('parte-2');
     await casa.guardarSemEsperar(2);
-    await tester.runAsync(casa.room.untilTakeHeld);
+    await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
 
     await tester.pump(const Duration(seconds: 7));
     expect(find.text(_parar), findsNothing);
@@ -668,6 +739,7 @@ void main() {
       casa.room.finishHeldTake();
       await settle(const Duration(milliseconds: 400));
     });
+    await casa.ve(casa.naLinha(2, find.text(_salvo)));
     await tester.pump(const Duration(seconds: 2));
 
     expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
@@ -680,17 +752,19 @@ void main() {
       final casa = await _naCasa(tester);
       casa.room.holdNextTake('parte-2');
       await casa.guardarSemEsperar(2);
-      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
       await casa.guardarSemEsperar(2);
       await tester.pump(const Duration(seconds: 8));
       expect(casa.naLinha(2, find.text(_parar)), findsOneWidget);
 
-      await casa.emTempoReal(() async {
-        casa.room
-          ..finishHeldTake()
-          ..holdNextTake('parte-2');
-        await casa.room.untilTakeHeld();
-      });
+      casa.room
+        ..finishHeldTake()
+        ..holdNextTake('parte-2');
+      await casa.ate(
+        'a sala segurar a gravação seguinte',
+        () => casa.room.takeHeld,
+      );
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(casa.room.takesKept, ['ensaio/parte-2']);
       expect(find.text(_parar), findsNothing);
@@ -715,14 +789,14 @@ void main() {
 
       await casa.emTempoReal(() async {
         casa.sala.leaveThePassage();
-        await waitFor(
+        await _esperar(
           'a sala abrir a Escolha',
           () =>
               casa.estado.stage == SalaStage.escolha &&
               casa.estado.naRoda != null,
         );
         await casa.sala.goConversa(book: 'Ruth', pericope: 'P02');
-        await waitFor(
+        await _esperar(
           'a outra passagem abrir',
           () =>
               casa.estado.sessionId != null &&
@@ -731,7 +805,7 @@ void main() {
         );
         await settle();
         casa.sala.goEnsaio();
-        await waitFor(
+        await _esperar(
           'as cenas chegarem',
           () => casa.estado.sceneRows.length == _cenas.length,
         );
@@ -755,11 +829,12 @@ void main() {
         ..unreachableTake = null
         ..holdNextTake('parte-2');
       await casa.tocar(casa.naLinha(2, find.text(_falhou)));
+      await casa.ve(casa.naLinha(2, find.text(_enviando)));
 
       expect(casa.naLinha(2, find.text(_enviando)), findsOneWidget);
       expect(find.text(_falhou), findsNothing);
 
-      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
       await tester.pump(const Duration(seconds: 8));
       expect(casa.naLinha(2, find.text(_parar)), findsOneWidget);
 
@@ -767,6 +842,7 @@ void main() {
         casa.room.finishHeldTake();
         await settle(const Duration(milliseconds: 400));
       });
+      await casa.ve(casa.naLinha(2, find.text(_salvo)));
       expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
     },
   );
@@ -782,16 +858,17 @@ void main() {
         ..unreachableTake = null
         ..holdNextTake('parte-3');
       await casa.guardarSemEsperar(3);
-      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
 
       await casa.tocar(casa.naLinha(2, find.text(_falhou)));
+      await casa.ve(casa.naLinha(2, find.text(_enviando)));
 
       expect(casa.naLinha(2, find.text(_enviando)), findsOneWidget);
       expect(find.text(_falhou), findsNothing);
 
       await casa.emTempoReal(() async {
         casa.room.finishHeldTake();
-        await waitFor(
+        await _esperar(
           'as duas cenas subirem',
           () => casa.room.takesKept.length == 2,
         );
@@ -806,7 +883,7 @@ void main() {
       final casa = await _naCasa(tester);
       casa.room.holdNextTake('parte-2');
       await casa.guardarSemEsperar(2);
-      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
       await casa.guardarSemEsperar(3);
       casa.room.holdNextTakesList();
       final antes = casa.leiturasDaLista;
@@ -814,7 +891,7 @@ void main() {
 
       await casa.emTempoReal(() async {
         await tester.tap(casa.naLinha(2, find.text(_parar)));
-        await waitFor(
+        await _esperar(
           'a cena 3 subir e esperar a lista',
           () => casa.leiturasDaLista > antes,
         );
@@ -861,7 +938,7 @@ void main() {
 
     await casa.emTempoReal(() async {
       fila.segurar?.complete();
-      await waitFor(
+      await _esperar(
         'a cena 2 subir de novo',
         () => casa.room.takesKept.length == 2,
       );
@@ -876,7 +953,7 @@ void main() {
       final casa = await _naCasa(tester);
       casa.room.holdNextTake('parte-2');
       await casa.guardarSemEsperar(2);
-      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
       await tester.pump(const Duration(seconds: 5));
 
       await casa.deixarATela();
@@ -911,6 +988,7 @@ void main() {
         await casa.sala.refreshUnsent();
         await settle();
       });
+      await casa.ve(casa.naLinha(2, find.text(_perdida)));
 
       expect(find.text(_salvo), findsNothing);
       expect(casa.naLinha(2, find.text(_perdida)), findsOneWidget);
@@ -925,9 +1003,11 @@ void main() {
       await casa.guardar(2);
       expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
       await casa.perderAsCopias();
+      await casa.ve(casa.naLinha(2, find.text(_perdida)));
       expect(casa.naLinha(2, find.text(_perdida)), findsOneWidget);
 
       final depois = await _relancada(casa);
+      await depois.ve(depois.naLinha(2, find.text(_perdida)));
 
       expect(depois.naLinha(2, find.text(_perdida)), findsOneWidget);
       expect(depois.naLinha(2, find.byType(TextButton)), findsNothing);
@@ -944,6 +1024,7 @@ void main() {
       await casa.perderAsCopias();
 
       final depois = await _relancada(casa);
+      await depois.ve(depois.naLinha(2, find.text(_perdida)));
 
       expect(depois.naLinha(2, find.text(_perdida)), findsOneWidget);
       expect(depois.naLinha(2, find.byType(TextButton)), findsNothing);
@@ -961,6 +1042,7 @@ void main() {
       await casa.perderAsCopias();
       casa.room.unreachableTake = null;
       final depois = await _relancada(casa);
+      await depois.ve(depois.naLinha(2, find.text(_perdida)));
       expect(depois.naLinha(2, find.text(_perdida)), findsOneWidget);
 
       await depois.guardar(2);
@@ -1010,9 +1092,10 @@ void main() {
       final casa = await _naCasa(tester);
       casa.room.holdNextTake('parte-2');
       await casa.guardarSemEsperar(2);
-      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
       await casa.guardarSemEsperar(2);
-      final aNova = (await tester.runAsync(
+      final aNova = (await _semPrender(
+        tester,
         casa.harness.takes.entries,
       ))!.lastWhere((row) => row.scope == 'parte-2');
       await casa.emTempoReal(() async {
@@ -1023,16 +1106,24 @@ void main() {
 
       await casa.emTempoReal(() async {
         casa.room.finishHeldTake();
-        await waitFor(
+        await _esperar(
           'a passagem 1 subir',
           () => casa.room.takesKept.isNotEmpty,
         );
         await settle(const Duration(milliseconds: 400));
       });
+      await casa.ve(casa.naLinha(2, find.text(_perdida)));
 
       expect(casa.naLinha(2, find.text(_perdida)), findsOneWidget);
       expect(find.text(_salvo), findsNothing);
+      await casa.emTempoReal(
+        () => _esperar('a fila parar de escrever', () async {
+          final linhas = await casa.harness.takes.entries();
+          return linhas.length == 1 && linhas.single.lost;
+        }),
+      );
       final depois = await _relancada(casa);
+      await depois.ve(depois.naLinha(2, find.text(_perdida)));
       expect(depois.naLinha(2, find.text(_perdida)), findsOneWidget);
       expect(find.text(_salvo), findsNothing);
     },
@@ -1045,6 +1136,7 @@ void main() {
     casa.room.unreachableTake = 'ensaio/parte-2';
     await casa.guardar(2);
     await casa.perderAsCopias();
+    await casa.ve(casa.naLinha(2, find.text(_perdida)));
 
     expect(casa.naLinha(2, find.text(_perdida)), findsOneWidget);
     expect(casa.naLinha(2, byLabel(_ouvirNaLinha)), findsNothing);
@@ -1057,7 +1149,7 @@ void main() {
     final casa = await _naCasa(tester);
     casa.room.holdNextTake('parte-2');
     await casa.guardarSemEsperar(2);
-    await tester.runAsync(casa.room.untilTakeHeld);
+    await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
     final antes = casa.envios;
 
     expect(casa.naLinha(2, find.text(_enviando)), findsOneWidget);
@@ -1070,6 +1162,7 @@ void main() {
       casa.room.finishHeldTake();
       await settle(const Duration(milliseconds: 400));
     });
+    await casa.ve(casa.naLinha(2, find.text(_salvo)));
     expect(casa.envios, antes);
     expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
   });
@@ -1086,6 +1179,7 @@ void main() {
 
       await casa.abrirAPassagem('P02');
       await casa.abrirAPassagem('P01');
+      await casa.ve(casa.naLinha(3, find.text(_falhou)));
 
       expect(casa.estado.sessionId, primeira);
       expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
@@ -1115,7 +1209,7 @@ void main() {
       final casa = await _naCasa(tester);
       casa.room.holdNextTake('parte-2');
       await casa.guardarSemEsperar(2);
-      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
 
       await casa.abrirAPassagem('P02');
       await casa.abrirAPassagem('P01');
@@ -1127,6 +1221,7 @@ void main() {
         casa.room.finishHeldTake();
         await settle(const Duration(milliseconds: 400));
       });
+      await casa.ve(casa.naLinha(2, find.text(_salvo)));
 
       expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
     },
@@ -1138,7 +1233,7 @@ void main() {
       final casa = await _naCasa(tester);
       casa.room.holdNextTake('parte-1');
       await casa.guardarSemEsperar(1);
-      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
       await casa.guardarSemEsperar(2);
 
       await casa.emTempoReal(() async {
@@ -1149,6 +1244,7 @@ void main() {
         await casa.sala.refreshUnsent();
         await settle();
       });
+      await casa.ve(casa.naLinha(2, find.text(_perdida)));
 
       expect(casa.naLinha(2, find.text(_perdida)), findsOneWidget);
       expect(casa.naLinha(2, find.byType(TextButton)), findsNothing);
@@ -1187,7 +1283,7 @@ void main() {
       fila.falhar = false;
       casa.room.unreachableTake = null;
       await casa.tocar(casa.naLinha(3, find.text(_falhou)));
-      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+      await casa.ve(casa.naLinha(3, find.text(_salvo)));
 
       expect(casa.room.takePasses, [1, 2]);
       expect(casa.naLinha(3, find.text(_salvo)), findsOneWidget);
@@ -1213,11 +1309,15 @@ void main() {
       fila.falhar = true;
       await casa.guardarSemEsperar(3);
       fila.falhar = false;
+      await casa.ve(casa.naLinha(3, find.text(_falhou)));
       expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
       casa.room.unreachableTake = 'ensaio/parte-3';
 
       await casa.tocar(casa.naLinha(3, find.text(_falhou)));
-      await casa.emTempoReal(() => settle(const Duration(seconds: 1)));
+      await casa.ate(
+        'as três tentativas',
+        () => casa.envios == 3 && casa.assentou(3),
+      );
 
       expect(casa.envios, 3);
       expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
@@ -1253,7 +1353,7 @@ void main() {
         ..unreachableTake = null
         ..holdNextTake('parte-3');
       await casa.tocar(casa.naLinha(3, find.text(_falhou)));
-      await tester.runAsync(casa.room.untilTakeHeld);
+      await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
 
       await casa.abrirAPassagem('P02');
       await casa.emTempoReal(() async {
@@ -1310,10 +1410,12 @@ void main() {
       fila.falhar = true;
       await casa.guardarSemEsperar(3);
       fila.falhar = false;
+      await casa.ve(casa.naLinha(3, find.text(_falhou)));
       expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
       File(casa.harness.recorder.lastPath!).deleteSync();
 
       await casa.tocar(casa.naLinha(3, find.text(_falhou)));
+      await casa.ve(casa.naLinha(3, find.text(_perdida)));
 
       expect(casa.naLinha(3, find.text(_perdida)), findsOneWidget);
       expect(casa.naLinha(3, find.byType(TextButton)), findsNothing);
@@ -1337,6 +1439,7 @@ void main() {
         await casa.sala.refreshUnsent();
         await settle();
       });
+      await casa.ve(casa.naLinha(3, find.text(_perdida)));
       expect(casa.naLinha(3, find.text(_perdida)), findsOneWidget);
       expect(casa.naLinha(3, find.byType(TextButton)), findsNothing);
       casa.room.unreachableTake = null;
@@ -1348,12 +1451,10 @@ void main() {
       expect(casa.envios, antes);
 
       await casa.gravar(3);
-      await casa.emTempoReal(() async {
-        casa.sala.takeKeep();
-        await settle(const Duration(milliseconds: 400));
-      });
+      await casa.emTempoReal(() async => casa.sala.takeKeep());
+      await casa.ve(casa.naLinha(3, find.text(_falhou)));
       await casa.tocar(casa.naLinha(3, find.text(_falhou)));
-      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+      await casa.ve(casa.naLinha(3, find.text(_salvo)));
 
       expect(casa.room.takePasses, [1, 3]);
       expect(casa.naLinha(3, find.text(_salvo)), findsOneWidget);
@@ -1383,7 +1484,10 @@ void main() {
       casa.room.unreachableTake = null;
 
       await casa.tocar(casa.naLinha(3, find.text(_falhou)));
-      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+      await casa.ate(
+        'a passada gasta subir',
+        () => casa.room.takePasses.isNotEmpty && casa.assentou(3),
+      );
 
       expect(casa.room.takePasses, [1]);
       expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
@@ -1413,7 +1517,11 @@ void main() {
       fila.falhar = false;
       File(casa.harness.recorder.lastPath!).deleteSync();
       await casa.tocar(casa.naLinha(3, find.text(_falhou)));
-      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+      await casa.ate(
+        'a passada gasta tentar de novo',
+        () => casa.envios == 6 && casa.assentou(3),
+      );
+      await casa.ve(casa.naLinha(3, find.text(_perdida)));
       expect(casa.naLinha(3, find.text(_perdida)), findsOneWidget);
       final antes = casa.envios;
 
@@ -1444,7 +1552,7 @@ void main() {
       await casa.gravarPeloCirculo();
       await casa.emTempoReal(() async {
         casa.sala.takeKeep();
-        await waitFor(
+        await _esperar(
           'a parte 4 falhar',
           () => casa.estado.unsentParts[4]?.failure == SendFailure.failed,
         );
@@ -1483,7 +1591,10 @@ void main() {
 
       casa.room.unreachableTake = null;
       await casa.tocar(_naQuarta(find.textContaining('enviar agora')));
-      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+      await casa.ate(
+        'as duas passadas subirem',
+        () => casa.room.takePasses.length == 2,
+      );
 
       expect(casa.room.takePasses, [1, 2]);
     },
@@ -1549,7 +1660,10 @@ void main() {
       });
       fila.falhar = false;
       File(casa.harness.recorder.lastPath!).deleteSync();
+      await casa.ve(_naQuarta(find.text(_falhou)));
       await casa.tocar(_naQuarta(find.text(_falhou)));
+      await casa.ve(_naQuarta(find.text(_perdida)));
+      await casa.ate('a quarta assentar', () => casa.assentou(4));
       final antes = casa.envios;
 
       expect(_naQuarta(find.text(_perdida)), findsOneWidget);
@@ -1584,7 +1698,7 @@ void main() {
       await casa.gravarPeloCirculo();
       await casa.emTempoReal(() async {
         casa.sala.takeKeep();
-        await waitFor(
+        await _esperar(
           'a parte 4 falhar',
           () => casa.estado.unsentParts[4]?.failure == SendFailure.failed,
         );
@@ -1594,7 +1708,7 @@ void main() {
 
       casa.room.unreachableTake = null;
       await casa.tocar(_naQuarta(find.text(_falhou)));
-      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+      await casa.ve(_naQuarta(find.text(_salvo)));
 
       expect(casa.room.takesKept, ['ensaio/parte-4']);
       expect(_naQuarta(find.text(_salvo)), findsOneWidget);
@@ -1613,7 +1727,12 @@ void main() {
 
       casa.room.unreachableTake = null;
       await casa.tocar(_naQuarta(find.textContaining('enviar agora')));
-      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
+      await casa.ate(
+        'a quarta subir e sair',
+        () =>
+            casa.room.takesKept.contains('ensaio/parte-4') &&
+            _aQuarta.evaluate().isEmpty,
+      );
 
       expect(casa.room.takesKept, contains('ensaio/parte-4'));
       expect(_aQuarta, findsNothing);
@@ -1756,7 +1875,7 @@ void main() {
     final antes = casa.leiturasDaLista;
     await casa.guardarSemEsperar(2);
     await casa.emTempoReal(
-      () => waitFor('a lista ser lida', () => casa.leiturasDaLista > antes),
+      () => _esperar('a lista ser lida', () => casa.leiturasDaLista > antes),
     );
 
     expect(casa.room.takesKept, ['ensaio/parte-2']);
@@ -1767,6 +1886,7 @@ void main() {
       casa.room.finishHeldTakesList();
       await settle(const Duration(milliseconds: 400));
     });
+    await casa.ve(casa.naLinha(2, find.text(_salvo)));
 
     expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
     expect(find.text(_enviando), findsNothing);
@@ -1798,11 +1918,7 @@ void main() {
       casa.room.unlistedTake = 'ensaio/parte-2';
       await casa.guardar(2);
       await casa.emTempoReal(
-        () => waitFor(
-          'a terceira tentativa',
-          () => casa.envios == 3,
-          limit: const Duration(seconds: 10),
-        ),
+        () => _esperar('a terceira tentativa', () => casa.envios == 3),
       );
       await casa.emTempoReal(() => settle(const Duration(seconds: 1)));
 
@@ -1847,7 +1963,10 @@ void main() {
       expect(casa.envios, 3);
 
       await casa.tocar(casa.naLinha(2, find.text(_falhou)));
-      await casa.emTempoReal(() => settle(const Duration(milliseconds: 500)));
+      await casa.ate(
+        'mais três tentativas',
+        () => casa.envios == 6 && casa.assentou(2),
+      );
 
       expect(casa.envios, 6);
       expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
@@ -1859,12 +1978,12 @@ void main() {
     'o ensaio da cena as visible text and falhou as its tap',
     (tester) async {
       late SceneRoom room;
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest();
         await theScreenOpens(room);
         room.harness.room.failSceneWith = const NetworkFailed('sem rede');
         await _recordAScene(room);
-        await waitFor(
+        await _esperar(
           'o ensaio ficar esperando',
           () => room.state.scene.keep is NotKept,
         );
@@ -1882,10 +2001,10 @@ void main() {
         i < 50 && room.asked('keepSceneRehearsal') == antes;
         i++
       ) {
-        await tester.runAsync(settle);
+        await _semPrender(tester, settle);
         await tester.pump(const Duration(milliseconds: 100));
       }
-      await tester.runAsync(settle);
+      await _semPrender(tester, settle);
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text(_falhou), findsNothing);
@@ -1899,12 +2018,12 @@ void main() {
     'microphone, and a re-send of it is refused',
     (tester) async {
       late SceneRoom room;
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest();
         await theScreenOpens(room);
         room.harness.room.failSceneWith = const NetworkFailed('sem rede');
         await _recordAScene(room);
-        await waitFor(
+        await _esperar(
           'o ensaio ficar esperando',
           () => room.state.scene.keep is NotKept,
         );
@@ -1915,9 +2034,10 @@ void main() {
         ).deleteSync();
       });
       await _pumpTheRoom(tester, room);
+      await _ateVer(tester, find.text(_falhou));
       await tester.tap(find.text(_falhou));
       for (var i = 0; i < 100 && room.state.scene.keep is Keeping; i++) {
-        await tester.runAsync(settle);
+        await _semPrender(tester, settle);
         await tester.pump(const Duration(milliseconds: 100));
       }
 
@@ -1942,7 +2062,7 @@ void main() {
     (tester) async {
       late SceneRoom room;
       late _AQueueThatHoldsTheKeep fila;
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest(
           SalaHarness(
             takesOverride: (sala, home, recordings) =>
@@ -1956,16 +2076,17 @@ void main() {
         await theScreenOpens(room);
         fila.falhar = true;
         await _recordAScene(room);
-        await waitFor(
+        await _esperar(
           'o ensaio ficar esperando',
           () => room.state.scene.keep is NotKept,
         );
         File(room.harness.recorder.lastPath!).deleteSync();
       });
       await _pumpTheRoom(tester, room);
+      await _ateVer(tester, find.text(_falhou));
       await tester.tap(find.text(_falhou));
       for (var i = 0; i < 100 && room.state.scene.keep is Keeping; i++) {
-        await tester.runAsync(settle);
+        await _semPrender(tester, settle);
         await tester.pump(const Duration(milliseconds: 100));
       }
 
@@ -1986,12 +2107,12 @@ void main() {
       final a = Uint8List.fromList([for (var i = 0; i < 1200; i++) i % 7]);
       final b = Uint8List.fromList([for (var i = 0; i < 1200; i++) i % 11]);
       int keeps() => room.asked('keepSceneRehearsal');
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest();
         await theScreenOpens(room);
         room.harness.room.failSceneWith = const NetworkFailed('sem rede');
         await _recordAScene(room, take: a);
-        await waitFor(
+        await _esperar(
           'a tomada A ficar esperando',
           () => room.state.scene.keep is NotKept,
         );
@@ -2000,15 +2121,15 @@ void main() {
           ..holdNextKeepBeforeTheRoomActs();
         final antes = keeps();
         await _recordAScene(room, take: b);
-        await waitFor('a tomada A subir na frente', () => keeps() > antes);
+        await _esperar('a tomada A subir na frente', () => keeps() > antes);
       });
       await _pumpTheRoom(tester, room);
       await tester.pump(const Duration(seconds: 8));
       expect(find.text(_parar), findsOneWidget);
 
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         await tester.tap(find.text(_parar));
-        await waitFor(
+        await _esperar(
           'a tomada B ficar esperando',
           () => room.state.scene.keep is NotKept,
         );
@@ -2020,21 +2141,18 @@ void main() {
       expect(find.text(_naoDeuParaGuardar), findsOneWidget);
       expect(find.text(_falhou), findsOneWidget);
       expect(room.harness.room.sceneTakesSent, [a], reason: 'B nunca subiu');
-      final copias = await tester.runAsync(room.harness.takes.entries);
+      final copias = await _semPrender(tester, room.harness.takes.entries);
       expect(copias!.where((row) => row.kind == sceneTakeKind), hasLength(2));
       for (final row in copias) {
         expect(File(row.path).existsSync(), isTrue);
       }
 
       await tester.tap(find.text(_falhou));
-      for (
-        var i = 0;
-        i < 50 && room.state.scene.step != SceneStep.translate;
-        i++
-      ) {
-        await tester.runAsync(settle);
-        await tester.pump(const Duration(milliseconds: 100));
-      }
+      await _ate(
+        tester,
+        'as duas tomadas subirem',
+        () => room.harness.room.sceneTakesSent.length == 3,
+      );
 
       expect(room.harness.room.sceneTakesSent.skip(1), [a, b]);
     },
@@ -2046,7 +2164,7 @@ void main() {
     (tester) async {
       late SceneRoom room;
       int keeps() => room.asked('keepSceneRehearsal');
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest();
         await theScreenOpens(room);
         room.harness.room.failSceneWith = const NetworkFailed('sem rede');
@@ -2054,7 +2172,7 @@ void main() {
           room,
           take: Uint8List.fromList([for (var i = 0; i < 1200; i++) i % 7]),
         );
-        await waitFor(
+        await _esperar(
           'a tomada A ficar esperando',
           () => room.state.scene.keep is NotKept,
         );
@@ -2066,17 +2184,17 @@ void main() {
           room,
           take: Uint8List.fromList([for (var i = 0; i < 1200; i++) i % 11]),
         );
-        await waitFor('a tomada A subir na frente', () => keeps() > antes);
+        await _esperar('a tomada A subir na frente', () => keeps() > antes);
       });
       await _pumpTheRoom(tester, room);
       await tester.pump(const Duration(seconds: 5));
 
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         final antes = keeps();
         room.harness.room
           ..finishHeldKeep()
           ..holdNextKeepBeforeTheRoomActs();
-        await waitFor('a tomada B subir', () => keeps() > antes);
+        await _esperar('a tomada B subir', () => keeps() > antes);
         await settle();
       });
       await tester.pump(const Duration(milliseconds: 2800));
@@ -2085,7 +2203,7 @@ void main() {
 
       expect(find.text(_parar), findsOneWidget);
 
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room.harness.room.finishHeldKeep();
         await translateOpens(room);
       });
@@ -2097,16 +2215,17 @@ void main() {
     'servidor as visible text',
     (tester) async {
       late SceneRoom room;
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest();
         await theScreenOpens(room);
         await _recordAScene(room, take: _grandeDemaisParaASala);
-        await waitFor(
+        await _esperar(
           'o ensaio ficar esperando',
           () => room.state.scene.keep is NotKept,
         );
       });
       await _pumpTheRoom(tester, room);
+      await _ateVer(tester, find.text(_grandeDemais));
 
       expect(find.text(_grandeDemais), findsOneWidget);
       expect(find.text(_falhou), findsOneWidget);
@@ -2115,18 +2234,19 @@ void main() {
   );
 
   testWidgets(
-    "a scene take reads enviando on the red microphone until the room's scene "
-    'rehearsals list holds it, and opens on translate after',
+    'a scene take reads «guardando o ensaio da cena…» on the red microphone, '
+    "never enviando, until the room's scene rehearsals list holds it, and "
+    'opens on translate after',
     (tester) async {
       late SceneRoom room;
       late int antes;
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest();
         await theScreenOpens(room);
         antes = room.asked('sceneRehearsalsOf');
         room.harness.room.holdNextSceneList();
         await _recordAScene(room);
-        await waitFor(
+        await _esperar(
           'a lista dos ensaios da cena ser lida',
           () => room.asked('sceneRehearsalsOf') > antes,
         );
@@ -2135,10 +2255,15 @@ void main() {
       await _pumpTheRoom(tester, room);
 
       expect(room.asked('keepSceneRehearsal'), 1);
-      expect(find.text(_enviando), findsOneWidget);
+      expect(
+        find.text('guardando o ensaio da cena…'),
+        findsOneWidget,
+        reason: 'o microfone vermelho escrevia «enviando…», que não é dela',
+      );
+      expect(find.text(_enviando), findsNothing);
       expect(room.state.scene.step, SceneStep.record);
 
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room.harness.room.finishHeldSceneList();
         await translateOpens(room);
       });
@@ -2157,12 +2282,12 @@ void main() {
       casa.room.holdNextTake('parte-2');
       await casa.emTempoReal(() async {
         casa.sala.gravarACena(2);
-        await waitFor(
+        await _esperar(
           'a gravação esperar o visto',
           () => casa.estado.ensaio == EnsaioStatus.recorded,
         );
         casa.sala.takeKeep();
-        await waitFor('a cena subir', () => casa.envios > 0);
+        await _esperar('a cena subir', () => casa.envios > 0);
         await settle();
       });
 
@@ -2175,67 +2300,6 @@ void main() {
       });
     },
   );
-
-  test(
-    "a retro take leaves the tablet only after the room's list holds it",
-    () async {
-      final home = Directory.systemTemp.createTempSync('fila-retro');
-      addTearDown(() => home.deleteSync(recursive: true));
-      final room = FakeRoom()..unlistedTake = 'retro/passagem-inteira';
-      final queue = TakeUploadQueue(
-        room: room,
-        home: () async => home,
-        recordings: FakeRecorder.new,
-      );
-      final traducao = File('${home.path}/traducao.m4a')
-        ..writeAsStringSync('a equipe contou de volta');
-      final linha = await queue.enqueue(
-        traducao,
-        sessionId: 'sessao-1',
-        kind: 'retro',
-        scope: 'passagem-inteira',
-      );
-
-      await queue.flush();
-
-      expect(room.takesKept, contains('retro/passagem-inteira'));
-      expect(File(linha.path).existsSync(), isTrue);
-
-      room.unlistedTake = null;
-      await queue.dueAgain(linha.id);
-      await queue.flush();
-
-      expect(File(linha.path).existsSync(), isFalse);
-    },
-  );
-
-  test('a retro take spent on network failures still reaches the room by the '
-      "Outbox's own retry once the server is back", () async {
-    final home = Directory.systemTemp.createTempSync('fila-retro-sem-rede');
-    addTearDown(() => home.deleteSync(recursive: true));
-    final room = FakeRoom()..reachable = false;
-    final queue = TakeUploadQueue(
-      room: room,
-      home: () async => home,
-      recordings: FakeRecorder.new,
-    );
-    final linha = await queue.enqueue(
-      File('${home.path}/traducao.m4a')
-        ..writeAsStringSync('a equipe contou de volta'),
-      sessionId: 'sessao-1',
-      kind: 'retro',
-      scope: 'passagem-inteira',
-    );
-    for (var passada = 0; passada < 6; passada++) {
-      await queue.flush();
-    }
-
-    room.reachable = true;
-    await queue.flush();
-
-    expect(room.takesKept, ['retro/passagem-inteira']);
-    expect(File(linha.path).existsSync(), isFalse);
-  });
 
   testWidgets('no line is spoken when an upload fails, is refused or is '
       'stopped', (tester) async {
@@ -2255,9 +2319,10 @@ void main() {
 
     casa.room.holdNextTake('parte-3');
     await casa.guardarSemEsperar(3);
-    await tester.runAsync(casa.room.untilTakeHeld);
+    await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
     await tester.pump(const Duration(seconds: 8));
     await casa.tocar(casa.naLinha(3, find.text(_parar)));
+    await casa.ve(casa.naLinha(3, find.text(_falhou)));
     expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
 
     await casa.emTempoReal(() => settle(const Duration(milliseconds: 500)));
