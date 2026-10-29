@@ -112,14 +112,22 @@ void main() {
     expect(await queue.entries(), hasLength(1));
   });
 
-  test('a sweep that fails leaves every row for the next try', () async {
+  test('a life that ends with a copy it cannot delete leaves no row behind, '
+      'and after a relaunch no row is without its copy', () async {
     final queue = queueOn(FakeRoom()..reachable = false);
     final kept = await keep(queue, 'velha', 'sessao-1');
+    await keep(queue, 'outra', 'sessao-1');
     File(kept.path).deleteSync();
     Directory(kept.path).createSync();
 
     expect(await queue.endTheLife(), isFalse);
-    expect(await queue.entries(), hasLength(1));
+    expect(await queue.entries(), isEmpty);
+
+    final relaunched = queueOn(FakeRoom()..reachable = false);
+    expect([
+      for (final row in await relaunched.entries())
+        if (!File(row.path).existsSync()) row.id,
+    ], isEmpty);
   });
 
   test('the end of a life deletes every recording on the tablet', () async {
@@ -170,6 +178,119 @@ void main() {
       expect(inTheFolder(), ['fila.json']);
     },
   );
+
+  group('a copy no row names', () {
+    Future<PendingTake> aJoinRowInTheAir(
+      TakeUploadQueue queue,
+      FakeRoom room,
+    ) async {
+      final row = (await queue.enqueueTheJoin(
+        File('${home.path}/parte-2-junta-ensaio-2.wav')
+          ..writeAsBytesSync(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      queue.tapped(row.id);
+      unawaited(queue.flush());
+      await room.untilTakeHeld();
+      return row;
+    }
+
+    test('a copy whose row was withdrawn while in the air is swept at the next '
+        'open', () async {
+      final room = FakeRoom()..holdNextTake('parte-2');
+      final queue = queueOn(room);
+      final row = await aJoinRowInTheAir(queue, room);
+      expect(await queue.withdrawEvenInTheAir(row), isTrue);
+
+      final relaunched = queueOn(room);
+      await relaunched.sweepTheCopiesLeftBehind();
+
+      expect(await relaunched.entries(), isEmpty);
+      expect(inTheFolder(), ['fila.json']);
+    });
+
+    test('the open sweep leaves the link, the resume point and the current '
+        'session in their folder', () async {
+      final folder = Directory('${home.path}/guardadas')..createSync();
+      for (final ledger in [
+        'vinculo.json',
+        'em_curso.json',
+        'sessao_atual.json',
+      ]) {
+        File('${folder.path}/$ledger').writeAsStringSync('{}');
+      }
+      File(
+        '${folder.path}/ensaio-parte-2-1761730000000000-0.m4a',
+      ).writeAsStringSync('a equipe contou a passagem');
+
+      await queueOn(FakeRoom()).sweepTheCopiesLeftBehind();
+
+      expect(inTheFolder()..sort(), [
+        'em_curso.json',
+        'sessao_atual.json',
+        'vinculo.json',
+      ]);
+    });
+
+    test(
+      'a take being kept while the Outbox opens keeps its copy and its row',
+      () async {
+        final queue = queueOn(FakeRoom()..reachable = false);
+        final take = _ATakeWhoseCopyIsHeld(aTake('nova'));
+
+        final keeping = queue.enqueue(
+          take,
+          sessionId: 'sessao-1',
+          kind: 'ensaio',
+          scope: 'inteira',
+        );
+        await take.copied.future;
+        await queue.sweepTheCopiesLeftBehind();
+        take.release.complete();
+        final row = await keeping;
+
+        expect([for (final entry in await queue.entries()) entry.id], [row.id]);
+        expect(File(row.path).existsSync(), isTrue);
+      },
+    );
+
+    test('the next try at the end of a life deletes the copies the first one '
+        'left', () async {
+      final room = FakeRoom()..holdNextTake('parte-2');
+      final queue = queueOn(room);
+      final row = await aJoinRowInTheAir(queue, room);
+      await queue.withdrawEvenInTheAir(row);
+
+      expect(await queue.endTheLife(), isTrue);
+      expect(inTheFolder(), ['fila.json']);
+
+      room.finishHeldTake();
+      await queue.flush();
+
+      expect(inTheFolder(), ['fila.json']);
+      expect(await queue.entries(), isEmpty);
+    });
+
+    test('the end of a life leaves the link and the resume point in their '
+        'folder', () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+      await keep(queue, 'velha', 'sessao-1');
+      for (final ledger in ['vinculo.json', 'em_curso.json']) {
+        File('${home.path}/guardadas/$ledger').writeAsStringSync('{}');
+      }
+
+      expect(await queue.endTheLife(), isTrue);
+
+      expect(inTheFolder()..sort(), [
+        'em_curso.json',
+        'fila.json',
+        'vinculo.json',
+      ]);
+    });
+  });
 
   test('a manifest it cannot read is never rewritten from scratch', () async {
     final room = FakeRoom()..reachable = false;
@@ -2989,6 +3110,34 @@ class _AWatchedCopyThatIgnoresDelete implements File {
 
   @override
   Future<FileSystemEntity> delete({bool recursive = false}) async => this;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _ATakeWhoseCopyIsHeld implements File {
+  final File _real;
+  final copied = Completer<void>();
+  final release = Completer<void>();
+
+  _ATakeWhoseCopyIsHeld(this._real);
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<DateTime> lastModified() => _real.lastModified();
+
+  @override
+  Future<bool> exists() => _real.exists();
+
+  @override
+  Future<File> copy(String newPath) async {
+    final made = await _real.copy(newPath);
+    copied.complete();
+    await release.future;
+    return made;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
