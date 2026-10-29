@@ -267,7 +267,9 @@ class _FraseTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         decoration: BoxDecoration(
-          color: colors.card,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? const Color.fromRGBO(236, 234, 220, .05)
+              : const Color.fromRGBO(255, 255, 255, .4),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: row.regravando
@@ -277,7 +279,7 @@ class _FraseTile extends StatelessWidget {
                 : row.traduzindoDeNovo
                 ? colors.telha
                 : mark == null
-                ? colors.line
+                ? colors.areia
                 : colors.telha,
           ),
         ),

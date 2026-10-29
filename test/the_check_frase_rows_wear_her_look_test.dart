@@ -91,4 +91,26 @@ void main() {
       );
     });
   }
+
+  for (final (look, veu, areia) in [
+    ('light', const Color.fromRGBO(255, 255, 255, .4), const Color(0xFFC5C29F)),
+    ('dark', const Color.fromRGBO(236, 234, 220, .05), const Color(0xFF6E6A57)),
+  ]) {
+    testWidgets('in the $look look a frase card is her wash with a sand '
+        'edge, not a solid card with a hairline', (tester) async {
+      await _pump(tester, look, [_aFrase()]);
+      final cartao = _pintura(tester, _oCartao(1));
+
+      expect(
+        cartao.color,
+        veu,
+        reason: 'o cartão era o card sólido, não o véu dela',
+      );
+      expect(
+        (cartao.border! as Border).top.color,
+        areia,
+        reason: 'a borda era a linha da tela, não a areia dela',
+      );
+    });
+  }
 }
