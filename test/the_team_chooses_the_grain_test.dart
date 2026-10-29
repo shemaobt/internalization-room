@@ -882,6 +882,45 @@ void main() {
   );
 
   testWidgets(
+    'on the plan of a passage recorded whole, a whole-passage take left on the '
+    'tablet is named by the passage, not as scene 1',
+    (tester) async {
+      final (harness, container) = await _atRest(
+        tester,
+        seed: (session) => [_rehearsal(session)],
+      );
+      harness.room
+        ..grain = Grain.whole
+        ..unreachableTake = 'ensaio/${KeptScope.whole}';
+      harness.playback.measured = const Duration(seconds: 48);
+      final audio = _anAudioFile(KeptScope.whole);
+      (harness.takes as FakeTakeQueue).rows.add(
+        PendingTake(
+          id: 'na-fila-inteira',
+          path: audio.path,
+          sessionId: container.read(salaSessionProvider).sessionId!,
+          kind: 'ensaio',
+          scope: KeptScope.whole,
+          passNumber: 1,
+        ),
+      );
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(find.text(_planLine), findsOneWidget);
+      expect(
+        find.text('A passagem inteira · 0:48 — enviar agora'),
+        findsOneWidget,
+        reason:
+            'sob o grão da passagem inteira, a gravação da passagem inteira era '
+            'oferecida como «Cena 1»',
+      );
+      expect(find.text('Cena 1 · 0:48 — enviar agora'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'an empty whole recording with no scene rehearsal of the session opens the '
     'whole-passage home, not the plan',
     (tester) async {
