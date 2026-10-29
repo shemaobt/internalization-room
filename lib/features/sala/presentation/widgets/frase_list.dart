@@ -273,7 +273,7 @@ class _FraseTile extends StatelessWidget {
         ? colors.azul
         : row.traduzindoDeNovo
         ? colors.telha
-        : mark == null || row.regravada
+        : mark == null || row.regravada && row.achado == null
         ? colors.areia
         : colors.telha;
     return ConstrainedBox(
@@ -338,7 +338,7 @@ class _FraseTile extends StatelessWidget {
                       child: _Bar(
                         share: row.share,
                         fill: tom,
-                        listras: row.regravada
+                        listras: row.regravada && row.achado == null
                             ? colors.areia.withValues(alpha: .9)
                             : null,
                       ),

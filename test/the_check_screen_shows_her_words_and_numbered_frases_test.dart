@@ -380,8 +380,10 @@ Future<ProviderContainer> _aParteUmRegravada(
 
 Future<ProviderContainer> _comUmaFraseRegravada(
   WidgetTester tester,
-  SalaHarness harness,
-) async {
+  SalaHarness harness, {
+  int fresca = 2,
+  List<BtFinding> achados = const [],
+}) async {
   harness.room.takes.add(
     const TakeView(
       takeId: 'gravacao-velha-1',
@@ -393,26 +395,7 @@ Future<ProviderContainer> _comUmaFraseRegravada(
   final container = await _voltaATraducao(
     tester,
     harness,
-    const BackTranslationProgress(
-      segments: [
-        SegmentView(
-          segmentId: 'trecho-3',
-          takeId: 'gravacao-2',
-          startsMs: 0,
-          endsMs: 6000,
-          frase: 2,
-        ),
-      ],
-      stale: [
-        SegmentView(
-          segmentId: 'trecho-1',
-          takeId: 'gravacao-velha-1',
-          startsMs: 0,
-          endsMs: 4000,
-          frase: 1,
-        ),
-      ],
-    ),
+    _umaParteRegravada(fresca: fresca, regravada: 1, achados: achados),
   );
   await waitFor(
     'a frase regravada achar a sua parte',
@@ -2964,4 +2947,81 @@ void main() {
       closeTheRoom(container);
     });
   }
+
+  for (final (look, azul, telha) in [
+    (Brightness.light, const Color(0xFF89AAA3), const Color(0xFFBE4A01)),
+    (Brightness.dark, const Color(0xFF8FB1A9), const Color(0xFFD6612A)),
+  ]) {
+    for (final (kind, cor) in [
+      (BtFindingKind.unclear, azul),
+      (BtFindingKind.addition, telha),
+    ]) {
+      testWidgets('in the ${look.name} look a «regravada» frase the last '
+          'check found ${kind.name} keeps its finding colour, dashed', (
+        tester,
+      ) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await _comUmaFraseRegravada(
+          tester,
+          harness,
+          achados: [BtFinding(kind: kind, frase: 1, segmentId: 'trecho-1')],
+        );
+        final palavra = find.text('regravada — traduzam de novo');
+        final cartao = _oCartao(palavra).first;
+        final barra = find
+            .descendant(
+              of: find
+                  .descendant(
+                    of: cartao,
+                    matching: find.byType(FractionallySizedBox),
+                  )
+                  .first,
+              matching: find.byType(Container),
+            )
+            .first;
+
+        expect(
+          (tester.widget<Container>(cartao).foregroundDecoration as DashedEdge?)
+              ?.color,
+          cor,
+          reason:
+              'a frase regravada perdia a classe do achado, e a borda ficava '
+              'de areia',
+        );
+        expect(
+          (tester.widget<Container>(barra).decoration as BoxDecoration).color,
+          cor,
+          reason: 'a barra do achado virava listras de areia',
+        );
+        expect(tester.widget<Text>(palavra).style?.color, telha);
+        closeTheRoom(container);
+      });
+    }
+  }
+
+  testWidgets('a finding on the fresh frase that took the stale one\'s number '
+      'leaves the «regravada» card in sand', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _comUmaFraseRegravada(
+      tester,
+      harness,
+      fresca: 1,
+      achados: const [
+        BtFinding(kind: BtFindingKind.unclear, frase: 1, segmentId: 'trecho-3'),
+      ],
+    );
+    final cartao = _oCartao(find.text('regravada — traduzam de novo')).first;
+
+    expect(
+      (tester.widget<Container>(cartao).foregroundDecoration as DashedEdge?)
+          ?.color,
+      const Color(0xFFC5C29F),
+      reason:
+          'o número da frase muda quando a parte é regravada; achar o achado '
+          'pelo número pintava a regravada com o achado da frase nova',
+    );
+    closeTheRoom(container);
+  });
 }
