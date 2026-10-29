@@ -6036,7 +6036,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state = state.copyWith(scene: shown.copyWith(notUnderstood: false));
           _startListening('frase_${_stamp()}', owner: MicOwner.frase);
         }
-      case PartPlaying():
+      case PartPlaying(:final part) when part.path == shown.take:
         _markThePausa();
       default:
         _translateOnFrom(shown.rehearsal!.frontier);
