@@ -11,7 +11,7 @@ class WayBackChevron extends StatelessWidget {
       width: 22,
       height: 22,
       child: CustomPaint(
-        painter: _WayBackChevronPainter(SalaColors.of(context).claquete),
+        painter: _WayBackChevronPainter(SalaColors.of(context).verdeClaro),
       ),
     );
   }
