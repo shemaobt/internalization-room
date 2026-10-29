@@ -294,4 +294,30 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'on the iPhone SE at a larger text size a scene rehearsal whose frase '
+    'places cannot be read scrolls over a long session list, instead of '
+    'overflowing',
+    (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await _onTheStep(
+        tester,
+        screen: _se.size,
+        bar: _se.bar,
+        step: SceneStep.placesUnknown,
+        listed: 8,
+      );
+
+      expect(find.text('terminei'), findsOneWidget);
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'a etapa sem os lugares das frases era a única que não rolava, '
+            'e estourava sob o título nos 9vh dela',
+      );
+    },
+  );
 }

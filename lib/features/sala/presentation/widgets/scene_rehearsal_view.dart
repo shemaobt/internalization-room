@@ -115,14 +115,16 @@ class SceneRehearsalView extends ConsumerWidget {
                 restart: session.sceneRestart,
                 stoppedAt: session.sceneStoppedAt,
               ),
-              SceneStep.placesUnknown => ScenePlacesUnknown(
-                scene: scene,
-                language: language,
-                sending: sending,
-                sendable: sendable,
-                line: session.sceneLine,
-                restartShown: session.sceneRestartShown,
-                restart: session.sceneRestart,
+              SceneStep.placesUnknown => SingleChildScrollView(
+                child: ScenePlacesUnknown(
+                  scene: scene,
+                  language: language,
+                  sending: sending,
+                  sendable: sendable,
+                  line: session.sceneLine,
+                  restartShown: session.sceneRestartShown,
+                  restart: session.sceneRestart,
+                ),
               ),
               SceneStep.sent => SceneListenMode(
                 scene: scene,
