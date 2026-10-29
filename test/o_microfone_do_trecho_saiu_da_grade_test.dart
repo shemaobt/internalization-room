@@ -300,12 +300,14 @@ void main() {
       reason: 'o microfone tem de estar mesmo aberto para medir a cor dele',
     );
 
+    await tester.pump(const Duration(milliseconds: 1000));
     expect(
-      discoDoCirculo(tester),
-      BeadStyles.azul,
+      emVoltaDoCirculo(tester).where((tom) => tom.a == 1),
+      {const Color(0xFF89AAA3)},
       reason:
-          'o microfone aberto na tradução é sempre o da ponte: com a '
-          'estação da materna fora, não há segunda tinta a distinguir',
+          'o microfone aberto na tradução veste a borda var(--azul) do '
+          '.cdot dela (globals.css:380): com a estação da materna fora, não '
+          'há segunda tinta a distinguir',
     );
     expect(
       [
