@@ -363,6 +363,30 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while a sentence is being recorded again another row\'s '
+      '«regravar» offers VoiceOver no tap that does nothing', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await tocar(tester, 'regravar a frase 3');
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      tester.getSemantics(_naLista('regravar a frase 1')),
+      isSemantics(
+        isButton: true,
+        hasEnabledState: true,
+        isEnabled: false,
+        hasTapAction: false,
+      ),
+      reason: 'o VoiceOver oferecia um toque que não fazia nada',
+    );
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
   Future<void> regravarAte(
     WidgetTester tester,
     SalaHarness harness,
