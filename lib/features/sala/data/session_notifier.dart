@@ -7156,11 +7156,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// [playTheRehearsal] already carries that logic, and duplicating it here would drift
   /// from it the first time either one changed. A different part stops whatever is in the
   /// air and starts this one instead of resuming it.
-  ///
-  /// A dimmed row — one of the others while a record-again sent by a finding stands open,
-  /// not yet recorded — does not apply, so its listen does nothing (ADR 0040). Once that
-  /// recording is pending (waiting for the green check), every row plays as usual: the
-  /// team can hear what they recorded before deciding to keep it.
   void _tocarAParte(int indice) {
     if (state.station is! Ensaio) return;
     if (state.needsPerson) return;
@@ -8085,8 +8080,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     final conferida = state.btPhase == BtPhase.conferida || state.btChecked;
-    // Before the write, not after: the mark belongs to the Rehearsal alone, and a row
-    // saved for the retro must never carry one to restore.
     _leaveTheStepFor(const Retro());
     _clearAll();
     _rememberWhereTheyAre(const Retro());

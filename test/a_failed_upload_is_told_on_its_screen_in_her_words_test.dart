@@ -313,6 +313,23 @@ class _Casa {
       });
 }
 
+Future<_Casa> _comAsQuatroPartesNaSala(WidgetTester tester) {
+  final sala = SalaHarness();
+  sala.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+    sessionId: 'sessao-antiga',
+    stage: SalaStage.ensaio,
+    takes: [
+      for (final n in [1, 2, 3, 4])
+        KeptTake(
+          scopeId: KeptScope.parte(n),
+          path: sala.recorder.aFile('parte-$n').path,
+          takeId: 'gravacao-$n',
+        ),
+    ],
+  );
+  return _naCasa(tester, harness: sala);
+}
+
 Widget _aCasa(ProviderContainer container) => UncontrolledProviderScope(
   container: container,
   child: MaterialApp(
@@ -1560,6 +1577,20 @@ void main() {
     expect(_naQuarta(find.textContaining('enviar agora')), findsOneWidget);
     expect(_naQuarta(byLabel(_gravarNaLinha)), findsNothing);
   });
+
+  testWidgets(
+    'a row beyond the last scene offers neither Ouvir nor Gravar de novo, '
+    'even over a part the room holds',
+    (tester) async {
+      final casa = await _comAsQuatroPartesNaSala(tester);
+      casa.room.unreachableTake = 'ensaio/parte-4';
+      await casa.umaTomadaDeOutraVisita(4, pass: 2);
+
+      expect(_naQuarta(find.textContaining('enviar agora')), findsOneWidget);
+      expect(_naQuarta(byLabel(_ouvirNaLinha)), findsNothing);
+      expect(_naQuarta(byLabel(_gravarDeNovoNaLinha)), findsNothing);
+    },
+  );
 
   testWidgets('recording on a row beyond the last scene records nothing', (
     tester,
