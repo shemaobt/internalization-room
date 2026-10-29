@@ -98,19 +98,18 @@ Future<ProviderContainer> _naChecagem(
 SalaSessionNotifier _notifier(ProviderContainer container) =>
     container.read(salaSessionProvider.notifier);
 
-Future<void> _umaPessoaVem(
+Future<void> _umaParadaNaChecagem(
   WidgetTester tester,
-  ProviderContainer container, {
-  void Function()? then,
-}) async {
+  ProviderContainer container,
+) async {
   _notifier(container).haltForABrokenBuild();
   await _passar(tester);
-  expect(_sala(container).needsPerson, isTrue);
-  then?.call();
-  _notifier(container).teamTapped();
-  await _passar(tester);
-  await _passar(tester);
-  expect(_sala(container).needsPerson, isFalse);
+  expect(
+    _sala(container).needsPerson,
+    isFalse,
+    reason: 'a parada cobria a checagem, e o dela só fica sobre a conversa',
+  );
+  expect(thePersonSign, findsNothing);
 }
 
 Future<void> _terminarAsPartes(
@@ -669,27 +668,31 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a person called while the passage plays leaves «ouvir de novo», '
-      'which plays it again from the start', (tester) async {
+  testWidgets('a halt while the passage plays on the check cuts nothing, and '
+      'the passage plays on to X-retell, as hers', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _naChecagem(tester, harness);
+    final desde = harness.playback.played.length;
     await _tocar(tester, _novoOuvinte);
     harness.playback.finishPlayback();
     await _passar(tester);
 
-    await _umaPessoaVem(tester, container);
+    await _umaParadaNaChecagem(tester, container);
 
-    expect(find.text(_ouvirDeNovo), findsOneWidget);
-    final desde = harness.playback.played.length;
-    await _tocar(tester, _ouvirDeNovo);
-    await _terminarAsPartes(tester, harness);
-    expect(_ouvidoDesde(harness, desde), _partes);
+    await _terminarAsPartes(tester, harness, partes: 2);
+    expect(
+      _ouvidoDesde(harness, desde),
+      _partes,
+      reason: 'a parada cortava a passagem no meio para o ouvinte',
+    );
     expect(_falasX(harness).last, ('X1', 'pt'));
     closeTheRoom(container);
   });
 
-  testWidgets('X-open cut by a person called is said again once the room is '
-      'back, before the passage, X-retell and the circle', (tester) async {
+  testWidgets('a halt during X-open on the check cuts nothing: X-open is said '
+      'once, then the passage, X-retell and the circle, as hers', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _naChecagem(tester, harness);
     final desde = harness.playback.played.length;
@@ -697,18 +700,18 @@ void main() {
     harness.voice.holdNextLine();
     await _tocar(tester, _novoOuvinte);
 
-    await _umaPessoaVem(tester, container, then: harness.voice.holdNextLine);
+    await _umaParadaNaChecagem(tester, container);
 
-    expect(_falasX(harness), [('X0', 'pt'), ('X0', 'pt')]);
-    expect(harness.playback.played.length, desde);
-    await _tocar(tester, _circulo);
-    expect(_gravacoes(harness), gravacoes);
     harness.voice.finishHeldLine();
     await _passar(tester);
     await _terminarAsPartes(tester, harness);
 
+    expect(
+      _falasX(harness),
+      [('X0', 'pt'), ('X1', 'pt')],
+      reason: 'a parada cortava o X-open, que era dito de novo depois do toque',
+    );
     expect(_ouvidoDesde(harness, desde), _partes);
-    expect(_falasX(harness).last, ('X1', 'pt'));
     await _tocar(tester, _circulo);
     expect(_gravacoes(harness), gravacoes + 1);
     closeTheRoom(container);
@@ -777,31 +780,29 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a person called after X-open and before the first part leaves '
-      '«ouvir de novo», which plays the passage', (tester) async {
+  testWidgets('a halt after X-open and before the first part on the check '
+      'cuts nothing, and the passage plays, as hers', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _naChecagem(tester, harness);
     final desde = harness.playback.played.length;
     harness.room.holdNextClip();
     await _tocar(tester, _novoOuvinte);
-    _notifier(container).haltForABrokenBuild();
-    await _passar(tester);
+
+    await _umaParadaNaChecagem(tester, container);
     harness.room.finishHeldClip();
     await _passar(tester);
-    _notifier(container).teamTapped();
-    await _passar(tester);
-    await _passar(tester);
-
-    expect(harness.playback.played.length, desde);
-    expect(find.text(_ouvirDeNovo), findsOneWidget);
-    await _tocar(tester, _ouvirDeNovo);
     await _terminarAsPartes(tester, harness);
-    expect(_ouvidoDesde(harness, desde), _partes);
+
+    expect(
+      _ouvidoDesde(harness, desde),
+      _partes,
+      reason: 'a parada segurava a passagem até um toque no sinal',
+    );
     closeTheRoom(container);
   });
 
-  testWidgets('X-retell cut by a person called is said again once the room is '
-      'back, and only then does the circle open', (tester) async {
+  testWidgets('a halt during X-retell on the check cuts nothing: X-retell is '
+      'said once, and then the circle opens, as hers', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _naChecagem(tester, harness);
     await _tocar(tester, _novoOuvinte);
@@ -814,12 +815,14 @@ void main() {
     await _passar(tester);
     final gravacoes = _gravacoes(harness);
 
-    await _umaPessoaVem(tester, container, then: harness.voice.holdNextLine);
+    await _umaParadaNaChecagem(tester, container);
 
-    expect(_falasX(harness), [('X0', 'pt'), ('X1', 'pt'), ('X1', 'pt')]);
-    expect(find.text(_toque), findsNothing);
-    await _tocar(tester, _circulo);
-    expect(_gravacoes(harness), gravacoes);
+    expect(
+      _falasX(harness),
+      [('X0', 'pt'), ('X1', 'pt')],
+      reason:
+          'a parada cortava o X-retell, que era dito de novo depois do toque',
+    );
     harness.voice.finishHeldLine();
     await _passar(tester);
     expect(find.text(_toque), findsOneWidget);
