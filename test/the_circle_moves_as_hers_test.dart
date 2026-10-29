@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
 const _side = 217.5;
 
@@ -11,6 +13,7 @@ Widget _circle(
   VoiceState voice, {
   required bool canvas,
   bool peerCue = false,
+  bool noteMode = false,
   bool still = false,
   Halt halt = const NoHalt(),
   Key? key,
@@ -25,6 +28,7 @@ Widget _circle(
           size: _side,
           voice: voice,
           peerCue: peerCue,
+          noteMode: noteMode,
           canvas: canvas,
           halt: halt,
           semanticLabel: 'circulo',
@@ -73,7 +77,191 @@ double _scaleAbove(WidgetTester tester, Finder what) => tester
     )
     .fold(1.0, (scale, move) => scale * move.transform.storage[0]);
 
+final _rippleRings = find.descendant(
+  of: find.byType(Ripple),
+  matching: find.byType(Container),
+);
+
+int _paintedRipples(WidgetTester tester) => _rippleRings
+    .evaluate()
+    .where(
+      (ring) =>
+          ((ring.widget as Container).decoration! as BoxDecoration)
+                  .border!
+                  .top
+                  .color
+                  .a *
+              _seen(tester, find.byWidget(ring.widget)) >
+          0,
+    )
+    .length;
+
+List<double> _rippleScales(WidgetTester tester) => [
+  for (final ring in _rippleRings.evaluate())
+    _scaleAbove(tester, find.byWidget(ring.widget)),
+];
+
+final _glyph = find.byWidgetPredicate(
+  (widget) => widget is CustomPaint && widget.painter is CircleGlyphPainter,
+);
+
 void main() {
+  testWidgets('the mark inside her canvas circle breathes with the ring, '
+      'at invite, at done, while the team talks and with a note at done', (
+    tester,
+  ) async {
+    for (final (name, voice, peerCue, noteMode) in [
+      ('invite', VoiceState.invite, false, false),
+      ('done', VoiceState.done, false, false),
+      ('team talk', VoiceState.invite, true, false),
+      ('note at done', VoiceState.done, false, true),
+    ]) {
+      await tester.pumpWidget(
+        _circle(
+          voice,
+          canvas: true,
+          peerCue: peerCue,
+          noteMode: noteMode,
+          key: ValueKey('glifo $name'),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 3250));
+      expect(
+        [_scaleAbove(tester, _glyph), _scaleAbove(tester, _ring.first)],
+        [closeTo(1.035, 1e-6), closeTo(1.035, 1e-6)],
+        reason:
+            'o glifo dela mora dentro do .target (page.tsx:1026-1036) e '
+            'respira com ele até 1.035 (globals.css:192,195,230); em $name '
+            'o nosso alto-falante ficava parado enquanto o anel respirava',
+      );
+    }
+  });
+
+  testWidgets('a note left at invite holds the hand and the ring still', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _circle(VoiceState.invite, canvas: true, noteMode: true),
+    );
+    await tester.pump(const Duration(milliseconds: 3250));
+    expect(
+      [_scaleAbove(tester, _glyph), _scaleAbove(tester, _ring.first)],
+      [closeTo(1, 1e-6), closeTo(1, 1e-6)],
+      reason:
+          'com um recado no convite o .target dela tem animation:none '
+          '(globals.css:168): a mão e o anel ficam parados',
+    );
+  });
+
+  testWidgets('from invite to done the circle keeps the breath it was on, '
+      'it does not start a new one from rest', (tester) async {
+    const same = ValueKey('o mesmo canvas do convite ao fim');
+    await tester.pumpWidget(
+      _circle(VoiceState.invite, canvas: true, key: same),
+    );
+    await tester.pump(const Duration(milliseconds: 3250));
+    await tester.pumpWidget(_circle(VoiceState.done, canvas: true, key: same));
+    await tester.pump(const Duration(milliseconds: 17));
+    expect(
+      [
+        for (final ring in _ring.evaluate())
+          _scaleAbove(tester, find.byWidget(ring.widget)),
+        _scaleAbove(tester, _glyph),
+      ],
+      everyElement(closeTo(1.035, 1e-3)),
+      reason:
+          'o done dela usa a mesma animação invite (globals.css:192,230) e o '
+          'navegador segue no mesmo ponto; o nosso anel do fim renascia em 1 '
+          'enquanto o do convite ainda respirava ao lado',
+    );
+  });
+
+  testWidgets('leaving the breath the fading invite ring and the mark stand '
+      'at rest together, from the switch', (tester) async {
+    const same = ValueKey('o mesmo canvas do convite à escuta');
+    await tester.pumpWidget(
+      _circle(VoiceState.invite, canvas: true, key: same),
+    );
+    await tester.pump(const Duration(milliseconds: 3250));
+    await tester.pumpWidget(
+      _circle(VoiceState.listening, canvas: true, key: same),
+    );
+    await tester.pump(const Duration(milliseconds: 17));
+    expect(
+      [_scaleAbove(tester, _edged(_telha)), _scaleAbove(tester, _glyph)],
+      [closeTo(1, 1e-6), closeTo(1, 1e-6)],
+      reason:
+          'fora do invite e do done o .target dela não tem animação e o '
+          'transform volta a none sem transição; o nosso anel do convite '
+          'seguia respirando enquanto se apagava, longe do glifo',
+    );
+  });
+
+  testWidgets('a tablet that asks for less motion sees no listening rings and '
+      'no breath on the mark or the ring', (tester) async {
+    await tester.pumpWidget(
+      _circle(VoiceState.listening, canvas: true, still: true),
+    );
+    await tester.pump(const Duration(milliseconds: 2500));
+    expect(
+      _rippleRings,
+      findsNothing,
+      reason:
+          'com menos movimento os .ripple dela ficam em 0 (globals.css:237)',
+    );
+
+    await tester.pumpWidget(
+      _circle(VoiceState.invite, canvas: true, still: true),
+    );
+    await tester.pump(const Duration(milliseconds: 3250));
+    expect(
+      [_scaleAbove(tester, _glyph), _scaleAbove(tester, _ring.first)],
+      [closeTo(1, 1e-6), closeTo(1, 1e-6)],
+      reason: 'e o convite dela fica parado, glifo e anel',
+    );
+  });
+
+  testWidgets('her canvas rings start one at a time, 1.07 s apart, and then '
+      'keep the rhythm they had, also while a note is left', (tester) async {
+    for (final noteMode in [false, true]) {
+      final same = ValueKey('o mesmo canvas ouvindo $noteMode');
+      await tester.pumpWidget(
+        _circle(VoiceState.invite, canvas: true, noteMode: noteMode, key: same),
+      );
+      await tester.pumpWidget(
+        _circle(
+          VoiceState.listening,
+          canvas: true,
+          noteMode: noteMode,
+          key: same,
+        ),
+      );
+
+      for (final (step, rings) in [(500, 1), (1000, 2), (1000, 3)]) {
+        await tester.pump(Duration(milliseconds: step));
+        expect(
+          _paintedRipples(tester),
+          rings,
+          reason:
+              'os .ripple r2 e r3 dela esperam 1,07 s e 2,14 s em opacidade 0 '
+              '(globals.css:119,200-201,172-173); os nossos três já nasciam '
+              'juntos, dois deles no meio do caminho',
+        );
+      }
+
+      for (final step in [700, 1070, 1070]) {
+        await tester.pump(Duration(milliseconds: step));
+        expect(
+          _rippleScales(tester),
+          contains(closeTo(.62, 1e-6)),
+          reason:
+              'depois da espera cada anel renasce em .62 (globals.css:202) a '
+              'cada 3,2 s: r1 aos 3,2 s, r2 aos 4,27 s, r3 aos 5,34 s',
+        );
+      }
+    }
+  });
+
   testWidgets('her canvas circle rests on a 6.5 s breath that reaches 1.035, '
       'at invite, at done and while the team talks', (tester) async {
     for (final (name, voice, peerCue) in [

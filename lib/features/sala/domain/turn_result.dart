@@ -7,7 +7,6 @@ class TurnResult {
   final String fixedLine;
   final String transcript;
   final bool peerCue;
-  final bool usedFailSafe;
   final bool degraded;
 
   /// Null when the turn carried no coverage at all — which is not the same as a passage
@@ -29,7 +28,6 @@ class TurnResult {
     required this.fixedLine,
     required this.transcript,
     required this.peerCue,
-    required this.usedFailSafe,
     required this.degraded,
     required this.coverage,
     required this.done,
@@ -45,7 +43,6 @@ class TurnResult {
     fixedLine: json['fixed_line'] as String? ?? '',
     transcript: json['transcript'] as String? ?? '',
     peerCue: json['peer_cue'] as bool? ?? false,
-    usedFailSafe: json['used_fail_safe'] as bool? ?? false,
     degraded: json['degraded'] as bool? ?? false,
     coverage: json['coverage'] == null
         ? null
