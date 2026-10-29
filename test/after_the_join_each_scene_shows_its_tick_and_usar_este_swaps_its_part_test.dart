@@ -51,6 +51,7 @@ const _recordAgain = 'gravar esta cena de novo';
 const _question = 'Qual cena vocês vão ensaiar?';
 const _houseBack = 'Voltar para a passagem atual';
 const _bringBack = 'trazer de volta as traduções do ensaio desta cena';
+const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _bringBackArmed =
     'toquem de novo: as traduções do ensaio voltam; as que vocês fizeram aqui '
     'para esta cena ficam guardadas';
@@ -1714,6 +1715,70 @@ void main() {
         reason: 'o toque depois de fechar a folha só limpava, sem tocar',
       );
       expect(it.glyphOn(it.listen(s2b)), LucideIcons.pause);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'while a bring-back runs, «gravar a passagem inteira de uma vez» on the '
+    'home rests',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      it.room.retroSoFar = const BackTranslationProgress(bringBack: [2]);
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await it.until(
+        'a casa oferecer a volta das traduções',
+        () => it.door(2, _bringBack).evaluate().isNotEmpty,
+      );
+      it.room.holdBringBack();
+      await it.tapThe(it.door(2, _bringBack));
+      await it.wait(const Duration(milliseconds: 700));
+      await it.tapThe(it.door(2, _bringBackArmed));
+      await it.until(
+        'a volta das traduções ficar no ar',
+        () => it.container.read(salaSessionProvider).bringingBack == 2,
+      );
+
+      expect(
+        it.enabled(byLabel(_wholeAtOnce)),
+        isFalse,
+        reason: 'a troca do grão ficava viva com a volta das traduções no ar',
+      );
+      it.room.finishHeldBringBack();
+      await it.settle();
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'while the join runs, «gravar a passagem inteira de uma vez» on the plan '
+    'rests',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s1a, s2a, s3a]);
+      await it.held(const [s1a, s2a, s3a]);
+      await it.openThePlan();
+      it.room.holdNextTakesList();
+      final join = byLabel(_join);
+      await tester.ensureVisible(join);
+      await tester.pump();
+      await tester.tap(join);
+      await it.until(
+        'a junta perguntar à sala pela cena 1',
+        () => it.room.aTakesListIsHeld,
+      );
+      expect(it.container.read(salaSessionProvider).joining, 1);
+
+      expect(
+        it.enabled(byLabel(_wholeAtOnce)),
+        isFalse,
+        reason: 'a troca do grão ficava viva com a junta no ar',
+      );
+      it.room.finishHeldTakesList();
+      await it.joinEnds();
       semantics.dispose();
     },
   );
