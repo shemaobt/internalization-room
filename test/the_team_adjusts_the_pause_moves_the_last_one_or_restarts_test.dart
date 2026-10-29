@@ -740,6 +740,28 @@ void main() {
       },
     );
 
+    testWidgets(
+      'the restart\'s line sits under the circle, above the frases told and «terminei», not under «recomeçar»',
+      (tester) async {
+        final screen = await _onScreen(tester, rehearsal: _twoFrases);
+        await screen.tap(_restart);
+        await screen.beat(700);
+        screen.room.failSceneWith = const NetworkFailed('sem rede');
+        await screen.tap(_armed(2));
+        await screen.until(() => screen.shows(_restartFailed));
+        double top(String label) => tester.getTopLeft(byLabel(label)).dy;
+
+        expect(top(_tell), lessThan(top(_restartFailed)));
+        expect(
+          top(_restartFailed),
+          lessThan(top('frases traduzidas')),
+          reason:
+              'a linha dela ficava embaixo de «recomeçar», depois das frases',
+        );
+        expect(top(_restartFailed), lessThan(top(_terminei)));
+      },
+    );
+
     testWidgets('a double tap only arms', (tester) async {
       final screen = await _onScreen(tester, rehearsal: _twoFrases);
 

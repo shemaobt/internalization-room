@@ -22,8 +22,8 @@ const _rem = 16.0;
 /// The translate step, in her order: the instruction, the play control and the hint, the
 /// strip, her adjust row under a pending pausa, «traduzir o ensaio da cena» until the
 /// team listens, the circle, «manter a tradução de antes» while a frase is translated
-/// again and her message under them, the frases told, «terminei», «recomeçar a tradução», and
-/// «gravar o ensaio da cena de novo» under them.
+/// again, her message and the restart's line under them, the frases told, «terminei»,
+/// «recomeçar a tradução», and «gravar o ensaio da cena de novo» under them.
 class SceneTranslateStep extends ConsumerWidget {
   final SceneScreen scene;
   final Envelope? envelope;
@@ -75,6 +75,7 @@ class SceneTranslateStep extends ConsumerWidget {
       (longest, frase) => max(longest, frase.spanIn(scene.length)),
     );
     final message = _messageOf(frases);
+    final restartLine = _restartLineOf(line, language);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -165,6 +166,16 @@ class SceneTranslateStep extends ConsumerWidget {
             ),
           ),
         ],
+        if (restartLine != null) ...[
+          const SizedBox(height: 8),
+          Semantics(
+            liveRegion: true,
+            child: _Written(
+              restartLine,
+              style: TextStyle(color: colors.mut, fontSize: 16),
+            ),
+          ),
+        ],
         if (frases.isNotEmpty) ...[
           const SizedBox(height: 12),
           _Heading(said('frases')),
@@ -191,13 +202,13 @@ class SceneTranslateStep extends ConsumerWidget {
             large: true,
           ),
         ],
-        if (restartShown || line != null) ...[
+        if (restartShown) ...[
           const SizedBox(height: 12),
           SceneRestartControl(
             shown: restartShown,
             armed: restart,
             n: scene.rehearsal?.translatedFrases ?? 0,
-            line: line,
+            line: null,
             live: idle,
             language: language,
           ),
@@ -302,14 +313,7 @@ class SceneRestartControl extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SalaColors.of(context);
-    final words = switch (line) {
-      SceneLine.restarted => sceneRehearsalLabelFor('restarted', language),
-      SceneLine.restartFailed => retroLabelFor('restartFailed', language),
-      SceneLine.diskFailed => sceneRehearsalLabelFor('diskFailed', language),
-      SceneLine.notSent => sceneRehearsalLabelFor('notSent', language),
-      SceneLine.alreadySent => sceneRehearsalLabelFor('alreadySent', language),
-      _ => null,
-    };
+    final words = _restartLineOf(line, language);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -340,6 +344,15 @@ class SceneRestartControl extends ConsumerWidget {
     );
   }
 }
+
+String? _restartLineOf(SceneLine? line, String language) => switch (line) {
+  SceneLine.restarted => sceneRehearsalLabelFor('restarted', language),
+  SceneLine.restartFailed => retroLabelFor('restartFailed', language),
+  SceneLine.diskFailed => sceneRehearsalLabelFor('diskFailed', language),
+  SceneLine.notSent => sceneRehearsalLabelFor('notSent', language),
+  SceneLine.alreadySent => sceneRehearsalLabelFor('alreadySent', language),
+  _ => null,
+};
 
 class ScenePlacesUnknown extends ConsumerWidget {
   final SceneScreen scene;
