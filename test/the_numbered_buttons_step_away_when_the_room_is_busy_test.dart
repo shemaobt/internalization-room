@@ -5,7 +5,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, labelsHeard;
 import 'the_kept_retellings_are_numbered_buttons_on_the_conversation_test.dart'
     show aKept, atRestAfterATurn;
 
@@ -140,9 +140,17 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(container.read(salaSessionProvider).needsPerson, isTrue);
-      _expectAway(
-        tester,
+      expect(_first, findsOneWidget, reason: 'os botões não estavam montados');
+      expect(
+        _opacity(tester),
+        0.0,
         reason: 'os botões ficaram com a tela chamando uma pessoa',
+      );
+      expect(_deaf(tester), isTrue);
+      expect(
+        labelsHeard(tester),
+        isNot(contains('Hear how you told part 1')),
+        reason: 'o leitor de tela ainda alcançava o take sob o sinal',
       );
       semantics.dispose();
       closeTheRoom(container);

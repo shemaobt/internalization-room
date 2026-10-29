@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
@@ -108,20 +107,6 @@ Future<void> _tapACorner(_Sala sala) async {
   await _pass(sala, 20);
 }
 
-List<String> _labelsHeard(WidgetTester tester) {
-  final labels = <String>[];
-  bool visit(SemanticsNode node) {
-    labels.add(node.label);
-    node.visitChildren(visit);
-    return true;
-  }
-
-  visit(
-    tester.binding.renderViews.first.owner!.semanticsOwner!.rootSemanticsNode!,
-  );
-  return labels;
-}
-
 double _opacityOf(Finder what) => find
     .ancestor(of: what, matching: find.byType(AnimatedOpacity))
     .evaluate()
@@ -216,7 +201,7 @@ void main() {
       await _pass(sala, 20);
 
       expect(thePersonSign, findsOneWidget);
-      expect(_labelsHeard(tester), isNot(contains(_theSign)));
+      expect(labelsHeard(tester), isNot(contains(_theSign)));
       expect(
         tester
             .getSemantics(
@@ -246,7 +231,7 @@ void main() {
       expect(_hitTestable(_leavePassage), isFalse);
       expect(find.byType(FacilitatorCircle).hitTestable(), findsNothing);
       expect(
-        _labelsHeard(tester),
+        labelsHeard(tester),
         isNot(
           contains(
             tester
@@ -358,6 +343,57 @@ void main() {
     },
   );
 
+  testWidgets(
+    'under the sign on the Choice VoiceOver reaches neither the heading nor the look and language switches',
+    (tester) async {
+      final heard = tester.ensureSemantics();
+      final container = await pumpSala(tester, SalaHarness());
+      await tester.pump(const Duration(milliseconds: 1500));
+      const beneath = ['Escolha a passagem', 'Claro', 'Escuro', 'PT', 'EN'];
+      expect(labelsHeard(tester), containsAll(beneath));
+
+      container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(thePersonSign, findsOneWidget);
+      expect(
+        labelsHeard(tester).where(beneath.contains),
+        isEmpty,
+        reason:
+            'sob o sinal o VoiceOver ainda chegava ao título e às chaves da escolha',
+      );
+      heard.dispose();
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'under the sign on the Ensaio VoiceOver reaches nothing beneath',
+    (tester) async {
+      final heard = tester.ensureSemantics();
+      final sala = await _atRestInTheConversation(tester);
+      sala.container.read(salaSessionProvider.notifier).goEnsaio();
+      await _pass(sala, 20);
+      expect(_read(sala).stage, SalaStage.ensaio);
+      final beneath = labelsHeard(
+        tester,
+      ).where((label) => label.isNotEmpty).toSet();
+      expect(beneath, isNotEmpty);
+
+      sala.container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+      await _pass(sala);
+
+      expect(thePersonSign, findsOneWidget);
+      expect(
+        labelsHeard(tester).where(beneath.contains),
+        isEmpty,
+        reason: 'sob o sinal o VoiceOver ainda chegava aos botões do ensaio',
+      );
+      heard.dispose();
+      closeTheRoom(sala.container);
+    },
+  );
+
   testWidgets('a tap while the sign is still rising clears it, as hers', (
     tester,
   ) async {
@@ -383,6 +419,51 @@ void main() {
     closeTheRoom(sala.container);
   });
 
+  for (final (look, brightness, figures) in [
+    ('light', Brightness.light, const Color(0xFF3F3E20)),
+    ('dark', Brightness.dark, const Color(0xFFECEADC)),
+  ]) {
+    testWidgets(
+      'in the $look look the wash is her azul at .16 and the figures are her $look verde',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = brightness;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        final sala = await _underTheSign(tester);
+
+        expect(
+          tester
+              .widget<ColoredBox>(
+                find.descendant(
+                  of: find.byType(PersonSign),
+                  matching: find.byType(ColoredBox),
+                ),
+              )
+              .color,
+          const Color(0x2989AAA3),
+          reason: 'no escuro o véu era .20, e o dela é .16 nos dois',
+        );
+        expect(
+          tester
+              .widgetList<Container>(
+                find.descendant(
+                  of: find.byType(PersonSign),
+                  matching: find.byType(Container),
+                ),
+              )
+              .map(
+                (box) => ((box.decoration! as BoxDecoration).border! as Border)
+                    .top
+                    .color,
+              )
+              .toSet(),
+          {figures},
+          reason: 'no escuro as figuras vestiam o branco da marca',
+        );
+        closeTheRoom(sala.container);
+      },
+    );
+  }
+
   testWidgets('the sign rises over her 1.6 s with her ease', (tester) async {
     final sala = await _atRestInTheConversation(tester);
     double risen() => tester
@@ -407,18 +488,35 @@ void main() {
   });
 
   testWidgets(
-    'a double tap on the sign clears it and never opens the microphone',
+    'a double tap on the sign clears it, and the second tap reaches the circle as the sign fades, as hers',
     (tester) async {
       final sala = await _underTheSign(tester);
       final circle = tester.getCenter(find.byType(FacilitatorCircle));
 
       await tester.tapAt(circle);
       await tester.pump(const Duration(milliseconds: 120));
+      expect(
+        tester
+            .widget<FadeTransition>(
+              find.descendant(
+                of: find.byType(PersonSign),
+                matching: find.byType(FadeTransition),
+              ),
+            )
+            .opacity
+            .value,
+        greaterThan(0),
+      );
       await tester.tapAt(circle);
       await _pass(sala, 20);
 
       expect(_read(sala).needsPerson, isFalse);
-      expect(_read(sala).voice, isNot(VoiceState.listening));
+      expect(
+        _read(sala).voice,
+        VoiceState.listening,
+        reason:
+            'o sinal engolia o toque enquanto sumia, e o dela deixa passar ao círculo',
+      );
       closeTheRoom(sala.container);
     },
   );
@@ -434,7 +532,7 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 16));
 
-      expect(_labelsHeard(tester), isNot(contains(label)));
+      expect(labelsHeard(tester), isNot(contains(label)));
       heard.dispose();
       closeTheRoom(sala.container);
     },
