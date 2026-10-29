@@ -683,10 +683,12 @@ class TakeUploadQueue {
   Future<bool> endTheLife() async {
     _lifeEnded = true;
     try {
-      for (final row in await entries()) {
-        await _deleteTheCopy(row);
-      }
       await _mutate((_) => const []);
+      await _inTurn(
+        () => _deleteTheCopies(
+          (copy) async => !_copiesBeingMade.containsKey(copy.path),
+        ),
+      );
       await _recordings().deleteEveryRecording();
       return true;
     } on FileSystemException {
@@ -697,6 +699,79 @@ class TakeUploadQueue {
   }
 
   void beginALife() => _lifeEnded = false;
+
+  /// The copies `enqueue` has made and not yet written a row for, each until its keep
+  /// settles.
+  final Map<String, Future<void>> _copiesBeingMade = {};
+
+  bool _sweptTheCopies = false;
+
+  /// Once per Outbox: every copy no row names leaves the folder, except the copy of the
+  /// take in the air, one being made, and one a quarantined manifest may still name.
+  Future<void> sweepTheCopiesLeftBehind() async {
+    if (_sweptTheCopies) return;
+    _sweptTheCopies = true;
+    try {
+      await _inTurn(() async {
+        final written = await _written();
+        if (written == null) return;
+        final named = {for (final row in written) p.basename(row.path)};
+        final quarantined = await _quarantineFile();
+        final quarantinedAt = await quarantined.exists()
+            ? await quarantined.lastModified()
+            : null;
+        await _deleteTheCopies(
+          (copy) async =>
+              !named.contains(p.basename(copy.path)) &&
+              !_copiesBeingMade.containsKey(copy.path) &&
+              _inTheAir?.path != copy.path &&
+              (quarantinedAt == null ||
+                  (await copy.lastModified()).isAfter(quarantinedAt)),
+        );
+      });
+    } on Object catch (error) {
+      debugPrint(
+        'As cópias sem linha não puderam ser varridas da fila: $error',
+      );
+    }
+  }
+
+  static final _aCopy = RegExp(
+    '^(${[partTakeKind, sceneTakeKind, sentenceKind, _theBackTranslationsOldKind].join('|')})'
+    r'-.+-\d+-\d+(\.[^.]+)?$',
+  );
+
+  Future<void> _deleteTheCopies(Future<bool> Function(File copy) leaves) async {
+    await for (final entity in (await _dir()).list()) {
+      if (!_aCopy.hasMatch(p.basename(entity.path))) continue;
+      final copy = File(entity.path);
+      if (await leaves(copy)) await copy.delete();
+    }
+  }
+
+  /// [step] in a turn of its own on the manifest's write chain.
+  Future<void> _inTurn(Future<void> Function() step) {
+    final done = _writes.then((_) => step());
+    _writes = done.then((_) {}, onError: (_) {});
+    return done;
+  }
+
+  /// The [recordings] whose copy a row of the Outbox holds, once every keep in flight has
+  /// written its row or failed to.
+  Future<Set<String>> recordingsItHolds(Iterable<String> recordings) async {
+    await Future.wait(_copiesBeingMade.values);
+    final held = {
+      for (final row in await entries())
+        p
+            .basenameWithoutExtension(row.path)
+            .replaceFirst('${row.kind}-', '')
+            .replaceFirst(RegExp('-${row.id}\$'), ''),
+    };
+    return {
+      for (final recording in recordings)
+        if (held.contains(p.basenameWithoutExtension(recording))) recording,
+    };
+  }
 
   Future<PendingTake> enqueue(
     File audio, {
@@ -766,51 +841,58 @@ class TakeUploadQueue {
     final id = _mintId();
     final name = p.basenameWithoutExtension(audio.path);
     final kept = p.join(dir.path, '$kind-$name-$id${p.extension(audio.path)}');
-    if (audio.path != kept) {
-      await audio.copy(kept);
+    final settled = Completer<void>();
+    _copiesBeingMade[kept] = settled.future;
+    try {
+      if (audio.path != kept) {
+        await audio.copy(kept);
+      }
+      final held = await _whatTheCopyHolds(kept);
+      if (fingerprint != null && held.sha256 != fingerprint) {
+        await File(kept).delete();
+        return null;
+      }
+      final entry = PendingTake(
+        id: id,
+        path: kept,
+        sessionId: sessionId,
+        passage: passage,
+        kind: kind,
+        scope: scope,
+        passNumber: passNumber,
+        chunkIndex: chunkIndex,
+        scene: scene,
+        original: kind == sceneTakeKind ? name : null,
+        recordedAt: recordedAt,
+        durationMs: held.durationMs,
+        sha256: held.sha256,
+        origin: origin,
+        reopensTheApprovedDraft: reopensTheApprovedDraft,
+        overTake: overTake,
+      );
+      final gone = kind == partTakeKind
+          ? await _goneRowsOf(sessionId, scope)
+          : const <String>{};
+      await _mutate(
+        (written) => _lifeEnded
+            ? written
+            : [
+                for (final row in written)
+                  if (!gone.contains(row.id)) row,
+                entry,
+              ],
+      );
+      if (_lifeEnded) {
+        await _deleteTheCopy(entry);
+        if (await audio.exists()) await audio.delete();
+        throw const TheLifeEnded();
+      }
+      tapped(entry.id);
+      return entry;
+    } finally {
+      _copiesBeingMade.remove(kept);
+      settled.complete();
     }
-    final held = await _whatTheCopyHolds(kept);
-    if (fingerprint != null && held.sha256 != fingerprint) {
-      await File(kept).delete();
-      return null;
-    }
-    final entry = PendingTake(
-      id: id,
-      path: kept,
-      sessionId: sessionId,
-      passage: passage,
-      kind: kind,
-      scope: scope,
-      passNumber: passNumber,
-      chunkIndex: chunkIndex,
-      scene: scene,
-      original: kind == sceneTakeKind ? name : null,
-      recordedAt: recordedAt,
-      durationMs: held.durationMs,
-      sha256: held.sha256,
-      origin: origin,
-      reopensTheApprovedDraft: reopensTheApprovedDraft,
-      overTake: overTake,
-    );
-    final gone = kind == partTakeKind
-        ? await _goneRowsOf(sessionId, scope)
-        : const <String>{};
-    await _mutate(
-      (written) => _lifeEnded
-          ? written
-          : [
-              for (final row in written)
-                if (!gone.contains(row.id)) row,
-              entry,
-            ],
-    );
-    if (_lifeEnded) {
-      await _deleteTheCopy(entry);
-      if (await audio.exists()) await audio.delete();
-      throw const TheLifeEnded();
-    }
-    tapped(entry.id);
-    return entry;
   }
 
   final StreamController<void> _falls = StreamController<void>.broadcast(
@@ -1449,15 +1531,20 @@ class TakeUploadQueue {
 
   /// Take every join row of [scope] off the manifest, even one whose request is in the
   /// air: the team recorded the part again by hand. A row at rest goes with its copy; a
-  /// request in the air keeps its copy until its answer deletes it.
-  Future<void> withdrawTheJoinsOf(String sessionId, String scope) async {
+  /// request in the air keeps its copy until its answer deletes it. With [passage], a
+  /// join row the gone session already left under its passage goes too.
+  Future<void> withdrawTheJoinsOf(
+    String sessionId,
+    String scope, {
+    String? passage,
+  }) async {
     final removed = <PendingTake>[];
     await _mutate((written) {
       final kept = <PendingTake>[];
       for (final entry in written) {
         if (!entry.stored &&
             entry.origin != null &&
-            entry.sessionId == sessionId &&
+            _ofTheVisit(entry, sessionId, passage) &&
             entry.scope == scope) {
           if (!_isInTheAir(entry)) removed.add(entry);
           continue;
