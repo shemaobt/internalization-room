@@ -906,7 +906,8 @@ class _ALinhaDaEscuta extends ConsumerWidget {
 
 int? _parteNoAr(SalaSessionState session) => switch (session.channel) {
   PartPlaying(:final part) => part.part,
-  Paused(what: final PartSound part) => part.part,
+  Paused(what: final PartSound part) ||
+  Microphone(held: Paused(what: final PartSound part)) => part.part,
   _ => null,
 };
 
