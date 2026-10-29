@@ -337,7 +337,7 @@ void main() {
       expect(
         tester.getTopLeft(find.text(_semFrase)).dy -
             tester.getBottomLeft(find.byType(FacilitatorCircle)).dy,
-        49.5,
+        46.5,
         reason: 'a linha de estado ficava dentro do anel do círculo',
       );
       closeTheRoom(container);

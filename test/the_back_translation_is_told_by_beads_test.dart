@@ -1560,15 +1560,15 @@ void main() {
           .dy,
       169,
     );
-    expect(tester.getTopLeft(byLabel(ouvindo)), const Offset(335, 387.5));
+    expect(tester.getTopLeft(byLabel(ouvindo)), const Offset(335, 384.5));
     expect(
       tester.getTopLeft(byLabel(pausar)),
-      const Offset(380, 591),
+      const Offset(380, 585),
       reason:
           'o botão ficava à esquerda da tesoura e da confirmação, que os três '
           'toques tiraram',
     );
-    expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 707));
+    expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 701));
     closeTheRoom(container);
   });
 

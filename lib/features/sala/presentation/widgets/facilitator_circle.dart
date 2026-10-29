@@ -13,7 +13,7 @@ enum Tongue { guide, motherTongue, bridge }
 
 const facilitatorCircleSize = 160.0;
 
-const facilitatorRippleGrowth = 0.5;
+const facilitatorRippleGrowth = 0.46;
 
 double herCircleSize(Size screen, int vw, double most) =>
     math.min(screen.width * vw / 100, most);
@@ -364,9 +364,7 @@ class FacilitatorCircle extends StatelessWidget {
       phase: phase,
       curve: Curves.linear,
       builder: (context, t) => Transform.scale(
-        scale:
-            0.62 +
-            (0.38 + facilitatorRippleGrowth) * Curves.easeOut.transform(t),
+        scale: 0.62 + 0.88 * Curves.easeOut.transform(t),
         child: Container(
           width: size,
           height: size,
