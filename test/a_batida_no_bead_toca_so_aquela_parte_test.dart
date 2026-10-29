@@ -18,7 +18,6 @@ const _gravarOEnsaio = 'Gravar';
 const _gravarAProxima = 'Gravar';
 const _terminar = 'Parar';
 const _confirmar = 'Enviar a gravação';
-const _gravarDeNovo = 'Gravar de novo';
 
 Future<void> _tocar(WidgetTester tester, String label) async {
   await tester.ensureVisible(offTheRows(label));
@@ -84,47 +83,8 @@ Future<ProviderContainer> _ensaioDeTresPartes(
   return container;
 }
 
-/// A team standing on a finding the analyst addressed to the one part recorded, on the
-/// rehearsal screen with the microphone inviting a re-record.
-Future<(ProviderContainer, SalaHarness)> _achadoNaParteUm(
-  WidgetTester tester,
-) async {
-  final harness = SalaHarness(filaEmMemoria: true)
-    ..room.verdictChecked = false
-    ..room.verdictHasFinding = true
-    ..room.verdictFindingPlace = 0
-    ..room.takeLandsAfter = const Duration(seconds: 1);
-  final container = await pumpSala(tester, harness);
-  final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.goConversa(book: 'Ruth');
-  await tester.pump(const Duration(milliseconds: 200));
-  notifier.goEnsaio();
-  await tester.pump(const Duration(milliseconds: 100));
-  notifier.ensaioTap();
-  notifier.ensaioTap();
-  await tester.pump(const Duration(milliseconds: 100));
-  notifier.takeKeep();
-  await theRoomNamesTheParts(tester, container, parts: 1);
-  notifier.startRetro();
-  await tester.pump(const Duration(milliseconds: 200));
-  harness.playback.at = const Duration(seconds: 10);
-  notifier.retroTap();
-  notifier.retroTap();
-  await tester.pump(const Duration(milliseconds: 200));
-  notifier.retroTap();
-  await tester.pump(const Duration(milliseconds: 300));
-  await tester.pump(const Duration(milliseconds: 600));
-  harness.playback.finishPlayback();
-  await tester.pump(const Duration(milliseconds: 200));
-  await notifier.finishBackTranslation();
-  await tester.pump(const Duration(milliseconds: 300));
-  notifier.gravarAParteDeNovo();
-  await tester.pump(const Duration(milliseconds: 200));
-  return (container, harness);
-}
-
 /// A team standing on a finding addressed to part 2 of a three-part rehearsal, every part
-/// already told back whole, with the record-again for part 2 open and nothing recorded yet.
+/// already told back whole, back on the rehearsal with nothing recorded yet.
 Future<Sala> _achadoNaParteDois() async {
   final it = await umEnsaioDeTresPartesContadoInteiro();
   it.harness.room
@@ -132,7 +92,7 @@ Future<Sala> _achadoNaParteDois() async {
     ..verdictHasFinding = true
     ..verdictFindingPlace = 1;
   await pedirOVeredito(it);
-  it.sala.gravarAParteDeNovo();
+  it.sala.leaveTheBackTranslation();
   return it;
 }
 
@@ -140,12 +100,12 @@ Future<Sala> _achadoNaParteDois() async {
 /// waiting for the green check, not yet in the part's place. The sibling of [regravarAParte],
 /// which confirms it instead.
 Future<void> _regravarAParteSemConfirmar(Sala it) async {
-  it.sala.ensaioTap();
+  it.sala.gravarACena(2);
   await waitFor(
     'a gravação da parte de novo começar',
     () => it.estado.ensaio == EnsaioStatus.recording,
   );
-  it.sala.ensaioTap();
+  it.sala.gravarACena(2);
   await waitFor(
     'a gravação da parte de novo terminar',
     () => it.estado.ensaio == EnsaioStatus.recorded,
@@ -158,9 +118,9 @@ Future<void> _regravarAParteSemConfirmarNaTela(
   WidgetTester tester,
   SalaSessionNotifier notifier,
 ) async {
-  notifier.ensaioTap();
+  notifier.gravarACena(2);
   await tester.pump(const Duration(milliseconds: 100));
-  notifier.ensaioTap();
+  notifier.gravarACena(2);
   await tester.pump(const Duration(milliseconds: 100));
 }
 
@@ -202,7 +162,7 @@ Future<ProviderContainer> _achadoNaParteDoisNaTela(
   }
   await notifier.finishBackTranslation();
   await tester.pump(const Duration(milliseconds: 300));
-  notifier.gravarAParteDeNovo();
+  notifier.leaveTheBackTranslation();
   await tester.pump(const Duration(milliseconds: 200));
   return container;
 }
@@ -409,15 +369,6 @@ void main() {
   });
 
   testWidgets(
-    'o círculo de uma parte devolvida por um achado diz o texto da placa',
-    (tester) async {
-      await _achadoNaParteUm(tester);
-
-      expect(onTheCircle(_gravarDeNovo), findsOneWidget);
-    },
-  );
-
-  testWidgets(
     'o bead aberto de uma parte nova não acende sozinho enquanto o play '
     'está numa parte anterior, mesmo com uma gravação pendente',
     (tester) async {
@@ -446,12 +397,6 @@ void main() {
   test('o anel segue a parte pendente que ficou no lugar da regravação, só '
       'quando o play chega nela', () async {
     final it = await _achadoNaParteDois();
-
-    expect(
-      it.estado.parteARegravar,
-      1,
-      reason: 'o achado aponta a parte 2 (índice 1)',
-    );
 
     await _regravarAParteSemConfirmar(it);
     expect(
@@ -526,81 +471,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
     },
   );
-
-  testWidgets(
-    'o esmaecido é uma regra só: escurece e bloqueia antes da gravação, '
-    'some das duas coisas quando o take fica pendente',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true);
-      final container = await _achadoNaParteDoisNaTela(tester, harness);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      expect(
-        naLinhaDoEnsaio(tester, 'Ouvir')[0],
-        isFalse,
-        reason: 'nada gravado ainda; a parte 1 não é a que a equipe regrava',
-      );
-      notifier.ouvirACena(1);
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(
-        harness.playback.sounding,
-        isFalse,
-        reason: 'esmaecida na tela, a batida também não toca',
-      );
-
-      await _regravarAParteSemConfirmarNaTela(tester, notifier);
-      await tester.pump(const Duration(milliseconds: 200));
-
-      expect(
-        naLinhaDoEnsaio(tester, 'Ouvir')[0],
-        isTrue,
-        reason: 'pendente a confirmação, a mesma conta não fica esmaecida',
-      );
-      notifier.ouvirACena(1);
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(
-        harness.playback.sounding,
-        isTrue,
-        reason: 'e a mesma batida agora toca',
-      );
-
-      harness.playback.finishPlayback();
-      await tester.pump(const Duration(milliseconds: 200));
-    },
-  );
-
-  test('um bead esmaecido não toca enquanto a regravação de um achado está '
-      'aberta e nada foi gravado ainda', () async {
-    final it = await _achadoNaParteDois();
-    final antes = it.harness.playback.played.length;
-
-    it.sala.ouvirACena(1);
-
-    expect(
-      it.harness.playback.played,
-      hasLength(antes),
-      reason: 'o bead da parte 1 está esmaecido; a batida não faz nada',
-    );
-    expect(it.estado.parteDoEnsaioTocando, isNull);
-  });
-
-  test('com uma gravação pendente, os beads tocam como de costume, mesmo os '
-      'esmaecidos', () async {
-    final it = await _achadoNaParteDois();
-    await _regravarAParteSemConfirmar(it);
-
-    it.sala.ouvirACena(1);
-    await waitFor('a parte 1 tocar', () => it.harness.playback.sounding);
-
-    expect(it.harness.playback.played.last, it.partes[0].path);
-    expect(
-      it.estado.parteDoEnsaioTocando,
-      0,
-      reason:
-          'pendente a confirmação, a equipe pode ouvir qualquer parte, '
-          'inclusive a esmaecida',
-    );
-  });
 
   testWidgets('gravar de novo depois de pausar um bead apaga o anel', (
     tester,

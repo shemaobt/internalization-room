@@ -237,12 +237,12 @@ Future<void> pedirOVeredito(Sala it) async {
 Future<void> regravarAParte(Sala it, int onde) async {
   final antes = it.partes;
   final antiga = antes[onde].path;
-  it.sala.ensaioTap();
+  it.sala.gravarACena(onde + 1);
   await waitFor(
     'a gravação da parte começar',
     () => it.estado.ensaio == EnsaioStatus.recording,
   );
-  it.sala.ensaioTap();
+  it.sala.gravarACena(onde + 1);
   await waitFor(
     'a gravação da parte terminar',
     () => it.estado.ensaio == EnsaioStatus.recorded,

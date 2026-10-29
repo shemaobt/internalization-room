@@ -118,7 +118,7 @@ void main() {
       expect(it.estado.channel, const Silence());
       expect(it.estado.btCursor, cursor);
 
-      it.sala.ouvirOTrechoPendente();
+      it.sala.ouvirGravacao();
       await waitFor(
         'a conta pedir a parte de novo',
         () => it.harness.playback.played.length > asked,

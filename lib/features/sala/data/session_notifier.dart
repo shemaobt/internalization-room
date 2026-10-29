@@ -837,7 +837,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       clearLastSpoken: true,
       roomSaysItAgain: false,
-      clearParteARegravar: true,
       clearHomeSheet: true,
       clearSwapLine: true,
       clearSwapping: true,
@@ -3138,7 +3137,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             takes: state.keptTakes,
             savedAt: _sessionSavedAt,
             language: _sessionLanguage,
-            partBeingRecordedAgain: state.parteARegravar,
             passesToGoAbove: _passadasDaSala ?? const {},
             listener: _listenerInProgress,
             wholeHeldByTheRoom: [...state.wholeHeldByTheRoom],
@@ -3285,7 +3283,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       keptTakes: takes,
       wholeHeldByTheRoom: heldByTheRoom,
-      parteARegravar: waiting.partBeingRecordedAgain,
       grainInForce: waiting.grain,
       partsAway: {for (final takeId in aBuscar) takeId: PartAway.coming},
     );
@@ -3527,7 +3524,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final fora = state.partes.indexWhere(
         (take) => take.takeId == parte.takeId,
       );
-      final regravando = state.parteARegravar;
       state = state.copyWith(
         keptTakes: [
           for (final take in state.keptTakes)
@@ -3539,11 +3535,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state.btTrechosRegravados,
           fora,
         ),
-        parteARegravar: switch (regravando) {
-          final at? when at > fora => at - 1,
-          _ => regravando,
-        },
-        clearParteARegravar: regravando == fora,
       );
     }
     if (perdidas.isEmpty) return false;
@@ -4377,7 +4368,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btChecked: false,
       theRoomJoinedParts: _partesJuntadas(listing.takes),
       wholeHeldByTheRoom: grain == Grain.whole ? const {} : null,
-      clearParteARegravar: true,
     );
     _theTellingStartsOver(const []);
     _weighTheRehearsal();
@@ -7166,11 +7156,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// [playTheRehearsal] already carries that logic, and duplicating it here would drift
   /// from it the first time either one changed. A different part stops whatever is in the
   /// air and starts this one instead of resuming it.
-  ///
-  /// A dimmed row — one of the others while a record-again sent by a finding stands open,
-  /// not yet recorded — does not apply, so its listen does nothing (ADR 0040). Once that
-  /// recording is pending (waiting for the green check), every row plays as usual: the
-  /// team can hear what they recorded before deciding to keep it.
   void _tocarAParte(int indice) {
     if (state.station is! Ensaio) return;
     if (state.needsPerson) return;
@@ -7255,7 +7240,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     final row = state.sceneRows.where((row) => row.number == cena).firstOrNull;
-    if (row == null || row.dimmed || row.beyondTheScenes) return;
+    if (row == null || row.beyondTheScenes) return;
     final daCena = state.cenaDaGravacao == cena;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
@@ -7274,7 +7259,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _ouvirACena(int cena) {
     final indice = state.partIndexOf(cena);
-    if (indice == null || state.sceneRowIsDimmed(cena)) return;
+    if (indice == null) return;
     final takeId = state.partes[indice].takeId;
     if (state.partsAway[takeId] == PartAway.missed) {
       state = state.copyWith(
@@ -7285,8 +7270,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _tocarAParte(indice);
   }
 
-  /// The circle records the part a finding sent the team back for, else the first Scene
-  /// with no part; with every Scene recorded it records nothing.
+  /// The circle records the first Scene with no part; with every Scene recorded it records
+  /// nothing.
   void ensaioTap() => _gesture(() => _ensaioTap());
 
   void _ensaioTap() {
@@ -7405,7 +7390,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btChecked: false,
       clearBtRecusa: true,
-      clearParteARegravar: true,
       clearCenaDaGravacao: true,
     );
     // A scene list not answered yet is asked again at each keep, the moment the team
@@ -8844,15 +8828,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void ouvirOTrechoContado(int indice) =>
       _gesture(() => _ouvirOTrechoContado(indice));
 
-  void ouvirAConta(int indice) => _gesture(
-    () =>
-        state.canRetellAFrase &&
-            state.btTrechos.elementAtOrNull(indice)?.segmentId != null
-        ? _traduzirAFraseDeNovo(indice)
-        : _ouvirOTrechoContado(indice, naGravacao: true),
-  );
-
-  void _ouvirOTrechoContado(int indice, {bool naGravacao = false}) {
+  void _ouvirOTrechoContado(int indice) {
     if (!state.canHearAFrase) return;
     if (indice < 0 || indice >= state.btTrechos.length) return;
     final trecho = state.btTrechos[indice];
@@ -8866,7 +8842,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
-    final traducao = naGravacao ? null : trecho.retroPath;
+    final traducao = trecho.retroPath;
     final materna = _ondeTocar(trecho);
     if (traducao == null && materna == null) return;
     final segurada = _tirarAParteDoPlayer();
@@ -8903,8 +8879,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       beneath: segurada,
     );
   }
-
-  void ouvirOTrechoPendente() => _gesture(() => _ouvirOTrechoPendente());
 
   void abrirAChecagemExterna() => _gesture(() {
     final sessionId = state.sessionId;
@@ -9460,14 +9434,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btClipEnded: false,
       clearBtRecusa: true,
     );
-  }
-
-  void _ouvirOTrechoPendente() {
-    if (state.btContaEscolhida != null) {
-      _silenceTheRoom();
-      return;
-    }
-    ouvirGravacao();
   }
 
   Paused? _tirarAParteDoPlayer() {
@@ -11502,31 +11468,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: _faseAntesDeTraduzirDeNovo ?? BtPhase.playing,
     );
-  }
-
-  /// Back to the rehearsal to record one part again, in the place that part already has.
-  void gravarAParteDeNovo() => _gesture(() => _gravarAParteDeNovo());
-
-  void _gravarAParteDeNovo() {
-    if (state.btPhase != BtPhase.playing) return;
-    final trecho = state.btFindingTrecho;
-    if (trecho == null) return;
-    // Read before the way back clears the pointer, which is the only place the part is
-    // written down at all.
-    final parte = trecho.parte;
-    if (parte < 0 || parte >= state.partes.length) {
-      // A stretch on a recording this tablet is not holding has no part to record again.
-      // Carried on, the keep would send a recording up under a part number the rehearsal
-      // does not have, and the team would have recorded for nothing.
-      _silenceTheRoom();
-      return;
-    }
-    _voltarAoEnsaio();
-    if (state.partes[parte].scopeId != KeptScope.whole) {
-      state = state.copyWith(parteARegravar: parte);
-    }
-    _asPartesPerdidasSaem();
-    _rememberWhereTheyAre(const Ensaio());
   }
 
   /// The first scene part sets the whole rehearsal aside: what was told over it leaves the

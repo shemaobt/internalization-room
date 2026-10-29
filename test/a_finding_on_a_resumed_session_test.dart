@@ -8,7 +8,6 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
-import 'scenario_helpers.dart' show ouvirOApontado;
 import 'fakes.dart';
 
 const _contado = 'gravacao-1@0-30000';
@@ -79,7 +78,9 @@ void main() {
     final container = await _retomadaNoAchado(harness);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    ouvirOApontado(container);
+    container
+        .read(salaSessionProvider.notifier)
+        .ouvirOTrechoContado(read().btTrechos.indexOf(read().btFindingTrecho!));
     await waitFor('a materna tocar', () => read().btTrechoTocando);
     final tocadas = harness.playback.played.length;
     expect(harness.playback.played.last, read().partes.single.path);
