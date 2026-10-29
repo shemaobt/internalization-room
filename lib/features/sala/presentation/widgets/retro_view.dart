@@ -379,10 +379,11 @@ class RetroView extends ConsumerWidget {
       regravando:
           trecho.frase != null && session.btRegravacao?.frase == trecho.frase,
       regravar:
-          session.fraseRegravavel(trecho) &&
-              (session.btPhase != BtPhase.conferida ||
-                  _markOn(trecho.frase, session) == BtFindingKind.nuance ||
-                  session.overAnApprovedDraft)
+          _aFraseVai(trecho, session) ||
+              session.fraseRegravavel(trecho) &&
+                  (session.btPhase != BtPhase.conferida ||
+                      _markOn(trecho.frase, session) == BtFindingKind.nuance ||
+                      session.overAnApprovedDraft)
           ? session.armedTap?.control == 'rerecord:${trecho.frase}'
                 ? retroLabelFor('reopenArmed', language)
                 : sceneRehearsalLabelFor('rerecordFrase', language, n: n)
@@ -391,7 +392,9 @@ class RetroView extends ConsumerWidget {
       onRegravar:
           switch (session.btRegravacao) {
             null => quieta,
-            final regravacao => regravacao.frase == trecho.frase,
+            final regravacao =>
+              regravacao.frase == trecho.frase &&
+                  regravacao.passo != PassoDaRegravacao.enviando,
           }
           ? () => notifier.regravarAFrase(trecho)
           : null,
@@ -550,6 +553,10 @@ class RetroView extends ConsumerWidget {
       ),
     );
   }
+
+  bool _aFraseVai(Trecho trecho, SalaSessionState session) =>
+      session.btRegravacao?.frase == trecho.frase &&
+      session.btRegravacao?.passo == PassoDaRegravacao.enviando;
 
   bool _dormindo(String control, SalaSessionState session) =>
       session.armedTap?.control == control &&

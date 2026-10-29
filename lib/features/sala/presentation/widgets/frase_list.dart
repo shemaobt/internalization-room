@@ -226,6 +226,8 @@ class _Pill extends StatelessWidget {
       enabled: onTap != null && !dormindo,
       toggled: toggled,
       label: label,
+      onTap: onTap,
+      excludeSemantics: true,
       child: Opacity(
         opacity: onTap == null
             ? 0.35
