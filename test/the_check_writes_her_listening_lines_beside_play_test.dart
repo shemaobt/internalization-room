@@ -6,6 +6,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 import 'a_resumed_back_translation_circle_opens_the_microphone_test.dart'
     show reopenedInto;
 import 'fakes.dart';
+import 'the_check_circle_says_hers_when_held_and_at_the_end_test.dart'
+    show umaFraseConferida;
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show contarAteOFimDaParte, passaDoCursor, pausar, tocar;
@@ -243,6 +245,32 @@ void main() {
       findsOneWidget,
       reason: 'a sala em inglês escrevia a pausa em português',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a passage checked clean writes no listening line beside play, '
+      'where the circle no longer opens a sentence', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await umaFraseConferida(tester, harness);
+    await tester.pump(const Duration(milliseconds: 800));
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    for (final linha in [
+      'fim da gravação',
+      'pausado — toque no círculo',
+      'a pausa ficou',
+      'ouvindo a gravação de vocês…',
+    ]) {
+      expect(
+        find.descendant(
+          of: find.byType(RetroView),
+          matching: find.textContaining(linha),
+        ),
+        findsNothing,
+        reason:
+            'o conferido mandava tocar num círculo que não responde: $linha',
+      );
+    }
     closeTheRoom(container);
   });
 }
