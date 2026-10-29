@@ -92,6 +92,7 @@ class RehearsalSheet extends ConsumerWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 470),
                 child: Column(
+                  spacing: 0.55 * _rem,
                   children: [
                     for (final candidate in candidates)
                       _SheetLine(
@@ -210,9 +211,19 @@ class _SheetLine extends StatelessWidget {
       container: true,
       label: line,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        padding: const EdgeInsets.symmetric(
+          vertical: 0.55 * _rem,
+          horizontal: 0.75 * _rem,
+        ),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: colors.line)),
+          color: Theme.of(context).brightness == Brightness.dark
+              ? const Color.fromRGBO(236, 234, 220, .05)
+              : const Color.fromRGBO(255, 255, 255, .4),
+          border: Border.all(
+            color: inUse ? colors.azul : colors.areia,
+            width: 1.2,
+          ),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           children: [

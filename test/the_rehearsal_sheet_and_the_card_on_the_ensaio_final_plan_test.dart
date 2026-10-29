@@ -631,6 +631,71 @@ void main() {
     );
   }
 
+  for (final (look, areia, azul, fill) in [
+    (
+      'light',
+      const Color(0xFFC5C29F),
+      const Color(0xFF89AAA3),
+      const Color.fromRGBO(255, 255, 255, .4),
+    ),
+    (
+      'dark',
+      const Color(0xFF6E6A57),
+      const Color(0xFF8FB1A9),
+      const Color.fromRGBO(236, 234, 220, .05),
+    ),
+  ]) {
+    testWidgets(
+      'in the $look look each rehearsal is her framed card, the one in use '
+      'framed in azul, not a row over a hairline',
+      (tester) async {
+        if (look == 'dark') _inTheDark(tester);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        final lines = [_sent(3), _sent(2), _sent(1)];
+        for (final line in lines) {
+          final card =
+              tester
+                      .widget<DecoratedBox>(
+                        find
+                            .descendant(
+                              of: byLabel(line),
+                              matching: find.byType(DecoratedBox),
+                            )
+                            .first,
+                      )
+                      .decoration
+                  as BoxDecoration;
+          expect(
+            card.border,
+            Border.all(color: line == _sent(2) ? azul : areia, width: 1.2),
+            reason: 'cada ensaio era uma linha sobre um fio, sem moldura',
+          );
+          expect(card.borderRadius, BorderRadius.circular(14));
+          expect(card.color, fill);
+          final play = tester.getRect(byLabel('Ouvir — $line'));
+          expect(
+            play.left - tester.getRect(byLabel(line)).left,
+            closeTo(1.2 + 12, 0.01),
+            reason: 'o play encostava a 8 da borda da linha',
+          );
+        }
+        for (var i = 1; i < lines.length; i++) {
+          expect(
+            tester.getRect(byLabel(lines[i])).top -
+                tester.getRect(byLabel(lines[i - 1])).bottom,
+            closeTo(8.8, 0.01),
+            reason: 'as linhas da folha se encostavam umas nas outras',
+          );
+        }
+        semantics.dispose();
+      },
+    );
+  }
+
   testWidgets(
     '4. an unsent rehearsal is listed «não enviado» with «usar este», and once '
     'used it holds the row and opens «juntar»',
