@@ -492,6 +492,7 @@ class SalaSessionState {
   final RegravacaoDaFrase? btRegravacao;
   final String? btFraseQueAguarda;
   final int? btFraseGuardada;
+  final String? btFraseDevida;
 
   /// The approval the newest Session read says the draft stands under.
   final ApprovedDraft? btRascunhoAprovado;
@@ -701,6 +702,7 @@ class SalaSessionState {
     this.btRegravacao,
     this.btFraseQueAguarda,
     this.btFraseGuardada,
+    this.btFraseDevida,
     this.btRascunhoAprovado,
     this.btSoOuvir = false,
     this.btAprovando,
@@ -1638,6 +1640,7 @@ class SalaSessionState {
       trecho.frase != null &&
       btFraseTraduzidaDeNovo == null &&
       btRegravacao?.passo != PassoDaRegravacao.enviando &&
+      btFraseDevida == null &&
       (btFraseGuardada == null || btFraseGuardada == trecho.frase) &&
       (btFraseQueAguarda == null || btFraseQueAguarda == trecho.segmentId) &&
       !needsPerson &&
@@ -1679,7 +1682,12 @@ class SalaSessionState {
   /// the answer lands on.
   bool get aBackTranslationGestureActs =>
       btAprovando != machine.generation &&
-      btAbrindoAChecagem != machine.generation;
+      btAbrindoAChecagem != machine.generation &&
+      !aFraseDevidaEmBusca;
+
+  bool get aFraseDevidaEmBusca =>
+      btFraseDevida != null &&
+      btRegravacao?.passo == PassoDaRegravacao.enviando;
 
   /// Whether an approval may still be won over what the room holds: no approved version,
   /// or a forced one, which a conferida telling approves again as the next (ADR 0150).
@@ -1854,6 +1862,8 @@ class SalaSessionState {
     bool clearBtFraseQueAguarda = false,
     int? btFraseGuardada,
     bool clearBtFraseGuardada = false,
+    String? btFraseDevida,
+    bool clearBtFraseDevida = false,
     ApprovedDraft? btRascunhoAprovado,
     bool clearBtRascunhoAprovado = false,
     bool? btSoOuvir,
@@ -2000,6 +2010,9 @@ class SalaSessionState {
       btFraseGuardada: clearBtFraseGuardada
           ? null
           : (btFraseGuardada ?? this.btFraseGuardada),
+      btFraseDevida: clearBtFraseDevida
+          ? null
+          : (btFraseDevida ?? this.btFraseDevida),
       btRascunhoAprovado: clearBtRascunhoAprovado
           ? null
           : (btRascunhoAprovado ?? this.btRascunhoAprovado),
