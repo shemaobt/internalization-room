@@ -446,6 +446,38 @@ void main() {
     },
   );
 
+  test('a parte que a sala nao tem mais sai da casa quando a equipe volta da '
+      'retro reaberta', () async {
+    final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1, 2, 3]),
+    );
+    await waitFor(
+      'as tres partes serem tentadas',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          harness.room.clipsFetched.length == 3,
+    );
+    await settle(const Duration(milliseconds: 300));
+    expect(it.estado.partsAway['gravacao-2'], PartAway.lost);
+
+    it.sala.leaveTheBackTranslation();
+    await waitFor('a casa abrir', () => it.estado.stage == SalaStage.ensaio);
+    await settle();
+
+    expect(
+      [for (final parte in it.estado.partes) parte.takeId],
+      ['gravacao-1', 'gravacao-3'],
+      reason:
+          'a parte perdida ficava na casa como se estivesse gravada, e a '
+          'casa dela lê da sala só o que a sala tem',
+    );
+    expect(it.estado.partsAway, isEmpty);
+  });
+
   test('uma passagem conferida reabre na aprovacao com audio', () async {
     final harness = SalaHarness();
 

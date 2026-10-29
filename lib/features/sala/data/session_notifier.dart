@@ -6978,6 +6978,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _leaveTheBackTranslation() {
     if (state.station is! Retro) return;
     _voltarAoEnsaio();
+    _descartarATraducaoPendente();
+    _asPartesPerdidasSaem();
   }
 
   void ouvirTudo() => _gesture(() => _ouvirTudo());

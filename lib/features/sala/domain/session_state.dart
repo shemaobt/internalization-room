@@ -1696,6 +1696,15 @@ class SalaSessionState {
   /// Whether the approve button acts: never while a sentence's re-record is open.
   bool get canApprove => aBackTranslationGestureActs && btRegravacao == null;
 
+  bool get canGoBackToRecordAPart =>
+      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
+      btRegravacao == null &&
+      aBackTranslationGestureActs &&
+      switch (channel) {
+        GuideSpeaking(line: Line(fixedLine: null)) => false,
+        _ => true,
+      };
+
   /// Whether the part the stretch [trecho] sits on is on the tablet.
   bool aParteDoTrechoEstaAqui(Trecho trecho) => aParteDoTrecho(trecho) == null;
 
