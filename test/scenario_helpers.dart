@@ -86,6 +86,18 @@ Finder offTheRows(String label) => find.byElementPredicate((element) {
   return !inside;
 });
 
+Future<void> pressTheApproval(WidgetTester tester, String label) async {
+  final approve = byLabel(label);
+  await tester.ensureVisible(approve);
+  final missWas = WidgetController.hitTestWarningShouldBeFatal;
+  WidgetController.hitTestWarningShouldBeFatal = true;
+  try {
+    await tester.tap(approve);
+  } finally {
+    WidgetController.hitTestWarningShouldBeFatal = missWas;
+  }
+}
+
 /// How many times the room has been asked to read the session's state back —
 /// the only witness that a watch actually re-polled, since the watch itself
 /// has no other observable trace.

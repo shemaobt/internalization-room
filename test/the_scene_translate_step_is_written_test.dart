@@ -2286,4 +2286,47 @@ void main() {
       },
     );
   }
+  for (final (look, azul) in [
+    (Brightness.light, const Color(0xFF89AAA3)),
+    (Brightness.dark, const Color(0xFF8FB1A9)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look the listed rehearsal on screen is edged in her ${look.name} azul',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              sentAt: '2026-10-15T14:20:00+00:00',
+              frases: [_frase('f1', 0, 3000)],
+            ),
+            _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+          ],
+          until: (state) => state.scene.rehearsal?.n == 2,
+        );
+
+        expect(
+          ((tester
+                              .widget<Container>(
+                                find.descendant(
+                                  of: byLabel(
+                                    'Ensaio da cena 2, 1 · frases traduzidas, não enviado',
+                                  ),
+                                  matching: find.byType(Container),
+                                ),
+                              )
+                              .decoration
+                          as BoxDecoration?)
+                      ?.border
+                  as Border?)
+              ?.top
+              .color,
+          azul,
+          reason: 'no escuro a linha da tela tinha a borda azul clara',
+        );
+      },
+    );
+  }
 }
