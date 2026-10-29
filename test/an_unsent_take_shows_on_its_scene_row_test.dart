@@ -772,7 +772,11 @@ void main() {
       expect(audio.existsSync(), isTrue);
 
       casa.room.unreachableTake = null;
-      await casa.tocar(find.text(_enviarAgora(1, '0:48')));
+      await casa.tocarAte(
+        find.text(_enviarAgora(1, '0:48')),
+        'a cena 1 chegar à sala',
+        () => casa.naSala.contains('ensaio/parte-1'),
+      );
 
       expect(casa.naSala, contains('ensaio/parte-1'));
     },
