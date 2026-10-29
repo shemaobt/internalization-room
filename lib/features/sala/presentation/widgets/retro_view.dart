@@ -795,7 +795,9 @@ class RetroView extends ConsumerWidget {
 
   String? _aEscuta(SalaSessionState session) {
     if (session.btSoOuvir) return null;
-    if (session.btCortado) return 'pauseHint';
+    if (session.btCortado) {
+      return session.btPausaAjustavel ? 'pauseHint' : 'pauseAtTheTap';
+    }
     if (session.btClipRodando || session.btTrechoTocando) return 'listening';
     return 'paused';
   }

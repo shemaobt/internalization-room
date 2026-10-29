@@ -89,4 +89,28 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('a pause with no silence to rest on writes «a pausa ficou no '
+      'toque…», not the hint to move it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    await pausarAos(tester, harness, s(4.2));
+
+    expect(
+      rotuloDoCirculo(tester),
+      'a pausa ficou no toque — toquem no círculo para traduzir',
+    );
+    expect(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.textContaining(
+          'a pausa ficou no toque — toquem no círculo para traduzir — '
+          'parte 1 · ',
+        ),
+      ),
+      findsOneWidget,
+      reason: 'a pausa no toque mandava ajustar uma pausa que não se ajusta',
+    );
+    closeTheRoom(container);
+  });
 }
