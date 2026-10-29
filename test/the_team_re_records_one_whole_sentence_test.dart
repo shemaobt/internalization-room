@@ -24,7 +24,7 @@ import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, pressTheApproval;
+import 'scenario_helpers.dart' show byLabel, onTheCircle, pressTheApproval;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, cabeca, entrarNaTraducao, parte, tocar;
 
@@ -1542,6 +1542,27 @@ void main() {
 
     expect(apertado(tester), isFalse);
     expect(harness.playback.stops, greaterThan(paradas));
+    closeTheRoom(container);
+  });
+
+  testWidgets('under review, before and while it plays, the circle is named '
+      '«gravem a frase inteira», as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+
+    expect(onTheCircle('gravem a frase inteira'), findsOneWidget);
+
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(apertado(tester), isTrue);
+    expect(
+      onTheCircle('gravem a frase inteira'),
+      findsOneWidget,
+      reason:
+          'o VoiceOver lia no círculo um estado da gravação com a frase da '
+          'revisão tocando',
+    );
     closeTheRoom(container);
   });
 

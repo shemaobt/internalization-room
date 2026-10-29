@@ -850,7 +850,9 @@ class RetroView extends ConsumerWidget {
       return retroLabelFor('notUnderstood', language);
     }
     if (session.btRegravacao?.passo
-        case PassoDaRegravacao.pronta || PassoDaRegravacao.gravando) {
+        case PassoDaRegravacao.pronta ||
+            PassoDaRegravacao.gravando ||
+            PassoDaRegravacao.revendo) {
       return sceneRehearsalLabelFor('respeakHint', language);
     }
     switch (session.btPhase) {
