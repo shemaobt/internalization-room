@@ -719,12 +719,16 @@ void main() {
       await casa.gravar(2);
       await casa.emTempoReal(() async {
         casa.sala.takeKeep();
-        await settle(const Duration(milliseconds: 600));
+        await waitFor('a cena 2 falhar', () => casa.falhou(2));
       });
 
       expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
 
-      await casa.tocar(casa.naLinha(2, find.text(_falhou)));
+      await casa.tocarAte(
+        casa.naLinha(2, find.text(_falhou)),
+        'a cena 2 chegar à sala',
+        () => casa.naSala.contains('ensaio/parte-2') && !casa.falhou(2),
+      );
 
       expect(casa.naSala, contains('ensaio/parte-2'));
       expect(find.text(_falhou), findsNothing);
