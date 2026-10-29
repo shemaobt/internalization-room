@@ -22,6 +22,7 @@ enum BtFindingKind {
     'addition' => BtFindingKind.addition,
     'missing' => BtFindingKind.missing,
     'unclear' => BtFindingKind.unclear,
+    'nuance' => null,
     String() => BtFindingKind.other,
     _ => null,
   };
