@@ -296,7 +296,7 @@ Future<_Room> _atRest(
     ..physicalSize = const Size(820, 1180)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final home = Directory.systemTemp.createTempSync('sala-1385-junta');
+  final home = aTempHome('sala-1385-junta');
   final harness = SalaHarness(lingua: lingua, takesHome: home)
     ..room.passages = const [_thePassage]
     ..room.nextMoment = _midConversation

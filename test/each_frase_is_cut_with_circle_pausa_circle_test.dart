@@ -356,9 +356,8 @@ void main() {
     );
 
     test('the take\'s loudness is read off the UI thread', () async {
-      final take = File(
-        '${Directory.systemTemp.createTempSync('sala-take').path}/cena.wav',
-      )..writeAsBytesSync(aSpokenWav(gaps: [(_s(3.0), _s(5.0))]));
+      final take = File('${aTempHome('sala-take').path}/cena.wav')
+        ..writeAsBytesSync(aSpokenWav(gaps: [(_s(3.0), _s(5.0))]));
       final container = ProviderContainer();
       addTearDown(container.dispose);
 

@@ -21,7 +21,7 @@ import 'fakes.dart';
 
 void main() {
   late Directory home;
-  var recorder = FakeRecorder();
+  late FakeRecorder recorder;
 
   setUp(() {
     home = Directory.systemTemp.createTempSync('fila-tomadas');

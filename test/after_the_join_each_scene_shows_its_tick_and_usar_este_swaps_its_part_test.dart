@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show Tristate;
 
@@ -464,7 +463,7 @@ Future<_Room> _atRest(
     ..physicalSize = const Size(820, 1180)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final home = Directory.systemTemp.createTempSync('sala-1407-troca');
+  final home = aTempHome('sala-1407-troca');
   final harness = SalaHarness(lingua: lingua, takesHome: home)
     ..room.passages = const [_thePassage]
     ..room.nextMoment = _midConversation

@@ -375,6 +375,18 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<void> dispose() async {}
 }
 
+Directory aTempHome(String prefix) {
+  final home = Directory.systemTemp.createTempSync(prefix);
+  try {
+    addTearDown(() {
+      if (home.existsSync()) home.deleteSync(recursive: true);
+    });
+  } on StateError {
+    return home;
+  }
+  return home;
+}
+
 class FakeRecorder implements RecordingRepository {
   /// The same ordered log the players write to: the microphone opening on a silent room
   /// is an order between two doubles, not a pair of counters.
@@ -384,7 +396,7 @@ class FakeRecorder implements RecordingRepository {
 
   final StreamController<bool> _interruptions =
       StreamController<bool>.broadcast();
-  final Directory home = Directory.systemTemp.createTempSync('sala-gravacoes');
+  final Directory home = aTempHome('sala-gravacoes');
   int captures = 0;
   bool returnsNothing = false;
   bool returnsEmpty = false;
@@ -4410,8 +4422,7 @@ class SalaHarness {
   }) : room = room ?? FakeRoom(),
        roomLanguage = roomLanguage ?? FakeRoomLanguageLedger(chosen: lingua),
        look = look ?? FakeLookLedger(),
-       takesHome =
-           takesHome ?? Directory.systemTemp.createTempSync('sala-tomadas'),
+       takesHome = takesHome ?? aTempHome('sala-tomadas'),
        currentSession = currentSession ?? FakeCurrentSessionLedger(),
        inbox = FakeInbox(replies: replies),
        vinculo = FakeLinkedTeam(remembered: linkedAs);
