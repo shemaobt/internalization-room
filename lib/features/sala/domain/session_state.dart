@@ -1267,7 +1267,8 @@ class SalaSessionState {
   }
 
   DateTime? get takeRecordingSince => switch (channel) {
-    Microphone(owner: MicOwner.conversation) when !micTaken =>
+    Microphone(owner: MicOwner.conversation)
+        when !micTaken && machine.lastMic?.because == null =>
       recorderStartedAt,
     _ => null,
   };

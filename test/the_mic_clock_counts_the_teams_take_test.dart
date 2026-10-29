@@ -384,6 +384,34 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'a stop the recorder fails leaves the circle on the $screen at rest '
+      'with no clock, not listening over a take that is over',
+      (tester) async {
+        final room = await enter(tester);
+        await room.theTeamOpensItsTake();
+        await room.waits(const Duration(seconds: 2));
+        expect(room.circleListens, isTrue);
+
+        room.harness.recorder.stopThrows = true;
+        room.view == PanoramaView
+            ? room.sala.panoramaTap()
+            : room.sala.conversaTap();
+        await room.beat(300);
+        expect(room.estado.channel, isA<Microphone>());
+        expect(
+          room.circleListens,
+          isFalse,
+          reason: 'o gravador falhou ao parar e o círculo seguia ouvindo',
+        );
+        expect(
+          room.anyClock,
+          isFalse,
+          reason: 'o gravador falhou ao parar e o relógio seguia contando',
+        );
+      },
+    );
   }
 
   testWidgets(
