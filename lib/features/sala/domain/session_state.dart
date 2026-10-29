@@ -1408,7 +1408,7 @@ class SalaSessionState {
       (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
       btClipEnded &&
       !btSoOuvir &&
-      btAprovando != machine.generation;
+      aBackTranslationGestureActs;
 
   bool get _btNaVez =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && !needsPerson;
