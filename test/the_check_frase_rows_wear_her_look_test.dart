@@ -53,6 +53,29 @@ Color _oPreenchimento(WidgetTester tester, int n) => _pintura(
   find.descendant(of: _aBarra(n), matching: find.byType(Container)).first,
 ).color!;
 
+BoxDecoration _oDisco(WidgetTester tester, int n) =>
+    tester
+            .widget<DecoratedBox>(
+              find
+                  .ancestor(
+                    of: find.descendant(
+                      of: find.byType(FraseList),
+                      matching: find.text('$n'),
+                    ),
+                    matching: find.byType(DecoratedBox),
+                  )
+                  .first,
+            )
+            .decoration
+        as BoxDecoration;
+
+Color? _oNumero(WidgetTester tester, int n) => tester
+    .widget<Text>(
+      find.descendant(of: find.byType(FraseList), matching: find.text('$n')),
+    )
+    .style
+    ?.color;
+
 void main() {
   testWidgets('in the dark look a frase bar reads against its track, not '
       'one brown on another', (tester) async {
@@ -110,6 +133,27 @@ void main() {
         (cartao.border! as Border).top.color,
         areia,
         reason: 'a borda era a linha da tela, não a areia dela',
+      );
+    });
+  }
+
+  for (final (look, areia, tinta) in [
+    ('light', const Color(0xFFC5C29F), const Color(0xFF0A0703)),
+    ('dark', const Color(0xFF6E6A57), const Color(0xFFF2EDE1)),
+  ]) {
+    testWidgets('in the $look look a frase number sits on her sand disc, '
+        'written in ink, not paper on a muted disc', (tester) async {
+      await _pump(tester, look, [_aFrase()]);
+
+      expect(
+        _oDisco(tester, 1).color,
+        areia,
+        reason: 'o disco era o mut da tela, não a areia dela',
+      );
+      expect(
+        _oNumero(tester, 1),
+        tinta,
+        reason: 'o número era escrito no papel; na areia só a tinta se lê',
       );
     });
   }

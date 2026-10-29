@@ -294,13 +294,13 @@ class _FraseTile extends StatelessWidget {
                   : DecoratedBox(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: colors.mut,
+                        color: colors.areia,
                       ),
                       child: Center(
                         child: Text(
                           '$n',
                           style: TextStyle(
-                            color: colors.paper,
+                            color: colors.ink,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
