@@ -1086,6 +1086,112 @@ void main() {
     },
   );
 
+  testWidgets(
+    'another rehearsal opened from the list draws no playhead where the take before it stopped',
+    (tester) async {
+      final (harness, container) = await _inListenMode(
+        tester,
+        rehearsals: [
+          for (final n in [1, 2])
+            _rehearsal(
+              n: n,
+              sentAt: '2026-10-27T10:00:00+00:00',
+              frases: [_frase('f1', 0, 3000)],
+            ),
+        ],
+      );
+      final play = byLabel('Tocar ou pausar a gravação');
+
+      await tester.tap(play);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      await tester.tap(play);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(_playhead(tester), closeTo(204.4, 0.01));
+
+      container
+          .read(salaSessionProvider.notifier)
+          .openTheListedSceneRehearsal('ensaio-da-cena-2');
+      await pumpUntil(
+        tester,
+        () =>
+            container.read(salaSessionProvider).scene.rehearsal?.rehearsalId ==
+            'ensaio-da-cena-2',
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        container.read(salaSessionProvider).scene.rehearsal?.rehearsalId,
+        'ensaio-da-cena-2',
+      );
+      expect(
+        _playhead(tester),
+        isNull,
+        reason: 'o ensaio aberto da lista herdava o marcador do take anterior',
+      );
+    },
+  );
+
+  testWidgets(
+    'a translation started over draws no playhead where the take stopped before it',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      await tester.tap(byLabel('Tocar ou pausar a gravação'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(_playhead(tester), closeTo(204.4, 0.01));
+
+      await tester.tap(find.text('recomeçar a tradução'));
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.tap(
+        find.text('toque de novo para apagar as 1 frases traduzidas'),
+      );
+      await pumpUntil(
+        tester,
+        () =>
+            harness.room.restartsSent.isNotEmpty &&
+            container
+                    .read(salaSessionProvider)
+                    .scene
+                    .rehearsal
+                    ?.translatedFrases ==
+                0,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(harness.room.restartsSent, hasLength(1));
+      expect(
+        _playhead(tester),
+        isNull,
+        reason: 'a tradução recomeçada ainda marcava onde o take tinha parado',
+      );
+      await tester.pump(const Duration(seconds: 6));
+    },
+  );
+
   testWidgets('a sent scene rehearsal draws her strip', (tester) async {
     await _inListenMode(tester);
 

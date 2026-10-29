@@ -5595,6 +5595,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         asked.rehearsal?.rehearsalId == rehearsal.rehearsalId;
     final pausa = stillTranslating ? asked.pausa : null;
     final armed = stillTranslating ? asked.translatingAgain : null;
+    final listened = stillTranslating && asked.listened;
     final stillArmed = rehearsal.currentFrases
         .where((frase) => frase.fraseId == armed?.fraseId)
         .firstOrNull;
@@ -5607,12 +5608,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal: rehearsal,
         take: here,
         length: length,
-        listened: stillTranslating && asked.listened,
+        listened: listened,
         pausa: pausa != null && pausa > floor ? pausa : null,
         translatingAgain: stillArmed,
         notUnderstood: herLineStands,
       ),
       sceneRehearsals: _listedWith(rehearsal),
+      clearSceneStoppedAt: !listened,
     );
     if (step == SceneStep.translate || step == SceneStep.sent) {
       _handOff(_readTheLoudness(here));
