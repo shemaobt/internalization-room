@@ -6004,8 +6004,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _sendTheSceneTake(sessionId, take, keeping, generation);
   }
 
-  /// The circle of the translate step: it marks the pausa while the take plays, opens
-  /// the frase's microphone once a pausa waits, and keeps the frase at the stop tap.
+  /// The circle of the translate step: it plays the take from where the translation
+  /// stopped before the team listens, marks the pausa while the take plays, opens the
+  /// frase's microphone once a pausa waits, and keeps the frase at the stop tap.
   void tapTheTranslateCircle() => _gesture(_tapTheTranslateCircle);
 
   void _tapTheTranslateCircle() {
@@ -6026,7 +6027,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Microphone():
         return;
       case _ when !shown.listened:
-        return;
+        _playTheSceneRehearsal();
       case _ when shown.translatingAgain != null || shown.pausa != null:
         final held = _frases.of(shown.rehearsal!.rehearsalId);
         if (held != null) {
@@ -6079,6 +6080,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (_theListFirst(_playTheSceneRehearsal)) return;
+    if (translatingAgain != null && pausa != null) {
+      final end = state.scene.takeEnd;
+      if (playing) {
+        _silenceTheRoom();
+      } else if (end != null && pausa >= end) {
+        _silenceTheRoom();
+        _play(
+          PartSound(
+            0,
+            take,
+            from: theMomentBefore(pausa, state.scenePausaFloor),
+            to: pausa,
+          ),
+        );
+      } else {
+        _silenceTheRoom();
+        _play(PartSound(0, take, from: pausa));
+      }
+      return;
+    }
     _theRefusalLineGoes();
     final shown = state.scene.nothingAskedAgain;
     state = state.copyWith(scene: shown);
