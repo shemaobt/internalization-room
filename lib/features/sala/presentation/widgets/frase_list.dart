@@ -22,10 +22,12 @@ class FraseRow {
   final bool regravando;
   final String? regravar;
   final bool regravarDormindo;
+  final bool regravarArmado;
   final VoidCallback? onRegravar;
   final FraseRevisao? revisao;
   final String? estado;
   final bool estadoDormindo;
+  final bool estadoArmado;
   final VoidCallback? onEstado;
 
   const FraseRow({
@@ -42,10 +44,12 @@ class FraseRow {
     this.regravando = false,
     this.regravar,
     this.regravarDormindo = false,
+    this.regravarArmado = false,
     this.onRegravar,
     this.revisao,
     this.estado,
     this.estadoDormindo = false,
+    this.estadoArmado = false,
     this.onEstado,
   });
 }
@@ -197,6 +201,7 @@ class FraseList extends StatelessWidget {
                       label: estado,
                       onTap: row.onEstado,
                       dormindo: row.estadoDormindo,
+                      toggled: row.estadoArmado ? true : null,
                     ),
             ),
         ],
@@ -226,6 +231,8 @@ class _Pill extends StatelessWidget {
       enabled: onTap != null && !dormindo,
       toggled: toggled,
       label: label,
+      onTap: onTap,
+      excludeSemantics: true,
       child: Opacity(
         opacity: onTap == null
             ? 0.35
@@ -392,7 +399,7 @@ class _FraseTile extends StatelessWidget {
                           label: regravar,
                           onTap: row.onRegravar,
                           dormindo: row.regravarDormindo,
-                          toggled: row.regravando,
+                          toggled: row.regravando || row.regravarArmado,
                         ),
                     ],
                   ),

@@ -1297,23 +1297,17 @@ void main() {
       );
       await _umAchadoEm(it, 'trecho-inteiro');
 
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await waitFor(
         'o ensaio abrir',
         () => it.estado.stage == SalaStage.ensaio,
       );
       await settle();
       expect(it.estado.needsPerson, isFalse);
-      expect([for (final row in it.estado.sceneRows) row.dimmed], [false]);
       await waitFor(
         'a linha guardar o ensaio',
         () =>
             it.harness.emAberto.rows['Ruth/P01/pt']?.stage == SalaStage.ensaio,
-      );
-      expect(
-        it.harness.emAberto.rows['Ruth/P01/pt']!.partBeingRecordedAgain,
-        isNull,
-        reason: 'reaberto, o ensaio não pode voltar com uma marca no inteiro',
       );
       it.sala.recordSceneByScene();
       await waitFor('as cenas', () => it.estado.sceneRows.length == 2);
@@ -1360,7 +1354,7 @@ void main() {
         ],
       );
       await _umAchadoEm(it, 'trecho-inteiro');
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await waitFor(
         'o ensaio abrir',
         () => it.estado.stage == SalaStage.ensaio,
@@ -1437,7 +1431,7 @@ void main() {
       );
       await _umAchadoEm(it, 'trecho-inteiro');
 
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await settle();
 
       expect(
@@ -1721,7 +1715,7 @@ void main() {
         ],
       );
       await _umAchadoEm(it, 'trecho-1');
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await waitFor(
         'o ensaio abrir',
         () => it.estado.stage == SalaStage.ensaio,

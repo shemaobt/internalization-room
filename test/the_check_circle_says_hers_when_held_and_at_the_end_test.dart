@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'a_resumed_back_translation_circle_opens_the_microphone_test.dart'
@@ -129,7 +130,7 @@ void main() {
       'de vocês…», not the invitation to record', (tester) async {
     final (harness, container) = await reopenedInto(tester, toldUpTo: 5000);
 
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
 
     final state = container.read(salaSessionProvider);
@@ -152,7 +153,7 @@ void main() {
     expect(container.read(salaSessionProvider).btClipEnded, isTrue);
     expect(rotuloDoCirculo(tester), fimDaGravacao);
 
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
 
     final state = container.read(salaSessionProvider);
@@ -195,7 +196,7 @@ void main() {
       isNotNull,
     );
 
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
@@ -218,7 +219,7 @@ void main() {
     await tester.pump(passaDoCursor);
     expect(rotuloDoCirculo(tester), ouvindo);
 
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    container.read(salaSessionProvider.notifier).ouvirOTrechoContado(0);
     await tester.pump(const Duration(milliseconds: 300));
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -240,7 +241,7 @@ void main() {
     await tester.pump(passaDoCursor);
     expect(rotuloDoCirculo(tester), ouvindo);
 
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -276,7 +277,7 @@ void main() {
     );
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
 
-    notifier.ouvirAConta(0);
+    notifier.traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
@@ -528,38 +529,7 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a part told to its end and heard whole again after the verdict '
-      'sent them back to it reads her «pausado», not listen first', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await deVoltaAParteContadaAteOFim(tester, harness);
-    final tocadas = harness.playback.played.length;
-
-    harness.playback.at = parte;
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(
-      harness.playback.played,
-      hasLength(tocadas),
-      reason: 'a parte que o veredito mandou ouvir seguia para a próxima',
-    );
-    final state = container.read(salaSessionProvider);
-    expect(state.btClipEnded, isTrue);
-    expect(state.btParteFronteira, isTrue);
-    expect(state.nothingHeardSinceCursor, isTrue);
-    expect(
-      rotuloDoCirculo(tester),
-      pausado,
-      reason:
-          'a parte que o veredito mandou ouvir, ouvida inteira, seguia dizendo '
-          'ouvir primeiro',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets('the part the verdict sent them back to reads her «ouvindo a '
+  testWidgets('the part the replay after her P2 plays reads her «ouvindo a '
       'gravação de vocês…» while it plays, not listen first', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await deVoltaAParteContadaAteOFim(tester, harness);
@@ -574,7 +544,8 @@ void main() {
       rotuloDoCirculo(tester),
       ouvindo,
       reason:
-          'a parte que o veredito mandou ouvir, tocando, dizia ouvir primeiro',
+          'a parte que a escuta depois da P2 tocou, tocando, dizia ouvir '
+          'primeiro',
     );
     closeTheRoom(container);
   });
@@ -630,10 +601,14 @@ Future<ProviderContainer> deVoltaAParteContadaAteOFim(
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 300));
   harness.room
-    ..verdictChecked = false
-    ..verdictUnheardTakeIds = [primeira];
+    ..verdictRefusal = CheckRefusal.partUnheard
+    ..verdictFixedLine = 'P2'
+    ..verdictUnheardTakeIds = [primeira]
+    ..listeningUnheardTakeIds = [primeira];
   await tester.ensureVisible(byLabel(conferir));
   await tester.tap(byLabel(conferir));
   await tester.pump(const Duration(milliseconds: 600));
+  container.read(salaSessionProvider.notifier).ouvirGravacao();
+  await tester.pump(const Duration(milliseconds: 300));
   return container;
 }

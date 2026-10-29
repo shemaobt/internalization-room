@@ -62,22 +62,23 @@ Future<void> waitFor(
   Duration limit = const Duration(seconds: 10),
   Future<void> Function()? step,
 }) async {
-  const stepLength = Duration(milliseconds: 100);
-  final deadline = DateTime.now().add(limit);
+  final stepLength = step == null
+      ? const Duration(milliseconds: 5)
+      : const Duration(milliseconds: 100);
   var stepped = Duration.zero;
   while (!await ready()) {
-    if (step == null ? DateTime.now().isAfter(deadline) : stepped >= limit) {
+    if (stepped >= limit) {
       final waited = limit.inMilliseconds % 1000 == 0
           ? '${limit.inSeconds}s'
           : '${limit.inMilliseconds}ms';
       throw TimeoutException('esperei $waited e $what não aconteceu', limit);
     }
     if (step == null) {
-      await Future<void>.delayed(const Duration(milliseconds: 5));
+      await Future<void>.delayed(stepLength);
     } else {
       await step();
-      stepped += stepLength;
     }
+    stepped += stepLength;
   }
 }
 
@@ -99,15 +100,6 @@ const testLanguage = 'pt';
 
 /// The line this room composes for a *terminei* it answered.
 const falaDoVeredito = '/api/internalization-room/voice/veredito';
-
-/// The line this room composes for a *terminei* it refused, because a part of the
-/// rehearsal is not covered by the report. Its own line, as the refusal is its own answer.
-const falaDaParteNaoOuvida = '/api/internalization-room/voice/parte-nao-ouvida';
-
-/// The line this room composes for a *terminei* it refused, because a current part has no
-/// stretch told over it. Its own line, as the refusal is its own answer.
-const falaDaParteNaoContada =
-    '/api/internalization-room/voice/parte-nao-contada';
 
 Coverage coverage({int engaged = 0, int surfaced = 0}) => Coverage(
   engaged: engaged,
@@ -1458,10 +1450,6 @@ class FakeRoom implements RoomRepository {
   /// not send the field at all looks like from here.
   List<String> verdictUnheardTakeIds = const [];
 
-  /// Which current parts this room says have no stretch told over them, when that is what
-  /// stopped the reading. Its own field, as on the wire: read before [verdictUnheardTakeIds]
-  /// the way the server's own errands are ordered.
-  List<String> verdictUntoldTakeIds = const [];
   bool verdictHasFinding = false;
   List<BtFinding> verdictFindings = const [];
   CheckRefusal? verdictRefusal;
@@ -3331,23 +3319,13 @@ class FakeRoom implements RoomRepository {
         ),
       );
     }
-    final String linha;
-    if (verdictUntoldTakeIds.isNotEmpty) {
-      linha = falaDaParteNaoContada;
-    } else if (verdictUnheardTakeIds.isNotEmpty) {
-      linha = falaDaParteNaoOuvida;
-    } else {
-      linha = verdictAudioUrl ?? falaDoVeredito;
-    }
     return Answered(
       BackTranslationVerdict(
-        audioUrl: linha,
+        audioUrl: verdictAudioUrl ?? falaDoVeredito,
         fixedLine: '',
         checked: verdictChecked,
         findingSegmentId: _oQueOAnalistaAponta(),
         untoldSegmentId: verdictUntoldSegmentId,
-        unheardTakeIds: verdictUnheardTakeIds,
-        untoldTakeIds: verdictUntoldTakeIds,
         findings: verdictFindings,
         findingsRemaining: verdictHasFinding ? 1 : 0,
         usedFailSafe: verdictUsedFailSafe,

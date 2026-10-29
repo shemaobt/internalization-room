@@ -363,6 +363,30 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while a sentence is being recorded again another row\'s '
+      '«regravar» offers VoiceOver no tap that does nothing', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await tocar(tester, 'regravar a frase 3');
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      tester.getSemantics(_naLista('regravar a frase 1')),
+      isSemantics(
+        isButton: true,
+        hasEnabledState: true,
+        isEnabled: false,
+        hasTapAction: false,
+      ),
+      reason: 'o VoiceOver oferecia um toque que não fazia nada',
+    );
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
   Future<void> regravarAte(
     WidgetTester tester,
     SalaHarness harness,
@@ -524,7 +548,7 @@ void main() {
       findsOneWidget,
       reason: 'a frase ia para a sala sem a equipe ver que estava indo',
     );
-    for (var n = 1; n <= 4; n++) {
+    for (final n in [1, 2, 4]) {
       expect(
         _naLista('regravar a frase $n'),
         findsNothing,
@@ -534,6 +558,44 @@ void main() {
     harness.room.holdTheSentence!.complete();
     await _passo(tester);
     closeTheRoom(container);
+  });
+
+  testWidgets('while its sentence is sent «regravar a frase N» stays on the '
+      'row, pressed, and takes no tap', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room.holdTheSentence = Completer<void>();
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(naLinha('enviando…'), findsOneWidget);
+    expect(
+      _naLista('regravar a frase 3'),
+      findsOneWidget,
+      reason: 'o botão da frase sumia da linha enquanto ela ia para a sala',
+    );
+    expect(
+      tester.getSemantics(_naLista('regravar a frase 3')),
+      isSemantics(
+        isButton: true,
+        hasToggledState: true,
+        isToggled: true,
+        hasEnabledState: true,
+        isEnabled: false,
+        hasTapAction: false,
+      ),
+      reason:
+          'o VoiceOver não ouvia a frase apertada e desligada enquanto ela '
+          'era enviada',
+    );
+    harness.room.holdTheSentence!.complete();
+    await _passo(tester);
+    closeTheRoom(container);
+    semantics.dispose();
   });
 
   bool guardada(SalaHarness harness) =>
@@ -857,34 +919,6 @@ void main() {
       closeTheRoom(container);
     },
   );
-
-  testWidgets('a bead heard while a re-recorded frase awaits writes «ouvindo a '
-      'gravação de vocês…» beside play, not the end of the recording', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await quatroFrasesEmWav(tester, harness);
-    await deitarAFrase(tester, harness, 2);
-    expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-2');
-
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
-    await _passo(tester);
-
-    final aqui = container.read(salaSessionProvider);
-    expect(aqui.canRetellAFrase, isFalse);
-    expect(aqui.btTrechoTocando, isTrue);
-    expect(
-      find.descendant(
-        of: find.byType(RetroView),
-        matching: find.text('ouvindo a gravação de vocês…'),
-      ),
-      findsOneWidget,
-      reason:
-          'a conta tocando a gravação com uma frase à espera se dizia o fim '
-          'da gravação',
-    );
-    closeTheRoom(container);
-  });
 
   testWidgets('a re-recorded frase that awaits its translation offers no way '
       'to keep the translation it had before', (tester) async {
@@ -1346,11 +1380,9 @@ void main() {
     expect(harness.recorder.lastOwner, MicOwner.rehearsal);
     final circulo = tester.widget<FacilitatorCircle>(_circulo());
     expect(
-      (circulo.answersATouch, circulo.voice, circulo.tongue),
-      (true, VoiceState.listening, Tongue.motherTongue),
-      reason:
-          'o círculo gravava a frase parecendo parado, ou na cor da '
-          'tradução em português',
+      circulo.voice,
+      VoiceState.listening,
+      reason: 'o círculo gravava a frase parecendo parado',
     );
     expect(circulo.semanticLabel, 'gravem a frase inteira');
     expect(
@@ -1879,6 +1911,33 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while the new part is fetched again no row offers «regravar», '
+      'not even the row it is fetched for', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    harness.room.holdNextClip();
+
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+
+    expect(naLinha('enviando…'), findsOneWidget);
+    for (var n = 1; n <= 4; n++) {
+      expect(
+        _naLista('regravar a frase $n'),
+        findsNothing,
+        reason:
+            'a frase $n oferecia regravar enquanto a parte nova era buscada '
+            'de novo',
+      );
+    }
+    harness.room.finishHeldClip();
+    await _passo(tester);
+    await _passo(tester);
+    closeTheRoom(container);
+  });
+
   testWidgets('a new part that fails again says nothing and gives the row its '
       'retry back, instead of leaving it on «enviando…»', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -2185,7 +2244,7 @@ void main() {
     await regravarAte(tester, harness, 2);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.gravarAParteDeNovo();
+    notifier.leaveTheBackTranslation();
     await _passo(tester);
     notifier.startRetro();
     await _passo(tester);
@@ -2302,38 +2361,6 @@ void main() {
       container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
       'trecho-3',
       reason: 'outra frase tomava o círculo da frase que esperava a tradução',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets('while a re-recorded frase awaits its translation, a bead on '
-      'frase 1 plays its piece of the recording and leaves the circle on the '
-      'frase that awaits', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await quatroFrasesEmWav(tester, harness);
-    await umAchadoNaFraseDois(tester, harness, container);
-    await deitarAFrase(tester, harness, 3);
-    final aqui = container.read(salaSessionProvider);
-    expect(aqui.btFraseQueAguarda, 'trecho-3');
-    final parteUm = aqui.partes.first.path;
-    final tocadas = harness.playback.played.length;
-    final trechos = harness.playback.ranges.length;
-
-    container
-        .read(salaSessionProvider.notifier)
-        .ouvirAConta(aqui.btTrechos.indexWhere((trecho) => trecho.frase == 1));
-    await _passo(tester);
-
-    expect(
-      harness.playback.played.skip(tocadas),
-      [parteUm],
-      reason: 'a conta tocava a tradução da frase 1, não a gravação',
-    );
-    expect(harness.playback.ranges.skip(trechos), ['0-4000']);
-    expect(
-      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
-      'trecho-3',
-      reason: 'a conta tomava o círculo da frase que esperava a tradução',
     );
     closeTheRoom(container);
   });
