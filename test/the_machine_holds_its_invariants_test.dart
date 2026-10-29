@@ -370,7 +370,7 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
 );
 
 final everyFailedLoadOfAReplyEndsInOneAnswer = Invariant<Machine>(
-  'ADR 0140, every failed load of a reply ends in exactly one answer, a reload '
+  'ADR 0152, every failed load of a reply ends in exactly one answer, a reload '
   'or a let-go',
   (before, event, after, effects, world) {
     if (event is! TheReplyFailedToLoad) return null;
@@ -411,6 +411,39 @@ final aStationsSessionNeverOpensWithoutTheWatch = Invariant<Machine>(
     }
     if (effects.contains(const ArmTheWatch())) return null;
     return '${describeEvent(event)} opened $opened without arming the Watch';
+  },
+);
+
+var _opensOverAPartUnsent = 0;
+
+final _atTheRehearsal = MachineUnderTest<Machine>(
+  start: const Machine(station: Ensaio()),
+  step: reduce,
+  draw: (_, world, random) => switch (random.nextInt(4)) {
+    0 => const TheRehearsalOpened(),
+    1 => TheRehearsalWeighed(
+      everySceneHasItsPart: random.nextBool(),
+      everyPartIsHere: random.nextBool(),
+      everyPartIsSent: random.nextBool(),
+    ),
+    2 => const TheBackTranslationOpened(),
+    _ => drawAnEvent(world, random),
+  },
+  show: describeMachine,
+);
+
+final theBackTranslationNeverOpensOverAPartUnsent = Invariant<Machine>(
+  'ADR 0154, the Back-translation never opens from a Rehearsal weighed with a '
+  'part still in the Outbox',
+  (before, event, after, effects, world) {
+    if (event is! TheBackTranslationOpened) return null;
+    if (before.station case Ensaio(everyPartIsSent: false)) {
+      _opensOverAPartUnsent++;
+      if (after.station is Retro) {
+        return 'the Back-translation opened with a part still in the Outbox';
+      }
+    }
+    return null;
   },
 );
 
@@ -479,7 +512,7 @@ void main() {
       _holds(theWarningIsTheOneTheServerTold(_haltOf));
     });
 
-    test('ADR 0140: every failed load of a reply ends in exactly one answer, '
+    test('ADR 0152: every failed load of a reply ends in exactly one answer, '
         'a reload or a let-go', () {
       _holds(everyFailedLoadOfAReplyEndsInOneAnswer);
     });
@@ -603,6 +636,18 @@ void main() {
 
   test('ADR 0092: a Station\'s session never opens without the Watch', () {
     _holds(aStationsSessionNeverOpensWithoutTheWatch);
+  });
+
+  test('ADR 0154: the Back-translation never opens from a Rehearsal weighed '
+      'with a part still in the Outbox', () {
+    expectEverySeedHolds(_atTheRehearsal, [
+      theBackTranslationNeverOpensOverAPartUnsent,
+    ], seeds: _seeds);
+    expect(
+      _opensOverAPartUnsent,
+      greaterThan(0),
+      reason: 'nenhuma sequência pedia a tradução com uma parte na fila',
+    );
   });
 
   test('ADR 0077: a language chosen reads the Wheel again on the Choice and '

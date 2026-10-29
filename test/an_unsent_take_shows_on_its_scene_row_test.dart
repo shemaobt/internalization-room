@@ -15,6 +15,7 @@ import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/main.dart';
 
@@ -99,6 +100,19 @@ class _Casa {
     await settle(const Duration(milliseconds: 400));
   });
 
+  bool falhou(int n) {
+    final linha = estado.sceneRows.firstWhere((row) => row.number == n);
+    return linha.inTheAir == null &&
+        linha.unsent?.failure == SendFailure.failed;
+  }
+
+  Future<void> tocarAte(Finder alvo, String what, bool Function() done) =>
+      emTempoReal(() async {
+        await tester.ensureVisible(alvo);
+        await tester.tap(alvo);
+        await waitFor(what, done);
+      });
+
   Future<void> gravar(int n) => emTempoReal(() async {
     sala.gravarACena(n);
     await waitFor(
@@ -181,6 +195,30 @@ Future<void> _lancar(ProviderContainer container) async {
   await container.read(deviceLinkProvider.notifier).findTheTeam();
   await sala.refreshUnsent();
   await sala.openTheRoom();
+}
+
+ButtonMood _oDisco(WidgetTester tester) => tester
+    .widget<RoundActionButton>(
+      find.ancestor(
+        of: offTheRows(_traduzir),
+        matching: find.byType(RoundActionButton),
+      ),
+    )
+    .mood;
+
+Future<_Casa> _comAQuartaNaFila(WidgetTester tester) async {
+  final casa = await _naCasa(tester);
+  for (final n in [1, 2, 3]) {
+    await casa.guardar(n);
+  }
+  casa.room.unreachableTake = 'ensaio/parte-4';
+  await casa.guardar(4);
+  await casa.emTempoReal(
+    () => waitFor('a cena 4 falhar', () => casa.falhou(4)),
+  );
+  expect(casa.estado.everySceneHasItsPart, isTrue);
+  expect(casa.estado.unsentParts.keys, [4]);
+  return casa;
 }
 
 void _umIpadEmPe(WidgetTester tester) {
@@ -331,9 +369,17 @@ void main() {
     final casa = await _naCasa(tester);
     casa.room.unreachableTake = 'ensaio/parte-2';
     await casa.guardar(2);
+    await casa.emTempoReal(
+      () => waitFor('a cena 2 falhar', () => casa.falhou(2)),
+    );
     final antes = casa.envios;
     for (var toque = 0; toque < 3; toque++) {
-      await casa.tocar(casa.naLinha(2, find.text(_falhou)));
+      final antesDoToque = casa.envios;
+      await casa.tocarAte(
+        casa.naLinha(2, find.text(_falhou)),
+        'o toque ${toque + 1} falhar de novo',
+        () => casa.envios > antesDoToque && casa.falhou(2),
+      );
     }
     expect(casa.envios - antes, greaterThanOrEqualTo(9));
 
@@ -698,12 +744,16 @@ void main() {
       await casa.gravar(2);
       await casa.emTempoReal(() async {
         casa.sala.takeKeep();
-        await settle(const Duration(milliseconds: 600));
+        await waitFor('a cena 2 falhar', () => casa.falhou(2));
       });
 
       expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
 
-      await casa.tocar(casa.naLinha(2, find.text(_falhou)));
+      await casa.tocarAte(
+        casa.naLinha(2, find.text(_falhou)),
+        'a cena 2 chegar à sala',
+        () => casa.naSala.contains('ensaio/parte-2') && !casa.falhou(2),
+      );
 
       expect(casa.naSala, contains('ensaio/parte-2'));
       expect(find.text(_falhou), findsNothing);
@@ -1022,6 +1072,147 @@ void main() {
     await casa.tocar(find.text(_enviarAgora(2, '0:48')));
     expect(casa.naSala, contains('ensaio/parte-2'));
   });
+
+  testWidgets(
+    'a part still in the Outbox keeps the advance disc dark, as her translate '
+    'button waits for the room to hold every part',
+    (tester) async {
+      await _comAQuartaNaFila(tester);
+
+      expect(
+        _oDisco(tester),
+        ButtonMood.dimmed,
+        reason:
+            'o disco acenava com a cena 4 ainda na fila, e o botão dela fica '
+            'desligado até a sala ter todas as partes',
+      );
+    },
+  );
+
+  testWidgets(
+    'the check asked for with a part still in the Outbox stays on the '
+    'recording home, as hers does after a join',
+    (tester) async {
+      final casa = await _comAQuartaNaFila(tester);
+
+      await casa.emTempoReal(() async {
+        casa.sala.startRetro();
+        await settle(const Duration(milliseconds: 400));
+      });
+
+      expect(
+        casa.estado.stage,
+        SalaStage.ensaio,
+        reason:
+            'a conferência abria com a cena 4 na fila e a contava como não '
+            'ouvida; a dela não abre',
+      );
+    },
+  );
+
+  testWidgets(
+    'once the part in the Outbox lands, the disc lights and its tap opens the '
+    'check',
+    (tester) async {
+      final casa = await _comAQuartaNaFila(tester);
+
+      casa.room.unreachableTake = null;
+      await casa.tocarAte(
+        casa.naLinha(4, find.text(_falhou)),
+        'a cena 4 chegar',
+        () => casa.estado.everyPartIsSent,
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(casa.estado.everyPartIsSent, isTrue);
+      expect(
+        _oDisco(tester),
+        ButtonMood.beckoning,
+        reason: 'a cena 4 chegou à sala e o disco ficava apagado',
+      );
+
+      await casa.tocar(offTheRows(_traduzir));
+
+      expect(
+        casa.estado.stage,
+        SalaStage.retro,
+        reason: 'com todas as partes na sala, a conferência não abria',
+      );
+    },
+  );
+
+  testWidgets(
+    'with three parts in the room and the fourth in the Outbox, the home says '
+    '«gravem todas as partes primeiro», as hers',
+    (tester) async {
+      await _comAQuartaNaFila(tester);
+
+      expect(
+        find.text('gravem todas as partes primeiro'),
+        findsOneWidget,
+        reason:
+            'a casa contava a cena 4 da fila como gravada e calava a linha que '
+            'a dela mostra',
+      );
+    },
+  );
+
+  testWidgets(
+    'with the only part recorded still in the Outbox, the home does not say '
+    '«gravem todas as partes primeiro», as hers counts what the room holds',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      expect(casa.estado.unsentParts.keys, [2]);
+
+      expect(
+        find.text('gravem todas as partes primeiro'),
+        findsNothing,
+        reason:
+            'a casa contava a cena 2 da fila como gravada; na dela, sem parte '
+            'nenhuma na sala, a linha não aparece',
+      );
+    },
+  );
+
+  testWidgets(
+    'after a relaunch, a part from the earlier visit still in the Outbox keeps '
+    'the check closed until it lands, and then the check opens',
+    (tester) async {
+      final casa = await _comAQuartaNaFila(tester);
+      await casa.relancar();
+      expect(casa.estado.unsentParts.keys, [4]);
+
+      await casa.emTempoReal(() async {
+        casa.sala.startRetro();
+        await settle(const Duration(milliseconds: 400));
+      });
+      expect(
+        casa.estado.stage,
+        SalaStage.ensaio,
+        reason: 'depois de relançar, a conferência abria com a cena 4 na fila',
+      );
+
+      casa.room.unreachableTake = null;
+      await casa.tocarAte(
+        casa.naLinha(4, find.textContaining('enviar agora')),
+        'a cena 4 chegar',
+        () => casa.estado.everyPartIsSent,
+      );
+      await casa.emTempoReal(() async {
+        casa.sala.startRetro();
+        await settle(const Duration(milliseconds: 400));
+      });
+
+      expect(
+        casa.estado.stage,
+        SalaStage.retro,
+        reason:
+            'a cena 4 chegou à sala sem o tablet saber o nome dela, e a '
+            'conferência ficava fechada a visita toda',
+      );
+    },
+  );
 }
 
 class _QueueThatRefusesOnce extends TakeUploadQueue {
