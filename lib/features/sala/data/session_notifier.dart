@@ -4131,13 +4131,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The recording home at the grain just switched to: opened from the plan, redrawn on
   /// the home.
   void _toItsHome() {
-    if (_onThePlan) _openTheRecordingHome(state.sessionId!);
+    if (_onThePlan || state.station is Retro) {
+      _openTheRecordingHome(state.sessionId!);
+    }
   }
 
   /// «gravar a passagem inteira de uma vez», on the plan and on a scene home over a
   /// joined recording.
   void recordTheWholePassage() => _gesture(() {
-    if (!_aGrainControlActs || (state.recordsTheWhole && !_onThePlan)) return;
+    if (!(_aGrainControlActs || state.station is Retro) ||
+        (state.recordsTheWhole && !_onThePlan)) {
+      return;
+    }
     _armedTap(
       'whole',
       needs: state.wholeSwitchArms,

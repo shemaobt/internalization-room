@@ -17,6 +17,7 @@ import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'frase_list.dart';
+import 'grain_choice_view.dart';
 import 'external_check_button.dart';
 import 'listeners_line.dart';
 import 'motion.dart';
@@ -222,6 +223,10 @@ class RetroView extends ConsumerWidget {
                     ? notifier.gravarAParteDeNovo
                     : null,
               ),
+            ],
+            if (session.joined && !session.btSoOuvir) ...[
+              const SizedBox(height: 8),
+              wholeAtOnce(session, language, notifier.recordTheWholePassage),
             ],
             const SizedBox(height: 48),
           ],

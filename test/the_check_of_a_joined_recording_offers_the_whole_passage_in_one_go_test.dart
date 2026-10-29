@@ -1,0 +1,341 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/main.dart';
+
+import 'fakes.dart';
+
+const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
+const _recordThePart = 'voltar e regravar uma parte';
+const _wholeArmed = 'toquem de novo: as cenas e as traduções ficam guardadas';
+const _reopenArmed = 'toquem de novo: isto abre de novo o rascunho aprovado';
+const _theArmLapses = Duration(seconds: 8);
+const _whole = 'A passagem inteira';
+const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
+
+Future<void> _settles(WidgetTester tester) async {
+  for (var vez = 0; vez < 10; vez++) {
+    await _passo(tester);
+  }
+}
+
+Future<void> _tap(WidgetTester tester, String text) async {
+  await tester.ensureVisible(find.text(text));
+  await tester.tap(find.text(text));
+  await _passo(tester);
+}
+
+Future<void> _passo(WidgetTester tester) =>
+    tester.pump(const Duration(milliseconds: 100));
+
+Future<ProviderContainer> _naConferencia(
+  WidgetTester tester,
+  SalaHarness harness, {
+  bool juntada = true,
+  bool aprovada = false,
+  bool primeiraEscuta = false,
+  String lingua = 'pt',
+}) async {
+  tester.view
+    ..physicalSize = const Size(820, 2400)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final pasta = Directory.systemTemp.createTempSync('sala-1876');
+  addTearDown(() => pasta.deleteSync(recursive: true));
+  harness.emAberto.rows['Ruth/P01/$lingua'] = ResumePoint(
+    sessionId: 'sessao-antiga',
+    stage: SalaStage.retro,
+    takes: [
+      for (final n in [1, 2])
+        KeptTake(
+          scopeId: KeptScope.parte(n),
+          path: (File(
+            '${pasta.path}/p$n.wav',
+          )..writeAsBytesSync([1, 2, 3])).path,
+          takeId: 'gravacao-$n',
+          origin: juntada ? 'ensaio-da-cena-$n' : null,
+        ),
+    ],
+  );
+  harness.room.takes.addAll([
+    for (final n in [1, 2])
+      TakeView(
+        takeId: 'gravacao-$n',
+        kind: 'ensaio',
+        scope: KeptScope.parte(n),
+        ordinal: n,
+        pass: 1,
+        origin: juntada ? 'ensaio-da-cena-$n' : null,
+      ),
+  ]);
+  if (aprovada) harness.room.approvedDraft = const ApprovedDraft(version: 1);
+  if (primeiraEscuta) {
+    harness.room.listeningUnheardTakeIds = const ['gravacao-1', 'gravacao-2'];
+  }
+  harness.room.retroSoFar = BackTranslationProgress(
+    checked: aprovada,
+    segments: [
+      if (!primeiraEscuta) ...const [
+        SegmentView(
+          segmentId: 'trecho-1',
+          takeId: 'gravacao-1',
+          startsMs: 0,
+          endsMs: 5000,
+          frase: 1,
+        ),
+        SegmentView(
+          segmentId: 'trecho-2',
+          takeId: 'gravacao-2',
+          startsMs: 0,
+          endsMs: 5000,
+          frase: 2,
+        ),
+      ],
+    ],
+  );
+  final container = harness.container();
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: const SalaApp()),
+  );
+  await _passo(tester);
+  unawaited(
+    container
+        .read(salaSessionProvider.notifier)
+        .goConversa(book: 'Ruth', pericope: 'P01'),
+  );
+  if (aprovada) {
+    SalaSessionState estado() => container.read(salaSessionProvider);
+    await waitFor(
+      'a passagem aprovada pousar na conversa',
+      () => estado().stage == SalaStage.conversa && !estado().awaitingTheGuide,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+    await waitFor(
+      'a casa da gravação abrir',
+      () => estado().stage == SalaStage.ensaio && estado().partes.isNotEmpty,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    container.read(salaSessionProvider.notifier).startRetro();
+  }
+  await waitFor(
+    'a conferência voltar com as duas frases',
+    () =>
+        container.read(salaSessionProvider).stage == SalaStage.retro &&
+        primeiraEscuta == container.read(salaSessionProvider).btSoOuvir &&
+        container.read(salaSessionProvider).btTrechos.length ==
+            (primeiraEscuta ? 0 : 2) &&
+        container.read(salaSessionProvider).btPhase ==
+            (aprovada ? BtPhase.conferida : BtPhase.playing),
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
+  await _passo(tester);
+  return container;
+}
+
+Future<void> _umVeredito(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  await waitFor(
+    'a gravação tocar até o fim',
+    () => container.read(salaSessionProvider).btClipEnded,
+    step: () async {
+      harness.playback.finishPlayback();
+      await _passo(tester);
+    },
+  );
+  harness.room
+    ..verdictChecked = false
+    ..verdictFindingPlace = 1
+    ..verdictFindings = const [
+      BtFinding(kind: BtFindingKind.addition, frase: 2, segmentId: 'trecho-2'),
+    ];
+  unawaited(
+    container.read(salaSessionProvider.notifier).finishBackTranslation(),
+  );
+  await waitFor(
+    'o veredito chegar com o achado',
+    () =>
+        container.read(salaSessionProvider).btPhase == BtPhase.playing &&
+        container.read(salaSessionProvider).btVeredito,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
+}
+
+void main() {
+  testWidgets('the check of a joined recording offers «gravar a passagem '
+      'inteira de uma vez» in the telling step', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+
+    expect(
+      find.text(_wholeAtOnce),
+      findsOneWidget,
+      reason:
+          'a conferência do Ensaio Final não oferecia gravar a passagem '
+          'de uma vez, e a dela oferece',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a verdict it sits under «voltar e regravar uma parte», '
+      'as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    await _umVeredito(tester, harness, container);
+
+    expect(find.text(_recordThePart), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text(_wholeAtOnce)).dy,
+      greaterThan(tester.getTopLeft(find.text(_recordThePart)).dy),
+      reason: 'o dela fica logo abaixo de voltar e regravar uma parte',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the check of a joined recording offers it in english as '
+      '«record the whole passage in one go»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    final container = await _naConferencia(tester, harness, lingua: 'en');
+
+    expect(
+      find.text('record the whole passage in one go'),
+      findsOneWidget,
+      reason: 'em inglês a conferência não tinha as palavras dela',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the first tap arms it with «toquem de novo: as cenas e as '
+      'traduções ficam guardadas»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+
+    await _tap(tester, _wholeAtOnce);
+
+    expect(
+      find.text(_wholeArmed),
+      findsOneWidget,
+      reason: 'o primeiro toque não armava, e o dela diz o que fica guardado',
+    );
+    expect(harness.room.grainSwitches, isEmpty);
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+  });
+
+  testWidgets('in english the armed text reads «tap again: the scenes and the '
+      'translations are kept»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    final container = await _naConferencia(tester, harness, lingua: 'en');
+
+    await _tap(tester, 'record the whole passage in one go');
+
+    expect(
+      find.text('tap again: the scenes and the translations are kept'),
+      findsOneWidget,
+    );
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+  });
+
+  testWidgets('over an approved draft the first tap arms with «toquem de '
+      'novo: isto abre de novo o rascunho aprovado»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness, aprovada: true);
+
+    await _tap(tester, _wholeAtOnce);
+
+    expect(
+      find.text(_reopenArmed),
+      findsOneWidget,
+      reason: 'sobre o rascunho aprovado o dela avisa que abre de novo',
+    );
+    expect(harness.room.grainSwitches, isEmpty);
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a second tap 2 s later switches the grain through the room\'s '
+      'door and lands on the whole-passage home', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+
+    await _tap(tester, _wholeAtOnce);
+    await tester.pump(const Duration(seconds: 2));
+    await _tap(tester, _wholeArmed);
+    await _settles(tester);
+
+    expect(harness.room.grainSwitches, [(grain: Grain.whole, reopens: false)]);
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.ensaio,
+      reason: 'a troca acontecia e a equipe ficava na conferência',
+    );
+    expect(find.text(_homeLine), findsOneWidget);
+    expect(find.text(_whole), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('over an approved draft the second tap switches with the reopen '
+      'and lands on the whole-passage home', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness, aprovada: true);
+
+    await _tap(tester, _wholeAtOnce);
+    await tester.pump(const Duration(seconds: 2));
+    await _tap(tester, _reopenArmed);
+    await _settles(tester);
+
+    expect(
+      harness.room.grainSwitches,
+      [(grain: Grain.whole, reopens: true)],
+      reason: 'sem a reabertura a sala recusa a troca sobre o aprovado',
+    );
+    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+    expect(find.text(_homeLine), findsOneWidget);
+    expect(find.text(_whole), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a check no join touched never offers it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness, juntada: false);
+
+    expect(
+      find.text(_wholeAtOnce),
+      findsNothing,
+      reason: 'o dela só aparece sobre uma gravação juntada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the first listen of a joined recording, before the telling, '
+      'never offers it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(
+      tester,
+      harness,
+      primeiraEscuta: true,
+    );
+
+    expect(
+      find.text(_wholeAtOnce),
+      findsNothing,
+      reason: 'o dela só aparece no passo de traduzir, não na primeira escuta',
+    );
+    closeTheRoom(container);
+  });
+}
