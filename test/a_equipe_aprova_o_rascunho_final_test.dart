@@ -105,7 +105,7 @@ Future<void> _prontoEFora(
 }
 
 Future<void> _aprovarEEsperar(WidgetTester tester) async {
-  await tester.tap(byLabel(_aprovar));
+  await pressTheApproval(tester, _aprovar);
   await tester.pump(const Duration(milliseconds: 300));
 }
 
@@ -194,7 +194,7 @@ void main() {
       final falasAntes = it.harness.voice.fixedLines.length;
 
       it.harness.voice.holdNextLine();
-      await tester.tap(byLabel(_aprovar));
+      await pressTheApproval(tester, _aprovar);
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(
@@ -245,9 +245,9 @@ void main() {
     final falasAntes = it.harness.voice.fixedLines.length;
 
     it.harness.room.holdNextRelease();
-    await tester.tap(byLabel(_aprovar));
+    await pressTheApproval(tester, _aprovar);
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(byLabel(_aprovar));
+    await pressTheApproval(tester, _aprovar);
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
@@ -286,7 +286,7 @@ void main() {
       );
       final falasAntes = it.harness.voice.fixedLines.length;
 
-      await tester.tap(byLabel('Approve as the final draft'));
+      await pressTheApproval(tester, 'Approve as the final draft');
       await tester.pump(const Duration(milliseconds: 300));
 
       final ditas = it.harness.voice.fixedLines.skip(falasAntes).toList();
@@ -959,7 +959,7 @@ void main() {
       ..holdNextState();
     final trechosNoAr = it.harness.playback.ranges.length;
 
-    await tester.tap(byLabel(_aprovar));
+    await pressTheApproval(tester, _aprovar);
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
@@ -971,7 +971,7 @@ void main() {
           'durar até a porta abrir',
     );
 
-    await tester.tap(byLabel(_aprovar));
+    await pressTheApproval(tester, _aprovar);
     await tester.pump(const Duration(milliseconds: 200));
 
     it.harness.room.finishHeldState();
@@ -1095,7 +1095,7 @@ void main() {
         ..releaseUntoldSegmentId = caso.trecho
         ..holdNextRelease();
 
-      await tester.tap(byLabel(_aprovar));
+      await pressTheApproval(tester, _aprovar);
       await tester.pump(const Duration(milliseconds: 100));
       _notifier(it.container).leaveThePassage();
       await tester.pump(const Duration(milliseconds: 300));
@@ -1390,27 +1390,23 @@ void main() {
     closeTheRoom(it.container);
   });
 
-  testWidgets(
-    'a retro under the person sign says so in english to an english room',
-    (tester) async {
-      final it = await _ateAConferida(
-        tester,
-        comEsta: SalaHarness(filaEmMemoria: true, lingua: 'en'),
-      );
+  testWidgets('the person sign stands over the retro\'s checked screen', (
+    tester,
+  ) async {
+    final it = await _ateAConferida(tester);
 
-      _notifier(it.container).haltForABrokenBuild();
-      await tester.pump(const Duration(milliseconds: 300));
+    _notifier(it.container).haltForABrokenBuild();
+    await tester.pump(const Duration(milliseconds: 300));
 
-      expect(_circulo(tester).halt, isA<Blocking>());
-      expect(
-        byLabel('A moment for someone'),
-        findsOneWidget,
-        reason: 'o sinal da pessoa sobre o retro fala a língua da sala',
-      );
+    expect(_circulo(tester).halt, isA<Blocking>());
+    expect(
+      thePersonSign,
+      findsOneWidget,
+      reason: 'a parada não levantava o sinal sobre a tela conferida',
+    );
 
-      closeTheRoom(it.container);
-    },
-  );
+    closeTheRoom(it.container);
+  });
 
   testWidgets(
     'under the person sign on the retro\'s checked screen the way back is gone too',

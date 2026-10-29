@@ -12,6 +12,7 @@ import '../../domain/machine.dart' show TheKeep;
 import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import '../../domain/station.dart';
+import 'approve_button.dart';
 import 'bead_styles.dart';
 import 'ensaio_final_plan_view.dart';
 import 'external_check_button.dart';
@@ -19,6 +20,7 @@ import 'facilitator_circle.dart';
 import 'grain_choice_view.dart';
 import 'listeners_line.dart';
 import 'motion.dart';
+import 'ouvir_tudo_view.dart';
 import 'rehearsal_sheet.dart';
 import 'saved_screen.dart';
 import 'stage_heading.dart';
@@ -36,6 +38,7 @@ class EnsaioView extends ConsumerWidget {
     if (session.ensaioSalvo case final versao?) {
       return SavedScreen(version: versao);
     }
+    if (session.ouvirTudo != OuvirTudo.fora) return const OuvirTudoView();
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
     final colors = SalaColors.of(context);
@@ -199,25 +202,12 @@ class EnsaioView extends ConsumerWidget {
                           color: ShemaBrand.branco,
                         ),
                       ),
-                      if (session.approveOffered) ...[
-                        const SizedBox(width: 24),
-                        RoundActionButton(
-                          size: 60,
-                          mood: session.canApprove && !frozen
-                              ? ButtonMood.lit
-                              : ButtonMood.dimmed,
-                          gradient: BeadStyles.verde,
-                          semanticLabel: retroLabelFor('approve', language),
-                          onTap: notifier.aprovarRascunhoFinal,
-                          child: const Icon(
-                            LucideIcons.check,
-                            size: 24,
-                            color: ShemaBrand.branco,
-                          ),
-                        ),
-                      ],
                     ],
                   ),
+                  if (session.approveOffered) ...[
+                    const SizedBox(height: 12),
+                    ApproveButton(live: session.canApprove && !frozen),
+                  ],
                   if (session.btRecusa case final recusa?
                       when session.stage == SalaStage.ensaio) ...[
                     const SizedBox(height: 12),
@@ -282,6 +272,19 @@ class EnsaioView extends ConsumerWidget {
                 style: TextStyle(color: colors.telha, fontSize: 15),
               ),
             ],
+            if (session.canOuvirTudo)
+              Semantics(
+                button: true,
+                label: recordingHomeLabelFor('listenAllAria', language),
+                excludeSemantics: true,
+                child: TextButton(
+                  onPressed: notifier.ouvirTudo,
+                  child: Text(
+                    recordingHomeLabelFor('listenAll', language),
+                    style: TextStyle(color: colors.telha, fontSize: 15),
+                  ),
+                ),
+              ),
             const SizedBox(height: 16),
             const GrainControls(),
             const SizedBox(height: 32),
@@ -311,7 +314,7 @@ class EnsaioView extends ConsumerWidget {
       language: language,
       busy: session.homeBusy,
       offersToUse: (rehearsal) => offersToSwapIn(home, rehearsal),
-      noteOf: (rehearsal) => switch (session.swapLine) {
+      answerOf: (rehearsal) => switch (session.swapLine) {
         (:final rehearsalId, :final cannotEnter)
             when rehearsalId == rehearsal.rehearsalId =>
           said(cannotEnter ? 'cannotEnter' : 'joinRetry'),
@@ -320,6 +323,7 @@ class EnsaioView extends ConsumerWidget {
       useLabelOf: (rehearsal) => armed(rehearsal) && session.overAnApprovedDraft
           ? retroLabelFor('reopenArmed', language)
           : said('useThis'),
+      armedOf: armed,
       wakingOf: (rehearsal) =>
           armed(rehearsal) && session.armedTap?.phase == BtRecomeco.armado,
       onRecordAgain: notifier.rehearseThisSceneAgain,

@@ -54,6 +54,15 @@ Future<Uint8List> _recordAScene(SceneRoom room, {Uint8List? take}) async {
 Future<void> _notKept(SceneRoom room) =>
     waitFor('o ensaio ficar esperando', () => room.state.scene.keep is NotKept);
 
+Future<void> _theOutboxLetsGo(SceneRoom room) {
+  final session = room.state.sessionId!;
+  return waitFor(
+    'o tablet guardar o take que a sala confirmou',
+    () async => await room.harness.takes.sceneWaitingIn(session) == null,
+    limit: const Duration(seconds: 30),
+  );
+}
+
 Future<void> _theRetry(SceneRoom room) async {
   room.sala.sendTheSceneTakeAgain();
   await settle();
@@ -108,10 +117,17 @@ void main() {
               ),
             )
             .map((text) => text.data),
-        ['Ensaio da cena', _saveFailed, _retry],
+        [
+          'Ensaio da cena',
+          'Toquem no círculo para gravar o ensaio da cena; toquem de novo '
+              'para parar.',
+          'gravem o ensaio da cena na língua materna; toquem para parar',
+          _saveFailed,
+          _retry,
+        ],
         reason:
-            'só o título e o estado da gravação são escritos (ADR 0131); o '
-            'resto é só do VoiceOver',
+            'com a gravação parada, a instrução e a dica dela ficavam só no '
+            'VoiceOver ao lado das palavras da falha',
       );
     },
   );
@@ -362,7 +378,7 @@ void main() {
 
     room.sala.leaveTheSceneRehearsal();
     room.harness.room.finishHeldKeep();
-    await settle();
+    await _theOutboxLetsGo(room);
 
     expect(room.state.stage, SalaStage.conversa);
     expect(room.state.scene.step, SceneStep.record);

@@ -1,7 +1,6 @@
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
@@ -9,6 +8,7 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
+import 'way_back_chevron.dart';
 
 class ChecagemExternaView extends ConsumerWidget {
   const ChecagemExternaView({super.key});
@@ -37,13 +37,8 @@ class ChecagemExternaView extends ConsumerWidget {
                 child: SizedBox(
                   width: 46,
                   height: 46,
-                  child: Opacity(
-                    opacity: 0.5,
-                    child: Icon(
-                      LucideIcons.chevronLeft,
-                      size: 24,
-                      color: colors.mut,
-                    ),
+                  child: const Center(
+                    child: Opacity(opacity: 0.6, child: WayBackChevron()),
                   ),
                 ),
               ),

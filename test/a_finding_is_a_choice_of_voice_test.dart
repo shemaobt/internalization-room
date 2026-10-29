@@ -149,7 +149,7 @@ void main() {
 
     await tocar(tester, ouvirATraducao);
     expect(harness.playback.played.last, antiga);
-    expect(await olhar(tester), 'azul soando');
+    expect(await olhar(tester), 'telha soando');
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 

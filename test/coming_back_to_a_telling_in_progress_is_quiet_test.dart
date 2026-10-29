@@ -40,6 +40,18 @@ Future<void> _irAoEnsaioEVoltar(Sala it) async {
   await settle();
 }
 
+Future<void> _umaVidaNovaNaCasa(Sala it) async {
+  it.container.invalidate(salaSessionProvider);
+  it.container.read(salaSessionProvider);
+  await it.sala.abrirEscolha();
+  await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await waitFor(
+    'a mesma sessão voltar à casa',
+    () => it.estado.stage == SalaStage.ensaio && it.partes.length == 3,
+  );
+  await settle();
+}
+
 void main() {
   test(
     'coming back to a telling with every part heard plays nothing and says '
@@ -315,6 +327,7 @@ void main() {
       ..listeningUnheardTakeIds = const []
       ..holdNextListening();
     final relatos = it.harness.room.listeningReports.length;
+    final terceira = it.partes[2].takeId!;
     it.sala.goEnsaio();
     await waitFor(
       'o relato da saída partir',
@@ -322,30 +335,144 @@ void main() {
     );
     it.container.invalidate(salaSessionProvider);
     it.container.read(salaSessionProvider);
+    it.harness.room.finishHeldListening();
+    await settle();
+    it.harness.room.listeningUnheardTakeIds = [terceira];
     await it.sala.abrirEscolha();
     await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor(
       'a mesma sessão voltar',
       () => it.estado.stage == SalaStage.ensaio && it.partes.length == 3,
     );
-    it.harness.room.finishHeldListening();
     await settle();
     it.harness.room.reachable = false;
     final tocadas = it.harness.playback.played.length;
     final falas = it.harness.voice.fixedLines.length;
 
     it.sala.startRetro();
-    await settle();
-    await settle();
+    await waitFor(
+      'a escuta voltar ao ar',
+      () => it.harness.playback.played.length > tocadas,
+    );
 
     expect(
-      it.harness.voice.fixedLines.skip(falas),
-      isEmpty,
+      it.harness.voice.fixedLines.skip(falas).map((linha) => linha.$1),
+      ['P0'],
       reason:
           'o relato da vida que acabou enchia a lembrança da seguinte, e a volta '
-          'sem a sala pulava a gravação',
+          'sem a sala ficava calada sobre uma parte que a sala ainda contava',
     );
-    expect(it.harness.playback.played.skip(tocadas), [it.partes[1].path]);
+    expect(it.harness.playback.played.skip(tocadas).first, it.partes[0].path);
+  });
+
+  test(
+    'a life that resumed on the home and reported nothing still returns quiet '
+    'when the room is out of reach, not playing the told end aloud',
+    () async {
+      final it = await _contadaAteOMeioDaSegunda();
+      it.sala.goEnsaio();
+      await waitFor(
+        'a equipe voltar ao ensaio',
+        () => it.estado.stage == SalaStage.ensaio,
+      );
+      await settle();
+      it.harness.room.listeningUnheardTakeIds = const [];
+      await _umaVidaNovaNaCasa(it);
+      final tocadas = it.harness.playback.played.length;
+      final falas = it.harness.voice.fixedLines.length;
+
+      it.harness.room.reachable = false;
+      it.sala.startRetro();
+      await waitFor(
+        'a tradução voltar',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            it.estado.btPhase == BtPhase.playing &&
+            !it.estado.awaitingTheGuide,
+      );
+      await settle();
+
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        isEmpty,
+        reason:
+            'a vida retomada não guardava nada da sala, e a volta sem rede tocava '
+            'a segunda parte em voz alta',
+      );
+      expect(it.harness.voice.fixedLines.skip(falas), isEmpty);
+    },
+  );
+
+  test(
+    'a life that resumed on the home, where the room still counts a part '
+    'unheard, returns out of reach to the listen, not to the told end',
+    () async {
+      final it = await _contadaAteOMeioDaSegunda();
+      it.sala.goEnsaio();
+      await waitFor(
+        'a equipe voltar ao ensaio',
+        () => it.estado.stage == SalaStage.ensaio,
+      );
+      await settle();
+      it.harness.room.listeningUnheardTakeIds = [it.partes[2].takeId!];
+      await _umaVidaNovaNaCasa(it);
+      final tocadas = it.harness.playback.played.length;
+      final falas = it.harness.voice.fixedLines.length;
+
+      it.harness.room.reachable = false;
+      it.sala.startRetro();
+      await waitFor(
+        'a escuta voltar ao ar',
+        () => it.harness.playback.played.length > tocadas,
+      );
+
+      expect(
+        it.harness.voice.fixedLines.skip(falas).map((linha) => linha.$1),
+        ['P0'],
+        reason:
+            'a vida retomada não guardava nada da sala, e a volta sem rede tocava '
+            'o fim contado sem a escuta que a sala pedia',
+      );
+      expect(it.harness.playback.played.skip(tocadas).first, it.partes[0].path);
+    },
+  );
+
+  test('a life that resumed on the home with nothing told returns out of reach '
+      'to the telling line, not to a recording playing with no word', () async {
+    final it = await umEnsaioDeTresPartesGravado();
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução começar a tocar a primeira parte',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.btPhase == BtPhase.playing,
+    );
+    it.sala.goEnsaio();
+    await waitFor(
+      'a equipe voltar ao ensaio',
+      () => it.estado.stage == SalaStage.ensaio,
+    );
+    await settle();
+    it.harness.room.listeningUnheardTakeIds = const [];
+    await _umaVidaNovaNaCasa(it);
+    final tocadas = it.harness.playback.played.length;
+    final falas = it.harness.voice.fixedLines.length;
+
+    it.harness.room.reachable = false;
+    it.sala.startRetro();
+    await waitFor(
+      'a gravação voltar ao ar',
+      () => it.harness.playback.played.length > tocadas,
+    );
+
+    expect(
+      it.harness.voice.fixedLines.skip(falas).map((linha) => linha.$1),
+      ['P1'],
+      reason:
+          'a vida retomada não guardava nada da sala, e a volta sem rede tocava '
+          'a gravação sem dizer à equipe que traduzisse',
+    );
+    expect(it.harness.playback.played.skip(tocadas).first, it.partes[0].path);
   });
 
   test('coming back to a telling told to its end opens «terminei» with nothing '
