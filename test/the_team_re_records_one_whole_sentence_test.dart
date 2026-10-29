@@ -201,6 +201,15 @@ Finder _recomecoArmado() => find.byWidgetPredicate(
       ),
 );
 
+double _recomecoDesenhado(WidgetTester tester) => tester
+    .widget<Opacity>(
+      find.descendant(
+        of: byLabel('recomeçar a tradução'),
+        matching: find.byType(Opacity),
+      ),
+    )
+    .opacity;
+
 void main() {
   testWidgets('every frase of a wav recording offers its whole sentence to '
       'be recorded again, lit', (tester) async {
@@ -1194,6 +1203,38 @@ void main() {
     final aqui = container.read(salaSessionProvider);
     expect(aqui.btSoOuvir, isFalse);
     expect(aqui.btTrechoTraduzidoDeNovo?.segmentId, 'trecho-2');
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence laid in asks the room what is left, so a return out '
+      'of its reach plays the sentence with what surrounds it, as the room '
+      'counts it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 2);
+    final nova = 'gravacao-${harness.room.takeIds.length + 1}';
+    harness.room.listeningUnheardTakeIds = [nova];
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+    expect(harness.room.takes.last.takeId, nova);
+    harness.room.reachable = false;
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    harness.voice.fixedLines.clear();
+
+    await deVoltaDoEnsaio(tester, container);
+
+    expect(harness.voice.fixedLines, [('N5', 'pt')]);
+    expect(
+      harness.playback.ranges.last,
+      '2500-8700',
+      reason:
+          'a frase regravada não perguntava nada à sala, e a volta sem rede '
+          'abria só a frase, sem o que vem em volta',
+    );
     closeTheRoom(container);
   });
 
@@ -2498,26 +2539,34 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a translation started over closes the sentence\'s review and '
-      'lets its recording go', (tester) async {
+  testWidgets('with the sentence under review, «recomeçar a tradução» rests '
+      'dimmed and a tap arms nothing', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await quatroFrasesEmWav(tester, harness);
     await gravarAFrase(tester, harness, 3);
     expect(naLinha('usar esta'), findsOneWidget);
-    expect(guardada(harness), isTrue);
-    final gravada = container.read(salaSessionProvider).btRegravacao!.path;
-
-    await recomecarDeVez(tester, container);
-
-    final aqui = container.read(salaSessionProvider);
     expect(
-      aqui.btRegravacao,
-      isNull,
-      reason: 'a revisão da frase ficava aberta sobre frases que não existem',
+      container.read(salaSessionProvider).btRegravacao?.passo,
+      PassoDaRegravacao.revendo,
     );
-    expect(aqui.btFraseGuardada, isNull);
-    expect(guardada(harness), isFalse);
-    expect(harness.recorder.deleted, contains(gravada));
+
+    expect(
+      _recomecoDesenhado(tester),
+      0.4,
+      reason: 'o recomeço ficava aceso com a revisão da frase aberta',
+    );
+    await recomecar(tester);
+
+    expect(
+      _recomecoArmado(),
+      findsNothing,
+      reason: 'o recomeço armava por cima da frase sendo revista',
+    );
+    expect(
+      container.read(salaSessionProvider).btRegravacao?.passo,
+      PassoDaRegravacao.revendo,
+    );
+    expect(guardada(harness), isTrue);
     closeTheRoom(container);
   });
 
@@ -2543,8 +2592,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a translation started over while the old sentence plays ends '
-      'that re-record, and her next line is never said', (tester) async {
+  testWidgets('while the old sentence plays, «recomeçar a tradução» rests '
+      'dimmed and a tap arms nothing', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await quatroFrasesEmWav(tester, harness);
     await tocar(tester, 'regravar a frase 3');
@@ -2554,18 +2603,19 @@ void main() {
       PassoDaRegravacao.ouvindo,
     );
 
-    await recomecarDeVez(tester, container);
-    harness.voice.fixedLines.clear();
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(seconds: 12));
-    await _passo(tester);
+    expect(
+      _recomecoDesenhado(tester),
+      0.4,
+      reason: 'o recomeço ficava aceso com a frase antiga tocando',
+    );
+    await recomecar(tester);
 
     expect(
-      container.read(salaSessionProvider).btRegravacao,
-      isNull,
-      reason: 'a regravação voltava depois de a tradução recomeçar',
+      _recomecoArmado(),
+      findsNothing,
+      reason: 'o recomeço armava por cima da regravação aberta',
     );
-    expect(harness.voice.fixedLines, isNot(contains(('N7', 'pt'))));
+    expect(harness.room.restartsAsked, isEmpty);
     closeTheRoom(container);
   });
 

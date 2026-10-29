@@ -67,7 +67,7 @@ void main() {
   });
 
   test('a re-read that lands after the team pressed play leaves the replay '
-      'playing and her line standing', () async {
+      'playing, her line standing and terminei lit', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();
     it.harness.room
       ..verdictRefusal = CheckRefusal.partUnheard
@@ -94,7 +94,12 @@ void main() {
           'a resposta atrasada apagava a linha no meio da escuta, e a escuta '
           'perdia as partes que ainda vinham',
     );
-    expect(it.estado.canFinishBackTranslation, isFalse);
+    expect(
+      it.estado.canFinishBackTranslation,
+      isTrue,
+      reason:
+          'a sala já contava tudo ouvido e o terminei esperava a escuta acabar',
+    );
   });
 
   test('a P2 naming a part this tablet does not hold leaves terminei dark '
@@ -166,6 +171,7 @@ void main() {
       isFalse,
       reason: 'no meio da escuta de novo o terminei acendia',
     );
+    it.harness.room.listeningUnheardTakeIds = const [];
     await ouvirAteOFim(it, partesDoEnsaio[2]);
 
     expect(

@@ -41,7 +41,10 @@ decision in a44568c2.
    report, when a resume lands outside the Back-translation and when it keeps a told stretch
    (ENG-1954). Hers reads the passage when the screen mounts (`:560`) and takes it from every
    frase answer (`:1197`), so a Life that resumed and reported nothing is answered too, and a
-   stretch left open by the frase just kept is said.
+   stretch left open by the frase just kept is said. So is every other change of the frases
+   (ENG-2057): a stretch told again, a scene brought back, the translation started over and
+   a sentence laid in each ask the same way. An ask that fails is made good by the next
+   change; until then the answer held before it stands.
 5. **No answer held, or an older room**, stays on today's path, with one exception: a frase
    awaiting its translation still comes first, unpadded. The tablet already knows which frase
    it is, a relaunch already goes to it without asking the room, and hers reads it from the

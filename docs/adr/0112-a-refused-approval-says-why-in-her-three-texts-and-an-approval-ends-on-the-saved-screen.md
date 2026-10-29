@@ -1,5 +1,5 @@
 ---
-status: accepted (amended by 0136, amended by ENG-1853, amended by ENG-2028)
+status: accepted (amended by 0136, amended by ENG-1853, amended by ENG-2028, amended by ENG-2054)
 date: 2026-10-22
 amends: 0030 (in part: the approval's landing now shows a text), 0014 (her Saved screen is a named exception)
 ---
@@ -19,6 +19,10 @@ is open or a sentence's re-record is open (`Drafting.tsx:2468`). Only a last lis
 press itself silenced at conferida counts as heard to its end; nothing else is given back.
 Wherever this record or its amendments say a refusal is left before «terminei», read that the
 check stays where it was.
+
+Amended by ENG-2054 (2026-10-29): «terminei» reads the room's count of what was heard, not the
+end of a listening on this tablet (ADR 0030, amended by ENG-2054). The sentence above on the
+last listening the press silenced holds only for a room that names no list.
 
 Amended by ENG-1853 (2026-10-29): a refusal from the Back-translation plays nothing.
 «ainda falta ouvir um trecho da gravação» no longer comes with the part playing, and the
