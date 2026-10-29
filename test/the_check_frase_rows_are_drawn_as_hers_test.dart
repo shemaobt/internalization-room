@@ -319,6 +319,62 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a «regravada» frase told on an earlier visit keeps a live '
+      'loudspeaker, not a dimmed one', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-2',
+        scope: 'parte-2',
+        kind: 'ensaio',
+        ordinal: 2,
+      ),
+    );
+    final container = await voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-velha-2',
+            startsMs: 0,
+            endsMs: 5000,
+            bridgeTakeId: 'retro-2',
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      tester
+          .widget<FraseList>(find.byType(FraseList))
+          .rows
+          .singleWhere((row) => row.regravada)
+          .onHear,
+      isNotNull,
+      reason:
+          'a frase regravada contada numa visita anterior ficava com o '
+          'alto-falante apagado, sem cópia da tradução no tablet',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a frase the check found missing or unclear wears her blue on '
       'its bar, its border and its word, and an addition stays terracotta', (
     tester,

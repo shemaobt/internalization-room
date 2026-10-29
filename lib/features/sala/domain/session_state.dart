@@ -370,6 +370,7 @@ class Trecho {
   /// made: it is a unit the room counts and nobody has told back.
   final bool contado;
   final int? frase;
+  final String? bridgeTakeId;
 
   const Trecho({
     required this.segmentId,
@@ -382,6 +383,7 @@ class Trecho {
     required this.lugarFrom,
     required this.lugarTo,
     this.frase,
+    this.bridgeTakeId,
   });
 }
 

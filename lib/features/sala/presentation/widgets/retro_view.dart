@@ -326,7 +326,10 @@ class RetroView extends ConsumerWidget {
       n: n,
       parte: parteDe(trecho),
       share: share(trecho),
-      onHear: quieta && session.canHearAFrase && trecho.retroPath != null
+      onHear:
+          quieta &&
+              session.canHearAFrase &&
+              (trecho.retroPath ?? trecho.bridgeTakeId) != null
           ? () => notifier.ouvirAFraseRegravada(onde)
           : null,
       onRetell:
@@ -711,7 +714,8 @@ class RetroView extends ConsumerWidget {
         envelope: session.partLoudness[parte.path]?.envelope,
         told: [
           for (final trecho in session.btTrechos)
-            if (trecho.contado && trecho.parte == onde) _naFaixa(trecho),
+            if (trecho.contado && trecho.parte == onde)
+              _naFaixa(trecho, ate: _aPausaQueAnda(session, trecho)),
         ],
         stale: [
           for (final trecho in session.btTrechosRegravados)
@@ -724,13 +728,39 @@ class RetroView extends ConsumerWidget {
           PartPlaying(:final part) => part.part == onde,
           _ => false,
         },
+        paused: switch (_aParteParada(session.channel)) {
+          final Paused parada && Paused(what: PartSound(:final part))
+              when part == onde =>
+            parada,
+          _ => null,
+        },
       ),
   ];
 
-  SceneFrase _naFaixa(Trecho trecho) => SceneFrase(
+  Paused? _aParteParada(Channel channel) => switch (channel) {
+    final Paused parada when parada.what is PartSound => parada,
+    Playing(sound: final StretchSound outra, :final held) ||
+    Paused(
+      what: final StretchSound outra,
+      :final held,
+    ) when !outra.telling && outra.path != held?.what.path => null,
+    Playing(:final held) ||
+    Paused(:final held) ||
+    Microphone(:final held) => held,
+    _ => null,
+  };
+
+  Duration? _aPausaQueAnda(SalaSessionState session, Trecho trecho) =>
+      switch (session.btTrechoTraduzidoDeNovo?.segmentId) {
+        final contadaDeNovo? when contadaDeNovo == trecho.segmentId =>
+          trecho.lugarFrom + session.btCorte - trecho.from,
+        _ => null,
+      };
+
+  SceneFrase _naFaixa(Trecho trecho, {Duration? ate}) => SceneFrase(
     fraseId: trecho.segmentId ?? trecho.takeId,
     startsMs: trecho.lugarFrom.inMilliseconds,
-    endsMs: trecho.lugarTo.inMilliseconds,
+    endsMs: (ate ?? trecho.lugarTo).inMilliseconds,
   );
 
   IconData _listenGlyph(SalaSessionState session) {
