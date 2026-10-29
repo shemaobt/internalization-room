@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint) and 0103 (2026-10-20: a take refused for good is told by its row, not the voice), and 0131 (2026-10-22: a take is confirmed only when the room's list holds it)
+status: accepted, amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint) and 0103 (2026-10-20: a take refused for good is told by its row, not the voice), and 0131 (2026-10-22: a take is confirmed only when the room's list holds it), and in place on 2026-10-28 (ENG-1777: only a tap sends, and the resting place is the row)
 date: 2026-10-16
 amends: 0083, 0025
 ---
@@ -51,6 +51,43 @@ across failures and relaunches. It also kept every row the room had stored, for 
   The room's names for the rows confirmed in this app run stay in memory, so a recording
   still learns its name and the machine still sees a part land. Rows an older app wrote as
   stored are shed on the next write.
+
+## Amended on 28 October (ENG-1777)
+
+Jonatas decided with the Definer that the automatic retry goes, per PRD ch. 24 and Marcia's
+app; the Orchestrator settled the two open points the same day.
+
+- **Only a tap sends.** The Outbox sends nothing of its own: no retry ladder, no drain, no
+  send at a relaunch or at a session start. The taps are «enviar agora», «falhou — toque
+  para tentar de novo», the join's and the swap's own taps, the scene keep, and the keep of
+  a part, because the team taps to keep it and her app sends a part right after its stop.
+- **A tap sends only what it is about:** the rows it made due in this app run, each with
+  the rest of its part in the order recorded, and after them every take no row can show,
+  since no tap of its own can reach it. A relaunch makes nothing due. A waiting part no
+  longer rides on another part's tap.
+- **The resting place is the row.** A take is on the disk and in the manifest from its
+  keep, with or without a session; a row with no session carries its passage, and the
+  passage's next session lists it as a take of an earlier visit.
+- **A take leaves the tablet on six exits only:** the room confirms it; the team taps to
+  record that part again over a failed take, at the tap; the room already holds it (the
+  same bytes answer the take already kept); a newer take of the part was confirmed; the
+  room refuses it as stale; the room restarts a scene's translation at the second tap of
+  «recomeçar a tradução», which drops that scene's unsent frases. A restart the room
+  refuses or never answers drops nothing. A revocation still ends the life and sweeps its takes (ADR 0135).
+- **A gone session never deletes a take.** Its rows keep their copies and drop the session
+  for their passage; «enviar agora» on the next visit sends them into the passage's session
+  then. A row an older app wrote with no passage that the tablet cannot name keeps its gone
+  session and stays on the tablet, never offered.
+- **Every take follows the same rule: a part, a scene take, a frase.** A scene take kept
+  with no session, or with a gone one, gets its row under the passage it was recorded in,
+  and its keep or retry on the passage's next session sends it there; a frase held for a
+  gone session is offered by the frase screen of that next session and sent there at its
+  tap. The Panorama is a passage of its own for this.
+- **A forget deletes no take the Outbox does not hold.** A take whose row could not be
+  written stays on the disk when its session goes or the passage is left.
+- **A part take still waiting for its check is kept when its session goes.** It becomes a
+  row with no session under its passage, offered by «enviar agora» in the passage's next
+  session, so nothing is sent without a tap. Leaving the passage by hand still lets it go.
 
 ## Consequences
 

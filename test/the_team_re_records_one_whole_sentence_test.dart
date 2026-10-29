@@ -640,6 +640,37 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a sentence held from a gone session is offered in the '
+      "passage's next session and sent into that session at its tap", (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final pasta = aTempHome('sala-frase-perdida');
+    final guardada = await harness.takes.enqueue(
+      File('${pasta.path}/frase.wav')
+        ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
+      sessionId: null,
+      passage: 'Ruth/P01/$testLanguage',
+      kind: 'frase',
+      scope: '3',
+    );
+    final container = await _voltaATraducao(tester, harness);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    expect(_naLista(falhou), findsOneWidget);
+
+    await tocar(tester, falhou);
+    await _passo(tester);
+
+    expect(harness.room.sentencesSent, [
+      (sentenceId: guardada.id, segmentId: 'trecho-3'),
+    ]);
+    expect(harness.room.sentenceSessions, [
+      container.read(salaSessionProvider).sessionId,
+    ]);
+    closeTheRoom(container);
+  });
+
   testWidgets('a sentence laid in is announced in her words and plays in its '
       'place on the new take, with a second and a half around it', (
     tester,
@@ -1500,12 +1531,165 @@ void main() {
     await _passo(tester);
     await _passo(tester);
 
-    expect(harness.voice.fixedLines, [('N4', 'pt')]);
+    expect(
+      harness.voice.fixedLines,
+      isEmpty,
+      reason: 'a voz dizia que a frase nova estava no lugar sem a parte nova',
+    );
     expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-2');
     expect(
       harness.playback.ranges.skip(tocadas),
       isEmpty,
       reason: 'a parte velha tocava no lugar da frase nova',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a new part the room will not hand over says nothing and plays '
+      'nothing, instead of announcing a sentence that is not there', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 2);
+    harness.room.failClipOf['gravacao-${harness.room.takeIds.length + 1}'] =
+        const NetworkFailed('sem rede');
+    harness.voice.fixedLines.clear();
+    final tocadas = harness.playback.ranges.length;
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.voice.fixedLines,
+      isEmpty,
+      reason: 'a voz dizia «a frase nova já está no lugar» e nada tocava',
+    );
+    expect(harness.playback.ranges.skip(tocadas), isEmpty);
+    closeTheRoom(container);
+  });
+
+  testWidgets('an answer that does not name the new sentence says nothing, '
+      'plays nothing and leaves the list quiet', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 2);
+    harness.room.sentenceAnswersFirst.add(const Answered(TellingAgain()));
+    harness.voice.fixedLines.clear();
+    final tocadas = harness.playback.ranges.length;
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.voice.fixedLines,
+      isEmpty,
+      reason: 'a voz dizia «a frase nova já está no lugar» e nada tocava',
+    );
+    expect(harness.playback.ranges.skip(tocadas), isEmpty);
+    expect(
+      _naLista('não deu para guardar a frase — tentar de novo'),
+      findsNothing,
+    );
+    closeTheRoom(container);
+  });
+
+  Future<String> deitarSemAParte(
+    WidgetTester tester,
+    SalaHarness harness,
+    int n,
+  ) async {
+    await gravarAFrase(tester, harness, n);
+    final nova = 'gravacao-${harness.room.takeIds.length + 1}';
+    harness.room.failClipOf[nova] = const NetworkFailed('sem rede');
+    harness.voice.fixedLines.clear();
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+    return nova;
+  }
+
+  testWidgets('a new part the room will not hand over leaves its row offering '
+      'to try again, not a row with nothing to tap', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+
+    await deitarSemAParte(tester, harness, 2);
+
+    expect(
+      _naLista('não deu para guardar a frase — tentar de novo'),
+      findsOneWidget,
+      reason: 'a frase ficava sem parte e a linha não oferecia nada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap on that row fetches the new part again, then announces '
+      'the sentence and plays it in its place', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    await tocar(tester, falhou);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.voice.fixedLines,
+      [('N4', 'pt')],
+      reason: 'o toque na linha não buscava a parte nova de novo',
+    );
+    expect(harness.playback.ranges.last, '2500-8700');
+    expect(_naLista(falhou), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the new part is fetched again its row says «enviando…», '
+      'not a line with nothing on it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    harness.room.holdNextClip();
+
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+
+    expect(
+      naLinha('enviando…'),
+      findsOneWidget,
+      reason: 'a parte voltava a ser buscada sem a linha dizer nada',
+    );
+    harness.room.finishHeldClip();
+    await _passo(tester);
+    await _passo(tester);
+    expect(naLinha('enviando…'), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a new part that fails again says nothing and gives the row its '
+      'retry back, instead of leaving it on «enviando…»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarSemAParte(tester, harness, 2);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    await tocar(tester, falhou);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(harness.voice.fixedLines, isEmpty);
+    expect(
+      _naLista(falhou),
+      findsOneWidget,
+      reason: 'a segunda falha deixava a linha presa em «enviando…»',
     );
     closeTheRoom(container);
   });

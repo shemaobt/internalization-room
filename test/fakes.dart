@@ -375,6 +375,18 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<void> dispose() async {}
 }
 
+Directory aTempHome(String prefix) {
+  final home = Directory.systemTemp.createTempSync(prefix);
+  try {
+    addTearDown(() {
+      if (home.existsSync()) home.deleteSync(recursive: true);
+    });
+  } on StateError {
+    return home;
+  }
+  return home;
+}
+
 class FakeRecorder implements RecordingRepository {
   /// The same ordered log the players write to: the microphone opening on a silent room
   /// is an order between two doubles, not a pair of counters.
@@ -384,7 +396,7 @@ class FakeRecorder implements RecordingRepository {
 
   final StreamController<bool> _interruptions =
       StreamController<bool>.broadcast();
-  final Directory home = Directory.systemTemp.createTempSync('sala-gravacoes');
+  final Directory home = aTempHome('sala-gravacoes');
   int captures = 0;
   bool returnsNothing = false;
   bool returnsEmpty = false;
@@ -2726,9 +2738,10 @@ class FakeRoom implements RoomRepository {
   }
 
   final List<({String sentenceId, String segmentId})> sentencesSent = [];
+  final List<String> sentenceSessions = [];
   final List<String> sentencesSentReopening = [];
   final List<String> sentencesLaid = [];
-  final List<RoomFailure> sentenceAnswersFirst = [];
+  final List<RoomAnswer<TellingAgain>> sentenceAnswersFirst = [];
   Duration sentenceLaysInAs = const Duration(milliseconds: 3200);
   String? awaitingSegmentId;
   Completer<void>? holdTheSentence;
@@ -2743,6 +2756,7 @@ class FakeRoom implements RoomRepository {
   }) async {
     if (_guard('reRecordTheSentence') case final failure?) return failure;
     sentencesSent.add((sentenceId: sentenceId, segmentId: segmentId));
+    sentenceSessions.add(sessionId);
     if (reopensTheApprovedDraft) sentencesSentReopening.add(sentenceId);
     await holdTheSentence?.future;
     if (sentenceAnswersFirst.isNotEmpty) {
@@ -3021,6 +3035,13 @@ class FakeRoom implements RoomRepository {
   /// Every take the room was asked to keep, as `kind/scope`, in the order asked.
   final List<String> takesAsked = [];
 
+  /// The session each take was sent into, in the order asked.
+  final List<String> takeSessions = [];
+
+  /// The takes the room already holds, by the sha256 of their bytes: a send of the same
+  /// bytes answers with the take already kept, the way the room keys a take by its audio.
+  final Map<String, String> heldByFingerprint = {};
+
   @override
   Future<RoomAnswer<String>> sendTake(
     String sessionId,
@@ -3039,9 +3060,18 @@ class FakeRoom implements RoomRepository {
   }) async {
     takesSentAt.add(DateTime.now());
     takesAsked.add('$kind/$scope');
+    takeSessions.add(sessionId);
     if (_guard('sendTake') case final failure?) return failure;
     if (_forgot('sendTake', sessionId) case final gone?) {
       return gone;
+    }
+    if (heldByFingerprint.isNotEmpty && audio.existsSync()) {
+      final fingerprint = crypto.sha256
+          .convert(audio.readAsBytesSync())
+          .toString();
+      if (heldByFingerprint[fingerprint] case final held?) {
+        return Answered(held);
+      }
     }
     final wait = takeLandsAfter;
     if (wait != null) await Future<void>.delayed(wait);
@@ -3952,7 +3982,8 @@ class FakeTakeQueue implements TakeUploadQueue {
   @override
   Future<PendingTake> enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     int? passNumber,
@@ -3969,6 +4000,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       id: '${_minted++}',
       path: audio.path,
       sessionId: sessionId,
+      passage: passage,
       kind: kind,
       scope: scope,
       passNumber: passNumber,
@@ -3986,6 +4018,7 @@ class FakeTakeQueue implements TakeUploadQueue {
   Future<PendingTake?> enqueueTheJoin(
     File audio, {
     required String sessionId,
+    String? passage,
     required int number,
     required int passNumber,
     required String origin,
@@ -4057,20 +4090,33 @@ class FakeTakeQueue implements TakeUploadQueue {
   Stream<String> get sessionsGone => _sessionsGone.stream;
 
   @override
-  Future<void> discardTheSession(String sessionId) async =>
-      rows.removeWhere((entry) => entry.sessionId == sessionId);
+  Future<void> letGoOfTheSession(String sessionId, {String? passage}) async {
+    for (var i = 0; i < rows.length; i++) {
+      final known = rows[i].passage ?? passage;
+      if (rows[i].sessionId == sessionId && known != null) {
+        rows[i] = rows[i].inTheSession(null, passage: known);
+      }
+    }
+  }
 
   final Map<String, SceneRehearsalRecord> _keptScenes = {};
 
   @override
-  Future<SceneRehearsalRecord?> keepTheScene(String row) async {
+  Future<SceneRehearsalRecord?> keepTheScene(
+    String row, {
+    String? intoTheSession,
+  }) async {
     final at = rows.indexWhere((entry) => entry.id == row);
-    for (var i = 0; i < at; i++) {
+    for (var i = 0; i <= at; i++) {
       final entry = rows[i];
-      if (entry.kind == sceneTakeKind &&
-          entry.sessionId == rows[at].sessionId &&
-          !entry.exhausted) {
-        rows[i] = entry.dueNow();
+      if (i == at ||
+          entry.kind == sceneTakeKind &&
+              entry.sessionId == rows[at].sessionId &&
+              (entry.sessionId != null || entry.passage == rows[at].passage) &&
+              !entry.exhausted) {
+        rows[i] = entry.sessionId == null
+            ? entry.dueNow().inTheSession(intoTheSession)
+            : entry.dueNow();
       }
     }
     await flush();
@@ -4081,34 +4127,51 @@ class FakeTakeQueue implements TakeUploadQueue {
   SceneRehearsalRecord? keptSceneOf(String row) => _keptScenes[row];
 
   @override
-  Future<void> dueAgain(String row) async {
+  void tapped(String row) {}
+
+  @override
+  Future<void> dueAgain(String row, {String? intoTheSession}) async {
     final at = rows.indexWhere((entry) => entry.id == row);
     if (at >= 0) rows[at] = rows[at].dueNow();
   }
 
   @override
-  Future<PendingTake?> sceneWaitingIn(String sessionId) async => rows
+  Future<PendingTake?> sceneWaitingIn(
+    String sessionId, {
+    String? passage,
+  }) async => rows
       .where(
         (entry) =>
             entry.kind == sceneTakeKind &&
             !entry.stored &&
             entry.refusal == null &&
-            entry.sessionId == sessionId,
+            _ofTheVisit(entry, sessionId, passage),
       )
       .lastOrNull;
 
+  static bool _ofTheVisit(
+    PendingTake entry,
+    String sessionId,
+    String? passage,
+  ) => entry.sessionId == null
+      ? passage != null && entry.passage == passage
+      : entry.sessionId == sessionId;
+
   @override
-  Future<int> flush({bool withTheCodeless = false}) async {
+  Future<int> flush() async {
     var sent = 0;
     for (final id in [for (final entry in rows) entry.id]) {
       final at = rows.indexWhere((entry) => entry.id == id);
       if (at < 0) continue;
       final entry = rows[at];
-      if (entry.stored || entry.kind == sentenceKind) continue;
+      final session = entry.sessionId;
+      if (session == null || entry.stored || entry.kind == sentenceKind) {
+        continue;
+      }
       if (entry.kind == sceneTakeKind) {
         if (entry.exhausted) continue;
         switch (await room.keepSceneRehearsal(
-          entry.sessionId,
+          session,
           File(entry.path),
           scene: entry.scene,
         )) {
@@ -4123,8 +4186,8 @@ class FakeTakeQueue implements TakeUploadQueue {
             rows.removeAt(rows.indexWhere((row) => row.id == entry.id));
             sent++;
           case SessionGone():
-            await discardTheSession(entry.sessionId);
-            _sessionsGone.add(entry.sessionId);
+            await letGoOfTheSession(session);
+            _sessionsGone.add(session);
           case NetworkFailed():
             _writeBack(entry.copyWith(waits: entry.waits + 1));
           case Refused(:final code):
@@ -4135,7 +4198,7 @@ class FakeTakeQueue implements TakeUploadQueue {
         continue;
       }
       switch (await room.sendTake(
-        entry.sessionId,
+        session,
         File(entry.path),
         kind: entry.kind,
         scope: entry.scope,
@@ -4146,8 +4209,8 @@ class FakeTakeQueue implements TakeUploadQueue {
           _writeBack(entry.copyWith(takeId: landed, stored: true));
           sent++;
         case SessionGone():
-          await discardTheSession(entry.sessionId);
-          _sessionsGone.add(entry.sessionId);
+          await letGoOfTheSession(session);
+          _sessionsGone.add(session);
         case RoomFailure():
           _writeBack(entry.copyWith(attempts: entry.attempts + 1));
       }
@@ -4227,7 +4290,10 @@ class FakeTakeQueue implements TakeUploadQueue {
   final List<int> unsentAtEachTally = [];
 
   @override
-  Future<OutboxTally> tally({required String? sessionId}) async {
+  Future<OutboxTally> tally({
+    required String? sessionId,
+    String? passage,
+  }) async {
     unsentAtEachTally.add(rows.where((entry) => !entry.stored).length);
     final held = _armed;
     _armed = null;
@@ -4237,7 +4303,6 @@ class FakeTakeQueue implements TakeUploadQueue {
     // quando a leitura vê a fila, não só quando ela responde.
     final result = (
       parts: const <String, PartFact>{},
-      due: Duration.zero,
       unsentTakes: [
         for (final entry in rows)
           if (!entry.stored &&
@@ -4273,8 +4338,14 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
-  Future<PendingTake?> sentenceHeldIn(String sessionId) async => rows
-      .where((row) => row.kind == sentenceKind && row.sessionId == sessionId)
+  Future<PendingTake?> sentenceHeldIn(
+    String sessionId, {
+    String? passage,
+  }) async => rows
+      .where(
+        (row) =>
+            row.kind == sentenceKind && _ofTheVisit(row, sessionId, passage),
+      )
       .lastOrNull;
 
   @override
@@ -4678,10 +4749,13 @@ class QueueHeldOnTheTally extends TakeUploadQueue {
   final Completer<void> answer = Completer<void>();
 
   @override
-  Future<OutboxTally> tally({required String? sessionId}) async {
+  Future<OutboxTally> tally({
+    required String? sessionId,
+    String? passage,
+  }) async {
     if (!asking.isCompleted) asking.complete();
     await answer.future;
-    return super.tally(sessionId: sessionId);
+    return super.tally(sessionId: sessionId, passage: passage);
   }
 }
 
@@ -4708,10 +4782,10 @@ class QueueThatDiscardsLate extends TakeUploadQueue {
   Duration? discardsAfter;
 
   @override
-  Future<void> discardTheSession(String sessionId) async {
+  Future<void> letGoOfTheSession(String sessionId, {String? passage}) async {
     final wait = discardsAfter;
     if (wait != null) await Future<void>.delayed(wait);
-    await super.discardTheSession(sessionId);
+    await super.letGoOfTheSession(sessionId, passage: passage);
   }
 }
 
@@ -4726,12 +4800,12 @@ class QueueThatFlushesLate extends TakeUploadQueue {
   int flushing = 0;
 
   @override
-  Future<int> flush({bool withTheCodeless = false}) async {
+  Future<int> flush() async {
     flushing++;
     try {
       final wait = flushesAfter;
       if (wait != null) await Future<void>.delayed(wait);
-      return await super.flush(withTheCodeless: withTheCodeless);
+      return await super.flush();
     } finally {
       flushing--;
     }
@@ -4750,7 +4824,8 @@ class QueueThatEnqueuesLate extends TakeUploadQueue {
   @override
   Future<PendingTake> enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     int? passNumber,
@@ -4762,6 +4837,7 @@ class QueueThatEnqueuesLate extends TakeUploadQueue {
     return super.enqueue(
       audio,
       sessionId: sessionId,
+      passage: passage,
       kind: kind,
       scope: scope,
       passNumber: passNumber,

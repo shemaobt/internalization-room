@@ -32,7 +32,8 @@ class _AnOutboxHeldAsTheRoomCloses extends TakeUploadQueue {
   @override
   Future<PendingTake> enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     int? passNumber,
@@ -48,6 +49,7 @@ class _AnOutboxHeldAsTheRoomCloses extends TakeUploadQueue {
     return super.enqueue(
       audio,
       sessionId: sessionId,
+      passage: passage,
       kind: kind,
       scope: scope,
       passNumber: passNumber,
