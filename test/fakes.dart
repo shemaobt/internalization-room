@@ -2997,6 +2997,8 @@ class FakeRoom implements RoomRepository {
   /// Waits until the held scope's sendTake is the one actually blocking, not just asked.
   Future<void> untilTakeHeld() async => _reachedTakeHold?.future;
 
+  bool get takeHeld => _reachedTakeHold?.isCompleted ?? false;
+
   void finishHeldTake() {
     _holdingTake?.complete();
     _holdingTake = null;

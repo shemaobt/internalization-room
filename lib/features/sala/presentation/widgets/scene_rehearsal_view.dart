@@ -17,7 +17,7 @@ import 'stage_heading.dart';
 
 /// The scene rehearsal's screen; her title and this session's list are written on every
 /// step, the translate, places-unknown and sent steps write her words (ADR 0014), the
-/// record step writes her instruction and hint (ADR 0149) and the take's state (ADR
+/// record step writes her instruction and hint (ADR 0155) and the take's state (ADR
 /// 0131), and its circle is named only through VoiceOver.
 class SceneRehearsalView extends ConsumerWidget {
   const SceneRehearsalView({super.key});
