@@ -19,7 +19,7 @@ enum BtFindingKind {
   other;
 
   static BtFindingKind? fromJson(Object? raw) => switch (raw) {
-    'addition' => BtFindingKind.addition,
+    'addition' || 'silence' => BtFindingKind.addition,
     'missing' => BtFindingKind.missing,
     'unclear' => BtFindingKind.unclear,
     'nuance' => null,
