@@ -111,6 +111,26 @@ List<String> _rotulos(WidgetTester tester) => [
     texto.data ?? '',
 ];
 
+List<String> _rotulosComAMarca(WidgetTester tester) => [
+  for (final texto in tester.widgetList<Text>(
+    find.descendant(of: find.byType(PartStrips), matching: find.byType(Text)),
+  ))
+    texto.textSpan?.toPlainText() ?? texto.data ?? '',
+];
+
+Color? _corDaMarca(WidgetTester tester) {
+  for (final texto in tester.widgetList<Text>(
+    find.descendant(of: find.byType(PartStrips), matching: find.byType(Text)),
+  )) {
+    if (texto.textSpan case TextSpan(:final children?)) {
+      for (final pedaco in children) {
+        if (pedaco case TextSpan(text: ' ·', :final style)) return style?.color;
+      }
+    }
+  }
+  return null;
+}
+
 List<double> _brilhos(WidgetTester tester) => [
   for (final linha in tester.widgetList<Opacity>(
     find.descendant(
@@ -671,6 +691,47 @@ void main() {
       reason:
           'com o microfone aberto sobre a parte, nenhuma fileira dizia qual '
           'parte estava sendo traduzida',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a part the room counts unheard carries her dot after its '
+      'label, and loses it once the room has heard it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.listeningUnheardTakeIds = const ['gravacao-2'];
+    final container = await entrarNaTraducao(tester, harness);
+    await waitFor(
+      'a primeira parte tocar',
+      () => container.read(salaSessionProvider).btClipRodando,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      _rotulosComAMarca(tester),
+      ['parte 1', 'parte 2 ·'],
+      reason:
+          'nada na fileira dizia que a sala ainda não tinha ouvido a parte '
+          '2, e a equipe não via o que faltava ouvir',
+    );
+    expect(_corDaMarca(tester), const Color(0xFFBE4A01));
+    expect(_brilhos(tester), [1.0, 0.7]);
+
+    harness.room.listeningUnheardTakeIds = const [];
+    harness.playback.finishPlayback();
+    await waitFor(
+      'a sala responder que ouviu tudo',
+      () => container.read(salaSessionProvider).btNaoOuvidas.isEmpty,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      _rotulosComAMarca(tester),
+      ['parte 1', 'parte 2'],
+      reason:
+          'a marca ficava depois que a sala dizia que já não faltava ouvir '
+          'nada',
     );
     closeTheRoom(container);
   });

@@ -14,6 +14,7 @@ final class PartStripRow {
   final Duration? pausa;
   final bool playing;
   final bool now;
+  final bool unheard;
 
   const PartStripRow({
     required this.label,
@@ -24,6 +25,7 @@ final class PartStripRow {
     this.pausa,
     this.playing = false,
     this.now = false,
+    this.unheard = false,
   });
 }
 
@@ -49,14 +51,31 @@ class PartStrips extends StatelessWidget {
                   children: [
                     ConstrainedBox(
                       constraints: const BoxConstraints(minWidth: 92),
-                      child: Text(
-                        row.label,
-                        textAlign: TextAlign.right,
-                        maxLines: 1,
-                        softWrap: false,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: colors.mut, fontSize: 12),
-                      ),
+                      child: row.unheard
+                          ? Text.rich(
+                              TextSpan(
+                                text: row.label,
+                                children: [
+                                  TextSpan(
+                                    text: ' ·',
+                                    style: TextStyle(color: colors.telha),
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.right,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: colors.mut, fontSize: 12),
+                            )
+                          : Text(
+                              row.label,
+                              textAlign: TextAlign.right,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: colors.mut, fontSize: 12),
+                            ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(

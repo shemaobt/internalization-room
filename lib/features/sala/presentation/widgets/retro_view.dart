@@ -729,6 +729,7 @@ class RetroView extends ConsumerWidget {
           ) => part.part == onde,
           _ => false,
         },
+        unheard: session.btNaoOuvidas.contains(parte.takeId),
       ),
   ];
 
