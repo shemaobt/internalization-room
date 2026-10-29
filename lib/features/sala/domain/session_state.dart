@@ -1679,6 +1679,20 @@ class SalaSessionState {
   /// or a forced one, which a conferida telling approves again as the next (ADR 0150).
   bool get approvalStillOpen => btRascunhoAprovado?.forced ?? true;
 
+  ApprovedDraft? get approvedOnTheTell =>
+      stage == SalaStage.retro &&
+          !btSoOuvir &&
+          nothingWaitsInTheOutbox &&
+          btFraseGuardada == null
+      ? btRascunhoAprovado
+      : null;
+
+  bool get approveOnTheCheck =>
+      stage == SalaStage.retro &&
+      !btSoOuvir &&
+      (btChecked || btPhase == BtPhase.conferida) &&
+      (approvedOnTheTell == null || approvalStillOpen);
+
   /// Whether the recording home offers the approval: the room calls the passage checked
   /// and the approval is still open, and nothing is being recorded or sent.
   bool get approveOffered =>
