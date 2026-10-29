@@ -113,6 +113,30 @@ class _Casa {
     await tester.pump(const Duration(milliseconds: 100));
   }
 
+  Future<void> batida() async {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 15)),
+    );
+    await tester.pump();
+  }
+
+  Future<void> ate(String what, bool Function() done) async {
+    final waited = Stopwatch()..start();
+    for (
+      var vez = 0;
+      !done() && (vez < 200 || waited.elapsed < const Duration(seconds: 30));
+      vez++
+    ) {
+      await batida();
+    }
+    expect(done(), isTrue, reason: what);
+  }
+
+  bool assentou(int n) {
+    final row = estado.sceneRows.firstWhere((row) => row.number == n);
+    return row.inTheAir == null && (row.saved || row.unsent?.failure != null);
+  }
+
   Future<void> abrirAPassagem(String pericope) => emTempoReal(() async {
     final antes = estado.sessionId;
     sala.leaveThePassage();
@@ -191,8 +215,8 @@ class _Casa {
       final antes = envios;
       sala.takeKeep();
       await waitFor('a cena $n subir', () => envios > antes);
-      await settle(const Duration(milliseconds: 300));
     });
+    await ate('a cena $n assentar', () => assentou(n));
   }
 
   Future<void> ateVer(Finder alvo) async {
