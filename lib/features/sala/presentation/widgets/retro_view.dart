@@ -795,6 +795,9 @@ class RetroView extends ConsumerWidget {
 
   String? _aEscuta(SalaSessionState session) {
     if (session.btSoOuvir) return null;
+    if (session.btClipEnded && !session.btParteFronteira) {
+      return 'endOfTheRecording';
+    }
     if (session.btCortado) {
       return session.btPausaAjustavel ? 'pauseHint' : 'pauseAtTheTap';
     }

@@ -6,7 +6,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show passaDoCursor, pausar, tocar;
+    show contarAteOFimDaParte, passaDoCursor, pausar, tocar;
 import 'the_pause_snaps_to_silence_test.dart'
     show
         entrarComAFala,
@@ -142,6 +142,24 @@ void main() {
       ),
       findsOneWidget,
       reason: 'a linha perdia o lugar da pausa quando o microfone abria',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the recording told to its end writes «fim da gravação» '
+      'beside play, with no place left over', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+
+    await contarAteOFimDaParte(tester, harness);
+
+    expect(container.read(salaSessionProvider).btClipEnded, isTrue);
+    expect(
+      naTela('fim da gravação'),
+      findsOneWidget,
+      reason: 'o fim da gravação só existia para o VoiceOver',
     );
     closeTheRoom(container);
   });
