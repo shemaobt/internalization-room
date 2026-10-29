@@ -344,7 +344,7 @@ String describeChannel(Channel channel) => switch (channel) {
 String describeMachine(Machine machine) =>
     '${describeHalt(machine.halt)} / ${describeChannel(machine.channel)} / '
     'queue [${machine.queue.map(describeLine).join(', ')}] / '
-    '${machine.somethingPending ? 'a part pending' : 'nothing pending'}';
+    '${machine.parts.containsValue(PartFact.pending) ? 'a part pending' : 'nothing pending'}';
 
 String describeEffect(Effect effect) => switch (effect) {
   PlayLine(:final line) => 'PlayLine(${describeLine(line)})',
