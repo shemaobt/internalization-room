@@ -120,12 +120,21 @@ class RehearsalSheet extends ConsumerWidget {
                 ),
               ),
               if (onRecordAgain != null) ...[
-                const SizedBox(height: 24),
-                TextButton(
-                  onPressed: busy ? null : onRecordAgain,
-                  child: Text(
-                    said('recordSceneAgain'),
-                    style: TextStyle(color: colors.telha, fontSize: 15),
+                const SizedBox(height: 1.2 * _rem),
+                Opacity(
+                  opacity: 0.7,
+                  child: TextButton(
+                    onPressed: busy ? null : onRecordAgain,
+                    child: Text(
+                      said('recordSceneAgain'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.verdeClaro,
+                        fontSize: 0.84 * _rem,
+                        decoration: TextDecoration.underline,
+                        decorationColor: colors.verdeClaro,
+                      ),
+                    ),
                   ),
                 ),
               ],

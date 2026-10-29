@@ -902,6 +902,39 @@ void main() {
     );
   }
 
+  for (final (look, verdeClaro) in [
+    ('light', const Color(0xFF777D45)),
+    ('dark', const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets(
+      'in the $look look «gravar esta cena de novo» is her quiet underlined '
+      'link at .7, not a telha button',
+      (tester) async {
+        if (look == 'dark') _inTheDark(tester);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        final foot = find.text(_recordAgain);
+        final style = tester.widget<Text>(foot).style!;
+        expect(
+          style.color,
+          verdeClaro,
+          reason: 'o pé da folha era um botão telha de 15',
+        );
+        expect(style.fontSize, closeTo(13.44, 0.001));
+        expect(style.decoration, TextDecoration.underline);
+        expect(_seenOpacity(tester, foot), closeTo(0.7, 0.001));
+        expect(
+          find.ancestor(of: foot, matching: find.byType(TextButton)),
+          findsOneWidget,
+        );
+        semantics.dispose();
+      },
+    );
+  }
+
   testWidgets(
     '6. a rehearsal with an untranslated stretch reads «tradução incompleta» '
     'on its line and can still be used',
