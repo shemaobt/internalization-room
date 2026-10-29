@@ -24,7 +24,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, relaunch, settle;
+import 'scenario_helpers.dart' show byLabel, relaunch, settle, thePersonSign;
 import 'um_ensaio_de_tres_partes.dart' show Sala;
 
 const _recordEnsaio = 'Gravar o ensaio de vocês';
@@ -38,7 +38,6 @@ const _thinking = 'pensando…';
 const _sceneByScene = 'Gravar cena por cena';
 const _how = 'Como vocês querem gravar?';
 final _backToPassage = roomLabelFor('backToPassage', 'pt');
-final _personSign = circleLabelFor('needsPerson', 'pt');
 
 const _threeScenes = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -1087,7 +1086,7 @@ void main() {
 
     expect(find.text(_how), findsOneWidget);
     expect(find.text(_planLine), findsNothing);
-    expect(byLabel(_personSign), findsNothing);
+    expect(thePersonSign, findsNothing);
     expect(container.read(salaSessionProvider).needsPerson, isFalse);
   });
 
@@ -1373,7 +1372,7 @@ void main() {
 
     expect(find.text(_how), findsOneWidget);
     expect(find.text(_planLine), findsNothing);
-    expect(byLabel(_personSign), findsNothing);
+    expect(thePersonSign, findsNothing);
     expect(container.read(salaSessionProvider).needsPerson, isFalse);
   });
 
