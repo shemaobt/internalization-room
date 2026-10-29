@@ -1410,7 +1410,8 @@ void main() {
 
     testWidgets(
       'leaves a row waiting in the Outbox unsent after a relaunch, and '
-      'recording it again goes up after it on the team\'s tap',
+      'recording it again lets that row go at the tap and sends the new take '
+      'alone on its keep',
       (tester) async {
         final it = await _reopenOverTheWholeSetAside(
           tester,
@@ -1440,14 +1441,6 @@ void main() {
             () => it.read.ensaio == EnsaioStatus.recorded,
           );
           it.sala.takeKeep();
-          await settle(const Duration(milliseconds: 300));
-        });
-        expect(
-          it.onRow(2, find.text('falhou — toque para tentar de novo')),
-          findsOneWidget,
-        );
-        await it.inRealTime(() async {
-          it.sala.enviarACena(2);
           await waitFor('a cena 2 subir', () => it.passesOfPart(2).contains(3));
           await settle(const Duration(milliseconds: 300));
         });

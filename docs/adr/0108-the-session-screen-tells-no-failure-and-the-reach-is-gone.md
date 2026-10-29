@@ -31,8 +31,8 @@ team, and nothing else.
 - **The Reach is gone.** A network failure that is no turn's lets its Step go and changes
   nothing else. A way in that fails (the Choice, a passage or a Panorama with no session)
   rests at the invite, and the team's next tap asks again through the door it already has.
-  There is no probe, no ladder, no radio watch and no resend. The Outbox keeps its own
-  retry (ADR 0050, invariant 12).
+  There is no probe, no ladder, no radio watch and no resend. The Outbox has no retry of
+  its own either: only a tap sends a take (0087, amended 28 October, ENG-1777).
 - **Only the conversation's microphone on the Conversation or the Panorama raises the
   sign:** a refused start at once (row 5 of ADR 0093, wired for the first time), a failed
   start the second time in a row (row 6), and a start of the conversation's microphone

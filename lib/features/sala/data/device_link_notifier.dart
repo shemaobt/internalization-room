@@ -212,8 +212,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
   /// its own, so a credential that reached only the room would leave the team's questions
   /// as the one thing still arriving unnamed.
   ///
-  /// The room opens with it, and the takes that waited for it leave with it: answered
-  /// once they have, so the tally taken after a launch counts what is really left.
+  /// The room opens with it; the takes that waited for it stay until their own tap.
   Future<void> _present(String? credential) async {
     _credential = credential;
     _room.presents(credential);
@@ -223,10 +222,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       team: state.team,
       presented: credential != null,
     );
-    if (credential != null) {
-      final takes = ref.read(takeUploadQueueProvider)..beginALife();
-      await takes.flush();
-    }
+    if (credential != null) ref.read(takeUploadQueueProvider).beginALife();
   }
 
   Future<void> _showACode() async {

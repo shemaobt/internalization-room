@@ -640,6 +640,37 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a sentence held from a gone session is offered in the '
+      "passage's next session and sent into that session at its tap", (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final pasta = aTempHome('sala-frase-perdida');
+    final guardada = await harness.takes.enqueue(
+      File('${pasta.path}/frase.wav')
+        ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
+      sessionId: null,
+      passage: 'Ruth/P01/$testLanguage',
+      kind: 'frase',
+      scope: '3',
+    );
+    final container = await _voltaATraducao(tester, harness);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    expect(_naLista(falhou), findsOneWidget);
+
+    await tocar(tester, falhou);
+    await _passo(tester);
+
+    expect(harness.room.sentencesSent, [
+      (sentenceId: guardada.id, segmentId: 'trecho-3'),
+    ]);
+    expect(harness.room.sentenceSessions, [
+      container.read(salaSessionProvider).sessionId,
+    ]);
+    closeTheRoom(container);
+  });
+
   testWidgets('a sentence laid in is announced in her words and plays in its '
       'place on the new take, with a second and a half around it', (
     tester,

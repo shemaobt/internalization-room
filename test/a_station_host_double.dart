@@ -146,14 +146,6 @@ class AStationHost implements StationHost {
   void hearTheReplyWaitingToLoad() => asked.add('hearTheReplyWaitingToLoad');
 
   @override
-  Future<void> hearTheOutboxFlushed() async =>
-      asked.add('hearTheOutboxFlushed');
-
-  @override
-  Future<void> hearTheOutboxCounted() async =>
-      asked.add('hearTheOutboxCounted');
-
-  @override
   void hearTheStepLetGo() => asked.add('hearTheStepLetGo');
 
   @override
