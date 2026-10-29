@@ -265,7 +265,7 @@ void main() {
   );
 
   test(
-    'a canned turn says whether the room was in trouble, not only that it was canned',
+    'a canned turn still says, turn by turn, whether the room was in trouble',
     () async {
       var inTrouble = true;
       final repository = RoomRepository(
@@ -295,14 +295,12 @@ void main() {
       );
 
       expect(broken.degraded, isTrue);
-      expect(ensaiando.usedFailSafe, isTrue);
       expect(
         ensaiando.degraded,
         isFalse,
         reason:
             'a sala responde da lata tanto quando falha quanto quando a equipe ensaia '
-            'na língua dela, e os dois campos juntos só provam alguma coisa se a resposta '
-            'trouxer a combinação que existe por causa da correção',
+            'na língua dela, e só o degraded de cada turno diz qual dos dois aconteceu',
       );
     },
   );

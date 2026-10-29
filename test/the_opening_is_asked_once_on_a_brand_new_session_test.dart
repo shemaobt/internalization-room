@@ -265,7 +265,7 @@ void main() {
 
   test('a fail-safe the room said again is kept as the last line, so the next '
       '«Ouvir de novo» says it again without asking the room', () async {
-    final harness = SalaHarness()..room.turnsAreCanned = true;
+    final harness = SalaHarness();
     _aCanvasRow(harness, opened: true);
     final container = harness.container();
     addTearDown(container.dispose);

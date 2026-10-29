@@ -66,9 +66,7 @@ void main() {
     });
 
     test('sem fala guardada, o botão não toca nada', () async {
-      final harness = harnessApontando()
-        ..room.turnsAreCanned = true
-        ..room.verdictUsedFailSafe = true;
+      final harness = harnessApontando()..room.verdictUsedFailSafe = true;
       final container = await pumpAoApontado(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
