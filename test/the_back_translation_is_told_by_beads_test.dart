@@ -1568,7 +1568,7 @@ void main() {
           'o botão ficava à esquerda da tesoura e da confirmação, que os três '
           'toques tiraram',
     );
-    expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 701));
+    expect(tester.getTopLeft(byLabel(conferir)), const Offset(309.8, 701));
     closeTheRoom(container);
   });
 
@@ -1585,7 +1585,9 @@ void main() {
     await tester.pump(passaDoCursor);
 
     expect(tester.getRect(byLabel(ouvindo)).size, const Size(150, 150));
-    expect(tester.getRect(byLabel(conferir)).size, const Size(78, 78));
+    final pilula = tester.getRect(byLabel(conferir)).size;
+    expect(pilula.width, closeTo(200.4, 0.01));
+    expect(pilula.height, closeTo(48.6, 0.01));
     closeTheRoom(container);
   });
 

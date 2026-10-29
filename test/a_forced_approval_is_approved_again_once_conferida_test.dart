@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
     show aprovadaNaConferida;
@@ -14,6 +15,7 @@ import 'the_back_translation_is_told_by_beads_test.dart' show tocar;
 const _aprovar = 'Aprovar como rascunho final';
 const _salvo = 'Ensaio salvo';
 const _pronto = 'Pronto';
+const _ponto = 'Gravar o ensaio de vocês';
 const _naoDeu = 'não deu para conferir agora — tentem de novo';
 const _forcada = ApprovedDraft(version: 1, forced: true);
 
@@ -38,6 +40,7 @@ Future<void> _naCasa(
 Future<void> _aprovadaDeNovoComoV2(
   WidgetTester tester,
   SalaHarness harness,
+  ProviderContainer container,
 ) async {
   harness.room.release = const ApprovalAnswer(releaseId: 'solta-2', version: 2);
   harness.room.approvedDraft = const ApprovedDraft(version: 2);
@@ -49,6 +52,14 @@ Future<void> _aprovadaDeNovoComoV2(
   );
   await tester.tap(byLabel(_pronto));
   await tester.pump(const Duration(milliseconds: 800));
+  expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+  await tester.tap(byLabel(_ponto));
+  await waitFor(
+    'a casa da gravação abrir pelo ponto',
+    () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
+    step: () => _passo(tester),
+  );
+  await tester.pump(const Duration(seconds: 2));
 }
 
 void main() {
@@ -76,7 +87,7 @@ void main() {
       reason: 'o selo não vinha debaixo do botão, como o dela',
     );
 
-    await _aprovadaDeNovoComoV2(tester, harness);
+    await _aprovadaDeNovoComoV2(tester, harness, container);
 
     expect(harness.room.releasesAsked, hasLength(2));
     expect(find.text(_badge(2)), findsOneWidget);
@@ -165,7 +176,7 @@ void main() {
       reason: 'a casa de uma versão forçada e conferida não oferecia aprovar',
     );
 
-    await _aprovadaDeNovoComoV2(tester, harness);
+    await _aprovadaDeNovoComoV2(tester, harness, container);
 
     expect(harness.room.releasesAsked, hasLength(2));
     expect(find.text(_badge(2)), findsOneWidget);

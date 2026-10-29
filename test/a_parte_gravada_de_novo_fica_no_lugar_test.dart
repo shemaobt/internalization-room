@@ -1303,6 +1303,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(byLabel(_pronto));
       await tester.pump(const Duration(milliseconds: 400));
+      it.harness.room.readsChecked = true;
+      final sala = it.container.read(salaSessionProvider.notifier);
+      sala.openTheEnsaioFinal();
+      await tester.pump(const Duration(seconds: 1));
+      sala.startRetro();
+      await tester.pump(const Duration(seconds: 1));
       expect(
         byLabel(_aprovar),
         findsOneWidget,
@@ -1329,13 +1335,25 @@ void main() {
       expect(find.bySemanticsLabel(_pronto), findsOneWidget);
       await tester.tap(byLabel(_pronto));
       await tester.pump(const Duration(milliseconds: 400));
+
+      expect(
+        _estado(it.container).stage,
+        SalaStage.conversa,
+        reason: 'e o toque tem de valer, não ser engolido por um botão inerte',
+      );
+
+      sala.openTheEnsaioFinal();
+      await tester.pump(const Duration(seconds: 1));
+      sala.startRetro();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.bySemanticsLabel(_voltarParaAGravacao), findsOneWidget);
       await tester.tap(byLabel(_voltarParaAGravacao));
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(
         _estado(it.container).stage,
         SalaStage.ensaio,
-        reason: 'e o toque tem de valer, não ser engolido por um botão inerte',
+        reason: 'e a saída tem de valer, não ser engolida por um botão inerte',
       );
       semantics.dispose();
     },
