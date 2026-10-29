@@ -407,18 +407,35 @@ void main() {
   });
 
   testWidgets(
-    'a double tap on the sign clears it and never opens the microphone',
+    'a double tap on the sign clears it, and the second tap reaches the circle as the sign fades, as hers',
     (tester) async {
       final sala = await _underTheSign(tester);
       final circle = tester.getCenter(find.byType(FacilitatorCircle));
 
       await tester.tapAt(circle);
       await tester.pump(const Duration(milliseconds: 120));
+      expect(
+        tester
+            .widget<FadeTransition>(
+              find.descendant(
+                of: find.byType(PersonSign),
+                matching: find.byType(FadeTransition),
+              ),
+            )
+            .opacity
+            .value,
+        greaterThan(0),
+      );
       await tester.tapAt(circle);
       await _pass(sala, 20);
 
       expect(_read(sala).needsPerson, isFalse);
-      expect(_read(sala).voice, isNot(VoiceState.listening));
+      expect(
+        _read(sala).voice,
+        VoiceState.listening,
+        reason:
+            'o sinal engolia o toque enquanto sumia, e o dela deixa passar ao círculo',
+      );
       closeTheRoom(sala.container);
     },
   );

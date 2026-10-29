@@ -45,10 +45,8 @@ class _PersonSignState extends ConsumerState<PersonSign>
     );
     final colors = SalaColors.of(context);
     return Positioned.fill(
-      child: AnimatedBuilder(
-        animation: _fade,
-        builder: (context, sign) =>
-            IgnorePointer(ignoring: !shown && _fade.isDismissed, child: sign),
+      child: IgnorePointer(
+        ignoring: !shown,
         child: FadeTransition(
           opacity: _opacity,
           child: GestureDetector(
