@@ -255,7 +255,12 @@ class SceneTranslateStep extends ConsumerWidget {
   String? _hintOf({required bool playing, required Duration at}) {
     final end = scene.takeEnd;
     final pausa = scene.pausa;
+    final clock = playing ? at : stoppedAt;
     if (!scene.listened) return null;
+    if (scene.translatingAgain != null) {
+      if (playing) return sceneListeningLineFor(at, scene.length, language);
+      return clock == null ? null : sceneClockOf(clock, scene.length);
+    }
     if (pausa != null) {
       if (end != null && pausa >= end) {
         return sceneRehearsalLabelFor('ended', language);
@@ -264,7 +269,6 @@ class SceneTranslateStep extends ConsumerWidget {
         envelope == null ? 'pauseAtTheTap' : 'pauseHint',
         language,
       );
-      final clock = playing ? at : stoppedAt;
       return clock == null
           ? words
           : '$words — ${sceneClockOf(clock, scene.length)}';

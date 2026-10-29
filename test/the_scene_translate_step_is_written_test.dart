@@ -1327,6 +1327,71 @@ void main() {
     },
   );
 
+  for (final (which, frases) in [
+    (
+      'an earlier frase',
+      [
+        _frase('f1', 0, 4000),
+        _frase('f2', 4000, 8000),
+        _frase('f3', 8000, 10000),
+      ],
+    ),
+    (
+      'the last frase, its pausa on the move,',
+      [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+    ),
+  ]) {
+    testWidgets(
+      '$which translated again reads «ouvindo o ensaio da cena…» with her clock while it plays, and only the clock once it stops',
+      (tester) async {
+        final (harness, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [_rehearsal(frases: frases)],
+          until: (state) =>
+              state.scene.step == SceneStep.translate &&
+              state.sceneEnvelope != null,
+        );
+        const playing = 'ouvindo o ensaio da cena… — 0:05 / 0:10';
+        const stopped = '0:08 / 0:10';
+
+        await tester.tap(byLabel(_bar(2)));
+        await pumpUntil(
+          tester,
+          () => switch (container.read(salaSessionProvider).channel) {
+            PartPlaying(:final opened) => opened,
+            _ => false,
+          },
+        );
+        expect(harness.playback.ranges.last, '4000-8000');
+        harness.playback.at = const Duration(seconds: 1);
+        await tester.pump(const Duration(milliseconds: 1100));
+
+        expect(
+          find.text(playing),
+          findsOneWidget,
+          reason:
+              'a frase traduzida de novo tocando não dizia que o take tocava',
+        );
+
+        harness.playback.at = const Duration(seconds: 4);
+        harness.playback.finishPlayback();
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is! PartPlaying,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          find.text(stopped),
+          findsOneWidget,
+          reason:
+              'a frase traduzida de novo parada escrevia uma dica em vez de só o relógio',
+        );
+        expect(byLabel(stopped), findsOneWidget);
+      },
+    );
+  }
+
   testWidgets('a sent scene rehearsal draws her strip', (tester) async {
     await _inListenMode(tester);
 
