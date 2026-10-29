@@ -11,15 +11,18 @@ void main() {
       byNumber.putIfAbsent(name.substring(0, 4), () => []).add(name);
     }
 
+    final shared = {
+      for (final entry in byNumber.entries)
+        if (entry.value.length > 1) entry.key: entry.value,
+    };
+
     expect(
-      {
-        for (final entry in byNumber.entries)
-          if (entry.value.length > 1) entry.key: entry.value,
-      },
+      shared,
       isEmpty,
       reason:
-          'a main levou dois ADR 0140, dois 0141, dois 0146 e dois 0149, e cada '
-          '«amended by» e cada «ADR 0140» passou a apontar para duas decisões',
+          'mais de uma decisão levou ${shared.keys.join(', ')}, e cada referência '
+          'apontava para duas; a que chegou depois à main toma o próximo número '
+          'livre, e cada referência a ela passa a nomeá-lo',
     );
   });
 }
