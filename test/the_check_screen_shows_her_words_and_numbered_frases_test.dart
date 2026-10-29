@@ -8,6 +8,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -340,6 +341,18 @@ Future<void> _traduzirAFraseApontadaDeNovo(
     'a frase traduzida de novo pousar',
     () => container.read(salaSessionProvider).btTrechoTraduzidoDeNovo == null,
     step: () => _passo(tester),
+  );
+  await _passo(tester);
+}
+
+Future<void> _aVozNoCanal(
+  WidgetTester tester,
+  ProviderContainer container,
+  Channel channel,
+) async {
+  final sala = container.read(salaSessionProvider.notifier);
+  sala.state = sala.state.copyWith(
+    machine: sala.state.machine.copyWith(channel: channel),
   );
   await _passo(tester);
 }
@@ -1955,6 +1968,68 @@ void main() {
       primeira,
       reason: 'a tradução de antes da frase regravada não se ouvia mais',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the voice speaks, the loudspeaker of a «regravada» frase '
+      'takes no tap either, and is live again when the voice stops', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _aParteUmRegravada(tester, harness);
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    const regravada = 'ouvir a minha tradução da frase 1';
+    expect(container.read(salaSessionProvider).btTrechosRegravados, isNotEmpty);
+    expect(aceso(tester, regravada), isTrue);
+
+    await _aVozNoCanal(
+      tester,
+      container,
+      const GuideSpeaking(Line(LineKind.guide, 1)),
+    );
+
+    expect(
+      aceso(tester, regravada),
+      isFalse,
+      reason: 'a frase regravada seguia aceitando toque com a voz falando',
+    );
+
+    await _aVozNoCanal(tester, container, const Silence());
+
+    expect(aceso(tester, regravada), isTrue);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the voice speaks, the bar of a «regravada» frase takes no '
+      'tap either, and is live again when the voice stops', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _comUmaFraseRegravada(tester, harness);
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    const barra = 'Ouvir esta frase de novo e traduzir de novo — 1';
+    bool viva() =>
+        tester.widget<Semantics>(byLabel(barra)).properties.enabled ?? false;
+    expect(container.read(salaSessionProvider).btTrechosRegravados, isNotEmpty);
+    expect(viva(), isTrue);
+
+    await _aVozNoCanal(
+      tester,
+      container,
+      const GuideSpeaking(Line(LineKind.guide, 1)),
+    );
+
+    expect(
+      viva(),
+      isFalse,
+      reason:
+          'a barra da frase regravada seguia aceitando toque com a voz '
+          'falando',
+    );
+
+    await _aVozNoCanal(tester, container, const Silence());
+
+    expect(viva(), isTrue);
     closeTheRoom(container);
   });
 

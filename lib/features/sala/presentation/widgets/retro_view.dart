@@ -301,6 +301,7 @@ class RetroView extends ConsumerWidget {
     String language,
   ) {
     final atua = session.aBackTranslationGestureActs;
+    final quieta = session.theFraseListIsIdle;
     final contadas = [
       for (final (onde, trecho) in session.btTrechos.indexed)
         if (trecho.contado) (onde, trecho),
@@ -333,11 +334,12 @@ class RetroView extends ConsumerWidget {
       n: n,
       parte: parteDe(trecho),
       share: share(trecho),
-      onHear: session.canHearAFrase && trecho.retroPath != null
+      onHear: quieta && session.canHearAFrase && trecho.retroPath != null
           ? () => notifier.ouvirAFraseRegravada(onde)
           : null,
       onRetell:
-          session.canRetellAFrase &&
+          quieta &&
+              session.canRetellAFrase &&
               trecho.segmentId != null &&
               session.regravadaTraduzivelDeNovo(trecho)
           ? () => notifier.traduzirAFraseRegravadaDeNovo(onde)
@@ -351,7 +353,8 @@ class RetroView extends ConsumerWidget {
       parte: parteDe(trecho),
       share: share(trecho),
       onHear:
-          session.canHearAFrase &&
+          quieta &&
+              session.canHearAFrase &&
               switch (session.aParteDoTrecho(trecho)) {
                 null => true,
                 final parte =>
@@ -360,7 +363,8 @@ class RetroView extends ConsumerWidget {
           ? () => notifier.ouvirOTrechoContado(onde)
           : null,
       onRetell:
-          session.canRetellAFrase &&
+          quieta &&
+              session.canRetellAFrase &&
               trecho.segmentId != null &&
               session.aParteDoTrechoEstaAqui(trecho)
           ? () => notifier.traduzirAFraseDeNovo(onde)
@@ -389,8 +393,10 @@ class RetroView extends ConsumerWidget {
           : null,
       regravarDormindo: _dormindo('rerecord:${trecho.frase}', session),
       onRegravar:
-          session.btRegravacao == null ||
-              session.btRegravacao?.frase == trecho.frase
+          switch (session.btRegravacao) {
+            null => quieta,
+            final regravacao => regravacao.frase == trecho.frase,
+          }
           ? () => notifier.regravarAFrase(trecho)
           : null,
       revisao:
@@ -425,6 +431,7 @@ class RetroView extends ConsumerWidget {
       estadoDormindo: _dormindo('resend:${trecho.frase}', session),
       onEstado:
           atua &&
+              session.channel is! GuideSpeaking &&
               session.btRegravacao == null &&
               trecho.frase != null &&
               session.btFraseGuardada == trecho.frase
