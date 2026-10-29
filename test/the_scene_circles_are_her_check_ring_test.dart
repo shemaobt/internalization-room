@@ -14,6 +14,7 @@ import 'fakes.dart' show waitFor;
 import 'scenario_helpers.dart' show byLabel;
 
 const _record = 'Gravar o ensaio da cena';
+const _tell = 'Toque para traduzir esta frase do ensaio da cena';
 const _saving = 'guardando o ensaio da cena…';
 const _recording =
     'gravem o ensaio da cena na língua materna; toquem para parar';
@@ -48,6 +49,15 @@ BoxDecoration theEdgeOf(WidgetTester tester, String label) =>
             .decoration!
         as BoxDecoration;
 
+Iterable<double> fadesOn(WidgetTester tester, String label) => [
+  for (final around in [find.ancestor, find.descendant])
+    ...tester
+        .widgetList<AnimatedOpacity>(
+          around(of: byLabel(label), matching: find.byType(AnimatedOpacity)),
+        )
+        .map((fade) => fade.opacity),
+];
+
 int ripplesOf(String label) => find
     .descendant(of: byLabel(label), matching: find.byType(Ripple))
     .evaluate()
@@ -58,6 +68,20 @@ const _sent = SceneRehearsalRecord(
   sessionId: 'sessao-1',
   n: 1,
   sentAt: '2026-10-27T10:00:00+00:00',
+);
+
+const _unsent = SceneRehearsalRecord(
+  rehearsalId: 'ensaio-da-cena-1',
+  sessionId: 'sessao-1',
+  n: 1,
+  frases: [SceneFrase(fraseId: 'f1', startsMs: 0, endsMs: 3000)],
+);
+
+const _placesUnknown = SceneRehearsalRecord(
+  rehearsalId: 'ensaio-da-cena-1',
+  sessionId: 'sessao-1',
+  n: 1,
+  frases: [SceneFrase(fraseId: 'f1', startsMs: 0, endsMs: 12000)],
 );
 
 Future<void> _pumpTheRoom(WidgetTester tester, SceneRoom room) async {
@@ -176,4 +200,64 @@ void main() {
       );
     },
   );
+
+  for (final (screen, side) in [(theSE, 142.5), (theIPad, 150.0)]) {
+    for (final look in Brightness.values) {
+      testWidgets(
+        'on ${screen.name} in the ${look.name} look the translate circle is her hollow check ring at $side, telha at rest, with no microphone drawn on it',
+        (tester) async {
+          tester.platformDispatcher.platformBrightnessTestValue = look;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
+          await onTheSceneStep(
+            tester,
+            screen: screen.size,
+            bar: screen.bar,
+            step: SceneStep.translate,
+            rehearsals: const [_unsent],
+          );
+
+          expect(byLabel(_tell), findsOneWidget);
+          expect(
+            theRingNamed(_tell),
+            findsOneWidget,
+            reason:
+                'o círculo de traduzir era o mesmo disco vermelho com o '
+                'microfone',
+          );
+          expect(
+            tester.getSize(byLabel(_tell)),
+            Size.square(side),
+            reason: 'o dela é min(38vw, 150px) na tradução',
+          );
+          final edge = theEdgeOf(tester, _tell);
+          expect(edge.border, Border.all(color: _telha[look]!, width: 1.5));
+          expect((edge.gradient! as RadialGradient).colors, _herFill[look]);
+          expect(
+            find.descendant(of: byLabel(_tell), matching: find.byType(Icon)),
+            findsNothing,
+          );
+        },
+      );
+    }
+  }
+
+  for (final (screen, side) in [(theSE, 142.5), (theIPad, 150.0)]) {
+    testWidgets(
+      'on ${screen.name} the places-unknown circle is her check ring at $side, the translate step\'s size, not 180',
+      (tester) async {
+        await onTheSceneStep(
+          tester,
+          screen: screen.size,
+          bar: screen.bar,
+          step: SceneStep.placesUnknown,
+          rehearsals: const [_placesUnknown],
+        );
+
+        expect(theRingNamed(_tell), findsOneWidget);
+        expect(tester.getSize(byLabel(_tell)), Size.square(side));
+      },
+    );
+  }
 }

@@ -36,6 +36,7 @@ class FacilitatorCircle extends StatelessWidget {
   final String? notUnderstood;
   final Halt halt;
   final double opacity;
+  final double edgeWidth;
   final String semanticLabel;
   final VoidCallback? onTap;
 
@@ -53,6 +54,7 @@ class FacilitatorCircle extends StatelessWidget {
     this.notUnderstood,
     this.halt = const NoHalt(),
     this.opacity = 1,
+    this.edgeWidth = 1.5,
     this.onTap,
   });
 
@@ -319,7 +321,7 @@ class FacilitatorCircle extends StatelessWidget {
       shape: BoxShape.circle,
       border: Border.all(
         color: voice == VoiceState.speaking ? colors.telha : _herEdge(colors),
-        width: 1.5,
+        width: edgeWidth,
       ),
       gradient: RadialGradient(
         center: const Alignment(0, -0.08),
