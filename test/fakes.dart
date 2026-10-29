@@ -62,22 +62,23 @@ Future<void> waitFor(
   Duration limit = const Duration(seconds: 10),
   Future<void> Function()? step,
 }) async {
-  const stepLength = Duration(milliseconds: 100);
-  final deadline = DateTime.now().add(limit);
+  final stepLength = step == null
+      ? const Duration(milliseconds: 5)
+      : const Duration(milliseconds: 100);
   var stepped = Duration.zero;
   while (!await ready()) {
-    if (step == null ? DateTime.now().isAfter(deadline) : stepped >= limit) {
+    if (stepped >= limit) {
       final waited = limit.inMilliseconds % 1000 == 0
           ? '${limit.inSeconds}s'
           : '${limit.inMilliseconds}ms';
       throw TimeoutException('esperei $waited e $what não aconteceu', limit);
     }
     if (step == null) {
-      await Future<void>.delayed(const Duration(milliseconds: 5));
+      await Future<void>.delayed(stepLength);
     } else {
       await step();
-      stepped += stepLength;
     }
+    stepped += stepLength;
   }
 }
 
