@@ -5591,6 +5591,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         asked.rehearsal?.rehearsalId == rehearsal.rehearsalId;
     final pausa = stillTranslating ? asked.pausa : null;
     final armed = stillTranslating ? asked.translatingAgain : null;
+    final listened = stillTranslating && asked.listened;
     final stillArmed = rehearsal.currentFrases
         .where((frase) => frase.fraseId == armed?.fraseId)
         .firstOrNull;
@@ -5603,12 +5604,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal: rehearsal,
         take: here,
         length: length,
-        listened: stillTranslating && asked.listened,
+        listened: listened,
         pausa: pausa != null && pausa > floor ? pausa : null,
         translatingAgain: stillArmed,
         notUnderstood: herLineStands,
       ),
       sceneRehearsals: _listedWith(rehearsal),
+      clearSceneStoppedAt: !listened,
     );
     if (step == SceneStep.translate || step == SceneStep.sent) {
       _handOff(_readTheLoudness(here));
@@ -6370,7 +6372,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (to == Nudge.later ? nudged <= pausa : nudged >= pausa) return;
     _silenceTheRoom();
     _theRefusalLineGoes();
-    state = state.copyWith(scene: state.scene.copyWith(pausa: nudged));
+    state = state.copyWith(
+      scene: state.scene.copyWith(pausa: nudged),
+      sceneStoppedAt: nudged,
+    );
   }
 
   /// «ouvir a pausa»: up to 1.5 s before the pausa, never from before the previous
