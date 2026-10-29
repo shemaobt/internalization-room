@@ -10872,7 +10872,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _aprovarRascunhoFinal() async {
     final fromTheHome = state.approveOffered;
     if (!fromTheHome &&
-        (state.station is! Retro || state.btPhase != BtPhase.conferida)) {
+        (state.station is! Retro ||
+            state.btPhase != BtPhase.conferida ||
+            !state.approveActsOnTheCheck)) {
       return;
     }
     if (state.needsPerson) return;

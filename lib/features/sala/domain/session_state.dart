@@ -1693,6 +1693,12 @@ class SalaSessionState {
       (btChecked || btPhase == BtPhase.conferida) &&
       (approvedOnTheTell == null || approvalStillOpen);
 
+  bool get approveActsOnTheCheck =>
+      approveOnTheCheck &&
+      canApprove &&
+      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
+      channel is! GuideSpeaking;
+
   /// Whether the recording home offers the approval: the room calls the passage checked
   /// and the approval is still open, and nothing is being recorded or sent.
   bool get approveOffered =>

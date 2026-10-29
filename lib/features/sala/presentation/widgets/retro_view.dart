@@ -199,7 +199,9 @@ class RetroView extends ConsumerWidget {
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: FadeUp(child: ApproveButton(live: session.canApprove)),
+                child: FadeUp(
+                  child: ApproveButton(live: session.approveActsOnTheCheck),
+                ),
               ),
             ],
             if (session.approvedDraftDrawn case final aprovado?
