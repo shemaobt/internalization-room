@@ -501,14 +501,25 @@ Future<ProviderContainer> _relidaPelaSala(
   return container;
 }
 
-List<Rect> _tracos(WidgetTester tester, Finder onde, Color cor) {
+List<Rect> _tracos(
+  WidgetTester tester,
+  Finder onde,
+  Color cor, {
+  Symbol como = #drawPath,
+}) {
   final tracos = <Rect>[];
   expect(
     tester.renderObject(onde),
     paints..everything((metodo, argumentos) {
-      if (metodo == #drawPath &&
-          (argumentos[1] as Paint).color.toARGB32() == cor.toARGB32()) {
-        tracos.add((argumentos[0] as Path).getBounds());
+      if (metodo != como) return true;
+      final tinta = (argumentos.last as Paint).color.toARGB32();
+      if (tinta & 0xFFFFFF == cor.toARGB32() & 0xFFFFFF &&
+          ((tinta >> 24) - (cor.toARGB32() >> 24)).abs() <= 1) {
+        tracos.add(switch (argumentos[0]) {
+          final Path path => path.getBounds(),
+          final Rect rect => rect,
+          _ => Rect.zero,
+        });
       }
       return true;
     }),
@@ -2883,6 +2894,37 @@ void main() {
         tester.widget<Text>(numero).style?.color,
         verdeClaro,
         reason: 'no anel vazio o número dela é verde-claro',
+      );
+      closeTheRoom(container);
+    });
+  }
+
+  for (final (look, areia) in [
+    (Brightness.light, const Color(0xFFC5C29F)),
+    (Brightness.dark, const Color(0xFF6E6A57)),
+  ]) {
+    testWidgets('in the ${look.name} look a «regravada» bar is striped in '
+        'sand, not filled terracotta', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = look;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _comUmaFraseRegravada(tester, harness);
+      final barra = find
+          .descendant(
+            of: _oCartao(find.text('regravada — traduzam de novo')).first,
+            matching: find.byType(FractionallySizedBox),
+          )
+          .first;
+
+      expect(
+        _tracos(
+          tester,
+          barra,
+          areia.withValues(alpha: .9),
+          como: #drawRect,
+        ).take(2),
+        [const Rect.fromLTWH(0, 0, 3, 10), const Rect.fromLTWH(6, 0, 3, 10)],
+        reason: 'a barra regravada enchia de telha, não das listras de areia',
       );
       closeTheRoom(container);
     });

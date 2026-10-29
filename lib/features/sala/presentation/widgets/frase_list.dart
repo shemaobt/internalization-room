@@ -335,7 +335,13 @@ class _FraseTile extends StatelessWidget {
                     height: 28,
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: _Bar(share: row.share, fill: tom),
+                      child: _Bar(
+                        share: row.share,
+                        fill: tom,
+                        listras: row.regravada
+                            ? colors.areia.withValues(alpha: .9)
+                            : null,
+                      ),
                     ),
                   ),
                   Wrap(
@@ -391,11 +397,13 @@ class _FraseTile extends StatelessWidget {
 class _Bar extends StatelessWidget {
   final double share;
   final Color fill;
+  final Color? listras;
 
-  const _Bar({required this.share, required this.fill});
+  const _Bar({required this.share, required this.fill, this.listras});
 
   @override
   Widget build(BuildContext context) {
+    final listras = this.listras;
     return Container(
       height: 10,
       decoration: BoxDecoration(
@@ -406,12 +414,33 @@ class _Bar extends StatelessWidget {
       child: FractionallySizedBox(
         widthFactor: share,
         child: Container(
+          clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
-            color: fill,
+            color: listras == null ? fill : null,
             borderRadius: BorderRadius.circular(5),
           ),
+          child: listras == null
+              ? null
+              : CustomPaint(painter: _Listras(listras), size: Size.infinite),
         ),
       ),
     );
   }
+}
+
+class _Listras extends CustomPainter {
+  final Color color;
+
+  const _Listras(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ink = Paint()..color = color;
+    for (var at = 0.0; at < size.width; at += 6) {
+      canvas.drawRect(Rect.fromLTWH(at, 0, 3, size.height), ink);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_Listras oldDelegate) => oldDelegate.color != color;
 }
