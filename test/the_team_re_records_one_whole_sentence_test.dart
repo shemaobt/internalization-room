@@ -1387,6 +1387,69 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('the sentence just recorded plays on its own button, never '
+      'lighting or pausing the main listen', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    await tocar(tester, 'Ouvir — 3');
+    final paradas = harness.playback.stops;
+    final sons = harness.playback.sounds.length;
+
+    expect(
+      byLabel('Pausar'),
+      findsNothing,
+      reason: 'o ouvir principal virava pausar com a frase da revisão tocando',
+    );
+    expect(
+      aceso(tester, 'Ouvir'),
+      isFalse,
+      reason: 'o ouvir principal acendia para a frase da revisão',
+    );
+
+    container.read(salaSessionProvider.notifier).ouvirGravacao();
+    await _passo(tester);
+
+    expect(
+      harness.playback.sounds.skip(sons),
+      isNot(contains('playback:pause')),
+      reason: 'o ouvir principal pausava a frase da revisão',
+    );
+    expect(harness.playback.stops, paradas);
+    expect(apertado(tester), isTrue);
+
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(apertado(tester), isFalse);
+    expect(harness.playback.stops, greaterThan(paradas));
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the sentence just recorded plays, the circle does not '
+      'speak and no «ouvindo» stands by the main listen', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(apertado(tester), isTrue);
+    expect(
+      tester.widget<FacilitatorCircle>(_circulo()).voice,
+      isNot(VoiceState.speaking),
+      reason: 'o círculo falava na língua materna com a frase da revisão',
+    );
+    expect(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.text('ouvindo a gravação de vocês…'),
+      ),
+      findsNothing,
+      reason: 'o ouvindo da gravação aparecia para a frase da revisão',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('the sentence just recorded is offered as her filled triangle, '
       'not a lucide outline', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

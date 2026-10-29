@@ -1292,7 +1292,8 @@ class SalaSessionState {
   bool get btClipRodando => stage == SalaStage.retro && channel is PartPlaying;
 
   bool get btTrechoTocando => switch (channel) {
-    StretchPlaying(stretch: StretchSound(telling: false)) => true,
+    StretchPlaying(stretch: StretchSound(telling: false, :final path)) =>
+      path != btRegravacao?.path,
     _ => false,
   };
 
@@ -1312,7 +1313,8 @@ class SalaSessionState {
   };
 
   bool get btTrechoPausada => switch (_paused) {
-    Paused(what: StretchSound(telling: false)) => true,
+    Paused(what: StretchSound(telling: false, :final path)) =>
+      path != btRegravacao?.path,
     _ => false,
   };
 
