@@ -32,6 +32,12 @@ is not hers; the instruction and the hint reached the team only through VoiceOve
 - What ADR 0131 adds to her screen stays: «parar» after 8 s of sending, her failure words and
   «falhou — toque para tentar de novo» as the tap. The circle's VoiceOver names do not change
   here (ENG-1918).
+- The hint is written for the eye only. Under the circle VoiceOver hears only the circle's
+  name: «Gravar o ensaio da cena» at rest, the hint's words while the team records, and
+  «guardando o ensaio da cena…» while the take is kept. Nothing is read twice, and the clock
+  does not rewrite a VoiceOver label every second. Her hint is announced (`aria-live`)
+  because her circle is named «Parar» and «Gravar o ensaio da cena» instead; once ENG-1918
+  names ours as hers, the hint is what VoiceOver should read.
 
 ## Consequences
 
