@@ -796,7 +796,7 @@ class RetroView extends ConsumerWidget {
   String? _aEscuta(SalaSessionState session) {
     if (session.btSoOuvir) return null;
     if (session.btClipRodando || session.btTrechoTocando) return 'listening';
-    return null;
+    return 'paused';
   }
 
   String _circleLabel(SalaSessionState session, String language) {

@@ -1,10 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show passaDoCursor, pausar;
+    show passaDoCursor, pausar, tocar;
 import 'the_pause_snaps_to_silence_test.dart' show entrarComAFala, s;
 
 Finder naTela(String linha) =>
@@ -37,6 +38,27 @@ void main() {
     );
     expect(texto.top, lessThan(play.bottom));
     expect(texto.bottom, greaterThan(play.top));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a part paused with play writes «pausado — toque no círculo…» '
+      'and where it stopped, not a bare button', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+
+    await tocar(tester, pausar);
+
+    expect(container.read(salaSessionProvider).btClipPausada, isTrue);
+    expect(
+      naTela(
+        'pausado — toque no círculo para marcar onde a frase acaba — '
+        'parte 1 · 0:02 / 0:10',
+      ),
+      findsOneWidget,
+      reason: 'a parte parada não dizia nada ao lado do play',
+    );
     closeTheRoom(container);
   });
 }
