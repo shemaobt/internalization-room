@@ -21,9 +21,9 @@ const _rem = 16.0;
 
 /// The translate step, in her order: the instruction, the play control and the hint, the
 /// strip, her adjust row under a pending pausa, «traduzir o ensaio da cena» until the
-/// team listens, the circle, her message under it and «manter a tradução de antes» while
-/// a frase is translated again, the frases told, «terminei», «recomeçar a tradução», and
-/// «gravar o ensaio da cena de novo» under them.
+/// team listens, the circle, «manter a tradução de antes» while a frase is translated
+/// again, her message and the restart's line under them, the frases told, «terminei»,
+/// «recomeçar a tradução», and «gravar o ensaio da cena de novo» under them.
 class SceneTranslateStep extends ConsumerWidget {
   final SceneScreen scene;
   final Envelope? envelope;
@@ -59,7 +59,6 @@ class SceneTranslateStep extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(salaSessionProvider.notifier);
-    final colors = SalaColors.of(context);
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
     final take = switch (channel) {
@@ -75,6 +74,7 @@ class SceneTranslateStep extends ConsumerWidget {
       (longest, frase) => max(longest, frase.spanIn(scene.length)),
     );
     final message = _messageOf(frases);
+    final restartLine = _restartLineOf(line, language);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -82,7 +82,7 @@ class SceneTranslateStep extends ConsumerWidget {
         SceneSub(said('subTranslate')),
         const SizedBox(height: 12),
         _PlayRow(
-          mood: idle && scene.listened ? ButtonMood.lit : ButtonMood.dimmed,
+          mood: idle ? ButtonMood.lit : ButtonMood.dimmed,
           take: take,
           label: said('playPause'),
           hint: (at) => _hintOf(playing: playing, at: at),
@@ -131,21 +131,11 @@ class SceneTranslateStep extends ConsumerWidget {
               ? ButtonMood.beckoning
               : scene.waiting
               ? ButtonMood.waiting
-              : sending || !scene.listened
+              : sending
               ? ButtonMood.dimmed
               : ButtonMood.lit,
           label: said('tell'),
         ),
-        if (message != null) ...[
-          const SizedBox(height: 12),
-          Semantics(
-            liveRegion: true,
-            child: _Written(
-              message,
-              style: TextStyle(color: colors.mut, fontSize: 16),
-            ),
-          ),
-        ],
         if (scene.translatingAgain != null && !unseen) ...[
           const SizedBox(height: 8),
           _WrittenButton(
@@ -154,6 +144,11 @@ class SceneTranslateStep extends ConsumerWidget {
             onTap: notifier.keepTheEarlierTranslation,
             bare: true,
           ),
+        ],
+        if (message != null) ...[const SizedBox(height: 12), _HerLine(message)],
+        if (restartLine != null) ...[
+          const SizedBox(height: 8),
+          _HerLine(restartLine),
         ],
         if (frases.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -176,18 +171,16 @@ class SceneTranslateStep extends ConsumerWidget {
           const SizedBox(height: 16),
           _WrittenButton(
             said(sending ? 'sending' : 'send'),
-            live: sendable && !sending,
+            live: sendable && idle,
             onTap: notifier.sendTheSceneRehearsal,
             large: true,
           ),
         ],
-        if (restartShown || line != null) ...[
+        if (restartShown) ...[
           const SizedBox(height: 12),
           SceneRestartControl(
-            shown: restartShown,
             armed: restart,
             n: scene.rehearsal?.translatedFrases ?? 0,
-            line: line,
             live: idle,
             language: language,
           ),
@@ -195,7 +188,7 @@ class SceneTranslateStep extends ConsumerWidget {
         const SizedBox(height: 8),
         _WrittenButton(
           said('again'),
-          live: !sending && !scene.waiting,
+          live: idle,
           onTap: notifier.recordTheSceneAgain,
           bare: true,
         ),
@@ -274,68 +267,57 @@ class SceneTranslateStep extends ConsumerWidget {
   }
 }
 
-/// «recomeçar a tradução» while it applies, armed by its first tap with the count it
-/// discards, and her line once the room answered it or failed to, written only where
-/// the step may carry words.
+/// «recomeçar a tradução», armed by its first tap with the count it discards.
 class SceneRestartControl extends ConsumerWidget {
-  final bool shown;
   final BtRecomeco? armed;
   final int n;
-  final SceneLine? line;
   final bool live;
   final String language;
 
   const SceneRestartControl({
     super.key,
-    required this.shown,
     required this.armed,
     required this.n,
-    required this.line,
     required this.live,
     required this.language,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = SalaColors.of(context);
-    final words = switch (line) {
-      SceneLine.restarted => sceneRehearsalLabelFor('restarted', language),
-      SceneLine.restartFailed => retroLabelFor('restartFailed', language),
-      SceneLine.diskFailed => sceneRehearsalLabelFor('diskFailed', language),
-      SceneLine.notSent => sceneRehearsalLabelFor('notSent', language),
-      SceneLine.alreadySent => sceneRehearsalLabelFor('alreadySent', language),
-      _ => null,
-    };
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (shown)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _WrittenButton(
-              armed == null
-                  ? sceneRehearsalLabelFor('restart', language)
-                  : retroLabelFor('restartArmed', language, n: n),
-              live: live,
-              onTap: ref
-                  .read(salaSessionProvider.notifier)
-                  .restartTheSceneTranslation,
-            ),
-          ),
-        if (words != null) ...[
-          const SizedBox(height: 8),
-          Semantics(
-            liveRegion: true,
-            child: _Written(
-              words,
-              style: TextStyle(color: colors.mut, fontSize: 16),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: _WrittenButton(
+      armed == null
+          ? sceneRehearsalLabelFor('restart', language)
+          : retroLabelFor('restartArmed', language, n: n),
+      live: live && armed != BtRecomeco.armado,
+      onTap: ref.read(salaSessionProvider.notifier).restartTheSceneTranslation,
+    ),
+  );
 }
+
+class _HerLine extends StatelessWidget {
+  final String words;
+
+  const _HerLine(this.words);
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: _Written(
+      words,
+      style: TextStyle(color: SalaColors.of(context).mut, fontSize: 16),
+    ),
+  );
+}
+
+String? _restartLineOf(SceneLine? line, String language) => switch (line) {
+  SceneLine.restarted => sceneRehearsalLabelFor('restarted', language),
+  SceneLine.restartFailed => retroLabelFor('restartFailed', language),
+  SceneLine.diskFailed => sceneRehearsalLabelFor('diskFailed', language),
+  SceneLine.notSent => sceneRehearsalLabelFor('notSent', language),
+  SceneLine.alreadySent => sceneRehearsalLabelFor('alreadySent', language),
+  _ => null,
+};
 
 class ScenePlacesUnknown extends ConsumerWidget {
   final SceneScreen scene;
@@ -364,6 +346,7 @@ class ScenePlacesUnknown extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
     String said(String control) => sceneRehearsalLabelFor(control, language);
+    final restartLine = _restartLineOf(line, language);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -396,16 +379,19 @@ class ScenePlacesUnknown extends ConsumerWidget {
             style: TextStyle(color: colors.mut, fontSize: 16),
           ),
         ),
-        if (restartShown || line != null) ...[
+        if (restartShown || restartLine != null) ...[
           const SizedBox(height: 16),
-          SceneRestartControl(
-            shown: restartShown,
-            armed: restart,
-            n: scene.rehearsal?.translatedFrases ?? 0,
-            line: line,
-            live: !sending && !scene.waiting,
-            language: language,
-          ),
+          if (restartShown)
+            SceneRestartControl(
+              armed: restart,
+              n: scene.rehearsal?.translatedFrases ?? 0,
+              live: !sending && !scene.waiting,
+              language: language,
+            ),
+          if (restartLine != null) ...[
+            const SizedBox(height: 8),
+            _HerLine(restartLine),
+          ],
         ],
         const SizedBox(height: 16),
         _WrittenButton(
@@ -520,7 +506,7 @@ class SceneListenMode extends ConsumerWidget {
         const SizedBox(height: 16),
         _WrittenButton(
           said('again'),
-          live: !sending,
+          live: !sending && !scene.waiting && channel is! Microphone,
           onTap: notifier.recordTheSceneAgain,
           bare: true,
         ),

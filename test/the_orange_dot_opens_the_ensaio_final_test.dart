@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -35,6 +36,9 @@ const _openEnsaioFinalEn = 'Open the Final Rehearsal';
 const _planLine = 'Estes são os ensaios das cenas que vocês me enviaram.';
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _thinking = 'pensando…';
+const _pendingNotice =
+    'Uma gravação ainda está neste computador e não foi enviada.';
+const _sendSceneOne = 'Cena 1 · 0:48 — enviar agora';
 const _sceneByScene = 'Gravar cena por cena';
 const _how = 'Como vocês querem gravar?';
 final _backToPassage = roomLabelFor('backToPassage', 'pt');
@@ -245,6 +249,7 @@ void _partOneWaitsInTheOutbox(SalaHarness harness) {
       kind: 'ensaio',
       scope: KeptScope.parte(1),
       passNumber: 1,
+      chunkIndex: 1,
     ),
   );
 }
@@ -1046,8 +1051,8 @@ void main() {
   );
 
   testWidgets(
-    'a take of the passage waiting in the Outbox opens the recording home, '
-    'never the plan',
+    'a take waiting only in the Outbox never decides the dot, the room '
+    'listing nothing opens the plan',
     (tester) async {
       await _reopenedOnTheConversation(
         tester,
@@ -1058,8 +1063,250 @@ void main() {
       await _tapTheDot(tester);
       await _theAnswerSettles(tester);
 
-      expect(find.text(_homeLine), findsOneWidget);
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason:
+            'a gravação que só estava no tablet abria a casa de gravação, e a '
+            'dela abre o plano',
+      );
+      expect(find.text(_homeLine), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'on the plan a take only on the tablet is offered under her notice, and '
+    'a tap sends it',
+    (tester) async {
+      final (harness, _) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        before: (harness) {
+          _partOneWaitsInTheOutbox(harness);
+          harness.playback.measured = const Duration(seconds: 48);
+        },
+      );
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_planLine), findsOneWidget);
+      expect(
+        find.text(_pendingNotice),
+        findsOneWidget,
+        reason: 'o plano não dizia que uma gravação ficou no tablet',
+      );
+      expect(
+        find.text(_sendSceneOne),
+        findsOneWidget,
+        reason: 'o plano não oferecia a gravação para enviar',
+      );
+
+      harness.room.unreachableTake = null;
+      final before = harness.room.takePasses.length;
+      await tester.tap(find.text(_sendSceneOne));
+      await letTheRehearsalReachTheRoom(tester);
+      await _theAnswerSettles(tester);
+
+      expect(
+        harness.room.takePasses.length,
+        before + 1,
+        reason: 'o toque não mandava a gravação para a sala',
+      );
+    },
+  );
+
+  testWidgets(
+    'a take sent from the plan\'s notice, once the room has it, opens the '
+    'recording home instead of leaving the plan up',
+    (tester) async {
+      final (harness, _) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        before: (harness) {
+          _partOneWaitsInTheOutbox(harness);
+          harness.playback.measured = const Duration(seconds: 48);
+        },
+      );
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      expect(find.text(_planLine), findsOneWidget);
+
+      await tester.tap(find.text(_sendSceneOne));
+      await letTheRehearsalReachTheRoom(tester);
+      await _theAnswerSettles(tester);
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason: 'um envio que não chegou à sala tirava o plano da tela',
+      );
+
+      harness.room.unreachableTake = null;
+      await tester.tap(find.text(_sendSceneOne));
+      await letTheRehearsalReachTheRoom(tester);
+      await _theAnswerSettles(tester);
+
+      expect(
+        find.text(_homeLine),
+        findsOneWidget,
+        reason:
+            'a gravação chegava à sala e o plano continuava na tela, e o dela '
+            'passa para a casa de gravação',
+      );
       expect(find.text(_planLine), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'on the grain choice a take only on the tablet is offered under her '
+    'notice too',
+    (tester) async {
+      await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        scenes: const [],
+        before: (harness) {
+          _partOneWaitsInTheOutbox(harness);
+          harness.playback.measured = const Duration(seconds: 48);
+        },
+      );
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text('A passagem inteira'), findsOneWidget);
+      expect(find.text('Cena por cena'), findsOneWidget);
+      expect(
+        find.text(_pendingNotice),
+        findsOneWidget,
+        reason:
+            'a escolha do jeito de gravar não dizia que uma gravação '
+            'ficou no tablet',
+      );
+      expect(find.text(_sendSceneOne), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a scene take sent from the grain choice opens the home of the grain the '
+    'room now holds, scene by scene, not one nobody chose',
+    (tester) async {
+      final (harness, _) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        scenes: const [],
+        before: (harness) {
+          _partOneWaitsInTheOutbox(harness);
+          harness.playback.measured = const Duration(seconds: 48);
+        },
+      );
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      expect(find.text(_how), findsOneWidget);
+
+      harness.room.unreachableTake = null;
+      await tester.tap(find.text(_sendSceneOne));
+      await letTheRehearsalReachTheRoom(tester);
+      await _theAnswerSettles(tester);
+      await _theAnswerSettles(tester);
+
+      expect(
+        find.text(_how),
+        findsNothing,
+        reason:
+            'a gravação mandada da escolha chegava à sala e a pergunta '
+            'continuava na tela, e a dela passa para a casa da cena',
+      );
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text('A passagem inteira'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a whole-passage take on the tablet is offered on the whole-passage home '
+    'under her notice, named by the passage',
+    (tester) async {
+      await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        before: (harness) {
+          final waiting = Directory.systemTemp.createTempSync('sala-1861-home');
+          addTearDown(() => waiting.deleteSync(recursive: true));
+          final audio = File('${waiting.path}/ensaio-inteiro.m4a')
+            ..writeAsBytesSync([1, 2, 3, 4]);
+          harness.room
+            ..grain = Grain.whole
+            ..unreachableTake = 'ensaio/${KeptScope.whole}';
+          harness.playback.measured = const Duration(seconds: 48);
+          (harness.takes as FakeTakeQueue).rows.add(
+            PendingTake(
+              id: 'na-fila-inteira',
+              path: audio.path,
+              sessionId: 'sessao-antiga',
+              kind: 'ensaio',
+              scope: KeptScope.whole,
+              passNumber: 1,
+            ),
+          );
+        },
+      );
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_pendingNotice), findsOneWidget);
+      expect(
+        find.text('A passagem inteira · 0:48 — enviar agora'),
+        findsOneWidget,
+        reason:
+            'a casa da passagem inteira não oferecia a gravação que ficou '
+            'no tablet',
+      );
+    },
+  );
+
+  testWidgets(
+    'a whole-passage take on the tablet is never offered on the plan of a '
+    'passage recorded scene by scene',
+    (tester) async {
+      await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        before: (harness) {
+          final waiting = Directory.systemTemp.createTempSync(
+            'sala-1861-whole',
+          );
+          addTearDown(() => waiting.deleteSync(recursive: true));
+          final audio = File('${waiting.path}/ensaio-inteiro.m4a')
+            ..writeAsBytesSync([1, 2, 3, 4]);
+          harness.room
+            ..grain = Grain.scene
+            ..unreachableTake = 'ensaio/${KeptScope.whole}';
+          (harness.takes as FakeTakeQueue).rows.add(
+            PendingTake(
+              id: 'na-fila-inteira',
+              path: audio.path,
+              sessionId: 'sessao-antiga',
+              kind: 'ensaio',
+              scope: KeptScope.whole,
+              passNumber: 1,
+            ),
+          );
+        },
+      );
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_planLine), findsOneWidget);
+      expect(
+        find.text(_pendingNotice),
+        findsNothing,
+        reason:
+            'a gravação da passagem inteira aparecia num plano cena por cena, '
+            'e a sala a recusaria',
+      );
     },
   );
 
@@ -1163,7 +1410,8 @@ void main() {
 
     testWidgets(
       'leaves a row waiting in the Outbox unsent after a relaunch, and '
-      'recording it again goes up after it on the team\'s tap',
+      'recording it again lets that row go at the tap and sends the new take '
+      'alone on its keep',
       (tester) async {
         final it = await _reopenOverTheWholeSetAside(
           tester,
@@ -1193,14 +1441,6 @@ void main() {
             () => it.read.ensaio == EnsaioStatus.recorded,
           );
           it.sala.takeKeep();
-          await settle(const Duration(milliseconds: 300));
-        });
-        expect(
-          it.onRow(2, find.text('falhou — toque para tentar de novo')),
-          findsOneWidget,
-        );
-        await it.inRealTime(() async {
-          it.sala.enviarACena(2);
           await waitFor('a cena 2 subir', () => it.passesOfPart(2).contains(3));
           await settle(const Duration(milliseconds: 300));
         });

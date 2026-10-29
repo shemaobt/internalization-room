@@ -14,6 +14,14 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
+/// The team taps every row still waiting, the only way a row goes up again.
+Future<int> aTapOnEveryRow(TakeUploadQueue queue) async {
+  for (final row in await queue.pending()) {
+    queue.tapped(row.id);
+  }
+  return queue.flush();
+}
+
 void main() {
   late Directory home;
   late List<http.Request> requests;
@@ -52,7 +60,6 @@ void main() {
     room: roomOnTheWire(),
     home: () async => home,
     recordings: FakeRecorder.new,
-    backoff: const [Duration(seconds: 5)],
     now: now,
   );
 
@@ -86,7 +93,7 @@ void main() {
 
   group('a take goes up with when it was recorded, how long it is and its '
       'fingerprint', () {
-    test('a part recorded at 10:02 and sent when the Outbox drains at 13:40 '
+    test('a part recorded at 10:02 and sent on its tap at 13:40 '
         'goes up with 10:02, its length and its fingerprint', () async {
       final bytes = wavOf(const Duration(seconds: 3));
       answer = (_) async => throw const SocketException('sem rede');
@@ -97,7 +104,7 @@ void main() {
           http.Response(jsonEncode({'take_id': 'gravacao-1'}), 200);
       clock = DateTime(2026, 10, 20, 13, 40);
 
-      await queueAt(() => clock).flush();
+      await aTapOnEveryRow(queueAt(() => clock));
 
       final sent = requests.last;
       expect(sent.url.path, endsWith('/sessions/sessao-1/takes'));
@@ -127,13 +134,13 @@ void main() {
             recorded('parte', bytes, extension: 'wav'),
           );
           answer = (_) => failure();
-          await queue.flush();
+          await aTapOnEveryRow(queue);
           answer = (_) async =>
               http.Response(jsonEncode({'take_id': 'gravacao-1'}), 200);
           clock = clock.add(const Duration(minutes: 30));
 
           await queue.dueAgain(row.id);
-          await queue.flush();
+          await aTapOnEveryRow(queue);
 
           expect(requests, hasLength(4));
           expect(_fields(requests.last), _fields(requests.first));
@@ -209,7 +216,7 @@ void main() {
       );
       final queue = queueAt(() => clock);
 
-      await queue.flush();
+      await aTapOnEveryRow(queue);
 
       expect(_fields(requests.single), isEmpty);
       expect(await queue.pending(), isEmpty);
@@ -371,7 +378,7 @@ void main() {
       );
       final queue = queueAt(() => clock);
 
-      await queue.flush();
+      await aTapOnEveryRow(queue);
 
       expect(_fields(requests.single), {
         'duration_ms': '1000',

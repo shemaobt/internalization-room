@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1861 (2026-10-29: after a relaunch the dot counts only takes the room has received)
 date: 2026-10-28
 amends: 0064 (in part: a relaunch lands on the Station its row names), 0138 (in part: what still counts as waiting in the Outbox)
 ---
@@ -68,3 +68,11 @@ relaunch.
   let-go and the failures stand.
 - The Choice still lands an unapproved passage on its row's Station, where hers lands on the
   conversation.
+
+## Amendment · 2026-10-29 (ENG-1861)
+
+**The orange dot then leads where it leads from a live session**, and that place is decided by
+the room (ADR 0117, amended by ENG-1861): a take the relaunch loaded that never reached the room
+no longer opens the recording home at once. The dot opens the Ensaio Final plan or the grain
+choice the room's listing calls for, with that take offered on top under her notice, and the
+recording home is reached from there by «Gravar cena por cena» or once the take is sent.

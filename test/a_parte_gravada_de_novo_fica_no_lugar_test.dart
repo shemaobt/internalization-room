@@ -166,12 +166,16 @@ Future<void> _tocar(WidgetTester tester, String label) async {
   await tester.pump(const Duration(milliseconds: 200));
 }
 
-/// The circle records the part, records it over, and the check confirms it: every
+/// Part 2's row records it again, the circle stops it, and the check confirms it: every
 /// gesture a gesture the team has on the rehearsal screen.
 Future<void> _gravarAParteDoisPorCimaEConfirmar(WidgetTester tester) async {
-  await _tocar(tester, 'Gravar de novo');
-  await _tocar(tester, 'Parar');
-  await _tocar(tester, 'Gravar de novo');
+  final daLinhaDois = find.descendant(
+    of: linhaDoEnsaio(2),
+    matching: byLabel('Gravar de novo'),
+  );
+  await tester.ensureVisible(daLinhaDois);
+  await tester.tap(daLinhaDois);
+  await tester.pump(const Duration(milliseconds: 200));
   await _tocar(tester, 'Parar');
   await _tocar(tester, 'Enviar a gravação');
   await letTheRehearsalReachTheRoom(tester);
@@ -1051,9 +1055,8 @@ void main() {
     );
   });
 
-  testWidgets('o microfone de madeira do achado grava a parte de novo', (
-    tester,
-  ) async {
+  testWidgets('o microfone de madeira do achado leva à casa, e a linha da '
+      'parte a grava de novo no lugar', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await resto.aHistoriaSemOFim(
       tester,
@@ -1076,7 +1079,7 @@ void main() {
     expect(
       container.read(salaSessionProvider).stage,
       SalaStage.ensaio,
-      reason: 'o microfone de madeira leva ao ensaio, onde a parte se grava',
+      reason: 'o microfone de madeira leva à casa, onde a parte se grava',
     );
     expect(
       [
@@ -1097,66 +1100,63 @@ void main() {
     expect([agora[0].path, agora[2].path], [antes[0].path, antes[2].path]);
   });
 
-  testWidgets('o ensaio marca a parte que a equipe veio gravar de novo', (
-    tester,
-  ) async {
+  testWidgets('«voltar e regravar uma parte» leva à casa sem parte marcada, '
+      'toda linha acesa e o disco aceso', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    await resto.aHistoriaSemOFim(tester, harness, ondeFalta: 'trecho-2');
+    final container = await resto.aHistoriaSemOFim(
+      tester,
+      harness,
+      ondeFalta: 'trecho-2',
+    );
 
     await tester.ensureVisible(byLabel(micParteLabel));
     await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 400));
 
+    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
     expect(
       naLinhaDoEnsaio(tester, 'Gravar de novo'),
-      [false, true, false, null],
+      [true, true, true, null],
       reason:
-          'a equipe veio refazer a parte 2, e é a linha dela que o ensaio '
-          'deixa acesa desde a entrada; as outras não se aplicam agora '
-          '(ADR 0040): sem marca nenhuma a tela diz que vai nascer uma parte '
-          'nova no fim do ensaio',
+          'o botão marcava a parte do achado e apagava as outras linhas; '
+          'o dela volta à casa livre para gravar qualquer parte ou nenhuma',
     );
     expect(
       _discoAceso(tester),
-      isFalse,
-      reason: 'nada foi consertado ainda: o disco não leva de volta à tradução',
+      isTrue,
+      reason: 'com toda cena gravada, o disco leva de novo à tradução',
     );
-    expect(
-      onTheCircle('Gravar de novo'),
-      findsOneWidget,
-      reason:
-          'e o círculo convida a regravar com o texto da placa; a conta '
-          'esvaziada já diz de qual parte se trata',
-    );
-    expect(
-      onTheCircle('Gravar'),
-      findsNothing,
-      reason:
-          'o rótulo da parte nova mente aqui: esta gravação toma o lugar '
-          'de uma parte que já existe',
-    );
-
-    await _tocar(tester, 'Gravar de novo');
-    expect(naLinhaDoEnsaio(tester, 'Parar'), [
-      null,
-      true,
-      null,
-      null,
-    ], reason: 'a regravação aberta é a da linha 2');
-    await _tocar(tester, 'Parar');
-    expect(
-      naLinhaDoEnsaio(tester, 'Ouvir'),
-      [true, true, true, null],
-      reason:
-          'a regravação pendente fica no lugar da parte 2 e toda linha volta '
-          'a se ouvir: nenhuma parte nova nasce no fim',
-    );
-    expect(_discoAceso(tester), isFalse);
+    expect(container.read(salaSessionProvider).parteARegravar, isNull);
   });
 
-  testWidgets('confirmar a gravação nova solta a marca da parte', (
-    tester,
-  ) async {
+  testWidgets('a volta por «voltar e regravar uma parte» guarda o lugar da '
+      'equipe sem parte marcada', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await resto.aHistoriaSemOFim(
+      tester,
+      harness,
+      ondeFalta: 'trecho-2',
+      pericope: 'P01',
+    );
+
+    await tester.ensureVisible(byLabel(micParteLabel));
+    await tester.tap(byLabel(micParteLabel));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+    final guardado = harness.emAberto.rows['Ruth/P01/pt']!;
+    expect(guardado.stage, SalaStage.ensaio);
+    expect(
+      guardado.partBeingRecordedAgain,
+      isNull,
+      reason:
+          'o botão escrevia no disco a parte do achado, e a retomada '
+          'reabria a casa presa a ela',
+    );
+  });
+
+  testWidgets('a parte gravada de novo pela linha e confirmada deixa toda '
+      'linha acesa', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await resto.aHistoriaSemOFim(
       tester,
@@ -1179,8 +1179,8 @@ void main() {
       naLinhaDoEnsaio(tester, 'Gravar de novo'),
       [true, true, true, null],
       reason:
-          'a marca gasta-se no check: deixada de pé, a próxima '
-          'gravação da equipe parecia vir tomar o lugar da parte 2 outra vez',
+          'a parte 2 confirmada, nenhuma linha fica presa a ela, e a '
+          'próxima gravação da equipe não vem tomar o lugar dela outra vez',
     );
     expect(
       onTheCircle('Gravar'),

@@ -53,6 +53,7 @@ Future<ProviderContainer> _naConferencia(
   bool aprovada = false,
   bool conferida = false,
   bool primeiraEscuta = false,
+  bool aPrimeiraParteContada = true,
   String lingua = 'pt',
 }) async {
   tester.view
@@ -94,22 +95,22 @@ Future<ProviderContainer> _naConferencia(
   harness.room.retroSoFar = BackTranslationProgress(
     checked: aprovada || conferida,
     segments: [
-      if (!primeiraEscuta) ...const [
-        SegmentView(
+      if (!primeiraEscuta && aPrimeiraParteContada)
+        const SegmentView(
           segmentId: 'trecho-1',
           takeId: 'gravacao-1',
           startsMs: 0,
           endsMs: 5000,
           frase: 1,
         ),
-        SegmentView(
+      if (!primeiraEscuta)
+        const SegmentView(
           segmentId: 'trecho-2',
           takeId: 'gravacao-2',
           startsMs: 0,
           endsMs: 5000,
           frase: 2,
         ),
-      ],
     ],
   );
   final container = harness.container();
@@ -143,7 +144,7 @@ Future<ProviderContainer> _naConferencia(
         container.read(salaSessionProvider).stage == SalaStage.retro &&
         primeiraEscuta == container.read(salaSessionProvider).btSoOuvir &&
         container.read(salaSessionProvider).btTrechos.length ==
-            (primeiraEscuta ? 0 : 2) &&
+            (primeiraEscuta ? 0 : (aPrimeiraParteContada ? 2 : 1)) &&
         container.read(salaSessionProvider).btPhase ==
             (aprovada || conferida ? BtPhase.conferida : BtPhase.playing),
     step: () => letTheRehearsalReachTheRoom(tester),
@@ -689,5 +690,65 @@ void main() {
           'uma parte subindo apagava o botão na conferência, sem palavra '
           'que explicasse; o dela só descansa pelo que a conferência faz',
     );
+  });
+
+  testWidgets('on a joined recording «terminei» stays dimmed while a part has '
+      'no frase told, and a tap sends no check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(
+      tester,
+      harness,
+      aPrimeiraParteContada: false,
+    );
+    await waitFor(
+      'a gravação tocar até o fim',
+      () => container.read(salaSessionProvider).btClipEnded,
+      step: () async {
+        harness.playback.finishPlayback();
+        await _passo(tester);
+      },
+    );
+    await _passo(tester);
+
+    expect(
+      _aberto(tester, 'terminei'),
+      isFalse,
+      reason:
+          'uma frase na segunda cena acendia o terminei com a primeira sem '
+          'tradução, e o dela espera uma frase em cada cena',
+    );
+    await tester.tap(byLabel('terminei'));
+    await _passo(tester);
+    expect(
+      harness.room.playedByTakeSent,
+      isEmpty,
+      reason: 'o toque pedia uma conferência que a sala recusa',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('on a joined recording with a frase told on every part '
+      '«terminei» is lit, and a tap sends the check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    await waitFor(
+      'a gravação tocar até o fim',
+      () => container.read(salaSessionProvider).btClipEnded,
+      step: () async {
+        harness.playback.finishPlayback();
+        await _passo(tester);
+      },
+    );
+    await _passo(tester);
+
+    expect(_aberto(tester, 'terminei'), isTrue);
+    await tester.tap(byLabel('terminei'));
+    await waitFor(
+      'a conferência chegar à sala',
+      () => harness.room.playedByTakeSent.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    expect(harness.room.playedByTakeSent, hasLength(1));
+    closeTheRoom(container);
   });
 }

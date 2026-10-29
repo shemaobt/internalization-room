@@ -106,13 +106,10 @@ Future<List<PendingTake>> _daSessao(
     if (row.sessionId == sessionId) row,
 ];
 
-Future<bool> _aCopiaSaiu(
-  SalaHarness harness,
-  String sessionId,
-  PendingTake linha,
-) async =>
-    (await _daSessao(harness, sessionId)).isEmpty &&
-    !File(linha.path).existsSync();
+/// The take the team kept is still on the tablet, in the Outbox with its copy.
+Future<bool> _aTomadaFicou(SalaHarness harness, PendingTake linha) async =>
+    (await harness.takes.entries()).any((row) => row.id == linha.id) &&
+    File(linha.path).existsSync();
 
 void main() {
   test(
@@ -138,71 +135,74 @@ void main() {
     },
   );
 
-  test('a passage closed on the call for a person leaves the room at the '
-      'Choice with nothing of the session on the tablet', () async {
-    final harness = SalaHarness(
-      retryBackoff: const [_oneStepOfTheLadder],
-      watchesWithoutAHalt: true,
-    )..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
-    final container = await _naPassagem(harness);
-    final sessao = _estado(container).sessionId!;
-    harness.room.holdNextAskForAPerson();
-    await _aPassagemFechaNoPedidoDePessoa(harness, container);
-    _sala(container).teamTapped();
-    await waitFor('a parada sair', () => !_estado(container).needsPerson);
-    _sala(container).conversaTap();
-    await waitFor(
-      'o microfone abrir na conversa',
-      () => _estado(container).voice == VoiceState.listening,
-    );
-    final apagadasAntes = harness.recorder.deleted.length;
-    final linha = await harness.takes.enqueue(
-      harness.recorder.aFile('parte-guardada'),
-      sessionId: sessao,
-      kind: 'ensaio',
-      scope: 'parte-1',
-      passNumber: 1,
-      chunkIndex: 1,
-    );
-    expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNotNull);
-    await waitFor(
-      'a Watch ler o estado da sessão',
-      () => harness.room.calls.contains('fetchState'),
-    );
-    expect(harness.room.calls, contains('fetchState'));
+  test(
+    'a passage closed on the call for a person leaves the room at the '
+    'Choice with nothing of the session on the tablet but its unsent take',
+    () async {
+      final harness = SalaHarness(
+        retryBackoff: const [_oneStepOfTheLadder],
+        watchesWithoutAHalt: true,
+      )..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
+      final container = await _naPassagem(harness);
+      final sessao = _estado(container).sessionId!;
+      harness.room.holdNextAskForAPerson();
+      await _aPassagemFechaNoPedidoDePessoa(harness, container);
+      _sala(container).teamTapped();
+      await waitFor('a parada sair', () => !_estado(container).needsPerson);
+      _sala(container).conversaTap();
+      await waitFor(
+        'o microfone abrir na conversa',
+        () => _estado(container).voice == VoiceState.listening,
+      );
+      final apagadasAntes = harness.recorder.deleted.length;
+      final linha = await harness.takes.enqueue(
+        harness.recorder.aFile('parte-guardada'),
+        sessionId: sessao,
+        kind: 'ensaio',
+        scope: 'parte-1',
+        passNumber: 1,
+        chunkIndex: 1,
+      );
+      expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNotNull);
+      await waitFor(
+        'a Watch ler o estado da sessão',
+        () => harness.room.calls.contains('fetchState'),
+      );
+      expect(harness.room.calls, contains('fetchState'));
 
-    final antes = harness.room.calls.length;
-    harness.room.finishHeldAskForAPerson();
-    await _naEscolha(container);
-    await settle(_severalStepsOfTheLadder);
-    await waitFor(
-      'o lugar e a cópia da sessão saírem do tablet',
-      () async =>
-          (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null &&
-          await _aCopiaSaiu(harness, sessao, linha),
-    );
+      final antes = harness.room.calls.length;
+      harness.room.finishHeldAskForAPerson();
+      await _naEscolha(container);
+      await settle(_severalStepsOfTheLadder);
+      await waitFor(
+        'o lugar da sessão sair e a tomada ficar no tablet',
+        () async =>
+            (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null &&
+            await _aTomadaFicou(harness, linha),
+      );
 
-    expect(_estado(container).stage, SalaStage.escolha);
-    expect(_estado(container).voice, isNot(VoiceState.listening));
-    expect(
-      harness.recorder.deleted.skip(apagadasAntes),
-      [harness.recorder.lastPath],
-      reason: 'a gravação aberta é descartada',
-    );
-    expect(
-      harness.room.calls.skip(antes),
-      isNot(contains('fetchState')),
-      reason: 'a Watch termina com a sessão',
-    );
-    expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNull);
-    expect(await _daSessao(harness, sessao), isEmpty);
-    expect(File(linha.path).existsSync(), isFalse);
-    expect(
-      harness.room.calls,
-      isNot(contains('sendTake')),
-      reason: 'a linha sai da Outbox descartada, não enviada',
-    );
-  });
+      expect(_estado(container).stage, SalaStage.escolha);
+      expect(_estado(container).voice, isNot(VoiceState.listening));
+      expect(
+        harness.recorder.deleted.skip(apagadasAntes),
+        [harness.recorder.lastPath],
+        reason: 'a gravação aberta é descartada',
+      );
+      expect(
+        harness.room.calls.skip(antes),
+        isNot(contains('fetchState')),
+        reason: 'a Watch termina com a sessão',
+      );
+      expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNull);
+      expect(await _daSessao(harness, sessao), isEmpty);
+      expect(File(linha.path).existsSync(), isTrue);
+      expect(
+        harness.room.calls,
+        isNot(contains('sendTake')),
+        reason: 'a linha fica na Outbox até o toque dela',
+      );
+    },
+  );
 
   test('a passage closed after the team left it is closed on the tablet, '
       'and the room stays at the Choice', () async {
@@ -228,17 +228,16 @@ void main() {
     harness.room.finishHeldAskForAPerson();
     await settle(_severalStepsOfTheLadder);
     await waitFor(
-      'o lugar e a cópia da sessão saírem do tablet',
+      'o lugar da sessão sair e a tomada ficar no tablet',
       () async =>
           (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null &&
-          await _aCopiaSaiu(harness, sessao, linha),
+          await _aTomadaFicou(harness, linha),
     );
 
     expect(_estado(container).stage, SalaStage.escolha);
     expect(_estado(container).naRoda, isNotNull);
     expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNull);
-    expect(await _daSessao(harness, sessao), isEmpty);
-    expect(File(linha.path).existsSync(), isFalse);
+    expect(File(linha.path).existsSync(), isTrue);
     expect(harness.room.calls, isNot(contains('sendTake')));
   });
 
@@ -424,8 +423,8 @@ void main() {
     expect(_estado(container).sessionId, isNull);
   });
 
-  group('a session the server no longer accepts leaves nothing on the tablet, '
-      'and its passage opens afresh from the Wheel', () {
+  group('a session the server no longer accepts leaves nothing on the tablet '
+      'but its unsent takes, and its passage opens afresh from the Wheel', () {
     Future<(ProviderContainer, String)> doisPassos(SalaHarness harness) async {
       final container = await _naPassagem(harness);
       final primeira = _estado(container).sessionId!;
@@ -522,12 +521,12 @@ void main() {
         );
         harness.room.forgetTheSession(primeira);
 
-        await _sala(container).refreshUnsent();
-        await waitFor(
-          'a linha da primeira sair da Outbox',
-          () => !File(linha.path).existsSync(),
-        );
+        final gone = harness.takes.sessionsGone.first;
+        await harness.takes.dueAgain(linha.id);
+        await harness.takes.flush();
+        await gone;
         await settle();
+        expect(File(linha.path).existsSync(), isTrue);
 
         await voltaParaAPrimeira(harness, container, primeira);
       },
@@ -565,8 +564,8 @@ void main() {
     });
   });
 
-  test('a passage closed leaves no Outbox row or file of the session even when '
-      'the Resume points cannot be read', () async {
+  test('a passage closed keeps its unsent take on the tablet even when the '
+      'Resume points cannot be read', () async {
     final casa = Directory.systemTemp.createTempSync('sala-lugar-ilegivel');
     addTearDown(() => casa.deleteSync(recursive: true));
     Directory('${casa.path}/guardadas').createSync(recursive: true);
@@ -600,12 +599,11 @@ void main() {
     await _naEscolha(container);
     await settle(_severalStepsOfTheLadder);
     await waitFor(
-      'a cópia da sessão sair do tablet',
-      () => _aCopiaSaiu(harness, sessao, linha),
+      'a tomada da sessão ficar no tablet',
+      () => _aTomadaFicou(harness, linha),
     );
 
-    expect(await _daSessao(harness, sessao), isEmpty);
-    expect(File(linha.path).existsSync(), isFalse);
+    expect(File(linha.path).existsSync(), isTrue);
     expect(harness.room.calls, isNot(contains('sendTake')));
   });
 }

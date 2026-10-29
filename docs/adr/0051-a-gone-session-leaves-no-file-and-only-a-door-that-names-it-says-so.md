@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0052, amended by 0064
+status: accepted, amended by 0052, amended by 0064, amended by 0087 (2026-10-28, ENG-1777: a gone session leaves its unsent takes on the tablet for the passage's next session)
 date: 2026-10-01
 amends: 0039, 0047
 ---

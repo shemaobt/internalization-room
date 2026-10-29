@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
@@ -67,43 +65,6 @@ void main() {
       expect(handedWhenAnswered, [
         [const SilenceTheRoom()],
       ]);
-    },
-  );
-
-  test(
-    'a drained Outbox is flushed through the store, then the Station adopts the names and counts what is unsent',
-    () {
-      fakeAsync((time) {
-        runner.run(const [DrainTheOutbox()]);
-        time.flushMicrotasks();
-
-        expect(store.heard, ['flush']);
-        expect(host.asked, isEmpty);
-
-        store.answerTheFlush();
-        time.flushMicrotasks();
-
-        expect(host.asked, ['hearTheOutboxFlushed', 'hearTheOutboxCounted']);
-      });
-    },
-  );
-
-  test(
-    'a flush that fails still has the Station count what is unsent, and adopts no names',
-    () {
-      fakeAsync((time) {
-        final surfaced = <Object>[];
-        runZonedGuarded(
-          () => runner.run(const [DrainTheOutbox()]),
-          (error, _) => surfaced.add(error),
-        );
-
-        store.failTheFlush(Exception('the outbox could not be sent'));
-        time.flushMicrotasks();
-
-        expect(host.asked, ['hearTheOutboxCounted']);
-        expect(surfaced, hasLength(1));
-      });
     },
   );
 
@@ -310,19 +271,6 @@ void main() {
       expect(host.answers, isEmpty);
     },
   );
-
-  test('a flush that answers after the runner is disposed is not heard', () {
-    fakeAsync((time) {
-      runner.run(const [DrainTheOutbox()]);
-      runner.dispose();
-
-      store.answerTheFlush();
-      time.flushMicrotasks();
-
-      expect(host.asked, isEmpty);
-    });
-  });
-
   test('a turn let go after the runner is disposed ends no gesture', () {
     host.awaiting[_turn] = [3, 7];
     runner.dispose();

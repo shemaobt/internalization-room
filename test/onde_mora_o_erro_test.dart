@@ -205,17 +205,17 @@ void main() {
   });
 
   testWidgets(
-    'a finding that names no stretch still falls to the whole thing',
+    'a finding that names no stretch still leaves «voltar e regravar uma '
+    'parte» live, as hers',
     (tester) async {
       final container = await pumpToPergunta(tester, trecho: null);
 
       expect(
         tester.widget<Semantics>(byLabel(micParteLabel)).properties.enabled,
-        isFalse,
+        isTrue,
         reason:
-            'sem trecho apontado não há o que substituir, e o achado '
-            'pergunta sobre um trecho: o microfone fica apagado, nunca '
-            'escondido (ADR 0040)',
+            'sem trecho apontado o botão ficava apagado, e o dela leva a '
+            'equipe de volta à casa a qualquer momento do passo de contar',
       );
       expect(
         container.read(salaSessionProvider).btPhase,
