@@ -1,11 +1,13 @@
 // ignore_for_file: experimental_member_use
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:clock/clock.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
@@ -192,8 +194,7 @@ class FacilitatorVoiceService {
   Future<bool> holds(String url) async {
     if (url.isEmpty) return false;
     try {
-      final dir = await _resolvedDir;
-      final file = File(p.join(dir.path, '${_nameFor(url)}.mp3'));
+      final file = await _fileFor(url);
       return file.existsSync() && file.lengthSync() > 0;
     } on Exception {
       return false;
@@ -312,7 +313,7 @@ class FacilitatorVoiceService {
 
   Future<File> _fileFor(String url) async {
     final dir = await _resolvedDir;
-    return File(p.join(dir.path, '${_nameFor(url)}.mp3'));
+    return File(p.join(dir.path, _nameFor(url)));
   }
 
   Future<File> _bringItIn(String url, _ArrivingClip clip) async {
@@ -331,7 +332,7 @@ class FacilitatorVoiceService {
     return file;
   }
 
-  String _nameFor(String url) => url.split('/').last;
+  String _nameFor(String url) => '${sha256.convert(utf8.encode(url))}.mp3';
 
   Future<void> _touch(File file) async {
     try {
@@ -350,7 +351,7 @@ class FacilitatorVoiceService {
   Future<void> _sweepStaleStaging(Directory dir) async {
     try {
       final protected = _arriving.keys
-          .map((url) => p.join(dir.path, '${_nameFor(url)}.mp3.novo'))
+          .map((url) => p.join(dir.path, '${_nameFor(url)}.novo'))
           .toSet();
       final novos = await dir
           .list()

@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -15,6 +17,29 @@ import 'fakes.dart';
 const _clip = '/api/internalization-room/voice/aaa';
 const _other = '/api/internalization-room/voice/bbb';
 const _lenta = '/api/internalization-room/voice/lenta';
+
+final _tunedKey =
+    'tts/21m00Tcm4TlvDq8ikWAM/eleven_multilingual_v2/mp3_44100_128/0a1b2c3d4e5f/'
+    '${'ab' * 32}.mp3';
+const _session = '3f2a9c1e-7b4d-4e8a-9d52-6c0f1a2b3c4d';
+
+String _cached(String address) => '${sha256.convert(utf8.encode(address))}.mp3';
+
+String _unpadded(List<int> bytes) =>
+    base64Url.encode(bytes).replaceAll('=', '');
+
+String _signedClip({
+  required String key,
+  required String signingKey,
+  String? session,
+}) {
+  final handle = _unpadded(utf8.encode(key));
+  final signature = _unpadded(
+    Hmac(sha256, utf8.encode(signingKey)).convert(utf8.encode(handle)).bytes,
+  );
+  final address = '/api/internalization-room/voice/$handle.$signature';
+  return session == null ? address : '$address?session=$session';
+}
 
 typedef _Open =
     Future<http.StreamedResponse> Function(
@@ -273,14 +298,14 @@ void main() {
             'um .mp3 escrito enquanto a fala ainda chega passa no length > 0, e '
             'o "ouvir de novo" tocaria a metade que tinha chegado',
       );
-      expect(File('${library.path}/aaa.mp3').existsSync(), isFalse);
+      expect(File('${library.path}/${_cached(_clip)}').existsSync(), isFalse);
 
       body
         ..add([4, 5, 6])
         ..close();
       await voice.clipFor(_clip);
 
-      expect(File('${library.path}/aaa.mp3').readAsBytesSync(), [
+      expect(File('${library.path}/${_cached(_clip)}').readAsBytesSync(), [
         1,
         2,
         3,
@@ -288,7 +313,10 @@ void main() {
         5,
         6,
       ]);
-      expect(File('${library.path}/aaa.mp3.novo').existsSync(), isFalse);
+      expect(
+        File('${library.path}/${_cached(_clip)}.novo').existsSync(),
+        isFalse,
+      );
       player.reachTheEnd();
       expect(await speaking, isTrue);
     },
@@ -1241,7 +1269,7 @@ void main() {
   );
 
   test('a truncated file on disk is fetched again, not played', () async {
-    File('${library.path}/aaa.mp3').writeAsBytesSync([]);
+    File('${library.path}/${_cached(_clip)}').writeAsBytesSync([]);
     final voice = service();
 
     await voice.clipFor(_clip);
@@ -1260,7 +1288,7 @@ void main() {
     const length = Duration(milliseconds: 9000);
 
     test('and how long it is, for a line on the tablet', () async {
-      File('${library.path}/aaa.mp3').writeAsBytesSync([1, 2, 3]);
+      File('${library.path}/${_cached(_clip)}').writeAsBytesSync([1, 2, 3]);
       final player = SpeakingPlayer()
         ..lineLength = length
         ..position = at;
@@ -1307,7 +1335,7 @@ void main() {
     test(
       'and nothing of the line before, while hers is still opening',
       () async {
-        File('${library.path}/aaa.mp3').writeAsBytesSync([1, 2, 3]);
+        File('${library.path}/${_cached(_clip)}').writeAsBytesSync([1, 2, 3]);
         final player = SpeakingPlayer()..lineLength = length;
         final voice = service(player: player);
         final before = voice.play(_clip);
@@ -1328,7 +1356,7 @@ void main() {
   });
 
   test('a line stopped while it is still opening is never played', () async {
-    File('${library.path}/aaa.mp3').writeAsBytesSync([1, 2, 3]);
+    File('${library.path}/${_cached(_clip)}').writeAsBytesSync([1, 2, 3]);
     final player = SpeakingPlayer()..holdNextLoad();
     final voice = service(
       player: player,
@@ -1630,7 +1658,12 @@ void main() {
       );
       expect(File('${library.path}/c0.mp3').existsSync(), isFalse);
       expect(File('${library.path}/c64.mp3').existsSync(), isTrue);
-      expect(File('${library.path}/played.mp3').existsSync(), isTrue);
+      expect(
+        File(
+          '${library.path}/${_cached('/api/internalization-room/voice/played')}',
+        ).existsSync(),
+        isTrue,
+      );
 
       player.reachTheEnd();
       expect(await speaking, isTrue);
@@ -1725,7 +1758,7 @@ void main() {
 
       final arriving = voice.clipFor(_lenta);
       await waitFor('a busca lenta começar', () => fetched.contains(_lenta));
-      File('${library.path}/lenta.mp3.novo')
+      File('${library.path}/${_cached(_lenta)}.novo')
         ..writeAsBytesSync([1])
         ..setLastModifiedSync(
           DateTime.now().subtract(const Duration(minutes: 20)),
@@ -1748,7 +1781,7 @@ void main() {
             'segura existe exatamente para não confundir isso com lixo',
       );
       expect(
-        File('${library.path}/lenta.mp3.novo').existsSync(),
+        File('${library.path}/${_cached(_lenta)}.novo').existsSync(),
         isTrue,
         reason:
             'a linha ainda está em _arriving — uma busca lenta não é uma '
@@ -1796,7 +1829,7 @@ void main() {
         library.listSync().whereType<File>().map(
           (f) => f.uri.pathSegments.last,
         ),
-        ['aaa.mp3'],
+        [_cached(_clip)],
         reason:
             'o dispose voltava com o clipe ainda a caminho do disco; quem apagava a '
             'pasta em seguida encontrava um arquivo nascendo dentro dela',
@@ -1853,5 +1886,148 @@ void main() {
     );
     player.reachTheEnd();
     expect(await speaking, isTrue);
+  });
+
+  group('a reply\'s cache file', () {
+    final longAddress = _signedClip(
+      key: _tunedKey,
+      signingKey: 'k',
+      session: _session,
+    );
+
+    Iterable<String> names() => library.listSync().whereType<File>().map(
+      (f) => f.uri.pathSegments.last,
+    );
+
+    test(
+      'a reply whose signed address with its session is longer than a file name may be is saved and plays',
+      () async {
+        final asked = <String>[];
+        final player = SpeakingPlayer();
+        final voice = FacilitatorVoiceService(
+          lineAt: noFixedLine,
+          open: roomAnswering((request) {
+            asked.add(request.url.toString());
+            return _whole([1, 2, 3]);
+          }),
+          libraryDir: () async => library,
+          player: player,
+        );
+        addTearDown(voice.dispose);
+        expect(
+          utf8.encode('${longAddress.split('/').last}.mp3.novo').length,
+          greaterThan(255),
+        );
+
+        expect(await voice.fetch(longAddress), isTrue);
+        expect(await voice.holds(longAddress), isTrue);
+        expect(asked, ['http://sala.local$longAddress']);
+
+        final speaking = voice.play(longAddress);
+        await waitFor('o tocador soar', () => player.sounding);
+        expect(voice.lineLength, isNotNull);
+        player.reachTheEnd();
+
+        expect(await speaking, isTrue);
+        expect(asked, hasLength(1));
+      },
+    );
+
+    test(
+      'a reply\'s cache file is named by the sha256 of its whole address, so a short and a long address name files of one length',
+      () async {
+        final voice = service();
+
+        await voice.fetch(_clip);
+        await voice.fetch(longAddress);
+
+        expect(names().toSet(), {_cached(_clip), _cached(longAddress)});
+        expect(names().map((n) => utf8.encode(n).length), [68, 68]);
+      },
+    );
+
+    test(
+      'the same address played twice is one cache file and the second play reads it from the tablet',
+      () async {
+        final player = SpeakingPlayer();
+        final voice = service(player: player);
+
+        for (var i = 0; i < 2; i++) {
+          final speaking = voice.play(longAddress);
+          await waitFor('o tocador soar', () => player.sounding);
+          player.reachTheEnd();
+          expect(await speaking, isTrue);
+        }
+
+        expect(fetched, hasLength(1));
+        expect(names().where((n) => n.endsWith('.mp3')), hasLength(1));
+      },
+    );
+
+    test('two different addresses are two cache files', () async {
+      final voice = service();
+      final first = _signedClip(key: _tunedKey, signingKey: 'k');
+      final second = _signedClip(key: 'tts/other/$_tunedKey', signingKey: 'k');
+
+      await voice.fetch(first);
+      await voice.fetch(second);
+
+      expect(names().toSet(), {_cached(first), _cached(second)});
+    });
+
+    test(
+      'two addresses that differ only in their session are two cache files',
+      () async {
+        final voice = service();
+        final one = _signedClip(key: _tunedKey, signingKey: 'k', session: 's1');
+        final two = _signedClip(key: _tunedKey, signingKey: 'k', session: 's2');
+
+        await voice.fetch(one);
+        await voice.fetch(two);
+
+        expect(names().toSet(), {_cached(one), _cached(two)});
+        expect(fetched, hasLength(2));
+      },
+    );
+
+    test(
+      'a reply cached under its old name is not read, and the room is asked for it',
+      () async {
+        File('${library.path}/aaa.mp3').writeAsBytesSync([7, 7, 7]);
+        final voice = service();
+
+        final file = await voice.clipFor(_clip);
+
+        expect(fetched, [_clip]);
+        expect(file.readAsBytesSync(), [1, 2, 3]);
+      },
+    );
+
+    test(
+      'a reply cached under its old name counts in the sixty-clip budget and leaves oldest first',
+      () async {
+        final player = SpeakingPlayer();
+        final voice = service(player: player);
+        for (var i = 0; i < 60; i++) {
+          File('${library.path}/old$i.mp3')
+            ..writeAsBytesSync([1])
+            ..setLastModifiedSync(DateTime(2026).add(Duration(minutes: i)));
+        }
+        const fresh = '/api/internalization-room/voice/fresh';
+
+        final speaking = voice.play(fresh);
+        await waitFor('o tocador soar', () => player.sounding);
+        player.startSounding();
+        await waitFor(
+          'a poda rodar',
+          () => !File('${library.path}/old0.mp3').existsSync(),
+        );
+
+        expect(names().where((n) => n.endsWith('.mp3')), hasLength(60));
+        expect(names(), contains(_cached(fresh)));
+        player.reachTheEnd();
+        expect(await speaking, isTrue);
+      },
+    );
   });
 }
