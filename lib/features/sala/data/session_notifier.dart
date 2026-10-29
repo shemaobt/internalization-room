@@ -7547,8 +7547,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// nameless sends every stretch told over it up as a telling of the whole passage.
   ///
   /// The name goes to the file it was given for, never to every take of the scope: a part
-  /// recorded again shares its scope with the recording it replaced, and the row is what
-  /// tells the two apart.
+  /// recorded again shares its scope with the recording it replaced. This visit's rows tell
+  /// the two apart by row; a row an earlier visit wrote, by its pass and the file it was
+  /// copied from.
   Future<void> _adoptTheNames(TakeUploadQueue queue, int? life) async {
     if (state.sessionId case final sessionId? when !_endedSince(life)) {
       for (final take in state.keptTakes) {
