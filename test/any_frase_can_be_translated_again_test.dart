@@ -592,9 +592,13 @@ void main() {
   });
 
   testWidgets('while the verdict is heard again «terminei» is dimmed and a tap '
-      'sends no check, not a check that cuts the voice', (tester) async {
+      'sends no check, though the room counts every part heard', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.listeningUnheardTakeIds = const [];
     final container = await _vereditoNaFraseTres(tester, harness);
+    expect(container.read(salaSessionProvider).btOuvidaInteira, isTrue);
 
     harness.voice.holdNextLine();
     await tocar(tester, 'ouvir a resposta de novo');
@@ -627,6 +631,34 @@ void main() {
     );
     await _passo(tester);
     expect(aceso(tester, 'terminei'), isTrue);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the verdict heard again is still being fetched '
+      '«terminei» is dimmed, as hers closes the moment the replay is asked', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.listeningUnheardTakeIds = const [];
+    final container = await _vereditoNaFraseTres(tester, harness);
+    expect(aceso(tester, 'terminei'), isTrue);
+    harness.voice
+      ..missing.add(container.read(salaSessionProvider).lastSpoken!.url)
+      ..holdNextFetch();
+
+    await tocar(tester, 'ouvir a resposta de novo');
+    await _passo(tester);
+
+    expect(container.read(salaSessionProvider).awaitingTheGuide, isTrue);
+    expect(
+      aceso(tester, 'terminei'),
+      isFalse,
+      reason:
+          'o terminei ficava aceso enquanto a resposta pedida de novo ainda '
+          'descia, antes de a voz falar',
+    );
+    harness.voice.finishHeldFetch();
+    await _passo(tester);
     closeTheRoom(container);
   });
 

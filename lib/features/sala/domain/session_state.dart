@@ -1460,6 +1460,7 @@ class SalaSessionState {
       btFraseQueAguarda == null &&
       btRegravacao == null &&
       channel is! GuideSpeaking &&
+      !awaitingTheGuide &&
       (!joined ||
           partes.indexed.every(
             (parte) => btTrechos.any(
