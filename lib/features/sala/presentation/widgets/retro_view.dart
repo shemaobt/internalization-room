@@ -491,7 +491,8 @@ class RetroView extends ConsumerWidget {
     final dormindo =
         _dormindo('restart', session) ||
         !session.aBackTranslationGestureActs ||
-        !session.theFraseListIsIdle;
+        !session.theFraseListIsIdle ||
+        session.btRegravacao != null;
     return Semantics(
       button: true,
       enabled: !dormindo,
