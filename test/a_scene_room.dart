@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +10,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -17,6 +20,9 @@ import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel, settle;
 
 const articulation = Moment(at: MomentAt.articulation, part: 1, parts: 3);
+
+const theSE = (name: 'the iPhone SE', size: Size(375, 667), bar: 20.0);
+const theIPad = (name: 'the iPad', size: Size(820, 1180), bar: 24.0);
 
 /// A room at rest in the Conversation, for the scene rehearsal's tests to open the red
 /// microphone over.
@@ -126,6 +132,70 @@ Future<(SalaHarness, ProviderContainer)> translateOnScreen(
   );
   await tester.pump(const Duration(milliseconds: 500));
   return (harness, container);
+}
+
+Future<void> withRealLetters() async {
+  final fonts =
+      '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts';
+  final roboto = FontLoader('Roboto');
+  for (final weight in ['Regular', 'Medium', 'Bold']) {
+    roboto.addFont(
+      File(
+        '$fonts/Roboto-$weight.ttf',
+      ).readAsBytes().then(ByteData.sublistView),
+    );
+  }
+  await roboto.load();
+}
+
+Future<ProviderContainer> onTheSceneStep(
+  WidgetTester tester, {
+  required Size screen,
+  required double bar,
+  required SceneStep step,
+  required List<SceneRehearsalRecord> rehearsals,
+  List<Scene> scenes = const [],
+}) async {
+  await tester.runAsync(withRealLetters);
+  final harness = SalaHarness(filaEmMemoria: true)
+    ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
+    ..room.nextMoment = articulation
+    ..room.passageScenes = scenes;
+  harness.room.sceneRehearsals.addAll(rehearsals);
+  harness.room.sceneAudio = aSpokenWav(length: const Duration(seconds: 10));
+  harness.playback.measured = const Duration(seconds: 10);
+  tester.view
+    ..physicalSize = screen
+    ..devicePixelRatio = 1
+    ..padding = FakeViewPadding(top: bar)
+    ..viewPadding = FakeViewPadding(top: bar);
+  addTearDown(tester.view.reset);
+  final container = await pumpSala(tester, harness);
+  addTearDown(() => closeTheRoom(container));
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.abrirEscolha();
+  await tester.pump(const Duration(milliseconds: 300));
+  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
+  await pumpUntil(
+    tester,
+    () => container.read(salaSessionProvider).voice == VoiceState.invite,
+  );
+  await tester.pump(const Duration(milliseconds: 1500));
+  await tester.tap(byLabel('ensaio da cena'));
+  await pumpUntil(
+    tester,
+    () => container.read(salaSessionProvider).sceneRehearsals.isNotEmpty,
+  );
+  if (step == SceneStep.sent) {
+    notifier.openTheListedSceneRehearsal('ensaio-da-cena-1');
+  }
+  await pumpUntil(
+    tester,
+    () => container.read(salaSessionProvider).scene.step == step,
+  );
+  await tester.pump(const Duration(milliseconds: 1500));
+  expect(container.read(salaSessionProvider).scene.step, step);
+  return container;
 }
 
 Future<void> pumpUntil(

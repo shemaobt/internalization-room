@@ -558,9 +558,6 @@ class RetroView extends ConsumerWidget {
         case PassoDaRegravacao.pronta || PassoDaRegravacao.gravando) {
       return sceneRehearsalLabelFor('respeakHint', language);
     }
-    if (_conferida(session)) {
-      return '✓ ${retroLabelFor('translated', language)}';
-    }
     return null;
   }
 
