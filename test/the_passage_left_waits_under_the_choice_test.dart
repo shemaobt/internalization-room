@@ -227,7 +227,7 @@ void main() {
     );
     expect(read().sessionId, isNull);
     expect(
-      read().isTheEntryLeft(p01, language: 'pt'),
+      read().isTheEntryLeft(p01),
       isTrue,
       reason: 'a P01 deixada perdia a marca e a volta',
     );
