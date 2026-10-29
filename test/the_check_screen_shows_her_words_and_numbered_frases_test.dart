@@ -73,12 +73,12 @@ final _apagando = find.byWidgetPredicate(
   },
 );
 
-double _veu(WidgetTester tester, Finder alvo) => tester
+double _veu(WidgetTester tester, Finder alvo, {Type tela = RetroView}) => tester
     .widgetList(
       find.ancestor(
         of: alvo,
         matching: find.descendant(
-          of: find.byType(RetroView),
+          of: find.byType(tela),
           matching: find.byWidgetPredicate(
             (widget) => widget is Opacity || widget is FadeTransition,
           ),
@@ -96,7 +96,11 @@ double _veu(WidgetTester tester, Finder alvo) => tester
           },
     );
 
-double _piorContraste(WidgetTester tester, String rotulo) {
+double piorContraste(
+  WidgetTester tester,
+  String rotulo, {
+  Type tela = RetroView,
+}) {
   final botao = byLabel(rotulo);
   final texto = find.descendant(of: botao, matching: find.text(rotulo));
   final disco = find.descendant(
@@ -109,8 +113,8 @@ double _piorContraste(WidgetTester tester, String rotulo) {
   final tinta = tester.widget<Text>(texto).style!.color!;
   final pintura = tester.widget<Container>(disco).decoration! as BoxDecoration;
   final paradas = pintura.gradient?.colors ?? [pintura.color!];
-  final veuDoDisco = _veu(tester, disco);
-  final veuDaTinta = _veu(tester, texto);
+  final veuDoDisco = _veu(tester, disco, tela: tela);
+  final veuDaTinta = _veu(tester, texto, tela: tela);
   return paradas
       .map((parada) {
         final fundo = Color.alphaBlend(
@@ -2432,7 +2436,7 @@ void main() {
           matching: find.text('terminei'),
         );
         expect(
-          _piorContraste(tester, 'terminei'),
+          piorContraste(tester, 'terminei'),
           greaterThanOrEqualTo(4.5),
           reason: 'o rótulo apagado ficava abaixo de 4,5:1 no disco apagado',
         );
@@ -2484,7 +2488,7 @@ void main() {
           matching: find.text('conferindo…'),
         );
         expect(
-          _piorContraste(tester, 'conferindo…'),
+          piorContraste(tester, 'conferindo…'),
           greaterThanOrEqualTo(4.5),
           reason: 'o conferindo… ficava abaixo de 4,5:1 no disco apagado',
         );
@@ -2526,7 +2530,7 @@ void main() {
 
         expect(aceso(tester, 'terminei'), isTrue);
         expect(
-          _piorContraste(tester, 'terminei'),
+          piorContraste(tester, 'terminei'),
           greaterThanOrEqualTo(4.6),
           reason:
               'o terminei aceso escrevia branco no disco de madeira, a 1,58:1',

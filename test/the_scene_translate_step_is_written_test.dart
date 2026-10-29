@@ -19,6 +19,8 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
+import 'the_check_screen_shows_her_words_and_numbered_frases_test.dart'
+    show piorContraste;
 
 const _session = 'sessao-1';
 
@@ -508,6 +510,87 @@ void main() {
       expect(line.right, lessThanOrEqualTo(420 - 16));
     },
   );
+
+  for (final look in [Brightness.light, Brightness.dark]) {
+    testWidgets(
+      'in the ${look.name} look a dimmed «terminei» on the scene rehearsal reads at 4.5:1 or better, not its paper fading with the pill',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [_rehearsal()],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+
+        expect(
+          tester.widget<Semantics>(byLabel('terminei')).properties.enabled,
+          isFalse,
+        );
+        expect(
+          piorContraste(tester, 'terminei', tela: SceneRehearsalView),
+          greaterThanOrEqualTo(4.5),
+          reason:
+              'o terminei apagado escrevia o papel sobre o vermelho a 35%, a '
+              '1,2:1',
+        );
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look the scene rehearsal on its way to the voice reads «enviando…» at 4.5:1 or better while it is dimmed',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        final (harness, _) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 12000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.placesUnknown,
+        );
+        const sending = 'enviando a tradução do ensaio da cena para a voz…';
+        harness.room.holdNextTurn();
+
+        await tester.tap(find.text('terminei'));
+        await tester.pump(const Duration(milliseconds: 500));
+
+        expect(
+          tester.widget<Semantics>(byLabel(sending)).properties.enabled,
+          isFalse,
+        );
+        expect(
+          piorContraste(tester, sending, tela: SceneRehearsalView),
+          greaterThanOrEqualTo(4.5),
+          reason: 'o enviando… apagava junto com a pílula, a 1,2:1',
+        );
+        harness.room.finishHeldTurn();
+        await tester.pump(const Duration(seconds: 2));
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look a lit «terminei» on the scene rehearsal reads at 4.6:1 or better',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+
+        expect(
+          tester.widget<Semantics>(byLabel('terminei')).properties.enabled,
+          isTrue,
+        );
+        expect(
+          piorContraste(tester, 'terminei', tela: SceneRehearsalView),
+          greaterThanOrEqualTo(4.6),
+        );
+      },
+    );
+  }
 
   testWidgets(
     'while «terminei» is in the air on places unknown, «enviando…», «recomeçar» and «gravar de novo» are written and dimmed',
