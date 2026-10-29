@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (amended by ENG-2028)
 date: 2026-10-28
 amends: 0106 (in part: over a forced version the approve button stands, with the badge under it), 0136 (in part: the recording home offers the approval over a forced version too)
 ---
@@ -9,6 +9,12 @@ amends: 0106 (in part: over a forced version the approve button stands, with the
 The server half is ADR 0101 of the API (ENG-1837): the Session read's `approved` says whether
 the version was `forced`, and an approval over a forced version with no blocker standing mints
 the next version, not forced.
+
+Amended by ENG-2028 (2026-10-29, João's rule of 26 October: Marcia's frozen app 18fa7c4 wins): the approve
+button over a forced version is drawn on the tell view at every phase while the room calls
+the passage checked, not at the checked phase alone, with the badge under it. An answer
+naming the forced version itself writes «não deu para conferir agora — tentem de novo» and
+leaves the check where it stood, not before «terminei».
 
 ## Context
 

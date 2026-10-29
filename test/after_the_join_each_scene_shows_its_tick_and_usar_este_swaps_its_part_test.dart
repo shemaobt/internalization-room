@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show Tristate;
 
@@ -18,6 +19,7 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_question.dart';
 import 'package:internalization_room/main.dart';
+import 'package:path/path.dart' as p;
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
@@ -1175,6 +1177,41 @@ void main() {
       await it.wait(const Duration(seconds: 5));
 
       expect(it.room.takesAsked.skip(asked), isEmpty);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a swap given up while its request is in the air leaves no copy without '
+    'a row after a relaunch',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+      it.holdTheTake('parte-2');
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+      await it.wait(const Duration(seconds: 71));
+      await it.theOutboxLetsGoOf(s2b);
+      await it.relaunchOnTheHome();
+      await it.wait(const Duration(seconds: 5));
+
+      final named = {
+        for (final row in (await tester.runAsync(it.harness.takes.entries))!)
+          p.basename(row.path),
+      };
+      expect([
+        for (final file in Directory(
+          '${it.harness.takesHome.path}/guardadas',
+        ).listSync())
+          if (p
+                  .basename(file.path)
+                  .startsWith(RegExp('(ensaio|cena|frase)-')) &&
+              !named.contains(p.basename(file.path)))
+            p.basename(file.path),
+      ], isEmpty);
       semantics.dispose();
     },
   );
