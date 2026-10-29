@@ -3194,6 +3194,54 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
     },
   );
+
+  testWidgets(
+    'a terminei over a take told to its end, heard again and paused at 0:02, keeps her clock where it stopped, not the words alone',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 10000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const sending =
+          'enviando a tradução do ensaio da cena para a voz… — 0:02 / 0:10';
+      final play = byLabel('Tocar ou pausar a gravação');
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 2);
+      await tester.tap(play);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(container.read(salaSessionProvider).scene.moreToTell, isFalse);
+      harness.room.holdSceneSends = true;
+
+      await tester.tap(byLabel('terminei'));
+      await pumpUntil(tester, () => harness.room.heldSceneSends.isNotEmpty);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        _besidePlay('Tocar ou pausar a gravação', sending),
+        findsOneWidget,
+        reason:
+            'o take todo traduzido e parado em 0:02 perdia o relógio no envio; o dela só o tira com o take no fim',
+      );
+
+      harness.room.heldSceneSends.single.complete(null);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+      );
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
 }
 
 Finder _besidePlay(String play, String words) => find.descendant(
