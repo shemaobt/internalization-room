@@ -129,4 +129,39 @@ void main() {
       reason: 'a escuta da parte de outra visita nunca chegava à sala',
     );
   });
+
+  test('a part that landed while the team was away from its passage comes '
+      'back with its name, not without one', () async {
+    final harness = SalaHarness();
+    final container = await aRetomadaNoEnsaio(
+      harness,
+      traduzidasAte: [30000, 30000],
+    );
+    harness.room.holdNextTake(_parte3);
+    await gravarSemEsperarNome(container);
+    await harness.room.untilTakeHeld();
+    container.read(salaSessionProvider.notifier).leaveThePassage();
+    await settle();
+    harness.room.finishHeldTake();
+    await waitFor(
+      'a parte 3 chegar à sala',
+      () => harness.room.takesKept.contains('ensaio/$_parte3'),
+    );
+    await settle();
+
+    await _voltarAoEnsaio(container);
+    await waitFor(
+      'a parte 3 voltar com nome',
+      () => container.read(salaSessionProvider).partes[2].takeId != null,
+      limit: const Duration(seconds: 5),
+    );
+
+    expect(
+      container.read(salaSessionProvider).partes[2].takeId,
+      _oNomeQueASalaDeu(harness),
+      reason:
+          'a parte que chegou à sala longe da passagem voltava sem nome, e a '
+          'conferência a contava como não ouvida',
+    );
+  });
 }

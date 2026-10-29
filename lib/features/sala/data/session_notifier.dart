@@ -3177,6 +3177,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
     }
     unawaited(_countUnsent());
+    unawaited(_adoptTheNames(_takes, _thisLife));
     return _Resume.landed;
   }
 
