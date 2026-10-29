@@ -35,6 +35,9 @@ const _openEnsaioFinalEn = 'Open the Final Rehearsal';
 const _planLine = 'Estes são os ensaios das cenas que vocês me enviaram.';
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _thinking = 'pensando…';
+const _pendingNotice =
+    'Uma gravação ainda está neste computador e não foi enviada.';
+const _sendSceneOne = 'Cena 1 · 0:48 — enviar agora';
 const _sceneByScene = 'Gravar cena por cena';
 const _how = 'Como vocês querem gravar?';
 final _backToPassage = roomLabelFor('backToPassage', 'pt');
@@ -1066,6 +1069,48 @@ void main() {
             'dela abre o plano',
       );
       expect(find.text(_homeLine), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'on the plan a take only on the tablet is offered under her notice, and '
+    'a tap sends it',
+    (tester) async {
+      final (harness, _) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        before: (harness) {
+          _partOneWaitsInTheOutbox(harness);
+          harness.playback.measured = const Duration(seconds: 48);
+        },
+      );
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_planLine), findsOneWidget);
+      expect(
+        find.text(_pendingNotice),
+        findsOneWidget,
+        reason: 'o plano não dizia que uma gravação ficou no tablet',
+      );
+      expect(
+        find.text(_sendSceneOne),
+        findsOneWidget,
+        reason: 'o plano não oferecia a gravação para enviar',
+      );
+
+      harness.room.unreachableTake = null;
+      final before = harness.room.takePasses.length;
+      await tester.tap(find.text(_sendSceneOne));
+      await letTheRehearsalReachTheRoom(tester);
+      await _theAnswerSettles(tester);
+
+      expect(
+        harness.room.takePasses.length,
+        before + 1,
+        reason: 'o toque não mandava a gravação para a sala',
+      );
     },
   );
 

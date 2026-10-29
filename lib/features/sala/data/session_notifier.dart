@@ -3966,6 +3966,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       rehearsalsElsewhere: false,
       peerCue: false,
     );
+    unawaited(_countUnsent());
     _handOff(_readThePlan(sessionId));
   }
 
