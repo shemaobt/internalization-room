@@ -10698,7 +10698,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.ensaioSalvo == null) return;
     state = state.copyWith(clearEnsaioSalvo: true, clearLastSpoken: true);
     _arriveAt(const TheRecordingLeft());
-    _landWhereTheyStopped();
+    _landWhereTheyStopped(done: state.machine.theCanvasEnded);
   });
 
   /// The room is already silent — the press silenced it — and the last listening of a

@@ -48,9 +48,11 @@ Future<_Sala> _ateAConferida(
   WidgetTester tester, {
   String lingua = testLanguage,
   String aprovar = _aprovar,
+  bool terminada = false,
 }) async {
   final harness = SalaHarness(filaEmMemoria: true, lingua: lingua);
   harness.room.verdictChecked = true;
+  harness.room.done = terminada;
   final container = harness.container();
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -345,6 +347,11 @@ void main() {
             'conversa',
       );
       expect(byLabel(_ouvirDeNovo), findsOneWidget);
+      expect(
+        it.container.read(salaSessionProvider).orangeDotLook,
+        OrangeDotLook.faint,
+        reason: 'a conversa que não terminou volta à vez dela, não ao fim',
+      );
       expect(it.harness.voice.fixedLines, hasLength(falasAntesDoPronto));
       expect(it.harness.playback.playedFrom, hasLength(tocadasAntesDoPronto));
       expect(it.harness.emAberto.rows, contains('Ruth/P01/pt'));
@@ -523,6 +530,25 @@ void main() {
     },
   );
 
+  testWidgets('«Pronto» over a conversation the room had ended lands on it at '
+      'done, with the orange dot bright', (tester) async {
+    final it = await _ateAConferida(tester, terminada: true);
+    it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+    await _tocar(tester, _aprovar);
+    await tester.tap(byLabel(_pronto));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(it.container.read(salaSessionProvider).stage, SalaStage.conversa);
+    expect(
+      it.container.read(salaSessionProvider).orangeDotLook,
+      OrangeDotLook.bright,
+      reason:
+          'a conversa que a sala já tinha terminado voltava à vez dela, e a '
+          'dela volta ao fim',
+    );
+    closeTheRoom(it.container);
+  });
+
   for (final (lingua, aprovar, pronto, selo) in [
     ('pt', _aprovar, _pronto, _badge),
     (
@@ -547,8 +573,14 @@ void main() {
         );
         it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
         await _tocar(tester, aprovar);
+        it.harness.room.readsChecked = true;
         await tester.tap(byLabel(pronto));
         await tester.pump(const Duration(milliseconds: 300));
+        final sala = it.container.read(salaSessionProvider.notifier);
+        sala.openTheEnsaioFinal();
+        await _assentar(tester);
+        sala.startRetro();
+        await _assentar(tester);
 
         final onde = tester.getRect(find.text(selo));
         expect(onde.left, greaterThanOrEqualTo(0));
@@ -1002,6 +1034,11 @@ void main() {
             'à conversa',
       );
       expect(byLabel(_ouvirDeNovo), findsOneWidget);
+      expect(
+        it.container.read(salaSessionProvider).orangeDotLook,
+        OrangeDotLook.faint,
+        reason: 'a conversa que não terminou volta à vez dela, não ao fim',
+      );
       expect(it.harness.voice.fixedLines, hasLength(falasAntesDoPronto));
       expect(it.harness.playback.playedFrom, hasLength(tocadasAntesDoPronto));
       closeTheRoom(it.container);
