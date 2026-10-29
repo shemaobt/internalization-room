@@ -245,6 +245,46 @@ void main() {
     },
   );
 
+  test('a tradução que chega depois de outro toque não corta a frase que a '
+      'equipe pediu por último', () async {
+    final harness = SalaHarness();
+    final aOutra = Uint8List.fromList([8, 8, 8]);
+    File(
+      '${harness.recorder.home.path}/contada-retro-2.m4a',
+    ).writeAsBytesSync(aOutra);
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1, 2, 3], comATraducao: true),
+    );
+    await waitFor(
+      'as partes chegarem na retro',
+      () => it.estado.stage == SalaStage.retro && it.estado.everyPartIsHere,
+    );
+    harness.room.holdNextClip();
+    it.sala.ouvirOTrechoContado(0);
+    await waitFor(
+      'a primeira tradução ser pedida à sala',
+      () => harness.room.clipsFetched.contains(
+        RoomRepository.takeAudioUrl(_sessao, 'retro-1'),
+      ),
+    );
+    it.sala.ouvirOTrechoContado(1);
+    await waitFor('a segunda tradução tocar', () => it.estado.btRetroTocando);
+
+    harness.room.finishHeldClip();
+    await settle();
+
+    expect(
+      File(harness.playback.played.last).readAsBytesSync(),
+      aOutra,
+      reason:
+          'a tradução da primeira frase chegava atrasada e cortava a que a '
+          'equipe tinha pedido depois',
+    );
+    expect(it.estado.btContaEscolhida, 1);
+  });
+
   test('a tradução trazida uma vez toca de novo do tablet, sem pedi-la outra '
       'vez à sala', () async {
     final harness = SalaHarness();

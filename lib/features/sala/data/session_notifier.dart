@@ -8900,6 +8900,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     final life = _thisLife;
+    final gesto = _gestures;
     final nome = 'contada-$contada';
     final traducao =
         await _heldOnTheTablet(nome) ??
@@ -8910,7 +8911,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             await _recorder.keepBytes(value, nome),
           _ => null,
         };
-    if (traducao == null || _endedSince(life) || !state.canHearAFrase) return;
+    if (traducao == null ||
+        _endedSince(life) ||
+        _gestures != gesto ||
+        !state.canHearAFrase) {
+      return;
+    }
     _tocarATraducao(indice, trecho, traducao);
   }
 
