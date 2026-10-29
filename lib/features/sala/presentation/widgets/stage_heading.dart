@@ -7,12 +7,16 @@ class StageHeading extends StatelessWidget {
   final SalaStage? stage;
   final String text;
   final TextStyle style;
+  final double top;
+  final double corner;
 
   const StageHeading({
     super.key,
     this.stage,
     required this.text,
     required this.style,
+    this.top = 24,
+    this.corner = 46,
   });
 
   static const _flank = 60.0;
@@ -46,7 +50,7 @@ class StageHeading extends StatelessWidget {
               alignment: Alignment.topCenter,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(_flank, 24, _flank, 0),
+                  padding: EdgeInsets.fromLTRB(_flank, top, _flank, 0),
                   child: heading,
                 ),
                 if (stage != null) WayBackButton(stage: stage, top: 8),
@@ -58,7 +62,7 @@ class StageHeading extends StatelessWidget {
           children: [
             SizedBox(
               width: double.infinity,
-              height: 46,
+              height: corner,
               child: Stack(
                 children: [
                   if (stage != null) WayBackButton(stage: stage, top: 0),

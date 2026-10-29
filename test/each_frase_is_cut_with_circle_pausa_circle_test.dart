@@ -304,7 +304,7 @@ void main() {
           container.read(salaSessionProvider).channel,
           isNot(isA<PartPlaying>()),
         );
-        expect(byLabel(_pausaHint), findsOneWidget);
+        expect(byLabel('$_pausaHint — 0:03 / 0:10'), findsOneWidget);
         await _onScreenTheFraseIsSent(tester, harness, container);
         expect(harness.room.frasesKept.single.startsMs, 0);
         expect(harness.room.frasesKept.single.endsMs, 3100);
@@ -324,7 +324,7 @@ void main() {
 
         await _tapAndSettle(tester, _tell);
 
-        expect(byLabel(_pausaHint), findsOneWidget);
+        expect(byLabel('$_pausaHint — 0:06 / 0:10'), findsOneWidget);
         await _onScreenTheFraseIsSent(tester, harness, container);
         expect(harness.room.frasesKept.single.endsMs, 6000);
       },
@@ -533,7 +533,7 @@ void main() {
         container.read(salaSessionProvider).channel,
         isNot(isA<PartPlaying>()),
       );
-      expect(byLabel(_pausaHint), findsOneWidget);
+      expect(byLabel('$_pausaHint — 0:03 / 0:10'), findsOneWidget);
       await _onScreenTheFraseIsSent(tester, harness, container);
       expect(harness.room.frasesKept.single.endsMs, 3100);
     });
@@ -710,7 +710,7 @@ void main() {
         await _onScreenTheFraseIsSent(tester, harness, container);
 
         expect(byLabel(_bar(1)), findsNothing);
-        expect(byLabel(_pausaHint), findsOneWidget);
+        expect(byLabel('$_pausaHint — 0:03 / 0:10'), findsOneWidget);
         await _tapAndSettle(tester, _tell);
         await pumpUntil(
           tester,
@@ -1572,8 +1572,8 @@ void main() {
 
       await _tapAndSettle(tester, _tell);
 
-      expect(byLabel(_pausaAtTheTap), findsOneWidget);
-      expect(byLabel(_pausaHint), findsNothing);
+      expect(byLabel('$_pausaAtTheTap — 0:03 / 0:10'), findsOneWidget);
+      expect(find.textContaining(_pausaHint), findsNothing);
     });
 
     testWidgets(
@@ -1710,7 +1710,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(harness.sounds.skip(sounds), isEmpty);
-      expect(byLabel(_pausaHint), findsOneWidget);
+      expect(byLabel('$_pausaHint — 0:04 / 0:10'), findsOneWidget);
     });
   });
 }
