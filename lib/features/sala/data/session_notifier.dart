@@ -4072,7 +4072,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           scenesOfThePassage: passage,
         );
       default:
-        _theGrainOrItsHome(sessionId, unread: takes is! Answered);
+        _theGrainOrItsHome(sessionId, unread: !listingRead);
     }
   }
 
