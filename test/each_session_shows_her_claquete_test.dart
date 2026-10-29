@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -697,23 +698,39 @@ void main() {
     },
   );
 
-  testWidgets('at phone width the claquete keeps clear of the hand', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(375, 667);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await withClock(Clock.fixed(_noon), () async {
-      await _openP05(tester);
-      expect(_claquete, findsOneWidget);
+  testWidgets(
+    'on an SE a long claquete is written whole from her 2.4%, not cut at the hand',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 667);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.runAsync(withRealLetters);
+      await withClock(Clock.fixed(_noon), () async {
+        await _openP05(tester, pericope: _aLongPassageId);
+        expect(_claquete, findsOneWidget);
 
-      final hand = tester.getRect(find.byType(HandButton));
-      final claquete = tester.getRect(_claquete);
-      expect(claquete.left, greaterThanOrEqualTo(hand.right + 8 - 0.5));
-      expect(claquete.right, closeTo(366, 0.5));
-      expect(claquete.bottom, closeTo(649.658, 0.5));
-    });
-  });
+        final line = tester.renderObject<RenderParagraph>(
+          find.descendant(of: _claquete, matching: find.byType(RichText)),
+        );
+        expect(
+          line.didExceedMaxLines,
+          isFalse,
+          reason: 'a claquete ficava presa entre a mão e o canto e era cortada',
+        );
+        final hand = tester.getRect(find.byType(HandButton));
+        final claquete = tester.getRect(_claquete);
+        expect(claquete.right, closeTo(366, 0.5));
+        expect(claquete.bottom, closeTo(649.658, 0.5));
+        expect(
+          claquete.left,
+          lessThan(98),
+          reason: 'a dela não tem limite à esquerda; a nossa parava em 98',
+        );
+        expect(claquete.left, greaterThanOrEqualTo(0));
+        expect(claquete.overlaps(hand), isFalse);
+      });
+    },
+  );
 
   testWidgets(
     'on an SE her corner keeps the claquete clear of the replay, the hand and the circle',
