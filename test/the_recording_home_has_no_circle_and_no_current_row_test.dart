@@ -7,10 +7,12 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -586,4 +588,47 @@ void main() {
     expect(_aLinhaInteira, findsOneWidget);
     expect(_linha(1), findsNothing);
   });
+
+  test(
+    'a grain the room told during a take lands as soon as the team leaves '
+    'the recording home with that take still waiting for the check',
+    () async {
+      final harness = _umaSala();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final sala = container.read(salaSessionProvider.notifier);
+      await sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await settle();
+      sala.goEnsaio();
+      await settle();
+      _pedirOutroGraoSegurado(
+        harness,
+        container,
+        (sala) => sala.recordTheWholePassageInstead(),
+      );
+      sala.gravarACena(1);
+      await settle();
+      harness.room.finishTheGrainSwitch();
+      await settle();
+      sala.gravarACena(1);
+      await settle();
+      expect(
+        _estado(container).grain,
+        isNot(Grain.whole),
+        reason: 'com a tomada aberta na casa, o grão novo espera',
+      );
+
+      await sala.abrirEscolha();
+      await settle();
+
+      expect(_estado(container).station, isA<Menu>());
+      expect(
+        _estado(container).ensaio,
+        EnsaioStatus.recorded,
+        reason:
+            'o caso só mede alguma coisa fora da casa, com a tomada pendente',
+      );
+      expect(_estado(container).grain, Grain.whole);
+    },
+  );
 }

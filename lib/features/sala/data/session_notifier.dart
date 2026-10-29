@@ -485,9 +485,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   late String? _pendingTakePath;
 
-  /// The room's latest grain told while a take of the recording home was open, for the
-  /// session it was told for: it lands once that take is over, so the take is stopped,
-  /// checked and kept under the grain it was opened at.
+  /// The room's latest grain told while a take was open on the recording home, for the
+  /// session it was told for: it lands once that take is over or the team leaves the
+  /// home, so the take is stopped, checked and kept under the grain it was opened at. A
+  /// grain told anywhere else lands at once and replaces it.
   late (String, TakesListing)? _theGrainToldDuringATake;
   late StreamSubscription<void> _outboxFalls;
   late StreamSubscription<String> _outboxGone;
@@ -659,8 +660,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_takes.sweepTheCopiesLeftBehind());
     listenSelf((before, now) {
       if (now.anArmedKnotLapsed) state = now.copyWith(noteMode: false);
-      if (before?.ensaio != EnsaioStatus.idle &&
-          now.ensaio == EnsaioStatus.idle &&
+      if (before != null &&
+          _aTakeIsOpenOnTheHome(before) &&
+          !_aTakeIsOpenOnTheHome(now) &&
           _theGrainToldDuringATake != null) {
         scheduleMicrotask(() => _apart(_theGrainToldDuringATakeLands));
       }
@@ -4368,12 +4370,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theRoomsGrainHeard(TakesListing listing) {
     final grain = listing.grain;
     if (grain == null) return;
-    if (state.ensaio != EnsaioStatus.idle) {
+    if (_aTakeIsOpenOnTheHome(state)) {
       if (state.sessionId case final sessionId?) {
         _theGrainToldDuringATake = (sessionId, listing);
       }
       return;
     }
+    _theGrainToldDuringATake = null;
     final newGrain = state.grain != grain;
     state = state.copyWith(grainInForce: grain);
     if (!newGrain) return;
@@ -4397,9 +4400,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is Ensaio) _rememberWhereTheyAre(state.station);
   }
 
+  static bool _aTakeIsOpenOnTheHome(SalaSessionState session) =>
+      session.ensaio != EnsaioStatus.idle &&
+      switch (session.station) {
+        Ensaio(step: EnsaioStep.home) => true,
+        _ => false,
+      };
+
   void _theGrainToldDuringATakeLands() {
     final told = _theGrainToldDuringATake;
-    if (_gone || told == null || state.ensaio != EnsaioStatus.idle) return;
+    if (_gone || told == null || _aTakeIsOpenOnTheHome(state)) return;
     _theGrainToldDuringATake = null;
     final (sessionId, listing) = told;
     if (state.sessionId == sessionId) _theRoomsGrainHeard(listing);
