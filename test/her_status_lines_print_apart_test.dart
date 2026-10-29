@@ -303,7 +303,7 @@ void main() {
   );
 
   testWidgets(
-    'a single refusal sits twelve points under the circle, where the old slot did',
+    'a single refusal sits twelve points under the circle\'s ring, not on it',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       tester.view
@@ -337,8 +337,8 @@ void main() {
       expect(
         tester.getTopLeft(find.text(_semFrase)).dy -
             tester.getBottomLeft(find.byType(FacilitatorCircle)).dy,
-        12,
-        reason: 'a linha de estado saía de um lugar que não era o do terracota',
+        46.5,
+        reason: 'a linha de estado ficava dentro do anel do círculo',
       );
       closeTheRoom(container);
     },
