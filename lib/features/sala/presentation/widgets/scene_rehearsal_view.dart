@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
@@ -10,7 +9,7 @@ import '../../domain/machine.dart' show TakeInTheAir, TheKeep;
 import '../../domain/scene_question.dart';
 import '../../domain/session_state.dart';
 import 'back_to_passage_button.dart';
-import 'bead_styles.dart';
+import 'facilitator_circle.dart';
 import 'scene_question.dart';
 import 'scene_translate_step.dart';
 import 'scene_take_state.dart';
@@ -255,15 +254,13 @@ class _RecordCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = SalaColors.of(context);
-    return RoundActionButton(
-      size: 180,
-      mood: keeping
-          ? ButtonMood.dimmed
+    return FacilitatorCircle(
+      size: herCircleSize(MediaQuery.sizeOf(context), 46, 180),
+      voice: keeping
+          ? VoiceState.thinking
           : recording
-          ? ButtonMood.beckoning
-          : ButtonMood.lit,
-      halo: colors.vermelhoMic,
+          ? VoiceState.listening
+          : VoiceState.invite,
       semanticLabel: label(
         keeping
             ? 'saving'
@@ -271,14 +268,8 @@ class _RecordCircle extends StatelessWidget {
             ? 'recording'
             : 'record',
       ),
+      enabled: !keeping,
       onTap: onTap,
-      background: colors.vermelhoMic.withValues(alpha: 0.10),
-      border: Border.all(color: colors.vermelhoMic, width: 2),
-      child: Icon(
-        recording ? LucideIcons.square : LucideIcons.mic,
-        size: 56,
-        color: colors.vermelhoMic,
-      ),
     );
   }
 }
