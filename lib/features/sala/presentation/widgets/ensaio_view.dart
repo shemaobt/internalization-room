@@ -105,6 +105,20 @@ class EnsaioView extends ConsumerWidget {
                 ),
               ),
             ],
+            if (session.btFraseDevida != null) ...[
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    sceneRehearsalLabelFor('spliceFail', language),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.telha, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             IgnorePointer(
               ignoring: frozen,

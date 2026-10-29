@@ -10194,7 +10194,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (_abandoned(generation)) return;
     if (!trocada) return _guardarAFrase(frase);
-    state = state.copyWith(clearBtRegravacao: true);
+    state = state.copyWith(clearBtRegravacao: true, clearBtFraseDevida: true);
     await _aFraseNovaNoLugar(nome, generation);
   }
 

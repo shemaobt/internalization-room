@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
@@ -1970,6 +1971,52 @@ void main() {
     for (var n = 1; n <= 4; n++) {
       expect(_naLista('regravar a frase $n'), findsNothing);
     }
+    closeTheRoom(container);
+  });
+
+  Finder naCasa(String texto) =>
+      find.descendant(of: find.byType(EnsaioView), matching: find.text(texto));
+
+  testWidgets('on the home, a new part still owed is written under the '
+      'title, not left for the telling alone to say', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarSemAParte(tester, harness, 2);
+
+    container.read(salaSessionProvider.notifier).goEnsaio();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _passo(tester);
+
+    expect(
+      naCasa('não deu para guardar a frase — tentar de novo'),
+      findsOneWidget,
+      reason: 'a casa calava a frase que não foi guardada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('once the new part is fetched again the home stops saying it '
+      'could not be saved', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    await tocar(tester, falhou);
+    await _passo(tester);
+    await _passo(tester);
+
+    container.read(salaSessionProvider.notifier).goEnsaio();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _passo(tester);
+
+    expect(
+      naCasa(falhou),
+      findsNothing,
+      reason:
+          'a casa seguia dizendo que a frase não foi guardada depois que '
+          'ela chegou',
+    );
     closeTheRoom(container);
   });
 
