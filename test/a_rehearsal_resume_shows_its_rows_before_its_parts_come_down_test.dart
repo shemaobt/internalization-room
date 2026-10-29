@@ -77,18 +77,55 @@ Future<void> _passos(WidgetTester tester, [int quantos = 4]) async {
   }
 }
 
+Future<void> _passosAte(
+  WidgetTester tester,
+  int quantos,
+  String what,
+  bool Function() done,
+) async {
+  await _passos(tester, quantos);
+  final waited = Stopwatch()..start();
+  while (!done() && waited.elapsed < const Duration(seconds: 30)) {
+    await _passo(tester);
+  }
+  expect(done(), isTrue, reason: what);
+}
+
+int _aCaminho(ProviderContainer container) => _estado(
+  container,
+).partsAway.values.where((away) => away == PartAway.coming).length;
+
 /// The held part lands, and the next part asked for is held in its turn.
-Future<void> _chegaUma(WidgetTester tester, SalaHarness harness) async {
+Future<void> _chegaUma(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  final antes = _aCaminho(container);
   await tester.runAsync(() async {
     harness.room.finishHeldClip();
     harness.room.holdNextClip();
   });
-  await _passos(tester);
+  await _passosAte(
+    tester,
+    4,
+    'a parte segurada chegar',
+    () => _aCaminho(container) < antes,
+  );
 }
 
-Future<void> _chegamTodas(WidgetTester tester, SalaHarness harness) async {
+Future<void> _chegamTodas(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
   await tester.runAsync(() async => harness.room.finishHeldClip());
-  await _passos(tester, 8);
+  await _passosAte(
+    tester,
+    8,
+    'as partes chegarem',
+    () => _aCaminho(container) == 0,
+  );
 }
 
 Future<void> _tocar(WidgetTester tester, Finder alvo) async {
@@ -188,17 +225,17 @@ void main() {
       }
       expect(_buscadas(harness), [_daSala(1)]);
 
-      await _chegaUma(tester, harness);
+      await _chegaUma(tester, harness, container);
       expect(_acesa(tester, _naLinha(1, _ouvir)), isTrue);
       expect(_acesa(tester, _naLinha(2, _ouvir)), isFalse);
       expect(_acesa(tester, _naLinha(3, _ouvir)), isFalse);
       expect(_buscadas(harness), [_daSala(1), _daSala(2)]);
 
-      await _chegaUma(tester, harness);
+      await _chegaUma(tester, harness, container);
       expect(_acesa(tester, _naLinha(2, _ouvir)), isTrue);
       expect(_acesa(tester, _naLinha(3, _ouvir)), isFalse);
 
-      await _chegamTodas(tester, harness);
+      await _chegamTodas(tester, harness, container);
       expect(_acesa(tester, _naLinha(3, _ouvir)), isTrue);
       expect(_buscadas(harness), [_daSala(1), _daSala(2), _daSala(3)]);
     },
@@ -224,7 +261,7 @@ void main() {
       }
       expect(_estado(container).needsPerson, isFalse);
 
-      await _chegamTodas(tester, harness);
+      await _chegamTodas(tester, harness, container);
       expect(_acesa(tester, _naLinha(1, _ouvir)), isTrue);
     },
   );
@@ -239,7 +276,7 @@ void main() {
       final container = await _retomar(tester, harness);
       final vozes = [...harness.voice.assets];
 
-      await _chegamTodas(tester, harness);
+      await _chegamTodas(tester, harness, container);
 
       expect(_acesa(tester, _naLinha(1, _ouvir)), isTrue);
       expect(_acesa(tester, _naLinha(3, _ouvir)), isTrue);
@@ -252,7 +289,12 @@ void main() {
 
       harness.room.failClipOf.clear();
       await _tocar(tester, _naLinha(2, _ouvir));
-      await _passos(tester, 6);
+      await _passosAte(
+        tester,
+        6,
+        'a parte 2 chegar de novo',
+        () => !_estado(container).partsAway.containsKey(_daSala(2)),
+      );
 
       expect(_buscadas(harness), [
         _daSala(1),
@@ -297,7 +339,7 @@ void main() {
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       harness.room.holdNextClip();
-      await _retomar(tester, harness, aqui: {2});
+      final container = await _retomar(tester, harness, aqui: {2});
 
       expect(_acesa(tester, _naLinha(2, _ouvir)), isTrue);
       expect(_acesa(tester, _naLinha(1, _ouvir)), isFalse);
@@ -305,7 +347,7 @@ void main() {
       await _tocar(tester, _naLinha(2, _ouvir));
       expect(harness.playback.played.last, endsWith('/p2.m4a'));
 
-      await _chegamTodas(tester, harness);
+      await _chegamTodas(tester, harness, container);
       expect(_buscadas(harness), [_daSala(1), _daSala(3)]);
     },
   );
@@ -336,7 +378,7 @@ void main() {
       );
 
       for (var n = 1; n <= 3; n++) {
-        await _chegaUma(tester, harness);
+        await _chegaUma(tester, harness, container);
         await _tocar(tester, _naLinha(n, _ouvir));
         expect(harness.playback.played.last, contains(_daSala(n)));
       }
@@ -392,12 +434,12 @@ void main() {
       await _passos(tester);
       expect(_estado(container).stage, SalaStage.ensaio);
 
-      await _chegaUma(tester, harness);
-      await _chegaUma(tester, harness);
+      await _chegaUma(tester, harness, container);
+      await _chegaUma(tester, harness, container);
       expect(_acesa(tester, offTheRows(_ouvir)), isFalse);
       expect(_acesa(tester, inTheHome(_irParaATraducao)), isFalse);
 
-      await _chegamTodas(tester, harness);
+      await _chegamTodas(tester, harness, container);
       expect(_acesa(tester, offTheRows(_ouvir)), isTrue);
       expect(_acesa(tester, inTheHome(_irParaATraducao)), isTrue);
     },
@@ -408,7 +450,7 @@ void main() {
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     harness.room.holdNextClip();
-    await _retomar(tester, harness, cenas: _quatroCenas);
+    final container = await _retomar(tester, harness, cenas: _quatroCenas);
 
     await _tocar(
       tester,
@@ -426,7 +468,7 @@ void main() {
     await letTheRehearsalReachTheRoom(tester);
     expect(harness.room.takesReceived.last.scope, 'parte-4');
 
-    await _chegamTodas(tester, harness);
+    await _chegamTodas(tester, harness, container);
   });
 
   testWidgets(
@@ -435,18 +477,18 @@ void main() {
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       harness.room.holdNextClip();
-      await _retomar(
+      final container = await _retomar(
         tester,
         harness,
         naSala: [_naSala(1), _naSala(2, pass: 2), _naSala(3)],
       );
-      await _chegaUma(tester, harness);
+      await _chegaUma(tester, harness, container);
       expect(_buscadas(harness).last, _daSala(2));
 
       await _gravarNaLinha(tester, 2, deNovo: true);
       expect(harness.room.takePasses.last, 3);
 
-      await _chegamTodas(tester, harness);
+      await _chegamTodas(tester, harness, container);
       expect(_acesa(tester, _naLinha(2, _ouvir)), isTrue);
       expect(_acesa(tester, inTheHome(_irParaATraducao)), isTrue);
       await _tocar(tester, _naLinha(2, _ouvir));
@@ -468,14 +510,14 @@ void main() {
       harness.room
         ..refuseClipOf.add(_daSala(2))
         ..holdNextClip();
-      await _retomar(
+      final container = await _retomar(
         tester,
         harness,
         naSala: [_naSala(1, pass: 1), _naSala(2, pass: 2), _naSala(3, pass: 1)],
       );
       expect(_naLinha(2, _gravarDeNovo), findsOneWidget);
 
-      await _chegamTodas(tester, harness);
+      await _chegamTodas(tester, harness, container);
       expect(_naLinha(2, _gravar), findsOneWidget);
       expect(_naLinha(2, _ouvir), findsNothing);
 
@@ -491,7 +533,7 @@ void main() {
       final harness = SalaHarness(filaEmMemoria: true);
       harness.room.holdNextClip();
       final primeira = await _retomar(tester, harness, cenas: _quatroCenas);
-      await _chegaUma(tester, harness);
+      await _chegaUma(tester, harness, primeira);
       await _gravarNaLinha(tester, 4);
 
       await tester.pumpWidget(const SizedBox());
@@ -501,7 +543,14 @@ void main() {
       final antes = _buscadas(harness).length;
 
       await _abrir(tester, harness);
-      await _passos(tester, 8);
+      await _passosAte(
+        tester,
+        8,
+        'as partes chegarem de novo',
+        () => [
+          for (var n = 1; n <= 4; n++) _acesa(tester, _naLinha(n, _ouvir)),
+        ].every((acesa) => acesa),
+      );
 
       for (var n = 1; n <= 4; n++) {
         expect(_naLinha(n, _gravarDeNovo), findsOneWidget);
@@ -523,7 +572,7 @@ void main() {
     );
     await _passos(tester);
     final linha = harness.emAberto.rows[_linhaDoTablet];
-    await _chegamTodas(tester, harness);
+    await _chegamTodas(tester, harness, container);
 
     expect(_buscadas(harness), [_daSala(1)]);
     expect(identical(harness.emAberto.rows[_linhaDoTablet], linha), isTrue);
@@ -538,7 +587,12 @@ void main() {
         ..refuseClipOf.add(_daSala(2))
         ..holdNextState();
       final container = await _retomar(tester, harness, aLeituraFicaNoAr: true);
-      await _passos(tester, 8);
+      await _passosAte(
+        tester,
+        8,
+        'as três partes serem pedidas',
+        () => _buscadas(harness).length >= 3,
+      );
 
       expect(_buscadas(harness), [_daSala(1), _daSala(2), _daSala(3)]);
       expect(_naLinha(2, _gravarDeNovo), findsOneWidget);
