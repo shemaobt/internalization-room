@@ -6,7 +6,7 @@ amends: 0093, 0107, 0144
 
 # The person sign lets a tap through as it fades, and stands only over the canvas
 
-This amends ADRs 0093, 0107 and 0144 without editing their decisions: it adds "amended by 0158"
+This amends ADRs 0093, 0107 and 0144 without editing their decisions: it adds "amended by 0159"
 to their status lines. Marcia's handoff drops its pointer events the moment the phase turns
 (`app/globals.css:179` against `:234`, at 18fa7c4); only its opacity eases out, so a click
 during the fade reaches her circle beneath. ENG-1971 brings ours to hers. Her frozen app wins

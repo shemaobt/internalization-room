@@ -366,7 +366,7 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
 );
 
 final noHaltIsEnteredOverTheSceneOrTheCheck = Invariant<Machine>(
-  'ADR 0158, no halt is entered over the scene rehearsal or the external '
+  'ADR 0159, no halt is entered over the scene rehearsal or the external '
   'check; it waits for the Canvas',
   (before, event, after, effects, world) {
     if (before.halt is Blocking || after.halt is! Blocking) return null;
