@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -1182,6 +1183,50 @@ void main() {
             'ficou no tablet',
       );
       expect(find.text(_sendSceneOne), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a whole-passage take on the tablet is never offered on the plan of a '
+    'passage recorded scene by scene',
+    (tester) async {
+      await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        before: (harness) {
+          final waiting = Directory.systemTemp.createTempSync(
+            'sala-1861-whole',
+          );
+          addTearDown(() => waiting.deleteSync(recursive: true));
+          final audio = File('${waiting.path}/ensaio-inteiro.m4a')
+            ..writeAsBytesSync([1, 2, 3, 4]);
+          harness.room
+            ..grain = Grain.scene
+            ..unreachableTake = 'ensaio/${KeptScope.whole}';
+          (harness.takes as FakeTakeQueue).rows.add(
+            PendingTake(
+              id: 'na-fila-inteira',
+              path: audio.path,
+              sessionId: 'sessao-antiga',
+              kind: 'ensaio',
+              scope: KeptScope.whole,
+              passNumber: 1,
+            ),
+          );
+        },
+      );
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_planLine), findsOneWidget);
+      expect(
+        find.text(_pendingNotice),
+        findsNothing,
+        reason:
+            'a gravação da passagem inteira aparecia num plano cena por cena, '
+            'e a sala a recusaria',
+      );
     },
   );
 
