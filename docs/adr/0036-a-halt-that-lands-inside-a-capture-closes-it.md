@@ -1,5 +1,7 @@
 # A halt that lands inside a capture closes it
 
+Amended by 0160 (a halt raised on the Back-translation waits for the Conversation).
+
 ## Context
 
 ADR 0029 decided what a halt met on the way into the **Back-translation** does: it
