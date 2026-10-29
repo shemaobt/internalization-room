@@ -1258,7 +1258,9 @@ const _watch = ArmTheWatch();
     _opened(machine),
     [
       if (machine.channel is Playing) const ArmTheCeiling(),
-      if (machine.channel is Playing && machine.station is Retro)
+      if (machine.channel case Playing(
+        sound: PartSound() || StretchSound(telling: false),
+      ) when machine.station is Retro)
         const TellThePlayOpened(),
     ],
   ),

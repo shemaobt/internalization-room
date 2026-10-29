@@ -110,6 +110,47 @@ void main() {
       expect(effects, contains(const TellThePlayOpened()));
     });
 
+    test('the team\'s own translation that opens tells nothing, as her own '
+        'element never touches the line', () {
+      const own = StretchSound(
+        'traducao-1.m4a',
+        named: 'trecho-1',
+        telling: true,
+      );
+      final (_, effects) = reduce(
+        const Machine(station: Retro(), channel: StretchPlaying(own)),
+        const PlayerOpened(),
+      );
+
+      expect(effects, isNot(contains(const TellThePlayOpened())));
+    });
+
+    test('in every sequence a sound that opens tells the screen only on the '
+        'Back-translation and only for the recording\'s own sound', () {
+      for (var seed = 0; seed < 50; seed++) {
+        final random = Random(seed);
+        var machine = const Machine(station: Retro());
+        var world = const World();
+        for (var step = 0; step < 40; step++) {
+          if (machine.channel case Playing(:final sound)) {
+            final (_, effects) = reduce(machine, const PlayerOpened());
+            expect(
+              effects.contains(const TellThePlayOpened()),
+              machine.station is Retro &&
+                  !(sound is StretchSound && sound.telling),
+              reason:
+                  'seed $seed, step $step: ${describeMachine(machine)} | '
+                  '${effects.map(describeEffect).join(', ')}',
+            );
+          }
+          final event = drawAnEvent(world, random);
+          final (next, drawn) = reduce(machine, event);
+          world = world.after(event, drawn);
+          machine = next;
+        }
+      }
+    });
+
     test('a sound that opens on every other Station tells nothing', () {
       for (final station in _everyOtherStation) {
         final (_, effects) = reduce(
