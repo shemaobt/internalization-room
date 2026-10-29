@@ -3964,14 +3964,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// on the tablet, in the Outbox or in the room, came from a join, while a scene is left
   /// to join. A read that fails or has not answered within [planReadWait], a passage with
   /// no scenes and rehearsals only in the other language's session ask the grain while
-  /// none is in force, and open that grain's recording home otherwise (ADR 0134).
+  /// none is in force, and open that grain's recording home otherwise; a read that fails
+  /// or runs out with the room's listing unread asks the grain whatever is in force
+  /// (ADR 0134).
   Future<void> _readThePlan(String sessionId) async {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
+    var listingRead = false;
     final reads = (
       _takes.pending(),
       _room.takesListingOf(sessionId).then((listing) {
         if (listing case Answered(:final value) when !_abandoned(generation)) {
+          listingRead = true;
           _theRoomsGrainHeard(value);
           if (value.grain case final grain?
               when state.ensaioFinalPlan is GrainAsked &&
@@ -3997,7 +4001,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     _timers.remove('planRead')?.cancel();
     final read = answered;
-    if (read == null) return _theGrainOrItsHome(sessionId);
+    if (read == null) {
+      return _theGrainOrItsHome(sessionId, unread: !listingRead);
+    }
     final (outbox, takes, rehearsals, scenes) = read;
     for (final answer in [takes, rehearsals, scenes]) {
       if (answer case final SessionGone gone) return _decideTheFailure(gone);
@@ -4060,7 +4066,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           scenesOfThePassage: passage,
         );
       default:
-        _theGrainOrItsHome(sessionId);
+        _theGrainOrItsHome(sessionId, unread: !listingRead);
     }
   }
 
@@ -4068,8 +4074,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId, {
     List<TakeView>? listed,
     bool elsewhere = false,
+    bool unread = false,
   }) {
-    if (state.grain != null) {
+    if (state.grain != null && !unread) {
       return _openTheRecordingHome(sessionId, listed: listed);
     }
     state = state.copyWith(ensaioFinalPlan: GrainAsked(elsewhere: elsewhere));
@@ -4092,6 +4099,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           grain,
           reopens: state.overAnApprovedDraft,
           then: () => _toTheGrainsHome(grain, sessionId),
+          fromTheChoice: true,
         ),
       ),
     );
@@ -4179,10 +4187,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     Grain grain, {
     required bool reopens,
     required void Function() then,
+    bool fromTheChoice = false,
   }) async {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
-    if (state.grainInForce == grain) return then();
+    if (!fromTheChoice && state.grainInForce == grain) return then();
     final generation = _waitOnTheGeneration;
     state = state.copyWith(grainSwitching: true);
     final answer = await _room.switchTheGrain(
