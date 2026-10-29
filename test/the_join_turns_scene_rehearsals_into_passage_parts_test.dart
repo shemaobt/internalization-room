@@ -1473,7 +1473,13 @@ void main() {
               EnsaioStatus.recorded,
         );
         sala.takeKeep();
-        await Future<void>.delayed(const Duration(milliseconds: 400));
+        await waitFor(
+          'a gravação à mão chegar ao Outbox',
+          () async => (await it.harness.takes.pending()).any(
+            (row) => row.scope == 'parte-1',
+          ),
+          limit: const Duration(seconds: 30),
+        );
       });
       it.leftOnTheConversation();
       await it.relaunchOnTheConversation();
