@@ -105,6 +105,7 @@ Future<void> _prontoEFora(
 }
 
 Future<void> _aprovarEEsperar(WidgetTester tester) async {
+  await tester.ensureVisible(byLabel(_aprovar));
   await tester.tap(byLabel(_aprovar));
   await tester.pump(const Duration(milliseconds: 300));
 }

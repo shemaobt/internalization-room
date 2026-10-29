@@ -227,6 +227,9 @@ Future<_Room> _aPassageToResume(SalaHarness harness) async {
   await _theRoomRests(room);
   room.sala.leaveThePassage();
   await waitFor('a Escolha abrir', () => room.state.entriesOpen);
+  container.invalidate(salaSessionProvider);
+  await room.sala.openTheRoom();
+  await waitFor('a sala refeita abrir a Escolha', () => room.state.entriesOpen);
   return room;
 }
 

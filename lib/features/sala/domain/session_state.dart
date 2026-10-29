@@ -295,6 +295,7 @@ enum BtAviso {
   pausaNaoFica,
   checagemFalhou,
   checagemNaoAbre,
+  tocarFalhou,
 }
 
 enum PassoDaRegravacao {
