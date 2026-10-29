@@ -952,8 +952,8 @@ void main() {
         final screen = await _onScreen(tester, rehearsal: _twoFrases);
 
         expect(
-          screen.lit(_tell),
-          isTrue,
+          tester.widget<Semantics>(byLabel(_tell)).properties.enabled,
+          isNot(isFalse),
           reason: 'o círculo ficava apagado até «traduzir o ensaio da cena»',
         );
         await screen.tap(_tell);

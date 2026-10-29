@@ -18,6 +18,8 @@ import 'a_scene_room.dart';
 import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, settle;
+import 'the_scene_circles_are_her_check_ring_test.dart'
+    show ripplesOf, theEdgeOf;
 
 const _session = 'sessao-1';
 
@@ -701,23 +703,20 @@ void main() {
     );
 
     testWidgets(
-      'the circle shows the square only while the frase microphone is open, and the microphone before and after',
+      'the circle turns azul with her two ripples only while the frase microphone is open, and is telha before and after',
       (tester) async {
         final (harness, container) = await translateOnScreen(
           tester,
           take: aSpokenWav(gaps: [(_s(3.0), _s(3.2))]),
           rehearsal: _rehearsal(),
         );
-        IconData? icon() => tester
-            .widget<Icon>(
-              find.descendant(of: byLabel(_tell), matching: find.byType(Icon)),
-            )
-            .icon;
+        Color edge() => theEdgeOf(tester, _tell).border!.top.color;
         await _onScreenPlaying(tester, harness, container);
         harness.playback.at = _s(3.5);
         await _tapAndSettle(tester, _tell);
 
-        expect(icon(), LucideIcons.mic);
+        expect(edge(), const Color(0xFFBE4A01));
+        expect(ripplesOf(_tell), 0);
 
         await _tapAndSettle(tester, _tell);
         await pumpUntil(
@@ -726,16 +725,90 @@ void main() {
         );
 
         expect(
-          icon(),
-          LucideIcons.square,
-          reason: 'com o microfone aberto o círculo tem de mostrar o parar',
+          edge(),
+          const Color(0xFF89AAA3),
+          reason: 'com o microfone aberto o anel dela fica azul',
         );
+        expect(ripplesOf(_tell), 2);
 
         await _tapAndSettle(tester, _tell);
         await pumpUntil(tester, () => byLabel(_bar(1)).evaluate().isNotEmpty);
         await tester.pump(const Duration(milliseconds: 300));
 
-        expect(icon(), LucideIcons.mic);
+        expect(edge(), const Color(0xFFBE4A01));
+      },
+    );
+
+    testWidgets(
+      'while a frase is on its way to the room the circle breathes her areia thinking ring, not a pulsing red disc',
+      (tester) async {
+        final (harness, container) = await translateOnScreen(
+          tester,
+          take: aSpokenWav(gaps: [(_s(3.0), _s(3.2))]),
+          rehearsal: _rehearsal(),
+        );
+        await _onScreenPlaying(tester, harness, container);
+        harness.playback.at = _s(3.5);
+        await _tapAndSettle(tester, _tell);
+        await _tapAndSettle(tester, _tell);
+        await pumpUntil(
+          tester,
+          () => _theFraseMicrophoneIsOpen(container.read(salaSessionProvider)),
+        );
+        harness.room.holdNextFrase();
+        await _tapAndSettle(tester, _tell);
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).scene.waiting,
+        );
+
+        expect(container.read(salaSessionProvider).scene.waiting, isTrue);
+        expect(
+          theEdgeOf(tester, _tell).border!.top.color,
+          const Color(0xFFC5C29F),
+          reason: 'com a frase no ar o dela pensa, de borda areia',
+        );
+        harness.room.finishHeldFrase();
+        await tester.pump(const Duration(seconds: 1));
+      },
+    );
+
+    testWidgets(
+      'a pending pausa gives the circle her firmer 2.2 edge, and the edge is 1.5 again once the frase is sent',
+      (tester) async {
+        final (harness, container) = await translateOnScreen(
+          tester,
+          take: aSpokenWav(gaps: [(_s(3.0), _s(3.2))]),
+          rehearsal: _rehearsal(),
+        );
+        double edge() => theEdgeOf(tester, _tell).border!.top.width;
+        await _onScreenPlaying(tester, harness, container);
+
+        expect(edge(), 1.5);
+
+        harness.playback.at = _s(3.5);
+        await _tapAndSettle(tester, _tell);
+
+        expect(container.read(salaSessionProvider).scene.pausa, isNotNull);
+        expect(
+          edge(),
+          2.2,
+          reason:
+              'com a pausa pendente o dela firma a borda: o círculo abre o '
+              'microfone',
+        );
+
+        await _tapAndSettle(tester, _tell);
+        await pumpUntil(
+          tester,
+          () => _theFraseMicrophoneIsOpen(container.read(salaSessionProvider)),
+        );
+        await _tapAndSettle(tester, _tell);
+        await pumpUntil(tester, () => byLabel(_bar(1)).evaluate().isNotEmpty);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(container.read(salaSessionProvider).scene.pausa, isNull);
+        expect(edge(), 1.5);
       },
     );
 
