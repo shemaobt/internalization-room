@@ -39,17 +39,7 @@ typedef OutboxTally = ({
   Map<String, List<PendingTake>> unsentParts,
   Map<String, int> goneParts,
   Map<String, PartFact> parts,
-  Duration due,
 });
-
-final takeRetryBackoffProvider = Provider<List<Duration>>(
-  (ref) => const [
-    Duration(seconds: 5),
-    Duration(seconds: 30),
-    Duration(minutes: 2),
-    Duration(minutes: 10),
-  ],
-);
 
 final takeAttemptSpacingProvider = Provider<List<Duration>>(
   (ref) => const [Duration(seconds: 1), Duration(seconds: 3)],
@@ -72,7 +62,15 @@ class PendingTake {
   /// to another tablet — after which every row pointed at a directory that no longer
   /// existed and the queue called recordings lost while the files sat untouched beside it.
   final String path;
-  final String sessionId;
+
+  /// The session the row goes up into; none while its passage has no session the room
+  /// still knows.
+  final String? sessionId;
+
+  /// The passage the row belongs to, as `book/pericope/language`, so a row whose session
+  /// is gone is found again by the passage's next session. A row an older app wrote has
+  /// none.
+  final String? passage;
   final String kind;
   final String scope;
   final int? passNumber;
@@ -132,6 +130,7 @@ class PendingTake {
     required this.id,
     required this.path,
     required this.sessionId,
+    this.passage,
     required this.kind,
     required this.scope,
     this.passNumber,
@@ -161,10 +160,39 @@ class PendingTake {
     _ => SendFailure.refused,
   };
 
+  /// The row as it goes into [sessionId], kept under [passage] so the passage's next
+  /// session can find it once that session is gone.
+  PendingTake inTheSession(String? sessionId, {String? passage}) => PendingTake(
+    id: id,
+    path: path,
+    sessionId: sessionId,
+    passage: passage ?? this.passage,
+    kind: kind,
+    scope: scope,
+    passNumber: passNumber,
+    chunkIndex: chunkIndex,
+    scene: scene,
+    original: original,
+    takeId: takeId,
+    stored: stored,
+    lost: lost,
+    attempts: attempts,
+    waits: waits,
+    lastTry: lastTry,
+    refusal: refusal,
+    recordedAt: recordedAt,
+    durationMs: durationMs,
+    sha256: sha256,
+    origin: origin,
+    reopensTheApprovedDraft: reopensTheApprovedDraft,
+    overTake: overTake,
+  );
+
   PendingTake dueNow() => PendingTake(
     id: id,
     path: path,
     sessionId: sessionId,
+    passage: passage,
     kind: kind,
     scope: scope,
     passNumber: passNumber,
@@ -198,6 +226,7 @@ class PendingTake {
     id: id,
     path: path,
     sessionId: sessionId,
+    passage: passage,
     kind: kind,
     scope: scope,
     passNumber: passNumber,
@@ -223,6 +252,7 @@ class PendingTake {
     'id': id,
     'name': p.basename(path),
     'session_id': sessionId,
+    'passage': passage,
     'kind': kind,
     'scope': scope,
     'pass_number': passNumber,
@@ -250,7 +280,8 @@ class PendingTake {
   }) => PendingTake(
     id: json['id'] as String,
     path: p.join(folder, p.basename((json['name'] ?? json['path']) as String)),
-    sessionId: json['session_id'] as String,
+    sessionId: json['session_id'] as String?,
+    passage: json['passage'] as String?,
     kind: json['kind'] as String,
     scope: json['scope'] as String,
     passNumber: json['pass_number'] as int?,
@@ -307,7 +338,6 @@ class _CachedRead {
 class TakeUploadQueue {
   final RoomRepository _room;
   final Future<Directory> Function() _home;
-  final List<Duration> _backoff;
   final List<Duration> _spacing;
   final DateTime Function() _now;
   Future<int>? _flushInFlight;
@@ -319,12 +349,17 @@ class TakeUploadQueue {
   final List<PendingTake> _landedRows = [];
   final Map<String, SceneRehearsalRecord> _keptScenes = {};
 
+  /// The rows a tap of this life asked to send, each by the tap that asked last. Kept in
+  /// memory only: a relaunch makes nothing due, and a row goes up again only on its own
+  /// tap.
+  final Map<String, int> _dueOnATap = {};
+  int _taps = 0;
+
   final RecordingRepository Function() _recordings;
 
   TakeUploadQueue({
     required this._room,
     Future<Directory> Function()? home,
-    this._backoff = const [],
     this._spacing = const [],
     DateTime Function()? now,
     required this._recordings,
@@ -416,16 +451,15 @@ class TakeUploadQueue {
   /// The rows a flush will try. A written-off row is back among them the moment its
   /// audio is on the disk again; one whose audio really is gone stays out, so the queue
   /// still empties.
-  Future<List<PendingTake>> waiting({bool withTheCodeless = false}) async {
+  Future<List<PendingTake>> waiting() async {
     final scenes = <PendingTake>[];
     final trying = <PendingTake>[];
     final heldForATap = <String>{};
     for (final entry in await pending()) {
-      if (entry.kind == sentenceKind) continue;
+      if (entry.kind == sentenceKind || entry.sessionId == null) continue;
       final part = _partOf(entry);
       if (part != null && heldForATap.contains(part)) continue;
-      if (_spentForATap(entry) &&
-          !(withTheCodeless && entry.refusedWithNoCode)) {
+      if (_spentForATap(entry)) {
         if (part != null &&
             entry.refusal == null &&
             await File(entry.path).exists()) {
@@ -459,12 +493,15 @@ class TakeUploadQueue {
   static int _unsentIn(
     List<PendingTake>? written,
     String kind,
-    String? sessionId,
-  ) {
+    String? sessionId, {
+    String? passage,
+  }) {
     if (written == null) return 1;
     return [
       for (final entry in written)
-        if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
+        if (!entry.stored &&
+            entry.kind == kind &&
+            _ofTheVisit(entry, sessionId, passage))
           entry,
     ].length;
   }
@@ -483,6 +520,15 @@ class TakeUploadQueue {
     return null;
   }
 
+  /// A row of [sessionId], or one of [passage] whose session is gone.
+  static bool _ofTheVisit(
+    PendingTake entry,
+    String? sessionId,
+    String? passage,
+  ) => entry.sessionId == null
+      ? passage != null && entry.passage == passage
+      : entry.sessionId == sessionId;
+
   String? takeIdOfThePart(String sessionId, KeptTake part) {
     final name = p.basenameWithoutExtension(part.path);
     for (final entry in _landedRows) {
@@ -500,12 +546,13 @@ class TakeUploadQueue {
   Future<Map<String, List<PendingTake>>> _unsentPartsIn(
     List<PendingTake>? written,
     String? sessionId,
+    String? passage,
   ) async {
     final parts = <String, List<PendingTake>>{};
     for (final entry in written ?? const <PendingTake>[]) {
       if (!entry.stored &&
           entry.kind == partTakeKind &&
-          entry.sessionId == sessionId &&
+          _ofTheVisit(entry, sessionId, passage) &&
           await File(entry.path).exists()) {
         parts.putIfAbsent(entry.scope, () => []).add(entry);
       }
@@ -516,10 +563,14 @@ class TakeUploadQueue {
   Future<Map<String, int>> _gonePartsIn(
     List<PendingTake>? written,
     String? sessionId,
+    String? passage,
   ) async {
     final newest = <String, PendingTake>{};
     for (final entry in written ?? const <PendingTake>[]) {
-      if (entry.kind != partTakeKind || entry.sessionId != sessionId) continue;
+      if (entry.kind != partTakeKind ||
+          !_ofTheVisit(entry, sessionId, passage)) {
+        continue;
+      }
       final held = newest[entry.scope];
       if (held == null || (entry.passNumber ?? 1) >= (held.passNumber ?? 1)) {
         newest[entry.scope] = entry;
@@ -532,7 +583,7 @@ class TakeUploadQueue {
   }
 
   Future<Set<String>> _goneRowsOf(
-    String sessionId,
+    String? sessionId,
     String scope, {
     int? upToPass,
   }) async => {
@@ -545,14 +596,17 @@ class TakeUploadQueue {
         entry.id,
   };
 
-  Future<OutboxTally> tally({required String? sessionId}) async {
+  Future<OutboxTally> tally({
+    required String? sessionId,
+    String? passage,
+  }) async {
     final written = await _written();
     final waiting = await this.waiting();
     final trying = {
       for (final entry in waiting)
         if (await File(entry.path).exists()) entry.id,
     };
-    final unsentParts = await _unsentPartsIn(written, sessionId);
+    final unsentParts = await _unsentPartsIn(written, sessionId, passage);
     return (
       parts: {
         for (final row in _confirmed.keys) row: PartFact.sent,
@@ -563,28 +617,15 @@ class TakeUploadQueue {
               ? PartFact.pending
               : PartFact.stranded,
       },
-      due: _due(waiting),
       unsentTakes: written == null
           ? 1
           : unsentParts.values.fold(0, (count, rows) => count + rows.length),
       unsentChunks: written == null
           ? 1
-          : _unsentIn(written, sentenceKind, sessionId),
+          : _unsentIn(written, sentenceKind, sessionId, passage: passage),
       unsentParts: unsentParts,
-      goneParts: await _gonePartsIn(written, sessionId),
+      goneParts: await _gonePartsIn(written, sessionId, passage),
     );
-  }
-
-  Duration _due(List<PendingTake> waiting) {
-    Duration? soonest;
-    final held = <String>{};
-    for (final entry in waiting) {
-      final part = _partOf(entry);
-      if (part != null && !held.add(part)) continue;
-      final wait = _waitFor(entry);
-      if (soonest == null || wait < soonest) soonest = wait;
-    }
-    return soonest ?? Duration.zero;
   }
 
   String? _partOf(PendingTake entry) => switch (entry.kind) {
@@ -592,29 +633,6 @@ class TakeUploadQueue {
     sceneTakeKind => '${entry.sessionId}/$sceneTakeKind',
     _ => null,
   };
-
-  bool _ready(PendingTake entry) => _waitFor(entry) == Duration.zero;
-
-  Duration _waitFor(PendingTake entry) {
-    final last = entry.lastTry;
-    if (last == null || entry.tries == 0 || _backoff.isEmpty) {
-      return Duration.zero;
-    }
-    final now = _now();
-    // A stamp we could not have written yet says nothing about when we last tried.
-    //
-    // The guard belongs here rather than in the pacing: a row that fails this check never
-    // reaches the send path, so its stamp is never rewritten, so it fails again — forever.
-    //
-    // Any amount ahead, not only an implausible one. A corrupt stamp far in the future
-    // would stay stuck for good under a threshold rule and cures itself under this one,
-    // and the try it buys rewrites the stamp, so the retry armed for it cannot spin.
-    if (last.isAfter(now)) return Duration.zero;
-    final step = entry.tries - 1;
-    final wait = _backoff[step < _backoff.length ? step : _backoff.length - 1];
-    final due = last.add(wait).difference(now);
-    return due.isNegative ? Duration.zero : due;
-  }
 
   Future<void> _write(List<PendingTake> entries) async {
     final dir = await _dir();
@@ -682,7 +700,8 @@ class TakeUploadQueue {
 
   Future<PendingTake> enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     int? passNumber,
@@ -691,6 +710,7 @@ class TakeUploadQueue {
   }) async => (await _enqueue(
     audio,
     sessionId: sessionId,
+    passage: passage,
     kind: kind,
     scope: scope,
     passNumber: passNumber,
@@ -705,6 +725,7 @@ class TakeUploadQueue {
   Future<PendingTake?> enqueueTheJoin(
     File audio, {
     required String sessionId,
+    String? passage,
     required int number,
     required int passNumber,
     required String origin,
@@ -714,6 +735,7 @@ class TakeUploadQueue {
   }) => _enqueue(
     audio,
     sessionId: sessionId,
+    passage: passage,
     kind: 'ensaio',
     scope: KeptScope.parte(number),
     passNumber: passNumber,
@@ -727,7 +749,8 @@ class TakeUploadQueue {
 
   Future<PendingTake?> _enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     required DateTime recordedAt,
@@ -755,6 +778,7 @@ class TakeUploadQueue {
       id: id,
       path: kept,
       sessionId: sessionId,
+      passage: passage,
       kind: kind,
       scope: scope,
       passNumber: passNumber,
@@ -785,6 +809,7 @@ class TakeUploadQueue {
       if (await audio.exists()) await audio.delete();
       throw const TheLifeEnded();
     }
+    tapped(entry.id);
     return entry;
   }
 
@@ -844,8 +869,9 @@ class TakeUploadQueue {
     stop.complete();
   }
 
-  /// Send every row a caller that only asked while this call was already running would
-  /// otherwise miss.
+  /// Send the rows a tap of this life made due, each with the rest of its part and after
+  /// them every take no row can show, since no tap of its own can reach it; and every row
+  /// a caller that only asked while this call was already running would otherwise miss.
   ///
   /// A second `flush()` called while the first is still talking to the room used to
   /// return at once, on the strength of the first one's own sweep — but a row enqueued
@@ -853,8 +879,7 @@ class TakeUploadQueue {
   /// read the empty answer as "the room has this" and never asked again. It now waits on
   /// the flush already running and, if anything was asked for while it waited, that flush
   /// takes one more pass before either caller is told it is done.
-  Future<int> flush({bool withTheCodeless = false}) {
-    _withTheCodeless = _withTheCodeless || withTheCodeless;
+  Future<int> flush() {
     final running = _flushInFlight;
     if (running != null) {
       _flushAgainRequested = true;
@@ -863,16 +888,12 @@ class TakeUploadQueue {
     return _flushInFlight = _flushUntilSettled();
   }
 
-  bool _withTheCodeless = false;
-
   Future<int> _flushUntilSettled() async {
     var sent = 0;
     try {
       do {
         _flushAgainRequested = false;
-        final withTheCodeless = _withTheCodeless;
-        _withTheCodeless = false;
-        sent += await _flushOnce(withTheCodeless: withTheCodeless);
+        sent += await _flushOnce();
       } while (_flushAgainRequested);
     } finally {
       _flushInFlight = null;
@@ -884,24 +905,48 @@ class TakeUploadQueue {
   ///
   /// A part recorded again is a second row under the scope the part already has, and the
   /// room decides which of two recordings under one number is the part by the tablet's
-  /// own count and then by arrival. A row skipped here — backing off, audio gone, refused,
-  /// unanswered — used to let the one behind it go, so a retry landing after the
+  /// own count and then by arrival, so a tap on one row of a part sends the whole part in
+  /// its order. A row skipped here — audio gone, refused, unanswered — used to let the
+  /// one behind it go, so a retry landing after the
   /// re-recording left the room holding the recording the team abandoned. A row that does
   /// not land holds the rest of its part for the rest of this pass; a row refused for good
   /// holds nothing, and a telling-back is not a part.
-  Future<int> _flushOnce({required bool withTheCodeless}) async {
-    var sent = 0;
-    final held = <String>{};
-    final leftInThisPass = <String, DateTime>{};
+  Future<int> _flushOnce() async {
     _turnedAway = false;
     _stopped = false;
     final List<PendingTake> rows;
     try {
       await _sweepTheOldBackTranslations();
-      rows = await waiting(withTheCodeless: withTheCodeless);
+      final waiting = await this.waiting();
+      final tappedParts = {
+        for (final entry in waiting)
+          if (_dueOnATap.containsKey(entry.id)) _partOf(entry) ?? entry.id,
+      };
+      rows = tappedParts.isEmpty
+          ? const []
+          : [
+              for (final entry in waiting)
+                if (tappedParts.contains(_partOf(entry) ?? entry.id) ||
+                    !_aRowOffersItsTap(entry))
+                  entry,
+            ];
     } on PathNotFoundException {
       return 0;
     }
+    final taps = {for (final entry in rows) entry.id: _dueOnATap[entry.id]};
+    try {
+      return await _sendEach(rows);
+    } finally {
+      for (final MapEntry(key: row, value: tap) in taps.entries) {
+        if (_dueOnATap[row] == tap) _dueOnATap.remove(row);
+      }
+    }
+  }
+
+  Future<int> _sendEach(List<PendingTake> rows) async {
+    var sent = 0;
+    final held = <String>{};
+    final leftInThisPass = <String, DateTime>{};
     for (final entry in rows) {
       if (_turnedAway || _stopped) break;
       final part = _partOf(entry);
@@ -942,7 +987,8 @@ class TakeUploadQueue {
     Map<String, DateTime> leftInThisPass,
     void Function() leaving,
   ) async {
-    if (!_ready(entry)) return _Landing.held;
+    final sessionId = entry.sessionId;
+    if (sessionId == null) return _Landing.givenUp;
     final file = File(entry.path);
     if (!await file.exists()) {
       if (!await _betweenWrites((written) => _holds(written, entry))) {
@@ -980,7 +1026,7 @@ class TakeUploadQueue {
       leaving();
       var fell = false;
       for (var attempt = 0; ; attempt++) {
-        final answer = await _attempt(entry, file, stop.future);
+        final answer = await _attempt(entry, sessionId, file, stop.future);
         switch (answer) {
           case Answered(value: final landed):
             await _confirm(entry, landed);
@@ -1015,9 +1061,8 @@ class TakeUploadQueue {
             );
             return _Landing.givenUp;
           case SessionGone():
-            await discardTheSession(entry.sessionId);
-            await _deleteTheCopy(entry);
-            _sessionsGone.add(entry.sessionId);
+            await letGoOfTheSession(sessionId);
+            _sessionsGone.add(sessionId);
             return _Landing.held;
           case NetworkFailed() when entry.origin != null:
             if (_stopped) return await _theTeamStopped(sent);
@@ -1090,13 +1135,14 @@ class TakeUploadQueue {
 
   Future<RoomAnswer<String>> _attempt(
     PendingTake entry,
+    String sessionId,
     File file,
     Future<void> stop,
   ) async {
     if (entry.kind == sceneTakeKind) {
       final kept = await _unlessStopped(
         _room.keepSceneRehearsal(
-          entry.sessionId,
+          sessionId,
           file,
           scene: entry.scene,
           recordedAt: entry.recordedAt,
@@ -1114,7 +1160,7 @@ class TakeUploadQueue {
           return failure;
       }
       final listed = await _unlessStopped(
-        _room.sceneRehearsalsOf(entry.sessionId),
+        _room.sceneRehearsalsOf(sessionId),
         stop,
       );
       switch (listed) {
@@ -1131,7 +1177,7 @@ class TakeUploadQueue {
     }
     final sent = await _unlessStopped(
       _room.sendTake(
-        entry.sessionId,
+        sessionId,
         file,
         kind: entry.kind,
         scope: entry.scope,
@@ -1154,7 +1200,7 @@ class TakeUploadQueue {
       case final RoomFailure failure:
         return failure;
     }
-    final listed = await _unlessStopped(_room.takesOf(entry.sessionId), stop);
+    final listed = await _unlessStopped(_room.takesOf(sessionId), stop);
     switch (listed) {
       case Answered(:final value)
           when value.any((held) => held.takeId == takeId):
@@ -1301,19 +1347,33 @@ class TakeUploadQueue {
     }
   }
 
-  Future<SceneRehearsalRecord?> keepTheScene(String row) async {
+  Future<SceneRehearsalRecord?> keepTheScene(
+    String row, {
+    String? intoTheSession,
+  }) async {
     await _mutate((written) {
       final at = written.indexWhere((entry) => entry.id == row);
-      return [
+      final kept = [
         for (var i = 0; i < written.length; i++)
           i == at ||
                   i < at &&
                       written[i].kind == sceneTakeKind &&
                       written[i].sessionId == written[at].sessionId &&
+                      (written[i].sessionId != null ||
+                          written[i].passage == written[at].passage) &&
                       written[i].refusal == null
-              ? written[i].dueNow()
+              ? switch (written[i].dueNow()) {
+                  final due when due.sessionId == null => due.inTheSession(
+                    intoTheSession,
+                  ),
+                  final due => due,
+                }
               : written[i],
       ];
+      for (var i = 0; i < kept.length; i++) {
+        if (!identical(kept[i], written[i])) tapped(kept[i].id);
+      }
+      return kept;
     });
     await flush();
     return keptSceneOf(row);
@@ -1321,17 +1381,34 @@ class TakeUploadQueue {
 
   SceneRehearsalRecord? keptSceneOf(String row) => _keptScenes[row];
 
-  Future<void> dueAgain(String row) => _mutate(
-    (written) => [
-      for (final entry in written) entry.id == row ? entry.dueNow() : entry,
-    ],
-  );
+  /// [row] goes up on the next flush, with its attempts given back; a row whose session
+  /// is gone goes into [intoTheSession], the session of its passage now.
+  Future<void> dueAgain(String row, {String? intoTheSession}) {
+    tapped(row);
+    return _mutate(
+      (written) => [
+        for (final entry in written)
+          if (entry.id != row)
+            entry
+          else if (entry.sessionId == null)
+            entry.dueNow().inTheSession(intoTheSession)
+          else
+            entry.dueNow(),
+      ],
+    );
+  }
 
-  Future<PendingTake?> sceneWaitingIn(String sessionId) async {
+  /// [row] goes up on the next flush, as its own tap asked.
+  void tapped(String row) => _dueOnATap[row] = ++_taps;
+
+  Future<PendingTake?> sceneWaitingIn(
+    String sessionId, {
+    String? passage,
+  }) async {
     PendingTake? newest;
     for (final entry in await pending()) {
       if (entry.kind == sceneTakeKind &&
-          entry.sessionId == sessionId &&
+          _ofTheVisit(entry, sessionId, passage) &&
           entry.refusal == null &&
           !await _reallyGone(entry)) {
         newest = entry;
@@ -1340,29 +1417,35 @@ class TakeUploadQueue {
     return newest;
   }
 
-  Future<PendingTake?> sentenceHeldIn(String sessionId) async {
+  Future<PendingTake?> sentenceHeldIn(
+    String sessionId, {
+    String? passage,
+  }) async {
     PendingTake? newest;
     for (final entry in await pending()) {
-      if (entry.kind == sentenceKind && entry.sessionId == sessionId) {
+      if (entry.kind == sentenceKind &&
+          _ofTheVisit(entry, sessionId, passage)) {
         newest = entry;
       }
     }
     return newest;
   }
 
-  Future<void> discardTheSession(String sessionId) async {
-    final discarded = <PendingTake>[];
-    await _mutate((written) {
-      discarded.addAll(written.where((entry) => entry.sessionId == sessionId));
-      return [
-        for (final entry in written)
-          if (entry.sessionId != sessionId) entry,
-      ];
-    });
-    for (final entry in discarded) {
-      if (!_isInTheAir(entry)) await _deleteTheCopy(entry);
-    }
-  }
+  /// The room no longer knows [sessionId]: its rows stay on the tablet with their copies,
+  /// under [passage] when they carry none, for the passage's next session to send. A row
+  /// whose passage is known nowhere keeps its session, so a later call that knows the
+  /// passage still finds it.
+  Future<void> letGoOfTheSession(String sessionId, {String? passage}) =>
+      _mutate(
+        (written) => [
+          for (final entry in written)
+            switch (entry.passage ?? passage) {
+              final known? when entry.sessionId == sessionId =>
+                entry.inTheSession(null, passage: known),
+              _ => entry,
+            },
+        ],
+      );
 
   /// Take every join row of [scope] off the manifest, even one whose request is in the
   /// air: the team recorded the part again by hand. A row at rest goes with its copy; a
@@ -1433,7 +1516,6 @@ class TakeUploadQueue {
 final takeUploadQueueProvider = Provider<TakeUploadQueue>(
   (ref) => TakeUploadQueue(
     room: ref.read(roomRepositoryProvider),
-    backoff: ref.read(takeRetryBackoffProvider),
     spacing: ref.read(takeAttemptSpacingProvider),
     recordings: () => ref.read(recordingRepositoryProvider),
   ),

@@ -212,30 +212,34 @@ void main() {
     _theLinkIsForgotten(tablet);
   });
 
-  test('a relaunch after a failed sweep sweeps again', () async {
-    final tablet = await _linkedTablet(
-      SalaHarness(linkedAs: _linked, filaEmMemoria: true),
-    );
-    final takes = tablet.harness.takes as FakeTakeQueue;
-    await takes.enqueue(_aRecording(), sessionId: 's', kind: 'x', scope: 'p');
-    takes.sweepFails = true;
-    tablet.harness.room.failWith = _revoked;
-    await takes.flush();
-    await pumpEventQueue();
-    tablet.container.dispose();
-    takes.sweepFails = false;
+  test(
+    'a relaunch after a failed sweep sweeps again at its next send',
+    () async {
+      final tablet = await _linkedTablet(
+        SalaHarness(linkedAs: _linked, filaEmMemoria: true),
+      );
+      final takes = tablet.harness.takes as FakeTakeQueue;
+      await takes.enqueue(_aRecording(), sessionId: 's', kind: 'x', scope: 'p');
+      takes.sweepFails = true;
+      tablet.harness.room.failWith = _revoked;
+      await takes.flush();
+      await pumpEventQueue();
+      tablet.container.dispose();
+      takes.sweepFails = false;
 
-    final again = tablet.harness.container();
-    addTearDown(again.dispose);
-    await again.read(deviceLinkProvider.notifier).findTheTeam();
-    await waitFor(
-      'a fresh code',
-      () => again.read(deviceLinkProvider).code != null,
-    );
+      final again = tablet.harness.container();
+      addTearDown(again.dispose);
+      await again.read(deviceLinkProvider.notifier).findTheTeam();
+      await takes.flush();
+      await waitFor(
+        'a fresh code',
+        () => again.read(deviceLinkProvider).code != null,
+      );
 
-    expect(takes.rows, isEmpty);
-    expect(tablet.harness.vinculo.remembered.credential, isNull);
-  });
+      expect(takes.rows, isEmpty);
+      expect(tablet.harness.vinculo.remembered.credential, isNull);
+    },
+  );
 
   test('a revoked question forgets the link too', () async {
     final inbox = HandInboxRepository(

@@ -107,7 +107,7 @@ Invariant<S> aSessionReadNeverClearsTheSign<S>(Halt Function(S) haltOf) =>
     });
 
 bool _bringsSomethingBack(Effect effect) => switch (effect) {
-  PlayPart() || PlayStretch() || DrainTheOutbox() => true,
+  PlayPart() || PlayStretch() => true,
   _ => false,
 };
 
@@ -270,13 +270,12 @@ final theScreenNeverShowsASoundTheChannelDoesNotHold = Invariant<Machine>(
   },
 );
 
-final theOutboxNeverIdlesWithAPartPending = Invariant<Machine>(
-  'ADR invariant 12, the Outbox never idles with a part pending',
+final theOutboxSendsNothingOfItsOwn = Invariant<Machine>(
+  'ADR 0087, the Outbox sends nothing of its own: only a tap sends',
   (before, event, after, effects, world) {
-    if (!after.somethingPending) return null;
-    if (world.retryArmed || world.draining) return null;
-    return 'a part pending, no retry armed and no drain in '
-        'flight';
+    if (event is! OutboxChanged || effects.isEmpty) return null;
+    return 'the Outbox told ${describeEvent(event)} and the room answered '
+        '${effects.map(describeEffect).join(', ')}';
   },
 );
 
@@ -324,9 +323,6 @@ Invariant<Machine> _nothingOfTheSessionSurvives(
   }
   if (!effects.contains(const CloseAndDiscardTheMic())) {
     return 'the session gone did not close and discard the microphone';
-  }
-  if (effects.contains(const CancelTheRetry())) {
-    return 'the session gone cancelled the retry';
   }
   if (effects.any(_callsOrStopsCallingAPerson)) {
     return 'the session gone called or stopped calling a person: '
@@ -589,9 +585,13 @@ void main() {
       _holds(theScreenNeverShowsASoundTheChannelDoesNotHold);
     });
 
-    test('ADR invariant 12: the Outbox never idles with a part '
-        'pending', () {
-      _holds(theOutboxNeverIdlesWithAPartPending);
+    test('a change in the Outbox sends nothing and arms nothing', () {
+      _holds(theOutboxSendsNothingOfItsOwn);
+      final (_, effects) = reduce(
+        const Machine(),
+        const OutboxChanged({'linha-1': PartFact.pending}),
+      );
+      expect(effects, isEmpty);
     });
 
     test('ADR invariant 6: nothing of a gone session survives', () {
@@ -617,7 +617,7 @@ void main() {
           aLineOfTheVoiceStopsAPlayingReply,
           aStopNamesThisSessionsTakeInTheAir,
           theHeadNeverReadsAnotherSound,
-          theOutboxNeverIdlesWithAPartPending,
+          theOutboxSendsNothingOfItsOwn,
           theScreenNeverShowsASoundTheChannelDoesNotHold,
           aLanguageChosenReadsTheWheelOnlyOnTheChoice,
           aStationsSessionNeverOpensWithoutTheWatch,

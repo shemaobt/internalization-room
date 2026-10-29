@@ -105,22 +105,12 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
             ),
           if (onHerCanvas && words != null)
             Positioned(
-              left: 14 + 76 + 8,
               right: MediaQuery.sizeOf(context).width * 0.024,
               bottom:
                   MediaQuery.viewPaddingOf(context).bottom +
                   MediaQuery.sizeOf(context).height * 0.026,
               child: IgnorePointer(
-                child: ExcludeSemantics(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    heightFactor: 1,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Claquete(words: words),
-                    ),
-                  ),
-                ),
+                child: ExcludeSemantics(child: Claquete(words: words)),
               ),
             ),
         ],

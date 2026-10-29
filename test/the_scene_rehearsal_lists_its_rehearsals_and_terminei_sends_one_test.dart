@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
@@ -13,6 +14,7 @@ import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_translate_step.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -604,6 +606,178 @@ void main() {
       await waitFor('o ensaio calar', () => room.state.channel is! PartPlaying);
     },
   );
+
+  test('play in listen mode after a pause resumes where the take stopped, not '
+      'from its start', () async {
+    final room = await _inListenModeOf(_sentOne, _unsentTwo);
+    room.sala.playTheSceneRehearsal();
+    await waitFor(
+      'o ensaio abrir',
+      () => switch (room.state.channel) {
+        PartPlaying(opened: true) => true,
+        _ => false,
+      },
+    );
+    room.harness.playback.at = const Duration(seconds: 5);
+    room.sala.playTheSceneRehearsal();
+    await waitFor('o ensaio calar', () => room.state.channel is! PartPlaying);
+
+    room.sala.playTheSceneRehearsal();
+    await waitFor('o ensaio tocar', () => room.state.channel is PartPlaying);
+
+    expect(
+      room.harness.playback.playedFrom.last,
+      const Duration(seconds: 5),
+      reason: 'o play depois da pausa recomeçava o ensaio do zero',
+    );
+  });
+
+  test('play in listen mode after the take was heard to its end starts it '
+      'again from its start, not from its end', () async {
+    final room = await _inListenModeOf(_sentOne, _unsentTwo);
+    room.sala.playTheSceneRehearsal();
+    await waitFor(
+      'o ensaio abrir',
+      () => switch (room.state.channel) {
+        PartPlaying(opened: true) => true,
+        _ => false,
+      },
+    );
+    room.harness.playback.at = const Duration(seconds: 15);
+    room.harness.playback.finishPlayback();
+    await waitFor(
+      'o ensaio acabar',
+      () => room.state.scene.heard == SceneHeard.toTheEnd,
+    );
+
+    room.sala.playTheSceneRehearsal();
+    await waitFor('o ensaio tocar', () => room.state.channel is PartPlaying);
+
+    expect(
+      room.harness.playback.playedFrom.last,
+      Duration.zero,
+      reason: 'o play depois do fim tocava do fim e calava na hora',
+    );
+  });
+
+  test('«gravar de novo» in listen mode while another row opens leaves the '
+      'row to open, not a record step', () async {
+    final room = await _inListenModeOf(_sentOne, _unsentTwo);
+    room.harness.playback.holdNextMeasurement();
+    room.sala.openTheListedSceneRehearsal('ensaio-da-cena-2');
+    await waitFor('a linha começar a abrir', () => room.state.scene.waiting);
+
+    room.sala.recordTheSceneAgain();
+    await settle();
+    room.harness.playback.finishHeldMeasurement();
+    await waitFor('a tela parar de esperar', () => !room.state.scene.waiting);
+
+    expect(
+      _showing(2, SceneStep.translate)(room.state.scene),
+      isTrue,
+      reason: 'o gravar de novo passava e a linha tocada nunca abria',
+    );
+  });
+
+  testWidgets('«gravar de novo» in listen mode is drawn off while another row '
+      'opens, not lit', (tester) async {
+    final (harness, container) = await _theScreenShows(tester, [
+      _sentOne,
+      _unsentTwo,
+    ], when: (state) => state.scene.rehearsal?.n == 2);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.openTheListedSceneRehearsal('ensaio-da-cena-1');
+    await _pumpUntil(
+      tester,
+      () => _showing(1, SceneStep.sent)(
+        container.read(salaSessionProvider).scene,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.playback.holdNextMeasurement();
+
+    notifier.openTheListedSceneRehearsal('ensaio-da-cena-2');
+    await _pumpUntil(
+      tester,
+      () => container.read(salaSessionProvider).scene.waiting,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      _enabled(tester, byLabel('gravar o ensaio da cena de novo')),
+      isFalse,
+      reason: 'o gravar de novo ficava aceso enquanto a linha abria',
+    );
+    harness.playback.finishHeldMeasurement();
+    await _pumpUntil(
+      tester,
+      () => !container.read(salaSessionProvider).scene.waiting,
+    );
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('«gravar de novo» in listen mode is drawn off while a frase '
+      'microphone is open, not lit', (tester) async {
+    final container = SalaHarness().container();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: SceneListenMode(
+                scene: SceneScreen(
+                  step: SceneStep.sent,
+                  rehearsal: _sentOne,
+                  take: 'cena-ensaio-da-cena-1.m4a',
+                  length: const Duration(seconds: 15),
+                ),
+                envelope: null,
+                channel: const Microphone(MicOwner.frase),
+                language: 'pt',
+                sending: false,
+                line: null,
+                stoppedAt: null,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      _enabled(tester, byLabel('gravar o ensaio da cena de novo')),
+      isFalse,
+      reason: 'o gravar de novo ficava aceso com o microfone da frase aberto',
+    );
+  });
+
+  test('play in listen mode while the team\'s translation sounds plays the '
+      'take, not only a silence', () async {
+    final room = await _inListenModeOf(_sentOne, _unsentTwo);
+    final take = room.state.scene.take;
+    room.sala.hearTheFraseTranslation('f2');
+    await waitFor(
+      'a tradução da frase tocar',
+      () => room.harness.playback.played.isNotEmpty,
+    );
+
+    room.sala.playTheSceneRehearsal();
+    await settle();
+
+    expect(
+      room.harness.playback.played.last,
+      take,
+      reason: 'o play só calava a tradução e o ensaio não tocava',
+    );
+    expect(
+      room.state.channel,
+      isA<PartPlaying>().having((playing) => playing.part.path, 'path', take),
+    );
+  });
 
   group('a scene rehearsed again keeps the sent one and records the next '
       'number', () {

@@ -176,26 +176,12 @@ class ARecorderPort implements RecorderPort {
 
 class AStorePort implements StorePort {
   final List<String> heard = [];
-  final List<Completer<int>> _flushes = [];
   CurrentSession? _held;
-
-  @override
-  Future<int> flushTheOutbox() {
-    heard.add('flush');
-    final flush = Completer<int>();
-    _flushes.add(flush);
-    return flush.future;
-  }
 
   final List<String> stopped = [];
 
   @override
   void stopTheSend(String row) => stopped.add(row);
-
-  void answerTheFlush() => _flushes.removeAt(0).complete(0);
-
-  void failTheFlush(Exception because) =>
-      _flushes.removeAt(0).completeError(because);
 
   @override
   Future<CurrentSession?> currentSession() async => _held;

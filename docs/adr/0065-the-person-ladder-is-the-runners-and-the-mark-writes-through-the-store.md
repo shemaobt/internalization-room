@@ -29,7 +29,7 @@ The mark wrote the finished passage to the disk from the notifier.
 - **The ladder's timer is the runner's.** It is armed by `AskForAPersonAgain` when the
   Station says a person is needed, stamped with the generation when it is armed, and drops
   its fire if the generation moved: the one runner timer that does not survive a generation
-  move. The Watch and the retry still do. At fire, the runner calls its own
+  move. The Watch still does; the retry is gone (0087, amended 28 October, ENG-1777). At fire, the runner calls its own
   `callForAPerson`, which asks `callIsWanted` as before.
 - **The delay is the runner's `retryDelay(step)`**, the seam `ArmTheRetry` already uses,
   clamped at the last step. The runner keeps the step and climbs it on every ask again.

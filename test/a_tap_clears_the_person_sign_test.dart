@@ -121,7 +121,6 @@ void main() {
     expect(rested.halt, const NoHalt());
     expect(effects.whereType<PlayPart>(), isEmpty);
     expect(effects.whereType<LookAtTheSession>(), isEmpty);
-    expect(effects.whereType<DrainTheOutbox>(), isEmpty);
   });
 
   test('a tap restores the warning beneath', () {

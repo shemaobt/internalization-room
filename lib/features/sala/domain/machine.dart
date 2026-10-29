@@ -73,10 +73,6 @@ final class NetworkFailedAt extends AnsweringEvent {
   const NetworkFailedAt(this.door, {super.generation});
 }
 
-final class RetryFired extends AnsweringEvent {
-  const RetryFired({super.generation});
-}
-
 final class TheRoomAnswered extends AnsweringEvent {
   const TheRoomAnswered({super.generation});
 }
@@ -132,9 +128,8 @@ final class StopTapped extends MachineEvent {
 
 final class OutboxChanged extends MachineEvent {
   final Map<String, PartFact> parts;
-  final Duration due;
 
-  const OutboxChanged(this.parts, {this.due = Duration.zero});
+  const OutboxChanged(this.parts);
 }
 
 final class LineArrived extends AnsweringEvent {
@@ -747,26 +742,6 @@ final class LetTheSoundRun extends Effect {
   const LetTheSoundRun();
 }
 
-final class ArmTheRetry extends Effect {
-  final Duration due;
-
-  const ArmTheRetry({required this.due});
-
-  @override
-  bool operator ==(Object other) => other is ArmTheRetry && other.due == due;
-
-  @override
-  int get hashCode => due.hashCode;
-}
-
-final class CancelTheRetry extends Effect {
-  const CancelTheRetry();
-}
-
-final class DrainTheOutbox extends Effect {
-  const DrainTheOutbox();
-}
-
 final class StopTheSend extends Effect {
   final String row;
 
@@ -1094,7 +1069,6 @@ final class Machine {
   final Set<int> onTheirWay;
   final Map<Line, Set<int>> owners;
   final Map<String, PartFact> parts;
-  final bool draining;
   final TakeInTheAir? inTheAir;
   final Map<PartOfASession, int> keeping;
   final Map<String, PartOfASession> keptThisVisit;
@@ -1136,7 +1110,6 @@ final class Machine {
     this.onTheirWay = const {},
     this.owners = const {},
     this.parts = const {},
-    this.draining = false,
     this.inTheAir,
     this.keeping = const {},
     this.keptThisVisit = const {},
@@ -1161,7 +1134,6 @@ final class Machine {
 
   Machine withTheOutboxOf(Machine before) => copyWith(
     parts: before.parts,
-    draining: before.draining,
     inTheAir: before.inTheAir,
     keeping: before.keeping,
     keptThisVisit: before.keptThisVisit,
@@ -1203,7 +1175,6 @@ final class Machine {
     Set<int>? onTheirWay,
     Map<Line, Set<int>>? owners,
     Map<String, PartFact>? parts,
-    bool? draining,
     TakeInTheAir? inTheAir,
     bool landTheTake = false,
     Map<PartOfASession, int>? keeping,
@@ -1231,7 +1202,6 @@ final class Machine {
     onTheirWay: onTheirWay ?? this.onTheirWay,
     owners: owners ?? this.owners,
     parts: parts ?? this.parts,
-    draining: draining ?? this.draining,
     inTheAir: landTheTake ? null : (inTheAir ?? this.inTheAir),
     keeping: keeping ?? this.keeping,
     keptThisVisit: keptThisVisit ?? this.keptThisVisit,
@@ -1509,9 +1479,8 @@ const _watch = ArmTheWatch();
     machine,
     [if (door == Door.step || door == Door.verdict) const LetTheStepGo()],
   ),
-  RetryFired() => _retry(machine),
   TheRoomAnswered() => (machine, const []),
-  OutboxChanged(:final parts, :final due) => _tally(machine, parts, due),
+  OutboxChanged(:final parts) => (machine.copyWith(parts: parts), const []),
   ATakeLeft(:final take) => (machine.copyWith(inTheAir: take), const []),
   AKeepBegan(:final part) => (
     machine.copyWith(
@@ -2188,23 +2157,6 @@ List<Effect> _leavingThePassage(Machine machine) => [
   for (final line in machine.queue) DropTheLine(line),
 ];
 
-(Machine, List<Effect>) _retry(Machine machine) {
-  if (!machine.somethingPending || machine.draining) {
-    return (machine, const []);
-  }
-  return (machine.copyWith(draining: true), const [DrainTheOutbox()]);
-}
-
-(Machine, List<Effect>) _tally(
-  Machine machine,
-  Map<String, PartFact> parts,
-  Duration due,
-) {
-  final told = machine.copyWith(parts: parts, draining: false);
-  if (!told.somethingPending) return (told, const [CancelTheRetry()]);
-  return (told, [ArmTheRetry(due: due)]);
-}
-
 (Halt, List<Effect>) _reduceTheHalt(
   Halt halt,
   MachineEvent event,
@@ -2241,7 +2193,6 @@ List<Effect> _leavingThePassage(Machine machine) => [
   },
   WatchFired() => (halt, const [ReadTheState(), _watch]),
   NetworkFailedAt() ||
-  RetryFired() ||
   TheRoomAnswered() ||
   OutboxChanged() ||
   ATakeLeft() ||
