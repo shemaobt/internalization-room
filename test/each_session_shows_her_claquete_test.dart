@@ -533,6 +533,66 @@ void main() {
   );
 
   testWidgets(
+    'with reduced motion the Shema mark eases to .85 and back over her 1.6 s, not at once',
+    (tester) => withClock(Clock.fixed(_noon), () async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      final (harness, container) = await _openP05(tester);
+      for (var beat = 0; beat < 50; beat++) {
+        if (container.read(salaSessionProvider).canHearAgain) break;
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(container.read(salaSessionProvider).canHearAgain, isTrue);
+      await _seconds(tester, 2);
+      expect(tester.widget<ShemaMark>(_mark).opacity, 0.72);
+
+      harness.voice.holdNextLine();
+      addTearDown(harness.voice.finishHeldLine);
+      unawaited(container.read(salaSessionProvider.notifier).hearAgain());
+      await tester.pump();
+      expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
+      await tester.pump();
+      final rising = <double>[];
+      for (final _ in [1, 2, 3, 4]) {
+        await tester.pump(const Duration(milliseconds: 400));
+        rising.add(tester.widget<ShemaMark>(_mark).opacity);
+      }
+      expect(
+        rising,
+        [
+          closeTo(0.773, 0.005),
+          closeTo(0.824, 0.005),
+          closeTo(0.845, 0.005),
+          closeTo(0.85, 0.001),
+        ],
+        reason: 'a marca pulava de .72 para .85; a dela vai em 1,6 s, com ease',
+      );
+
+      harness.voice.finishHeldLine();
+      await tester.pump();
+      expect(
+        container.read(salaSessionProvider).voice,
+        isNot(VoiceState.speaking),
+      );
+      await tester.pump();
+      final falling = <double>[];
+      for (final _ in [1, 2, 3, 4]) {
+        await tester.pump(const Duration(milliseconds: 400));
+        falling.add(tester.widget<ShemaMark>(_mark).opacity);
+      }
+      expect(falling, [
+        closeTo(0.797, 0.005),
+        closeTo(0.746, 0.005),
+        closeTo(0.725, 0.005),
+        closeTo(0.72, 0.001),
+      ], reason: 'quando a voz parava a marca caía de uma vez para .72');
+    }),
+  );
+
+  testWidgets(
     'while the voice speaks the Shema mark keeps breathing, as hers does with motion on',
     (tester) => withClock(Clock.fixed(_noon), () async {
       await _openP05WhileTheVoiceSpeaks(tester);
@@ -582,6 +642,28 @@ void main() {
       );
     });
   });
+
+  testWidgets(
+    'the claquete is spaced at her .06em, not the 0.66 left from the 11 px size',
+    (tester) async {
+      await withClock(Clock.fixed(_noon), () async {
+        await _openP05(tester);
+
+        final style = tester
+            .widget<Text>(
+              find.descendant(of: _claquete, matching: find.byType(Text)),
+            )
+            .style!;
+        expect(
+          style.letterSpacing,
+          closeTo(0.653, 0.0005),
+          reason:
+              'o espaçamento ficou em 0.66 da época de 11 px; o dela é '
+              '.06em de .68rem',
+        );
+      });
+    },
+  );
 
   testWidgets('at phone width the claquete keeps clear of the hand', (
     tester,
