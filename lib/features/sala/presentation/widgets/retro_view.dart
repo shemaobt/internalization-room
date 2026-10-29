@@ -732,7 +732,9 @@ class RetroView extends ConsumerWidget {
 
   Paused? _aParteParada(Channel channel) => switch (channel) {
     final Paused parada when parada.what is PartSound => parada,
-    Playing(:final held) || Microphone(:final held) => held,
+    Playing(:final held) ||
+    Paused(:final held) ||
+    Microphone(:final held) => held,
     _ => null,
   };
 

@@ -537,6 +537,37 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('the player stays where the take stopped when the team pauses '
+      '«ouvir a pausa» partway', (tester) async {
+    tester.view
+      ..physicalSize = const Size(820, 2400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+    await pausarAos(tester, harness, s(4.2));
+    await tocar(tester, ouvirAPausa);
+
+    await tocar(tester, 'Pausar');
+
+    expect(
+      container.read(salaSessionProvider).channel,
+      isA<Paused>().having(
+        (parada) => parada.what,
+        'what',
+        isA<StretchSound>(),
+      ),
+    );
+    expect(
+      _ondeOTocadorEsta(tester),
+      [closeTo(0.42, 1e-9)],
+      reason:
+          'pausar o «ouvir a pausa» apagava a linha do tocador do lugar onde '
+          'a gravação tinha parado',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('the player stays where the take stopped while the team tells '
       'the frase into the microphone', (tester) async {
     tester.view
