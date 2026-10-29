@@ -721,7 +721,7 @@ class RetroView extends ConsumerWidget {
           Microphone(
             held: Paused(what: final PartSound part),
           ) => part.part == onde,
-          _ => false,
+          _ => session.btParteQueTocou == onde,
         },
         unheard: session.btNaoOuvidas.contains(parte.takeId),
       ),

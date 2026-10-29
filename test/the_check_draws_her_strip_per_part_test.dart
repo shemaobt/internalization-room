@@ -735,4 +735,110 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('a part that stopped sounding keeps its row whole, '
+      'not faded with the part that comes next', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+
+    final sala = container.read(salaSessionProvider.notifier);
+    sala.state = sala.state.copyWith(
+      machine: sala.state.machine.copyWith(channel: const Silence()),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      _brilhos(tester),
+      [1.0, 0.7],
+      reason:
+          'a parte que acabava de tocar apagava junto com as outras, e nenhuma '
+          'fileira dizia onde a gravação tinha parado',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the last part keeps its row whole after the whole recording '
+      'has played', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).btClipEnded, isTrue);
+    expect(container.read(salaSessionProvider).btClipRodando, isFalse);
+    expect(
+      _brilhos(tester),
+      [1.0],
+      reason:
+          'no fim da gravação a última parte apagava, e a tela não mostrava '
+          'mais nenhuma parte como a que tocou',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a check that comes back with its ground told to the end marks '
+      'no row before anything has played', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.listeningUnheardTakeIds = const [];
+    final container = await _voltaAoConferir(
+      tester,
+      harness,
+      contado: const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 10000,
+            frase: 1,
+          ),
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 10000,
+            frase: 2,
+          ),
+        ],
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).btClipEnded, isTrue);
+    expect(harness.playback.played, isEmpty);
+    expect(
+      _brilhos(tester),
+      [0.7, 0.7],
+      reason:
+          'a volta ao conferir já contado acendia a última parte sem que nada '
+          'tivesse tocado',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a check entered again marks no row until a part plays in it, '
+      'never the part that played on the last visit', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+    final sala = container.read(salaSessionProvider.notifier);
+    expect(_brilhos(tester), [1.0, 0.7]);
+
+    sala.goEnsaio();
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.room.holdNextListening();
+    sala.startRetro();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).btClipRodando, isFalse);
+    expect(
+      _brilhos(tester),
+      [0.7, 0.7],
+      reason:
+          'a volta ao conferir acendia a parte que tinha tocado na visita '
+          'anterior, antes de qualquer parte tocar de novo',
+    );
+    harness.room.finishHeldListening();
+    closeTheRoom(container);
+  });
 }

@@ -8389,6 +8389,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       clearFindingSegment: true,
       btParteFronteira: false,
+      clearBtParteQueTocou: true,
       btFimDasPartesMs: const [],
       btParteNoArMs: 0,
       btOuvidoMs: 0,
@@ -8664,6 +8665,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // the circle dead, because holding the clip and letting it go reads the mark and
       // refuses to start anything.
       btClipEnded: false,
+      btParteQueTocou: parte,
       btOuvidoMs: _pontoNoColar(0),
       btParteNoArMs: 0,
       btOuvidoAlemDoCursor: false,
