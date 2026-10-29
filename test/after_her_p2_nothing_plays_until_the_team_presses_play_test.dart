@@ -66,6 +66,37 @@ void main() {
     expect(it.estado.canFinishBackTranslation, isTrue);
   });
 
+  test('a re-read that lands after the team pressed play leaves the replay '
+      'playing and her line standing', () async {
+    final it = await umEnsaioDeTresPartesContadoInteiro();
+    it.harness.room
+      ..verdictRefusal = CheckRefusal.partUnheard
+      ..verdictFixedLine = 'P2'
+      ..verdictUnheardTakeIds = [it.partes[2].takeId!]
+      ..listeningUnheardTakeIds = const []
+      ..holdNextListening();
+    await pedirOVeredito(it);
+
+    it.sala.ouvirGravacao();
+    await theClipOpens(it.harness);
+    it.harness.room.finishHeldListening();
+    await settle();
+
+    expect(
+      it.estado.btClipRodando,
+      isTrue,
+      reason: 'a resposta atrasada não pode parar a gravação que a equipe pôs',
+    );
+    expect(
+      it.estado.btRecusa,
+      CheckRefusal.partUnheard,
+      reason:
+          'a resposta atrasada apagava a linha no meio da escuta, e a escuta '
+          'perdia as partes que ainda vinham',
+    );
+    expect(it.estado.canFinishBackTranslation, isFalse);
+  });
+
   test('after her P2 a tap on play replays the recording from its first '
       'part, not only the part the room named', () async {
     final it = await _recusadoPelaP2((it) => [it.partes[2].takeId!]);

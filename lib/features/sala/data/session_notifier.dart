@@ -10782,24 +10782,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   );
 
   void _esperarQueFalteOuvir(String sessionId, int generation) {
-    _oQueFaltaOuvir = _OQueFaltaOuvir([
+    final armadas = _OQueFaltaOuvir([
       for (var onde = 0; onde < state.partes.length; onde++) onde,
     ], paraNaUltima: true);
+    _oQueFaltaOuvir = armadas;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       btClipEnded: false,
       awaitingTheGuide: false,
     );
-    unawaited(_lerDeNovoOQueFaltaOuvir(sessionId, generation, outraVez: true));
+    unawaited(
+      _lerDeNovoOQueFaltaOuvir(sessionId, generation, armadas, outraVez: true),
+    );
   }
 
   Future<void> _lerDeNovoOQueFaltaOuvir(
     String sessionId,
-    int generation, {
+    int generation,
+    _OQueFaltaOuvir armadas, {
     required bool outraVez,
   }) async {
     final resposta = await _relatarASala(sessionId, const []);
-    if (_abandoned(generation)) return;
+    if (_abandoned(generation) || !identical(_oQueFaltaOuvir, armadas)) return;
     if (resposta case Answered(value: ListenedWhole(unheardTakeIds: []))) {
       _oQueFaltaOuvir = null;
       state = state.copyWith(clearBtRecusa: true, btClipEnded: true);
@@ -10810,7 +10814,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       'unheardReadAgain',
       ref.read(unheardReadAgainDelayProvider),
       () => unawaited(
-        _lerDeNovoOQueFaltaOuvir(sessionId, generation, outraVez: false),
+        _lerDeNovoOQueFaltaOuvir(
+          sessionId,
+          generation,
+          armadas,
+          outraVez: false,
+        ),
       ),
     );
   }
