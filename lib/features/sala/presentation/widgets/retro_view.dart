@@ -795,7 +795,8 @@ class RetroView extends ConsumerWidget {
 
   String? _aEscuta(SalaSessionState session) {
     if (session.btSoOuvir) return null;
-    if (session.btTrechoTraduzidoDeNovo != null) {
+    if (session.btTrechoTraduzidoDeNovo != null ||
+        session.btRegravacao != null) {
       return session.btTrechoTocando ? 'listening' : null;
     }
     if (session.btClipEnded && !session.btParteFronteira) {

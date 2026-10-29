@@ -9,6 +9,8 @@ import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show contarAteOFimDaParte, passaDoCursor, pausar, tocar;
+import 'the_team_re_records_one_whole_sentence_test.dart'
+    show quatroFrasesEmWav;
 import 'the_pause_snaps_to_silence_test.dart'
     show
         entrarComAFala,
@@ -185,6 +187,36 @@ void main() {
       reason: 'a conta tocando a gravação no fim se dizia o fim da gravação',
     );
     harness.playback.stopWalking();
+    closeTheRoom(container);
+  });
+
+  testWidgets('while a sentence waits to be recorded again nothing beside '
+      'play asks for the circle, which is that sentence\'s microphone', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await tocar(tester, 'regravar a frase 3');
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(naTela('gravem a frase inteira'), findsOneWidget);
+
+    for (final linha in [
+      'fim da gravação',
+      'pausado — toque no círculo',
+      'a pausa ficou',
+      'ouvindo a gravação de vocês…',
+    ]) {
+      expect(
+        find.descendant(
+          of: find.byType(RetroView),
+          matching: find.textContaining(linha),
+        ),
+        findsNothing,
+        reason: 'a linha do play falava por cima da regravação: $linha',
+      );
+    }
     closeTheRoom(container);
   });
 }
