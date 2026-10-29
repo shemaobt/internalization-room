@@ -23,6 +23,8 @@ import 'resto_da_historia_test.dart' show aHistoriaSemOFim;
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
     show cabeca, entrarNaTraducao, passaDoCursor, tocar, tocarNoCirculo;
+import 'the_pause_snaps_to_silence_test.dart'
+    show entrarComAFala, ouvirAPausa, pausarAos, s, umaLacunaAos3;
 
 const _duasFrasesNaParteUm = [
   SegmentView(
@@ -502,6 +504,29 @@ void main() {
       reason:
           'a gravação pausada apagava a linha do tocador, e a equipe não via '
           'onde tinha parado',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the player stays where the take stopped while «ouvir a pausa» '
+      'plays over it, not on the clock of the moment played', (tester) async {
+    tester.view
+      ..physicalSize = const Size(820, 2400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+    await pausarAos(tester, harness, s(4.2));
+
+    await tocar(tester, ouvirAPausa);
+
+    expect(container.read(salaSessionProvider).channel, isA<StretchPlaying>());
+    expect(
+      _ondeOTocadorEsta(tester),
+      [closeTo(0.42, 1e-9)],
+      reason:
+          'ouvir a pausa apagava a linha do tocador do lugar onde a gravação '
+          'tinha parado',
     );
     closeTheRoom(container);
   });

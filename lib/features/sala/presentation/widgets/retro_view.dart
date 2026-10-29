@@ -721,7 +721,7 @@ class RetroView extends ConsumerWidget {
           PartPlaying(:final part) => part.part == onde,
           _ => false,
         },
-        paused: switch (session.channel) {
+        paused: switch (_aParteParada(session.channel)) {
           final Paused parada && Paused(what: PartSound(:final part))
               when part == onde =>
             parada,
@@ -729,6 +729,12 @@ class RetroView extends ConsumerWidget {
         },
       ),
   ];
+
+  Paused? _aParteParada(Channel channel) => switch (channel) {
+    final Paused parada when parada.what is PartSound => parada,
+    Playing(:final held) => held,
+    _ => null,
+  };
 
   Duration? _aPausaQueAnda(SalaSessionState session, Trecho trecho) =>
       switch (session.btTrechoTraduzidoDeNovo?.segmentId) {

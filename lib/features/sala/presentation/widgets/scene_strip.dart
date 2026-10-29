@@ -138,7 +138,9 @@ class SceneStrip extends ConsumerWidget {
               stale: stale,
               playhead: playing
                   ? take?.inTheFile(playback.position) ?? playback.position
-                  : stoppedAt ?? paused?.what.inTheFile(playback.position),
+                  : stoppedAt ??
+                        paused?.head ??
+                        paused?.what.inTheFile(playback.position),
               pausa: pausa,
             ),
             colors,
