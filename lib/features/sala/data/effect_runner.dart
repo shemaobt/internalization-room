@@ -416,6 +416,7 @@ class EffectRunner {
     final stamp = _partStamp;
     _ceiling = Timer(ceiling, () {
       _ceiling = null;
+      unawaited(sound.pause());
       _ended(part, stamp);
     });
   }
