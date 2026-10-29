@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-2034 (2026-10-29: the entry left is tinted in either language)
 date: 2026-10-16
 amends: 0014, 0061
 ---
@@ -38,8 +38,10 @@ therefore decides: her menu ships. The teams learned the ruler, so this changes 
 - **The Reference comes from the room,** as the Meaning Map's heading writes it. The tablet
   renames only the book, from her own table, in the Room language (ADR 0077). A book she
   never named keeps the room's name.
-- **The entry left is tinted** when its Session language is the Room language, the Panorama
-  included. Nothing else is tinted, so nothing on the menu marks a passage as started.
+- **The entry left is tinted** whichever language the list is shown in, the Panorama
+  included (amended 29 October, ENG-2034; it used to be tinted only when its Session
+  language was the Room language). Nothing else is tinted, so nothing on the menu marks a
+  passage as started.
 - **One tap opens an entry.** There is no confirmation step and no «opening» state on the
   pill: the tap leaves the Choice at once.
 - **While no entry can be opened, the circle stands where the books were** and answers as it
