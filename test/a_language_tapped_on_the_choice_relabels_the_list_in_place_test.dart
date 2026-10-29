@@ -160,8 +160,8 @@ void main() {
     },
   );
   testWidgets(
-    'the entry left loses its tint in the other language and gets it back, with '
-    'the list on screen all along',
+    'the entry left keeps its tint in the other language and back, with the '
+    'list on screen all along',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)..room.passages = _ruth;
       final container = await pumpSala(tester, harness);
@@ -180,8 +180,9 @@ void main() {
       expect(find.text('Ruth 1:1–5'), findsOneWidget);
       expect(
         _tinted(tester, 'Ruth 1:1–5'),
-        isFalse,
-        reason: 'uma sessão portuguesa não é a entrada deixada na roda inglesa',
+        isTrue,
+        reason:
+            'a passagem deixada em português perdia a cor ao trocar para EN',
       );
 
       harness.room.holdNextBooks();
