@@ -6222,7 +6222,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (translatingAgain != null) {
       _letItsNewTranslationGo(rehearsal.rehearsalId, translatingAgain);
       state = state.copyWith(scene: shown.copyWith(clearPausa: true));
-      _translateOnFrom(state.sceneStoppedAt ?? rehearsal.frontier);
+      if (playing) {
+        _silenceTheRoom();
+      } else {
+        _translateOnFrom(state.sceneStoppedAt ?? rehearsal.frontier);
+      }
     } else if (!shown.listened) {
       state = state.copyWith(scene: shown.copyWith(listened: true));
       _translateOnFrom(rehearsal.frontier);

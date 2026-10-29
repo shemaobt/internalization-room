@@ -492,19 +492,24 @@ void main() {
     );
 
     testWidgets(
-      'play while a frase is armed again drops it and goes on from where the translation stopped',
+      'play while an earlier frase\'s replay sounds drops it and only pauses the take, never playing it on',
       (tester) async {
         final screen = await _aBarTapped(tester, 2);
         final plays = screen.harness.playback.playedFrom.length;
+        final ranges = screen.harness.playback.ranges.length;
 
         await screen.tap(_playPause);
 
         expect(byLabel(_translatingAgainLine(2)), findsNothing);
-        expect(screen.harness.playback.playedFrom, hasLength(plays + 1));
         expect(
-          screen.harness.playback.playedFrom.last,
-          const Duration(milliseconds: 17000),
+          screen.harness.playback.sounding,
+          isFalse,
+          reason: 'o play largava a frase e tocava o ensaio em vez de pausar',
         );
+        expect(screen.harness.playback.playedFrom, hasLength(plays));
+        expect(screen.harness.playback.ranges, hasLength(ranges));
+        expect(screen.state.scene.pausa, isNull);
+        await screen.tap(_tell);
         screen.harness.playback.at = _s(18.5);
         await screen.tap(_tell);
         await screen.tellsTheFrase();
