@@ -62,9 +62,9 @@ class _PersonSignState extends ConsumerState<PersonSign>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _Figure(colors.shemaMark),
+                      _Figure(colors.verde),
                       const SizedBox(width: 14),
-                      _Figure(colors.shemaMark),
+                      _Figure(colors.verde),
                     ],
                   ),
                 ],

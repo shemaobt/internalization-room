@@ -383,6 +383,51 @@ void main() {
     closeTheRoom(sala.container);
   });
 
+  for (final (look, brightness, figures) in [
+    ('light', Brightness.light, const Color(0xFF3F3E20)),
+    ('dark', Brightness.dark, const Color(0xFFECEADC)),
+  ]) {
+    testWidgets(
+      'in the $look look the wash is her azul at .16 and the figures are her $look verde',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = brightness;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        final sala = await _underTheSign(tester);
+
+        expect(
+          tester
+              .widget<ColoredBox>(
+                find.descendant(
+                  of: find.byType(PersonSign),
+                  matching: find.byType(ColoredBox),
+                ),
+              )
+              .color,
+          const Color(0x2989AAA3),
+          reason: 'no escuro o véu era .20, e o dela é .16 nos dois',
+        );
+        expect(
+          tester
+              .widgetList<Container>(
+                find.descendant(
+                  of: find.byType(PersonSign),
+                  matching: find.byType(Container),
+                ),
+              )
+              .map(
+                (box) => ((box.decoration! as BoxDecoration).border! as Border)
+                    .top
+                    .color,
+              )
+              .toSet(),
+          {figures},
+          reason: 'no escuro as figuras vestiam o branco da marca',
+        );
+        closeTheRoom(sala.container);
+      },
+    );
+  }
+
   testWidgets('the sign rises over her 1.6 s with her ease', (tester) async {
     final sala = await _atRestInTheConversation(tester);
     double risen() => tester
