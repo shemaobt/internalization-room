@@ -276,7 +276,8 @@ void main() {
   );
 
   test(
-    'a halt on the way into a telling-back with nothing told withholds the sound',
+    'a halt on the way into a telling-back with nothing told still lets the part '
+    'play, as hers',
     () async {
       final harness = SalaHarness();
       harness.playback.holdNextMeasurement();
@@ -289,27 +290,18 @@ void main() {
       container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       harness.playback.finishHeldMeasurement();
       await waitFor(
-        'a sala parar e a entrada terminar de medir as partes',
-        () =>
-            container.read(salaSessionProvider).needsPerson &&
-            container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
+        'a parte entrar no ar',
+        () => harness.playback.played.isNotEmpty,
       );
 
       final state = container.read(salaSessionProvider);
+      expect(state.stage, SalaStage.retro);
+      expect(state.needsPerson, isFalse);
       expect(
-        state.stage,
-        SalaStage.retro,
-        reason:
-            'a parada não muda a estação: quem vier atender encontra a '
-            'equipe onde ela parou',
+        harness.playback.played,
+        isNotEmpty,
+        reason: 'a parada na entrada retirava o som, e o Drafting dela toca',
       );
-      expect(state.needsPerson, isTrue);
-      expect(
-        harness.playback.sounding,
-        isFalse,
-        reason: 'uma sala parada retira o som e nada mais (ADR 0029)',
-      );
-      expect(harness.playback.played, isEmpty);
     },
   );
 

@@ -13,7 +13,7 @@ import 'session_notifier_test.dart' show inConversa;
 import 'scenario_helpers.dart' show settle;
 
 /// A tablet reopening straight into a kept part, with one take already on disk.
-/// Copied from `a_halt_in_the_middle_of_a_capture_closes_the_microphone_test.dart`:
+/// Copied from `a_halt_in_the_middle_of_a_capture_leaves_the_microphone_open_test.dart`:
 /// fixtures never travel between modules, only the shape does. Landing in
 /// [SalaStage.retro] picks the telling-back up; any other stage stays in the
 /// rehearsal the resume itself lands in.
@@ -47,8 +47,8 @@ Future<ProviderContainer> _reopensInto(
 }
 
 /// A room reopened into the retro, with a warning already standing so the watch beats,
-/// and a capture open over the resumed part: the ground for a denied or failed answer
-/// landing over a halt standing, or over nothing standing at all.
+/// and a capture open over the resumed part: the ground for a denied answer landing
+/// over nothing standing at all.
 Future<(ProviderContainer, SalaSessionNotifier, SalaSessionState Function())>
 _capturingWithAWarningArmed(SalaHarness harness) async {
   harness.room.serverStatus = 'needs_person';
@@ -100,63 +100,6 @@ _ensaioWithAWarningArmed(SalaHarness harness) async {
 }
 
 void main() {
-  test('a blocking halt still stands after a denied answer lands late '
-      '(criterion 1)', () async {
-    final harness = SalaHarness(settleDelay: const Duration(seconds: 3));
-    harness.recorder.permitted = false;
-    harness.recorder.holdNextStart();
-    final (_, notifier, read) = await _capturingWithAWarningArmed(harness);
-    await _haltLandsBlocking(notifier, read);
-    final soundsBefore = harness.sounds.length;
-
-    harness.recorder.finishStart();
-    await settle();
-
-    expect(
-      read().needsPerson,
-      isTrue,
-      reason:
-          'uma parada de pé não pode ser apagada por uma resposta do '
-          'gravador que chega depois dela',
-    );
-    expect(read().btPhase, BtPhase.playing);
-    expect(read().btClipRodando, isFalse);
-    expect(
-      harness.sounds.sublist(soundsBefore),
-      isNot(contains('recorder:discard')),
-      reason:
-          'a entrada da parada já descartou o gravador; a resposta '
-          'atrasada não tem mais nada para fechar',
-    );
-  });
-
-  test('a blocking halt still stands after the first failed start '
-      '(criterion 2)', () async {
-    final harness = SalaHarness(settleDelay: const Duration(seconds: 3));
-    harness.recorder.permitted = true;
-    harness.recorder.startThrows = true;
-    harness.recorder.holdNextStart();
-    final (_, notifier, read) = await _capturingWithAWarningArmed(harness);
-    await _haltLandsBlocking(notifier, read);
-    final personsAskedBefore = harness.room.personsAsked;
-
-    harness.recorder.finishStart();
-    await settle();
-
-    expect(
-      read().needsPerson,
-      isTrue,
-      reason:
-          'a primeira falha do gravador não pode apagar uma parada de '
-          'pé — ela é só a primeira de duas falhas seguidas',
-    );
-    expect(
-      harness.room.personsAsked,
-      personsAskedBefore,
-      reason: 'uma única falha ao abrir o microfone não chama ninguém',
-    );
-  });
-
   test(
     'the rehearsal is still restored after a denied answer lands late, '
     'off a door the halt entry never touches (criterion 4, rehearsal)',

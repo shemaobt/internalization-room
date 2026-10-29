@@ -1092,9 +1092,9 @@ final class Machine {
 
   final bool wordlessTelling;
 
-  /// A halt met on the scene rehearsal or the external check: the person sign
-  /// shows once the team is back on the Canvas.
-  final bool aHaltWaitsForTheCanvas;
+  /// A halt met on the scene rehearsal, the external check or the
+  /// back-translation: the person sign shows once the team is back on the Canvas.
+  final RoomRaisedAHalt? aHaltWaitsForTheCanvas;
 
   final bool theCanvasEnded;
 
@@ -1121,7 +1121,7 @@ final class Machine {
     this.lastMic,
     this.station = const Menu(),
     this.wordlessTelling = false,
-    this.aHaltWaitsForTheCanvas = false,
+    this.aHaltWaitsForTheCanvas,
     this.theCanvasEnded = false,
     this.session,
     this.panorama,
@@ -1189,7 +1189,8 @@ final class Machine {
     MicOutcome? lastMic,
     Station? station,
     bool? wordlessTelling,
-    bool? aHaltWaitsForTheCanvas,
+    RoomRaisedAHalt? aHaltWaitsForTheCanvas,
+    bool letTheWaitingHaltGo = false,
     bool? theCanvasEnded,
     String? session,
     bool clearSession = false,
@@ -1215,8 +1216,9 @@ final class Machine {
     lastMic: lastMic ?? this.lastMic,
     station: station ?? this.station,
     wordlessTelling: wordlessTelling ?? this.wordlessTelling,
-    aHaltWaitsForTheCanvas:
-        aHaltWaitsForTheCanvas ?? this.aHaltWaitsForTheCanvas,
+    aHaltWaitsForTheCanvas: letTheWaitingHaltGo
+        ? null
+        : (aHaltWaitsForTheCanvas ?? this.aHaltWaitsForTheCanvas),
     theCanvasEnded: theCanvasEnded ?? this.theCanvasEnded,
     session: clearSession ? null : (session ?? this.session),
     panorama: clearPanorama ? null : (panorama ?? this.panorama),
@@ -1255,7 +1257,11 @@ const _watch = ArmTheWatch();
     machine,
     line,
     Said.said,
-    heard: () => _ended(machine),
+    heard: () => _ended(
+      machine.station is Retro && line.url != null
+          ? machine.copyWith(letTheWaitingHaltGo: true)
+          : machine,
+    ),
   ),
   PlayerFailed(:final line?) => _answer(
     machine,
@@ -1337,7 +1343,7 @@ const _watch = ArmTheWatch();
     const [],
   ),
   TurnAnswered(:final turn) => (
-    _land(machine, turn).copyWith(aHaltWaitsForTheCanvas: false),
+    _land(machine, turn).copyWith(letTheWaitingHaltGo: true),
     const [],
   ),
   TurnFailed(:final turn) => (_land(machine, turn), const []),
@@ -1349,7 +1355,7 @@ const _watch = ArmTheWatch();
     :final turn,
   ) when machine.look?.turn != turn => (machine, const []),
   LookFound(:final turn, :final reply) => (
-    machine.copyWith(forgetTheLook: true, aHaltWaitsForTheCanvas: false),
+    machine.copyWith(forgetTheLook: true, letTheWaitingHaltGo: true),
     [
       if (machine.look case TheLook(
         sounding: TheOpening(),
@@ -1364,11 +1370,11 @@ const _watch = ArmTheWatch();
   TheHandFailed() => (machine, const []),
   TheScenesMissed() => (machine, const []),
   TheSceneWentAlready() when machine.station is SceneRehearsal => (
-    machine.copyWith(aHaltWaitsForTheCanvas: false),
+    machine.copyWith(letTheWaitingHaltGo: true),
     const [TellItWentAlready(), ReadTheSceneRehearsals()],
   ),
   TheSceneSendRefused() when machine.station is SceneRehearsal => (
-    machine.copyWith(aHaltWaitsForTheCanvas: false),
+    machine.copyWith(letTheWaitingHaltGo: true),
     const [TellTheSendFailed(), ReadTheSceneRehearsals()],
   ),
   TheSceneWentAlready() || TheSceneSendRefused() => (machine, const []),
@@ -1454,7 +1460,7 @@ const _watch = ArmTheWatch();
   TheStepFailed() => (machine, const [LetTheStepGo()]),
   TheResumeFailed() => _theResumeFailed(machine),
   TheSceneTurnFoundNothing() when machine.station is SceneRehearsal => (
-    machine.copyWith(aHaltWaitsForTheCanvas: true),
+    machine.copyWith(aHaltWaitsForTheCanvas: const RoomRaisedAHalt()),
     const [LetTheStepGo(), TellTheSendFailed(), ReadTheSceneRehearsals()],
   ),
   TheSceneTurnFoundNothing() => reduce(machine, const RoomRaisedAHalt()),
@@ -1515,10 +1521,20 @@ const _watch = ArmTheWatch();
       (final resumed, final looks) => (resumed, [...effects, ...looks]),
     },
   },
-  RoomRaisedAHalt()
+  RoomRaisedAHalt(:final callsForAPerson)
       when machine.station is SceneRehearsal ||
-          machine.station is ChecagemExterna =>
-    (machine.copyWith(aHaltWaitsForTheCanvas: true), const <Effect>[]),
+          machine.station is ChecagemExterna ||
+          machine.station is Retro =>
+    (
+      machine.copyWith(
+        aHaltWaitsForTheCanvas: RoomRaisedAHalt(
+          callsForAPerson:
+              callsForAPerson ||
+              (machine.aHaltWaitsForTheCanvas?.callsForAPerson ?? false),
+        ),
+      ),
+      const <Effect>[],
+    ),
   RoomRaisedAHalt() ||
   TheAnswerWarned() ||
   TeamTapped() ||
@@ -1628,13 +1644,11 @@ const _watch = ArmTheWatch();
 (Machine, List<Effect>) _reachTheStation(Machine machine, StationEvent event) {
   final next = machine.station.answer(event);
   if (next == machine.station) return (machine, const []);
-  final arrived = moveTheGeneration(machine).copyWith(
-    station: next,
-    wordlessTelling: false,
-    aHaltWaitsForTheCanvas: false,
-  );
-  if (machine.aHaltWaitsForTheCanvas && next is Canvas) {
-    return _theHalt(arrived, const RoomRaisedAHalt());
+  final arrived = moveTheGeneration(
+    machine,
+  ).copyWith(station: next, wordlessTelling: false, letTheWaitingHaltGo: true);
+  if (machine.aHaltWaitsForTheCanvas case final waiting? when next is Canvas) {
+    return _theHalt(arrived, waiting);
   }
   return (arrived, const []);
 }
@@ -2148,7 +2162,7 @@ Machine _leftThePassage(Machine machine, Halt halt) => machine.copyWith(
   channel: const Silence(),
   queue: const [],
   owners: const {},
-  aHaltWaitsForTheCanvas: false,
+  letTheWaitingHaltGo: true,
 );
 
 List<Effect> _leavingThePassage(Machine machine) => [

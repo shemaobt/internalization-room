@@ -1,5 +1,7 @@
 # A halt on the way in withholds the sound and nothing else
 
+Amended by 0160 (a halt raised on the Back-translation waits for the Conversation).
+
 ## Context
 
 ADR 0027 made entering the **Back-translation** measure the whole rehearsal before a part
