@@ -1,6 +1,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
@@ -9,6 +10,7 @@ import 'a_resumed_back_translation_circle_opens_the_microphone_test.dart'
 import 'fakes.dart';
 import 'the_check_circle_says_hers_when_held_and_at_the_end_test.dart'
     show umaFraseConferida;
+import 'the_check_frase_rows_are_drawn_as_hers_test.dart' show voltaATraducao;
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show contarAteOFimDaParte, passaDoCursor, pausar, tocar;
@@ -272,6 +274,88 @@ void main() {
             'o conferido mandava tocar num círculo que não responde: $linha',
       );
     }
+    closeTheRoom(container);
+  });
+
+  testWidgets('the part the room numbers 3 writes «parte 3» beside play, not '
+      'its place in the row of parts', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.playback
+      ..length = s(10)
+      ..measured = s(10);
+    final container = await voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(segments: []),
+      partes: [1, 3],
+    );
+    final partes = container.read(salaSessionProvider).partes;
+    await waitFor(
+      'a primeira parte no ar',
+      () => harness.playback.played.lastOrNull == partes[0].path,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    harness.playback
+      ..at = s(10)
+      ..finishPlayback();
+    await waitFor(
+      'a segunda parte no ar',
+      () =>
+          harness.playback.played.last == partes[1].path &&
+          harness.playback.sounding,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+
+    expect(
+      naTela('ouvindo a gravação de vocês… — parte 3 · 0:02 / 0:10'),
+      findsOneWidget,
+      reason:
+          'a parte que a sala numera 3 se dizia «parte 2», o lugar dela na '
+          'fileira',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the first listen writes «parte 3» for the part the room '
+      'numbers 3 too, not its place in the row', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.playback
+      ..length = s(10)
+      ..measured = s(10);
+    harness.room.listeningUnheardTakeIds = ['gravacao-1', 'gravacao-3'];
+    final container = await voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(segments: []),
+      partes: [1, 3],
+    );
+    final partes = container.read(salaSessionProvider).partes;
+    await waitFor(
+      'a primeira parte no ar',
+      () => harness.playback.played.lastOrNull == partes[0].path,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    harness.playback
+      ..at = s(10)
+      ..finishPlayback();
+    await waitFor(
+      'a segunda parte no ar',
+      () =>
+          harness.playback.played.last == partes[1].path &&
+          harness.playback.sounding,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    harness.playback.at = s(2.0);
+    await tester.pump(passaDoCursor);
+
+    expect(container.read(salaSessionProvider).btSoOuvir, isTrue);
+    expect(
+      naTela('ouvindo a gravação de vocês… — parte 3 · 0:02 / 0:10'),
+      findsOneWidget,
+      reason: 'a primeira escuta dizia «parte 2» na parte que a sala numera 3',
+    );
     closeTheRoom(container);
   });
 

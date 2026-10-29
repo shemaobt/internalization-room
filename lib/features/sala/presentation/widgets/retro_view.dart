@@ -948,7 +948,7 @@ class _ALinhaDaEscuta extends ConsumerWidget {
                   KeptScope.whole =>
             sceneClockOf(playback.position, playback.playingLength),
           final parte => firstListenPositionFor(
-            parte + 1,
+            KeptScope.numberOf(session.partes[parte].scopeId) ?? parte + 1,
             playback.position,
             playback.playingLength,
             language,

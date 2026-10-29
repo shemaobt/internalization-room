@@ -22,7 +22,7 @@ import 'the_team_re_records_one_whole_sentence_test.dart'
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
 
-Future<ProviderContainer> _voltaATraducao(
+Future<ProviderContainer> voltaATraducao(
   WidgetTester tester,
   SalaHarness harness,
   BackTranslationProgress contado, {
@@ -156,7 +156,7 @@ void main() {
   testWidgets('a frase the room serves with no span fills its whole bar, '
       'not the sliver of a frase too short to see', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _voltaATraducao(
+    final container = await voltaATraducao(
       tester,
       harness,
       const BackTranslationProgress(
@@ -192,7 +192,7 @@ void main() {
   testWidgets('a frase of two seconds beside one of nine draws 22% of the '
       'bar, a whole percent as hers', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _voltaATraducao(
+    final container = await voltaATraducao(
       tester,
       harness,
       const BackTranslationProgress(
@@ -226,7 +226,7 @@ void main() {
   testWidgets('a frase on the part the room numbers 3 reads «parte 3», not '
       'its place in the list of parts', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _voltaATraducao(
+    final container = await voltaATraducao(
       tester,
       harness,
       const BackTranslationProgress(
@@ -271,7 +271,7 @@ void main() {
         ordinal: 3,
       ),
     );
-    final container = await _voltaATraducao(
+    final container = await voltaATraducao(
       tester,
       harness,
       const BackTranslationProgress(
@@ -439,7 +439,7 @@ void main() {
   testWidgets('a frase that awaits its translation stays terracotta even when '
       'the room still names it unclear', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _voltaATraducao(
+    final container = await voltaATraducao(
       tester,
       harness,
       const BackTranslationProgress(
@@ -496,7 +496,7 @@ void main() {
       tester.platformDispatcher.platformBrightnessTestValue = look;
       addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
       final harness = SalaHarness(filaEmMemoria: true);
-      final container = await _voltaATraducao(
+      final container = await voltaATraducao(
         tester,
         harness,
         const BackTranslationProgress(
