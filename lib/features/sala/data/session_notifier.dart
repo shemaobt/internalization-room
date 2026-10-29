@@ -8240,7 +8240,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (_abandoned(generation) || _endedSince(life)) return;
     _sairDaEspera();
-    _ouvirAsPartes(partes, paraNaUltima: true);
+    _ouvirAsPartes(partes);
   }
 
   Future<void> _dizer(String? linha) async {
@@ -8304,13 +8304,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ];
     _aEscutaRecomecaEm = 0;
     if (ouvida == null || nomes == null) {
-      _oQueFaltaOuvir = _OQueFaltaOuvir(deNovo, paraNaUltima: true);
+      _oQueFaltaOuvir = _OQueFaltaOuvir(deNovo);
       state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
       return;
     }
     final faltam = _asPartesNomeadas(nomes);
     if (nomes.isNotEmpty || faltam.isNotEmpty) {
-      _oQueFaltaOuvir = _OQueFaltaOuvir(deNovo, paraNaUltima: true);
+      _oQueFaltaOuvir = _OQueFaltaOuvir(deNovo);
       state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
       return;
     }
@@ -8373,16 +8373,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _deixarDeSoOuvir() =>
       state = state.copyWith(btSoOuvir: false, clearBtRecusa: true);
 
-  void _ouvirAsPartes(List<int> partes, {bool paraNaUltima = false}) {
-    _armarAsPartes(partes, paraNaUltima: paraNaUltima);
+  void _ouvirAsPartes(List<int> partes) {
+    _armarAsPartes(partes);
     _tocarParteDaRetro(partes.first, doComeco: true);
   }
 
-  void _armarAsPartes(List<int> partes, {required bool paraNaUltima}) {
-    _oQueFaltaOuvir = _OQueFaltaOuvir(
-      partes.skip(1).toList(),
-      paraNaUltima: paraNaUltima,
-    );
+  void _armarAsPartes(List<int> partes) {
+    _oQueFaltaOuvir = _OQueFaltaOuvir(partes.skip(1).toList());
   }
 
   void _atravessar({bool doComeco = false}) {
@@ -8391,7 +8388,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _tocarParteDaRetro(_parteTocando + 1, doComeco: doComeco);
       return;
     }
-    _ouvirAsPartes(falta.aFrente, paraNaUltima: falta.paraNaUltima);
+    _ouvirAsPartes(falta.aFrente);
   }
 
   Future<bool> _medirAsPartesDaRetro(int generation) async {
@@ -8735,8 +8732,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (ouvidas) _oQueFaltaOuvir = null;
     state = state.copyWith(
       btClipEnded: ultima || ouvidas,
-      btParteFronteira:
-          faltaOutra || (!ultima && !(ouvidas && falta.paraNaUltima)),
+      btParteFronteira: faltaOutra || (!ultima && !ouvidas),
       clearBtRecusa: ouvidas && !state.btSoOuvir,
       btFimDasPartesMs: _fimDaParteMs,
       btParteNoArMs: 0,
@@ -8828,7 +8824,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_oQueFaltaOuvir case _OQueFaltaOuvir(
         :final aFrente,
       ) when aFrente.isNotEmpty) {
-        _ouvirAsPartes(aFrente, paraNaUltima: true);
+        _ouvirAsPartes(aFrente);
       }
       return;
     }
@@ -8836,7 +8832,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         when aFrente.isNotEmpty &&
             state.btRecusa == CheckRefusal.partUnheard &&
             !state.btClipPausada) {
-      _ouvirAsPartes(aFrente, paraNaUltima: true);
+      _ouvirAsPartes(aFrente);
       return;
     }
     if (state.btClipEnded) return;
@@ -11014,7 +11010,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _esperarQueFalteOuvir(String sessionId, int generation) {
     final armadas = _OQueFaltaOuvir([
       for (var onde = 0; onde < state.partes.length; onde++) onde,
-    ], paraNaUltima: true);
+    ]);
     _oQueFaltaOuvir = armadas;
     state = state.copyWith(
       btPhase: BtPhase.playing,
@@ -11924,9 +11920,8 @@ final salaSessionProvider =
 
 final class _OQueFaltaOuvir {
   final List<int> aFrente;
-  final bool paraNaUltima;
 
-  const _OQueFaltaOuvir(this.aFrente, {required this.paraNaUltima});
+  const _OQueFaltaOuvir(this.aFrente);
 }
 
 typedef _JoinRowWritten = ({PendingTake row, String path, int pass});
