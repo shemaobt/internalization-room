@@ -1698,12 +1698,12 @@ class SalaSessionState {
   bool get canApprove => aBackTranslationGestureActs && btRegravacao == null;
 
   bool get canGoBackToRecordAPart =>
-      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
       btRegravacao == null &&
       aBackTranslationGestureActs &&
       switch (channel) {
         GuideSpeaking(line: Line(fixedLine: null)) => false,
-        _ => true,
+        GuideSpeaking() => true,
+        _ => btPhase == BtPhase.playing || btPhase == BtPhase.conferida,
       };
 
   /// Whether the part the stretch [trecho] sits on is on the tablet.

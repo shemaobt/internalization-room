@@ -294,4 +294,35 @@ void main() {
           'dela larga a frase aberta ao sair',
     );
   });
+
+  testWidgets('«voltar e regravar uma parte» stays live while the room says '
+      'how to tell, after the telling starts over', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+    await contarAteOFimDaParte(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.recomecarATraducao();
+    await tester.pump(const Duration(milliseconds: 700));
+    harness.voice.holdNextLine();
+    notifier.recomecarATraducao();
+    await waitFor(
+      'a sala falar como contar',
+      () => container.read(salaSessionProvider).channel is GuideSpeaking,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(harness.room.restartsAsked, isNotEmpty);
+    expect(
+      _aceso(tester),
+      isTrue,
+      reason:
+          'a fala fixa depois do recomeço apagava a volta, e no dela toda '
+          'fala fixa deixa a volta acesa',
+    );
+
+    harness.voice.finishHeldLine();
+    await tester.pump(const Duration(milliseconds: 100));
+    closeTheRoom(container);
+  });
 }
