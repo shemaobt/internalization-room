@@ -79,6 +79,25 @@ void main() {
     );
   });
 
+  test('a verdict whose sound fails to load twice is still offered by «ouvir a '
+      'resposta de novo», as hers', () async {
+    final harness = SalaHarness()..voice.refuses.add(_verdictUrl);
+    final container = await _inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await _toTheVerdict(harness, notifier);
+
+    expect(read().needsPerson, isFalse);
+    expect(
+      read().canHearTheVerdictAgain,
+      isTrue,
+      reason:
+          'sem o sinal, o veredito que não soou sumia; o dela guarda a '
+          'resposta antes de tocar e oferece ouvir de novo',
+    );
+  });
+
   test('a verdict that speaks calls nobody', () async {
     final harness = SalaHarness();
     final container = await _inConversa(harness);
