@@ -2252,10 +2252,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _openTheEntry(Passagem entry) {
     if (!state.entriesOpen || !state.naRoda!.contains(entry)) return;
-    if (entry.isPanorama && state.isTheEntryLeft(entry, language: _lingua)) {
-      _returnToTheLeftEntry();
-      return;
-    }
     _silenceTheRoom();
     if (entry.isPanorama) {
       _leaveTheStepFor(Panorama(entry.pericope));

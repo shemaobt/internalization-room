@@ -137,4 +137,56 @@ void main() {
     expect(harness.room.sessionsSpokenTo.last, 'sessao-nova');
     expect(harness.voice.played.skip(playedBefore), [turnoUrl]);
   });
+
+  test('the pill of the Panorama just left asks the room too, and after a '
+      'reset plays the new opening', () async {
+    final (:harness, :notifier, :read) = _aRoomThatResumes();
+    await _thePanoramaSaid(notifier, read);
+    notifier.leaveThePassage();
+    harness.room.latestSessions.remove(_thePanorama);
+    harness.room.nextSessionId = 'sessao-zerada';
+    final playedBefore = harness.voice.played.length;
+
+    await enterThePanorama(notifier, read);
+    await settle();
+    await waitFor(
+      'the Panorama to rest',
+      () => !read().awaitingTheGuide && read().voice == VoiceState.invite,
+    );
+    await settle();
+
+    expect(
+      read().panoramaSessionId,
+      'sessao-zerada',
+      reason:
+          'o toque no Panorama deixado voltava em silêncio à sessão velha, '
+          'sem perguntar nada à sala',
+    );
+    expect(harness.voice.played.skip(playedBefore), [turnoUrl]);
+  });
+
+  test('the pill of the Panorama just left, still the room\'s opened session, '
+      'rests with «ouvir de novo» armed and says nothing', () async {
+    final (:harness, :notifier, :read) = _aRoomThatResumes();
+    await _thePanoramaSaid(notifier, read);
+    final panorama = read().panoramaSessionId;
+    notifier.leaveThePassage();
+    final playedBefore = harness.voice.played.length;
+
+    await enterThePanorama(notifier, read);
+    await settle();
+    await waitFor(
+      'the Panorama to rest',
+      () => !read().awaitingTheGuide && read().voice == VoiceState.invite,
+    );
+    await settle();
+
+    expect(
+      read().canHearAgain,
+      isTrue,
+      reason: 'o Panorama deixado voltava pelo toque sem o «ouvir de novo»',
+    );
+    expect(read().panoramaSessionId, panorama);
+    expect(harness.voice.played.skip(playedBefore), isEmpty);
+  });
 }
