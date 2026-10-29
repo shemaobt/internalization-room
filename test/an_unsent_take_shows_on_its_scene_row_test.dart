@@ -213,6 +213,9 @@ Future<_Casa> _comAQuartaNaFila(WidgetTester tester) async {
   }
   casa.room.unreachableTake = 'ensaio/parte-4';
   await casa.guardar(4);
+  await casa.emTempoReal(
+    () => waitFor('a cena 4 falhar', () => casa.falhou(4)),
+  );
   expect(casa.estado.everySceneHasItsPart, isTrue);
   expect(casa.estado.unsentParts.keys, [4]);
   return casa;
@@ -1114,11 +1117,11 @@ void main() {
       final casa = await _comAQuartaNaFila(tester);
 
       casa.room.unreachableTake = null;
-      await casa.emTempoReal(() async {
-        await casa.harness.takes.flush();
-        await waitFor('a cena 4 chegar', () => casa.estado.everyPartIsSent);
-        await settle();
-      });
+      await casa.tocarAte(
+        casa.naLinha(4, find.text(_falhou)),
+        'a cena 4 chegar',
+        () => casa.estado.everyPartIsSent,
+      );
       await tester.pump(const Duration(milliseconds: 100));
       expect(casa.estado.everyPartIsSent, isTrue);
       expect(
@@ -1191,11 +1194,12 @@ void main() {
       );
 
       casa.room.unreachableTake = null;
+      await casa.tocarAte(
+        casa.naLinha(4, find.textContaining('enviar agora')),
+        'a cena 4 chegar',
+        () => casa.estado.everyPartIsSent,
+      );
       await casa.emTempoReal(() async {
-        await casa.harness.takes.flush();
-        await casa.sala.refreshUnsent();
-        await waitFor('a cena 4 chegar', () => casa.estado.everyPartIsSent);
-        await settle();
         casa.sala.startRetro();
         await settle(const Duration(milliseconds: 400));
       });

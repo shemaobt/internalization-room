@@ -201,8 +201,7 @@ void main() {
           container.read(salaSessionProvider).keptTakes.length == 4,
     );
     harness.room.unreachableTake = null;
-    await harness.takes.flush();
-    await notifier.refreshUnsent();
+    notifier.enviarACena(4);
     await waitFor(
       'a parte 4 chegar à sala',
       () => container.read(salaSessionProvider).everyPartIsSent,
