@@ -10398,7 +10398,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int? _numeroDaParteDe(int frase) {
     final parte = _aFrase(frase)?.parte;
     if (parte == null || parte >= state.partes.length) return null;
-    return KeptScope.numberOf(state.partes[parte].scopeId) ?? parte + 1;
+    return state.numeroDaParte(parte);
   }
 
   Trecho? _aFrase(int frase) =>
