@@ -1791,6 +1791,47 @@ void main() {
       },
     );
   }
+  for (final (look, areia) in [
+    (Brightness.light, const Color(0xFFC5C29F)),
+    (Brightness.dark, const Color(0xFF6E6A57)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look a listed rehearsal that is not on screen is edged in her areia, not a faint line',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              sentAt: '2026-10-15T14:20:00+00:00',
+              frases: [_frase('f1', 0, 3000)],
+            ),
+            _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+          ],
+          until: (state) => state.scene.rehearsal?.n == 2,
+        );
+        final decoration =
+            tester
+                    .widget<Container>(
+                      find.descendant(
+                        of: byLabel(
+                          'ouvir o ensaio da cena 1, 1 · frases traduzidas, enviado',
+                        ),
+                        matching: find.byType(Container),
+                      ),
+                    )
+                    .decoration
+                as BoxDecoration;
+
+        expect(
+          decoration.border,
+          Border.all(color: areia, width: 1.2),
+          reason: 'a borda da linha era uma linha de 16%; a dela é areia',
+        );
+      },
+    );
+  }
   testWidgets(
     'two listed scene rehearsals stand her .3rem apart, not 6 points',
     (tester) async {
