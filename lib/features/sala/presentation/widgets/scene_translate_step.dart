@@ -134,7 +134,6 @@ class SceneTranslateStep extends ConsumerWidget {
               : sending || !scene.listened
               ? ButtonMood.dimmed
               : ButtonMood.lit,
-          telling: telling,
           label: said('tell'),
         ),
         if (message != null) ...[
@@ -381,7 +380,6 @@ class ScenePlacesUnknown extends ConsumerWidget {
         const SizedBox(height: 12),
         _TellCircle(
           mood: scene.waiting ? ButtonMood.waiting : ButtonMood.dimmed,
-          telling: false,
           label: said('tell'),
         ),
         const SizedBox(height: 12),
@@ -527,14 +525,9 @@ class SceneListenMode extends ConsumerWidget {
 
 class _TellCircle extends ConsumerWidget {
   final ButtonMood mood;
-  final bool telling;
   final String label;
 
-  const _TellCircle({
-    required this.mood,
-    required this.telling,
-    required this.label,
-  });
+  const _TellCircle({required this.mood, required this.label});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -548,7 +541,7 @@ class _TellCircle extends ConsumerWidget {
       background: colors.vermelhoMic.withValues(alpha: 0.10),
       border: Border.all(color: colors.vermelhoMic, width: 2),
       child: Icon(
-        telling ? LucideIcons.square : LucideIcons.mic,
+        mood == ButtonMood.beckoning ? LucideIcons.square : LucideIcons.mic,
         size: 56,
         color: colors.vermelhoMic,
       ),
