@@ -180,7 +180,7 @@ A scene take or a part too short to be anything the team said, or one the record
 _Avoid_: empty take, short take, capture guard (the Conversation's window)
 
 **Capture guard**:
-The short window after a Conversation take opens in which the team's next tap on the circle cancels the take instead of ending it: nothing is sent, the take is discarded on the tablet and the circle rests. A tap after the window ends the take and sends it. This also covers the take an Interruption opens.
+The short window after a Conversation take opens in which the team's next tap on the circle is ignored instead of ending the take: the take goes on recording, and nothing is sent or thrown away. A tap after the window ends the take and sends it. This also covers the take an Interruption opens.
 
 **Mother tongue**:
 The team's language, in which the passage is recorded in the Conversation and the Rehearsal, and which nobody in the room needs to understand.
