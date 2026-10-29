@@ -10591,7 +10591,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final naoOuvidas = verdict.unheardTakeIds;
       if (naoOuvidas.isNotEmpty) {
         if (verdict.refusal == CheckRefusal.partUnheard) {
-          _esperarQueFalteOuvir();
+          _esperarQueFalteOuvir(sessionId, generation);
           return;
         }
         await _levarAsPartesApontadasPelaRecusa(
@@ -10777,7 +10777,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     awaitingTheGuide: false,
   );
 
-  void _esperarQueFalteOuvir() {
+  void _esperarQueFalteOuvir(String sessionId, int generation) {
     _oQueFaltaOuvir = _OQueFaltaOuvir([
       for (var onde = 0; onde < state.partes.length; onde++) onde,
     ], paraNaUltima: true);
@@ -10786,6 +10786,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btClipEnded: false,
       awaitingTheGuide: false,
     );
+    unawaited(_lerDeNovoOQueFaltaOuvir(sessionId, generation));
+  }
+
+  Future<void> _lerDeNovoOQueFaltaOuvir(
+    String sessionId,
+    int generation,
+  ) async {
+    final resposta = await _relatarASala(sessionId, const []);
+    if (_abandoned(generation)) return;
+    if (resposta case Answered(value: ListenedWhole(unheardTakeIds: []))) {
+      _oQueFaltaOuvir = null;
+      state = state.copyWith(clearBtRecusa: true, btClipEnded: true);
+    }
   }
 
   /// Straight to the part the verdict names, with the telling-back left standing.

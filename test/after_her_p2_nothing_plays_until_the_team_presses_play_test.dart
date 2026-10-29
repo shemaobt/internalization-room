@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 Future<Sala> _recusadoPelaP2(List<String> Function(Sala it) nomeadas) async {
@@ -9,12 +10,41 @@ Future<Sala> _recusadoPelaP2(List<String> Function(Sala it) nomeadas) async {
   it.harness.room
     ..verdictRefusal = CheckRefusal.partUnheard
     ..verdictFixedLine = 'P2'
-    ..verdictUnheardTakeIds = nomeadas(it);
+    ..verdictUnheardTakeIds = nomeadas(it)
+    ..listeningUnheardTakeIds = nomeadas(it);
   await pedirOVeredito(it);
   return it;
 }
 
 void main() {
+  test('a re-read right after her P2 that counts every part heard clears '
+      'the line and lights terminei, with nothing played', () async {
+    final it = await umEnsaioDeTresPartesContadoInteiro();
+    it.harness.room
+      ..verdictRefusal = CheckRefusal.partUnheard
+      ..verdictFixedLine = 'P2'
+      ..verdictUnheardTakeIds = [it.partes[2].takeId!]
+      ..listeningUnheardTakeIds = const [];
+    final tocadas = it.harness.playback.played.length;
+
+    await pedirOVeredito(it);
+    await settle();
+
+    expect(
+      it.estado.btRecusa,
+      isNull,
+      reason:
+          'o relato que ainda chegava quando o terminei foi conferido já '
+          'contava tudo ouvido, e a linha de que falta ouvir ficava',
+    );
+    expect(
+      it.estado.canFinishBackTranslation,
+      isTrue,
+      reason: 'a sala já conta tudo ouvido, e o terminei seguia apagado',
+    );
+    expect(it.harness.playback.played.length, tocadas);
+  });
+
   test('after her P2 a tap on play replays the recording from its first '
       'part, not only the part the room named', () async {
     final it = await _recusadoPelaP2((it) => [it.partes[2].takeId!]);
