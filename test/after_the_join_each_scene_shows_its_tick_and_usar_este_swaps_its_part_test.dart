@@ -1452,6 +1452,53 @@ void main() {
   );
 
   testWidgets(
+    'in the dark look an armed «usar este» writes the room\'s dark paper on '
+    'her dark telha, never white on it',
+    (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined(listed: const [s1a, s2a, s3a, s2b, s2c]);
+      await it.openTheSheet(2, _swap);
+
+      await it.tapThe(it.use(s2b));
+
+      const telha = Color(0xFFD6612A);
+      final pill =
+          tester
+                  .widget<DecoratedBox>(
+                    find
+                        .descendant(
+                          of: it.use(s2b),
+                          matching: find.byType(DecoratedBox),
+                        )
+                        .first,
+                  )
+                  .decoration
+              as BoxDecoration;
+      expect(pill.color, telha);
+      final word = tester
+          .widget<Text>(
+            find.descendant(of: it.use(s2b), matching: find.text(_useThis)),
+          )
+          .style!
+          .color!;
+      expect(
+        word,
+        const Color(0xFF1A150E),
+        reason: 'no escuro a palavra armada não seguia o papel escuro da sala',
+      );
+      expect(
+        (telha.computeLuminance() + 0.05) / (word.computeLuminance() + 0.05),
+        greaterThanOrEqualTo(4.5),
+      );
+      await it.wait(const Duration(seconds: 7));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     'an armed «usar este» fills with her telha, waking it shows at .55, and '
     'while a swap runs the others rest at .35',
     (tester) async {
