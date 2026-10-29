@@ -371,19 +371,25 @@ Widget _aCasa(ProviderContainer container) => UncontrolledProviderScope(
   ),
 );
 
-Future<_Casa> _relancada(_Casa casa) async {
+Future<_Casa> _relancada(_Casa casa, {bool noPlano = false}) async {
   await casa.deixarATela();
   final (harness, container) = (await _semPrender(
     casa.tester,
     () => relaunch(casa.harness, casa.container),
   ))!;
-  return _naCasa(casa.tester, harness: harness, relaunched: container);
+  return _naCasa(
+    casa.tester,
+    harness: harness,
+    relaunched: container,
+    noPlano: noPlano,
+  );
 }
 
 Future<_Casa> _naCasa(
   WidgetTester tester, {
   SalaHarness? harness,
   ProviderContainer? relaunched,
+  bool noPlano = false,
 }) async {
   tester.view
     ..physicalSize = const Size(820, 1180)
@@ -418,6 +424,7 @@ Future<_Casa> _naCasa(
             casa.estado.ensaioFinalPlan is PlanRead ||
             casa.estado.station == const Ensaio(),
       );
+      if (noPlano) return;
       casa.sala.recordSceneByScene();
     } else if (casa.estado.stage != SalaStage.ensaio) {
       casa.sala.goEnsaio();
@@ -1021,6 +1028,31 @@ void main() {
       expect(depois.naLinha(2, find.text(_perdida)), findsOneWidget);
       expect(depois.naLinha(2, find.byType(TextButton)), findsNothing);
       expect(depois.naLinha(2, byLabel(_ouvirNaLinha)), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a part whose copies are gone is never offered on the plan after a '
+    'relaunch, where no tap could send it',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      await casa.perderAsCopias();
+      await casa.ve(casa.naLinha(2, find.text(_perdida)));
+
+      final depois = await _relancada(casa, noPlano: true);
+      await depois.emTempoReal(settle);
+
+      expect(depois.estado.station, const Ensaio(step: EnsaioStep.plan));
+      expect(depois.estado.unsentParts[2]?.failure, SendFailure.gone);
+      expect(
+        find.textContaining('enviar agora'),
+        findsNothing,
+        reason:
+            'o plano oferecia enviar uma gravação que já não existia, e o '
+            'toque não fazia nada',
+      );
     },
   );
 

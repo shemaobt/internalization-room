@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/facilitator_script.dart';
+import '../../domain/kept_take.dart';
 import '../../domain/session_state.dart';
 
 class UnsentNotice extends StatelessWidget {
@@ -18,8 +19,10 @@ class UnsentNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unsent = session.unsentParts.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+    final unsent = [
+      for (final entry in session.unsentParts.entries)
+        if (entry.value.failure != SendFailure.gone) entry,
+    ]..sort((a, b) => a.key.compareTo(b.key));
     if (unsent.isEmpty) return const SizedBox.shrink();
     final colors = SalaColors.of(context);
     String words(String key) => recordingHomeLabelFor(key, language);
