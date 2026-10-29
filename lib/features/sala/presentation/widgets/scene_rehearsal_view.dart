@@ -119,6 +119,7 @@ class SceneRehearsalView extends ConsumerWidget {
                   ),
                   SceneStep.placesUnknown => ScenePlacesUnknown(
                     scene: scene,
+                    envelope: session.sceneEnvelope,
                     language: language,
                     sending: sending,
                     sendable: sendable,
