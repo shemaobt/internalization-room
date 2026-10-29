@@ -1266,6 +1266,19 @@ class SalaSessionState {
     };
   }
 
+  DateTime? get takeRecordingSince => switch (channel) {
+    Microphone(owner: MicOwner.conversation)
+        when !micTaken && machine.lastMic?.because == null =>
+      recorderStartedAt,
+    _ => null,
+  };
+
+  VoiceState get circleVoice => switch (channel) {
+    Microphone(owner: MicOwner.conversation) when takeRecordingSince == null =>
+      _resting,
+    _ => voice,
+  };
+
   VoiceState get _resting {
     if (awaitingTheGuide) return VoiceState.thinking;
     if (endOfThePassage ||

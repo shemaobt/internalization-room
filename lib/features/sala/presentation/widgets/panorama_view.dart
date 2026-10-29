@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/session_notifier.dart';
-import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
 import 'facilitator_circle.dart';
 import 'mic_clock.dart';
@@ -23,16 +22,15 @@ class PanoramaView extends ConsumerWidget {
           child: FacilitatorCircle(
             size: circleSize,
             halt: session.halt,
-            voice: session.voice,
+            voice: session.circleVoice,
             noteMode: session.noteMode,
             canvas: true,
             semanticLabel: circleLabelFor('default', language),
             onTap: notifier.panoramaTap,
           ),
         ),
-        if (session.channel case Microphone(owner: MicOwner.conversation))
-          if (session.recorderStartedAt case final since?)
-            MicClock(circleSize: circleSize, since: since),
+        if (session.takeRecordingSince case final since?)
+          MicClock(circleSize: circleSize, since: since),
       ],
     );
   }

@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
-import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'facilitator_circle.dart';
@@ -33,7 +32,7 @@ class ConversaView extends ConsumerWidget {
           child: FacilitatorCircle(
             size: circleSize,
             halt: session.halt,
-            voice: session.voice,
+            voice: session.circleVoice,
             noteMode: session.noteMode,
             peerCue: session.peerCue,
             canvas: true,
@@ -41,9 +40,8 @@ class ConversaView extends ConsumerWidget {
             onTap: notifier.conversaTap,
           ),
         ),
-        if (session.channel case Microphone(owner: MicOwner.conversation))
-          if (session.recorderStartedAt case final since?)
-            MicClock(circleSize: circleSize, since: since),
+        if (session.takeRecordingSince case final since?)
+          MicClock(circleSize: circleSize, since: since),
         if (session.partsToReplay.isNotEmpty)
           KeptRetellingButtons(
             parts: session.partsToReplay,
