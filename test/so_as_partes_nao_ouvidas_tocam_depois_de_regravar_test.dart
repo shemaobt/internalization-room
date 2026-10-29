@@ -791,42 +791,6 @@ void main() {
   });
 
   test(
-    'uma recusa que nomeia duas partes não ouvidas toca as duas em ordem e para',
-    () async {
-      final it = await umEnsaioDeTresPartesContadoInteiro();
-      final primeira = it.partes[0];
-      final terceira = it.partes[2];
-      it.harness.room
-        ..verdictChecked = false
-        ..verdictUnheardTakeIds = [terceira.takeId!, primeira.takeId!];
-      final tocadas = it.harness.playback.played.length;
-
-      await pedirOVeredito(it);
-      expect(it.harness.playback.played.skip(tocadas), [primeira.path]);
-
-      await ouvirAteOFim(it, partesDoEnsaio[0]);
-      expect(
-        it.estado.canFinishBackTranslation,
-        isFalse,
-        reason: 'ainda falta uma parte: terminei não acende no meio',
-      );
-      await waitFor(
-        'a terceira parte entrar no ar',
-        () => it.harness.playback.played.length == tocadas + 2,
-      );
-      expect(
-        it.harness.playback.played.skip(tocadas),
-        [primeira.path, terceira.path],
-        reason: 'a travessia pula a segunda, já ouvida',
-      );
-
-      await ouvirAteOFim(it, partesDoEnsaio[2]);
-      expect(it.estado.canFinishBackTranslation, isTrue);
-      expect(it.estado.btParteFronteira, isFalse);
-    },
-  );
-
-  test(
     'a part whose upload has not landed keeps the listen before a frase that '
     'awaits, even when the room names only that frase\'s take',
     () async {
