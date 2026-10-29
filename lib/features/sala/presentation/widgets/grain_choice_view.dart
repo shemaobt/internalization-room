@@ -157,12 +157,14 @@ class GrainChange extends StatelessWidget {
   final String label;
   final bool open;
   final VoidCallback onTap;
+  final bool? toggled;
 
   const GrainChange({
     super.key,
     required this.label,
     required this.open,
     required this.onTap,
+    this.toggled,
   });
 
   @override
@@ -171,6 +173,7 @@ class GrainChange extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: open,
+      toggled: toggled,
       label: label,
       onTap: open ? onTap : null,
       excludeSemantics: true,
@@ -206,6 +209,7 @@ GrainChange wholeAtOnce(
   armed: session.overAnApprovedDraft
       ? retroLabelFor('reopenArmed', language)
       : recordingHomeLabelFor('wholeArmed', language),
+  needs: session.wholeSwitchArms,
   open: open,
   onTap: onTap,
 );
@@ -230,11 +234,13 @@ GrainChange _armed(
   required String armed,
   required VoidCallback onTap,
   bool? open,
+  bool needs = false,
 }) {
   final arm = session.armedTap;
   final mine = arm?.control == control;
   return GrainChange(
     label: mine ? armed : label,
+    toggled: needs ? mine : null,
     open:
         (open ?? !session.nothingStartsNow) &&
         !(mine && arm?.phase == BtRecomeco.armado),
