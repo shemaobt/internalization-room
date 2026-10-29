@@ -1050,6 +1050,14 @@ class SalaSessionState {
 
   bool get homeBusy => swapping != null;
 
+  bool get nothingStartsNow =>
+      ensaio != EnsaioStatus.idle ||
+      _theTakeInTheAirOf(partTakeKind) != null ||
+      machine.keeping.keys.any((part) => part.session == sessionId) ||
+      joining != null ||
+      bringingBack != null ||
+      grainSwitching;
+
   /// Each Scene row's plan row and what it offers on the recording home, by number, from
   /// the scene-rehearsal listing the home last read.
   Map<int, ({PlanRow plan, HomeRow home})> get homeRows {
