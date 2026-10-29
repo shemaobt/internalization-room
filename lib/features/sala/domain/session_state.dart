@@ -553,6 +553,8 @@ class SalaSessionState {
   /// new translation of that frase is kept.
   final Map<String, String> sceneTranslationsUnseen;
 
+  final Set<String> sceneFrasesHeld;
+
   /// The loudness of a scene take, once it was read off the UI thread; null for a take
   /// with none to read.
   final List<({String take, Envelope? envelope})> sceneLoudness;
@@ -719,6 +721,7 @@ class SalaSessionState {
     this.externalCheck = const ExternalCheckScreen(),
     this.sceneRehearsals = const [],
     this.sceneTranslationsUnseen = const {},
+    this.sceneFrasesHeld = const {},
     this.sceneLoudness = const [],
     this.partLoudness = const {},
     this.scenes = const ScenesAwaited(),
@@ -1143,6 +1146,9 @@ class SalaSessionState {
   /// on the scene screen.
   bool get sceneTranslationUnseen =>
       sceneTranslationsUnseen.containsKey(scene.rehearsal?.rehearsalId);
+
+  bool get sceneFraseHeld =>
+      sceneFrasesHeld.contains(scene.rehearsal?.rehearsalId);
 
   bool get theSceneIsSending =>
       sceneRehearsalIsOpen && (awaitingTheGuide || machine.inFlight != null);
@@ -1856,6 +1862,7 @@ class SalaSessionState {
     ExternalCheckScreen? externalCheck,
     List<SceneRehearsalRecord>? sceneRehearsals,
     Map<String, String>? sceneTranslationsUnseen,
+    Set<String>? sceneFrasesHeld,
     List<({String take, Envelope? envelope})>? sceneLoudness,
     Map<String, ({Duration length, Envelope? envelope})>? partLoudness,
     SceneList? scenes,
@@ -2006,6 +2013,7 @@ class SalaSessionState {
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
       sceneTranslationsUnseen:
           sceneTranslationsUnseen ?? this.sceneTranslationsUnseen,
+      sceneFrasesHeld: sceneFrasesHeld ?? this.sceneFrasesHeld,
       sceneLoudness: sceneLoudness ?? this.sceneLoudness,
       partLoudness: partLoudness ?? this.partLoudness,
       scenes: scenes ?? this.scenes,
