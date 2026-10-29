@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
@@ -1898,6 +1899,266 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('the new part is asked for twice before the sentence is left '
+      'owed, not given up on after one failed read', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+
+    final nova = await deitarSemAParte(tester, harness, 2);
+
+    expect(
+      harness.room.clipsFetched.where(
+        (url) => url.endsWith('/takes/$nova/audio'),
+      ),
+      hasLength(2),
+      reason: 'uma leitura só que falhava já deixava a frase sem a parte',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap on the owed row reads the stretches back before it asks '
+      'for the new part, not the name it was left with', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    final pedidas = harness.room.clipsFetched.length;
+    harness.room.holdNextState();
+
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.room.clipsFetched.length,
+      pedidas,
+      reason:
+          'a parte nova era buscada pelo nome de antes, sem ler as frases '
+          'de novo',
+    );
+    harness.room.finishHeldState();
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+    expect(harness.room.clipsFetched.skip(pedidas), [
+      endsWith('/takes/$nova/audio'),
+    ]);
+    expect(harness.voice.fixedLines, [('N4', 'pt')]);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the owed part is fetched again «recomeçar a tradução» '
+      'rests, instead of standing lit over the fetch', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    harness.room.holdNextClip();
+    bool recomecoAceso() =>
+        tester
+            .widget<Semantics>(byLabel('recomeçar a tradução'))
+            .properties
+            .enabled ??
+        false;
+    expect(recomecoAceso(), isTrue);
+
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btRegravacao?.passo,
+      PassoDaRegravacao.enviando,
+    );
+    expect(
+      recomecoAceso(),
+      isFalse,
+      reason: 'o recomeço ficava aceso enquanto a frase ainda era buscada',
+    );
+    harness.room.finishHeldClip();
+    await _passo(tester);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the owed part is fetched again the way back to the '
+      'recording is not taken, so the fetch is not dropped', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    harness.room.holdNextClip();
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+
+    await tester.tap(byLabel('Voltar para a gravação'));
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.retro,
+      reason:
+          'a volta para a gravação largava a busca e a frase perdia a '
+          'linha que a guardava',
+    );
+    harness.room.finishHeldClip();
+    await _passo(tester);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the owed part is fetched again the way back is drawn '
+      'away, not lit over a tap it no longer takes', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    harness.room.holdNextClip();
+    double volta() => tester
+        .widget<AnimatedOpacity>(
+          find
+              .ancestor(
+                of: byLabel('Voltar para a gravação'),
+                matching: find.byType(AnimatedOpacity),
+              )
+              .first,
+        )
+        .opacity;
+    expect(volta(), 1);
+
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+
+    expect(
+      volta(),
+      0,
+      reason: 'a seta de voltar ficava acesa e o toque nela não fazia nada',
+    );
+    harness.room.finishHeldClip();
+    await _passo(tester);
+    await _passo(tester);
+    expect(volta(), 1);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while a new part is owed no row offers «regravar», not even '
+      'the row of the sentence that waits for it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarSemAParte(tester, harness, 2);
+
+    for (var n = 1; n <= 4; n++) {
+      expect(
+        _naLista('regravar a frase $n'),
+        findsNothing,
+        reason:
+            'a frase $n oferecia regravar por cima de uma frase que ainda '
+            'não chegou',
+      );
+    }
+    closeTheRoom(container);
+  });
+
+  testWidgets('back from the rehearsal while a new part is owed, the room '
+      'says nothing and plays nothing, and the row still waits for the part', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarSemAParte(tester, harness, 2);
+    final tocadas = harness.playback.played.length;
+
+    await deVoltaDoEnsaio(tester, container);
+
+    expect(
+      harness.voice.fixedLines,
+      isEmpty,
+      reason: 'a volta dizia que a frase esperava a tradução sem a frase nova',
+    );
+    expect(
+      harness.playback.played.skip(tocadas),
+      isEmpty,
+      reason: 'a volta tocava a parte velha no lugar da frase nova',
+    );
+    expect(
+      _naLista('não deu para guardar a frase — tentar de novo'),
+      findsOneWidget,
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a trip to the rehearsal and back over an owed part never '
+      'plays the old take, and no row offers «regravar» on the way back', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarSemAParte(tester, harness, 2);
+    final velha = container
+        .read(salaSessionProvider)
+        .partes[container
+            .read(salaSessionProvider)
+            .trechoChamado('trecho-2')!
+            .parte]
+        .path;
+    final tocadas = harness.playback.played.length;
+
+    await deVoltaDoEnsaio(tester, container);
+
+    expect(
+      harness.playback.played.skip(tocadas).where((path) => path == velha),
+      isEmpty,
+      reason: 'a volta tocava a gravação velha onde a frase nova esperava',
+    );
+    for (var n = 1; n <= 4; n++) {
+      expect(_naLista('regravar a frase $n'), findsNothing);
+    }
+    closeTheRoom(container);
+  });
+
+  Finder naCasa(String texto) =>
+      find.descendant(of: find.byType(EnsaioView), matching: find.text(texto));
+
+  testWidgets('on the home, a new part still owed is written under the '
+      'title, not left for the telling alone to say', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarSemAParte(tester, harness, 2);
+
+    container.read(salaSessionProvider.notifier).goEnsaio();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _passo(tester);
+
+    expect(
+      naCasa('não deu para guardar a frase — tentar de novo'),
+      findsOneWidget,
+      reason: 'a casa calava a frase que não foi guardada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('once the new part is fetched again the home stops saying it '
+      'could not be saved', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    await tocar(tester, falhou);
+    await _passo(tester);
+    await _passo(tester);
+
+    container.read(salaSessionProvider.notifier).goEnsaio();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _passo(tester);
+
+    expect(
+      naCasa(falhou),
+      findsNothing,
+      reason:
+          'a casa seguia dizendo que a frase não foi guardada depois que '
+          'ela chegou',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a re-record left for the rehearsal does not stand when the team '
       'comes back to the telling', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -2167,6 +2428,27 @@ void main() {
     );
     await _passo(tester);
   }
+
+  testWidgets('a translation started over while a new part is owed lets the '
+      'home stop saying the sentence could not be saved', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarSemAParte(tester, harness, 2);
+
+    await recomecarDeVez(tester, container);
+    container.read(salaSessionProvider.notifier).goEnsaio();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _passo(tester);
+
+    expect(
+      naCasa('não deu para guardar a frase — tentar de novo'),
+      findsNothing,
+      reason:
+          'a casa seguia esperando uma frase de uma tradução que já foi '
+          'apagada',
+    );
+    closeTheRoom(container);
+  });
 
   testWidgets('a translation started over leaves no frase awaiting its '
       'translation', (tester) async {

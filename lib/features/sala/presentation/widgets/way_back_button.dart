@@ -16,7 +16,7 @@ class WayBackButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
     if (session.stage != stage) return const SizedBox.shrink();
-    final away = session.wayOutIsHidden;
+    final away = session.wayOutIsHidden || session.aFraseDevidaEmBusca;
 
     return Positioned(
       left: 14,
