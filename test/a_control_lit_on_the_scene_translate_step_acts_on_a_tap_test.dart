@@ -19,6 +19,7 @@ const _restart = 'recomeçar a tradução';
 const _pauseRow = ['um pouco antes', 'ouvir a pausa', 'um pouco depois'];
 
 String _bar(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
+String _hearMine(int n) => 'ouvir a minha tradução da frase $n';
 
 Duration _s(double seconds) =>
     Duration(microseconds: (seconds * Duration.microsecondsPerSecond).round());
@@ -244,6 +245,83 @@ void main() {
                 'com ${refusal.name}, o recomeçar ficava aceso e o toque não '
                 'fazia nada',
           ),
+        );
+      }
+    },
+  );
+
+  testWidgets(
+    'each frase\'s bar is drawn out while the screen waits, while «terminei» is in the air, with the microphone open and while a frase waits to be sent again, and its speaker still plays then',
+    (tester) async {
+      final (harness, container) = await _theLastFraseTranslatedAgain(tester);
+      for (final n in [1, 2]) {
+        expect(_lit(tester, _bar(n)), isTrue);
+      }
+
+      for (final refusal in [
+        _Refusal.waiting,
+        _Refusal.sending,
+        _Refusal.microphone,
+      ]) {
+        await _under(tester, container, refusal, () {
+          for (final n in [1, 2]) {
+            expect(
+              _lit(tester, _bar(n)),
+              isFalse,
+              reason:
+                  'com ${refusal.name}, a barra da frase $n ficava acesa e o '
+                  'toque não fazia nada',
+            );
+          }
+        });
+      }
+      await _aFraseHeldToBeSentAgain(tester, harness, container);
+
+      for (final n in [1, 2]) {
+        expect(
+          _lit(tester, _bar(n)),
+          isFalse,
+          reason:
+              'com uma frase guardada para enviar de novo, a barra da frase $n '
+              'ficava acesa e o toque não fazia nada',
+        );
+        expect(
+          _lit(tester, _hearMine(n)),
+          isTrue,
+          reason: 'o alto-falante apagava junto com a barra, e ele ainda toca',
+        );
+      }
+      final played = harness.playback.played.length;
+      await tester.tap(byLabel(_hearMine(1)));
+      await pumpUntil(tester, () => harness.playback.played.length > played);
+      expect(harness.playback.played, hasLength(played + 1));
+    },
+  );
+
+  testWidgets(
+    'once the frase that waited is sent again and kept, each frase\'s bar is lit again',
+    (tester) async {
+      final (harness, container) = await _theLastFraseTranslatedAgain(tester);
+      await _aFraseHeldToBeSentAgain(tester, harness, container);
+      expect(_lit(tester, _bar(1)), isFalse);
+
+      await tester.tap(byLabel(_tell));
+      await pumpUntil(
+        tester,
+        () =>
+            harness.room.frasesKept.isNotEmpty &&
+            !container.read(salaSessionProvider).scene.waiting,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(harness.room.frasesKept, isNotEmpty);
+      for (final n in [1, 2]) {
+        expect(
+          _lit(tester, _bar(n)),
+          isTrue,
+          reason:
+              'a frase guardada já foi, e a barra da frase $n continuava '
+              'apagada',
         );
       }
     },

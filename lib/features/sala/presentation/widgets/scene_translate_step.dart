@@ -165,6 +165,7 @@ class SceneTranslateStep extends ConsumerWidget {
               words: said('frase', i + 1),
               name: said('retellFrase', i + 1),
               hearMine: said('hearMine', i + 1),
+              retells: idle && !held,
               live: idle,
               again: frase.fraseId == scene.translatingAgain?.fraseId,
               onTap: () => notifier.translateTheFraseAgain(frase.fraseId),
@@ -501,6 +502,7 @@ class SceneListenMode extends ConsumerWidget {
               words: said('frase', i + 1),
               name: said('frase', i + 1),
               hearMine: said('hearMine', i + 1),
+              retells: !scene.waiting,
               live: !scene.waiting,
               again: false,
               onTap: () => notifier.playTheFrase(frase.fraseId),
@@ -908,6 +910,7 @@ class _FraseBar extends StatelessWidget {
   final String words;
   final String name;
   final String hearMine;
+  final bool retells;
   final bool live;
   final bool again;
   final VoidCallback onTap;
@@ -919,6 +922,7 @@ class _FraseBar extends StatelessWidget {
     required this.words,
     required this.name,
     required this.hearMine,
+    required this.retells,
     required this.live,
     required this.again,
     required this.onTap,
@@ -940,11 +944,11 @@ class _FraseBar extends StatelessWidget {
             Expanded(
               child: Semantics(
                 button: true,
-                enabled: live,
+                enabled: retells,
                 label: name,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: live ? onTap : null,
+                  onTap: retells ? onTap : null,
                   child: ExcludeSemantics(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
