@@ -1218,6 +1218,29 @@ void main() {
       closeTheRoom(it.container);
     });
 
+    testWidgets('a VoiceOver double-tap on «Checagem externa» on the home '
+        'opens the external check', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await _tocar(tester);
+      await _prontoEDeVoltaPeloPonto(tester);
+
+      voiceOverTap(tester, 'Checagem externa');
+      await tester.pump(const Duration(milliseconds: 300));
+      await _assentar(tester);
+
+      expect(
+        it.harness.room.externalChecksOpened,
+        hasLength(1),
+        reason:
+            'o VoiceOver anunciava o botão da casa e o toque duplo não abria '
+            'a checagem',
+      );
+      closeTheRoom(it.container);
+      semantics.dispose();
+    });
+
     testWidgets('leaving the external check opened from the home returns to '
         'the home and keeps the home as the resume point', (tester) async {
       final it = await aCasaConferida(tester);
