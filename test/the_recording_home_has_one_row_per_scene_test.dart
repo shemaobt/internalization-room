@@ -428,6 +428,36 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('«Ouvir tudo» shows her title and ends with «fim da gravação»', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naCasaDoEnsaio(tester, harness: harness);
+    expect(find.text('Ouvir tudo'), findsNothing);
+    for (var n = 1; n <= 4; n++) {
+      await _gravarNaLinha(tester, n);
+    }
+
+    await _tocar(tester, find.text('Ouvir tudo'));
+
+    expect(
+      find.text('A gravação de vocês inteira, parte por parte.'),
+      findsOneWidget,
+    );
+    expect(find.text('fim da gravação'), findsNothing);
+    expect(find.text('Ouvir tudo'), findsNothing);
+    for (var n = 0; n < 4; n++) {
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    expect(find.text('fim da gravação'), findsOneWidget);
+    await tester.tap(find.text('fim da gravação'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(_estado(container).ouvirTudo, OuvirTudo.fora);
+    expect(find.text('Ouvir tudo'), findsOneWidget);
+    closeTheRoom(container);
+  });
+
   testWidgets(
     'recording again on Cena 3 keeps the new take as scene 3 and leaves the '
     'others alone',

@@ -22,13 +22,13 @@ The room needs the server: every turn, every verdict and every line the **Guide*
 made there, and none of it happens without a connection. What the outbox answers is a
 connection that comes and goes, never a session worked without one.
 
-Takes and stretches waiting to reach the server are copied into the outbox, whose manifest
-survives the app closing. Each row names its file rather than an absolute path, so the
+Takes waiting to reach the server are copied into the outbox, whose manifest
+survives the app closing. A back-translation stretch never waits there: it goes to the room
+at the cut or the team tells it again (ADR 0146). Each row names its file rather than an absolute path, so the
 outbox still finds the audio after a restore or a reinstall changes the container prefix.
 Each row also keeps when its recording stopped, its length when it is a WAV and its fingerprint,
 fixed when the row is written and sent with every try (ADR 0104).
-The copy is kept after upload: the Rehearsal and the back-translation are the team's
-product.
+The copy is kept after upload: the Rehearsal is the team's product.
 
 Each row's last attempt and its recording time are stamped in UTC, and those two stamps alone
 are read leniently while every other field is read strictly. Why that asymmetry is worth having

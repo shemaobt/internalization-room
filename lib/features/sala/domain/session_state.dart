@@ -261,6 +261,10 @@ enum VoiceState { invite, listening, thinking, speaking, done }
 
 enum EnsaioStatus { idle, recording, recorded }
 
+/// «Ouvir tudo», the recording home's listen-only screen: off, playing the parts in order,
+/// or played to its end.
+enum OuvirTudo { fora, ouvindo, acabou }
+
 /// How far short of a part's end the told ground may stop and still count as its end.
 ///
 /// The last cut of a part is made where the clip stopped, and a position read as a
@@ -510,6 +514,8 @@ class SalaSessionState {
   /// The version the Saved screen shows; the Saved screen stands while it is set.
   final int? ensaioSalvo;
 
+  final OuvirTudo ouvirTudo;
+
   /// The room's own read of whether the passage is checked, kept for the recording home.
   final bool btChecked;
   final int unsentTakes;
@@ -547,7 +553,7 @@ class SalaSessionState {
 
   /// The loudness of a scene take, once it was read off the UI thread; null for a take
   /// with none to read.
-  final ({String take, Envelope? envelope})? sceneLoudness;
+  final List<({String take, Envelope? envelope})> sceneLoudness;
 
   final Map<String, ({Duration length, Envelope? envelope})> partLoudness;
 
@@ -697,6 +703,7 @@ class SalaSessionState {
     this.btAbrindoAChecagem,
     this.btAprovadoAgora,
     this.ensaioSalvo,
+    this.ouvirTudo = OuvirTudo.fora,
     this.btChecked = false,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
@@ -709,7 +716,7 @@ class SalaSessionState {
     this.externalCheck = const ExternalCheckScreen(),
     this.sceneRehearsals = const [],
     this.sceneTranslationsUnseen = const {},
-    this.sceneLoudness,
+    this.sceneLoudness = const [],
     this.partLoudness = const {},
     this.scenes = const ScenesAwaited(),
     this.scenesOfThePassage,
@@ -845,10 +852,10 @@ class SalaSessionState {
       joined ||
       theRoomJoinedParts.any((number) => !partNumbers.contains(number));
 
-  /// How the orange dot stands on the Conversation: gone while the way out is hidden, any
-  /// voice sounds or a sent note is on its way; bright from the send-off; faint otherwise.
+  /// How the orange dot stands on the Conversation: gone while the way out is hidden or a
+  /// line of the room sounds; bright from the send-off; faint otherwise.
   OrangeDotLook get orangeDotLook {
-    if (wayOutIsHidden || channel is GuideSpeaking || noteOnItsWay != null) {
+    if (wayOutIsHidden || _aLineOfTheRoomPlays) {
       return OrangeDotLook.gone;
     }
     if (endOfThePassage || moment?.at == MomentAt.ensaioFinal) {
@@ -1079,10 +1086,10 @@ class SalaSessionState {
   /// Whether «terminei» is in the air: the scene rehearsal waits on the voice.
   /// The loudness of the take on the scene screen, until it is read or for a take with
   /// none: a pausa then stays at the tap.
-  Envelope? get sceneEnvelope => switch (sceneLoudness) {
-    (take: final take, :final envelope) when take == scene.take => envelope,
-    _ => null,
-  };
+  Envelope? get sceneEnvelope => sceneLoudness
+      .where((loudness) => loudness.take == scene.take)
+      .firstOrNull
+      ?.envelope;
 
   /// The frase being translated again whose pausa the team may move: the last one, on a
   /// take with loudness to read.
@@ -1265,6 +1272,11 @@ class SalaSessionState {
 
   bool get btRetroTocando => switch (channel) {
     StretchPlaying(stretch: StretchSound(telling: true)) => true,
+    _ => false,
+  };
+
+  bool get btFraseGravadaTocando => switch (channel) {
+    StretchPlaying(:final stretch) => stretch.path == btRegravacao?.path,
     _ => false,
   };
 
@@ -1462,6 +1474,7 @@ class SalaSessionState {
 
   bool get canListenToThePendingStretch =>
       _btNaVez &&
+      everyPartIsHere &&
       !wordlessTelling &&
       (btClipRodando ||
           btContaEscolhida != null ||
@@ -1526,6 +1539,12 @@ class SalaSessionState {
         };
 
   static int _byNumber(KeptTake take) => KeptScope.numberOf(take.scopeId) ?? 0;
+
+  bool get canOuvirTudo =>
+      partes.isNotEmpty &&
+      ensaio == EnsaioStatus.idle &&
+      everyPartIsHere &&
+      !needsPerson;
 
   bool get canPlayTheRehearsal =>
       (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
@@ -1725,6 +1744,7 @@ class SalaSessionState {
     bool clearBtAprovadoAgora = false,
     int? ensaioSalvo,
     bool clearEnsaioSalvo = false,
+    OuvirTudo? ouvirTudo,
     bool? btChecked,
     int? unsentTakes,
     int? unsentChunks,
@@ -1739,7 +1759,7 @@ class SalaSessionState {
     ExternalCheckScreen? externalCheck,
     List<SceneRehearsalRecord>? sceneRehearsals,
     Map<String, String>? sceneTranslationsUnseen,
-    ({String take, Envelope? envelope})? sceneLoudness,
+    List<({String take, Envelope? envelope})>? sceneLoudness,
     Map<String, ({Duration length, Envelope? envelope})>? partLoudness,
     SceneList? scenes,
     List<Scene>? scenesOfThePassage,
@@ -1868,6 +1888,7 @@ class SalaSessionState {
           ? null
           : (btAprovadoAgora ?? this.btAprovadoAgora),
       ensaioSalvo: clearEnsaioSalvo ? null : (ensaioSalvo ?? this.ensaioSalvo),
+      ouvirTudo: ouvirTudo ?? this.ouvirTudo,
       btChecked: btChecked ?? this.btChecked,
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,

@@ -25,6 +25,10 @@ across failures and relaunches. It also kept every row the room had stored, for 
 - **The scene take goes up through the Outbox,** as a row of kind `cena` with its scene
   label, leaving through the scene-rehearsal keep door. The rows of one session leave in
   the order recorded, as a part's do (ADR 0025); a row refused for good holds nothing.
+- **On a pass, the scene takes go first,** in the order recorded, then the parts
+  (ENG-1424, 22 October). A scene take recorded during a pass goes first on the next one;
+  the pass is not re-sorted after each upload. Holding is unchanged: a scene take waits only behind an
+  earlier scene take of its session, and a part never waits behind a scene take.
 - **The confirmation is the keep door's answer with the rehearsal.** The tablet announces
   no size or duration: the room measures the take, checks the bytes it stored, and gives
   the same bytes sent twice the same rehearsal, so a resend after a lost answer never mints
