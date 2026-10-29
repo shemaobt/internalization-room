@@ -15,12 +15,15 @@ The check is not left before «terminei»: its phase, «terminei», the approve 
 the badge stay as they were (`Drafting.tsx` `approve` :1607), and the next press asks again.
 The approve button stands on the tell view at every phase while the room calls the passage
 checked, and it does not act while a guide line speaks, a check or a send runs, a microphone
-is open or a sentence's re-record is open (`Drafting.tsx:2468`).
+is open or a sentence's re-record is open (`Drafting.tsx:2468`). Only a last listening the
+press itself silenced at conferida counts as heard to its end; nothing else is given back.
+Wherever this record or its amendments say a refusal is left before «terminei», read that the
+check stays where it was.
 
 Amended by ENG-1853 (2026-10-29): a refusal from the Back-translation plays nothing.
 «ainda falta ouvir um trecho da gravação» no longer comes with the part playing, and the
-landings of ADR 0030 are not unchanged: every refusal is left before «terminei», as ADR 0030
-now says. The press's hold ends with the refusal's answer; there is no read of the stretch
+landings of ADR 0030 are not unchanged: every refusal was left before «terminei», as ADR 0030
+then said — until ENG-2028, above, which leaves the check where it stood. The press's hold ends with the refusal's answer; there is no read of the stretch
 it names and no move to it. The three texts and the order that chooses them stand.
 
 ## Context
