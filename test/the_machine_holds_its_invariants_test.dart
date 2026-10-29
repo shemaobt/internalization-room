@@ -700,7 +700,7 @@ void main() {
             const <Invariant<Machine>>[],
             seed,
           ).entries)
-            if (entry.after.somethingPending) seed,
+            if (entry.after.parts.containsValue(PartFact.pending)) seed,
       ];
 
       expect(reached, isNotEmpty);
