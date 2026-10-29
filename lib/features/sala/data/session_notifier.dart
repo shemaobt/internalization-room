@@ -10188,10 +10188,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.enviando),
       clearBtFraseGuardada: true,
     );
+    await _readTheStretchesBack(sessionId, generation);
+    if (_abandoned(generation)) return;
+    final lido = state.trechoChamado(nome) ?? trecho;
     final trocada = await _aParteComAFrase(
       sessionId,
-      trecho.parte,
-      trecho.takeId,
+      lido.parte,
+      lido.takeId,
       generation,
     );
     if (_abandoned(generation)) return;

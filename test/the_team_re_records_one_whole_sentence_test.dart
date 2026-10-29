@@ -1916,6 +1916,37 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a tap on the owed row reads the stretches back before it asks '
+      'for the new part, not the name it was left with', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    final pedidas = harness.room.clipsFetched.length;
+    harness.room.holdNextState();
+
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.room.clipsFetched.length,
+      pedidas,
+      reason:
+          'a parte nova era buscada pelo nome de antes, sem ler as frases '
+          'de novo',
+    );
+    harness.room.finishHeldState();
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+    expect(harness.room.clipsFetched.skip(pedidas), [
+      endsWith('/takes/$nova/audio'),
+    ]);
+    expect(harness.voice.fixedLines, [('N4', 'pt')]);
+    closeTheRoom(container);
+  });
+
   testWidgets('while a new part is owed no row offers «regravar», not even '
       'the row of the sentence that waits for it', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
