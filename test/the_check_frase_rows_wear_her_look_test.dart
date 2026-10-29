@@ -70,4 +70,25 @@ void main() {
           'e a barra sumia',
     );
   });
+
+  for (final (look, verdeClaro) in [
+    ('light', const Color(0xFF777D45)),
+    ('dark', const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets('in the $look look a frase bar fills in her verde-claro over '
+        'her sand track, not the cord over a line', (tester) async {
+      await _pump(tester, look, [_aFrase(share: .5)]);
+
+      expect(
+        _oPreenchimento(tester, 1),
+        verdeClaro.withValues(alpha: .85),
+        reason: 'a barra enchia de cord, não do verde-claro dela a .85',
+      );
+      expect(
+        _oTrilho(tester, 1),
+        const Color.fromRGBO(199, 194, 159, .28),
+        reason: 'o trilho era a linha da tela, não a areia dela a .28',
+      );
+    });
+  }
 }

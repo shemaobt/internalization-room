@@ -373,11 +373,10 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = SalaColors.of(context);
     return Container(
       height: 10,
       decoration: BoxDecoration(
-        color: colors.line,
+        color: const Color.fromRGBO(199, 194, 159, .28),
         borderRadius: BorderRadius.circular(5),
       ),
       alignment: Alignment.centerLeft,
