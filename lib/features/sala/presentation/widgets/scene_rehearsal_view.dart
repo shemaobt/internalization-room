@@ -46,6 +46,10 @@ class SceneRehearsalView extends ConsumerWidget {
           top:
               MediaQuery.viewPaddingOf(context).top +
               MediaQuery.sizeOf(context).height * 0.09,
+          corner:
+              MediaQuery.viewPaddingOf(context).top +
+              MediaQuery.sizeOf(context).height * 0.05 +
+              42,
         ),
         Expanded(
           child: Center(

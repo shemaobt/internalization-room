@@ -34,14 +34,17 @@ final _frases = [
     ),
 ];
 
-SceneRehearsalRecord _rehearsal({int n = 1, String? sentAt}) =>
-    SceneRehearsalRecord(
-      rehearsalId: 'ensaio-da-cena-$n',
-      sessionId: 'sessao-1',
-      n: n,
-      sentAt: sentAt,
-      frases: _frases,
-    );
+SceneRehearsalRecord _rehearsal({
+  int n = 1,
+  String? sentAt,
+  List<SceneFrase>? frases,
+}) => SceneRehearsalRecord(
+  rehearsalId: 'ensaio-da-cena-$n',
+  sessionId: 'sessao-1',
+  n: n,
+  sentAt: sentAt,
+  frases: frases ?? _frases,
+);
 
 Future<void> _withRealLetters() async {
   final fonts =
@@ -74,9 +77,13 @@ Future<ProviderContainer> _onTheStep(
     for (var n = 1; n <= listed; n++)
       _rehearsal(
         n: n,
-        sentAt: step == SceneStep.translate
-            ? null
-            : '2026-10-27T10:00:00+00:00',
+        sentAt: switch (step) {
+          SceneStep.translate || SceneStep.placesUnknown => null,
+          _ => '2026-10-27T10:00:00+00:00',
+        },
+        frases: step == SceneStep.placesUnknown
+            ? const [SceneFrase(fraseId: 'f1', startsMs: 0, endsMs: 12000)]
+            : null,
       ),
   ]);
   harness.room.sceneAudio = aSpokenWav(length: const Duration(seconds: 10));
@@ -254,6 +261,36 @@ void main() {
         reason:
             'o círculo, a pílula da cena e o estado do take estouravam a '
             'coluna quando o título desceu para os 9vh dela',
+      );
+    },
+  );
+
+  testWidgets(
+    'on the iPhone SE at one and a half times the text size the scene '
+    'heading takes the width under the way back, not over it',
+    (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await _onTheStep(
+        tester,
+        screen: _se.size,
+        bar: _se.bar,
+        step: SceneStep.translate,
+      );
+      final heading = tester.getRect(find.text('Ensaio da cena'));
+      final wayBack = tester.getRect(find.byType(BackToPassageButton));
+
+      expect(
+        heading.width,
+        greaterThan(_se.size.width - 120),
+        reason: 'o título não chegou a sair de entre as margens',
+      );
+      expect(
+        heading.top,
+        closeTo(wayBack.bottom, 0.01),
+        reason:
+            'o título largo descia só 46 do topo, sobre a volta, e a faixa '
+            'de 46 ficava vazia',
       );
     },
   );

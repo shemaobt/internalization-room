@@ -8,6 +8,7 @@ class StageHeading extends StatelessWidget {
   final String text;
   final TextStyle style;
   final double top;
+  final double corner;
 
   const StageHeading({
     super.key,
@@ -15,6 +16,7 @@ class StageHeading extends StatelessWidget {
     required this.text,
     required this.style,
     this.top = 24,
+    this.corner = 46,
   });
 
   static const _flank = 60.0;
@@ -60,7 +62,7 @@ class StageHeading extends StatelessWidget {
           children: [
             SizedBox(
               width: double.infinity,
-              height: 46,
+              height: corner,
               child: Stack(
                 children: [
                   if (stage != null) WayBackButton(stage: stage, top: 0),
