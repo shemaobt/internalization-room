@@ -6,7 +6,7 @@ amends: 0136 (in part: where «Pronto» returns to after an approval from the ho
 
 # «Pronto» after an approval returns to the conversation
 
-This amends ADR 0136 without editing its decision: it adds "amended by 0146" to its status line.
+This amends ADR 0136 without editing its decision: it adds "amended by 0151" to its status line.
 Her app is the bar, and it wins over our ADRs (João, 26 October). Settled on the ticket (ENG-1836).
 
 ## Context
