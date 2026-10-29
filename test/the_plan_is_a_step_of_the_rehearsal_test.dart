@@ -77,6 +77,7 @@ void main() {
       const TheRehearsalWeighed(
         everySceneHasItsPart: true,
         everyPartIsHere: true,
+        everyPartIsSent: true,
       ),
     );
 

@@ -221,12 +221,15 @@ void main() {
       var now = DateTime(2026, 10, 7);
       var step = const Duration(seconds: 1);
       await withClock(Clock(() => now = now.add(step)), () async {
-        final room = await _cutWhileSheSpeaks(
-          on: await _inConversa(
-            harness: SalaHarness(captureGuard: const CaptureGuard(minBytes: 1)),
-          ),
+        final room = await _inConversa(
+          harness: SalaHarness(captureGuard: const CaptureGuard(minBytes: 1)),
         );
+        await room.aReplySpeaking();
+        room.harness.voice
+          ..linePosition = _at
+          ..lineLength = _of;
         step = Duration.zero;
+        await room.tap();
         now = now.add(wait);
         await then(room, (by) => now = now.add(by));
       });
