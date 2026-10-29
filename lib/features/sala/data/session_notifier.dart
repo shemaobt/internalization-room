@@ -8657,6 +8657,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
+    if (_oQueFaltaOuvir case _OQueFaltaOuvir(
+      :final aFrente,
+    ) when aFrente.isNotEmpty && state.btRecusa == CheckRefusal.partUnheard) {
+      _ouvirAsPartes(aFrente, paraNaUltima: true);
+      return;
+    }
     if (state.btClipEnded) return;
     _seguirOClipe();
   }
@@ -10584,6 +10590,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
       final naoOuvidas = verdict.unheardTakeIds;
       if (naoOuvidas.isNotEmpty) {
+        if (verdict.refusal == CheckRefusal.partUnheard) {
+          _esperarQueFalteOuvir();
+          return;
+        }
         await _levarAsPartesApontadasPelaRecusa(
           naoOuvidas,
           generation,
@@ -10766,6 +10776,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     btClipEnded: true,
     awaitingTheGuide: false,
   );
+
+  void _esperarQueFalteOuvir() {
+    _oQueFaltaOuvir = _OQueFaltaOuvir([
+      for (var onde = 0; onde < state.partes.length; onde++) onde,
+    ], paraNaUltima: true);
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      btClipEnded: false,
+      awaitingTheGuide: false,
+    );
+  }
 
   /// Straight to the part the verdict names, with the telling-back left standing.
   ///
