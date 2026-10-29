@@ -10490,6 +10490,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) return;
 
     final generation = _waitOnTheGeneration;
+    final pressedFrom = state.btPhase;
     state = state.copyWith(
       btPhase: BtPhase.thinking,
       awaitingTheGuide: true,
@@ -10520,7 +10521,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (verdict.refusal
         case CheckRefusal.nothingTranslated || CheckRefusal.checkUnavailable) {
       state = state.copyWith(
-        btPhase: BtPhase.playing,
+        btPhase: pressedFrom,
         awaitingTheGuide: false,
         btRecusa: verdict.refusal,
       );

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -151,6 +152,29 @@ void main() {
     );
     harness.room.finishHeldExternalCheck();
     await tester.pump(const Duration(milliseconds: 600));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a check the room cannot make over a checked telling leaves the '
+      'team on the approval, as hers does, not back on the telling', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _ateAConferida(tester, harness);
+    harness.room.verdictRefusal = CheckRefusal.checkUnavailable;
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.conferida,
+      reason: 'a recusa do segundo terminei devolvia a equipe à tradução',
+    );
+    expect(byLabel(aprovar), findsOneWidget);
+    expect(
+      find.text('não deu para conferir agora — tentem de novo'),
+      findsOneWidget,
+    );
     closeTheRoom(container);
   });
 }
