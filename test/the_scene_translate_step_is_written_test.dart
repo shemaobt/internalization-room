@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -19,6 +20,8 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
+import 'the_check_screen_shows_her_words_and_numbered_frases_test.dart'
+    show piorContraste;
 
 const _session = 'sessao-1';
 
@@ -83,6 +86,19 @@ Future<(SalaHarness, ProviderContainer)> _onTheSceneScreen(
   expect(until(container.read(salaSessionProvider)), isTrue);
   return (harness, container);
 }
+
+double? _playhead(WidgetTester tester) =>
+    (tester
+                .widget<CustomPaint>(
+                  find.descendant(
+                    of: find.byType(SceneStrip),
+                    matching: find.byType(CustomPaint),
+                  ),
+                )
+                .painter!
+            as SceneStripPainter)
+        .drawing
+        .playhead;
 
 void _titled(WidgetTester tester, String title) {
   expect(find.text(title), findsOneWidget, reason: 'o título não está escrito');
@@ -510,6 +526,118 @@ void main() {
   );
 
   testWidgets(
+    'a written button keeps its outline outside its padding, so «terminei» and «traduzir» are not 3 points smaller than they were',
+    (tester) async {
+      await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+
+      for (final (words, across, down) in [
+        ('terminei', 32 + 1.5, 14 + 1.5),
+        ('traduzir o ensaio da cena', 20 + 1.5, 10 + 1.5),
+        ('gravar o ensaio da cena de novo', 20.0, 10.0),
+      ]) {
+        final button = tester.getRect(byLabel(words));
+        final text = tester.getRect(
+          find.descendant(of: byLabel(words), matching: find.text(words)),
+        );
+        expect(
+          text.left - button.left,
+          closeTo(across, 0.01),
+          reason: 'o contorno saía de dentro do espaço das palavras: $words',
+        );
+        expect(button.right - text.right, closeTo(across, 0.01), reason: words);
+        expect(text.top - button.top, closeTo(down, 0.01), reason: words);
+        expect(button.bottom - text.bottom, closeTo(down, 0.01), reason: words);
+      }
+    },
+  );
+  for (final look in [Brightness.light, Brightness.dark]) {
+    testWidgets(
+      'in the ${look.name} look a dimmed «terminei» on the scene rehearsal reads at 4.5:1 or better, not its paper fading with the pill',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [_rehearsal()],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+
+        expect(
+          tester.widget<Semantics>(byLabel('terminei')).properties.enabled,
+          isFalse,
+        );
+        expect(
+          piorContraste(tester, 'terminei', tela: SceneRehearsalView),
+          greaterThanOrEqualTo(4.5),
+          reason:
+              'o terminei apagado escrevia o papel sobre o vermelho a 35%, a '
+              '1,2:1',
+        );
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look the scene rehearsal on its way to the voice reads «enviando…» at 4.5:1 or better while it is dimmed',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        final (harness, _) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 12000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.placesUnknown,
+        );
+        const sending = 'enviando a tradução do ensaio da cena para a voz…';
+        harness.room.holdNextTurn();
+
+        await tester.tap(find.text('terminei'));
+        await tester.pump(const Duration(milliseconds: 500));
+
+        expect(
+          tester.widget<Semantics>(byLabel(sending)).properties.enabled,
+          isFalse,
+        );
+        expect(
+          piorContraste(tester, sending, tela: SceneRehearsalView),
+          greaterThanOrEqualTo(4.5),
+          reason: 'o enviando… apagava junto com a pílula, a 1,2:1',
+        );
+        harness.room.finishHeldTurn();
+        await tester.pump(const Duration(seconds: 2));
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look a lit «terminei» on the scene rehearsal reads at 4.6:1 or better',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+
+        expect(
+          tester.widget<Semantics>(byLabel('terminei')).properties.enabled,
+          isTrue,
+        );
+        expect(
+          piorContraste(tester, 'terminei', tela: SceneRehearsalView),
+          greaterThanOrEqualTo(4.6),
+        );
+      },
+    );
+  }
+
+  testWidgets(
     'while «terminei» is in the air on places unknown, «enviando…», «recomeçar» and «gravar de novo» are written and dimmed',
     (tester) async {
       final (harness, _) = await _onTheSceneScreen(
@@ -787,6 +915,43 @@ void main() {
   );
 
   testWidgets(
+    'a frase of a sent scene rehearsal left to play never reads past its own end, as a clip of the take answers',
+    (tester) async {
+      final (harness, container) = await _inListenMode(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-27T10:00:00+00:00',
+            frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+          ),
+        ],
+      );
+      const line = 'ouvindo o ensaio da cena… — 0:08 / 0:10';
+      harness.playback.walkWhilePlaying();
+
+      await tester.tap(byLabel('frase 2'));
+      await pumpUntil(
+        tester,
+        () => switch (container.read(salaSessionProvider).channel) {
+          PartPlaying(:final opened) => opened,
+          _ => false,
+        },
+      );
+      expect(harness.playback.ranges.last, '4000-8000');
+      for (var second = 0; second < 6; second++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+
+      expect(
+        find.text(line),
+        findsOneWidget,
+        reason:
+            'o clipe da frase 2 andava até o comprimento do arquivo — 0:10 / 0:10',
+      );
+    },
+  );
+
+  testWidgets(
     'a frase of a sent scene rehearsal still opening shows her clock at the frase\'s start, not the clip before it added on',
     (tester) async {
       final (harness, container) = await _inListenMode(
@@ -861,6 +1026,53 @@ void main() {
 
   for (final step in [SceneStep.sent, SceneStep.translate]) {
     testWidgets(
+      '${step.name}: a frase 2 replayed draws the strip\'s playhead at the take\'s own time, not counted from the frase\'s start',
+      (tester) async {
+        final frases = [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)];
+        final (harness, container) = step == SceneStep.sent
+            ? await _inListenMode(
+                tester,
+                rehearsals: [
+                  _rehearsal(
+                    sentAt: '2026-10-27T10:00:00+00:00',
+                    frases: frases,
+                  ),
+                ],
+              )
+            : await _onTheSceneScreen(
+                tester,
+                rehearsals: [_rehearsal(frases: frases)],
+                until: (state) => state.scene.step == SceneStep.translate,
+              );
+
+        await tester.tap(byLabel(step == SceneStep.sent ? 'frase 2' : _bar(2)));
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is PartPlaying,
+        );
+        expect(harness.playback.ranges.last, '4000-8000');
+        await pumpUntil(
+          tester,
+          () => switch (container.read(salaSessionProvider).channel) {
+            PartPlaying(:final opened) => opened,
+            _ => false,
+          },
+        );
+        harness.playback.at = const Duration(seconds: 1);
+        await tester.pump(const Duration(milliseconds: 1100));
+
+        expect(
+          _playhead(tester),
+          closeTo(146, 0.01),
+          reason:
+              'a frase 2 desenhava o marcador em 0:01, contado do começo dela',
+        );
+      },
+    );
+  }
+
+  for (final step in [SceneStep.sent, SceneStep.translate]) {
+    testWidgets(
       '${step.name}: while the team\'s translation plays, the row shows the take paused where it stopped, not «ouvindo o ensaio da cena…» on the translation\'s clock',
       (tester) async {
         final (harness, container) = step == SceneStep.sent
@@ -913,6 +1125,50 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      '${step.name}: while the team\'s translation plays, the strip\'s playhead stands where the take stopped, not on the translation\'s clock',
+      (tester) async {
+        final (harness, container) = step == SceneStep.sent
+            ? await _inListenMode(tester)
+            : await _onTheSceneScreen(
+                tester,
+                rehearsals: [
+                  _rehearsal(frases: [_frase('f1', 0, 3000)]),
+                ],
+                until: (state) => state.scene.step == SceneStep.translate,
+              );
+        final take = container.read(salaSessionProvider).scene.take;
+
+        await tester.tap(
+          step == SceneStep.sent
+              ? byLabel('Tocar ou pausar a gravação')
+              : find.text('traduzir o ensaio da cena'),
+        );
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is PartPlaying,
+        );
+        harness.playback.at = const Duration(seconds: 7);
+        await tester.tap(byLabel('ouvir a minha tradução da frase 1'));
+        await pumpUntil(
+          tester,
+          () =>
+              harness.playback.played.last != take &&
+              container.read(salaSessionProvider).channel is PartPlaying,
+        );
+        expect(harness.playback.played.last, isNot(take));
+        harness.playback.at = const Duration(seconds: 2);
+        await tester.pump(const Duration(milliseconds: 1100));
+
+        expect(
+          _playhead(tester),
+          closeTo(204.4, 0.01),
+          reason:
+              'o marcador andava pela faixa do take no relógio da tradução da equipe',
+        );
+      },
+    );
   }
 
   testWidgets(
@@ -951,6 +1207,386 @@ void main() {
         reason:
             'a tradução da equipe tocada sobre a escuta não dizia onde o take parou',
       );
+    },
+  );
+
+  testWidgets(
+    'a sent scene rehearsal stopped mid-take keeps the strip\'s playhead where the take stopped, and draws none before it plays',
+    (tester) async {
+      final (harness, container) = await _inListenMode(tester);
+      final play = byLabel('Tocar ou pausar a gravação');
+
+      expect(_playhead(tester), isNull);
+      await tester.tap(play);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      await tester.tap(play);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        _playhead(tester),
+        closeTo(204.4, 0.01),
+        reason: 'o take parado apagava o marcador da faixa',
+      );
+    },
+  );
+
+  testWidgets(
+    'another rehearsal opened from the list draws no playhead where the take before it stopped',
+    (tester) async {
+      final (harness, container) = await _inListenMode(
+        tester,
+        rehearsals: [
+          for (final n in [1, 2])
+            _rehearsal(
+              n: n,
+              sentAt: '2026-10-27T10:00:00+00:00',
+              frases: [_frase('f1', 0, 3000)],
+            ),
+        ],
+      );
+      final play = byLabel('Tocar ou pausar a gravação');
+
+      await tester.tap(play);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      await tester.tap(play);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(_playhead(tester), closeTo(204.4, 0.01));
+
+      container
+          .read(salaSessionProvider.notifier)
+          .openTheListedSceneRehearsal('ensaio-da-cena-2');
+      await pumpUntil(
+        tester,
+        () =>
+            container.read(salaSessionProvider).scene.rehearsal?.rehearsalId ==
+            'ensaio-da-cena-2',
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        container.read(salaSessionProvider).scene.rehearsal?.rehearsalId,
+        'ensaio-da-cena-2',
+      );
+      expect(
+        _playhead(tester),
+        isNull,
+        reason: 'o ensaio aberto da lista herdava o marcador do take anterior',
+      );
+    },
+  );
+
+  testWidgets(
+    'a translation started over draws no playhead where the take stopped before it',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      await tester.tap(byLabel('Tocar ou pausar a gravação'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(_playhead(tester), closeTo(204.4, 0.01));
+
+      await tester.tap(find.text('recomeçar a tradução'));
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.tap(
+        find.text('toque de novo para apagar as 1 frases traduzidas'),
+      );
+      await pumpUntil(
+        tester,
+        () =>
+            harness.room.restartsSent.isNotEmpty &&
+            container
+                    .read(salaSessionProvider)
+                    .scene
+                    .rehearsal
+                    ?.translatedFrases ==
+                0,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(harness.room.restartsSent, hasLength(1));
+      expect(
+        _playhead(tester),
+        isNull,
+        reason: 'a tradução recomeçada ainda marcava onde o take tinha parado',
+      );
+      await tester.pump(const Duration(seconds: 6));
+    },
+  );
+
+  for (final (language, translate, play, hearThePause, marked, heard) in [
+    (
+      'pt',
+      'traduzir o ensaio da cena',
+      'Tocar ou pausar a gravação',
+      'ouvir a pausa',
+      'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo para traduzir — 0:07 / 0:10',
+      'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo para traduzir — 0:06 / 0:10',
+    ),
+    (
+      'en',
+      'translate the scene rehearsal',
+      'Play or pause your recording',
+      'hear the pause',
+      'the pause is here — listen, move it if you need to, then tap the circle to translate — 0:07 / 0:10',
+      'the pause is here — listen, move it if you need to, then tap the circle to translate — 0:06 / 0:10',
+    ),
+  ]) {
+    testWidgets(
+      '$language: a pausa marked carries her clock where the take stopped, and the live clock while «ouvir a pausa» plays',
+      (tester) async {
+        final (harness, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) =>
+              state.scene.step == SceneStep.translate &&
+              state.sceneEnvelope != null,
+        );
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        await tester.tap(find.text(translate));
+        await pumpUntil(
+          tester,
+          () => switch (container.read(salaSessionProvider).channel) {
+            PartPlaying(:final opened) => opened,
+            _ => false,
+          },
+        );
+        harness.playback.at = const Duration(seconds: 7);
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.tap(byLabel(play));
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).scene.pausa != null,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(
+          container.read(salaSessionProvider).scene.pausa,
+          const Duration(seconds: 7),
+        );
+
+        expect(
+          find.text(marked),
+          findsOneWidget,
+          reason: 'a pausa marcada apagava o relógio do take',
+        );
+        expect(byLabel(marked), findsOneWidget);
+
+        await tester.tap(byLabel(hearThePause));
+        await pumpUntil(
+          tester,
+          () => switch (container.read(salaSessionProvider).channel) {
+            PartPlaying(:final opened) => opened,
+            _ => false,
+          },
+        );
+        expect(harness.playback.ranges.last, '5500-7000');
+        harness.playback.at = const Duration(seconds: 1);
+        await tester.pump(const Duration(milliseconds: 1100));
+
+        expect(
+          find.text(heard),
+          findsOneWidget,
+          reason: '«ouvir a pausa» tocava sem dizer onde o take estava',
+        );
+      },
+    );
+  }
+
+  testWidgets(
+    '«um pouco antes» carries the clock and the strip\'s playhead to the pausa it moved to, not where the take stopped',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) =>
+            state.scene.step == SceneStep.translate &&
+            state.sceneEnvelope != null,
+      );
+      const moved =
+          'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo para traduzir — 0:06 / 0:10';
+
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => switch (container.read(salaSessionProvider).channel) {
+          PartPlaying(:final opened) => opened,
+          _ => false,
+        },
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(byLabel('Tocar ou pausar a gravação'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).scene.pausa != null,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(_playhead(tester), closeTo(204.4, 0.01));
+
+      await tester.tap(byLabel('um pouco antes'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        container.read(salaSessionProvider).scene.pausa,
+        const Duration(milliseconds: 6600),
+      );
+
+      expect(
+        find.text(moved),
+        findsOneWidget,
+        reason: 'a pausa movida deixava o relógio onde o take tinha parado',
+      );
+      expect(
+        _playhead(tester),
+        closeTo(192.72, 0.01),
+        reason: 'a pausa movida deixava o marcador onde o take tinha parado',
+      );
+    },
+  );
+
+  for (final (which, frases) in [
+    (
+      'an earlier frase',
+      [
+        _frase('f1', 0, 4000),
+        _frase('f2', 4000, 8000),
+        _frase('f3', 8000, 10000),
+      ],
+    ),
+    (
+      'the last frase, its pausa on the move,',
+      [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+    ),
+  ]) {
+    testWidgets(
+      '$which translated again reads «ouvindo o ensaio da cena…» with her clock while it plays, and only the clock once it stops',
+      (tester) async {
+        final (harness, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [_rehearsal(frases: frases)],
+          until: (state) =>
+              state.scene.step == SceneStep.translate &&
+              state.sceneEnvelope != null,
+        );
+        const playing = 'ouvindo o ensaio da cena… — 0:05 / 0:10';
+        const stopped = '0:08 / 0:10';
+
+        await tester.tap(byLabel(_bar(2)));
+        await pumpUntil(
+          tester,
+          () => switch (container.read(salaSessionProvider).channel) {
+            PartPlaying(:final opened) => opened,
+            _ => false,
+          },
+        );
+        expect(harness.playback.ranges.last, '4000-8000');
+        harness.playback.at = const Duration(seconds: 1);
+        await tester.pump(const Duration(milliseconds: 1100));
+
+        expect(
+          find.text(playing),
+          findsOneWidget,
+          reason:
+              'a frase traduzida de novo tocando não dizia que o take tocava',
+        );
+
+        harness.playback.at = const Duration(seconds: 4);
+        harness.playback.finishPlayback();
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is! PartPlaying,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          find.text(stopped),
+          findsOneWidget,
+          reason:
+              'a frase traduzida de novo parada escrevia uma dica em vez de só o relógio',
+        );
+        expect(byLabel(stopped), findsOneWidget);
+      },
+    );
+  }
+
+  testWidgets(
+    'the last frase translated again up to the take\'s end, once stopped, reads only her clock, not «fim do ensaio da cena»',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 10000)],
+          ),
+        ],
+        until: (state) =>
+            state.scene.step == SceneStep.translate &&
+            state.sceneEnvelope != null,
+      );
+
+      await tester.tap(byLabel(_bar(2)));
+      await pumpUntil(
+        tester,
+        () => switch (container.read(salaSessionProvider).channel) {
+          PartPlaying(:final opened) => opened,
+          _ => false,
+        },
+      );
+      expect(harness.playback.ranges.last, '4000-10000');
+      expect(
+        container.read(salaSessionProvider).scene.pausa,
+        const Duration(seconds: 10),
+      );
+      harness.playback.at = const Duration(seconds: 6);
+      harness.playback.finishPlayback();
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        find.text('0:10 / 0:10'),
+        findsOneWidget,
+        reason:
+            'a frase traduzida de novo até o fim do take dizia «fim do ensaio da cena»',
+      );
+      expect(find.text('fim do ensaio da cena'), findsNothing);
     },
   );
 
@@ -1758,6 +2394,288 @@ void main() {
         );
       },
     );
+  }
+  for (final (device, width, wide) in [
+    ('an iPhone SE', 375.0, 375.0 - 2 * 16),
+    ('an iPad', 820.0, 470.0),
+  ]) {
+    testWidgets(
+      'on $device a listed scene rehearsal is as wide as the frase told above it, not narrower',
+      (tester) async {
+        await _onTheSceneScreen(
+          tester,
+          view: Size(width, 2400),
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+        final frase =
+            tester.getRect(byLabel('ouvir a minha tradução da frase 1')).right -
+            tester.getRect(byLabel(_bar(1))).left;
+
+        expect(frase, wide);
+        expect(
+          tester
+              .getSize(
+                byLabel('Ensaio da cena 1, 1 · frases traduzidas, não enviado'),
+              )
+              .width,
+          wide,
+          reason: 'no iPad a lista tinha 438 pontos e as frases 470',
+        );
+      },
+    );
+  }
+  for (final (step, line, open)
+      in <(String, String, Future<void> Function(WidgetTester))>[
+        (
+          'record step',
+          'Toquem no círculo para gravar o ensaio da cena; toquem de novo '
+              'para parar.',
+          (tester) => _onTheSceneScreen(
+            tester,
+            scenesHeld: true,
+            until: (state) => state.stage == SalaStage.cena,
+          ),
+        ),
+        (
+          'translate step',
+          'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase '
+              'acaba, e de novo para traduzir só aquela frase.',
+          (tester) => _onTheSceneScreen(
+            tester,
+            rehearsals: [
+              _rehearsal(frases: [_frase('f1', 0, 3000)]),
+            ],
+            until: (state) => state.scene.step == SceneStep.translate,
+          ),
+        ),
+        ('listen mode', _listenLine, _inListenMode),
+      ]) {
+    testWidgets(
+      'the $step sub line is drawn at her normal letter spacing, not spread by a quarter point',
+      (tester) async {
+        await open(tester);
+        await pumpUntil(tester, () => find.text(line).evaluate().isNotEmpty);
+
+        expect(
+          tester
+              .renderObject<RenderParagraph>(find.text(line))
+              .text
+              .style
+              ?.letterSpacing,
+          0,
+          reason: 'a linha herdava o espaçamento de .25 do Material',
+        );
+      },
+    );
+  }
+  for (final (look, areia) in [
+    (Brightness.light, const Color(0xFFC5C29F)),
+    (Brightness.dark, const Color(0xFF6E6A57)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look a listed rehearsal that is not on screen is edged in her areia, not a faint line',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              sentAt: '2026-10-15T14:20:00+00:00',
+              frases: [_frase('f1', 0, 3000)],
+            ),
+            _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+          ],
+          until: (state) => state.scene.rehearsal?.n == 2,
+        );
+        final decoration =
+            tester
+                    .widget<Container>(
+                      find.descendant(
+                        of: byLabel(
+                          'ouvir o ensaio da cena 1, 1 · frases traduzidas, enviado',
+                        ),
+                        matching: find.byType(Container),
+                      ),
+                    )
+                    .decoration
+                as BoxDecoration;
+
+        expect(
+          decoration.border,
+          Border.all(color: areia, width: 1.2),
+          reason: 'a borda da linha era uma linha de 16%; a dela é areia',
+        );
+      },
+    );
+  }
+  testWidgets(
+    'two listed scene rehearsals stand her .3rem apart, not 6 points',
+    (tester) async {
+      await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-15T14:20:00+00:00',
+            frases: [_frase('f1', 0, 3000)],
+          ),
+          _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+        ],
+        until: (state) => state.scene.rehearsal?.n == 2,
+      );
+
+      expect(
+        tester
+                .getRect(
+                  byLabel(
+                    'Ensaio da cena 2, 1 · frases traduzidas, não enviado',
+                  ),
+                )
+                .top -
+            tester
+                .getRect(
+                  byLabel(
+                    'ouvir o ensaio da cena 1, 1 · frases traduzidas, enviado',
+                  ),
+                )
+                .bottom,
+        closeTo(4.8, 1e-9),
+        reason: 'as linhas da lista ficavam a 6 pontos; as dela a .3rem',
+      );
+    },
+  );
+  testWidgets('two frases told stand her .3rem apart, not 6 points', (
+    tester,
+  ) async {
+    await _onTheSceneScreen(
+      tester,
+      rehearsals: [
+        _rehearsal(frases: [_frase('f1', 0, 3000), _frase('f2', 3000, 6000)]),
+      ],
+      until: (state) => state.scene.step == SceneStep.translate,
+    );
+
+    expect(
+      tester.getRect(byLabel(_bar(2))).top -
+          tester.getRect(byLabel(_bar(1))).bottom,
+      closeTo(4.8, 1e-9),
+      reason: 'as frases ficavam a 6 pontos uma da outra; as dela a .3rem',
+    );
+  });
+  testWidgets(
+    'a frase that cannot be tapped while a translation comes down keeps its card at full strength, and only its speaker dims',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const speaker = 'ouvir a minha tradução da frase 1';
+
+      harness.room.holdNextClip();
+      await tester.tap(byLabel(speaker));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).scene.waiting,
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(container.read(salaSessionProvider).scene.waiting, isTrue);
+      expect(
+        tester.widget<Semantics>(byLabel(_bar(1))).properties.enabled,
+        isFalse,
+      );
+      expect(
+        tester
+            .widgetList<Opacity>(
+              find.descendant(
+                of: byLabel(_bar(1)),
+                matching: find.byType(Opacity),
+              ),
+            )
+            .map((opacity) => opacity.opacity),
+        everyElement(1.0),
+        reason: 'a frase que não se toca agora vinha apagada; a dela não',
+      );
+      expect(
+        tester
+            .widget<AnimatedOpacity>(
+              find.descendant(
+                of: byLabel(speaker),
+                matching: find.byType(AnimatedOpacity),
+              ),
+            )
+            .opacity,
+        0.35,
+      );
+      harness.room.finishHeldClip();
+      await tester.pump(const Duration(milliseconds: 500));
+    },
+  );
+  for (final (look, areia, verdeClaro) in [
+    (Brightness.light, const Color(0xFFC5C29F), const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFF6E6A57), const Color(0xFFAAB07E)),
+  ]) {
+    for (final (step, open) in <(String, Future<void> Function(WidgetTester))>[
+      (
+        'told',
+        (tester) => _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        ),
+      ),
+      ('of a sent scene rehearsal', _inListenMode),
+    ]) {
+      testWidgets(
+        'in the ${look.name} look the speaker beside each frase $step is her 38 point areia ring around a verde-claro speaker, not a bare red one',
+        (tester) async {
+          tester.platformDispatcher.platformBrightnessTestValue = look;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
+          await open(tester);
+          final speaker = byLabel('ouvir a minha tradução da frase 1');
+          final ring = find.descendant(
+            of: speaker,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Container &&
+                  widget.decoration is BoxDecoration &&
+                  (widget.decoration as BoxDecoration).shape == BoxShape.circle,
+            ),
+          );
+          final icon = tester.widget<Icon>(
+            find.descendant(of: speaker, matching: find.byType(Icon)),
+          );
+
+          expect(ring, findsOneWidget);
+          expect(tester.getSize(ring), const Size(38, 38));
+          final decoration =
+              tester.widget<Container>(ring).decoration as BoxDecoration;
+          expect(
+            decoration.border,
+            Border.all(color: areia, width: 1.3),
+            reason: 'o alto-falante não tinha o anel de areia dela',
+          );
+          expect(decoration.color, isNull);
+          expect(icon.icon, LucideIcons.volume2);
+          expect(icon.size, 18);
+          expect(
+            icon.color,
+            verdeClaro,
+            reason: 'o alto-falante era vermelho; o dela é verde-claro',
+          );
+        },
+      );
+    }
   }
   for (final (look, verdeClaro) in [
     (Brightness.light, const Color(0xFF777D45)),

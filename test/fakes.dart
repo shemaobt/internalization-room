@@ -632,6 +632,7 @@ class FakePlayback implements PlaybackRepository {
   Timer? _walking;
   Duration _step = Duration.zero;
   bool _sounding = false;
+  Duration? _fimDoClipe;
 
   /// Let the position walk on its own, the way a real player's does.
   ///
@@ -653,7 +654,7 @@ class FakePlayback implements PlaybackRepository {
     stopWalking();
     if (_step == Duration.zero) return;
     _walking = Timer.periodic(_step, (_) {
-      final fim = length;
+      final fim = _fimDoClipe ?? length;
       final proximo = at + _step;
       if (fim != null && proximo >= fim) {
         at = fim;
@@ -746,6 +747,7 @@ class FakePlayback implements PlaybackRepository {
     played.add(path);
     playedFrom.add(from);
     sounds.add('playback:play');
+    _fimDoClipe = null;
     return _soundUntilItStops(from);
   }
 
@@ -754,6 +756,7 @@ class FakePlayback implements PlaybackRepository {
     played.add(path);
     ranges.add('${from.inMilliseconds}-${to.inMilliseconds}');
     sounds.add('playback:play');
+    _fimDoClipe = to - from;
     // At nought, not at [from]: a clip answers its position counted from its own start,
     // which is the very reason the resumed telling-back is not built on one.
     return _soundUntilItStops(Duration.zero);
@@ -1403,6 +1406,7 @@ class FakeRoom implements RoomRepository {
   bool turnsAreDegraded = false;
   bool silentAboutCoverage = false;
   bool verdictChecked = true;
+  bool readsChecked = false;
 
   /// Whether the verdict itself is a canned line the room could not compose — the wire
   /// twin of [turnsAreCanned] for the turn that closes a telling-back, and the only way a
@@ -2568,6 +2572,7 @@ class FakeRoom implements RoomRepository {
             retroSoFar ??
             BackTranslationProgress(
               segments: _numbered,
+              checked: readsChecked,
               awaitingSegmentId: awaitingSegmentId,
             ),
         approved: approvedDraft,
