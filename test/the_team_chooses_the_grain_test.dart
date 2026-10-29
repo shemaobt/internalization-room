@@ -841,6 +841,25 @@ void main() {
   );
 
   testWidgets(
+    'with no joined scene, «gravar a passagem inteira de uma vez» on the plan '
+    'is a plain button to VoiceOver, never one that reads not pressed',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _atRest(tester, seed: (session) => [_rehearsal(session)]);
+      await _tapTheDot(tester);
+      await _settles(tester);
+      expect(find.text(_planLine), findsOneWidget);
+
+      expect(
+        tester.getSemantics(byLabel(_wholeAtOnce)),
+        isSemantics(isButton: true, hasToggledState: false),
+        reason: 'o VoiceOver lia como solto um botão que troca num toque só',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     'Q4. an empty whole recording opens the plan, and «gravar a passagem inteira '
     'de uma vez» there returns to the whole home with no switch',
     (tester) async {
