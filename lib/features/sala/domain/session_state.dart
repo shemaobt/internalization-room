@@ -524,6 +524,7 @@ class SalaSessionState {
   final Set<int> heldScenes;
 
   final Machine machine;
+  final DateTime? recorderStartedAt;
 
   /// Which part of the rehearsal the team came back to record again, 0-based, or null when
   /// the next recording is a part of its own.
@@ -710,6 +711,7 @@ class SalaSessionState {
     this.unsentParts = const {},
     this.heldScenes = const {},
     this.machine = const Machine(),
+    this.recorderStartedAt,
     this.parteARegravar,
     this.cenaDaGravacao,
     this.scene = const SceneScreen(),
@@ -1743,6 +1745,8 @@ class SalaSessionState {
     Map<int, UnsentPart>? unsentParts,
     Set<int>? heldScenes,
     Machine? machine,
+    DateTime? recorderStartedAt,
+    bool clearRecorderStartedAt = false,
     int? parteARegravar,
     bool clearParteARegravar = false,
     int? cenaDaGravacao,
@@ -1887,6 +1891,9 @@ class SalaSessionState {
       unsentParts: unsentParts ?? this.unsentParts,
       heldScenes: heldScenes ?? this.heldScenes,
       machine: machine ?? this.machine,
+      recorderStartedAt: clearRecorderStartedAt
+          ? null
+          : (recorderStartedAt ?? this.recorderStartedAt),
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),
