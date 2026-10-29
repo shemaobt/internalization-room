@@ -45,6 +45,27 @@ void main() {
     expect(it.harness.playback.played.length, tocadas);
   });
 
+  test('a room that still counts a part unheard keeps her line, and the '
+      're-read a moment later that counts it heard clears it', () async {
+    final it = await _recusadoPelaP2((it) => [it.partes[2].takeId!]);
+    await settle();
+
+    expect(it.estado.btRecusa, CheckRefusal.partUnheard);
+    expect(it.estado.canFinishBackTranslation, isFalse);
+
+    it.harness.room.listeningUnheardTakeIds = const [];
+    await settle(const Duration(milliseconds: 1700));
+
+    expect(
+      it.estado.btRecusa,
+      isNull,
+      reason:
+          'a sala só perguntava uma vez, e um relato que chegou logo depois '
+          'deixava a linha de que falta ouvir até a gravação tocar de novo',
+    );
+    expect(it.estado.canFinishBackTranslation, isTrue);
+  });
+
   test('after her P2 a tap on play replays the recording from its first '
       'part, not only the part the room named', () async {
     final it = await _recusadoPelaP2((it) => [it.partes[2].takeId!]);

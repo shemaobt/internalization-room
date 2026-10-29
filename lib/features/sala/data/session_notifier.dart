@@ -258,6 +258,10 @@ final soundReloadDelayProvider = Provider<Duration>(
   (ref) => const Duration(milliseconds: 1500),
 );
 
+final unheardReadAgainDelayProvider = Provider<Duration>(
+  (ref) => const Duration(milliseconds: 1500),
+);
+
 final sentenceGraceProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 4),
 );
@@ -10786,19 +10790,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btClipEnded: false,
       awaitingTheGuide: false,
     );
-    unawaited(_lerDeNovoOQueFaltaOuvir(sessionId, generation));
+    unawaited(_lerDeNovoOQueFaltaOuvir(sessionId, generation, outraVez: true));
   }
 
   Future<void> _lerDeNovoOQueFaltaOuvir(
     String sessionId,
-    int generation,
-  ) async {
+    int generation, {
+    required bool outraVez,
+  }) async {
     final resposta = await _relatarASala(sessionId, const []);
     if (_abandoned(generation)) return;
     if (resposta case Answered(value: ListenedWhole(unheardTakeIds: []))) {
       _oQueFaltaOuvir = null;
       state = state.copyWith(clearBtRecusa: true, btClipEnded: true);
+      return;
     }
+    if (!outraVez) return;
+    _after(
+      'unheardReadAgain',
+      ref.read(unheardReadAgainDelayProvider),
+      () => unawaited(
+        _lerDeNovoOQueFaltaOuvir(sessionId, generation, outraVez: false),
+      ),
+    );
   }
 
   /// Straight to the part the verdict names, with the telling-back left standing.
