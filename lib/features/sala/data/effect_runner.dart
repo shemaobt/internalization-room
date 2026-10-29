@@ -253,6 +253,8 @@ class EffectRunner {
           host.handOver(effect);
         case ReturnToThePanorama():
           host.handOver(effect);
+        case RestOnThePanorama():
+          host.handOver(effect);
         case EnterThePassageLeft():
           host.handOver(effect);
         case LookAtTheSession(:final turn, :final sounding):
