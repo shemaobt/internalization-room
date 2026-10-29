@@ -1306,7 +1306,7 @@ void main() {
       final it = await _ateAConferida(tester);
       it.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
 
-      await tester.tap(byLabel(_aprovar));
+      await pressTheApproval(tester, _aprovar);
       await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(byLabel(_pronto));
       await tester.pump(const Duration(milliseconds: 400));
@@ -1317,7 +1317,7 @@ void main() {
             'sem a leitura depois da aprovação o selo não vem, e aprovar '
             'segue oferecido',
       );
-      await tester.tap(byLabel(_aprovar));
+      await pressTheApproval(tester, _aprovar);
       it.container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 400));
 
@@ -1403,7 +1403,7 @@ void main() {
     final it = await _ateAConferida(tester);
     it.harness.voice.refuses.add('P3');
 
-    await tester.tap(byLabel(_aprovar));
+    await pressTheApproval(tester, _aprovar);
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(
@@ -1442,7 +1442,7 @@ void main() {
   ) async {
     final it = await _ateAConferida(tester);
 
-    await tester.tap(byLabel(_aprovar));
+    await pressTheApproval(tester, _aprovar);
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(it.harness.room.releasesAsked, hasLength(1));

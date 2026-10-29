@@ -24,7 +24,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, pressTheApproval;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, cabeca, entrarNaTraducao, parte, tocar;
 
@@ -1855,8 +1855,7 @@ void main() {
       tester.widget<Semantics>(byLabel(aprovar)).properties.enabled,
       isFalse,
     );
-    await tester.ensureVisible(byLabel(aprovar));
-    await tester.tap(byLabel(aprovar));
+    await pressTheApproval(tester, aprovar);
     await _passo(tester);
     expect(harness.room.releasesAsked, isEmpty);
     await container.read(salaSessionProvider.notifier).aprovarRascunhoFinal();
