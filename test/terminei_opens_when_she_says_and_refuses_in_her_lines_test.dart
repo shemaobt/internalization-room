@@ -178,6 +178,59 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets(
+    'a check the room refuses says her «não deu para conferir», plays '
+    'nothing, and leaves the telling where it was',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _duasFrasesNoTerminei(tester, harness);
+      harness.room.failFinishWith = const Refused('BAD_REQUEST');
+      final falas = [...harness.voice.played];
+      final tocadas = harness.playback.played.length;
+
+      await _recusado(tester, container);
+
+      expect(
+        find.text('não deu para conferir agora — tentem de novo'),
+        findsOneWidget,
+        reason: 'a recusa da sala ao terminei voltava sem nada na tela',
+      );
+      expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+      expect(harness.voice.played, falas);
+      expect(harness.playback.played.skip(tocadas), isEmpty);
+      expect(aceso(tester, conferir), isTrue);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('a check whose session is gone takes the team back to the '
+      'choice, not to her «não deu para conferir»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _duasFrasesNoTerminei(tester, harness);
+    harness.room.failFinishWith = const SessionGone();
+
+    await tocar(tester, conferir);
+    await waitFor(
+      'a sessão sumida voltar',
+      () => container.read(salaSessionProvider).stage == SalaStage.escolha,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    final estado = container.read(salaSessionProvider);
+    expect(
+      estado.stage,
+      SalaStage.escolha,
+      reason: 'a sessão sumida no terminei não voltava para a escolha',
+    );
+    expect(estado.needsPerson, isFalse);
+    expect(
+      find.text('não deu para conferir agora — tentem de novo'),
+      findsNothing,
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('three checks in a row whose model cannot answer call no '
       'person', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
