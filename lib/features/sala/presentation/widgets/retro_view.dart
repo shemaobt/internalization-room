@@ -497,7 +497,10 @@ class RetroView extends ConsumerWidget {
                 session.btTrechosRegravados.length,
           );
     final dormindo =
-        _dormindo('restart', session) || !session.aBackTranslationGestureActs;
+        _dormindo('restart', session) ||
+        !session.aBackTranslationGestureActs ||
+        !session.theFraseListIsIdle ||
+        session.btRegravacao != null;
     return Semantics(
       button: true,
       enabled: !dormindo,
@@ -507,7 +510,7 @@ class RetroView extends ConsumerWidget {
         opacity: dormindo ? 0.4 : 1,
         child: ExcludeSemantics(
           child: GestureDetector(
-            onTap: notifier.recomecarATraducao,
+            onTap: dormindo ? null : notifier.recomecarATraducao,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
