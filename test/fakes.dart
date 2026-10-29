@@ -1224,6 +1224,8 @@ class FakeRoom implements RoomRepository {
   /// What fetching one recording's audio fails with, by take id.
   final Map<String, RoomFailure> failClipOf = {};
 
+  final Map<String, RoomFailure> failFraseOf = {};
+
   /// How long this room takes to hand over one recording's audio. A link that answers
   /// every part in time is not a link that has stopped, however long the whole fetch adds
   /// up to.
@@ -1738,6 +1740,9 @@ class FakeRoom implements RoomRepository {
     if (devagar != null) await Future<void>.delayed(devagar);
     final refusal = failClipWith;
     if (refusal != null) return refusal;
+    for (final MapEntry(key: frase, value: failure) in failFraseOf.entries) {
+      if (url.endsWith('/frases/$frase/audio')) return failure;
+    }
     final sceneFailure = failSceneWith;
     if (sceneFailure != null && url.contains('/scene-rehearsals/')) {
       return sceneFailure;

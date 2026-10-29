@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -31,19 +33,25 @@ List<TakeView> _naSala(int partes) => [
 ];
 
 /// A telling-back of the whole of each named part, as the room hands it back.
-BackTranslationProgress _contado(List<int> partes, {bool checked = false}) =>
-    BackTranslationProgress(
-      segments: [
-        for (final n in partes)
-          SegmentView(
-            segmentId: 'trecho-$n',
-            takeId: 'gravacao-$n',
-            startsMs: 0,
-            endsMs: _parte.inMilliseconds,
-          ),
-      ],
-      checked: checked,
-    );
+BackTranslationProgress _contado(
+  List<int> partes, {
+  bool checked = false,
+  bool comATraducao = false,
+}) => BackTranslationProgress(
+  segments: [
+    for (final n in partes)
+      SegmentView(
+        segmentId: 'trecho-$n',
+        takeId: 'gravacao-$n',
+        startsMs: 0,
+        endsMs: _parte.inMilliseconds,
+        bridgeTakeId: comATraducao ? 'retro-$n' : null,
+      ),
+  ],
+  checked: checked,
+);
+
+final _aTraducao = Uint8List.fromList([7, 7, 7]);
 
 String _urlDaParte(String take) => RoomRepository.takeAudioUrl(_sessao, take);
 
@@ -199,6 +207,233 @@ Future<void> _regravarAParteDois(_Retomada it) async {
 }
 
 void main() {
+  test(
+    'a frase contada numa visita anterior toca a tradução da equipe, buscada '
+    'pela gravação que a sala nomeia, não a fatia da parte',
+    () async {
+      final harness = SalaHarness();
+      harness.room.takeAudio['retro-1'] = _aTraducao;
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1], comATraducao: true),
+      );
+      await waitFor(
+        'as partes chegarem na retro',
+        () => it.estado.stage == SalaStage.retro && it.estado.everyPartIsHere,
+      );
+      it.sala.ouvirOTrechoContado(0);
+      await waitFor('a tradução tocar', () => it.estado.btRetroTocando);
+
+      expect(
+        harness.room.clipsFetched,
+        contains(RoomRepository.takeAudioUrl(_sessao, 'retro-1')),
+        reason: 'a tradução nem era pedida à sala',
+      );
+      expect(
+        File(harness.playback.played.last).readAsBytesSync(),
+        _aTraducao,
+        reason:
+            'o alto-falante tocava a fatia da parte, na língua materna, no '
+            'lugar da tradução da equipe',
+      );
+      expect(it.estado.btRetroTocando, isTrue);
+      expect(it.estado.btContaEscolhida, 0);
+    },
+  );
+
+  test('a tradução que chega depois de outro toque não corta a frase que a '
+      'equipe pediu por último', () async {
+    final harness = SalaHarness();
+    final aOutra = Uint8List.fromList([8, 8, 8]);
+    File(
+      '${harness.recorder.home.path}/contada-retro-2.m4a',
+    ).writeAsBytesSync(aOutra);
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1, 2, 3], comATraducao: true),
+    );
+    await waitFor(
+      'as partes chegarem na retro',
+      () => it.estado.stage == SalaStage.retro && it.estado.everyPartIsHere,
+    );
+    harness.room.holdNextClip();
+    it.sala.ouvirOTrechoContado(0);
+    await waitFor(
+      'a primeira tradução ser pedida à sala',
+      () => harness.room.clipsFetched.contains(
+        RoomRepository.takeAudioUrl(_sessao, 'retro-1'),
+      ),
+    );
+    it.sala.ouvirOTrechoContado(1);
+    await waitFor('a segunda tradução tocar', () => it.estado.btRetroTocando);
+
+    harness.room.finishHeldClip();
+    await settle();
+
+    expect(
+      File(harness.playback.played.last).readAsBytesSync(),
+      aOutra,
+      reason:
+          'a tradução da primeira frase chegava atrasada e cortava a que a '
+          'equipe tinha pedido depois',
+    );
+    expect(it.estado.btContaEscolhida, 1);
+  });
+
+  test('a tradução trazida uma vez toca de novo do tablet, sem pedi-la outra '
+      'vez à sala', () async {
+    final harness = SalaHarness();
+    harness.room.takeAudio['retro-1'] = _aTraducao;
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1, 2, 3], comATraducao: true),
+    );
+    await waitFor(
+      'as partes chegarem na retro',
+      () => it.estado.stage == SalaStage.retro && it.estado.everyPartIsHere,
+    );
+    it.sala.ouvirOTrechoContado(0);
+    await waitFor('a tradução tocar', () => it.estado.btRetroTocando);
+    harness.playback.finishPlayback();
+    await waitFor('a tradução acabar', () => !it.estado.btRetroTocando);
+
+    it.sala.ouvirOTrechoContado(0);
+    await waitFor('a tradução tocar de novo', () => it.estado.btRetroTocando);
+
+    expect(
+      harness.room.clipsFetched.where(
+        (url) => url == RoomRepository.takeAudioUrl(_sessao, 'retro-1'),
+      ),
+      hasLength(1),
+      reason: 'cada toque baixava a tradução inteira de novo',
+    );
+    expect(File(harness.playback.played.last).readAsBytesSync(), _aTraducao);
+  });
+
+  test('a tradução que a sala não entrega não toca nada e deixa a frase como '
+      'estava, sem cair na língua materna', () async {
+    final harness = SalaHarness()
+      ..room.failClipOf['retro-1'] = const NetworkFailed('a rede caiu');
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1, 2, 3], comATraducao: true),
+    );
+    await waitFor(
+      'as partes chegarem na retro',
+      () => it.estado.stage == SalaStage.retro && it.estado.everyPartIsHere,
+    );
+    await settle();
+    final tocadas = harness.playback.played.length;
+
+    it.sala.ouvirOTrechoContado(0);
+    await waitFor(
+      'a tradução ser pedida à sala',
+      () => harness.room.clipsFetched.contains(
+        RoomRepository.takeAudioUrl(_sessao, 'retro-1'),
+      ),
+    );
+    await settle();
+
+    expect(
+      harness.playback.played,
+      hasLength(tocadas),
+      reason:
+          'sem a tradução, o alto-falante tocava a fatia da parte no lugar '
+          'dela',
+    );
+    expect(it.estado.btRetroTocando, isFalse);
+    expect(it.estado.btTrechoTocando, isFalse);
+    expect(it.estado.btContaEscolhida, isNull);
+    expect(it.estado.btTrechos.first.retroPath, isNull);
+    expect(it.estado.btTrechos.first.bridgeTakeId, 'retro-1');
+  });
+
+  Future<_Retomada> umaRegravadaContadaNaRetro(SalaHarness harness) async {
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      naSala: [
+        ..._naSala(3),
+        TakeView(
+          takeId: 'gravacao-velha-1',
+          kind: 'ensaio',
+          scope: KeptScope.parte(1),
+          ordinal: 1,
+        ),
+      ],
+      contado: BackTranslationProgress(
+        segments: _contado([1]).segments,
+        stale: const [
+          SegmentView(
+            segmentId: 'trecho-velho-1',
+            takeId: 'gravacao-velha-1',
+            startsMs: 0,
+            endsMs: 4000,
+            bridgeTakeId: 'retro-velho-1',
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte, com as partes na retro',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.everyPartIsHere &&
+          it.estado.btTrechosRegravados.length == 1,
+    );
+    return it;
+  }
+
+  test('uma frase regravada contada numa visita anterior toca a sua tradução, '
+      'buscada pela gravação que a sala nomeia', () async {
+    final harness = SalaHarness();
+    harness.room.takeAudio['retro-velho-1'] = _aTraducao;
+    final it = await umaRegravadaContadaNaRetro(harness);
+
+    it.sala.ouvirAFraseRegravada(0);
+    await waitFor('a tradução tocar', () => it.estado.btRetroTocando);
+
+    expect(
+      harness.room.clipsFetched,
+      contains(RoomRepository.takeAudioUrl(_sessao, 'retro-velho-1')),
+      reason:
+          'a frase regravada sem cópia no tablet não tocava nada, e o '
+          'alto-falante dela ficava apagado',
+    );
+    expect(File(harness.playback.played.last).readAsBytesSync(), _aTraducao);
+  });
+
+  test('a frase regravada guarda a gravação da sua tradução quando a sala '
+      'relê as frases', () async {
+    final harness = SalaHarness();
+    final it = await umaRegravadaContadaNaRetro(harness);
+    harness.playback.finishPlayback();
+    await settle();
+    harness.playback.finishPlayback();
+    await waitFor('o ensaio chegar ao fim', () => it.estado.btClipEnded);
+    expect(it.estado.canFinishBackTranslation, isTrue);
+    harness.room.verdictRefusal = CheckRefusal.fraseAwaiting;
+    int lidas() => harness.room.calls.where((c) => c == 'fetchState').length;
+    final antes = lidas();
+
+    await it.sala.finishBackTranslation();
+    await waitFor('a sala reler as frases', () => lidas() > antes);
+    await settle();
+
+    expect(
+      it.estado.btTrechosRegravados.single.bridgeTakeId,
+      'retro-velho-1',
+      reason:
+          'a releitura refazia a frase regravada sem a gravação da tradução, '
+          'e o alto-falante dela apagava',
+    );
+  });
+
   test(
     'uma linha do ensaio sem os arquivos reabre no ensaio com as partes da sala',
     () async {
@@ -657,7 +892,10 @@ void main() {
     return it;
   }
 
-  Future<_Retomada> semAParteDoisComRegravadas(SalaHarness harness) async {
+  Future<_Retomada> semAParteDoisComRegravadas(
+    SalaHarness harness, {
+    bool comATraducao = false,
+  }) async {
     harness.room
       ..passageScenes = tresCenas
       ..refuseClipOf.add('gravacao-2')
@@ -683,6 +921,7 @@ void main() {
               takeId: 'gravacao-velha-$n',
               startsMs: 0,
               endsMs: 4000,
+              bridgeTakeId: comATraducao ? 'retro-velho-$n' : null,
             ),
         ],
       ),
@@ -777,6 +1016,24 @@ void main() {
       reason:
           'a parte 2 entrava antes da 3 e a frase contada da parte 3 ficava '
           'no lugar dela, lendo «parte 2» e pousando na faixa da parte 2',
+    );
+  });
+
+  test('gravar a parte 2 depois das partes 1 e 3 deixa cada frase regravada '
+      'com a gravação da sua tradução', () async {
+    final it = await semAParteDoisComRegravadas(
+      SalaHarness(),
+      comATraducao: true,
+    );
+
+    await gravarACena(it, 2);
+
+    expect(
+      [for (final trecho in it.estado.btTrechosRegravados) trecho.bridgeTakeId],
+      ['retro-velho-1', 'retro-velho-3'],
+      reason:
+          'a frase regravada que mudava de parte perdia a gravação da '
+          'tradução, e o alto-falante dela apagava',
     );
   });
 

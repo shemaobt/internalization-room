@@ -108,6 +108,50 @@ void main() {
     expect(plain.namedNuance, isNull);
   });
 
+  test('a told stretch carries the take its telling was recorded in, live or '
+      'stale, and a stretch the room names none for carries none', () {
+    const room = {
+      'segments': [
+        {
+          'segment_id': 'trecho-1',
+          'take_id': 'parte-1',
+          'starts_ms': 0,
+          'ends_ms': 4000,
+          'bridge_take_id': 'retro-1',
+          'stale': false,
+        },
+        {
+          'segment_id': 'trecho-2',
+          'take_id': 'parte-1',
+          'starts_ms': 4000,
+          'ends_ms': 6000,
+          'told': false,
+          'bridge_take_id': null,
+          'stale': false,
+        },
+        {
+          'segment_id': 'trecho-velho',
+          'take_id': 'parte-velha',
+          'starts_ms': 0,
+          'ends_ms': 3000,
+          'bridge_take_id': 'retro-velho',
+          'stale': true,
+        },
+      ],
+    };
+
+    expect(
+      [
+        for (final segment in SegmentView.listFrom(room)) segment.bridgeTakeId,
+        for (final segment in SegmentView.staleFrom(room)) segment.bridgeTakeId,
+      ],
+      ['retro-1', null, 'retro-velho'],
+      reason:
+          'o app jogava fora o bridge_take_id, e a frase contada numa visita '
+          'anterior tocava a língua materna no lugar da tradução',
+    );
+  });
+
   test('a stretch carries the frase number the voice says, and an untold '
       'piece carries none', () {
     final segments = SegmentView.listFrom(const {

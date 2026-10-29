@@ -203,3 +203,17 @@ resume into it already reports on its way back to the check), and one when
 the room keeps a told stretch. With them goes the answer they keep, `_oQueASalaDisse`, and
 its order, `_relatosASala`, two private fields of `SalaSessionNotifier`. No Station opens or
 resumes differently.
+
+Extended by name (ENG-2057, 2026-10-29), same end date: four more of those reports, one for
+each other change of the passage's frases: a stretch told again, a scene's translations
+brought back, the translation started over and a re-recorded sentence laid in (ADR 0140
+rule 4). They keep the same answer in the same two fields; no field is added, and no Station
+opens or resumes differently.
+
+Extended by name (ENG-2054, 2026-10-29), same end date: `btOuvidaInteira`, the room's newest
+answer to a listening report (every part heard, a part unheard, or no list), which the check's
+«terminei» and the line under it read; and `btRestoPorOuvir`, a telling picked back up whose
+told ground stops short of the end, cleared when the recording's last part ends here (ADR 0140
+rule 2). Both sit on `SalaSessionState` beside the other `bt` fields and move with them. With
+them goes one more of the Listening ledger's reports with nothing to report, sent when a
+checked telling is picked back up. No Station opens or resumes differently.
