@@ -7,13 +7,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/grain_choice_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show byLabel;
 
 const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _recordThePart = 'voltar e regravar uma parte';
@@ -29,6 +32,9 @@ Future<void> _settles(WidgetTester tester) async {
   }
 }
 
+bool? _aberto(WidgetTester tester, String label) =>
+    tester.widget<Semantics>(byLabel(label)).properties.enabled;
+
 Future<void> _tap(WidgetTester tester, String text) async {
   await tester.ensureVisible(find.text(text));
   await tester.tap(find.text(text));
@@ -43,6 +49,7 @@ Future<ProviderContainer> _naConferencia(
   SalaHarness harness, {
   bool juntada = true,
   bool aprovada = false,
+  bool conferida = false,
   bool primeiraEscuta = false,
   String lingua = 'pt',
 }) async {
@@ -83,7 +90,7 @@ Future<ProviderContainer> _naConferencia(
     harness.room.listeningUnheardTakeIds = const ['gravacao-1', 'gravacao-2'];
   }
   harness.room.retroSoFar = BackTranslationProgress(
-    checked: aprovada,
+    checked: aprovada || conferida,
     segments: [
       if (!primeiraEscuta) ...const [
         SegmentView(
@@ -136,8 +143,16 @@ Future<ProviderContainer> _naConferencia(
         container.read(salaSessionProvider).btTrechos.length ==
             (primeiraEscuta ? 0 : 2) &&
         container.read(salaSessionProvider).btPhase ==
-            (aprovada ? BtPhase.conferida : BtPhase.playing),
+            (aprovada || conferida ? BtPhase.conferida : BtPhase.playing),
     step: () => letTheRehearsalReachTheRoom(tester),
+  );
+  await waitFor(
+    'a conferência ficar em silêncio',
+    () => !harness.playback.sounding,
+    step: () async {
+      harness.playback.finishPlayback();
+      await _passo(tester);
+    },
   );
   await _passo(tester);
   return container;
@@ -336,6 +351,162 @@ void main() {
       findsNothing,
       reason: 'o dela só aparece no passo de traduzir, não na primeira escuta',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('while a part sounds it is dimmed and a tap does not arm it', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    expect(_aberto(tester, _wholeAtOnce), isTrue);
+
+    container.read(salaSessionProvider.notifier).ouvirOTrechoContado(0);
+    await _passo(tester);
+    expect(harness.playback.sounding, isTrue);
+
+    expect(
+      _aberto(tester, _wholeAtOnce),
+      isFalse,
+      reason: 'o dela fica desligado enquanto algo soa',
+    );
+    await _tap(tester, _wholeAtOnce);
+    expect(find.text(_wholeArmed), findsNothing);
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the guide speaks it is dimmed and a tap does not arm it', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    await _umVeredito(tester, harness, container);
+    expect(_aberto(tester, _wholeAtOnce), isTrue);
+
+    harness.voice.holdNextLine();
+    await _tap(tester, 'ouvir a resposta de novo');
+    expect(container.read(salaSessionProvider).channel, isA<GuideSpeaking>());
+
+    expect(
+      _aberto(tester, _wholeAtOnce),
+      isFalse,
+      reason: 'o dela fica desligado enquanto a voz fala',
+    );
+    await _tap(tester, _wholeAtOnce);
+    expect(find.text(_wholeArmed), findsNothing);
+    harness.voice.finishHeldLine();
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the check is sent and its verdict awaited it is dimmed '
+      'and a tap does not arm it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    expect(_aberto(tester, _wholeAtOnce), isTrue);
+
+    harness.room.holdNextVerdict();
+    unawaited(
+      container.read(salaSessionProvider.notifier).finishBackTranslation(),
+    );
+    await _passo(tester);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.thinking);
+
+    expect(
+      _aberto(tester, _wholeAtOnce),
+      isFalse,
+      reason: 'o dela fica desligado enquanto a conferência é enviada',
+    );
+    await _tap(tester, _wholeAtOnce);
+    expect(find.text(_wholeArmed), findsNothing);
+    harness.room.finishHeldVerdict();
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while a sentence re-record is open it is dimmed and a tap does '
+      'not arm it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    expect(_aberto(tester, _wholeAtOnce), isTrue);
+
+    await _tap(tester, 'regravar a frase 1');
+    await waitFor(
+      'a frase tocar até o fim',
+      () => !harness.playback.sounding,
+      step: () async {
+        harness.playback.finishPlayback();
+        await _passo(tester);
+      },
+    );
+    await _passo(tester);
+    expect(container.read(salaSessionProvider).btRegravacao, isNotNull);
+    expect(container.read(salaSessionProvider).channel, isA<Silence>());
+
+    expect(
+      _aberto(tester, _wholeAtOnce),
+      isFalse,
+      reason: 'o dela fica desligado enquanto uma frase é regravada',
+    );
+    await _tap(tester, _wholeAtOnce);
+    expect(find.text(_wholeArmed), findsNothing);
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the approval is on its way to the room it is dimmed and '
+      'a tap does not arm it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness, conferida: true);
+    expect(_aberto(tester, _wholeAtOnce), isTrue);
+
+    harness.room.holdNextRelease();
+    unawaited(
+      container.read(salaSessionProvider.notifier).aprovarRascunhoFinal(),
+    );
+    await _passo(tester);
+    expect(
+      container.read(salaSessionProvider).aBackTranslationGestureActs,
+      isFalse,
+    );
+
+    expect(
+      _aberto(tester, _wholeAtOnce),
+      isFalse,
+      reason: 'o dela fica desligado enquanto a aprovação vai para a sala',
+    );
+    await _tap(tester, _wholeAtOnce);
+    expect(find.text(_wholeArmed), findsNothing);
+    harness.room.finishHeldRelease();
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the switch is in the air more taps never call the door '
+      'again', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    harness.room.holdTheGrainSwitch();
+
+    await _tap(tester, _wholeAtOnce);
+    await tester.pump(const Duration(seconds: 2));
+    await _tap(tester, _wholeArmed);
+    expect(container.read(salaSessionProvider).grainSwitching, isTrue);
+
+    for (var vez = 0; vez < 2; vez++) {
+      await tester.tap(find.byType(GrainChange));
+      await tester.pump(const Duration(seconds: 2));
+    }
+
+    expect(
+      harness.room.grainSwitches,
+      hasLength(1),
+      reason: 'um toque durante a troca chamava a porta da sala de novo',
+    );
+    harness.room.finishTheGrainSwitch();
+    await _settles(tester);
+    await tester.pump(_theArmLapses);
     closeTheRoom(container);
   });
 }

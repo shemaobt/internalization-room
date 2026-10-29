@@ -191,14 +191,16 @@ class GrainChange extends StatelessWidget {
 GrainChange wholeAtOnce(
   SalaSessionState session,
   String language,
-  VoidCallback onTap,
-) => _armed(
+  VoidCallback onTap, {
+  bool open = true,
+}) => _armed(
   session,
   'whole',
   recordingHomeLabelFor('wholeAtOnce', language),
   armed: session.overAnApprovedDraft
       ? retroLabelFor('reopenArmed', language)
       : recordingHomeLabelFor('wholeArmed', language),
+  open: open,
   onTap: onTap,
 );
 
@@ -221,12 +223,16 @@ GrainChange _armed(
   String label, {
   required String armed,
   required VoidCallback onTap,
+  bool open = true,
 }) {
   final arm = session.armedTap;
   final mine = arm?.control == control;
   return GrainChange(
     label: mine ? armed : label,
-    open: !session.grainSwitching && !(mine && arm?.phase == BtRecomeco.armado),
+    open:
+        open &&
+        !session.grainSwitching &&
+        !(mine && arm?.phase == BtRecomeco.armado),
     onTap: onTap,
   );
 }

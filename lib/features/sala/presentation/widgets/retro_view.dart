@@ -226,7 +226,12 @@ class RetroView extends ConsumerWidget {
             ],
             if (session.joined && !session.btSoOuvir) ...[
               const SizedBox(height: 8),
-              wholeAtOnce(session, language, notifier.recordTheWholePassage),
+              wholeAtOnce(
+                session,
+                language,
+                notifier.recordTheWholePassage,
+                open: session.wholeSwitchActsOnTheCheck,
+              ),
             ],
             const SizedBox(height: 48),
           ],

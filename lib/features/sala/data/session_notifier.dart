@@ -4139,7 +4139,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// «gravar a passagem inteira de uma vez», on the plan and on a scene home over a
   /// joined recording.
   void recordTheWholePassage() => _gesture(() {
-    if (!(_aGrainControlActs || state.station is Retro) ||
+    if (!(state.station is Retro
+            ? state.wholeSwitchActsOnTheCheck
+            : _aGrainControlActs) ||
         (state.recordsTheWhole && !_onThePlan)) {
       return;
     }
