@@ -203,6 +203,14 @@ void main() {
     final w = _en(1);
     final antes = harness.voice.fixedLines.length;
 
+    expect(byLabel(w.aprovar), findsOneWidget);
+    expect(
+      find.text(w.conferida),
+      findsNothing,
+      reason:
+          'a tela da checagem em inglês escrevia «✓ translated and checked»',
+    );
+
     await _approveWithP3Held(tester, harness, w);
 
     expect(find.text(w.approvedSentence), findsOneWidget);
