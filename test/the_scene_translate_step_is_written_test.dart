@@ -926,6 +926,50 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      '${step.name}: while the team\'s translation plays, the strip\'s playhead stands where the take stopped, not on the translation\'s clock',
+      (tester) async {
+        final (harness, container) = step == SceneStep.sent
+            ? await _inListenMode(tester)
+            : await _onTheSceneScreen(
+                tester,
+                rehearsals: [
+                  _rehearsal(frases: [_frase('f1', 0, 3000)]),
+                ],
+                until: (state) => state.scene.step == SceneStep.translate,
+              );
+        final take = container.read(salaSessionProvider).scene.take;
+
+        await tester.tap(
+          step == SceneStep.sent
+              ? byLabel('Tocar ou pausar a gravação')
+              : find.text('traduzir o ensaio da cena'),
+        );
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).channel is PartPlaying,
+        );
+        harness.playback.at = const Duration(seconds: 7);
+        await tester.tap(byLabel('ouvir a minha tradução da frase 1'));
+        await pumpUntil(
+          tester,
+          () =>
+              harness.playback.played.last != take &&
+              container.read(salaSessionProvider).channel is PartPlaying,
+        );
+        expect(harness.playback.played.last, isNot(take));
+        harness.playback.at = const Duration(seconds: 2);
+        await tester.pump(const Duration(milliseconds: 1100));
+
+        expect(
+          _playhead(tester),
+          closeTo(204.4, 0.01),
+          reason:
+              'o marcador andava pela faixa do take no relógio da tradução da equipe',
+        );
+      },
+    );
   }
 
   testWidgets(
