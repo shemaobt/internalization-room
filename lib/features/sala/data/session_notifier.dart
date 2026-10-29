@@ -3634,6 +3634,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     void toTheFloor() {
       if (told.checked) {
         final generation = _generation;
+        if (sessionId != null) unawaited(_relatarASala(sessionId, const []));
         unawaited(
           _medirAsPartes(state.partes, generation).then((_) {
             if (_abandoned(generation)) return;
