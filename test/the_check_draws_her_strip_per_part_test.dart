@@ -30,6 +30,7 @@ import 'the_pause_snaps_to_silence_test.dart'
         pausarAos,
         s,
         tocarOCirculo,
+        traduzirEConfirmar,
         umaLacunaAos3;
 
 const _duasFrasesNaParteUm = [
@@ -587,6 +588,151 @@ void main() {
       reason:
           'o microfone aberto apagava a linha do tocador, e a equipe perdia '
           'onde a gravação tinha parado',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase of another part replayed over the paused take takes the '
+      'player off the paused strip', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAoConferir(
+      tester,
+      harness,
+      contado: const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 5000,
+            frase: 2,
+          ),
+        ],
+      ),
+    );
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.playback.at = const Duration(seconds: 6);
+    await tester.pump(passaDoCursor);
+    notifier.ouvirGravacao();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(_ondeOTocadorEsta(tester), [closeTo(0.6, 1e-9), null]);
+
+    notifier.ouvirOTrechoContado(1);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).channel, isA<StretchPlaying>());
+    expect(
+      _ondeOTocadorEsta(tester),
+      [null, null],
+      reason:
+          'a frase da parte 2 tocava e a linha do tocador seguia parada na '
+          'parte 1, como se fosse ela que soasse',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase of another part paused over the paused take still '
+      'keeps the player off the paused strip', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAoConferir(
+      tester,
+      harness,
+      contado: const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+          SegmentView(
+            segmentId: 'trecho-3',
+            takeId: 'gravacao-2',
+            startsMs: 0,
+            endsMs: 5000,
+            frase: 2,
+          ),
+        ],
+      ),
+    );
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.playback.at = const Duration(seconds: 6);
+    await tester.pump(passaDoCursor);
+    notifier.ouvirGravacao();
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.ouvirOTrechoContado(1);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    notifier.ouvirGravacao();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      container.read(salaSessionProvider).channel,
+      isA<Paused>().having(
+        (parada) => parada.what,
+        'what',
+        isA<StretchSound>(),
+      ),
+    );
+    expect(
+      _ondeOTocadorEsta(tester),
+      [null, null],
+      reason:
+          'a frase da parte 2 pausada devolvia a linha do tocador à parte 1, '
+          'que não tinha voltado a soar',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the team\'s own translation played over the paused take keeps '
+      'the player where the take stopped', (tester) async {
+    tester.view
+      ..physicalSize = const Size(820, 2400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+    await pausarAos(tester, harness, s(4.2));
+    await traduzirEConfirmar(tester);
+    await waitFor(
+      'a frase contada pousar com a tradução da equipe',
+      () => container
+          .read(salaSessionProvider)
+          .btTrechos
+          .any((trecho) => trecho.contado && trecho.retroPath != null),
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.playback.at = s(6.0);
+    await tester.pump(passaDoCursor);
+    notifier.ouvirGravacao();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    notifier.ouvirOTrechoContado(0);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      container.read(salaSessionProvider).channel,
+      isA<StretchPlaying>().having(
+        (tocando) => tocando.stretch.telling,
+        'telling',
+        isTrue,
+      ),
+    );
+    expect(
+      _ondeOTocadorEsta(tester),
+      [closeTo(0.6, 1e-9)],
+      reason:
+          'a tradução da equipe tocada sobre a gravação pausada apagava a '
+          'linha do tocador, que não tinha saído do lugar',
     );
     closeTheRoom(container);
   });
