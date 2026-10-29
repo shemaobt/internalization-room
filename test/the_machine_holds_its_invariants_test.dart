@@ -176,6 +176,21 @@ final theMicrophoneOpensOverASoundOnlyAfterAStop = Invariant<Machine>(
   },
 );
 
+final aStopNamesThisSessionsTakeInTheAir = Invariant<Machine>(
+  "a stop names this session's take in the air",
+  (before, event, after, effects, world) {
+    for (final StopTheSend(:row) in effects.whereType<StopTheSend>()) {
+      final inTheAir = before.inTheAir;
+      if (inTheAir == null ||
+          inTheAir.row != row ||
+          inTheAir.keep.session != before.session) {
+        return 'stopped $row with ${inTheAir?.row} in the air';
+      }
+    }
+    return null;
+  },
+);
+
 final aLineOfTheVoiceStopsAPlayingReply = Invariant<Machine>(
   'a line of the voice that arrives over a playing reply stops it',
   (before, event, after, effects, world) {
@@ -369,6 +384,19 @@ final everyFailedLoadOfAReplyEndsInOneAnswer = Invariant<Machine>(
     if (answers.length == 1) return null;
     return '${describeEvent(event)} over ${describeMachine(before)} ended in '
         '${answers.length} answers: ${effects.map(describeEffect).join(', ')}';
+  },
+);
+
+final onlyAStepLeftFromTheCanvasMovesItsEnd = Invariant<Machine>(
+  'ENG-1946, only a step left from the Canvas moves the end it keeps',
+  (before, event, after, effects, world) {
+    final kept = switch (event) {
+      StepLeft(:final ended) when before.station is Canvas => ended,
+      _ => before.theCanvasEnded,
+    };
+    if (after.theCanvasEnded == kept) return null;
+    return '${describeEvent(event)} on ${before.station.runtimeType} moved the '
+        'Canvas\'s end to ${after.theCanvasEnded}';
   },
 );
 
@@ -574,6 +602,7 @@ void main() {
           theMicrophoneOpensOverASoundOnlyAfterAStop,
           aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas,
           aLineOfTheVoiceStopsAPlayingReply,
+          aStopNamesThisSessionsTakeInTheAir,
           theHeadNeverReadsAnotherSound,
           theOutboxNeverIdlesWithAPartPending,
           theScreenNeverShowsASoundTheChannelDoesNotHold,
@@ -598,6 +627,11 @@ void main() {
   test('generator invariant: nothing but her six cases enters the person '
       'sign', () {
     _holds(nothingButHerSixCasesEntersThePersonSign);
+  });
+
+  test('generator invariant: only a step left from the Canvas moves the end '
+      'it keeps', () {
+    _holds(onlyAStepLeftFromTheCanvasMovesItsEnd);
   });
 
   test('ADR 0092: a Station\'s session never opens without the Watch', () {
