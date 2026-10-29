@@ -261,6 +261,10 @@ enum VoiceState { invite, listening, thinking, speaking, done }
 
 enum EnsaioStatus { idle, recording, recorded }
 
+/// «Ouvir tudo», the recording home's listen-only screen: off, playing the parts in order,
+/// or played to its end.
+enum OuvirTudo { fora, ouvindo, acabou }
+
 /// How far short of a part's end the told ground may stop and still count as its end.
 ///
 /// The last cut of a part is made where the clip stopped, and a position read as a
@@ -510,6 +514,8 @@ class SalaSessionState {
   /// The version the Saved screen shows; the Saved screen stands while it is set.
   final int? ensaioSalvo;
 
+  final OuvirTudo ouvirTudo;
+
   /// The room's own read of whether the passage is checked, kept for the recording home.
   final bool btChecked;
   final int unsentTakes;
@@ -698,6 +704,7 @@ class SalaSessionState {
     this.btAbrindoAChecagem,
     this.btAprovadoAgora,
     this.ensaioSalvo,
+    this.ouvirTudo = OuvirTudo.fora,
     this.btChecked = false,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
@@ -1527,6 +1534,12 @@ class SalaSessionState {
 
   static int _byNumber(KeptTake take) => KeptScope.numberOf(take.scopeId) ?? 0;
 
+  bool get canOuvirTudo =>
+      partes.isNotEmpty &&
+      ensaio == EnsaioStatus.idle &&
+      everyPartIsHere &&
+      !needsPerson;
+
   bool get canPlayTheRehearsal =>
       (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
       ensaio != EnsaioStatus.recording &&
@@ -1725,6 +1738,7 @@ class SalaSessionState {
     bool clearBtAprovadoAgora = false,
     int? ensaioSalvo,
     bool clearEnsaioSalvo = false,
+    OuvirTudo? ouvirTudo,
     bool? btChecked,
     int? unsentTakes,
     int? unsentChunks,
@@ -1870,6 +1884,7 @@ class SalaSessionState {
           ? null
           : (btAprovadoAgora ?? this.btAprovadoAgora),
       ensaioSalvo: clearEnsaioSalvo ? null : (ensaioSalvo ?? this.ensaioSalvo),
+      ouvirTudo: ouvirTudo ?? this.ouvirTudo,
       btChecked: btChecked ?? this.btChecked,
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
