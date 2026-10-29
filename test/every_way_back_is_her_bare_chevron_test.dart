@@ -129,10 +129,19 @@ double _opacityOver(WidgetTester tester, String back) {
 }
 
 void _isHerChevron(WidgetTester tester, String back, Color verdeClaro) {
-  expect(_chevronOf(back), findsOneWidget);
-  expect(tester.getSize(_chevronOf(back)), const Size(22, 22));
+  expectHerChevron(tester, _chevronOf(back), verdeClaro);
   expect(
-    _chevronOf(back),
+    _opacityOver(tester, back),
+    closeTo(0.6, 0.001),
+    reason: 'o .draft-close dela fica a .6',
+  );
+}
+
+void expectHerChevron(WidgetTester tester, Finder chevron, Color verdeClaro) {
+  expect(chevron, findsOneWidget);
+  expect(tester.getSize(chevron), const Size(22, 22));
+  expect(
+    chevron,
     paints..path(
       color: verdeClaro,
       style: PaintingStyle.stroke,
@@ -144,7 +153,7 @@ void _isHerChevron(WidgetTester tester, String back, Color verdeClaro) {
         'o dela é M15 5l-7 7 7 7 em traço 1,6',
   );
   expect(
-    _chevronOf(back),
+    chevron,
     paints..something((method, arguments) {
       if (method != #drawPath) return false;
       final paint = arguments[1] as Paint;
@@ -152,11 +161,6 @@ void _isHerChevron(WidgetTester tester, String back, Color verdeClaro) {
           paint.strokeCap == StrokeCap.round &&
           paint.strokeJoin == StrokeJoin.round;
     }),
-  );
-  expect(
-    _opacityOver(tester, back),
-    closeTo(0.6, 0.001),
-    reason: 'o .draft-close dela fica a .6',
   );
 }
 
