@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered)
+status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap)
 date: 2026-10-23
 amends: 0014, 0039, 0102, 0117, 0118
 ---
@@ -137,3 +137,24 @@ the choice stood still takes the team to the grain it names.
 `chooseGrain` always sends its PUT; the room answers a switch to the grain it holds without
 changing anything. A door that fails changes nothing and says nothing, as above. The plan's and
 the home's grain controls still go straight to a grain already in force.
+
+## Amendment · 2026-10-29 (ENG-1892)
+
+Her grain choice is two plain buttons (Drafting.tsx:2292-2293): one tap sends her PUT, and over
+a finalized draft it switches all the same (app/api/draft/route.ts:106-120). She draws it only
+while no draft holds a grain or the draft went unread (ensaioFinal.ts:43,76), and the room's
+listing names a grain whenever it holds a current part, so ours never asks it over a draft the
+tablet has read. **«A passagem inteira» and «Cena por cena» on the choice take one tap, never the
+Armed tap, and never show «toquem de novo: isto abre de novo o rascunho aprovado».** Every tap
+on the choice sends `reopens_the_approved_draft`, as the plain one-tap switches do, so the room
+never refuses it `DRAFT_APPROVED`. The arm after a refused switch now belongs to the controls
+alone: «gravar a passagem inteira de uma vez» and «Ensaio Final: juntar os ensaios das cenas»
+on the home, the plan and the check keep their armed text.
+
+The choice still stands over an approved draft when the room's listing went unread, so the
+re-open is still needed there. **On the grain the room already holds, the re-open changes
+nothing:** shema-api's `switch_the_grain` returns before it reads the approval
+(`app/services/internalization_room/sessions.py:1554-1557`), so the approval and the parts stay
+and the amendment above still holds. The flag is not left off there: with the listing unread, the
+grain the tablet remembers may not be the room's, and a re-open withheld by that memory would be
+refused on every tap of that button.
