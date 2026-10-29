@@ -401,7 +401,10 @@ class _UnlabelledCard extends ConsumerWidget {
         ),
         child: Column(
           children: [
-            ExcludeSemantics(
+            Semantics(
+              container: true,
+              header: true,
+              headingLevel: 2,
               child: Text(
                 said('whichScene'),
                 style: TextStyle(

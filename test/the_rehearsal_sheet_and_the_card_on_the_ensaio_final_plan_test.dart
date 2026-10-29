@@ -1180,6 +1180,29 @@ void main() {
   });
 
   testWidgets(
+    'the card is headed by «De que cena é este ensaio?» as a heading, not by '
+    'a line of text',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _seeded(tester, _twoUnlabelled);
+      await _openThePlan(tester);
+
+      final title = tester
+          .getSemantics(_onCard(find.text(_whichScene)))
+          .getSemanticsData();
+      expect(
+        title.flagsCollection.isHeader,
+        isTrue,
+        reason: 'o título do cartão era texto mudo, sem ser um título',
+      );
+      expect(title.headingLevel, 2);
+      expect(title.label, _whichScene);
+      expect(byLabel(_whichScene), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     '10. the card puts the older unlabelled rehearsal first, and a scene tap '
     'labels it and shows the next',
     (tester) async {
