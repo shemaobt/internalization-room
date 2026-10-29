@@ -1348,8 +1348,9 @@ class TakeUploadQueue {
     }
   }
 
-  /// Take every join row of [scope] still waiting off the manifest, with its copy: the
-  /// team recorded the part again by hand.
+  /// Take every join row of [scope] off the manifest, even one whose request is in the
+  /// air: the team recorded the part again by hand. A row at rest goes with its copy; a
+  /// request in the air keeps its copy until its answer deletes it.
   Future<void> withdrawTheJoinsOf(String sessionId, String scope) async {
     final removed = <PendingTake>[];
     await _mutate((written) {
