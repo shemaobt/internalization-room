@@ -445,9 +445,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// over the ground already told exists to spare them.
   late _OQueFaltaOuvir? _oQueFaltaOuvir;
 
-  /// The parts the First listen put in the air, so a listen whose last report found no
-  /// answer plays them again.
-  late List<int> _partesDaEscuta;
+  late int _aEscutaRecomecaEm;
 
   late ({String sessionId, int ordem, ListenedWhole ouvida})? _oQueASalaDisse;
 
@@ -569,7 +567,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _captureFails = {};
     _parteJaTocou = false;
     _oQueFaltaOuvir = null;
-    _partesDaEscuta = const [];
+    _aEscutaRecomecaEm = 0;
     _oQueASalaDisse = null;
     _relatosASala = 0;
     _tamanhoDaParteMs = {};
@@ -2254,8 +2252,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _openTheEntry(Passagem entry) {
     if (!state.entriesOpen || !state.naRoda!.contains(entry)) return;
-    if (state.isTheEntryLeft(entry, language: _lingua)) {
-      state = state.copyWith(clearPassageLeft: true);
+    if (entry.isPanorama && state.isTheEntryLeft(entry, language: _lingua)) {
       _returnToTheLeftEntry();
       return;
     }
@@ -8002,7 +7999,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ? [for (var onde = 0; onde < state.partes.length; onde++) onde]
         : naoOuvidas;
     state = state.copyWith(btSoOuvir: true);
-    _partesDaEscuta = partes;
+    _aEscutaRecomecaEm = partes.length == state.partes.length ? 0 : partes.last;
     await _dizer(
       doComeco ? (juntada ? firstListenLine : startLine) : unheardLine,
     );
@@ -8066,17 +8063,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _ => null,
     };
     final nomes = ouvida?.unheardTakeIds;
+    final deNovo = [
+      for (var onde = _aEscutaRecomecaEm; onde < state.partes.length; onde++)
+        onde,
+    ];
+    _aEscutaRecomecaEm = 0;
     if (ouvida == null || nomes == null) {
-      _oQueFaltaOuvir = _OQueFaltaOuvir(_partesDaEscuta, paraNaUltima: true);
+      _oQueFaltaOuvir = _OQueFaltaOuvir(deNovo, paraNaUltima: true);
       return;
     }
     final faltam = _asPartesNomeadas(nomes);
     if (nomes.isNotEmpty || faltam.isNotEmpty) {
-      if (faltam.isNotEmpty) _partesDaEscuta = faltam;
-      _oQueFaltaOuvir = _OQueFaltaOuvir(_partesDaEscuta, paraNaUltima: true);
+      _oQueFaltaOuvir = _OQueFaltaOuvir(deNovo, paraNaUltima: true);
       state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
       return;
     }
+    state = state.copyWith(clearBtRecusa: true);
     bool deixou() => _abandoned(generation) || _endedSince(life);
     if (state.btFraseQueAguarda case final aguardando?) {
       await _voltarAFraseQueAguarda(aguardando, generation);
@@ -8470,13 +8472,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _play(
       PartSound(parte, state.partes[parte].path, from: de),
       onComplete: () => _fimDeParte(seguir: seguir),
-      onFailed: _aParteNaoTocou,
     );
   }
 
   void _aParteNaoTocou() {
-    if (!state.btSoOuvir) return;
-    state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
+    if (state.btRegravacao != null) return;
+    state = state.copyWith(btAviso: BtAviso.tocarFalhou);
+  }
+
+  void _aParteTocou() {
+    if (state.btAviso != BtAviso.tocarFalhou) return;
+    state = state.copyWith(clearAviso: true);
   }
 
   void _fimDeParte({required bool seguir}) {
@@ -8511,7 +8517,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btClipEnded: ultima || ouvidas,
       btParteFronteira:
           faltaOutra || (!ultima && !(ouvidas && falta.paraNaUltima)),
-      clearBtRecusa: ouvidas,
+      clearBtRecusa: ouvidas && !state.btSoOuvir,
       btFimDasPartesMs: _fimDaParteMs,
       btParteNoArMs: 0,
     );
@@ -11328,7 +11334,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _descartarATraducaoPendente();
     _tamanhoDaParteMs.clear();
     _oQueFaltaOuvir = null;
-    _partesDaEscuta = const [];
+    _aEscutaRecomecaEm = 0;
     _escuta.esquecerTudo();
     _desdeMs = 0;
     _pendingTakePath = null;
@@ -11619,6 +11625,12 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheDiskFailed() => _notifier._theDiskFailed();
+
+  @override
+  void hearThePlayFailed() => _notifier._aParteNaoTocou();
+
+  @override
+  void hearThePlayOpened() => _notifier._aParteTocou();
 
   @override
   void hearTheSendFailed() => _notifier._theSendFailed();

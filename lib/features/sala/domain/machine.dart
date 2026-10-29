@@ -956,6 +956,14 @@ final class TellTheDiskFailed extends Effect {
   const TellTheDiskFailed();
 }
 
+final class TellThePlayFailed extends Effect {
+  const TellThePlayFailed();
+}
+
+final class TellThePlayOpened extends Effect {
+  const TellThePlayOpened();
+}
+
 final class TellTheSendFailed extends Effect {
   const TellTheSendFailed();
 }
@@ -1263,7 +1271,13 @@ const _watch = ArmTheWatch();
   LineArrived(:final line, :final by) => _arrive(machine, line, by),
   PlayerOpened() => (
     _opened(machine),
-    [if (machine.channel is Playing) const ArmTheCeiling()],
+    [
+      if (machine.channel is Playing) const ArmTheCeiling(),
+      if (machine.channel case Playing(
+        sound: PartSound() || StretchSound(telling: false),
+      ) when machine.station is Retro)
+        const TellThePlayOpened(),
+    ],
   ),
   PlayerEnded(:final line?) => _answer(
     machine,
@@ -1286,6 +1300,9 @@ const _watch = ArmTheWatch();
     const [],
   ),
   PlayerEnded() => _ended(machine),
+  PlayerFailed(sound: PartSound() || StretchSound(telling: false))
+      when machine.station is Retro =>
+    _tellThePlayFailed(machine),
   PlayerFailed() => _failed(machine),
   MicOpened(:final owner, :final take) => _openTheMic(machine, owner, take),
   MicClosed() => _closeTheMic(machine),
@@ -1862,6 +1879,11 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
       },
     ),
   );
+}
+
+(Machine, List<Effect>) _tellThePlayFailed(Machine machine) {
+  final (failed, effects) = _failed(machine);
+  return (failed, [...effects, const TellThePlayFailed()]);
 }
 
 (Machine, List<Effect>) _openTheMic(
