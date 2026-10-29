@@ -14,6 +14,7 @@ import '../../domain/bt_finding.dart';
 import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
+import 'approve_button.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'frase_list.dart';
@@ -178,6 +179,14 @@ class RetroView extends ConsumerWidget {
               height: 60,
               child: _actions(session, notifier, language, colors),
             ),
+            if (session.btPhase == BtPhase.conferida &&
+                session.approvedDraftDrawn == null) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: FadeUp(child: ApproveButton(live: session.canApprove)),
+              ),
+            ],
             if (session.offersTheVerdictAgain) ...[
               const SizedBox(height: 12),
               _botaoEscrito(
@@ -666,7 +675,7 @@ class RetroView extends ConsumerWidget {
                 color: ShemaBrand.branco,
               ),
             ),
-            const SizedBox(width: 24),
+            if (session.approvedDraftDrawn != null) const SizedBox(width: 24),
             if (session.approvedDraftDrawn case final aprovado?)
               Flexible(
                 child: Text(
@@ -676,19 +685,6 @@ class RetroView extends ConsumerWidget {
                     fontSize: 17,
                     fontWeight: FontWeight.w500,
                   ),
-                ),
-              )
-            else
-              RoundActionButton(
-                size: 60,
-                semanticLabel: retroLabelFor('approve', language),
-                gradient: BeadStyles.verde,
-                mood: session.canApprove ? ButtonMood.lit : ButtonMood.dimmed,
-                onTap: notifier.aprovarRascunhoFinal,
-                child: const Icon(
-                  LucideIcons.check,
-                  size: 24,
-                  color: ShemaBrand.branco,
                 ),
               ),
           ],

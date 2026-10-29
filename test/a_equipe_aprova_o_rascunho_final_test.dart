@@ -105,6 +105,7 @@ Future<void> _prontoEFora(
 }
 
 Future<void> _aprovarEEsperar(WidgetTester tester) async {
+  await tester.ensureVisible(byLabel(_aprovar));
   await tester.tap(byLabel(_aprovar));
   await tester.pump(const Duration(milliseconds: 300));
 }
@@ -959,6 +960,7 @@ void main() {
       ..holdNextState();
     final trechosNoAr = it.harness.playback.ranges.length;
 
+    await tester.ensureVisible(byLabel(_aprovar));
     await tester.tap(byLabel(_aprovar));
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -971,6 +973,7 @@ void main() {
           'durar até a porta abrir',
     );
 
+    await tester.ensureVisible(byLabel(_aprovar));
     await tester.tap(byLabel(_aprovar));
     await tester.pump(const Duration(milliseconds: 200));
 
