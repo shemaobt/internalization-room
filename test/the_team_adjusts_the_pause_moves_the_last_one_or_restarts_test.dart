@@ -521,6 +521,40 @@ void main() {
     );
 
     testWidgets(
+      'a failed restart\'s line stays when play hears the moving pause at the take\'s end, as it stays anywhere earlier',
+      (tester) async {
+        final screen = await _onScreen(
+          tester,
+          rehearsal: _rehearsal([
+            _frase('f1', 0, 4000),
+            _frase('f2', 4000, 10000),
+          ]),
+        );
+        await screen.listens();
+        await screen.tap(_bar(2));
+        screen.playback.finishPlayback();
+        await screen.beat();
+        await screen.tap(_restart);
+        await screen.beat(700);
+        screen.room.failSceneWith = const NetworkFailed('sem rede');
+        await screen.tap(_armed(2));
+        await screen.until(() => screen.shows(_restartFailed));
+        expect(screen.shows(_lastFraseLine(2)), isTrue);
+
+        await screen.tap(_playPause);
+
+        expect(screen.playback.ranges.last, '8500-10000');
+        expect(
+          screen.shows(_restartFailed),
+          isTrue,
+          reason: 'o play no fim da gravação apagava a linha do recomeço',
+        );
+        expect(screen.shows(_lastFraseLine(2)), isTrue);
+        await screen.beat(6000);
+      },
+    );
+
+    testWidgets(
       'a moved pause waiting to be sent again cannot be moved or heard, and the circle sends it at its end',
       (tester) async {
         final screen = await _theLastBarTapped(tester);

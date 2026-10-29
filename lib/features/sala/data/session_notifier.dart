@@ -6081,7 +6081,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (playing) {
         _silenceTheRoom();
       } else if (end != null && pausa >= end) {
-        _hearThePause();
+        _silenceTheRoom();
+        _play(
+          PartSound(
+            0,
+            take,
+            from: theMomentBefore(pausa, state.scenePausaFloor),
+            to: pausa,
+          ),
+        );
       } else {
         _silenceTheRoom();
         _play(PartSound(0, take, from: pausa));

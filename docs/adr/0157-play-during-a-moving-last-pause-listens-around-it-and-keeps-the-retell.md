@@ -25,7 +25,9 @@ earlier frase's retell go, as ADR 0100 says.
 
 ## Consequences
 
-- A line standing when play is tapped there (a refusal, «não entendi») stays, as hers keeps
-  its message; it goes at the next gesture that clears it.
-- A moved frase held to be sent again stays held under play; at the take's end play then plays
-  nothing, as «ouvir a pausa» already does while a frase waits to be sent again.
+- A line standing when play is tapped there (a refusal, «não entendi», a failed restart) stays
+  in all three cases, as hers keeps its message; it goes at the next gesture that clears it.
+  Play at the take's end plays the 1.5 s before the pause itself, so the «ouvir a pausa»
+  button's own clearing of the line does not come with it.
+- A moved frase held to be sent again stays held under play, and play still listens around its
+  pause; only the adjust row's «ouvir a pausa» does nothing while a frase waits to be sent again.
