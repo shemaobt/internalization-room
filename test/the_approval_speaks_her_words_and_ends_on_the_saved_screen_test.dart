@@ -166,50 +166,63 @@ Finder _recomecoArmado() => find.byWidgetPredicate(
 );
 
 void main() {
-  testWidgets(
-    'a take not heard in full: the approval shows «$_faltaOuvir» and the part '
-    'plays',
-    (tester) async {
-      late Sala it;
-      await tester.runAsync(() async {
-        it = await umEnsaioContadoInteiro(
-          partesDoEnsaio,
-          numaSala: SalaHarness(filaEmMemoria: true),
+  for (final caso in const [
+    (codigo: 'playback_did_not_cover_the_clip', texto: _faltaOuvir),
+    (codigo: 'untold_part', texto: _precisaConferida),
+    (codigo: 'untold_stretch', texto: _precisaConferida),
+  ]) {
+    testWidgets(
+      'a refusal naming ${caso.codigo} writes «${caso.texto}» and plays '
+      'nothing, not the hole it names',
+      (tester) async {
+        late Sala it;
+        await tester.runAsync(() async {
+          it = await umEnsaioContadoInteiro(
+            partesDoEnsaio,
+            numaSala: SalaHarness(filaEmMemoria: true),
+          );
+          it.harness.room.verdictChecked = true;
+          await pedirOVeredito(it);
+        });
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: it.container,
+            child: const SalaApp(),
+          ),
         );
-        it.harness.room.verdictChecked = true;
-        await pedirOVeredito(it);
-      });
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: it.container,
-          child: const SalaApp(),
-        ),
-      );
-      await tester.pump();
-      final segunda = it.partes[1];
-      it.harness.room
-        ..releaseBlockers = const ['playback_did_not_cover_the_clip']
-        ..releaseUnheardTakeIds = [segunda.takeId!];
+        await tester.pump();
+        final segunda = it.partes[1];
+        it.harness.room
+          ..releaseBlockers = [caso.codigo]
+          ..releaseUnheardTakeIds = [segunda.takeId!]
+          ..releaseUntoldTakeIds = [segunda.takeId!]
+          ..releaseUntoldSegmentId = 'trecho-2';
 
-      expect(find.text(_faltaOuvir), findsNothing);
-      final tocadas = it.harness.playback.played.length;
-      await pressTheApproval(tester, _aprovar);
-      await tester.runAsync(
-        () => waitFor(
-          'a parte 2 entrar no ar',
-          () =>
-              it.harness.playback.played.length > tocadas &&
-              it.harness.playback.played.last == segunda.path,
-        ),
-      );
-      await tester.pump();
+        expect(find.text(caso.texto), findsNothing);
+        final sons = it.harness.sounds.length;
+        await pressTheApproval(tester, _aprovar);
+        await tester.runAsync(() async {
+          await waitFor(
+            'a recusa acabar de descer',
+            () => it.estado.btAprovando == null,
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await tester.pump();
 
-      expect(find.text(_faltaOuvir), findsOneWidget);
-      expect(it.harness.playback.played.last, segunda.path);
-      expect(thePersonSign, findsNothing);
-      closeTheRoom(it.container);
-    },
-  );
+        expect(find.text(caso.texto), findsOneWidget);
+        expect(
+          it.harness.sounds.skip(sons),
+          isNot(contains('playback:play')),
+          reason:
+              'a recusa punha no ar a parte ou o trecho que nomeava, e a '
+              'gravação começava sozinha onde a dela só escreve o motivo',
+        );
+        expect(thePersonSign, findsNothing);
+        closeTheRoom(it.container);
+      },
+    );
+  }
 
   for (final (codigo, trecho) in [
     ('telling_back_not_checked', null),
@@ -811,45 +824,6 @@ void main() {
   });
 
   testWidgets(
-    'while the room still reads back the stretch a refusal names, the restart '
-    'and the approve button do nothing and are not drawn live; the stretch '
-    'plays, then the restart acts',
-    (tester) async {
-      final it = await _ateAConferida(tester);
-      it.harness.room
-        ..releaseBlockers = const ['untold_stretch']
-        ..releaseUntoldSegmentId = 'trecho-1'
-        ..holdNextState();
-      final trechosNoAr = it.harness.playback.ranges.length;
-      await _tocar(tester);
-      expect(find.text(_precisaConferida), findsOneWidget);
-
-      final sala = it.container.read(salaSessionProvider.notifier);
-      sala.recomecarATraducao();
-      await tester.pump(const Duration(milliseconds: 700));
-      sala.recomecarATraducao();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(it.harness.room.restartsAsked, isEmpty);
-      expect(
-        tester.widget<Semantics>(byLabel(_aprovar)).properties.enabled,
-        isFalse,
-      );
-
-      it.harness.room.finishHeldState();
-      await tester.pump(const Duration(milliseconds: 400));
-      expect(it.harness.playback.ranges, hasLength(trechosNoAr + 1));
-
-      sala.recomecarATraducao();
-      await tester.pump(const Duration(milliseconds: 700));
-      sala.recomecarATraducao();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(it.harness.room.restartsAsked, hasLength(1));
-      await tester.pump(const Duration(seconds: 7));
-      closeTheRoom(it.container);
-    },
-  );
-
-  testWidgets(
     'an approval left in the air never lets a newer one be sent twice',
     (tester) async {
       final it = await _ateAConferida(tester);
@@ -896,14 +870,13 @@ void main() {
     },
   );
 
-  testWidgets('a refusal whose read fails gives the gestures back', (
+  testWidgets('a refusal naming a stretch gives the gestures back', (
     tester,
   ) async {
     final it = await _ateAConferida(tester);
     it.harness.room
       ..releaseBlockers = const ['untold_stretch']
-      ..releaseUntoldSegmentId = 'trecho-1'
-      ..failStateOnceWith = const NetworkFailed('sem rede');
+      ..releaseUntoldSegmentId = 'trecho-1';
     await _tocar(tester);
 
     it.container.read(salaSessionProvider.notifier).recomecarATraducao();

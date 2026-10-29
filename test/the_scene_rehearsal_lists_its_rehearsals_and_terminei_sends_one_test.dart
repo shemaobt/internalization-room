@@ -753,7 +753,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(container.read(salaSessionProvider).stage, SalaStage.cena);
-      expect(_enabled(tester, byLabel(_sending)), isFalse);
+      expect(
+        _enabled(
+          tester,
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is Semantics &&
+                widget.properties.label == _sending &&
+                widget.properties.button == true,
+          ),
+        ),
+        isFalse,
+      );
       expect(_terminei, findsNothing);
       expect(
         _enabled(tester, byLabel('Voltar para a passagem atual')),

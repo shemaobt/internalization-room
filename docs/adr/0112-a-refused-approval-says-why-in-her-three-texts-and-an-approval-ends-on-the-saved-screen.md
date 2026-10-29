@@ -1,5 +1,5 @@
 ---
-status: accepted (amended by 0136)
+status: accepted (amended by 0136, amended by ENG-1853)
 date: 2026-10-22
 amends: 0030 (in part: the approval's landing now shows a text), 0014 (her Saved screen is a named exception)
 ---
@@ -9,6 +9,12 @@ amends: 0030 (in part: the approval's landing now shows a text), 0014 (her Saved
 This amends ADR 0030 and ADR 0014 without editing their decisions: it adds "amended by 0112"
 under 0030's title and an "Amended by ENG-1259" paragraph to 0014. Her app at Tripod-Internalization
 18fa7c4 is the bar (`Drafting.tsx` `finalize` and `approve`, the `saved` screen; `strings.ts`).
+
+Amended by ENG-1853 (2026-10-29): a refusal from the Back-translation plays nothing.
+«ainda falta ouvir um trecho da gravação» no longer comes with the part playing, and the
+landings of ADR 0030 are not unchanged: every refusal is left before «terminei», as ADR 0030
+now says. The press's hold ends with the refusal's answer; there is no read of the stretch
+it names and no move to it. The three texts and the order that chooses them stand.
 
 ## Context
 
