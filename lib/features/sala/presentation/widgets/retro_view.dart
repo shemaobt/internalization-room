@@ -47,7 +47,7 @@ class RetroView extends ConsumerWidget {
     final conferida = _conferida(session);
 
     final avanca = session.btPhase != BtPhase.conferida && !session.btSoOuvir;
-    final (voz, lingua) = _voz(session, conferida);
+    final voz = _voz(session, conferida);
     final colors = SalaColors.of(context);
     final titulo = session.joined
         ? recordingHomeLabelFor('joinedTitle', language)
@@ -129,10 +129,6 @@ class RetroView extends ConsumerWidget {
                 size: circulo,
                 halt: session.halt,
                 voice: voz,
-                tongue: lingua,
-                answersATouch:
-                    session.aBackTranslationGestureActs &&
-                    (!conferida || session.btRegravacao != null),
                 notUnderstood: session.wordlessTelling
                     ? retroLabelFor('notUnderstood', language)
                     : null,
@@ -382,19 +378,23 @@ class RetroView extends ConsumerWidget {
       regravando:
           trecho.frase != null && session.btRegravacao?.frase == trecho.frase,
       regravar:
-          session.fraseRegravavel(trecho) &&
-              (session.btPhase != BtPhase.conferida ||
-                  _markOn(trecho.frase, session) == BtFindingKind.nuance ||
-                  session.overAnApprovedDraft)
+          _aFraseVai(trecho, session) ||
+              session.fraseRegravavel(trecho) &&
+                  (session.btPhase != BtPhase.conferida ||
+                      _markOn(trecho.frase, session) == BtFindingKind.nuance ||
+                      session.overAnApprovedDraft)
           ? session.armedTap?.control == 'rerecord:${trecho.frase}'
                 ? retroLabelFor('reopenArmed', language)
                 : sceneRehearsalLabelFor('rerecordFrase', language, n: n)
           : null,
       regravarDormindo: _dormindo('rerecord:${trecho.frase}', session),
+      regravarArmado: session.armedTap?.control == 'rerecord:${trecho.frase}',
       onRegravar:
           switch (session.btRegravacao) {
             null => quieta,
-            final regravacao => regravacao.frase == trecho.frase,
+            final regravacao =>
+              regravacao.frase == trecho.frase &&
+                  regravacao.passo != PassoDaRegravacao.enviando,
           }
           ? () => notifier.regravarAFrase(trecho)
           : null,
@@ -428,6 +428,7 @@ class RetroView extends ConsumerWidget {
         _ => null,
       },
       estadoDormindo: _dormindo('resend:${trecho.frase}', session),
+      estadoArmado: session.armedTap?.control == 'resend:${trecho.frase}',
       onEstado:
           atua &&
               session.channel is! GuideSpeaking &&
@@ -553,6 +554,11 @@ class RetroView extends ConsumerWidget {
       ),
     );
   }
+
+  bool _aFraseVai(Trecho trecho, SalaSessionState session) =>
+      session.btFraseDevida == null &&
+      session.btRegravacao?.frase == trecho.frase &&
+      session.btRegravacao?.passo == PassoDaRegravacao.enviando;
 
   bool _dormindo(String control, SalaSessionState session) =>
       session.armedTap?.control == control &&
@@ -684,20 +690,18 @@ class RetroView extends ConsumerWidget {
     );
   }
 
-  (VoiceState, Tongue?) _voz(SalaSessionState session, bool conferida) {
+  VoiceState _voz(SalaSessionState session, bool conferida) {
     if (session.btRegravacao?.passo == PassoDaRegravacao.gravando) {
-      return (VoiceState.listening, Tongue.motherTongue);
+      return VoiceState.listening;
     }
-    if (conferida) return (VoiceState.done, null);
-    if (session.voice == VoiceState.listening) {
-      return (VoiceState.listening, Tongue.bridge);
+    if (conferida) return VoiceState.done;
+    if (session.voice != VoiceState.invite) return session.voice;
+    if (session.btRetroTocando ||
+        session.btClipRodando ||
+        session.btTrechoTocando) {
+      return VoiceState.speaking;
     }
-    if (session.voice != VoiceState.invite) return (session.voice, null);
-    if (session.btRetroTocando) return (VoiceState.speaking, Tongue.bridge);
-    if (session.btClipRodando || session.btTrechoTocando) {
-      return (VoiceState.speaking, Tongue.motherTongue);
-    }
-    return (VoiceState.invite, null);
+    return VoiceState.invite;
   }
 
   List<PartStripRow> _faixas(SalaSessionState session, String language) => [

@@ -92,7 +92,6 @@ Future<_Retomada> _reabrir(
   Map<int, int> passadas = const {},
   BackTranslationProgress contado = const BackTranslationProgress(),
   List<TakeView>? naSala,
-  int? regravando,
 }) async {
   final casa = Directory.systemTemp.createTempSync('sala-retomada-busca');
   addTearDown(() => casa.deleteSync(recursive: true));
@@ -114,7 +113,6 @@ Future<_Retomada> _reabrir(
           pass: passadas[n] ?? 1,
         ),
     ],
-    partBeingRecordedAgain: regravando,
   );
   harness.emAberto.rows['Ruth/P01/pt'] = linha;
   harness.playback.measured = _parte;
@@ -182,17 +180,17 @@ Future<void> _regravarAParteDois(_Retomada it) async {
   );
 
   final antiga = it.estado.partes[1].path;
-  it.sala.gravarAParteDeNovo();
+  it.sala.leaveTheBackTranslation();
   await waitFor(
     'a equipe voltar ao ensaio',
     () => it.estado.stage == SalaStage.ensaio,
   );
-  it.sala.ensaioTap();
+  it.sala.gravarACena(2);
   await waitFor(
     'a gravação começar',
     () => it.estado.ensaio == EnsaioStatus.recording,
   );
-  it.sala.ensaioTap();
+  it.sala.gravarACena(2);
   await waitFor(
     'a gravação terminar',
     () => it.estado.ensaio == EnsaioStatus.recorded,
@@ -1921,32 +1919,6 @@ void main() {
 
     expect(it.linha!.stage, SalaStage.ensaio);
   });
-
-  test(
-    'a parte a regravar continua a mesma cena quando uma parte antes dela sai '
-    'do ensaio',
-    () async {
-      final harness = SalaHarness()
-        ..room.refuseClipOf.add('gravacao-1')
-        ..room.holdNextState();
-
-      final it = await _reabrir(
-        harness,
-        parouEm: SalaStage.ensaio,
-        regravando: 2,
-      );
-      await waitFor(
-        'as tres partes serem tentadas com a leitura no ar',
-        () => harness.room.clipsFetched.length == 3,
-      );
-      expect(it.estado.sceneForTheCircle, 3);
-
-      harness.room.finishHeldState();
-      await waitFor('a parte 1 sair', () => it.estado.partes.length == 2);
-
-      expect(it.estado.sceneForTheCircle, 3);
-    },
-  );
 
   test(
     'uma parte que a sala nao tem mais saindo do ensaio nao cala a parte que '

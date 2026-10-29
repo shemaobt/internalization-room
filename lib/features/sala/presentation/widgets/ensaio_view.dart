@@ -134,7 +134,6 @@ class EnsaioView extends ConsumerWidget {
                     size: herCircleSize(MediaQuery.sizeOf(context), 46, 180),
                     halt: session.halt,
                     voice: _voice(session),
-                    tongue: Tongue.motherTongue,
                     semanticLabel: _circleLabel(session, language),
                     enabled: !frozen,
                     onTap: notifier.ensaioTap,
@@ -321,7 +320,6 @@ class EnsaioView extends ConsumerWidget {
       recordingHomeLabelFor(switch (session.ensaio) {
         EnsaioStatus.recording => 'stop',
         EnsaioStatus.recorded => 'recordAgain',
-        EnsaioStatus.idle when session.parteARegravar != null => 'recordAgain',
         EnsaioStatus.idle => 'record',
       }, language);
 }
@@ -390,10 +388,9 @@ class _SceneRowView extends StatelessWidget {
         session.ensaio != EnsaioStatus.idle && !row.recording ||
         session.needsPerson ||
         frozen;
-    final mood = row.dimmed || another ? ButtonMood.dimmed : ButtonMood.lit;
+    final mood = another ? ButtonMood.dimmed : ButtonMood.lit;
     final listens =
-        row.dimmed ||
-            row.away == PartAway.coming ||
+        row.away == PartAway.coming ||
             row.away == PartAway.lost ||
             session.needsPerson ||
             session.ensaio == EnsaioStatus.recording ||
