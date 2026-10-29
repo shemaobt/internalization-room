@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/scene_rehearsal.dart';
 import 'bead_styles.dart';
+import 'listen_glyph.dart';
 import 'way_back_chevron.dart';
 
 const _rem = 16.0;
@@ -249,10 +249,12 @@ class _SheetLine extends StatelessWidget {
                     mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
                     semanticLabel: '${said('listen')} — $line',
                     onTap: onPlay,
-                    child: Icon(
-                      playing ? LucideIcons.pause : LucideIcons.play,
-                      size: 18,
-                      color: ShemaBrand.branco,
+                    child: CustomPaint(
+                      size: const Size.square(18),
+                      painter: ListenGlyphPainter(
+                        glyph: playing ? ListenGlyph.pause : ListenGlyph.play,
+                        ink: ShemaBrand.branco,
+                      ),
                     ),
                   ),
                 ),

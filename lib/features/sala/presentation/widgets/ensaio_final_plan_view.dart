@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
@@ -11,6 +10,7 @@ import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'grain_choice_view.dart';
+import 'listen_glyph.dart';
 import 'rehearsal_sheet.dart';
 import 'scene_question.dart';
 import 'stage_heading.dart';
@@ -312,10 +312,12 @@ class _PlanRowView extends StatelessWidget {
                           '${ensaioFinalPlanLabelFor('listen', language)} — $facts',
                       mood: idle ? ButtonMood.lit : ButtonMood.dimmed,
                       onTap: onPlay,
-                      child: Icon(
-                        playing ? LucideIcons.pause : LucideIcons.play,
-                        size: 18,
-                        color: ShemaBrand.branco,
+                      child: CustomPaint(
+                        size: const Size.square(18),
+                        painter: ListenGlyphPainter(
+                          glyph: playing ? ListenGlyph.pause : ListenGlyph.play,
+                          ink: ShemaBrand.branco,
+                        ),
                       ),
                     ),
                   ),
@@ -426,10 +428,12 @@ class _UnlabelledCard extends ConsumerWidget {
                     mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
                     semanticLabel: '${said('listen')} — $facts',
                     onTap: () => notifier.playARehearsal(rehearsal.rehearsalId),
-                    child: Icon(
-                      playing ? LucideIcons.pause : LucideIcons.play,
-                      size: 18,
-                      color: ShemaBrand.branco,
+                    child: CustomPaint(
+                      size: const Size.square(18),
+                      painter: ListenGlyphPainter(
+                        glyph: playing ? ListenGlyph.pause : ListenGlyph.play,
+                        ink: ShemaBrand.branco,
+                      ),
                     ),
                   ),
                 ),

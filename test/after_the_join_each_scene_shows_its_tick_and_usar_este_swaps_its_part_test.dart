@@ -7,7 +7,6 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -17,6 +16,7 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_question.dart';
 import 'package:internalization_room/main.dart';
 
@@ -330,9 +330,17 @@ class _Room {
     '${english ? 'Listen' : 'Ouvir'} — ${_line(n, language: english ? 'en' : 'pt')}',
   );
 
-  IconData glyphOn(Finder control) => tester
-      .widget<Icon>(find.descendant(of: control, matching: find.byType(Icon)))
-      .icon!;
+  Finder paintedOn(Finder control) => find.descendant(
+    of: control,
+    matching: find.byWidgetPredicate(
+      (widget) => widget is CustomPaint && widget.painter is ListenGlyphPainter,
+    ),
+  );
+
+  ListenGlyph glyphOn(Finder control) =>
+      (tester.widget<CustomPaint>(paintedOn(control)).painter!
+              as ListenGlyphPainter)
+          .glyph;
 
   Tristate pressed(Finder control) => tester
       .getSemantics(control)
@@ -1840,18 +1848,18 @@ void main() {
 
       expect(
         it.glyphOn(it.listen(s2b)),
-        LucideIcons.pause,
+        ListenGlyph.pause,
         reason: 'o ensaio da folha da casa tocava e o botão mostrava tocar',
       );
       expect(it.pressed(it.listen(s2b)), Tristate.isTrue);
-      expect(it.glyphOn(it.listen(s2a)), LucideIcons.play);
+      expect(it.glyphOn(it.listen(s2a)), ListenGlyph.play);
       expect(it.pressed(it.listen(s2a)), Tristate.isFalse);
 
       await it.tapThe(it.listen(s2b));
       await it.settle();
 
       expect(it.harness.playback.sounding, isFalse);
-      expect(it.glyphOn(it.listen(s2b)), LucideIcons.play);
+      expect(it.glyphOn(it.listen(s2b)), ListenGlyph.play);
       expect(it.pressed(it.listen(s2b)), Tristate.isFalse);
       semantics.dispose();
     },
@@ -1875,7 +1883,7 @@ void main() {
 
       expect(
         it.glyphOn(it.listen(s2b)),
-        LucideIcons.play,
+        ListenGlyph.play,
         reason: 'a folha fechou o som e reabriu em pausa sobre o silêncio',
       );
       expect(it.pressed(it.listen(s2b)), Tristate.isFalse);
@@ -1889,10 +1897,60 @@ void main() {
         played + 1,
         reason: 'o toque depois de fechar a folha só limpava, sem tocar',
       );
-      expect(it.glyphOn(it.listen(s2b)), LucideIcons.pause);
+      expect(it.glyphOn(it.listen(s2b)), ListenGlyph.pause);
       semantics.dispose();
     },
   );
+
+  testWidgets('on the home\'s sheet a line is offered as her filled triangle '
+      'and pauses with her two filled bars, not lucide outlines', (
+    tester,
+  ) async {
+    final it = await _atRest(tester);
+    await it.joined();
+    await it.openTheSheet(2, _swap);
+
+    expect(
+      find.descendant(of: it.listen(s2b), matching: find.byType(Icon)),
+      findsNothing,
+      reason: 'a folha da casa desenhava o play vazado do Lucide',
+    );
+    expect(
+      it.paintedOn(it.listen(s2b)),
+      paints..path(
+        style: PaintingStyle.fill,
+        includes: const [Offset(10, 12), Offset(9, 7), Offset(9, 17)],
+        excludes: const [Offset(7, 12), Offset(16, 8), Offset(16, 16)],
+      ),
+      reason: 'o play dela é «M8 6l10 6-10 6z» (EnsaioFinalSheet.tsx:19)',
+    );
+
+    await it.tapThe(it.listen(s2b));
+    await it.until('o ensaio tocar', () => it.harness.playback.sounding);
+
+    expect(
+      it.paintedOn(it.listen(s2b)),
+      paints..path(
+        style: PaintingStyle.fill,
+        includes: const [
+          Offset(8, 12),
+          Offset(16, 12),
+          Offset(7, 6),
+          Offset(17, 18),
+        ],
+        excludes: const [
+          Offset(12, 12),
+          Offset(8, 4),
+          Offset(16, 20),
+          Offset(6.1, 5.1),
+          Offset(17.9, 18.9),
+        ],
+      ),
+      reason:
+          'a pausa dela são duas barras cheias com rx 1 '
+          '(EnsaioFinalSheet.tsx:20)',
+    );
+  });
 
   testWidgets(
     'while a bring-back runs, «gravar a passagem inteira de uma vez» on the '

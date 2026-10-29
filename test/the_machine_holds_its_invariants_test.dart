@@ -370,7 +370,7 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
 );
 
 final everyFailedLoadOfAReplyEndsInOneAnswer = Invariant<Machine>(
-  'ADR 0140, every failed load of a reply ends in exactly one answer, a reload '
+  'ADR 0152, every failed load of a reply ends in exactly one answer, a reload '
   'or a let-go',
   (before, event, after, effects, world) {
     if (event is! TheReplyFailedToLoad) return null;
@@ -433,7 +433,7 @@ final _atTheRehearsal = MachineUnderTest<Machine>(
 );
 
 final theBackTranslationNeverOpensOverAPartUnsent = Invariant<Machine>(
-  'ADR 0146, the Back-translation never opens from a Rehearsal weighed with a '
+  'ADR 0154, the Back-translation never opens from a Rehearsal weighed with a '
   'part still in the Outbox',
   (before, event, after, effects, world) {
     if (event is! TheBackTranslationOpened) return null;
@@ -512,7 +512,7 @@ void main() {
       _holds(theWarningIsTheOneTheServerTold(_haltOf));
     });
 
-    test('ADR 0140: every failed load of a reply ends in exactly one answer, '
+    test('ADR 0152: every failed load of a reply ends in exactly one answer, '
         'a reload or a let-go', () {
       _holds(everyFailedLoadOfAReplyEndsInOneAnswer);
     });
@@ -638,7 +638,7 @@ void main() {
     _holds(aStationsSessionNeverOpensWithoutTheWatch);
   });
 
-  test('ADR 0146: the Back-translation never opens from a Rehearsal weighed '
+  test('ADR 0154: the Back-translation never opens from a Rehearsal weighed '
       'with a part still in the Outbox', () {
     expectEverySeedHolds(_atTheRehearsal, [
       theBackTranslationNeverOpensOverAPartUnsent,
