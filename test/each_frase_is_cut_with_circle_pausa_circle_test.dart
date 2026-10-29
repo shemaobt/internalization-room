@@ -265,19 +265,28 @@ void main() {
     );
 
     test(
-      'before «traduzir» the circle marks nothing and opens no microphone',
+      'before «traduzir» the circle plays the take from where the translation stopped, marking nothing and opening no microphone',
       () async {
-        final room = await _onTheTranslateStep();
+        final room = await _onTheTranslateStep(
+          length: const Duration(seconds: 20),
+          rehearsal: _rehearsal(
+            frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 9000)],
+          ),
+        );
         final before = room.harness.sounds.length;
 
         await _circle(room);
-        await _circle(room);
 
-        expect(room.state.channel, isNot(isA<Microphone>()));
         expect(
-          room.harness.sounds.skip(before),
-          isNot(contains('playback:play')),
+          room.state.channel,
+          isA<PartPlaying>(),
+          reason: 'o círculo não fazia nada antes de «traduzir»',
         );
+        expect(
+          room.harness.playback.playedFrom.last,
+          const Duration(milliseconds: 9000),
+        );
+        expect(room.state.scene.pausa, isNull);
         expect(
           room.harness.sounds.skip(before),
           isNot(contains('recorder:start')),
