@@ -10,14 +10,12 @@ const _side = 150.0;
 Future<void> _pumpCircle(
   WidgetTester tester,
   VoiceState voice, {
-  Tongue? tongue,
-  bool answersATouch = true,
   String? notUnderstood,
   bool still = false,
   ThemeData? theme,
 }) => tester.pumpWidget(
   MaterialApp(
-    key: ValueKey('$voice-$tongue-$answersATouch-$still-${theme?.brightness}'),
+    key: ValueKey('$voice-$still-${theme?.brightness}'),
     theme: theme ?? AppTheme.light,
     home: MediaQuery(
       data: MediaQueryData(disableAnimations: still),
@@ -26,8 +24,6 @@ Future<void> _pumpCircle(
           child: FacilitatorCircle(
             size: _side,
             voice: voice,
-            tongue: tongue,
-            answersATouch: answersATouch,
             notUnderstood: notUnderstood,
             semanticLabel: 'circulo',
             onTap: () {},
@@ -135,50 +131,46 @@ void main() {
   });
 
   testWidgets('while it speaks the check circle is her telha ring on a 3.4 s '
-      'thinkBreath, with no ripples, in every tongue', (tester) async {
-    for (final tongue in [null, ...Tongue.values]) {
-      await _pumpCircle(tester, VoiceState.speaking, tongue: tongue);
+      'thinkBreath, with no ripples', (tester) async {
+    await _pumpCircle(tester, VoiceState.speaking);
 
-      _expectHollow(
-        tester,
-        const Color(0xFFBE4A01),
-        'falando, o .cdot dela tem a borda telha (globals.css:383) e não '
-        'olha a língua; em $tongue o nosso era uma conta cheia',
-      );
-      expect(
-        find.descendant(
-          of: find.byType(FacilitatorCircle),
-          matching: find.byType(Ripple),
-        ),
-        findsNothing,
-        reason: 'falando o círculo de checagem dela não tem anéis (:383)',
-      );
+    _expectHollow(
+      tester,
+      const Color(0xFFBE4A01),
+      'falando, o .cdot dela tem a borda telha (globals.css:383); o nosso '
+      'era uma conta cheia',
+    );
+    expect(
+      find.descendant(
+        of: find.byType(FacilitatorCircle),
+        matching: find.byType(Ripple),
+      ),
+      findsNothing,
+      reason: 'falando o círculo de checagem dela não tem anéis (:383)',
+    );
 
-      await tester.pump(const Duration(milliseconds: 16));
-      expect(
-        _breath(tester).$1,
-        closeTo(.97, 1e-3),
-        reason: 'thinkBreath abre em .97',
-      );
-      expect(
-        _breath(tester).$2,
-        closeTo(.82, 1e-3),
-        reason: 'e em opacidade .82',
-      );
-      await tester.pump(const Duration(milliseconds: 1700));
-      expect(
-        _breath(tester).$1,
-        closeTo(1.03, 1e-3),
-        reason: 'no meio dos 3,4 s dela o anel chega a 1.03 (globals.css:209)',
-      );
-      expect(_breath(tester).$2, closeTo(1, 1e-3));
-    }
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(
+      _breath(tester).$1,
+      closeTo(.97, 1e-3),
+      reason: 'thinkBreath abre em .97',
+    );
+    expect(
+      _breath(tester).$2,
+      closeTo(.82, 1e-3),
+      reason: 'e em opacidade .82',
+    );
+    await tester.pump(const Duration(milliseconds: 1700));
+    expect(
+      _breath(tester).$1,
+      closeTo(1.03, 1e-3),
+      reason: 'no meio dos 3,4 s dela o anel chega a 1.03 (globals.css:209)',
+    );
+    expect(_breath(tester).$2, closeTo(1, 1e-3));
   });
 
   testWidgets('while the team speaks her two blue-green ripples grow out of '
-      'the check ring every 3 s, the second one 1.5 s later, in every tongue', (
-    tester,
-  ) async {
+      'the check ring every 3 s, the second one 1.5 s later', (tester) async {
     List<(double, BorderSide)> ripples() => [
       for (final ripple
           in find
@@ -221,63 +213,61 @@ void main() {
     ]..sort((a, b) => a.$1.compareTo(b.$1));
     List<double> scales() => [for (final (scale, _) in ripples()) scale];
 
-    for (final tongue in [null, ...Tongue.values]) {
-      await _pumpCircle(tester, VoiceState.listening, tongue: tongue);
+    await _pumpCircle(tester, VoiceState.listening);
 
-      _expectHollow(
-        tester,
-        const Color(0xFF89AAA3),
-        'ouvindo, o .cdot dela tem a borda azul (globals.css:380) em qualquer '
-        'língua; em $tongue o nosso era uma conta cheia com um aro de 3 px',
-      );
-      expect(
-        ripples(),
-        hasLength(1),
-        reason:
-            'o r2 dela espera 1,5 s em opacidade 0 (globals.css:378,382); o '
-            'nosso já nascia junto com o r1, no meio do caminho',
-      );
-      final (born, side) = ripples().first;
-      expect(born, closeTo(.62, 1e-3), reason: 'o ripple dela nasce em .62');
-      expect(side.width, 1.2, reason: '.ring tem 1,2 px (globals.css:378)');
-      expect(side.color.toARGB32() & 0xFFFFFF, 0x89AAA3);
-      expect(side.color.a, closeTo(.5, 1e-3), reason: 'e nasce em .5');
+    _expectHollow(
+      tester,
+      const Color(0xFF89AAA3),
+      'ouvindo, o .cdot dela tem a borda azul (globals.css:380); o nosso '
+      'era uma conta cheia com um aro de 3 px',
+    );
+    expect(
+      ripples(),
+      hasLength(1),
+      reason:
+          'o r2 dela espera 1,5 s em opacidade 0 (globals.css:378,382); o '
+          'nosso já nascia junto com o r1, no meio do caminho',
+    );
+    final (born, side) = ripples().first;
+    expect(born, closeTo(.62, 1e-3), reason: 'o ripple dela nasce em .62');
+    expect(side.width, 1.2, reason: '.ring tem 1,2 px (globals.css:378)');
+    expect(side.color.toARGB32() & 0xFFFFFF, 0x89AAA3);
+    expect(side.color.a, closeTo(.5, 1e-3), reason: 'e nasce em .5');
 
-      final before = scales();
-      await tester.pump(const Duration(milliseconds: 120));
-      expect(
-        scales().first,
-        greaterThan(before.first),
-        reason:
-            'os anéis dela crescem para fora (.62 → 1.5, :202); em $tongue '
-            'os nossos se fechavam para dentro',
-      );
+    final before = scales();
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(
+      scales().first,
+      greaterThan(before.first),
+      reason:
+          'os anéis dela crescem para fora (.62 → 1.5, :202); '
+          'os nossos se fechavam para dentro',
+    );
 
-      await tester.pump(const Duration(milliseconds: 900));
-      expect(
-        ripples(),
-        hasLength(1),
-        reason: 'ao fim de 1 s o r2 dela ainda espera',
-      );
-      await tester.pump(const Duration(milliseconds: 600));
-      expect(
-        ripples(),
-        hasLength(2),
-        reason: 'ela tem dois .ring, r1 e r2 (globals.css:381-382)',
-      );
+    await tester.pump(const Duration(milliseconds: 900));
+    expect(
+      ripples(),
+      hasLength(1),
+      reason: 'ao fim de 1 s o r2 dela ainda espera',
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(
+      ripples(),
+      hasLength(2),
+      reason: 'ela tem dois .ring, r1 e r2 (globals.css:381-382)',
+    );
 
-      final now = scales();
-      await tester.pump(const Duration(milliseconds: 1500));
-      expect(scales(), [
-        closeTo(now[0], 2e-3),
-        closeTo(now[1], 2e-3),
-      ], reason: 'o r2 dela começa 1,5 s depois do r1, meia volta de 3 s');
-      await tester.pump(const Duration(milliseconds: 1500));
-      expect(scales(), [
-        closeTo(now[0], 2e-3),
-        closeTo(now[1], 2e-3),
-      ], reason: 'o ripple dela dura 3 s (globals.css:381), não 3,2 s');
-    }
+    final now = scales();
+    await tester.pump(const Duration(milliseconds: 1500));
+    expect(scales(), [
+      closeTo(now[0], 2e-3),
+      closeTo(now[1], 2e-3),
+    ], reason: 'o r2 dela começa 1,5 s depois do r1, meia volta de 3 s');
+    await tester.pump(const Duration(milliseconds: 1500));
+    expect(scales(), [
+      closeTo(now[0], 2e-3),
+      closeTo(now[1], 2e-3),
+    ], reason: 'o ripple dela dura 3 s (globals.css:381), não 3,2 s');
 
     await _pumpCircle(tester, VoiceState.listening, still: true);
     expect(
@@ -315,25 +305,6 @@ void main() {
       (1.0, 1.0),
       reason: 'com menos movimento a animação dela some (globals.css:237)',
     );
-  });
-
-  testWidgets('a check circle that answers no touch still draws the ring of '
-      'its voice, never a clay circle', (tester) async {
-    for (final (voice, edge) in [
-      (VoiceState.done, const Color(0xFFBE4A01)),
-      (VoiceState.invite, const Color(0xFFBE4A01)),
-      (VoiceState.speaking, const Color(0xFFBE4A01)),
-    ]) {
-      await _pumpCircle(tester, voice, answersATouch: false);
-
-      _expectHollow(
-        tester,
-        edge,
-        'desabilitado, o .check-circle dela só troca o cursor '
-        '(globals.css:385) e segue com o anel do estado; em ${voice.name} o '
-        'nosso era o círculo de barro com borda cord',
-      );
-    }
   });
 
   testWidgets('a change of voice keeps the check ring and fades only its edge '
@@ -385,50 +356,47 @@ void main() {
       'azul, and no light azul is left anywhere in the circle', (tester) async {
     const lightAzuis = {0x89AAA3, 0xA6C0BA, 0x5E7A74, 0x3F6862};
     for (final voice in VoiceState.values) {
-      for (final tongue in [null, ...Tongue.values]) {
-        await _pumpCircle(
-          tester,
-          voice,
-          tongue: tongue,
-          notUnderstood: 'não entendi',
-          theme: AppTheme.dark,
-        );
-        await tester.pump(const Duration(milliseconds: 700));
+      await _pumpCircle(
+        tester,
+        voice,
+        notUnderstood: 'não entendi',
+        theme: AppTheme.dark,
+      );
+      await tester.pump(const Duration(milliseconds: 700));
 
-        expect(
-          _rings(tester).single.gradient,
-          _darkFill,
-          reason:
-              'no escuro o .cdot dela é rgba(110,106,87,.18) → .05 '
-              '(globals.css:30); em ${voice.name} o nosso era outro',
-        );
-        final painted = [
-          for (final paint in _painted(tester)) ...[
-            ?paint.color,
-            ...?paint.gradient?.colors,
-            ...?paint.boxShadow?.map((shadow) => shadow.color),
-            if (paint.border case final Border border) border.top.color,
-          ],
-        ];
+      expect(
+        _rings(tester).single.gradient,
+        _darkFill,
+        reason:
+            'no escuro o .cdot dela é rgba(110,106,87,.18) → .05 '
+            '(globals.css:30); em ${voice.name} o nosso era outro',
+      );
+      final painted = [
+        for (final paint in _painted(tester)) ...[
+          ?paint.color,
+          ...?paint.gradient?.colors,
+          ...?paint.boxShadow?.map((shadow) => shadow.color),
+          if (paint.border case final Border border) border.top.color,
+        ],
+      ];
+      expect(
+        painted
+            .map((color) => color.toARGB32() & 0xFFFFFF)
+            .where(lightAzuis.contains),
+        isEmpty,
+        reason:
+            'o azul dela no escuro é 8FB1A9 (globals.css:20) e ela não tem '
+            'conta nem tons de azul; em ${voice.name} sobrava o '
+            'azul claro do material de conta',
+      );
+      if (voice == VoiceState.listening) {
         expect(
           painted
-              .map((color) => color.toARGB32() & 0xFFFFFF)
-              .where(lightAzuis.contains),
-          isEmpty,
-          reason:
-              'o azul dela no escuro é 8FB1A9 (globals.css:20) e ela não tem '
-              'conta nem tons de azul; em ${voice.name}/$tongue sobrava o '
-              'azul claro do material de conta',
+              .where((color) => color.a > 0)
+              .map((color) => color.toARGB32() & 0xFFFFFF),
+          contains(0x8FB1A9),
+          reason: 'ouvindo, a borda e os anéis são var(--azul) do escuro',
         );
-        if (voice == VoiceState.listening) {
-          expect(
-            painted
-                .where((color) => color.a > 0)
-                .map((color) => color.toARGB32() & 0xFFFFFF),
-            contains(0x8FB1A9),
-            reason: 'ouvindo, a borda e os anéis são var(--azul) do escuro',
-          );
-        }
       }
     }
   });
