@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/dashed_edge.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/pause_adjust_row.dart';
@@ -498,6 +499,21 @@ Future<ProviderContainer> _relidaPelaSala(
   );
   await _passo(tester);
   return container;
+}
+
+List<Rect> _tracos(WidgetTester tester, Finder onde, Color cor) {
+  final tracos = <Rect>[];
+  expect(
+    tester.renderObject(onde),
+    paints..everything((metodo, argumentos) {
+      if (metodo == #drawPath &&
+          (argumentos[1] as Paint).color.toARGB32() == cor.toARGB32()) {
+        tracos.add((argumentos[0] as Path).getBounds());
+      }
+      return true;
+    }),
+  );
+  return tracos;
 }
 
 Finder _oCartao(Finder dentro) => find.ancestor(
@@ -2800,5 +2816,45 @@ void main() {
         closeTheRoom(container);
       },
     );
+  }
+
+  for (final (look, areia) in [
+    (Brightness.light, const Color(0xFFC5C29F)),
+    (Brightness.dark, const Color(0xFF6E6A57)),
+  ]) {
+    testWidgets('in the ${look.name} look a «regravada» card is edged in '
+        'dashed sand, not a solid terracotta line', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = look;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _comUmaFraseRegravada(tester, harness);
+      final cartao = _oCartao(find.text('regravada — traduzam de novo')).first;
+
+      expect(
+        (tester.widget<Container>(cartao).decoration as BoxDecoration).border,
+        isNull,
+        reason: 'o cartão regravado tinha a borda cheia em telha',
+      );
+      expect(
+        (tester.widget<Container>(cartao).foregroundDecoration as DashedEdge?)
+            ?.color,
+        areia,
+        reason: 'a borda tracejada dela é de areia',
+      );
+      final emCima =
+          _tracos(
+              tester,
+              cartao,
+              areia,
+            ).where((traco) => traco.bottom < 1).toList()
+            ..sort((um, outro) => um.left.compareTo(outro.left));
+      expect(emCima.length, greaterThan(1));
+      expect(
+        emCima[1].left - emCima[0].right,
+        greaterThanOrEqualTo(2),
+        reason: 'a borda era uma linha só, não tracejada',
+      );
+      closeTheRoom(container);
+    });
   }
 }

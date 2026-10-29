@@ -343,6 +343,7 @@ class RetroView extends ConsumerWidget {
           ? () => notifier.traduzirAFraseRegravadaDeNovo(onde)
           : null,
       mark: retroLabelFor('stale', language),
+      regravada: true,
     );
     FraseRow atual(int onde, Trecho trecho, int n) => FraseRow(
       n: n,

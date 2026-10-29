@@ -5,6 +5,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../domain/bt_finding.dart';
 import '../../domain/facilitator_script.dart';
 import 'bead_styles.dart';
+import 'dashed_edge.dart';
 import 'listen_glyph.dart';
 
 class FraseRow {
@@ -16,6 +17,7 @@ class FraseRow {
   final String? mark;
   final BtFindingKind? achado;
   final bool aguardando;
+  final bool regravada;
   final bool traduzindoDeNovo;
   final bool regravando;
   final String? regravar;
@@ -35,6 +37,7 @@ class FraseRow {
     this.mark,
     this.achado,
     this.aguardando = false,
+    this.regravada = false,
     this.traduzindoDeNovo = false,
     this.regravando = false,
     this.regravar,
@@ -264,6 +267,15 @@ class _FraseTile extends StatelessWidget {
         : mark == null
         ? colors.verdeClaro.withValues(alpha: .85)
         : colors.telha;
+    final borda = row.regravando
+        ? colors.telha
+        : azul
+        ? colors.azul
+        : row.traduzindoDeNovo
+        ? colors.telha
+        : mark == null || row.regravada
+        ? colors.areia
+        : colors.telha;
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 460),
       child: Container(
@@ -273,18 +285,11 @@ class _FraseTile extends StatelessWidget {
               ? const Color.fromRGBO(236, 234, 220, .05)
               : const Color.fromRGBO(255, 255, 255, .4),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: row.regravando
-                ? colors.telha
-                : azul
-                ? colors.azul
-                : row.traduzindoDeNovo
-                ? colors.telha
-                : mark == null
-                ? colors.areia
-                : colors.telha,
-          ),
+          border: row.regravada ? null : Border.all(color: borda),
         ),
+        foregroundDecoration: row.regravada
+            ? DashedEdge(color: borda, radius: 16)
+            : null,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
