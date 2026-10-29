@@ -194,8 +194,8 @@ void main() {
     });
   });
 
-  test('a question whose recorder answered late is measured from its start, '
-      'so 0.4 s of it reaches nobody', () async {
+  test('a question whose recorder answered late still counts from the tap, '
+      'so the hand does not throw away what the team asked', () async {
     await _onAClock((later) async {
       final room = await _inConversa(SalaHarness(captureGuard: _herGuard));
       room.notifier.handTap();
@@ -210,19 +210,17 @@ void main() {
       later(const Duration(milliseconds: 400));
       await room.tap();
       await waitFor(
-        'o microfone fechar',
-        () => room.harness.recorder.lastPath != null,
+        'a pergunta chegar à mesa',
+        () => room.harness.inbox.questionsSent.isNotEmpty,
       );
-      await settle();
 
       expect(
         room.harness.inbox.questionsSent,
-        isEmpty,
+        hasLength(1),
         reason:
-            'a pergunta contava do toque, e o atraso do gravador entrava na '
-            'duração dela',
+            'a pergunta passou a contar do gravador, e a mão, que não ignora '
+            'o segundo toque, apagava uma pergunta de verdade',
       );
-      expect(room.harness.recorder.deleted, [room.harness.recorder.lastPath]);
     });
   });
 }
