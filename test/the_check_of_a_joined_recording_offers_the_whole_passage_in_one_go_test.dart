@@ -18,7 +18,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/grain_ch
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, voiceOverTap;
 
 const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _recordThePart = 'voltar e regravar uma parte';
@@ -252,6 +252,32 @@ void main() {
     expect(harness.room.grainSwitches, isEmpty);
     await tester.pump(_theArmLapses);
     closeTheRoom(container);
+  });
+
+  testWidgets('a VoiceOver double-tap arms it, and asleep it offers no tap', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+
+    voiceOverTap(tester, _wholeAtOnce);
+    await _passo(tester);
+
+    expect(
+      find.text(_wholeArmed),
+      findsOneWidget,
+      reason: 'o VoiceOver anunciava o botão e o toque duplo não armava nada',
+    );
+    expect(
+      tester.getSemantics(byLabel(_wholeArmed)),
+      isSemantics(hasTapAction: false),
+      reason: 'o botão armado ainda dormindo oferecia o toque ao leitor',
+    );
+    expect(harness.room.grainSwitches, isEmpty);
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+    semantics.dispose();
   });
 
   testWidgets('in english the armed text reads «tap again: the scenes and the '

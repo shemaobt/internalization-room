@@ -171,6 +171,7 @@ class GrainChange extends StatelessWidget {
       button: true,
       enabled: open,
       label: label,
+      onTap: open ? onTap : null,
       excludeSemantics: true,
       child: Opacity(
         opacity: open ? 1 : 0.4,
