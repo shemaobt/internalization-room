@@ -88,7 +88,10 @@ what the tablet still holds is drawn over whichever screen that is, as her pendi
 
 A take the room has not received is offered on top of the screen the room's listing chose: the
 plan and the grain choice draw her line «Uma gravação ainda está neste computador e não foi
-enviada.» with one «Cena N · m:ss — enviar agora» per take, as the recording home already did.
+enviada.» with one «Cena N · m:ss — enviar agora» per take, as the recording home already did,
+and «A passagem inteira · m:ss — enviar agora» for a whole-passage take, as hers names it
+whatever the grain: under the whole grain, and first while the room names no grain
+(ENG-2078).
 A take sent from there that reaches the room opens the recording home of the grain the room now
 lists it under, from the grain choice too, as her screen turns to the draft's once the draft
 holds it. A part the home words as gone or refused is not offered there, by the same rule as
