@@ -1447,11 +1447,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     harness.room
-      ..verdictChecked = false
-      ..verdictUnheardTakeIds = [primeira];
+      ..verdictRefusal = CheckRefusal.partUnheard
+      ..verdictFixedLine = 'P2'
+      ..verdictUnheardTakeIds = [primeira]
+      ..listeningUnheardTakeIds = [primeira];
     await tester.ensureVisible(byLabel(conferir));
     await tester.tap(byLabel(conferir));
     await tester.pump(const Duration(milliseconds: 600));
+    container.read(salaSessionProvider.notifier).ouvirGravacao();
+    await tester.pump(const Duration(milliseconds: 300));
 
     final estado = container.read(salaSessionProvider);
     expect((estado.btParte, estado.btCursor), (0, cabeca));

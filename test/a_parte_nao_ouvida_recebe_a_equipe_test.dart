@@ -1,247 +1,147 @@
+import 'dart:convert';
+
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
 import 'um_ensaio_de_tres_partes.dart';
 
+class _UmaSalaDeAntesDe19DeOutubro extends FakeRoom {
+  Map<String, Object?> veredito = const {};
+
+  @override
+  Future<RoomAnswer<BackTranslationVerdict>> finishBackTranslation(
+    String sessionId, {
+    required List<PlayedTake> playedByTake,
+  }) async {
+    final real = RoomRepository(
+      client: MockClient((_) async => http.Response(jsonEncode(veredito), 200)),
+      deviceId: () async => 'aparelho-1',
+    );
+    addTearDown(real.dispose);
+    return real.finishBackTranslation(sessionId, playedByTake: playedByTake);
+  }
+}
+
 void main() {
-  test(
-    'a recusa nomeia a terceira parte e a equipe cai nela do começo',
-    () async {
-      final it = await umEnsaioDeTresPartesContadoInteiro();
-      expect(
-        it.estado.canFinishBackTranslation,
-        isTrue,
-        reason: 'o ensaio foi ouvido inteiro: é daqui que a equipe aperta',
-      );
-
-      final terceira = it.partes[2];
-      it.harness.room
-        ..verdictChecked = false
-        ..verdictUnheardTakeIds = [terceira.takeId!];
-      final falasAntes = it.harness.voice.played.length;
-
-      await pedirOVeredito(it);
-
-      expect(
-        it.harness.voice.played.skip(falasAntes),
-        contains(falaDaParteNaoOuvida),
-        reason:
-            'a sala diz a linha que o servidor compôs para esta recusa, e '
-            'não a de um veredito qualquer; recusar em silêncio deixa a equipe '
-            'sem saber o que aconteceu',
-      );
-      expect(
-        it.estado.btPhase,
-        BtPhase.playing,
-        reason:
-            'sair do pensando é o que devolve o toque à equipe: um giro '
-            'parado é um botão morto',
-      );
-      expect(
-        it.harness.playback.played.last,
-        terceira.path,
-        reason: 'a equipe cai na parte que o servidor nomeou',
-      );
-      expect(
-        it.harness.playback.playedFrom.last,
-        Duration.zero,
-        reason:
-            'a recusa é sobre ouvir, não sobre contar: começar depois do '
-            'chão já traduzido tocaria silêncio, o relato diria a parte '
-            'inteira ouvida e o mesmo terminei seria recusado de novo',
-      );
-      expect(
-        it.estado.btClipRodando,
-        isTrue,
-        reason: 'a parte entra no ar sozinha, sem mais um toque',
-      );
-      expect(
-        it.estado.btOuvidoMs,
-        18000,
-        reason:
-            'a cabeça de leitura do colar senta no começo da terceira '
-            'parte, que é onde as duas primeiras acabam',
-      );
-    },
-  );
-
-  test(
-    'um corte depois do pouso não devolve à sala o chão já traduzido',
-    () async {
-      final it = await umEnsaioDeTresPartesContadoInteiro();
-      final terceira = it.partes[2];
-      it.harness.room
-        ..verdictChecked = false
-        ..verdictUnheardTakeIds = [terceira.takeId!];
-      await pedirOVeredito(it);
-
-      final trechos = it.estado.btTrechos.length;
-      final pedacos = it.harness.room.chunksSent;
-      it.harness.playback.at = const Duration(seconds: 3);
-      it.sala.retroTap();
-      it.sala.retroTap();
-
-      expect(
-        it.estado.btPhase,
-        isNot(BtPhase.capturing),
-        reason:
-            'o som voltou ao começo da parte mas a tradução não: a tesoura '
-            'atrás do cursor mandaria à sala, como trecho novo, o chão que a '
-            'equipe já traduziu — a fala dela devolvida uma segunda vez',
-      );
-      expect(it.estado.btTrechos.length, trechos);
-      expect(it.harness.room.chunksSent, pedacos);
-    },
-  );
-
-  test(
-    'um id que nenhuma parte tem não leva a nada nem chama ninguém',
-    () async {
-      final it = await umEnsaioDeTresPartesContadoInteiro();
-      final tocadas = it.harness.playback.played.length;
-
-      it.harness.room
-        ..verdictChecked = false
-        ..verdictUnheardTakeIds = ['ninguem'];
-      await pedirOVeredito(it);
-
-      expect(
-        it.estado.needsPerson,
-        isFalse,
-        reason:
-            'um nome que este tablet não sabe virar parte nenhuma não é um dos '
-            'seis casos do sinal da pessoa',
-      );
-      expect(
-        it.estado.btPhase,
-        isNot(BtPhase.thinking),
-        reason:
-            'a sala não pode ficar por baixo de um giro que não aceita toque',
-      );
-      expect(
-        it.harness.playback.played.length,
-        tocadas,
-        reason: 'não há parte em que cair, então nada entra no ar',
-      );
-    },
-  );
-
-  test('a parte que a equipe ouviu inteira volta ao relato e terminei abre de '
-      'novo', () async {
-    final it = await umEnsaioDeTresPartesContadoInteiro();
-    final terceira = it.partes[2];
-    it.harness.room
-      ..verdictChecked = false
-      ..verdictUnheardTakeIds = [terceira.takeId!];
-    await pedirOVeredito(it);
-
-    expect(
-      it.estado.canFinishBackTranslation,
-      isFalse,
-      reason:
-          'a parte acabou de entrar no ar e ninguém a ouviu ainda: um '
-          'terminei que continua aceso é a equipe apertando de novo e '
-          'ouvindo a mesma recusa, sem fim',
-    );
-
-    it.harness.playback.at = const Duration(seconds: 4);
-    it.sala.ouvirGravacao();
-    await waitFor('a gravação parar', () => !it.estado.btClipRodando);
-    it.sala.ouvirGravacao();
-    await waitFor('a gravação voltar', () => it.estado.btClipRodando);
-
-    it.harness.playback.length = partesDoEnsaio[2];
-    it.harness.playback.at = partesDoEnsaio[2];
-    it.harness.playback.finishPlayback();
-    await waitFor('a terceira parte acabar', () => it.estado.btClipEnded);
-
-    expect(
-      it.estado.canFinishBackTranslation,
-      isTrue,
-      reason:
-          'ouvida a parte que faltava, o terminei acende de novo: o '
-          'aperto não foi gasto pela recusa',
-    );
-
-    it.harness.room.verdictUnheardTakeIds = const [];
-    await pedirOVeredito(it);
-
-    expect(
-      it.harness.room.playedByTakeSent.last.last,
-      {
-        'take_id': terceira.takeId,
-        'played_ranges': [
-          [0, 12000],
-        ],
-        'clip_duration_ms': 12000,
-      },
-      reason:
-          'a escuta da parte em que a equipe caiu abriu no zero dela, '
-          'então o relato seguinte a cobre inteira',
-    );
-    expect(
-      it.estado.btPhase,
-      BtPhase.playing,
-      reason: 'sem recusa, o mesmo aperto chega ao veredito como sempre',
-    );
+  setUpAll(() {
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
-  test(
-    'a recusa numa parte do meio também devolve o terminei no fim dela',
-    () async {
-      final it = await umEnsaioDeTresPartesContadoInteiro();
-      final primeira = it.partes[0];
-      it.harness.room
-        ..verdictChecked = false
-        ..verdictUnheardTakeIds = [primeira.takeId!];
-      await pedirOVeredito(it);
+  test('um veredito que nomeia uma parte não ouvida sem recusa não põe '
+      'parte nenhuma no ar', () async {
+    final sala = _UmaSalaDeAntesDe19DeOutubro();
+    final it = await umEnsaioContadoInteiro(
+      partesDoEnsaio,
+      numaSala: SalaHarness(room: sala),
+    );
+    sala.veredito = {
+      'audio_url': falaDoVeredito,
+      'checked': false,
+      'unheard_take_ids': [it.partes[2].takeId],
+      'findings_remaining': 0,
+    };
+    final tocadas = it.harness.playback.played.length;
+    final falasAntes = it.harness.voice.played.length;
 
-      expect(it.harness.playback.played.last, primeira.path);
-      expect(it.estado.canFinishBackTranslation, isFalse);
+    await pedirOVeredito(it);
+    await settle();
 
-      it.harness.playback.length = partesDoEnsaio[0];
-      it.harness.playback.at = partesDoEnsaio[0];
-      it.harness.playback.finishPlayback();
-      await waitFor('a primeira parte acabar', () => !it.estado.btClipRodando);
+    expect(
+      it.harness.playback.played,
+      hasLength(tocadas),
+      reason:
+          'a sala caía sozinha na parte nomeada, por um formato que nenhuma '
+          'sala manda desde 19 de outubro; a dela recusa e não toca nada',
+    );
+    expect(it.estado.btClipRodando, isFalse);
+    expect(
+      it.harness.voice.played.skip(falasAntes),
+      contains(falaDoVeredito),
+      reason: 'o veredito é dito como qualquer outro veredito',
+    );
+    expect(
+      it.estado.btVeredito,
+      isTrue,
+      reason:
+          'o veredito é lido como o veredito que é: a fase dos achados abre, '
+          'em vez de a sala deixá-lo cair e ficar no giro',
+    );
+    expect(it.estado.btPhase, BtPhase.playing);
+  });
 
-      expect(
-        it.estado.canFinishBackTranslation,
-        isTrue,
-        reason:
-            'a equipe ouviu a parte que o servidor pediu; obrigá-la a '
-            'atravessar e ouvir todas as partes depois dela para reaver o '
-            'aperto é ouvir a história inteira de novo, que é justamente o que '
-            'o salto pelo chão já contado existe para evitar',
-      );
-      expect(
-        it.estado.btParteFronteira,
-        isTrue,
-        reason:
-            'e a travessia continua de pé: quem quiser seguir ouvindo a '
-            'parte seguinte não perde o gesto por causa disso',
-      );
-    },
-  );
+  test('um veredito que nomeia uma parte não contada não põe parte nenhuma '
+      'no ar', () async {
+    final sala = _UmaSalaDeAntesDe19DeOutubro();
+    final it = await umEnsaioContadoInteiro(
+      partesDoEnsaio,
+      numaSala: SalaHarness(room: sala),
+    );
+    sala.veredito = {
+      'audio_url': falaDoVeredito,
+      'checked': false,
+      'untold_take_ids': [it.partes[1].takeId],
+      'findings_remaining': 0,
+    };
+    final tocadas = it.harness.playback.played.length;
+    final falasAntes = it.harness.voice.played.length;
+
+    await pedirOVeredito(it);
+    await settle();
+
+    expect(
+      it.harness.playback.played,
+      hasLength(tocadas),
+      reason:
+          'a sala caía sozinha na parte não contada, por uma recusa que a '
+          'sala aposentou em 19 de outubro e que a dela nunca teve',
+    );
+    expect(it.estado.btClipRodando, isFalse);
+    expect(
+      it.harness.voice.played.skip(falasAntes),
+      contains(falaDoVeredito),
+      reason: 'o veredito é dito como qualquer outro veredito',
+    );
+    expect(
+      it.estado.btVeredito,
+      isTrue,
+      reason:
+          'o veredito é lido como o veredito que é: a fase dos achados abre, '
+          'em vez de a sala deixá-lo cair e ficar no giro',
+    );
+    expect(it.estado.btPhase, BtPhase.playing);
+  });
 
   test(
     'uma parte que acaba sem o player dizer nada não encolhe o colar',
     () async {
       final it = await umEnsaioDeTresPartesContadoInteiro();
-      final terceira = it.partes[2];
+      final terceira = it.partes[2].takeId!;
       it.harness.room
-        ..verdictChecked = false
-        ..verdictUnheardTakeIds = [terceira.takeId!];
+        ..verdictRefusal = CheckRefusal.partUnheard
+        ..verdictFixedLine = 'P2'
+        ..verdictUnheardTakeIds = [terceira]
+        ..listeningUnheardTakeIds = [terceira];
       await pedirOVeredito(it);
+      final tocadas = it.harness.playback.played.length;
+      it.sala.ouvirGravacao();
+      await theClipOpens(it.harness);
 
-      // The player answering nothing about the clip that just ended: no length, and a
-      // position read at that instant that comes back as nought.
       it.harness.playback.length = null;
       it.harness.playback.at = Duration.zero;
       it.harness.playback.finishPlayback();
-      await waitFor('a terceira parte acabar', () => it.estado.btClipEnded);
+      await waitFor(
+        'a segunda parte entrar no ar',
+        () => it.harness.playback.played.length == tocadas + 2,
+      );
 
       expect(
         it.estado.btFimDasPartesMs,
@@ -253,12 +153,23 @@ void main() {
             'equipe',
       );
 
-      it.harness.room.verdictUnheardTakeIds = const [];
+      await ouvirAteOFim(it, partesDoEnsaio[1]);
+      await waitFor(
+        'a terceira parte entrar no ar',
+        () => it.harness.playback.played.length == tocadas + 3,
+      );
+      await ouvirAteOFim(it, partesDoEnsaio[2]);
+      it.harness.room
+        ..verdictRefusal = null
+        ..verdictUnheardTakeIds = const []
+        ..listeningUnheardTakeIds = const [];
       await pedirOVeredito(it);
 
       expect(
-        it.harness.room.playedByTakeSent.last.last['clip_duration_ms'],
-        12000,
+        it.harness.room.playedByTakeSent.last.firstWhere(
+          (parte) => parte['take_id'] == it.partes[0].takeId,
+        )['clip_duration_ms'],
+        10000,
         reason:
             'e o mesmo zero não pode entrar no relato: é ele que o '
             'servidor lê para decidir esta recusa, e uma parte ouvida '
@@ -342,6 +253,7 @@ void main() {
       'checked': false,
       'unheard_take_ids': ['t3', 't4'],
       'findings_remaining': 0,
+      'refusal': 'PART_UNHEARD',
     });
     expect(nomeadas.unheardTakeIds, ['t3', 't4']);
   });
@@ -350,29 +262,34 @@ void main() {
     final it = await umEnsaioDeTresPartesContadoInteiro(
       tetoDaEspera: const Duration(seconds: 2),
     );
-    final terceira = it.partes[2];
+    final terceira = it.partes[2].takeId!;
     final tocadas = it.harness.playback.played.length;
 
     it.harness.room
-      ..verdictChecked = false
-      ..verdictUnheardTakeIds = [terceira.takeId!];
-    it.harness.voice.holdNextFetch();
+      ..verdictRefusal = CheckRefusal.partUnheard
+      ..verdictFixedLine = 'P2'
+      ..verdictUnheardTakeIds = [terceira]
+      ..listeningUnheardTakeIds = [terceira]
+      ..holdNextVerdict();
 
     final aperto = it.sala.finishBackTranslation();
     await waitFor(
       'a sala desistir da espera',
       () => it.estado.btPhase != BtPhase.thinking,
     );
-    it.harness.voice.finishHeldFetch();
+    final relatos = it.harness.room.listeningReports.length;
+    it.harness.room.finishHeldVerdict();
     await aperto;
+    await settle();
 
     expect(
-      it.harness.playback.played.length,
-      tocadas,
+      it.harness.room.listeningReports,
+      hasLength(relatos),
       reason:
           'a sala já desistiu desta espera: a resposta que chega depois é de '
           'uma pergunta que não está mais de pé',
     );
+    expect(it.harness.playback.played.length, tocadas);
     expect(
       it.estado.needsPerson,
       isFalse,
