@@ -330,8 +330,8 @@ final roomRetryBackoffProvider = Provider<List<Duration>>(
 /// not the order the gate raises them in: the gate lists the check's own errand first, and
 /// a part nobody heard is what the team reads over it, unless something is still untold.
 ///
-/// A code no arm of [_portaDaRecusa] names has no door, and the switch's own default sends
-/// it to a person.
+/// A code no arm of [_portaDaRecusa] names has no door, and the switch's own default writes
+/// her third text: nobody is called.
 enum _PortaDaRecusa { trecho, parteNaoContada, parteNaoOuvida, conferir }
 
 _PortaDaRecusa? _portaDaRecusa(String blocker) => switch (blocker) {
