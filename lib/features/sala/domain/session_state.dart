@@ -1455,6 +1455,17 @@ class SalaSessionState {
           )) &&
       btTrechos.any((trecho) => trecho.contado);
 
+  bool get _btDebaixoDoTerminei =>
+      voice == VoiceState.invite && btTrechos.any((trecho) => trecho.contado);
+
+  bool get btAindaFaltaOuvir =>
+      _btDebaixoDoTerminei &&
+      btRecusa != CheckRefusal.stretchUntranslated &&
+      !(btClipEnded && _btParteContada);
+
+  bool get btFaltaTraduzirUmTrecho =>
+      _btDebaixoDoTerminei && btRecusa == CheckRefusal.stretchUntranslated;
+
   bool get btRestoDepoisDoCorte {
     if (!btCortado) return false;
     final parte = _btParteMs;

@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force); amended by ENG-1828 (2026-10-29: an empty whole-passage recording with no scene rehearsal of the session opens the whole-passage home)
+status: accepted, amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force); amended by ENG-1828 (2026-10-29: an empty whole-passage recording with no scene rehearsal of the session opens the whole-passage home); amended by ENG-1861 (2026-10-29: a take the room has not received never decides where the dot goes)
 date: 2026-10-22
 amends: 0014
 ---
@@ -72,3 +72,24 @@ passage has scenes and no rehearsal sits elsewhere (`efScreen`, ensaioFinal.ts:7
 record screen. «No take and known scenes keep the plan» changes: **with the whole passage in
 force, no take and no scene rehearsal of the session open the whole-passage home.** A scene
 rehearsal of the session, or no grain in force, still keeps the plan.
+
+## Amendment · 2026-10-29 (ENG-1861)
+
+Her frozen app is the rule (João, 2026-10-26). Hers chooses the dot's screen from the server's
+draft alone (`efScreen` and `draftDecidesScreen`, ensaioFinal.ts:74-86,114-117 at 18fa7c4);
+what the tablet still holds is drawn over whichever screen that is, as her pending notice
+(Drafting.tsx:2200-2214). **Where the tap goes** changes in two places:
+
+- A passage opens the recording home at once only over a take **the room has received** that
+  came from no join. A take the tablet holds that never reached the room goes through the plan
+  read like any passage with no take.
+- **A hand take waiting in the Outbox no longer opens the recording home**; only the room's
+  listing does. A join still on its way in the Outbox is still a waiting part of the plan.
+
+A take the room has not received is offered on top of the screen the room's listing chose: the
+plan and the grain choice draw her line «Uma gravação ainda está neste computador e não foi
+enviada.» with one «Cena N · m:ss — enviar agora» per take, as the recording home already did.
+A take sent from there that reaches the room opens the recording home of the grain the room now
+lists it under, from the grain choice too, as her screen turns to the draft's once the draft
+holds it. A part the home words as gone or refused is not offered there, by the same rule as
+the home's rows. A take of the other grain stays on the tablet, unoffered.

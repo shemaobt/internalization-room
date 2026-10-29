@@ -7,6 +7,7 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/grain.dart';
 import '../../domain/session_state.dart';
 import 'stage_heading.dart';
+import 'unsent_notice.dart';
 
 /// Her grain choice: «Como vocês querem gravar?», under her line when the rehearsals sit
 /// in the other language's session, and her two buttons.
@@ -53,6 +54,11 @@ class GrainChoiceView extends ConsumerWidget {
                 recordingHomeLabelFor('how', language),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colors.mut, fontSize: 15),
+              ),
+              UnsentNotice(
+                session: session,
+                language: language,
+                onSend: notifier.enviarACena,
               ),
               if (elsewhere) ...[
                 const SizedBox(height: 12),

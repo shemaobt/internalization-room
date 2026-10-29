@@ -12,6 +12,8 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/ensaio_final_plan.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -156,6 +158,13 @@ class _Casa {
         () => estado.stage == SalaStage.conversa && !estado.awaitingTheGuide,
       );
       container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+      await waitFor(
+        'o ponto laranja decidir a tela',
+        () =>
+            estado.ensaioFinalPlan is PlanRead ||
+            estado.station == const Ensaio(),
+      );
+      container.read(salaSessionProvider.notifier).recordSceneByScene();
       await waitFor(
         'a sala voltar à casa do ensaio',
         () =>

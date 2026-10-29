@@ -62,6 +62,13 @@ class RetroView extends ConsumerWidget {
     final linha = estado == null && nota == null
         ? _linha(session, language)
         : null;
+    final dica = retroLabelFor('stretchUntranslated', language);
+    final debaixo = session.btAindaFaltaOuvir
+        ? retroLabelFor('partUnheard', language)
+        : session.btFaltaTraduzirUmTrecho &&
+              !(estado?.startsWith(dica) ?? false)
+        ? dica
+        : null;
     final veredito = session.btVeredito || session.btFindings.isNotEmpty;
     final circulo = herCircleSize(MediaQuery.sizeOf(context), 38, 150);
     final anel = circulo * facilitatorRippleGrowth / 2;
@@ -249,6 +256,17 @@ class RetroView extends ConsumerWidget {
             const SizedBox(height: 24),
             if (!session.btSoOuvir)
               _pilula(session, colors, notifier, language),
+            if (avanca && debaixo != null) ...[
+              const SizedBox(height: 17.6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  debaixo,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.telha, fontSize: 12.8),
+                ),
+              ),
+            ],
             if (avanca && session.btVeredito) ...[
               const SizedBox(height: 16),
               _botaoEscrito(
