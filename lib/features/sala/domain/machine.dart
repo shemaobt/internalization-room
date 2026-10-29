@@ -249,7 +249,9 @@ final class LineNotSaid extends AnsweringEvent {
 }
 
 final class StepLeft extends MachineEvent {
-  const StepLeft();
+  final bool ended;
+
+  const StepLeft({this.ended = false});
 }
 
 final class LeftThePassage extends MachineEvent {
@@ -1069,6 +1071,8 @@ final class Machine {
   /// back on the Canvas.
   final bool aHaltWaitsForTheCanvas;
 
+  final bool theCanvasEnded;
+
   /// The passage's session.
   final String? session;
 
@@ -1093,6 +1097,7 @@ final class Machine {
     this.station = const Menu(),
     this.wordlessTelling = false,
     this.aHaltWaitsForTheCanvas = false,
+    this.theCanvasEnded = false,
     this.session,
     this.panorama,
   });
@@ -1160,6 +1165,7 @@ final class Machine {
     Station? station,
     bool? wordlessTelling,
     bool? aHaltWaitsForTheCanvas,
+    bool? theCanvasEnded,
     String? session,
     bool clearSession = false,
     HeldPanorama? panorama,
@@ -1186,6 +1192,7 @@ final class Machine {
     wordlessTelling: wordlessTelling ?? this.wordlessTelling,
     aHaltWaitsForTheCanvas:
         aHaltWaitsForTheCanvas ?? this.aHaltWaitsForTheCanvas,
+    theCanvasEnded: theCanvasEnded ?? this.theCanvasEnded,
     session: clearSession ? null : (session ?? this.session),
     panorama: clearPanorama ? null : (panorama ?? this.panorama),
   );
@@ -1275,7 +1282,12 @@ const _watch = ArmTheWatch();
     heard: () => _notSaid(machine, line),
     unheard: () => _notSaid(machine, line),
   ),
-  StepLeft() => _leaveTheQueue(machine, (_) => true),
+  StepLeft(:final ended) => _leaveTheQueue(
+    machine.station is Canvas
+        ? machine.copyWith(theCanvasEnded: ended)
+        : machine,
+    (_) => true,
+  ),
   LeftThePassage() => (
     machine.copyWith(
       channel: const Silence(),

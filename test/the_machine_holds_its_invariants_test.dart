@@ -383,6 +383,19 @@ final everyFailedLoadOfAReplyEndsInOneAnswer = Invariant<Machine>(
   },
 );
 
+final onlyAStepLeftFromTheCanvasMovesItsEnd = Invariant<Machine>(
+  'ENG-1946, only a step left from the Canvas moves the end it keeps',
+  (before, event, after, effects, world) {
+    final kept = switch (event) {
+      StepLeft(:final ended) when before.station is Canvas => ended,
+      _ => before.theCanvasEnded,
+    };
+    if (after.theCanvasEnded == kept) return null;
+    return '${describeEvent(event)} on ${before.station.runtimeType} moved the '
+        'Canvas\'s end to ${after.theCanvasEnded}';
+  },
+);
+
 final aStationsSessionNeverOpensWithoutTheWatch = Invariant<Machine>(
   'ADR 0092, a Station\'s session never opens without the Watch',
   (before, event, after, effects, world) {
@@ -581,6 +594,11 @@ void main() {
   test('generator invariant: nothing but her six cases enters the person '
       'sign', () {
     _holds(nothingButHerSixCasesEntersThePersonSign);
+  });
+
+  test('generator invariant: only a step left from the Canvas moves the end '
+      'it keeps', () {
+    _holds(onlyAStepLeftFromTheCanvasMovesItsEnd);
   });
 
   test('ADR 0092: a Station\'s session never opens without the Watch', () {
