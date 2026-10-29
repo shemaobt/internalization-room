@@ -14,7 +14,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, voiceOverTap;
 
 const _gravacao = 'gravacao-1';
 const _sessao = 'sessao-antiga';
@@ -366,6 +366,37 @@ void main() {
     expect(harness.room.listenersAsked, hasLength(2));
     expect(find.text('ouvinte 2'), findsOneWidget);
     await _fechar(tester, tablet);
+  });
+
+  testWidgets('a VoiceOver double-tap on «$_outroOuvinte» calls the next '
+      'listener, and while the finish is in the air it offers no tap', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final harness = _aprovadaNaSala();
+    harness.room.holdNextFinish();
+    final tablet = await _noAgradecimento(tester, harness);
+
+    expect(
+      tester.getSemantics(byLabel(_outroOuvinte)),
+      isSemantics(hasTapAction: false),
+      reason: 'com o fim no ar o botão apagado ainda oferecia o toque',
+    );
+    harness.room.finishHeldFinish();
+    await _passar(tester);
+
+    voiceOverTap(tester, _outroOuvinte);
+    await _passar(tester);
+
+    expect(
+      harness.room.listenersAsked,
+      hasLength(2),
+      reason:
+          'o VoiceOver anunciava o botão e o toque duplo não chamava ninguém',
+    );
+    expect(find.text('ouvinte 2'), findsOneWidget);
+    await _fechar(tester, tablet);
+    semantics.dispose();
   });
 
   testWidgets('a finish that fails twice does not hold the team', (

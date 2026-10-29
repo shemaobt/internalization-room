@@ -458,6 +458,27 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a VoiceOver double-tap on «Ouvir a gravação inteira» opens '
+      '«Ouvir tudo», as a finger does', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naCasaDoEnsaio(tester, harness: harness);
+    for (var n = 1; n <= 4; n++) {
+      await _gravarNaLinha(tester, n);
+    }
+
+    voiceOverTap(tester, 'Ouvir a gravação inteira');
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      find.text('A gravação de vocês inteira, parte por parte.'),
+      findsOneWidget,
+      reason: 'o VoiceOver anunciava o botão e o toque duplo não abria nada',
+    );
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
   testWidgets(
     'recording again on Cena 3 keeps the new take as scene 3 and leaves the '
     'others alone',
