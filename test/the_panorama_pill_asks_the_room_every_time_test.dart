@@ -189,4 +189,25 @@ void main() {
     expect(read().panoramaSessionId, panorama);
     expect(harness.voice.played.skip(playedBefore), isEmpty);
   });
+
+  test('two taps on the Panorama pill both ask the room, and both adopt the '
+      'one session it holds', () async {
+    final (:harness, :notifier, :read) = _aRoomThatResumes();
+    await _theSaidPanoramaLeftForAPassage(notifier, read);
+
+    await enterThePanorama(notifier, read);
+    await waitFor('the Panorama to rest', () => read().canHearAgain);
+
+    expect(
+      harness.room.pericopesAsked.where((asked) => asked == 'OV-Ruth'),
+      hasLength(2),
+      reason: 'o segundo toque no Panorama não perguntava nada à sala',
+    );
+    expect(
+      harness.room.sessionIds,
+      ['sessao-1', 'sessao-2'],
+      reason: 'cada toque deixava uma sessão de panorama abandonada',
+    );
+    expect(read().panoramaSessionId, 'sessao-1');
+  });
 }

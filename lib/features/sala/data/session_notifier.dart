@@ -2305,10 +2305,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Open the Panorama's session and voice its opening. It has no foreseen end, and
   /// nothing here schedules one: the team leaves it the way it leaves any session.
-  ///
-  /// The session is reused for the same Panorama in the same language rather than asked
-  /// for again on every tap: a retried touch would otherwise mint one abandoned panorama
-  /// session per attempt.
   Future<void> _entrarNoPanorama(String id, [String? language]) async {
     final speaking = language ?? _lingua;
     _dispatch(ThePanoramaAsked(id, speaking));
