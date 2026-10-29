@@ -250,15 +250,25 @@ class _SheetLine extends StatelessWidget {
                   ExcludeSemantics(
                     child: Text(
                       line,
-                      style: TextStyle(color: colors.ink, fontSize: 15),
+                      style: TextStyle(
+                        color: colors.verdeClaro,
+                        fontSize: 0.78 * _rem,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ),
                   if (note != null)
                     Semantics(
                       liveRegion: true,
-                      child: Text(
-                        note,
-                        style: TextStyle(color: colors.telha, fontSize: 14),
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 0.1 * _rem),
+                        child: Text(
+                          note,
+                          style: TextStyle(
+                            color: colors.telha,
+                            fontSize: 0.76 * _rem,
+                          ),
+                        ),
                       ),
                     ),
                   if (inUse)

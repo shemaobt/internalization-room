@@ -770,6 +770,52 @@ void main() {
     }
   });
 
+  for (final (look, verdeClaro, telha) in [
+    ('light', const Color(0xFF777D45), const Color(0xFFBE4A01)),
+    ('dark', const Color(0xFFAAB07E), const Color(0xFFD6612A)),
+  ]) {
+    testWidgets(
+      'in the $look look the facts are her small verde-claro figures and the '
+      'note her smaller telha under them',
+      (tester) async {
+        if (look == 'dark') _inTheDark(tester);
+        final semantics = tester.ensureSemantics();
+        await _seeded(
+          tester,
+          (s) => [
+            _rehearsal(s, n: 4, scene: 'S2', sentAt: _sentAt('10:05')),
+            _rehearsal(s, n: 5, scene: 'S2', contentType: 'audio/mp4'),
+          ],
+        );
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 2);
+
+        for (final line in [_sent(4), _sent(5)]) {
+          final facts = tester.widget<Text>(find.text(line)).style!;
+          expect(
+            facts.fontSize,
+            closeTo(12.48, 0.001),
+            reason: 'os fatos tinham 15 em tinta',
+          );
+          expect(facts.color, verdeClaro);
+          expect(facts.fontFeatures, [const FontFeature.tabularFigures()]);
+        }
+        final note = _onLine(_sent(5), find.text(_cannotEnter));
+        final style = tester.widget<Text>(note).style!;
+        expect(
+          style.fontSize,
+          closeTo(12.16, 0.001),
+          reason: 'a nota tinha 14, maior que os fatos dela',
+        );
+        expect(style.color, telha);
+        final facts = tester.getRect(find.text(_sent(5)));
+        expect(tester.getRect(note).left, closeTo(facts.left, 0.01));
+        expect(tester.getRect(note).top, greaterThanOrEqualTo(facts.bottom));
+        semantics.dispose();
+      },
+    );
+  }
+
   testWidgets(
     '6. a rehearsal with an untranslated stretch reads «tradução incompleta» '
     'on its line and can still be used',
