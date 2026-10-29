@@ -796,6 +796,41 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('on the first listen the held sentence rests, and a tap on its '
+      'line sends nothing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.listeningUnheardTakeIds = const ['gravacao-1'];
+    final pasta = Directory.systemTemp.createTempSync('sala-2067');
+    addTearDown(() => pasta.deleteSync(recursive: true));
+    await harness.takes.enqueue(
+      File('${pasta.path}/frase.wav')
+        ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
+      sessionId: 'sessao-antiga',
+      kind: 'frase',
+      scope: '3',
+    );
+    final container = await _voltaATraducao(tester, harness);
+    await _passo(tester);
+    await _passo(tester);
+    expect(container.read(salaSessionProvider).btSoOuvir, isTrue);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    expect(
+      _acesa(tester, falhou),
+      isFalse,
+      reason: 'a linha da frase guardada seguia acesa na primeira escuta',
+    );
+    await tocar(tester, falhou);
+    await _passo(tester);
+
+    expect(
+      harness.room.sentencesSent,
+      isEmpty,
+      reason: 'um toque na frase guardada a enviava na primeira escuta',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a sentence held from a gone session is offered in the '
       "passage's next session and sent into that session at its tap", (
     tester,

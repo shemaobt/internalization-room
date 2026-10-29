@@ -425,6 +425,7 @@ class RetroView extends ConsumerWidget {
           atua &&
               quieta &&
               !session.needsPerson &&
+              !session.btSoOuvir &&
               session.btRegravacao == null &&
               trecho.frase != null &&
               session.btFraseGuardada == trecho.frase
