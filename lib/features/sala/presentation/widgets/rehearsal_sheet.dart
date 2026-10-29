@@ -303,12 +303,25 @@ class _SheetLine extends StatelessWidget {
                     excludeSemantics: true,
                     child: Opacity(
                       opacity: waking ? 0.5 : 1,
-                      child: TextButton(
-                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                        onPressed: usable ? onUse : null,
-                        child: Text(
-                          useLabel,
-                          style: TextStyle(color: colors.telha, fontSize: 15),
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: usable ? onUse : null,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 0.5 * _rem,
+                            horizontal: 1.1 * _rem,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: colors.areia, width: 1.4),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            useLabel,
+                            style: TextStyle(
+                              color: colors.verdeClaro,
+                              fontSize: 0.84 * _rem,
+                            ),
+                          ),
                         ),
                       ),
                     ),

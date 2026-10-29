@@ -851,6 +851,57 @@ void main() {
     );
   }
 
+  for (final (look, areia, verdeClaro) in [
+    ('light', const Color(0xFFC5C29F), const Color(0xFF777D45)),
+    ('dark', const Color(0xFF6E6A57), const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets(
+      'in the $look look «usar este» is her quiet bordered pill, not a telha '
+      'word',
+      (tester) async {
+        if (look == 'dark') _inTheDark(tester);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        final button = byLabel('$_useThis — ${_sent(3)}');
+        final pill =
+            tester
+                    .widget<DecoratedBox>(
+                      find
+                          .descendant(
+                            of: button,
+                            matching: find.byType(DecoratedBox),
+                          )
+                          .first,
+                    )
+                    .decoration
+                as BoxDecoration;
+        expect(
+          pill.border,
+          Border.all(color: areia, width: 1.4),
+          reason: '«usar este» era uma palavra telha solta, sem a borda dela',
+        );
+        expect(pill.borderRadius, BorderRadius.circular(999));
+        expect(pill.color, isNull);
+        final word = find.descendant(of: button, matching: find.text(_useThis));
+        final style = tester.widget<Text>(word).style!;
+        expect(style.fontSize, closeTo(13.44, 0.001));
+        expect(style.color, verdeClaro);
+        expect(
+          tester.getRect(word).left - tester.getRect(button).left,
+          closeTo(1.4 + 17.6, 0.01),
+        );
+        expect(
+          tester.getRect(word).top - tester.getRect(button).top,
+          closeTo(1.4 + 8, 0.01),
+        );
+        semantics.dispose();
+      },
+    );
+  }
+
   testWidgets(
     '6. a rehearsal with an untranslated stretch reads «tradução incompleta» '
     'on its line and can still be used',
