@@ -624,6 +624,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _lengths = {};
     _newestCount = 0;
     _fraseNaFila = null;
+    _aFraseDevida = null;
     _regravacoes = 0;
     _regravouNestaVisita = false;
   }
@@ -9949,14 +9950,45 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ],
     );
     _rememberWhereTheyAre(const Retro());
-    if (trocada == false) return;
+    if (trocada == false) {
+      _aFraseDevida = nome;
+      return _guardarAFrase(frase);
+    }
+    await _aFraseNovaNoLugar(nome, generation, tocar: trocada == true);
+  }
+
+  late String? _aFraseDevida;
+
+  Future<void> _aFraseNovaNoLugar(
+    String nome,
+    int generation, {
+    required bool tocar,
+  }) async {
     await _sayALine(
       LineKind.guide,
       fixedLine: (name: sentenceInPlaceLine, language: _inTheSessionsLanguage),
     );
     if (_abandoned(generation)) return;
     final trecho = _armarOTrecho(state.trechoChamado(nome));
-    if (trecho != null && trocada == true) _tocarAFraseNova(trecho);
+    if (trecho != null && tocar) _tocarAFraseNova(trecho);
+  }
+
+  Future<void> _buscarAParteDeNovo() async {
+    final sessionId = state.sessionId;
+    final nome = _aFraseDevida;
+    final trecho = state.trechoChamado(nome);
+    if (sessionId == null || nome == null || trecho == null) return;
+    final generation = _waitOnTheGeneration;
+    _silenceTheRoom();
+    state = state.copyWith(clearBtFraseGuardada: true);
+    final trocada = await _aParteComAFrase(
+      sessionId,
+      trecho.parte,
+      trecho.takeId,
+      generation,
+    );
+    if (_abandoned(generation) || !trocada) return;
+    await _aFraseNovaNoLugar(nome, generation, tocar: true);
   }
 
   Future<bool> _aParteComAFrase(
@@ -10049,6 +10081,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void tentarAFraseDeNovo() => _gesture(() {
     if (!state.aBackTranslationGestureActs) return;
+    if (_fraseNaFila == null) return _handOff(_buscarAParteDeNovo());
     final reabre = state.overAnApprovedDraft;
     _armedTap(
       'resend:${state.btFraseGuardada}',

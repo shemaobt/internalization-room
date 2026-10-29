@@ -1504,6 +1504,59 @@ void main() {
     closeTheRoom(container);
   });
 
+  Future<String> deitarSemAParte(
+    WidgetTester tester,
+    SalaHarness harness,
+    int n,
+  ) async {
+    await gravarAFrase(tester, harness, n);
+    final nova = 'gravacao-${harness.room.takeIds.length + 1}';
+    harness.room.failClipOf[nova] = const NetworkFailed('sem rede');
+    harness.voice.fixedLines.clear();
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+    return nova;
+  }
+
+  testWidgets('a new part the room will not hand over leaves its row offering '
+      'to try again, not a row with nothing to tap', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+
+    await deitarSemAParte(tester, harness, 2);
+
+    expect(
+      _naLista('não deu para guardar a frase — tentar de novo'),
+      findsOneWidget,
+      reason: 'a frase ficava sem parte e a linha não oferecia nada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap on that row fetches the new part again, then announces '
+      'the sentence and plays it in its place', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    await tocar(tester, falhou);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.voice.fixedLines,
+      [('N4', 'pt')],
+      reason: 'o toque na linha não buscava a parte nova de novo',
+    );
+    expect(harness.playback.ranges.last, '2500-8700');
+    expect(_naLista(falhou), findsNothing);
+    closeTheRoom(container);
+  });
+
   testWidgets('a re-record left for the rehearsal does not stand when the team '
       'comes back to the telling', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
