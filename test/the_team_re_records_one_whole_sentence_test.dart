@@ -1916,6 +1916,63 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('back from the rehearsal while a new part is owed, the room '
+      'says nothing and plays nothing, and the row still waits for the part', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarSemAParte(tester, harness, 2);
+    final tocadas = harness.playback.played.length;
+
+    await deVoltaDoEnsaio(tester, container);
+
+    expect(
+      harness.voice.fixedLines,
+      isEmpty,
+      reason: 'a volta dizia que a frase esperava a tradução sem a frase nova',
+    );
+    expect(
+      harness.playback.played.skip(tocadas),
+      isEmpty,
+      reason: 'a volta tocava a parte velha no lugar da frase nova',
+    );
+    expect(
+      _naLista('não deu para guardar a frase — tentar de novo'),
+      findsOneWidget,
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a trip to the rehearsal and back over an owed part never '
+      'plays the old take, and no row offers «regravar» on the way back', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarSemAParte(tester, harness, 2);
+    final velha = container
+        .read(salaSessionProvider)
+        .partes[container
+            .read(salaSessionProvider)
+            .trechoChamado('trecho-2')!
+            .parte]
+        .path;
+    final tocadas = harness.playback.played.length;
+
+    await deVoltaDoEnsaio(tester, container);
+
+    expect(
+      harness.playback.played.skip(tocadas).where((path) => path == velha),
+      isEmpty,
+      reason: 'a volta tocava a gravação velha onde a frase nova esperava',
+    );
+    for (var n = 1; n <= 4; n++) {
+      expect(_naLista('regravar a frase $n'), findsNothing);
+    }
+    closeTheRoom(container);
+  });
+
   testWidgets('a re-record left for the rehearsal does not stand when the team '
       'comes back to the telling', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
