@@ -76,133 +76,131 @@ class SceneTranslateStep extends ConsumerWidget {
     );
     final message = _messageOf(frases);
 
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SceneSub(said('subTranslate')),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SceneSub(said('subTranslate')),
+        const SizedBox(height: 12),
+        _PlayRow(
+          mood: idle && scene.listened ? ButtonMood.lit : ButtonMood.dimmed,
+          take: take,
+          label: said('playPause'),
+          hint: (at) => _hintOf(playing: playing, at: at),
+        ),
+        const SizedBox(height: 12),
+        SceneStrip(
+          envelope: envelope,
+          length: scene.length,
+          frases: [
+            for (final frase in frases)
+              if (moving && frase.fraseId == scene.translatingAgain?.fraseId)
+                SceneFrase(
+                  fraseId: frase.fraseId,
+                  startsMs: frase.startsMs,
+                  endsMs: scene.pausa?.inMilliseconds ?? frase.endsMs,
+                )
+              else
+                frase,
+          ],
+          pausa: scene.pausa,
+          playing: playing,
+          take: take,
+          stoppedAt: stoppedAt,
+        ),
+        if (adjusts) ...[
           const SizedBox(height: 12),
-          _PlayRow(
-            mood: idle && scene.listened ? ButtonMood.lit : ButtonMood.dimmed,
-            take: take,
-            label: said('playPause'),
-            hint: (at) => _hintOf(playing: playing, at: at),
+          PauseAdjustRow(
+            lit: idle,
+            language: language,
+            onEarlier: notifier.pauseEarlier,
+            onHear: notifier.hearThePause,
+            onLater: notifier.pauseLater,
           ),
+        ],
+        if (!scene.listened) ...[
           const SizedBox(height: 12),
-          SceneStrip(
-            envelope: envelope,
-            length: scene.length,
-            frases: [
-              for (final frase in frases)
-                if (moving && frase.fraseId == scene.translatingAgain?.fraseId)
-                  SceneFrase(
-                    fraseId: frase.fraseId,
-                    startsMs: frase.startsMs,
-                    endsMs: scene.pausa?.inMilliseconds ?? frase.endsMs,
-                  )
-                else
-                  frase,
-            ],
-            pausa: scene.pausa,
-            playing: playing,
-            take: take,
-            stoppedAt: stoppedAt,
+          _WrittenButton(
+            said('translate'),
+            live: idle,
+            onTap: notifier.playTheSceneRehearsal,
           ),
-          if (adjusts) ...[
-            const SizedBox(height: 12),
-            PauseAdjustRow(
-              lit: idle,
-              language: language,
-              onEarlier: notifier.pauseEarlier,
-              onHear: notifier.hearThePause,
-              onLater: notifier.pauseLater,
-            ),
-          ],
-          if (!scene.listened) ...[
-            const SizedBox(height: 12),
-            _WrittenButton(
-              said('translate'),
-              live: idle,
-              onTap: notifier.playTheSceneRehearsal,
-            ),
-          ],
+        ],
+        const SizedBox(height: 12),
+        _TellCircle(
+          mood: telling
+              ? ButtonMood.beckoning
+              : scene.waiting
+              ? ButtonMood.waiting
+              : sending || !scene.listened
+              ? ButtonMood.dimmed
+              : ButtonMood.lit,
+          telling: telling,
+          label: said('tell'),
+        ),
+        if (message != null) ...[
           const SizedBox(height: 12),
-          _TellCircle(
-            mood: telling
-                ? ButtonMood.beckoning
-                : scene.waiting
-                ? ButtonMood.waiting
-                : sending || !scene.listened
-                ? ButtonMood.dimmed
-                : ButtonMood.lit,
-            telling: telling,
-            label: said('tell'),
+          Semantics(
+            liveRegion: true,
+            child: _Written(
+              message,
+              style: TextStyle(color: colors.mut, fontSize: 16),
+            ),
           ),
-          if (message != null) ...[
-            const SizedBox(height: 12),
-            Semantics(
-              liveRegion: true,
-              child: _Written(
-                message,
-                style: TextStyle(color: colors.mut, fontSize: 16),
-              ),
-            ),
-          ],
-          if (scene.translatingAgain != null && !unseen) ...[
-            const SizedBox(height: 8),
-            _WrittenButton(
-              said('keepTheEarlier'),
-              live: !scene.waiting && !telling,
-              onTap: notifier.keepTheEarlierTranslation,
-              bare: true,
-            ),
-          ],
-          if (frases.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _Heading(said('frases')),
-            const SizedBox(height: 8),
-            for (final (i, frase) in frases.indexed)
-              _FraseBar(
-                n: i + 1,
-                share: frase.spanIn(scene.length) / longest,
-                words: said('frase', i + 1),
-                name: said('retellFrase', i + 1),
-                hearMine: said('hearMine', i + 1),
-                live: idle,
-                again: frase.fraseId == scene.translatingAgain?.fraseId,
-                onTap: () => notifier.translateTheFraseAgain(frase.fraseId),
-                onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
-              ),
-          ],
-          if (!scene.wentToTheVoice) ...[
-            const SizedBox(height: 16),
-            _WrittenButton(
-              said(sending ? 'sending' : 'send'),
-              live: sendable && !sending,
-              onTap: notifier.sendTheSceneRehearsal,
-              large: true,
-            ),
-          ],
-          if (restartShown || line != null) ...[
-            const SizedBox(height: 12),
-            SceneRestartControl(
-              shown: restartShown,
-              armed: restart,
-              n: scene.rehearsal?.translatedFrases ?? 0,
-              line: line,
-              live: idle,
-              language: language,
-            ),
-          ],
+        ],
+        if (scene.translatingAgain != null && !unseen) ...[
           const SizedBox(height: 8),
           _WrittenButton(
-            said('again'),
-            live: !sending && !scene.waiting,
-            onTap: notifier.recordTheSceneAgain,
+            said('keepTheEarlier'),
+            live: !scene.waiting && !telling,
+            onTap: notifier.keepTheEarlierTranslation,
             bare: true,
           ),
         ],
-      ),
+        if (frases.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _Heading(said('frases')),
+          const SizedBox(height: 8),
+          for (final (i, frase) in frases.indexed)
+            _FraseBar(
+              n: i + 1,
+              share: frase.spanIn(scene.length) / longest,
+              words: said('frase', i + 1),
+              name: said('retellFrase', i + 1),
+              hearMine: said('hearMine', i + 1),
+              live: idle,
+              again: frase.fraseId == scene.translatingAgain?.fraseId,
+              onTap: () => notifier.translateTheFraseAgain(frase.fraseId),
+              onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
+            ),
+        ],
+        if (!scene.wentToTheVoice) ...[
+          const SizedBox(height: 16),
+          _WrittenButton(
+            said(sending ? 'sending' : 'send'),
+            live: sendable && !sending,
+            onTap: notifier.sendTheSceneRehearsal,
+            large: true,
+          ),
+        ],
+        if (restartShown || line != null) ...[
+          const SizedBox(height: 12),
+          SceneRestartControl(
+            shown: restartShown,
+            armed: restart,
+            n: scene.rehearsal?.translatedFrases ?? 0,
+            line: line,
+            live: idle,
+            language: language,
+          ),
+        ],
+        const SizedBox(height: 8),
+        _WrittenButton(
+          said('again'),
+          live: !sending && !scene.waiting,
+          onTap: notifier.recordTheSceneAgain,
+          bare: true,
+        ),
+      ],
     );
   }
 
@@ -460,71 +458,69 @@ class SceneListenMode extends ConsumerWidget {
       _ => 0,
     };
     final longest = frases.map(span).fold(1, max);
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SceneSub(
-              said('listen'),
-              heard: line == SceneLine.diskFailed
-                  ? '${said('listen')} — ${said('diskFailed')}'
-                  : null,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SceneSub(
+            said('listen'),
+            heard: line == SceneLine.diskFailed
+                ? '${said('listen')} — ${said('diskFailed')}'
+                : null,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _PlayRow(
+          mood: sending || scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
+          take: take,
+          label: said('playPause'),
+          hint: (at) => switch ((playing, scene.heard)) {
+            (true, _) => sceneListeningLineFor(at, scene.length, language),
+            (false, SceneHeard.partly) => scenePausedLineFor(
+              stoppedAt,
+              scene.length,
+              language,
             ),
-          ),
-          const SizedBox(height: 12),
-          _PlayRow(
-            mood: sending || scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
-            take: take,
-            label: said('playPause'),
-            hint: (at) => switch ((playing, scene.heard)) {
-              (true, _) => sceneListeningLineFor(at, scene.length, language),
-              (false, SceneHeard.partly) => scenePausedLineFor(
-                stoppedAt,
-                scene.length,
-                language,
-              ),
-              (false, SceneHeard.toTheEnd) => said('ended'),
-              (false, _) => null,
-            },
-          ),
-          const SizedBox(height: 12),
-          SceneStrip(
-            envelope: envelope,
-            length: scene.length,
-            frases: frases,
-            pausa: null,
-            playing: playing,
-            take: take,
-            stoppedAt: stoppedAt,
-          ),
-          const SizedBox(height: 16),
-          if (frases.isNotEmpty) ...[
-            _Heading(said('frases')),
-            const SizedBox(height: 8),
-            for (final (i, frase) in frases.indexed)
-              _FraseBar(
-                n: i + 1,
-                share: span(frase) / longest,
-                words: said('frase', i + 1),
-                name: said('frase', i + 1),
-                hearMine: said('hearMine', i + 1),
-                live: !scene.waiting,
-                again: false,
-                onTap: () => notifier.playTheFrase(frase.fraseId),
-                onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
-              ),
-          ],
-          const SizedBox(height: 16),
-          _WrittenButton(
-            said('again'),
-            live: !sending,
-            onTap: notifier.recordTheSceneAgain,
-            bare: true,
-          ),
+            (false, SceneHeard.toTheEnd) => said('ended'),
+            (false, _) => null,
+          },
+        ),
+        const SizedBox(height: 12),
+        SceneStrip(
+          envelope: envelope,
+          length: scene.length,
+          frases: frases,
+          pausa: null,
+          playing: playing,
+          take: take,
+          stoppedAt: stoppedAt,
+        ),
+        const SizedBox(height: 16),
+        if (frases.isNotEmpty) ...[
+          _Heading(said('frases')),
+          const SizedBox(height: 8),
+          for (final (i, frase) in frases.indexed)
+            _FraseBar(
+              n: i + 1,
+              share: span(frase) / longest,
+              words: said('frase', i + 1),
+              name: said('frase', i + 1),
+              hearMine: said('hearMine', i + 1),
+              live: !scene.waiting,
+              again: false,
+              onTap: () => notifier.playTheFrase(frase.fraseId),
+              onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
+            ),
         ],
-      ),
+        const SizedBox(height: 16),
+        _WrittenButton(
+          said('again'),
+          live: !sending,
+          onTap: notifier.recordTheSceneAgain,
+          bare: true,
+        ),
+      ],
     );
   }
 }
@@ -642,27 +638,22 @@ class SceneRehearsalList extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: 470,
-            maxHeight: MediaQuery.sizeOf(context).height / 3,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ExcludeSemantics(child: _Upper(said('list'))),
-                const SizedBox(height: 8),
-                for (final row in rows)
-                  _ListedRow(
-                    row: row,
-                    onScreen: row.rehearsalId == onScreen,
-                    still: still,
-                    language: language,
-                    onTap: () =>
-                        notifier.openTheListedSceneRehearsal(row.rehearsalId),
-                  ),
-              ],
-            ),
+          constraints: const BoxConstraints(maxWidth: 470),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ExcludeSemantics(child: _Upper(said('list'))),
+              const SizedBox(height: 8),
+              for (final row in rows)
+                _ListedRow(
+                  row: row,
+                  onScreen: row.rehearsalId == onScreen,
+                  still: still,
+                  language: language,
+                  onTap: () =>
+                      notifier.openTheListedSceneRehearsal(row.rehearsalId),
+                ),
+            ],
           ),
         ),
       ),

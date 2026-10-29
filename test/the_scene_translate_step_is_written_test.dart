@@ -2352,7 +2352,7 @@ void main() {
     },
   );
   testWidgets(
-    'a long list of the session\'s scene rehearsals scrolls in a third of the screen instead of pushing the step off it',
+    'a long list of the session\'s scene rehearsals takes its whole height in the page, not a third of the screen',
     (tester) async {
       await _onTheSceneScreen(
         tester,
@@ -2372,7 +2372,8 @@ void main() {
       );
       expect(
         tester.getSize(byLabel('ensaios da cena desta sessão')).height,
-        lessThanOrEqualTo(700 / 3),
+        greaterThan(700 / 3),
+        reason: 'a lista ficava presa num terço da tela e rolava sozinha',
       );
     },
   );
