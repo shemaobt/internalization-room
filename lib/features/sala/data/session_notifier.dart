@@ -3507,7 +3507,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             if (take.takeId != parte.takeId) take,
         ],
         partsAway: {...state.partsAway}..remove(parte.takeId),
-        btTrechos: _osTrechosSemAParte(fora),
+        btTrechos: _osTrechosSemAParte(state.btTrechos, fora),
+        btTrechosRegravados: _osTrechosSemAParte(
+          state.btTrechosRegravados,
+          fora,
+        ),
         parteARegravar: switch (regravando) {
           final at? when at > fora => at - 1,
           _ => regravando,
@@ -3531,24 +3535,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The stretches as they stand once the part at [fora] has left the parts: its own go
   /// with it, and each later one moves down to its part's new place (ADR 0022).
-  List<Trecho> _osTrechosSemAParte(int fora) => [
-    for (final trecho in state.btTrechos)
+  List<Trecho> _osTrechosSemAParte(List<Trecho> trechos, int fora) => [
+    for (final trecho in trechos)
       if (trecho.parte != fora)
-        trecho.parte < fora
-            ? trecho
-            : Trecho(
-                segmentId: trecho.segmentId,
-                takeId: trecho.takeId,
-                retroPath: trecho.retroPath,
-                parte: trecho.parte - 1,
-                from: trecho.from,
-                to: trecho.to,
-                contado: trecho.contado,
-                lugarFrom: trecho.lugarFrom,
-                lugarTo: trecho.lugarTo,
-                frase: trecho.frase,
-              ),
+        trecho.parte < fora ? trecho : _naParte(trecho, trecho.parte - 1),
   ];
+
+  Trecho _naParte(Trecho trecho, int parte) => Trecho(
+    segmentId: trecho.segmentId,
+    takeId: trecho.takeId,
+    retroPath: trecho.retroPath,
+    parte: parte,
+    from: trecho.from,
+    to: trecho.to,
+    contado: trecho.contado,
+    lugarFrom: trecho.lugarFrom,
+    lugarTo: trecho.lugarTo,
+    frase: trecho.frase,
+  );
 
   /// How long each part turned out to be, so the room knows where each part ends.
   ///
@@ -6121,7 +6125,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state = state.copyWith(scene: shown.copyWith(notUnderstood: false));
           _startListening('frase_${_stamp()}', owner: MicOwner.frase);
         }
-      case PartPlaying():
+      case PartPlaying(:final part) when part.path == shown.take:
         _markThePausa();
       default:
         _translateOnFrom(shown.rehearsal!.frontier);
@@ -6148,15 +6152,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal == null) {
       return;
     }
-    final playing = state.channel is PartPlaying;
+    final playing = _theSceneTakeThatSounds(state.machine) != null;
     if (step == SceneStep.sent) {
       _silenceTheRoom();
       if (!playing) {
+        final from = state.scene.heard == SceneHeard.toTheEnd
+            ? Duration.zero
+            : state.sceneStoppedAt ?? Duration.zero;
         state = state.copyWith(
           scene: state.scene.copyWith(heard: SceneHeard.partly),
         );
         _play(
-          PartSound(0, take),
+          PartSound(0, take, from: from),
           onComplete: () => state = state.copyWith(
             scene: state.scene.copyWith(heard: SceneHeard.toTheEnd),
           ),
@@ -6756,7 +6763,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _recordTheSceneAgain() {
     if (state.station is! SceneRehearsal ||
         state.theSceneIsSending ||
-        (state.scene.step == SceneStep.translate && state.scene.waiting)) {
+        (state.scene.step == SceneStep.translate && state.scene.waiting) ||
+        (state.scene.step == SceneStep.sent && state.scene.waiting)) {
       return;
     }
     if (state.channel is Microphone) _dispatch(const MicDiscarded());
@@ -7085,6 +7093,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _leaveTheBackTranslation() {
     if (state.station is! Retro) return;
     _voltarAoEnsaio();
+    _descartarATraducaoPendente();
+    _asPartesPerdidasSaem();
   }
 
   void ouvirTudo() => _gesture(() => _ouvirTudo());
@@ -7377,6 +7387,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [...state.keptTakes, nova],
+    );
+    final onde = state.partes.indexOf(nova);
+    state = state.copyWith(
+      btTrechosRegravados: [
+        for (final trecho in state.btTrechosRegravados)
+          trecho.parte < onde ? trecho : _naParte(trecho, trecho.parte + 1),
+      ],
     );
     _deixarOInteiroDeLado();
     _weighTheRehearsal();
@@ -10229,7 +10246,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final de = from > emVoltaDaFraseNova
         ? from - emVoltaDaFraseNova
         : Duration.zero;
-    final ate = to + emVoltaDaFraseNova;
+    final ate = switch (_tamanhoDaParteMs[path]) {
+      final medido?
+          when to + emVoltaDaFraseNova > Duration(milliseconds: medido) =>
+        Duration(milliseconds: medido),
+      _ => to + emVoltaDaFraseNova,
+    };
     void quiet() => unawaited(_playback.stop());
     _play(
       StretchSound(path, named: trecho.segmentId, from: de, to: ate),

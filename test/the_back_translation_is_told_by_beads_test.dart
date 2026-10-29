@@ -1560,16 +1560,22 @@ void main() {
           .dy,
       169,
     );
-    expect(tester.getTopLeft(byLabel(ouvindo)), const Offset(335, 384.5));
+    expect(
+      tester.getTopLeft(byLabel(ouvindo)),
+      const Offset(335, 336.5),
+      reason:
+          'o círculo ficava 48 px abaixo, sob uma linha de pausa que a tela '
+          'dela não desenha sem pausa',
+    );
     expect(
       tester.getTopLeft(byLabel(pausar)),
-      const Offset(16, 585),
+      const Offset(16, 537),
       reason:
           'o botão ficava à esquerda da tesoura e da confirmação, que os três '
           'toques tiraram; agora só a linha dela, que quebra, fica ao lado e o '
           'leva até a margem',
     );
-    expect(tester.getTopLeft(byLabel(conferir)), const Offset(309.8, 701));
+    expect(tester.getTopLeft(byLabel(conferir)), const Offset(309.8, 653));
     closeTheRoom(container);
   });
 

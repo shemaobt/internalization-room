@@ -484,4 +484,67 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  for (final (look, numero) in [
+    (Brightness.light, const Color(0xFFF6F5EB)),
+    (Brightness.dark, const Color(0xFF1E1B15)),
+  ]) {
+    testWidgets('in the ${look.name} look the frase awaiting its translation '
+        'numbers itself on a terracotta disc, not the sand one', (
+      tester,
+    ) async {
+      tester.platformDispatcher.platformBrightnessTestValue = look;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _voltaATraducao(
+        tester,
+        harness,
+        const BackTranslationProgress(
+          segments: [
+            SegmentView(
+              segmentId: 'trecho-1',
+              takeId: 'gravacao-1',
+              startsMs: 0,
+              endsMs: 4000,
+              frase: 1,
+            ),
+            SegmentView(
+              segmentId: 'trecho-2',
+              takeId: 'gravacao-2',
+              startsMs: 0,
+              endsMs: 5000,
+              frase: 2,
+            ),
+          ],
+          awaitingSegmentId: 'trecho-2',
+        ),
+      );
+      final telha = look == Brightness.dark
+          ? const Color(0xFFD6612A)
+          : const Color(0xFFBE4A01);
+      final disco = find
+          .ancestor(
+            of: find.descendant(of: _aFrase(2).first, matching: find.text('2')),
+            matching: find.byType(DecoratedBox),
+          )
+          .first;
+
+      expect(
+        (tester.widget<DecoratedBox>(disco).decoration as BoxDecoration).color,
+        telha,
+        reason: 'a frase que aguarda tinha o disco de areia das outras',
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(of: _aFrase(2).first, matching: find.text('2')),
+            )
+            .style
+            ?.color,
+        numero,
+        reason: 'no disco telha o número dela é o branco da página',
+      );
+      closeTheRoom(container);
+    });
+  }
 }

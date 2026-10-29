@@ -115,18 +115,14 @@ class RetroView extends ConsumerWidget {
             const SizedBox(height: 20),
             PartStrips(rows: _faixas(session, language)),
             const SizedBox(height: 16),
-            SizedBox(
-              height: 48,
-              child: avanca
-                  ? PauseAdjustRow(
-                      lit: session.canAdjustThePause,
-                      language: language,
-                      onEarlier: notifier.pausaUmPoucoAntes,
-                      onHear: notifier.ouvirAPausa,
-                      onLater: notifier.pausaUmPoucoDepois,
-                    )
-                  : null,
-            ),
+            if (avanca && session.thePauseCanMove)
+              PauseAdjustRow(
+                lit: session.canAdjustThePause,
+                language: language,
+                onEarlier: notifier.pausaUmPoucoAntes,
+                onHear: notifier.ouvirAPausa,
+                onLater: notifier.pausaUmPoucoDepois,
+              ),
             if (!session.btSoOuvir) ...[
               SizedBox(height: 24 + anel),
               FacilitatorCircle(
@@ -267,14 +263,13 @@ class RetroView extends ConsumerWidget {
                 ),
               ),
             ],
-            if (avanca && session.btVeredito) ...[
+            if (!session.btSoOuvir) ...[
               const SizedBox(height: 16),
               _botaoEscrito(
                 findingLabelFor('recordThePart', language),
                 colors,
-                session.btFindingTrecho != null &&
-                        session.btPhase == BtPhase.playing
-                    ? notifier.gravarAParteDeNovo
+                session.canGoBackToRecordAPart
+                    ? notifier.leaveTheBackTranslation
                     : null,
               ),
             ],
@@ -301,6 +296,7 @@ class RetroView extends ConsumerWidget {
     String language,
   ) {
     final atua = session.aBackTranslationGestureActs;
+    final quieta = session.theFraseListIsIdle;
     final contadas = [
       for (final (onde, trecho) in session.btTrechos.indexed)
         if (trecho.contado) (onde, trecho),
@@ -333,23 +329,27 @@ class RetroView extends ConsumerWidget {
       n: n,
       parte: parteDe(trecho),
       share: share(trecho),
-      onHear: session.canHearAFrase && trecho.retroPath != null
+      onHear: quieta && session.canHearAFrase && trecho.retroPath != null
           ? () => notifier.ouvirAFraseRegravada(onde)
           : null,
       onRetell:
-          session.canRetellAFrase &&
+          quieta &&
+              session.canRetellAFrase &&
               trecho.segmentId != null &&
               session.regravadaTraduzivelDeNovo(trecho)
           ? () => notifier.traduzirAFraseRegravadaDeNovo(onde)
           : null,
       mark: retroLabelFor('stale', language),
+      achado: _achadoNoTrecho(trecho.segmentId, session),
+      regravada: true,
     );
     FraseRow atual(int onde, Trecho trecho, int n) => FraseRow(
       n: n,
       parte: parteDe(trecho),
       share: share(trecho),
       onHear:
-          session.canHearAFrase &&
+          quieta &&
+              session.canHearAFrase &&
               switch (session.aParteDoTrecho(trecho)) {
                 null => true,
                 final parte =>
@@ -358,7 +358,8 @@ class RetroView extends ConsumerWidget {
           ? () => notifier.ouvirOTrechoContado(onde)
           : null,
       onRetell:
-          session.canRetellAFrase &&
+          quieta &&
+              session.canRetellAFrase &&
               trecho.segmentId != null &&
               session.aParteDoTrechoEstaAqui(trecho)
           ? () => notifier.traduzirAFraseDeNovo(onde)
@@ -370,6 +371,7 @@ class RetroView extends ConsumerWidget {
               final kind => retroLabelFor(kind.name, language),
             },
       achado: aguarda(trecho) ? null : _markOn(trecho.frase, session),
+      aguardando: aguarda(trecho),
       traduzindoDeNovo:
           trecho.segmentId != null &&
           trecho.segmentId == session.btFraseTraduzidaDeNovo?.segmentId,
@@ -386,8 +388,10 @@ class RetroView extends ConsumerWidget {
           : null,
       regravarDormindo: _dormindo('rerecord:${trecho.frase}', session),
       onRegravar:
-          session.btRegravacao == null ||
-              session.btRegravacao?.frase == trecho.frase
+          switch (session.btRegravacao) {
+            null => quieta,
+            final regravacao => regravacao.frase == trecho.frase,
+          }
           ? () => notifier.regravarAFrase(trecho)
           : null,
       revisao:
@@ -422,6 +426,7 @@ class RetroView extends ConsumerWidget {
       estadoDormindo: _dormindo('resend:${trecho.frase}', session),
       onEstado:
           atua &&
+              session.channel is! GuideSpeaking &&
               session.btRegravacao == null &&
               trecho.frase != null &&
               session.btFraseGuardada == trecho.frase
@@ -598,6 +603,14 @@ class RetroView extends ConsumerWidget {
 
   bool _conferida(SalaSessionState session) =>
       session.btPhase == BtPhase.conferida && !session.needsPerson;
+
+  BtFindingKind? _achadoNoTrecho(String? segmentId, SalaSessionState session) {
+    if (segmentId == null) return null;
+    for (final finding in session.btFindings) {
+      if (finding.segmentId == segmentId) return finding.kind;
+    }
+    return null;
+  }
 
   BtFindingKind? _markOn(int? frase, SalaSessionState session) {
     if (frase == null) return null;
@@ -843,7 +856,9 @@ class RetroView extends ConsumerWidget {
       return retroLabelFor('notUnderstood', language);
     }
     if (session.btRegravacao?.passo
-        case PassoDaRegravacao.pronta || PassoDaRegravacao.gravando) {
+        case PassoDaRegravacao.pronta ||
+            PassoDaRegravacao.gravando ||
+            PassoDaRegravacao.revendo) {
       return sceneRehearsalLabelFor('respeakHint', language);
     }
     switch (session.btPhase) {

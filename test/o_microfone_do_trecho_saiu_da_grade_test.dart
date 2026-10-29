@@ -150,7 +150,8 @@ void main() {
   });
 
   testWidgets(
-    'o microfone de madeira da grade grava a parte de novo no lugar',
+    'o microfone de madeira da grade leva à casa, e a linha da parte 2 a '
+    'grava de novo no lugar',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await aPerguntaSobreAParteDois(tester, harness);
@@ -169,7 +170,23 @@ void main() {
             'onde a parte se grava outra vez',
       );
 
-      await gravarUmaParte(tester, container);
+      final daLinhaDois = find.descendant(
+        of: linhaDoEnsaio(2),
+        matching: byLabel('Gravar de novo'),
+      );
+      await tester.ensureVisible(daLinhaDois);
+      await tester.tap(daLinhaDois);
+      await tester.pump(const Duration(milliseconds: 200));
+      final notifier = container.read(salaSessionProvider.notifier);
+      notifier.ensaioTap();
+      await waitFor(
+        'a parte 2 gravada de novo chegar',
+        () =>
+            container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+        step: () => tester.pump(const Duration(milliseconds: 100)),
+      );
+      notifier.takeKeep();
+      await theRoomNamesTheParts(tester, container, parts: 3);
 
       final agora = container.read(salaSessionProvider).partes;
       expect(

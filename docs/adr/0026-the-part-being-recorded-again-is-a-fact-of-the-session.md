@@ -1,3 +1,5 @@
+Amended by 0158 (the check no longer marks a part).
+
 # The part being recorded again is a fact of the session
 
 ## Context

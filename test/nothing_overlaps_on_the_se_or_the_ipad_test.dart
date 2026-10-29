@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/language_and_look.dart';
@@ -10,11 +14,14 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 import 'package:internalization_room/features/sala/presentation/widgets/shema_mark.dart';
 import 'package:internalization_room/main.dart';
 
+import 'a_scene_room.dart' show pumpUntil, translateOnScreen;
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel, onAScreen, settle, withRealLetters;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show cabeca, entrarNaTraducao, passaDoCursor, pausar;
+    show cabeca, passaDoCursor, pausar;
+import 'the_pause_snaps_to_silence_test.dart'
+    show entrarComAFala, pausarAos, s, umaLacunaAos3;
 import 'um_ensaio_de_tres_partes.dart';
 
 final _aLongBook = [
@@ -37,6 +44,39 @@ const _se = Size(375, 667);
 const _seBar = 20.0;
 
 const _tocarOuPausar = 'Tocar ou pausar a gravação';
+
+const _herPauseWords = {
+  'pt': ['um pouco antes', 'ouvir a pausa', 'um pouco depois'],
+  'en': ['a little earlier', 'hear the pause', 'a little later'],
+};
+
+void _herPauseRowFits(WidgetTester tester, List<String> words, Rect below) {
+  final pills = [for (final word in words) tester.getRect(byLabel(word))];
+  for (final (i, pill) in pills.indexed) {
+    final word = words[i];
+    final letters = tester.getRect(
+      find.descendant(of: byLabel(word), matching: find.text(word)),
+    );
+    expect(
+      pill.left >= 0 && pill.right <= _se.width,
+      isTrue,
+      reason: '«$word» saía da tela do SE',
+    );
+    expect(
+      pill.intersect(letters) == letters && letters.height < 14 * 1.2 * 2,
+      isTrue,
+      reason: '«$word» quebrava ou saía da pílula',
+    );
+    expect(
+      pill.overlaps(below),
+      isFalse,
+      reason: '«$word» tocava o círculo abaixo',
+    );
+    for (final other in pills.skip(i + 1)) {
+      expect(pill.overlaps(other), isFalse, reason: '«$word» cobria outra');
+    }
+  }
+}
 
 Rect _theRing(WidgetTester tester) {
   final circle = tester.getRect(
@@ -126,22 +166,79 @@ void main() {
         ..devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final harness = SalaHarness(filaEmMemoria: true);
-      final container = await entrarNaTraducao(tester, harness);
+      final container = await entrarComAFala(tester, harness, umaLacunaAos3);
       harness.playback.at = cabeca;
       await tester.pump(passaDoCursor);
 
-      final ring = _theRing(tester);
-      expect(
-        tester.getRect(find.byType(PauseAdjustRow)).bottom,
-        lessThanOrEqualTo(ring.top),
-        reason: 'os três controles da pausa tocavam o anel do círculo',
-      );
       expect(
         tester.getRect(byLabel(pausar)).top,
-        greaterThanOrEqualTo(ring.bottom),
+        greaterThanOrEqualTo(_theRing(tester).bottom),
         reason: 'o botão de pausar ficava dentro do anel do círculo',
       );
+
+      await pausarAos(tester, harness, s(4.2));
+
+      expect(
+        tester.getRect(find.byType(PauseAdjustRow)).bottom,
+        lessThanOrEqualTo(_theRing(tester).top),
+        reason: 'os três controles da pausa tocavam o anel do círculo',
+      );
       closeTheRoom(container);
+    });
+  }
+
+  for (final language in ['pt', 'en']) {
+    testWidgets('$language: on the iPhone SE her three written pause buttons '
+        'stand whole inside the check, apart from each other and the ring', (
+      tester,
+    ) async {
+      await tester.runAsync(withRealLetters);
+      tester.view
+        ..physicalSize = _se
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final harness = SalaHarness(filaEmMemoria: true, lingua: language);
+      final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+
+      await pausarAos(tester, harness, s(4.2));
+
+      _herPauseRowFits(tester, _herPauseWords[language]!, _theRing(tester));
+      closeTheRoom(container);
+    });
+
+    testWidgets('$language: on the iPhone SE her three written pause buttons '
+        'stand whole inside the scene translate step, apart from each other '
+        'and the circle', (tester) async {
+      await tester.runAsync(withRealLetters);
+      final (harness, container) = await translateOnScreen(
+        tester,
+        rehearsal: const SceneRehearsalRecord(
+          rehearsalId: 'ensaio-da-cena-1',
+          sessionId: 'sessao-1',
+          n: 1,
+          frases: [],
+        ),
+      );
+      tester.view.physicalSize = _se;
+      await tester.tap(byLabel('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      harness.playback.at = const Duration(seconds: 5);
+      await tester.tap(
+        byLabel('Toque para traduzir esta frase do ensaio da cena'),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      container.read(roomLanguageProvider.notifier).choose(language);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      _herPauseRowFits(
+        tester,
+        _herPauseWords[language]!,
+        tester.getRect(byLabel(sceneRehearsalLabelFor('tell', language))),
+      );
     });
   }
 
