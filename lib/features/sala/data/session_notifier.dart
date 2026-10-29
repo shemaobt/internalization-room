@@ -10287,6 +10287,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearBtRegravacao: true,
       clearBtFraseQueAguarda: true,
       clearBtFraseGuardada: true,
+      clearBtFraseDevida: true,
     );
   }
 

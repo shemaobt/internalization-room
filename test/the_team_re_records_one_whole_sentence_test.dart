@@ -2290,6 +2290,27 @@ void main() {
     await _passo(tester);
   }
 
+  testWidgets('a translation started over while a new part is owed lets the '
+      'home stop saying the sentence could not be saved', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarSemAParte(tester, harness, 2);
+
+    await recomecarDeVez(tester, container);
+    container.read(salaSessionProvider.notifier).goEnsaio();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _passo(tester);
+
+    expect(
+      naCasa('não deu para guardar a frase — tentar de novo'),
+      findsNothing,
+      reason:
+          'a casa seguia esperando uma frase de uma tradução que já foi '
+          'apagada',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a translation started over leaves no frase awaiting its '
       'translation', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
