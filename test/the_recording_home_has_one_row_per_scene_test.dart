@@ -1352,6 +1352,10 @@ void main() {
       await waitFor('as cenas', () => it.estado.sceneRows.length == 2);
       await _gravarACenaEGuardar(it, 1);
       await _gravarACenaEGuardar(it, 2);
+      await waitFor(
+        'a sala nomear as duas cenas',
+        () => it.estado.keptTakes.every((take) => take.takeId != null),
+      );
       final antes = it.harness.playback.played.length;
 
       it.sala.startRetro();
