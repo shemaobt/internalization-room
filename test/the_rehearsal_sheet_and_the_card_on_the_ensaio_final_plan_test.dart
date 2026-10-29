@@ -4,6 +4,7 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -13,6 +14,7 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_final_plan_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/rehearsal_sheet.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_question.dart';
 import 'package:internalization_room/main.dart';
 
@@ -337,6 +339,30 @@ void _expectOnlyFacts(WidgetTester tester) {
   }
 }
 
+void _on(WidgetTester tester, Size screen, {required double bar}) {
+  tester.view
+    ..physicalSize = screen
+    ..devicePixelRatio = 1
+    ..padding = FakeViewPadding(top: bar)
+    ..viewPadding = FakeViewPadding(top: bar);
+  addTearDown(tester.view.reset);
+}
+
+void _inTheDark(WidgetTester tester) {
+  tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+  addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+}
+
+double _seenOpacity(WidgetTester tester, Finder mark) {
+  var seen = 1.0;
+  mark.evaluate().first.visitAncestorElements((ancestor) {
+    final widget = ancestor.widget;
+    if (widget is Opacity) seen *= widget.opacity;
+    return true;
+  });
+  return seen;
+}
+
 void main() {
   testWidgets(
     '1. the sheet of scene 1 lists its three rehearsals newest first with '
@@ -418,6 +444,131 @@ void main() {
     expect(harness.room.calls, isNot(contains('sendTake')));
     semantics.dispose();
   });
+
+  for (final (device, screen, bar, center) in [
+    ('the SE', const Size(375, 667), 20.0, const Offset(42.5, 73.35)),
+    ('an iPad', const Size(820, 1180), 24.0, const Offset(69.2, 103)),
+  ]) {
+    for (final (look, verdeClaro) in [
+      ('light', const Color(0xFF777D45)),
+      ('dark', const Color(0xFFAAB07E)),
+    ]) {
+      testWidgets(
+        'on $device in the $look look the way back on the sheet is her bare '
+        'chevron at 5% and 6%, at 0.6',
+        (tester) async {
+          _on(tester, screen, bar: bar);
+          if (look == 'dark') _inTheDark(tester);
+          final semantics = tester.ensureSemantics();
+          await _seeded(tester, _threeOnSceneOne);
+          await _openThePlan(tester);
+          await _openTheSheetOf(tester, 1);
+
+          final chevron = find.descendant(
+            of: byLabel(_back),
+            matching: find.byType(Icon),
+          );
+          final icon = tester.widget<Icon>(chevron);
+          expect(icon.icon, LucideIcons.chevronLeft);
+          expect(icon.size, 22);
+          expect(
+            icon.color,
+            verdeClaro,
+            reason:
+                'a volta da folha era pintada no cinza do texto, não no verde-claro dela',
+          );
+          expect(
+            _seenOpacity(tester, chevron),
+            closeTo(0.6, 0.001),
+            reason:
+                'a volta da folha era desenhada por inteiro, não discreta como a dela',
+          );
+          final box = tester.getRect(byLabel(_back));
+          expect(box.width, closeTo(44, 0.01));
+          expect(box.height, closeTo(44, 0.01));
+          expect(
+            box.center.dx,
+            closeTo(center.dx, 0.01),
+            reason: 'a volta ficava na borda da coluna, não a 6% da tela',
+          );
+          expect(box.center.dy, closeTo(center.dy, 0.01));
+          semantics.dispose();
+        },
+      );
+    }
+  }
+
+  for (final (device, screen, bar) in [
+    ('the SE', const Size(375, 667), 20.0),
+    ('an iPad', const Size(820, 1180), 24.0),
+  ]) {
+    testWidgets(
+      'on $device the title and the rehearsals start under the way back, '
+      'never beneath it',
+      (tester) async {
+        _on(tester, screen, bar: bar);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        final back = tester.getRect(byLabel(_back));
+        expect(
+          tester.getTopLeft(find.text('Cena 1')).dy,
+          greaterThanOrEqualTo(back.bottom),
+          reason: 'o título começava no alto da folha, sob a volta',
+        );
+        expect(
+          tester
+              .getRect(
+                find.descendant(
+                  of: find.byType(RehearsalSheet),
+                  matching: find.byType(Scrollable),
+                ),
+              )
+              .top,
+          greaterThanOrEqualTo(back.bottom),
+          reason: 'as linhas rolavam por baixo da volta',
+        );
+        semantics.dispose();
+      },
+    );
+  }
+
+  for (final (device, screen) in [
+    ('the SE', const Size(375, 667)),
+    ('an iPad', const Size(820, 1180)),
+  ]) {
+    testWidgets(
+      'on $device «✓ em uso» and every «usar este» sit on their own line '
+      'under the facts, starting where the facts start',
+      (tester) async {
+        _on(tester, screen, bar: 20);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        for (final (n, action) in [(3, _useThis), (2, _inUse), (1, _useThis)]) {
+          final facts = tester.getRect(find.text(_sent(n)));
+          final said = tester.getRect(_onLine(_sent(n), find.text(action)));
+          expect(
+            said.left,
+            closeTo(facts.left, 0.01),
+            reason:
+                'no iPad «usar este» ficava no meio da linha e «✓ em uso» na '
+                'borda direita: $action do ensaio $n',
+          );
+          expect(
+            said.top,
+            greaterThanOrEqualTo(facts.bottom),
+            reason: '$action do ensaio $n dividia a linha com os fatos',
+          );
+        }
+        semantics.dispose();
+      },
+    );
+  }
 
   testWidgets(
     '4. an unsent rehearsal is listed «não enviado» with «usar este», and once '

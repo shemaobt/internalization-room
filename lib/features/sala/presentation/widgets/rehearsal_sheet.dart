@@ -49,9 +49,12 @@ class RehearsalSheet extends ConsumerWidget {
     final colors = SalaColors.of(context);
     String said(String control) => ensaioFinalPlanLabelFor(control, language);
     final onRecordAgain = this.onRecordAgain;
+    final screen = MediaQuery.sizeOf(context);
+    final inset = MediaQuery.viewPaddingOf(context).top;
 
-    return SafeArea(
+    final sheet = SafeArea(
       bottom: false,
+      minimum: EdgeInsets.only(top: inset + screen.height * 0.12),
       child: SizedBox.expand(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -61,24 +64,6 @@ class RehearsalSheet extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Semantics(
-                    button: true,
-                    enabled: !busy,
-                    label: said('back'),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: busy ? null : notifier.closeTheRehearsalSheet,
-                      child: SizedBox(
-                        width: 46,
-                        height: 46,
-                        child: Icon(
-                          LucideIcons.chevronLeft,
-                          size: 24,
-                          color: colors.mut,
-                        ),
-                      ),
-                    ),
-                  ),
                   Text(
                     recordingHomeLabelFor('scene', language, n: number),
                     style: TextStyle(
@@ -127,6 +112,38 @@ class RehearsalSheet extends ConsumerWidget {
           ),
         ),
       ),
+    );
+    return Stack(
+      children: [
+        sheet,
+        Positioned(
+          left: screen.width * 0.06 - 2,
+          top: inset + screen.height * 0.05 - 2,
+          child: Semantics(
+            button: true,
+            enabled: !busy,
+            label: said('back'),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: busy ? null : notifier.closeTheRehearsalSheet,
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Opacity(
+                  opacity: 0.6,
+                  child: Center(
+                    child: Icon(
+                      LucideIcons.chevronLeft,
+                      size: 22,
+                      color: colors.claquete,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -217,35 +234,33 @@ class _SheetLine extends StatelessWidget {
                         style: TextStyle(color: colors.telha, fontSize: 14),
                       ),
                     ),
+                  if (inUse)
+                    Text(
+                      '✓ ${said('inUse')}',
+                      style: TextStyle(color: colors.mut, fontSize: 15),
+                    )
+                  else if (offersToUse)
+                    Semantics(
+                      button: true,
+                      enabled: usable,
+                      label: '$useLabel — $line',
+                      onTap: usable ? onUse : null,
+                      excludeSemantics: true,
+                      child: Opacity(
+                        opacity: waking ? 0.5 : 1,
+                        child: TextButton(
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                          onPressed: usable ? onUse : null,
+                          child: Text(
+                            useLabel,
+                            style: TextStyle(color: colors.telha, fontSize: 15),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
-            if (inUse)
-              Text(
-                '✓ ${said('inUse')}',
-                style: TextStyle(color: colors.mut, fontSize: 15),
-              )
-            else if (offersToUse)
-              Flexible(
-                child: Semantics(
-                  button: true,
-                  enabled: usable,
-                  label: '$useLabel — $line',
-                  onTap: usable ? onUse : null,
-                  excludeSemantics: true,
-                  child: Opacity(
-                    opacity: waking ? 0.5 : 1,
-                    child: TextButton(
-                      onPressed: usable ? onUse : null,
-                      child: Text(
-                        useLabel,
-                        textAlign: TextAlign.end,
-                        style: TextStyle(color: colors.telha, fontSize: 15),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
