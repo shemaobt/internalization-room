@@ -3988,16 +3988,14 @@ class FakeTakeQueue implements TakeUploadQueue {
 
   @override
   Future<Set<String>> recordingsItHolds(Iterable<String> recordings) async {
-    final held = {
-      for (final row in rows)
-        p
-            .basenameWithoutExtension(row.path)
-            .replaceFirst('${row.kind}-', '')
-            .replaceFirst(RegExp('-${row.id}\$'), ''),
-    };
     return {
       for (final recording in recordings)
-        if (held.contains(p.basenameWithoutExtension(recording))) recording,
+        if (rows.any(
+          (row) =>
+              p.basenameWithoutExtension(row.path) ==
+              '${row.kind}-${p.basenameWithoutExtension(recording)}-${row.id}',
+        ))
+          recording,
     };
   }
 

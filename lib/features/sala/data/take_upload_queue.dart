@@ -729,7 +729,11 @@ class TakeUploadQueue {
                   (await copy.lastModified()).isAfter(quarantinedAt)),
         );
       });
-    } on Object catch (error) {
+    } on FileSystemException catch (error) {
+      debugPrint(
+        'As cópias sem linha não puderam ser varridas da fila: $error',
+      );
+    } on MissingPlatformDirectoryException catch (error) {
       debugPrint(
         'As cópias sem linha não puderam ser varridas da fila: $error',
       );
@@ -750,7 +754,7 @@ class TakeUploadQueue {
   }
 
   /// [step] in a turn of its own on the manifest's write chain.
-  Future<void> _inTurn(Future<void> Function() step) {
+  Future<T> _inTurn<T>(Future<T> Function() step) {
     final done = _writes.then((_) => step());
     _writes = done.then((_) {}, onError: (_) {});
     return done;
@@ -760,16 +764,15 @@ class TakeUploadQueue {
   /// written its row or failed to.
   Future<Set<String>> recordingsItHolds(Iterable<String> recordings) async {
     await Future.wait(_copiesBeingMade.values);
-    final held = {
-      for (final row in await entries())
-        p
-            .basenameWithoutExtension(row.path)
-            .replaceFirst('${row.kind}-', '')
-            .replaceFirst(RegExp('-${row.id}\$'), ''),
-    };
+    final rows = await entries();
     return {
       for (final recording in recordings)
-        if (held.contains(p.basenameWithoutExtension(recording))) recording,
+        if (rows.any(
+          (row) =>
+              p.basenameWithoutExtension(row.path) ==
+              '${row.kind}-${p.basenameWithoutExtension(recording)}-${row.id}',
+        ))
+          recording,
     };
   }
 
@@ -1359,11 +1362,8 @@ class TakeUploadQueue {
   }
 
   /// [read] over the manifest as written, in a step of its own between writes.
-  Future<T> _betweenWrites<T>(T Function(List<PendingTake> written) read) {
-    final done = _writes.then((_) async => read(await _written() ?? const []));
-    _writes = done.then((_) {}, onError: (_) {});
-    return done;
-  }
+  Future<T> _betweenWrites<T>(T Function(List<PendingTake> written) read) =>
+      _inTurn(() async => read(await _written() ?? const []));
 
   static bool _holds(List<PendingTake> written, PendingTake entry) =>
       written.any((row) => _sameRow(row, entry));

@@ -2636,10 +2636,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final held = await queue.recordingsItHolds([
       for (final take in takes) take.path,
     ]);
-    for (final path in {
+    final released = {
       for (final take in takes)
         if (take.takeId != null || held.contains(take.path)) take.path,
-    }) {
+    };
+    for (final path in released) {
       await recorder.delete(path);
     }
   }
