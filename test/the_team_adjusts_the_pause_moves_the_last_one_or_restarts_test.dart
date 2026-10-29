@@ -104,6 +104,12 @@ final class _Screen {
     (element) => (element.widget as Semantics).properties.enabled ?? false,
   );
 
+  bool faded(String words) => tester
+      .widgetList<Opacity>(
+        find.descendant(of: byLabel(words), matching: find.byType(Opacity)),
+      )
+      .any((opacity) => opacity.opacity < 1);
+
   int asked(String call) => room.calls.where((asked) => asked == call).length;
 
   bool get theFraseMicrophoneIsOpen => switch (state.channel) {
@@ -759,6 +765,26 @@ void main() {
               'a linha dela ficava embaixo de «recomeçar», depois das frases',
         );
         expect(top(_restartFailed), lessThan(top(_terminei)));
+      },
+    );
+
+    testWidgets(
+      'an armed «recomeçar» is drawn out and cannot be tapped for its 600 ms, then wakes',
+      (tester) async {
+        final screen = await _onScreen(tester, rehearsal: _twoFrases);
+
+        await screen.tap(_restart);
+
+        expect(
+          screen.lit(_armed(2)),
+          isFalse,
+          reason: '«recomeçar» parecia aceso nos 600 ms e ignorava o toque',
+        );
+        expect(screen.faded(_armed(2)), isTrue);
+        await screen.beat(400);
+        expect(screen.lit(_armed(2)), isTrue);
+        expect(screen.faded(_armed(2)), isFalse);
+        await screen.beat(6000);
       },
     );
 

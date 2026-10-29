@@ -324,7 +324,7 @@ class SceneRestartControl extends ConsumerWidget {
               armed == null
                   ? sceneRehearsalLabelFor('restart', language)
                   : retroLabelFor('restartArmed', language, n: n),
-              live: live,
+              live: live && armed != BtRecomeco.armado,
               onTap: ref
                   .read(salaSessionProvider.notifier)
                   .restartTheSceneTranslation,
