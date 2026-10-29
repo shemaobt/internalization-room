@@ -76,6 +76,9 @@ sealed class Sound {
   const Sound(this.path, this.from, this.to);
 
   Source get source;
+
+  Duration inTheFile(Duration position) =>
+      to == null ? position : from + position;
 }
 
 final class PartSound extends Sound {
@@ -190,6 +193,8 @@ sealed class Playing extends Channel {
   Sound get sound;
 
   Duration? get head => opened ? null : sound.from;
+
+  Duration inTheFile(Duration position) => head ?? sound.inTheFile(position);
 }
 
 final class PartPlaying extends Playing {
