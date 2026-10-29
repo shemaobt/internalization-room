@@ -3967,9 +3967,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _handOff(_readThePlan(sessionId));
   }
 
-  /// The plan stands only over a passage the room says has scenes and whose every take,
-  /// on the tablet, in the Outbox or in the room, came from a join, while a scene is left
-  /// to join. A read that fails or has not answered within [planReadWait], a passage with
+  /// The plan stands only over a passage the room says has scenes and whose every take
+  /// in the room's listing came from a join, while a scene is left to join; a hand take
+  /// the room has not received never decides. A read that fails or has not answered within [planReadWait], a passage with
   /// no scenes and rehearsals only in the other language's session ask the grain while
   /// none is in force, and open that grain's recording home otherwise; a read that fails
   /// or runs out with the room's listing unread asks the grain whatever is in force
@@ -4019,16 +4019,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       for (final entry in outbox)
         if (entry.sessionId == sessionId &&
             entry.kind == partTakeKind &&
+            entry.origin != null &&
             (state.grain == null || state.rowOf(entry.scope) != null))
           entry,
     ];
     switch ((takes, rehearsals, scenes)) {
       case (Answered(value: TakesListing(takes: final guardadas)), _, _)
-          when rows.any((row) => row.origin == null) ||
-              _correntes(guardadas).entries.any(
-                (corrente) =>
-                    corrente.key == null || corrente.value.origin == null,
-              ):
+          when _correntes(guardadas).entries.any(
+            (corrente) => corrente.key == null || corrente.value.origin == null,
+          ):
         state = state.copyWith(theRoomJoinedParts: _partesJuntadas(guardadas));
         _openTheRecordingHome(sessionId, listed: guardadas);
       case (

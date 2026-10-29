@@ -454,6 +454,31 @@ void main() {
   );
 
   testWidgets(
+    'a hand take still on the tablet does not hide the other language\'s line, '
+    'the choice stands under it',
+    (tester) async {
+      final (harness, container) = await _atRest(
+        tester,
+        seed: (_) => [_rehearsal('outra-sessao')],
+      );
+      await _aHandTakeHeld(tester, harness, container, scene: 1);
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(
+        find.text(_elsewhere),
+        findsOneWidget,
+        reason:
+            'a gravação que só estava no tablet escondia a linha da outra '
+            'língua',
+      );
+      expect(find.text(_whole), findsOneWidget);
+      expect(find.text(_sceneByScene), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     '5. with a grain in force, the 6 s cut opens that grain\'s home, never the '
     'choice',
     (tester) async {

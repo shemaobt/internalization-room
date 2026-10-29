@@ -1046,8 +1046,8 @@ void main() {
   );
 
   testWidgets(
-    'a take of the passage waiting in the Outbox opens the recording home, '
-    'never the plan',
+    'a take waiting only in the Outbox never decides the dot, the room '
+    'listing nothing opens the plan',
     (tester) async {
       await _reopenedOnTheConversation(
         tester,
@@ -1058,8 +1058,14 @@ void main() {
       await _tapTheDot(tester);
       await _theAnswerSettles(tester);
 
-      expect(find.text(_homeLine), findsOneWidget);
-      expect(find.text(_planLine), findsNothing);
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason:
+            'a gravação que só estava no tablet abria a casa de gravação, e a '
+            'dela abre o plano',
+      );
+      expect(find.text(_homeLine), findsNothing);
     },
   );
 
