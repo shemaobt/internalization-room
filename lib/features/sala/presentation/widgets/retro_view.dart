@@ -184,9 +184,12 @@ class RetroView extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 16),
-            SizedBox(
-              height: 60,
-              child: _actions(session, notifier, language, colors),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 60),
+                child: _actions(session, notifier, language, colors),
+              ),
             ),
             if (session.btPhase == BtPhase.conferida &&
                 (session.approvedDraftDrawn == null ||

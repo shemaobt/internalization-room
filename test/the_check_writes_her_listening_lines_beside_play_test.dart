@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -271,6 +272,46 @@ void main() {
             'o conferido mandava tocar num círculo que não responde: $linha',
       );
     }
+    closeTheRoom(container);
+  });
+
+  testWidgets('on the iPhone SE her longest line beside play keeps 16 points '
+      'from the edge and grows its row, instead of running off or clipping', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(375, 667)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+    await pausarAos(tester, harness, s(4.2));
+
+    final linha = find.descendant(
+      of: find.byType(RetroView),
+      matching: find.textContaining(
+        'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo '
+        'para traduzir — parte 1 · ',
+      ),
+    );
+    expect(linha, findsOneWidget);
+    final paragrafo = tester.renderObject<RenderParagraph>(linha);
+    expect(
+      paragrafo.size.height,
+      greaterThanOrEqualTo(
+        paragrafo.getMaxIntrinsicHeight(paragrafo.size.width),
+      ),
+      reason: 'a fileira de 60 do play cortava a linha comprida',
+    );
+    final play = tester.getRect(byLabel('Ouvir'));
+    final texto = tester.getRect(linha);
+    expect(play.left, greaterThanOrEqualTo(16));
+    expect(texto.left, greaterThan(play.right));
+    expect(
+      texto.right,
+      lessThanOrEqualTo(375 - 16),
+      reason: 'a linha encostava na borda direita do iPhone SE',
+    );
     closeTheRoom(container);
   });
 }
