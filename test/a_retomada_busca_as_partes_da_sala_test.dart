@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,19 +32,25 @@ List<TakeView> _naSala(int partes) => [
 ];
 
 /// A telling-back of the whole of each named part, as the room hands it back.
-BackTranslationProgress _contado(List<int> partes, {bool checked = false}) =>
-    BackTranslationProgress(
-      segments: [
-        for (final n in partes)
-          SegmentView(
-            segmentId: 'trecho-$n',
-            takeId: 'gravacao-$n',
-            startsMs: 0,
-            endsMs: _parte.inMilliseconds,
-          ),
-      ],
-      checked: checked,
-    );
+BackTranslationProgress _contado(
+  List<int> partes, {
+  bool checked = false,
+  bool comATraducao = false,
+}) => BackTranslationProgress(
+  segments: [
+    for (final n in partes)
+      SegmentView(
+        segmentId: 'trecho-$n',
+        takeId: 'gravacao-$n',
+        startsMs: 0,
+        endsMs: _parte.inMilliseconds,
+        bridgeTakeId: comATraducao ? 'retro-$n' : null,
+      ),
+  ],
+  checked: checked,
+);
+
+final _aTraducao = Uint8List.fromList([7, 7, 7]);
 
 String _urlDaParte(String take) => RoomRepository.takeAudioUrl(_sessao, take);
 
@@ -201,6 +208,42 @@ Future<void> _regravarAParteDois(_Retomada it) async {
 }
 
 void main() {
+  test(
+    'a frase contada numa visita anterior toca a tradução da equipe, buscada '
+    'pela gravação que a sala nomeia, não a fatia da parte',
+    () async {
+      final harness = SalaHarness();
+      harness.room.takeAudio['retro-1'] = _aTraducao;
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1], comATraducao: true),
+      );
+      await waitFor(
+        'as partes chegarem na retro',
+        () => it.estado.stage == SalaStage.retro && it.estado.everyPartIsHere,
+      );
+      it.sala.ouvirOTrechoContado(0);
+      await waitFor('a tradução tocar', () => it.estado.btRetroTocando);
+
+      expect(
+        harness.room.clipsFetched,
+        contains(RoomRepository.takeAudioUrl(_sessao, 'retro-1')),
+        reason: 'a tradução nem era pedida à sala',
+      );
+      expect(
+        File(harness.playback.played.last).readAsBytesSync(),
+        _aTraducao,
+        reason:
+            'o alto-falante tocava a fatia da parte, na língua materna, no '
+            'lugar da tradução da equipe',
+      );
+      expect(it.estado.btRetroTocando, isTrue);
+      expect(it.estado.btContaEscolhida, 0);
+    },
+  );
+
   test(
     'uma linha do ensaio sem os arquivos reabre no ensaio com as partes da sala',
     () async {

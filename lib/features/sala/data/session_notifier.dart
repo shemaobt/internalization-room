@@ -8867,6 +8867,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     final traducao = naGravacao ? null : trecho.retroPath;
+    if (!naGravacao && traducao == null) {
+      if (trecho.bridgeTakeId case final contada?) {
+        return _handOff(_ouvirATraducaoDaSala(indice, trecho, contada));
+      }
+    }
     final materna = _ondeTocar(trecho);
     if (traducao == null && materna == null) return;
     final segurada = _tirarAParteDoPlayer();
@@ -8880,6 +8885,36 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               from: materna.$2,
               to: materna.$3,
             ),
+      onComplete: _calarOQueSeOuvia,
+      onFailed: _calarOQueSeOuvia,
+      beneath: segurada,
+    );
+  }
+
+  Future<void> _ouvirATraducaoDaSala(
+    int indice,
+    Trecho trecho,
+    String contada,
+  ) async {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    final life = _thisLife;
+    final clip = await _room.fetchClip(
+      RoomRepository.takeAudioUrl(sessionId, contada),
+    );
+    if (_endedSince(life)) return;
+    if (clip case Answered(:final value) when value.isNotEmpty) {
+      final traducao = await _recorder.keepBytes(value, 'contada-$contada');
+      if (_endedSince(life) || !state.canHearAFrase) return;
+      _tocarATraducao(indice, trecho, traducao);
+    }
+  }
+
+  void _tocarATraducao(int indice, Trecho trecho, String traducao) {
+    final segurada = _tirarAParteDoPlayer();
+    state = state.copyWith(btContaEscolhida: indice);
+    _play(
+      StretchSound(traducao, named: trecho.segmentId, telling: true),
       onComplete: _calarOQueSeOuvia,
       onFailed: _calarOQueSeOuvia,
       beneath: segurada,
@@ -11251,6 +11286,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             lugarTo: aParte >= 0 ? to : (antes?.lugarTo ?? to),
             contado: segment.told,
             frase: segment.frase,
+            bridgeTakeId: segment.bridgeTakeId,
           );
         }(),
     ].where((trecho) => !deLado.contains(trecho.takeId)).toList();
