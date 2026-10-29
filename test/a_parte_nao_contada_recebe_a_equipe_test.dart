@@ -21,7 +21,7 @@ Future<Sala> _parteDoisRegravadaENuncaContada() async {
     reason: 'o cenário só mede alguma coisa se o achado apontar a parte 2',
   );
 
-  it.sala.gravarAParteDeNovo();
+  it.sala.leaveTheBackTranslation();
   await regravarAParte(it, 1);
   await waitFor(
     'a sala nomear a parte gravada de novo',

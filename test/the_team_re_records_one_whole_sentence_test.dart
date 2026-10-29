@@ -1894,7 +1894,7 @@ void main() {
     await regravarAte(tester, harness, 2);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.gravarAParteDeNovo();
+    notifier.leaveTheBackTranslation();
     await _passo(tester);
     notifier.startRetro();
     await _passo(tester);

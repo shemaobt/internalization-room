@@ -64,7 +64,6 @@ void _juntadas(Sala it) {
       ],
       savedAt: value.savedAt,
       language: value.language,
-      partBeingRecordedAgain: value.partBeingRecordedAgain,
       passesToGoAbove: value.passesToGoAbove,
     );
   }

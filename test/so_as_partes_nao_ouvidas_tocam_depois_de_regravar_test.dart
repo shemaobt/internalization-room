@@ -38,7 +38,7 @@ Future<void> _regravada(
     reason: 'o cenário só mede alguma coisa se o achado apontar essa parte',
   );
   if (semNome) it.harness.room.holdNextTake('parte-${onde + 1}');
-  it.sala.gravarAParteDeNovo();
+  it.sala.leaveTheBackTranslation();
   await regravarAParte(it, onde);
   if (!semNome) {
     await waitFor(
@@ -95,7 +95,6 @@ Future<void> _retomadaJuntada(
       ],
       savedAt: value.savedAt,
       language: value.language,
-      partBeingRecordedAgain: value.partBeingRecordedAgain,
       passesToGoAbove: value.passesToGoAbove,
     );
   }
