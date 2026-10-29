@@ -3560,10 +3560,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   List<Trecho> _osTrechosSemAParte(List<Trecho> trechos, int fora) => [
     for (final trecho in trechos)
       if (trecho.parte != fora)
-        trecho.parte < fora ? trecho : _naParte(trecho, trecho.parte - 1),
+        trecho.parte < fora ? trecho : trecho.naParte(trecho.parte - 1),
   ];
-
-  Trecho _naParte(Trecho trecho, int parte) => trecho.naParte(parte);
 
   /// How long each part turned out to be, so the room knows where each part ends.
   ///
@@ -11294,7 +11292,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btTrechos: [
           for (final trecho in state.btTrechos)
             if (naParte[trecho.takeId] case final parte?)
-              _naParte(trecho, parte)
+              trecho.naParte(parte)
             else
               trecho,
         ],
