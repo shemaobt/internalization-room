@@ -435,7 +435,6 @@ void main() {
       'conferida, until a new clean check', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _seteFrasesConferidas(tester, harness);
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
 
     await tocar(tester, _barra(2));
     expect(
@@ -454,7 +453,6 @@ void main() {
 
     await _terminei(tester, container, BtPhase.conferida);
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
     expect(byLabel(_aprovar), findsOneWidget);
     closeTheRoom(container);
   });

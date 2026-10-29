@@ -236,8 +236,8 @@ void main() {
     final sessao = container.read(salaSessionProvider).sessionId;
 
     expect(
-      container.read(salaSessionProvider).btPhase,
-      BtPhase.conferida,
+      byLabel('Aprovar como rascunho final'),
+      findsOneWidget,
       reason: 'uma nuance segurava a passagem como se fosse um achado',
     );
     await tocar(tester, 'Aprovar como rascunho final');

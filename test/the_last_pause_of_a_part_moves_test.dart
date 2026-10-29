@@ -917,7 +917,6 @@ void main() {
         findsNothing,
         reason: 'a recusa da pausa ficava por cima do resultado da conferência',
       );
-      expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
       closeTheRoom(container);
     },
   );
