@@ -448,12 +448,12 @@ class RetroView extends ConsumerWidget {
     ];
   }
 
-  int? _parteNaTela(SalaSessionState session, Trecho trecho) => trecho.parte < 0
+  int? _parteNaTela(SalaSessionState session, Trecho trecho) =>
+      trecho.parte < 0 ||
+          session.partes.elementAtOrNull(trecho.parte)?.scopeId ==
+              KeptScope.whole
       ? null
-      : switch (session.partes.elementAtOrNull(trecho.parte)) {
-          final parte? => KeptScope.numberOf(parte.scopeId),
-          null => trecho.parte + 1,
-        };
+      : session.numeroDaParte(trecho.parte);
 
   List<({bool dela, int onde, Trecho trecho})> _naOrdem(
     SalaSessionState session,
@@ -1019,15 +1019,14 @@ String _oLugar(
   Duration at,
   Duration? length,
   String language,
-) => switch (session.partes.elementAtOrNull(parte)?.scopeId) {
-  KeptScope.whole => sceneClockOf(at, length),
-  final scope => firstListenPositionFor(
-    (scope == null ? null : KeptScope.numberOf(scope)) ?? parte + 1,
-    at,
-    length,
-    language,
-  ),
-};
+) => session.partes.elementAtOrNull(parte)?.scopeId == KeptScope.whole
+    ? sceneClockOf(at, length)
+    : firstListenPositionFor(
+        session.numeroDaParte(parte),
+        at,
+        length,
+        language,
+      );
 
 ({int parte, Duration? ondeFicou})? _parteNoAr(SalaSessionState session) =>
     switch (session.channel) {
