@@ -8074,6 +8074,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _aEscutaRecomecaEm = 0;
     if (ouvida == null || nomes == null) {
       _oQueFaltaOuvir = _OQueFaltaOuvir(deNovo, paraNaUltima: true);
+      state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
       return;
     }
     final faltam = _asPartesNomeadas(nomes);
