@@ -857,7 +857,8 @@ class RetroView extends ConsumerWidget {
             ),
           ),
           if (_aEscuta(session) case final linha
-              when linha != null || _parteNoAr(session) != null) ...[
+              when linha != null ||
+                  !session.btSoOuvir && _parteNoAr(session) != null) ...[
             const SizedBox(width: 11.2),
             Flexible(
               child: _ALinhaDaEscuta(
