@@ -181,9 +181,12 @@ class FraseList extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               child: row.onEstado == null
-                  ? Text(
-                      estado,
-                      style: TextStyle(color: colors.mut, fontSize: 14),
+                  ? Semantics(
+                      liveRegion: row.regravando,
+                      child: Text(
+                        estado,
+                        style: TextStyle(color: colors.mut, fontSize: 14),
+                      ),
                     )
                   : _Pill(
                       label: estado,

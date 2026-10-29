@@ -607,6 +607,45 @@ void main() {
     closeTheRoom(container);
   });
 
+  bool aoVivo(WidgetTester tester, Finder finder) => tester
+      .getSemantics(finder)
+      .getSemanticsData()
+      .flagsCollection
+      .isLiveRegion;
+
+  testWidgets('«enviando…» and then «frase longa demais» are announced as '
+      'they come, on the row', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room
+      ..holdTheSentence = Completer<void>()
+      ..sentenceAnswersFirst.add(const Refused('SENTENCE_TOO_LONG'));
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      aoVivo(tester, naLinha('enviando…')),
+      isTrue,
+      reason: 'o VoiceOver não dizia que a frase estava indo',
+    );
+
+    harness.room.holdTheSentence!.complete();
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      aoVivo(tester, naLinha('frase longa demais — regravem a cena')),
+      isTrue,
+      reason: 'o VoiceOver não dizia que a frase era longa demais',
+    );
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
   testWidgets('a sentence held on the tablet comes back with its session, and '
       'one tap sends that recording under the id it was kept by', (
     tester,
