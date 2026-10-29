@@ -10513,6 +10513,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (failure case NetworkFailed()) {
           state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
           _decideAt(failure, door: Door.verdict);
+          state = state.copyWith(btPhase: pressedFrom);
           return;
         }
         _decideTheFailure(failure);

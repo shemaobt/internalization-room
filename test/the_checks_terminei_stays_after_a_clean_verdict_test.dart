@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -169,6 +170,27 @@ void main() {
       container.read(salaSessionProvider).btPhase,
       BtPhase.conferida,
       reason: 'a recusa do segundo terminei devolvia a equipe à tradução',
+    );
+    expect(byLabel(aprovar), findsOneWidget);
+    expect(
+      find.text('não deu para conferir agora — tentem de novo'),
+      findsOneWidget,
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a check lost on the network over a checked telling leaves the '
+      'team on the approval, not back on the telling', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _ateAConferida(tester, harness);
+    harness.room.failFinishWith = const NetworkFailed('sem rede');
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.conferida,
+      reason: 'o segundo terminei sem rede devolvia a equipe à tradução',
     );
     expect(byLabel(aprovar), findsOneWidget);
     expect(
