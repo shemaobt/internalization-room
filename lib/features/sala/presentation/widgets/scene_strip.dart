@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/playback_repository.dart';
+import '../../domain/channel.dart';
 import '../../domain/pausa.dart';
 import '../../domain/scene_rehearsal.dart';
 import 'motion.dart';
@@ -98,6 +99,8 @@ class SceneStrip extends ConsumerWidget {
   final List<SceneFrase> stale;
   final Duration? pausa;
   final bool playing;
+  final PartPlaying? take;
+  final Duration? stoppedAt;
   final double width;
 
   const SceneStrip({
@@ -108,6 +111,8 @@ class SceneStrip extends ConsumerWidget {
     this.stale = const [],
     required this.pausa,
     required this.playing,
+    this.take,
+    this.stoppedAt,
     this.width = SceneStrip.fullWidth,
   });
 
@@ -122,14 +127,16 @@ class SceneStrip extends ConsumerWidget {
         reducible: false,
         builder: (context, _) => CustomPaint(
           size: Size(width, height),
-          painter: _StripPainter(
+          painter: SceneStripPainter(
             sceneStripOf(
               width: width,
               length: length,
               envelope: envelope,
               frases: frases,
               stale: stale,
-              playhead: playing ? playback.position : null,
+              playhead: playing
+                  ? take?.inTheFile(playback.position) ?? playback.position
+                  : stoppedAt,
               pausa: pausa,
             ),
             colors,
@@ -140,11 +147,11 @@ class SceneStrip extends ConsumerWidget {
   }
 }
 
-class _StripPainter extends CustomPainter {
+class SceneStripPainter extends CustomPainter {
   final SceneStripDrawing drawing;
   final SalaColors colors;
 
-  const _StripPainter(this.drawing, this.colors);
+  const SceneStripPainter(this.drawing, this.colors);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -206,5 +213,5 @@ class _StripPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_StripPainter old) => true;
+  bool shouldRepaint(SceneStripPainter old) => true;
 }
