@@ -4197,7 +4197,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool elsewhere = false,
     bool unread = false,
   }) {
-    if (state.grain != null && !unread) {
+    if (state.grainInForce != null && !unread) {
       return _openTheRecordingHome(sessionId, listed: listed);
     }
     state = state.copyWith(ensaioFinalPlan: GrainAsked(elsewhere: elsewhere));

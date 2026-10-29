@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -306,6 +307,28 @@ Future<PendingTake> _aHandTakeHeld(
   return held;
 }
 
+File _anAudioFile(String scope) {
+  final folder = Directory.systemTemp.createTempSync('sala-2078');
+  addTearDown(() => folder.deleteSync(recursive: true));
+  return File('${folder.path}/$scope.m4a')..writeAsBytesSync([1, 2, 3, 4]);
+}
+
+/// A take of [scope] an earlier visit left in the Outbox, for a room that cannot take it.
+void _waitsInTheOutbox(SalaHarness harness, String scope, File audio) {
+  harness.room.unreachableTake = 'ensaio/$scope';
+  (harness.takes as FakeTakeQueue).rows.add(
+    PendingTake(
+      id: 'na-fila-$scope',
+      path: audio.path,
+      sessionId: 'sessao-antiga',
+      kind: 'ensaio',
+      scope: scope,
+      passNumber: 1,
+      chunkIndex: KeptScope.numberOf(scope),
+    ),
+  );
+}
+
 Future<void> _recordAndKeep(
   WidgetTester tester,
   ProviderContainer container,
@@ -431,6 +454,72 @@ void main() {
 
       expect(find.text(_how), findsOneWidget);
       expect(find.text(_thinking), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a part an earlier visit kept on the tablet never answers for the grain, '
+    'the room naming none shows the choice',
+    (tester) async {
+      final audio = _anAudioFile(KeptScope.parte(1));
+      final (_, container) = await _reopened(
+        tester,
+        stage: SalaStage.ensaio,
+        scenes: const [],
+        roomTakes: const [],
+        keptTakes: [KeptTake(scopeId: KeptScope.parte(1), path: audio.path)],
+        before: (harness) =>
+            _waitsInTheOutbox(harness, KeptScope.parte(1), audio),
+      );
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(container.read(salaSessionProvider).partes, hasLength(1));
+      expect(
+        find.text(_how),
+        findsOneWidget,
+        reason:
+            'a gravação que ficou no tablet decidia o grão, e a sala não '
+            'nomeava nenhum',
+      );
+      expect(find.text(_homeLine), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a part an earlier visit kept on the tablet never answers for the grain at '
+    'the 6 s cut, the room\'s listing naming none',
+    (tester) async {
+      final audio = _anAudioFile(KeptScope.parte(1));
+      final (harness, container) = await _reopened(
+        tester,
+        stage: SalaStage.ensaio,
+        roomTakes: const [],
+        keptTakes: [KeptTake(scopeId: KeptScope.parte(1), path: audio.path)],
+        before: (harness) =>
+            _waitsInTheOutbox(harness, KeptScope.parte(1), audio),
+      );
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room.holdNextSceneList();
+
+      await _tapTheDot(tester);
+      await tester.pump(const Duration(milliseconds: 6000));
+      await _settles(tester);
+
+      expect(container.read(salaSessionProvider).partes, hasLength(1));
+      expect(
+        find.text(_how),
+        findsOneWidget,
+        reason:
+            'com a listagem lida e sem grão, o corte dos 6 s abria a casa do '
+            'grão que o tablet tirou das suas gravações',
+      );
+      expect(find.text(_homeLine), findsNothing);
+      harness.room.finishHeldSceneList();
     },
   );
 
