@@ -250,13 +250,16 @@ class SceneTranslateStep extends ConsumerWidget {
     _ => null,
   };
 
-  /// Her hint: a frase translated again, listening or her clock alone; else the pausa
-  /// waiting, the take playing with her clock, the end of the take, or the take paused;
-  /// nothing before the team listens.
+  /// Her hint: «enviando…» while «terminei» is in the air; a frase translated again,
+  /// listening or her clock alone; else the pausa waiting, the take playing with her
+  /// clock, the end of the take, or the take paused; nothing before the team listens.
   String? _hintOf({required bool playing, required Duration at}) {
     final end = scene.takeEnd;
     final pausa = scene.pausa;
     final clock = playing ? at : stoppedAt;
+    if (sending && !scene.wentToTheVoice) {
+      return sceneRehearsalLabelFor('sending', language);
+    }
     if (!scene.listened) return null;
     if (scene.translatingAgain != null) {
       if (playing) return sceneListeningLineFor(at, scene.length, language);
