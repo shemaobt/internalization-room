@@ -1199,7 +1199,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Say a reply, loading it once more when the machine asks after a failed load
-  /// (ADR 0140).
+  /// (ADR 0152).
   ///
   /// [asked] is a replay, which goes straight to speaking for a line already held.
   /// [remember] is false only for a retro verdict the room could not compose. Every
@@ -2802,6 +2802,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           unawaited(_countUnsent());
         } else {
           _keepTheStretchesAlreadyTold(snapshot.backTranslation);
+          unawaited(_relatarASala(sessionId, const []));
         }
         // The snapshot was fetched here and its halt never read, so a team reopening
         // into a room the server had already stopped met every gesture wide open.
@@ -8666,6 +8667,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
+  void ouvirAFraseRegravada(int indice) =>
+      _gesture(() => _ouvirAFraseRegravada(indice));
+
+  void _ouvirAFraseRegravada(int indice) {
+    if (!state.canHearAFrase) return;
+    final trecho = state.btTrechosRegravados.elementAtOrNull(indice);
+    final traducao = trecho?.retroPath;
+    if (trecho == null || traducao == null) return;
+    final segurada = _tirarAParteDoPlayer();
+    state = state.copyWith(btContaEscolhida: indice);
+    _play(
+      StretchSound(traducao, named: trecho.segmentId, telling: true),
+      onComplete: _calarOQueSeOuvia,
+      onFailed: _calarOQueSeOuvia,
+      beneath: segurada,
+    );
+  }
+
   void ouvirOTrechoPendente() => _gesture(() => _ouvirOTrechoPendente());
 
   void abrirAChecagemExterna() => _gesture(() {
@@ -9654,9 +9673,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // The telling just recorded is this stretch's own. Only a first telling used to keep
     // its file, so from the first correction on the blue voice played back the very
     // explanation the analyst had refused.
+    final regravada = state.btTrechosRegravados.any(
+      (trecho) => trecho.segmentId == alvo.segmentId,
+    );
     final trechos = _trechosFrom(
       segments,
-      lugar: lugar,
+      lugar: regravada
+          ? segments.indexWhere(
+              (segment) =>
+                  segment.takeId == alvo.takeId &&
+                  segment.startsMs == alvo.from.inMilliseconds,
+            )
+          : lugar,
       noLugarDe: alvo,
       contadoEm: path,
     );
@@ -9667,6 +9695,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.playing,
       awaitingTheGuide: false,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
+      btTrechosRegravados: [
+        for (final trecho in state.btTrechosRegravados)
+          if (trecho.segmentId != alvo.segmentId) trecho,
+      ],
       clearTraducaoPendente: true,
       clearBtFraseQueAguarda:
           alvo.segmentId != null && alvo.segmentId == state.btFraseQueAguarda,
@@ -10273,6 +10305,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (sent) {
       case Answered(:final value):
         if (_abandoned(generation)) return;
+        unawaited(_relatarASala(sessionId, const []));
         frase = value.frase;
         nome = value.segmentId;
       case Refused(code: RefusalCode.stretchNoLongerCounts) && final refused:
@@ -10905,10 +10938,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _stretchesAt = sent;
           final trechos = _trechosFrom(snapshot.backTranslation.segments);
           if (trechos.isNotEmpty) state = state.copyWith(btTrechos: trechos);
+          final numeros = {
+            for (final regravada in snapshot.backTranslation.stale)
+              regravada.segmentId: regravada.frase,
+          };
           final aguardando = snapshot.backTranslation.awaitingSegmentId;
           state = state.copyWith(
             btFraseQueAguarda: aguardando,
             clearBtFraseQueAguarda: aguardando == null,
+            btTrechosRegravados: [
+              for (final trecho in state.btTrechosRegravados)
+                Trecho(
+                  segmentId: trecho.segmentId,
+                  takeId: trecho.takeId,
+                  retroPath: trecho.retroPath,
+                  parte: trecho.parte,
+                  from: trecho.from,
+                  to: trecho.to,
+                  lugarFrom: trecho.lugarFrom,
+                  lugarTo: trecho.lugarTo,
+                  contado: trecho.contado,
+                  frase: numeros[trecho.segmentId],
+                ),
+            ],
           );
         }
         _applyTheSessionRead(snapshot, sent);
@@ -11192,6 +11244,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearAviso: true,
     );
     _leadThemToTheTrecho(trecho, ate: fimMovido);
+  }
+
+  void traduzirAFraseRegravadaDeNovo(int indice) =>
+      _gesture(() => _traduzirAFraseRegravadaDeNovo(indice));
+
+  void _traduzirAFraseRegravadaDeNovo(int indice) {
+    if (!state.canRetellAFrase) return;
+    final regravada = state.btTrechosRegravados.elementAtOrNull(indice);
+    if (regravada == null) return;
+    final takeId = state.partes.elementAtOrNull(regravada.parte)?.takeId;
+    if (regravada.segmentId == null || takeId == null) return;
+    final trecho = Trecho(
+      segmentId: regravada.segmentId,
+      takeId: takeId,
+      retroPath: regravada.retroPath,
+      parte: regravada.parte,
+      from: regravada.lugarFrom,
+      to: regravada.lugarTo,
+      lugarFrom: regravada.lugarFrom,
+      lugarTo: regravada.lugarTo,
+      contado: true,
+      frase: regravada.frase,
+    );
+    if (!state.aParteDoTrechoEstaAqui(trecho)) return;
+    if (!_traduzirOTrechoDeNovo(trecho)) return;
+    state = state.copyWith(
+      btPausaSoNaUltima: state.anEarlierPauseStays(
+        trecho,
+        naFase: _faseAntesDeTraduzirDeNovo,
+      ),
+      clearAviso: true,
+    );
+    _leadThemToTheTrecho(trecho);
   }
 
   bool _traduzirOTrechoDeNovo(Trecho trecho) {
