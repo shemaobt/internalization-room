@@ -547,6 +547,46 @@ void main() {
     );
   }
 
+  for (final (device, screen, left, right) in [
+    ('the SE', const Size(375, 667), 30.0, 345.0),
+    ('an iPad', const Size(820, 1180), 175.0, 645.0),
+  ]) {
+    testWidgets(
+      'on $device the sheet stands in her centred column, never a wide one '
+      'pushed to the left',
+      (tester) async {
+        _on(tester, screen, bar: 20);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        for (final n in [3, 2, 1]) {
+          final card = tester.getRect(byLabel(_sent(n)));
+          expect(
+            card.left,
+            closeTo(left, 0.01),
+            reason: 'a coluna da folha tinha 600 de largura e 16 de margem',
+          );
+          expect(card.right, closeTo(right, 0.01));
+        }
+        for (final said in [
+          'Cena 1',
+          _threeScenes[0].title,
+          _swap,
+          _recordAgain,
+        ]) {
+          expect(
+            tester.getCenter(find.text(said)).dx,
+            closeTo(screen.width / 2, 0.01),
+            reason: 'o texto da folha começava na borda esquerda: $said',
+          );
+        }
+        semantics.dispose();
+      },
+    );
+  }
+
   testWidgets(
     '4. an unsent rehearsal is listed «não enviado» with «usar este», and once '
     'used it holds the row and opens «juntar»',

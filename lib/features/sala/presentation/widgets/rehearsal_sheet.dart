@@ -56,58 +56,68 @@ class RehearsalSheet extends ConsumerWidget {
       minimum: EdgeInsets.only(top: inset + screen.height * 0.12),
       child: SizedBox.expand(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    recordingHomeLabelFor('scene', language, n: number),
-                    style: TextStyle(
-                      color: colors.ink,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    title,
-                    style: TextStyle(color: colors.mut, fontSize: 15),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(sub, style: TextStyle(color: colors.mut, fontSize: 14)),
-                  const SizedBox(height: 16),
-                  for (final candidate in candidates)
-                    _SheetLine(
-                      rehearsal: candidate,
-                      inUse: candidate.rehearsalId == inUseId,
-                      offersToUse: offersToUse(candidate),
-                      note: noteOf?.call(candidate) ?? _cannotEnter(candidate),
-                      useLabel: useLabelOf?.call(candidate) ?? said('useThis'),
-                      waking: wakingOf?.call(candidate) ?? false,
-                      playing: listening?.rehearsalId == candidate.rehearsalId,
-                      language: language,
-                      busy: busy,
-                      onPlay: () =>
-                          notifier.playARehearsal(candidate.rehearsalId),
-                      onUse: () =>
-                          notifier.useThisRehearsal(candidate.rehearsalId),
-                    ),
-                  if (onRecordAgain != null) ...[
-                    const SizedBox(height: 24),
-                    TextButton(
-                      onPressed: busy ? null : onRecordAgain,
-                      child: Text(
-                        said('recordSceneAgain'),
-                        style: TextStyle(color: colors.telha, fontSize: 15),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 32),
-                ],
+          padding: EdgeInsets.symmetric(horizontal: screen.width * 0.08),
+          child: Column(
+            children: [
+              Text(
+                recordingHomeLabelFor('scene', language, n: number),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colors.ink,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.mut, fontSize: 15),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                sub,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.mut, fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 470),
+                child: Column(
+                  children: [
+                    for (final candidate in candidates)
+                      _SheetLine(
+                        rehearsal: candidate,
+                        inUse: candidate.rehearsalId == inUseId,
+                        offersToUse: offersToUse(candidate),
+                        note:
+                            noteOf?.call(candidate) ?? _cannotEnter(candidate),
+                        useLabel:
+                            useLabelOf?.call(candidate) ?? said('useThis'),
+                        waking: wakingOf?.call(candidate) ?? false,
+                        playing:
+                            listening?.rehearsalId == candidate.rehearsalId,
+                        language: language,
+                        busy: busy,
+                        onPlay: () =>
+                            notifier.playARehearsal(candidate.rehearsalId),
+                        onUse: () =>
+                            notifier.useThisRehearsal(candidate.rehearsalId),
+                      ),
+                  ],
+                ),
+              ),
+              if (onRecordAgain != null) ...[
+                const SizedBox(height: 24),
+                TextButton(
+                  onPressed: busy ? null : onRecordAgain,
+                  child: Text(
+                    said('recordSceneAgain'),
+                    style: TextStyle(color: colors.telha, fontSize: 15),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 32),
+            ],
           ),
         ),
       ),
