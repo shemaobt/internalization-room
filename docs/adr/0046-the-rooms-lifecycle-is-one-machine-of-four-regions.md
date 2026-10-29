@@ -198,7 +198,8 @@ read sets or clears it, and it is drawn only on the checked telling-back.
 
 Extended by name (ENG-1954, 2026-10-29), same end date: two more of the Listening ledger's
 reports, each with nothing to report, whose answer is held for a return out of the room's
-reach (ADR 0140 rule 4). One goes when a resume lands on the passage's home, and one when
+reach (ADR 0140 rule 4). One goes when a resume lands outside the Back-translation (a
+resume into it already reports on its way back to the check), and one when
 the room keeps a told stretch. With them goes the answer they keep, `_oQueASalaDisse`, and
 its order, `_relatosASala`, two private fields of `SalaSessionNotifier`. No Station opens or
 resumes differently.

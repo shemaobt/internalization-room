@@ -38,7 +38,7 @@ decision in a44568c2.
    to the passage it last held (`Drafting.tsx:1084`), which every heard report keeps up to
    date (`:422`). Every report keeps its answer, and an answer older than the one held never
    replaces it. A held answer is not "no answer". The room is also asked, with nothing to
-   report, when a resume lands on the passage's home and when it keeps a told stretch
+   report, when a resume lands outside the Back-translation and when it keeps a told stretch
    (ENG-1954). Hers reads the passage when the screen mounts (`:560`) and takes it from every
    frase answer (`:1197`), so a Life that resumed and reported nothing is answered too, and a
    stretch left open by the frase just kept is said.
