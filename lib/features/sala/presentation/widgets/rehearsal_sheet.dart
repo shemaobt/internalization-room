@@ -7,6 +7,7 @@ import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/scene_rehearsal.dart';
 import 'bead_styles.dart';
+import 'way_back_chevron.dart';
 
 /// Her `EnsaioFinalSheet`: one scene's rehearsals, newest first, the one the row holds
 /// «✓ em uso» and «usar este» on the others its row offers; over the plan or over the
@@ -128,15 +129,9 @@ class RehearsalSheet extends ConsumerWidget {
               child: SizedBox(
                 width: 44,
                 height: 44,
-                child: Opacity(
+                child: const Opacity(
                   opacity: 0.6,
-                  child: Center(
-                    child: Icon(
-                      LucideIcons.chevronLeft,
-                      size: 22,
-                      color: colors.claquete,
-                    ),
-                  ),
+                  child: Center(child: WayBackChevron()),
                 ),
               ),
             ),
