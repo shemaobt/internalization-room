@@ -14,6 +14,7 @@ import 'listen_glyph.dart';
 import 'rehearsal_sheet.dart';
 import 'scene_question.dart';
 import 'stage_heading.dart';
+import 'unsent_notice.dart';
 import 'way_back_button.dart';
 
 /// Her Ensaio Final plan: «pensando…» while the room is read, then her heading and line,
@@ -105,6 +106,11 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                     height: 1.35,
                   ),
                 ),
+              ),
+              UnsentNotice(
+                session: session,
+                language: language,
+                onSend: notifier.enviarACena,
               ),
               if (session.sceneLine == SceneLine.diskFailed)
                 Semantics(

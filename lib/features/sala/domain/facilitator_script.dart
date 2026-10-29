@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'kept_take.dart';
 import 'moment.dart';
 import 'scene_rehearsal.dart';
 
@@ -812,6 +813,16 @@ String recordingHomeLabelFor(String key, String language, {int? n}) =>
     (recordingHomeLabels[key]![language] ??
             recordingHomeLabels[key]![floorLanguage]!)
         .replaceAll('{n}', '$n');
+
+String? sendNowLabelFor(UnsentPart part, String name, String language) =>
+    switch (part) {
+      UnsentPart(fromAnEarlierVisit: true, :final length) => [
+        name,
+        if (length != null) ' · ${minutesAndSecondsOf(length)}',
+        ' — ${recordingHomeLabelFor('sendNow', language)}',
+      ].join(),
+      _ => null,
+    };
 
 const findingLabels = {
   'recordThePart': {
