@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,6 +23,20 @@ import 'fakes.dart';
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
 );
+
+List<String> labelsHeard(WidgetTester tester) {
+  final labels = <String>[];
+  bool visit(SemanticsNode node) {
+    labels.add(node.label);
+    node.visitChildren(visit);
+    return true;
+  }
+
+  visit(
+    tester.binding.renderViews.first.owner!.semanticsOwner!.rootSemanticsNode!,
+  );
+  return labels;
+}
 
 Finder get thePersonSign => find.descendant(
   of: find.descendant(

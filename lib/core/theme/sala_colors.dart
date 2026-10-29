@@ -139,7 +139,7 @@ class SalaColors extends ThemeExtension<SalaColors> {
     momentoInk: Color(0xFFECEADC),
     claquete: Color(0xFFAAB07E),
     shemaMark: ShemaBrand.branco,
-    personSignWash: Color(0x3389AAA3),
+    personSignWash: Color(0x2989AAA3),
     verde: Color(0xFFECEADC),
     verdeClaro: Color(0xFFAAB07E),
   );

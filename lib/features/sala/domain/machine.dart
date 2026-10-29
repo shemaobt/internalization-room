@@ -1092,8 +1092,8 @@ final class Machine {
 
   final bool wordlessTelling;
 
-  /// A scene rehearsal's look found nothing: the person sign shows once the team is
-  /// back on the Canvas.
+  /// A halt met on the scene rehearsal or the external check: the person sign
+  /// shows once the team is back on the Canvas.
   final bool aHaltWaitsForTheCanvas;
 
   final bool theCanvasEnded;
@@ -1457,7 +1457,7 @@ const _watch = ArmTheWatch();
     machine.copyWith(aHaltWaitsForTheCanvas: true),
     const [LetTheStepGo(), TellTheSendFailed(), ReadTheSceneRehearsals()],
   ),
-  TheSceneTurnFoundNothing() => _theHalt(machine, const RoomRaisedAHalt()),
+  TheSceneTurnFoundNothing() => reduce(machine, const RoomRaisedAHalt()),
   TheTellingCameBackEmpty() when machine.station is Retro => (
     machine.copyWith(wordlessTelling: true),
     const [LetThePendingTranslationGo()],
@@ -1515,6 +1515,10 @@ const _watch = ArmTheWatch();
       (final resumed, final looks) => (resumed, [...effects, ...looks]),
     },
   },
+  RoomRaisedAHalt()
+      when machine.station is SceneRehearsal ||
+          machine.station is ChecagemExterna =>
+    (machine.copyWith(aHaltWaitsForTheCanvas: true), const <Effect>[]),
   RoomRaisedAHalt() ||
   TheAnswerWarned() ||
   TeamTapped() ||
